@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: 2024-present Loom Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "loom"
+version = "0.1.0"
+description = "Creating SBOM during the build process. Now targeting Python Hatchling support."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+keywords = [
+    "sbom",
+    "bom",
+    "spdx",
+    "software bill of materials",
+    "hatchling",
+    "supply chain",
+]
+authors = [
+    { name = "Loom Contributors" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Security",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+loom = "loom.__main__:main"
+
+[project.urls]
+Documentation = "https://github.com/bact/loom#readme"
+Issues = "https://github.com/bact/loom/issues"
+Source = "https://github.com/bact/loom"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.github",
+    "/design-docs",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loom"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501", # line too long, handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["loom"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
