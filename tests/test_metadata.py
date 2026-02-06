@@ -19,7 +19,7 @@ name = "test-package"
 version = "1.0.0"
 description = "A test package"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = ["test", "package"]
 dependencies = ["requests>=2.28.0", "numpy==1.24.0"]
@@ -44,7 +44,7 @@ Source = "https://github.com/test/test-package"
         assert metadata.version == "1.0.0"
         assert metadata.description == "A test package"
         assert metadata.readme == "README.md"
-        assert metadata.requires_python == ">=3.9"
+        assert metadata.requires_python == ">=3.10"
         assert metadata.license_name == "MIT"
         assert metadata.keywords == ["test", "package"]
         assert len(metadata.authors) == 1

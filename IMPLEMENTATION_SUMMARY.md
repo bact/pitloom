@@ -132,7 +132,7 @@ src/loom/
 ### 3. Best Practices
 
 - src-layout for proper package structure
-- Type hints with Python 3.9+ compatibility
+- Type hints with Python 3.10+ compatibility
 - Comprehensive error handling
 - No external runtime dependencies (pure Python)
 

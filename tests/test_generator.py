@@ -109,7 +109,7 @@ name = "sentimentdemo"
 dynamic = ["version"]
 description = "A simple sentiment analysis application"
 readme = "README.md"
-requires-python = ">=3.9,<3.12"
+requires-python = ">=3.10"
 license = "CC0-1.0"
 keywords = ["sbom", "spdx", "ai", "nlp"]
 authors = [{ name = "Test Author", email = "test@example.com" }]
