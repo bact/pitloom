@@ -135,6 +135,7 @@ python -m build
 - [x] Hatchling metadata extraction
 - [x] Dependency tracking
 - [ ] Support for setuptools
+- [ ] Integration with spdx-python-model (see [design doc](design-docs/spdx-python-model-integration.md))
 - [ ] Build log extraction for compiled dependencies
 - [ ] AI/ML package profiles (AIPackage, DatasetPackage)
 - [ ] PEP 770 support (.dist-info/sboms)
