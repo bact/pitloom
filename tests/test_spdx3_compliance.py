@@ -49,7 +49,7 @@ dependencies = ["requests>=2.28.0"]
         for element in graph:
             assert "type" in element, "Every element must have a type"
             
-            # CreationInfo itself doesn't have a creationInfo field
+            # CreationInfo itself does not have a creationInfo field
             if element["type"] != "CreationInfo":
                 assert "creationInfo" in element, f"{element['type']} must have creationInfo"
 

@@ -164,7 +164,7 @@ def _extract_version_from_file(file_path: Path) -> str | None:
         str | None: Version string or None if not found
     """
     try:
-        content = file_path.read_text()
+        content = file_path.read_text(encoding="utf-8")
         # Look for __version__ = "x.y.z" pattern
         for line in content.split("\n"):
             if "__version__" in line and "=" in line:
@@ -173,6 +173,8 @@ def _extract_version_from_file(file_path: Path) -> str | None:
                 if len(parts) == 2:
                     version_str = parts[1].strip().strip('"').strip("'")
                     return version_str
-    except Exception:
+    except (OSError, UnicodeDecodeError) as e:
+        # Log error but don't fail - version extraction is optional
+        # In production, could use logging.debug() here
         pass
     return None

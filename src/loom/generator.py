@@ -69,13 +69,20 @@ def generate_sbom_from_project(
     package_version = metadata.version or "unknown"
     download_location = metadata.urls.get("Source") or metadata.urls.get("Homepage")
 
+    # Extract copyright year from metadata if available, otherwise use current year
+    copyright_year = datetime.now().year
+    # Use first author if available, otherwise use package name
+    copyright_holder = metadata.name
+    if metadata.authors:
+        copyright_holder = metadata.authors[0].get("name", metadata.name)
+
     main_package = SoftwarePackage(
         name=metadata.name,
         version=package_version,
         description=metadata.description,
         download_location=download_location,
         homepage=metadata.urls.get("Homepage"),
-        copyright_text=f"Copyright (c) {datetime.now().year} {metadata.name} authors",
+        copyright_text=f"Copyright (c) {copyright_year} {copyright_holder}",
         primary_purpose="library",
         creation_info=creation_info,
     )
