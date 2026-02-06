@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2024-present Loom Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+name: Lint and Format
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  ruff:
+    name: Ruff (Lint & Format)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Ruff
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff
+
+    - name: Run Ruff linter
+      run: |
+        ruff check src/ tests/
+
+    - name: Run Ruff formatter check
+      run: |
+        ruff format --check src/ tests/

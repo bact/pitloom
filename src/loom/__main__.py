@@ -80,6 +80,7 @@ def main() -> int:
     except Exception as e:
         print(f"Error generating SBOM: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 

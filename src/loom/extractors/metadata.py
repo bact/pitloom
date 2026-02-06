@@ -173,7 +173,7 @@ def _extract_version_from_file(file_path: Path) -> str | None:
                 if len(parts) == 2:
                     version_str = parts[1].strip().strip('"').strip("'")
                     return version_str
-    except (OSError, UnicodeDecodeError) as e:
+    except (OSError, UnicodeDecodeError):
         # Log error but don't fail - version extraction is optional
         # In production, could use logging.debug() here
         pass

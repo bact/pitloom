@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: 2024-present Loom Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+name: Type Checking
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  mypy:
+    name: mypy
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install mypy
+        pip install -e .
+
+    - name: Run mypy
+      run: |
+        mypy src/loom --ignore-missing-imports --no-strict-optional
+      continue-on-error: true
+
+  pyright:
+    name: pyright
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyright
+        pip install -e .
+
+    - name: Run pyright
+      run: |
+        pyright src/loom
+      continue-on-error: true
+
+  pyrefly:
+    name: pyrefly (via pyflakes)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyflakes
+        pip install -e .
+
+    - name: Run pyflakes
+      run: |
+        pyflakes src/loom
+      continue-on-error: true

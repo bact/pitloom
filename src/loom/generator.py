@@ -109,7 +109,14 @@ def generate_sbom_from_project(
     # Add dependency packages and relationships
     for dep in metadata.dependencies:
         # Parse dependency string (e.g., "fasttext==0.9.3" or "numpy>=1.20.0")
-        dep_name = dep.split("==")[0].split(">=")[0].split("<=")[0].split(">")[0].split("<")[0].strip()
+        dep_name = (
+            dep.split("==")[0]
+            .split(">=")[0]
+            .split("<=")[0]
+            .split(">")[0]
+            .split("<")[0]
+            .strip()
+        )
         dep_version = None
 
         if "==" in dep:
