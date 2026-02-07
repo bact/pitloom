@@ -26,7 +26,6 @@ authors = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -38,6 +37,7 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
+    "pyproject-metadata>=0.10.0",
     "tomli>=2.0.0; python_version<'3.11'",
 ]
 

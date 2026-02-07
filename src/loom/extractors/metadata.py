@@ -2,13 +2,15 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for Python project metadata from pyproject.toml using Hatchling."""
+"""Extractor for Python project metadata from pyproject.toml."""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 from typing import Any
+
+from pyproject_metadata import StandardMetadata
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -17,37 +19,144 @@ else:
 
 
 class ProjectMetadata:
-    """Represents extracted Python project metadata."""
+    """Wrapper around StandardMetadata with provenance tracking.
+
+    This class wraps pyproject_metadata.StandardMetadata and adds
+    provenance tracking for metadata fields to support SBOM generation.
+    """
 
     def __init__(
         self,
-        name: str,
-        version: str | None = None,
-        description: str | None = None,
-        readme: str | None = None,
-        requires_python: str | None = None,
-        license_name: str | None = None,
-        keywords: list[str] | None = None,
-        authors: list[dict[str, str]] | None = None,
-        urls: dict[str, str] | None = None,
-        dependencies: list[str] | None = None,
+        standard_metadata: StandardMetadata,
         provenance: dict[str, str] | None = None,
+        readme_override: str | None = None,
     ) -> None:
-        self.name = name
-        self.version = version
-        self.description = description
-        self.readme = readme
-        self.requires_python = requires_python
-        self.license_name = license_name
-        self.keywords = keywords or []
-        self.authors = authors or []
-        self.urls = urls or {}
-        self.dependencies = dependencies or []
+        """Initialize ProjectMetadata from StandardMetadata.
+
+        Args:
+            standard_metadata: The StandardMetadata instance from pyproject-metadata
+            provenance: Dictionary tracking the source of each metadata field
+            readme_override: Optional readme value to use when file doesn't exist
+        """
+        self._standard_metadata = standard_metadata
         self.provenance = provenance or {}
+        self._readme_override = readme_override
+
+    @property
+    def name(self) -> str:
+        """Project name."""
+        return self._standard_metadata.name
+
+    @property
+    def version(self) -> str | None:
+        """Project version."""
+        version = self._standard_metadata.version
+        return str(version) if version else None
+
+    @property
+    def description(self) -> str | None:
+        """Project description."""
+        return self._standard_metadata.description
+
+    @property
+    def readme(self) -> str | None:
+        """Project readme file or text."""
+        # Use override if provided (for cases where file doesn't exist)
+        if self._readme_override is not None:
+            return self._readme_override
+
+        readme = self._standard_metadata.readme
+        if readme:
+            # readme is a Readme object with .file or .text attributes
+            if hasattr(readme, "file") and readme.file:
+                return str(readme.file)
+            elif hasattr(readme, "text") and readme.text:
+                return readme.text
+        return None
+
+    @property
+    def requires_python(self) -> str | None:
+        """Python version requirement."""
+        requires_python = self._standard_metadata.requires_python
+        return str(requires_python) if requires_python else None
+
+    @property
+    def license_name(self) -> str | None:
+        """Project license.
+
+        Returns the SPDX license identifier as a string.
+        Handles both plain string format (PEP 639 recommended)
+        and License object format (from table-based format).
+
+        Current implementation does not handle license expression.
+        """
+        # TODO:
+        # - Handle license expression,
+        #   could use https://pypi.org/project/license-expression/
+        # - Validate license name of SPDX License List
+        #   https://spdx.org/licenses/ and ScanCode LicenseDB
+        #   https://scancode-licensedb.aboutcode.org/,
+        #   and display warning if license is not found in
+        #   those lists
+        license_obj = self._standard_metadata.license
+        if license_obj:
+            # In pyproject-metadata 0.10.0+:
+            # - Plain string format (license = "Apache-2.0") returns str
+            # - Table format (license = {text = "..."}) returns License object
+            if isinstance(license_obj, str):
+                return license_obj
+            elif hasattr(license_obj, "text") and license_obj.text:
+                return license_obj.text
+            elif hasattr(license_obj, "file") and license_obj.file:
+                # TODO: Identify actual SPDX License ID from the license text.
+                # Few libraries are available for this task:
+                # - https://pypi.org/project/scancode-toolkit/
+                #   (Python, extremely accurate)
+                # - https://pypi.org/project/spdx-matcher/
+                #   (Python, lightweight)
+                # - https://github.com/jpeddicord/askalono
+                #   (Rust, very fast)
+                # - https://github.com/spdx/spdx-license-matcher
+                #   (Python, from SPDX project, no wheels, needs Java and Redis)
+                return str(license_obj.file)
+            else:
+                return str(license_obj)
+        return None
+
+    @property
+    def keywords(self) -> list[str]:
+        """Project keywords."""
+        return self._standard_metadata.keywords or []
+
+    @property
+    def authors(self) -> list[dict[str, str]]:
+        """Project authors as list of dicts with 'name' and optional 'email'."""
+        authors_list = []
+        for name, email in self._standard_metadata.authors:
+            author_dict = {"name": name}
+            if email:
+                author_dict["email"] = email
+            authors_list.append(author_dict)
+        return authors_list
+
+    @property
+    def urls(self) -> dict[str, str]:
+        """Project URLs."""
+        return self._standard_metadata.urls or {}
+
+    @property
+    def dependencies(self) -> list[str]:
+        """Project dependencies as list of requirement strings."""
+        return [str(dep) for dep in self._standard_metadata.dependencies]
 
 
 def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
-    """Extract project metadata from pyproject.toml.
+    """Extract project metadata from pyproject.toml using pyproject-metadata.
+
+    Note: This function uses pyproject_metadata.StandardMetadata which focuses
+    on the [project] section. The [tool] and [build-system] sections are not
+    processed by StandardMetadata but are preserved in the raw data for dynamic
+    version extraction (e.g., [tool.hatch.version]) which is handled separately.
 
     Args:
         pyproject_path: Path to the pyproject.toml file
@@ -78,88 +187,86 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     provenance: dict[str, str] = {}
     provenance["name"] = "Source: pyproject.toml | Field: project.name"
 
-    # Extract version - handle dynamic versions
-    version = project_data.get("version")
-    version_source = None
-    if not version and "dynamic" in project_data:
-        dynamic_fields = project_data.get("dynamic", [])
-        if "version" in dynamic_fields:
-            # Try to extract from __about__.py or other sources
-            version, version_source = _extract_dynamic_version(
-                pyproject_path.parent, data
-            )
+    # Check for dynamic version and extract it
+    dynamic_fields = project_data.get("dynamic", [])
+    dynamic_metadata = list(dynamic_fields) if dynamic_fields else []
 
-    if version:
+    if "version" in dynamic_fields:
+        # Extract version from file for provenance tracking
+        version, version_source = _extract_dynamic_version(pyproject_path.parent, data)
+        if version:
+            # Inject the extracted version into the data
+            data = dict(data)  # Make a copy
+            data["project"] = dict(project_data)  # Make a copy of project section
+            data["project"]["version"] = version
+            # Remove version from dynamic list
+            data["project"]["dynamic"] = [f for f in dynamic_fields if f != "version"]
+            # Update dynamic_metadata
+            dynamic_metadata = [f for f in dynamic_fields if f != "version"]
         if version_source:
             provenance["version"] = version_source
-        else:
-            provenance["version"] = "Source: pyproject.toml | Field: project.version"
+    elif "version" in project_data:
+        provenance["version"] = "Source: pyproject.toml | Field: project.version"
 
-    # Extract description
-    description = project_data.get("description")
-    if description:
+    # Track provenance for other fields
+    if "description" in project_data:
         provenance["description"] = (
             "Source: pyproject.toml | Field: project.description"
         )
 
-    # Extract URLs
-    urls = project_data.get("urls", {})
-    if urls:
+    if "urls" in project_data:
         provenance["urls"] = "Source: pyproject.toml | Field: project.urls"
 
-    # Extract dependencies
-    dependencies = project_data.get("dependencies", [])
-    if dependencies:
+    if "dependencies" in project_data:
         provenance["dependencies"] = (
             "Source: pyproject.toml | Field: project.dependencies"
         )
 
-    # Extract authors
-    authors = project_data.get("authors", [])
-    if authors:
+    if "authors" in project_data:
         provenance["authors"] = "Source: pyproject.toml | Field: project.authors"
 
-    # Extract license
-    license_name = _extract_license(project_data)
-    if license_name:
+    if "license" in project_data:
         provenance["license"] = "Source: pyproject.toml | Field: project.license"
 
     # Extract copyright text (inferred from authors and current year)
-    if authors:
+    if project_data.get("authors"):
         provenance["copyright_text"] = (
             "Source: Loom generator | Method: inferred_from_authors"
         )
 
+    # Check if readme file exists, if not, remove it from data to avoid validation errors
+    readme_field = project_data.get("readme")
+    readme_override = None
+    if readme_field and isinstance(readme_field, str):
+        readme_path = pyproject_path.parent / readme_field
+        if not readme_path.exists():
+            # Store the readme value for the override
+            readme_override = readme_field
+            # Create a modified copy of the data without the readme field
+            data = dict(
+                data
+            )  # Make a copy (may already be a copy from version handling)
+            data["project"] = dict(
+                data["project"]
+            )  # Make a copy of project section (use current data, not original)
+            del data["project"]["readme"]  # Remove readme to skip validation
+
+    # Use StandardMetadata to parse and validate
+    try:
+        standard_metadata = StandardMetadata.from_pyproject(
+            data,
+            project_dir=str(pyproject_path.parent),
+            dynamic_metadata=dynamic_metadata if dynamic_metadata else None,
+            allow_extra_keys=True,
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to parse project metadata: {e}") from e
+
     return ProjectMetadata(
-        name=name,
-        version=version,
-        description=description,
-        readme=project_data.get("readme"),
-        requires_python=project_data.get("requires-python"),
-        license_name=license_name,
-        keywords=project_data.get("keywords", []),
-        authors=authors,
-        urls=urls,
-        dependencies=dependencies,
+        standard_metadata=standard_metadata,
         provenance=provenance,
+        readme_override=readme_override,
     )
-
-
-def _extract_license(project_data: dict[str, Any]) -> str | None:
-    """Extract license information from project data.
-
-    Args:
-        project_data: The [project] section data
-
-    Returns:
-        str | None: License name or None if not found
-    """
-    license_info = project_data.get("license")
-    if isinstance(license_info, str):
-        return license_info
-    elif isinstance(license_info, dict):
-        return license_info.get("text") or license_info.get("file")
-    return None
 
 
 def _extract_dynamic_version(
