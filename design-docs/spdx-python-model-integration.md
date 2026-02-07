@@ -2,7 +2,9 @@
 
 ## Overview
 
-The current implementation uses custom SPDX 3.0 models defined in `src/loom/core/models.py`. For future development, we may consider integrating with the official [spdx-python-model](https://github.com/spdx/spdx-python-model) library.
+The current implementation uses custom SPDX 3.0 models defined in `src/loom/core/models.py`.
+For future development, we may consider integrating with the official
+[spdx-python-model](https://github.com/spdx/spdx-python-model) library.
 
 ## Tutorial Reference
 
@@ -39,6 +41,7 @@ obj = object_set.find_by_id("https://spdx.org/spdxdocs/Package/...")
 ### Current Implementation (Custom Models)
 
 **Advantages:**
+
 - Lightweight - no external dependencies
 - Simple and easy to understand
 - Full control over serialization format
@@ -46,6 +49,7 @@ obj = object_set.find_by_id("https://spdx.org/spdxdocs/Package/...")
 - No version compatibility issues
 
 **Disadvantages:**
+
 - Manual maintenance required for spec updates
 - May not cover all SPDX 3.0 features
 - No built-in validation against SPDX schema
@@ -54,6 +58,7 @@ obj = object_set.find_by_id("https://spdx.org/spdxdocs/Package/...")
 ### Using spdx-python-model
 
 **Advantages:**
+
 - Official SPDX bindings - stays up-to-date with spec
 - Built-in JSON-LD serialization/deserialization
 - Type-safe with proper Python bindings
@@ -62,6 +67,7 @@ obj = object_set.find_by_id("https://spdx.org/spdxdocs/Package/...")
 - Better interoperability with other SPDX tools
 
 **Disadvantages:**
+
 - Additional dependency to manage
 - Learning curve for the API
 - Potential overhead for simple use cases
@@ -72,16 +78,19 @@ obj = object_set.find_by_id("https://spdx.org/spdxdocs/Package/...")
 If we decide to migrate to spdx-python-model, the recommended approach would be:
 
 1. **Phase 1: Add spdx-python-model as optional dependency**
+
    - Keep current implementation as default
    - Add alternative exporter using spdx-python-model
    - Allow users to choose between implementations
 
 2. **Phase 2: Gradual Migration**
+
    - Migrate exporters to use spdx-python-model serialization
    - Keep custom models for internal data representation
    - Use spdx-python-model for validation
 
 3. **Phase 3: Full Adoption (if beneficial)**
+
    - Replace custom models with spdx-python-model bindings
    - Leverage SHACLObjectSet for complex querying
    - Utilize built-in validation and serialization
@@ -102,11 +111,13 @@ For **production use** or when adding advanced features (AI/Dataset profiles, co
 ### Future Architectural Consideration
 
 For long-term maintainability and flexibility, we may need an internal representation that is:
+
 - **Format-neutral**: Not tied to a specific SBOM format
 - **Lossless**: Preserves all information during format conversions
 - **Version-agnostic**: Can export to different versions of the same format (e.g., SPDX 3.0, 3.1, 3.2)
 
 This would enable:
+
 - Support for multiple SBOM formats (SPDX, CycloneDX, SWID, etc.)
 - Easy migration between SPDX versions without data loss
 - Flexible import/export pipelines
@@ -117,6 +128,7 @@ This would enable:
 [Protobom](https://github.com/protobom/protobom) is a promising candidate for format-neutral SBOM representation:
 
 **Key Features:**
+
 - Protocol Buffers-based universal SBOM representation
 - Designed to be format-agnostic
 - Supports conversion between different SBOM formats
@@ -124,6 +136,7 @@ This would enable:
 - Strong typing and schema validation
 
 **Evaluation Needed:**
+
 - Assess compatibility with our use cases
 - Evaluate performance characteristics
 - Determine integration complexity
@@ -132,7 +145,8 @@ This would enable:
 - Check community adoption and maintenance status
 
 **Integration Approach:**
-```
+
+```text
 Build Tools → Loom Extractors → Protobom (Internal) → Format Exporters
                                       ↓
                               SPDX 3.x / CycloneDX / etc.
