@@ -26,7 +26,6 @@
   - Be a clean pipe: Output should be workable
     for common Unix utilities like awk, wc, xargs.
 
-
 ## Project contribution guidelines
 
 - [ ] Follow the project's established coding style and conventions.
@@ -41,9 +40,9 @@
 - [ ] For significant changes, update the CHANGELOG.md file
       to document the changes.
   - [ ] Follow "Keep a Changelog" principles
-        https://keepachangelog.com/en/1.0.0/
+        <https://keepachangelog.com/en/1.0.0/>
   - [ ] Use semantic versioning for version numbers
-        https://semver.org/
+        <https://semver.org/>
   - [ ] If it is a breaking change, indicate it clearly in the changelog.
     - [ ] Provide migration instructions if necessary.
 - [ ] Do not leave trailing whitespaces in the code or documentation files,
@@ -110,10 +109,10 @@
       in names.
 - [ ] For URLs/IRIs, use lowercase letters and hyphens to separate words
       (e.g., `my-api-endpoint`) and follow W3C Cool URIs for the Semantic Web:
-      https://www.w3.org/TR/cooluris/
+      <https://www.w3.org/TR/cooluris/>
 - [ ] Consult Schema.org vocabularies when deciding about names.
 - [ ] Consult "Style Guidelines for Naming and Labeling Ontologies in the
-      Multilingual Web" https://www.researchgate.net/publication/277224472
+      Multilingual Web" <https://www.researchgate.net/publication/277224472>
 
 ## Tidy code and documentation
 
@@ -133,7 +132,7 @@
 ## File header
 
 - [ ] When possible, put relevant SPDX File Tags at file header.
-      See https://spdx.github.io/spdx-spec/v2.3/file-information/
+      See <https://spdx.github.io/spdx-spec/v2.3/file-information/>
   - [ ] SPDX-FileContributor
   - [ ] SPDX-FileCopyrightText
   - [ ] Default SPDX-FileType for code is "SOURCE"
@@ -195,7 +194,7 @@
 ## API
 
 - [ ] The overall architecture, code, and API endpoints should follow the latest
-      version of OpenAPI specification at https://spec.openapis.org/oas/
+      version of OpenAPI specification at <https://spec.openapis.org/oas/>
 - [ ] API endpoints must use proper HTTP return codes.
 - [ ] Follow web best practices as recommended by OpenAPI, IETF, W3C, etc.
 
@@ -220,7 +219,7 @@
       as much as possible.
   - [ ] Follow best practices and standard Python type hint patterns.
   - [ ] Use mypy as an assistant.
-    - [ ] mypy is in "dev" optional dependency. 
+    - [ ] mypy is in "dev" optional dependency.
     - [ ] Sometimes mypy may report errors wrongly due to cache issues.
           Try to reset the cache if unexpected errors occured.
   - [ ] Use pyright, pyrefly, and pytype for second opinions.
@@ -374,29 +373,28 @@ where the type is obvious from the context:
       or if the version is compatible with the system or other dependencies.
 - [ ] Prefer a Semantic Version when applicable.
 
-
 ## SPDX resources
 
-- Official SPDX project website https://spdx.dev/
-- SPDX 3.0 spec https://spdx.github.io/spdx-spec/v3.0/
-  - SPDX 3.0 model https://spdx.org/rdf/3.0/spdx-model.ttl
-  - SPDX 3.0 JSON Schema https://spdx.org/schema/3.0/spdx-json-schema.json
-  - SPDX 3.0 JSON-LD context file https://spdx.org/rdf/3.0/spdx-context.jsonld
-- SPDX 3.1 spec (under development) https://spdx.github.io/spdx-spec/v3.1-dev/
+- Official SPDX project website <https://spdx.dev/>
+- SPDX 3.0 spec <https://spdx.github.io/spdx-spec/v3.0/>
+  - SPDX 3.0 model <https://spdx.org/rdf/3.0/spdx-model.ttl>
+  - SPDX 3.0 JSON Schema <https://spdx.org/schema/3.0/spdx-json-schema.json>
+  - SPDX 3.0 JSON-LD context file <https://spdx.org/rdf/3.0/spdx-context.jsonld>
+- SPDX 3.1 spec (under development) <https://spdx.github.io/spdx-spec/v3.1-dev/>
   - SPDX 3.1 spec terms and definition
-    https://spdx.github.io/spdx-spec/v3.1-dev/terms-and-definitions/
-  - SPDX 3.1 model https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-model.ttl
-  - SPDX 3.1 JSON Schema https://spdx.github.io/spdx-spec/v3.1/rdf/schema.json
-  - SPDX 3.1 JSON-LD context file https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-context.jsonld
+    <https://spdx.github.io/spdx-spec/v3.1-dev/terms-and-definitions/>
+  - SPDX 3.1 model <https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-model.ttl>
+  - SPDX 3.1 JSON Schema <https://spdx.github.io/spdx-spec/v3.1/rdf/schema.json>
+  - SPDX 3.1 JSON-LD context file <https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-context.jsonld>
 - SPDX 3 JSON validation guide
-  https://github.com/spdx/spdx-3-model/blob/develop/serialization/jsonld/validation.md
+  <https://github.com/spdx/spdx-3-model/blob/develop/serialization/jsonld/validation.md>
 - SPDX 3 model format and style guide
-  https://github.com/spdx/spdx-3-model/blob/develop/docs/format.md
-- SPDX Examples https://github.com/spdx/spdx-examples
+  <https://github.com/spdx/spdx-3-model/blob/develop/docs/format.md>
+- SPDX Examples <https://github.com/spdx/spdx-examples>
   Most of the examples here should be a valid SPDX document.
 - NTIA Conformance Checker also provide a small corpus of SPDX documents for
   testing purposes. Some of them could be invalid or incomplete intentionally.
-  https://github.com/spdx/ntia-conformance-checker/tree/main/tests
-- Use spdx3-validate from PyPI https://pypi.org/project/spdx3-validate/
-  (GitHub repo: https://github.com/JPEWdev/spdx3-validate) to validate SPDX 3
+  <https://github.com/spdx/ntia-conformance-checker/tree/main/tests>
+- Use spdx3-validate from PyPI <https://pypi.org/project/spdx3-validate/>
+  (GitHub repo: <https://github.com/JPEWdev/spdx3-validate>) to validate SPDX 3
   document when applicable.
