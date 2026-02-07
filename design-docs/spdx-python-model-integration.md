@@ -97,6 +97,47 @@ For the **current prototype**, we should **keep the custom models** because:
 
 For **production use** or when adding advanced features (AI/Dataset profiles, complex relationships, validation), we should consider adopting spdx-python-model.
 
+## Format-Neutral Internal Representation
+
+### Future Architectural Consideration
+
+For long-term maintainability and flexibility, we may need an internal representation that is:
+- **Format-neutral**: Not tied to a specific SBOM format
+- **Lossless**: Preserves all information during format conversions
+- **Version-agnostic**: Can export to different versions of the same format (e.g., SPDX 3.0, 3.1, 3.2)
+
+This would enable:
+- Support for multiple SBOM formats (SPDX, CycloneDX, SWID, etc.)
+- Easy migration between SPDX versions without data loss
+- Flexible import/export pipelines
+- Format translation capabilities
+
+### Protobom as a Potential Option
+
+[Protobom](https://github.com/protobom/protobom) is a promising candidate for format-neutral SBOM representation:
+
+**Key Features:**
+- Protocol Buffers-based universal SBOM representation
+- Designed to be format-agnostic
+- Supports conversion between different SBOM formats
+- Efficient binary serialization
+- Strong typing and schema validation
+
+**Evaluation Needed:**
+- Assess compatibility with our use cases
+- Evaluate performance characteristics
+- Determine integration complexity
+- Verify support for SPDX 3.x features
+- Test with AI/ML SBOM profiles
+- Check community adoption and maintenance status
+
+**Integration Approach:**
+```
+Build Tools → Loom Extractors → Protobom (Internal) → Format Exporters
+                                      ↓
+                              SPDX 3.x / CycloneDX / etc.
+```
+
 ## Action Items for Future Development
 
 - [ ] Add spdx-python-model as optional dependency
@@ -105,6 +146,9 @@ For **production use** or when adding advanced features (AI/Dataset profiles, co
 - [ ] Benchmark performance differences
 - [ ] Evaluate for setuptools integration roadmap
 - [ ] Consider for AI/ML SBOM features (AIPackage, DatasetPackage)
+- [ ] Research and evaluate Protobom for format-neutral internal representation
+- [ ] Prototype Protobom integration if it meets requirements
+- [ ] Design architecture for multi-format support
 
 ## References
 
@@ -112,3 +156,4 @@ For **production use** or when adding advanced features (AI/Dataset profiles, co
 - [Tutorial by @bact](https://gist.github.com/bact/7227ad858500c2097a25344a4af015d6)
 - [SPDX 3.0 Specification](https://spdx.dev/specifications/)
 - [SPDX Examples Repository](https://github.com/spdx/spdx-examples)
+- [Protobom GitHub](https://github.com/protobom/protobom)
