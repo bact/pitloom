@@ -23,6 +23,8 @@ provenance, and dependencies of software systems.
   Extracts metadata from Python projects using Hatchling
 - **Dependency Tracking**:
   Automatically includes project dependencies in the SBOM
+- **Metadata Provenance**:
+  Tracks the source of each metadata field for transparency and auditability
 - **Standards Compliant**:
   Follows SPDX 3.0 specification and modern Python packaging standards
 
@@ -95,6 +97,42 @@ The generated SBOM will include:
 - Project dependencies with version constraints
 - SPDX relationships between components
 - Creator and creation timestamp information
+- **Metadata provenance** tracking for transparency
+
+## Metadata provenance
+
+Loom tracks the source of each metadata field in the SBOM using the SPDX 3.0
+`comment` attribute. This enables answering questions like:
+
+> "Why does the SBOM say the concluded license is MIT?"
+
+> "Where did the version number come from?"
+
+### Provenance examples
+
+For a package with metadata extracted from various sources:
+
+```json
+{
+  "type": "software_Package",
+  "name": "mypackage",
+  "software_packageVersion": "1.2.3",
+  "comment": "Metadata provenance: name: Source: pyproject.toml | Field: project.name; version: Source: src/mypackage/__about__.py | Method: dynamic_extraction; dependencies: Source: pyproject.toml | Field: project.dependencies"
+}
+```
+
+The provenance information shows:
+
+- **Package name**: Extracted from `pyproject.toml` → `project.name`
+- **Version**: Dynamically extracted from `src/mypackage/__about__.py`
+- **Dependencies**: Listed in `pyproject.toml` → `project.dependencies`
+
+This transparency is crucial for:
+
+- **Auditability**: Understanding where SBOM data comes from
+- **Trust**: Verifying the accuracy of metadata
+- **Machine consumption**: Automated tools can parse provenance
+- **Human review**: Manual inspection of data sources
 
 ## Project structure
 

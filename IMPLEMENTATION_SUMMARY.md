@@ -42,7 +42,14 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
    - Creator information options
    - Clear error messages
 
-### ✅ Testing (19 Tests - All Passing)
+6. **Metadata Provenance Tracking** (`src/loom/extractors/metadata.py`, `src/loom/generator.py`)
+   - Tracks source of each metadata field
+   - Records extraction method (static, dynamic, inferred)
+   - Uses SPDX 3.0 comment attribute
+   - Machine-parsable provenance format
+   - See [design-docs/metadata-provenance.md](design-docs/metadata-provenance.md)
+
+### ✅ Testing (25 Tests - All Passing)
 
 1. **Model Tests** (7 tests)
    - SPDX ID generation
@@ -67,6 +74,14 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
    - Profile conformance checking
    - Relationship validity
 
+5. **Metadata Provenance Tests** (6 tests)
+   - Basic field provenance tracking
+   - Dynamic version provenance
+   - Provenance in SBOM output
+   - Dependency package provenance
+   - Relationship provenance
+   - Author-based provenance
+
 ### ✅ Quality assurance
 
 - **Linting**: All Ruff checks pass
@@ -77,10 +92,11 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
 
 ### ✅ Documentation
 
-1. **README.md**: Complete usage guide with examples
+1. **README.md**: Complete usage guide with examples and provenance documentation
 2. **DEMONSTRATION.md**: Prototype capabilities and validation
 3. **design-docs/spdx-python-model-integration.md**: Future enhancement path
-4. **Inline Documentation**: Comprehensive docstrings
+4. **design-docs/metadata-provenance.md**: Provenance tracking specification
+5. **Inline Documentation**: Comprehensive docstrings
 
 ## Validation with sentimentdemo
 
@@ -289,13 +305,14 @@ The Loom SBOM Generator prototype is **complete, tested, and production-ready** 
 5. ✅ Passes comprehensive test suite
 6. ✅ Meets security and quality standards
 7. ✅ Successfully validated with reference project
+8. ✅ **NEW**: Tracks metadata provenance for transparency and auditability
 
 The foundation is solid for future enhancements toward a comprehensive, production-grade SBOM generator supporting multiple build systems and advanced SPDX features.
 
 ---
 
 **Repository**: <https://github.com/bact/loom>  
-**Branch**: copilot/scaffold-sbom-generator  
-**Tests**: 19 passed, 0 failed  
+**Branch**: copilot/implement-metadata-provenance  
+**Tests**: 25 passed, 0 failed  
 **Security**: 0 alerts (CodeQL)  
 **Linting**: All checks passed (Ruff)
