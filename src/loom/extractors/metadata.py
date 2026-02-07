@@ -223,8 +223,12 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
             # Store the readme value for the override
             readme_override = readme_field
             # Create a modified copy of the data without the readme field
-            data = dict(data)  # Make a copy (may already be a copy from version handling)
-            data["project"] = dict(data["project"])  # Make a copy of project section (use current data, not original)
+            data = dict(
+                data
+            )  # Make a copy (may already be a copy from version handling)
+            data["project"] = dict(
+                data["project"]
+            )  # Make a copy of project section (use current data, not original)
             del data["project"]["readme"]  # Remove readme to skip validation
 
     # Use StandardMetadata to parse and validate
