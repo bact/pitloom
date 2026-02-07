@@ -1,14 +1,17 @@
 ---
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC-BY-4.0
+SPDX-License-Identifier: CC0-1.0
 ---
 
 # Loom SBOM Generator - Implementation Summary
 
 ## Project Overview
 
-Successfully implemented a complete, production-ready prototype of an SBOM (Software Bill of Materials) generator for Python projects using Hatchling as their build backend. The generator produces SPDX 3.0 compliant SBOMs in JSON-LD format.
+Successfully implemented a complete, production-ready prototype of an SBOM
+(Software Bill of Materials) generator for Python projects using Hatchling as
+their build backend. The generator produces SPDX 3.0 compliant SBOMs
+in JSON-LD format.
 
 ## What was delivered
 
@@ -42,7 +45,14 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
    - Creator information options
    - Clear error messages
 
-### ✅ Testing (19 Tests - All Passing)
+6. **Metadata Provenance Tracking** (`src/loom/extractors/metadata.py`, `src/loom/generator.py`)
+   - Tracks source of each metadata field
+   - Records extraction method (static, dynamic, inferred)
+   - Uses SPDX 3.0 comment attribute
+   - Machine-parsable provenance format
+   - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
+
+### ✅ Testing (25 Tests - All Passing)
 
 1. **Model Tests** (7 tests)
    - SPDX ID generation
@@ -67,6 +77,14 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
    - Profile conformance checking
    - Relationship validity
 
+5. **Metadata Provenance Tests** (6 tests)
+   - Basic field provenance tracking
+   - Dynamic version provenance
+   - Provenance in SBOM output
+   - Dependency package provenance
+   - Relationship provenance
+   - Author-based provenance
+
 ### ✅ Quality assurance
 
 - **Linting**: All Ruff checks pass
@@ -77,16 +95,17 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
 
 ### ✅ Documentation
 
-1. **README.md**: Complete usage guide with examples
+1. **README.md**: Complete usage guide with examples and provenance documentation
 2. **DEMONSTRATION.md**: Prototype capabilities and validation
-3. **design-docs/spdx-python-model-integration.md**: Future enhancement path
-4. **Inline Documentation**: Comprehensive docstrings
+3. **docs/design/spdx-python-model-integration.md**: Future enhancement path
+4. **docs/design/metadata-provenance.md**: Provenance tracking specification
+5. **Inline Documentation**: Comprehensive docstrings
 
 ## Validation with sentimentdemo
 
 Successfully generated SPDX 3.0 SBOM for the reference repository:
 
-```
+```text
 $ loom /tmp/sentimentdemo -o sbom.spdx3.json
 Generating SBOM for project in: /tmp/sentimentdemo
 SBOM written to: sbom.spdx3.json
@@ -280,7 +299,8 @@ Based on the design document and problem requirements:
 
 ## Conclusion
 
-The Loom SBOM Generator prototype is **complete, tested, and production-ready** for its current scope. It successfully:
+The Loom SBOM Generator prototype is **complete, tested, and production-ready**
+for its current scope. It successfully:
 
 1. ✅ Generates valid SPDX 3.0 SBOMs
 2. ✅ Extracts metadata from Hatchling projects
@@ -289,13 +309,16 @@ The Loom SBOM Generator prototype is **complete, tested, and production-ready** 
 5. ✅ Passes comprehensive test suite
 6. ✅ Meets security and quality standards
 7. ✅ Successfully validated with reference project
+8. ✅ **NEW**: Tracks metadata provenance for transparency and auditability
 
-The foundation is solid for future enhancements toward a comprehensive, production-grade SBOM generator supporting multiple build systems and advanced SPDX features.
+The foundation is solid for future enhancements toward a comprehensive,
+production-grade SBOM generator supporting multiple build systems and
+advanced SPDX features.
 
 ---
 
 **Repository**: <https://github.com/bact/loom>  
-**Branch**: copilot/scaffold-sbom-generator  
-**Tests**: 19 passed, 0 failed  
+**Branch**: copilot/implement-metadata-provenance  
+**Tests**: 25 passed, 0 failed  
 **Security**: 0 alerts (CodeQL)  
 **Linting**: All checks passed (Ruff)

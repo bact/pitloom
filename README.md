@@ -1,7 +1,7 @@
 ---
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC-BY-4.0
+SPDX-License-Identifier: CC0-1.0
 ---
 
 # Loom
@@ -23,6 +23,8 @@ provenance, and dependencies of software systems.
   Extracts metadata from Python projects using Hatchling
 - **Dependency Tracking**:
   Automatically includes project dependencies in the SBOM
+- **Metadata Provenance**:
+  Tracks the source of each metadata field for transparency and auditability
 - **Standards Compliant**:
   Follows SPDX 3.0 specification and modern Python packaging standards
 
@@ -95,29 +97,73 @@ The generated SBOM will include:
 - Project dependencies with version constraints
 - SPDX relationships between components
 - Creator and creation timestamp information
+- **Metadata provenance** tracking for transparency
+
+## Metadata provenance
+
+Loom tracks the source of each metadata field in the SBOM using the SPDX 3.0
+`comment` attribute. This enables answering questions like:
+
+> "Why does the SBOM say the concluded license is MIT?"
+
+> "Where did the version number come from?"
+
+### Provenance examples
+
+For a package with metadata extracted from various sources:
+
+```json
+{
+  "type": "software_Package",
+  "name": "mypackage",
+  "software_packageVersion": "1.2.3",
+  "comment": "Metadata provenance: name: Source: pyproject.toml | Field: project.name; version: Source: src/mypackage/__about__.py | Method: dynamic_extraction; dependencies: Source: pyproject.toml | Field: project.dependencies"
+}
+```
+
+The provenance information shows:
+
+- **Package name**: Extracted from `pyproject.toml` → `project.name`
+- **Version**: Dynamically extracted from `src/mypackage/__about__.py`
+- **Dependencies**: Listed in `pyproject.toml` → `project.dependencies`
+
+This transparency is crucial for:
+
+- **Auditability**: Understanding where SBOM data comes from
+- **Trust**: Verifying the accuracy of metadata
+- **Machine consumption**: Automated tools can parse provenance
+- **Human review**: Manual inspection of data sources
 
 ## Project structure
 
 ```text
 loom/
+├── docs/
+│   ├── design/
+│   │   ├── architecture-overview.md
+│   │   ├── metadata-provenance.md
+│   │   └── spdx-python-model-integration.md
+│   └── implementation/
+│       ├── demo.md
+│       ├── demo-provenance.md
+│       └── summary.md
 ├── src/
 │   └── loom/
-│       ├── __init__.py
-│       ├── __about__.py
-│       ├── __main__.py          # CLI entry point
-│       ├── generator.py          # Main SBOM generator
 │       ├── core/
-│       │   └── models.py         # SPDX 3.0 data models
+│       │   └── models.py       # SPDX 3.0 data models
 │       ├── extractors/
-│       │   └── metadata.py       # Metadata extractor for Hatchling
-│       └── exporters/
-│           └── spdx3_json.py     # JSON-LD exporter
+│       │   └── metadata.py     # Metadata extractor for Hatchling
+│       ├── exporters/
+│       │   └── spdx3_json.py   # JSON-LD exporter
+│       ├── __about__.py
+│       ├── __init__.py
+│       ├── __main__.py         # CLI entry point
+│       └── generator.py        # Main SBOM generator
 ├── tests/
-│   ├── test_models.py
+│   ├── test_generator.py
 │   ├── test_metadata.py
-│   └── test_generator.py
-├── design-docs/
-│   └── architecture-overview.md
+│   └── test_models.py
+├── LICENSE
 ├── pyproject.toml
 └── README.md
 ```
@@ -149,7 +195,7 @@ python -m build
 - [x] Hatchling metadata extraction
 - [x] Dependency tracking
 - [ ] Support for setuptools
-- [ ] Integration with spdx-python-model (see [design doc](design-docs/spdx-python-model-integration.md))
+- [ ] Integration with spdx-python-model (see [design doc](docs/design/spdx-python-model-integration.md))
 - [ ] Build log extraction for compiled dependencies
 - [ ] AI/ML package profiles (AIPackage, DatasetPackage)
 - [ ] PEP 770 support (.dist-info/sboms)
@@ -160,8 +206,9 @@ python -m build
 
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf)
 - [PEP 770 – SBOM metadata in Python packages](https://peps.python.org/pep-0770/)
-- [Design Document](design-docs/architecture-overview.md)
+- [Design document](docs/design/architecture-overview.md)
 
 ## License
 
-Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+- Source code licensed under the Apache License 2.0.
+- Documentation licensed under Creative Commons Attribution 4.0 International.

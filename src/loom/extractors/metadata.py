@@ -31,6 +31,7 @@ class ProjectMetadata:
         authors: list[dict[str, str]] | None = None,
         urls: dict[str, str] | None = None,
         dependencies: list[str] | None = None,
+        provenance: dict[str, str] | None = None,
     ) -> None:
         self.name = name
         self.version = version
@@ -42,6 +43,7 @@ class ProjectMetadata:
         self.authors = authors or []
         self.urls = urls or {}
         self.dependencies = dependencies or []
+        self.provenance = provenance or {}
 
 
 def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
@@ -51,7 +53,7 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
         pyproject_path: Path to the pyproject.toml file
 
     Returns:
-        ProjectMetadata: Extracted metadata
+        ProjectMetadata: Extracted metadata with provenance information
 
     Raises:
         FileNotFoundError: If pyproject.toml is not found
@@ -72,25 +74,74 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     if not name:
         raise ValueError("Project name is required in pyproject.toml")
 
+    # Track provenance for each field
+    provenance: dict[str, str] = {}
+    provenance["name"] = "Source: pyproject.toml | Field: project.name"
+
     # Extract version - handle dynamic versions
     version = project_data.get("version")
+    version_source = None
     if not version and "dynamic" in project_data:
         dynamic_fields = project_data.get("dynamic", [])
         if "version" in dynamic_fields:
             # Try to extract from __about__.py or other sources
-            version = _extract_dynamic_version(pyproject_path.parent, data)
+            version, version_source = _extract_dynamic_version(
+                pyproject_path.parent, data
+            )
+
+    if version:
+        if version_source:
+            provenance["version"] = version_source
+        else:
+            provenance["version"] = "Source: pyproject.toml | Field: project.version"
+
+    # Extract description
+    description = project_data.get("description")
+    if description:
+        provenance["description"] = (
+            "Source: pyproject.toml | Field: project.description"
+        )
+
+    # Extract URLs
+    urls = project_data.get("urls", {})
+    if urls:
+        provenance["urls"] = "Source: pyproject.toml | Field: project.urls"
+
+    # Extract dependencies
+    dependencies = project_data.get("dependencies", [])
+    if dependencies:
+        provenance["dependencies"] = (
+            "Source: pyproject.toml | Field: project.dependencies"
+        )
+
+    # Extract authors
+    authors = project_data.get("authors", [])
+    if authors:
+        provenance["authors"] = "Source: pyproject.toml | Field: project.authors"
+
+    # Extract license
+    license_name = _extract_license(project_data)
+    if license_name:
+        provenance["license"] = "Source: pyproject.toml | Field: project.license"
+
+    # Extract copyright text (inferred from authors and current year)
+    if authors:
+        provenance["copyright_text"] = (
+            "Source: Loom generator | Method: inferred_from_authors"
+        )
 
     return ProjectMetadata(
         name=name,
         version=version,
-        description=project_data.get("description"),
+        description=description,
         readme=project_data.get("readme"),
         requires_python=project_data.get("requires-python"),
-        license_name=_extract_license(project_data),
+        license_name=license_name,
         keywords=project_data.get("keywords", []),
-        authors=project_data.get("authors", []),
-        urls=project_data.get("urls", {}),
-        dependencies=project_data.get("dependencies", []),
+        authors=authors,
+        urls=urls,
+        dependencies=dependencies,
+        provenance=provenance,
     )
 
 
@@ -113,7 +164,7 @@ def _extract_license(project_data: dict[str, Any]) -> str | None:
 
 def _extract_dynamic_version(
     project_dir: Path, pyproject_data: dict[str, Any]
-) -> str | None:
+) -> tuple[str | None, str | None]:
     """Try to extract dynamic version from common patterns.
 
     Args:
@@ -121,7 +172,8 @@ def _extract_dynamic_version(
         pyproject_data: The full pyproject.toml data
 
     Returns:
-        str | None: Version string or None if not found
+        tuple[str | None, str | None]: Version string and provenance source,
+            or (None, None) if not found
     """
     # Check for hatch version configuration
     hatch_config = pyproject_data.get("tool", {}).get("hatch", {})
@@ -132,7 +184,8 @@ def _extract_dynamic_version(
         if version_path.exists():
             version = _extract_version_from_file(version_path)
             if version:
-                return version
+                rel_path = version_path.relative_to(project_dir)
+                return version, f"Source: {rel_path} | Method: dynamic_extraction"
 
     # Get package name for package-specific paths
     project_name = pyproject_data.get("project", {}).get("name", "")
@@ -154,9 +207,10 @@ def _extract_dynamic_version(
         if path.exists():
             version = _extract_version_from_file(path)
             if version:
-                return version
+                rel_path = path.relative_to(project_dir)
+                return version, f"Source: {rel_path} | Method: dynamic_extraction"
 
-    return None
+    return None, None
 
 
 def _extract_version_from_file(file_path: Path) -> str | None:

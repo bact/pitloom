@@ -77,6 +77,15 @@ def generate_sbom_from_project(
     if metadata.authors:
         copyright_holder = metadata.authors[0].get("name", metadata.name)
 
+    # Build provenance comment for the main package
+    provenance_parts = []
+    for field, source in metadata.provenance.items():
+        provenance_parts.append(f"{field}: {source}")
+
+    comment = None
+    if provenance_parts:
+        comment = "Metadata provenance: " + "; ".join(provenance_parts)
+
     main_package = SoftwarePackage(
         name=metadata.name,
         version=package_version,
@@ -86,6 +95,7 @@ def generate_sbom_from_project(
         copyright_text=f"Copyright (c) {copyright_year} {copyright_holder}",
         primary_purpose="library",
         creation_info=creation_info,
+        comment=comment,
     )
 
     # Create SBOM
@@ -123,21 +133,28 @@ def generate_sbom_from_project(
         if "==" in dep:
             dep_version = dep.split("==")[1].strip()
 
+        # Add provenance for dependency packages
+        dep_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
+
         dep_package = SoftwarePackage(
             name=dep_name,
             version=dep_version,
             primary_purpose="library",
             creation_info=creation_info,
+            comment=dep_comment,
         )
         exporter.add_package(dep_package)
 
         # Create dependency relationship
+        rel_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
+
         dep_rel = Relationship(
             from_element=main_package.spdx_id,
             to_elements=[dep_package.spdx_id],
             relationship_type="dependsOn",
             description=f"{metadata.name} depends on {dep_name}",
             creation_info=creation_info,
+            comment=rel_comment,
         )
         exporter.add_relationship(dep_rel)
 

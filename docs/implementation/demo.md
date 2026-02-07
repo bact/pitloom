@@ -1,7 +1,7 @@
 ---
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC-BY-4.0
+SPDX-License-Identifier: CC0-1.0
 ---
 
 # SBOM generation demonstration
@@ -166,7 +166,8 @@ ruff check src/ tests/
 
 As documented in the design docs:
 
-1. **spdx-python-model integration**: Consider using official SPDX Python bindings
+1. **spdx-python-model integration**:
+    Consider using official SPDX Python bindings
 2. **Setuptools support**: Extend beyond Hatchling
 3. **File-level analysis**: Include individual files in SBOM
 4. **AI/ML profiles**: Support AIPackage and DatasetPackage

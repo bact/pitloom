@@ -21,7 +21,7 @@ keywords = [
     "supply chain",
 ]
 authors = [
-    { name = "Loom Contributors" }
+    { name = "Arthit Suriyawongkul" }
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -58,7 +58,11 @@ Source = "https://github.com/bact/loom"
 [tool.hatch.build.targets.sdist]
 exclude = [
     "/.github",
-    "/design-docs",
+    "/docs/design",
+    "/docs/implementation",
+    ".editorconfig",
+    ".gitignore",
+    ".markdownlint.json",
 ]
 
 [tool.hatch.build.targets.wheel]
