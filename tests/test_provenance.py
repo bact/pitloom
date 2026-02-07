@@ -175,9 +175,7 @@ dependencies = ["requests>=2.28.0"]
 
         # Find relationships
         relationships = [
-            elem
-            for elem in sbom_data["@graph"]
-            if elem["type"] == "Relationship"
+            elem for elem in sbom_data["@graph"] if elem["type"] == "Relationship"
         ]
         assert len(relationships) > 0
 

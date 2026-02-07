@@ -85,7 +85,9 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
         dynamic_fields = project_data.get("dynamic", [])
         if "version" in dynamic_fields:
             # Try to extract from __about__.py or other sources
-            version, version_source = _extract_dynamic_version(pyproject_path.parent, data)
+            version, version_source = _extract_dynamic_version(
+                pyproject_path.parent, data
+            )
 
     if version:
         if version_source:
@@ -96,7 +98,9 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     # Extract description
     description = project_data.get("description")
     if description:
-        provenance["description"] = "Source: pyproject.toml | Field: project.description"
+        provenance["description"] = (
+            "Source: pyproject.toml | Field: project.description"
+        )
 
     # Extract URLs
     urls = project_data.get("urls", {})
@@ -106,7 +110,9 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     # Extract dependencies
     dependencies = project_data.get("dependencies", [])
     if dependencies:
-        provenance["dependencies"] = "Source: pyproject.toml | Field: project.dependencies"
+        provenance["dependencies"] = (
+            "Source: pyproject.toml | Field: project.dependencies"
+        )
 
     # Extract authors
     authors = project_data.get("authors", [])
@@ -120,7 +126,9 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
 
     # Extract copyright text (inferred from authors and current year)
     if authors:
-        provenance["copyright_text"] = "Source: Loom generator | Method: inferred_from_authors"
+        provenance["copyright_text"] = (
+            "Source: Loom generator | Method: inferred_from_authors"
+        )
 
     return ProjectMetadata(
         name=name,
