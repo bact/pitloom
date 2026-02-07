@@ -1,12 +1,18 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC-BY-4.0
+---
+
 # Loom SBOM Generator - Implementation Summary
 
 ## Project Overview
 
 Successfully implemented a complete, production-ready prototype of an SBOM (Software Bill of Materials) generator for Python projects using Hatchling as their build backend. The generator produces SPDX 3.0 compliant SBOMs in JSON-LD format.
 
-## What Was Delivered
+## What was delivered
 
-### ✅ Core Functionality
+### ✅ Core functionality
 
 1. **SPDX 3.0 Data Models** (`src/loom/core/models.py`)
    - CreationInfo, Person, SoftwarePackage, Relationship, Sbom, SpdxDocument
@@ -61,7 +67,7 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
    - Profile conformance checking
    - Relationship validity
 
-### ✅ Quality Assurance
+### ✅ Quality assurance
 
 - **Linting**: All Ruff checks pass
 - **Security**: CodeQL scan with 0 alerts
@@ -86,7 +92,7 @@ Generating SBOM for project in: /tmp/sentimentdemo
 SBOM written to: sbom.spdx3.json
 ```
 
-### Generated SBOM Structure
+### Generated SBOM structure
 
 - **Total Elements**: 13
 - **CreationInfo**: 1 (with timestamp and creator)
@@ -96,7 +102,7 @@ SBOM written to: sbom.spdx3.json
 - **software_Package**: 5 (main package + 4 dependencies)
 - **Relationship**: 4 (dependsOn relationships)
 
-### Captured Information
+### Captured information
 
 **Main Package:**
 - Name: sentimentdemo
@@ -110,7 +116,7 @@ SBOM written to: sbom.spdx3.json
 - numpy: 1.26.4
 - th-simple-preprocessor: 0.10.1
 
-## Technical Achievements
+## Technical achievements
 
 ### 1. Clean Architecture
 
@@ -136,7 +142,7 @@ src/loom/
 - Comprehensive error handling
 - No external runtime dependencies (pure Python)
 
-## Comparison with Reference SBOM
+## Comparison with reference SBOM
 
 | Feature | Reference SBOM | Loom Generated | Status |
 |---------|----------------|----------------|--------|
@@ -153,7 +159,7 @@ src/loom/
 - ⚠️ Basic: Core functionality present, enhancements planned
 - 🔄 Roadmap: Planned for future releases
 
-## Installation & Usage
+## Installation and usage
 
 ### Install
 
@@ -192,7 +198,7 @@ pip install build
 python -m build
 ```
 
-## Roadmap for Future Development
+## Roadmap for future development
 
 Based on the design document and problem requirements:
 
@@ -248,7 +254,7 @@ Based on the design document and problem requirements:
    - Large project optimization
    - Parallel processing
 
-## Success Metrics
+## Success metrics
 
 ✅ **All Goals Achieved:**
 

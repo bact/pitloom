@@ -1,4 +1,5 @@
-# SPDX-FileCopyrightText: 2024-present Loom Contributors
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
 """SPDX 3.0 data models for representing software bill of materials."""

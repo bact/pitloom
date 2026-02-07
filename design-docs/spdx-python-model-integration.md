@@ -1,3 +1,9 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC-BY-4.0
+---
+
 # Future Integration with spdx-python-model
 
 ## Overview

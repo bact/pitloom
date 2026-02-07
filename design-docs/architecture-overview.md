@@ -1,3 +1,9 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC-BY-4.0
+---
+
 # Architecture overview
 
 The transition of the global software industry toward a more transparent and secure supply chain has reached a critical juncture. Modern software development is no longer characterized by the creation of monolithic, self-contained codebases; rather, it is a process of assembling diverse, often opaque, components from a myriad of upstream sources (IBM 2026). This shift has introduced profound security challenges, most notably the "phantom dependency" problem, where bundled libraries and build-time artifacts remain hidden from standard security audits (Alpha Omega 2025). To mitigate these risks, the Software Bill of Materials (SBOM) has emerged as the definitive standard for communicating the composition, provenance, and heritage of software systems (IBM 2026; Larson 2025).

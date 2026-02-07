@@ -1,3 +1,9 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC-BY-4.0
+---
+
 # Loom
 
 Creating SBOM during the build process. Now targeting Python Hatchling support.
@@ -29,7 +35,7 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### Command Line
+### Command line
 
 Generate an SBOM for a Python project:
 
@@ -82,7 +88,7 @@ The generated SBOM will include:
 - SPDX relationships between components
 - Creator and creation timestamp information
 
-## Project Structure
+## Project structure
 
 ```
 loom/
@@ -110,19 +116,19 @@ loom/
 
 ## Development
 
-### Running Tests
+### Running tests
 
 ```bash
 pytest
 ```
 
-### Running Linter
+### Running linter
 
 ```bash
 ruff check src/ tests/
 ```
 
-### Building the Package
+### Building the package
 
 ```bash
 pip install build

@@ -1,10 +1,16 @@
-# SBOM Generation Demonstration
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC-BY-4.0
+---
 
-## Prototype Status: ✅ Complete and Working
+# SBOM generation demonstration
+
+## Prototype status: ✅ Complete and working
 
 This document demonstrates the successful implementation of a working SBOM generator prototype for Python projects using Hatchling.
 
-## What Was Built
+## What was built
 
 A complete, runnable SBOM generator that:
 1. ✅ Extracts metadata from Python projects using Hatchling
@@ -14,7 +20,7 @@ A complete, runnable SBOM generator that:
 5. ✅ Includes comprehensive tests (15 tests, all passing)
 6. ✅ Follows Python best practices (Ruff linting passes)
 
-## Test Run with sentimentdemo
+## Test run with sentimentdemo
 
 Successfully generated SBOM for the reference project:
 
@@ -24,7 +30,7 @@ Generating SBOM for project in: /tmp/sentimentdemo
 SBOM written to: sbom.spdx3.json
 ```
 
-### Generated SBOM Structure
+### Generated SBOM structure
 
 ```
 Total elements: 13
@@ -38,7 +44,7 @@ Element types:
   software_Sbom: 1
 ```
 
-### Captured Information
+### Captured information
 
 **Main Package:**
 - Name: sentimentdemo
@@ -55,45 +61,45 @@ Element types:
 **Relationships:**
 - 4 dependsOn relationships linking main package to dependencies
 
-## Comparison with Reference SBOM
+## Comparison with reference SBOM
 
 The reference SBOM at https://github.com/bact/sentimentdemo/blob/main/bom.spdx3.json includes:
 
-- ✅ **Core Structure**: Our generator produces valid SPDX 3.0 JSON-LD
-- ✅ **Basic Package Info**: Name, version, description captured
+- ✅ **Core structure**: Our generator produces valid SPDX 3.0 JSON-LD
+- ✅ **Basic package info**: Name, version, description captured
 - ✅ **Dependencies**: All dependencies tracked with versions
 - ✅ **Relationships**: dependsOn relationships established
-- ⚠️ **File-level Details**: Reference includes individual files (not yet implemented)
-- ⚠️ **AI/Dataset Profiles**: Reference uses AIPackage and DatasetPackage (roadmap item)
-- ⚠️ **License Details**: Basic license info captured, not full SPDX license expressions yet
+- ⚠️ **File-level details**: Reference includes individual files (not yet implemented)
+- ⚠️ **AI/Dataset profiles**: Reference uses AIPackage and DatasetPackage (roadmap item)
+- ⚠️ **License details**: Basic license info captured, not full SPDX license expressions yet
 
-## Key Achievements
+## Key achievements
 
-### 1. Working CLI Tool
+### 1. Working CLI tool
 ```bash
 loom /path/to/project -o sbom.spdx3.json
 ```
 
-### 2. Dynamic Version Extraction
+### 2. Dynamic version extraction
 Supports both static and dynamic versions:
 - Static: `version = "1.0.0"` in pyproject.toml
 - Dynamic: Extracted from `__about__.py` or `__version__.py`
 
-### 3. Hatchling Integration
+### 3. Hatchling integration
 Reads metadata directly from pyproject.toml using Hatchling configuration:
 - Project name and description
 - Author information
 - Dependencies with version constraints
 - Project URLs (homepage, source, documentation)
 
-### 4. SPDX 3.0 Compliance
+### 4. SPDX 3.0 compliance
 Generates valid SPDX 3.0 JSON-LD with:
 - Proper @context URL
 - CreationInfo with timestamp and creator
 - Element relationships
 - Profile conformance declarations
 
-### 5. Comprehensive Testing
+### 5. Comprehensive testing
 ```
 15 tests covering:
 - SPDX model serialization
@@ -102,14 +108,14 @@ Generates valid SPDX 3.0 JSON-LD with:
 - Integration with real projects
 ```
 
-## Code Quality
+## Code quality
 
 - ✅ **Linting**: All Ruff checks pass
-- ✅ **Type Hints**: Comprehensive type annotations
+- ✅ **Type hints**: Comprehensive type annotations
 - ✅ **Documentation**: Inline docstrings and README
-- ✅ **Project Structure**: Follows src-layout best practices
+- ✅ **Project structure**: Follows src-layout best practices
 
-## Running the Prototype
+## Running the prototype
 
 ### Installation
 ```bash
@@ -129,26 +135,26 @@ loom /path/to/project -o custom-sbom.spdx3.json
 loom /path/to/project --creator-name "Your Name" --creator-email "your@email.com"
 ```
 
-### Run Tests
+### Run tests
 ```bash
 pytest
 ```
 
-### Check Code Quality
+### Check code quality
 ```bash
 ruff check src/ tests/
 ```
 
-## Roadmap for Future Enhancements
+## Roadmap for future enhancements
 
 As documented in the design docs:
 
-1. **spdx-python-model Integration**: Consider using official SPDX Python bindings
-2. **Setuptools Support**: Extend beyond Hatchling
-3. **File-level Analysis**: Include individual files in SBOM
-4. **AI/ML Profiles**: Support AIPackage and DatasetPackage
-5. **Build Log Extraction**: Capture compiled dependencies
-6. **PEP 770 Support**: Store SBOMs in .dist-info/sboms
+1. **spdx-python-model integration**: Consider using official SPDX Python bindings
+2. **Setuptools support**: Extend beyond Hatchling
+3. **File-level analysis**: Include individual files in SBOM
+4. **AI/ML profiles**: Support AIPackage and DatasetPackage
+5. **Build log extraction**: Capture compiled dependencies
+6. **PEP 770 support**: Store SBOMs in .dist-info/sboms
 7. **Validation**: Schema validation for generated SBOMs
 8. **Performance**: Rust backend for large projects
 
