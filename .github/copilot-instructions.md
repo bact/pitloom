@@ -3,6 +3,29 @@
 ## Loom specific
 
 - [ ] Design documents are in design-docs/ directory.
+- [ ] Follow Unix philosophy for a command-line tool
+    that can process input and return raw
+    line-delimited data to stdout.
+    Output in different format (JSON, CSV, etc.) is possible.
+    Output to a file is possible.
+- [ ] Command-line output constraints:
+  - General: Make it predictable and parsable.
+  - Structure: Use a consistent line-delimited format.
+    Each discrete data point must occupy its own line.
+  - Internal delimiters: Within a line,
+    separate fields using a consistent delimiter.
+    Preferably either a space or a tab.
+  - Ready-to-use environment variable format:
+    For a list of key-value pairs,
+    use KEY=VALUE format.
+    Use uppercase for KEY and make sure there is
+    no spaces exist around the = sign.
+  - Error handling:
+    If the input is invalid or a result cannot be generated,
+    output: ERROR: [Short description of issue].
+  - Be a clean pipe: Output should be workable
+    for common Unix utilities like awk, wc, xargs.
+
 
 ## Project contribution guidelines
 
