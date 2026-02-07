@@ -1,7 +1,7 @@
 ---
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC-BY-4.0
+SPDX-License-Identifier: CC0-1.0
 ---
 
 # Metadata provenance demonstration
@@ -251,5 +251,5 @@ process.
 
 For more information, see:
 
-- [design-docs/metadata-provenance.md](../design-docs/metadata-provenance.md)
-- [README.md](../README.md)
+- [metadata-provenance.md](../design/metadata-provenance.md)
+- [README.md](../../README.md)

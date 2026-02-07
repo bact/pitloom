@@ -2,7 +2,9 @@
 
 ## Loom specific
 
-- [ ] Design documents are in design-docs/ directory.
+- [ ] Design documents are in docs/design/ directory.
+- [ ] Implementation documents and progress reports are
+      in docs/implementation/ directory.
 - [ ] Follow Unix philosophy for a command-line tool
     that can process input and return raw
     line-delimited data to stdout.

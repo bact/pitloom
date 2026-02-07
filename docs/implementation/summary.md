@@ -1,14 +1,17 @@
 ---
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC-BY-4.0
+SPDX-License-Identifier: CC0-1.0
 ---
 
 # Loom SBOM Generator - Implementation Summary
 
 ## Project Overview
 
-Successfully implemented a complete, production-ready prototype of an SBOM (Software Bill of Materials) generator for Python projects using Hatchling as their build backend. The generator produces SPDX 3.0 compliant SBOMs in JSON-LD format.
+Successfully implemented a complete, production-ready prototype of an SBOM
+(Software Bill of Materials) generator for Python projects using Hatchling as
+their build backend. The generator produces SPDX 3.0 compliant SBOMs
+in JSON-LD format.
 
 ## What was delivered
 
@@ -47,7 +50,7 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
    - Records extraction method (static, dynamic, inferred)
    - Uses SPDX 3.0 comment attribute
    - Machine-parsable provenance format
-   - See [design-docs/metadata-provenance.md](design-docs/metadata-provenance.md)
+   - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
 ### ✅ Testing (25 Tests - All Passing)
 
@@ -94,15 +97,15 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
 
 1. **README.md**: Complete usage guide with examples and provenance documentation
 2. **DEMONSTRATION.md**: Prototype capabilities and validation
-3. **design-docs/spdx-python-model-integration.md**: Future enhancement path
-4. **design-docs/metadata-provenance.md**: Provenance tracking specification
+3. **docs/design/spdx-python-model-integration.md**: Future enhancement path
+4. **docs/design/metadata-provenance.md**: Provenance tracking specification
 5. **Inline Documentation**: Comprehensive docstrings
 
 ## Validation with sentimentdemo
 
 Successfully generated SPDX 3.0 SBOM for the reference repository:
 
-```
+```text
 $ loom /tmp/sentimentdemo -o sbom.spdx3.json
 Generating SBOM for project in: /tmp/sentimentdemo
 SBOM written to: sbom.spdx3.json
@@ -296,7 +299,8 @@ Based on the design document and problem requirements:
 
 ## Conclusion
 
-The Loom SBOM Generator prototype is **complete, tested, and production-ready** for its current scope. It successfully:
+The Loom SBOM Generator prototype is **complete, tested, and production-ready**
+for its current scope. It successfully:
 
 1. ✅ Generates valid SPDX 3.0 SBOMs
 2. ✅ Extracts metadata from Hatchling projects
@@ -307,7 +311,9 @@ The Loom SBOM Generator prototype is **complete, tested, and production-ready** 
 7. ✅ Successfully validated with reference project
 8. ✅ **NEW**: Tracks metadata provenance for transparency and auditability
 
-The foundation is solid for future enhancements toward a comprehensive, production-grade SBOM generator supporting multiple build systems and advanced SPDX features.
+The foundation is solid for future enhancements toward a comprehensive,
+production-grade SBOM generator supporting multiple build systems and
+advanced SPDX features.
 
 ---
 
