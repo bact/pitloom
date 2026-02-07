@@ -59,11 +59,13 @@ class Person:
         spdx_id: str | None = None,
         email: str | None = None,
         creation_info: CreationInfo | None = None,
+        comment: str | None = None,
     ) -> None:
         self.name = name
         self.spdx_id = spdx_id or generate_spdx_id("Person")
         self.email = email
         self.creation_info = creation_info
+        self.comment = comment
 
     def to_dict(self) -> dict[str, Any]:
         """Convert Person to dictionary for JSON-LD serialization."""
@@ -82,6 +84,9 @@ class Person:
                     "identifier": self.email,
                 }
             ]
+
+        if self.comment:
+            result["comment"] = self.comment
 
         return result
 
@@ -102,6 +107,7 @@ class SoftwarePackage:
         package_url: str | None = None,
         primary_purpose: str | None = None,
         creation_info: CreationInfo | None = None,
+        comment: str | None = None,
     ) -> None:
         self.name = name
         self.spdx_id = spdx_id or generate_spdx_id("Package")
@@ -114,6 +120,7 @@ class SoftwarePackage:
         self.package_url = package_url
         self.primary_purpose = primary_purpose
         self.creation_info = creation_info
+        self.comment = comment
 
     def to_dict(self) -> dict[str, Any]:
         """Convert SoftwarePackage to dictionary for JSON-LD serialization."""
@@ -146,6 +153,8 @@ class SoftwarePackage:
             ]
         if self.primary_purpose:
             result["software_primaryPurpose"] = self.primary_purpose
+        if self.comment:
+            result["comment"] = self.comment
 
         return result
 
@@ -161,6 +170,7 @@ class Relationship:
         spdx_id: str | None = None,
         description: str | None = None,
         creation_info: CreationInfo | None = None,
+        comment: str | None = None,
     ) -> None:
         self.from_element = from_element
         self.to_elements = to_elements
@@ -168,6 +178,7 @@ class Relationship:
         self.spdx_id = spdx_id or generate_spdx_id("Relationship")
         self.description = description
         self.creation_info = creation_info
+        self.comment = comment
 
     def to_dict(self) -> dict[str, Any]:
         """Convert Relationship to dictionary for JSON-LD serialization."""
@@ -182,6 +193,9 @@ class Relationship:
 
         if self.description:
             result["description"] = self.description
+
+        if self.comment:
+            result["comment"] = self.comment
 
         return result
 
