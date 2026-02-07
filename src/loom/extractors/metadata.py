@@ -82,11 +82,20 @@ class ProjectMetadata:
 
     @property
     def license_name(self) -> str | None:
-        """Project license."""
+        """Project license.
+
+        Returns the SPDX license identifier as a string.
+        Handles both plain string format (PEP 639 recommended)
+        and License object format (from table-based format).
+        """
         license_obj = self._standard_metadata.license
         if license_obj:
-            # license can be a License object with text/file attributes or a string
-            if hasattr(license_obj, "text") and license_obj.text:
+            # In pyproject-metadata 0.10.0+:
+            # - Plain string format (license = "Apache-2.0") returns str
+            # - Table format (license = {text = "..."}) returns License object
+            if isinstance(license_obj, str):
+                return license_obj
+            elif hasattr(license_obj, "text") and license_obj.text:
                 return license_obj.text
             elif hasattr(license_obj, "file") and license_obj.file:
                 return str(license_obj.file)
@@ -123,6 +132,11 @@ class ProjectMetadata:
 
 def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     """Extract project metadata from pyproject.toml using pyproject-metadata.
+
+    Note: This function uses pyproject_metadata.StandardMetadata which focuses
+    on the [project] section. The [tool] and [build-system] sections are not
+    processed by StandardMetadata but are preserved in the raw data for dynamic
+    version extraction (e.g., [tool.hatch.version]) which is handled separately.
 
     Args:
         pyproject_path: Path to the pyproject.toml file
@@ -229,26 +243,6 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
         provenance=provenance,
         readme_override=readme_override,
     )
-
-
-def _extract_license(project_data: dict[str, Any]) -> str | None:
-    """Extract license information from project data.
-
-    Note: This function is no longer used as StandardMetadata handles
-    license parsing, but kept for backward compatibility.
-
-    Args:
-        project_data: The [project] section data
-
-    Returns:
-        str | None: License name or None if not found
-    """
-    license_info = project_data.get("license")
-    if isinstance(license_info, str):
-        return license_info
-    elif isinstance(license_info, dict):
-        return license_info.get("text") or license_info.get("file")
-    return None
 
 
 def _extract_dynamic_version(
