@@ -11,7 +11,7 @@ version = "0.1.0"
 description = "Creating SBOM during the build process. Now targeting Python Hatchling support."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "Apache-2.0"
+license = {text = "Apache-2.0"}
 keywords = [
     "sbom",
     "bom",
@@ -38,6 +38,7 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
+    "pyproject-metadata>=0.8.0",
     "tomli>=2.0.0; python_version<'3.11'",
 ]
 
