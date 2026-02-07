@@ -10,14 +10,21 @@ Creating SBOM during the build process. Now targeting Python Hatchling support.
 
 ## Overview
 
-Loom is an automated Software Bill of Materials (SBOM) generator for Python projects that use Hatchling as their build backend. It generates SPDX 3.0 compliant SBOMs that document the composition, provenance, and dependencies of software systems.
+Loom is an automated Software Bill of Materials (SBOM) generator for Python
+projects that use Hatchling as their build backend.
+It generates SPDX 3.0 compliant SBOMs that document the composition,
+provenance, and dependencies of software systems.
 
 ## Features
 
-- **SPDX 3.0 Support**: Generates SBOMs in SPDX 3.0 JSON-LD format
-- **Hatchling Integration**: Extracts metadata from Python projects using Hatchling
-- **Dependency Tracking**: Automatically includes project dependencies in the SBOM
-- **Standards Compliant**: Follows SPDX 3.0 specification and modern Python packaging standards
+- **SPDX 3.0 Support**:
+  Generates SBOMs in SPDX 3.0 JSON-LD format
+- **Hatchling Integration**:
+  Extracts metadata from Python projects using Hatchling
+- **Dependency Tracking**:
+  Automatically includes project dependencies in the SBOM
+- **Standards Compliant**:
+  Follows SPDX 3.0 specification and modern Python packaging standards
 
 ## Installation
 
@@ -83,6 +90,7 @@ loom sentimentdemo -o sentimentdemo-sbom.spdx3.json
 ```
 
 The generated SBOM will include:
+
 - Project metadata (name, version, description)
 - Project dependencies with version constraints
 - SPDX relationships between components
@@ -90,7 +98,7 @@ The generated SBOM will include:
 
 ## Project structure
 
-```
+```text
 loom/
 ├── src/
 │   └── loom/

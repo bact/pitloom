@@ -8,22 +8,29 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## Overview
 
-The current implementation uses custom SPDX 3.0 models defined in `src/loom/core/models.py`.
+The current implementation uses custom SPDX 3.0 models defined in
+`src/loom/core/models.py`.
+
 For future development, we may consider integrating with the official
 [spdx-python-model](https://github.com/spdx/spdx-python-model) library.
 
 ## Tutorial Reference
 
 A comprehensive tutorial on using spdx-python-model is available at:
-https://gist.github.com/bact/7227ad858500c2097a25344a4af015d6
+<https://gist.github.com/bact/7227ad858500c2097a25344a4af015d6>
 
 ## Key Features of spdx-python-model
 
-1. **Official SPDX Python Bindings**: Generated directly from the SPDX 3.0 specification
-2. **Version-specific Imports**: Support for different SPDX versions (e.g., v3_0_1)
-3. **JSON-LD Deserialization**: Built-in support for reading SPDX 3 JSON files
-4. **SHACLObjectSet**: Efficient object storage and querying with type-based indexing
-5. **Property Access**: Direct Python attribute access to SPDX properties
+1. **Official SPDX Python Bindings**:
+    Generated directly from the SPDX 3.0 specification
+2. **Version-specific Imports**:
+    Support for different SPDX versions (e.g., v3_0_1)
+3. **JSON-LD Deserialization**:
+    Built-in support for reading SPDX 3 JSON files
+4. **SHACLObjectSet**:
+    Efficient object storage and querying with type-based indexing
+5. **Property Access**:
+    Direct Python attribute access to SPDX properties
 
 ## Example Usage
 
@@ -81,7 +88,8 @@ obj = object_set.find_by_id("https://spdx.org/spdxdocs/Package/...")
 
 ## Migration Path
 
-If we decide to migrate to spdx-python-model, the recommended approach would be:
+If we decide to migrate to spdx-python-model,
+the recommended approach would be:
 
 1. **Phase 1: Add spdx-python-model as optional dependency**
 
@@ -105,22 +113,30 @@ If we decide to migrate to spdx-python-model, the recommended approach would be:
 
 For the **current prototype**, we should **keep the custom models** because:
 
-1. **Simplicity**: The prototype is focused on demonstrating basic SBOM generation
-2. **No External Dependencies**: Easier to install and test
-3. **Educational Value**: Custom models help understand SPDX 3.0 structure
-4. **Sufficient for Requirements**: Current implementation meets all prototype goals
+1. **Simplicity**:
+    The prototype is focused on demonstrating basic SBOM generation
+2. **No External Dependencies**:
+    Easier to install and test
+3. **Educational Value**:
+    Custom models help understand SPDX 3.0 structure
+4. **Sufficient for Requirements**:
+    Current implementation meets all prototype goals
 
-For **production use** or when adding advanced features (AI/Dataset profiles, complex relationships, validation), we should consider adopting spdx-python-model.
+For **production use** or when adding advanced features (AI/Dataset profiles,
+complex relationships, validation), we should consider adopting
+spdx-python-model.
 
 ## Format-Neutral Internal Representation
 
 ### Future Architectural Consideration
 
-For long-term maintainability and flexibility, we may need an internal representation that is:
+For long-term maintainability and flexibility,
+we may need an internal representation that is:
 
 - **Format-neutral**: Not tied to a specific SBOM format
 - **Lossless**: Preserves all information during format conversions
-- **Version-agnostic**: Can export to different versions of the same format (e.g., SPDX 3.0, 3.1, 3.2)
+- **Version-agnostic**: Can export to different versions of the same format
+  (e.g., SPDX 3.0, 3.1, 3.2)
 
 This would enable:
 
@@ -131,7 +147,8 @@ This would enable:
 
 ### Protobom as a Potential Option
 
-[Protobom](https://github.com/protobom/protobom) is a promising candidate for format-neutral SBOM representation:
+[Protobom](https://github.com/protobom/protobom) is a promising candidate for
+format-neutral SBOM representation:
 
 **Key Features:**
 

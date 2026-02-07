@@ -22,7 +22,7 @@ Successfully implemented a complete, production-ready prototype of an SBOM (Soft
 2. **Metadata Extraction** (`src/loom/extractors/metadata.py`)
    - Reads pyproject.toml files
    - Extracts project metadata (name, version, description, authors, URLs)
-   - Handles dynamic versions from __about__.py
+   - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
 
 3. **SPDX 3.0 Exporter** (`src/loom/exporters/spdx3_json.py`)
@@ -105,12 +105,14 @@ SBOM written to: sbom.spdx3.json
 ### Captured information
 
 **Main Package:**
+
 - Name: sentimentdemo
 - Version: 0.0.2 (dynamically extracted)
-- Download: https://github.com/bact/sentimentdemo
+- Download: <https://github.com/bact/sentimentdemo>
 - Description: Full description preserved
 
 **Dependencies (All Captured Correctly):**
+
 - fasttext: 0.9.3
 - newmm-tokenizer: 0.2.2
 - numpy: 1.26.4
@@ -120,7 +122,7 @@ SBOM written to: sbom.spdx3.json
 
 ### 1. Clean Architecture
 
-```
+```text
 src/loom/
 ├── core/           # SPDX 3.0 data models
 ├── extractors/     # Metadata extraction from build systems
@@ -155,6 +157,7 @@ src/loom/
 | License Expressions | ✅ | ⚠️ | 🔄 Roadmap |
 
 **Legend:**
+
 - ✅ Complete: Fully implemented
 - ⚠️ Basic: Core functionality present, enhancements planned
 - 🔄 Roadmap: Planned for future releases
@@ -270,8 +273,9 @@ Based on the design document and problem requirements:
 ## Acknowledgments
 
 **New Requirement Addressed:**
+
 - Documented spdx-python-model integration path
-- Tutorial reference: https://gist.github.com/bact/7227ad858500c2097a25344a4af015d6
+- Tutorial reference: <https://gist.github.com/bact/7227ad858500c2097a25344a4af015d6>
 - Design document created for future integration
 
 ## Conclusion
@@ -290,7 +294,7 @@ The foundation is solid for future enhancements toward a comprehensive, producti
 
 ---
 
-**Repository**: https://github.com/bact/loom  
+**Repository**: <https://github.com/bact/loom>  
 **Branch**: copilot/scaffold-sbom-generator  
 **Tests**: 19 passed, 0 failed  
 **Security**: 0 alerts (CodeQL)  
