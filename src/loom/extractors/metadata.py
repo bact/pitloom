@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for Python project metadata from pyproject.toml using pyproject-metadata."""
+"""Extractor for Python project metadata from pyproject.toml."""
 
 from __future__ import annotations
 
@@ -87,7 +87,17 @@ class ProjectMetadata:
         Returns the SPDX license identifier as a string.
         Handles both plain string format (PEP 639 recommended)
         and License object format (from table-based format).
+
+        Current implementation does not handle license expression.
         """
+        # TODO:
+        # - Handle license expression,
+        #   could use https://pypi.org/project/license-expression/
+        # - Validate license name of SPDX License List
+        #   https://spdx.org/licenses/ and ScanCode LicenseDB
+        #   https://scancode-licensedb.aboutcode.org/,
+        #   and display warning if license is not found in
+        #   those lists
         license_obj = self._standard_metadata.license
         if license_obj:
             # In pyproject-metadata 0.10.0+:
@@ -98,6 +108,16 @@ class ProjectMetadata:
             elif hasattr(license_obj, "text") and license_obj.text:
                 return license_obj.text
             elif hasattr(license_obj, "file") and license_obj.file:
+                # TODO: Identify actual SPDX License ID from the license text.
+                # Few libraries are available for this task:
+                # - https://pypi.org/project/scancode-toolkit/
+                #   (Python, extremely accurate)
+                # - https://pypi.org/project/spdx-matcher/
+                #   (Python, lightweight)
+                # - https://github.com/jpeddicord/askalono
+                #   (Rust, very fast)
+                # - https://github.com/spdx/spdx-license-matcher
+                #   (Python, from SPDX project, no wheels, needs Java and Redis)
                 return str(license_obj.file)
             else:
                 return str(license_obj)
