@@ -1,0 +1,363 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Build Wheels and Generate SBOM
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      spdx_version:
+        description: 'SPDX version to validate against'
+        required: false
+        default: '3.0.1'
+        type: choice
+        options:
+          - '3.0.0'
+          - '3.0.1'
+          - '3.1'
+          - 'auto'
+
+env:
+  # SPDX 3.0.1 URLs (default)
+  SPDX_VERSION: ${{ github.event.inputs.spdx_version || '3.0.1' }}
+  SPDX_JSON_SCHEMA_URL_3_0_1: 'https://spdx.org/schema/3.0.1/spdx-json-schema.json'
+  SPDX_OWL_ONTOLOGY_URL_3_0_1: 'https://spdx.org/rdf/3.0.1/spdx-model.ttl'
+  SPDX_JSONLD_CONTEXT_URL_3_0_1: 'https://spdx.org/rdf/3.0.1/spdx-context.jsonld'
+  SPDX_ANNOTATION_URL_3_0_1: 'https://spdx.org/rdf/3.0.1/spdx-json-serialize-annotations.ttl'
+  
+  # SPDX 3.1 URLs (for future use)
+  SPDX_JSON_SCHEMA_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/schema.json'
+  SPDX_OWL_ONTOLOGY_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-model.ttl'
+  SPDX_JSONLD_CONTEXT_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-context.jsonld'
+  SPDX_ANNOTATION_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-json-serialize-annotations.ttl'
+
+jobs:
+  build-wheel:
+    name: Build wheel for Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+
+    - name: Build wheel
+      id: build
+      run: |
+        python -m build --wheel
+        WHEEL_NAME=$(ls dist/*.whl | xargs -n 1 basename)
+        echo "wheel_name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
+        echo "::notice title=Build Success::Successfully built wheel: ${WHEEL_NAME}"
+      continue-on-error: true
+
+    - name: Display build error
+      if: steps.build.outcome == 'failure'
+      run: |
+        echo "::error title=Build Failed::Wheel build failed for Python ${{ matrix.python-version }}. Check the build logs for details."
+        exit 1
+
+    - name: Install Loom for SBOM generation
+      if: steps.build.outcome == 'success'
+      run: |
+        pip install -e .
+
+    - name: Generate SBOM
+      id: sbom
+      if: steps.build.outcome == 'success'
+      run: |
+        # Get wheel name and create SBOM filename following OpenSSF convention
+        WHEEL_NAME="${{ steps.build.outputs.wheel_name }}"
+        SBOM_NAME="${WHEEL_NAME}.spdx3.json"
+        
+        # Generate SBOM
+        loom . -o "dist/${SBOM_NAME}" --creator-name "Loom CI" --creator-email "ci@loom.example"
+        
+        echo "sbom_name=${SBOM_NAME}" >> $GITHUB_OUTPUT
+        echo "sbom_path=dist/${SBOM_NAME}" >> $GITHUB_OUTPUT
+        echo "::notice title=SBOM Generated::Successfully created SBOM file: ${SBOM_NAME}"
+      continue-on-error: true
+
+    - name: Display SBOM generation error
+      if: steps.build.outcome == 'success' && steps.sbom.outcome == 'failure'
+      run: |
+        echo "::error title=SBOM Generation Failed::SBOM generation failed for Python ${{ matrix.python-version }}. Verify that the project structure is correct."
+
+    - name: Install spdx3-validate
+      if: steps.sbom.outcome == 'success'
+      run: |
+        pip install spdx3-validate
+
+    - name: Validate SBOM with spdx3-validate
+      id: validate
+      if: steps.sbom.outcome == 'success'
+      run: |
+        # Determine which URLs to use based on SPDX version
+        SPDX_VER="${{ env.SPDX_VERSION }}"
+        
+        if [[ "$SPDX_VER" == "3.1" ]]; then
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_1 }}"
+          ANNOTATION_URL="${{ env.SPDX_ANNOTATION_URL_3_1 }}"
+        else
+          # Default to 3.0.1
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_0_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_0_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_0_1 }}"
+          ANNOTATION_URL="${{ env.SPDX_ANNOTATION_URL_3_0_1 }}"
+        fi
+        
+        echo "::notice title=Validation Starting::Validating SBOM against SPDX ${SPDX_VER} specification"
+        
+        echo "=== SBOM Validation ==="
+        echo "SPDX Version: ${SPDX_VER}"
+        echo ""
+        echo "Validating with spdx3-validate tool against:"
+        echo "  - JSON Schema: ${JSON_SCHEMA_URL}"
+        echo "  - OWL ontology: ${OWL_ONTOLOGY_URL}"
+        echo "  - JSON-LD context: ${JSONLD_CONTEXT_URL}"
+        echo "  - Annotation: ${ANNOTATION_URL}"
+        echo ""
+        
+        # Run spdx3-validate with specified version or auto-detect
+        if [[ "$SPDX_VER" == "auto" ]]; then
+          echo "Auto-detecting SPDX version from SBOM..."
+          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }}"
+        else
+          echo "Using specified SPDX version: ${SPDX_VER}"
+          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }} --spdx-version ${SPDX_VER}"
+        fi
+        
+        if $VALIDATE_CMD; then
+          echo ""
+          echo "✅ SBOM validation passed!"
+          echo "::notice title=Validation Success::SBOM successfully validated against SPDX ${SPDX_VER}"
+          exit 0
+        else
+          echo ""
+          echo "❌ SBOM validation failed!"
+          exit 1
+        fi
+      continue-on-error: true
+
+    - name: Display validation error
+      if: steps.sbom.outcome == 'success' && steps.validate.outcome == 'failure'
+      run: |
+        echo "::error title=Validation Failed::SBOM validation failed for Python ${{ matrix.python-version }}. The SBOM does not conform to SPDX specification."
+
+    - name: Extract SBOM metadata for summary
+      id: metadata
+      if: steps.validate.outcome == 'success'
+      run: |
+        python3 << 'EOF'
+        import json
+        import os
+        from pathlib import Path
+        
+        sbom_path = Path("${{ steps.sbom.outputs.sbom_path }}")
+        
+        with open(sbom_path, 'r') as f:
+            sbom = json.load(f)
+        
+        graph = sbom['@graph']
+        
+        # Extract CreationInfo
+        creation_info = next((e for e in graph if e.get('type') == 'CreationInfo'), {})
+        created = creation_info.get('created', 'N/A')
+        spec_version = creation_info.get('specVersion', 'N/A')
+        
+        # Extract Creator
+        creators = [e for e in graph if e.get('type') == 'Person']
+        creator_names = [c.get('name', 'Unknown') for c in creators]
+        
+        # Extract packages
+        packages = [e for e in graph if e.get('type') == 'software_Package']
+        main_package = packages[0] if packages else {}
+        
+        package_name = main_package.get('name', 'N/A')
+        package_version = main_package.get('software_packageVersion', 'N/A')
+        
+        # Count dependencies (excluding main package)
+        dep_count = len(packages) - 1 if len(packages) > 1 else 0
+        
+        # Sample dependencies (up to 5)
+        sample_deps = []
+        for pkg in packages[1:6]:
+            dep_name = pkg.get('name', 'Unknown')
+            dep_version = pkg.get('software_packageVersion', '')
+            if dep_version:
+                sample_deps.append(f"{dep_name} {dep_version}")
+            else:
+                sample_deps.append(dep_name)
+        
+        # Write to GitHub output
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"created={created}\n")
+            f.write(f"spec_version={spec_version}\n")
+            f.write(f"creators={', '.join(creator_names)}\n")
+            f.write(f"package_name={package_name}\n")
+            f.write(f"package_version={package_version}\n")
+            f.write(f"dep_count={dep_count}\n")
+            f.write(f"sample_deps={', '.join(sample_deps)}\n")
+        EOF
+
+    - name: Create Job Summary
+      if: steps.validate.outcome == 'success'
+      run: |
+        # Determine which URLs were used based on SPDX version
+        SPDX_VER="${{ env.SPDX_VERSION }}"
+        
+        if [[ "$SPDX_VER" == "3.1" ]]; then
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_1 }}"
+        else
+          # Default to 3.0.1
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_0_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_0_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_0_1 }}"
+        fi
+        
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## 🎉 SBOM Generated Successfully - Python ${{ matrix.python-version }}
+        
+        ### 📦 Build Artifacts
+        | Artifact | Name |
+        | :--- | :--- |
+        | Wheel | \`${{ steps.build.outputs.wheel_name }}\` |
+        | SBOM | \`${{ steps.sbom.outputs.sbom_name }}\` |
+        
+        ### 📋 Creation Information
+        | Property | Value |
+        | :--- | :--- |
+        | SPDX Version | ${{ steps.metadata.outputs.spec_version }} |
+        | Created | ${{ steps.metadata.outputs.created }} |
+        | Creator | ${{ steps.metadata.outputs.creators }} |
+        
+        ### 📊 Package Information
+        | Property | Value |
+        | :--- | :--- |
+        | Name | ${{ steps.metadata.outputs.package_name }} |
+        | Version | ${{ steps.metadata.outputs.package_version }} |
+        | Dependencies | ${{ steps.metadata.outputs.dep_count }} packages |
+        
+        ### 🔗 Sample Dependencies
+        ${{ steps.metadata.outputs.sample_deps }}
+        
+        ### ✅ Validation Status
+        | Check | Status | Resource |
+        | :--- | :--- | :--- |
+        | SPDX Version | ✅ Passed | ${SPDX_VER} |
+        | JSON Schema | ✅ Validated | [Schema](${JSON_SCHEMA_URL}) |
+        | SHACL | ✅ Validated | [Ontology](${OWL_ONTOLOGY_URL}) |
+        | JSON-LD Context | ✅ Validated | [Context](${JSONLD_CONTEXT_URL}) |
+        | Specification | ✅ Conforms | SPDX 3.0 |
+        
+        ---
+        
+        **Build completed successfully!** 🚀
+        
+        EOF
+
+    - name: Create failure summary
+      if: always() && (steps.build.outcome == 'failure' || steps.sbom.outcome == 'failure' || steps.validate.outcome == 'failure')
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## ❌ Build Failed - Python ${{ matrix.python-version }}
+        
+        ### 🔍 Failure Details
+        | Step | Status | Description |
+        | :--- | :--- | :--- |
+        | Build Wheel | ${{ steps.build.outcome == 'failure' && '❌ Failed' || '✅ Passed' }} | ${{ steps.build.outcome == 'failure' && 'Wheel build failed. Check build logs above.' || 'Successfully built wheel.' }} |
+        | Generate SBOM | ${{ steps.sbom.outcome == 'failure' && '❌ Failed' || steps.sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.sbom.outcome == 'failure' && 'SBOM generation failed. Verify project structure.' || steps.sbom.outcome == 'success' && 'Successfully generated SBOM.' || 'Skipped due to build failure.' }} |
+        | Validate SBOM | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
+        
+        ### 💡 Troubleshooting Tips
+        
+        ${{ steps.build.outcome == 'failure' && '**Build Failed:**
+        - Check that all dependencies are correctly specified in pyproject.toml
+        - Verify Python version compatibility
+        - Review build logs for specific error messages
+        ' || '' }}
+        
+        ${{ steps.sbom.outcome == 'failure' && '**SBOM Generation Failed:**
+        - Ensure pyproject.toml exists and is valid
+        - Verify that Loom is correctly installed
+        - Check that project metadata is properly configured
+        ' || '' }}
+        
+        ${{ steps.validate.outcome == 'failure' && '**Validation Failed:**
+        - Review the SBOM content for SPDX compliance issues
+        - Check that all required SPDX fields are present
+        - Verify the SBOM structure matches SPDX 3.0 specification
+        ' || '' }}
+        
+        ---
+        
+        Please review the logs above for detailed error messages.
+        
+        EOF
+
+    - name: Upload wheel artifact
+      if: steps.build.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheel-py${{ matrix.python-version }}
+        path: dist/*.whl
+        retention-days: 15
+
+    - name: Upload SBOM artifact
+      if: steps.validate.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom-py${{ matrix.python-version }}
+        path: dist/*.spdx3.json
+        retention-days: 15
+
+    - name: Final status check
+      if: always()
+      run: |
+        echo "::group::Final Status Check"
+        echo "Checking all workflow steps..."
+        echo ""
+        
+        BUILD_STATUS="${{ steps.build.outcome }}"
+        SBOM_STATUS="${{ steps.sbom.outcome }}"
+        VALIDATE_STATUS="${{ steps.validate.outcome }}"
+        
+        echo "Build: ${BUILD_STATUS}"
+        echo "SBOM: ${SBOM_STATUS}"
+        echo "Validation: ${VALIDATE_STATUS}"
+        echo ""
+        echo "::endgroup::"
+        
+        if [ "$BUILD_STATUS" != "success" ]; then
+          echo "::error title=Workflow Failed::Build step failed for Python ${{ matrix.python-version }}"
+          exit 1
+        fi
+        if [ "$SBOM_STATUS" != "success" ]; then
+          echo "::error title=Workflow Failed::SBOM generation step failed for Python ${{ matrix.python-version }}"
+          exit 1
+        fi
+        if [ "$VALIDATE_STATUS" != "success" ]; then
+          echo "::error title=Workflow Failed::SBOM validation step failed for Python ${{ matrix.python-version }}"
+          exit 1
+        fi
+        
+        echo "::notice title=Workflow Success::✅ All checks passed for Python ${{ matrix.python-version }}!"
