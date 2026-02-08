@@ -8,6 +8,32 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      spdx_version:
+        description: 'SPDX version to validate against'
+        required: false
+        default: '3.0.1'
+        type: choice
+        options:
+          - '3.0.0'
+          - '3.0.1'
+          - '3.1'
+          - 'auto'
+
+env:
+  # SPDX 3.0.1 URLs (default)
+  SPDX_VERSION: ${{ github.event.inputs.spdx_version || '3.0.1' }}
+  SPDX_JSON_SCHEMA_URL_3_0_1: 'https://spdx.org/schema/3.0.1/spdx-json-schema.json'
+  SPDX_OWL_ONTOLOGY_URL_3_0_1: 'https://spdx.org/rdf/3.0.1/spdx-model.ttl'
+  SPDX_JSONLD_CONTEXT_URL_3_0_1: 'https://spdx.org/rdf/3.0.1/spdx-context.jsonld'
+  SPDX_ANNOTATION_URL_3_0_1: 'https://spdx.org/rdf/3.0.1/spdx-json-serialize-annotations.ttl'
+  
+  # SPDX 3.1 URLs (for future use)
+  SPDX_JSON_SCHEMA_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/schema.json'
+  SPDX_OWL_ONTOLOGY_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-model.ttl'
+  SPDX_JSONLD_CONTEXT_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-context.jsonld'
+  SPDX_ANNOTATION_URL_3_1: 'https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-json-serialize-annotations.ttl'
 
 jobs:
   build-wheel:
@@ -78,15 +104,42 @@ jobs:
       id: validate
       if: steps.sbom.outcome == 'success'
       run: |
-        echo "Validating SBOM with spdx3-validate..."
-        echo "This will validate against:"
-        echo "  - JSON Schema: https://spdx.org/schema/3.0.1/spdx-json-schema.json"
-        echo "  - OWL ontology: https://spdx.org/rdf/3.0.1/spdx-model.ttl"
-        echo "  - JSON-LD context: https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
+        # Determine which URLs to use based on SPDX version
+        SPDX_VER="${{ env.SPDX_VERSION }}"
+        
+        if [[ "$SPDX_VER" == "3.1" ]]; then
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_1 }}"
+          ANNOTATION_URL="${{ env.SPDX_ANNOTATION_URL_3_1 }}"
+        else
+          # Default to 3.0.1
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_0_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_0_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_0_1 }}"
+          ANNOTATION_URL="${{ env.SPDX_ANNOTATION_URL_3_0_1 }}"
+        fi
+        
+        echo "=== SBOM Validation ==="
+        echo "SPDX Version: ${SPDX_VER}"
+        echo ""
+        echo "Validating with spdx3-validate tool against:"
+        echo "  - JSON Schema: ${JSON_SCHEMA_URL}"
+        echo "  - OWL ontology: ${OWL_ONTOLOGY_URL}"
+        echo "  - JSON-LD context: ${JSONLD_CONTEXT_URL}"
+        echo "  - Annotation: ${ANNOTATION_URL}"
         echo ""
         
-        # Run spdx3-validate with the SBOM (auto-detects SPDX version)
-        if spdx3-validate --json "${{ steps.sbom.outputs.sbom_path }}"; then
+        # Run spdx3-validate with specified version or auto-detect
+        if [[ "$SPDX_VER" == "auto" ]]; then
+          echo "Auto-detecting SPDX version from SBOM..."
+          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }}"
+        else
+          echo "Using specified SPDX version: ${SPDX_VER}"
+          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }} --spdx-version ${SPDX_VER}"
+        fi
+        
+        if $VALIDATE_CMD; then
           echo ""
           echo "✅ SBOM validation passed!"
           exit 0
@@ -161,12 +214,26 @@ jobs:
     - name: Create Job Summary
       if: steps.validate.outcome == 'success'
       run: |
-        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+        # Determine which URLs were used based on SPDX version
+        SPDX_VER="${{ env.SPDX_VERSION }}"
+        
+        if [[ "$SPDX_VER" == "3.1" ]]; then
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_1 }}"
+        else
+          # Default to 3.0.1
+          JSON_SCHEMA_URL="${{ env.SPDX_JSON_SCHEMA_URL_3_0_1 }}"
+          OWL_ONTOLOGY_URL="${{ env.SPDX_OWL_ONTOLOGY_URL_3_0_1 }}"
+          JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_0_1 }}"
+        fi
+        
+        cat >> $GITHUB_STEP_SUMMARY << EOF
         ## 🎉 SBOM Generated Successfully - Python ${{ matrix.python-version }}
         
         ### Build Artifact
-        - **Wheel**: `${{ steps.build.outputs.wheel_name }}`
-        - **SBOM**: `${{ steps.sbom.outputs.sbom_name }}`
+        - **Wheel**: \`${{ steps.build.outputs.wheel_name }}\`
+        - **SBOM**: \`${{ steps.sbom.outputs.sbom_name }}\`
         
         ### Creation Information
         - **SPDX Version**: ${{ steps.metadata.outputs.spec_version }}
@@ -182,11 +249,11 @@ jobs:
         ${{ steps.metadata.outputs.sample_deps }}
         
         ### Validation Status
-        - ✅ Validated with spdx3-validate tool
-        - ✅ JSON Schema validation (https://spdx.org/schema/3.0.1/spdx-json-schema.json)
-        - ✅ SHACL validation (https://spdx.org/rdf/3.0.1/spdx-model.ttl)
-        - ✅ JSON-LD context validation (https://spdx.org/rdf/3.0.1/spdx-context.jsonld)
-        - ✅ Conforms to SPDX 3.0.1 specification
+        - ✅ Validated with spdx3-validate tool (SPDX ${SPDX_VER})
+        - ✅ JSON Schema validation: ${JSON_SCHEMA_URL}
+        - ✅ SHACL validation: ${OWL_ONTOLOGY_URL}
+        - ✅ JSON-LD context validation: ${JSONLD_CONTEXT_URL}
+        - ✅ Conforms to SPDX specification
         
         EOF
 
