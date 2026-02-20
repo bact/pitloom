@@ -10,8 +10,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from loom.core.models import generate_spdx_id
 from spdx_python_model import v3_0_1 as spdx3
+
+from loom.core.models import generate_spdx_id
 from loom.exporters.spdx3_json import Spdx3JsonExporter
 from loom.extractors.metadata import extract_metadata_from_pyproject
 

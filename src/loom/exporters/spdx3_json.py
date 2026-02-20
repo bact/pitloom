@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import io
+
 from spdx_python_model import v3_0_1 as spdx3
 
 
