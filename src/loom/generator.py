@@ -72,6 +72,14 @@ def generate_sbom_from_project(
     # Add creator
     exporter.add_person(creator)
 
+    # Create unknown organization for dependencies without supplier info
+    unknown_org = spdx3.Organization(
+        spdxId=generate_spdx_id("Organization", doc_name="UnknownSupplier", doc_uuid=doc_uuid),
+        name="NOASSERTION",
+        creationInfo=creation_info,
+    )
+    exporter.add_person(unknown_org)
+
     # Create main package
     package_version = metadata.version or "unknown"
     download_location = metadata.urls.get("Source") or metadata.urls.get("Homepage")
@@ -97,8 +105,12 @@ def generate_sbom_from_project(
         name=metadata.name,
         creationInfo=creation_info,
     )
+    # Populate Version (NTIA Minimum Element)
     if package_version:
         main_package.software_packageVersion = package_version
+    # Populate Supplier (NTIA Minimum Element)
+    main_package.suppliedBy = creator.spdxId
+
     if metadata.description:
         main_package.description = metadata.description
     if download_location:
@@ -155,8 +167,11 @@ def generate_sbom_from_project(
             name=dep_name,
             creationInfo=creation_info,
         )
-        if dep_version:
-            dep_package.software_packageVersion = dep_version
+        # Populate Version (NTIA Minimum Element)
+        dep_package.software_packageVersion = dep_version if dep_version else "unknown"
+        # Populate Supplier (NTIA Minimum Element)
+        dep_package.suppliedBy = unknown_org.spdxId
+
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         if dep_comment:
             dep_package.comment = dep_comment
