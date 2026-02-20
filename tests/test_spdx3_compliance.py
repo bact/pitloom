@@ -59,7 +59,7 @@ dependencies = ["requests>=2.28.0"]
             # Element-specific validations
             if element["type"] == "CreationInfo":
                 assert "@id" in element
-                assert element["@id"] == "_:creationinfo"
+                assert element["@id"].startswith("_:CreationInfo")
                 assert "specVersion" in element
                 assert "created" in element
                 assert "createdBy" in element

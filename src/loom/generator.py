@@ -10,14 +10,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from loom.core.models import (
-    CreationInfo,
-    Person,
-    Relationship,
-    Sbom,
-    SoftwarePackage,
-    SpdxDocument,
-)
+from spdx_python_model import v3_0_1 as spdx3
+
+from loom.core.models import generate_spdx_id
 from loom.exporters.spdx3_json import Spdx3JsonExporter
 from loom.extractors.metadata import extract_metadata_from_pyproject
 
@@ -51,19 +46,25 @@ def generate_sbom_from_project(
     doc_uuid = str(uuid4())
 
     # Create creation info
-    creation_info = CreationInfo(
+    creation_info = spdx3.CreationInfo(
+        specVersion="3.0.1",
         created=datetime.now(timezone.utc),
-        spec_version="3.0.1",
     )
 
     # Create creator person
-    creator = Person(
+    creator = spdx3.Person(
+        spdxId=generate_spdx_id("Person", doc_name=metadata.name, doc_uuid=doc_uuid),
         name=creator_name or "Loom",
-        email=creator_email,
-        creation_info=creation_info,
-        doc_uuid=doc_uuid,
+        creationInfo=creation_info,
     )
-    creation_info.created_by = [creator.spdx_id]
+    if creator_email:
+        creator_email_id = spdx3.ExternalIdentifier(
+            externalIdentifierType=spdx3.ExternalIdentifierType.email,
+            identifier=creator_email,
+        )
+        creator.externalIdentifier = [creator_email_id]
+
+    creation_info.createdBy = [creator.spdxId]
 
     # Add creation info first
     exporter.add_creation_info(creation_info)
@@ -91,34 +92,39 @@ def generate_sbom_from_project(
     if provenance_parts:
         comment = "Metadata provenance: " + "; ".join(provenance_parts)
 
-    main_package = SoftwarePackage(
+    main_package = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
         name=metadata.name,
-        version=package_version,
-        description=metadata.description,
-        download_location=download_location,
-        homepage=metadata.urls.get("Homepage"),
-        copyright_text=f"Copyright (c) {copyright_year} {copyright_holder}",
-        primary_purpose="library",
-        creation_info=creation_info,
-        comment=comment,
-        doc_uuid=doc_uuid,
+        creationInfo=creation_info,
     )
+    if package_version:
+        main_package.software_packageVersion = package_version
+    if metadata.description:
+        main_package.description = metadata.description
+    if download_location:
+        main_package.software_downloadLocation = download_location
+    if metadata.urls.get("Homepage"):
+        main_package.software_homePage = metadata.urls.get("Homepage")
+    main_package.software_copyrightText = f"Copyright (c) {copyright_year} {copyright_holder}"
+    main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
+    if comment:
+        main_package.comment = comment
 
     # Create SBOM
-    sbom = Sbom(
-        root_elements=[main_package.spdx_id],
-        sbom_types=["build"],
-        creation_info=creation_info,
-        doc_uuid=doc_uuid,
+    sbom = spdx3.software_Sbom(
+        spdxId=generate_spdx_id("Sbom", doc_name=metadata.name, doc_uuid=doc_uuid),
+        creationInfo=creation_info,
+        rootElement=[main_package.spdxId],
     )
+    sbom.software_sbomType = [spdx3.software_SbomType.build]
 
     # Create SPDX document
-    spdx_doc = SpdxDocument(
-        root_elements=[sbom.spdx_id],
-        profile_conformance=["core", "software"],
-        creation_info=creation_info,
-        doc_uuid=doc_uuid,
+    spdx_doc = spdx3.SpdxDocument(
+        spdxId=generate_spdx_id("SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid),
+        creationInfo=creation_info,
+        rootElement=[sbom.spdxId],
     )
+    spdx_doc.profileConformance = [spdx3.ProfileIdentifierType.core, spdx3.ProfileIdentifierType.software]
 
     # Add all elements to exporter
     exporter.add_document(spdx_doc)
@@ -144,28 +150,33 @@ def generate_sbom_from_project(
         # Add provenance for dependency packages
         dep_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
 
-        dep_package = SoftwarePackage(
+        dep_package = spdx3.software_Package(
+            spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
             name=dep_name,
-            version=dep_version,
-            primary_purpose="library",
-            creation_info=creation_info,
-            comment=dep_comment,
-            doc_uuid=doc_uuid,
+            creationInfo=creation_info,
         )
+        if dep_version:
+            dep_package.software_packageVersion = dep_version
+        dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
+        if dep_comment:
+            dep_package.comment = dep_comment
+
         exporter.add_package(dep_package)
 
         # Create dependency relationship
         rel_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
 
-        dep_rel = Relationship(
-            from_element=main_package.spdx_id,
-            to_elements=[dep_package.spdx_id],
-            relationship_type="dependsOn",
-            description=f"{metadata.name} depends on {dep_name}",
-            creation_info=creation_info,
-            comment=rel_comment,
-            doc_uuid=doc_uuid,
+        dep_rel = spdx3.Relationship(
+            spdxId=generate_spdx_id("Relationship", doc_name=metadata.name, doc_uuid=doc_uuid),
+            from_=main_package.spdxId,
+            to=[dep_package.spdxId],
+            relationshipType=spdx3.RelationshipType.dependsOn,
+            creationInfo=creation_info,
         )
+        if rel_comment:
+            dep_rel.comment = rel_comment
+        dep_rel.description = f"{metadata.name} depends on {dep_name}"
+
         exporter.add_relationship(dep_rel)
 
     return exporter.to_json()
