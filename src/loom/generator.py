@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
+import logging
+from importlib.metadata import PackageNotFoundError, version as get_package_version
 from pathlib import Path
 from uuid import uuid4
 
@@ -145,22 +148,33 @@ def generate_sbom_from_project(
 
     # Add dependency packages and relationships
     for dep in metadata.dependencies:
-        # Parse dependency string (e.g., "fasttext==0.9.3" or "numpy>=1.20.0")
-        dep_name = (
-            dep.split("==")[0]
-            .split(">=")[0]
-            .split("<=")[0]
-            .split(">")[0]
-            .split("<")[0]
-            .strip()
-        )
-        dep_version = None
+        # Parse dependency string (e.g., "fasttext==0.9.3", "requests>=2.28.0", "numpy")
+        dep_name = dep
+        for op in ["==", ">=", "<=", "~=", ">", "<", "!=", "==="]:
+            if op in dep:
+                dep_name = dep.split(op)[0].strip()
+                break
+        
+        # Try to resolve actual installed version during this build
+        resolved_version = None
+        try:
+            resolved_version = get_package_version(dep_name)
+        except PackageNotFoundError:
+            pass
 
-        if "==" in dep:
+        # Build provenance comment for dependency packages
+        dep_parts = [f"dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"]
+        dep_parts.append(f"Declared constraint: {dep}")
+        
+        if resolved_version:
+            dep_parts.append("Version resolved: Build-time environment (importlib.metadata)")
+            dep_version = resolved_version
+        elif "==" in dep:
             dep_version = dep.split("==")[1].strip()
+        else:
+            dep_version = "unknown"
 
-        # Add provenance for dependency packages
-        dep_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
+        dep_comment = "Metadata provenance: " + "; ".join(dep_parts)
 
         dep_package = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
@@ -168,13 +182,12 @@ def generate_sbom_from_project(
             creationInfo=creation_info,
         )
         # Populate Version (NTIA Minimum Element)
-        dep_package.software_packageVersion = dep_version if dep_version else "unknown"
+        dep_package.software_packageVersion = dep_version
         # Populate Supplier (NTIA Minimum Element)
         dep_package.suppliedBy = unknown_org.spdxId
-
+        
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-        if dep_comment:
-            dep_package.comment = dep_comment
+        dep_package.comment = dep_comment
 
         exporter.add_package(dep_package)
 
@@ -193,6 +206,25 @@ def generate_sbom_from_project(
         dep_rel.description = f"{metadata.name} depends on {dep_name}"
 
         exporter.add_relationship(dep_rel)
+
+    # Ingest Generic SBOM Fragments if defined
+    for fragment_file in metadata.fragments:
+        fragment_path = project_dir / fragment_file
+        if fragment_path.exists():
+            try:
+                with open(fragment_path, "rb") as f:
+                    # In SPDX 3.0, JSON-LD fragments can be parsed back into object sets
+                    fragment_set = spdx3.SHACLObjectSet()
+                    parser = spdx3.JSONLDDeserializer()
+                    parser.read(f, fragment_set)
+                    
+                    # Merge fragment objects into our main exporter object set
+                    for obj in fragment_set.foreach():
+                        exporter.object_set.add(obj)
+            except Exception as e:
+                logging.warning(f"Failed to ingest SBOM fragment {fragment_path}: {e}")
+        else:
+            logging.warning(f"Configured SBOM fragment {fragment_path} not found.")
 
     return exporter.to_json()
 
