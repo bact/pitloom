@@ -110,7 +110,7 @@ def generate_sbom_from_project(
         main_package.software_packageVersion = package_version
     # Populate Supplier (NTIA Minimum Element)
     main_package.suppliedBy = creator.spdxId
-    
+
     if metadata.description:
         main_package.description = metadata.description
     if download_location:
@@ -171,7 +171,7 @@ def generate_sbom_from_project(
         dep_package.software_packageVersion = dep_version if dep_version else "unknown"
         # Populate Supplier (NTIA Minimum Element)
         dep_package.suppliedBy = unknown_org.spdxId
-        
+
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         if dep_comment:
             dep_package.comment = dep_comment
