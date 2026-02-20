@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from loom.core.models import (
     CreationInfo,
@@ -46,6 +47,9 @@ def generate_sbom_from_project(
     # Create SPDX document elements
     exporter = Spdx3JsonExporter()
 
+    # Generate a single document UUID for the entire SBOM
+    doc_uuid = str(uuid4())
+
     # Create creation info
     creation_info = CreationInfo(
         created=datetime.now(timezone.utc),
@@ -57,6 +61,7 @@ def generate_sbom_from_project(
         name=creator_name or "Loom",
         email=creator_email,
         creation_info=creation_info,
+        doc_uuid=doc_uuid,
     )
     creation_info.created_by = [creator.spdx_id]
 
@@ -96,6 +101,7 @@ def generate_sbom_from_project(
         primary_purpose="library",
         creation_info=creation_info,
         comment=comment,
+        doc_uuid=doc_uuid,
     )
 
     # Create SBOM
@@ -103,6 +109,7 @@ def generate_sbom_from_project(
         root_elements=[main_package.spdx_id],
         sbom_types=["build"],
         creation_info=creation_info,
+        doc_uuid=doc_uuid,
     )
 
     # Create SPDX document
@@ -110,6 +117,7 @@ def generate_sbom_from_project(
         root_elements=[sbom.spdx_id],
         profile_conformance=["core", "software"],
         creation_info=creation_info,
+        doc_uuid=doc_uuid,
     )
 
     # Add all elements to exporter
@@ -142,6 +150,7 @@ def generate_sbom_from_project(
             primary_purpose="library",
             creation_info=creation_info,
             comment=dep_comment,
+            doc_uuid=doc_uuid,
         )
         exporter.add_package(dep_package)
 
@@ -155,6 +164,7 @@ def generate_sbom_from_project(
             description=f"{metadata.name} depends on {dep_name}",
             creation_info=creation_info,
             comment=rel_comment,
+            doc_uuid=doc_uuid,
         )
         exporter.add_relationship(dep_rel)
 

@@ -20,11 +20,16 @@ from loom.core.models import (
 def test_generate_spdx_id():
     """Test SPDX ID generation."""
     person_id = generate_spdx_id("Person")
-    assert person_id.startswith("https://spdx.org/spdxdocs/Person/")
-    assert "Person/P-" in person_id or "Person/PE-" in person_id
+    assert person_id.startswith("https://spdx.org/spdxdocs/loom-")
+    assert "#Person-" in person_id
 
     package_id = generate_spdx_id("Package")
-    assert package_id.startswith("https://spdx.org/spdxdocs/Package/")
+    assert package_id.startswith("https://spdx.org/spdxdocs/loom-")
+    assert "#Package-" in package_id
+
+    doc_id = generate_spdx_id("SpdxDocument")
+    assert doc_id.startswith("https://spdx.org/spdxdocs/loom-")
+    assert "#" not in doc_id
 
 
 def test_creation_info():
