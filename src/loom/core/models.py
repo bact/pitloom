@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-
 _ID_COUNTERS: dict[str, int] = {}
 
 
