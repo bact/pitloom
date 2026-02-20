@@ -11,19 +11,34 @@ from typing import Any
 from uuid import uuid4
 
 
-def generate_spdx_id(prefix: str) -> str:
-    """Generate a unique SPDX ID with UUID.
+_ID_COUNTERS: dict[str, int] = {}
+
+
+def generate_spdx_id(
+    prefix: str, document_name: str = "loom", doc_uuid: str | None = None
+) -> str:
+    """Generate a unique SPDX ID with UUID following SPDX 3.0 best practices.
 
     Args:
         prefix: The prefix for the SPDX ID (e.g., 'Person', 'Package', 'File')
+        document_name: The name of the document
+        doc_uuid: Document UUID. If not provided, a new UUID will be generated.
 
     Returns:
-        str: A unique SPDX ID in the format:
-            https://spdx.org/spdxdocs/{prefix}/{prefix_abbrev}-{uuid}
+        str: A unique SPDX ID.
     """
-    prefix_abbrev = "".join([c for c in prefix if c.isupper()]) or prefix[:2].upper()
-    unique_id = str(uuid4())
-    return f"https://spdx.org/spdxdocs/{prefix}/{prefix_abbrev}-{unique_id}"
+    current_doc_uuid = doc_uuid or str(uuid4())
+    doc_namespace = f"https://spdx.org/spdxdocs/{document_name}-{current_doc_uuid}"
+
+    if prefix == "SpdxDocument":
+        return doc_namespace
+
+    if current_doc_uuid not in _ID_COUNTERS:
+        _ID_COUNTERS[current_doc_uuid] = 0
+
+    _ID_COUNTERS[current_doc_uuid] += 1
+    seq_id = _ID_COUNTERS[current_doc_uuid]
+    return f"{doc_namespace}#{prefix}-{seq_id}"
 
 
 class CreationInfo:
@@ -60,9 +75,10 @@ class Person:
         email: str | None = None,
         creation_info: CreationInfo | None = None,
         comment: str | None = None,
+        doc_uuid: str | None = None,
     ) -> None:
         self.name = name
-        self.spdx_id = spdx_id or generate_spdx_id("Person")
+        self.spdx_id = spdx_id or generate_spdx_id("Person", doc_uuid=doc_uuid)
         self.email = email
         self.creation_info = creation_info
         self.comment = comment
@@ -108,9 +124,10 @@ class SoftwarePackage:
         primary_purpose: str | None = None,
         creation_info: CreationInfo | None = None,
         comment: str | None = None,
+        doc_uuid: str | None = None,
     ) -> None:
         self.name = name
-        self.spdx_id = spdx_id or generate_spdx_id("Package")
+        self.spdx_id = spdx_id or generate_spdx_id("Package", doc_uuid=doc_uuid)
         self.version = version
         self.download_location = download_location
         self.homepage = homepage
@@ -171,11 +188,12 @@ class Relationship:
         description: str | None = None,
         creation_info: CreationInfo | None = None,
         comment: str | None = None,
+        doc_uuid: str | None = None,
     ) -> None:
         self.from_element = from_element
         self.to_elements = to_elements
         self.relationship_type = relationship_type
-        self.spdx_id = spdx_id or generate_spdx_id("Relationship")
+        self.spdx_id = spdx_id or generate_spdx_id("Relationship", doc_uuid=doc_uuid)
         self.description = description
         self.creation_info = creation_info
         self.comment = comment
@@ -209,8 +227,9 @@ class Sbom:
         root_elements: list[str] | None = None,
         sbom_types: list[str] | None = None,
         creation_info: CreationInfo | None = None,
+        doc_uuid: str | None = None,
     ) -> None:
-        self.spdx_id = spdx_id or generate_spdx_id("Sbom")
+        self.spdx_id = spdx_id or generate_spdx_id("Sbom", doc_uuid=doc_uuid)
         self.root_elements = root_elements or []
         self.sbom_types = sbom_types or ["build"]
         self.creation_info = creation_info
@@ -235,8 +254,11 @@ class SpdxDocument:
         root_elements: list[str] | None = None,
         profile_conformance: list[str] | None = None,
         creation_info: CreationInfo | None = None,
+        doc_uuid: str | None = None,
     ) -> None:
-        self.spdx_id = spdx_id or generate_spdx_id("SpdxDocument")
+        self.spdx_id = spdx_id or generate_spdx_id(
+            "SpdxDocument", doc_uuid=doc_uuid
+        )
         self.root_elements = root_elements or []
         self.profile_conformance = profile_conformance or ["core", "software"]
         self.creation_info = creation_info
