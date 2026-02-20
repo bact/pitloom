@@ -6,98 +6,81 @@
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
-from loom.core.models import (
-    CreationInfo,
-    Person,
-    Relationship,
-    Sbom,
-    SoftwarePackage,
-    SpdxDocument,
-)
+import io
+from spdx_python_model import v3_0_1 as spdx3
 
 
 class Spdx3JsonExporter:
-    """Exports SPDX 3.0 data structures to JSON-LD format."""
-
-    CONTEXT_URL = "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
+    """Exports SPDX 3.0 data structures to JSON-LD format using spdx-python-model."""
 
     def __init__(self) -> None:
-        self.elements: list[Any] = []
-        self.creation_info: CreationInfo | None = None
+        self.object_set = spdx3.SHACLObjectSet()
 
-    def add_creation_info(self, creation_info: CreationInfo) -> None:
+    def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.
 
         Args:
             creation_info: The CreationInfo object
         """
-        self.creation_info = creation_info
-        self.elements.append(creation_info.to_dict())
+        self.object_set.add(creation_info)
 
-    def add_person(self, person: Person) -> None:
+    def add_person(self, person: spdx3.Person) -> None:
         """Add a person to the document.
 
         Args:
             person: The Person object
         """
-        self.elements.append(person.to_dict())
+        self.object_set.add(person)
 
-    def add_package(self, package: SoftwarePackage) -> None:
+    def add_package(self, package: spdx3.software_Package) -> None:
         """Add a software package to the document.
 
         Args:
-            package: The SoftwarePackage object
+            package: The software_Package object
         """
-        self.elements.append(package.to_dict())
+        self.object_set.add(package)
 
-    def add_relationship(self, relationship: Relationship) -> None:
+    def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.
 
         Args:
             relationship: The Relationship object
         """
-        self.elements.append(relationship.to_dict())
+        self.object_set.add(relationship)
 
-    def add_sbom(self, sbom: Sbom) -> None:
+    def add_sbom(self, sbom: spdx3.software_Sbom) -> None:
         """Add an SBOM to the document.
 
         Args:
-            sbom: The Sbom object
+            sbom: The software_Sbom object
         """
-        self.elements.append(sbom.to_dict())
+        self.object_set.add(sbom)
 
-    def add_document(self, document: SpdxDocument) -> None:
+    def add_document(self, document: spdx3.SpdxDocument) -> None:
         """Add an SPDX document to the graph.
 
         Args:
             document: The SpdxDocument object
         """
-        self.elements.append(document.to_dict())
+        self.object_set.add(document)
 
-    def to_json(self, indent: int | None = 4) -> str:
+    def to_json(self) -> str:
         """Export to JSON-LD string.
-
-        Args:
-            indent: Number of spaces for indentation (None for compact)
 
         Returns:
             str: JSON-LD representation
         """
-        output: dict[str, Any] = {
-            "@context": self.CONTEXT_URL,
-            "@graph": self.elements,
-        }
-        return json.dumps(output, indent=indent, ensure_ascii=False)
+        out_f = io.BytesIO()
+        serializer = spdx3.JSONLDSerializer()
+        serializer.write(self.object_set, out_f)
+        return out_f.getvalue().decode("utf-8")
 
-    def to_file(self, file_path: str, indent: int | None = 4) -> None:
+    def to_file(self, file_path: str) -> None:
         """Export to JSON-LD file.
 
         Args:
             file_path: Path to write the JSON-LD file
-            indent: Number of spaces for indentation (None for compact)
         """
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(self.to_json(indent=indent))
+        with open(file_path, "wb") as f:
+            serializer = spdx3.JSONLDSerializer()
+            serializer.write(self.object_set, f)
