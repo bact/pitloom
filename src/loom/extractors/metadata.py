@@ -41,6 +41,7 @@ class ProjectMetadata:
         self._standard_metadata = standard_metadata
         self.provenance = provenance or {}
         self._readme_override = readme_override
+        self.fragments: list[str] = []
 
     @property
     def name(self) -> str:
@@ -251,6 +252,12 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
             )  # Make a copy of project section (use current data, not original)
             del data["project"]["readme"]  # Remove readme to skip validation
 
+    # Extract Loom specific configuration
+    tool_data = data.get("tool", {})
+    loom_data = tool_data.get("loom", {})
+    fragments_data = loom_data.get("fragments", {})
+    fragments = fragments_data.get("files", [])
+
     # Use StandardMetadata to parse and validate
     try:
         standard_metadata = StandardMetadata.from_pyproject(
@@ -262,11 +269,15 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     except Exception as e:
         raise ValueError(f"Failed to parse project metadata: {e}") from e
 
-    return ProjectMetadata(
+    metadata_instance = ProjectMetadata(
         standard_metadata=standard_metadata,
         provenance=provenance,
         readme_override=readme_override,
     )
+    if isinstance(fragments, list):
+        metadata_instance.fragments = [str(f) for f in fragments]
+    
+    return metadata_instance
 
 
 def _extract_dynamic_version(
