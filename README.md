@@ -66,6 +66,8 @@ loom /path/to/project --creator-name "Your Name" --creator-email "your@email.com
 
 ### Python API
 
+The SBOM generator can be used programmatically:
+
 ```python
 from pathlib import Path
 from loom.generator import generate_sbom_to_file
@@ -75,8 +77,29 @@ generate_sbom_to_file(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
     creator_name="Your Name",
-    creator_email="your@email.com"
+    creator_email="your@example.com"
 )
+```
+
+### Python tracking decorator
+
+Developers can easily annotate scripts or Jupyter notebooks to generate
+external SBOM fragments that Loom will merge during the build process:
+
+```python
+from loom import bom
+
+# Use as a function decorator...
+@bom.track(output_file="fragments/sentiment_model.json")
+def train_model():
+    bom.set_model("sentiment-clf")
+    bom.add_dataset("imdb-reviews", dataset_type="text")
+    # ... training logic ...
+
+# ...or use as a context manager
+with bom.track(output_file="fragments/sentiment_model.json"):
+    bom.set_model("sentiment-clf")
+    bom.add_dataset("imdb-reviews", dataset_type="text")
 ```
 
 ## Example
@@ -158,11 +181,15 @@ loom/
 │       ├── __about__.py
 │       ├── __init__.py
 │       ├── __main__.py         # CLI entry point
+│       ├── bom.py              # ML metadata tracking SDK
 │       └── generator.py        # Main SBOM generator
 ├── tests/
+│   ├── test_bom.py
 │   ├── test_generator.py
 │   ├── test_metadata.py
-│   └── test_models.py
+│   ├── test_models.py
+│   ├── test_provenance.py
+│   └── test_spdx3_compliance.py
 ├── LICENSE
 ├── pyproject.toml
 └── README.md
@@ -195,9 +222,9 @@ python -m build
 - [x] Hatchling metadata extraction
 - [x] Dependency tracking
 - [ ] Support for setuptools
-- [ ] Integration with spdx-python-model (see [design doc](docs/design/spdx-python-model-integration.md))
+- [x] Integration with spdx-python-model (see [design doc](docs/design/spdx-python-model-integration.md))
 - [ ] Build log extraction for compiled dependencies
-- [ ] AI/ML package profiles (AIPackage, DatasetPackage)
+- [x] AI/ML package profiles (AIPackage, DatasetPackage)
 - [ ] PEP 770 support (.dist-info/sboms)
 - [ ] PEP 740 attestation support
 - [ ] Rust backend for performance optimization
