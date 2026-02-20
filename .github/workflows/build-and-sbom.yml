@@ -135,14 +135,10 @@ jobs:
         echo "  - Annotation: ${ANNOTATION_URL}"
         echo ""
         
-        # Run spdx3-validate with specified version or auto-detect
-        if [[ "$SPDX_VER" == "auto" ]]; then
-          echo "Auto-detecting SPDX version from SBOM..."
-          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }}"
-        else
-          echo "Using specified SPDX version: ${SPDX_VER}"
-          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }} --spdx-version ${SPDX_VER}"
-        fi
+        # Run spdx3-validate auto-detecting version
+        # Note: --spdx-version is omitted due to a bug in spdx3-validate (AttributeError on args.version)
+        echo "Validating SPDX SBOM (auto-detecting version) for ${SPDX_VER}..."
+        VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }}"
         
         if $VALIDATE_CMD; then
           echo ""
