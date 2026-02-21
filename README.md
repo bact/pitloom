@@ -61,7 +61,7 @@ loom /path/to/project -o sbom.spdx3.json
 Specify creator information:
 
 ```bash
-loom /path/to/project --creator-name "Your Name" --creator-email "your@email.com"
+loom /path/to/project --creator-name "Your Name" --creator-email "your@example.com"
 ```
 
 ### Python API

@@ -202,7 +202,7 @@ loom /path/to/project -o my-sbom.spdx3.json
 # With creator info
 loom /path/to/project \
   --creator-name "Your Name" \
-  --creator-email "your@email.com"
+  --creator-email "your@example.com"
 ```
 
 ### Run Tests
