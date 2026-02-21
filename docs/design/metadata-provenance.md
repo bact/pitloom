@@ -49,7 +49,7 @@ Loom uses a consistent, machine-parsable format for provenance information:
 - Static extraction: `Source: pyproject.toml | Field: project.name`
 - Dynamic extraction: `Source: src/pkg/__about__.py | Method: dynamic_extraction`
 - Inferred data: `Source: Loom generator | Method: inferred_from_authors`
-- Dynamic introspection (via `loom.bom` SDK): `... method: inspect_caller`
+- Tracking SDK: `Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: evaluate)`
 
 ### 3. Tracked metadata fields
 

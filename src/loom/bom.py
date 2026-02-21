@@ -29,11 +29,19 @@ def _get_caller_info() -> str:
                 
                 func_name = frame_info.function
                 if func_name == "<module>":
-                    return f"specified in {filename} via loom.bom"
-                return f"specified in {func_name}() inside {filename} via loom.bom"
+                    return (
+                        f"Source: {filename} | "
+                        f"Method: inspect_caller (tool: loom.bom, "
+                        f"function: <module>)"
+                    )
+                return (
+                    f"Source: {filename} | "
+                    f"Method: inspect_caller (tool: loom.bom, "
+                    f"function: {func_name})"
+                )
     except Exception:
         pass
-    return "specified in the source code via loom.bom"
+    return "Source: unknown | Method: inspect_caller (tool: loom.bom)"
 
 
 class _ActiveRun:
@@ -67,7 +75,7 @@ class _ActiveRun:
             spdxId=generate_spdx_id("AIPackage", name, self.doc_uuid),
             name=name,
             creationInfo=self.creation_info,
-            comment=f"Metadata provenance: {caller_info}",
+            comment=f"Metadata provenance: package: {caller_info}",
         )
         self.exporter.add_package(self.model)
 
@@ -78,7 +86,7 @@ class _ActiveRun:
             spdxId=generate_spdx_id("DatasetPackage", name, self.doc_uuid),
             name=name,
             creationInfo=self.creation_info,
-            comment=f"Metadata provenance: {caller_info}",
+            comment=f"Metadata provenance: package: {caller_info}",
         )
         
         # Map simple string types to spdx3.dataset_DatasetType enums dynamically

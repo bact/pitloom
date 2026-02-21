@@ -162,7 +162,7 @@ Dependencies were extracted from the `project.dependencies` field in `pyproject.
 tracking SDK when generating fragments:
 
 ```text
-comment: Metadata provenance: specified in evaluate() in eval.py via loom.bom
+comment: Metadata provenance: package: Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: evaluate)
 ```
 
 Loom inherently uses Python's `inspect` module at runtime to identify 
@@ -191,7 +191,7 @@ Source: [location] | Method: [method_name]
 - **Static extraction**: `Source: pyproject.toml | Field: project.name`
 - **Dynamic extraction**: `Source: src/pkg/__about__.py | Method:...`
 - **Inferred data**: `Source: Loom generator | Method: inferred_from_authors`
-- **Dynamic introspection (ML SDK)**: `specified in {func}() via loom.bom`
+- **Tracking SDK**: `Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: eval)`
 - **External tool**: `Source: licensee tool | Method: license_detection`
 
 ## Advanced: Custom provenance parser
