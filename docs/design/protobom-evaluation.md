@@ -114,6 +114,47 @@ Protobom allows for injecting custom properties/key-values into its nodes.
   3.0, as standard Protobom exporters will not know how to map `loom:ai:`
   strings back into the formal SPDX 3.0 `ai_AIPackage` class properties.
 
+#### AI SBOM Field Mapping Design (The `loom:ai` Namespace)
+
+To support this workaround and establish a foundation for AI SBOMs that works
+across any format natively supporting key-value pairs (e.g., CycloneDX
+`properties` or SPDX `Annotations`), we define a strict namespace.
+
+**1. Model Identification & Architecture**
+
+- `loom:ai:model:type`: Broad category (e.g., `transformer`, `cnn`).
+- `loom:ai:model:architecture_family`: Specific structural family.
+- `loom:ai:model:parameters_count`: Total number of parameters.
+- `loom:ai:model:framework`: Base framework/format (e.g., `pytorch`, `onnx`).
+
+**2. Training & Hyperparameters**
+
+- `loom:ai:training:learning_rate`: The base learning rate.
+- `loom:ai:training:batch_size`: Training batch size.
+- `loom:ai:training:epochs`: Number of full passes over the dataset.
+- `loom:ai:training:optimizer`: Optimizer algorithm (e.g., `adamw`, `sgd`).
+- `loom:ai:training:random_seed`: Initialization seed for reproducibility.
+
+**3. Dataset Constraints & Provenance**
+
+- `loom:ai:dataset:training:name`: Name/URI of the dataset.
+- `loom:ai:dataset:training:size`: Volume of the data (e.g., `1.2TB`).
+- `loom:ai:dataset:training:split`: Ratio/segment used (e.g., `train`).
+- `loom:ai:dataset:preprocessing`: Normalization or transformation applied.
+
+**4. Metrics & Evaluation**
+
+- `loom:ai:metric:accuracy`: Example: `0.95`.
+- `loom:ai:metric:f1_score`: Example: `0.92`.
+- `loom:ai:metric:loss`: Final evaluation loss.
+
+**5. Ethical & Compliance Considerations**
+
+- `loom:ai:compliance:license_category`: E.g., `open-weights`.
+- `loom:ai:safety:bias_mitigation`: Notes on debiasing techniques applied.
+- `loom:ai:safety:intended_use`: Approved use-cases.
+- `loom:ai:safety:restricted_use`: Explicitly prohibited use-cases.
+
 ### Option C: The hybrid dual-state architecture (recommended short-term)
 
 If we must adopt Protobom immediately for standard dependencies
@@ -128,15 +169,22 @@ hybrid architecture inside `loom.generator`.
   exporter runs. We then dynamically merge our native `run.model` graphs into
   the serialized JSON output before writing to disk.
 
-## 5. Unanswered questions for further exploration
+## 5. Answered questions from previous exploration
 
-- **CycloneDX ML-BOM parity:** CycloneDX 1.6 officially supports Machine
-  Learning Components (ML-BOMs). How does the generic Protobom exporter handle
-  CycloneDX ML components? If they possess a mapping for CDX 1.6 ML properties,
-  we could reverse-engineer their extension maps to support SPDX 3.
-- **Protobom extensions:** Does the Protobom Python SDK expose access to the
-  underlying `google.protobuf.Any` extensions, allowing us to safely wrap full
-  `AIPackage` objects securely without schema modifications?
+- **CycloneDX ML-BOM parity:** CycloneDX 1.7 (and 1.6/1.5) officially supports
+  Machine Learning Components via `type="machine-learning-model"` and the
+  `modelCard` element. However, Protobom's intermediate schema lacks the
+  `NodeType.AI_MODEL` and inner constructs mapped to a `modelCard`.
+  Consequently, Protobom downgrades the ML component into a standard `PACKAGE`
+  or drops the `modelCard` data unless explicitly mapped via custom properties.
+
+- **Protobom extensions (`google.protobuf.Any`):** Protocol Buffers natively
+  support `Any` fields, allowing the embedding of arbitrary serialized protobuf
+  messages. The Protobom Python SDK exposes this, meaning an entire SPDX 3.0
+  `AIPackage` could be encapsulated. However, standard Protobom exporters
+  (e.g., CycloneDX or SPDX serializers) don't inherentely know how to unpack or
+  translate this custom payload. Data will remain an opaque binary blob in the
+  serialized output without custom exporter logic.
 
 ## 6. Conclusion
 
