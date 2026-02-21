@@ -109,51 +109,12 @@ to the `protobom/protobom` repository to introduce:
 Protobom allows for injecting custom properties/key-values into its nodes.
 
 - *Implementation:* We generate a generic `PACKAGE` Protobom node,
-  but attach a custom property prefix: `loom:ai:hyperparameter:learning_rate`.
+  but attach a custom property prefix (e.g., `loom:ai:hyperparameter:learning_rate`).
+  **Note:** See `sbom-enrichment.md` for the full taxonomy of the `loom:ai`
+  namespace and AI-specific enrichment strategies.
 - *Caution:* This guarantees extreme information loss when exporting to SPDX
   3.0, as standard Protobom exporters will not know how to map `loom:ai:`
   strings back into the formal SPDX 3.0 `ai_AIPackage` class properties.
-
-#### AI SBOM Field Mapping Design (The `loom:ai` Namespace)
-
-To support this workaround and establish a foundation for AI SBOMs that works
-across any format natively supporting key-value pairs (e.g., CycloneDX
-`properties` or SPDX `Annotations`), we define a strict namespace.
-
-**1. Model Identification & Architecture**
-
-- `loom:ai:model:type`: Broad category (e.g., `transformer`, `cnn`).
-- `loom:ai:model:architecture_family`: Specific structural family.
-- `loom:ai:model:parameters_count`: Total number of parameters.
-- `loom:ai:model:framework`: Base framework/format (e.g., `pytorch`, `onnx`).
-
-**2. Training & Hyperparameters**
-
-- `loom:ai:training:learning_rate`: The base learning rate.
-- `loom:ai:training:batch_size`: Training batch size.
-- `loom:ai:training:epochs`: Number of full passes over the dataset.
-- `loom:ai:training:optimizer`: Optimizer algorithm (e.g., `adamw`, `sgd`).
-- `loom:ai:training:random_seed`: Initialization seed for reproducibility.
-
-**3. Dataset Constraints & Provenance**
-
-- `loom:ai:dataset:training:name`: Name/URI of the dataset.
-- `loom:ai:dataset:training:size`: Volume of the data (e.g., `1.2TB`).
-- `loom:ai:dataset:training:split`: Ratio/segment used (e.g., `train`).
-- `loom:ai:dataset:preprocessing`: Normalization or transformation applied.
-
-**4. Metrics & Evaluation**
-
-- `loom:ai:metric:accuracy`: Example: `0.95`.
-- `loom:ai:metric:f1_score`: Example: `0.92`.
-- `loom:ai:metric:loss`: Final evaluation loss.
-
-**5. Ethical & Compliance Considerations**
-
-- `loom:ai:compliance:license_category`: E.g., `open-weights`.
-- `loom:ai:safety:bias_mitigation`: Notes on debiasing techniques applied.
-- `loom:ai:safety:intended_use`: Approved use-cases.
-- `loom:ai:safety:restricted_use`: Explicitly prohibited use-cases.
 
 ### Option C: The hybrid dual-state architecture (recommended short-term)
 
@@ -169,14 +130,7 @@ hybrid architecture inside `loom.generator`.
   exporter runs. We then dynamically merge our native `run.model` graphs into
   the serialized JSON output before writing to disk.
 
-## 5. Answered questions from previous exploration
-
-- **CycloneDX ML-BOM parity:** CycloneDX 1.7 (and 1.6/1.5) officially supports
-  Machine Learning Components via `type="machine-learning-model"` and the
-  `modelCard` element. However, Protobom's intermediate schema lacks the
-  `NodeType.AI_MODEL` and inner constructs mapped to a `modelCard`.
-  Consequently, Protobom downgrades the ML component into a standard `PACKAGE`
-  or drops the `modelCard` data unless explicitly mapped via custom properties.
+## 5. Topics for further exploration
 
 - **Protobom extensions (`google.protobuf.Any`):** Protocol Buffers natively
   support `Any` fields, allowing the embedding of arbitrary serialized protobuf
@@ -185,6 +139,13 @@ hybrid architecture inside `loom.generator`.
   (e.g., CycloneDX or SPDX serializers) don't inherentely know how to unpack or
   translate this custom payload. Data will remain an opaque binary blob in the
   serialized output without custom exporter logic.
+
+- **CycloneDX ML-BOM parity:** CycloneDX 1.7 (and 1.6/1.5) officially supports
+  Machine Learning Components via `type="machine-learning-model"` and the
+  `modelCard` element. However, Protobom's intermediate schema lacks the
+  `NodeType.AI_MODEL` and inner constructs mapped to a `modelCard`.
+  Consequently, Protobom downgrades the ML component into a standard `PACKAGE`
+  or drops the `modelCard` data unless explicitly mapped via custom properties.
 
 ## 6. Conclusion
 
