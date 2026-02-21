@@ -74,10 +74,10 @@ The reference SBOM at
 - ✅ **Core structure**: Our generator produces valid SPDX 3.0 JSON-LD
 - ✅ **Basic package info**: Name, version, description captured
 - ✅ **Dependencies**: All dependencies tracked with versions
-- ✅ **Relationships**: dependsOn relationships established
-- ⚠️ **File-level details**: Reference includes individual files (not yet implemented)
-- ⚠️ **AI/Dataset profiles**: Reference uses AIPackage and DatasetPackage (roadmap item)
-- ⚠️ **License details**: Basic license info captured, not full SPDX license expressions yet
+- ✅ **Relationships**: dependsOn and trainedOn relationships established
+- ⚠️ **File-level details**: Reference uses individual files (roadmap item)
+- ✅ **AI/Dataset profiles**: `ai_AIPackage` & `dataset_DatasetPackage` supported
+- ⚠️ **License details**: Basic license info captured, not full expressions yet
 
 ## Key achievements
 
@@ -112,14 +112,33 @@ Generates valid SPDX 3.0 JSON-LD with:
 - `Element` relationships
 - Profile conformance declarations
 
-### 5. Comprehensive testing
+### 5. Official Schema Adoption
 
-15 tests covering:
+Loom deeply integrates with `spdx-python-model` to ensure strict structural 
+schemas are effortlessly adhered to during native JSON-LD execution.
 
-- SPDX model serialization
+### 6. Embedded ML Metadata Trackers
+
+Provides a contextual wrapper `loom.bom` to emit isolated fragments 
+dynamically from training loops into your main SBOM seamlessly:
+
+```python
+from loom import bom
+
+@bom.track("fragments/model.json")
+def run():
+    bom.set_model("my-classifier")
+    bom.add_dataset("my-text-data")
+```
+
+### 7. Comprehensive testing
+
+18 tests covering:
+
+- SPDX model serialization via official models
 - Metadata extraction
-- SBOM generation
-- Integration with real projects
+- Relative path call-stack tracing in trackers
+- SBOM fragment merging & end-to-end integration
 
 ## Code quality
 
@@ -166,15 +185,14 @@ ruff check src/ tests/
 
 As documented in the design docs:
 
-1. **spdx-python-model integration**:
-    Consider using official SPDX Python bindings
+1. **Format-Neutral Internal Representation**:
+    Adopt Protobom or similar to decouple formats from internal data structures
 2. **Setuptools support**: Extend beyond Hatchling
 3. **File-level analysis**: Include individual files in SBOM
-4. **AI/ML profiles**: Support AIPackage and DatasetPackage
-5. **Build log extraction**: Capture compiled dependencies
-6. **PEP 770 support**: Store SBOMs in .dist-info/sboms
-7. **Validation**: Schema validation for generated SBOMs
-8. **Performance**: Rust backend for large projects
+4. **Build log extraction**: Capture compiled dependencies
+5. **PEP 770 support**: Store SBOMs in .dist-info/sboms
+6. **Validation**: Schema validation for generated SBOMs
+7. **Performance**: Rust backend for large projects
 
 ## Conclusion
 

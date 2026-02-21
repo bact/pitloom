@@ -17,10 +17,10 @@ in JSON-LD format.
 
 ### ✅ Core functionality
 
-1. **SPDX 3.0 Data Models** (`src/loom/core/models.py`)
-   - CreationInfo, Person, SoftwarePackage, Relationship, Sbom, SpdxDocument
-   - Proper JSON-LD serialization
-   - UUID-based unique SPDX IDs
+1. **SPDX 3.0 Data Models** (`spdx-python-model`)
+   - Fully migrated to the official `spdx-python-model` library
+   - Proper JSON-LD serialization and validation
+   - UUID-based unique SPDX IDs generated via `loom.core.models` generator
 
 2. **Metadata Extraction** (`src/loom/extractors/metadata.py`)
    - Reads pyproject.toml files
@@ -29,9 +29,9 @@ in JSON-LD format.
    - Parses dependency specifications with version constraints
 
 3. **SPDX 3.0 Exporter** (`src/loom/exporters/spdx3_json.py`)
-   - JSON-LD output with proper @context
-   - Clean API for building SPDX documents
-   - Proper indentation and formatting
+   - JSON-LD output using official bindings and SHACLObjectSet
+   - Clean API for building SPDX documents and adding elements
+   - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
 4. **SBOM Generator** (`src/loom/generator.py`)
    - Orchestrates metadata extraction and SBOM creation
@@ -45,45 +45,38 @@ in JSON-LD format.
    - Creator information options
    - Clear error messages
 
-6. **Metadata Provenance Tracking** (`src/loom/extractors/metadata.py`, `src/loom/generator.py`)
+6. **Metadata Provenance Tracking** (`src/loom/extractors/metadata.py`, 
+   `src/loom/bom.py`)
    - Tracks source of each metadata field
-   - Records extraction method (static, dynamic, inferred)
+   - Records extraction method (static, dynamic, or inferred)
+   - Supports dynamic introspection via `bom.py` inspection
    - Uses SPDX 3.0 comment attribute
-   - Machine-parsable provenance format
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
-### ✅ Testing (25 Tests - All Passing)
+7. **ML Tracking SDK** (`src/loom/bom.py`)
+   - Dual-syntax ContextDecorator (`@bom.track` and `with bom.track`)
+   - Emits SPDX 3.0 SBOM fragments automatically during ML executions
+   - Seamlessly ingested into project SBOMs using `[tool.loom.fragments]` config
 
-1. **Model Tests** (7 tests)
+### ✅ Testing (Comprehensive coverage - All Passing)
+
+1. **Model & Provenance Tests**
    - SPDX ID generation
-   - CreationInfo serialization
-   - Person, Package, Relationship models
-   - SBOM and Document structures
+   - CreationInfo serialization and provenance tracking
+   - `spdx-python-model` validation
 
-2. **Metadata Extraction Tests** (5 tests)
-   - Basic metadata extraction
+2. **Metadata Extraction Tests**
+   - Basic metadata extraction and generic fragment paths
    - Error handling for missing files
-   - Dynamic version extraction
-   - Edge cases
+   - Dynamic and build-time version extraction via `importlib.metadata`
 
-3. **Generator Integration Tests** (3 tests)
+3. **Generator Integration Tests**
    - End-to-end SBOM generation
-   - File output
-   - sentimentdemo structure validation
+   - Generic fragment merging via Deserialization
 
-4. **SPDX 3.0 Compliance Tests** (4 tests)
-   - JSON-LD structure validation
-   - Required elements verification
-   - Profile conformance checking
-   - Relationship validity
-
-5. **Metadata Provenance Tests** (6 tests)
-   - Basic field provenance tracking
-   - Dynamic version provenance
-   - Provenance in SBOM output
-   - Dependency package provenance
-   - Relationship provenance
-   - Author-based provenance
+4. **SDK Tracker Tests**
+   - `test_bom.py` verifies both Decorator and Context Manager tracking
+   - Asserts caller-inspection relative path generation
 
 ### ✅ Quality assurance
 
@@ -95,9 +88,9 @@ in JSON-LD format.
 
 ### ✅ Documentation
 
-1. **README.md**: Complete usage guide with examples and provenance documentation
+1. **README.md**: Complete usage guide with examples
 2. **DEMONSTRATION.md**: Prototype capabilities and validation
-3. **docs/design/spdx-python-model-integration.md**: Future enhancement path
+3. **docs/design/format-neutral-representation.md**: Multi-format support plan
 4. **docs/design/metadata-provenance.md**: Provenance tracking specification
 5. **Inline Documentation**: Comprehensive docstrings
 
@@ -143,10 +136,11 @@ SBOM written to: sbom.spdx3.json
 
 ```text
 src/loom/
-├── core/           # SPDX 3.0 data models
+├── core/           # Utility functions like SPDX ID generation
 ├── extractors/     # Metadata extraction from build systems
 ├── exporters/      # SPDX format serialization
 ├── generator.py    # Main orchestration logic
+├── bom.py          # ML tracking SDK integration
 └── __main__.py     # CLI entry point
 ```
 
@@ -172,7 +166,7 @@ src/loom/
 | Dependencies | ✅ | ✅ | ✅ Complete |
 | Relationships | ✅ | ✅ | ✅ Complete |
 | File-level Details | ✅ | ⚠️ | 🔄 Roadmap |
-| AI/Dataset Profiles | ✅ | ⚠️ | 🔄 Roadmap |
+| AI/Dataset Profiles | ✅ | ✅ | ✅ Complete |
 | License Expressions | ✅ | ⚠️ | 🔄 Roadmap |
 
 **Legend:**
@@ -246,10 +240,9 @@ Based on the design document and problem requirements:
    - Extend extractor for setuptools-based projects
    - Support setup.py and setup.cfg
 
-2. **AI/ML Package Profiles**
-   - AIPackage class support
-   - DatasetPackage class support
-   - Model metadata capture
+2. **Format-Neutral Internal Representation**
+   - Adopt Protobom for neutral data structs
+   - Support CycloneDX & SWID generation natively
 
 3. **Build Log Extraction**
    - Capture compiled dependencies
@@ -258,12 +251,7 @@ Based on the design document and problem requirements:
 
 ### Long-term
 
-1. **spdx-python-model Integration**
-   - Migrate to official SPDX bindings
-   - Leverage built-in validation
-   - Enhanced querying capabilities
-
-2. **PEP 770 Support**
+1. **PEP 770 Support**
    - Store SBOMs in .dist-info/sboms
    - Wheel integration
 
@@ -291,11 +279,11 @@ Based on the design document and problem requirements:
 
 ## Acknowledgments
 
-**New Requirement Addressed:**
+**New Requirements Addressed:**
 
-- Documented spdx-python-model integration path
-- Tutorial reference: <https://gist.github.com/bact/7227ad858500c2097a25344a4af015d6>
-- Design document created for future integration
+- Migrated to `spdx-python-model` as the core ontology
+- Engineered `loom.bom` for comprehensive Machine Learning Annotation Support
+- Configured format-neutral internal representation roadmap
 
 ## Conclusion
 
@@ -309,7 +297,9 @@ for its current scope. It successfully:
 5. ✅ Passes comprehensive test suite
 6. ✅ Meets security and quality standards
 7. ✅ Successfully validated with reference project
-8. ✅ **NEW**: Tracks metadata provenance for transparency and auditability
+8. ✅ Captures metadata provenance automatically for auditability
+9. ✅ Merges external SBOM fragments seamlessly
+10. ✅ Exposes an intuitive ML tracking SDK natively
 
 The foundation is solid for future enhancements toward a comprehensive,
 production-grade SBOM generator supporting multiple build systems and

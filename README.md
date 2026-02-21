@@ -164,8 +164,8 @@ loom/
 ├── docs/
 │   ├── design/
 │   │   ├── architecture-overview.md
-│   │   ├── metadata-provenance.md
-│   │   └── spdx-python-model-integration.md
+│   │   ├── format-neutral-representation.md
+│   │   └── metadata-provenance.md
 │   └── implementation/
 │       ├── demo.md
 │       ├── demo-provenance.md
@@ -181,7 +181,7 @@ loom/
 │       ├── __about__.py
 │       ├── __init__.py
 │       ├── __main__.py         # CLI entry point
-│       ├── bom.py              # ML metadata tracking SDK
+│       ├── bom.py              # Metadata tracking SDK
 │       └── generator.py        # Main SBOM generator
 ├── tests/
 │   ├── test_bom.py
@@ -222,7 +222,7 @@ python -m build
 - [x] Hatchling metadata extraction
 - [x] Dependency tracking
 - [ ] Support for setuptools
-- [x] Integration with spdx-python-model (see [design doc](docs/design/spdx-python-model-integration.md))
+- [ ] Format-Neutral Internal Rep (see [design doc](docs/design/format-neutral-representation.md))
 - [ ] Build log extraction for compiled dependencies
 - [x] AI/ML package profiles (AIPackage, DatasetPackage)
 - [ ] PEP 770 support (.dist-info/sboms)

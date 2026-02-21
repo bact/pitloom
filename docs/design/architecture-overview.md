@@ -207,9 +207,12 @@ loom/
 ## Integration with the SCA pipeline and DevOps ecosystem
 
 Loom serves as a critical node in the broader Software Component Analysis (SCA)
-pipeline (Wiz 2026). It will utilize the MLflow Tracking API to log SBOMs
-as structured artifacts via mlflow.log\_dict (MLflow 2026). This ensures that
-every model deployed from an MLflow registry is accompanied by
+pipeline (Wiz 2026). It exposes the `loom.bom` tracking SDK, a wrapper
+interface that seamlessly intercepts metrics from training scripts and notebooks
+to output SBOM fragments representing models and datasets.
+
+These fragments are dynamically aggregated during the `hatch build` phase.
+This ensures that every model deployed from an MLflow registry is accompanied by
 a cryptographically verifiable record of its constituent software
 and data sources, meeting emerging AI governance requirements
 (Linux Foundation 2024).
@@ -242,9 +245,9 @@ components.
 - **spdx-tools (High-Level Library):** Provides functions for parsing and
   validating SPDX documents. Support for version 3.0 is currently experimental
   (Ismail 2024).
-- **spdx-python-model (Low-Level Bindings):** Generated bindings for the
-  SPDX 3.0 ontology, offering full coverage of spec classes like AIPackage
-  (SPDX Group 2026).
+- **spdx-python-model (Core Bindings):** Loom has fully adopted the official
+  generated bindings for the SPDX 3.0 ontology, offering full coverage of spec
+  classes like AIPackage (SPDX Group 2026).
 - **license-expression (Validation):** Essential for normalizing license
   expressions according to PEP 639 (NexB 2025).
 

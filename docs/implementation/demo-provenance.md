@@ -154,6 +154,20 @@ dependencies: Source: pyproject.toml | Field: project.dependencies
 
 Dependencies were extracted from the `project.dependencies` field in `pyproject.toml`.
 
+### Use case 5: ML Traceability with `loom.bom`
+
+**Question**: "Where did this specific AI Model or Dataset originate?"
+
+**Answer**: Check the provenance embedded dynamically by the `loom.bom` 
+tracking SDK when generating fragments:
+
+```text
+comment: Metadata provenance: specified in evaluate() in eval.py via loom.bom
+```
+
+Loom inherently uses Python's `inspect` module at runtime to identify 
+exactly which file and function produced the metric.
+
 ## Benefits
 
 1. **Transparency**: Clear understanding of where data comes from
@@ -175,8 +189,9 @@ Source: [location] | Method: [method_name]
 ### Examples
 
 - **Static extraction**: `Source: pyproject.toml | Field: project.name`
-- **Dynamic extraction**: `Source: src/pkg/__about__.py | Method: dynamic_extraction`
+- **Dynamic extraction**: `Source: src/pkg/__about__.py | Method:...`
 - **Inferred data**: `Source: Loom generator | Method: inferred_from_authors`
+- **Dynamic introspection (ML SDK)**: `specified in {func}() via loom.bom`
 - **External tool**: `Source: licensee tool | Method: license_detection`
 
 ## Advanced: Custom provenance parser
