@@ -545,60 +545,6 @@ def test_onnx_integration_provenance_fields(squeezenet_metadata):
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (tiny-random-gpt2)
-# Source: hf-internal-testing/tiny-random-gpt2 (~443 KB)
-# Require: safetensors installed AND tests/fixtures/tiny-random-gpt2.safetensors present
-# ---------------------------------------------------------------------------
-
-GPT2_FIXTURE = Path(__file__).parent / "fixtures" / "tiny-random-gpt2.safetensors"
-
-
-@pytest.fixture(scope="module")
-def gpt2_metadata():
-    """Extract metadata from the tiny-random-gpt2 fixture once per session."""
-    pytest.importorskip("safetensors")
-    if not GPT2_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {GPT2_FIXTURE}")
-    return extract_metadata_from_safetensors(GPT2_FIXTURE)
-
-
-def test_safetensors_integration_format(gpt2_metadata):
-    assert gpt2_metadata.format == ModelFormat.SAFETENSORS
-
-
-def test_safetensors_integration_no_model_name(gpt2_metadata):
-    # tiny-random-gpt2 has no modelspec metadata — only format='pt'
-    assert gpt2_metadata.name is None
-    assert gpt2_metadata.description is None
-    assert gpt2_metadata.version is None
-    assert gpt2_metadata.type_of_model is None
-
-
-def test_safetensors_integration_format_property(gpt2_metadata):
-    # The only __metadata__ entry is 'format': 'pt'
-    assert gpt2_metadata.properties.get("format") == "pt"
-
-
-def test_safetensors_integration_tensor_count(gpt2_metadata):
-    # tiny-random-gpt2 exposes 64 tensors (weights + biases across 5 layers)
-    assert len(gpt2_metadata.inputs) == 64
-
-
-def test_safetensors_integration_tensor_names(gpt2_metadata):
-    names = {t["name"] for t in gpt2_metadata.inputs}
-    # Spot-check transformer layer weight keys
-    assert "transformer.wte.weight" in names
-    assert "transformer.wpe.weight" in names
-    assert "transformer.ln_f.weight" in names
-    assert "transformer.ln_f.bias" in names
-
-
-def test_safetensors_integration_provenance(gpt2_metadata):
-    assert "inputs" in gpt2_metadata.provenance
-    assert "properties" in gpt2_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
 # Integration tests — real GGUF file (stories260K.gguf)
 # Source: ggml-org/models tinyllamas/stories260K.gguf (~1.1 MB)
 # A 260K-parameter LLaMA model trained on TinyStories (Karpathy / llama2.c)
@@ -726,119 +672,6 @@ def test_whisper_encoder_output(whisper_encoder_metadata):
 def test_whisper_encoder_provenance(whisper_encoder_metadata):
     assert "inputs" in whisper_encoder_metadata.provenance
     assert "outputs" in whisper_encoder_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (tiny-random-bert.onnx)
-# Source: hf-internal-testing/tiny-random-BertModel (~450 KB)
-# Randomly initialised BERT model, opset 11, three integer inputs
-# Require: onnx installed AND tests/fixtures/tiny-random-bert.onnx present
-# ---------------------------------------------------------------------------
-
-# ONNX elem_type 7 = INT64
-_ONNX_INT64 = 7
-
-BERT_FIXTURE = Path(__file__).parent / "fixtures" / "tiny-random-bert.onnx"
-
-
-@pytest.fixture(scope="module")
-def bert_metadata():
-    """Extract metadata from the tiny-random-bert.onnx fixture once per session."""
-    pytest.importorskip("onnx")
-    if not BERT_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {BERT_FIXTURE}")
-    return extract_metadata_from_onnx(BERT_FIXTURE)
-
-
-def test_bert_format(bert_metadata):
-    assert bert_metadata.format == ModelFormat.ONNX
-
-
-def test_bert_name(bert_metadata):
-    assert bert_metadata.name == "main_graph"
-
-
-def test_bert_opset(bert_metadata):
-    assert bert_metadata.properties.get("opset.ai.onnx") == "11"
-
-
-def test_bert_inputs(bert_metadata):
-    inputs = bert_metadata.inputs
-    input_names = {i["name"] for i in inputs}
-    assert "input_ids" in input_names
-    assert "attention_mask" in input_names
-    assert "token_type_ids" in input_names
-    # All inputs are INT64
-    for inp in inputs:
-        assert inp.get("dtype") == _ONNX_INT64
-
-
-def test_bert_output(bert_metadata):
-    outputs = bert_metadata.outputs
-    assert len(outputs) > 0
-    out = outputs[0]
-    assert out["name"] == "last_hidden_state"
-    assert out["dtype"] == _ONNX_FLOAT
-    # Third dimension is the hidden size (32 for this tiny model)
-    assert out["shape"][2] == 32
-
-
-def test_bert_provenance(bert_metadata):
-    assert "inputs" in bert_metadata.provenance
-    assert "outputs" in bert_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (tiny-random-roberta.safetensors)
-# Source: hf-internal-testing/tiny-random-RobertaModel (~352 KB)
-# Randomly initialised RoBERTa model, 88 tensors, minimal __metadata__
-# Require: safetensors installed AND tests/fixtures/tiny-random-roberta.safetensors present
-# ---------------------------------------------------------------------------
-
-ROBERTA_FIXTURE = (
-    Path(__file__).parent / "fixtures" / "tiny-random-roberta.safetensors"
-)
-
-
-@pytest.fixture(scope="module")
-def roberta_metadata():
-    """Extract metadata from the tiny-random-roberta fixture once per session."""
-    pytest.importorskip("safetensors")
-    if not ROBERTA_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {ROBERTA_FIXTURE}")
-    return extract_metadata_from_safetensors(ROBERTA_FIXTURE)
-
-
-def test_roberta_format(roberta_metadata):
-    assert roberta_metadata.format == ModelFormat.SAFETENSORS
-
-
-def test_roberta_no_model_metadata(roberta_metadata):
-    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
-    assert roberta_metadata.name is None
-    assert roberta_metadata.description is None
-    assert roberta_metadata.version is None
-    assert roberta_metadata.type_of_model is None
-
-
-def test_roberta_format_property(roberta_metadata):
-    assert roberta_metadata.properties.get("format") == "pt"
-
-
-def test_roberta_tensor_count(roberta_metadata):
-    assert len(roberta_metadata.inputs) == 88
-
-
-def test_roberta_tensor_names(roberta_metadata):
-    names = {t["name"] for t in roberta_metadata.inputs}
-    assert "embeddings.LayerNorm.bias" in names
-    assert "pooler.dense.weight" in names
-    assert "pooler.dense.bias" in names
-
-
-def test_roberta_provenance(roberta_metadata):
-    assert "inputs" in roberta_metadata.provenance
-    assert "properties" in roberta_metadata.provenance
 
 
 # ---------------------------------------------------------------------------
@@ -1022,60 +855,6 @@ def test_inception_v2_output(inception_v2_metadata):
 def test_inception_v2_provenance(inception_v2_metadata):
     assert "inputs" in inception_v2_metadata.provenance
     assert "outputs" in inception_v2_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (peft-tiny-random-bert.safetensors)
-# Source: peft-internal-testing/tiny-random-BertModel (~352 KB)
-# Randomly initialised BERT model uploaded by the PEFT team; 87 tensors
-# Require: safetensors installed AND tests/fixtures/peft-tiny-random-bert.safetensors present
-# ---------------------------------------------------------------------------
-
-PEFT_BERT_FIXTURE = (
-    Path(__file__).parent / "fixtures" / "peft-tiny-random-bert.safetensors"
-)
-
-
-@pytest.fixture(scope="module")
-def peft_bert_metadata():
-    """Extract metadata from the peft-tiny-random-bert fixture once per session."""
-    pytest.importorskip("safetensors")
-    if not PEFT_BERT_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {PEFT_BERT_FIXTURE}")
-    return extract_metadata_from_safetensors(PEFT_BERT_FIXTURE)
-
-
-def test_peft_bert_format(peft_bert_metadata):
-    assert peft_bert_metadata.format == ModelFormat.SAFETENSORS
-
-
-def test_peft_bert_no_model_metadata(peft_bert_metadata):
-    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
-    assert peft_bert_metadata.name is None
-    assert peft_bert_metadata.description is None
-    assert peft_bert_metadata.version is None
-    assert peft_bert_metadata.type_of_model is None
-
-
-def test_peft_bert_format_property(peft_bert_metadata):
-    assert peft_bert_metadata.properties.get("format") == "pt"
-
-
-def test_peft_bert_tensor_count(peft_bert_metadata):
-    assert len(peft_bert_metadata.inputs) == 87
-
-
-def test_peft_bert_tensor_names(peft_bert_metadata):
-    names = {t["name"] for t in peft_bert_metadata.inputs}
-    assert "embeddings.LayerNorm.bias" in names
-    assert "embeddings.word_embeddings.weight" in names
-    assert "pooler.dense.weight" in names
-    assert "pooler.dense.bias" in names
-
-
-def test_peft_bert_provenance(peft_bert_metadata):
-    assert "inputs" in peft_bert_metadata.provenance
-    assert "properties" in peft_bert_metadata.provenance
 
 
 # ---------------------------------------------------------------------------
@@ -1344,3 +1123,163 @@ def test_vocab_phi3_tokenizer(vocab_phi3_metadata):
 def test_vocab_phi3_provenance(vocab_phi3_metadata):
     assert "hyperparameters" in vocab_phi3_metadata.provenance
     assert "properties" in vocab_phi3_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real Safetensors file (phi-tiny-random.safetensors)
+# Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
+# Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
+# Require: safetensors installed AND tests/fixtures/phi-tiny-random.safetensors present
+# ---------------------------------------------------------------------------
+
+PHI_FIXTURE = Path(__file__).parent / "fixtures" / "phi-tiny-random.safetensors"
+
+
+@pytest.fixture(scope="module")
+def phi_metadata():
+    """Extract metadata from the phi-tiny-random fixture once per session."""
+    pytest.importorskip("safetensors")
+    if not PHI_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {PHI_FIXTURE}")
+    return extract_metadata_from_safetensors(PHI_FIXTURE)
+
+
+def test_phi_format(phi_metadata):
+    assert phi_metadata.format == ModelFormat.SAFETENSORS
+
+
+def test_phi_no_model_metadata(phi_metadata):
+    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
+    assert phi_metadata.name is None
+    assert phi_metadata.description is None
+    assert phi_metadata.version is None
+    assert phi_metadata.type_of_model is None
+
+
+def test_phi_format_property(phi_metadata):
+    assert phi_metadata.properties.get("format") == "pt"
+
+
+def test_phi_tensor_count(phi_metadata):
+    # 2-layer Phi model: embeddings + 2 × attention blocks + head
+    assert len(phi_metadata.inputs) == 33
+
+
+def test_phi_tensor_names(phi_metadata):
+    names = {t["name"] for t in phi_metadata.inputs}
+    # Phi uses standard transformer naming: embed_tokens, layers, lm_head
+    assert "model.embed_tokens.weight" in names
+    assert "lm_head.weight" in names
+    assert any(n.startswith("model.layers.") for n in names)
+
+
+def test_phi_provenance(phi_metadata):
+    assert "inputs" in phi_metadata.provenance
+    assert "properties" in phi_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real Safetensors file (marian-tiny-random.safetensors)
+# Source: optimum-internal-testing/tiny-random-marian (~690 KB)
+# Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
+# Require: safetensors installed AND tests/fixtures/marian-tiny-random.safetensors present
+# ---------------------------------------------------------------------------
+
+MARIAN_FIXTURE = Path(__file__).parent / "fixtures" / "marian-tiny-random.safetensors"
+
+
+@pytest.fixture(scope="module")
+def marian_metadata():
+    """Extract metadata from the marian-tiny-random fixture once per session."""
+    pytest.importorskip("safetensors")
+    if not MARIAN_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {MARIAN_FIXTURE}")
+    return extract_metadata_from_safetensors(MARIAN_FIXTURE)
+
+
+def test_marian_format(marian_metadata):
+    assert marian_metadata.format == ModelFormat.SAFETENSORS
+
+
+def test_marian_no_model_metadata(marian_metadata):
+    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
+    assert marian_metadata.name is None
+    assert marian_metadata.description is None
+    assert marian_metadata.version is None
+    assert marian_metadata.type_of_model is None
+
+
+def test_marian_format_property(marian_metadata):
+    assert marian_metadata.properties.get("format") == "pt"
+
+
+def test_marian_tensor_count(marian_metadata):
+    # MarianMT encoder-decoder: embedding, 2 encoder + 2 decoder layers, bias
+    assert len(marian_metadata.inputs) == 86
+
+
+def test_marian_tensor_names(marian_metadata):
+    names = {t["name"] for t in marian_metadata.inputs}
+    # MarianMT has both encoder and decoder sub-modules plus shared embedding
+    assert any(n.startswith("model.encoder.") for n in names)
+    assert any(n.startswith("model.decoder.") for n in names)
+    assert "model.shared.weight" in names
+
+
+def test_marian_provenance(marian_metadata):
+    assert "inputs" in marian_metadata.provenance
+    assert "properties" in marian_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real Safetensors file (speech2text-tiny-random.safetensors)
+# Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
+# Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
+# Require: safetensors installed AND tests/fixtures/speech2text-tiny-random.safetensors present
+# ---------------------------------------------------------------------------
+
+SPEECH2TEXT_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "speech2text-tiny-random.safetensors"
+)
+
+
+@pytest.fixture(scope="module")
+def speech2text_metadata():
+    """Extract metadata from the speech2text-tiny-random fixture once per session."""
+    pytest.importorskip("safetensors")
+    if not SPEECH2TEXT_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {SPEECH2TEXT_FIXTURE}")
+    return extract_metadata_from_safetensors(SPEECH2TEXT_FIXTURE)
+
+
+def test_speech2text_format(speech2text_metadata):
+    assert speech2text_metadata.format == ModelFormat.SAFETENSORS
+
+
+def test_speech2text_no_model_metadata(speech2text_metadata):
+    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
+    assert speech2text_metadata.name is None
+    assert speech2text_metadata.description is None
+    assert speech2text_metadata.version is None
+    assert speech2text_metadata.type_of_model is None
+
+
+def test_speech2text_format_property(speech2text_metadata):
+    assert speech2text_metadata.properties.get("format") == "pt"
+
+
+def test_speech2text_tensor_count(speech2text_metadata):
+    # Speech2Text encoder-decoder: conv layers + 2 encoder + 2 decoder layers
+    assert len(speech2text_metadata.inputs) == 93
+
+
+def test_speech2text_tensor_names(speech2text_metadata):
+    names = {t["name"] for t in speech2text_metadata.inputs}
+    # Speech2Text has both encoder (with conv) and decoder sub-modules
+    assert any(n.startswith("model.encoder.") for n in names)
+    assert any(n.startswith("model.decoder.") for n in names)
+
+
+def test_speech2text_provenance(speech2text_metadata):
+    assert "inputs" in speech2text_metadata.provenance
+    assert "properties" in speech2text_metadata.provenance

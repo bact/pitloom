@@ -21,13 +21,12 @@ skipped when the optional dependency is not installed.
 | :--- | :--- | :--- | :--- |
 | `squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `encoder_model_q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
-| `tiny-random-bert.onnx` | ONNX | Text encoding — BERT (random weights) | — |
 | `light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
 | `gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
-| `tiny-random-gpt2.safetensors` | Safetensors | Text generation — GPT-2 (random weights) | — |
-| `tiny-random-roberta.safetensors` | Safetensors | Text encoding — RoBERTa (random weights) | — |
-| `peft-tiny-random-bert.safetensors` | Safetensors | Text encoding — BERT (random weights) | — |
+| `phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
+| `marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
+| `speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
 | `vits-tiny-random.safetensors` | Safetensors | Text-to-speech — VITS (random weights) | Apache-2.0 |
 | `whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
 | `stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
@@ -58,31 +57,6 @@ Notable metadata extracted by the ONNX extractor:
 - `name` = `"main"` (from `graph.name`)
 - `type_of_model` = `"neural network"` (domain is empty, falls back to default)
 - `properties["opset.ai.onnx"]` = `"7"`
-
----
-
-### tiny-random-gpt2.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | GPT-2 (5 transformer layers, randomly initialised weights) |
-| Task | Text generation (not usable for real inference — random weights) |
-| Parameters | ~112 K |
-| Tensors | 64 (weights and biases for all layers) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 453 864 bytes (0.43 MB) |
-| SHA-256 | `8111d5afb0715dbf5a31396d31432cb56370ba23f6650a035ea0fc8a20b4e500` |
-| License | Not specified (HuggingFace internal testing model) |
-| Source | <https://huggingface.co/hf-internal-testing/tiny-random-gpt2> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-  (no `modelspec.*` or common metadata keys in `__metadata__`)
-- `properties["format"]` = `"pt"`
-- `inputs` lists all 64 tensor keys (header-only, no weights loaded into memory)
 
 ---
 
@@ -139,56 +113,6 @@ Notable metadata extracted by the ONNX extractor:
 - `properties["opset.ai.onnx"]` = `"14"`
 - `properties["opset.com.microsoft"]` = `"1"` (Microsoft contrib ops for
   quantised kernels)
-
----
-
-### tiny-random-bert.onnx
-
-| Property | Value |
-| :--- | :--- |
-| Format | ONNX (IR version 7, opset: ai.onnx 11) |
-| Architecture | BERT — randomly initialised weights |
-| Task | Text encoding (not usable for real inference — random weights) |
-| Inputs | `input_ids`, `attention_mask`, `token_type_ids`: INT64 `[batch_size, sequence_length]` |
-| Output | `last_hidden_state`: float32 `[batch_size, sequence_length, 32]` |
-| Size | 449 599 bytes (0.43 MB) |
-| SHA-256 | `ebc3af0117e7fcc734a5c8b951d8b711dda1e21baaa3052daeddfbc15401bc77` |
-| License | Not specified (HuggingFace internal testing model) |
-| Source | <https://huggingface.co/hf-internal-testing/tiny-random-BertModel> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
-
-Notable metadata extracted by the ONNX extractor:
-
-- `name` = `"main_graph"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
-- `properties["opset.ai.onnx"]` = `"11"`
-- Three INT64 inputs (token IDs and masks) — distinct from the float32
-  inputs in other fixtures
-
----
-
-### tiny-random-roberta.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | RoBERTa — randomly initialised weights |
-| Task | Text encoding (not usable for real inference — random weights) |
-| Tensors | 88 (weights and biases for all layers) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 352 188 bytes (0.34 MB) |
-| SHA-256 | `174f949b916d6139bc04699819bed6d22a8c7343924805a3a350cbcb364fb88d` |
-| License | Not specified (HuggingFace internal testing model) |
-| Source | <https://huggingface.co/hf-internal-testing/tiny-random-RobertaModel> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-  (no `modelspec.*` or common metadata keys in `__metadata__`)
-- `properties["format"]` = `"pt"`
-- `inputs` lists all 88 tensor keys (header-only, no weights loaded into memory),
-  including `embeddings.LayerNorm.bias` and `pooler.dense.weight`
 
 ---
 
@@ -283,31 +207,6 @@ Notable metadata extracted by the ONNX extractor:
 
 ---
 
-### peft-tiny-random-bert.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | BERT — randomly initialised weights |
-| Task | Text encoding (not usable for real inference — random weights) |
-| Tensors | 87 (weights and biases for all layers) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 360 804 bytes (0.34 MB) |
-| SHA-256 | `4e011b7f1af1d32895c6f1e5ea228e0aa05b826225c467b8de805cef0ad6b994` |
-| License | Not specified (HuggingFace PEFT internal testing model) |
-| Source | <https://huggingface.co/peft-internal-testing/tiny-random-BertModel> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-  (no `modelspec.*` or common metadata keys in `__metadata__`)
-- `properties["format"]` = `"pt"`
-- `inputs` lists all 87 tensor keys (header-only), including
-  `embeddings.word_embeddings.weight` and `pooler.dense.weight`
-
----
-
 ### resnet-tiny-beans.onnx
 
 | Property | Value |
@@ -353,6 +252,79 @@ Notable metadata extracted by the ONNX extractor:
 - `outputs` includes `logits` and 10 KV-cache tensors
   (`present.0.key` … `present.4.value`) — unique decoder structure
   not present in the encoder-only ONNX fixtures
+
+---
+
+### phi-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | Phi (2-layer causal LM, randomly initialised weights) |
+| Task | Text generation (not usable for real inference — random weights) |
+| Tensors | 33 (embeddings, 2 × self-attention blocks, LM head) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 323 520 bytes (0.31 MB) |
+| SHA-256 | `6fbbc177683bcd0c8d694d552461d9dba3cd6e7f5a883cb8c6c6cce36ce6882e` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/echarlaix/tiny-random-PhiForCausalLM> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 33 tensors: `model.embed_tokens.weight`, `model.layers.*`,
+  `model.final_layernorm.*`, `lm_head.*`
+
+---
+
+### marian-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | MarianMT encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
+| Task | Neural machine translation (not usable for real inference — random weights) |
+| Tensors | 86 (shared embedding, encoder layers, decoder layers, projection bias) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 707 324 bytes (0.67 MB) |
+| SHA-256 | `806e6a41de92e593c6a0275c67771f8faf0e95c92fe002faf7371fcef56142ea` |
+| License | MIT |
+| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-marian> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 86 tensors covering `model.encoder.*`, `model.decoder.*`,
+  and `model.shared.weight` — confirming the seq2seq encoder-decoder structure
+
+---
+
+### speech2text-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | Speech2Text encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
+| Task | Automatic speech recognition (not usable for real inference — random weights) |
+| Tensors | 93 (encoder with convolutional sub-sampler, decoder, embeddings) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 705 880 bytes (0.67 MB) |
+| SHA-256 | `7261459bb4f43dfb595e3e576cef19b8ea2a095e29ed8837236014cd56865016` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-Speech2TextModel> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 93 tensors with `model.encoder.*` (including conv sub-sampler)
+  and `model.decoder.*` — distinguishes the convolutional ASR encoder from the
+  attention-only Whisper encoder in `whisper-tiny-random.safetensors`
 
 ---
 
