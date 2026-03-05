@@ -15,6 +15,26 @@ Each fixture is used by a corresponding `scope="module"` pytest fixture in
 `pytest.importorskip` for the required library, so tests are automatically
 skipped when the optional dependency is not installed.
 
+## Summary
+
+| Filename | Format | Task | License |
+| :--- | :--- | :--- | :--- |
+| `squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
+| `encoder_model_q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
+| `tiny-random-bert.onnx` | ONNX | Text encoding — BERT (random weights) | — |
+| `light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
+| `resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
+| `gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
+| `tiny-random-gpt2.safetensors` | Safetensors | Text generation — GPT-2 (random weights) | — |
+| `tiny-random-roberta.safetensors` | Safetensors | Text encoding — RoBERTa (random weights) | — |
+| `peft-tiny-random-bert.safetensors` | Safetensors | Text encoding — BERT (random weights) | — |
+| `vits-tiny-random.safetensors` | Safetensors | Text-to-speech — VITS (random weights) | Apache-2.0 |
+| `whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
+| `stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
+| `mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
+| `ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
+| `ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
+
 ## Files
 
 ### squeezenet1.1-7.onnx
