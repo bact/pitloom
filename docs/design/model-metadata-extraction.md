@@ -1,3 +1,9 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
 # AI model metadata extraction
 
 An AI BOM generator can utilize existing model exchange standards, such as
@@ -37,3 +43,10 @@ multiple formats:
 | **JAX** | Use `Orbax` for checkpoint management or `torchax` for Pytree extraction. | jax, orbax-checkpoint, torchax |
 | **Scikit-learn** | Use `estimator.get_params()` to retrieve estimator hyperparameters. | scikit-learn |
 | **Keras v3** | Inspect the `config.json` inside the `.keras` zip archive or use `get_config()`. | keras, h5py |
+
+## AI dataset metadata extraction
+
+If the dataset used for AI training, fine-tuning, or testing is
+available on platforms like Hugging Face, chances are that the dataset may
+have metadata available in machine-readable Croissant format.
+<https://github.com/mlcommons/croissant>

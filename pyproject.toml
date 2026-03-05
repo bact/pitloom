@@ -20,9 +20,7 @@ keywords = [
     "hatchling",
     "supply chain",
 ]
-authors = [
-    { name = "Arthit Suriyawongkul" }
-]
+authors = [{ name = "Arthit Suriyawongkul" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -43,10 +41,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "ruff>=0.1.0",
-]
+gguf = ["gguf>=0.10.0"]
+model = ["onnx>=1.14.1", "safetensors[numpy]>=0.4.0", "gguf>=0.10.0"]
+onnx = ["onnx>=1.14.1"]
+safetensors = ["safetensors[numpy]>=0.4.0"]
+
+[dependency-groups]
+lint = ["ruff>=0.1.0"]
+test = ["pytest>=8.0.0"]
+dev = [{ include-group = "lint" }, { include-group = "test" }]
 
 [project.scripts]
 loom = "loom.__main__:main"
