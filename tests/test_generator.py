@@ -182,10 +182,12 @@ files = ["fragment1.json", "fragment2.json"]
 
         # Create dummy fragment 1 with an AI Package
         from datetime import datetime, timezone
+
         from spdx_python_model import v3_0_1 as spdx3
+
         from loom.core.models import generate_spdx_id
         from loom.exporters.spdx3_json import Spdx3JsonExporter
-        
+
         doc_uuid_1 = "aaaa-bbbb"
         ci1 = spdx3.CreationInfo(specVersion="3.0.1", created=datetime.now(timezone.utc))
         person1 = spdx3.Person(spdxId=generate_spdx_id("Person", "author1", doc_uuid_1), name="Author 1", creationInfo=ci1)
@@ -222,11 +224,11 @@ files = ["fragment1.json", "fragment2.json"]
         # Validate that elements from fragments are included in the graph
         graph = sbom_data["@graph"]
         element_types = {elem["type"] for elem in graph}
-        
+
         assert "ai_AIPackage" in element_types
         assert "dataset_DatasetPackage" in element_types
         assert "software_Package" in element_types
-        
+
         # Verify names
         ai_packages = [e for e in graph if e["type"] == "ai_AIPackage"]
         assert ai_packages[0]["name"] == "cool-ai-model"

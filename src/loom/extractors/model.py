@@ -5,7 +5,6 @@
 """Extractor for AI model metadata from model files.
 
 Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
-Install the extras you need:
 
     pip install loom[gguf]        # for GGUF support
     pip install loom[onnx]        # for ONNX support
@@ -449,7 +448,7 @@ def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
         provenance["type_of_model"] = f"{source} | Field: __metadata__"
 
     # Remaining metadata as properties
-    properties = {k: v for k, v in raw_metadata.items()}
+    properties = dict(raw_metadata.items())
     if properties:
         provenance["properties"] = f"{source} | Field: __metadata__"
 

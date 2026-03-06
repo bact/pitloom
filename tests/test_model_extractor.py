@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,12 +15,11 @@ from loom.extractors.model import (
     ModelFormat,
     ModelMetadata,
     detect_model_format,
+    extract_metadata_from_gguf,
     extract_metadata_from_model,
     extract_metadata_from_onnx,
     extract_metadata_from_safetensors,
-    extract_metadata_from_gguf,
 )
-
 
 # ---------------------------------------------------------------------------
 # detect_model_format

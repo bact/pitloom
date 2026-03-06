@@ -276,7 +276,7 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     )
     if isinstance(fragments, list):
         metadata_instance.fragments = [str(f) for f in fragments]
-    
+
     return metadata_instance
 
 

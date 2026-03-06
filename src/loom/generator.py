@@ -6,10 +6,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import json
 import logging
-from importlib.metadata import PackageNotFoundError, version as get_package_version
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_package_version
 from pathlib import Path
 from uuid import uuid4
 
@@ -154,7 +154,7 @@ def generate_sbom_from_project(
             if op in dep:
                 dep_name = dep.split(op)[0].strip()
                 break
-        
+
         # Try to resolve actual installed version during this build
         resolved_version = None
         try:
@@ -165,7 +165,7 @@ def generate_sbom_from_project(
         # Build provenance comment for dependency packages
         dep_parts = [f"dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"]
         dep_parts.append(f"Declared constraint: {dep}")
-        
+
         if resolved_version:
             dep_parts.append("Version resolved: Build-time environment (importlib.metadata)")
             dep_version = resolved_version
@@ -185,7 +185,7 @@ def generate_sbom_from_project(
         dep_package.software_packageVersion = dep_version
         # Populate Supplier (NTIA Minimum Element)
         dep_package.suppliedBy = unknown_org.spdxId
-        
+
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         dep_package.comment = dep_comment
 
@@ -217,7 +217,7 @@ def generate_sbom_from_project(
                     fragment_set = spdx3.SHACLObjectSet()
                     parser = spdx3.JSONLDDeserializer()
                     parser.read(f, fragment_set)
-                    
+
                     # Merge fragment objects into our main exporter object set
                     for obj in fragment_set.foreach():
                         exporter.object_set.add(obj)
