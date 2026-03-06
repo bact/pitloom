@@ -9,6 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 ## Coding Standards
 
 - Maintain compatibility with Python 3.10.
+- Provide type hints as much as possible. Minimize the use of `Any`.
 - No `assert` in production code.
 - `time.monotonic()` for durations, not `time.time()`.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for
@@ -16,6 +17,7 @@ SPDX-License-Identifier: Apache-2.0
 - Guard heavy type-only imports with `TYPE_CHECKING`.
 - SPDX header on all new files, with these keys: `SPDX-FileCopyrightText`,
   `SPDX-FileType`, `SPDX-License-Identifier`, in that alphabetical order.
+- Run `flake8`, `ruff`, `mypy` and fixes any errors.
 
 ## Testing Standards
 
