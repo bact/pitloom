@@ -6,10 +6,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import json
 import logging
-from importlib.metadata import PackageNotFoundError, version as get_package_version
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_package_version
 from pathlib import Path
 from uuid import uuid4
 
@@ -77,7 +77,9 @@ def generate_sbom_from_project(
 
     # Create unknown organization for dependencies without supplier info
     unknown_org = spdx3.Organization(
-        spdxId=generate_spdx_id("Organization", doc_name="UnknownSupplier", doc_uuid=doc_uuid),
+        spdxId=generate_spdx_id(
+            "Organization", doc_name="UnknownSupplier", doc_uuid=doc_uuid
+        ),
         name="NOASSERTION",
         creationInfo=creation_info,
     )
@@ -120,7 +122,9 @@ def generate_sbom_from_project(
         main_package.software_downloadLocation = download_location
     if metadata.urls.get("Homepage"):
         main_package.software_homePage = metadata.urls.get("Homepage")
-    main_package.software_copyrightText = f"Copyright (c) {copyright_year} {copyright_holder}"
+    main_package.software_copyrightText = (
+        f"Copyright (c) {copyright_year} {copyright_holder}"
+    )
     main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
     if comment:
         main_package.comment = comment
@@ -135,11 +139,16 @@ def generate_sbom_from_project(
 
     # Create SPDX document
     spdx_doc = spdx3.SpdxDocument(
-        spdxId=generate_spdx_id("SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid),
+        spdxId=generate_spdx_id(
+            "SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid
+        ),
         creationInfo=creation_info,
         rootElement=[sbom.spdxId],
     )
-    spdx_doc.profileConformance = [spdx3.ProfileIdentifierType.core, spdx3.ProfileIdentifierType.software]
+    spdx_doc.profileConformance = [
+        spdx3.ProfileIdentifierType.core,
+        spdx3.ProfileIdentifierType.software,
+    ]
 
     # Add all elements to exporter
     exporter.add_document(spdx_doc)
@@ -154,7 +163,7 @@ def generate_sbom_from_project(
             if op in dep:
                 dep_name = dep.split(op)[0].strip()
                 break
-        
+
         # Try to resolve actual installed version during this build
         resolved_version = None
         try:
@@ -163,11 +172,15 @@ def generate_sbom_from_project(
             pass
 
         # Build provenance comment for dependency packages
-        dep_parts = [f"dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"]
+        dep_parts = [
+            f"dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
+        ]
         dep_parts.append(f"Declared constraint: {dep}")
-        
+
         if resolved_version:
-            dep_parts.append("Version resolved: Build-time environment (importlib.metadata)")
+            dep_parts.append(
+                "Version resolved: Build-time environment (importlib.metadata)"
+            )
             dep_version = resolved_version
         elif "==" in dep:
             dep_version = dep.split("==")[1].strip()
@@ -177,7 +190,9 @@ def generate_sbom_from_project(
         dep_comment = "Metadata provenance: " + "; ".join(dep_parts)
 
         dep_package = spdx3.software_Package(
-            spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
+            spdxId=generate_spdx_id(
+                "Package", doc_name=metadata.name, doc_uuid=doc_uuid
+            ),
             name=dep_name,
             creationInfo=creation_info,
         )
@@ -185,7 +200,7 @@ def generate_sbom_from_project(
         dep_package.software_packageVersion = dep_version
         # Populate Supplier (NTIA Minimum Element)
         dep_package.suppliedBy = unknown_org.spdxId
-        
+
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         dep_package.comment = dep_comment
 
@@ -195,7 +210,9 @@ def generate_sbom_from_project(
         rel_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
 
         dep_rel = spdx3.Relationship(
-            spdxId=generate_spdx_id("Relationship", doc_name=metadata.name, doc_uuid=doc_uuid),
+            spdxId=generate_spdx_id(
+                "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
+            ),
             from_=main_package.spdxId,
             to=[dep_package.spdxId],
             relationshipType=spdx3.RelationshipType.dependsOn,
@@ -217,7 +234,7 @@ def generate_sbom_from_project(
                     fragment_set = spdx3.SHACLObjectSet()
                     parser = spdx3.JSONLDDeserializer()
                     parser.read(f, fragment_set)
-                    
+
                     # Merge fragment objects into our main exporter object set
                     for obj in fragment_set.foreach():
                         exporter.object_set.add(obj)

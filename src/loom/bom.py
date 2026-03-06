@@ -26,7 +26,7 @@ def _get_caller_info() -> str:
                     filename = str(p.relative_to(Path.cwd()))
                 except ValueError:
                     filename = p.name
-                
+
                 func_name = frame_info.function
                 if func_name == "<module>":
                     return (
@@ -50,7 +50,7 @@ class _ActiveRun:
     def __init__(self, output_file: str):
         self.output_file = output_file
         self.doc_uuid = str(uuid4())
-        
+
         self.creation_info = spdx3.CreationInfo(
             specVersion="3.0.1", created=datetime.now(timezone.utc)
         )
@@ -58,13 +58,13 @@ class _ActiveRun:
         person = spdx3.Person(
             spdxId=generate_spdx_id("Person", "loom-sdk", self.doc_uuid),
             name="Loom SDK (Automated Run)",
-            creationInfo=self.creation_info
+            creationInfo=self.creation_info,
         )
         self.creation_info.createdBy = [person.spdxId]
-        
+
         self.exporter = Spdx3JsonExporter()
         self.exporter.add_person(person)
-        
+
         self.model: spdx3.ai_AIPackage | None = None
         self.datasets: list[spdx3.dataset_DatasetPackage] = []
 
@@ -88,11 +88,13 @@ class _ActiveRun:
             creationInfo=self.creation_info,
             comment=f"Metadata provenance: package: {caller_info}",
         )
-        
+
         # Map simple string types to spdx3.dataset_DatasetType enums dynamically
-        dt = getattr(spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text)
+        dt = getattr(
+            spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
+        )
         dataset_pkg.dataset_datasetType = [dt]
-        
+
         self.datasets.append(dataset_pkg)
         self.exporter.add_package(dataset_pkg)
 
@@ -101,7 +103,11 @@ class _ActiveRun:
         if self.model and self.datasets:
             for dataset in self.datasets:
                 rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id("Relationship", f"{self.model.name}-trainedOn-{dataset.name}", self.doc_uuid),
+                    spdxId=generate_spdx_id(
+                        "Relationship",
+                        f"{self.model.name}-trainedOn-{dataset.name}",
+                        self.doc_uuid,
+                    ),
                     from_=self.model.spdxId,
                     to=[dataset.spdxId],
                     relationshipType=spdx3.RelationshipType.trainedOn,
@@ -112,7 +118,7 @@ class _ActiveRun:
         output_path = Path(self.output_file)
         if output_path.parent:
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(self.exporter.to_json())
 
@@ -123,8 +129,8 @@ _active_run: _ActiveRun | None = None
 
 class track(contextlib.ContextDecorator):
     """Context manager and decorator for capturing SPDX fragments.
-    
-    Can be used as a context manager (`with track(output_file=...):`) 
+
+    Can be used as a context manager (`with track(output_file=...):`)
     or as a function decorator (`@track(output_file=...)`).
     """
 

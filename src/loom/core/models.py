@@ -36,6 +36,3 @@ def generate_spdx_id(
     _ID_COUNTERS[current_doc_uuid] += 1
     seq_id = _ID_COUNTERS[current_doc_uuid]
     return f"{doc_namespace}#{prefix}-{seq_id}"
-
-
-
