@@ -44,7 +44,10 @@ def test_bom_track_as_context_manager():
         assert "test-dataset-1" in dataset_names
         assert "test-dataset-2" in dataset_names
         assert all("test_bom.py" in d.get("comment", "") for d in datasets)
-        assert all("test_bom_track_as_context_manager" in d.get("comment", "") for d in datasets)
+        assert all(
+            "test_bom_track_as_context_manager" in d.get("comment", "")
+            for d in datasets
+        )
 
         # Verify relationships
         rels = [e for e in graph if e["type"] == "Relationship"]

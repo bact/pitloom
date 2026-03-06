@@ -58,7 +58,7 @@ class _ActiveRun:
         person = spdx3.Person(
             spdxId=generate_spdx_id("Person", "loom-sdk", self.doc_uuid),
             name="Loom SDK (Automated Run)",
-            creationInfo=self.creation_info
+            creationInfo=self.creation_info,
         )
         self.creation_info.createdBy = [person.spdxId]
 
@@ -90,7 +90,9 @@ class _ActiveRun:
         )
 
         # Map simple string types to spdx3.dataset_DatasetType enums dynamically
-        dt = getattr(spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text)
+        dt = getattr(
+            spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
+        )
         dataset_pkg.dataset_datasetType = [dt]
 
         self.datasets.append(dataset_pkg)
@@ -101,7 +103,11 @@ class _ActiveRun:
         if self.model and self.datasets:
             for dataset in self.datasets:
                 rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id("Relationship", f"{self.model.name}-trainedOn-{dataset.name}", self.doc_uuid),
+                    spdxId=generate_spdx_id(
+                        "Relationship",
+                        f"{self.model.name}-trainedOn-{dataset.name}",
+                        self.doc_uuid,
+                    ),
                     from_=self.model.spdxId,
                     to=[dataset.spdxId],
                     relationshipType=spdx3.RelationshipType.trainedOn,

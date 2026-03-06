@@ -189,8 +189,14 @@ files = ["fragment1.json", "fragment2.json"]
         from loom.exporters.spdx3_json import Spdx3JsonExporter
 
         doc_uuid_1 = "aaaa-bbbb"
-        ci1 = spdx3.CreationInfo(specVersion="3.0.1", created=datetime.now(timezone.utc))
-        person1 = spdx3.Person(spdxId=generate_spdx_id("Person", "author1", doc_uuid_1), name="Author 1", creationInfo=ci1)
+        ci1 = spdx3.CreationInfo(
+            specVersion="3.0.1", created=datetime.now(timezone.utc)
+        )
+        person1 = spdx3.Person(
+            spdxId=generate_spdx_id("Person", "author1", doc_uuid_1),
+            name="Author 1",
+            creationInfo=ci1,
+        )
         ci1.createdBy = [person1.spdxId]
         ai_pkg = spdx3.ai_AIPackage(
             spdxId=generate_spdx_id("AIPackage", "test-ai-model", doc_uuid_1),
@@ -204,8 +210,14 @@ files = ["fragment1.json", "fragment2.json"]
 
         # Create dummy fragment 2 with a Dataset Package
         doc_uuid_2 = "cccc-dddd"
-        ci2 = spdx3.CreationInfo(specVersion="3.0.1", created=datetime.now(timezone.utc))
-        person2 = spdx3.Person(spdxId=generate_spdx_id("Person", "author2", doc_uuid_2), name="Author 2", creationInfo=ci2)
+        ci2 = spdx3.CreationInfo(
+            specVersion="3.0.1", created=datetime.now(timezone.utc)
+        )
+        person2 = spdx3.Person(
+            spdxId=generate_spdx_id("Person", "author2", doc_uuid_2),
+            name="Author 2",
+            creationInfo=ci2,
+        )
         ci2.createdBy = [person2.spdxId]
         dataset_pkg = spdx3.dataset_DatasetPackage(
             spdxId=generate_spdx_id("DatasetPackage", "test-dataset", doc_uuid_2),

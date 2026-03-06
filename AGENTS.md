@@ -17,7 +17,7 @@ SPDX-License-Identifier: Apache-2.0
 - Guard heavy type-only imports with `TYPE_CHECKING`.
 - SPDX header on all new files, with these keys: `SPDX-FileCopyrightText`,
   `SPDX-FileType`, `SPDX-License-Identifier`, in that alphabetical order.
-- Run `flake8`, `ruff`, `mypy` and fixes any errors.
+- Run `flake8`, `ruff check`, `ruff format`, `mypy` and fixes any errors.
 
 ## Testing Standards
 
