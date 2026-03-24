@@ -104,7 +104,9 @@ def _make_onnx_mock(
     model.opset_import = opsets
 
     # graph inputs / outputs
-    def _make_vi(name: str, dtype: int = 1, shape: list[int | str] | None = None) -> MagicMock:
+    def _make_vi(
+        name: str, dtype: int = 1, shape: list[int | str] | None = None
+    ) -> MagicMock:
         vi = MagicMock()
         vi.name = name
         vi.type.tensor_type.elem_type = dtype
@@ -513,7 +515,9 @@ def test_onnx_integration_opset(squeezenet_metadata: ModelMetadata) -> None:
     assert squeezenet_metadata.properties.get("opset.ai.onnx") == "7"
 
 
-def test_onnx_integration_no_domain_property(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_no_domain_property(
+    squeezenet_metadata: ModelMetadata,
+) -> None:
     # Empty domain string is not stored as a property
     assert "domain" not in squeezenet_metadata.properties
 

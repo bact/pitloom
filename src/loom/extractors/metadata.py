@@ -71,7 +71,7 @@ class ProjectMetadata:
             # readme is a Readme object with .file or .text attributes
             if hasattr(readme, "file") and readme.file:
                 return str(readme.file)
-            elif hasattr(readme, "text") and readme.text:
+            if hasattr(readme, "text") and readme.text:
                 return readme.text
         return None
 
@@ -106,9 +106,9 @@ class ProjectMetadata:
             # - Table format (license = {text = "..."}) returns License object
             if isinstance(license_obj, str):
                 return license_obj
-            elif hasattr(license_obj, "text") and license_obj.text:
+            if hasattr(license_obj, "text") and license_obj.text:
                 return license_obj.text
-            elif hasattr(license_obj, "file") and license_obj.file:
+            if hasattr(license_obj, "file") and license_obj.file:
                 # TODO: Identify actual SPDX License ID from the license text.
                 # Few libraries are available for this task:
                 # - https://pypi.org/project/scancode-toolkit/
@@ -120,8 +120,7 @@ class ProjectMetadata:
                 # - https://github.com/spdx/spdx-license-matcher
                 #   (Python, from SPDX project, no wheels, needs Java and Redis)
                 return str(license_obj.file)
-            else:
-                return str(license_obj)
+            return str(license_obj)
         return None
 
     @property

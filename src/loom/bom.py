@@ -125,10 +125,10 @@ class _ActiveRun:
 
 
 # Global state holding the active run
-_active_run: _ActiveRun | None = None
+_active_run: _ActiveRun | None = None  # pylint: disable=invalid-name
 
 
-class track(contextlib.ContextDecorator):
+class Track(contextlib.ContextDecorator):
     """Context manager and decorator for capturing SPDX fragments.
 
     Can be used as a context manager (`with track(output_file=...):`)
@@ -157,6 +157,10 @@ class track(contextlib.ContextDecorator):
             if exc_type is None:
                 _active_run.finalize()
         _active_run = self.previous_run
+
+
+#: Lowercase alias for :class:`Track`
+track = Track  # pylint: disable=invalid-name
 
 
 def set_model(name: str) -> None:

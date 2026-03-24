@@ -105,15 +105,15 @@ def extract_metadata_from_model(model_path: Path) -> ModelMetadata:
 
     if fmt == ModelFormat.GGUF:
         return extract_metadata_from_gguf(model_path)
-    elif fmt == ModelFormat.ONNX:
+    if fmt == ModelFormat.ONNX:
         return extract_metadata_from_onnx(model_path)
-    elif fmt == ModelFormat.SAFETENSORS:
+    if fmt == ModelFormat.SAFETENSORS:
         return extract_metadata_from_safetensors(model_path)
-    else:
-        raise ValueError(
-            f"Unsupported model format for file: {model_path}. "
-            f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
-        )
+
+    raise ValueError(
+        f"Unsupported model format for file: {model_path}. "
+        f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -179,13 +179,13 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
     hyperparameters: dict[str, Any] = {}
 
     # Resolve field values to plain Python scalars
-    def _field_value(field: Any) -> Any:
-        parts = field.parts
+    def _field_value(gguf_field: Any) -> Any:
+        parts = gguf_field.parts
         if not parts:
             return None
         last = parts[-1]
         # String fields are stored as a raw byte array; decode them explicitly
-        if field.types and field.types[0] == GGUFValueType.STRING:
+        if gguf_field.types and gguf_field.types[0] == GGUFValueType.STRING:
             return last.tobytes().decode("utf-8")
         if hasattr(last, "tolist"):
             val = last.tolist()

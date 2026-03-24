@@ -2,4 +2,6 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
+"""Package information for Loom."""
+
 __version__ = "0.1.0"

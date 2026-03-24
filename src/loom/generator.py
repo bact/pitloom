@@ -207,7 +207,10 @@ def generate_sbom_from_project(
         exporter.add_package(dep_package)
 
         # Create dependency relationship
-        rel_comment = f"Metadata provenance: dependencies: {metadata.provenance.get('dependencies', 'Unknown source')}"
+        rel_comment = (
+            "Metadata provenance: dependencies: "
+            f"{metadata.provenance.get('dependencies', 'Unknown source')}"
+        )
 
         dep_rel = spdx3.Relationship(
             spdxId=generate_spdx_id(
@@ -239,9 +242,9 @@ def generate_sbom_from_project(
                     for obj in fragment_set.foreach():
                         exporter.object_set.add(obj)
             except Exception as e:
-                logging.warning(f"Failed to ingest SBOM fragment {fragment_path}: {e}")
+                logging.warning("Failed to ingest SBOM fragment %s: %s", fragment_path, e)
         else:
-            logging.warning(f"Configured SBOM fragment {fragment_path} not found.")
+            logging.warning("Configured SBOM fragment %s not found.", fragment_path)
 
     return exporter.to_json()
 
