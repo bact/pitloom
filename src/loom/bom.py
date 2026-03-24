@@ -40,7 +40,7 @@ def _get_caller_info() -> str:
                     f"Method: inspect_caller (tool: loom.bom, "
                     f"function: {func_name})"
                 )
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         pass
     return "Source: unknown | Method: inspect_caller (tool: loom.bom)"
 
@@ -140,7 +140,7 @@ class Track(contextlib.ContextDecorator):
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
-        global _active_run
+        global _active_run  # pylint: disable=global-statement
         self.previous_run = _active_run
         _active_run = _ActiveRun(self.output_file)
         return _active_run
@@ -151,7 +151,7 @@ class Track(contextlib.ContextDecorator):
         exc_val: BaseException | None,
         exc_tb: types.TracebackType | None,
     ) -> None:
-        global _active_run
+        global _active_run  # pylint: disable=global-statement
         if _active_run is not None:
             # Generate the fragment only if the code block executed successfully
             if exc_type is None:

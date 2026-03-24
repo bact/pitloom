@@ -241,10 +241,17 @@ def generate_sbom_from_project(
                     # Merge fragment objects into our main exporter object set
                     for obj in fragment_set.foreach():
                         exporter.object_set.add(obj)
-            except Exception as e:
-                logging.warning("Failed to ingest SBOM fragment %s: %s", fragment_path, e)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logging.warning(
+                    "Failed to ingest SBOM fragment %s: %s",
+                    fragment_path,
+                    e,
+                )
         else:
-            logging.warning("Configured SBOM fragment %s not found.", fragment_path)
+            logging.warning(
+                "Configured SBOM fragment %s not found.",
+                fragment_path,
+            )
 
     return exporter.to_json()
 

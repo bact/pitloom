@@ -87,9 +87,10 @@ Run and fix all errors before committing:
 
 ```shell
 ruff check
-ruff format
-flake8
 mypy
+pylint
+flake8
+ruff format
 ```
 
 - McCabe complexity must stay ≤ 10; refactor new code that exceeds this.

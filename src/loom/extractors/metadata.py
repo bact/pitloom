@@ -234,7 +234,8 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
             "Source: Loom generator | Method: inferred_from_authors"
         )
 
-    # Check if readme file exists, if not, remove it from data to avoid validation errors
+    # Check if readme file exists,
+    # if not, remove it from data to avoid validation errors
     readme_field = project_data.get("readme")
     readme_override = None
     if readme_field and isinstance(readme_field, str):
@@ -265,7 +266,7 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
             dynamic_metadata=dynamic_metadata if dynamic_metadata else None,
             allow_extra_keys=True,
         )
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         raise ValueError(f"Failed to parse project metadata: {e}") from e
 
     metadata_instance = ProjectMetadata(

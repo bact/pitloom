@@ -66,6 +66,10 @@ Documentation = "https://github.com/bact/loom#readme"
 Issues = "https://github.com/bact/loom/issues"
 Source = "https://github.com/bact/loom"
 
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
 [tool.hatch.build.targets.sdist]
 exclude = [
     "/.github",
@@ -99,16 +103,12 @@ source-roots = ["src"]
 
 [tool.pylint.messages_control]
 disable = [
-    "broad-exception-caught",    # intentional catch-all in CLI and context managers
-    "duplicate-code",            # boilerplate setup in test files is expected
-    "fixme",                     # TODO comments are tracked intentionally
-    "global-statement",          # bom.py uses module-level state by design
-    "import-outside-toplevel",   # optional lazy imports pattern
-    "missing-function-docstring", # test helper functions don't require docstrings
-    "redefined-outer-name",      # pytest fixtures naturally shadow outer names
-    "too-many-lines",            # test modules can exceed 1000 lines
-    "use-implicit-booleaness-not-comparison", # explicit == [] / == {} in tests is clearer
+    "duplicate-code",          # boilerplate in tests is expected
+    "fixme",                   # TODO comments are tracked intentionally
 ]
+
+[tool.pylint.format]
+max-line-length = 88
 
 [tool.pylint.design]
 max-args = 8
