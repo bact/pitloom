@@ -1,9 +1,3 @@
----
-SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: Apache-2.0
----
-
 # Agent instructions
 
 ## Project context
@@ -87,9 +81,10 @@ Run and fix all errors before committing:
 
 ```shell
 ruff check
-ruff format
-flake8
 mypy
+pylint
+flake8
+ruff format
 ```
 
 - McCabe complexity must stay ≤ 10; refactor new code that exceeds this.

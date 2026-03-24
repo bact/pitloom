@@ -4,6 +4,11 @@
 
 """Tests for AI model metadata extraction."""
 
+# pylint: disable=missing-function-docstring
+# pylint: disable=redefined-outer-name
+# pylint: disable=too-many-lines
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -104,7 +109,9 @@ def _make_onnx_mock(
     model.opset_import = opsets
 
     # graph inputs / outputs
-    def _make_vi(name: str, dtype: int = 1, shape: list[int | str] | None = None) -> MagicMock:
+    def _make_vi(
+        name: str, dtype: int = 1, shape: list[int | str] | None = None
+    ) -> MagicMock:
         vi = MagicMock()
         vi.name = name
         vi.type.tensor_type.elem_type = dtype
@@ -513,7 +520,9 @@ def test_onnx_integration_opset(squeezenet_metadata: ModelMetadata) -> None:
     assert squeezenet_metadata.properties.get("opset.ai.onnx") == "7"
 
 
-def test_onnx_integration_no_domain_property(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_no_domain_property(
+    squeezenet_metadata: ModelMetadata,
+) -> None:
     # Empty domain string is not stored as a property
     assert "domain" not in squeezenet_metadata.properties
 
@@ -1020,7 +1029,8 @@ def test_vits_provenance(vits_metadata: ModelMetadata) -> None:
 # Integration tests — real Safetensors file (whisper-tiny-random.safetensors)
 # Source: optimum-internal-testing/tiny-random-whisper (~872 KB)
 # Randomly initialised Whisper ASR encoder-decoder; 50 tensors
-# Require: safetensors installed AND tests/fixtures/whisper-tiny-random.safetensors present
+# Require: safetensors installed AND
+#          tests/fixtures/whisper-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 WHISPER_ST_FIXTURE = (
@@ -1127,7 +1137,8 @@ def test_vocab_phi3_provenance(vocab_phi3_metadata: ModelMetadata) -> None:
 # Integration tests — real Safetensors file (phi-tiny-random.safetensors)
 # Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
 # Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
-# Require: safetensors installed AND tests/fixtures/phi-tiny-random.safetensors present
+# Require: safetensors installed AND
+#          tests/fixtures/phi-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 PHI_FIXTURE = Path(__file__).parent / "fixtures" / "phi-tiny-random.safetensors"
@@ -1180,7 +1191,8 @@ def test_phi_provenance(phi_metadata: ModelMetadata) -> None:
 # Integration tests — real Safetensors file (marian-tiny-random.safetensors)
 # Source: optimum-internal-testing/tiny-random-marian (~690 KB)
 # Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
-# Require: safetensors installed AND tests/fixtures/marian-tiny-random.safetensors present
+# Require: safetensors installed AND
+#          tests/fixtures/marian-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 MARIAN_FIXTURE = Path(__file__).parent / "fixtures" / "marian-tiny-random.safetensors"
@@ -1233,7 +1245,8 @@ def test_marian_provenance(marian_metadata: ModelMetadata) -> None:
 # Integration tests — real Safetensors file (speech2text-tiny-random.safetensors)
 # Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
 # Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
-# Require: safetensors installed AND tests/fixtures/speech2text-tiny-random.safetensors present
+# Require: safetensors installed AND
+#          tests/fixtures/speech2text-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 SPEECH2TEXT_FIXTURE = (

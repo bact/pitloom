@@ -23,7 +23,7 @@ def test_bom_track_as_context_manager() -> None:
 
         assert output_file.exists()
 
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "@context" in data
@@ -74,7 +74,7 @@ def test_bom_track_as_decorator() -> None:
 
         assert output_file.exists()
 
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             data = json.load(f)
 
         graph = data["@graph"]
@@ -98,7 +98,7 @@ def test_bom_track_with_exception() -> None:
         output_file = Path(tmpdir) / "test_fragment_error.json"
 
         class DummyError(Exception):
-            pass
+            """Simulates a training failure."""
 
         try:
             with bom.track(output_file):

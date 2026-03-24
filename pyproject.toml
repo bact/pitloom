@@ -49,8 +49,8 @@ onnx = ["onnx>=1.14.1"]
 safetensors = ["safetensors[numpy]>=0.4.0"]
 
 [dependency-groups]
-lint = ["ruff>=0.1.0"]
-test = ["pytest>=8.0.0"]
+lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.1.0"]
+test = ["pytest>=9.0.2"]
 typecheck = ["mypy>=1.19.1"]
 dev = [
     { include-group = "lint" },
@@ -65,6 +65,10 @@ loom = "loom.__main__:main"
 Documentation = "https://github.com/bact/loom#readme"
 Issues = "https://github.com/bact/loom/issues"
 Source = "https://github.com/bact/loom"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
@@ -93,6 +97,26 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 module = "spdx_python_model.*"
 ignore_missing_imports = true
+
+[tool.pylint.main]
+source-roots = ["src"]
+
+[tool.pylint.messages_control]
+disable = [
+    "duplicate-code",          # boilerplate in tests is expected
+    "fixme",                   # TODO comments are tracked intentionally
+]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.design]
+max-args = 8
+max-positional-arguments = 8
+max-attributes = 12
+max-branches = 25
+max-locals = 40
+max-statements = 100
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]

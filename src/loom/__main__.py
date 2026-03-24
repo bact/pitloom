@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 from pathlib import Path
 
 from loom.__about__ import __version__
@@ -78,10 +79,8 @@ def main() -> int:
         print(f"SBOM written to: {args.output}")
         return 0
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error generating SBOM: {e}", file=sys.stderr)
-        import traceback
-
         traceback.print_exc()
         return 1
 

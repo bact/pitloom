@@ -6,8 +6,13 @@
 
 import json
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
+from spdx_python_model import v3_0_1 as spdx3
+
+from loom.core.models import generate_spdx_id
+from loom.exporters.spdx3_json import Spdx3JsonExporter
 from loom.generator import generate_sbom_from_project, generate_sbom_to_file
 
 
@@ -181,13 +186,6 @@ files = ["fragment1.json", "fragment2.json"]
         pyproject_path.write_text(pyproject_content)
 
         # Create dummy fragment 1 with an AI Package
-        from datetime import datetime, timezone
-
-        from spdx_python_model import v3_0_1 as spdx3
-
-        from loom.core.models import generate_spdx_id
-        from loom.exporters.spdx3_json import Spdx3JsonExporter
-
         doc_uuid_1 = "aaaa-bbbb"
         ci1 = spdx3.CreationInfo(
             specVersion="3.0.1", created=datetime.now(timezone.utc)

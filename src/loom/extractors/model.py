@@ -105,15 +105,15 @@ def extract_metadata_from_model(model_path: Path) -> ModelMetadata:
 
     if fmt == ModelFormat.GGUF:
         return extract_metadata_from_gguf(model_path)
-    elif fmt == ModelFormat.ONNX:
+    if fmt == ModelFormat.ONNX:
         return extract_metadata_from_onnx(model_path)
-    elif fmt == ModelFormat.SAFETENSORS:
+    if fmt == ModelFormat.SAFETENSORS:
         return extract_metadata_from_safetensors(model_path)
-    else:
-        raise ValueError(
-            f"Unsupported model format for file: {model_path}. "
-            f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
-        )
+
+    raise ValueError(
+        f"Unsupported model format for file: {model_path}. "
+        f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +161,10 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
         ValueError: If the file cannot be read as a valid GGUF file.
     """
     try:
-        from gguf import GGUFReader, GGUFValueType
+        from gguf import (  # pylint: disable=import-outside-toplevel
+            GGUFReader,
+            GGUFValueType,
+        )
     except ImportError as exc:
         raise ImportError(
             "The 'gguf' package is required to extract GGUF model metadata. "
@@ -170,7 +173,7 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
 
     try:
         reader = GGUFReader(str(model_path), mode="r")
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"
@@ -179,13 +182,13 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
     hyperparameters: dict[str, Any] = {}
 
     # Resolve field values to plain Python scalars
-    def _field_value(field: Any) -> Any:
-        parts = field.parts
+    def _field_value(gguf_field: Any) -> Any:
+        parts = gguf_field.parts
         if not parts:
             return None
         last = parts[-1]
         # String fields are stored as a raw byte array; decode them explicitly
-        if field.types and field.types[0] == GGUFValueType.STRING:
+        if gguf_field.types and gguf_field.types[0] == GGUFValueType.STRING:
             return last.tobytes().decode("utf-8")
         if hasattr(last, "tolist"):
             val = last.tolist()
@@ -274,7 +277,7 @@ def extract_metadata_from_onnx(model_path: Path) -> ModelMetadata:
         ValueError: If the file cannot be loaded as a valid ONNX model.
     """
     try:
-        import onnx
+        import onnx  # pylint: disable=import-outside-toplevel
     except ImportError as exc:
         raise ImportError(
             "The 'onnx' package is required to extract ONNX model metadata. "
@@ -284,7 +287,7 @@ def extract_metadata_from_onnx(model_path: Path) -> ModelMetadata:
     try:
         # load_external_data=False avoids loading large external tensor files
         model = onnx.load(str(model_path), load_external_data=False)
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"
@@ -402,19 +405,23 @@ def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
         ValueError: If the file cannot be read as a valid Safetensors file.
     """
     try:
-        from safetensors import safe_open
+        from safetensors import safe_open  # pylint: disable=import-outside-toplevel
     except ImportError as exc:
         raise ImportError(
-            "The 'safetensors' package is required to extract Safetensors model metadata. "
+            "The 'safetensors' package is required "
+            "to extract Safetensors model metadata. "
             "Install it with: pip install safetensors"
         ) from exc
 
     try:
         # Use numpy framework to avoid requiring torch/tf; metadata-only read
-        with safe_open(str(model_path), framework="numpy") as f:  # type: ignore[no-untyped-call]
+        with safe_open(
+            str(model_path),
+            framework="numpy",
+        ) as f:  # type: ignore[no-untyped-call]
             raw_metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         raise ValueError(
             f"Failed to read Safetensors file {model_path}: {exc}"
         ) from exc
