@@ -17,15 +17,17 @@ provenance, and dependencies of software systems.
 
 ## Features
 
-- **SPDX 3.0 Support**:
+- **SPDX 3.0 support**:
   Generates SBOMs in SPDX 3.0 JSON-LD format
-- **Hatchling Integration**:
+- **Hatchling integration**:
   Extracts metadata from Python projects using Hatchling
-- **Dependency Tracking**:
+- **Dependency tracking**:
   Automatically includes project dependencies in the SBOM
-- **Metadata Provenance**:
+- **AI/ML model metadata**:
+  Extracts metadata from model files (ONNX, Safetensors, GGUF) for SPDX AI profile
+- **Metadata provenance**:
   Tracks the source of each metadata field for transparency and auditability
-- **Standards Compliant**:
+- **Standards compliant**:
   Follows SPDX 3.0 specification and modern Python packaging standards
 
 ## Installation
@@ -36,10 +38,27 @@ Install Loom using pip:
 pip install -e .
 ```
 
-Or with development dependencies:
+For development (lint + test), using pip >= 25:
 
 ```bash
-pip install -e ".[dev]"
+pip install --dependency-groups dev -e .
+```
+
+Or with uv:
+
+```bash
+uv sync --group dev
+```
+
+### Optional model format support
+
+Install extras to enable metadata extraction from model files:
+
+```bash
+pip install -e ".[onnx]"          # ONNX models
+pip install -e ".[safetensors]"   # Safetensors models
+pip install -e ".[gguf]"          # GGUF models
+pip install -e ".[model]"         # all of the above
 ```
 
 ## Usage
@@ -175,7 +194,8 @@ loom/
 │       ├── core/
 │       │   └── models.py       # SPDX 3.0 data models
 │       ├── extractors/
-│       │   └── metadata.py     # Metadata extractor for Hatchling
+│       │   ├── metadata.py     # Metadata extractor for Hatchling
+│       │   └── model.py        # AI model file extractor (ONNX, Safetensors, GGUF)
 │       ├── exporters/
 │       │   └── spdx3_json.py   # JSON-LD exporter
 │       ├── __about__.py
@@ -187,6 +207,7 @@ loom/
 │   ├── test_bom.py
 │   ├── test_generator.py
 │   ├── test_metadata.py
+│   ├── test_model_extractor.py
 │   ├── test_models.py
 │   ├── test_provenance.py
 │   └── test_spdx3_compliance.py

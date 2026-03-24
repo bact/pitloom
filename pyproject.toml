@@ -49,7 +49,12 @@ safetensors = ["safetensors[numpy]>=0.4.0"]
 [dependency-groups]
 lint = ["ruff>=0.1.0"]
 test = ["pytest>=8.0.0"]
-dev = [{ include-group = "lint" }, { include-group = "test" }]
+typecheck = ["mypy>=1.19.1"]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    { include-group = "typecheck" },
+]
 
 [project.scripts]
 loom = "loom.__main__:main"
