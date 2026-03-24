@@ -1,9 +1,3 @@
----
-SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: Apache-2.0
----
-
 # Agent instructions
 
 ## Project context

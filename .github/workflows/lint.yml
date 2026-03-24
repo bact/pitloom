@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-License-Identifier: Apache-2.0
 
-name: Lint and Format
+name: Lint and format
 
 on:
   push:
@@ -25,9 +25,9 @@ jobs:
       - name: Install Ruff
         run: |
           python -m pip install --upgrade pip
-          pip install . --group lint
+          pip install . --group lint --group test
 
-      - name: Run Ruff linter
+      - name: Ruff linter
         run: |
           ruff check src/ tests/
 
@@ -39,6 +39,6 @@ jobs:
         run: |
           flake8 src/ tests/
 
-      - name: Run Ruff formatter check
+      - name: Ruff formatter check
         run: |
           ruff format --check src/ tests/
