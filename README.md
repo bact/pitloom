@@ -41,7 +41,7 @@ pip install -e .
 For development (lint + test), using pip >= 25:
 
 ```bash
-pip install --dependency-groups dev -e .
+pip install --group dev -e .
 ```
 
 Or with uv:
