@@ -252,6 +252,9 @@ with the current system and other dependencies. Prefer Semantic Versioning.
 
 ## SBOM resources
 
+- OpenChain SBOM Document Quality Guide Compliance Management Guide for
+  the Supply Chain version 1.0.0:
+  <https://docs.google.com/document/d/1iuXX8j10N70dfce1-CZFWhW6S2jEqc--flcCgXMMdjg/edit?usp=sharing>
 - 2025 Minimum Elements for a Software Bill of Materials (SBOM) (draft):
   <https://www.cisa.gov/resources-tools/resources/2025-minimum-elements-software-bill-materials-sbom>
   <https://www.cisa.gov/sites/default/files/2025-08/2025_CISA_SBOM_Minimum_Elements.pdf>
