@@ -29,7 +29,7 @@ Output must be consistent, predictable and parseable.
 
 - Minimum supported version: Python 3.10. Do not use syntax or features
   unavailable before 3.10 unless via `__future__` imports.
-- Do not use `A | B` union syntax outside of `TYPE_CHECKING` blocks if
+- Do not use `A | B` union syntax outside `TYPE_CHECKING` blocks if
   the minimum version is below 3.10.
 - Use idiomatic Python. Prefer built-in data structures (`list`, `dict`,
   `set`, `tuple`) unless a specialized type from `collections` or
@@ -37,11 +37,14 @@ Output must be consistent, predictable and parseable.
 - Complete type annotations for all functions, methods, classes, and
   variables. Minimize use of `Any`. Use `if TYPE_CHECKING:` blocks for
   heavy type-only imports.
-- Verify types with mypy. Use pyright or pytype for second opinions.
-  Recheck necessity of `# noqa:` and `# type: ignore`. Reset mypy cache
-  if unexpected errors occur.
-- For type stubs: check PyPI for stubs; if unavailable, find source on
-  GitHub/GitLab and derive correct types.
+- Verify types with mypy (strict=true).
+  Use pyright or pytype for second opinions.
+  Recheck necessity of `# noqa:` and `# type: ignore`.
+  Reset mypy cache if unexpected errors occur.
+- For type stubs: if no official stubs are available,
+  check <https://github.com/python/typeshed> for stubs;
+  if unavailable, find source code on GitHub/GitLab/repo
+  and derive correct types.
 - Use full qualified names in docstrings for non-stdlib types (e.g.,
   `numpy.ndarray`, not `ndarray`).
 - No `assert` in production code — only in tests.

@@ -11,7 +11,7 @@ from pathlib import Path
 from loom.generator import generate_sbom_to_file
 
 
-def test_spdx3_json_structure():
+def test_spdx3_json_structure() -> None:
     """Test that generated SBOM has valid SPDX 3.0 JSON-LD structure."""
     pyproject_content = """
 [build-system]
@@ -96,7 +96,7 @@ dependencies = ["requests>=2.28.0"]
                 assert isinstance(element["to"], list)
 
 
-def test_spdx3_required_elements():
+def test_spdx3_required_elements() -> None:
     """Test that all required SPDX 3.0 elements are present."""
     pyproject_content = """
 [build-system]
@@ -135,7 +135,7 @@ description = "Test for required elements"
             assert req_type in element_types, f"Required type {req_type} not found"
 
 
-def test_spdx3_profile_conformance():
+def test_spdx3_profile_conformance() -> None:
     """Test that profile conformance is declared correctly."""
     pyproject_content = """
 [build-system]
@@ -171,7 +171,7 @@ version = "1.0.0"
         assert "software" in profiles
 
 
-def test_spdx3_relationships_valid():
+def test_spdx3_relationships_valid() -> None:
     """Test that relationships reference valid elements."""
     pyproject_content = """
 [build-system]

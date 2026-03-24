@@ -12,7 +12,7 @@ import pytest
 from loom.extractors.metadata import extract_metadata_from_pyproject
 
 
-def test_extract_metadata_basic():
+def test_extract_metadata_basic() -> None:
     """Test basic metadata extraction from pyproject.toml."""
     pyproject_content = """
 [project]
@@ -57,7 +57,7 @@ Source = "https://github.com/test/test-package"
         assert "numpy==1.24.0" in metadata.dependencies
 
 
-def test_extract_metadata_missing_file():
+def test_extract_metadata_missing_file() -> None:
     """Test extraction with missing pyproject.toml file."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
@@ -67,7 +67,7 @@ def test_extract_metadata_missing_file():
             extract_metadata_from_pyproject(pyproject_path)
 
 
-def test_extract_metadata_missing_project_section():
+def test_extract_metadata_missing_project_section() -> None:
     """Test extraction with missing [project] section."""
     pyproject_content = """
 [build-system]
@@ -84,7 +84,7 @@ build-backend = "hatchling.build"
             extract_metadata_from_pyproject(pyproject_path)
 
 
-def test_extract_metadata_missing_name():
+def test_extract_metadata_missing_name() -> None:
     """Test extraction with missing project name."""
     pyproject_content = """
 [project]
@@ -101,7 +101,7 @@ description = "A test package"
             extract_metadata_from_pyproject(pyproject_path)
 
 
-def test_extract_metadata_dynamic_version():
+def test_extract_metadata_dynamic_version() -> None:
     """Test extraction with dynamic version from __about__.py."""
     pyproject_content = """
 [project]

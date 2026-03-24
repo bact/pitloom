@@ -7,7 +7,7 @@
 from loom.core.models import generate_spdx_id
 
 
-def test_generate_spdx_id():
+def test_generate_spdx_id() -> None:
     """Test SPDX ID generation."""
     person_id = generate_spdx_id("Person")
     assert person_id.startswith("https://spdx.org/spdxdocs/loom-")

@@ -6,6 +6,7 @@
 
 import contextlib
 import inspect
+import types
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -136,22 +137,26 @@ class track(contextlib.ContextDecorator):
 
     def __init__(self, output_file: str | Path):
         self.output_file = str(output_file)
-        self.previous_run = None
+        self.previous_run: _ActiveRun | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> _ActiveRun:
         global _active_run
         self.previous_run = _active_run
         _active_run = _ActiveRun(self.output_file)
         return _active_run
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
+    ) -> None:
         global _active_run
         if _active_run is not None:
             # Generate the fragment only if the code block executed successfully
             if exc_type is None:
                 _active_run.finalize()
         _active_run = self.previous_run
-        return False
 
 
 def set_model(name: str) -> None:

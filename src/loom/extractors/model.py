@@ -411,7 +411,7 @@ def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
 
     try:
         # Use numpy framework to avoid requiring torch/tf; metadata-only read
-        with safe_open(str(model_path), framework="numpy") as f:
+        with safe_open(str(model_path), framework="numpy") as f:  # type: ignore[no-untyped-call]
             raw_metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
     except Exception as exc:

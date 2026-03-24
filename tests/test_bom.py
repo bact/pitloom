@@ -11,7 +11,7 @@ from pathlib import Path
 from loom import bom
 
 
-def test_bom_track_as_context_manager():
+def test_bom_track_as_context_manager() -> None:
     """Test using bom.track as a context manager."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_ctx.json"
@@ -59,13 +59,13 @@ def test_bom_track_as_context_manager():
             assert any(d.get("@id", d.get("spdxId")) == rel["to"][0] for d in datasets)
 
 
-def test_bom_track_as_decorator():
+def test_bom_track_as_decorator() -> None:
     """Test using bom.track as a function decorator."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_dec.json"
 
         @bom.track(output_file)
-        def dummy_train_function():
+        def dummy_train_function() -> None:
             bom.set_model("test-model-2")
             bom.add_dataset("test-dataset-3", dataset_type="audio")
 
@@ -92,7 +92,7 @@ def test_bom_track_as_decorator():
         assert "test_bom.py" in datasets[0].get("comment", "")
 
 
-def test_bom_track_with_exception():
+def test_bom_track_with_exception() -> None:
     """Test that a fragment is NOT generated if an exception occurs."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_error.json"

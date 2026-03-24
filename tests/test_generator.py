@@ -11,7 +11,7 @@ from pathlib import Path
 from loom.generator import generate_sbom_from_project, generate_sbom_to_file
 
 
-def test_generate_sbom_basic():
+def test_generate_sbom_basic() -> None:
     """Test basic SBOM generation from a simple project."""
     pyproject_content = """
 [build-system]
@@ -69,7 +69,7 @@ Source = "https://github.com/test/test-package"
         assert len(dep_packages) >= 2
 
 
-def test_generate_sbom_to_file():
+def test_generate_sbom_to_file() -> None:
     """Test SBOM generation to file."""
     pyproject_content = """
 [build-system]
@@ -98,7 +98,7 @@ description = "A simple application"
         assert "@graph" in sbom_data
 
 
-def test_generate_sbom_sentimentdemo_structure():
+def test_generate_sbom_sentimentdemo_structure() -> None:
     """Test SBOM generation with sentimentdemo-like structure."""
     pyproject_content = """
 [build-system]
@@ -159,7 +159,7 @@ Source = "https://github.com/bact/sentimentdemo"
         assert len(relationships) >= 3  # At least 3 dependencies
 
 
-def test_generate_sbom_with_fragments():
+def test_generate_sbom_with_fragments() -> None:
     """Test SBOM generation with external generic SBOM fragments."""
     pyproject_content = """
 [build-system]

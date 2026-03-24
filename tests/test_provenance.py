@@ -12,7 +12,7 @@ from loom.extractors.metadata import extract_metadata_from_pyproject
 from loom.generator import generate_sbom_from_project
 
 
-def test_provenance_basic_fields():
+def test_provenance_basic_fields() -> None:
     """Test that provenance is tracked for basic metadata fields."""
     pyproject_content = """
 [project]
@@ -51,7 +51,7 @@ Homepage = "https://example.com"
         assert "pyproject.toml" in metadata.provenance["urls"]
 
 
-def test_provenance_dynamic_version():
+def test_provenance_dynamic_version() -> None:
     """Test that provenance tracks dynamic version extraction."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
@@ -86,7 +86,7 @@ path = "src/mypackage/__about__.py"
         assert "dynamic_extraction" in metadata.provenance["version"]
 
 
-def test_provenance_in_sbom_output():
+def test_provenance_in_sbom_output() -> None:
     """Test that provenance appears in the generated SBOM."""
     pyproject_content = """
 [project]
@@ -123,7 +123,7 @@ dependencies = ["requests>=2.28.0"]
         assert "project.name" in comment
 
 
-def test_provenance_in_dependency_packages():
+def test_provenance_in_dependency_packages() -> None:
     """Test that provenance is tracked for dependency packages."""
     pyproject_content = """
 [project]
@@ -156,7 +156,7 @@ dependencies = ["numpy==1.24.0", "pandas>=1.5.0"]
             assert "dependencies:" in dep_pkg["comment"]
 
 
-def test_provenance_in_relationships():
+def test_provenance_in_relationships() -> None:
     """Test that provenance is tracked in relationships."""
     pyproject_content = """
 [project]
@@ -187,7 +187,7 @@ dependencies = ["requests>=2.28.0"]
                 assert "dependencies:" in rel["comment"]
 
 
-def test_provenance_with_authors():
+def test_provenance_with_authors() -> None:
     """Test that provenance tracks author information."""
     pyproject_content = """
 [project]
