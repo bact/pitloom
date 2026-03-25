@@ -187,21 +187,30 @@ loom/
 ├── src/
 │   └── loom/
 │       ├── __init__.py
-│       ├── __main__.py     # CLI entry point (argparse)
-│       ├── bom.py          # ML tracking SDK (Track context manager)
-│       ├── generator.py    # Main orchestration
-│       ├── core/
-│       │   └── models.py   # SPDX ID generation utilities
-│       ├── extractors/     # Domain-specific data collection
-│       │   ├── metadata.py # pyproject.toml parser and provenance tracking
-│       │   ├── model.py    # AI model file metadata (ONNX, Safetensors, GGUF)
-│       │   └── mlflow.py   # MLflow run extractor → SPDX AI fragment [planned]
-│       ├── plugins/        # Build system integrations
-│       │   └── hatch.py    # Hatchling BuildHookInterface (PEP 770) [planned]
-│       └── exporters/      # Format-specific writers
-│           └── spdx3_json.py # SPDX 3 JSON-LD serializer
-├── tests/                  # Pytest-based testing suite
-└── .github/workflows/      # CI/CD pipeline definitions
+│       ├── __main__.py         # CLI entry point (argparse)
+│       ├── bom.py              # ML tracking SDK (Track context manager)
+│       ├── core/               # Format-neutral data models (no SBOM lib deps)
+│       │   ├── ai_metadata.py  # AiModelMetadata, ModelFormat
+│       │   ├── config.py       # LoomConfig ([tool.loom] settings)
+│       │   ├── creation.py     # CreationMetadata (SBOM creator / timestamp)
+│       │   ├── document.py     # DocumentModel (assembled, pre-serialization)
+│       │   ├── models.py       # SPDX ID generation utilities
+│       │   └── project.py      # ProjectMetadata
+│       ├── extractors/         # Domain-specific data collection
+│       │   ├── ai_model.py     # AI model files → AiModelMetadata
+│       │   ├── mlflow.py       # MLflow run → SPDX AI fragment [planned]
+│       │   └── pyproject.py    # pyproject.toml parser → ProjectMetadata
+│       ├── generators/         # Orchestration and SPDX 3 assembly
+│       │   ├── __init__.py     # generate_sbom() public API
+│       │   ├── dependencies.py # dependency element assembly
+│       │   ├── fragments.py    # pre-generated fragment merging
+│       │   └── spdx3_assembler.py # build_spdx3(DocumentModel) → Spdx3JsonExporter
+│       ├── plugins/            # Build system integrations
+│       │   └── hatch.py        # Hatchling BuildHookInterface [planned]
+│       └── exporters/          # Format-specific writers
+│           └── spdx3_json.py   # SPDX 3 JSON-LD serializer
+├── tests/                      # Pytest-based testing suite
+└── .github/workflows/          # CI/CD pipeline definitions
 ```
 
 ## Integration with the SCA pipeline and DevOps ecosystem
@@ -246,7 +255,31 @@ additional instrumentation. The top-level `loom.bom.from_mlflow_run()`
 function provides the public API.
 See `docs/design/mlflow-extractor.md`.
 
-### Revised end-to-end flow
+### Data flow: extraction → document model → serialization
+
+```text
+Extraction
+──────────
+read_pyproject(pyproject.toml) → ProjectMetadata
+read_ai_model(model.onnx)      → AiModelMetadata   [optional]
+bom.track() / bom.from_mlflow_run() → SPDX fragments [optional]
+
+Assembly (format-neutral)
+─────────────────────────
+DocumentModel(
+    project=ProjectMetadata,
+    creation=CreationMetadata,
+    ai_models=[AiModelMetadata, ...],
+)
+
+Serialization
+─────────────
+build_spdx3(doc: DocumentModel)        → Spdx3JsonExporter → JSON-LD
+merge_fragments(loom_config.fragments) → (inlined into exporter)
+exporter.to_json(pretty=...)           → SBOM string / file
+```
+
+### Revised end-to-end flow (with planned integrations)
 
 ```text
 Training time
@@ -254,15 +287,16 @@ Training time
 mlflow.set_tag(stav.MODEL_TYPE, "transformer")
 mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
 → bom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
-        └── loom.extractors.mlflow → SPDX AI fragment
+        └── loom.extractors.mlflow → SPDX AI fragment [planned]
 
 Build time (zero extra commands)
 ─────────────────────────────────
 hatch build  /  python -m build
-  └── LoomBuildHook.initialize()
-        ├── generate_sbom_from_project()      (pyproject.toml)
+  └── LoomBuildHook.initialize()                           [planned]
+        ├── generate_sbom()          (reads pyproject.toml)
+        │     └── DocumentModel → build_spdx3() → Spdx3JsonExporter
         ├── merge fragments/run.spdx3.json    (AI provenance)
-        └── → .dist-info/sboms/sbom.spdx3.json inside wheel  ← PEP 770
+        └── → .dist-info/sboms/sbom.spdx3.json  ← PEP 770
 
 Downstream consumption
 ───────────────────────

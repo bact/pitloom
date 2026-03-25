@@ -22,21 +22,23 @@ in JSON-LD format.
    - Proper JSON-LD serialization and validation
    - UUID-based unique SPDX IDs generated via `loom.core.models` generator
 
-2. **Metadata Extraction** (`src/loom/extractors/metadata.py`)
+2. **Metadata Extraction** (`src/loom/extractors/pyproject.py`)
    - Reads pyproject.toml files
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
+   - Returns `(ProjectMetadata, LoomConfig)` tuple
 
 3. **SPDX 3 Exporter** (`src/loom/exporters/spdx3_json.py`)
    - JSON-LD output using official bindings and SHACLObjectSet
    - Clean API for building SPDX documents and adding elements
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
-4. **SBOM Generator** (`src/loom/generator.py`)
-   - Orchestrates metadata extraction and SBOM creation
-   - Builds complete SPDX 3 document structure
-   - Creates dependency relationships
+4. **SBOM Generator** (`src/loom/generators/`)
+   - `generate_sbom()` orchestrates the full pipeline
+   - Builds `DocumentModel` from extracted metadata
+   - Passes `DocumentModel` to `build_spdx3()` assembler
+   - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
 5. **Command-Line Interface** (`src/loom/__main__.py`)
@@ -45,7 +47,7 @@ in JSON-LD format.
    - Creator information options
    - Clear error messages
 
-6. **Metadata Provenance Tracking** (`src/loom/extractors/metadata.py`, 
+6. **Metadata Provenance Tracking** (`src/loom/extractors/pyproject.py`,
    `src/loom/bom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
@@ -62,7 +64,7 @@ in JSON-LD format.
 
 1. **Model & Provenance Tests**
    - SPDX ID generation
-   - CreationInfo serialization and provenance tracking
+   - CreationMetadata serialization and provenance tracking
    - `spdx-python-model` validation
 
 2. **Metadata Extraction Tests**
@@ -136,19 +138,33 @@ SBOM written to: sbom.spdx3.json
 
 ```text
 src/loom/
-├── core/           # Utility functions like SPDX ID generation
-├── extractors/     # Metadata extraction from build systems
+├── core/           # Format-neutral data models (no SBOM lib dependencies)
+│   ├── ai_metadata.py   # AiModelMetadata, ModelFormat
+│   ├── config.py        # LoomConfig ([tool.loom] settings)
+│   ├── creation.py      # CreationMetadata
+│   ├── document.py      # DocumentModel (assembled document)
+│   ├── models.py        # SPDX ID generation utilities
+│   └── project.py       # ProjectMetadata
+├── extractors/     # Metadata extraction from data sources
+│   ├── ai_model.py      # AI model file extractor (ONNX, Safetensors, GGUF)
+│   └── pyproject.py     # pyproject.toml extractor
 ├── exporters/      # SPDX format serialization
-├── generator.py    # Main orchestration logic
-├── bom.py          # ML tracking SDK integration
+│   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
+├── generators/     # Assemblers and orchestration
+│   ├── __init__.py      # generate_sbom() orchestrator
+│   ├── dependencies.py  # Dependency element assembly
+│   ├── fragments.py     # Fragment merging
+│   └── spdx3_assembler.py # build_spdx3(DocumentModel) → Spdx3JsonExporter
+├── bom.py          # ML tracking SDK
 └── __main__.py     # CLI entry point
 ```
 
 ### 2. Extensible Design
 
 - Easy to add new extractors (setuptools, poetry, etc.)
-- Easy to add new exporters (SPDX 2.x, CycloneDX, etc.)
-- Clean separation of concerns
+- Easy to add new assemblers/exporters (CycloneDX, AIDOC, etc.) consuming
+  the same `DocumentModel` — no changes to extractors needed
+- Clean separation of concerns: extractors → `DocumentModel` → serializers
 
 ### 3. Best Practices
 
@@ -241,8 +257,9 @@ Based on the design document and problem requirements:
    - Support setup.py and setup.cfg
 
 2. **Format-Neutral Internal Representation**
-   - Adopt Protobom for neutral data structs
-   - Support CycloneDX & SWID generation natively
+   - `DocumentModel` implemented as the neutral layer
+   - Add CycloneDX assembler consuming `DocumentModel`
+   - Add AIDOC/TechOps renderer consuming `DocumentModel`
 
 3. **Build Log Extraction**
    - Capture compiled dependencies

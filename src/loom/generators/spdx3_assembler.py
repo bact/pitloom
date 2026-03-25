@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 element assembly for Python projects."""
+"""SPDX 3 assembler for Python projects."""
 
 from __future__ import annotations
 
@@ -11,34 +11,25 @@ from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from loom.core.creation import CreationInfo
+from loom.core.document import DocumentModel
 from loom.core.models import generate_spdx_id
-from loom.core.project import ProjectMetadata
 from loom.exporters.spdx3_json import Spdx3JsonExporter
 from loom.generators.dependencies import add_dependencies
 
 
-def build(
-    metadata: ProjectMetadata,
-    creation_info: CreationInfo | None = None,
-) -> Spdx3JsonExporter:
-    """Assemble SPDX 3 elements for a Python project from its metadata.
-
-    This is a pure assembler: it performs no filesystem I/O and does not
-    serialize or write any output. The caller is responsible for merging
-    fragments, serializing, and writing the result.
+def build_spdx3(doc: DocumentModel) -> Spdx3JsonExporter:
+    """Assemble SPDX 3 elements from a :class:`~loom.core.document.DocumentModel`.
 
     Args:
-        metadata: Extracted project metadata with provenance information.
-        creation_info: Creator and timestamp metadata for the SBOM document.
-            When ``None`` a default :class:`~loom.core.creation.CreationInfo`
-            is used (creator ``"Loom"``, current UTC time).
+        doc: Format-neutral document model with project metadata, creation
+            metadata, and any AI model metadata.
 
     Returns:
         A populated :class:`~loom.exporters.spdx3_json.Spdx3JsonExporter`
-        containing all SPDX elements for the project and its dependencies.
+        containing all SPDX 3 elements for the project and its dependencies.
     """
-    ci = creation_info or CreationInfo()
+    metadata = doc.project
+    ci = doc.creation
     created_at = (
         datetime.fromisoformat(ci.creation_datetime)
         if ci.creation_datetime
@@ -70,7 +61,8 @@ def build(
         name=ci.creation_tool,
         creationInfo=spdx_ci,
     )
-    spdx_ci.createdBy = [creator.spdxId, tool.spdxId]
+    spdx_ci.createdBy = [creator.spdxId]
+    spdx_ci.createdUsing = [tool.spdxId]
 
     # Unknown supplier organization for dependencies without explicit supplier info
     unknown_org = spdx3.Organization(

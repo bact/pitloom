@@ -90,15 +90,18 @@ The SBOM generator can be used programmatically:
 
 ```python
 from pathlib import Path
+from loom.core.creation import CreationMetadata
 from loom.generators import generate_sbom
 
 # Generate SBOM for a project
 generate_sbom(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
+    creation_info=CreationMetadata(
+        creator_name="Your Name",
+        creator_email="your@example.com",
+    ),
     pretty=False,
-    creator_name="Your Name",
-    creator_email="your@example.com",
 )
 ```
 
@@ -194,22 +197,31 @@ loom/
 ├── src/
 │   └── loom/
 │       ├── core/
-│       │   └── models.py       # SPDX 3 data models
+│       │   ├── ai_metadata.py  # Format-neutral AI model metadata
+│       │   ├── config.py       # [tool.loom] settings (LoomConfig)
+│       │   ├── creation.py     # SBOM creation metadata (CreationMetadata)
+│       │   ├── document.py     # Format-neutral document model (DocumentModel)
+│       │   ├── models.py       # SPDX ID generation utilities
+│       │   └── project.py      # Python project metadata (ProjectMetadata)
 │       ├── extractors/
-│       │   ├── metadata.py     # Metadata extractor for Hatchling
-│       │   └── model.py        # AI model file extractor (ONNX, Safetensors, GGUF)
+│       │   ├── ai_model.py     # AI model file extractor (ONNX, Safetensors, GGUF)
+│       │   └── pyproject.py    # pyproject.toml extractor
 │       ├── exporters/
-│       │   └── spdx3_json.py   # JSON-LD exporter
+│       │   └── spdx3_json.py   # SPDX 3 JSON-LD serialiser
+│       ├── generators/
+│       │   ├── __init__.py     # generate_sbom() orchestrator
+│       │   ├── dependencies.py # Dependency element assembly
+│       │   ├── fragments.py    # Fragment merging
+│       │   └── spdx3_assembler.py  # SPDX 3 assembler (build_spdx3())
 │       ├── __about__.py
 │       ├── __init__.py
 │       ├── __main__.py         # CLI entry point
-│       ├── bom.py              # Metadata tracking SDK
-│       └── generator.py        # Main SBOM generator
+│       └── bom.py              # ML tracking SDK
 ├── tests/
+│   ├── test_ai_model_extractor.py
 │   ├── test_bom.py
 │   ├── test_generator.py
 │   ├── test_metadata.py
-│   ├── test_model_extractor.py
 │   ├── test_models.py
 │   ├── test_provenance.py
 │   └── test_spdx3_compliance.py
@@ -245,7 +257,8 @@ python -m build
 - [x] Hatchling metadata extraction
 - [x] Dependency tracking
 - [ ] Support for setuptools
-- [ ] Format-Neutral Internal Rep (see [design doc](docs/design/format-neutral-representation.md))
+- [x] Format-neutral internal representation (`DocumentModel`
+  — see [design doc](docs/design/format-neutral-representation.md))
 - [ ] Build log extraction for compiled dependencies
 - [x] AI/ML package profiles (AIPackage, DatasetPackage)
 - [ ] PEP 770 support (.dist-info/sboms)

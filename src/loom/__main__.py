@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 
 from loom.__about__ import __version__
-from loom.core.creation import CreationInfo
+from loom.core.creation import CreationMetadata
 from loom.generators import generate_sbom
 
 
@@ -84,7 +84,7 @@ def main() -> int:
         generate_sbom(
             project_dir,
             output_path=args.output,
-            creation_info=CreationInfo(
+            creation_info=CreationMetadata(
                 creator_name=args.creator_name or "Loom",
                 creator_email=args.creator_email or "",
             ),

@@ -8,7 +8,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from loom.core.creation import CreationInfo
+from loom.core.creation import CreationMetadata
 from loom.extractors.pyproject import read_pyproject
 from loom.generators import generate_sbom
 
@@ -104,7 +104,7 @@ dependencies = ["requests>=2.28.0"]
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationInfo(creator_name="Test"),
+            creation_info=CreationMetadata(creator_name="Test"),
         )
         sbom_data = json.loads(sbom_json)
 

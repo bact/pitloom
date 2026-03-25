@@ -16,9 +16,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from loom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from loom.extractors.ai_model import (
-    ModelFormat,
-    ModelMetadata,
     detect_ai_model_format,
     read_ai_model,
     read_gguf,
@@ -32,25 +31,25 @@ from loom.extractors.ai_model import (
 
 
 def test_detect_format_onnx() -> None:
-    assert detect_ai_model_format(Path("model.onnx")) == ModelFormat.ONNX
+    assert detect_ai_model_format(Path("model.onnx")) == AiModelFormat.ONNX
 
 
 def test_detect_format_safetensors() -> None:
     assert (
-        detect_ai_model_format(Path("weights.safetensors")) == ModelFormat.SAFETENSORS
+        detect_ai_model_format(Path("weights.safetensors")) == AiModelFormat.SAFETENSORS
     )
 
 
 def test_detect_format_gguf() -> None:
-    assert detect_ai_model_format(Path("llama.gguf")) == ModelFormat.GGUF
+    assert detect_ai_model_format(Path("llama.gguf")) == AiModelFormat.GGUF
 
 
 def test_detect_format_unknown() -> None:
-    assert detect_ai_model_format(Path("model.pt")) == ModelFormat.UNKNOWN
+    assert detect_ai_model_format(Path("model.pt")) == AiModelFormat.UNKNOWN
 
 
 def test_detect_format_case_insensitive() -> None:
-    assert detect_ai_model_format(Path("MODEL.ONNX")) == ModelFormat.ONNX
+    assert detect_ai_model_format(Path("MODEL.ONNX")) == AiModelFormat.ONNX
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +170,7 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         meta = read_onnx(model_file)
 
-    assert meta.format == ModelFormat.ONNX
+    assert meta.format == AiModelFormat.ONNX
     assert meta.name == "ResNet50"
     assert meta.description == "Image classification model"
     assert meta.version == "2"
@@ -212,7 +211,7 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
     assert meta.name is None
     assert meta.description is None
     assert meta.version is None
-    assert meta.format == ModelFormat.ONNX
+    assert meta.format == AiModelFormat.ONNX
 
 
 def test_onnx_load_failure(tmp_path: Path) -> None:
@@ -265,7 +264,7 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
         meta = read_safetensors(model_file)
 
-    assert meta.format == ModelFormat.SAFETENSORS
+    assert meta.format == AiModelFormat.SAFETENSORS
     assert meta.name == "My Diffusion Model"
     assert meta.description == "A latent diffusion model"
     assert meta.version == "1.0"
@@ -389,7 +388,7 @@ def test_gguf_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
         meta = read_gguf(model_file)
 
-    assert meta.format == ModelFormat.GGUF
+    assert meta.format == AiModelFormat.GGUF
     assert meta.name == "LLaMA-3-8B"
     assert meta.description == "Meta LLaMA 3 8B"
     assert meta.version == "3.0"
@@ -441,13 +440,13 @@ def test_gguf_load_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ModelMetadata dataclass
+# AiModelMetadata dataclass
 # ---------------------------------------------------------------------------
 
 
-def test_model_metadata_defaults() -> None:
-    meta = ModelMetadata()
-    assert meta.format == ModelFormat.UNKNOWN
+def test_ai_model_metadata_defaults() -> None:
+    meta = AiModelMetadata()
+    assert meta.format == AiModelFormat.UNKNOWN
     assert meta.name is None
     assert meta.hyperparameters == {}
     assert meta.properties == {}
@@ -456,16 +455,16 @@ def test_model_metadata_defaults() -> None:
     assert meta.provenance == {}
 
 
-def test_model_metadata_construction() -> None:
-    meta = ModelMetadata(
-        format=ModelFormat.ONNX,
+def test_ai_model_metadata_construction() -> None:
+    meta = AiModelMetadata(
+        format=AiModelFormat.ONNX,
         name="MyModel",
         version="1.0",
         type_of_model="transformer",
         hyperparameters={"num_heads": 12},
         provenance={"name": "Source: model.onnx | Field: graph.name"},
     )
-    assert meta.format == ModelFormat.ONNX
+    assert meta.format == AiModelFormat.ONNX
     assert meta.name == "MyModel"
     assert meta.hyperparameters["num_heads"] == 12
     assert "name" in meta.provenance
@@ -483,7 +482,7 @@ SQUEEZENET_FIXTURE = Path(__file__).parent / "fixtures" / "squeezenet1.1-7.onnx"
 
 
 @pytest.fixture(scope="module")
-def squeezenet_metadata() -> ModelMetadata:
+def squeezenet_metadata() -> AiModelMetadata:
     """Extract metadata from the squeezenet1.1-7.onnx fixture once per session."""
     pytest.importorskip("onnx")
     if not SQUEEZENET_FIXTURE.exists():
@@ -491,45 +490,45 @@ def squeezenet_metadata() -> ModelMetadata:
     return read_onnx(SQUEEZENET_FIXTURE)
 
 
-def test_onnx_integration_format(squeezenet_metadata: ModelMetadata) -> None:
-    assert squeezenet_metadata.format == ModelFormat.ONNX
+def test_onnx_integration_format(squeezenet_metadata: AiModelMetadata) -> None:
+    assert squeezenet_metadata.format == AiModelFormat.ONNX
 
 
-def test_onnx_integration_name(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_name(squeezenet_metadata: AiModelMetadata) -> None:
     # squeezenet1.1-7.onnx graph name is 'main'
     assert squeezenet_metadata.name == "main"
     assert "name" in squeezenet_metadata.provenance
     assert "graph.name" in squeezenet_metadata.provenance["name"]
 
 
-def test_onnx_integration_no_description(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_no_description(squeezenet_metadata: AiModelMetadata) -> None:
     # The model has an empty doc_string
     assert squeezenet_metadata.description is None
 
 
-def test_onnx_integration_no_version(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_no_version(squeezenet_metadata: AiModelMetadata) -> None:
     # model_version is 0 (not set)
     assert squeezenet_metadata.version is None
 
 
-def test_onnx_integration_type_of_model(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_type_of_model(squeezenet_metadata: AiModelMetadata) -> None:
     # Empty domain falls back to "neural network"
     assert squeezenet_metadata.type_of_model == "neural network"
 
 
-def test_onnx_integration_opset(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_opset(squeezenet_metadata: AiModelMetadata) -> None:
     # Opset domain '' is normalised to 'ai.onnx'; version 7
     assert squeezenet_metadata.properties.get("opset.ai.onnx") == "7"
 
 
 def test_onnx_integration_no_domain_property(
-    squeezenet_metadata: ModelMetadata,
+    squeezenet_metadata: AiModelMetadata,
 ) -> None:
     # Empty domain string is not stored as a property
     assert "domain" not in squeezenet_metadata.properties
 
 
-def test_onnx_integration_inputs(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_inputs(squeezenet_metadata: AiModelMetadata) -> None:
     # First input is the image tensor 'data' with shape [1, 3, 224, 224]
     inputs = squeezenet_metadata.inputs
     assert len(inputs) > 0
@@ -539,7 +538,7 @@ def test_onnx_integration_inputs(squeezenet_metadata: ModelMetadata) -> None:
     assert data_input["shape"] == [1, 3, 224, 224]
 
 
-def test_onnx_integration_outputs(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_outputs(squeezenet_metadata: AiModelMetadata) -> None:
     # Single output with shape [1, 1000] (1000 ImageNet classes)
     outputs = squeezenet_metadata.outputs
     assert len(outputs) == 1
@@ -548,7 +547,9 @@ def test_onnx_integration_outputs(squeezenet_metadata: ModelMetadata) -> None:
     assert outputs[0]["shape"] == [1, 1000]
 
 
-def test_onnx_integration_provenance_fields(squeezenet_metadata: ModelMetadata) -> None:
+def test_onnx_integration_provenance_fields(
+    squeezenet_metadata: AiModelMetadata,
+) -> None:
     assert "inputs" in squeezenet_metadata.provenance
     assert "outputs" in squeezenet_metadata.provenance
 
@@ -564,7 +565,7 @@ STORIES260K_FIXTURE = Path(__file__).parent / "fixtures" / "stories260K.gguf"
 
 
 @pytest.fixture(scope="module")
-def stories260k_metadata() -> ModelMetadata:
+def stories260k_metadata() -> AiModelMetadata:
     """Extract metadata from the stories260K.gguf fixture once per session."""
     pytest.importorskip("gguf")
     if not STORIES260K_FIXTURE.exists():
@@ -572,29 +573,31 @@ def stories260k_metadata() -> ModelMetadata:
     return read_gguf(STORIES260K_FIXTURE)
 
 
-def test_gguf_integration_format(stories260k_metadata: ModelMetadata) -> None:
-    assert stories260k_metadata.format == ModelFormat.GGUF
+def test_gguf_integration_format(stories260k_metadata: AiModelMetadata) -> None:
+    assert stories260k_metadata.format == AiModelFormat.GGUF
 
 
-def test_gguf_integration_architecture(stories260k_metadata: ModelMetadata) -> None:
+def test_gguf_integration_architecture(stories260k_metadata: AiModelMetadata) -> None:
     # general.architecture = 'llama'
     assert stories260k_metadata.type_of_model == "llama"
     assert "type_of_model" in stories260k_metadata.provenance
     assert "general.architecture" in stories260k_metadata.provenance["type_of_model"]
 
 
-def test_gguf_integration_name(stories260k_metadata: ModelMetadata) -> None:
+def test_gguf_integration_name(stories260k_metadata: AiModelMetadata) -> None:
     # general.name = 'llama' (same as architecture in this tiny model)
     assert stories260k_metadata.name == "llama"
     assert "name" in stories260k_metadata.provenance
 
 
-def test_gguf_integration_no_description(stories260k_metadata: ModelMetadata) -> None:
+def test_gguf_integration_no_description(stories260k_metadata: AiModelMetadata) -> None:
     # stories260K has no general.description key
     assert stories260k_metadata.description is None
 
 
-def test_gguf_integration_hyperparameters(stories260k_metadata: ModelMetadata) -> None:
+def test_gguf_integration_hyperparameters(
+    stories260k_metadata: AiModelMetadata,
+) -> None:
     hp = stories260k_metadata.hyperparameters
     assert hp["llama.context_length"] == 2048
     assert hp["llama.embedding_length"] == 64
@@ -605,7 +608,7 @@ def test_gguf_integration_hyperparameters(stories260k_metadata: ModelMetadata) -
     assert hp["llama.rope.dimension_count"] == 8
 
 
-def test_gguf_integration_properties(stories260k_metadata: ModelMetadata) -> None:
+def test_gguf_integration_properties(stories260k_metadata: AiModelMetadata) -> None:
     props = stories260k_metadata.properties
     # GGUF format metadata keys
     assert props.get("GGUF.version") == "3"
@@ -614,7 +617,7 @@ def test_gguf_integration_properties(stories260k_metadata: ModelMetadata) -> Non
     assert props.get("general.architecture") == "llama"
 
 
-def test_gguf_integration_provenance(stories260k_metadata: ModelMetadata) -> None:
+def test_gguf_integration_provenance(stories260k_metadata: AiModelMetadata) -> None:
     assert "hyperparameters" in stories260k_metadata.provenance
     assert "properties" in stories260k_metadata.provenance
 
@@ -632,7 +635,7 @@ WHISPER_ENCODER_FIXTURE = (
 
 
 @pytest.fixture(scope="module")
-def whisper_encoder_metadata() -> ModelMetadata:
+def whisper_encoder_metadata() -> AiModelMetadata:
     """Extract metadata from the encoder_model_q4f16.onnx fixture once per session."""
     pytest.importorskip("onnx")
     if not WHISPER_ENCODER_FIXTURE.exists():
@@ -640,23 +643,23 @@ def whisper_encoder_metadata() -> ModelMetadata:
     return read_onnx(WHISPER_ENCODER_FIXTURE)
 
 
-def test_whisper_encoder_format(whisper_encoder_metadata: ModelMetadata) -> None:
-    assert whisper_encoder_metadata.format == ModelFormat.ONNX
+def test_whisper_encoder_format(whisper_encoder_metadata: AiModelMetadata) -> None:
+    assert whisper_encoder_metadata.format == AiModelFormat.ONNX
 
 
-def test_whisper_encoder_name(whisper_encoder_metadata: ModelMetadata) -> None:
+def test_whisper_encoder_name(whisper_encoder_metadata: AiModelMetadata) -> None:
     assert whisper_encoder_metadata.name == "main_graph"
     assert "graph.name" in whisper_encoder_metadata.provenance["name"]
 
 
-def test_whisper_encoder_opsets(whisper_encoder_metadata: ModelMetadata) -> None:
+def test_whisper_encoder_opsets(whisper_encoder_metadata: AiModelMetadata) -> None:
     # Uses both the standard ai.onnx opset and com.microsoft extensions
     props = whisper_encoder_metadata.properties
     assert props.get("opset.ai.onnx") == "14"
     assert props.get("opset.com.microsoft") == "1"
 
 
-def test_whisper_encoder_input(whisper_encoder_metadata: ModelMetadata) -> None:
+def test_whisper_encoder_input(whisper_encoder_metadata: AiModelMetadata) -> None:
     inputs = whisper_encoder_metadata.inputs
     assert len(inputs) > 0
     inp = inputs[0]
@@ -667,7 +670,7 @@ def test_whisper_encoder_input(whisper_encoder_metadata: ModelMetadata) -> None:
     assert inp["shape"][2] == 3000
 
 
-def test_whisper_encoder_output(whisper_encoder_metadata: ModelMetadata) -> None:
+def test_whisper_encoder_output(whisper_encoder_metadata: AiModelMetadata) -> None:
     outputs = whisper_encoder_metadata.outputs
     assert len(outputs) > 0
     out = outputs[0]
@@ -678,7 +681,7 @@ def test_whisper_encoder_output(whisper_encoder_metadata: ModelMetadata) -> None
     assert out["shape"][2] == 384
 
 
-def test_whisper_encoder_provenance(whisper_encoder_metadata: ModelMetadata) -> None:
+def test_whisper_encoder_provenance(whisper_encoder_metadata: AiModelMetadata) -> None:
     assert "inputs" in whisper_encoder_metadata.provenance
     assert "outputs" in whisper_encoder_metadata.provenance
 
@@ -694,7 +697,7 @@ MMPROJ_FIXTURE = Path(__file__).parent / "fixtures" / "mmproj-tinygemma3.gguf"
 
 
 @pytest.fixture(scope="module")
-def mmproj_metadata() -> ModelMetadata:
+def mmproj_metadata() -> AiModelMetadata:
     """Extract metadata from the mmproj-tinygemma3.gguf fixture once per session."""
     pytest.importorskip("gguf")
     if not MMPROJ_FIXTURE.exists():
@@ -702,24 +705,24 @@ def mmproj_metadata() -> ModelMetadata:
     return read_gguf(MMPROJ_FIXTURE)
 
 
-def test_mmproj_format(mmproj_metadata: ModelMetadata) -> None:
-    assert mmproj_metadata.format == ModelFormat.GGUF
+def test_mmproj_format(mmproj_metadata: AiModelMetadata) -> None:
+    assert mmproj_metadata.format == AiModelFormat.GGUF
 
 
-def test_mmproj_architecture(mmproj_metadata: ModelMetadata) -> None:
+def test_mmproj_architecture(mmproj_metadata: AiModelMetadata) -> None:
     # Multimodal projector uses the "clip" architecture
     assert mmproj_metadata.type_of_model == "clip"
     assert "general.architecture" in mmproj_metadata.provenance["type_of_model"]
 
 
-def test_mmproj_no_name(mmproj_metadata: ModelMetadata) -> None:
+def test_mmproj_no_name(mmproj_metadata: AiModelMetadata) -> None:
     # mmproj files don't carry a general.name
     assert mmproj_metadata.name is None
     assert mmproj_metadata.description is None
     assert mmproj_metadata.version is None
 
 
-def test_mmproj_hyperparameters(mmproj_metadata: ModelMetadata) -> None:
+def test_mmproj_hyperparameters(mmproj_metadata: AiModelMetadata) -> None:
     hp = mmproj_metadata.hyperparameters
     assert hp["clip.vision.embedding_length"] == 128
     assert hp["clip.vision.feed_forward_length"] == 512
@@ -727,7 +730,7 @@ def test_mmproj_hyperparameters(mmproj_metadata: ModelMetadata) -> None:
     assert hp["clip.vision.attention.head_count"] == 4
 
 
-def test_mmproj_properties(mmproj_metadata: ModelMetadata) -> None:
+def test_mmproj_properties(mmproj_metadata: AiModelMetadata) -> None:
     props = mmproj_metadata.properties
     assert props.get("GGUF.version") == "3"
     assert props.get("GGUF.tensor_count") == "71"
@@ -738,7 +741,7 @@ def test_mmproj_properties(mmproj_metadata: ModelMetadata) -> None:
     assert props.get("clip.projector_type") == "gemma3"
 
 
-def test_mmproj_provenance(mmproj_metadata: ModelMetadata) -> None:
+def test_mmproj_provenance(mmproj_metadata: AiModelMetadata) -> None:
     assert "hyperparameters" in mmproj_metadata.provenance
     assert "properties" in mmproj_metadata.provenance
 
@@ -754,7 +757,7 @@ VOCAB_BERT_BGE_FIXTURE = Path(__file__).parent / "fixtures" / "ggml-vocab-bert-b
 
 
 @pytest.fixture(scope="module")
-def vocab_bert_bge_metadata() -> ModelMetadata:
+def vocab_bert_bge_metadata() -> AiModelMetadata:
     """Extract metadata from the ggml-vocab-bert-bge.gguf fixture once per session."""
     pytest.importorskip("gguf")
     if not VOCAB_BERT_BGE_FIXTURE.exists():
@@ -762,21 +765,23 @@ def vocab_bert_bge_metadata() -> ModelMetadata:
     return read_gguf(VOCAB_BERT_BGE_FIXTURE)
 
 
-def test_vocab_bert_bge_format(vocab_bert_bge_metadata: ModelMetadata) -> None:
-    assert vocab_bert_bge_metadata.format == ModelFormat.GGUF
+def test_vocab_bert_bge_format(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    assert vocab_bert_bge_metadata.format == AiModelFormat.GGUF
 
 
-def test_vocab_bert_bge_name(vocab_bert_bge_metadata: ModelMetadata) -> None:
+def test_vocab_bert_bge_name(vocab_bert_bge_metadata: AiModelMetadata) -> None:
     assert vocab_bert_bge_metadata.name == "bert-bge"
     assert "general.name" in vocab_bert_bge_metadata.provenance["name"]
 
 
-def test_vocab_bert_bge_architecture(vocab_bert_bge_metadata: ModelMetadata) -> None:
+def test_vocab_bert_bge_architecture(vocab_bert_bge_metadata: AiModelMetadata) -> None:
     assert vocab_bert_bge_metadata.type_of_model == "bert"
     assert "general.architecture" in vocab_bert_bge_metadata.provenance["type_of_model"]
 
 
-def test_vocab_bert_bge_hyperparameters(vocab_bert_bge_metadata: ModelMetadata) -> None:
+def test_vocab_bert_bge_hyperparameters(
+    vocab_bert_bge_metadata: AiModelMetadata,
+) -> None:
     hp = vocab_bert_bge_metadata.hyperparameters
     assert hp["bert.block_count"] == 12
     assert hp["bert.context_length"] == 512
@@ -785,12 +790,12 @@ def test_vocab_bert_bge_hyperparameters(vocab_bert_bge_metadata: ModelMetadata) 
     assert hp["bert.attention.head_count"] == 12
 
 
-def test_vocab_bert_bge_zero_tensors(vocab_bert_bge_metadata: ModelMetadata) -> None:
+def test_vocab_bert_bge_zero_tensors(vocab_bert_bge_metadata: AiModelMetadata) -> None:
     # Vocabulary-only GGUF — no model weight tensors
     assert vocab_bert_bge_metadata.properties.get("GGUF.tensor_count") == "0"
 
 
-def test_vocab_bert_bge_properties(vocab_bert_bge_metadata: ModelMetadata) -> None:
+def test_vocab_bert_bge_properties(vocab_bert_bge_metadata: AiModelMetadata) -> None:
     props = vocab_bert_bge_metadata.properties
     assert props.get("GGUF.version") == "3"
     assert props.get("general.architecture") == "bert"
@@ -798,7 +803,7 @@ def test_vocab_bert_bge_properties(vocab_bert_bge_metadata: ModelMetadata) -> No
     assert props.get("tokenizer.ggml.pre") == "bert-bge"
 
 
-def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: ModelMetadata) -> None:
+def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> None:
     assert "hyperparameters" in vocab_bert_bge_metadata.provenance
     assert "properties" in vocab_bert_bge_metadata.provenance
 
@@ -814,7 +819,7 @@ INCEPTION_V2_FIXTURE = Path(__file__).parent / "fixtures" / "light-inception-v2.
 
 
 @pytest.fixture(scope="module")
-def inception_v2_metadata() -> ModelMetadata:
+def inception_v2_metadata() -> AiModelMetadata:
     """Extract metadata from the light-inception-v2.onnx fixture once per session."""
     pytest.importorskip("onnx")
     if not INCEPTION_V2_FIXTURE.exists():
@@ -822,26 +827,26 @@ def inception_v2_metadata() -> ModelMetadata:
     return read_onnx(INCEPTION_V2_FIXTURE)
 
 
-def test_inception_v2_format(inception_v2_metadata: ModelMetadata) -> None:
-    assert inception_v2_metadata.format == ModelFormat.ONNX
+def test_inception_v2_format(inception_v2_metadata: AiModelMetadata) -> None:
+    assert inception_v2_metadata.format == AiModelFormat.ONNX
 
 
-def test_inception_v2_name(inception_v2_metadata: ModelMetadata) -> None:
+def test_inception_v2_name(inception_v2_metadata: AiModelMetadata) -> None:
     assert inception_v2_metadata.name == "inception_v2"
     assert "graph.name" in inception_v2_metadata.provenance["name"]
 
 
-def test_inception_v2_type_of_model(inception_v2_metadata: ModelMetadata) -> None:
+def test_inception_v2_type_of_model(inception_v2_metadata: AiModelMetadata) -> None:
     # Empty domain falls back to "neural network"
     assert inception_v2_metadata.type_of_model == "neural network"
 
 
-def test_inception_v2_opset(inception_v2_metadata: ModelMetadata) -> None:
+def test_inception_v2_opset(inception_v2_metadata: AiModelMetadata) -> None:
     # Opset 9 — oldest opset in the test fixtures
     assert inception_v2_metadata.properties.get("opset.ai.onnx") == "9"
 
 
-def test_inception_v2_data_input(inception_v2_metadata: ModelMetadata) -> None:
+def test_inception_v2_data_input(inception_v2_metadata: AiModelMetadata) -> None:
     # First input is the image tensor; remaining inputs are weight initializers
     # (older ONNX format included initializers in graph.input)
     inputs = inception_v2_metadata.inputs
@@ -852,7 +857,7 @@ def test_inception_v2_data_input(inception_v2_metadata: ModelMetadata) -> None:
     assert data_in["shape"] == [1, 3, 224, 224]
 
 
-def test_inception_v2_output(inception_v2_metadata: ModelMetadata) -> None:
+def test_inception_v2_output(inception_v2_metadata: AiModelMetadata) -> None:
     outputs = inception_v2_metadata.outputs
     assert len(outputs) == 1
     out = outputs[0]
@@ -861,7 +866,7 @@ def test_inception_v2_output(inception_v2_metadata: ModelMetadata) -> None:
     assert out["shape"] == [1, 1000]
 
 
-def test_inception_v2_provenance(inception_v2_metadata: ModelMetadata) -> None:
+def test_inception_v2_provenance(inception_v2_metadata: AiModelMetadata) -> None:
     assert "inputs" in inception_v2_metadata.provenance
     assert "outputs" in inception_v2_metadata.provenance
 
@@ -877,7 +882,7 @@ RESNET_BEANS_FIXTURE = Path(__file__).parent / "fixtures" / "resnet-tiny-beans.o
 
 
 @pytest.fixture(scope="module")
-def resnet_beans_metadata() -> ModelMetadata:
+def resnet_beans_metadata() -> AiModelMetadata:
     """Extract metadata from the resnet-tiny-beans.onnx fixture once per session."""
     pytest.importorskip("onnx")
     if not RESNET_BEANS_FIXTURE.exists():
@@ -885,20 +890,20 @@ def resnet_beans_metadata() -> ModelMetadata:
     return read_onnx(RESNET_BEANS_FIXTURE)
 
 
-def test_resnet_beans_format(resnet_beans_metadata: ModelMetadata) -> None:
-    assert resnet_beans_metadata.format == ModelFormat.ONNX
+def test_resnet_beans_format(resnet_beans_metadata: AiModelMetadata) -> None:
+    assert resnet_beans_metadata.format == AiModelFormat.ONNX
 
 
-def test_resnet_beans_name(resnet_beans_metadata: ModelMetadata) -> None:
+def test_resnet_beans_name(resnet_beans_metadata: AiModelMetadata) -> None:
     # PyTorch JIT ONNX exports use "torch_jit" as the graph name
     assert resnet_beans_metadata.name == "torch_jit"
 
 
-def test_resnet_beans_opset(resnet_beans_metadata: ModelMetadata) -> None:
+def test_resnet_beans_opset(resnet_beans_metadata: AiModelMetadata) -> None:
     assert resnet_beans_metadata.properties.get("opset.ai.onnx") == "11"
 
 
-def test_resnet_beans_input(resnet_beans_metadata: ModelMetadata) -> None:
+def test_resnet_beans_input(resnet_beans_metadata: AiModelMetadata) -> None:
     inputs = resnet_beans_metadata.inputs
     assert len(inputs) > 0
     inp = inputs[0]
@@ -909,14 +914,14 @@ def test_resnet_beans_input(resnet_beans_metadata: ModelMetadata) -> None:
     assert inp["shape"][3] == 224
 
 
-def test_resnet_beans_output(resnet_beans_metadata: ModelMetadata) -> None:
+def test_resnet_beans_output(resnet_beans_metadata: AiModelMetadata) -> None:
     outputs = resnet_beans_metadata.outputs
     assert len(outputs) == 1
     assert outputs[0]["name"] == "logits"
     assert outputs[0]["dtype"] == _ONNX_FLOAT
 
 
-def test_resnet_beans_provenance(resnet_beans_metadata: ModelMetadata) -> None:
+def test_resnet_beans_provenance(resnet_beans_metadata: AiModelMetadata) -> None:
     assert "inputs" in resnet_beans_metadata.provenance
     assert "outputs" in resnet_beans_metadata.provenance
 
@@ -932,7 +937,7 @@ GPT2_DECODER_FIXTURE = Path(__file__).parent / "fixtures" / "gpt2-tiny-decoder.o
 
 
 @pytest.fixture(scope="module")
-def gpt2_decoder_metadata() -> ModelMetadata:
+def gpt2_decoder_metadata() -> AiModelMetadata:
     """Extract metadata from the gpt2-tiny-decoder.onnx fixture once per session."""
     pytest.importorskip("onnx")
     if not GPT2_DECODER_FIXTURE.exists():
@@ -940,37 +945,37 @@ def gpt2_decoder_metadata() -> ModelMetadata:
     return read_onnx(GPT2_DECODER_FIXTURE)
 
 
-def test_gpt2_decoder_format(gpt2_decoder_metadata: ModelMetadata) -> None:
-    assert gpt2_decoder_metadata.format == ModelFormat.ONNX
+def test_gpt2_decoder_format(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    assert gpt2_decoder_metadata.format == AiModelFormat.ONNX
 
 
-def test_gpt2_decoder_name(gpt2_decoder_metadata: ModelMetadata) -> None:
+def test_gpt2_decoder_name(gpt2_decoder_metadata: AiModelMetadata) -> None:
     assert gpt2_decoder_metadata.name == "torch_jit"
 
 
-def test_gpt2_decoder_opset(gpt2_decoder_metadata: ModelMetadata) -> None:
+def test_gpt2_decoder_opset(gpt2_decoder_metadata: AiModelMetadata) -> None:
     assert gpt2_decoder_metadata.properties.get("opset.ai.onnx") == "13"
 
 
-def test_gpt2_decoder_inputs(gpt2_decoder_metadata: ModelMetadata) -> None:
+def test_gpt2_decoder_inputs(gpt2_decoder_metadata: AiModelMetadata) -> None:
     input_names = {i["name"] for i in gpt2_decoder_metadata.inputs}
     assert "input_ids" in input_names
     assert "attention_mask" in input_names
 
 
-def test_gpt2_decoder_logits_output(gpt2_decoder_metadata: ModelMetadata) -> None:
+def test_gpt2_decoder_logits_output(gpt2_decoder_metadata: AiModelMetadata) -> None:
     output_names = {o["name"] for o in gpt2_decoder_metadata.outputs}
     assert "logits" in output_names
 
 
-def test_gpt2_decoder_kv_cache_outputs(gpt2_decoder_metadata: ModelMetadata) -> None:
+def test_gpt2_decoder_kv_cache_outputs(gpt2_decoder_metadata: AiModelMetadata) -> None:
     # Decoder produces past key/value tensors for each transformer layer
     output_names = {o["name"] for o in gpt2_decoder_metadata.outputs}
     assert "present.0.key" in output_names
     assert "present.0.value" in output_names
 
 
-def test_gpt2_decoder_provenance(gpt2_decoder_metadata: ModelMetadata) -> None:
+def test_gpt2_decoder_provenance(gpt2_decoder_metadata: AiModelMetadata) -> None:
     assert "inputs" in gpt2_decoder_metadata.provenance
     assert "outputs" in gpt2_decoder_metadata.provenance
 
@@ -986,7 +991,7 @@ VITS_FIXTURE = Path(__file__).parent / "fixtures" / "vits-tiny-random.safetensor
 
 
 @pytest.fixture(scope="module")
-def vits_metadata() -> ModelMetadata:
+def vits_metadata() -> AiModelMetadata:
     """Extract metadata from the vits-tiny-random fixture once per session."""
     pytest.importorskip("safetensors")
     if not VITS_FIXTURE.exists():
@@ -994,27 +999,27 @@ def vits_metadata() -> ModelMetadata:
     return read_safetensors(VITS_FIXTURE)
 
 
-def test_vits_format(vits_metadata: ModelMetadata) -> None:
-    assert vits_metadata.format == ModelFormat.SAFETENSORS
+def test_vits_format(vits_metadata: AiModelMetadata) -> None:
+    assert vits_metadata.format == AiModelFormat.SAFETENSORS
 
 
-def test_vits_no_model_metadata(vits_metadata: ModelMetadata) -> None:
+def test_vits_no_model_metadata(vits_metadata: AiModelMetadata) -> None:
     assert vits_metadata.name is None
     assert vits_metadata.description is None
     assert vits_metadata.version is None
     assert vits_metadata.type_of_model is None
 
 
-def test_vits_format_property(vits_metadata: ModelMetadata) -> None:
+def test_vits_format_property(vits_metadata: AiModelMetadata) -> None:
     assert vits_metadata.properties.get("format") == "pt"
 
 
-def test_vits_tensor_count(vits_metadata: ModelMetadata) -> None:
+def test_vits_tensor_count(vits_metadata: AiModelMetadata) -> None:
     # VITS has many sub-networks (text encoder, decoder, flow, posterior encoder)
     assert len(vits_metadata.inputs) == 438
 
 
-def test_vits_tensor_names(vits_metadata: ModelMetadata) -> None:
+def test_vits_tensor_names(vits_metadata: AiModelMetadata) -> None:
     names = {t["name"] for t in vits_metadata.inputs}
     # Key sub-modules of a VITS TTS model
     assert any(n.startswith("decoder.") for n in names)
@@ -1022,7 +1027,7 @@ def test_vits_tensor_names(vits_metadata: ModelMetadata) -> None:
     assert "text_encoder.project.weight" in names
 
 
-def test_vits_provenance(vits_metadata: ModelMetadata) -> None:
+def test_vits_provenance(vits_metadata: AiModelMetadata) -> None:
     assert "inputs" in vits_metadata.provenance
     assert "properties" in vits_metadata.provenance
 
@@ -1041,7 +1046,7 @@ WHISPER_ST_FIXTURE = (
 
 
 @pytest.fixture(scope="module")
-def whisper_st_metadata() -> ModelMetadata:
+def whisper_st_metadata() -> AiModelMetadata:
     """Extract metadata from the whisper-tiny-random safetensors fixture."""
     pytest.importorskip("safetensors")
     if not WHISPER_ST_FIXTURE.exists():
@@ -1049,31 +1054,31 @@ def whisper_st_metadata() -> ModelMetadata:
     return read_safetensors(WHISPER_ST_FIXTURE)
 
 
-def test_whisper_st_format(whisper_st_metadata: ModelMetadata) -> None:
-    assert whisper_st_metadata.format == ModelFormat.SAFETENSORS
+def test_whisper_st_format(whisper_st_metadata: AiModelMetadata) -> None:
+    assert whisper_st_metadata.format == AiModelFormat.SAFETENSORS
 
 
-def test_whisper_st_no_model_metadata(whisper_st_metadata: ModelMetadata) -> None:
+def test_whisper_st_no_model_metadata(whisper_st_metadata: AiModelMetadata) -> None:
     assert whisper_st_metadata.name is None
     assert whisper_st_metadata.type_of_model is None
 
 
-def test_whisper_st_format_property(whisper_st_metadata: ModelMetadata) -> None:
+def test_whisper_st_format_property(whisper_st_metadata: AiModelMetadata) -> None:
     assert whisper_st_metadata.properties.get("format") == "pt"
 
 
-def test_whisper_st_tensor_count(whisper_st_metadata: ModelMetadata) -> None:
+def test_whisper_st_tensor_count(whisper_st_metadata: AiModelMetadata) -> None:
     assert len(whisper_st_metadata.inputs) == 50
 
 
-def test_whisper_st_tensor_names(whisper_st_metadata: ModelMetadata) -> None:
+def test_whisper_st_tensor_names(whisper_st_metadata: AiModelMetadata) -> None:
     names = {t["name"] for t in whisper_st_metadata.inputs}
     # Whisper has both encoder and decoder sub-modules
     assert any(n.startswith("model.encoder.") for n in names)
     assert any(n.startswith("model.decoder.") for n in names)
 
 
-def test_whisper_st_provenance(whisper_st_metadata: ModelMetadata) -> None:
+def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
     assert "inputs" in whisper_st_metadata.provenance
     assert "properties" in whisper_st_metadata.provenance
 
@@ -1089,7 +1094,7 @@ VOCAB_PHI3_FIXTURE = Path(__file__).parent / "fixtures" / "ggml-vocab-phi-3.gguf
 
 
 @pytest.fixture(scope="module")
-def vocab_phi3_metadata() -> ModelMetadata:
+def vocab_phi3_metadata() -> AiModelMetadata:
     """Extract metadata from the ggml-vocab-phi-3.gguf fixture once per session."""
     pytest.importorskip("gguf")
     if not VOCAB_PHI3_FIXTURE.exists():
@@ -1097,20 +1102,20 @@ def vocab_phi3_metadata() -> ModelMetadata:
     return read_gguf(VOCAB_PHI3_FIXTURE)
 
 
-def test_vocab_phi3_format(vocab_phi3_metadata: ModelMetadata) -> None:
-    assert vocab_phi3_metadata.format == ModelFormat.GGUF
+def test_vocab_phi3_format(vocab_phi3_metadata: AiModelMetadata) -> None:
+    assert vocab_phi3_metadata.format == AiModelFormat.GGUF
 
 
-def test_vocab_phi3_name(vocab_phi3_metadata: ModelMetadata) -> None:
+def test_vocab_phi3_name(vocab_phi3_metadata: AiModelMetadata) -> None:
     assert vocab_phi3_metadata.name == "Phi3"
     assert "general.name" in vocab_phi3_metadata.provenance["name"]
 
 
-def test_vocab_phi3_architecture(vocab_phi3_metadata: ModelMetadata) -> None:
+def test_vocab_phi3_architecture(vocab_phi3_metadata: AiModelMetadata) -> None:
     assert vocab_phi3_metadata.type_of_model == "phi3"
 
 
-def test_vocab_phi3_hyperparameters(vocab_phi3_metadata: ModelMetadata) -> None:
+def test_vocab_phi3_hyperparameters(vocab_phi3_metadata: AiModelMetadata) -> None:
     hp = vocab_phi3_metadata.hyperparameters
     assert hp["phi3.context_length"] == 4096
     assert hp["phi3.embedding_length"] == 3072
@@ -1119,18 +1124,18 @@ def test_vocab_phi3_hyperparameters(vocab_phi3_metadata: ModelMetadata) -> None:
     assert hp["phi3.rope.dimension_count"] == 96
 
 
-def test_vocab_phi3_zero_tensors(vocab_phi3_metadata: ModelMetadata) -> None:
+def test_vocab_phi3_zero_tensors(vocab_phi3_metadata: AiModelMetadata) -> None:
     assert vocab_phi3_metadata.properties.get("GGUF.tensor_count") == "0"
 
 
-def test_vocab_phi3_tokenizer(vocab_phi3_metadata: ModelMetadata) -> None:
+def test_vocab_phi3_tokenizer(vocab_phi3_metadata: AiModelMetadata) -> None:
     props = vocab_phi3_metadata.properties
     # Phi-3 uses a LLaMA-family BPE tokenizer (not BERT WordPiece)
     assert props.get("tokenizer.ggml.model") == "llama"
     assert props.get("general.architecture") == "phi3"
 
 
-def test_vocab_phi3_provenance(vocab_phi3_metadata: ModelMetadata) -> None:
+def test_vocab_phi3_provenance(vocab_phi3_metadata: AiModelMetadata) -> None:
     assert "hyperparameters" in vocab_phi3_metadata.provenance
     assert "properties" in vocab_phi3_metadata.provenance
 
@@ -1147,7 +1152,7 @@ PHI_FIXTURE = Path(__file__).parent / "fixtures" / "phi-tiny-random.safetensors"
 
 
 @pytest.fixture(scope="module")
-def phi_metadata() -> ModelMetadata:
+def phi_metadata() -> AiModelMetadata:
     """Extract metadata from the phi-tiny-random fixture once per session."""
     pytest.importorskip("safetensors")
     if not PHI_FIXTURE.exists():
@@ -1155,11 +1160,11 @@ def phi_metadata() -> ModelMetadata:
     return read_safetensors(PHI_FIXTURE)
 
 
-def test_phi_format(phi_metadata: ModelMetadata) -> None:
-    assert phi_metadata.format == ModelFormat.SAFETENSORS
+def test_phi_format(phi_metadata: AiModelMetadata) -> None:
+    assert phi_metadata.format == AiModelFormat.SAFETENSORS
 
 
-def test_phi_no_model_metadata(phi_metadata: ModelMetadata) -> None:
+def test_phi_no_model_metadata(phi_metadata: AiModelMetadata) -> None:
     # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
     assert phi_metadata.name is None
     assert phi_metadata.description is None
@@ -1167,16 +1172,16 @@ def test_phi_no_model_metadata(phi_metadata: ModelMetadata) -> None:
     assert phi_metadata.type_of_model is None
 
 
-def test_phi_format_property(phi_metadata: ModelMetadata) -> None:
+def test_phi_format_property(phi_metadata: AiModelMetadata) -> None:
     assert phi_metadata.properties.get("format") == "pt"
 
 
-def test_phi_tensor_count(phi_metadata: ModelMetadata) -> None:
+def test_phi_tensor_count(phi_metadata: AiModelMetadata) -> None:
     # 2-layer Phi model: embeddings + 2 × attention blocks + head
     assert len(phi_metadata.inputs) == 33
 
 
-def test_phi_tensor_names(phi_metadata: ModelMetadata) -> None:
+def test_phi_tensor_names(phi_metadata: AiModelMetadata) -> None:
     names = {t["name"] for t in phi_metadata.inputs}
     # Phi uses standard transformer naming: embed_tokens, layers, lm_head
     assert "model.embed_tokens.weight" in names
@@ -1184,7 +1189,7 @@ def test_phi_tensor_names(phi_metadata: ModelMetadata) -> None:
     assert any(n.startswith("model.layers.") for n in names)
 
 
-def test_phi_provenance(phi_metadata: ModelMetadata) -> None:
+def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
     assert "inputs" in phi_metadata.provenance
     assert "properties" in phi_metadata.provenance
 
@@ -1201,7 +1206,7 @@ MARIAN_FIXTURE = Path(__file__).parent / "fixtures" / "marian-tiny-random.safete
 
 
 @pytest.fixture(scope="module")
-def marian_metadata() -> ModelMetadata:
+def marian_metadata() -> AiModelMetadata:
     """Extract metadata from the marian-tiny-random fixture once per session."""
     pytest.importorskip("safetensors")
     if not MARIAN_FIXTURE.exists():
@@ -1209,11 +1214,11 @@ def marian_metadata() -> ModelMetadata:
     return read_safetensors(MARIAN_FIXTURE)
 
 
-def test_marian_format(marian_metadata: ModelMetadata) -> None:
-    assert marian_metadata.format == ModelFormat.SAFETENSORS
+def test_marian_format(marian_metadata: AiModelMetadata) -> None:
+    assert marian_metadata.format == AiModelFormat.SAFETENSORS
 
 
-def test_marian_no_model_metadata(marian_metadata: ModelMetadata) -> None:
+def test_marian_no_model_metadata(marian_metadata: AiModelMetadata) -> None:
     # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
     assert marian_metadata.name is None
     assert marian_metadata.description is None
@@ -1221,16 +1226,16 @@ def test_marian_no_model_metadata(marian_metadata: ModelMetadata) -> None:
     assert marian_metadata.type_of_model is None
 
 
-def test_marian_format_property(marian_metadata: ModelMetadata) -> None:
+def test_marian_format_property(marian_metadata: AiModelMetadata) -> None:
     assert marian_metadata.properties.get("format") == "pt"
 
 
-def test_marian_tensor_count(marian_metadata: ModelMetadata) -> None:
+def test_marian_tensor_count(marian_metadata: AiModelMetadata) -> None:
     # MarianMT encoder-decoder: embedding, 2 encoder + 2 decoder layers, bias
     assert len(marian_metadata.inputs) == 86
 
 
-def test_marian_tensor_names(marian_metadata: ModelMetadata) -> None:
+def test_marian_tensor_names(marian_metadata: AiModelMetadata) -> None:
     names = {t["name"] for t in marian_metadata.inputs}
     # MarianMT has both encoder and decoder sub-modules plus shared embedding
     assert any(n.startswith("model.encoder.") for n in names)
@@ -1238,7 +1243,7 @@ def test_marian_tensor_names(marian_metadata: ModelMetadata) -> None:
     assert "model.shared.weight" in names
 
 
-def test_marian_provenance(marian_metadata: ModelMetadata) -> None:
+def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
     assert "inputs" in marian_metadata.provenance
     assert "properties" in marian_metadata.provenance
 
@@ -1257,7 +1262,7 @@ SPEECH2TEXT_FIXTURE = (
 
 
 @pytest.fixture(scope="module")
-def speech2text_metadata() -> ModelMetadata:
+def speech2text_metadata() -> AiModelMetadata:
     """Extract metadata from the speech2text-tiny-random fixture once per session."""
     pytest.importorskip("safetensors")
     if not SPEECH2TEXT_FIXTURE.exists():
@@ -1265,11 +1270,11 @@ def speech2text_metadata() -> ModelMetadata:
     return read_safetensors(SPEECH2TEXT_FIXTURE)
 
 
-def test_speech2text_format(speech2text_metadata: ModelMetadata) -> None:
-    assert speech2text_metadata.format == ModelFormat.SAFETENSORS
+def test_speech2text_format(speech2text_metadata: AiModelMetadata) -> None:
+    assert speech2text_metadata.format == AiModelFormat.SAFETENSORS
 
 
-def test_speech2text_no_model_metadata(speech2text_metadata: ModelMetadata) -> None:
+def test_speech2text_no_model_metadata(speech2text_metadata: AiModelMetadata) -> None:
     # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
     assert speech2text_metadata.name is None
     assert speech2text_metadata.description is None
@@ -1277,22 +1282,22 @@ def test_speech2text_no_model_metadata(speech2text_metadata: ModelMetadata) -> N
     assert speech2text_metadata.type_of_model is None
 
 
-def test_speech2text_format_property(speech2text_metadata: ModelMetadata) -> None:
+def test_speech2text_format_property(speech2text_metadata: AiModelMetadata) -> None:
     assert speech2text_metadata.properties.get("format") == "pt"
 
 
-def test_speech2text_tensor_count(speech2text_metadata: ModelMetadata) -> None:
+def test_speech2text_tensor_count(speech2text_metadata: AiModelMetadata) -> None:
     # Speech2Text encoder-decoder: conv layers + 2 encoder + 2 decoder layers
     assert len(speech2text_metadata.inputs) == 93
 
 
-def test_speech2text_tensor_names(speech2text_metadata: ModelMetadata) -> None:
+def test_speech2text_tensor_names(speech2text_metadata: AiModelMetadata) -> None:
     names = {t["name"] for t in speech2text_metadata.inputs}
     # Speech2Text has both encoder (with conv) and decoder sub-modules
     assert any(n.startswith("model.encoder.") for n in names)
     assert any(n.startswith("model.decoder.") for n in names)
 
 
-def test_speech2text_provenance(speech2text_metadata: ModelMetadata) -> None:
+def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
     assert "inputs" in speech2text_metadata.provenance
     assert "properties" in speech2text_metadata.provenance

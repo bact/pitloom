@@ -85,6 +85,7 @@ packages = ["src/loom"]
 
 [tool.loom]
 filename = "sbom.spdx3.json"
+pretty = true
 
 [tool.mypy]
 pretty = true
@@ -98,8 +99,8 @@ strict_equality_for_none = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = "spdx_python_model.*"
 ignore_missing_imports = true
+module = "spdx_python_model.*"
 
 [tool.pylint.main]
 init-hook = "import sys; sys.path.insert(0, 'src')"  # for IDE's Pylint

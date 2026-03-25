@@ -10,14 +10,8 @@ from dataclasses import dataclass
 
 
 @dataclass
-class CreationInfo:
-    """Loom-level inputs describing who and what generated an SBOM.
-
-    This is **not** a representation of ``spdx3.CreationInfo`` from the SPDX
-    spec.  It is a plain Loom data object that the assembler translates into
-    the appropriate SPDX 3.0 elements (``Person``, ``Tool``,
-    ``spdx3.CreationInfo``, …).  The fields are chosen for ergonomics at the
-    Loom API boundary, not for SPDX compliance.
+class CreationMetadata:
+    """Metadata describing who and what generated an SBOM.
 
     Attributes:
         creator_name: Display name of the person or organisation that
@@ -28,8 +22,7 @@ class CreationInfo:
             ``"2026-03-25T12:00:00+00:00"``) for the creation timestamp.
             When ``None`` the assembler uses the current UTC time.
         creation_tool: Name of the tool that produced the SBOM.
-            Defaults to ``"Loom"``.  Recorded as a ``spdx3.Tool`` element
-            in the output document.
+            Defaults to ``"Loom"``.
     """
 
     creator_name: str = "Loom"
@@ -38,4 +31,4 @@ class CreationInfo:
     creation_tool: str = "Loom"
 
 
-__all__ = ["CreationInfo"]
+__all__ = ["CreationMetadata"]

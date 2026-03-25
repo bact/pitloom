@@ -18,7 +18,7 @@ from loom.core.project import ProjectMetadata
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib  # type: ignore[no-redef]
+    import tomli as tomllib
 
 
 def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, LoomConfig]:
