@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for AI model metadata from model files.
+"""Extractor for model metadata from AI model files.
 
 Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
 
@@ -42,7 +42,7 @@ class ModelMetadata:
     """Metadata extracted from an AI model file.
 
     Fields align with the SPDX 3.0 AI profile where applicable.
-    See: https://spdx.github.io/spdx-spec/v3.0.1/model/AI/Classes/AIPackage/
+    See: https://spdx.github.io/spdx-spec/v3.0/model/AI/Classes/AIPackage/
     """
 
     format: ModelFormat = ModelFormat.UNKNOWN
@@ -70,7 +70,7 @@ class ModelMetadata:
     provenance: dict[str, str] = field(default_factory=dict)
 
 
-def detect_model_format(model_path: Path) -> ModelFormat:
+def detect_ai_model_format(model_path: Path) -> ModelFormat:
     """Detect model file format from its extension.
 
     The detection is based on the file extension (case-insensitive).
@@ -85,7 +85,7 @@ def detect_model_format(model_path: Path) -> ModelFormat:
     return _EXTENSION_TO_FORMAT.get(model_path.suffix.lower(), ModelFormat.UNKNOWN)
 
 
-def extract_metadata_from_model(model_path: Path) -> ModelMetadata:
+def read_ai_model(model_path: Path) -> ModelMetadata:
     """Extract metadata from an AI model file, dispatching by format.
 
     Args:
@@ -101,14 +101,14 @@ def extract_metadata_from_model(model_path: Path) -> ModelMetadata:
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
-    fmt = detect_model_format(model_path)
+    fmt = detect_ai_model_format(model_path)
 
     if fmt == ModelFormat.GGUF:
-        return extract_metadata_from_gguf(model_path)
+        return read_gguf(model_path)
     if fmt == ModelFormat.ONNX:
-        return extract_metadata_from_onnx(model_path)
+        return read_onnx(model_path)
     if fmt == ModelFormat.SAFETENSORS:
-        return extract_metadata_from_safetensors(model_path)
+        return read_safetensors(model_path)
 
     raise ValueError(
         f"Unsupported model format for file: {model_path}. "
@@ -140,7 +140,7 @@ _GGUF_HYPERPARAM_SUFFIXES = (
 )
 
 
-def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
+def read_gguf(model_path: Path) -> ModelMetadata:
     """Extract metadata from a GGUF model file.
 
     Requires the ``gguf`` package (``pip install gguf``).
@@ -253,7 +253,7 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
 # ---------------------------------------------------------------------------
 
 
-def extract_metadata_from_onnx(model_path: Path) -> ModelMetadata:
+def read_onnx(model_path: Path) -> ModelMetadata:
     """Extract metadata from an ONNX model file.
 
     Requires the ``onnx`` package (``pip install onnx``).
@@ -380,7 +380,7 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
+def read_safetensors(model_path: Path) -> ModelMetadata:
     """Extract metadata from a Safetensors model file.
 
     Requires the ``safetensors`` package (``pip install safetensors``).

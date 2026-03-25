@@ -72,7 +72,7 @@ an object-oriented, ontological approach based on linked data (JSON-LD)
 
 ### Core elements and profile modularity
 
-In SPDX 3.0, every entity is a subclass of the central Element class,
+In SPDX 3, every entity is a subclass of the central Element class,
 which ensures that all items share a common set of metadata (Ismail 2024).
 The specification is divided into profiles,
 each targeting a specific functional domain (SPDX Group 2024).
@@ -127,7 +127,7 @@ classifiers or free-form text fields (Nijhof-Verhees 2026).
 PEP 639 updates the core metadata specification to version 2.4, adopting the
 SPDX license expression syntax as the authoritative way to declare licenses
 (Nijhof-Verhees 2026). Loom will automatically populate the licensing profile
-of the SPDX 3.0 output with case-normalized identifiers (Nijhof-Verhees 2026).
+of the SPDX 3 output with case-normalized identifiers (Nijhof-Verhees 2026).
 
 ### PEP 740: Digital attestations and provenance
 
@@ -199,7 +199,7 @@ loom/
 │       ├── plugins/        # Build system integrations
 │       │   └── hatch.py    # Hatchling BuildHookInterface (PEP 770) [planned]
 │       └── exporters/      # Format-specific writers
-│           └── spdx3_json.py # SPDX 3.0 JSON-LD serializer
+│           └── spdx3_json.py # SPDX 3 JSON-LD serializer
 ├── tests/                  # Pytest-based testing suite
 └── .github/workflows/      # CI/CD pipeline definitions
 ```
@@ -239,7 +239,7 @@ Implemented as part of the Hatchling build hook.
 #### 3. MLflow run extractor (`loom.extractors.mlflow`)
 
 Reads a completed MLflow run and maps its tags, parameters, and metrics
-to an SPDX 3.0 AI BOM fragment. Uses
+to an SPDX 3 AI BOM fragment. Uses
 [STAV](https://github.com/bact/stav) constants as a shared vocabulary
 layer so projects already tagging MLflow runs with STAV keys require no
 additional instrumentation. The top-level `loom.bom.from_mlflow_run()`
@@ -299,7 +299,7 @@ components.
   validating SPDX documents. Support for version 3.0 is currently experimental
   (Ismail 2024).
 - **spdx-python-model (Core Bindings):** Loom has fully adopted the official
-  generated bindings for the SPDX 3.0 ontology, offering full coverage of spec
+  generated bindings for the SPDX 3 ontology, offering full coverage of spec
   classes like AIPackage (SPDX Group 2026).
 - **license-expression (Validation):** Essential for normalizing license
   expressions according to PEP 639 (NexB 2025).

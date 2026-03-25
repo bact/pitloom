@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3.0 JSON-LD exporter for generating SBOM documents."""
+"""SPDX 3 JSON-LD exporter for generating SBOM documents."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from spdx_python_model import v3_0_1 as spdx3
 
 
 class Spdx3JsonExporter:
-    """Exports SPDX 3.0 data structures to JSON-LD format using spdx-python-model."""
+    """Exports SPDX 3 data structures to JSON-LD format using spdx-python-model."""
 
     def __init__(self) -> None:
         self.object_set = spdx3.SHACLObjectSet()

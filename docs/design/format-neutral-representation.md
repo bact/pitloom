@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 ## Overview
 
 The current Loom implementation integrates deeply with `spdx-python-model` 
-to produce SPDX 3.0 output. While this is highly effective for current 
+to produce SPDX 3 output. While this is highly effective for current 
 needs, the future software supply chain landscape will likely require 
 support for multiple SBOM specifications and formats 
 (e.g., SPDX 2.3, SPDX 3.X, CycloneDX, SWID).
@@ -69,7 +69,7 @@ Build Tools → Loom Extractors → Protobom (Internal) → Format Exporters
 - [ ] Research and evaluate Protobom for format-neutral internal representation.
 - [ ] Prototype Protobom integration to verify schema completeness.
 - [ ] Design architecture for multi-format support (e.g. CycloneDX).
-- [ ] Build a translation layer for unique SPDX 3.0 AI/ML profiles.
+- [ ] Build a translation layer for unique SPDX 3 AI/ML profiles.
 
 ## References
 

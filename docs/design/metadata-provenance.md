@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 # Metadata provenance and CreationInfo usage
 
 This document describes how Loom implements metadata provenance tracking
-and uses SPDX 3.0 CreationInfo for transparency and auditability.
+and uses SPDX 3 CreationInfo for transparency and auditability.
 
 ## Overview
 
@@ -23,7 +23,7 @@ information in the SBOM comes from. This is essential for:
 
 ### 1. Comment attribute in SPDX elements
 
-SPDX 3.0 defines a `comment` attribute for all Element classes. Loom uses
+SPDX 3 defines a `comment` attribute for all Element classes. Loom uses
 this attribute to record metadata provenance information.
 
 ```python
@@ -99,7 +99,7 @@ by the blank node identifier `_:creationinfo`.
 
 ### CreationInfo attributes
 
-According to SPDX 3.0, CreationInfo includes:
+According to SPDX 3, CreationInfo includes:
 
 - **created**: Timestamp when the element was created
 - **createdBy**: List of agents who created the element

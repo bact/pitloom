@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for SPDX 3.0 compliance validation."""
+"""Tests for SPDX 3 compliance validation."""
 
 import json
 import tempfile
@@ -12,7 +12,7 @@ from loom.generators import generate_sbom
 
 
 def test_spdx3_json_structure() -> None:
-    """Test that generated SBOM has valid SPDX 3.0 JSON-LD structure."""
+    """Test that generated SBOM has valid SPDX 3 JSON-LD structure."""
     pyproject_content = """
 [build-system]
 requires = ["hatchling"]

@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Merging of pre-generated SPDX 3.0 fragment files into an SBOM document."""
+"""Merging of pre-generated SPDX 3 fragment files into an SBOM document."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def merge_fragments(
     fragment_files: list[str],
     exporter: Spdx3JsonExporter,
 ) -> None:
-    """Load SPDX 3.0 JSON-LD fragment files and merge them into the exporter.
+    """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
 
     Each fragment is a standalone SPDX document (e.g., produced by
     ``loom.bom.track``). Its elements are merged into the main document's

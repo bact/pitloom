@@ -2,77 +2,75 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SBOM generation for Python projects that use Hatchling metadata."""
+"""SPDX 3 element assembly for Python projects."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from pathlib import Path
 from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
+from loom.core.creation import CreationInfo
 from loom.core.models import generate_spdx_id
+from loom.core.project import ProjectMetadata
 from loom.exporters.spdx3_json import Spdx3JsonExporter
-from loom.extractors.metadata import extract_metadata_from_pyproject
 from loom.generators.dependencies import add_dependencies
-from loom.generators.fragments import merge_fragments
 
 
-def generate_sbom(
-    project_dir: Path,
-    output_path: Path | None = None,
-    pretty: bool | None = None,
-    creator_name: str | None = None,
-    creator_email: str | None = None,
-) -> str:
-    """Generate an SPDX 3.0 SBOM for a Python project.
+def build(
+    metadata: ProjectMetadata,
+    creation_info: CreationInfo | None = None,
+) -> Spdx3JsonExporter:
+    """Assemble SPDX 3 elements for a Python project from its metadata.
 
-    Reads project metadata from ``pyproject.toml``, constructs a complete
-    SPDX 3.0 document including dependency relationships, and optionally
-    merges pre-generated SBOM fragments (e.g., from ``loom.bom.track``).
+    This is a pure assembler: it performs no filesystem I/O and does not
+    serialize or write any output. The caller is responsible for merging
+    fragments, serializing, and writing the result.
 
     Args:
-        project_dir: Path to the project directory containing ``pyproject.toml``.
-        output_path: If given, the JSON-LD output is also written to this path.
-        pretty: If ``True``, indent the JSON output with 2 spaces.
-            If ``False``, produce compact output (no extra whitespace).
-            If ``None`` (default), read the setting from ``[tool.loom] pretty``
-            in ``pyproject.toml`` (which itself defaults to ``False``).
-        creator_name: Name of the SBOM creator. Defaults to ``"Loom"``.
-        creator_email: Email address of the SBOM creator. Optional.
+        metadata: Extracted project metadata with provenance information.
+        creation_info: Creator and timestamp metadata for the SBOM document.
+            When ``None`` a default :class:`~loom.core.creation.CreationInfo`
+            is used (creator ``"Loom"``, current UTC time).
 
     Returns:
-        JSON-LD string of the generated SPDX 3.0 SBOM.
-
-    Raises:
-        FileNotFoundError: If ``pyproject.toml`` is not found in ``project_dir``.
-        ValueError: If required project metadata (e.g., ``name``) is missing.
+        A populated :class:`~loom.exporters.spdx3_json.Spdx3JsonExporter`
+        containing all SPDX elements for the project and its dependencies.
     """
-    metadata = extract_metadata_from_pyproject(project_dir / "pyproject.toml")
-    effective_pretty: bool = metadata.pretty if pretty is None else pretty
+    ci = creation_info or CreationInfo()
+    created_at = (
+        datetime.fromisoformat(ci.creation_datetime)
+        if ci.creation_datetime
+        else datetime.now(timezone.utc)
+    )
 
     exporter = Spdx3JsonExporter()
     doc_uuid = str(uuid4())
 
-    # --- Creation info and creator agent ---
-    creation_info = spdx3.CreationInfo(
+    # --- Creation info, creator agent, and creation tool ---
+    spdx_ci = spdx3.CreationInfo(
         specVersion="3.0.1",
-        created=datetime.now(timezone.utc),
+        created=created_at,
     )
     creator = spdx3.Person(
         spdxId=generate_spdx_id("Person", doc_name=metadata.name, doc_uuid=doc_uuid),
-        name=creator_name or "Loom",
-        creationInfo=creation_info,
+        name=ci.creator_name,
+        creationInfo=spdx_ci,
     )
-    if creator_email:
+    if ci.creator_email:
         creator.externalIdentifier = [
             spdx3.ExternalIdentifier(
                 externalIdentifierType=spdx3.ExternalIdentifierType.email,
-                identifier=creator_email,
+                identifier=ci.creator_email,
             )
         ]
-    creation_info.createdBy = [creator.spdxId]
+    tool = spdx3.Tool(
+        spdxId=generate_spdx_id("Tool", doc_name=ci.creation_tool, doc_uuid=doc_uuid),
+        name=ci.creation_tool,
+        creationInfo=spdx_ci,
+    )
+    spdx_ci.createdBy = [creator.spdxId, tool.spdxId]
 
     # Unknown supplier organization for dependencies without explicit supplier info
     unknown_org = spdx3.Organization(
@@ -80,11 +78,12 @@ def generate_sbom(
             "Organization", doc_name="UnknownSupplier", doc_uuid=doc_uuid
         ),
         name="NOASSERTION",
-        creationInfo=creation_info,
+        creationInfo=spdx_ci,
     )
 
-    exporter.add_creation_info(creation_info)
+    exporter.add_creation_info(spdx_ci)
     exporter.add_person(creator)
+    exporter.object_set.add(tool)
     exporter.add_person(unknown_org)
 
     # --- Main package ---
@@ -103,7 +102,7 @@ def generate_sbom(
     main_package = spdx3.software_Package(
         spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
         name=metadata.name,
-        creationInfo=creation_info,
+        creationInfo=spdx_ci,
     )
     main_package.software_packageVersion = metadata.version or "unknown"
     main_package.suppliedBy = creator.spdxId
@@ -123,7 +122,7 @@ def generate_sbom(
     # --- SBOM and document envelope ---
     sbom = spdx3.software_Sbom(
         spdxId=generate_spdx_id("Sbom", doc_name=metadata.name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
+        creationInfo=spdx_ci,
         rootElement=[main_package.spdxId],
     )
     sbom.software_sbomType = [spdx3.software_SbomType.build]
@@ -132,7 +131,7 @@ def generate_sbom(
         spdxId=generate_spdx_id(
             "SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid
         ),
-        creationInfo=creation_info,
+        creationInfo=spdx_ci,
         rootElement=[sbom.spdxId],
     )
     spdx_doc.profileConformance = [
@@ -150,21 +149,9 @@ def generate_sbom(
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
         main_package_spdx_id=main_package.spdxId,
         unknown_org_spdx_id=unknown_org.spdxId,
-        creation_info=creation_info,
+        creation_info=spdx_ci,
         doc_uuid=doc_uuid,
         exporter=exporter,
     )
 
-    # --- SBOM fragments ---
-    merge_fragments(
-        project_dir=project_dir,
-        fragment_files=metadata.fragments,
-        exporter=exporter,
-    )
-
-    sbom_json = exporter.to_json(pretty=effective_pretty)
-
-    if output_path is not None:
-        output_path.write_text(sbom_json, encoding="utf-8")
-
-    return sbom_json
+    return exporter

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from spdx_python_model import v3_0_1 as spdx3
 
+from loom.core.creation import CreationInfo
 from loom.core.models import generate_spdx_id
 from loom.exporters.spdx3_json import Spdx3JsonExporter
 from loom.generators import generate_sbom
@@ -41,8 +42,10 @@ Source = "https://github.com/test/test-package"
 
         sbom_json = generate_sbom(
             tmppath,
-            creator_name="Test Creator",
-            creator_email="test@example.com",
+            creation_info=CreationInfo(
+                creator_name="Test Creator",
+                creator_email="test@example.com",
+            ),
         )
 
         # Parse and validate JSON

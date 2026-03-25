@@ -12,23 +12,24 @@ Creating SBOM during the build process. Now targeting Python Hatchling support.
 
 Loom is an automated Software Bill of Materials (SBOM) generator for Python
 projects that use Hatchling as their build backend.
-It generates SPDX 3.0 compliant SBOMs that document the composition,
+It generates SPDX 3 compliant SBOMs that document the composition,
 provenance, and dependencies of software systems.
 
 ## Features
 
-- **SPDX 3.0 support**:
-  Generates SBOMs in SPDX 3.0 JSON-LD format
+- **SPDX 3 support**:
+  Generates SBOMs in SPDX 3 JSON-LD format
 - **Hatchling integration**:
   Extracts metadata from Python projects using Hatchling
 - **Dependency tracking**:
   Automatically includes project dependencies in the SBOM
 - **AI/ML model metadata**:
-  Extracts metadata from model files (ONNX, Safetensors, GGUF) for SPDX AI profile
+  Extracts metadata from model files (ONNX, Safetensors, GGUF)
+  for SPDX AI profile
 - **Metadata provenance**:
   Tracks the source of each metadata field for transparency and auditability
 - **Standards compliant**:
-  Follows SPDX 3.0 specification and modern Python packaging standards
+  Follows SPDX 3 specification and modern Python packaging standards
 
 ## Installation
 
@@ -144,7 +145,7 @@ The generated SBOM will include:
 
 ## Metadata provenance
 
-Loom tracks the source of each metadata field in the SBOM using the SPDX 3.0
+Loom tracks the source of each metadata field in the SBOM using the SPDX 3
 `comment` attribute. This enables answering questions like:
 
 > "Why does the SBOM say the concluded license is MIT?"
@@ -193,7 +194,7 @@ loom/
 ├── src/
 │   └── loom/
 │       ├── core/
-│       │   └── models.py       # SPDX 3.0 data models
+│       │   └── models.py       # SPDX 3 data models
 │       ├── extractors/
 │       │   ├── metadata.py     # Metadata extractor for Hatchling
 │       │   └── model.py        # AI model file extractor (ONNX, Safetensors, GGUF)

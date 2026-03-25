@@ -28,14 +28,14 @@ in JSON-LD format.
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
 
-3. **SPDX 3.0 Exporter** (`src/loom/exporters/spdx3_json.py`)
+3. **SPDX 3 Exporter** (`src/loom/exporters/spdx3_json.py`)
    - JSON-LD output using official bindings and SHACLObjectSet
    - Clean API for building SPDX documents and adding elements
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
 4. **SBOM Generator** (`src/loom/generator.py`)
    - Orchestrates metadata extraction and SBOM creation
-   - Builds complete SPDX 3.0 document structure
+   - Builds complete SPDX 3 document structure
    - Creates dependency relationships
    - Generates copyright information from metadata
 
@@ -50,12 +50,12 @@ in JSON-LD format.
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
    - Supports dynamic introspection via `bom.py` inspection
-   - Uses SPDX 3.0 comment attribute
+   - Uses SPDX 3 comment attribute
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
 7. **ML Tracking SDK** (`src/loom/bom.py`)
    - Dual-syntax ContextDecorator (`@bom.track` and `with bom.track`)
-   - Emits SPDX 3.0 SBOM fragments automatically during ML executions
+   - Emits SPDX 3 SBOM fragments automatically during ML executions
    - Seamlessly ingested into project SBOMs using `[tool.loom.fragments]` config
 
 ### ✅ Testing (Comprehensive coverage - All Passing)
@@ -96,7 +96,7 @@ in JSON-LD format.
 
 ## Validation with sentimentdemo
 
-Successfully generated SPDX 3.0 SBOM for the reference repository:
+Successfully generated SPDX 3 SBOM for the reference repository:
 
 ```text
 $ loom /tmp/sentimentdemo -o sbom.spdx3.json

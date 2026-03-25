@@ -8,7 +8,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from loom.extractors.metadata import extract_metadata_from_pyproject
+from loom.core.creation import CreationInfo
+from loom.extractors.pyproject import read_pyproject
 from loom.generators import generate_sbom
 
 
@@ -30,7 +31,7 @@ Homepage = "https://example.com"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        metadata = extract_metadata_from_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
 
         # Check that provenance is tracked
         assert "name" in metadata.provenance
@@ -78,7 +79,7 @@ path = "src/mypackage/__about__.py"
 """
         )
 
-        metadata = extract_metadata_from_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
 
         # Check that provenance tracks the dynamic version source
         assert "version" in metadata.provenance
@@ -101,7 +102,10 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath, creator_name="Test")
+        sbom_json = generate_sbom(
+            tmppath,
+            creation_info=CreationInfo(creator_name="Test"),
+        )
         sbom_data = json.loads(sbom_json)
 
         # Find the main package
@@ -203,7 +207,7 @@ authors = [
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        metadata = extract_metadata_from_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
 
         # Check that provenance tracks authors
         assert "authors" in metadata.provenance

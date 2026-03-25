@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for SPDX 3.0 core models."""
+"""Tests for SPDX 3 core models."""
 
 from loom.core.models import generate_spdx_id
 

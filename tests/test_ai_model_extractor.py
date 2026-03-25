@@ -16,56 +16,58 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from loom.extractors.model import (
+from loom.extractors.ai_model import (
     ModelFormat,
     ModelMetadata,
-    detect_model_format,
-    extract_metadata_from_gguf,
-    extract_metadata_from_model,
-    extract_metadata_from_onnx,
-    extract_metadata_from_safetensors,
+    detect_ai_model_format,
+    read_gguf,
+    read_ai_model,
+    read_onnx,
+    read_safetensors,
 )
 
 # ---------------------------------------------------------------------------
-# detect_model_format
+# detect_ai_model_format
 # ---------------------------------------------------------------------------
 
 
 def test_detect_format_onnx() -> None:
-    assert detect_model_format(Path("model.onnx")) == ModelFormat.ONNX
+    assert detect_ai_model_format(Path("model.onnx")) == ModelFormat.ONNX
 
 
 def test_detect_format_safetensors() -> None:
-    assert detect_model_format(Path("weights.safetensors")) == ModelFormat.SAFETENSORS
+    assert (
+        detect_ai_model_format(Path("weights.safetensors")) == ModelFormat.SAFETENSORS
+    )
 
 
 def test_detect_format_gguf() -> None:
-    assert detect_model_format(Path("llama.gguf")) == ModelFormat.GGUF
+    assert detect_ai_model_format(Path("llama.gguf")) == ModelFormat.GGUF
 
 
 def test_detect_format_unknown() -> None:
-    assert detect_model_format(Path("model.pt")) == ModelFormat.UNKNOWN
+    assert detect_ai_model_format(Path("model.pt")) == ModelFormat.UNKNOWN
 
 
 def test_detect_format_case_insensitive() -> None:
-    assert detect_model_format(Path("MODEL.ONNX")) == ModelFormat.ONNX
+    assert detect_ai_model_format(Path("MODEL.ONNX")) == ModelFormat.ONNX
 
 
 # ---------------------------------------------------------------------------
-# extract_metadata_from_model — dispatch
+# read_ai_model — dispatch
 # ---------------------------------------------------------------------------
 
 
 def test_extract_metadata_file_not_found() -> None:
     with pytest.raises(FileNotFoundError):
-        extract_metadata_from_model(Path("/nonexistent/model.onnx"))
+        read_ai_model(Path("/nonexistent/model.onnx"))
 
 
 def test_extract_metadata_unsupported_format(tmp_path: Path) -> None:
     model_file = tmp_path / "model.pt"
     model_file.write_bytes(b"fake pytorch")
     with pytest.raises(ValueError, match="Unsupported model format"):
-        extract_metadata_from_model(model_file)
+        read_ai_model(model_file)
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +149,7 @@ def test_onnx_missing_library(tmp_path: Path) -> None:
     model_file.write_bytes(b"fake onnx")
     with patch.dict("sys.modules", {"onnx": None}):
         with pytest.raises(ImportError, match="onnx"):
-            extract_metadata_from_onnx(model_file)
+            read_onnx(model_file)
 
 
 def test_onnx_basic_extraction(tmp_path: Path) -> None:
@@ -167,7 +169,7 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
     mock_onnx.load.return_value = mock_model
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
-        meta = extract_metadata_from_onnx(model_file)
+        meta = read_onnx(model_file)
 
     assert meta.format == ModelFormat.ONNX
     assert meta.name == "ResNet50"
@@ -205,7 +207,7 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
     mock_onnx.load.return_value = mock_model
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
-        meta = extract_metadata_from_onnx(model_file)
+        meta = read_onnx(model_file)
 
     assert meta.name is None
     assert meta.description is None
@@ -222,7 +224,7 @@ def test_onnx_load_failure(tmp_path: Path) -> None:
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         with pytest.raises(ValueError, match="Failed to load ONNX model"):
-            extract_metadata_from_onnx(model_file)
+            read_onnx(model_file)
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +237,7 @@ def test_safetensors_missing_library(tmp_path: Path) -> None:
     model_file.write_bytes(b"fake")
     with patch.dict("sys.modules", {"safetensors": None}):
         with pytest.raises(ImportError, match="safetensors"):
-            extract_metadata_from_safetensors(model_file)
+            read_safetensors(model_file)
 
 
 def test_safetensors_basic_extraction(tmp_path: Path) -> None:
@@ -261,7 +263,7 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     mock_safetensors.safe_open.return_value = mock_file_ctx
 
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
-        meta = extract_metadata_from_safetensors(model_file)
+        meta = read_safetensors(model_file)
 
     assert meta.format == ModelFormat.SAFETENSORS
     assert meta.name == "My Diffusion Model"
@@ -289,7 +291,7 @@ def test_safetensors_empty_metadata(tmp_path: Path) -> None:
     mock_safetensors.safe_open.return_value = mock_file_ctx
 
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
-        meta = extract_metadata_from_safetensors(model_file)
+        meta = read_safetensors(model_file)
 
     assert meta.name is None
     assert meta.description is None
@@ -320,7 +322,7 @@ def test_safetensors_fallback_keys(tmp_path: Path) -> None:
     mock_safetensors.safe_open.return_value = mock_file_ctx
 
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
-        meta = extract_metadata_from_safetensors(model_file)
+        meta = read_safetensors(model_file)
 
     assert meta.name == "Fallback Name"
     assert meta.description == "Fallback description"
@@ -337,7 +339,7 @@ def test_safetensors_read_failure(tmp_path: Path) -> None:
 
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
         with pytest.raises(ValueError, match="Failed to read Safetensors"):
-            extract_metadata_from_safetensors(model_file)
+            read_safetensors(model_file)
 
 
 # ---------------------------------------------------------------------------
@@ -359,7 +361,7 @@ def test_gguf_missing_library(tmp_path: Path) -> None:
     model_file.write_bytes(b"fake")
     with patch.dict("sys.modules", {"gguf": None}):
         with pytest.raises(ImportError, match="gguf"):
-            extract_metadata_from_gguf(model_file)
+            read_gguf(model_file)
 
 
 def test_gguf_basic_extraction(tmp_path: Path) -> None:
@@ -385,7 +387,7 @@ def test_gguf_basic_extraction(tmp_path: Path) -> None:
     mock_gguf.GGUFReader.return_value = mock_reader
 
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = extract_metadata_from_gguf(model_file)
+        meta = read_gguf(model_file)
 
     assert meta.format == ModelFormat.GGUF
     assert meta.name == "LLaMA-3-8B"
@@ -418,7 +420,7 @@ def test_gguf_minimal_fields(tmp_path: Path) -> None:
     mock_gguf.GGUFReader.return_value = mock_reader
 
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = extract_metadata_from_gguf(model_file)
+        meta = read_gguf(model_file)
 
     assert meta.type_of_model == "mistral"
     assert meta.name is None
@@ -435,7 +437,7 @@ def test_gguf_load_failure(tmp_path: Path) -> None:
 
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
         with pytest.raises(ValueError, match="Failed to read GGUF"):
-            extract_metadata_from_gguf(model_file)
+            read_gguf(model_file)
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +488,7 @@ def squeezenet_metadata() -> ModelMetadata:
     pytest.importorskip("onnx")
     if not SQUEEZENET_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {SQUEEZENET_FIXTURE}")
-    return extract_metadata_from_onnx(SQUEEZENET_FIXTURE)
+    return read_onnx(SQUEEZENET_FIXTURE)
 
 
 def test_onnx_integration_format(squeezenet_metadata: ModelMetadata) -> None:
@@ -567,7 +569,7 @@ def stories260k_metadata() -> ModelMetadata:
     pytest.importorskip("gguf")
     if not STORIES260K_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {STORIES260K_FIXTURE}")
-    return extract_metadata_from_gguf(STORIES260K_FIXTURE)
+    return read_gguf(STORIES260K_FIXTURE)
 
 
 def test_gguf_integration_format(stories260k_metadata: ModelMetadata) -> None:
@@ -635,7 +637,7 @@ def whisper_encoder_metadata() -> ModelMetadata:
     pytest.importorskip("onnx")
     if not WHISPER_ENCODER_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {WHISPER_ENCODER_FIXTURE}")
-    return extract_metadata_from_onnx(WHISPER_ENCODER_FIXTURE)
+    return read_onnx(WHISPER_ENCODER_FIXTURE)
 
 
 def test_whisper_encoder_format(whisper_encoder_metadata: ModelMetadata) -> None:
@@ -697,7 +699,7 @@ def mmproj_metadata() -> ModelMetadata:
     pytest.importorskip("gguf")
     if not MMPROJ_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {MMPROJ_FIXTURE}")
-    return extract_metadata_from_gguf(MMPROJ_FIXTURE)
+    return read_gguf(MMPROJ_FIXTURE)
 
 
 def test_mmproj_format(mmproj_metadata: ModelMetadata) -> None:
@@ -757,7 +759,7 @@ def vocab_bert_bge_metadata() -> ModelMetadata:
     pytest.importorskip("gguf")
     if not VOCAB_BERT_BGE_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {VOCAB_BERT_BGE_FIXTURE}")
-    return extract_metadata_from_gguf(VOCAB_BERT_BGE_FIXTURE)
+    return read_gguf(VOCAB_BERT_BGE_FIXTURE)
 
 
 def test_vocab_bert_bge_format(vocab_bert_bge_metadata: ModelMetadata) -> None:
@@ -817,7 +819,7 @@ def inception_v2_metadata() -> ModelMetadata:
     pytest.importorskip("onnx")
     if not INCEPTION_V2_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {INCEPTION_V2_FIXTURE}")
-    return extract_metadata_from_onnx(INCEPTION_V2_FIXTURE)
+    return read_onnx(INCEPTION_V2_FIXTURE)
 
 
 def test_inception_v2_format(inception_v2_metadata: ModelMetadata) -> None:
@@ -880,7 +882,7 @@ def resnet_beans_metadata() -> ModelMetadata:
     pytest.importorskip("onnx")
     if not RESNET_BEANS_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {RESNET_BEANS_FIXTURE}")
-    return extract_metadata_from_onnx(RESNET_BEANS_FIXTURE)
+    return read_onnx(RESNET_BEANS_FIXTURE)
 
 
 def test_resnet_beans_format(resnet_beans_metadata: ModelMetadata) -> None:
@@ -935,7 +937,7 @@ def gpt2_decoder_metadata() -> ModelMetadata:
     pytest.importorskip("onnx")
     if not GPT2_DECODER_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {GPT2_DECODER_FIXTURE}")
-    return extract_metadata_from_onnx(GPT2_DECODER_FIXTURE)
+    return read_onnx(GPT2_DECODER_FIXTURE)
 
 
 def test_gpt2_decoder_format(gpt2_decoder_metadata: ModelMetadata) -> None:
@@ -989,7 +991,7 @@ def vits_metadata() -> ModelMetadata:
     pytest.importorskip("safetensors")
     if not VITS_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {VITS_FIXTURE}")
-    return extract_metadata_from_safetensors(VITS_FIXTURE)
+    return read_safetensors(VITS_FIXTURE)
 
 
 def test_vits_format(vits_metadata: ModelMetadata) -> None:
@@ -1044,7 +1046,7 @@ def whisper_st_metadata() -> ModelMetadata:
     pytest.importorskip("safetensors")
     if not WHISPER_ST_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {WHISPER_ST_FIXTURE}")
-    return extract_metadata_from_safetensors(WHISPER_ST_FIXTURE)
+    return read_safetensors(WHISPER_ST_FIXTURE)
 
 
 def test_whisper_st_format(whisper_st_metadata: ModelMetadata) -> None:
@@ -1092,7 +1094,7 @@ def vocab_phi3_metadata() -> ModelMetadata:
     pytest.importorskip("gguf")
     if not VOCAB_PHI3_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {VOCAB_PHI3_FIXTURE}")
-    return extract_metadata_from_gguf(VOCAB_PHI3_FIXTURE)
+    return read_gguf(VOCAB_PHI3_FIXTURE)
 
 
 def test_vocab_phi3_format(vocab_phi3_metadata: ModelMetadata) -> None:
@@ -1150,7 +1152,7 @@ def phi_metadata() -> ModelMetadata:
     pytest.importorskip("safetensors")
     if not PHI_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {PHI_FIXTURE}")
-    return extract_metadata_from_safetensors(PHI_FIXTURE)
+    return read_safetensors(PHI_FIXTURE)
 
 
 def test_phi_format(phi_metadata: ModelMetadata) -> None:
@@ -1204,7 +1206,7 @@ def marian_metadata() -> ModelMetadata:
     pytest.importorskip("safetensors")
     if not MARIAN_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {MARIAN_FIXTURE}")
-    return extract_metadata_from_safetensors(MARIAN_FIXTURE)
+    return read_safetensors(MARIAN_FIXTURE)
 
 
 def test_marian_format(marian_metadata: ModelMetadata) -> None:
@@ -1260,7 +1262,7 @@ def speech2text_metadata() -> ModelMetadata:
     pytest.importorskip("safetensors")
     if not SPEECH2TEXT_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {SPEECH2TEXT_FIXTURE}")
-    return extract_metadata_from_safetensors(SPEECH2TEXT_FIXTURE)
+    return read_safetensors(SPEECH2TEXT_FIXTURE)
 
 
 def test_speech2text_format(speech2text_metadata: ModelMetadata) -> None:

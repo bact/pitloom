@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Dependency package and relationship creation for SPDX 3.0 SBOM documents."""
+"""Dependency package and relationship creation for SPDX 3 SBOM documents."""
 
 from __future__ import annotations
 

@@ -93,7 +93,7 @@ log = logging.getLogger(__name__)
 
 
 class LoomBuildHook(BuildHookInterface):
-    """Hatchling build hook that embeds an SPDX 3.0 SBOM in the wheel.
+    """Hatchling build hook that embeds an SPDX 3 SBOM in the wheel.
 
     Activated by adding ``[tool.hatch.build.hooks.loom]`` to the project's
     ``pyproject.toml`` and listing ``loom`` as a build dependency.
