@@ -89,10 +89,10 @@ The SBOM generator can be used programmatically:
 
 ```python
 from pathlib import Path
-from loom.generator import generate_sbom_to_file
+from loom.generators import generate_sbom
 
 # Generate SBOM for a project
-generate_sbom_to_file(
+generate_sbom(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
     pretty=False,

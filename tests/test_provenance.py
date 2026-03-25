@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 from loom.extractors.metadata import extract_metadata_from_pyproject
-from loom.generator import generate_sbom_from_project
+from loom.generators import generate_sbom
 
 
 def test_provenance_basic_fields() -> None:
@@ -101,7 +101,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom_from_project(tmppath, creator_name="Test")
+        sbom_json = generate_sbom(tmppath, creator_name="Test")
         sbom_data = json.loads(sbom_json)
 
         # Find the main package
@@ -137,7 +137,7 @@ dependencies = ["numpy==1.24.0", "pandas>=1.5.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom_from_project(tmppath)
+        sbom_json = generate_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         # Find dependency packages
@@ -170,7 +170,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom_from_project(tmppath)
+        sbom_json = generate_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         # Find relationships

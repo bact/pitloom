@@ -12,7 +12,7 @@ import traceback
 from pathlib import Path
 
 from loom.__about__ import __version__
-from loom.generator import generate_sbom_to_file
+from loom.generators import generate_sbom
 
 
 def main() -> int:
@@ -80,9 +80,9 @@ def main() -> int:
             return 1
 
         print(f"Generating SBOM for project in: {project_dir}")
-        generate_sbom_to_file(
+        generate_sbom(
             project_dir,
-            args.output,
+            output_path=args.output,
             pretty=args.pretty,
             creator_name=args.creator_name,
             creator_email=args.creator_email,

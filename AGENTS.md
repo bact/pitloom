@@ -6,6 +6,8 @@
 - Design documents: `docs/design/`
 - Implementation documents and progress reports: `docs/implementation/`
 - Test fixtures: `tests/fixtures/README.md`
+- This project is in private alpha stage with only one developer.
+  Do not worry about breaking changes or keeping backward compatibility yet.
 
 ## CLI output
 
@@ -191,7 +193,8 @@ names, license, description, repository URL, keywords/tags (same order).
 
 ## Writing style
 
-- American English spelling.
+- British English spelling for documentation, comments, and other text.
+- American English spelling only for code.
 - Active voice; concise sentences; no jargon or idioms.
 - Short comments — do not restate the obvious.
 - Consistent terminology throughout code and documentation.

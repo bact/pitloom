@@ -13,7 +13,7 @@ from spdx_python_model import v3_0_1 as spdx3
 
 from loom.core.models import generate_spdx_id
 from loom.exporters.spdx3_json import Spdx3JsonExporter
-from loom.generator import generate_sbom_from_project, generate_sbom_to_file
+from loom.generators import generate_sbom
 
 
 def test_generate_sbom_basic() -> None:
@@ -39,7 +39,7 @@ Source = "https://github.com/test/test-package"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom_from_project(
+        sbom_json = generate_sbom(
             tmppath,
             creator_name="Test Creator",
             creator_email="test@example.com",
@@ -74,8 +74,8 @@ Source = "https://github.com/test/test-package"
         assert len(dep_packages) >= 2
 
 
-def test_generate_sbom_to_file() -> None:
-    """Test SBOM generation to file."""
+def test_generate_sbom_to_output_path() -> None:
+    """Test SBOM generation written to an output file."""
     pyproject_content = """
 [build-system]
 requires = ["hatchling"]
@@ -93,7 +93,7 @@ description = "A simple application"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         assert output_path.exists()
 
@@ -142,7 +142,7 @@ Source = "https://github.com/bact/sentimentdemo"
         about_path = src_dir / "__about__.py"
         about_path.write_text(about_content)
 
-        sbom_json = generate_sbom_from_project(tmppath)
+        sbom_json = generate_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         # Verify structure
@@ -228,7 +228,7 @@ files = ["fragment1.json", "fragment2.json"]
         exporter2.add_package(dataset_pkg)
         (tmppath / "fragment2.json").write_text(exporter2.to_json())
 
-        sbom_json = generate_sbom_from_project(tmppath)
+        sbom_json = generate_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         # Validate that elements from fragments are included in the graph

@@ -8,7 +8,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from loom.generator import generate_sbom_to_file
+from loom.generators import generate_sbom
 
 
 def test_spdx3_json_structure() -> None:
@@ -31,7 +31,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         # Load and validate structure
         sbom_data = json.loads(output_path.read_text())
@@ -115,7 +115,7 @@ description = "Test for required elements"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -153,7 +153,7 @@ version = "1.0.0"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -190,7 +190,7 @@ dependencies = ["numpy==1.24.0"]
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]

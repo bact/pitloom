@@ -87,7 +87,7 @@ from typing import Any
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-from loom.generator import generate_sbom_from_project
+from loom.generators import generate_sbom
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ class LoomBuildHook(BuildHookInterface):
         # Validate and resolve fragment files
         resolved_fragments = _resolve_fragments(project_dir, fragment_paths)
 
-        sbom_json = generate_sbom_from_project(
+        sbom_json = generate_sbom(
             project_dir,
             creator_name=creator_name,
             creator_email=creator_email,
@@ -196,7 +196,7 @@ def _resolve_fragments(
 ## Fragment merging and `[tool.loom]` configuration
 
 Fragment paths listed under `[tool.hatch.build.hooks.loom] fragments` are
-passed to `generate_sbom_from_project()` via the
+passed to `generate_sbom()` via the
 `[tool.loom] fragments = [...]` mechanism already present in the metadata
 extractor. The hook reads its own `self.config` (the
 `[tool.hatch.build.hooks.loom]` table) and forwards the fragment list
@@ -216,7 +216,7 @@ Developer runs:
          │
          ├─── LoomBuildHook.initialize()
          │       │
-         │       ├── generate_sbom_from_project(project_dir)
+         │       ├── generate_sbom(project_dir)
          │       │       │
          │       │       ├── extract_metadata_from_pyproject()
          │       │       ├── merge loom.bom fragments (if configured)
