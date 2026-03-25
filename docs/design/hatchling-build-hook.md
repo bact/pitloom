@@ -34,14 +34,16 @@ Target placement for Loom output:
 
 ## Hatchling plugin registration
 
-Hatchling supports build hooks registered as Python entry points under the
-`hatch.build.hook` group. The hook class name identifies the plugin.
+Hatchling discovers build hooks registered as Python entry points under the
+`hatch` group (consumed via [pluggy](https://pluggy.readthedocs.io/)).
+The module must expose a `@hookimpl`-decorated
+`hatch_register_build_hook()` function that returns the hook class.
 
 ### Entry point in Loom's `pyproject.toml`
 
 ```toml
-[project.entry-points."hatch.build.hook"]
-loom = "loom.plugins.hatch:LoomBuildHook"
+[project.entry-points."hatch"]
+loom = "loom.plugins.hatch"
 ```
 
 ### User configuration in the target project's `pyproject.toml`
@@ -56,11 +58,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.hooks.loom]
 # All fields are optional. Defaults are shown.
 enabled = true
-filename = "sbom.spdx3.json"
+sbom-basename = ""          # Name part only, no extension; default "sbom"
 creator-name = ""           # Defaults to "Loom"
 creator-email = ""          # Optional
 fragments = []              # List of pre-generated fragment paths to merge
 ```
+
+The full SBOM filename is derived by appending the format extension to the
+basename: `{sbom-basename}.spdx3.json` (e.g., `sbom.spdx3.json` by default).
 
 Specifying fragments allows the hook to merge `loom.bom`-generated AI/ML
 fragments produced during training before the build:
@@ -72,6 +77,27 @@ fragments = [
     "fragments/eval_run.spdx3.json",
 ]
 ```
+
+## SBOM filename conventions
+
+### Inside the wheel (PEP 770)
+
+The default filename is `sbom.spdx3.json`. The user can override the base
+name via `sbom-basename`; the `.spdx3.json` extension is always appended by
+Loom to reflect the SPDX 3 JSON-LD format.
+
+PEP 770 allows a wheel to contain multiple SBOM files (e.g., one per
+format), so the `sbom-basename` option is designed to be forward-compatible
+with multi-SBOM scenarios.
+
+### Standalone CLI output
+
+When no `-o` / `--output` argument is given, the CLI derives the default
+output filename in priority order:
+
+1. `{sbom-basename}.spdx3.json` — if `sbom-basename` is set in `[tool.loom]`
+2. `{name}-{version}.spdx3.json` — derived from project metadata
+3. `sbom.spdx3.json` — fallback
 
 ## Build hook class design
 
@@ -85,73 +111,68 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+from hatchling.plugin import hookimpl
 
-from loom.assemble import generate_sbom
+from loom.assemble.spdx3.assembler import build as assemble_spdx3
+from loom.assemble.spdx3.fragments import merge_fragments
+from loom.core.creation import CreationMetadata
+from loom.core.document import DocumentModel
+from loom.extract.pyproject import read_pyproject
 
 log = logging.getLogger(__name__)
 
+_SPDX3_JSON_EXT = ".spdx3.json"
 
-class LoomBuildHook(BuildHookInterface):
-    """Hatchling build hook that embeds an SPDX 3 SBOM in the wheel.
 
-    Activated by adding ``[tool.hatch.build.hooks.loom]`` to the project's
-    ``pyproject.toml`` and listing ``loom`` as a build dependency.
-
-    The SBOM is written to ``.dist-info/sboms/<filename>`` inside the wheel,
-    conforming to PEP 770.
-    """
-
+class LoomBuildHook(BuildHookInterface[BuilderConfig]):
     PLUGIN_NAME = "loom"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._staging_dir: tempfile.TemporaryDirectory[str] | None = None
         self._sbom_staging_path: Path | None = None
+        self._sbom_filename: str = f"sbom{_SPDX3_JSON_EXT}"
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        """Generate the SBOM and stage it for inclusion in the build artifact.
+        config = dict(self.config)
+        _validate_config(config)
 
-        Called by Hatchling before packaging. Adds the SBOM to
-        ``build_data["extra_metadata"]`` so Hatchling places it in
-        ``.dist-info/sboms/`` inside the wheel.
-        """
-        config = self._get_loom_config()
         if not config.get("enabled", True):
-            log.info("Loom build hook is disabled; skipping SBOM generation.")
+            log.info("Loom build hook: disabled; skipping SBOM generation.")
             return
 
+        sbom_basename: str = config.get("sbom-basename", "") or "sbom"
+        sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
+        creator_name: str = config.get("creator-name", "") or "Loom"
+        creator_email: str = config.get("creator-email", "")
+        hook_fragments: list[str] = config.get("fragments", [])
+
         project_dir = Path(self.root)
-        creator_name: str | None = config.get("creator-name") or None
-        creator_email: str | None = config.get("creator-email") or None
-        sbom_filename: str = config.get("filename", "sbom.spdx3.json")
-        fragment_paths: list[str] = config.get("fragments", [])
+        metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
 
-        # Validate and resolve fragment files
-        resolved_fragments = _resolve_fragments(project_dir, fragment_paths)
-
-        sbom_json = generate_sbom(
-            project_dir,
+        creation_meta = CreationMetadata(
             creator_name=creator_name,
             creator_email=creator_email,
         )
+        doc = DocumentModel(project=metadata, creation=creation_meta)
+        exporter = assemble_spdx3(doc)
 
-        # Use a TemporaryDirectory so the file outlives initialize()
+        all_fragments = loom_config.fragments + hook_fragments
+        merge_fragments(project_dir, all_fragments, exporter)
+
+        sbom_json = exporter.to_json(pretty=loom_config.pretty)
+
+        self._sbom_filename = sbom_filename
+        # TemporaryDirectory intentionally spans initialize() → finalize().
         self._staging_dir = tempfile.TemporaryDirectory()
         self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
         self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
 
-        # Hatchling reads extra_metadata as {relative-path-in-dist-info: abs-path}
-        build_data.setdefault("extra_metadata", {})
-        build_data["extra_metadata"][f"sboms/{sbom_filename}"] = str(
-            self._sbom_staging_path
-        )
-
-        log.info(
-            "Loom: staged SBOM for .dist-info/sboms/%s (%d fragments merged)",
-            sbom_filename,
-            len(resolved_fragments),
-        )
+        # Hatchling 1.16.0+ places each path in sbom_files at
+        # .dist-info/sboms/<basename> inside the wheel (PEP 770).
+        build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
 
     def finalize(
         self,
@@ -159,51 +180,37 @@ class LoomBuildHook(BuildHookInterface):
         build_data: dict[str, Any],
         artifact_path: str,
     ) -> None:
-        """Clean up temporary staging files after the wheel is packaged."""
+        """Clean up the temporary staging directory."""
         if self._staging_dir is not None:
             self._staging_dir.cleanup()
             self._staging_dir = None
             self._sbom_staging_path = None
 
-    def _get_loom_config(self) -> dict[str, Any]:
-        """Return the ``[tool.loom]`` section from pyproject.toml, if present.
 
-        Falls back to ``self.config`` (the ``[tool.hatch.build.hooks.loom]``
-        section) for hook-specific options.
-        """
-        # self.config is already the [tool.hatch.build.hooks.loom] section
-        return dict(self.config)
-
-
-def _resolve_fragments(
-    project_dir: Path,
-    fragment_paths: list[str],
-) -> list[Path]:
-    """Resolve fragment paths relative to the project root.
-
-    Logs a warning for each path that does not exist.
-    """
-    resolved: list[Path] = []
-    for frag in fragment_paths:
-        p = project_dir / frag
-        if p.exists():
-            resolved.append(p)
-        else:
-            log.warning("Loom: fragment file not found, skipping: %s", p)
-    return resolved
+@hookimpl
+def hatch_register_build_hook() -> type[LoomBuildHook]:
+    return LoomBuildHook
 ```
 
 ## Fragment merging and `[tool.loom]` configuration
 
 Fragment paths listed under `[tool.hatch.build.hooks.loom] fragments` are
-passed to `generate_sbom()` via the
-`[tool.loom] fragments = [...]` mechanism already present in the metadata
-extractor. The hook reads its own `self.config` (the
-`[tool.hatch.build.hooks.loom]` table) and forwards the fragment list
-to the generator.
+merged with any fragments already declared under `[tool.loom] fragments`.
+The hook concatenates both lists and passes them to `merge_fragments()`.
 
-This means the existing `metadata.py` fragment-merging logic is reused
-unchanged; the hook only needs to pass the list of paths.
+This means the existing fragment-merging logic is reused unchanged; the hook
+only needs to forward the combined list.
+
+## `build_data["sbom_files"]` API
+
+Hatchling 1.16.0 introduced native PEP 770 support.  The wheel builder
+initialises `build_data["sbom_files"]` as an empty list and, after all hook
+`initialize()` calls complete, copies every path in the list into
+`.dist-info/sboms/<basename>` inside the wheel.
+
+`initialize()` uses `build_data.setdefault("sbom_files", []).append(...)` so
+that it is safe to call even if another hook or plugin has already added
+entries to the list.
 
 ## Interaction diagram
 
@@ -216,18 +223,15 @@ Developer runs:
          │
          ├─── LoomBuildHook.initialize()
          │       │
-         │       ├── generate_sbom(project_dir)
-         │       │       │
-         │       │       ├── extract_metadata_from_pyproject()
-         │       │       ├── merge loom.bom fragments (if configured)
-         │       │       └── Spdx3JsonExporter.to_json()
-         │       │
-         │       └── stage sbom.spdx3.json → TemporaryDirectory
-         │               └── build_data["extra_metadata"]
-         │                      ["sboms/sbom.spdx3.json"] = staged path
+         │       ├── read_pyproject(project_dir)
+         │       ├── assemble_spdx3(DocumentModel)
+         │       ├── merge_fragments(all_fragments)
+         │       ├── exporter.to_json()
+         │       ├── write staged SBOM → TemporaryDirectory
+         │       └── build_data["sbom_files"].append(staged_path)
          │
          ├─── Hatchling packages wheel
-         │       └── includes .dist-info/sboms/sbom.spdx3.json  ← PEP 770
+         │       └── copies sbom_files → .dist-info/sboms/  ← PEP 770
          │
          └─── LoomBuildHook.finalize()
                  └── TemporaryDirectory.cleanup()
@@ -249,28 +253,31 @@ Output:
 src/loom/
 └── plugins/
     ├── __init__.py
-    └── hatch.py            ← LoomBuildHook
+    └── hatch.py            ← LoomBuildHook + hatch_register_build_hook()
 tests/
+├── fixtures/
+│   └── sampleproject/      ← minimal wheel-build fixture
+│       ├── pyproject.toml
+│       ├── src/sampleproject/__init__.py
+│       └── README.md
 └── test_hatch_hook.py
 ```
 
 ### Changes to Loom's `pyproject.toml`
 
-Add the entry point so Hatchling can discover the plugin:
+Register the plugin via pluggy entry point:
 
 ```toml
-[project.entry-points."hatch.build.hook"]
-loom = "loom.plugins.hatch:LoomBuildHook"
+[project.entry-points."hatch"]
+loom = "loom.plugins.hatch"
 ```
 
-Add `hatchling` as a runtime dependency (needed in the hook code):
+Require Hatchling 1.16.0+ for native `sbom_files` support:
 
 ```toml
 dependencies = [
-    "hatchling",
-    "pyproject-metadata>=0.10.0",
-    "spdx-python-model>=0.0.4",
-    "tomli>=2.0.0; python_version<'3.11'",
+    "hatchling>=1.16.0",
+    ...
 ]
 ```
 
@@ -278,24 +285,20 @@ dependencies = [
 
 | Test | Description |
 | :--- | :--- |
-| `test_hook_initialize_adds_extra_metadata` | Calls `initialize()` and asserts `build_data["extra_metadata"]` contains the expected key. |
-| `test_hook_finalize_cleans_up` | Asserts temp files are removed after `finalize()`. |
-| `test_hook_disabled_skips_generation` | Sets `enabled = false` in config; asserts no key in `build_data`. |
-| `test_hook_with_fragments` | Provides a valid fragment file; asserts it is merged in the output. |
+| `test_hook_initialize_stages_sbom` | Calls `initialize()` and asserts the staged SBOM path exists and is non-empty. |
+| `test_hook_sbom_is_valid_json` | Asserts the staged SBOM is valid JSON-LD with `@context` and `@graph`. |
+| `test_hook_creator_name_propagated` | Sets `creator-name` in config; asserts it appears in `@graph`. |
+| `test_hook_custom_basename_stored` | Sets `sbom-basename`; asserts `_sbom_filename` and staged path name match. |
+| `test_hook_disabled_skips_generation` | Sets `enabled = false`; asserts no staging path and no `sbom_files` entry. |
+| `test_hook_finalize_cleans_up` | Asserts temp directory and paths are cleared after `finalize()`. |
+| `test_hook_finalize_idempotent` | Calls `finalize()` twice; asserts no exception on the second call. |
+| `test_hook_sbom_files_populated` | Asserts `build_data["sbom_files"]` is populated with the staged path after `initialize()`. |
+| `test_hook_sbom_files_custom_basename` | Asserts `sbom-basename` config is reflected in the filename in `sbom_files`. |
+| `test_hook_sbom_files_appended_to_existing` | Pre-populates `sbom_files`; asserts `initialize()` appends rather than replaces. |
+| `test_hook_with_loom_fragments` | Provides a valid fragment; asserts its content is merged into the SBOM. |
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
-| `test_pep770_path_format` | Asserts the key in `extra_metadata` is `"sboms/sbom.spdx3.json"`. |
-
-## Open questions
-
-- Hatchling's `extra_metadata` API is not yet widely documented for
-  placing files in nested subdirectories inside `.dist-info/`. Verify with
-  a real `hatch build` before finalising implementation.
-  The `finalize()` fallback (injecting directly into the wheel zip) should
-  be implemented as a safety net if `extra_metadata` does not support
-  subdirectory nesting.
-- PEP 770 does not yet specify whether multiple SBOM files (e.g., one per
-  format) are permitted or whether a single canonical file is expected.
-  Design the filename config option to be forward-compatible.
+| `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject` fixture; asserts package name appears in SBOM. |
+| `test_hook_invalid_config_raises_before_io` | Passes bad config; asserts `ValueError` is raised before any filesystem access. |
 
 ## References
 

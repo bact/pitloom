@@ -130,11 +130,15 @@ Enable the hook by adding a section to your `pyproject.toml`:
 [tool.hatch.build.hooks.loom]
 # All fields are optional. Defaults are shown.
 enabled = true
-filename = "sbom.spdx3.json"
+sbom-basename = ""      # name part only (no extension); default "sbom"
 creator-name = ""       # defaults to "Loom"
 creator-email = ""
 fragments = []          # extra SPDX fragment paths (relative to project root)
 ```
+
+The full SBOM filename is `{sbom-basename}.spdx3.json` — e.g., the default
+produces `sbom.spdx3.json`.  Setting `sbom-basename = "mypackage-1.0"` would
+produce `mypackage-1.0.spdx3.json`.
 
 That is all. Running `hatch build` or `python -m build` will now generate and
 embed the SBOM automatically — no extra commands needed.
@@ -273,14 +277,20 @@ loom/
 │       ├── extract/             # Layer 1 — read from sources
 │       │   ├── ai_model.py      # AI model file extractor (GGUF, ONNX, Safetensors)
 │       │   └── pyproject.py     # pyproject.toml extractor
+│       ├── plugins/
+│       │   ├── __init__.py
+│       │   └── hatch.py         # Hatchling build hook (PEP 770)
 │       ├── __about__.py
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point
 │       └── bom.py               # ML tracking SDK
 ├── tests/
+│   ├── fixtures/
+│   │   └── sampleproject/       # minimal wheel-build fixture
 │   ├── test_ai_model_extractor.py
 │   ├── test_bom.py
 │   ├── test_generator.py
+│   ├── test_hatch_hook.py
 │   ├── test_metadata.py
 │   ├── test_models.py
 │   ├── test_provenance.py
@@ -321,7 +331,7 @@ python -m build
   — see [design doc](docs/design/format-neutral-representation.md))
 - [ ] Build log extraction for compiled dependencies
 - [x] AI/ML package profiles (AIPackage, DatasetPackage)
-- [ ] PEP 770 support (.dist-info/sboms)
+- [x] PEP 770 support (.dist-info/sboms via `build_data["sbom_files"]`)
 - [ ] PEP 740 attestation support
 - [ ] Rust backend for performance optimization
 

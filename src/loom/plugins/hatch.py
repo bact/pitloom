@@ -103,7 +103,8 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         self._sbom_filename = sbom_filename
         # Not used as a context manager: the directory must outlive initialize()
         # and be cleaned up in finalize() after the wheel is packaged.
-        self._staging_dir = tempfile.TemporaryDirectory()  # noqa: SIM115  # pylint: disable=consider-using-with
+        # pylint: disable=consider-using-with
+        self._staging_dir = tempfile.TemporaryDirectory()  # noqa: SIM115
         self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
         self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
 
