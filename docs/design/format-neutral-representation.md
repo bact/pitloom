@@ -83,11 +83,11 @@ library, making them easy to test and to target from any serializer.
 
 To add a CycloneDX serializer, for example:
 
-1. Create `loom/generators/cyclonedx.py`.
-2. Write `build_cyclonedx(doc: DocumentModel) -> str` that reads
-   `doc.project`, `doc.creation`, and `doc.ai_models`.
+1. Create `loom/assemble/cyclonedx/` subpackage.
+2. Write `build(doc: DocumentModel) -> str` that reads `doc.project`,
+   `doc.creation`, and `doc.ai_models`.
 3. Add a `--format` flag to the CLI that selects the assembler.
-4. No changes needed to extractors or `DocumentModel`.
+4. No changes needed to `loom.extract` or `loom.core`.
 
 ## Protobom evaluation
 

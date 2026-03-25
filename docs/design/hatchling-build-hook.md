@@ -87,7 +87,7 @@ from typing import Any
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-from loom.generators import generate_sbom
+from loom.assemble import generate_sbom
 
 log = logging.getLogger(__name__)
 

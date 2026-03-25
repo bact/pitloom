@@ -11,7 +11,7 @@ from pathlib import Path
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from loom.exporters.spdx3_json import Spdx3JsonExporter
+from loom.export.spdx3_json import Spdx3JsonExporter
 
 log = logging.getLogger(__name__)
 

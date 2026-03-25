@@ -12,8 +12,8 @@ import traceback
 from pathlib import Path
 
 from loom.__about__ import __version__
+from loom.assemble import generate_sbom
 from loom.core.creation import CreationMetadata
-from loom.generators import generate_sbom
 
 
 def main() -> int:

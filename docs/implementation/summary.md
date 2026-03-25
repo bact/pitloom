@@ -4,9 +4,9 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Loom SBOM Generator - Implementation Summary
+# Loom SBOM generator - implementation summary
 
-## Project Overview
+## Project overview
 
 Successfully implemented a complete, production-ready prototype of an SBOM
 (Software Bill of Materials) generator for Python projects using Hatchling as
@@ -17,37 +17,37 @@ in JSON-LD format.
 
 ### ✅ Core functionality
 
-1. **SPDX 3.0 Data Models** (`spdx-python-model`)
+1. **SPDX 3.0 data models** (`spdx-python-model`)
    - Fully migrated to the official `spdx-python-model` library
    - Proper JSON-LD serialization and validation
    - UUID-based unique SPDX IDs generated via `loom.core.models` generator
 
-2. **Metadata Extraction** (`src/loom/extractors/pyproject.py`)
+2. **Metadata extraction** (`src/loom/extract/pyproject.py`)
    - Reads pyproject.toml files
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
    - Returns `(ProjectMetadata, LoomConfig)` tuple
 
-3. **SPDX 3 Exporter** (`src/loom/exporters/spdx3_json.py`)
+3. **SPDX 3 exporter** (`src/loom/export/spdx3_json.py`)
    - JSON-LD output using official bindings and SHACLObjectSet
    - Clean API for building SPDX documents and adding elements
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
-4. **SBOM Generator** (`src/loom/generators/`)
+4. **SBOM generator** (`src/loom/assemble/`)
    - `generate_sbom()` orchestrates the full pipeline
    - Builds `DocumentModel` from extracted metadata
-   - Passes `DocumentModel` to `build_spdx3()` assembler
+   - Passes `DocumentModel` to `build()` assembler in `assemble/spdx3/`
    - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
-5. **Command-Line Interface** (`src/loom/__main__.py`)
+5. **Command-line interface** (`src/loom/__main__.py`)
    - User-friendly argparse-based CLI
    - Customizable output path
    - Creator information options
    - Clear error messages
 
-6. **Metadata Provenance Tracking** (`src/loom/extractors/pyproject.py`,
+6. **Metadata provenance tracking** (`src/loom/extract/pyproject.py`,
    `src/loom/bom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
@@ -55,28 +55,28 @@ in JSON-LD format.
    - Uses SPDX 3 comment attribute
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
-7. **ML Tracking SDK** (`src/loom/bom.py`)
+7. **ML tracking SDK** (`src/loom/bom.py`)
    - Dual-syntax ContextDecorator (`@bom.track` and `with bom.track`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
    - Seamlessly ingested into project SBOMs using `[tool.loom.fragments]` config
 
-### ✅ Testing (Comprehensive coverage - All Passing)
+### ✅ Testing (comprehensive coverage - all passing)
 
-1. **Model & Provenance Tests**
+1. **Model & provenance tests**
    - SPDX ID generation
    - CreationMetadata serialization and provenance tracking
    - `spdx-python-model` validation
 
-2. **Metadata Extraction Tests**
+2. **Metadata extraction tests**
    - Basic metadata extraction and generic fragment paths
    - Error handling for missing files
    - Dynamic and build-time version extraction via `importlib.metadata`
 
-3. **Generator Integration Tests**
+3. **Generator integration tests**
    - End-to-end SBOM generation
    - Generic fragment merging via Deserialization
 
-4. **SDK Tracker Tests**
+4. **SDK tracker tests**
    - `test_bom.py` verifies both Decorator and Context Manager tracking
    - Asserts caller-inspection relative path generation
 
@@ -84,9 +84,9 @@ in JSON-LD format.
 
 - **Linting**: All Ruff checks pass
 - **Security**: CodeQL scan with 0 alerts
-- **Type Hints**: Comprehensive type annotations throughout
+- **Type hints**: Comprehensive type annotations throughout
 - **Documentation**: Inline docstrings for all public APIs
-- **Code Review**: All feedback addressed
+- **Code review**: All feedback addressed
 
 ### ✅ Documentation
 
@@ -118,14 +118,14 @@ SBOM written to: sbom.spdx3.json
 
 ### Captured information
 
-**Main Package:**
+**Main package:**
 
 - Name: sentimentdemo
 - Version: 0.0.2 (dynamically extracted)
 - Download: <https://github.com/bact/sentimentdemo>
 - Description: Full description preserved
 
-**Dependencies (All Captured Correctly):**
+**Dependencies (all captured correctly):**
 
 - fasttext: 0.9.3
 - newmm-tokenizer: 0.2.2
@@ -134,29 +134,30 @@ SBOM written to: sbom.spdx3.json
 
 ## Technical achievements
 
-### 1. Clean Architecture
+### 1. Clean architecture
 
 ```text
 src/loom/
-├── core/           # Format-neutral data models (no SBOM lib dependencies)
+├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
+│   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
+│   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
+│   │   ├── deps.py      # Dependency element assembly
+│   │   └── fragments.py # Fragment merging
+│   └── __init__.py      # generate_sbom() orchestrator
+├── core/                # Format-neutral data models (no SBOM lib dependencies)
 │   ├── ai_metadata.py   # AiModelMetadata, ModelFormat
 │   ├── config.py        # LoomConfig ([tool.loom] settings)
 │   ├── creation.py      # CreationMetadata
 │   ├── document.py      # DocumentModel (assembled document)
 │   ├── models.py        # SPDX ID generation utilities
 │   └── project.py       # ProjectMetadata
-├── extractors/     # Metadata extraction from data sources
+├── export/              # Layer 4 — serialise to physical format
+│   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
+├── extract/             # Layer 1 — read from sources
 │   ├── ai_model.py      # AI model file extractor (ONNX, Safetensors, GGUF)
 │   └── pyproject.py     # pyproject.toml extractor
-├── exporters/      # SPDX format serialization
-│   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-├── generators/     # Assemblers and orchestration
-│   ├── __init__.py      # generate_sbom() orchestrator
-│   ├── dependencies.py  # Dependency element assembly
-│   ├── fragments.py     # Fragment merging
-│   └── spdx3_assembler.py # build_spdx3(DocumentModel) → Spdx3JsonExporter
-├── bom.py          # ML tracking SDK
-└── __main__.py     # CLI entry point
+├── __main__.py          # CLI entry point
+└── bom.py               # ML tracking SDK
 ```
 
 ### 2. Extensible Design
@@ -176,7 +177,7 @@ src/loom/
 ## Comparison with reference SBOM
 
 | Feature | Reference SBOM | Loom Generated | Status |
-|---------|----------------|----------------|--------|
+| ------- | -------------- | -------------- | ------ |
 | SPDX 3.0 Structure | ✅ | ✅ | ✅ Complete |
 | Package Metadata | ✅ | ✅ | ✅ Complete |
 | Dependencies | ✅ | ✅ | ✅ Complete |
@@ -272,11 +273,11 @@ Based on the design document and problem requirements:
    - Store SBOMs in .dist-info/sboms
    - Wheel integration
 
-3. **PEP 740 Attestations**
+2. **PEP 740 Attestations**
    - Cryptographic signing
    - Provenance tracking
 
-4. **Performance Optimization**
+3. **Performance Optimization**
    - Rust backend for log parsing
    - Large project optimization
    - Parallel processing

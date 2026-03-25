@@ -11,7 +11,7 @@ The files are committed to the repository because they are small enough
 (all under 5 MB) and stable enough to serve as reliable test inputs.
 
 Each fixture is used by a corresponding `scope="module"` pytest fixture in
-[tests/test_model_extractor.py](../test_model_extractor.py) which calls
+[tests/test_ai_model_extractor.py](../test_ai_model_extractor.py) which calls
 `pytest.importorskip` for the required library, so tests are automatically
 skipped when the optional dependency is not installed.
 

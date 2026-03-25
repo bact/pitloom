@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from loom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from loom.extractors.ai_model import (
+from loom.extract.ai_model import (
     detect_ai_model_format,
     read_ai_model,
     read_gguf,

@@ -12,7 +12,7 @@ from importlib.metadata import version as get_package_version
 from spdx_python_model import v3_0_1 as spdx3
 
 from loom.core.models import generate_spdx_id
-from loom.exporters.spdx3_json import Spdx3JsonExporter
+from loom.export.spdx3_json import Spdx3JsonExporter
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
 # avoid splitting on a prefix of a multi-character operator (e.g. "==" before "=").

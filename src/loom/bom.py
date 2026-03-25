@@ -14,7 +14,7 @@ from uuid import uuid4
 from spdx_python_model import v3_0_1 as spdx3
 
 from loom.core.models import generate_spdx_id
-from loom.exporters.spdx3_json import Spdx3JsonExporter
+from loom.export.spdx3_json import Spdx3JsonExporter
 
 
 def _get_caller_info() -> str:

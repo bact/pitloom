@@ -13,9 +13,10 @@ from dataclasses import dataclass, field
 class ProjectMetadata:
     """Format-neutral representation of project metadata with provenance tracking.
 
-    This dataclass is the common currency between extractors and generators.
-    It carries no knowledge of how the data was obtained; any extractor
-    (``pyproject.toml``, ``setup.cfg``, build logs, …) can populate it.
+    This dataclass is the common currency between the extract and assemble
+    layers.  It carries no knowledge of how the data was obtained; any
+    extractor (``pyproject.toml``, ``setup.cfg``, build logs, …) can
+    populate it.
 
     Provenance is recorded per-field in :attr:`provenance` using the pattern
     ``"Source: <location> | Field: <key>"`` or
@@ -24,7 +25,7 @@ class ProjectMetadata:
     Loom tool settings such as ``fragments`` and ``pretty`` are **not** stored
     here; they live in :class:`~loom.core.config.LoomConfig` which is returned
     alongside this object by
-    :func:`~loom.extractors.pyproject.read_pyproject`.
+    :func:`~loom.extract.pyproject.read_pyproject`.
     """
 
     name: str

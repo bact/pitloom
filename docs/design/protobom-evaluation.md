@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Protobom evaluation for format-neutral representation
 
-This report evaluates **Protobom** as the primary universal, format-neutral 
+This report evaluates **Protobom** as the primary universal, format-neutral
 representation for Loom's core orchestration layer. Our specific focus is
 regarding the ability to generate AI SBOMs at pre-build/build time and
 preserving provenance for AI models and datasets natively.
@@ -60,10 +60,10 @@ profiles.
 ### The missing `NodeType` issue
 
 Protobom defines elements via a strict `NodeType` enum (e.g., `BOM`,
-`BUILD_SYSTEM`, `DOCUMENTATION`, `FILE`). 
+`BUILD_SYSTEM`, `DOCUMENTATION`, `FILE`).
 
 Currently, the Protobom schema **does not possess native node classifications
-for AI/ML domains**. 
+for AI/ML domains**.
 
 - There is no `NodeType.AI_MODEL` equivalent to `spdx3.ai_AIPackage`.
 - There is no `NodeType.DATASET` equivalent to `spdx3.dataset_DatasetPackage`.
@@ -71,7 +71,7 @@ for AI/ML domains**.
 ### The missing relationships
 
 SPDX 3 AI profiles introduce specialized semantic relationships such as
-`trainedOn`, `hasDataFile`, or `finetunedFrom`. 
+`trainedOn`, `hasDataFile`, or `finetunedFrom`.
 Protobom's `EdgeType` primitive focuses on traditional software supply chain
 links (e.g., `DEPENDS_ON`, `CONTAINS`, `STATIC_LINK`).
 

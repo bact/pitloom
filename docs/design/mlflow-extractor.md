@@ -8,7 +8,7 @@ SPDX-FileType: DOCUMENTATION
 
 ## Overview
 
-This document describes the design of `loom.extractors.mlflow`, a module that
+This document describes the design of `loom.extract.mlflow`, a module that
 reads a completed or active MLflow run and converts its tags, parameters, and
 metrics into an SPDX 3 AI BOM fragment.
 
@@ -360,7 +360,7 @@ def _build_spdx_fragment(metadata: MlflowRunMetadata) -> str:
     from spdx_python_model import v3_0_1 as spdx3
 
     from loom.core.models import generate_spdx_id
-    from loom.exporters.spdx3_json import Spdx3JsonExporter
+    from loom.export.spdx3_json import Spdx3JsonExporter
 
     doc_uuid = str(uuid4())
     creation_info = spdx3.CreationInfo(
@@ -472,7 +472,7 @@ def from_mlflow_run(
     """Generate an SPDX fragment from an MLflow run and write it to a file.
 
     This is a convenience wrapper around
-    :func:`loom.extractors.mlflow.extract_from_mlflow_run`.
+    :func:`loom.extract.mlflow.extract_from_mlflow_run`.
 
     Args:
         run_id: The MLflow run UUID to read.
@@ -480,7 +480,7 @@ def from_mlflow_run(
         tracking_uri: Optional MLflow tracking server URI.
         model_name: Override the SBOM package name.
     """
-    from loom.extractors.mlflow import extract_from_mlflow_run  # noqa: PLC0415
+    from loom.extract.mlflow import extract_from_mlflow_run  # noqa: PLC0415
 
     extract_from_mlflow_run(
         run_id=run_id,

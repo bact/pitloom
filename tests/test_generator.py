@@ -11,10 +11,10 @@ from pathlib import Path
 
 from spdx_python_model import v3_0_1 as spdx3
 
+from loom.assemble import generate_sbom
 from loom.core.creation import CreationMetadata
 from loom.core.models import generate_spdx_id
-from loom.exporters.spdx3_json import Spdx3JsonExporter
-from loom.generators import generate_sbom
+from loom.export.spdx3_json import Spdx3JsonExporter
 
 
 def test_generate_sbom_basic() -> None:

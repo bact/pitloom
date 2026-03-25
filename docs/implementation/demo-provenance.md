@@ -158,14 +158,14 @@ Dependencies were extracted from the `project.dependencies` field in `pyproject.
 
 **Question**: "Where did this specific AI Model or Dataset originate?"
 
-**Answer**: Check the provenance embedded dynamically by the `loom.bom` 
+**Answer**: Check the provenance embedded dynamically by the `loom.bom`
 tracking SDK when generating fragments:
 
 ```text
 comment: Metadata provenance: package: Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: evaluate)
 ```
 
-Loom inherently uses Python's `inspect` module at runtime to identify 
+Loom inherently uses Python's `inspect` module at runtime to identify
 exactly which file and function produced the metric.
 
 ## Benefits
@@ -191,7 +191,8 @@ Source: [location] | Method: [method_name]
 - **Static extraction**: `Source: pyproject.toml | Field: project.name`
 - **Dynamic extraction**: `Source: src/pkg/__about__.py | Method:...`
 - **Inferred data**: `Source: Loom generator | Method: inferred_from_authors`
-- **Tracking SDK**: `Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: eval)`
+- **Tracking SDK**:
+  `Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: eval)`
 - **External tool**: `Source: licensee tool | Method: license_detection`
 
 ## Advanced: Custom provenance parser

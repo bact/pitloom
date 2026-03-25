@@ -181,36 +181,37 @@ the development environment mirrors production (Ghadge 2025).
 
 ```text
 loom/
-├── pyproject.toml          # Unified configuration (Hatchling)
-├── README.md               # Project documentation
-├── LICENSE                 # Software license
+├── .github/workflows/           # CI/CD pipeline definitions
 ├── src/
 │   └── loom/
+│       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
+│       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
+│       │   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
+│       │   │   ├── deps.py      # dependency element assembly
+│       │   │   └── fragments.py # pre-generated fragment merging
+│       │   └── __init__.py      # generate_sbom() public API
+│       ├── core/                # Format-neutral data models (no SBOM lib deps)
+│       │   ├── ai_metadata.py   # AiModelMetadata, ModelFormat
+│       │   ├── config.py        # LoomConfig ([tool.loom] settings)
+│       │   ├── creation.py      # CreationMetadata (SBOM creator / timestamp)
+│       │   ├── document.py      # DocumentModel (assembled, pre-serialization)
+│       │   ├── models.py        # SPDX ID generation utilities
+│       │   └── project.py       # ProjectMetadata
+│       ├── export/              # Layer 4 — serialise to physical format
+│       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
+│       ├── extract/             # Layer 1 — read data from sources
+│       │   ├── ai_model.py      # AI model files → AiModelMetadata
+│       │   ├── mlflow.py        # MLflow run → SPDX AI fragment [planned]
+│       │   └── pyproject.py     # pyproject.toml → ProjectMetadata
+│       ├── plugins/             # Build system integrations [planned]
+│       │   └── hatch.py         # Hatchling BuildHookInterface [planned]
 │       ├── __init__.py
-│       ├── __main__.py         # CLI entry point (argparse)
-│       ├── bom.py              # ML tracking SDK (Track context manager)
-│       ├── core/               # Format-neutral data models (no SBOM lib deps)
-│       │   ├── ai_metadata.py  # AiModelMetadata, ModelFormat
-│       │   ├── config.py       # LoomConfig ([tool.loom] settings)
-│       │   ├── creation.py     # CreationMetadata (SBOM creator / timestamp)
-│       │   ├── document.py     # DocumentModel (assembled, pre-serialization)
-│       │   ├── models.py       # SPDX ID generation utilities
-│       │   └── project.py      # ProjectMetadata
-│       ├── extractors/         # Domain-specific data collection
-│       │   ├── ai_model.py     # AI model files → AiModelMetadata
-│       │   ├── mlflow.py       # MLflow run → SPDX AI fragment [planned]
-│       │   └── pyproject.py    # pyproject.toml parser → ProjectMetadata
-│       ├── generators/         # Orchestration and SPDX 3 assembly
-│       │   ├── __init__.py     # generate_sbom() public API
-│       │   ├── dependencies.py # dependency element assembly
-│       │   ├── fragments.py    # pre-generated fragment merging
-│       │   └── spdx3_assembler.py # build_spdx3(DocumentModel) → Spdx3JsonExporter
-│       ├── plugins/            # Build system integrations
-│       │   └── hatch.py        # Hatchling BuildHookInterface [planned]
-│       └── exporters/          # Format-specific writers
-│           └── spdx3_json.py   # SPDX 3 JSON-LD serializer
-├── tests/                      # Pytest-based testing suite
-└── .github/workflows/          # CI/CD pipeline definitions
+│       ├── __main__.py          # CLI entry point (argparse)
+│       └── bom.py               # ML tracking SDK (Track context manager)
+├── tests/                       # Pytest-based testing suite
+├── LICENSE                      # Software license
+├── README.md                    # Project documentation
+└── pyproject.toml               # Unified configuration (Hatchling)
 ```
 
 ## Integration with the SCA pipeline and DevOps ecosystem
@@ -245,7 +246,7 @@ inside the wheel archive. Downstream tools (Trivy, Grype, pip-audit) can
 discover and consume the SBOM without any separate distribution step.
 Implemented as part of the Hatchling build hook.
 
-#### 3. MLflow run extractor (`loom.extractors.mlflow`)
+#### 3. MLflow run extractor (`loom.extract.mlflow`)
 
 Reads a completed MLflow run and maps its tags, parameters, and metrics
 to an SPDX 3 AI BOM fragment. Uses
@@ -274,7 +275,7 @@ DocumentModel(
 
 Serialization
 ─────────────
-build_spdx3(doc: DocumentModel)        → Spdx3JsonExporter → JSON-LD
+build(doc: DocumentModel)              → Spdx3JsonExporter → JSON-LD
 merge_fragments(loom_config.fragments) → (inlined into exporter)
 exporter.to_json(pretty=...)           → SBOM string / file
 ```
@@ -287,14 +288,14 @@ Training time
 mlflow.set_tag(stav.MODEL_TYPE, "transformer")
 mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
 → bom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
-        └── loom.extractors.mlflow → SPDX AI fragment [planned]
+        └── loom.extract.mlflow → SPDX AI fragment [planned]
 
 Build time (zero extra commands)
 ─────────────────────────────────
 hatch build  /  python -m build
   └── LoomBuildHook.initialize()                           [planned]
         ├── generate_sbom()          (reads pyproject.toml)
-        │     └── DocumentModel → build_spdx3() → Spdx3JsonExporter
+        │     └── DocumentModel → build() → Spdx3JsonExporter
         ├── merge fragments/run.spdx3.json    (AI provenance)
         └── → .dist-info/sboms/sbom.spdx3.json  ← PEP 770
 

@@ -2,4 +2,4 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Metadata extractors for different build systems."""
+"""Extractors for reading metadata from various data sources."""
