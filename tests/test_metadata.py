@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from loom.extractors.metadata import extract_metadata_from_pyproject
+from loom.extractors.pyproject import read_pyproject
 
 
 def test_extract_metadata_basic() -> None:
@@ -39,7 +39,7 @@ Source = "https://github.com/test/test-package"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        metadata = extract_metadata_from_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
 
         assert metadata.name == "test-package"
         assert metadata.version == "1.0.0"
@@ -64,7 +64,7 @@ def test_extract_metadata_missing_file() -> None:
         pyproject_path = tmppath / "pyproject.toml"
 
         with pytest.raises(FileNotFoundError):
-            extract_metadata_from_pyproject(pyproject_path)
+            read_pyproject(pyproject_path)
 
 
 def test_extract_metadata_missing_project_section() -> None:
@@ -81,7 +81,7 @@ build-backend = "hatchling.build"
         pyproject_path.write_text(pyproject_content)
 
         with pytest.raises(ValueError, match="No \\[project\\] section found"):
-            extract_metadata_from_pyproject(pyproject_path)
+            read_pyproject(pyproject_path)
 
 
 def test_extract_metadata_missing_name() -> None:
@@ -98,7 +98,7 @@ description = "A test package"
         pyproject_path.write_text(pyproject_content)
 
         with pytest.raises(ValueError, match="Project name is required"):
-            extract_metadata_from_pyproject(pyproject_path)
+            read_pyproject(pyproject_path)
 
 
 def test_extract_metadata_dynamic_version() -> None:
@@ -123,7 +123,7 @@ description = "A test package"
         about_path = src_dir / "__about__.py"
         about_path.write_text(about_content)
 
-        metadata = extract_metadata_from_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
 
         assert metadata.name == "test-package"
         assert metadata.version == "2.0.0"

@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for AI model metadata from model files.
+"""Extractor for model metadata from AI model files.
 
 Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
 
@@ -14,63 +14,20 @@ Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
-
-class ModelFormat(str, Enum):
-    """Supported AI model file formats."""
-
-    UNKNOWN = "unknown"
-    GGUF = "gguf"
-    ONNX = "onnx"
-    SAFETENSORS = "safetensors"
-
+from loom.core.ai_metadata import AiModelFormat, AiModelMetadata
 
 # File extension to format mapping
-_EXTENSION_TO_FORMAT: dict[str, ModelFormat] = {
-    ".gguf": ModelFormat.GGUF,
-    ".onnx": ModelFormat.ONNX,
-    ".safetensors": ModelFormat.SAFETENSORS,
+_EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
+    ".gguf": AiModelFormat.GGUF,
+    ".onnx": AiModelFormat.ONNX,
+    ".safetensors": AiModelFormat.SAFETENSORS,
 }
 
 
-@dataclass
-class ModelMetadata:
-    """Metadata extracted from an AI model file.
-
-    Fields align with the SPDX 3.0 AI profile where applicable.
-    See: https://spdx.github.io/spdx-spec/v3.0.1/model/AI/Classes/AIPackage/
-    """
-
-    format: ModelFormat = ModelFormat.UNKNOWN
-
-    # Core identification (maps to SPDX Core: name, description)
-    name: str | None = None
-    description: str | None = None
-    version: str | None = None
-    license: str | None = None  # SPDX license expression if available
-
-    # SPDX AI profile: typeOfModel (e.g. "neural network", "transformer")
-    type_of_model: str | None = None
-
-    # SPDX AI profile: hyperparameter — model configuration values
-    hyperparameters: dict[str, Any] = field(default_factory=dict)
-
-    # Format-specific key/value metadata (e.g. ONNX metadata_props, GGUF general.*)
-    properties: dict[str, str] = field(default_factory=dict)
-
-    # Input and output tensor specifications
-    inputs: list[dict[str, Any]] = field(default_factory=list)
-    outputs: list[dict[str, Any]] = field(default_factory=list)
-
-    # Provenance tracking: field name -> source description
-    provenance: dict[str, str] = field(default_factory=dict)
-
-
-def detect_model_format(model_path: Path) -> ModelFormat:
+def detect_ai_model_format(model_path: Path) -> AiModelFormat:
     """Detect model file format from its extension.
 
     The detection is based on the file extension (case-insensitive).
@@ -82,17 +39,17 @@ def detect_model_format(model_path: Path) -> ModelFormat:
     Returns:
         ModelFormat matching the file extension, or ModelFormat.UNKNOWN.
     """
-    return _EXTENSION_TO_FORMAT.get(model_path.suffix.lower(), ModelFormat.UNKNOWN)
+    return _EXTENSION_TO_FORMAT.get(model_path.suffix.lower(), AiModelFormat.UNKNOWN)
 
 
-def extract_metadata_from_model(model_path: Path) -> ModelMetadata:
+def read_ai_model(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an AI model file, dispatching by format.
 
     Args:
         model_path: Path to the model file.
 
     Returns:
-        ModelMetadata populated with available fields.
+        AiModelMetadata populated with available fields.
 
     Raises:
         FileNotFoundError: If the model file does not exist.
@@ -101,14 +58,14 @@ def extract_metadata_from_model(model_path: Path) -> ModelMetadata:
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
-    fmt = detect_model_format(model_path)
+    fmt = detect_ai_model_format(model_path)
 
-    if fmt == ModelFormat.GGUF:
-        return extract_metadata_from_gguf(model_path)
-    if fmt == ModelFormat.ONNX:
-        return extract_metadata_from_onnx(model_path)
-    if fmt == ModelFormat.SAFETENSORS:
-        return extract_metadata_from_safetensors(model_path)
+    if fmt == AiModelFormat.GGUF:
+        return read_gguf(model_path)
+    if fmt == AiModelFormat.ONNX:
+        return read_onnx(model_path)
+    if fmt == AiModelFormat.SAFETENSORS:
+        return read_safetensors(model_path)
 
     raise ValueError(
         f"Unsupported model format for file: {model_path}. "
@@ -140,7 +97,7 @@ _GGUF_HYPERPARAM_SUFFIXES = (
 )
 
 
-def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
+def read_gguf(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a GGUF model file.
 
     Requires the ``gguf`` package (``pip install gguf``).
@@ -154,7 +111,7 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
         model_path: Path to a ``.gguf`` file.
 
     Returns:
-        ModelMetadata with available fields populated.
+        AiModelMetadata with available fields populated.
 
     Raises:
         ImportError: If ``gguf`` is not installed.
@@ -236,8 +193,8 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
     if properties:
         provenance["properties"] = f"{source} | Fields: general.* and other GGUF keys"
 
-    return ModelMetadata(
-        format=ModelFormat.GGUF,
+    return AiModelMetadata(
+        format=AiModelFormat.GGUF,
         name=name,
         description=description,
         version=version,
@@ -253,7 +210,7 @@ def extract_metadata_from_gguf(model_path: Path) -> ModelMetadata:
 # ---------------------------------------------------------------------------
 
 
-def extract_metadata_from_onnx(model_path: Path) -> ModelMetadata:
+def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
 
     Requires the ``onnx`` package (``pip install onnx``).
@@ -270,7 +227,7 @@ def extract_metadata_from_onnx(model_path: Path) -> ModelMetadata:
         model_path: Path to a ``.onnx`` file.
 
     Returns:
-        ModelMetadata with available fields populated.
+        AiModelMetadata with available fields populated.
 
     Raises:
         ImportError: If ``onnx`` is not installed.
@@ -339,8 +296,8 @@ def extract_metadata_from_onnx(model_path: Path) -> ModelMetadata:
     if outputs:
         provenance["outputs"] = f"{source} | Field: graph.output"
 
-    return ModelMetadata(
-        format=ModelFormat.ONNX,
+    return AiModelMetadata(
+        format=AiModelFormat.ONNX,
         name=name,
         description=description,
         version=version,
@@ -380,7 +337,7 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
+def read_safetensors(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a Safetensors model file.
 
     Requires the ``safetensors`` package (``pip install safetensors``).
@@ -398,7 +355,7 @@ def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
         model_path: Path to a ``.safetensors`` file.
 
     Returns:
-        ModelMetadata with available fields populated.
+        AiModelMetadata with available fields populated.
 
     Raises:
         ImportError: If ``safetensors`` is not installed.
@@ -464,8 +421,8 @@ def extract_metadata_from_safetensors(model_path: Path) -> ModelMetadata:
     if inputs:
         provenance["inputs"] = f"{source} | Field: tensor keys (header only)"
 
-    return ModelMetadata(
-        format=ModelFormat.SAFETENSORS,
+    return AiModelMetadata(
+        format=AiModelFormat.SAFETENSORS,
         name=name,
         description=description,
         version=version,

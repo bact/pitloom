@@ -2,10 +2,12 @@
 
 ## Project context
 
-- SBOM generator targeting Python/Hatchling ecosystem, outputting SPDX 3.0 JSON-LD.
+- SBOM generator targeting Python/Hatchling ecosystem, outputting SPDX 3 JSON-LD.
 - Design documents: `docs/design/`
 - Implementation documents and progress reports: `docs/implementation/`
 - Test fixtures: `tests/fixtures/README.md`
+- This project is in private alpha stage with only one developer.
+  Do not worry about breaking changes or keeping backward compatibility yet.
 
 ## CLI output
 
@@ -90,6 +92,7 @@ ruff format
 - McCabe complexity must stay ≤ 10; refactor new code that exceeds this.
 - Cognitive complexity must stay ≤ 15; refactor new code that exceeds this.
 - Remove unused imports and trailing whitespace.
+- Code max line length = 88
 
 ## File headers
 
@@ -174,6 +177,7 @@ names, license, description, repository URL, keywords/tags (same order).
 - Metadata as YAML front matter between triple-dashed lines (Hugo/Jekyll style).
 - Use standard Markdown; avoid GitHub-specific extensions for portability.
 - Use `sentence case` for headings and titles.
+- Max line length = 80
 - Run Markdownlint to detect issues.
 
 ## HTML and CSS
@@ -191,7 +195,8 @@ names, license, description, repository URL, keywords/tags (same order).
 
 ## Writing style
 
-- American English spelling.
+- British English spelling for documentation, comments, and other text.
+- American English spelling only for code.
 - Active voice; concise sentences; no jargon or idioms.
 - Short comments — do not restate the obvious.
 - Consistent terminology throughout code and documentation.

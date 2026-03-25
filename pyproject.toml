@@ -83,6 +83,10 @@ exclude = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/loom"]
 
+[tool.loom]
+filename = "sbom.spdx3.json"
+pretty = true
+
 [tool.mypy]
 pretty = true
 python_version = "3.10"
@@ -95,10 +99,11 @@ strict_equality_for_none = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = "spdx_python_model.*"
 ignore_missing_imports = true
+module = "spdx_python_model.*"
 
 [tool.pylint.main]
+init-hook = "import sys; sys.path.insert(0, 'src')"  # for IDE's Pylint
 source-roots = ["src"]
 
 [tool.pylint.messages_control]
@@ -112,10 +117,11 @@ max-line-length = 88
 
 [tool.pylint.design]
 max-args = 8
-max-positional-arguments = 8
 max-attributes = 12
 max-branches = 25
-max-locals = 40
+max-locals = 20
+max-positional-arguments = 8
+max-public-methods = 20
 max-statements = 100
 
 [tool.pytest.ini_options]

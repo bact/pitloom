@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3.0 data models for representing software bill of materials."""
+"""SPDX 3 data models for representing software bill of materials."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _ID_COUNTERS: dict[str, int] = {}
 def generate_spdx_id(
     prefix: str, doc_name: str = "loom", doc_uuid: str | None = None
 ) -> str:
-    """Generate a unique SPDX ID with UUID following SPDX 3.0 best practices.
+    """Generate a unique SPDX ID with UUID following SPDX 3 best practices.
 
     Args:
         prefix: The prefix for the SPDX ID (e.g., 'Person', 'Package', 'File')

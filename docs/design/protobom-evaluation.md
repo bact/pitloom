@@ -32,7 +32,7 @@ differently:
 
 - **CycloneDX** historically relies heavily on a hierarchical
   **tree structure** (components nested inside components).
-- **SPDX 3.0** models logic entirely as a **semantic graph** leveraging
+- **SPDX 3** models logic entirely as a **semantic graph** leveraging
   JSON-LD, where every entity is a floating node mapped by directional edges.
 
 ### Evaluation
@@ -45,7 +45,7 @@ Its Protobuf schema is based on an **Edge List**:
   an explicit relationship type.
 
 **Conclusion:** This is highly advantageous for Loom. Because Protobom
-internally operates as a graph, it aligns perfectly with our SPDX 3.0-first
+internally operates as a graph, it aligns perfectly with our SPDX 3-first
 prototype. When translating Protobom's graph out to CycloneDX, the Protobom
 exporter library handles the complex flattening/nesting required to mimic
 a tree structure via external references. This effectively offloads the
@@ -54,7 +54,7 @@ topological complexity away from the Loom ecosystem.
 ## 3. Analytical focus: AI and dataset constraints
 
 The most significant risk of adopting Protobom revolves around
-**information loss** specifically concerning the SPDX 3.0 AI and Dataset
+**information loss** specifically concerning the SPDX 3 AI and Dataset
 profiles.
 
 ### The missing `NodeType` issue
@@ -70,7 +70,7 @@ for AI/ML domains**.
 
 ### The missing relationships
 
-SPDX 3.0 AI profiles introduce specialized semantic relationships such as
+SPDX 3 AI profiles introduce specialized semantic relationships such as
 `trainedOn`, `hasDataFile`, or `finetunedFrom`. 
 Protobom's `EdgeType` primitive focuses on traditional software supply chain
 links (e.g., `DEPENDS_ON`, `CONTAINS`, `STATIC_LINK`).
@@ -114,7 +114,7 @@ Protobom allows for injecting custom properties/key-values into its nodes.
   namespace and AI-specific enrichment strategies.
 - *Caution:* This guarantees extreme information loss when exporting to SPDX
   3.0, as standard Protobom exporters will not know how to map `loom:ai:`
-  strings back into the formal SPDX 3.0 `ai_AIPackage` class properties.
+  strings back into the formal SPDX 3 `ai_AIPackage` class properties.
 
 ### Option C: The hybrid dual-state architecture (recommended short-term)
 
@@ -126,7 +126,7 @@ hybrid architecture inside `loom.generator`.
   ingested into the `Protobom` universal graph.
 2. **AI fragments:** Data emitted strictly from `loom.bom` (datasets, models)
   bypass Protobom and are maintained natively in `spdx-python-model` classes.
-3. **Merge phase:** At export time, if the user targets SPDX 3.0, the Protobom
+3. **Merge phase:** At export time, if the user targets SPDX 3, the Protobom
   exporter runs. We then dynamically merge our native `run.model` graphs into
   the serialized JSON output before writing to disk.
 
@@ -134,7 +134,7 @@ hybrid architecture inside `loom.generator`.
 
 - **Protobom extensions (`google.protobuf.Any`):** Protocol Buffers natively
   support `Any` fields, allowing the embedding of arbitrary serialized protobuf
-  messages. The Protobom Python SDK exposes this, meaning an entire SPDX 3.0
+  messages. The Protobom Python SDK exposes this, meaning an entire SPDX 3
   `AIPackage` could be encapsulated. However, standard Protobom exporters
   (e.g., CycloneDX or SPDX serializers) don't inherentely know how to unpack or
   translate this custom payload. Data will remain an opaque binary blob in the

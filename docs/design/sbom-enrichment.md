@@ -138,7 +138,7 @@ for dataset representation by Hugging Face, Kaggle, and OpenML.
   Protobom representation bridging to the full metadata.
   - Map the Croissant document's canonical `@id` (or direct API endpoint) to
     this reference to establish a persistent URI.
-  - In SPDX 3.0, map this to an `ExternalReference` with an explicit semantic
+  - In SPDX 3, map this to an `ExternalReference` with an explicit semantic
     relationship type.
   - In CycloneDX, place it within the `externalReferences` array.
 - **Value:** This drastically prevents SBOM bloat while establishing a highly

@@ -12,7 +12,8 @@ import traceback
 from pathlib import Path
 
 from loom.__about__ import __version__
-from loom.generator import generate_sbom_to_file
+from loom.core.creation import CreationMetadata
+from loom.generators import generate_sbom
 
 
 def main() -> int:
@@ -22,7 +23,7 @@ def main() -> int:
         int: Exit code (0 for success, 1 for error)
     """
     parser = argparse.ArgumentParser(
-        description="Loom - Generate SPDX 3.0 SBOM for Python projects",
+        description="Loom - Generate SPDX 3 SBOM for Python projects",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -80,12 +81,14 @@ def main() -> int:
             return 1
 
         print(f"Generating SBOM for project in: {project_dir}")
-        generate_sbom_to_file(
+        generate_sbom(
             project_dir,
-            args.output,
+            output_path=args.output,
+            creation_info=CreationMetadata(
+                creator_name=args.creator_name or "Loom",
+                creator_email=args.creator_email or "",
+            ),
             pretty=args.pretty,
-            creator_name=args.creator_name,
-            creator_email=args.creator_email,
         )
         print(f"SBOM written to: {args.output}")
         return 0

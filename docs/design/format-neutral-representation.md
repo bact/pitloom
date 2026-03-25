@@ -4,75 +4,107 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Format-Neutral SBOM Representation
+# Format-neutral SBOM representation
 
 ## Overview
 
-The current Loom implementation integrates deeply with `spdx-python-model` 
-to produce SPDX 3.0 output. While this is highly effective for current 
-needs, the future software supply chain landscape will likely require 
-support for multiple SBOM specifications and formats 
-(e.g., SPDX 2.3, SPDX 3.X, CycloneDX, SWID).
+The current Loom implementation integrates with `spdx-python-model` to produce
+SPDX 3 output. While SPDX 3 is the primary target, the future software supply
+chain landscape will require support for multiple output specifications and
+formats — and potentially non-SBOM outputs such as AIDOC documentation or
+TechOps reports.
 
-To ensure long-term maintainability and flexibility, Loom is planning to 
-adopt a format-neutral internal representation. This approach will decouple 
-metadata extraction from the final output serialization, enabling seamless 
-generation of any requested SBOM format.
+To ensure long-term maintainability and flexibility, Loom introduces a
+format-neutral internal document model. This approach decouples metadata
+extraction from final output serialization, enabling the same extraction
+pipeline to drive any requested output format.
 
-## Architectural Consideration
+## Goals
 
 An ideal internal representation must be:
 
-- **Format-neutral**: Not tied to a specific SBOM format structural quirk.
-- **Lossless**: Preserves all information during format conversions.
-- **Version-agnostic**: Can export to different versions of the same format
-  (e.g., SPDX 3.0, 3.1, 3.2).
+- **Format-neutral**: Not tied to SPDX, CycloneDX, or any other spec's
+  structural quirks.
+- **Lossless**: Preserves all captured information so every serializer can
+  use what it needs.
+- **Composable**: Combines metadata from multiple sources (pyproject.toml,
+  AI model files, MLflow runs, pre-generated fragments) before serialization.
+- **Serializer-agnostic**: Any number of serializers can consume the same
+  `DocumentModel` independently.
 
-This architecture enables:
-
-- Support for multiple SBOM formats simultaneously (SPDX, CycloneDX, SWID).
-- Easy migration between standard versions without data loss.
-- Flexible import/export pipelines.
-- Format translation capabilities built natively into Loom.
-
-## Protobom as the primary candidate
-
-[Protobom](https://github.com/protobom/protobom) is an open-source library 
-being developed specifically for format-neutral SBOM representation.
-
-**Key Features:**
-
-- Protocol Buffers-based universal SBOM representation.
-- Designed to be format-agnostic from the ground up.
-- Supports lossless conversion between different SBOM formats.
-- Efficient binary serialization for extremely large dependency graphs.
-- Strong typing and schema validation.
-
-**Evaluation Needed:**
-
-- Assess compatibility with Loom's metadata extraction pipelines.
-- Evaluate performance characteristics vs direct `spdx-python-model`.
-- Determine integration complexity for Python execution contexts.
-- Verify support for SPDX 3.x specific features (like AI/ML profiles).
-- Check community adoption and active maintenance status.
-
-## Integration Approach
+## Architecture
 
 ```text
-Build Tools → Loom Extractors → Protobom (Internal) → Format Exporters
-                                      ↓
-                              SPDX 3.x / CycloneDX / etc.
+Extractors                     Core model              Serializers / Assemblers
+──────────────────────         ─────────────────       ─────────────────────────
+read_pyproject()           ─┐
+read_ai_model()            ─┤─→  DocumentModel   ─→   Spdx3Assembler              → SPDX 3 JSON-LD
+bom.track() (fragments)    ─┘    (loom.core)          [future] CycloneDXAssembler → CycloneDX JSON
+                                                      [future] AidocRenderer      → AIDOC markdown
+                                                      [future] TechOpsDoc         → documentation
 ```
 
-## Action Items for Future Development
+### `DocumentModel` (``loom.core.document``)
 
-- [ ] Research and evaluate Protobom for format-neutral internal representation.
-- [ ] Prototype Protobom integration to verify schema completeness.
-- [ ] Design architecture for multi-format support (e.g. CycloneDX).
-- [ ] Build a translation layer for unique SPDX 3.0 AI/ML profiles.
+```python
+@dataclass
+class DocumentModel:
+    creation: CreationMetadata        # who/when generated this document
+    project: ProjectMetadata          # from read_pyproject()
+    ai_models: list[AiModelMetadata]  # from read_ai_model()
+```
 
-## References
+`DocumentModel` holds everything that *could* appear in any output format.
+Serializers pick the fields they understand and ignore the rest.
 
-- [Protobom GitHub Repository](https://github.com/protobom/protobom)
-- [SPDX 3.0 Specification](https://spdx.dev/specifications/)
-- [CycloneDX Specification](https://cyclonedx.org/specification/overview/)
+### Separation of concerns
+
+| Layer | Responsibility | Key types |
+| :---- | :---- | :---- |
+| **Extractors** | Read data sources; populate metadata objects | `ProjectMetadata`, `AiModelMetadata` |
+| **Core model** | Format-neutral assembled document | `DocumentModel`, `LoomConfig`, `CreationMetadata` |
+| **Assemblers** | Translate `DocumentModel` → format-specific objects | `Spdx3JsonExporter`, future exporters |
+| **Orchestrator** | Build `DocumentModel`, call assembler, merge fragments | `generate_sbom()` |
+
+## Data classes in ``loom.core``
+
+| Class | Module | Description |
+| :---- | :---- | :---- |
+| `ProjectMetadata` | `loom.core.project` | Python project fields from `pyproject.toml` |
+| `AiModelMetadata` | `loom.core.ai_metadata` | AI model fields (ONNX, GGUF, Safetensors) |
+| `LoomConfig` | `loom.core.config` | `[tool.loom]` settings (`pretty`, `fragments`) |
+| `CreationMetadata` | `loom.core.creation` | SBOM creator / timestamp |
+| `DocumentModel` | `loom.core.document` | Composed document ready for serialization |
+
+All of these are plain Python dataclasses with no dependency on any SBOM
+library, making them easy to test and to target from any serializer.
+
+## Adding a new output format
+
+To add a CycloneDX serializer, for example:
+
+1. Create `loom/generators/cyclonedx.py`.
+2. Write `build_cyclonedx(doc: DocumentModel) -> str` that reads
+   `doc.project`, `doc.creation`, and `doc.ai_models`.
+3. Add a `--format` flag to the CLI that selects the assembler.
+4. No changes needed to extractors or `DocumentModel`.
+
+## Protobom evaluation
+
+Protobom was evaluated as a candidate for the format-neutral layer
+(see `docs/design/protobom-evaluation.md`). While it provides a
+Protocol Buffers–based universal SBOM representation with good support for
+SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
+AI/Dataset/Build profiles that are central to Loom's use cases. Adopting
+Protobom would introduce a significant dependency while leaving key fields
+unmapped. The lightweight `DocumentModel` approach is preferred for the
+current scope.
+
+## Roadmap
+
+- [x] `ProjectMetadata` as format-neutral Python project representation
+- [x] `AiModelMetadata` as format-neutral AI model representation
+- [x] `DocumentModel` composing both, passed to SPDX 3 assembler
+- [ ] MLflow run metadata added to `DocumentModel`
+- [ ] CycloneDX assembler consuming `DocumentModel`
+- [ ] AIDOC renderer consuming `DocumentModel`

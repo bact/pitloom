@@ -10,7 +10,7 @@ SPDX-FileType: DOCUMENTATION
 
 This document describes the design of `loom.extractors.mlflow`, a module that
 reads a completed or active MLflow run and converts its tags, parameters, and
-metrics into an SPDX 3.0 AI BOM fragment.
+metrics into an SPDX 3 AI BOM fragment.
 
 The goal is to eliminate double instrumentation. A project already using MLflow
 for experiment tracking should be able to produce a compliance-grade SBOM
@@ -79,7 +79,7 @@ against well-known MLflow tag prefixes and metric names when STAV is not install
 
 ## Tag and metric mapping
 
-### MLflow tags → SPDX 3.0 AI Profile fields
+### MLflow tags → SPDX 3 AI Profile fields
 
 | MLflow tag key (stav constant) | SPDX 3.0 `ai_AIPackage` field | Notes |
 | :--- | :--- | :--- |
@@ -134,7 +134,7 @@ from typing import Any
 class MlflowRunMetadata:
     """Intermediate representation of an MLflow run, format-neutral.
 
-    Fields map directly to SPDX 3.0 AI Profile concepts, with provenance
+    Fields map directly to SPDX 3 AI Profile concepts, with provenance
     preserved for each value.
     """
 
@@ -156,7 +156,7 @@ class MlflowRunMetadata:
 
 
 class MlflowExtractor:
-    """Extracts SPDX 3.0 AI BOM metadata from an MLflow run.
+    """Extracts SPDX 3 AI BOM metadata from an MLflow run.
 
     MLflow is a required runtime dependency; import errors raise a clear
     message with install instructions. STAV is optional.
@@ -201,7 +201,7 @@ class MlflowExtractor:
         return self._map_run(run)
 
     def to_fragment(self) -> str:
-        """Return a JSON-LD SPDX 3.0 fragment for this MLflow run.
+        """Return a JSON-LD SPDX 3 fragment for this MLflow run.
 
         Raises:
             ImportError: If ``mlflow`` is not installed.
@@ -353,7 +353,7 @@ def _map_tags(tags: dict[str, str]) -> dict[str, Any]:
 # ------------------------------------------------------------------
 
 def _build_spdx_fragment(metadata: MlflowRunMetadata) -> str:
-    """Serialize MlflowRunMetadata to an SPDX 3.0 JSON-LD fragment string."""
+    """Serialize MlflowRunMetadata to an SPDX 3 JSON-LD fragment string."""
     from datetime import datetime, timezone
     from uuid import uuid4
 
@@ -427,7 +427,7 @@ def extract_from_mlflow_run(
     tracking_uri: str | None = None,
     model_name: str | None = None,
 ) -> str:
-    """Extract an SPDX 3.0 AI BOM fragment from a completed MLflow run.
+    """Extract an SPDX 3 AI BOM fragment from a completed MLflow run.
 
     Args:
         run_id: The MLflow run UUID to read.

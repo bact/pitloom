@@ -2,17 +2,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for SPDX 3.0 compliance validation."""
+"""Tests for SPDX 3 compliance validation."""
 
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
-from loom.generator import generate_sbom_to_file
+from loom.generators import generate_sbom
 
 
 def test_spdx3_json_structure() -> None:
-    """Test that generated SBOM has valid SPDX 3.0 JSON-LD structure."""
+    """Test that generated SBOM has valid SPDX 3 JSON-LD structure."""
     pyproject_content = """
 [build-system]
 requires = ["hatchling"]
@@ -31,7 +32,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         # Load and validate structure
         sbom_data = json.loads(output_path.read_text())
@@ -115,7 +116,7 @@ description = "Test for required elements"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -125,10 +126,9 @@ description = "Test for required elements"
 
         required_types = {
             "CreationInfo",
-            "Person",
             "SpdxDocument",
-            "software_Sbom",
-            "software_Package",
+            "software_Sbom",  # Since we produce a software SBOM
+            "software_Package",  # At least the project itself
         }
 
         for req_type in required_types:
@@ -153,7 +153,7 @@ version = "1.0.0"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -190,7 +190,7 @@ dependencies = ["numpy==1.24.0"]
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom_to_file(tmppath, output_path)
+        generate_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -216,3 +216,121 @@ dependencies = ["numpy==1.24.0"]
                 "describes",
                 "hasDistributionPoint",
             ]
+
+
+# ---------------------------------------------------------------------------
+# SPDX 3.0 SHACL shape constraints (structural equivalent)
+# ---------------------------------------------------------------------------
+
+# SPDX 3.0 SHACL: sh:class spdx:Agent; sh:path spdx:createdBy
+# Agent subclasses per the SPDX 3.0 OWL ontology
+_AGENT_TYPES: frozenset[str] = frozenset({"Person", "Organization"})
+
+
+def _build_spdx_id_type_map(graph: list[dict[str, Any]]) -> dict[str, str]:
+    """Return a mapping of spdxId → JSON-LD type for all elements."""
+    return {elem["spdxId"]: elem["type"] for elem in graph if "spdxId" in elem}
+
+
+def test_spdx3_shacl_creation_info_created_by_are_agents() -> None:
+    """createdBy must reference only Agent elements (Person or Organization).
+
+    Replicates the SPDX 3.0 SHACL shape::
+
+        [] sh:class spdx:Agent ;
+           sh:minCount 1 ;
+           sh:path spdx:createdBy .
+
+    Tool is NOT an Agent subclass; placing a Tool in createdBy causes a SHACL
+    violation.  Tools must appear in createdUsing instead.
+    """
+    pyproject_content = """
+[project]
+name = "shacl-agent-test"
+version = "1.0.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        graph: list[dict[str, Any]] = json.loads(sbom_json)["@graph"]
+
+        id_to_type = _build_spdx_id_type_map(graph)
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+
+        assert creation_infos, "SBOM must contain at least one CreationInfo"
+
+        for ci in creation_infos:
+            created_by = ci.get("createdBy", [])
+            assert created_by, "CreationInfo.createdBy must have at least one entry"
+
+            for ref_id in created_by:
+                elem_type = id_to_type.get(ref_id)
+                assert elem_type in _AGENT_TYPES, (
+                    f"createdBy references '{ref_id}' of type {elem_type!r}. "
+                    "Only Person and Organization (Agent subclasses) are allowed. "
+                    "Tool must go in createdUsing."
+                )
+
+
+def test_spdx3_shacl_creation_info_created_using_are_tools() -> None:
+    """createdUsing must reference only Tool elements.
+
+    Replicates the SPDX 3.0.1 SHACL shape for the optional createdUsing path::
+
+        [] sh:class spdx:Tool ;
+           sh:path spdx:createdUsing .
+    """
+    pyproject_content = """
+[project]
+name = "shacl-tool-test"
+version = "1.0.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        graph: list[dict[str, Any]] = json.loads(sbom_json)["@graph"]
+
+        id_to_type = _build_spdx_id_type_map(graph)
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+
+        for ci in creation_infos:
+            for ref_id in ci.get("createdUsing", []):
+                elem_type = id_to_type.get(ref_id)
+                assert elem_type == "Tool", (
+                    f"createdUsing references '{ref_id}' of type {elem_type!r}. "
+                    "Only Tool elements are allowed in createdUsing."
+                )
+
+
+def test_spdx3_shacl_creation_info_has_tool() -> None:
+    """Generated SBOM must include a Tool element declared via createdUsing.
+
+    This is not a SPDX 3.0 requirement but every SBOM generated by Loom
+    should include a Tool element.
+    """
+    pyproject_content = """
+[project]
+name = "shacl-has-tool-test"
+version = "1.0.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        graph: list[dict[str, Any]] = json.loads(sbom_json)["@graph"]
+
+        element_types = {e["type"] for e in graph}
+        assert "Tool" in element_types, (
+            "SBOM must contain a Tool element representing the generation tool"
+        )
+
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+        for ci in creation_infos:
+            assert ci.get("createdUsing"), (
+                "CreationInfo must reference the generation tool via createdUsing"
+            )
