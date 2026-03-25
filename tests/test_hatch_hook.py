@@ -10,12 +10,9 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import json
 import logging
 import tempfile
-import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -33,7 +30,6 @@ from loom.core.models import generate_spdx_id  # noqa: E402
 from loom.export.spdx3_json import Spdx3JsonExporter  # noqa: E402
 from loom.plugins.hatch import (  # noqa: E402
     LoomBuildHook,
-    _inject_sbom_into_wheel,
     _validate_config,
 )
 
@@ -54,11 +50,6 @@ version = "0.1.0"
 description = "Test package."
 requires-python = ">=3.10"
 """
-
-MINIMAL_WHEEL_RECORD = (
-    "testpkg-0.1.0.dist-info/WHEEL,sha256=abc,10\r\n"
-    "testpkg-0.1.0.dist-info/RECORD,,\r\n"
-)
 
 
 def make_hook(root: str, config: dict[str, Any]) -> LoomBuildHook:
@@ -84,13 +75,6 @@ def write_pyproject(directory: Path, content: str = MINIMAL_PYPROJECT) -> None:
     (directory / "pyproject.toml").write_text(content, encoding="utf-8")
 
 
-def make_minimal_wheel(path: Path, dist_info: str = "testpkg-0.1.0.dist-info") -> None:
-    """Write a minimal valid wheel zip for injection tests."""
-    with zipfile.ZipFile(path, "w") as zf:
-        zf.writestr(f"{dist_info}/WHEEL", "Wheel-Version: 1.0\n")
-        zf.writestr(f"{dist_info}/RECORD", MINIMAL_WHEEL_RECORD)
-
-
 # ---------------------------------------------------------------------------
 # Config validation
 # ---------------------------------------------------------------------------
@@ -106,7 +90,7 @@ def test_validate_config_valid_values_pass() -> None:
     _validate_config(
         {
             "enabled": True,
-            "filename": "sbom.spdx3.json",
+            "sbom-basename": "my-sbom",
             "creator-name": "Alice",
             "creator-email": "alice@example.com",
             "fragments": ["a.json", "b.json"],
@@ -119,8 +103,7 @@ def test_validate_config_valid_values_pass() -> None:
     [
         ("enabled", "yes", "'enabled' must be a boolean"),
         ("enabled", 1, "'enabled' must be a boolean"),
-        ("filename", 123, "'filename' must be a string"),
-        ("filename", "", "'filename' must not be empty"),
+        ("sbom-basename", 123, "'sbom-basename' must be a string"),
         ("creator-name", 42, "'creator-name' must be a string"),
         ("creator-email", [], "'creator-email' must be a string"),
         ("fragments", "oops", "'fragments' must be a list of strings"),
@@ -193,13 +176,13 @@ def test_hook_creator_name_propagated() -> None:
         hook.finalize("standard", build_data, "")
 
 
-def test_hook_custom_filename_stored() -> None:
-    """A custom filename in config must be stored on the hook instance."""
+def test_hook_custom_basename_stored() -> None:
+    """A custom sbom-basename in config must be reflected in the staged filename."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path)
 
-        hook = make_hook(tmp, {"filename": "custom.spdx3.json"})
+        hook = make_hook(tmp, {"sbom-basename": "custom"})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
@@ -269,82 +252,12 @@ def test_hook_finalize_idempotent() -> None:
 
 
 # ---------------------------------------------------------------------------
-# PEP 770 wheel injection
+# PEP 770 — build_data["sbom_files"] registration
 # ---------------------------------------------------------------------------
 
 
-def test_inject_sbom_into_wheel() -> None:
-    """_inject_sbom_into_wheel must place the SBOM at the PEP 770 path."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        wheel_path = tmp_path / "testpkg-0.1.0-py3-none-any.whl"
-        make_minimal_wheel(wheel_path)
-
-        sbom_content = b'{"@context": "...", "@graph": []}'
-        sbom_path = tmp_path / "sbom.spdx3.json"
-        sbom_path.write_bytes(sbom_content)
-
-        _inject_sbom_into_wheel(wheel_path, sbom_path, "sbom.spdx3.json")
-
-        with zipfile.ZipFile(wheel_path, "r") as zf:
-            names = zf.namelist()
-            sbom_entry = "testpkg-0.1.0.dist-info/sboms/sbom.spdx3.json"
-            assert sbom_entry in names, f"Expected {sbom_entry!r} in {names}"
-            assert zf.read(sbom_entry) == sbom_content
-
-
-def test_inject_sbom_record_updated() -> None:
-    """After injection, RECORD must contain the SBOM hash entry."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        wheel_path = tmp_path / "testpkg-0.1.0-py3-none-any.whl"
-        make_minimal_wheel(wheel_path)
-
-        sbom_content = b'{"@graph": []}'
-        sbom_path = tmp_path / "sbom.spdx3.json"
-        sbom_path.write_bytes(sbom_content)
-
-        _inject_sbom_into_wheel(wheel_path, sbom_path, "sbom.spdx3.json")
-
-        expected_hash = (
-            base64.urlsafe_b64encode(hashlib.sha256(sbom_content).digest())
-            .rstrip(b"=")
-            .decode()
-        )
-        expected_size = len(sbom_content)
-
-        with zipfile.ZipFile(wheel_path, "r") as zf:
-            record = zf.read("testpkg-0.1.0.dist-info/RECORD").decode("utf-8")
-
-        assert f"sha256={expected_hash}" in record
-        assert str(expected_size) in record
-        assert "testpkg-0.1.0.dist-info/sboms/sbom.spdx3.json" in record
-
-
-def test_pep770_path_format() -> None:
-    """finalize() must inject the SBOM at sboms/<filename> in .dist-info."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
-
-        wheel_path = tmp_path / "testpkg-0.1.0-py3-none-any.whl"
-        make_minimal_wheel(wheel_path)
-
-        hook = make_hook(tmp, {"filename": "custom.spdx3.json"})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-        hook.finalize("standard", build_data, str(wheel_path))
-
-        with zipfile.ZipFile(wheel_path, "r") as zf:
-            sbom_entry = next(
-                (n for n in zf.namelist() if "sboms/custom.spdx3.json" in n),
-                None,
-            )
-        assert sbom_entry is not None, "Expected sboms/custom.spdx3.json in wheel"
-
-
-def test_hook_finalize_skips_non_wheel() -> None:
-    """finalize() must not attempt injection for sdist (.tar.gz) artifacts."""
+def test_hook_sbom_files_populated() -> None:
+    """initialize() must append the staged path to build_data['sbom_files']."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path)
@@ -353,14 +266,45 @@ def test_hook_finalize_skips_non_wheel() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
-        staged = hook._sbom_staging_path
-        assert staged is not None
+        assert "sbom_files" in build_data
+        assert len(build_data["sbom_files"]) == 1
+        staged = Path(build_data["sbom_files"][0])
+        assert staged.exists()
+        assert staged.name == "sbom.spdx3.json"
 
-        # Pass a .tar.gz path — should not raise even though it doesn't exist
-        hook.finalize("standard", build_data, str(tmp_path / "testpkg-0.1.0.tar.gz"))
+        hook.finalize("standard", build_data, "")
 
-        # Staging dir still cleaned up
-        assert hook._staging_dir is None
+
+def test_hook_sbom_files_custom_basename() -> None:
+    """sbom-basename config must determine the filename appended to sbom_files."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {"sbom-basename": "custom"})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert len(build_data["sbom_files"]) == 1
+        assert Path(build_data["sbom_files"][0]).name == "custom.spdx3.json"
+
+        hook.finalize("standard", build_data, "")
+
+
+def test_hook_sbom_files_appended_to_existing() -> None:
+    """initialize() must append to an existing sbom_files list, not replace it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {"sbom_files": ["/existing/other.cdx.json"]}
+        hook.initialize("standard", build_data)
+
+        assert len(build_data["sbom_files"]) == 2
+        assert build_data["sbom_files"][0] == "/existing/other.cdx.json"
+
+        hook.finalize("standard", build_data, "")
 
 
 # ---------------------------------------------------------------------------

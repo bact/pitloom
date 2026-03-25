@@ -6,11 +6,8 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import logging
 import tempfile
-import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +23,8 @@ from loom.extract.pyproject import read_pyproject
 
 log = logging.getLogger(__name__)
 
+_SPDX3_JSON_EXT = ".spdx3.json"
+
 
 class LoomBuildHook(BuildHookInterface[BuilderConfig]):
     """Hatchling build hook that embeds an SPDX 3 SBOM in the wheel.
@@ -34,7 +33,8 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
     ``pyproject.toml`` and listing ``loom`` as a build dependency.
 
     The SBOM is written to ``.dist-info/sboms/<filename>`` inside the wheel,
-    conforming to PEP 770.
+    conforming to PEP 770.  Hatchling 1.16.0+ handles the injection natively
+    via ``build_data["sbom_files"]``.
 
     Configuration (all fields optional):
 
@@ -42,7 +42,7 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
 
         [tool.hatch.build.hooks.loom]
         enabled = true             # set to false to skip SBOM generation
-        filename = "sbom.spdx3.json"
+        sbom-basename = ""         # name part only, no extension; default "sbom"
         creator-name = ""          # defaults to "Loom"
         creator-email = ""
         fragments = []             # extra fragment paths relative to project root
@@ -54,14 +54,16 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         super().__init__(*args, **kwargs)
         self._staging_dir: tempfile.TemporaryDirectory[str] | None = None
         self._sbom_staging_path: Path | None = None
-        self._sbom_filename: str = "sbom.spdx3.json"
+        self._sbom_filename: str = f"sbom{_SPDX3_JSON_EXT}"
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        """Generate the SBOM and stage it for later injection into the wheel.
+        """Generate the SBOM and register it for injection into the wheel.
 
-        Called by Hatchling before packaging. The staged SBOM is injected
-        into ``.dist-info/sboms/<filename>`` in :meth:`finalize`, after
-        the wheel is assembled, to conform to PEP 770.
+        Called by Hatchling before packaging.  The staged SBOM path is
+        appended to ``build_data["sbom_files"]``, which Hatchling 1.16.0+
+        places at ``.dist-info/sboms/<basename>`` inside the wheel
+        (PEP 770).  The temporary staging directory is cleaned up in
+        :meth:`finalize`.
 
         Raises:
             ValueError: If a hook configuration value has an invalid type
@@ -76,7 +78,8 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
             log.info("Loom build hook: disabled; skipping SBOM generation.")
             return
 
-        sbom_filename: str = config.get("filename", "sbom.spdx3.json")
+        sbom_basename: str = config.get("sbom-basename", "") or "sbom"
+        sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
         creator_name: str = config.get("creator-name", "") or "Loom"
         creator_email: str = config.get("creator-email", "")
         hook_fragments: list[str] = config.get("fragments", [])
@@ -104,9 +107,13 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
         self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
 
+        # Hatchling 1.16.0+ places each path in sbom_files at
+        # .dist-info/sboms/<basename> inside the wheel (PEP 770).
+        build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
+
         log.info(
-            "Loom: generated SBOM %s (%d fragment(s) merged); "
-            "will inject into .dist-info/sboms/ in finalize().",
+            "Loom: staged SBOM %s (%d fragment(s)); "
+            "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
             sbom_filename,
             len(all_fragments),
         )
@@ -117,32 +124,11 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         build_data: dict[str, Any],
         artifact_path: str,
     ) -> None:
-        """Inject the staged SBOM into the wheel and clean up.
-
-        Only acts on ``.whl`` artifacts; sdist archives are left untouched
-        because PEP 770 applies to binary distribution format only.
-        """
-        try:
-            if (
-                self._sbom_staging_path is not None
-                and artifact_path
-                and artifact_path.endswith(".whl")
-            ):
-                _inject_sbom_into_wheel(
-                    Path(artifact_path),
-                    self._sbom_staging_path,
-                    self._sbom_filename,
-                )
-                log.info(
-                    "Loom: injected SBOM into .dist-info/sboms/%s in %s.",
-                    self._sbom_filename,
-                    Path(artifact_path).name,
-                )
-        finally:
-            if self._staging_dir is not None:
-                self._staging_dir.cleanup()
-                self._staging_dir = None
-                self._sbom_staging_path = None
+        """Clean up the temporary staging directory."""
+        if self._staging_dir is not None:
+            self._staging_dir.cleanup()
+            self._staging_dir = None
+            self._sbom_staging_path = None
 
 
 def _validate_config(config: dict[str, Any]) -> None:
@@ -160,13 +146,12 @@ def _validate_config(config: dict[str, Any]) -> None:
             f"got {type(enabled).__name__!r}."
         )
 
-    filename = config.get("filename", "sbom.spdx3.json")
-    if not isinstance(filename, str):
+    sbom_basename = config.get("sbom-basename", "")
+    if not isinstance(sbom_basename, str):
         raise ValueError(
-            f"{section} 'filename' must be a string, got {type(filename).__name__!r}."
+            f"{section} 'sbom-basename' must be a string, "
+            f"got {type(sbom_basename).__name__!r}."
         )
-    if not filename:
-        raise ValueError(f"{section} 'filename' must not be empty.")
 
     for key in ("creator-name", "creator-email"):
         value = config.get(key, "")
@@ -180,68 +165,6 @@ def _validate_config(config: dict[str, Any]) -> None:
         isinstance(f, str) for f in fragments
     ):
         raise ValueError(f"{section} 'fragments' must be a list of strings.")
-
-
-def _inject_sbom_into_wheel(
-    wheel_path: Path,
-    sbom_path: Path,
-    sbom_filename: str,
-) -> None:
-    """Add ``sbom_path`` to a wheel archive at the PEP 770 location.
-
-    The SBOM is placed at ``<name>-<ver>.dist-info/sboms/<sbom_filename>``.
-    The wheel's RECORD file is updated to include the new entry.
-
-    Args:
-        wheel_path: Path to the wheel (``.whl``) file to modify in-place.
-        sbom_path: Path to the staged SBOM file.
-        sbom_filename: Filename for the SBOM inside the wheel.
-    """
-    sbom_data = sbom_path.read_bytes()
-    digest = hashlib.sha256(sbom_data).digest()
-    sbom_hash = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
-    sbom_size = len(sbom_data)
-
-    with zipfile.ZipFile(wheel_path, "r") as zf:
-        all_names = zf.namelist()
-        # Locate the .dist-info directory — RECORD is always present
-        dist_info_dir = next(
-            name.split("/")[0]
-            for name in all_names
-            if name.endswith(".dist-info/RECORD")
-        )
-        record_name = f"{dist_info_dir}/RECORD"
-        old_record = zf.read(record_name).decode("utf-8")
-
-    sbom_archive_name = f"{dist_info_dir}/sboms/{sbom_filename}"
-
-    # Rebuild RECORD: drop stale RECORD self-entry, append SBOM, re-add RECORD
-    rows = [
-        line
-        for line in old_record.splitlines()
-        if line and not line.startswith(f"{record_name},")
-    ]
-    rows.append(f"{sbom_archive_name},sha256={sbom_hash},{sbom_size}")
-    rows.append(f"{record_name},,")
-    new_record = "\r\n".join(rows) + "\r\n"
-
-    tmp_path = wheel_path.with_suffix(".tmp.whl")
-    try:
-        with (
-            zipfile.ZipFile(wheel_path, "r") as zin,
-            zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as zout,
-        ):
-            for info in zin.infolist():
-                if info.filename == record_name:
-                    continue  # replaced below
-                zout.writestr(info, zin.read(info.filename))
-            zout.writestr(sbom_archive_name, sbom_data)
-            zout.writestr(record_name, new_record.encode("utf-8"))
-        tmp_path.replace(wheel_path)
-    except Exception:
-        if tmp_path.exists():
-            tmp_path.unlink()
-        raise
 
 
 @hookimpl

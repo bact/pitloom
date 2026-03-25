@@ -4,10 +4,10 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# sampleproject
+# Sample project
 
-A minimal Python package used as a test fixture for the Loom Hatchling build
-hook. It contains just enough metadata and source code to produce a valid wheel.
+A Python package used as a test fixture for the Loom Hatchling build hook.
+It contains just enough metadata and source code to produce a valid wheel.
 
 ## Building
 

@@ -149,7 +149,8 @@ def _read_loom_config(data: dict[str, Any]) -> LoomConfig:
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
     )
     pretty = bool(loom_data.get("pretty", False))
-    return LoomConfig(pretty=pretty, fragments=fragments)
+    sbom_basename: str | None = loom_data.get("sbom-basename") or None
+    return LoomConfig(pretty=pretty, fragments=fragments, sbom_basename=sbom_basename)
 
 
 def _strip_missing_readme(

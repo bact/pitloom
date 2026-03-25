@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: CC0-1.0
 
 # Minimal project used as a fixture for testing the Loom Hatchling build hook.
 #
@@ -18,13 +18,13 @@ version = "0.1.0"
 description = "A minimal sample project for testing the Loom Hatchling build hook."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = "CC0-1.0"
 keywords = ["sample", "test"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sampleproject"]
 
 [tool.hatch.build.hooks.loom]
-filename = "sbom.spdx3.json"
+sbom-basename = "sbom"
 creator-name = "Loom CI"
 creator-email = "ci@loom.example"
