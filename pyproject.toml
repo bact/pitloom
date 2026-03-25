@@ -20,7 +20,7 @@ keywords = [
     "hatchling",
     "supply chain",
 ]
-authors = [{ name = "Arthit Suriyawongkul" }]
+authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -37,6 +37,7 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
+    "hatchling>=1.0.0",
     "pyproject-metadata>=0.10.0",
     "spdx-python-model>=0.0.4",
     "tomli>=2.0.0; python_version<'3.11'",
@@ -57,6 +58,9 @@ dev = [
     { include-group = "test" },
     { include-group = "typecheck" },
 ]
+
+[project.entry-points."hatch"]
+loom = "loom.plugins.hatch"
 
 [project.scripts]
 loom = "loom.__main__:main"
@@ -100,20 +104,15 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
+module = "hatchling.*"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
 module = "spdx_python_model.*"
 
 [tool.pylint.main]
-init-hook = "import sys; sys.path.insert(0, 'src')"  # for IDE's Pylint
+init-hook = "import sys; sys.path.insert(0, 'src')" # for IDE's Pylint
 source-roots = ["src"]
-
-[tool.pylint.messages_control]
-disable = [
-    "duplicate-code",          # boilerplate in tests is expected
-    "fixme",                   # TODO comments are tracked intentionally
-]
-
-[tool.pylint.format]
-max-line-length = 88
 
 [tool.pylint.design]
 max-args = 8
@@ -123,6 +122,15 @@ max-locals = 20
 max-positional-arguments = 8
 max-public-methods = 20
 max-statements = 100
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.messages_control]
+disable = [
+    "duplicate-code", # boilerplate in tests is expected
+    "fixme",          # TODO comments are tracked intentionally
+]
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]

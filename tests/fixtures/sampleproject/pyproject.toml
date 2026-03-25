@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: MIT
+
+# Minimal project used as a fixture for testing the Loom Hatchling build hook.
+#
+# Build with --no-isolation so the locally installed Loom is used:
+#
+#   python -m build --wheel --no-isolation
+#   hatch build --target wheel
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sampleproject"
+version = "0.1.0"
+description = "A minimal sample project for testing the Loom Hatchling build hook."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["sample", "test"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sampleproject"]
+
+[tool.hatch.build.hooks.loom]
+filename = "sbom.spdx3.json"
+creator-name = "Loom CI"
+creator-email = "ci@loom.example"

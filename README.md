@@ -105,6 +105,65 @@ generate_sbom(
 )
 ```
 
+### Hatchling build hook
+
+Loom can embed an SBOM automatically into every wheel you build by acting as
+a Hatchling build hook. The SBOM is placed at
+`.dist-info/sboms/sbom.spdx3.json` inside the wheel, following
+[PEP 770](https://peps.python.org/pep-0770/).
+
+#### Adding Loom to your build requirements
+
+Add `loom` to your project's build requirements:
+
+```toml
+[build-system]
+requires = ["hatchling", "loom"]
+build-backend = "hatchling.build"
+```
+
+#### Registering the hook
+
+Enable the hook by adding a section to your `pyproject.toml`:
+
+```toml
+[tool.hatch.build.hooks.loom]
+# All fields are optional. Defaults are shown.
+enabled = true
+filename = "sbom.spdx3.json"
+creator-name = ""       # defaults to "Loom"
+creator-email = ""
+fragments = []          # extra SPDX fragment paths (relative to project root)
+```
+
+That is all. Running `hatch build` or `python -m build` will now generate and
+embed the SBOM automatically — no extra commands needed.
+
+#### Merging AI/ML fragments
+
+For AI-powered software, you can track model and dataset provenance during
+training using `loom.bom`, then include those fragments in the wheel SBOM:
+
+```toml
+[tool.hatch.build.hooks.loom]
+fragments = [
+    "fragments/train_run.spdx3.json",
+    "fragments/eval_run.spdx3.json",
+]
+```
+
+Fragments listed under `[tool.hatch.build.hooks.loom]` are merged together
+with any fragments already listed under `[tool.loom]`.
+
+#### Resulting wheel structure
+
+```text
+mypackage-1.0-py3-none-any.whl
+└── mypackage-1.0.dist-info/
+    └── sboms/
+        └── sbom.spdx3.json   ← PEP 770
+```
+
 ### Python tracking decorator
 
 Developers can easily annotate scripts or Jupyter notebooks to generate
