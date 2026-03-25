@@ -104,6 +104,14 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, LoomConfig]:
 # Private helpers
 # ---------------------------------------------------------------------------
 
+_FIELD_PROVENANCE = {
+    "description": "Source: pyproject.toml | Field: project.description",
+    "urls": "Source: pyproject.toml | Field: project.urls",
+    "dependencies": "Source: pyproject.toml | Field: project.dependencies",
+    "authors": "Source: pyproject.toml | Field: project.authors",
+    "license": "Source: pyproject.toml | Field: project.license",
+}
+
 
 def _build_provenance(
     project_data: dict[str, Any],
@@ -118,13 +126,6 @@ def _build_provenance(
     elif "version" in project_data:
         prov["version"] = "Source: pyproject.toml | Field: project.version"
 
-    _FIELD_PROVENANCE = {
-        "description": "Source: pyproject.toml | Field: project.description",
-        "urls": "Source: pyproject.toml | Field: project.urls",
-        "dependencies": "Source: pyproject.toml | Field: project.dependencies",
-        "authors": "Source: pyproject.toml | Field: project.authors",
-        "license": "Source: pyproject.toml | Field: project.license",
-    }
     for field_key, source in _FIELD_PROVENANCE.items():
         if field_key in project_data:
             prov[field_key] = source
