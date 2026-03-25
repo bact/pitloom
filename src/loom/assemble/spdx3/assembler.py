@@ -11,10 +11,10 @@ from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
+from loom.assemble.spdx3.deps import add_dependencies
 from loom.core.document import DocumentModel
 from loom.core.models import generate_spdx_id
 from loom.export.spdx3_json import Spdx3JsonExporter
-from loom.assemble.spdx3.deps import add_dependencies
 
 
 def build(doc: DocumentModel) -> Spdx3JsonExporter:

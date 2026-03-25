@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from loom.assemble.spdx3.assembler import build
+from loom.assemble.spdx3.fragments import merge_fragments
 from loom.core.creation import CreationMetadata
 from loom.core.document import DocumentModel
 from loom.extract.pyproject import read_pyproject
-from loom.assemble.spdx3.assembler import build
-from loom.assemble.spdx3.fragments import merge_fragments
 
 
 def generate_sbom(
