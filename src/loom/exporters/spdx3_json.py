@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import io
+import json
 
 from spdx_python_model import v3_0_1 as spdx3
 
@@ -65,8 +66,14 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(document)
 
-    def to_json(self) -> str:
+    def to_json(self, pretty: bool = False) -> str:
         """Export to JSON-LD string.
+
+        Args:
+            pretty: If True, indent output with 2 spaces for human readability.
+                    If False (default), produce compact output with no extra
+                    whitespace, suitable for machine consumption and PEP 770
+                    wheel embedding.
 
         Returns:
             str: JSON-LD representation
@@ -74,14 +81,18 @@ class Spdx3JsonExporter:
         out_f = io.BytesIO()
         serializer = spdx3.JSONLDSerializer()
         serializer.write(self.object_set, out_f)
-        return out_f.getvalue().decode("utf-8")
+        data = json.loads(out_f.getvalue())
+        if pretty:
+            return json.dumps(data, indent=2, ensure_ascii=False)
+        return json.dumps(data, separators=(",", ":"), ensure_ascii=False)
 
-    def to_file(self, file_path: str) -> None:
+    def to_file(self, file_path: str, pretty: bool = False) -> None:
         """Export to JSON-LD file.
 
         Args:
             file_path: Path to write the JSON-LD file
+            pretty: If True, indent output with 2 spaces for human readability.
+                    If False (default), produce compact output.
         """
-        with open(file_path, "wb") as f:
-            serializer = spdx3.JSONLDSerializer()
-            serializer.write(self.object_set, f)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(self.to_json(pretty=pretty))

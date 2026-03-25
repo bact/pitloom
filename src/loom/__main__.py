@@ -52,6 +52,16 @@ def main() -> int:
         type=str,
         help="Email of the SBOM creator",
     )
+    parser.add_argument(
+        "--pretty",
+        action="store_true",
+        default=None,
+        help=(
+            "Pretty-print the SBOM output with 2-space indentation. "
+            "Overrides 'pretty' in [tool.loom] in pyproject.toml. "
+            "Default is compact output (machine-optimized)."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -73,6 +83,7 @@ def main() -> int:
         generate_sbom_to_file(
             project_dir,
             args.output,
+            pretty=args.pretty,
             creator_name=args.creator_name,
             creator_email=args.creator_email,
         )

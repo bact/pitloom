@@ -42,6 +42,7 @@ class ProjectMetadata:
         self.provenance = provenance or {}
         self._readme_override = readme_override
         self.fragments: list[str] = []
+        self.pretty: bool = False
 
     @property
     def name(self) -> str:
@@ -257,6 +258,7 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     loom_data = tool_data.get("loom", {})
     fragments_data = loom_data.get("fragments", {})
     fragments = fragments_data.get("files", [])
+    loom_pretty: bool = bool(loom_data.get("pretty", False))
 
     # Use StandardMetadata to parse and validate
     try:
@@ -276,6 +278,7 @@ def extract_metadata_from_pyproject(pyproject_path: Path) -> ProjectMetadata:
     )
     if isinstance(fragments, list):
         metadata_instance.fragments = [str(f) for f in fragments]
+    metadata_instance.pretty = loom_pretty
 
     return metadata_instance
 

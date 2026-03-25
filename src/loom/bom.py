@@ -48,8 +48,9 @@ def _get_caller_info() -> str:
 class _ActiveRun:
     """Internal state for an active BOM tracking run."""
 
-    def __init__(self, output_file: str):
+    def __init__(self, output_file: str, pretty: bool = False):
         self.output_file = output_file
+        self.pretty = pretty
         self.doc_uuid = str(uuid4())
 
         self.creation_info = spdx3.CreationInfo(
@@ -121,7 +122,7 @@ class _ActiveRun:
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write(self.exporter.to_json())
+            f.write(self.exporter.to_json(pretty=self.pretty))
 
 
 # Global state holding the active run
@@ -135,14 +136,15 @@ class Track(contextlib.ContextDecorator):
     or as a function decorator (`@track(output_file=...)`).
     """
 
-    def __init__(self, output_file: str | Path):
+    def __init__(self, output_file: str | Path, pretty: bool = False):
         self.output_file = str(output_file)
+        self.pretty = pretty
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
         global _active_run  # pylint: disable=global-statement
         self.previous_run = _active_run
-        _active_run = _ActiveRun(self.output_file)
+        _active_run = _ActiveRun(self.output_file, pretty=self.pretty)
         return _active_run
 
     def __exit__(

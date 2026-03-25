@@ -95,8 +95,9 @@ from loom.generator import generate_sbom_to_file
 generate_sbom_to_file(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
+    pretty=False,
     creator_name="Your Name",
-    creator_email="your@example.com"
+    creator_email="your@example.com",
 )
 ```
 
