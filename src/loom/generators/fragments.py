@@ -48,6 +48,4 @@ def merge_fragments(
                 for obj in fragment_set.foreach():
                     exporter.object_set.add(obj)
         except Exception as exc:  # pylint: disable=broad-exception-caught
-            log.warning(
-                "Failed to ingest SBOM fragment %s: %s", fragment_path, exc
-            )
+            log.warning("Failed to ingest SBOM fragment %s: %s", fragment_path, exc)
