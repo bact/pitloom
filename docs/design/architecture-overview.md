@@ -177,31 +177,31 @@ Loom will follow modern Python software engineering best practices,
 utilizing the "src" layout to prevent subtle import-path bugs and ensure
 the development environment mirrors production (Ghadge 2025).
 
-### Suggested Python project structure
+### Python project structure
 
 ```text
 loom/
-├── pyproject.toml \# Unified configuration (Hatchling)
-├── README.md \# Project documentation
-├── LICENSE \# Software license
+├── pyproject.toml          # Unified configuration (Hatchling)
+├── README.md               # Project documentation
+├── LICENSE                 # Software license
 ├── src/
-│ └── loom/
-│ ├── **init**.py
-│ ├── **main**.py \# Typer CLI entry point (Ghadge 2025).
-│ ├── core/ \# Core business logic
-│ │ ├── models.py \# SPDX 3.0 internal ontology classes (Ismail 2024).
-│ │ ├── pipeline.py \# Execution flow controller
-│ │ └── engine.rs \# Potential future Rust-backend code
-│ ├── extractors/ \# Domain-specific data collection
-│ │ ├── manifest.py \# pyproject.toml parser (Hatch 2026).
-│ │ └── log\_parser.py \# Regex engine for GCC/MSVC logs (Alpha Omega 2025).
-│ ├── plugins/ \# Build system integrations
-│ │ └── hatch.py \# Hatchling BuildHookInterface implementation (Hatch 2026).
-│ └── exporters/ \# Format-specific writers
-│ ├── spdx3\_json.py \# SPDX 3.0 JSON-LD serializer (Ismail 2024).
-│ └── mlflow.py \# MLflow API integration layer (MLflow 2026).
-├── tests/ \# Pytest-based testing suite
-└──.github/workflows/ \# CI/CD pipeline definitions
+│   └── loom/
+│       ├── __init__.py
+│       ├── __main__.py     # CLI entry point (argparse)
+│       ├── bom.py          # ML tracking SDK (Track context manager)
+│       ├── generator.py    # Main orchestration
+│       ├── core/
+│       │   └── models.py   # SPDX ID generation utilities
+│       ├── extractors/     # Domain-specific data collection
+│       │   ├── metadata.py # pyproject.toml parser and provenance tracking
+│       │   ├── model.py    # AI model file metadata (ONNX, Safetensors, GGUF)
+│       │   └── mlflow.py   # MLflow run extractor → SPDX AI fragment [planned]
+│       ├── plugins/        # Build system integrations
+│       │   └── hatch.py    # Hatchling BuildHookInterface (PEP 770) [planned]
+│       └── exporters/      # Format-specific writers
+│           └── spdx3_json.py # SPDX 3.0 JSON-LD serializer
+├── tests/                  # Pytest-based testing suite
+└── .github/workflows/      # CI/CD pipeline definitions
 ```
 
 ## Integration with the SCA pipeline and DevOps ecosystem
@@ -216,6 +216,59 @@ This ensures that every model deployed from an MLflow registry is accompanied by
 a cryptographically verifiable record of its constituent software
 and data sources, meeting emerging AI governance requirements
 (Linux Foundation 2024).
+
+### Planned integrations
+
+Three features extend the existing pipeline into a fully automated workflow:
+
+#### 1. Hatchling build hook (`loom.plugins.hatch`)
+
+A Hatchling `BuildHookInterface` plugin that generates the SBOM automatically
+during `hatch build` or `python -m build` and embeds it in the wheel's
+`.dist-info/sboms/` directory per PEP 770. Users opt in by adding
+`loom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.loom]`.
+See `docs/design/hatchling-build-hook.md`.
+
+#### 2. PEP 770 wheel embedding
+
+The SBOM is placed at `{name}-{version}.dist-info/sboms/sbom.spdx3.json`
+inside the wheel archive. Downstream tools (Trivy, Grype, pip-audit) can
+discover and consume the SBOM without any separate distribution step.
+Implemented as part of the Hatchling build hook.
+
+#### 3. MLflow run extractor (`loom.extractors.mlflow`)
+
+Reads a completed MLflow run and maps its tags, parameters, and metrics
+to an SPDX 3.0 AI BOM fragment. Uses
+[STAV](https://github.com/bact/stav) constants as a shared vocabulary
+layer so projects already tagging MLflow runs with STAV keys require no
+additional instrumentation. The top-level `loom.bom.from_mlflow_run()`
+function provides the public API.
+See `docs/design/mlflow-extractor.md`.
+
+### Revised end-to-end flow
+
+```text
+Training time
+─────────────
+mlflow.set_tag(stav.MODEL_TYPE, "transformer")
+mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
+→ bom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
+        └── loom.extractors.mlflow → SPDX AI fragment
+
+Build time (zero extra commands)
+─────────────────────────────────
+hatch build  /  python -m build
+  └── LoomBuildHook.initialize()
+        ├── generate_sbom_from_project()      (pyproject.toml)
+        ├── merge fragments/run.spdx3.json    (AI provenance)
+        └── → .dist-info/sboms/sbom.spdx3.json inside wheel  ← PEP 770
+
+Downstream consumption
+───────────────────────
+trivy image mypackage-1.0.whl     → reads .dist-info/sboms/
+pip show mypackage                → SBOM included in .dist-info
+```
 
 ## Quantifying the problem: Python dependency proliferation
 
