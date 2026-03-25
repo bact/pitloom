@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from loom.generators import generate_sbom
+from loom.assemble import generate_sbom
 
 
 def test_spdx3_json_structure() -> None:

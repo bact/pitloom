@@ -16,14 +16,14 @@ To establish a foundation for AI SBOMs that works across any format natively
 supporting key-value pairs (e.g., CycloneDX `properties` or SPDX
 `Annotations`), we define a strict namespace.
 
-**1.1 Model identification & architecture**
+### 1.1 Model identification & architecture
 
 - `loom:ai:model:type`: Broad category (e.g., `transformer`, `cnn`).
 - `loom:ai:model:architecture_family`: Specific structural family.
 - `loom:ai:model:parameters_count`: Total number of parameters.
 - `loom:ai:model:framework`: Base framework/format (e.g., `pytorch`, `onnx`).
 
-**1.2 Training & hyperparameters**
+### 1.2 Training & hyperparameters
 
 - `loom:ai:training:learning_rate`: The base learning rate.
 - `loom:ai:training:batch_size`: Training batch size.
@@ -31,20 +31,20 @@ supporting key-value pairs (e.g., CycloneDX `properties` or SPDX
 - `loom:ai:training:optimizer`: Optimizer algorithm (e.g., `adamw`, `sgd`).
 - `loom:ai:training:random_seed`: Initialization seed for reproducibility.
 
-**1.3 Dataset constraints & provenance**
+### 1.3 Dataset constraints & provenance
 
 - `loom:ai:dataset:training:name`: Name/URI of the dataset.
 - `loom:ai:dataset:training:size`: Volume of the data (e.g., `1.2TB`).
 - `loom:ai:dataset:training:split`: Ratio/segment used (e.g., `train`).
 - `loom:ai:dataset:preprocessing`: Normalization or transformation applied.
 
-**1.4 Metrics & evaluation**
+### 1.4 Metrics & evaluation
 
 - `loom:ai:metric:accuracy`: Example: `0.95`.
 - `loom:ai:metric:f1_score`: Example: `0.92`.
 - `loom:ai:metric:loss`: Final evaluation loss.
 
-**1.5 Ethical & compliance considerations**
+### 1.5 Ethical & compliance considerations
 
 - `loom:ai:compliance:license_category`: E.g., `open-weights`.
 - `loom:ai:safety:bias_mitigation`: Notes on debiasing techniques applied.
@@ -118,20 +118,20 @@ To achieve a complete AI SBOM, Loom should orchestrate a multi-stage pipeline:
 
 ### 2.4 External reference linking & dataset repositories
 
-Attempting to aggressively inline the entirety of a dataset's metadata, 
+Attempting to aggressively inline the entirety of a dataset's metadata,
 descriptive statistics, and ethical considerations (RAI properties) directly
-into the SBOM can lead to severe structural bloat. 
+into the SBOM can lead to severe structural bloat.
 
 Instead, Loom should support persistent URI linking, specifically leveraging the
 [Croissant format](https://mlcommons.org/working-groups/data/croissant/).
-Croissant is a JSON-LD based extension of `schema.org/Dataset` heavily adopted 
+Croissant is a JSON-LD based extension of `schema.org/Dataset` heavily adopted
 for dataset representation by Hugging Face, Kaggle, and OpenML.
 
 **Loom integration strategy:**
 
 - **API interrogation:** If a dataset is ingested via a recognized hub, query
   its metadata API (e.g., `huggingface.co/api/datasets/{id}/croissant`).
-- **Selective extraction:** Extract only crucial, top-level identity 
+- **Selective extraction:** Extract only crucial, top-level identity
   characteristics (Name, License, Target Task) into the `loom:ai:*` schema for
   immediate SBOM visibility.
 - **Machine-readable linking:** Create an `ExternalReference` node inside the
@@ -142,5 +142,5 @@ for dataset representation by Hugging Face, Kaggle, and OpenML.
     relationship type.
   - In CycloneDX, place it within the `externalReferences` array.
 - **Value:** This drastically prevents SBOM bloat while establishing a highly
-  reliable, machine-readable cryptographic chain back to exhaustive RAI/MLCommons 
+  reliable, machine-readable cryptographic chain back to exhaustive RAI/MLCommons
   standards that security tools can subsequently traverse and audit dynamically.

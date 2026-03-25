@@ -19,6 +19,16 @@ from typing import Any
 
 from loom.core.ai_metadata import AiModelFormat, AiModelMetadata
 
+__all__ = [
+    "AiModelFormat",
+    "AiModelMetadata",
+    "detect_ai_model_format",
+    "read_ai_model",
+    "read_gguf",
+    "read_onnx",
+    "read_safetensors",
+]
+
 # File extension to format mapping
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
     ".gguf": AiModelFormat.GGUF,

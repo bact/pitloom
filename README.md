@@ -91,7 +91,7 @@ The SBOM generator can be used programmatically:
 ```python
 from pathlib import Path
 from loom.core.creation import CreationMetadata
-from loom.generators import generate_sbom
+from loom.assemble import generate_sbom
 
 # Generate SBOM for a project
 generate_sbom(
@@ -152,7 +152,7 @@ Loom tracks the source of each metadata field in the SBOM using the SPDX 3
 `comment` attribute. This enables answering questions like:
 
 > "Why does the SBOM say the concluded license is MIT?"
-
+>
 > "Where did the version number come from?"
 
 ### Provenance examples
@@ -196,27 +196,28 @@ loom/
 │       └── summary.md
 ├── src/
 │   └── loom/
+│       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
+│       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
+│       │   │   ├── assembler.py # SPDX 3 assembler — build(DocumentModel)
+│       │   │   ├── deps.py      # Dependency element assembly
+│       │   │   └── fragments.py # Fragment merging
+│       │   └── __init__.py      # generate_sbom() orchestrator
 │       ├── core/
-│       │   ├── ai_metadata.py  # Format-neutral AI model metadata
-│       │   ├── config.py       # [tool.loom] settings (LoomConfig)
-│       │   ├── creation.py     # SBOM creation metadata (CreationMetadata)
-│       │   ├── document.py     # Format-neutral document model (DocumentModel)
-│       │   ├── models.py       # SPDX ID generation utilities
-│       │   └── project.py      # Python project metadata (ProjectMetadata)
-│       ├── extractors/
-│       │   ├── ai_model.py     # AI model file extractor (ONNX, Safetensors, GGUF)
-│       │   └── pyproject.py    # pyproject.toml extractor
-│       ├── exporters/
-│       │   └── spdx3_json.py   # SPDX 3 JSON-LD serialiser
-│       ├── generators/
-│       │   ├── __init__.py     # generate_sbom() orchestrator
-│       │   ├── dependencies.py # Dependency element assembly
-│       │   ├── fragments.py    # Fragment merging
-│       │   └── spdx3_assembler.py  # SPDX 3 assembler (build_spdx3())
+│       │   ├── ai_metadata.py   # Format-neutral AI model metadata
+│       │   ├── config.py        # [tool.loom] settings (LoomConfig)
+│       │   ├── creation.py      # SBOM creation metadata (CreationMetadata)
+│       │   ├── document.py      # Format-neutral document model (DocumentModel)
+│       │   ├── models.py        # SPDX ID generation utilities
+│       │   └── project.py       # Python project metadata (ProjectMetadata)
+│       ├── export/              # Layer 4 — serialise to physical format
+│       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
+│       ├── extract/             # Layer 1 — read from sources
+│       │   ├── ai_model.py      # AI model file extractor (GGUF, ONNX, Safetensors)
+│       │   └── pyproject.py     # pyproject.toml extractor
 │       ├── __about__.py
 │       ├── __init__.py
-│       ├── __main__.py         # CLI entry point
-│       └── bom.py              # ML tracking SDK
+│       ├── __main__.py          # CLI entry point
+│       └── bom.py               # ML tracking SDK
 ├── tests/
 │   ├── test_ai_model_extractor.py
 │   ├── test_bom.py
@@ -226,8 +227,8 @@ loom/
 │   ├── test_provenance.py
 │   └── test_spdx3_compliance.py
 ├── LICENSE
-├── pyproject.toml
-└── README.md
+├── README.md
+└── pyproject.toml
 ```
 
 ## Development

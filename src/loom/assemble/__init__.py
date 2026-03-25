@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-# SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileType: SOURCE
 
-"""SBOM generators for different project types and build systems."""
+"""SBOM assemblers for different output specifications."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from pathlib import Path
 
 from loom.core.creation import CreationMetadata
 from loom.core.document import DocumentModel
-from loom.extractors.pyproject import read_pyproject
-from loom.generators.fragments import merge_fragments
-from loom.generators.spdx3_assembler import build_spdx3
+from loom.extract.pyproject import read_pyproject
+from loom.assemble.spdx3.assembler import build
+from loom.assemble.spdx3.fragments import merge_fragments
 
 
 def generate_sbom(
@@ -22,15 +22,6 @@ def generate_sbom(
     pretty: bool | None = None,
 ) -> str:
     """Generate an SPDX 3 SBOM for a Python project.
-
-    Orchestrates the full pipeline:
-
-    1. Extract project metadata from ``pyproject.toml``.
-    2. Assemble SPDX 3 elements
-       (see :func:`loom.generators.spdx3_assembler.build_spdx3`).
-    3. Merge any pre-generated SBOM fragments listed under
-       ``[tool.loom] fragments`` in ``pyproject.toml``.
-    4. Serialize to JSON-LD and optionally write to ``output_path``.
 
     Args:
         project_dir: Path to the project directory containing ``pyproject.toml``.
@@ -57,7 +48,7 @@ def generate_sbom(
         project=metadata,
         creation=creation_info or CreationMetadata(),
     )
-    exporter = build_spdx3(doc)
+    exporter = build(doc)
     merge_fragments(project_dir, loom_config.fragments, exporter)
 
     sbom_json = exporter.to_json(pretty=effective_pretty)
