@@ -105,6 +105,69 @@ generate_sbom(
 )
 ```
 
+### Hatchling build hook
+
+Loom can embed an SBOM automatically into every wheel you build by acting as
+a Hatchling build hook. The SBOM is placed at
+`.dist-info/sboms/sbom.spdx3.json` inside the wheel, following
+[PEP 770](https://peps.python.org/pep-0770/).
+
+#### Adding Loom to your build requirements
+
+Add `loom` to your project's build requirements:
+
+```toml
+[build-system]
+requires = ["hatchling", "loom"]
+build-backend = "hatchling.build"
+```
+
+#### Registering the hook
+
+Enable the hook by adding a section to your `pyproject.toml`:
+
+```toml
+[tool.hatch.build.hooks.loom]
+# All fields are optional. Defaults are shown.
+enabled = true
+sbom-basename = ""      # name part only (no extension); default "sbom"
+creator-name = ""       # defaults to "Loom"
+creator-email = ""
+fragments = []          # extra SPDX fragment paths (relative to project root)
+```
+
+The full SBOM filename is `{sbom-basename}.spdx3.json` — e.g., the default
+produces `sbom.spdx3.json`.  Setting `sbom-basename = "mypackage-1.0"` would
+produce `mypackage-1.0.spdx3.json`.
+
+That is all. Running `hatch build` or `python -m build` will now generate and
+embed the SBOM automatically — no extra commands needed.
+
+#### Merging AI/ML fragments
+
+For AI-powered software, you can track model and dataset provenance during
+training using `loom.bom`, then include those fragments in the wheel SBOM:
+
+```toml
+[tool.hatch.build.hooks.loom]
+fragments = [
+    "fragments/train_run.spdx3.json",
+    "fragments/eval_run.spdx3.json",
+]
+```
+
+Fragments listed under `[tool.hatch.build.hooks.loom]` are merged together
+with any fragments already listed under `[tool.loom]`.
+
+#### Resulting wheel structure
+
+```text
+mypackage-1.0-py3-none-any.whl
+└── mypackage-1.0.dist-info/
+    └── sboms/
+        └── sbom.spdx3.json   ← PEP 770
+```
+
 ### Python tracking decorator
 
 Developers can easily annotate scripts or Jupyter notebooks to generate
@@ -214,14 +277,20 @@ loom/
 │       ├── extract/             # Layer 1 — read from sources
 │       │   ├── ai_model.py      # AI model file extractor (GGUF, ONNX, Safetensors)
 │       │   └── pyproject.py     # pyproject.toml extractor
+│       ├── plugins/
+│       │   ├── __init__.py
+│       │   └── hatch.py         # Hatchling build hook (PEP 770)
 │       ├── __about__.py
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point
 │       └── bom.py               # ML tracking SDK
 ├── tests/
+│   ├── fixtures/
+│   │   └── sampleproject/       # minimal wheel-build fixture
 │   ├── test_ai_model_extractor.py
 │   ├── test_bom.py
 │   ├── test_generator.py
+│   ├── test_hatch_hook.py
 │   ├── test_metadata.py
 │   ├── test_models.py
 │   ├── test_provenance.py
@@ -262,7 +331,7 @@ python -m build
   — see [design doc](docs/design/format-neutral-representation.md))
 - [ ] Build log extraction for compiled dependencies
 - [x] AI/ML package profiles (AIPackage, DatasetPackage)
-- [ ] PEP 770 support (.dist-info/sboms)
+- [x] PEP 770 support (.dist-info/sboms via `build_data["sbom_files"]`)
 - [ ] PEP 740 attestation support
 - [ ] Rust backend for performance optimization
 

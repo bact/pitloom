@@ -1,0 +1,148 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+# Integration test: build the sampleproject fixture with Loom's Hatchling hook
+# and verify that the wheel contains a valid SPDX 3 SBOM (PEP 770).
+
+name: Hatchling integration
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  hatch-integration:
+    name: Hatchling hook on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Loom and build tools
+        run: |
+          python -m pip install --upgrade pip
+          # Install Loom from the current checkout (no isolation needed).
+          pip install -e .
+          pip install build spdx3-validate
+
+      - name: Build sampleproject with --no-isolation
+        # --no-isolation picks up the locally installed Loom instead of
+        # fetching it from PyPI, so the hook under test is the current code.
+        run: |
+          cd tests/fixtures/sampleproject
+          python -m build --wheel --no-isolation
+          WHEEL=$(ls dist/*.whl | head -1)
+          echo "WHEEL_PATH=${WHEEL}" >> "$GITHUB_ENV"
+          echo "WHEEL_NAME=$(basename ${WHEEL})" >> "$GITHUB_ENV"
+
+      - name: Verify SBOM is present inside the wheel
+        run: |
+          cd tests/fixtures/sampleproject
+          python - <<'EOF'
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          wheels = list(Path("dist").glob("*.whl"))
+          if not wheels:
+              print("ERROR: No wheel found in dist/", file=sys.stderr)
+              sys.exit(1)
+          wheel_path = wheels[0]
+
+          sbom_key = None
+          with zipfile.ZipFile(wheel_path) as zf:
+              for name in zf.namelist():
+                  if name.endswith(".dist-info/sboms/sbom.spdx3.json"):
+                      sbom_key = name
+                      break
+
+          if sbom_key is None:
+              print(
+                  f"ERROR: SBOM not found in {wheel_path.name}. "
+                  "Expected a file matching *.dist-info/sboms/sbom.spdx3.json",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print(f"Found SBOM at: {sbom_key}")
+
+          import json
+          with zipfile.ZipFile(wheel_path) as zf:
+              sbom = json.loads(zf.read(sbom_key).decode("utf-8"))
+
+          if "@graph" not in sbom:
+              print("ERROR: SBOM JSON-LD is missing '@graph' key.", file=sys.stderr)
+              sys.exit(1)
+
+          graph = sbom["@graph"]
+          pkg_names = [
+              e.get("name")
+              for e in graph
+              if e.get("type") == "software_Package"
+          ]
+          if "sampleproject" not in pkg_names:
+              print(
+                  f"ERROR: 'sampleproject' not found in SBOM packages: {pkg_names}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print(f"SBOM packages: {pkg_names}")
+          print("SBOM presence check passed.")
+          EOF
+
+      - name: Extract SBOM from wheel for validation
+        run: |
+          cd tests/fixtures/sampleproject
+          python - <<'EOF'
+          import zipfile
+          from pathlib import Path
+
+          wheel_path = next(Path("dist").glob("*.whl"))
+          with zipfile.ZipFile(wheel_path) as zf:
+              for name in zf.namelist():
+                  if name.endswith(".dist-info/sboms/sbom.spdx3.json"):
+                      data = zf.read(name)
+                      Path("dist/sbom.spdx3.json").write_bytes(data)
+                      print(f"Extracted {name} → dist/sbom.spdx3.json")
+                      break
+          EOF
+
+      - name: Validate SBOM with spdx3-validate
+        run: |
+          spdx3-validate --json tests/fixtures/sampleproject/dist/sbom.spdx3.json
+          echo "SBOM validation passed."
+
+      - name: Create job summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Hatchling integration — Python ${{ matrix.python-version }}
+
+          | Step | Result |
+          | :--- | :--- |
+          | Build wheel with Loom hook | ${{ job.status }} |
+          | SBOM present in wheel (PEP 770) | See logs |
+          | SPDX 3 validation | See logs |
+          EOF
+
+      - name: Upload wheel and SBOM artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hatch-integration-py${{ matrix.python-version }}
+          path: |
+            tests/fixtures/sampleproject/dist/*.whl
+            tests/fixtures/sampleproject/dist/sbom.spdx3.json
+          retention-days: 7

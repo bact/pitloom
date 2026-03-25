@@ -15,6 +15,39 @@ from loom.__about__ import __version__
 from loom.assemble import generate_sbom
 from loom.core.creation import CreationMetadata
 
+_SPDX3_JSON_EXT = ".spdx3.json"
+
+
+def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
+    """Return the SBOM output path to use.
+
+    Priority:
+    1. Explicit ``-o`` / ``--output`` argument.
+    2. ``[tool.loom] sbom-basename`` from ``pyproject.toml``
+       → ``<basename>.spdx3.json``.
+    3. ``<name>-<version>.spdx3.json`` derived from project metadata.
+    4. Fallback: ``sbom.spdx3.json``.
+    """
+    if explicit is not None:
+        return explicit
+
+    try:
+        # pylint: disable=import-outside-toplevel
+        from loom.extract.pyproject import read_pyproject
+
+        metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
+
+        if loom_config.sbom_basename:
+            return Path(f"{loom_config.sbom_basename}{_SPDX3_JSON_EXT}")
+
+        parts = [metadata.name] if metadata.name else ["sbom"]
+        if metadata.version:
+            parts.append(metadata.version)
+        return Path("-".join(parts) + _SPDX3_JSON_EXT)
+
+    except Exception:  # pylint: disable=broad-exception-caught
+        return Path(f"sbom{_SPDX3_JSON_EXT}")
+
 
 def main() -> int:
     """Main entry point for the Loom CLI.
@@ -27,6 +60,7 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
+        "-V",
         "--version",
         action="version",
         version=f"loom {__version__}",
@@ -40,8 +74,12 @@ def main() -> int:
         "-o",
         "--output",
         type=Path,
-        default="sbom.spdx3.json",
-        help="Output file path (default: sbom.spdx3.json)",
+        default=None,
+        help=(
+            "Output file path. "
+            "Default: <name>-<version>.spdx3.json derived from pyproject.toml, "
+            "or the basename from [tool.loom] sbom-basename if set."
+        ),
     )
     parser.add_argument(
         "--creator-name",
@@ -80,17 +118,19 @@ def main() -> int:
             )
             return 1
 
+        output_path = _resolve_output_path(args.output, project_dir)
+
         print(f"Generating SBOM for project in: {project_dir}")
         generate_sbom(
             project_dir,
-            output_path=args.output,
+            output_path=output_path,
             creation_info=CreationMetadata(
                 creator_name=args.creator_name or "Loom",
                 creator_email=args.creator_email or "",
             ),
             pretty=args.pretty,
         )
-        print(f"SBOM written to: {args.output}")
+        print(f"SBOM written to: {output_path}")
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught

@@ -18,16 +18,21 @@ class LoomConfig:
     future versions only requires adding a new field here with a default value.
 
     Attributes:
-        pretty: When ``True``, the serialised SBOM JSON is indented with
-            2 spaces for human readability.  Defaults to ``False`` (compact,
-            machine-optimised output).
         fragments: List of paths to pre-generated SPDX 3 JSON-LD fragment
             files, relative to the project directory.  These are merged into
             the final SBOM document at generation time.
+        pretty: When ``True``, the serialised SBOM JSON is indented with
+            2 spaces for human readability.  Defaults to ``False`` (compact,
+            machine-optimised output).
+        sbom_basename: Base name for the generated SBOM file (no extension).
+            The full filename is derived by appending the format-specific
+            extension (e.g., ``".spdx3.json"``).
+            When ``None``, callers choose a context-appropriate default.
     """
 
-    pretty: bool = False
     fragments: list[str] = field(default_factory=list)
+    pretty: bool = False
+    sbom_basename: str | None = None
 
 
 __all__ = ["LoomConfig"]

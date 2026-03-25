@@ -41,13 +41,22 @@ in JSON-LD format.
    - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
-5. **Command-line interface** (`src/loom/__main__.py`)
+5. **Hatchling build hook** (`src/loom/plugins/hatch.py`)
+   - `LoomBuildHook` registered via pluggy entry point (`[project.entry-points."hatch"]`)
+   - Generates SBOM in `initialize()`, stages to a `TemporaryDirectory`
+   - Appends staged path to `build_data["sbom_files"]` — Hatchling 1.16.0+ places
+     it at `.dist-info/sboms/<filename>` (PEP 770) natively
+   - `finalize()` cleans up the staging directory
+   - Config: `sbom-basename`, `creator-name`, `creator-email`, `fragments`, `enabled`
+
+6. **Command-line interface** (`src/loom/__main__.py`)
    - User-friendly argparse-based CLI
-   - Customizable output path
+   - Default output filename derived from project metadata (`{name}-{version}.spdx3.json`)
+     or `[tool.loom] sbom-basename` when set
    - Creator information options
    - Clear error messages
 
-6. **Metadata provenance tracking** (`src/loom/extract/pyproject.py`,
+7. **Metadata provenance tracking** (`src/loom/extract/pyproject.py`,
    `src/loom/bom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
@@ -55,7 +64,7 @@ in JSON-LD format.
    - Uses SPDX 3 comment attribute
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
-7. **ML tracking SDK** (`src/loom/bom.py`)
+8. **ML tracking SDK** (`src/loom/bom.py`)
    - Dual-syntax ContextDecorator (`@bom.track` and `with bom.track`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
    - Seamlessly ingested into project SBOMs using `[tool.loom.fragments]` config
@@ -269,9 +278,9 @@ Based on the design document and problem requirements:
 
 ### Long-term
 
-1. **PEP 770 Support**
-   - Store SBOMs in .dist-info/sboms
-   - Wheel integration
+1. ~~**PEP 770 Support** — completed~~
+   - ~~Store SBOMs in .dist-info/sboms~~
+   - ~~Wheel integration~~
 
 2. **PEP 740 Attestations**
    - Cryptographic signing
