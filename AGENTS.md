@@ -9,6 +9,17 @@
 - This project is in private alpha stage with only one developer.
   Do not worry about breaking changes or keeping backward compatibility yet.
 
+### SBOM output
+
+- Deterministic generation: To ensure reproducible builds,
+  generated SBOMs must be bit-for-bit identical across builds when the
+  input and environment remain unchanged.
+- Idempotency: Avoid non-deterministic data (e.g., current timestamps or
+  random UUIDs) to maintain reproducibility in the resulting SBOM.
+- Schema compliance: Every SBOM must be strictly validated against its
+  primary specification (e.g., CycloneDX/SPDX) and its specific serialization
+  format (JSON/XML) prior to finalization. Automated validation is mandatory.
+
 ## CLI output
 
 Follow Unix philosophy.
