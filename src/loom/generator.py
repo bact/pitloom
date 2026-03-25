@@ -24,6 +24,7 @@ def generate_sbom_from_project(
     project_dir: Path,
     creator_name: str | None = None,
     creator_email: str | None = None,
+    pretty: bool | None = None,
 ) -> str:
     """Generate an SPDX 3.0 SBOM from a Python project.
 
@@ -31,6 +32,9 @@ def generate_sbom_from_project(
         project_dir: Path to the project directory containing pyproject.toml
         creator_name: Name of the SBOM creator (defaults to "Loom")
         creator_email: Email of the SBOM creator (optional)
+        pretty: If True, pretty-print the output. If False, use compact output.
+            If None (default), read the setting from ``[tool.loom] pretty``
+            in pyproject.toml (which itself defaults to False).
 
     Returns:
         str: JSON-LD representation of the SBOM
@@ -41,6 +45,9 @@ def generate_sbom_from_project(
     """
     pyproject_path = project_dir / "pyproject.toml"
     metadata = extract_metadata_from_pyproject(pyproject_path)
+
+    # Resolve pretty-print setting: explicit arg overrides [tool.loom] pretty
+    effective_pretty: bool = metadata.pretty if pretty is None else pretty
 
     # Create SPDX document elements
     exporter = Spdx3JsonExporter()
@@ -253,12 +260,13 @@ def generate_sbom_from_project(
                 fragment_path,
             )
 
-    return exporter.to_json()
+    return exporter.to_json(pretty=effective_pretty)
 
 
 def generate_sbom_to_file(
     project_dir: Path,
     output_path: Path,
+    pretty: bool | None = None,
     creator_name: str | None = None,
     creator_email: str | None = None,
 ) -> None:
@@ -267,8 +275,13 @@ def generate_sbom_to_file(
     Args:
         project_dir: Path to the project directory containing pyproject.toml
         output_path: Path where the SBOM JSON file will be written
+        pretty: If True, pretty-print the output. If False, use compact output.
+            If None (default), read the setting from ``[tool.loom] pretty``
+            in pyproject.toml.
         creator_name: Name of the SBOM creator (defaults to "Loom")
         creator_email: Email of the SBOM creator (optional)
     """
-    sbom_json = generate_sbom_from_project(project_dir, creator_name, creator_email)
-    output_path.write_text(sbom_json)
+    sbom_json = generate_sbom_from_project(
+        project_dir, creator_name, creator_email, pretty
+    )
+    output_path.write_text(sbom_json, encoding="utf-8")
