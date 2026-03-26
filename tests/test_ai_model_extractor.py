@@ -70,6 +70,135 @@ def test_extract_metadata_unsupported_format(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# AiModelMetadata dataclass
+# ---------------------------------------------------------------------------
+
+
+def test_ai_model_metadata_defaults() -> None:
+    meta = AiModelMetadata()
+    assert meta.format == AiModelFormat.UNKNOWN
+    assert meta.name is None
+    assert meta.hyperparameters == {}
+    assert meta.properties == {}
+    assert meta.inputs == []
+    assert meta.outputs == []
+    assert meta.provenance == {}
+
+
+def test_ai_model_metadata_construction() -> None:
+    meta = AiModelMetadata(
+        format=AiModelFormat.ONNX,
+        name="MyModel",
+        version="1.0",
+        type_of_model="transformer",
+        hyperparameters={"num_heads": 12},
+        provenance={"name": "Source: model.onnx | Field: graph.name"},
+    )
+    assert meta.format == AiModelFormat.ONNX
+    assert meta.name == "MyModel"
+    assert meta.hyperparameters["num_heads"] == 12
+    assert "name" in meta.provenance
+
+
+# ---------------------------------------------------------------------------
+# GGUF extractor (mocked)
+# ---------------------------------------------------------------------------
+
+
+def _make_gguf_field(value: int | str) -> MagicMock:
+    """Create a mock GGUFReader field with a single scalar value."""
+    field = MagicMock()
+    arr = MagicMock()
+    arr.tolist.return_value = [value]
+    field.parts = [arr]
+    return field
+
+
+def test_gguf_missing_library(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"fake")
+    with patch.dict("sys.modules", {"gguf": None}):
+        with pytest.raises(ImportError, match="gguf"):
+            read_gguf(model_file)
+
+
+def test_gguf_basic_extraction(tmp_path: Path) -> None:
+    model_file = tmp_path / "llama.gguf"
+    model_file.write_bytes(b"fake")
+
+    mock_fields = {
+        "general.architecture": _make_gguf_field("llama"),
+        "general.name": _make_gguf_field("LLaMA-3-8B"),
+        "general.description": _make_gguf_field("Meta LLaMA 3 8B"),
+        "general.version": _make_gguf_field("3.0"),
+        "llama.context_length": _make_gguf_field(8192),
+        "llama.embedding_length": _make_gguf_field(4096),
+        "llama.attention.head_count": _make_gguf_field(32),
+        "llama.block_count": _make_gguf_field(32),
+        "tokenizer.ggml.model": _make_gguf_field("llama"),
+    }
+
+    mock_reader = MagicMock()
+    mock_reader.fields = mock_fields
+
+    mock_gguf = MagicMock()
+    mock_gguf.GGUFReader.return_value = mock_reader
+
+    with patch.dict("sys.modules", {"gguf": mock_gguf}):
+        meta = read_gguf(model_file)
+
+    assert meta.format == AiModelFormat.GGUF
+    assert meta.name == "LLaMA-3-8B"
+    assert meta.description == "Meta LLaMA 3 8B"
+    assert meta.version == "3.0"
+    assert meta.type_of_model == "llama"
+    assert meta.hyperparameters["llama.context_length"] == 8192
+    assert meta.hyperparameters["llama.embedding_length"] == 4096
+    assert meta.hyperparameters["llama.attention.head_count"] == 32
+    assert meta.hyperparameters["llama.block_count"] == 32
+    # Non-hyperparam key goes to properties
+    assert "tokenizer.ggml.model" in meta.properties
+    assert "hyperparameters" in meta.provenance
+    assert "type_of_model" in meta.provenance
+
+
+def test_gguf_minimal_fields(tmp_path: Path) -> None:
+    """Only architecture, no name or description."""
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"fake")
+
+    mock_fields = {
+        "general.architecture": _make_gguf_field("mistral"),
+    }
+
+    mock_reader = MagicMock()
+    mock_reader.fields = mock_fields
+
+    mock_gguf = MagicMock()
+    mock_gguf.GGUFReader.return_value = mock_reader
+
+    with patch.dict("sys.modules", {"gguf": mock_gguf}):
+        meta = read_gguf(model_file)
+
+    assert meta.type_of_model == "mistral"
+    assert meta.name is None
+    assert meta.description is None
+    assert meta.version is None
+
+
+def test_gguf_load_failure(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"corrupt")
+
+    mock_gguf = MagicMock()
+    mock_gguf.GGUFReader.side_effect = ValueError("bad magic")
+
+    with patch.dict("sys.modules", {"gguf": mock_gguf}):
+        with pytest.raises(ValueError, match="Failed to read GGUF"):
+            read_gguf(model_file)
+
+
+# ---------------------------------------------------------------------------
 # ONNX extractor (mocked)
 # ---------------------------------------------------------------------------
 
@@ -342,135 +471,6 @@ def test_safetensors_read_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# GGUF extractor (mocked)
-# ---------------------------------------------------------------------------
-
-
-def _make_gguf_field(value: int | str) -> MagicMock:
-    """Create a mock GGUFReader field with a single scalar value."""
-    field = MagicMock()
-    arr = MagicMock()
-    arr.tolist.return_value = [value]
-    field.parts = [arr]
-    return field
-
-
-def test_gguf_missing_library(tmp_path: Path) -> None:
-    model_file = tmp_path / "model.gguf"
-    model_file.write_bytes(b"fake")
-    with patch.dict("sys.modules", {"gguf": None}):
-        with pytest.raises(ImportError, match="gguf"):
-            read_gguf(model_file)
-
-
-def test_gguf_basic_extraction(tmp_path: Path) -> None:
-    model_file = tmp_path / "llama.gguf"
-    model_file.write_bytes(b"fake")
-
-    mock_fields = {
-        "general.architecture": _make_gguf_field("llama"),
-        "general.name": _make_gguf_field("LLaMA-3-8B"),
-        "general.description": _make_gguf_field("Meta LLaMA 3 8B"),
-        "general.version": _make_gguf_field("3.0"),
-        "llama.context_length": _make_gguf_field(8192),
-        "llama.embedding_length": _make_gguf_field(4096),
-        "llama.attention.head_count": _make_gguf_field(32),
-        "llama.block_count": _make_gguf_field(32),
-        "tokenizer.ggml.model": _make_gguf_field("llama"),
-    }
-
-    mock_reader = MagicMock()
-    mock_reader.fields = mock_fields
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.return_value = mock_reader
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = read_gguf(model_file)
-
-    assert meta.format == AiModelFormat.GGUF
-    assert meta.name == "LLaMA-3-8B"
-    assert meta.description == "Meta LLaMA 3 8B"
-    assert meta.version == "3.0"
-    assert meta.type_of_model == "llama"
-    assert meta.hyperparameters["llama.context_length"] == 8192
-    assert meta.hyperparameters["llama.embedding_length"] == 4096
-    assert meta.hyperparameters["llama.attention.head_count"] == 32
-    assert meta.hyperparameters["llama.block_count"] == 32
-    # Non-hyperparam key goes to properties
-    assert "tokenizer.ggml.model" in meta.properties
-    assert "hyperparameters" in meta.provenance
-    assert "type_of_model" in meta.provenance
-
-
-def test_gguf_minimal_fields(tmp_path: Path) -> None:
-    """Only architecture, no name or description."""
-    model_file = tmp_path / "model.gguf"
-    model_file.write_bytes(b"fake")
-
-    mock_fields = {
-        "general.architecture": _make_gguf_field("mistral"),
-    }
-
-    mock_reader = MagicMock()
-    mock_reader.fields = mock_fields
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.return_value = mock_reader
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        meta = read_gguf(model_file)
-
-    assert meta.type_of_model == "mistral"
-    assert meta.name is None
-    assert meta.description is None
-    assert meta.version is None
-
-
-def test_gguf_load_failure(tmp_path: Path) -> None:
-    model_file = tmp_path / "model.gguf"
-    model_file.write_bytes(b"corrupt")
-
-    mock_gguf = MagicMock()
-    mock_gguf.GGUFReader.side_effect = ValueError("bad magic")
-
-    with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        with pytest.raises(ValueError, match="Failed to read GGUF"):
-            read_gguf(model_file)
-
-
-# ---------------------------------------------------------------------------
-# AiModelMetadata dataclass
-# ---------------------------------------------------------------------------
-
-
-def test_ai_model_metadata_defaults() -> None:
-    meta = AiModelMetadata()
-    assert meta.format == AiModelFormat.UNKNOWN
-    assert meta.name is None
-    assert meta.hyperparameters == {}
-    assert meta.properties == {}
-    assert meta.inputs == []
-    assert meta.outputs == []
-    assert meta.provenance == {}
-
-
-def test_ai_model_metadata_construction() -> None:
-    meta = AiModelMetadata(
-        format=AiModelFormat.ONNX,
-        name="MyModel",
-        version="1.0",
-        type_of_model="transformer",
-        hyperparameters={"num_heads": 12},
-        provenance={"name": "Source: model.onnx | Field: graph.name"},
-    )
-    assert meta.format == AiModelFormat.ONNX
-    assert meta.name == "MyModel"
-    assert meta.hyperparameters["num_heads"] == 12
-    assert "name" in meta.provenance
-
-
-# ---------------------------------------------------------------------------
 # Integration tests — real ONNX file (squeezenet1.1-7.onnx)
 # Require: onnx installed AND tests/fixtures/onnx/squeezenet1.1-7.onnx present
 # ---------------------------------------------------------------------------
@@ -628,7 +628,8 @@ def test_gguf_integration_provenance(stories260k_metadata: AiModelMetadata) -> N
 # Integration tests — real ONNX file (encoder_model_q4f16.onnx)
 # Source: onnx-community/whisper-tiny-ONNX (~6.3 MB)
 # Whisper tiny speech encoder, quantised Q4F16, two opset domains
-# Require: onnx installed AND tests/fixtures/onnx/encoder_model_q4f16.onnx present
+# Require: onnx installed AND
+#          tests/fixtures/onnx/encoder_model_q4f16.onnx present
 # ---------------------------------------------------------------------------
 
 WHISPER_ENCODER_FIXTURE = _ONNX / "encoder_model_q4f16.onnx"
@@ -690,7 +691,8 @@ def test_whisper_encoder_provenance(whisper_encoder_metadata: AiModelMetadata) -
 # Integration tests — real GGUF file (mmproj-tinygemma3.gguf)
 # Source: ggml-org/tinygemma3-GGUF (~1.0 MB)
 # CLIP vision multimodal projector for tinygemma3; architecture = "clip"
-# Require: gguf installed AND tests/fixtures/gguf/mmproj-tinygemma3.gguf present
+# Require: gguf installed AND
+#          tests/fixtures/gguf/mmproj-tinygemma3.gguf present
 # ---------------------------------------------------------------------------
 
 MMPROJ_FIXTURE = _GGUF / "mmproj-tinygemma3.gguf"
