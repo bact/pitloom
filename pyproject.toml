@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pitloom"
 version = "0.1.0"
-description = "Creating SBOM during the build process. Now targeting Python Hatchling support."
+description = "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, and Safetensors models with native Hatchling build-hook support."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
