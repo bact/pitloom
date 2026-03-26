@@ -198,7 +198,7 @@ Generate an SBOM for the sentimentdemo project:
 git clone https://github.com/bact/sentimentdemo.git
 
 # Generate SBOM
-loom sentimentdemo -o sentimentdemo-sbom.spdx3.json
+loom sentimentdemo
 ```
 
 The generated SBOM will include:
@@ -247,7 +247,7 @@ This transparency is crucial for:
 ## Project structure
 
 ```text
-loom/
+/
 ├── docs/
 │   ├── design/
 │   │   ├── architecture-overview.md
@@ -258,7 +258,7 @@ loom/
 │       ├── demo-provenance.md
 │       └── summary.md
 ├── src/
-│   └── loom/
+│   └── pitloom/
 │       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
 │       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
 │       │   │   ├── assembler.py # SPDX 3 assembler — build(DocumentModel)
@@ -348,3 +348,15 @@ python -m build
 - Test fixture AI models:
   individual files carry Apache-2.0 or MIT licenses — see
   [tests/fixtures/README.md](tests/fixtures/README.md) for details.
+
+## Name
+
+A [pit loom](https://en.wikipedia.org/wiki/Loom#Treadle_loom)
+is a traditional handloom built into a ground-level pit
+to house its internal mechanisms and the weaver's legs.
+This "grounded" design provides stability and precision
+during the weaving process.
+
+We use the loom as a metaphor for the tool's function:
+it weaves disparate threads of metadata into a cohesive SBOM,
+creating a transparent, structured "fabric" for the software build.
