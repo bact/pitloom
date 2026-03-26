@@ -59,7 +59,7 @@ jobs:
         run: |
           pip install -e .
 
-      - name: Generate SBOM
+      - name: Generate SBOM with Loom
         id: sbom
         if: steps.build.outcome == 'success'
         run: |
