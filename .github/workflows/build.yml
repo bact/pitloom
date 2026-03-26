@@ -83,7 +83,7 @@ jobs:
           echo "::error title=Build Failed::Wheel build failed for Python ${{ matrix.python-version }}. Check the build logs for details."
           exit 1
 
-      - name: Install Loom for SBOM generation
+      - name: Install Pitloom for SBOM generation
         if: steps.build.outcome == 'success'
         run: |
           pip install -e .
@@ -97,7 +97,7 @@ jobs:
           SBOM_NAME="${WHEEL_NAME}.spdx3.json"
 
           # Generate SBOM
-          loom . -o "dist/${SBOM_NAME}" --creator-name "Loom CI" --creator-email "ci@loom.example"
+          loom . -o "dist/${SBOM_NAME}" --creator-name "Pitloom CI" --creator-email "ci@example.com"
 
           echo "sbom_name=${SBOM_NAME}" >> $GITHUB_OUTPUT
           echo "sbom_path=dist/${SBOM_NAME}" >> $GITHUB_OUTPUT
@@ -305,7 +305,7 @@ jobs:
 
           ${{ steps.sbom.outcome == 'failure' && '**SBOM Generation Failed:**
           - Ensure pyproject.toml exists and is valid
-          - Verify that Loom is correctly installed
+          - Verify that Pitloom is correctly installed
           - Check that project metadata is properly configured
           ' || '' }}
 

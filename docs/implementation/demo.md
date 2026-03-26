@@ -123,7 +123,7 @@ Provides a contextual wrapper `pitloom.bom` to emit isolated fragments
 dynamically from training loops into your main SBOM seamlessly:
 
 ```python
-from loom import bom
+from pitloom import bom
 
 @bom.track("fragments/model.json")
 def run():

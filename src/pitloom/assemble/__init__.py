@@ -41,15 +41,15 @@ def generate_sbom(
         FileNotFoundError: If ``pyproject.toml`` is not found in ``project_dir``.
         ValueError: If required project metadata (e.g., ``name``) is missing.
     """
-    metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
-    effective_pretty: bool = loom_config.pretty if pretty is None else pretty
+    metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
+    effective_pretty: bool = pitloom_config.pretty if pretty is None else pretty
 
     doc = DocumentModel(
         project=metadata,
         creation=creation_info or CreationMetadata(),
     )
     exporter = build(doc)
-    merge_fragments(project_dir, loom_config.fragments, exporter)
+    merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
     sbom_json = exporter.to_json(pretty=effective_pretty)
 

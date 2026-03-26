@@ -71,7 +71,7 @@ Serializers pick the fields they understand and ignore the rest.
 | Class | Module | Description |
 | :---- | :---- | :---- |
 | `ProjectMetadata` | `pitloom.core.project` | Python project fields from `pyproject.toml` |
-| `AiModelMetadata` | `pitloom.core.ai_metadata` | AI model fields (ONNX, GGUF, Safetensors) |
+| `AiModelMetadata` | `pitloom.core.ai_metadata` | AI model fields (GGUF, ONNX, Safetensors) |
 | `PitloomConfig` | `pitloom.core.config` | `[tool.pitloom]` settings (`pretty`, `fragments`) |
 | `CreationMetadata` | `pitloom.core.creation` | SBOM creator / timestamp |
 | `DocumentModel` | `pitloom.core.document` | Composed document ready for serialization |

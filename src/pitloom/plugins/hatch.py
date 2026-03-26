@@ -85,7 +85,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         hook_fragments: list[str] = config.get("fragments", [])
 
         project_dir = Path(self.root)
-        metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
+        metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
 
         creation_meta = CreationMetadata(
             creator_name=creator_name,
@@ -95,10 +95,10 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         exporter = assemble_spdx3(doc)
 
         # Merge fragments from [tool.pitloom] and [tool.hatch.build.hooks.pitloom]
-        all_fragments = loom_config.fragments + hook_fragments
+        all_fragments = pitloom_config.fragments + hook_fragments
         merge_fragments(project_dir, all_fragments, exporter)
 
-        sbom_json = exporter.to_json(pretty=loom_config.pretty)
+        sbom_json = exporter.to_json(pretty=pitloom_config.pretty)
 
         self._sbom_filename = sbom_filename
         # Not used as a context manager: the directory must outlive initialize()

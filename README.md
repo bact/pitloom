@@ -59,7 +59,7 @@ Install extras to enable metadata extraction from model files:
 pip install -e ".[onnx]"          # ONNX models
 pip install -e ".[safetensors]"   # Safetensors models
 pip install -e ".[gguf]"          # GGUF models
-pip install -e ".[model]"         # all of the above
+pip install -e ".[aimodel]"       # all of the above
 ```
 
 ## Usage
@@ -247,7 +247,7 @@ This transparency is crucial for:
 ## Project structure
 
 ```text
-/
+pitloom/
 ├── docs/
 │   ├── design/
 │   │   ├── architecture-overview.md
@@ -267,7 +267,7 @@ This transparency is crucial for:
 │       │   └── __init__.py      # generate_sbom() orchestrator
 │       ├── core/
 │       │   ├── ai_metadata.py   # Format-neutral AI model metadata
-│       │   ├── config.py        # [tool.pitloom] settings (LoomConfig)
+│       │   ├── config.py        # [tool.pitloom] settings (PitloomConfig)
 │       │   ├── creation.py      # SBOM creation metadata (CreationMetadata)
 │       │   ├── document.py      # Format-neutral document model (DocumentModel)
 │       │   ├── models.py        # SPDX ID generation utilities

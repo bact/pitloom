@@ -35,10 +35,10 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
         # pylint: disable=import-outside-toplevel
         from pitloom.extract.pyproject import read_pyproject
 
-        metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
+        metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
 
-        if loom_config.sbom_basename:
-            return Path(f"{loom_config.sbom_basename}{_SPDX3_JSON_EXT}")
+        if pitloom_config.sbom_basename:
+            return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
 
         parts = [metadata.name] if metadata.name else ["sbom"]
         if metadata.version:

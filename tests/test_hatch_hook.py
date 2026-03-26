@@ -313,7 +313,7 @@ def test_hook_sbom_files_appended_to_existing() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_hook_with_loom_fragments() -> None:
+def test_hook_with_pitloom_fragments() -> None:
     """Fragments listed under [tool.hatch.build.hooks.pitloom] are merged."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
