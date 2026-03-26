@@ -12,8 +12,8 @@ from typing import Any
 
 from pyproject_metadata import StandardMetadata
 
-from loom.core.config import LoomConfig
-from loom.core.project import ProjectMetadata
+from pitloom.core.config import PitloomConfig
+from pitloom.core.project import ProjectMetadata
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -21,11 +21,11 @@ else:
     import tomli as tomllib
 
 
-def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, LoomConfig]:
+def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from a ``pyproject.toml`` file.
 
     Parses the ``[project]`` section via ``pyproject-metadata``, resolves
-    dynamic versions, and reads Loom-specific settings from ``[tool.loom]``.
+    dynamic versions, and reads Pitloom-specific settings from ``[tool.pitloom]``.
 
     Args:
         pyproject_path: Path to the ``pyproject.toml`` file.
@@ -33,10 +33,10 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, LoomConfig]:
     Returns:
         A 2-tuple of:
 
-        * :class:`~loom.core.project.ProjectMetadata` — populated project
+        * :class:`~pitloom.core.project.ProjectMetadata` — populated project
           metadata.
-        * :class:`~loom.core.config.LoomConfig` — settings from
-          ``[tool.loom]`` (all fields default gracefully when the section is
+        * :class:`~pitloom.core.config.PitloomConfig` — settings from
+          ``[tool.pitloom]`` (all fields default gracefully when the section is
           absent).
 
     Raises:
@@ -132,25 +132,27 @@ def _build_provenance(
 
     if project_data.get("authors"):
         prov["copyright_text"] = (
-            "Source: Loom generator | Method: inferred_from_authors"
+            "Source: Pitloom generator | Method: inferred_from_authors"
         )
 
     return prov
 
 
-def _read_loom_config(data: dict[str, Any]) -> LoomConfig:
+def _read_loom_config(data: dict[str, Any]) -> PitloomConfig:
     """
-    Read ``[tool.loom]`` settings and return
-    a :class:`~loom.core.config.LoomConfig`.
+    Read ``[tool.pitloom]`` settings and return
+    a :class:`~pitloom.core.config.PitloomConfig`.
     """
-    loom_data = data.get("tool", {}).get("loom", {})
+    loom_data = data.get("tool", {}).get("pitloom", {})
     raw_fragments = loom_data.get("fragments", {}).get("files", [])
     fragments = (
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
     )
     pretty = bool(loom_data.get("pretty", False))
     sbom_basename: str | None = loom_data.get("sbom-basename") or None
-    return LoomConfig(pretty=pretty, fragments=fragments, sbom_basename=sbom_basename)
+    return PitloomConfig(
+        pretty=pretty, fragments=fragments, sbom_basename=sbom_basename
+    )
 
 
 def _strip_missing_readme(

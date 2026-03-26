@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from loom.assemble.spdx3.assembler import build
-from loom.assemble.spdx3.fragments import merge_fragments
-from loom.core.creation import CreationMetadata
-from loom.core.document import DocumentModel
-from loom.extract.pyproject import read_pyproject
+from pitloom.assemble.spdx3.assembler import build
+from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.document import DocumentModel
+from pitloom.extract.pyproject import read_pyproject
 
 
 def generate_sbom(
@@ -28,11 +28,11 @@ def generate_sbom(
         output_path: If given, the JSON-LD output is also written to this path.
         pretty: If ``True``, indent the JSON output with 2 spaces.
             If ``False``, produce compact output (no extra whitespace).
-            If ``None`` (default), read the setting from ``[tool.loom] pretty``
+            If ``None`` (default), read the setting from ``[tool.pitloom] pretty``
             in ``pyproject.toml`` (which itself defaults to ``False``).
         creation_info: Creator and timestamp metadata for the SBOM document.
-            When ``None`` a default :class:`~loom.core.creation.CreationMetadata`
-            is used (creator ``"Loom"``, current UTC time).
+            When ``None`` a default :class:`~pitloom.core.creation.CreationMetadata`
+            is used (creator ``"Pitloom"``, current UTC time).
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.

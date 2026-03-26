@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 # Protobom evaluation for format-neutral representation
 
 This report evaluates **Protobom** as the primary universal, format-neutral
-representation for Loom's core orchestration layer. Our specific focus is
+representation for Pitloom's core orchestration layer. Our specific focus is
 regarding the ability to generate AI SBOMs at pre-build/build time and
 preserving provenance for AI models and datasets natively.
 
@@ -18,8 +18,8 @@ neutral, intermediate Software Bill of Materials (SBOM) data structure.
 It is designed to interpret, manipulate, and seamlessly translate SBOMs across
 major specifications such as SPDX (2.3/3.0) and CycloneDX (1.4/1.5/1.6).
 
-By adopting Protobom as Loom's internal state (instead of the
-`spdx-python-model` bindings directly), Loom could theoretically generate
+By adopting Protobom as Pitloom's internal state (instead of the
+`spdx-python-model` bindings directly), Pitloom could theoretically generate
 `.spdx3.json`, `.spdx2.tv`, and `.cdx.json` formats from a single execution
 run without writing custom data-mapping layers.
 
@@ -44,12 +44,12 @@ Its Protobuf schema is based on an **Edge List**:
 - `EdgeList`: Identifying connections mapping `id` to `to_id` with
   an explicit relationship type.
 
-**Conclusion:** This is highly advantageous for Loom. Because Protobom
+**Conclusion:** This is highly advantageous for Pitloom. Because Protobom
 internally operates as a graph, it aligns perfectly with our SPDX 3-first
 prototype. When translating Protobom's graph out to CycloneDX, the Protobom
 exporter library handles the complex flattening/nesting required to mimic
 a tree structure via external references. This effectively offloads the
-topological complexity away from the Loom ecosystem.
+topological complexity away from the Pitloom ecosystem.
 
 ## 3. Analytical focus: AI and dataset constraints
 
@@ -77,7 +77,7 @@ links (e.g., `DEPENDS_ON`, `CONTAINS`, `STATIC_LINK`).
 
 ### Resulting information loss
 
-If Loom’s `bom.py` tracker extracts deep introspection data from a PyTorch
+If Pitloom’s `bom.py` tracker extracts deep introspection data from a PyTorch
 training loop (e.g., model architecture, preprocessing metrics, and dataset
 constraints), passing it through a standard Protobom parser would cause
 **forced downgrading**:
@@ -97,7 +97,7 @@ format-neutral capabilities, we have several architectural pathways:
 
 ### Option A: Upstream contribution (recommended long-term)
 
-Protobom is an actively developing standard. Loom could author and submit PRs
+Protobom is an actively developing standard. Pitloom could author and submit PRs
 to the `protobom/protobom` repository to introduce:
 
 1. `NodeType.AI_MODEL` and `NodeType.DATASET`.
@@ -124,7 +124,7 @@ hybrid architecture inside `loom.generator`.
 
 1. **Standard packages:** Python wheels, libraries, and compiler outputs are
   ingested into the `Protobom` universal graph.
-2. **AI fragments:** Data emitted strictly from `loom.bom` (datasets, models)
+2. **AI fragments:** Data emitted strictly from `pitloom.bom` (datasets, models)
   bypass Protobom and are maintained natively in `spdx-python-model` classes.
 3. **Merge phase:** At export time, if the user targets SPDX 3, the Protobom
   exporter runs. We then dynamically merge our native `run.model` graphs into
@@ -151,7 +151,7 @@ hybrid architecture inside `loom.generator`.
 
 Protobom successfully solves the Graph/Tree topology headache and offers
 a beautiful solution for traditional Python software dependencies.
-However, for Loom's advanced AI provenance tracking, Protobom will introduce
+However, for Pitloom's advanced AI provenance tracking, Protobom will introduce
 unacceptable data loss out-of-the-box. We must orchestrate a hybrid state or
 invest heavily in contributing AI specifications upstream to Protobom before
-migrating Loom's core exclusively to the neutral format.
+migrating Pitloom's core exclusively to the neutral format.

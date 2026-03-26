@@ -15,40 +15,40 @@ from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.plugin import hookimpl
 
-from loom.assemble.spdx3.assembler import build as assemble_spdx3
-from loom.assemble.spdx3.fragments import merge_fragments
-from loom.core.creation import CreationMetadata
-from loom.core.document import DocumentModel
-from loom.extract.pyproject import read_pyproject
+from pitloom.assemble.spdx3.assembler import build as assemble_spdx3
+from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.document import DocumentModel
+from pitloom.extract.pyproject import read_pyproject
 
 log = logging.getLogger(__name__)
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 
 
-class LoomBuildHook(BuildHookInterface[BuilderConfig]):
+class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
     """Hatchling build hook that embeds an SPDX 3 SBOM in the wheel.
 
-    Activated by adding ``[tool.hatch.build.hooks.loom]`` to the project's
-    ``pyproject.toml`` and listing ``loom`` as a build dependency.
+    Activated by adding ``[tool.hatch.build.hooks.pitloom]`` to the project's
+    ``pyproject.toml`` and listing ``pitloom`` as a build dependency.
 
     The SBOM is written to ``.dist-info/sboms/<filename>`` inside the wheel,
-    conforming to PEP 770.  Hatchling 1.16.0+ handles the injection natively
+    conforming to PEP 770.  Hatchling 1.28.0+ handles the injection natively
     via ``build_data["sbom_files"]``.
 
     Configuration (all fields optional):
 
     .. code-block:: toml
 
-        [tool.hatch.build.hooks.loom]
+        [tool.hatch.build.hooks.pitloom]
         enabled = true             # set to false to skip SBOM generation
         sbom-basename = ""         # name part only, no extension; default "sbom"
-        creator-name = ""          # defaults to "Loom"
+        creator-name = ""          # defaults to "Pitloom"
         creator-email = ""
         fragments = []             # extra fragment paths relative to project root
     """
 
-    PLUGIN_NAME = "loom"
+    PLUGIN_NAME = "pitloom"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -75,12 +75,12 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         _validate_config(config)
 
         if not config.get("enabled", True):
-            log.info("Loom build hook: disabled; skipping SBOM generation.")
+            log.info("Pitloom build hook: disabled; skipping SBOM generation.")
             return
 
         sbom_basename: str = config.get("sbom-basename", "") or "sbom"
         sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
-        creator_name: str = config.get("creator-name", "") or "Loom"
+        creator_name: str = config.get("creator-name", "") or "Pitloom"
         creator_email: str = config.get("creator-email", "")
         hook_fragments: list[str] = config.get("fragments", [])
 
@@ -94,7 +94,7 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         doc = DocumentModel(project=metadata, creation=creation_meta)
         exporter = assemble_spdx3(doc)
 
-        # Merge fragments from [tool.loom] and [tool.hatch.build.hooks.loom]
+        # Merge fragments from [tool.pitloom] and [tool.hatch.build.hooks.pitloom]
         all_fragments = loom_config.fragments + hook_fragments
         merge_fragments(project_dir, all_fragments, exporter)
 
@@ -113,7 +113,7 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
 
         log.info(
-            "Loom: staged SBOM %s (%d fragment(s)); "
+            "Pitloom: staged SBOM %s (%d fragment(s)); "
             "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
             sbom_filename,
             len(all_fragments),
@@ -133,12 +133,12 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
 
 
 def _validate_config(config: dict[str, Any]) -> None:
-    """Validate ``[tool.hatch.build.hooks.loom]`` configuration values.
+    """Validate ``[tool.hatch.build.hooks.pitloom]`` configuration values.
 
     Raises:
         ValueError: If any value has an unexpected type or is otherwise invalid.
     """
-    section = "[tool.hatch.build.hooks.loom]"
+    section = "[tool.hatch.build.hooks.pitloom]"
 
     enabled = config.get("enabled", True)
     if not isinstance(enabled, bool):
@@ -169,6 +169,6 @@ def _validate_config(config: dict[str, Any]) -> None:
 
 
 @hookimpl
-def hatch_register_build_hook() -> type[LoomBuildHook]:
-    """Register ``LoomBuildHook`` with Hatchling's plugin system."""
-    return LoomBuildHook
+def hatch_register_build_hook() -> type[PitloomBuildHook]:
+    """Register ``PitloomBuildHook`` with Hatchling's plugin system."""
+    return PitloomBuildHook

@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from loom.core.ai_metadata import AiModelMetadata
-from loom.core.creation import CreationMetadata
-from loom.core.project import ProjectMetadata
+from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.project import ProjectMetadata
 
 
 @dataclass

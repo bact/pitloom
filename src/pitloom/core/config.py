@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loom tool configuration read from ``[tool.loom]`` in ``pyproject.toml``."""
+"""Pitloom tool configuration read from ``[tool.pitloom]`` in ``pyproject.toml``."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class LoomConfig:
-    """Settings from the ``[tool.loom]`` section of ``pyproject.toml``.
+class PitloomConfig:
+    """Settings from the ``[tool.pitloom]`` section of ``pyproject.toml``.
 
-    All fields have safe defaults so that a project without a ``[tool.loom]``
-    section works out of the box.  Adding new ``[tool.loom]`` options in
+    All fields have safe defaults so that a project without a ``[tool.pitloom]``
+    section works out of the box.  Adding new ``[tool.pitloom]`` options in
     future versions only requires adding a new field here with a default value.
 
     Attributes:
@@ -35,4 +35,4 @@ class LoomConfig:
     sbom_basename: str | None = None
 
 
-__all__ = ["LoomConfig"]
+__all__ = ["PitloomConfig"]

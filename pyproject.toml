@@ -6,7 +6,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "loom"
+name = "pitloom"
 version = "0.1.0"
 description = "Creating SBOM during the build process. Now targeting Python Hatchling support."
 readme = "README.md"
@@ -63,15 +63,16 @@ dev = [
 ]
 
 [project.entry-points."hatch"]
-loom = "loom.plugins.hatch"
+pitloom = "pitloom.plugins.hatch"
 
 [project.scripts]
-loom = "loom.__main__:main"
+loom = "pitloom.__main__:main"
+pitloom = "pitloom.__main__:main"
 
 [project.urls]
-Documentation = "https://github.com/bact/loom#readme"
-Issues = "https://github.com/bact/loom/issues"
-Source = "https://github.com/bact/loom"
+Documentation = "https://github.com/bact/pitloom#readme"
+Issues = "https://github.com/bact/pitloom/issues"
+Source = "https://github.com/bact/pitloom"
 
 [tool.black]
 line-length = 88
@@ -92,9 +93,9 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/loom"]
+packages = ["src/pitloom"]
 
-[tool.loom]
+[tool.pitloom]
 pretty = true
 
 [tool.mypy]
@@ -162,4 +163,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["loom"]
+known-first-party = ["pitloom"]

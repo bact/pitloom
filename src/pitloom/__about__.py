@@ -2,8 +2,6 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 SBOM assembler."""
+"""Package information for Pitloom."""
 
-from loom.assemble.spdx3.assembler import build
-
-__all__ = ["build"]
+__version__ = "0.1.0"

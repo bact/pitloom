@@ -11,7 +11,7 @@ from pathlib import Path
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from loom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def merge_fragments(
     """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
 
     Each fragment is a standalone SPDX document (e.g., produced by
-    ``loom.bom.track``). Its elements are merged into the main document's
+    ``pitloom.bom.track``). Its elements are merged into the main document's
     object set so they appear in the final SBOM output.
 
     Missing or unreadable fragment files are logged as warnings; they do not

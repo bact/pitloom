@@ -2,9 +2,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the Loom Hatchling build hook (loom.plugins.hatch)."""
+"""Tests for the Pitloom Hatchling build hook (pitloom.plugins.hatch)."""
 
-# Tests necessarily access private attributes of LoomBuildHook to inspect
+# Tests necessarily access private attributes of PitloomBuildHook to inspect
 # internal state (white-box testing) and to bypass BuildHookInterface.__init__.
 # pylint: disable=protected-access
 
@@ -26,10 +26,10 @@ pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 # pylint: disable=wrong-import-position
 from spdx_python_model import v3_0_1 as spdx3  # noqa: E402
 
-from loom.core.models import generate_spdx_id  # noqa: E402
-from loom.export.spdx3_json import Spdx3JsonExporter  # noqa: E402
-from loom.plugins.hatch import (  # noqa: E402
-    LoomBuildHook,
+from pitloom.core.models import generate_spdx_id  # noqa: E402
+from pitloom.export.spdx3_json import Spdx3JsonExporter  # noqa: E402
+from pitloom.plugins.hatch import (  # noqa: E402
+    PitloomBuildHook,
     _validate_config,
 )
 
@@ -52,13 +52,14 @@ requires-python = ">=3.10"
 """
 
 
-def make_hook(root: str, config: dict[str, Any]) -> LoomBuildHook:
-    """Construct a ``LoomBuildHook`` without invoking ``BuildHookInterface.__init__``.
+def make_hook(root: str, config: dict[str, Any]) -> PitloomBuildHook:
+    """Construct a ``PitloomBuildHook`` without invoking
+    ``BuildHookInterface.__init__``.
 
     ``root`` and ``config`` are stored under mangled names by ``BuildHookInterface``
     and exposed as read-only properties, so we set the mangled attributes directly.
     """
-    hook: LoomBuildHook = object.__new__(LoomBuildHook)
+    hook: PitloomBuildHook = object.__new__(PitloomBuildHook)
     # BuildHookInterface stores root/config as __root / __config (name-mangled).
     # Use object.__setattr__ so the mangled name is passed as a string and
     # static name-style checkers (pylint C0103) do not flag the assignment.
@@ -313,7 +314,7 @@ def test_hook_sbom_files_appended_to_existing() -> None:
 
 
 def test_hook_with_loom_fragments() -> None:
-    """Fragments listed under [tool.hatch.build.hooks.loom] are merged."""
+    """Fragments listed under [tool.hatch.build.hooks.pitloom] are merged."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path)
@@ -385,7 +386,7 @@ def test_hook_with_sampleproject_fixture() -> None:
     if not fixture_dir.exists():
         pytest.skip("sampleproject fixture not found")
 
-    hook = make_hook(str(fixture_dir), {"creator-name": "Loom CI"})
+    hook = make_hook(str(fixture_dir), {"creator-name": "Pitloom CI"})
     build_data: dict[str, Any] = {}
     hook.initialize("standard", build_data)
 

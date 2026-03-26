@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Overview
 
-This document describes the design of Loom's Hatchling build hook plugin
-(`loom.plugins.hatch`) and the PEP 770-compliant embedding of SBOMs inside
+This document describes the design of Pitloom's Hatchling build hook plugin
+(`pitloom.plugins.hatch`) and the PEP 770-compliant embedding of SBOMs inside
 Python wheel archives.
 
 The goal is to make SBOM generation a zero-friction, automatic step: when
@@ -24,7 +24,7 @@ The directory may contain one or more SBOM files in any standard format.
 Downstream tools (e.g., Trivy, Grype, `pip show`) can discover and consume
 these documents from an installed package or directly from the wheel file.
 
-Target placement for Loom output:
+Target placement for Pitloom output:
 
 ```text
 {name}-{version}.dist-info/
@@ -39,11 +39,11 @@ Hatchling discovers build hooks registered as Python entry points under the
 The module must expose a `@hookimpl`-decorated
 `hatch_register_build_hook()` function that returns the hook class.
 
-### Entry point in Loom's `pyproject.toml`
+### Entry point in Pitloom's `pyproject.toml`
 
 ```toml
 [project.entry-points."hatch"]
-loom = "loom.plugins.hatch"
+loom = "pitloom.plugins.hatch"
 ```
 
 ### User configuration in the target project's `pyproject.toml`
@@ -52,14 +52,14 @@ The user adds `loom` to their build dependencies and enables the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling", "loom"]
+requires = ["hatchling", "pitloom"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.hooks.loom]
+[tool.hatch.build.hooks.pitloom]
 # All fields are optional. Defaults are shown.
 enabled = true
 sbom-basename = ""          # Name part only, no extension; default "sbom"
-creator-name = ""           # Defaults to "Loom"
+creator-name = ""           # Defaults to "Pitloom"
 creator-email = ""          # Optional
 fragments = []              # List of pre-generated fragment paths to merge
 ```
@@ -67,11 +67,11 @@ fragments = []              # List of pre-generated fragment paths to merge
 The full SBOM filename is derived by appending the format extension to the
 basename: `{sbom-basename}.spdx3.json` (e.g., `sbom.spdx3.json` by default).
 
-Specifying fragments allows the hook to merge `loom.bom`-generated AI/ML
+Specifying fragments allows the hook to merge `pitloom.bom`-generated AI/ML
 fragments produced during training before the build:
 
 ```toml
-[tool.hatch.build.hooks.loom]
+[tool.hatch.build.hooks.pitloom]
 fragments = [
     "fragments/train_run.spdx3.json",
     "fragments/eval_run.spdx3.json",
@@ -84,7 +84,7 @@ fragments = [
 
 The default filename is `sbom.spdx3.json`. The user can override the base
 name via `sbom-basename`; the `.spdx3.json` extension is always appended by
-Loom to reflect the SPDX 3 JSON-LD format.
+Pitloom to reflect the SPDX 3 JSON-LD format.
 
 PEP 770 allows a wheel to contain multiple SBOM files (e.g., one per
 format), so the `sbom-basename` option is designed to be forward-compatible
@@ -95,13 +95,13 @@ with multi-SBOM scenarios.
 When no `-o` / `--output` argument is given, the CLI derives the default
 output filename in priority order:
 
-1. `{sbom-basename}.spdx3.json` — if `sbom-basename` is set in `[tool.loom]`
+1. `{sbom-basename}.spdx3.json` — if `sbom-basename` is set in `[tool.pitloom]`
 2. `{name}-{version}.spdx3.json` — derived from project metadata
 3. `sbom.spdx3.json` — fallback
 
 ## Build hook class design
 
-### File: `src/loom/plugins/hatch.py`
+### File: `src/pitloom/plugins/hatch.py`
 
 ```python
 from __future__ import annotations
@@ -115,19 +115,19 @@ from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.plugin import hookimpl
 
-from loom.assemble.spdx3.assembler import build as assemble_spdx3
-from loom.assemble.spdx3.fragments import merge_fragments
-from loom.core.creation import CreationMetadata
-from loom.core.document import DocumentModel
-from loom.extract.pyproject import read_pyproject
+from pitloom.assemble.spdx3.assembler import build as assemble_spdx3
+from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.document import DocumentModel
+from pitloom.extract.pyproject import read_pyproject
 
 log = logging.getLogger(__name__)
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 
 
-class LoomBuildHook(BuildHookInterface[BuilderConfig]):
-    PLUGIN_NAME = "loom"
+class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
+    PLUGIN_NAME = "pitloom"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -140,12 +140,12 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
         _validate_config(config)
 
         if not config.get("enabled", True):
-            log.info("Loom build hook: disabled; skipping SBOM generation.")
+            log.info("Pitloom build hook: disabled; skipping SBOM generation.")
             return
 
         sbom_basename: str = config.get("sbom-basename", "") or "sbom"
         sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
-        creator_name: str = config.get("creator-name", "") or "Loom"
+        creator_name: str = config.get("creator-name", "") or "Pitloom"
         creator_email: str = config.get("creator-email", "")
         hook_fragments: list[str] = config.get("fragments", [])
 
@@ -188,14 +188,14 @@ class LoomBuildHook(BuildHookInterface[BuilderConfig]):
 
 
 @hookimpl
-def hatch_register_build_hook() -> type[LoomBuildHook]:
-    return LoomBuildHook
+def hatch_register_build_hook() -> type[PitloomBuildHook]:
+    return PitloomBuildHook
 ```
 
-## Fragment merging and `[tool.loom]` configuration
+## Fragment merging and `[tool.pitloom]` configuration
 
-Fragment paths listed under `[tool.hatch.build.hooks.loom] fragments` are
-merged with any fragments already declared under `[tool.loom] fragments`.
+Fragment paths listed under `[tool.hatch.build.hooks.pitloom] fragments` are
+merged with any fragments already declared under `[tool.pitloom] fragments`.
 The hook concatenates both lists and passes them to `merge_fragments()`.
 
 This means the existing fragment-merging logic is reused unchanged; the hook
@@ -221,7 +221,7 @@ Developer runs:
          ▼
   Hatchling build process
          │
-         ├─── LoomBuildHook.initialize()
+         ├─── PitloomBuildHook.initialize()
          │       │
          │       ├── read_pyproject(project_dir)
          │       ├── assemble_spdx3(DocumentModel)
@@ -233,7 +233,7 @@ Developer runs:
          ├─── Hatchling packages wheel
          │       └── copies sbom_files → .dist-info/sboms/  ← PEP 770
          │
-         └─── LoomBuildHook.finalize()
+         └─── PitloomBuildHook.finalize()
                  └── TemporaryDirectory.cleanup()
 
 Output:
@@ -250,10 +250,10 @@ Output:
 ### New source files
 
 ```text
-src/loom/
+src/pitloom/
 └── plugins/
     ├── __init__.py
-    └── hatch.py            ← LoomBuildHook + hatch_register_build_hook()
+    └── hatch.py            ← PitloomBuildHook + hatch_register_build_hook()
 tests/
 ├── fixtures/
 │   └── sampleproject/      ← minimal wheel-build fixture
@@ -263,13 +263,13 @@ tests/
 └── test_hatch_hook.py
 ```
 
-### Changes to Loom's `pyproject.toml`
+### Changes to Pitloom's `pyproject.toml`
 
 Register the plugin via pluggy entry point:
 
 ```toml
 [project.entry-points."hatch"]
-loom = "loom.plugins.hatch"
+loom = "pitloom.plugins.hatch"
 ```
 
 Require Hatchling 1.16.0+ for native `sbom_files` support:

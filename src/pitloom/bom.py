@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loom SDK for capturing BOM fragments during external script/notebook execution."""
+"""Pitloom SDK for capturing BOM fragments during external script/notebook execution."""
 
 import contextlib
 import inspect
@@ -13,12 +13,12 @@ from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from loom.core.models import generate_spdx_id
-from loom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.core.models import generate_spdx_id
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
 def _get_caller_info() -> str:
-    """Find the first caller frame outside of the loom.bom module."""
+    """Find the first caller frame outside of the pitloom.bom module."""
     try:
         for frame_info in inspect.stack():
             if frame_info.filename != __file__:
@@ -32,17 +32,17 @@ def _get_caller_info() -> str:
                 if func_name == "<module>":
                     return (
                         f"Source: {filename} | "
-                        f"Method: inspect_caller (tool: loom.bom, "
+                        f"Method: inspect_caller (tool: pitloom.bom, "
                         f"function: <module>)"
                     )
                 return (
                     f"Source: {filename} | "
-                    f"Method: inspect_caller (tool: loom.bom, "
+                    f"Method: inspect_caller (tool: pitloom.bom, "
                     f"function: {func_name})"
                 )
     except Exception:  # pylint: disable=broad-exception-caught
         pass
-    return "Source: unknown | Method: inspect_caller (tool: loom.bom)"
+    return "Source: unknown | Method: inspect_caller (tool: pitloom.bom)"
 
 
 class _ActiveRun:
@@ -58,8 +58,8 @@ class _ActiveRun:
         )
         # Create a default Agent to satisfy the createdBy constraint
         person = spdx3.Person(
-            spdxId=generate_spdx_id("Person", "loom-sdk", self.doc_uuid),
-            name="Loom SDK (Automated Run)",
+            spdxId=generate_spdx_id("Person", "pitloom-sdk", self.doc_uuid),
+            name="Pitloom SDK (Automated Run)",
             creationInfo=self.creation_info,
         )
         self.creation_info.createdBy = [person.spdxId]
@@ -170,7 +170,7 @@ def set_model(name: str) -> None:
     if _active_run is None:
         raise RuntimeError(
             "No active run found. Please use `bom.set_model()` inside a "
-            "`with loom.bom.track():` block or decorated function."
+            "`with pitloom.bom.track():` block or decorated function."
         )
     _active_run.set_model(name)
 
@@ -180,6 +180,6 @@ def add_dataset(name: str, dataset_type: str = "text") -> None:
     if _active_run is None:
         raise RuntimeError(
             "No active run found. Please use `bom.add_dataset()` inside a "
-            "`with loom.bom.track():` block or decorated function."
+            "`with pitloom.bom.track():` block or decorated function."
         )
     _active_run.add_dataset(name, dataset_type)

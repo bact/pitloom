@@ -114,12 +114,12 @@ Generates valid SPDX 3.0 JSON-LD with:
 
 ### 5. Official Schema Adoption
 
-Loom deeply integrates with `spdx-python-model` to ensure strict structural
+Pitloom deeply integrates with `spdx-python-model` to ensure strict structural
 schemas are effortlessly adhered to during native JSON-LD execution.
 
 ### 6. Embedded ML Metadata Trackers
 
-Provides a contextual wrapper `loom.bom` to emit isolated fragments
+Provides a contextual wrapper `pitloom.bom` to emit isolated fragments
 dynamically from training loops into your main SBOM seamlessly:
 
 ```python

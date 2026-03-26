@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from loom.extract.pyproject import read_pyproject
+from pitloom.extract.pyproject import read_pyproject
 
 
 def test_extract_metadata_basic() -> None:
