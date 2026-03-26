@@ -29,7 +29,7 @@ jobs:
 
       - name: Run mypy
         run: |
-          mypy src/loom --ignore-missing-imports --no-strict-optional
+          mypy src/pitloom --ignore-missing-imports --no-strict-optional
         continue-on-error: true
 
   pyright:
@@ -52,7 +52,7 @@ jobs:
 
       - name: Run pyright
         run: |
-          pyright src/loom
+          pyright src/pitloom
         continue-on-error: true
 
   pyrefly:
@@ -75,5 +75,5 @@ jobs:
 
       - name: Run pyflakes
         run: |
-          pyflakes src/loom
+          pyflakes src/pitloom
         continue-on-error: true

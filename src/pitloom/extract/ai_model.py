@@ -6,10 +6,10 @@
 
 Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
 
-    pip install loom[gguf]        # for GGUF support
-    pip install loom[onnx]        # for ONNX support
-    pip install loom[safetensors] # for Safetensors support
-    pip install loom[model]       # for all model formats
+    pip install pitloom[gguf]        # for GGUF support
+    pip install pitloom[onnx]        # for ONNX support
+    pip install pitloom[safetensors] # for Safetensors support
+    pip install pitloom[model]       # for all model formats
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from loom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 
 __all__ = [
     "AiModelFormat",

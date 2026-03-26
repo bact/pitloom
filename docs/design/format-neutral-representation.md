@@ -8,13 +8,13 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Overview
 
-The current Loom implementation integrates with `spdx-python-model` to produce
+The current Pitloom implementation integrates with `spdx-python-model` to produce
 SPDX 3 output. While SPDX 3 is the primary target, the future software supply
 chain landscape will require support for multiple output specifications and
 formats — and potentially non-SBOM outputs such as AIDOC documentation or
 TechOps reports.
 
-To ensure long-term maintainability and flexibility, Loom introduces a
+To ensure long-term maintainability and flexibility, Pitloom introduces a
 format-neutral internal document model. This approach decouples metadata
 extraction from final output serialization, enabling the same extraction
 pipeline to drive any requested output format.
@@ -39,12 +39,12 @@ Extractors                     Core model              Serializers / Assemblers
 ──────────────────────         ─────────────────       ─────────────────────────
 read_pyproject()           ─┐
 read_ai_model()            ─┤─→  DocumentModel   ─→   Spdx3Assembler              → SPDX 3 JSON-LD
-bom.track() (fragments)    ─┘    (loom.core)          [future] CycloneDXAssembler → CycloneDX JSON
+bom.track() (fragments)    ─┘    (pitloom.core)          [future] CycloneDXAssembler → CycloneDX JSON
                                                       [future] AidocRenderer      → AIDOC markdown
                                                       [future] TechOpsDoc         → documentation
 ```
 
-### `DocumentModel` (``loom.core.document``)
+### `DocumentModel` (``pitloom.core.document``)
 
 ```python
 @dataclass
@@ -62,19 +62,19 @@ Serializers pick the fields they understand and ignore the rest.
 | Layer | Responsibility | Key types |
 | :---- | :---- | :---- |
 | **Extractors** | Read data sources; populate metadata objects | `ProjectMetadata`, `AiModelMetadata` |
-| **Core model** | Format-neutral assembled document | `DocumentModel`, `LoomConfig`, `CreationMetadata` |
+| **Core model** | Format-neutral assembled document | `DocumentModel`, `PitloomConfig`, `CreationMetadata` |
 | **Assemblers** | Translate `DocumentModel` → format-specific objects | `Spdx3JsonExporter`, future exporters |
 | **Orchestrator** | Build `DocumentModel`, call assembler, merge fragments | `generate_sbom()` |
 
-## Data classes in ``loom.core``
+## Data classes in ``pitloom.core``
 
 | Class | Module | Description |
 | :---- | :---- | :---- |
-| `ProjectMetadata` | `loom.core.project` | Python project fields from `pyproject.toml` |
-| `AiModelMetadata` | `loom.core.ai_metadata` | AI model fields (ONNX, GGUF, Safetensors) |
-| `LoomConfig` | `loom.core.config` | `[tool.loom]` settings (`pretty`, `fragments`) |
-| `CreationMetadata` | `loom.core.creation` | SBOM creator / timestamp |
-| `DocumentModel` | `loom.core.document` | Composed document ready for serialization |
+| `ProjectMetadata` | `pitloom.core.project` | Python project fields from `pyproject.toml` |
+| `AiModelMetadata` | `pitloom.core.ai_metadata` | AI model fields (ONNX, GGUF, Safetensors) |
+| `PitloomConfig` | `pitloom.core.config` | `[tool.pitloom]` settings (`pretty`, `fragments`) |
+| `CreationMetadata` | `pitloom.core.creation` | SBOM creator / timestamp |
+| `DocumentModel` | `pitloom.core.document` | Composed document ready for serialization |
 
 All of these are plain Python dataclasses with no dependency on any SBOM
 library, making them easy to test and to target from any serializer.
@@ -83,11 +83,11 @@ library, making them easy to test and to target from any serializer.
 
 To add a CycloneDX serializer, for example:
 
-1. Create `loom/assemble/cyclonedx/` subpackage.
+1. Create `pitloom/assemble/cyclonedx/` subpackage.
 2. Write `build(doc: DocumentModel) -> str` that reads `doc.project`,
    `doc.creation`, and `doc.ai_models`.
 3. Add a `--format` flag to the CLI that selects the assembler.
-4. No changes needed to `loom.extract` or `loom.core`.
+4. No changes needed to `pitloom.extract` or `pitloom.core`.
 
 ## Protobom evaluation
 
@@ -95,7 +95,7 @@ Protobom was evaluated as a candidate for the format-neutral layer
 (see `docs/design/protobom-evaluation.md`). While it provides a
 Protocol Buffers–based universal SBOM representation with good support for
 SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
-AI/Dataset/Build profiles that are central to Loom's use cases. Adopting
+AI/Dataset/Build profiles that are central to Pitloom's use cases. Adopting
 Protobom would introduce a significant dependency while leaving key fields
 unmapped. The lightweight `DocumentModel` approach is preferred for the
 current scope.

@@ -12,7 +12,7 @@ _ID_COUNTERS: dict[str, int] = {}
 
 
 def generate_spdx_id(
-    prefix: str, doc_name: str = "loom", doc_uuid: str | None = None
+    prefix: str, doc_name: str = "pitloom", doc_uuid: str | None = None
 ) -> str:
     """Generate a unique SPDX ID with UUID following SPDX 3 best practices.
 

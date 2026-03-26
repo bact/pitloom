@@ -8,9 +8,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from loom.assemble import generate_sbom
-from loom.core.creation import CreationMetadata
-from loom.extract.pyproject import read_pyproject
+from pitloom.assemble import generate_sbom
+from pitloom.core.creation import CreationMetadata
+from pitloom.extract.pyproject import read_pyproject
 
 
 def test_provenance_basic_fields() -> None:

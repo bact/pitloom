@@ -8,22 +8,22 @@ SPDX-FileType: DOCUMENTATION
 
 ## Overview
 
-This document describes the design of `loom.extract.mlflow`, a module that
+This document describes the design of `pitloom.extract.mlflow`, a module that
 reads a completed or active MLflow run and converts its tags, parameters, and
 metrics into an SPDX 3 AI BOM fragment.
 
 The goal is to eliminate double instrumentation. A project already using MLflow
 for experiment tracking should be able to produce a compliance-grade SBOM
-fragment without adding a second set of `loom.bom` calls to the training script.
+fragment without adding a second set of `pitloom.bom` calls to the training script.
 
 ## Motivation and the double-instrumentation problem
 
-The current `loom.bom` SDK requires explicit calls alongside MLflow:
+The current `pitloom.bom` SDK requires explicit calls alongside MLflow:
 
 ```python
 # Current state — duplicated effort
 import mlflow
-import loom.bom as bom
+import pitloom.bom as bom
 
 with mlflow.start_run():
     mlflow.set_tag("typeOfModel", "transformer")
@@ -35,13 +35,13 @@ with bom.track("fragment.spdx3.json") as run:
     # The same facts, typed again
 ```
 
-The MLflow extractor closes this gap. Once an MLflow run exists, Loom can read
+The MLflow extractor closes this gap. Once an MLflow run exists, Pitloom can read
 it and emit the fragment automatically:
 
 ```python
 # Desired state — one source of truth
 import mlflow
-import loom.bom as bom
+import pitloom.bom as bom
 
 with mlflow.start_run() as mlflow_run:
     mlflow.set_tag("typeOfModel", "transformer")
@@ -120,7 +120,7 @@ elements attached to the `ai_AIPackage` via an `annotates` relationship:
 
 ## Class and module design
 
-### File: `src/loom/extractors/mlflow.py`
+### File: `src/pitloom/extractors/mlflow.py`
 
 ```python
 from __future__ import annotations
@@ -359,8 +359,8 @@ def _build_spdx_fragment(metadata: MlflowRunMetadata) -> str:
 
     from spdx_python_model import v3_0_1 as spdx3
 
-    from loom.core.models import generate_spdx_id
-    from loom.export.spdx3_json import Spdx3JsonExporter
+    from pitloom.core.models import generate_spdx_id
+    from pitloom.export.spdx3_json import Spdx3JsonExporter
 
     doc_uuid = str(uuid4())
     creation_info = spdx3.CreationInfo(
@@ -370,8 +370,8 @@ def _build_spdx_fragment(metadata: MlflowRunMetadata) -> str:
 
     # Creator
     tool = spdx3.Tool(
-        spdxId=generate_spdx_id("Tool", "loom-mlflow-extractor", doc_uuid),
-        name="Loom MLflow Extractor",
+        spdxId=generate_spdx_id("Tool", "pitloom-mlflow-extractor", doc_uuid),
+        name="Pitloom MLflow Extractor",
         creationInfo=creation_info,
     )
     creation_info.createdBy = [tool.spdxId]
@@ -456,12 +456,12 @@ def extract_from_mlflow_run(
     return fragment_json
 ```
 
-### Integration with `loom.bom`
+### Integration with `pitloom.bom`
 
-`loom.bom` gains one new top-level function delegating to the extractor:
+`pitloom.bom` gains one new top-level function delegating to the extractor:
 
 ```python
-# In src/loom/bom.py
+# In src/pitloom/bom.py
 
 def from_mlflow_run(
     run_id: str,
@@ -472,7 +472,7 @@ def from_mlflow_run(
     """Generate an SPDX fragment from an MLflow run and write it to a file.
 
     This is a convenience wrapper around
-    :func:`loom.extract.mlflow.extract_from_mlflow_run`.
+    :func:`pitloom.extract.mlflow.extract_from_mlflow_run`.
 
     Args:
         run_id: The MLflow run UUID to read.
@@ -480,7 +480,7 @@ def from_mlflow_run(
         tracking_uri: Optional MLflow tracking server URI.
         model_name: Override the SBOM package name.
     """
-    from loom.extract.mlflow import extract_from_mlflow_run  # noqa: PLC0415
+    from pitloom.extract.mlflow import extract_from_mlflow_run  # noqa: PLC0415
 
     extract_from_mlflow_run(
         run_id=run_id,
@@ -509,15 +509,15 @@ safetensors = ["safetensors[numpy]>=0.4.0"]
 Users who need MLflow extraction install:
 
 ```bash
-pip install "loom[mlflow]"
+pip install "pitloom[mlflow]"
 ```
 
 ## End-to-end usage example
 
 ```python
 import mlflow
+import pitloom.bom as bom
 import stav
-import loom.bom as bom
 
 # --- Training script (train.py) ---
 
@@ -543,7 +543,7 @@ with mlflow.start_run(run_name="bert-finetune-v3") as mlflow_run:
 ```
 
 The resulting fragment can then be listed under
-`[tool.hatch.build.hooks.loom] fragments` so it is merged into the wheel SBOM
+`[tool.hatch.build.hooks.pitloom] fragments` so it is merged into the wheel SBOM
 at build time.
 
 ## New files and changes
@@ -551,7 +551,7 @@ at build time.
 ### New source files
 
 ```text
-src/loom/
+src/pitloom/
 └── extractors/
     └── mlflow.py           ← MlflowExtractor, extract_from_mlflow_run
 tests/
@@ -562,7 +562,7 @@ tests/
 
 | File | Change |
 | :--- | :--- |
-| `src/loom/bom.py` | Add `from_mlflow_run()` top-level function |
+| `src/pitloom/bom.py` | Add `from_mlflow_run()` top-level function |
 | `pyproject.toml` | Add `mlflow` optional-dependency group |
 
 ## Test plan

@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Metadata provenance demonstration
 
-This document demonstrates the metadata provenance tracking feature in Loom.
+This document demonstrates the metadata provenance tracking feature in Pitloom.
 
 ## What is metadata provenance?
 
@@ -69,7 +69,7 @@ Open `demo-sbom.spdx3.json` and look for the main package:
   "name": "demopackage",
   "software_packageVersion": "1.2.3",
   "description": "A demo package for testing provenance",
-  "comment": "Metadata provenance: name: Source: pyproject.toml | Field: project.name; version: Source: src/demopackage/__about__.py | Method: dynamic_extraction; description: Source: pyproject.toml | Field: project.description; urls: Source: pyproject.toml | Field: project.urls; dependencies: Source: pyproject.toml | Field: project.dependencies; authors: Source: pyproject.toml | Field: project.authors; copyright_text: Source: Loom generator | Method: inferred_from_authors"
+  "comment": "Metadata provenance: name: Source: pyproject.toml | Field: project.name; version: Source: src/demopackage/__about__.py | Method: dynamic_extraction; description: Source: pyproject.toml | Field: project.description; urls: Source: pyproject.toml | Field: project.urls; dependencies: Source: pyproject.toml | Field: project.dependencies; authors: Source: pyproject.toml | Field: project.authors; copyright_text: Source: Pitloom generator | Method: inferred_from_authors"
 }
 ```
 
@@ -101,7 +101,7 @@ Provenance information:
   • urls: Source: pyproject.toml | Field: project.urls
   • dependencies: Source: pyproject.toml | Field: project.dependencies
   • authors: Source: pyproject.toml | Field: project.authors
-  • copyright_text: Source: Loom generator | Method: inferred_from_authors
+  • copyright_text: Source: Pitloom generator | Method: inferred_from_authors
 ```
 
 ## Use cases
@@ -137,10 +137,10 @@ The license was read from the `project.license` field in `pyproject.toml`.
 **Answer**: Check the copyright_text provenance:
 
 ```text
-copyright_text: Source: Loom generator | Method: inferred_from_authors
+copyright_text: Source: Pitloom generator | Method: inferred_from_authors
 ```
 
-The copyright was inferred by Loom from the authors listed in `pyproject.toml`.
+The copyright was inferred by Pitloom from the authors listed in `pyproject.toml`.
 
 ### Use case 4: Dependency source
 
@@ -154,18 +154,18 @@ dependencies: Source: pyproject.toml | Field: project.dependencies
 
 Dependencies were extracted from the `project.dependencies` field in `pyproject.toml`.
 
-### Use case 5: ML Traceability with `loom.bom`
+### Use case 5: ML Traceability with `pitloom.bom`
 
 **Question**: "Where did this specific AI Model or Dataset originate?"
 
-**Answer**: Check the provenance embedded dynamically by the `loom.bom`
+**Answer**: Check the provenance embedded dynamically by the `pitloom.bom`
 tracking SDK when generating fragments:
 
 ```text
-comment: Metadata provenance: package: Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: evaluate)
+comment: Metadata provenance: package: Source: src/eval.py | Method: inspect_caller (tool: pitloom.bom, function: evaluate)
 ```
 
-Loom inherently uses Python's `inspect` module at runtime to identify
+Pitloom inherently uses Python's `inspect` module at runtime to identify
 exactly which file and function produced the metric.
 
 ## Benefits
@@ -190,9 +190,9 @@ Source: [location] | Method: [method_name]
 
 - **Static extraction**: `Source: pyproject.toml | Field: project.name`
 - **Dynamic extraction**: `Source: src/pkg/__about__.py | Method:...`
-- **Inferred data**: `Source: Loom generator | Method: inferred_from_authors`
+- **Inferred data**: `Source: Pitloom generator | Method: inferred_from_authors`
 - **Tracking SDK**:
-  `Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: eval)`
+  `Source: src/eval.py | Method: inspect_caller (tool: pitloom.bom, function: eval)`
 - **External tool**: `Source: licensee tool | Method: license_detection`
 
 ## Advanced: Custom provenance parser
@@ -252,7 +252,7 @@ for elem in sbom['@graph']:
 Potential future enhancements to provenance tracking:
 
 1. **Timestamp tracking**: Record when each field was extracted
-2. **Tool versions**: Track which version of Loom extracted the data
+2. **Tool versions**: Track which version of Pitloom extracted the data
 3. **Confidence scores**: Add confidence levels for inferred data
 4. **Multiple sources**: Support data from multiple sources
 5. **Structured format**: Use dedicated SPDX annotations instead of comments
@@ -260,7 +260,7 @@ Potential future enhancements to provenance tracking:
 
 ## Conclusion
 
-Metadata provenance tracking in Loom provides transparency and auditability
+Metadata provenance tracking in Pitloom provides transparency and auditability
 for SBOM generation. It enables both humans and machines to understand and
 verify where SBOM data comes from, building trust in the automated generation
 process.

@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Loom SBOM generator."""
+"""Command-line interface for Pitloom SBOM generator."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import sys
 import traceback
 from pathlib import Path
 
-from loom.__about__ import __version__
-from loom.assemble import generate_sbom
-from loom.core.creation import CreationMetadata
+from pitloom.__about__ import __version__
+from pitloom.assemble import generate_sbom
+from pitloom.core.creation import CreationMetadata
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 
@@ -23,7 +23,7 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
 
     Priority:
     1. Explicit ``-o`` / ``--output`` argument.
-    2. ``[tool.loom] sbom-basename`` from ``pyproject.toml``
+    2. ``[tool.pitloom] sbom-basename`` from ``pyproject.toml``
        → ``<basename>.spdx3.json``.
     3. ``<name>-<version>.spdx3.json`` derived from project metadata.
     4. Fallback: ``sbom.spdx3.json``.
@@ -33,7 +33,7 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
 
     try:
         # pylint: disable=import-outside-toplevel
-        from loom.extract.pyproject import read_pyproject
+        from pitloom.extract.pyproject import read_pyproject
 
         metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
 
@@ -50,20 +50,20 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
 
 
 def main() -> int:
-    """Main entry point for the Loom CLI.
+    """Main entry point for the Pitloom CLI.
 
     Returns:
         int: Exit code (0 for success, 1 for error)
     """
     parser = argparse.ArgumentParser(
-        description="Loom - Generate SPDX 3 SBOM for Python projects",
+        description="Pitloom - Generate SPDX 3 SBOM for Python projects",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "-V",
         "--version",
         action="version",
-        version=f"loom {__version__}",
+        version=f"Pitloom {__version__}",
     )
     parser.add_argument(
         "project_dir",
@@ -78,13 +78,13 @@ def main() -> int:
         help=(
             "Output file path. "
             "Default: <name>-<version>.spdx3.json derived from pyproject.toml, "
-            "or the basename from [tool.loom] sbom-basename if set."
+            "or the basename from [tool.pitloom] sbom-basename if set."
         ),
     )
     parser.add_argument(
         "--creator-name",
         type=str,
-        help="Name of the SBOM creator (default: Loom)",
+        help="Name of the SBOM creator (default: Pitloom)",
     )
     parser.add_argument(
         "--creator-email",
@@ -97,7 +97,7 @@ def main() -> int:
         default=None,
         help=(
             "Pretty-print the SBOM output with 2-space indentation. "
-            "Overrides 'pretty' in [tool.loom] in pyproject.toml. "
+            "Overrides 'pretty' in [tool.pitloom] in pyproject.toml. "
             "Default is compact output (machine-optimized)."
         ),
     )
@@ -125,7 +125,7 @@ def main() -> int:
             project_dir,
             output_path=output_path,
             creation_info=CreationMetadata(
-                creator_name=args.creator_name or "Loom",
+                creator_name=args.creator_name or "Pitloom",
                 creator_email=args.creator_email or "",
             ),
             pretty=args.pretty,

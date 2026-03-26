@@ -2,8 +2,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loom: Creating SBOM during the build process."""
+"""SPDX 3 SBOM assembler."""
 
-from loom.__about__ import __version__
+from pitloom.assemble.spdx3.assembler import build
 
-__all__ = ["__version__"]
+__all__ = ["build"]

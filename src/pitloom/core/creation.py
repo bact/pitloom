@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SBOM creation metadata for Loom-generated documents."""
+"""SBOM creation metadata for Pitloom-generated documents."""
 
 from __future__ import annotations
 
@@ -15,20 +15,20 @@ class CreationMetadata:
 
     Attributes:
         creator_name: Display name of the person or organisation that
-            initiated the SBOM generation.  Defaults to ``"Loom"``.
+            initiated the SBOM generation.  Defaults to ``"Pitloom"``.
         creator_email: E-mail address of the creator.  Optional; omitted
             from the output when empty.
         creation_datetime: ISO 8601 string (e.g.
             ``"2026-03-25T12:00:00+00:00"``) for the creation timestamp.
             When ``None`` the assembler uses the current UTC time.
         creation_tool: Name of the tool that produced the SBOM.
-            Defaults to ``"Loom"``.
+            Defaults to ``"Pitloom"``.
     """
 
-    creator_name: str = "Loom"
+    creator_name: str = "Pitloom"
     creator_email: str = ""
     creation_datetime: str | None = None
-    creation_tool: str = "Loom"
+    creation_tool: str = "Pitloom"
 
 
 __all__ = ["CreationMetadata"]

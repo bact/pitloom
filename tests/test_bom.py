@@ -2,13 +2,13 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Integration and unit tests for the loom.bom module."""
+"""Integration and unit tests for the pitloom.bom module."""
 
 import json
 import tempfile
 from pathlib import Path
 
-from loom import bom
+from pitloom import bom
 
 
 def test_bom_track_as_context_manager() -> None:

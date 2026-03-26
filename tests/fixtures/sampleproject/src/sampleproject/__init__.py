@@ -2,4 +2,4 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: CC0-1.0
 
-"""A minimal sample project used for testing the Loom Hatchling build hook."""
+"""A minimal sample project used for testing the Pitloom Hatchling build hook."""

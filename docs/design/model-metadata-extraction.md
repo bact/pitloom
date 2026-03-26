@@ -10,7 +10,7 @@ An AI BOM generator can utilize existing model exchange standards, such as
 ONNX and Safetensors, as a machine-readable source of truth
 for model architecture, hyperparameters, and other model-specific metadata.
 
-Loom can try to detect the format of the model, then extract metadata of the
+Pitloom can try to detect the format of the model, then extract metadata of the
 model, and record those metadata in the AI BOM.
 
 ## Automated metadata extraction for AI BOM generation

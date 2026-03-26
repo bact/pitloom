@@ -8,8 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Build-hook fixture
 
-`sampleproject/` is a minimal Python package used to test the Loom Hatchling
-build hook (`loom.plugins.hatch`).  See
+`sampleproject/` is a minimal Python package used to test the Pitloom Hatchling
+build hook (`pitloom.plugins.hatch`).  See
 [sampleproject/README.md](sampleproject/README.md) for build instructions.
 
 ## AI model fixtures
@@ -65,7 +65,7 @@ dependency is not installed or the file is absent.
 | SHA-256 | `fbcbe22278fb302694d5f4a41bfe48c5f90e8e3554eab1c0435387dff654a854` |
 | License | MIT |
 | Source | <https://github.com/ggerganov/llama.cpp> (`models/ggml-vocab-bert-bge.gguf`) |
-| Required library | `gguf` (`pip install loom[gguf]`) |
+| Required library | `gguf` (`pip install pitloom[gguf]`) |
 
 Notable metadata extracted by the GGUF extractor:
 
@@ -95,7 +95,7 @@ Notable metadata extracted by the GGUF extractor:
 | SHA-256 | `967d7190d11c4842eab697079d98d56c2116e10eb617be355a2733bfc132e326` |
 | License | MIT |
 | Source | <https://github.com/ggerganov/llama.cpp> (`models/ggml-vocab-phi-3.gguf`) |
-| Required library | `gguf` (`pip install loom[gguf]`) |
+| Required library | `gguf` (`pip install pitloom[gguf]`) |
 
 Notable metadata extracted by the GGUF extractor:
 
@@ -125,7 +125,7 @@ Notable metadata extracted by the GGUF extractor:
 | SHA-256 | `93c2ba8c34574dd8f2dfda64931fc20943de2f941bfe03e6e9eca68951b80604` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/ggml-org/tinygemma3-GGUF> |
-| Required library | `gguf` (`pip install loom[gguf]`) |
+| Required library | `gguf` (`pip install pitloom[gguf]`) |
 
 Notable metadata extracted by the GGUF extractor:
 
@@ -158,7 +158,7 @@ non-LLM GGUF architectures correctly.
 | License | MIT |
 | Original author | Andrej Karpathy ([llama2.c](https://github.com/karpathy/llama2.c) / [karpathy/tinyllamas](https://huggingface.co/karpathy/tinyllamas)) |
 | GGUF source | <https://huggingface.co/ggml-org/models> (`tinyllamas/stories260K.gguf`) |
-| Required library | `gguf` (`pip install loom[gguf]`) |
+| Required library | `gguf` (`pip install pitloom[gguf]`) |
 
 Notable metadata extracted by the GGUF extractor:
 
@@ -188,7 +188,7 @@ specifically for use in unit tests and similar lightweight scenarios).
 | SHA-256 | `236f9f7d8bf038df0b4cc92daa33eb7ef71770d664ceac10b78c545665e82373` |
 | License | Apache-2.0 (Whisper) |
 | Source | <https://huggingface.co/onnx-community/whisper-tiny-ONNX> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
+| Required library | `onnx` (`pip install pitloom[onnx]`) |
 
 Notable metadata extracted by the ONNX extractor:
 
@@ -213,7 +213,7 @@ Notable metadata extracted by the ONNX extractor:
 | SHA-256 | `c0e66aade2899caa6498a4de411e48c3e5caa92e8a3286a4ad9aa0b9e986c52c` |
 | License | MIT (fxmarty/gpt2-tiny-onnx) |
 | Source | <https://huggingface.co/fxmarty/gpt2-tiny-onnx> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
+| Required library | `onnx` (`pip install pitloom[onnx]`) |
 
 Notable metadata extracted by the ONNX extractor:
 
@@ -240,7 +240,7 @@ Notable metadata extracted by the ONNX extractor:
 | License | Apache-2.0 |
 | Source | <https://github.com/onnx/onnx> |
 | | (`onnx/backend/test/data/light/light_inception_v2.onnx`) |
-| Required library | `onnx` (`pip install loom[onnx]`) |
+| Required library | `onnx` (`pip install pitloom[onnx]`) |
 
 Notable metadata extracted by the ONNX extractor:
 
@@ -266,7 +266,7 @@ Notable metadata extracted by the ONNX extractor:
 | SHA-256 | `cf2b1901da25924f8b68a4c9cec74b5a673f12d2b9dead57c2488d400dd2a2b5` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/fxmarty/resnet-tiny-beans> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
+| Required library | `onnx` (`pip install pitloom[onnx]`) |
 
 Notable metadata extracted by the ONNX extractor:
 
@@ -290,7 +290,7 @@ Notable metadata extracted by the ONNX extractor:
 | SHA-256 | `1eeff551a67ae8d565ca33b572fc4b66e3ef357b0eb2863bb9ff47a918cc4088` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/onnxmodelzoo/squeezenet1.1-7> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
+| Required library | `onnx` (`pip install pitloom[onnx]`) |
 
 Notable metadata extracted by the ONNX extractor:
 
@@ -313,7 +313,7 @@ Notable metadata extracted by the ONNX extractor:
 | SHA-256 | `806e6a41de92e593c6a0275c67771f8faf0e95c92fe002faf7371fcef56142ea` |
 | License | MIT |
 | Source | <https://huggingface.co/optimum-internal-testing/tiny-random-marian> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
+| Required library | `safetensors` (`pip install pitloom[safetensors]`) |
 
 Notable metadata extracted by the Safetensors extractor:
 
@@ -337,7 +337,7 @@ Notable metadata extracted by the Safetensors extractor:
 | SHA-256 | `6fbbc177683bcd0c8d694d552461d9dba3cd6e7f5a883cb8c6c6cce36ce6882e` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/echarlaix/tiny-random-PhiForCausalLM> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
+| Required library | `safetensors` (`pip install pitloom[safetensors]`) |
 
 Notable metadata extracted by the Safetensors extractor:
 
@@ -361,7 +361,7 @@ Notable metadata extracted by the Safetensors extractor:
 | SHA-256 | `7261459bb4f43dfb595e3e576cef19b8ea2a095e29ed8837236014cd56865016` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/optimum-internal-testing/tiny-random-Speech2TextModel> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
+| Required library | `safetensors` (`pip install pitloom[safetensors]`) |
 
 Notable metadata extracted by the Safetensors extractor:
 
@@ -386,7 +386,7 @@ Notable metadata extracted by the Safetensors extractor:
 | SHA-256 | `36d41f2b533a3c5d763f7e7e7ba483dbdba875a2c326d8e8d7abc7f5531e3ca7` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/echarlaix/tiny-random-vits> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
+| Required library | `safetensors` (`pip install pitloom[safetensors]`) |
 
 Notable metadata extracted by the Safetensors extractor:
 
@@ -411,7 +411,7 @@ Notable metadata extracted by the Safetensors extractor:
 | SHA-256 | `f2befb0a67d1d7ce3a6ac707fa894eef12e1b23ce22a0c8fe36cc75ef4c09576` |
 | License | Apache-2.0 |
 | Source | <https://huggingface.co/optimum-internal-testing/tiny-random-whisper> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
+| Required library | `safetensors` (`pip install pitloom[safetensors]`) |
 
 Notable metadata extracted by the Safetensors extractor:
 

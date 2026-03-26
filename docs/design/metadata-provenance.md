@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Metadata provenance and CreationInfo usage
 
-This document describes how Loom implements metadata provenance tracking
+This document describes how Pitloom implements metadata provenance tracking
 and uses SPDX 3 CreationInfo for transparency and auditability.
 
 ## Overview
@@ -23,7 +23,7 @@ information in the SBOM comes from. This is essential for:
 
 ### 1. Comment attribute in SPDX elements
 
-SPDX 3 defines a `comment` attribute for all Element classes. Loom uses
+SPDX 3 defines a `comment` attribute for all Element classes. Pitloom uses
 this attribute to record metadata provenance information.
 
 ```python
@@ -39,7 +39,7 @@ class SoftwarePackage:
 
 ### 2. Provenance format pattern
 
-Loom uses a consistent, machine-parsable format for provenance information:
+Pitloom uses a consistent, machine-parsable format for provenance information:
 
 **Format**: `Source: [location] | Field: [field_name]` or
            `Source: [location] | Method: [method_name]`
@@ -48,13 +48,13 @@ Loom uses a consistent, machine-parsable format for provenance information:
 
 - Static extraction: `Source: pyproject.toml | Field: project.name`
 - Dynamic extraction: `Source: src/pkg/__about__.py | Method: dynamic_extraction`
-- Inferred data: `Source: Loom generator | Method: inferred_from_authors`
+- Inferred data: `Source: Pitloom generator | Method: inferred_from_authors`
 - Tracking SDK:
-  `Source: src/eval.py | Method: inspect_caller (tool: loom.bom, function: evaluate)`
+  `Source: src/eval.py | Method: inspect_caller (tool: pitloom.bom, function: evaluate)`
 
 ### 3. Tracked metadata fields
 
-Loom tracks provenance for the following metadata fields:
+Pitloom tracks provenance for the following metadata fields:
 
 #### Package metadata
 
@@ -74,7 +74,7 @@ Loom tracks provenance for the following metadata fields:
 - **license**: License information
   - Source: `pyproject.toml` → `project.license`
 - **copyright_text**: Copyright information
-  - Source: Loom generator (inferred from authors)
+  - Source: Pitloom generator (inferred from authors)
 
 #### Relationship metadata
 
@@ -105,11 +105,11 @@ According to SPDX 3, CreationInfo includes:
 - **created**: Timestamp when the element was created
 - **createdBy**: List of agents who created the element
 - **specVersion**: SPDX specification version
-- **comment**: Optional comment about creation (not currently used by Loom)
+- **comment**: Optional comment about creation (not currently used by Pitloom)
 
 ### Future enhancements for CreationInfo
 
-1. **Tool information**: Record the Loom version used to generate the SBOM
+1. **Tool information**: Record the Pitloom version used to generate the SBOM
 2. **Build environment**: Track the build system and environment details
 3. **Data enrichment**: Record when third-party tools enriched the data
 4. **Validation**: Track validation steps and results
@@ -156,11 +156,11 @@ The license was read from the `project.license` field in `pyproject.toml`.
 ```json
 {
   "software_copyrightText": "Copyright (c) 2026 Jane Doe",
-  "comment": "Metadata provenance: copyright_text: Source: Loom generator | Method: inferred_from_authors"
+  "comment": "Metadata provenance: copyright_text: Source: Pitloom generator | Method: inferred_from_authors"
 }
 ```
 
-The copyright was inferred by Loom from the authors listed in `pyproject.toml`.
+The copyright was inferred by Pitloom from the authors listed in `pyproject.toml`.
 
 ## Machine-readable format
 

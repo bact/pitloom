@@ -6,18 +6,18 @@ SPDX-License-Identifier: CC0-1.0
 
 # Sample project
 
-A Python package used as a test fixture for the Loom Hatchling build hook.
+A Python package used as a test fixture for the Pitloom Hatchling build hook.
 It contains just enough metadata and source code to produce a valid wheel.
 
 ## Configuration
 
-The `[tool.hatch.build.hooks.loom]` section in `pyproject.toml` uses
+The `[tool.hatch.build.hooks.pitloom]` section in `pyproject.toml` uses
 `sbom-basename = "sbom"`, which produces `sbom.spdx3.json` as the SBOM
 filename inside the wheel.
 
 ## Building
 
-Build with `--no-isolation` so the locally installed Loom is picked up:
+Build with `--no-isolation` so the locally installed Pitloom is picked up:
 
 ```bash
 cd tests/fixtures/sampleproject

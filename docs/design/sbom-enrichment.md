@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 This document outlines the strategies for enriching standard SBOMs with
 additional metadata, specifically focusing on the generation of AI SBOMs for
-machine learning models and datasets natively within Loom.
+machine learning models and datasets natively within Pitloom.
 
 ## 1. AI SBOM field mapping design (The `loom:ai` namespace)
 
@@ -53,7 +53,7 @@ supporting key-value pairs (e.g., CycloneDX `properties` or SPDX
 
 ## 2. SBOM enrichment strategies for AI models
 
-Beyond statically defining fields at compilation time, Loom can employ active
+Beyond statically defining fields at compilation time, Pitloom can employ active
 sub-component enrichment strategies post-build or during CI/CD pipelines to
 construct a more complex and accurate AI SBOM.
 
@@ -67,7 +67,7 @@ represents a repository-level approach to metadata discovery. AIMMX infers AI
 model characteristics by statically analyzing a software repository's structure,
 README files, requirements, and training scripts.
 
-**Loom integration strategy:**
+**Pitloom integration strategy:**
 
 - Invoke AIMMX against the target source repository prior to the build phase.
 - Map the inferred architectural details, target tasks (e.g., Natural Language
@@ -79,7 +79,7 @@ README files, requirements, and training scripts.
 ### 2.2 Structural model introspection
 
 Modern model serialization formats natively embed metadata alongside neural
-weights. Loom's `bom.py` generator can directly parse these files during the
+weights. Pitloom's `bom.py` generator can directly parse these files during the
 build process to enrich the Protobom graph dynamically.
 
 - **Safetensors (`.safetensors`):** Prefix the file with an 8-byte length
@@ -102,15 +102,15 @@ build process to enrich the Protobom graph dynamically.
 
 ### 2.3 The hybrid AI-enrichment architecture
 
-To achieve a complete AI SBOM, Loom should orchestrate a multi-stage pipeline:
+To achieve a complete AI SBOM, Pitloom should orchestrate a multi-stage pipeline:
 
-1. **Standard SCA execution:** Loom runs traditional dependency scanners (e.g.,
+1. **Standard SCA execution:** Pitloom runs traditional dependency scanners (e.g.,
   `syft` or `pip-audit`) to generate the baseline Protobom graph of standard
   libraries (`torch`, `numpy`).
-2. **Deep introspection:** Loom actively scans for `.safetensors`, `.gguf`, or
+2. **Deep introspection:** Pitloom actively scans for `.safetensors`, `.gguf`, or
   `.onnx` files, parses their headers, and extracts internal model state into
   `loom:ai:*` properties attached to the model's `PACKAGE` node.
-3. **Repository contextualization:** Loom merges metadata derived from AIMMX
+3. **Repository contextualization:** Pitloom merges metadata derived from AIMMX
   analysis (e.g., intended use cases found in READMEs, license contexts) to
   populate compliance and safety fields (`loom:ai:safety:*`).
 4. **Protobom export:** The final, enriched Protobom graph is serialized out to
@@ -122,12 +122,12 @@ Attempting to aggressively inline the entirety of a dataset's metadata,
 descriptive statistics, and ethical considerations (RAI properties) directly
 into the SBOM can lead to severe structural bloat.
 
-Instead, Loom should support persistent URI linking, specifically leveraging the
+Instead, Pitloom should support persistent URI linking, specifically leveraging the
 [Croissant format](https://mlcommons.org/working-groups/data/croissant/).
 Croissant is a JSON-LD based extension of `schema.org/Dataset` heavily adopted
 for dataset representation by Hugging Face, Kaggle, and OpenML.
 
-**Loom integration strategy:**
+**Pitloom integration strategy:**
 
 - **API interrogation:** If a dataset is ingested via a recognized hub, query
   its metadata API (e.g., `huggingface.co/api/datasets/{id}/croissant`).

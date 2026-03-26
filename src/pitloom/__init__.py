@@ -2,6 +2,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Package information for Loom."""
+"""Pitloom: Creating SBOM during the build process."""
 
-__version__ = "0.1.0"
+from pitloom.__about__ import __version__
+
+__all__ = ["__version__"]

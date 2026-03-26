@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-License-Identifier: CC0-1.0
 
-# Minimal project used as a fixture for testing the Loom Hatchling build hook.
+# Minimal project used as a fixture for testing the Pitloom Hatchling build hook.
 #
-# Build with --no-isolation so the locally installed Loom is used:
+# Build with --no-isolation so the locally installed Pitloom is used:
 #
 #   python -m build --wheel --no-isolation
 #   hatch build --target wheel
@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 [project]
 name = "sampleproject"
 version = "0.1.0"
-description = "A minimal sample project for testing the Loom Hatchling build hook."
+description = "A minimal sample project for testing the Pitloom Hatchling build hook."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "CC0-1.0"
@@ -24,7 +24,7 @@ keywords = ["sample", "test"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/sampleproject"]
 
-[tool.hatch.build.hooks.loom]
+[tool.hatch.build.hooks.pitloom]
 sbom-basename = "sbom"
-creator-name = "Loom CI"
+creator-name = "Pitloom CI"
 creator-email = "ci@loom.example"

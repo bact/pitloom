@@ -11,21 +11,21 @@ from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from loom.assemble.spdx3.deps import add_dependencies
-from loom.core.document import DocumentModel
-from loom.core.models import generate_spdx_id
-from loom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.assemble.spdx3.deps import add_dependencies
+from pitloom.core.document import DocumentModel
+from pitloom.core.models import generate_spdx_id
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
 def build(doc: DocumentModel) -> Spdx3JsonExporter:
-    """Assemble SPDX 3 elements from a :class:`~loom.core.document.DocumentModel`.
+    """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
     Args:
         doc: Format-neutral document model with project metadata, creation
             metadata, and any AI model metadata.
 
     Returns:
-        A populated :class:`~loom.export.spdx3_json.Spdx3JsonExporter`
+        A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`
         containing all SPDX 3 elements for the project and its dependencies.
     """
     metadata = doc.project

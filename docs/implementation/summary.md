@@ -4,7 +4,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Loom SBOM generator - implementation summary
+# Pitloom SBOM generator - implementation summary
 
 ## Project overview
 
@@ -20,54 +20,54 @@ in JSON-LD format.
 1. **SPDX 3.0 data models** (`spdx-python-model`)
    - Fully migrated to the official `spdx-python-model` library
    - Proper JSON-LD serialization and validation
-   - UUID-based unique SPDX IDs generated via `loom.core.models` generator
+   - UUID-based unique SPDX IDs generated via `pitloom.core.models` generator
 
-2. **Metadata extraction** (`src/loom/extract/pyproject.py`)
+2. **Metadata extraction** (`src/pitloom/extract/pyproject.py`)
    - Reads pyproject.toml files
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
-   - Returns `(ProjectMetadata, LoomConfig)` tuple
+   - Returns `(ProjectMetadata, PitloomConfig)` tuple
 
-3. **SPDX 3 exporter** (`src/loom/export/spdx3_json.py`)
+3. **SPDX 3 exporter** (`src/pitloom/export/spdx3_json.py`)
    - JSON-LD output using official bindings and SHACLObjectSet
    - Clean API for building SPDX documents and adding elements
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
-4. **SBOM generator** (`src/loom/assemble/`)
+4. **SBOM generator** (`src/pitloom/assemble/`)
    - `generate_sbom()` orchestrates the full pipeline
    - Builds `DocumentModel` from extracted metadata
    - Passes `DocumentModel` to `build()` assembler in `assemble/spdx3/`
    - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
-5. **Hatchling build hook** (`src/loom/plugins/hatch.py`)
-   - `LoomBuildHook` registered via pluggy entry point (`[project.entry-points."hatch"]`)
+5. **Hatchling build hook** (`src/pitloom/plugins/hatch.py`)
+   - `PitloomBuildHook` registered via pluggy entry point (`[project.entry-points."hatch"]`)
    - Generates SBOM in `initialize()`, stages to a `TemporaryDirectory`
    - Appends staged path to `build_data["sbom_files"]` — Hatchling 1.16.0+ places
      it at `.dist-info/sboms/<filename>` (PEP 770) natively
    - `finalize()` cleans up the staging directory
    - Config: `sbom-basename`, `creator-name`, `creator-email`, `fragments`, `enabled`
 
-6. **Command-line interface** (`src/loom/__main__.py`)
+6. **Command-line interface** (`src/pitloom/__main__.py`)
    - User-friendly argparse-based CLI
    - Default output filename derived from project metadata (`{name}-{version}.spdx3.json`)
-     or `[tool.loom] sbom-basename` when set
+     or `[tool.pitloom] sbom-basename` when set
    - Creator information options
    - Clear error messages
 
-7. **Metadata provenance tracking** (`src/loom/extract/pyproject.py`,
-   `src/loom/bom.py`)
+7. **Metadata provenance tracking** (`src/pitloom/extract/pyproject.py`,
+   `src/pitloom/bom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
    - Supports dynamic introspection via `bom.py` inspection
    - Uses SPDX 3 comment attribute
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
-8. **ML tracking SDK** (`src/loom/bom.py`)
+8. **ML tracking SDK** (`src/pitloom/bom.py`)
    - Dual-syntax ContextDecorator (`@bom.track` and `with bom.track`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
-   - Seamlessly ingested into project SBOMs using `[tool.loom.fragments]` config
+   - Seamlessly ingested into project SBOMs using `[tool.pitloom.fragments]` config
 
 ### ✅ Testing (comprehensive coverage - all passing)
 
@@ -146,7 +146,7 @@ SBOM written to: sbom.spdx3.json
 ### 1. Clean architecture
 
 ```text
-src/loom/
+src/pitloom/
 ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
 │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
 │   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
@@ -155,7 +155,7 @@ src/loom/
 │   └── __init__.py      # generate_sbom() orchestrator
 ├── core/                # Format-neutral data models (no SBOM lib dependencies)
 │   ├── ai_metadata.py   # AiModelMetadata, ModelFormat
-│   ├── config.py        # LoomConfig ([tool.loom] settings)
+│   ├── config.py        # PitloomConfig ([tool.pitloom] settings)
 │   ├── creation.py      # CreationMetadata
 │   ├── document.py      # DocumentModel (assembled document)
 │   ├── models.py        # SPDX ID generation utilities
@@ -185,7 +185,7 @@ src/loom/
 
 ## Comparison with reference SBOM
 
-| Feature | Reference SBOM | Loom Generated | Status |
+| Feature | Reference SBOM | Pitloom Generated | Status |
 | ------- | -------------- | -------------- | ------ |
 | SPDX 3.0 Structure | ✅ | ✅ | ✅ Complete |
 | Package Metadata | ✅ | ✅ | ✅ Complete |
@@ -309,12 +309,12 @@ Based on the design document and problem requirements:
 **New Requirements Addressed:**
 
 - Migrated to `spdx-python-model` as the core ontology
-- Engineered `loom.bom` for comprehensive Machine Learning Annotation Support
+- Engineered `pitloom.bom` for comprehensive Machine Learning Annotation Support
 - Configured format-neutral internal representation roadmap
 
 ## Conclusion
 
-The Loom SBOM Generator prototype is **complete, tested, and production-ready**
+The Pitloom SBOM Generator prototype is **complete, tested, and production-ready**
 for its current scope. It successfully:
 
 1. ✅ Generates valid SPDX 3.0 SBOMs
@@ -334,7 +334,7 @@ advanced SPDX features.
 
 ---
 
-**Repository**: <https://github.com/bact/loom>  
+**Repository**: <https://github.com/bact/pitloom>  
 **Branch**: copilot/implement-metadata-provenance  
 **Tests**: 25 passed, 0 failed  
 **Security**: 0 alerts (CodeQL)  

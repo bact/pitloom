@@ -4,13 +4,13 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Loom
+# Pitloom
 
 Creating SBOM during the build process. Now targeting Python Hatchling support.
 
 ## Overview
 
-Loom is an automated Software Bill of Materials (SBOM) generator for Python
+Pitloom is an automated Software Bill of Materials (SBOM) generator for Python
 projects that use Hatchling as their build backend.
 It generates SPDX 3 compliant SBOMs that document the composition,
 provenance, and dependencies of software systems.
@@ -33,7 +33,7 @@ provenance, and dependencies of software systems.
 
 ## Installation
 
-Install Loom using pip:
+Install Pitloom using pip:
 
 ```bash
 pip install -e .
@@ -90,8 +90,8 @@ The SBOM generator can be used programmatically:
 
 ```python
 from pathlib import Path
-from loom.core.creation import CreationMetadata
-from loom.assemble import generate_sbom
+from pitloom.core.creation import CreationMetadata
+from pitloom.assemble import generate_sbom
 
 # Generate SBOM for a project
 generate_sbom(
@@ -107,18 +107,18 @@ generate_sbom(
 
 ### Hatchling build hook
 
-Loom can embed an SBOM automatically into every wheel you build by acting as
-a Hatchling build hook. The SBOM is placed at
+Pitloom can embed an SBOM automatically into every wheel you build
+by acting as a Hatchling build hook. The SBOM is placed at
 `.dist-info/sboms/sbom.spdx3.json` inside the wheel, following
 [PEP 770](https://peps.python.org/pep-0770/).
 
-#### Adding Loom to your build requirements
+#### Adding Pitloom to your build requirements
 
 Add `loom` to your project's build requirements:
 
 ```toml
 [build-system]
-requires = ["hatchling", "loom"]
+requires = ["hatchling", "pitloom"]
 build-backend = "hatchling.build"
 ```
 
@@ -127,11 +127,11 @@ build-backend = "hatchling.build"
 Enable the hook by adding a section to your `pyproject.toml`:
 
 ```toml
-[tool.hatch.build.hooks.loom]
+[tool.hatch.build.hooks.pitloom]
 # All fields are optional. Defaults are shown.
 enabled = true
 sbom-basename = ""      # name part only (no extension); default "sbom"
-creator-name = ""       # defaults to "Loom"
+creator-name = ""       # defaults to "Pitloom"
 creator-email = ""
 fragments = []          # extra SPDX fragment paths (relative to project root)
 ```
@@ -146,18 +146,18 @@ embed the SBOM automatically — no extra commands needed.
 #### Merging AI/ML fragments
 
 For AI-powered software, you can track model and dataset provenance during
-training using `loom.bom`, then include those fragments in the wheel SBOM:
+training using `pitloom.bom`, then include those fragments in the wheel SBOM:
 
 ```toml
-[tool.hatch.build.hooks.loom]
+[tool.hatch.build.hooks.pitloom]
 fragments = [
     "fragments/train_run.spdx3.json",
     "fragments/eval_run.spdx3.json",
 ]
 ```
 
-Fragments listed under `[tool.hatch.build.hooks.loom]` are merged together
-with any fragments already listed under `[tool.loom]`.
+Fragments listed under `[tool.hatch.build.hooks.pitloom]` are merged together
+with any fragments already listed under `[tool.pitloom]`.
 
 #### Resulting wheel structure
 
@@ -171,7 +171,7 @@ mypackage-1.0-py3-none-any.whl
 ### Python tracking decorator
 
 Developers can easily annotate scripts or Jupyter notebooks to generate
-external SBOM fragments that Loom will merge during the build process:
+external SBOM fragments that Pitloom will merge during the build process:
 
 ```python
 from loom import bom
@@ -211,7 +211,7 @@ The generated SBOM will include:
 
 ## Metadata provenance
 
-Loom tracks the source of each metadata field in the SBOM using the SPDX 3
+Pitloom tracks the source of each metadata field in the SBOM using the SPDX 3
 `comment` attribute. This enables answering questions like:
 
 > "Why does the SBOM say the concluded license is MIT?"
@@ -267,7 +267,7 @@ loom/
 │       │   └── __init__.py      # generate_sbom() orchestrator
 │       ├── core/
 │       │   ├── ai_metadata.py   # Format-neutral AI model metadata
-│       │   ├── config.py        # [tool.loom] settings (LoomConfig)
+│       │   ├── config.py        # [tool.pitloom] settings (LoomConfig)
 │       │   ├── creation.py      # SBOM creation metadata (CreationMetadata)
 │       │   ├── document.py      # Format-neutral document model (DocumentModel)
 │       │   ├── models.py        # SPDX ID generation utilities
