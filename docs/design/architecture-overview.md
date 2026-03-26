@@ -180,10 +180,10 @@ the development environment mirrors production (Ghadge 2025).
 ### Python project structure
 
 ```text
-loom/
+pitloom/
 ├── .github/workflows/           # CI/CD pipeline definitions
 ├── src/
-│   └── loom/
+│   └── pitloom/
 │       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
 │       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
 │       │   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
@@ -261,8 +261,8 @@ See `docs/design/mlflow-extractor.md`.
 ```text
 Extraction
 ──────────
-read_pyproject(pyproject.toml) → ProjectMetadata
-read_ai_model(model.onnx)      → AiModelMetadata   [optional]
+read_pyproject(pyproject.toml).     → ProjectMetadata
+read_ai_model(model.onnx)           → AiModelMetadata [optional]
 bom.track() / bom.from_mlflow_run() → SPDX fragments [optional]
 
 Assembly (format-neutral)
@@ -275,9 +275,9 @@ DocumentModel(
 
 Serialization
 ─────────────
-build(doc: DocumentModel)              → Spdx3JsonExporter → JSON-LD
-merge_fragments(loom_config.fragments) → (inlined into exporter)
-exporter.to_json(pretty=...)           → SBOM string / file
+build(doc: DocumentModel)                 → Spdx3JsonExporter → JSON-LD
+merge_fragments(pitloom_config.fragments) → (inlined into exporter)
+exporter.to_json(pretty=...)              → SBOM string / file
 ```
 
 ### Revised end-to-end flow (with planned integrations)

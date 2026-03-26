@@ -72,7 +72,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
             dynamic_fields = [f for f in dynamic_fields if f != "version"]
 
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
-    loom_config = _read_loom_config(data)
+    pitloom_config = _read_pitloom_config(data)
 
     try:
         std = StandardMetadata.from_pyproject(
@@ -97,7 +97,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
         dependencies=[str(d) for d in std.dependencies],
         provenance=_build_provenance(data.get("project", {}), version_source),
     )
-    return metadata, loom_config
+    return metadata, pitloom_config
 
 
 # ---------------------------------------------------------------------------
@@ -138,18 +138,18 @@ def _build_provenance(
     return prov
 
 
-def _read_loom_config(data: dict[str, Any]) -> PitloomConfig:
+def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """
     Read ``[tool.pitloom]`` settings and return
     a :class:`~pitloom.core.config.PitloomConfig`.
     """
-    loom_data = data.get("tool", {}).get("pitloom", {})
-    raw_fragments = loom_data.get("fragments", {}).get("files", [])
+    pitloom_data = data.get("tool", {}).get("pitloom", {})
+    raw_fragments = pitloom_data.get("fragments", {}).get("files", [])
     fragments = (
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
     )
-    pretty = bool(loom_data.get("pretty", False))
-    sbom_basename: str | None = loom_data.get("sbom-basename") or None
+    pretty = bool(pitloom_data.get("pretty", False))
+    sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
     return PitloomConfig(
         pretty=pretty, fragments=fragments, sbom_basename=sbom_basename
     )

@@ -54,12 +54,12 @@ jobs:
           echo "::error title=Build Failed::Wheel build failed for Python ${{ matrix.python-version }}. Check the build logs for details."
           exit 1
 
-      - name: Install Loom for SBOM generation
+      - name: Install Pitloom for SBOM generation
         if: steps.build.outcome == 'success'
         run: |
           pip install -e .
 
-      - name: Generate SBOM with Loom
+      - name: Generate SBOM with Pitloom
         id: sbom
         if: steps.build.outcome == 'success'
         run: |
@@ -68,7 +68,7 @@ jobs:
           SBOM_NAME="${WHEEL_NAME}.spdx3.json"
 
           # Generate SBOM
-          loom . -o "dist/${SBOM_NAME}" --creator-name "Loom CI" --creator-email "ci@loom.example"
+          loom . -o "dist/${SBOM_NAME}" --creator-name "Pitloom CI" --creator-email "ci@example.com"
 
           echo "sbom_name=${SBOM_NAME}" >> $GITHUB_OUTPUT
           echo "sbom_path=dist/${SBOM_NAME}" >> $GITHUB_OUTPUT
@@ -118,13 +118,13 @@ jobs:
 
           echo "=== SBOM Validation with sbom-tool (Microsoft) ==="
           echo "Tool: ${TOOL}"
-          echo "Loom SBOM: ${SBOM_PATH}"
+          echo "Pitloom SBOM: ${SBOM_PATH}"
           echo ""
 
           # sbom-tool validate expects the manifest at a fixed path inside the
           # drop directory: <drop>/_manifest/spdx_3.0/manifest.spdx.json
-          # Stage the Loom-generated SBOM into that layout so sbom-tool can
-          # act as the consumer/validator against our file.
+          # Stage the Pitloom-generated SBOM into that layout so sbom-tool
+          # can act as the consumer/validator against our file.
           mkdir -p validate-input/_manifest/spdx_3.0
           cp "${SBOM_PATH}" validate-input/_manifest/spdx_3.0/manifest.spdx.json
 

@@ -9,7 +9,7 @@ Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
     pip install pitloom[gguf]        # for GGUF support
     pip install pitloom[onnx]        # for ONNX support
     pip install pitloom[safetensors] # for Safetensors support
-    pip install pitloom[model]       # for all model formats
+    pip install pitloom[aimodel]     # for all model formats
 """
 
 from __future__ import annotations

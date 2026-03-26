@@ -150,7 +150,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         hook_fragments: list[str] = config.get("fragments", [])
 
         project_dir = Path(self.root)
-        metadata, loom_config = read_pyproject(project_dir / "pyproject.toml")
+        metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
 
         creation_meta = CreationMetadata(
             creator_name=creator_name,
@@ -159,10 +159,10 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         doc = DocumentModel(project=metadata, creation=creation_meta)
         exporter = assemble_spdx3(doc)
 
-        all_fragments = loom_config.fragments + hook_fragments
+        all_fragments = pitloom_config.fragments + hook_fragments
         merge_fragments(project_dir, all_fragments, exporter)
 
-        sbom_json = exporter.to_json(pretty=loom_config.pretty)
+        sbom_json = exporter.to_json(pretty=pitloom_config.pretty)
 
         self._sbom_filename = sbom_filename
         # TemporaryDirectory intentionally spans initialize() → finalize().
@@ -295,7 +295,7 @@ dependencies = [
 | `test_hook_sbom_files_populated` | Asserts `build_data["sbom_files"]` is populated with the staged path after `initialize()`. |
 | `test_hook_sbom_files_custom_basename` | Asserts `sbom-basename` config is reflected in the filename in `sbom_files`. |
 | `test_hook_sbom_files_appended_to_existing` | Pre-populates `sbom_files`; asserts `initialize()` appends rather than replaces. |
-| `test_hook_with_loom_fragments` | Provides a valid fragment; asserts its content is merged into the SBOM. |
+| `test_hook_with_pitloom_fragments` | Provides a valid fragment; asserts its content is merged into the SBOM. |
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
 | `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject` fixture; asserts package name appears in SBOM. |
 | `test_hook_invalid_config_raises_before_io` | Passes bad config; asserts `ValueError` is raised before any filesystem access. |

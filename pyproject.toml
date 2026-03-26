@@ -47,8 +47,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+aimodel = ["onnx>=1.14.1", "safetensors[numpy]>=0.4.0", "gguf>=0.10.0"]
 gguf = ["gguf>=0.10.0"]
-model = ["onnx>=1.14.1", "safetensors[numpy]>=0.4.0", "gguf>=0.10.0"]
 onnx = ["onnx>=1.14.1"]
 safetensors = ["safetensors[numpy]>=0.4.0"]
 
@@ -66,7 +66,7 @@ dev = [
 pitloom = "pitloom.plugins.hatch"
 
 [project.scripts]
-loom = "pitloom.__main__:main"
+loom = "pitloom.__main__:main"  # default command-line entry point
 pitloom = "pitloom.__main__:main"
 
 [project.urls]
@@ -96,7 +96,8 @@ exclude = [
 packages = ["src/pitloom"]
 
 [tool.pitloom]
-pretty = true
+pretty = true # TODO: By default, SBOM in wheel should be compact,
+              # but pretty-printed in sdist for easier inspection
 
 [tool.mypy]
 pretty = true
