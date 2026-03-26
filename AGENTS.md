@@ -266,6 +266,9 @@ with the current system and other dependencies. Prefer Semantic Versioning.
 
 ## SBOM resources
 
+- SBOM-Everywhere:
+  <https://sbom-catalog.openssf.org/>
+  Guides and best practices for SBOM in open source projects.
 - OpenChain SBOM Document Quality Guide Compliance Management Guide for
   the Supply Chain version 1.0.0:
   <https://docs.google.com/document/d/1iuXX8j10N70dfce1-CZFWhW6S2jEqc--flcCgXMMdjg/edit?usp=sharing>
