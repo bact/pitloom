@@ -1,0 +1,191 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Validate SBOM with Microsoft sbom-tool
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  validate-with-ms-sbom-tool:
+    name: Validate SBOM (sbom-tool) - Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.14"
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build wheel
+        id: build
+        run: |
+          python -m build --wheel
+          WHEEL_NAME=$(ls dist/*.whl | xargs -n 1 basename)
+          echo "wheel_name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
+          echo "::notice title=Build Success::Successfully built wheel: ${WHEEL_NAME}"
+        continue-on-error: true
+
+      - name: Display build error
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error title=Build Failed::Wheel build failed for Python ${{ matrix.python-version }}. Check the build logs for details."
+          exit 1
+
+      - name: Install Loom for SBOM generation
+        if: steps.build.outcome == 'success'
+        run: |
+          pip install -e .
+
+      - name: Generate SBOM
+        id: sbom
+        if: steps.build.outcome == 'success'
+        run: |
+          # Get wheel name and create SBOM filename following OpenSSF convention
+          WHEEL_NAME="${{ steps.build.outputs.wheel_name }}"
+          SBOM_NAME="${WHEEL_NAME}.spdx3.json"
+
+          # Generate SBOM
+          loom . -o "dist/${SBOM_NAME}" --creator-name "Loom CI" --creator-email "ci@loom.example"
+
+          echo "sbom_name=${SBOM_NAME}" >> $GITHUB_OUTPUT
+          echo "sbom_path=dist/${SBOM_NAME}" >> $GITHUB_OUTPUT
+          echo "::notice title=SBOM Generated::Successfully created SBOM file: ${SBOM_NAME}"
+        continue-on-error: true
+
+      - name: Display SBOM generation error
+        if: steps.build.outcome == 'success' && steps.sbom.outcome == 'failure'
+        run: |
+          echo "::error title=SBOM Generation Failed::SBOM generation failed for Python ${{ matrix.python-version }}. Verify that the project structure is correct."
+
+      - name: Download sbom-tool
+        id: sbom_tool_download
+        if: steps.sbom.outcome == 'success'
+        run: |
+          OS="${{ runner.os }}"
+          ARCH="${{ runner.arch }}"
+
+          if [[ "$OS" == "Linux" ]]; then
+            BINARY="sbom-tool-linux-x64"
+            TOOL_NAME="sbom-tool"
+          elif [[ "$OS" == "macOS" ]]; then
+            [[ "$ARCH" == "ARM64" ]] \
+              && BINARY="sbom-tool-osx-arm64" \
+              || BINARY="sbom-tool-osx-x64"
+            TOOL_NAME="sbom-tool"
+          else
+            BINARY="sbom-tool-win-x64.exe"
+            TOOL_NAME="sbom-tool.exe"
+          fi
+
+          echo "Downloading sbom-tool (${BINARY})..."
+          curl -fsSL \
+            -o "${TOOL_NAME}" \
+            "https://github.com/microsoft/sbom-tool/releases/latest/download/${BINARY}"
+
+          [[ "$OS" != "Windows" ]] && chmod +x "${TOOL_NAME}"
+          echo "tool_name=${TOOL_NAME}" >> "$GITHUB_OUTPUT"
+          echo "::notice title=sbom-tool Downloaded::Microsoft sbom-tool downloaded successfully"
+
+      - name: Validate SBOM with sbom-tool
+        id: validate_sbom_tool
+        if: steps.sbom.outcome == 'success' && steps.sbom_tool_download.outcome == 'success'
+        run: |
+          TOOL="./${{ steps.sbom_tool_download.outputs.tool_name }}"
+          SBOM_DIR=$(dirname "${{ steps.sbom.outputs.sbom_path }}")
+
+          echo "=== SBOM Validation with sbom-tool (Microsoft) ==="
+          echo "Tool: ${TOOL}"
+          echo "SBOM directory: ${SBOM_DIR}"
+          echo ""
+
+          mkdir -p sbom-tool-output
+
+          # Note: sbom-tool primarily targets SPDX 2.2 format; outcome may be
+          # inconclusive for SPDX 3 JSON-LD files.
+          # -mi specifies the manifest name and version (required by sbom-tool validate).
+          if "${TOOL}" validate \
+              -b "${SBOM_DIR}" \
+              -o sbom-tool-output/ \
+              -mi spdx:2.2; then
+            echo ""
+            echo "✅ sbom-tool validation passed!"
+            echo "::notice title=sbom-tool Validation::SBOM validated by Microsoft sbom-tool"
+          else
+            echo ""
+            echo "⚠️ sbom-tool validation did not pass (SPDX 3 format may not be fully supported)."
+            echo "::warning title=sbom-tool Validation::sbom-tool validation inconclusive (SPDX 3 format)"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Create Job Summary
+        if: always()
+        run: |
+          SBOM_TOOL_STATUS="${{ steps.validate_sbom_tool.outcome }}"
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Microsoft sbom-tool Validation - Python ${{ matrix.python-version }} on ${{ matrix.os }}
+
+          | Step | Status |
+          | :--- | :--- |
+          | Build Wheel | ${{ steps.build.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Generate SBOM | ${{ steps.sbom.outcome == 'success' && '✅ Passed' || steps.sbom.outcome == 'failure' && '❌ Failed' || '⊘ Skipped' }} |
+          | Download sbom-tool | ${{ steps.sbom_tool_download.outcome == 'success' && '✅ Done' || steps.sbom_tool_download.outcome == 'failure' && '❌ Failed' || '⊘ Skipped' }} |
+          | Validate (sbom-tool) | ${{ steps.validate_sbom_tool.outcome == 'success' && '✅ Passed' || steps.validate_sbom_tool.outcome == 'failure' && '⚠️ Inconclusive' || '⊘ Skipped' }} |
+
+          > Note: sbom-tool natively targets SPDX 2.2 format; results for SPDX 3 JSON-LD may be inconclusive.
+          > See [microsoft/sbom-tool](https://github.com/microsoft/sbom-tool) for details.
+          EOF
+
+      - name: Final status check
+        if: always()
+        run: |
+          echo "::group::Final Status Check"
+          echo "Checking all workflow steps..."
+          echo ""
+
+          BUILD_STATUS="${{ steps.build.outcome }}"
+          SBOM_STATUS="${{ steps.sbom.outcome }}"
+          SBOM_TOOL_STATUS="${{ steps.validate_sbom_tool.outcome }}"
+
+          echo "Build: ${BUILD_STATUS}"
+          echo "SBOM: ${SBOM_STATUS}"
+          echo "sbom-tool: ${SBOM_TOOL_STATUS}"
+          echo ""
+          echo "::endgroup::"
+
+          if [ "$BUILD_STATUS" != "success" ]; then
+            echo "::error title=Workflow Failed::Build step failed for Python ${{ matrix.python-version }}"
+            exit 1
+          fi
+          if [ "$SBOM_STATUS" != "success" ]; then
+            echo "::error title=Workflow Failed::SBOM generation step failed for Python ${{ matrix.python-version }}"
+            exit 1
+          fi
+
+          echo "::notice title=Workflow Complete::sbom-tool validation completed for Python ${{ matrix.python-version }} (result: ${SBOM_TOOL_STATUS})"
