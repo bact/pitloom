@@ -42,6 +42,16 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(package)
 
+    def add_license(
+        self, license_text: spdx3.simplelicensing_SimpleLicensingText
+    ) -> None:
+        """Add a SimpleLicensingText element to the document.
+
+        Args:
+            license_text: The simplelicensing_SimpleLicensingText object
+        """
+        self.object_set.add(license_text)
+
     def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.
 
