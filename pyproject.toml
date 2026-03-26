@@ -19,6 +19,9 @@ keywords = [
     "software bill of materials",
     "hatchling",
     "supply chain",
+    "aibom",
+    "build",
+    "provenance",
 ]
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [
@@ -37,7 +40,7 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
-    "hatchling>=1.16.0",
+    "hatchling>=1.28.0",
     "pyproject-metadata>=0.10.0",
     "spdx-python-model>=0.0.4",
     "tomli>=2.0.0; python_version<'3.11'",
