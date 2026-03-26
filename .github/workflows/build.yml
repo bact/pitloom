@@ -37,7 +37,7 @@ env:
 
 jobs:
   build-wheel:
-    name: Build wheel for Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
