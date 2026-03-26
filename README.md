@@ -174,7 +174,7 @@ Developers can easily annotate scripts or Jupyter notebooks to generate
 external SBOM fragments that Pitloom will merge during the build process:
 
 ```python
-from loom import bom
+from pitloom import bom
 
 # Use as a function decorator...
 @bom.track(output_file="fragments/sentiment_model.json")
