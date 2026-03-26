@@ -56,7 +56,6 @@ def add_dependencies(
     dependencies: list[str],
     dep_provenance: str,
     main_package_spdx_id: str,
-    unknown_org_spdx_id: str,
     creation_info: spdx3.CreationInfo,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
@@ -76,7 +75,6 @@ def add_dependencies(
         dep_provenance: Provenance string for the dependencies field
             (e.g. ``"Source: pyproject.toml | Field: project.dependencies"``).
         main_package_spdx_id: SPDX ID of the parent package for relationships.
-        unknown_org_spdx_id: SPDX ID of the "unknown supplier" organization.
         creation_info: Shared ``CreationInfo`` for all new elements.
         doc_uuid: Document-scoped UUID used in SPDX ID generation.
         exporter: Receives the new package and relationship elements.
@@ -98,7 +96,6 @@ def add_dependencies(
             creationInfo=creation_info,
         )
         dep_package.software_packageVersion = dep_version
-        dep_package.suppliedBy = unknown_org_spdx_id
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         dep_package.comment = "Metadata provenance: " + "; ".join(provenance_parts)
         exporter.add_package(dep_package)

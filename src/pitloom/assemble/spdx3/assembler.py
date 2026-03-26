@@ -135,19 +135,9 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
     spdx_ci.createdBy = [creator.spdxId]
     spdx_ci.createdUsing = [tool.spdxId]
 
-    # Unknown supplier organization for dependencies without explicit supplier info
-    unknown_org = spdx3.Organization(
-        spdxId=generate_spdx_id(
-            "Organization", doc_name="UnknownSupplier", doc_uuid=doc_uuid
-        ),
-        name="NOASSERTION",
-        creationInfo=spdx_ci,
-    )
-
     exporter.add_creation_info(spdx_ci)
     exporter.add_person(creator)
     exporter.object_set.add(tool)
-    exporter.add_person(unknown_org)
 
     # --- Main package ---
     copyright_holder = (
@@ -229,7 +219,6 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
         dependencies=metadata.dependencies,
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
         main_package_spdx_id=main_package.spdxId,
-        unknown_org_spdx_id=unknown_org.spdxId,
         creation_info=spdx_ci,
         doc_uuid=doc_uuid,
         exporter=exporter,
