@@ -213,10 +213,12 @@ jobs:
 
           # Note: sbom-tool primarily targets SPDX 2.2 format; outcome may be
           # inconclusive for SPDX 3 JSON-LD files.
+          # -mi specifies the manifest name and version (required by sbom-tool validate).
           if "${TOOL}" validate \
               -b "${SBOM_DIR}" \
               -o sbom-tool-output/ \
-              -m "${SBOM_DIR}"; then
+              -m "${SBOM_DIR}" \
+              -mi spdx:2.2; then
             echo ""
             echo "✅ sbom-tool validation passed!"
             echo "::notice title=sbom-tool Validation::SBOM validated by Microsoft sbom-tool"
