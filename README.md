@@ -343,5 +343,8 @@ python -m build
 
 ## License
 
-- Source code licensed under the Apache License 2.0.
-- Documentation licensed under Creative Commons Attribution 4.0 International.
+- Source code: Apache License 2.0.
+- Documentation: Creative Commons Attribution 4.0 International.
+- Test fixture AI models:
+  individual files carry Apache-2.0 or MIT licenses — see
+  [tests/fixtures/README.md](tests/fixtures/README.md) for details.

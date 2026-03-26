@@ -472,13 +472,14 @@ def test_ai_model_metadata_construction() -> None:
 
 # ---------------------------------------------------------------------------
 # Integration tests — real ONNX file (squeezenet1.1-7.onnx)
-# Require: onnx installed AND tests/fixtures/squeezenet1.1-7.onnx present
+# Require: onnx installed AND tests/fixtures/onnx/squeezenet1.1-7.onnx present
 # ---------------------------------------------------------------------------
 
 # ONNX elem_type 1 = FLOAT  (TensorProto.FLOAT)
 _ONNX_FLOAT = 1
 
-SQUEEZENET_FIXTURE = Path(__file__).parent / "fixtures" / "squeezenet1.1-7.onnx"
+_ONNX = Path(__file__).parent / "fixtures" / "onnx"
+SQUEEZENET_FIXTURE = _ONNX / "squeezenet1.1-7.onnx"
 
 
 @pytest.fixture(scope="module")
@@ -558,10 +559,11 @@ def test_onnx_integration_provenance_fields(
 # Integration tests — real GGUF file (stories260K.gguf)
 # Source: ggml-org/models tinyllamas/stories260K.gguf (~1.1 MB)
 # A 260K-parameter LLaMA model trained on TinyStories (Karpathy / llama2.c)
-# Require: gguf installed AND tests/fixtures/stories260K.gguf present
+# Require: gguf installed AND tests/fixtures/gguf/stories260K.gguf present
 # ---------------------------------------------------------------------------
 
-STORIES260K_FIXTURE = Path(__file__).parent / "fixtures" / "stories260K.gguf"
+_GGUF = Path(__file__).parent / "fixtures" / "gguf"
+STORIES260K_FIXTURE = _GGUF / "stories260K.gguf"
 
 
 @pytest.fixture(scope="module")
@@ -626,12 +628,10 @@ def test_gguf_integration_provenance(stories260k_metadata: AiModelMetadata) -> N
 # Integration tests — real ONNX file (encoder_model_q4f16.onnx)
 # Source: onnx-community/whisper-tiny-ONNX (~6.3 MB)
 # Whisper tiny speech encoder, quantised Q4F16, two opset domains
-# Require: onnx installed AND tests/fixtures/encoder_model_q4f16.onnx present
+# Require: onnx installed AND tests/fixtures/onnx/encoder_model_q4f16.onnx present
 # ---------------------------------------------------------------------------
 
-WHISPER_ENCODER_FIXTURE = (
-    Path(__file__).parent / "fixtures" / "encoder_model_q4f16.onnx"
-)
+WHISPER_ENCODER_FIXTURE = _ONNX / "encoder_model_q4f16.onnx"
 
 
 @pytest.fixture(scope="module")
@@ -690,10 +690,10 @@ def test_whisper_encoder_provenance(whisper_encoder_metadata: AiModelMetadata) -
 # Integration tests — real GGUF file (mmproj-tinygemma3.gguf)
 # Source: ggml-org/tinygemma3-GGUF (~1.0 MB)
 # CLIP vision multimodal projector for tinygemma3; architecture = "clip"
-# Require: gguf installed AND tests/fixtures/mmproj-tinygemma3.gguf present
+# Require: gguf installed AND tests/fixtures/gguf/mmproj-tinygemma3.gguf present
 # ---------------------------------------------------------------------------
 
-MMPROJ_FIXTURE = Path(__file__).parent / "fixtures" / "mmproj-tinygemma3.gguf"
+MMPROJ_FIXTURE = _GGUF / "mmproj-tinygemma3.gguf"
 
 
 @pytest.fixture(scope="module")
@@ -750,10 +750,10 @@ def test_mmproj_provenance(mmproj_metadata: AiModelMetadata) -> None:
 # Integration tests — real GGUF file (ggml-vocab-bert-bge.gguf)
 # Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-bert-bge.gguf)
 # Vocabulary-only GGUF for the BGE BERT tokenizer; zero model tensors
-# Require: gguf installed AND tests/fixtures/ggml-vocab-bert-bge.gguf present
+# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-bert-bge.gguf present
 # ---------------------------------------------------------------------------
 
-VOCAB_BERT_BGE_FIXTURE = Path(__file__).parent / "fixtures" / "ggml-vocab-bert-bge.gguf"
+VOCAB_BERT_BGE_FIXTURE = _GGUF / "ggml-vocab-bert-bge.gguf"
 
 
 @pytest.fixture(scope="module")
@@ -812,10 +812,10 @@ def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> 
 # Integration tests — real ONNX file (light-inception-v2.onnx)
 # Source: onnx/onnx GitHub (onnx/backend/test/data/light/light_inception_v2.onnx)
 # Lightweight InceptionV2, opset 9; weight initializers listed as graph inputs
-# Require: onnx installed AND tests/fixtures/light-inception-v2.onnx present
+# Require: onnx installed AND tests/fixtures/onnx/light-inception-v2.onnx present
 # ---------------------------------------------------------------------------
 
-INCEPTION_V2_FIXTURE = Path(__file__).parent / "fixtures" / "light-inception-v2.onnx"
+INCEPTION_V2_FIXTURE = _ONNX / "light-inception-v2.onnx"
 
 
 @pytest.fixture(scope="module")
@@ -875,10 +875,10 @@ def test_inception_v2_provenance(inception_v2_metadata: AiModelMetadata) -> None
 # Integration tests — real ONNX file (resnet-tiny-beans.onnx)
 # Source: fxmarty/resnet-tiny-beans (~761 KB)
 # ResNet fine-tuned for 3-class bean disease classification; opset 11
-# Require: onnx installed AND tests/fixtures/resnet-tiny-beans.onnx present
+# Require: onnx installed AND tests/fixtures/onnx/resnet-tiny-beans.onnx present
 # ---------------------------------------------------------------------------
 
-RESNET_BEANS_FIXTURE = Path(__file__).parent / "fixtures" / "resnet-tiny-beans.onnx"
+RESNET_BEANS_FIXTURE = _ONNX / "resnet-tiny-beans.onnx"
 
 
 @pytest.fixture(scope="module")
@@ -930,10 +930,10 @@ def test_resnet_beans_provenance(resnet_beans_metadata: AiModelMetadata) -> None
 # Integration tests — real ONNX file (gpt2-tiny-decoder.onnx)
 # Source: fxmarty/gpt2-tiny-onnx (~1.0 MB)
 # GPT-2 causal LM decoder with KV-cache outputs; opset 13
-# Require: onnx installed AND tests/fixtures/gpt2-tiny-decoder.onnx present
+# Require: onnx installed AND tests/fixtures/onnx/gpt2-tiny-decoder.onnx present
 # ---------------------------------------------------------------------------
 
-GPT2_DECODER_FIXTURE = Path(__file__).parent / "fixtures" / "gpt2-tiny-decoder.onnx"
+GPT2_DECODER_FIXTURE = _ONNX / "gpt2-tiny-decoder.onnx"
 
 
 @pytest.fixture(scope="module")
@@ -984,10 +984,12 @@ def test_gpt2_decoder_provenance(gpt2_decoder_metadata: AiModelMetadata) -> None
 # Integration tests — real Safetensors file (vits-tiny-random.safetensors)
 # Source: echarlaix/tiny-random-vits (~344 KB)
 # Randomly initialised VITS text-to-speech model; 438 tensors
-# Require: safetensors installed AND tests/fixtures/vits-tiny-random.safetensors present
+# Require: safetensors installed AND
+#          tests/fixtures/safetensors/vits-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
-VITS_FIXTURE = Path(__file__).parent / "fixtures" / "vits-tiny-random.safetensors"
+_ST = Path(__file__).parent / "fixtures" / "safetensors"
+VITS_FIXTURE = _ST / "vits-tiny-random.safetensors"
 
 
 @pytest.fixture(scope="module")
@@ -1037,12 +1039,10 @@ def test_vits_provenance(vits_metadata: AiModelMetadata) -> None:
 # Source: optimum-internal-testing/tiny-random-whisper (~872 KB)
 # Randomly initialised Whisper ASR encoder-decoder; 50 tensors
 # Require: safetensors installed AND
-#          tests/fixtures/whisper-tiny-random.safetensors present
+#          tests/fixtures/safetensors/whisper-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
-WHISPER_ST_FIXTURE = (
-    Path(__file__).parent / "fixtures" / "whisper-tiny-random.safetensors"
-)
+WHISPER_ST_FIXTURE = _ST / "whisper-tiny-random.safetensors"
 
 
 @pytest.fixture(scope="module")
@@ -1087,10 +1087,10 @@ def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
 # Integration tests — real GGUF file (ggml-vocab-phi-3.gguf)
 # Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-phi-3.gguf)
 # Vocabulary-only GGUF for the Phi-3 tokenizer (LLaMA BPE, RoPE architecture)
-# Require: gguf installed AND tests/fixtures/ggml-vocab-phi-3.gguf present
+# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-phi-3.gguf present
 # ---------------------------------------------------------------------------
 
-VOCAB_PHI3_FIXTURE = Path(__file__).parent / "fixtures" / "ggml-vocab-phi-3.gguf"
+VOCAB_PHI3_FIXTURE = _GGUF / "ggml-vocab-phi-3.gguf"
 
 
 @pytest.fixture(scope="module")
@@ -1145,10 +1145,10 @@ def test_vocab_phi3_provenance(vocab_phi3_metadata: AiModelMetadata) -> None:
 # Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
 # Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
 # Require: safetensors installed AND
-#          tests/fixtures/phi-tiny-random.safetensors present
+#          tests/fixtures/safetensors/phi-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
-PHI_FIXTURE = Path(__file__).parent / "fixtures" / "phi-tiny-random.safetensors"
+PHI_FIXTURE = _ST / "phi-tiny-random.safetensors"
 
 
 @pytest.fixture(scope="module")
@@ -1199,10 +1199,10 @@ def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
 # Source: optimum-internal-testing/tiny-random-marian (~690 KB)
 # Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
 # Require: safetensors installed AND
-#          tests/fixtures/marian-tiny-random.safetensors present
+#          tests/fixtures/safetensors/marian-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
-MARIAN_FIXTURE = Path(__file__).parent / "fixtures" / "marian-tiny-random.safetensors"
+MARIAN_FIXTURE = _ST / "marian-tiny-random.safetensors"
 
 
 @pytest.fixture(scope="module")
@@ -1253,12 +1253,10 @@ def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
 # Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
 # Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
 # Require: safetensors installed AND
-#          tests/fixtures/speech2text-tiny-random.safetensors present
+#          tests/fixtures/safetensors/speech2text-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
-SPEECH2TEXT_FIXTURE = (
-    Path(__file__).parent / "fixtures" / "speech2text-tiny-random.safetensors"
-)
+SPEECH2TEXT_FIXTURE = _ST / "speech2text-tiny-random.safetensors"
 
 
 @pytest.fixture(scope="module")
