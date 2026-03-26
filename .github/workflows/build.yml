@@ -217,8 +217,7 @@ jobs:
           if "${TOOL}" validate \
               -b "${SBOM_DIR}" \
               -o sbom-tool-output/ \
-              -m "${SBOM_DIR}" \
-              -mi spdx:2.2; then
+              -mi SPDX:3.0; then
             echo ""
             echo "✅ sbom-tool validation passed!"
             echo "::notice title=sbom-tool Validation::SBOM validated by Microsoft sbom-tool"
