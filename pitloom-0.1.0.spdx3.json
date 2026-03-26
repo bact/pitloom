@@ -4,68 +4,68 @@
     {
       "type": "CreationInfo",
       "@id": "_:CreationInfo0",
-      "created": "2026-03-26T16:02:14Z",
+      "created": "2026-03-26T16:03:20Z",
       "createdBy": [
-        "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Person-1"
+        "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Person-1"
       ],
       "createdUsing": [
-        "https://spdx.org/spdxdocs/Pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Tool-2"
+        "https://spdx.org/spdxdocs/Pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Tool-2"
       ],
       "specVersion": "3.0.1"
     },
     {
       "type": "Tool",
-      "spdxId": "https://spdx.org/spdxdocs/Pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Tool-2",
+      "spdxId": "https://spdx.org/spdxdocs/Pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Tool-2",
       "creationInfo": "_:CreationInfo0",
       "name": "Pitloom"
     },
     {
       "type": "Organization",
-      "spdxId": "https://spdx.org/spdxdocs/UnknownSupplier-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Organization-3",
+      "spdxId": "https://spdx.org/spdxdocs/UnknownSupplier-b42c0579-ffc7-45b2-b76e-bf51356d4356#Organization-3",
       "creationInfo": "_:CreationInfo0",
       "name": "NOASSERTION"
     },
     {
       "type": "software_Package",
-      "spdxId": "https://spdx.org/spdxdocs/hatchling-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-6",
+      "spdxId": "https://spdx.org/spdxdocs/hatchling-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-6",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies; Declared constraint: hatchling>=1.28.0; Version resolved: Build-time environment (importlib.metadata)",
       "creationInfo": "_:CreationInfo0",
       "name": "hatchling",
-      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Organization-3",
+      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-b42c0579-ffc7-45b2-b76e-bf51356d4356#Organization-3",
       "software_primaryPurpose": "library",
       "software_packageVersion": "1.29.0"
     },
     {
       "type": "Relationship",
-      "spdxId": "https://spdx.org/spdxdocs/hatchling-dep-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Relationship-7",
+      "spdxId": "https://spdx.org/spdxdocs/hatchling-dep-b42c0579-ffc7-45b2-b76e-bf51356d4356#Relationship-7",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies",
       "creationInfo": "_:CreationInfo0",
-      "from": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-4",
+      "from": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-4",
       "relationshipType": "dependsOn",
       "to": [
-        "https://spdx.org/spdxdocs/hatchling-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-6"
+        "https://spdx.org/spdxdocs/hatchling-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-6"
       ]
     },
     {
       "type": "SpdxDocument",
-      "spdxId": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356",
       "creationInfo": "_:CreationInfo0",
       "profileConformance": [
         "core",
         "software"
       ],
       "rootElement": [
-        "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Sbom-5"
+        "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Sbom-5"
       ]
     },
     {
       "type": "software_Package",
-      "spdxId": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-4",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-4",
       "comment": "Metadata provenance: name: Source: pyproject.toml | Field: project.name; version: Source: pyproject.toml | Field: project.version; description: Source: pyproject.toml | Field: project.description; urls: Source: pyproject.toml | Field: project.urls; dependencies: Source: pyproject.toml | Field: project.dependencies; authors: Source: pyproject.toml | Field: project.authors; license: Source: pyproject.toml | Field: project.license; copyright_text: Source: Pitloom generator | Method: inferred_from_authors",
       "creationInfo": "_:CreationInfo0",
       "description": "Creating SBOM during the build process. Now targeting Python Hatchling support.",
       "name": "pitloom",
-      "suppliedBy": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Person-1",
+      "suppliedBy": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Person-1",
       "software_copyrightText": "Copyright (c) 2026 Arthit Suriyawongkul",
       "software_primaryPurpose": "library",
       "software_downloadLocation": "https://github.com/bact/pitloom",
@@ -73,16 +73,16 @@
     },
     {
       "type": "Person",
-      "spdxId": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Person-1",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Person-1",
       "creationInfo": "_:CreationInfo0",
       "name": "Pitloom"
     },
     {
       "type": "software_Sbom",
-      "spdxId": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Sbom-5",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Sbom-5",
       "creationInfo": "_:CreationInfo0",
       "rootElement": [
-        "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-4"
+        "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-4"
       ],
       "software_sbomType": [
         "build"
@@ -90,65 +90,65 @@
     },
     {
       "type": "software_Package",
-      "spdxId": "https://spdx.org/spdxdocs/pyproject-metadata-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-8",
+      "spdxId": "https://spdx.org/spdxdocs/pyproject-metadata-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-8",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies; Declared constraint: pyproject-metadata>=0.10.0; Version resolved: Build-time environment (importlib.metadata)",
       "creationInfo": "_:CreationInfo0",
       "name": "pyproject-metadata",
-      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Organization-3",
+      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-b42c0579-ffc7-45b2-b76e-bf51356d4356#Organization-3",
       "software_primaryPurpose": "library",
       "software_packageVersion": "0.11.0"
     },
     {
       "type": "Relationship",
-      "spdxId": "https://spdx.org/spdxdocs/pyproject-metadata-dep-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Relationship-9",
+      "spdxId": "https://spdx.org/spdxdocs/pyproject-metadata-dep-b42c0579-ffc7-45b2-b76e-bf51356d4356#Relationship-9",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies",
       "creationInfo": "_:CreationInfo0",
-      "from": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-4",
+      "from": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-4",
       "relationshipType": "dependsOn",
       "to": [
-        "https://spdx.org/spdxdocs/pyproject-metadata-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-8"
+        "https://spdx.org/spdxdocs/pyproject-metadata-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-8"
       ]
     },
     {
       "type": "software_Package",
-      "spdxId": "https://spdx.org/spdxdocs/spdx-python-model-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-10",
+      "spdxId": "https://spdx.org/spdxdocs/spdx-python-model-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-10",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies; Declared constraint: spdx-python-model>=0.0.4; Version resolved: Build-time environment (importlib.metadata)",
       "creationInfo": "_:CreationInfo0",
       "name": "spdx-python-model",
-      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Organization-3",
+      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-b42c0579-ffc7-45b2-b76e-bf51356d4356#Organization-3",
       "software_primaryPurpose": "library",
       "software_packageVersion": "0.0.4"
     },
     {
       "type": "Relationship",
-      "spdxId": "https://spdx.org/spdxdocs/spdx-python-model-dep-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Relationship-11",
+      "spdxId": "https://spdx.org/spdxdocs/spdx-python-model-dep-b42c0579-ffc7-45b2-b76e-bf51356d4356#Relationship-11",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies",
       "creationInfo": "_:CreationInfo0",
-      "from": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-4",
+      "from": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-4",
       "relationshipType": "dependsOn",
       "to": [
-        "https://spdx.org/spdxdocs/spdx-python-model-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-10"
+        "https://spdx.org/spdxdocs/spdx-python-model-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-10"
       ]
     },
     {
       "type": "software_Package",
-      "spdxId": "https://spdx.org/spdxdocs/tomli-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-12",
+      "spdxId": "https://spdx.org/spdxdocs/tomli-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-12",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies; Declared constraint: tomli>=2.0.0; python_version < \"3.11\"; Version resolved: Build-time environment (importlib.metadata)",
       "creationInfo": "_:CreationInfo0",
       "name": "tomli",
-      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Organization-3",
+      "suppliedBy": "https://spdx.org/spdxdocs/UnknownSupplier-b42c0579-ffc7-45b2-b76e-bf51356d4356#Organization-3",
       "software_primaryPurpose": "library",
       "software_packageVersion": "2.4.1"
     },
     {
       "type": "Relationship",
-      "spdxId": "https://spdx.org/spdxdocs/tomli-dep-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Relationship-13",
+      "spdxId": "https://spdx.org/spdxdocs/tomli-dep-b42c0579-ffc7-45b2-b76e-bf51356d4356#Relationship-13",
       "comment": "Metadata provenance: dependencies: Source: pyproject.toml | Field: project.dependencies",
       "creationInfo": "_:CreationInfo0",
-      "from": "https://spdx.org/spdxdocs/pitloom-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-4",
+      "from": "https://spdx.org/spdxdocs/pitloom-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-4",
       "relationshipType": "dependsOn",
       "to": [
-        "https://spdx.org/spdxdocs/tomli-8cb292b2-e2d9-41ce-af9f-da34e3557eee#Package-12"
+        "https://spdx.org/spdxdocs/tomli-b42c0579-ffc7-45b2-b76e-bf51356d4356#Package-12"
       ]
     }
   ]
