@@ -6,285 +6,52 @@ SPDX-License-Identifier: CC0-1.0
 
 # Test fixtures
 
-This directory contains small AI model files used as integration test fixtures.
-The files are committed to the repository because they are small enough
-(all under 5 MB) and stable enough to serve as reliable test inputs.
+## Build-hook fixture
+
+`sampleproject/` is a minimal Python package used to test the Loom Hatchling
+build hook (`loom.plugins.hatch`).  See
+[sampleproject/README.md](sampleproject/README.md) for build instructions.
+
+## AI model fixtures
+
+The `gguf/`, `onnx/`, and `safetensors/` subdirectories contain small AI
+model files used as integration test fixtures.  The files are committed to
+the repository because they are small enough (all under 6 MB) and stable
+enough to serve as reliable test inputs.
 
 Each fixture is used by a corresponding `scope="module"` pytest fixture in
 [tests/test_ai_model_extractor.py](../test_ai_model_extractor.py) which calls
-`pytest.importorskip` for the required library, so tests are automatically
-skipped when the optional dependency is not installed.
+`pytest.importorskip` for the required library and skips if the fixture file
+does not exist, so tests are automatically skipped when the optional
+dependency is not installed or the file is absent.
 
-## Summary
+> **Note:**
+> The AI model files are excluded from the source distribution (sdist)
+> to reduce download size. They are available in the GitHub repository.
+> Clone the repo to run the full test suite.
 
-| Filename | Format | Task | License |
+## AI model summary
+
+| Path | Format | Task | License |
 | :--- | :--- | :--- | :--- |
-| `encoder_model_q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
-| `gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
-| `light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
-| `squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
-| `phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
-| `speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
-| `vits-tiny-random.safetensors` | Safetensors | Text-to-speech — VITS (random weights) | Apache-2.0 |
-| `whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
-| `ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
-| `ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
-| `mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
-| `stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
+| `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
+| `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
+| `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
+| `gguf/stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
+| `onnx/encoder_model_q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
+| `onnx/gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
+| `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
+| `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
+| `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
+| `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
+| `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
+| `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
+| `safetensors/vits-tiny-random.safetensors` | Safetensors | Text-to-speech — VITS (random weights) | Apache-2.0 |
+| `safetensors/whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
 
-## Files
+## File details
 
-### encoder_model_q4f16.onnx
-
-| Property | Value |
-| :--- | :--- |
-| Format | ONNX (IR version 8, opsets: ai.onnx 14, com.microsoft 1) |
-| Architecture | Whisper tiny — speech encoder |
-| Task | Automatic speech recognition (encoder half only) |
-| Quantisation | Q4F16 (4-bit weights, float16 activations) |
-| Input | `input_features`: float32 `[batch_size, 80, 3000]` (mel spectrogram) |
-| Output | `last_hidden_state`: float32 `[batch_size, 1500, 384]` |
-| Size | 6 296 073 bytes (6.00 MB) |
-| SHA-256 | `236f9f7d8bf038df0b4cc92daa33eb7ef71770d664ceac10b78c545665e82373` |
-| License | Apache-2.0 (Whisper) |
-| Source | <https://huggingface.co/onnx-community/whisper-tiny-ONNX> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
-
-Notable metadata extracted by the ONNX extractor:
-
-- `name` = `"main_graph"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
-- `properties["opset.ai.onnx"]` = `"14"`
-- `properties["opset.com.microsoft"]` = `"1"` (Microsoft contrib ops for
-  quantised kernels)
-
----
-
-### gpt2-tiny-decoder.onnx
-
-| Property | Value |
-| :--- | :--- |
-| Format | ONNX (IR version 8, opset 13) |
-| Architecture | GPT-2 causal language model decoder |
-| Task | Text generation with KV-cache outputs |
-| Inputs | `input_ids`: INT64; `attention_mask`: INT64 |
-| Outputs | `logits` + 10 KV-cache tensors (`present.{0-4}.{key,value}`) |
-| Size | 1 031 944 bytes (0.98 MB) |
-| SHA-256 | `c0e66aade2899caa6498a4de411e48c3e5caa92e8a3286a4ad9aa0b9e986c52c` |
-| License | MIT (fxmarty/gpt2-tiny-onnx) |
-| Source | <https://huggingface.co/fxmarty/gpt2-tiny-onnx> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
-
-Notable metadata extracted by the ONNX extractor:
-
-- `name` = `"torch_jit"` (PyTorch JIT export)
-- `properties["opset.ai.onnx"]` = `"13"`
-- `outputs` includes `logits` and 10 KV-cache tensors
-  (`present.0.key` … `present.4.value`) — unique decoder structure
-  not present in the encoder-only ONNX fixtures
-
----
-
-### light-inception-v2.onnx
-
-| Property | Value |
-| :--- | :--- |
-| Format | ONNX (IR version 3, opset 9) |
-| Architecture | InceptionV2 — lightweight CNN for ImageNet classification |
-| Task | Image classification (1 000 ImageNet classes) |
-| Input | `data_0`: float32 `[1, 3, 224, 224]` (NCHW) |
-| Output | `prob_1`: float32 `[1, 1000]` |
-| Graph inputs | 487 total (1 data input + 486 weight initializers) |
-| Size | 159 024 bytes (0.16 MB) |
-| SHA-256 | `224d77d55b26559a959db627c3f417a623fbf3b3000d25f0939327aa935d933f` |
-| License | Apache-2.0 |
-| Source | <https://github.com/onnx/onnx> |
-| | (`onnx/backend/test/data/light/light_inception_v2.onnx`) |
-| Required library | `onnx` (`pip install loom[onnx]`) |
-
-Notable metadata extracted by the ONNX extractor:
-
-- `name` = `"inception_v2"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
-- `properties["opset.ai.onnx"]` = `"9"` — oldest opset in the fixture set
-- 487 graph inputs: the first is `data_0` [1, 3, 224, 224]; the remaining
-  486 are weight initializers listed in `graph.input` following the pre-ONNX
-  opset-9 convention where initializers were included in the input list
-
----
-
-### resnet-tiny-beans.onnx
-
-| Property | Value |
-| :--- | :--- |
-| Format | ONNX (IR version 7, opset 11) |
-| Architecture | ResNet (2-stage, basic blocks) fine-tuned for bean disease |
-| Task | Image classification — 3 classes: angular\_leaf\_spot, bean\_rust, healthy |
-| Input | `pixel_values`: float32 `[batch, channels, 224, 224]` |
-| Output | `logits`: float32 `[batch, 3]` |
-| Size | 761 053 bytes (0.73 MB) |
-| SHA-256 | `cf2b1901da25924f8b68a4c9cec74b5a673f12d2b9dead57c2488d400dd2a2b5` |
-| License | Apache-2.0 |
-| Source | <https://huggingface.co/fxmarty/resnet-tiny-beans> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
-
-Notable metadata extracted by the ONNX extractor:
-
-- `name` = `"torch_jit"` (PyTorch JIT export sets the graph name to `torch_jit`)
-- `type_of_model` = `"neural network"` (empty domain falls back to default)
-- `properties["opset.ai.onnx"]` = `"11"`
-
----
-
-### squeezenet1.1-7.onnx
-
-| Property | Value |
-| :--- | :--- |
-| Format | ONNX (IR version 3, opset 7) |
-| Architecture | SqueezeNet 1.1 — lightweight CNN for ImageNet classification |
-| Task | Image classification (1 000 ImageNet classes) |
-| Parameters | ~1.2 M |
-| Input | `data`: float32 `[1, 3, 224, 224]` (NCHW, normalised RGB) |
-| Output | `squeezenet0_flatten0_reshape0`: float32 `[1, 1000]` |
-| Size | 4 956 208 bytes (4.73 MB) |
-| SHA-256 | `1eeff551a67ae8d565ca33b572fc4b66e3ef357b0eb2863bb9ff47a918cc4088` |
-| License | Apache-2.0 |
-| Source | <https://huggingface.co/onnxmodelzoo/squeezenet1.1-7> |
-| Required library | `onnx` (`pip install loom[onnx]`) |
-
-Notable metadata extracted by the ONNX extractor:
-
-- `name` = `"main"` (from `graph.name`)
-- `type_of_model` = `"neural network"` (domain is empty, falls back to default)
-- `properties["opset.ai.onnx"]` = `"7"`
-
----
-
-### marian-tiny-random.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | MarianMT encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
-| Task | Neural machine translation (not usable for real inference — random weights) |
-| Tensors | 86 (shared embedding, encoder layers, decoder layers, projection bias) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 707 324 bytes (0.67 MB) |
-| SHA-256 | `806e6a41de92e593c6a0275c67771f8faf0e95c92fe002faf7371fcef56142ea` |
-| License | MIT |
-| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-marian> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-- `properties["format"]` = `"pt"`
-- `inputs` lists 86 tensors covering `model.encoder.*`, `model.decoder.*`,
-  and `model.shared.weight` — confirming the seq2seq encoder-decoder structure
-
----
-
-### phi-tiny-random.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | Phi (2-layer causal LM, randomly initialised weights) |
-| Task | Text generation (not usable for real inference — random weights) |
-| Tensors | 33 (embeddings, 2 × self-attention blocks, LM head) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 323 520 bytes (0.31 MB) |
-| SHA-256 | `6fbbc177683bcd0c8d694d552461d9dba3cd6e7f5a883cb8c6c6cce36ce6882e` |
-| License | Apache-2.0 |
-| Source | <https://huggingface.co/echarlaix/tiny-random-PhiForCausalLM> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-- `properties["format"]` = `"pt"`
-- `inputs` lists 33 tensors: `model.embed_tokens.weight`, `model.layers.*`,
-  `model.final_layernorm.*`, `lm_head.*`
-
----
-
-### speech2text-tiny-random.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | Speech2Text encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
-| Task | Automatic speech recognition (not usable for real inference — random weights) |
-| Tensors | 93 (encoder with convolutional sub-sampler, decoder, embeddings) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 705 880 bytes (0.67 MB) |
-| SHA-256 | `7261459bb4f43dfb595e3e576cef19b8ea2a095e29ed8837236014cd56865016` |
-| License | Apache-2.0 |
-| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-Speech2TextModel> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-- `properties["format"]` = `"pt"`
-- `inputs` lists 93 tensors with `model.encoder.*` (including conv sub-sampler)
-  and `model.decoder.*` — distinguishes the convolutional ASR encoder from the
-  attention-only Whisper encoder in `whisper-tiny-random.safetensors`
-
----
-
-### vits-tiny-random.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | VITS — randomly initialised text-to-speech model |
-| Task | Text-to-speech synthesis (not usable — random weights) |
-| Tensors | 438 (decoder, text encoder, flow network, posterior encoder) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 344 288 bytes (0.33 MB) |
-| SHA-256 | `36d41f2b533a3c5d763f7e7e7ba483dbdba875a2c326d8e8d7abc7f5531e3ca7` |
-| License | Apache-2.0 |
-| Source | <https://huggingface.co/echarlaix/tiny-random-vits> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-- `properties["format"]` = `"pt"`
-- `inputs` lists 438 tensors — the most in the fixture set — covering
-  sub-modules `decoder.*`, `text_encoder.*`, `flow.*`, and
-  `posterior_encoder.*`
-
----
-
-### whisper-tiny-random.safetensors
-
-| Property | Value |
-| :--- | :--- |
-| Format | Safetensors |
-| Architecture | Whisper encoder-decoder — randomly initialised |
-| Task | Automatic speech recognition (not usable — random weights) |
-| Tensors | 50 (encoder and decoder layers) |
-| `__metadata__` | `{"format": "pt"}` |
-| Size | 871 760 bytes (0.83 MB) |
-| SHA-256 | `f2befb0a67d1d7ce3a6ac707fa894eef12e1b23ce22a0c8fe36cc75ef4c09576` |
-| License | Apache-2.0 |
-| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-whisper> |
-| Required library | `safetensors` (`pip install loom[safetensors]`) |
-
-Notable metadata extracted by the Safetensors extractor:
-
-- `name`, `description`, `version`, `type_of_model` are all `None`
-- `properties["format"]` = `"pt"`
-- `inputs` lists 50 tensors with both `model.encoder.*` and
-  `model.decoder.*` keys — confirms encoder-decoder architecture
-
----
-
-### ggml-vocab-bert-bge.gguf
+### gguf/ggml-vocab-bert-bge.gguf
 
 | Property | Value |
 | :--- | :--- |
@@ -314,7 +81,7 @@ Notable metadata extracted by the GGUF extractor:
 
 ---
 
-### ggml-vocab-phi-3.gguf
+### gguf/ggml-vocab-phi-3.gguf
 
 | Property | Value |
 | :--- | :--- |
@@ -344,7 +111,7 @@ Notable metadata extracted by the GGUF extractor:
 
 ---
 
-### mmproj-tinygemma3.gguf
+### gguf/mmproj-tinygemma3.gguf
 
 | Property | Value |
 | :--- | :--- |
@@ -377,7 +144,7 @@ non-LLM GGUF architectures correctly.
 
 ---
 
-### stories260K.gguf
+### gguf/stories260K.gguf
 
 | Property | Value |
 | :--- | :--- |
@@ -404,5 +171,253 @@ Notable metadata extracted by the GGUF extractor:
 
 The model is intentionally tiny (added to the tinyllamas collection
 specifically for use in unit tests and similar lightweight scenarios).
+
+---
+
+### onnx/encoder_model_q4f16.onnx
+
+| Property | Value |
+| :--- | :--- |
+| Format | ONNX (IR version 8, opsets: ai.onnx 14, com.microsoft 1) |
+| Architecture | Whisper tiny — speech encoder |
+| Task | Automatic speech recognition (encoder half only) |
+| Quantisation | Q4F16 (4-bit weights, float16 activations) |
+| Input | `input_features`: float32 `[batch_size, 80, 3000]` (mel spectrogram) |
+| Output | `last_hidden_state`: float32 `[batch_size, 1500, 384]` |
+| Size | 6 296 073 bytes (6.00 MB) |
+| SHA-256 | `236f9f7d8bf038df0b4cc92daa33eb7ef71770d664ceac10b78c545665e82373` |
+| License | Apache-2.0 (Whisper) |
+| Source | <https://huggingface.co/onnx-community/whisper-tiny-ONNX> |
+| Required library | `onnx` (`pip install loom[onnx]`) |
+
+Notable metadata extracted by the ONNX extractor:
+
+- `name` = `"main_graph"` (from `graph.name`)
+- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `properties["opset.ai.onnx"]` = `"14"`
+- `properties["opset.com.microsoft"]` = `"1"` (Microsoft contrib ops for
+  quantised kernels)
+
+---
+
+### onnx/gpt2-tiny-decoder.onnx
+
+| Property | Value |
+| :--- | :--- |
+| Format | ONNX (IR version 8, opset 13) |
+| Architecture | GPT-2 causal language model decoder |
+| Task | Text generation with KV-cache outputs |
+| Inputs | `input_ids`: INT64; `attention_mask`: INT64 |
+| Outputs | `logits` + 10 KV-cache tensors (`present.{0-4}.{key,value}`) |
+| Size | 1 031 944 bytes (0.98 MB) |
+| SHA-256 | `c0e66aade2899caa6498a4de411e48c3e5caa92e8a3286a4ad9aa0b9e986c52c` |
+| License | MIT (fxmarty/gpt2-tiny-onnx) |
+| Source | <https://huggingface.co/fxmarty/gpt2-tiny-onnx> |
+| Required library | `onnx` (`pip install loom[onnx]`) |
+
+Notable metadata extracted by the ONNX extractor:
+
+- `name` = `"torch_jit"` (PyTorch JIT export)
+- `properties["opset.ai.onnx"]` = `"13"`
+- `outputs` includes `logits` and 10 KV-cache tensors
+  (`present.0.key` … `present.4.value`) — unique decoder structure
+  not present in the encoder-only ONNX fixtures
+
+---
+
+### onnx/light-inception-v2.onnx
+
+| Property | Value |
+| :--- | :--- |
+| Format | ONNX (IR version 3, opset 9) |
+| Architecture | InceptionV2 — lightweight CNN for ImageNet classification |
+| Task | Image classification (1 000 ImageNet classes) |
+| Input | `data_0`: float32 `[1, 3, 224, 224]` (NCHW) |
+| Output | `prob_1`: float32 `[1, 1000]` |
+| Graph inputs | 487 total (1 data input + 486 weight initializers) |
+| Size | 159 024 bytes (0.16 MB) |
+| SHA-256 | `224d77d55b26559a959db627c3f417a623fbf3b3000d25f0939327aa935d933f` |
+| License | Apache-2.0 |
+| Source | <https://github.com/onnx/onnx> |
+| | (`onnx/backend/test/data/light/light_inception_v2.onnx`) |
+| Required library | `onnx` (`pip install loom[onnx]`) |
+
+Notable metadata extracted by the ONNX extractor:
+
+- `name` = `"inception_v2"` (from `graph.name`)
+- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `properties["opset.ai.onnx"]` = `"9"` — oldest opset in the fixture set
+- 487 graph inputs: the first is `data_0` [1, 3, 224, 224]; the remaining
+  486 are weight initializers listed in `graph.input` following the pre-ONNX
+  opset-9 convention where initializers were included in the input list
+
+---
+
+### onnx/resnet-tiny-beans.onnx
+
+| Property | Value |
+| :--- | :--- |
+| Format | ONNX (IR version 7, opset 11) |
+| Architecture | ResNet (2-stage, basic blocks) fine-tuned for bean disease |
+| Task | Image classification — 3 classes: angular\_leaf\_spot, bean\_rust, healthy |
+| Input | `pixel_values`: float32 `[batch, channels, 224, 224]` |
+| Output | `logits`: float32 `[batch, 3]` |
+| Size | 761 053 bytes (0.73 MB) |
+| SHA-256 | `cf2b1901da25924f8b68a4c9cec74b5a673f12d2b9dead57c2488d400dd2a2b5` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/fxmarty/resnet-tiny-beans> |
+| Required library | `onnx` (`pip install loom[onnx]`) |
+
+Notable metadata extracted by the ONNX extractor:
+
+- `name` = `"torch_jit"` (PyTorch JIT export sets the graph name to `torch_jit`)
+- `type_of_model` = `"neural network"` (empty domain falls back to default)
+- `properties["opset.ai.onnx"]` = `"11"`
+
+---
+
+### onnx/squeezenet1.1-7.onnx
+
+| Property | Value |
+| :--- | :--- |
+| Format | ONNX (IR version 3, opset 7) |
+| Architecture | SqueezeNet 1.1 — lightweight CNN for ImageNet classification |
+| Task | Image classification (1 000 ImageNet classes) |
+| Parameters | ~1.2 M |
+| Input | `data`: float32 `[1, 3, 224, 224]` (NCHW, normalised RGB) |
+| Output | `squeezenet0_flatten0_reshape0`: float32 `[1, 1000]` |
+| Size | 4 956 208 bytes (4.73 MB) |
+| SHA-256 | `1eeff551a67ae8d565ca33b572fc4b66e3ef357b0eb2863bb9ff47a918cc4088` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/onnxmodelzoo/squeezenet1.1-7> |
+| Required library | `onnx` (`pip install loom[onnx]`) |
+
+Notable metadata extracted by the ONNX extractor:
+
+- `name` = `"main"` (from `graph.name`)
+- `type_of_model` = `"neural network"` (domain is empty, falls back to default)
+- `properties["opset.ai.onnx"]` = `"7"`
+
+---
+
+### safetensors/marian-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | MarianMT encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
+| Task | Neural machine translation (not usable for real inference — random weights) |
+| Tensors | 86 (shared embedding, encoder layers, decoder layers, projection bias) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 707 324 bytes (0.67 MB) |
+| SHA-256 | `806e6a41de92e593c6a0275c67771f8faf0e95c92fe002faf7371fcef56142ea` |
+| License | MIT |
+| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-marian> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 86 tensors covering `model.encoder.*`, `model.decoder.*`,
+  and `model.shared.weight` — confirming the seq2seq encoder-decoder structure
+
+---
+
+### safetensors/phi-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | Phi (2-layer causal LM, randomly initialised weights) |
+| Task | Text generation (not usable for real inference — random weights) |
+| Tensors | 33 (embeddings, 2 × self-attention blocks, LM head) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 323 520 bytes (0.31 MB) |
+| SHA-256 | `6fbbc177683bcd0c8d694d552461d9dba3cd6e7f5a883cb8c6c6cce36ce6882e` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/echarlaix/tiny-random-PhiForCausalLM> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 33 tensors: `model.embed_tokens.weight`, `model.layers.*`,
+  `model.final_layernorm.*`, `lm_head.*`
+
+---
+
+### safetensors/speech2text-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | Speech2Text encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
+| Task | Automatic speech recognition (not usable for real inference — random weights) |
+| Tensors | 93 (encoder with convolutional sub-sampler, decoder, embeddings) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 705 880 bytes (0.67 MB) |
+| SHA-256 | `7261459bb4f43dfb595e3e576cef19b8ea2a095e29ed8837236014cd56865016` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-Speech2TextModel> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 93 tensors with `model.encoder.*` (including conv sub-sampler)
+  and `model.decoder.*` — distinguishes the convolutional ASR encoder from the
+  attention-only Whisper encoder in `whisper-tiny-random.safetensors`
+
+---
+
+### safetensors/vits-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | VITS — randomly initialised text-to-speech model |
+| Task | Text-to-speech synthesis (not usable — random weights) |
+| Tensors | 438 (decoder, text encoder, flow network, posterior encoder) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 344 288 bytes (0.33 MB) |
+| SHA-256 | `36d41f2b533a3c5d763f7e7e7ba483dbdba875a2c326d8e8d7abc7f5531e3ca7` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/echarlaix/tiny-random-vits> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 438 tensors — the most in the fixture set — covering
+  sub-modules `decoder.*`, `text_encoder.*`, `flow.*`, and
+  `posterior_encoder.*`
+
+---
+
+### safetensors/whisper-tiny-random.safetensors
+
+| Property | Value |
+| :--- | :--- |
+| Format | Safetensors |
+| Architecture | Whisper encoder-decoder — randomly initialised |
+| Task | Automatic speech recognition (not usable — random weights) |
+| Tensors | 50 (encoder and decoder layers) |
+| `__metadata__` | `{"format": "pt"}` |
+| Size | 871 760 bytes (0.83 MB) |
+| SHA-256 | `f2befb0a67d1d7ce3a6ac707fa894eef12e1b23ce22a0c8fe36cc75ef4c09576` |
+| License | Apache-2.0 |
+| Source | <https://huggingface.co/optimum-internal-testing/tiny-random-whisper> |
+| Required library | `safetensors` (`pip install loom[safetensors]`) |
+
+Notable metadata extracted by the Safetensors extractor:
+
+- `name`, `description`, `version`, `type_of_model` are all `None`
+- `properties["format"]` = `"pt"`
+- `inputs` lists 50 tensors with both `model.encoder.*` and
+  `model.decoder.*` keys — confirms encoder-decoder architecture
 
 ---

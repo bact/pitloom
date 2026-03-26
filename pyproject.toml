@@ -82,6 +82,10 @@ exclude = [
     ".editorconfig",
     ".gitignore",
     ".markdownlint.json",
+    "AGENTS.md",
+    "tests/fixtures/gguf/*.gguf",
+    "tests/fixtures/onnx/*.onnx",
+    "tests/fixtures/safetensors/*.safetensors",
 ]
 
 [tool.hatch.build.targets.wheel]
