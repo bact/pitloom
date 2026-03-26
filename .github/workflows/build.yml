@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-License-Identifier: Apache-2.0
 
-name: Build wheels and generate SBOM
+name: Build wheels + validate SBOM
 
 on:
   push:
@@ -37,12 +37,23 @@ env:
 
 jobs:
   build-wheel:
-    name: Build wheel for Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-      fail-fast: false
+        include:
+          - os: windows-latest
+            python-version: "3.10"
+          - os: macos-latest
+            python-version: "3.10"
+      fail-fast: true
 
     steps:
       - uses: actions/checkout@v6
@@ -282,7 +293,7 @@ jobs:
           | :--- | :--- | :--- |
           | Build Wheel | ${{ steps.build.outcome == 'failure' && '❌ Failed' || '✅ Passed' }} | ${{ steps.build.outcome == 'failure' && 'Wheel build failed. Check build logs above.' || 'Successfully built wheel.' }} |
           | Generate SBOM | ${{ steps.sbom.outcome == 'failure' && '❌ Failed' || steps.sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.sbom.outcome == 'failure' && 'SBOM generation failed. Verify project structure.' || steps.sbom.outcome == 'success' && 'Successfully generated SBOM.' || 'Skipped due to build failure.' }} |
-          | Validate SBOM | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
+          | Validate SBOM (spdx3-validate) | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
 
           ### 💡 Troubleshooting Tips
 
@@ -312,17 +323,17 @@ jobs:
 
       - name: Upload wheel artifact
         if: steps.build.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: wheel-py${{ matrix.python-version }}
+          name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.whl
           retention-days: 15
 
       - name: Upload SBOM artifact
         if: steps.validate.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: sbom-py${{ matrix.python-version }}
+          name: sbom-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.spdx3.json
           retention-days: 15
 
@@ -339,7 +350,7 @@ jobs:
 
           echo "Build: ${BUILD_STATUS}"
           echo "SBOM: ${SBOM_STATUS}"
-          echo "Validation: ${VALIDATE_STATUS}"
+          echo "spdx3-validate: ${VALIDATE_STATUS}"
           echo ""
           echo "::endgroup::"
 
