@@ -470,89 +470,192 @@ def test_safetensors_read_failure(tmp_path: Path) -> None:
             read_safetensors(model_file)
 
 
-# ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (squeezenet1.1-7.onnx)
-# Require: onnx installed AND tests/fixtures/onnx/squeezenet1.1-7.onnx present
-# ---------------------------------------------------------------------------
+# Path constants for real file fixtures (integration tests)
+_GGUF = Path(__file__).parent / "fixtures" / "gguf"
+_ONNX = Path(__file__).parent / "fixtures" / "onnx"
+_ST = Path(__file__).parent / "fixtures" / "safetensors"
 
 # ONNX elem_type 1 = FLOAT  (TensorProto.FLOAT)
 _ONNX_FLOAT = 1
 
-_ONNX = Path(__file__).parent / "fixtures" / "onnx"
-SQUEEZENET_FIXTURE = _ONNX / "squeezenet1.1-7.onnx"
+# ---------------------------------------------------------------------------
+# Integration tests — real GGUF file (ggml-vocab-bert-bge.gguf)
+# Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-bert-bge.gguf)
+# Vocabulary-only GGUF for the BGE BERT tokenizer; zero model tensors
+# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-bert-bge.gguf present
+# ---------------------------------------------------------------------------
+
+VOCAB_BERT_BGE_FIXTURE = _GGUF / "ggml-vocab-bert-bge.gguf"
 
 
 @pytest.fixture(scope="module")
-def squeezenet_metadata() -> AiModelMetadata:
-    """Extract metadata from the squeezenet1.1-7.onnx fixture once per session."""
-    pytest.importorskip("onnx")
-    if not SQUEEZENET_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {SQUEEZENET_FIXTURE}")
-    return read_onnx(SQUEEZENET_FIXTURE)
+def vocab_bert_bge_metadata() -> AiModelMetadata:
+    """Extract metadata from the ggml-vocab-bert-bge.gguf fixture once per session."""
+    pytest.importorskip("gguf")
+    if not VOCAB_BERT_BGE_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {VOCAB_BERT_BGE_FIXTURE}")
+    return read_gguf(VOCAB_BERT_BGE_FIXTURE)
 
 
-def test_onnx_integration_format(squeezenet_metadata: AiModelMetadata) -> None:
-    assert squeezenet_metadata.format == AiModelFormat.ONNX
+def test_vocab_bert_bge_format(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    assert vocab_bert_bge_metadata.format == AiModelFormat.GGUF
 
 
-def test_onnx_integration_name(squeezenet_metadata: AiModelMetadata) -> None:
-    # squeezenet1.1-7.onnx graph name is 'main'
-    assert squeezenet_metadata.name == "main"
-    assert "name" in squeezenet_metadata.provenance
-    assert "graph.name" in squeezenet_metadata.provenance["name"]
+def test_vocab_bert_bge_name(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    assert vocab_bert_bge_metadata.name == "bert-bge"
+    assert "general.name" in vocab_bert_bge_metadata.provenance["name"]
 
 
-def test_onnx_integration_no_description(squeezenet_metadata: AiModelMetadata) -> None:
-    # The model has an empty doc_string
-    assert squeezenet_metadata.description is None
+def test_vocab_bert_bge_architecture(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    assert vocab_bert_bge_metadata.type_of_model == "bert"
+    assert "general.architecture" in vocab_bert_bge_metadata.provenance["type_of_model"]
 
 
-def test_onnx_integration_no_version(squeezenet_metadata: AiModelMetadata) -> None:
-    # model_version is 0 (not set)
-    assert squeezenet_metadata.version is None
-
-
-def test_onnx_integration_type_of_model(squeezenet_metadata: AiModelMetadata) -> None:
-    # Empty domain falls back to "neural network"
-    assert squeezenet_metadata.type_of_model == "neural network"
-
-
-def test_onnx_integration_opset(squeezenet_metadata: AiModelMetadata) -> None:
-    # Opset domain '' is normalised to 'ai.onnx'; version 7
-    assert squeezenet_metadata.properties.get("opset.ai.onnx") == "7"
-
-
-def test_onnx_integration_no_domain_property(
-    squeezenet_metadata: AiModelMetadata,
+def test_vocab_bert_bge_hyperparameters(
+    vocab_bert_bge_metadata: AiModelMetadata,
 ) -> None:
-    # Empty domain string is not stored as a property
-    assert "domain" not in squeezenet_metadata.properties
+    hp = vocab_bert_bge_metadata.hyperparameters
+    assert hp["bert.block_count"] == 12
+    assert hp["bert.context_length"] == 512
+    assert hp["bert.embedding_length"] == 384
+    assert hp["bert.feed_forward_length"] == 1536
+    assert hp["bert.attention.head_count"] == 12
 
 
-def test_onnx_integration_inputs(squeezenet_metadata: AiModelMetadata) -> None:
-    # First input is the image tensor 'data' with shape [1, 3, 224, 224]
-    inputs = squeezenet_metadata.inputs
-    assert len(inputs) > 0
-    data_input = inputs[0]
-    assert data_input["name"] == "data"
-    assert data_input["dtype"] == _ONNX_FLOAT
-    assert data_input["shape"] == [1, 3, 224, 224]
+def test_vocab_bert_bge_zero_tensors(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    # Vocabulary-only GGUF — no model weight tensors
+    assert vocab_bert_bge_metadata.properties.get("GGUF.tensor_count") == "0"
 
 
-def test_onnx_integration_outputs(squeezenet_metadata: AiModelMetadata) -> None:
-    # Single output with shape [1, 1000] (1000 ImageNet classes)
-    outputs = squeezenet_metadata.outputs
-    assert len(outputs) == 1
-    assert outputs[0]["name"] == "squeezenet0_flatten0_reshape0"
-    assert outputs[0]["dtype"] == _ONNX_FLOAT
-    assert outputs[0]["shape"] == [1, 1000]
+def test_vocab_bert_bge_properties(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    props = vocab_bert_bge_metadata.properties
+    assert props.get("GGUF.version") == "3"
+    assert props.get("general.architecture") == "bert"
+    assert props.get("tokenizer.ggml.model") == "bert"
+    assert props.get("tokenizer.ggml.pre") == "bert-bge"
 
 
-def test_onnx_integration_provenance_fields(
-    squeezenet_metadata: AiModelMetadata,
-) -> None:
-    assert "inputs" in squeezenet_metadata.provenance
-    assert "outputs" in squeezenet_metadata.provenance
+def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> None:
+    assert "hyperparameters" in vocab_bert_bge_metadata.provenance
+    assert "properties" in vocab_bert_bge_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real GGUF file (ggml-vocab-phi-3.gguf)
+# Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-phi-3.gguf)
+# Vocabulary-only GGUF for the Phi-3 tokenizer (LLaMA BPE, RoPE architecture)
+# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-phi-3.gguf present
+# ---------------------------------------------------------------------------
+
+VOCAB_PHI3_FIXTURE = _GGUF / "ggml-vocab-phi-3.gguf"
+
+
+@pytest.fixture(scope="module")
+def vocab_phi3_metadata() -> AiModelMetadata:
+    """Extract metadata from the ggml-vocab-phi-3.gguf fixture once per session."""
+    pytest.importorskip("gguf")
+    if not VOCAB_PHI3_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {VOCAB_PHI3_FIXTURE}")
+    return read_gguf(VOCAB_PHI3_FIXTURE)
+
+
+def test_vocab_phi3_format(vocab_phi3_metadata: AiModelMetadata) -> None:
+    assert vocab_phi3_metadata.format == AiModelFormat.GGUF
+
+
+def test_vocab_phi3_name(vocab_phi3_metadata: AiModelMetadata) -> None:
+    assert vocab_phi3_metadata.name == "Phi3"
+    assert "general.name" in vocab_phi3_metadata.provenance["name"]
+
+
+def test_vocab_phi3_architecture(vocab_phi3_metadata: AiModelMetadata) -> None:
+    assert vocab_phi3_metadata.type_of_model == "phi3"
+
+
+def test_vocab_phi3_hyperparameters(vocab_phi3_metadata: AiModelMetadata) -> None:
+    hp = vocab_phi3_metadata.hyperparameters
+    assert hp["phi3.context_length"] == 4096
+    assert hp["phi3.embedding_length"] == 3072
+    assert hp["phi3.block_count"] == 32
+    assert hp["phi3.attention.head_count"] == 32
+    assert hp["phi3.rope.dimension_count"] == 96
+
+
+def test_vocab_phi3_zero_tensors(vocab_phi3_metadata: AiModelMetadata) -> None:
+    assert vocab_phi3_metadata.properties.get("GGUF.tensor_count") == "0"
+
+
+def test_vocab_phi3_tokenizer(vocab_phi3_metadata: AiModelMetadata) -> None:
+    props = vocab_phi3_metadata.properties
+    # Phi-3 uses a LLaMA-family BPE tokenizer (not BERT WordPiece)
+    assert props.get("tokenizer.ggml.model") == "llama"
+    assert props.get("general.architecture") == "phi3"
+
+
+def test_vocab_phi3_provenance(vocab_phi3_metadata: AiModelMetadata) -> None:
+    assert "hyperparameters" in vocab_phi3_metadata.provenance
+    assert "properties" in vocab_phi3_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real GGUF file (mmproj-tinygemma3.gguf)
+# Source: ggml-org/tinygemma3-GGUF (~1.0 MB)
+# CLIP vision multimodal projector for tinygemma3; architecture = "clip"
+# Require: gguf installed AND
+#          tests/fixtures/gguf/mmproj-tinygemma3.gguf present
+# ---------------------------------------------------------------------------
+
+MMPROJ_FIXTURE = _GGUF / "mmproj-tinygemma3.gguf"
+
+
+@pytest.fixture(scope="module")
+def mmproj_metadata() -> AiModelMetadata:
+    """Extract metadata from the mmproj-tinygemma3.gguf fixture once per session."""
+    pytest.importorskip("gguf")
+    if not MMPROJ_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {MMPROJ_FIXTURE}")
+    return read_gguf(MMPROJ_FIXTURE)
+
+
+def test_mmproj_format(mmproj_metadata: AiModelMetadata) -> None:
+    assert mmproj_metadata.format == AiModelFormat.GGUF
+
+
+def test_mmproj_architecture(mmproj_metadata: AiModelMetadata) -> None:
+    # Multimodal projector uses the "clip" architecture
+    assert mmproj_metadata.type_of_model == "clip"
+    assert "general.architecture" in mmproj_metadata.provenance["type_of_model"]
+
+
+def test_mmproj_no_name(mmproj_metadata: AiModelMetadata) -> None:
+    # mmproj files don't carry a general.name
+    assert mmproj_metadata.name is None
+    assert mmproj_metadata.description is None
+    assert mmproj_metadata.version is None
+
+
+def test_mmproj_hyperparameters(mmproj_metadata: AiModelMetadata) -> None:
+    hp = mmproj_metadata.hyperparameters
+    assert hp["clip.vision.embedding_length"] == 128
+    assert hp["clip.vision.feed_forward_length"] == 512
+    assert hp["clip.vision.block_count"] == 4
+    assert hp["clip.vision.attention.head_count"] == 4
+
+
+def test_mmproj_properties(mmproj_metadata: AiModelMetadata) -> None:
+    props = mmproj_metadata.properties
+    assert props.get("GGUF.version") == "3"
+    assert props.get("GGUF.tensor_count") == "71"
+    assert props.get("general.architecture") == "clip"
+    assert props.get("general.type") == "clip-vision"
+    assert props.get("clip.vision.image_size") == "32"
+    assert props.get("clip.vision.patch_size") == "2"
+    assert props.get("clip.projector_type") == "gemma3"
+
+
+def test_mmproj_provenance(mmproj_metadata: AiModelMetadata) -> None:
+    assert "hyperparameters" in mmproj_metadata.provenance
+    assert "properties" in mmproj_metadata.provenance
 
 
 # ---------------------------------------------------------------------------
@@ -562,7 +665,6 @@ def test_onnx_integration_provenance_fields(
 # Require: gguf installed AND tests/fixtures/gguf/stories260K.gguf present
 # ---------------------------------------------------------------------------
 
-_GGUF = Path(__file__).parent / "fixtures" / "gguf"
 STORIES260K_FIXTURE = _GGUF / "stories260K.gguf"
 
 
@@ -688,126 +790,57 @@ def test_whisper_encoder_provenance(whisper_encoder_metadata: AiModelMetadata) -
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (mmproj-tinygemma3.gguf)
-# Source: ggml-org/tinygemma3-GGUF (~1.0 MB)
-# CLIP vision multimodal projector for tinygemma3; architecture = "clip"
-# Require: gguf installed AND
-#          tests/fixtures/gguf/mmproj-tinygemma3.gguf present
+# Integration tests — real ONNX file (gpt2-tiny-decoder.onnx)
+# Source: fxmarty/gpt2-tiny-onnx (~1.0 MB)
+# GPT-2 causal LM decoder with KV-cache outputs; opset 13
+# Require: onnx installed AND tests/fixtures/onnx/gpt2-tiny-decoder.onnx present
 # ---------------------------------------------------------------------------
 
-MMPROJ_FIXTURE = _GGUF / "mmproj-tinygemma3.gguf"
+GPT2_DECODER_FIXTURE = _ONNX / "gpt2-tiny-decoder.onnx"
 
 
 @pytest.fixture(scope="module")
-def mmproj_metadata() -> AiModelMetadata:
-    """Extract metadata from the mmproj-tinygemma3.gguf fixture once per session."""
-    pytest.importorskip("gguf")
-    if not MMPROJ_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {MMPROJ_FIXTURE}")
-    return read_gguf(MMPROJ_FIXTURE)
+def gpt2_decoder_metadata() -> AiModelMetadata:
+    """Extract metadata from the gpt2-tiny-decoder.onnx fixture once per session."""
+    pytest.importorskip("onnx")
+    if not GPT2_DECODER_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {GPT2_DECODER_FIXTURE}")
+    return read_onnx(GPT2_DECODER_FIXTURE)
 
 
-def test_mmproj_format(mmproj_metadata: AiModelMetadata) -> None:
-    assert mmproj_metadata.format == AiModelFormat.GGUF
+def test_gpt2_decoder_format(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    assert gpt2_decoder_metadata.format == AiModelFormat.ONNX
 
 
-def test_mmproj_architecture(mmproj_metadata: AiModelMetadata) -> None:
-    # Multimodal projector uses the "clip" architecture
-    assert mmproj_metadata.type_of_model == "clip"
-    assert "general.architecture" in mmproj_metadata.provenance["type_of_model"]
+def test_gpt2_decoder_name(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    assert gpt2_decoder_metadata.name == "torch_jit"
 
 
-def test_mmproj_no_name(mmproj_metadata: AiModelMetadata) -> None:
-    # mmproj files don't carry a general.name
-    assert mmproj_metadata.name is None
-    assert mmproj_metadata.description is None
-    assert mmproj_metadata.version is None
+def test_gpt2_decoder_opset(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    assert gpt2_decoder_metadata.properties.get("opset.ai.onnx") == "13"
 
 
-def test_mmproj_hyperparameters(mmproj_metadata: AiModelMetadata) -> None:
-    hp = mmproj_metadata.hyperparameters
-    assert hp["clip.vision.embedding_length"] == 128
-    assert hp["clip.vision.feed_forward_length"] == 512
-    assert hp["clip.vision.block_count"] == 4
-    assert hp["clip.vision.attention.head_count"] == 4
+def test_gpt2_decoder_inputs(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    input_names = {i["name"] for i in gpt2_decoder_metadata.inputs}
+    assert "input_ids" in input_names
+    assert "attention_mask" in input_names
 
 
-def test_mmproj_properties(mmproj_metadata: AiModelMetadata) -> None:
-    props = mmproj_metadata.properties
-    assert props.get("GGUF.version") == "3"
-    assert props.get("GGUF.tensor_count") == "71"
-    assert props.get("general.architecture") == "clip"
-    assert props.get("general.type") == "clip-vision"
-    assert props.get("clip.vision.image_size") == "32"
-    assert props.get("clip.vision.patch_size") == "2"
-    assert props.get("clip.projector_type") == "gemma3"
+def test_gpt2_decoder_logits_output(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    output_names = {o["name"] for o in gpt2_decoder_metadata.outputs}
+    assert "logits" in output_names
 
 
-def test_mmproj_provenance(mmproj_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in mmproj_metadata.provenance
-    assert "properties" in mmproj_metadata.provenance
+def test_gpt2_decoder_kv_cache_outputs(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    # Decoder produces past key/value tensors for each transformer layer
+    output_names = {o["name"] for o in gpt2_decoder_metadata.outputs}
+    assert "present.0.key" in output_names
+    assert "present.0.value" in output_names
 
 
-# ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (ggml-vocab-bert-bge.gguf)
-# Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-bert-bge.gguf)
-# Vocabulary-only GGUF for the BGE BERT tokenizer; zero model tensors
-# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-bert-bge.gguf present
-# ---------------------------------------------------------------------------
-
-VOCAB_BERT_BGE_FIXTURE = _GGUF / "ggml-vocab-bert-bge.gguf"
-
-
-@pytest.fixture(scope="module")
-def vocab_bert_bge_metadata() -> AiModelMetadata:
-    """Extract metadata from the ggml-vocab-bert-bge.gguf fixture once per session."""
-    pytest.importorskip("gguf")
-    if not VOCAB_BERT_BGE_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {VOCAB_BERT_BGE_FIXTURE}")
-    return read_gguf(VOCAB_BERT_BGE_FIXTURE)
-
-
-def test_vocab_bert_bge_format(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert vocab_bert_bge_metadata.format == AiModelFormat.GGUF
-
-
-def test_vocab_bert_bge_name(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert vocab_bert_bge_metadata.name == "bert-bge"
-    assert "general.name" in vocab_bert_bge_metadata.provenance["name"]
-
-
-def test_vocab_bert_bge_architecture(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert vocab_bert_bge_metadata.type_of_model == "bert"
-    assert "general.architecture" in vocab_bert_bge_metadata.provenance["type_of_model"]
-
-
-def test_vocab_bert_bge_hyperparameters(
-    vocab_bert_bge_metadata: AiModelMetadata,
-) -> None:
-    hp = vocab_bert_bge_metadata.hyperparameters
-    assert hp["bert.block_count"] == 12
-    assert hp["bert.context_length"] == 512
-    assert hp["bert.embedding_length"] == 384
-    assert hp["bert.feed_forward_length"] == 1536
-    assert hp["bert.attention.head_count"] == 12
-
-
-def test_vocab_bert_bge_zero_tensors(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    # Vocabulary-only GGUF — no model weight tensors
-    assert vocab_bert_bge_metadata.properties.get("GGUF.tensor_count") == "0"
-
-
-def test_vocab_bert_bge_properties(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    props = vocab_bert_bge_metadata.properties
-    assert props.get("GGUF.version") == "3"
-    assert props.get("general.architecture") == "bert"
-    assert props.get("tokenizer.ggml.model") == "bert"
-    assert props.get("tokenizer.ggml.pre") == "bert-bge"
-
-
-def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in vocab_bert_bge_metadata.provenance
-    assert "properties" in vocab_bert_bge_metadata.provenance
+def test_gpt2_decoder_provenance(gpt2_decoder_metadata: AiModelMetadata) -> None:
+    assert "inputs" in gpt2_decoder_metadata.provenance
+    assert "outputs" in gpt2_decoder_metadata.provenance
 
 
 # ---------------------------------------------------------------------------
@@ -929,57 +962,245 @@ def test_resnet_beans_provenance(resnet_beans_metadata: AiModelMetadata) -> None
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (gpt2-tiny-decoder.onnx)
-# Source: fxmarty/gpt2-tiny-onnx (~1.0 MB)
-# GPT-2 causal LM decoder with KV-cache outputs; opset 13
-# Require: onnx installed AND tests/fixtures/onnx/gpt2-tiny-decoder.onnx present
+# Integration tests — real ONNX file (squeezenet1.1-7.onnx)
+# Require: onnx installed AND tests/fixtures/onnx/squeezenet1.1-7.onnx present
 # ---------------------------------------------------------------------------
 
-GPT2_DECODER_FIXTURE = _ONNX / "gpt2-tiny-decoder.onnx"
+SQUEEZENET_FIXTURE = _ONNX / "squeezenet1.1-7.onnx"
 
 
 @pytest.fixture(scope="module")
-def gpt2_decoder_metadata() -> AiModelMetadata:
-    """Extract metadata from the gpt2-tiny-decoder.onnx fixture once per session."""
+def squeezenet_metadata() -> AiModelMetadata:
+    """Extract metadata from the squeezenet1.1-7.onnx fixture once per session."""
     pytest.importorskip("onnx")
-    if not GPT2_DECODER_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {GPT2_DECODER_FIXTURE}")
-    return read_onnx(GPT2_DECODER_FIXTURE)
+    if not SQUEEZENET_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {SQUEEZENET_FIXTURE}")
+    return read_onnx(SQUEEZENET_FIXTURE)
 
 
-def test_gpt2_decoder_format(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert gpt2_decoder_metadata.format == AiModelFormat.ONNX
+def test_onnx_integration_format(squeezenet_metadata: AiModelMetadata) -> None:
+    assert squeezenet_metadata.format == AiModelFormat.ONNX
 
 
-def test_gpt2_decoder_name(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert gpt2_decoder_metadata.name == "torch_jit"
+def test_onnx_integration_name(squeezenet_metadata: AiModelMetadata) -> None:
+    # squeezenet1.1-7.onnx graph name is 'main'
+    assert squeezenet_metadata.name == "main"
+    assert "name" in squeezenet_metadata.provenance
+    assert "graph.name" in squeezenet_metadata.provenance["name"]
 
 
-def test_gpt2_decoder_opset(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert gpt2_decoder_metadata.properties.get("opset.ai.onnx") == "13"
+def test_onnx_integration_no_description(squeezenet_metadata: AiModelMetadata) -> None:
+    # The model has an empty doc_string
+    assert squeezenet_metadata.description is None
 
 
-def test_gpt2_decoder_inputs(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    input_names = {i["name"] for i in gpt2_decoder_metadata.inputs}
-    assert "input_ids" in input_names
-    assert "attention_mask" in input_names
+def test_onnx_integration_no_version(squeezenet_metadata: AiModelMetadata) -> None:
+    # model_version is 0 (not set)
+    assert squeezenet_metadata.version is None
 
 
-def test_gpt2_decoder_logits_output(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    output_names = {o["name"] for o in gpt2_decoder_metadata.outputs}
-    assert "logits" in output_names
+def test_onnx_integration_type_of_model(squeezenet_metadata: AiModelMetadata) -> None:
+    # Empty domain falls back to "neural network"
+    assert squeezenet_metadata.type_of_model == "neural network"
 
 
-def test_gpt2_decoder_kv_cache_outputs(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    # Decoder produces past key/value tensors for each transformer layer
-    output_names = {o["name"] for o in gpt2_decoder_metadata.outputs}
-    assert "present.0.key" in output_names
-    assert "present.0.value" in output_names
+def test_onnx_integration_opset(squeezenet_metadata: AiModelMetadata) -> None:
+    # Opset domain '' is normalised to 'ai.onnx'; version 7
+    assert squeezenet_metadata.properties.get("opset.ai.onnx") == "7"
 
 
-def test_gpt2_decoder_provenance(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert "inputs" in gpt2_decoder_metadata.provenance
-    assert "outputs" in gpt2_decoder_metadata.provenance
+def test_onnx_integration_no_domain_property(
+    squeezenet_metadata: AiModelMetadata,
+) -> None:
+    # Empty domain string is not stored as a property
+    assert "domain" not in squeezenet_metadata.properties
+
+
+def test_onnx_integration_inputs(squeezenet_metadata: AiModelMetadata) -> None:
+    # First input is the image tensor 'data' with shape [1, 3, 224, 224]
+    inputs = squeezenet_metadata.inputs
+    assert len(inputs) > 0
+    data_input = inputs[0]
+    assert data_input["name"] == "data"
+    assert data_input["dtype"] == _ONNX_FLOAT
+    assert data_input["shape"] == [1, 3, 224, 224]
+
+
+def test_onnx_integration_outputs(squeezenet_metadata: AiModelMetadata) -> None:
+    # Single output with shape [1, 1000] (1000 ImageNet classes)
+    outputs = squeezenet_metadata.outputs
+    assert len(outputs) == 1
+    assert outputs[0]["name"] == "squeezenet0_flatten0_reshape0"
+    assert outputs[0]["dtype"] == _ONNX_FLOAT
+    assert outputs[0]["shape"] == [1, 1000]
+
+
+def test_onnx_integration_provenance_fields(
+    squeezenet_metadata: AiModelMetadata,
+) -> None:
+    assert "inputs" in squeezenet_metadata.provenance
+    assert "outputs" in squeezenet_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real Safetensors file (marian-tiny-random.safetensors)
+# Source: optimum-internal-testing/tiny-random-marian (~690 KB)
+# Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
+# Require: safetensors installed AND
+#          tests/fixtures/safetensors/marian-tiny-random.safetensors present
+# ---------------------------------------------------------------------------
+
+MARIAN_FIXTURE = _ST / "marian-tiny-random.safetensors"
+
+
+@pytest.fixture(scope="module")
+def marian_metadata() -> AiModelMetadata:
+    """Extract metadata from the marian-tiny-random fixture once per session."""
+    pytest.importorskip("safetensors")
+    if not MARIAN_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {MARIAN_FIXTURE}")
+    return read_safetensors(MARIAN_FIXTURE)
+
+
+def test_marian_format(marian_metadata: AiModelMetadata) -> None:
+    assert marian_metadata.format == AiModelFormat.SAFETENSORS
+
+
+def test_marian_no_model_metadata(marian_metadata: AiModelMetadata) -> None:
+    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
+    assert marian_metadata.name is None
+    assert marian_metadata.description is None
+    assert marian_metadata.version is None
+    assert marian_metadata.type_of_model is None
+
+
+def test_marian_format_property(marian_metadata: AiModelMetadata) -> None:
+    assert marian_metadata.properties.get("format") == "pt"
+
+
+def test_marian_tensor_count(marian_metadata: AiModelMetadata) -> None:
+    # MarianMT encoder-decoder: embedding, 2 encoder + 2 decoder layers, bias
+    assert len(marian_metadata.inputs) == 86
+
+
+def test_marian_tensor_names(marian_metadata: AiModelMetadata) -> None:
+    names = {t["name"] for t in marian_metadata.inputs}
+    # MarianMT has both encoder and decoder sub-modules plus shared embedding
+    assert any(n.startswith("model.encoder.") for n in names)
+    assert any(n.startswith("model.decoder.") for n in names)
+    assert "model.shared.weight" in names
+
+
+def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
+    assert "inputs" in marian_metadata.provenance
+    assert "properties" in marian_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real Safetensors file (phi-tiny-random.safetensors)
+# Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
+# Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
+# Require: safetensors installed AND
+#          tests/fixtures/safetensors/phi-tiny-random.safetensors present
+# ---------------------------------------------------------------------------
+
+PHI_FIXTURE = _ST / "phi-tiny-random.safetensors"
+
+
+@pytest.fixture(scope="module")
+def phi_metadata() -> AiModelMetadata:
+    """Extract metadata from the phi-tiny-random fixture once per session."""
+    pytest.importorskip("safetensors")
+    if not PHI_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {PHI_FIXTURE}")
+    return read_safetensors(PHI_FIXTURE)
+
+
+def test_phi_format(phi_metadata: AiModelMetadata) -> None:
+    assert phi_metadata.format == AiModelFormat.SAFETENSORS
+
+
+def test_phi_no_model_metadata(phi_metadata: AiModelMetadata) -> None:
+    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
+    assert phi_metadata.name is None
+    assert phi_metadata.description is None
+    assert phi_metadata.version is None
+    assert phi_metadata.type_of_model is None
+
+
+def test_phi_format_property(phi_metadata: AiModelMetadata) -> None:
+    assert phi_metadata.properties.get("format") == "pt"
+
+
+def test_phi_tensor_count(phi_metadata: AiModelMetadata) -> None:
+    # 2-layer Phi model: embeddings + 2 × attention blocks + head
+    assert len(phi_metadata.inputs) == 33
+
+
+def test_phi_tensor_names(phi_metadata: AiModelMetadata) -> None:
+    names = {t["name"] for t in phi_metadata.inputs}
+    # Phi uses standard transformer naming: embed_tokens, layers, lm_head
+    assert "model.embed_tokens.weight" in names
+    assert "lm_head.weight" in names
+    assert any(n.startswith("model.layers.") for n in names)
+
+
+def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
+    assert "inputs" in phi_metadata.provenance
+    assert "properties" in phi_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real Safetensors file (speech2text-tiny-random.safetensors)
+# Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
+# Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
+# Require: safetensors installed AND
+#          tests/fixtures/safetensors/speech2text-tiny-random.safetensors present
+# ---------------------------------------------------------------------------
+
+SPEECH2TEXT_FIXTURE = _ST / "speech2text-tiny-random.safetensors"
+
+
+@pytest.fixture(scope="module")
+def speech2text_metadata() -> AiModelMetadata:
+    """Extract metadata from the speech2text-tiny-random fixture once per session."""
+    pytest.importorskip("safetensors")
+    if not SPEECH2TEXT_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {SPEECH2TEXT_FIXTURE}")
+    return read_safetensors(SPEECH2TEXT_FIXTURE)
+
+
+def test_speech2text_format(speech2text_metadata: AiModelMetadata) -> None:
+    assert speech2text_metadata.format == AiModelFormat.SAFETENSORS
+
+
+def test_speech2text_no_model_metadata(speech2text_metadata: AiModelMetadata) -> None:
+    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
+    assert speech2text_metadata.name is None
+    assert speech2text_metadata.description is None
+    assert speech2text_metadata.version is None
+    assert speech2text_metadata.type_of_model is None
+
+
+def test_speech2text_format_property(speech2text_metadata: AiModelMetadata) -> None:
+    assert speech2text_metadata.properties.get("format") == "pt"
+
+
+def test_speech2text_tensor_count(speech2text_metadata: AiModelMetadata) -> None:
+    # Speech2Text encoder-decoder: conv layers + 2 encoder + 2 decoder layers
+    assert len(speech2text_metadata.inputs) == 93
+
+
+def test_speech2text_tensor_names(speech2text_metadata: AiModelMetadata) -> None:
+    names = {t["name"] for t in speech2text_metadata.inputs}
+    # Speech2Text has both encoder (with conv) and decoder sub-modules
+    assert any(n.startswith("model.encoder.") for n in names)
+    assert any(n.startswith("model.decoder.") for n in names)
+
+
+def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
+    assert "inputs" in speech2text_metadata.provenance
+    assert "properties" in speech2text_metadata.provenance
 
 
 # ---------------------------------------------------------------------------
@@ -990,7 +1211,6 @@ def test_gpt2_decoder_provenance(gpt2_decoder_metadata: AiModelMetadata) -> None
 #          tests/fixtures/safetensors/vits-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
-_ST = Path(__file__).parent / "fixtures" / "safetensors"
 VITS_FIXTURE = _ST / "vits-tiny-random.safetensors"
 
 
@@ -1083,221 +1303,3 @@ def test_whisper_st_tensor_names(whisper_st_metadata: AiModelMetadata) -> None:
 def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
     assert "inputs" in whisper_st_metadata.provenance
     assert "properties" in whisper_st_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (ggml-vocab-phi-3.gguf)
-# Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-phi-3.gguf)
-# Vocabulary-only GGUF for the Phi-3 tokenizer (LLaMA BPE, RoPE architecture)
-# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-phi-3.gguf present
-# ---------------------------------------------------------------------------
-
-VOCAB_PHI3_FIXTURE = _GGUF / "ggml-vocab-phi-3.gguf"
-
-
-@pytest.fixture(scope="module")
-def vocab_phi3_metadata() -> AiModelMetadata:
-    """Extract metadata from the ggml-vocab-phi-3.gguf fixture once per session."""
-    pytest.importorskip("gguf")
-    if not VOCAB_PHI3_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {VOCAB_PHI3_FIXTURE}")
-    return read_gguf(VOCAB_PHI3_FIXTURE)
-
-
-def test_vocab_phi3_format(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert vocab_phi3_metadata.format == AiModelFormat.GGUF
-
-
-def test_vocab_phi3_name(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert vocab_phi3_metadata.name == "Phi3"
-    assert "general.name" in vocab_phi3_metadata.provenance["name"]
-
-
-def test_vocab_phi3_architecture(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert vocab_phi3_metadata.type_of_model == "phi3"
-
-
-def test_vocab_phi3_hyperparameters(vocab_phi3_metadata: AiModelMetadata) -> None:
-    hp = vocab_phi3_metadata.hyperparameters
-    assert hp["phi3.context_length"] == 4096
-    assert hp["phi3.embedding_length"] == 3072
-    assert hp["phi3.block_count"] == 32
-    assert hp["phi3.attention.head_count"] == 32
-    assert hp["phi3.rope.dimension_count"] == 96
-
-
-def test_vocab_phi3_zero_tensors(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert vocab_phi3_metadata.properties.get("GGUF.tensor_count") == "0"
-
-
-def test_vocab_phi3_tokenizer(vocab_phi3_metadata: AiModelMetadata) -> None:
-    props = vocab_phi3_metadata.properties
-    # Phi-3 uses a LLaMA-family BPE tokenizer (not BERT WordPiece)
-    assert props.get("tokenizer.ggml.model") == "llama"
-    assert props.get("general.architecture") == "phi3"
-
-
-def test_vocab_phi3_provenance(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in vocab_phi3_metadata.provenance
-    assert "properties" in vocab_phi3_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (phi-tiny-random.safetensors)
-# Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
-# Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
-# Require: safetensors installed AND
-#          tests/fixtures/safetensors/phi-tiny-random.safetensors present
-# ---------------------------------------------------------------------------
-
-PHI_FIXTURE = _ST / "phi-tiny-random.safetensors"
-
-
-@pytest.fixture(scope="module")
-def phi_metadata() -> AiModelMetadata:
-    """Extract metadata from the phi-tiny-random fixture once per session."""
-    pytest.importorskip("safetensors")
-    if not PHI_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {PHI_FIXTURE}")
-    return read_safetensors(PHI_FIXTURE)
-
-
-def test_phi_format(phi_metadata: AiModelMetadata) -> None:
-    assert phi_metadata.format == AiModelFormat.SAFETENSORS
-
-
-def test_phi_no_model_metadata(phi_metadata: AiModelMetadata) -> None:
-    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
-    assert phi_metadata.name is None
-    assert phi_metadata.description is None
-    assert phi_metadata.version is None
-    assert phi_metadata.type_of_model is None
-
-
-def test_phi_format_property(phi_metadata: AiModelMetadata) -> None:
-    assert phi_metadata.properties.get("format") == "pt"
-
-
-def test_phi_tensor_count(phi_metadata: AiModelMetadata) -> None:
-    # 2-layer Phi model: embeddings + 2 × attention blocks + head
-    assert len(phi_metadata.inputs) == 33
-
-
-def test_phi_tensor_names(phi_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in phi_metadata.inputs}
-    # Phi uses standard transformer naming: embed_tokens, layers, lm_head
-    assert "model.embed_tokens.weight" in names
-    assert "lm_head.weight" in names
-    assert any(n.startswith("model.layers.") for n in names)
-
-
-def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
-    assert "inputs" in phi_metadata.provenance
-    assert "properties" in phi_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (marian-tiny-random.safetensors)
-# Source: optimum-internal-testing/tiny-random-marian (~690 KB)
-# Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
-# Require: safetensors installed AND
-#          tests/fixtures/safetensors/marian-tiny-random.safetensors present
-# ---------------------------------------------------------------------------
-
-MARIAN_FIXTURE = _ST / "marian-tiny-random.safetensors"
-
-
-@pytest.fixture(scope="module")
-def marian_metadata() -> AiModelMetadata:
-    """Extract metadata from the marian-tiny-random fixture once per session."""
-    pytest.importorskip("safetensors")
-    if not MARIAN_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {MARIAN_FIXTURE}")
-    return read_safetensors(MARIAN_FIXTURE)
-
-
-def test_marian_format(marian_metadata: AiModelMetadata) -> None:
-    assert marian_metadata.format == AiModelFormat.SAFETENSORS
-
-
-def test_marian_no_model_metadata(marian_metadata: AiModelMetadata) -> None:
-    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
-    assert marian_metadata.name is None
-    assert marian_metadata.description is None
-    assert marian_metadata.version is None
-    assert marian_metadata.type_of_model is None
-
-
-def test_marian_format_property(marian_metadata: AiModelMetadata) -> None:
-    assert marian_metadata.properties.get("format") == "pt"
-
-
-def test_marian_tensor_count(marian_metadata: AiModelMetadata) -> None:
-    # MarianMT encoder-decoder: embedding, 2 encoder + 2 decoder layers, bias
-    assert len(marian_metadata.inputs) == 86
-
-
-def test_marian_tensor_names(marian_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in marian_metadata.inputs}
-    # MarianMT has both encoder and decoder sub-modules plus shared embedding
-    assert any(n.startswith("model.encoder.") for n in names)
-    assert any(n.startswith("model.decoder.") for n in names)
-    assert "model.shared.weight" in names
-
-
-def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
-    assert "inputs" in marian_metadata.provenance
-    assert "properties" in marian_metadata.provenance
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (speech2text-tiny-random.safetensors)
-# Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
-# Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
-# Require: safetensors installed AND
-#          tests/fixtures/safetensors/speech2text-tiny-random.safetensors present
-# ---------------------------------------------------------------------------
-
-SPEECH2TEXT_FIXTURE = _ST / "speech2text-tiny-random.safetensors"
-
-
-@pytest.fixture(scope="module")
-def speech2text_metadata() -> AiModelMetadata:
-    """Extract metadata from the speech2text-tiny-random fixture once per session."""
-    pytest.importorskip("safetensors")
-    if not SPEECH2TEXT_FIXTURE.exists():
-        pytest.skip(f"Fixture file not found: {SPEECH2TEXT_FIXTURE}")
-    return read_safetensors(SPEECH2TEXT_FIXTURE)
-
-
-def test_speech2text_format(speech2text_metadata: AiModelMetadata) -> None:
-    assert speech2text_metadata.format == AiModelFormat.SAFETENSORS
-
-
-def test_speech2text_no_model_metadata(speech2text_metadata: AiModelMetadata) -> None:
-    # Only __metadata__ entry is 'format': 'pt'; no modelspec keys
-    assert speech2text_metadata.name is None
-    assert speech2text_metadata.description is None
-    assert speech2text_metadata.version is None
-    assert speech2text_metadata.type_of_model is None
-
-
-def test_speech2text_format_property(speech2text_metadata: AiModelMetadata) -> None:
-    assert speech2text_metadata.properties.get("format") == "pt"
-
-
-def test_speech2text_tensor_count(speech2text_metadata: AiModelMetadata) -> None:
-    # Speech2Text encoder-decoder: conv layers + 2 encoder + 2 decoder layers
-    assert len(speech2text_metadata.inputs) == 93
-
-
-def test_speech2text_tensor_names(speech2text_metadata: AiModelMetadata) -> None:
-    names = {t["name"] for t in speech2text_metadata.inputs}
-    # Speech2Text has both encoder (with conv) and decoder sub-modules
-    assert any(n.startswith("model.encoder.") for n in names)
-    assert any(n.startswith("model.decoder.") for n in names)
-
-
-def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
-    assert "inputs" in speech2text_metadata.provenance
-    assert "properties" in speech2text_metadata.provenance
