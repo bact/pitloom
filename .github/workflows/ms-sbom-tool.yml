@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-License-Identifier: Apache-2.0
 
-name: Validate SBOM with Microsoft sbom-tool
+name: Validate SBOM with sbom-tool
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 
 jobs:
   validate-with-ms-sbom-tool:
-    name: Validate SBOM (sbom-tool) - Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
