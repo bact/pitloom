@@ -43,12 +43,12 @@ The module must expose a `@hookimpl`-decorated
 
 ```toml
 [project.entry-points."hatch"]
-loom = "pitloom.plugins.hatch"
+pitloom = "pitloom.plugins.hatch"
 ```
 
 ### User configuration in the target project's `pyproject.toml`
 
-The user adds `loom` to their build dependencies and enables the hook:
+The user adds `pitloom` to their build dependencies and enables the hook:
 
 ```toml
 [build-system]
@@ -108,6 +108,7 @@ from __future__ import annotations
 
 import logging
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -119,6 +120,7 @@ from pitloom.assemble.spdx3.assembler import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.models import compute_wheel_merkle_root
 from pitloom.extract.pyproject import read_pyproject
 
 log = logging.getLogger(__name__)
@@ -152,12 +154,18 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         project_dir = Path(self.root)
         metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
 
+        build_time = datetime.now(timezone.utc).isoformat()
         creation_meta = CreationMetadata(
             creator_name=creator_name,
             creator_email=creator_email,
+            build_datetime=build_time,
         )
         doc = DocumentModel(project=metadata, creation=creation_meta)
-        exporter = assemble_spdx3(doc)
+
+        # Compute Merkle root via hatchling's own file discovery so the UUID
+        # matches the CLI path exactly (same WheelBuilder, same file set).
+        merkle_root = compute_wheel_merkle_root(project_dir)
+        exporter = assemble_spdx3(doc, merkle_root=merkle_root)
 
         all_fragments = pitloom_config.fragments + hook_fragments
         merge_fragments(project_dir, all_fragments, exporter)
@@ -170,7 +178,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
         self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
 
-        # Hatchling 1.16.0+ places each path in sbom_files at
+        # Hatchling 1.28.0+ places each path in sbom_files at
         # .dist-info/sboms/<basename> inside the wheel (PEP 770).
         build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
 
@@ -203,7 +211,7 @@ only needs to forward the combined list.
 
 ## `build_data["sbom_files"]` API
 
-Hatchling 1.16.0 introduced native PEP 770 support.  The wheel builder
+Hatchling 1.28.0 introduced native PEP 770 support.  The wheel builder
 initialises `build_data["sbom_files"]` as an empty list and, after all hook
 `initialize()` calls complete, copies every path in the list into
 `.dist-info/sboms/<basename>` inside the wheel.
@@ -224,7 +232,8 @@ Developer runs:
          ├─── PitloomBuildHook.initialize()
          │       │
          │       ├── read_pyproject(project_dir)
-         │       ├── assemble_spdx3(DocumentModel)
+         │       ├── compute_wheel_merkle_root(project_dir)
+         │       ├── assemble_spdx3(DocumentModel, merkle_root)
          │       ├── merge_fragments(all_fragments)
          │       ├── exporter.to_json()
          │       ├── write staged SBOM → TemporaryDirectory
@@ -272,11 +281,11 @@ Register the plugin via pluggy entry point:
 loom = "pitloom.plugins.hatch"
 ```
 
-Require Hatchling 1.16.0+ for native `sbom_files` support:
+Require Hatchling 1.28.0+ for native `sbom_files` support:
 
 ```toml
 dependencies = [
-    "hatchling>=1.16.0",
+    "hatchling>=1.28.0",
     ...
 ]
 ```
@@ -285,6 +294,9 @@ dependencies = [
 
 | Test | Description |
 | :--- | :--- |
+| `test_validate_config_defaults_pass` | Empty config (all defaults) must not raise. |
+| `test_validate_config_valid_values_pass` | Fully specified valid config must not raise. |
+| `test_validate_config_invalid_raises` | Parametrized (7 cases): invalid field type or value must raise `ValueError` with a clear message. |
 | `test_hook_initialize_stages_sbom` | Calls `initialize()` and asserts the staged SBOM path exists and is non-empty. |
 | `test_hook_sbom_is_valid_json` | Asserts the staged SBOM is valid JSON-LD with `@context` and `@graph`. |
 | `test_hook_creator_name_propagated` | Sets `creator-name` in config; asserts it appears in `@graph`. |

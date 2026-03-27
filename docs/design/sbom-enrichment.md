@@ -82,12 +82,6 @@ Modern model serialization formats natively embed metadata alongside neural
 weights. Pitloom's `bom.py` generator can directly parse these files during the
 build process to enrich the Protobom graph dynamically.
 
-- **Safetensors (`.safetensors`):** Prefix the file with an 8-byte length
-  indicator followed by a JSON object containing the `__metadata__` field.
-  - *Strategy:* Use `huggingface_hub.get_safetensors_metadata` to parse this
-    JSON header without loading multi-gigabyte weight tensors. Extract framework
-    details and training hyperparameters into `loom:ai:training:*`.
-
 - **GGUF (`.gguf`):** A single-file binary format designed for edge deployments
   that mandates extensive key-value metadata within its header.
   - *Strategy:* Utilize `gguf-parser` to extract the architecture type and
@@ -99,6 +93,12 @@ build process to enrich the Protobom graph dynamically.
   - *Strategy:* Use the `onnx` Python package to parse the graph properties. Map
     the ONNX `domain` and `producer_name` to standard SBOM fields while mapping
     custom `metadata_props` into the `loom:ai` extensions.
+
+- **Safetensors (`.safetensors`):** Prefix the file with an 8-byte length
+  indicator followed by a JSON object containing the `__metadata__` field.
+  - *Strategy:* Use `huggingface_hub.get_safetensors_metadata` to parse this
+    JSON header without loading multi-gigabyte weight tensors. Extract framework
+    details and training hyperparameters into `loom:ai:training:*`.
 
 ### 2.3 The hybrid AI-enrichment architecture
 
@@ -122,7 +122,8 @@ Attempting to aggressively inline the entirety of a dataset's metadata,
 descriptive statistics, and ethical considerations (RAI properties) directly
 into the SBOM can lead to severe structural bloat.
 
-Instead, Pitloom should support persistent URI linking, specifically leveraging the
+Instead, Pitloom should support persistent URI linking,
+specifically leveraging the
 [Croissant format](https://mlcommons.org/working-groups/data/croissant/).
 Croissant is a JSON-LD based extension of `schema.org/Dataset` heavily adopted
 for dataset representation by Hugging Face, Kaggle, and OpenML.

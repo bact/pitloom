@@ -20,7 +20,9 @@ in JSON-LD format.
 1. **SPDX 3.0 data models** (`spdx-python-model`)
    - Fully migrated to the official `spdx-python-model` library
    - Proper JSON-LD serialization and validation
-   - UUID-based unique SPDX IDs generated via `pitloom.core.models` generator
+   - Deterministic UUIDv5 SPDX document IDs (`compute_doc_uuid`) keyed on project
+     name, version, normalized dependencies, and SHA-256 Merkle root of wheel files
+   - Per-element sequential IDs (`generate_spdx_id`) reproducible across builds
 
 2. **Metadata extraction** (`src/pitloom/extract/pyproject.py`)
    - Reads pyproject.toml files
@@ -44,7 +46,7 @@ in JSON-LD format.
 5. **Hatchling build hook** (`src/pitloom/plugins/hatch.py`)
    - `PitloomBuildHook` registered via pluggy entry point (`[project.entry-points."hatch"]`)
    - Generates SBOM in `initialize()`, stages to a `TemporaryDirectory`
-   - Appends staged path to `build_data["sbom_files"]` — Hatchling 1.16.0+ places
+   - Appends staged path to `build_data["sbom_files"]` — Hatchling 1.28.0+ places
      it at `.dist-info/sboms/<filename>` (PEP 770) natively
    - `finalize()` cleans up the staging directory
    - Config: `sbom-basename`, `creator-name`, `creator-email`, `fragments`, `enabled`
@@ -158,7 +160,7 @@ src/pitloom/
 │   ├── config.py        # PitloomConfig ([tool.pitloom] settings)
 │   ├── creation.py      # CreationMetadata
 │   ├── document.py      # DocumentModel (assembled document)
-│   ├── models.py        # SPDX ID generation utilities
+│   ├── models.py        # Deterministic UUIDs, Merkle root, SPDX ID generation
 │   └── project.py       # ProjectMetadata
 ├── export/              # Layer 4 — serialise to physical format
 │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
@@ -334,8 +336,7 @@ advanced SPDX features.
 
 ---
 
-**Repository**: <https://github.com/bact/pitloom>  
-**Branch**: copilot/implement-metadata-provenance  
-**Tests**: 25 passed, 0 failed  
-**Security**: 0 alerts (CodeQL)  
+**Repository**: <https://github.com/bact/pitloom>
+**Tests**: 177 passed, 0 failed
+**Security**: 0 alerts (CodeQL)
 **Linting**: All checks passed (Ruff)

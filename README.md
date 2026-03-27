@@ -1,6 +1,6 @@
 # Pitloom
 
-Automated transparency, woven from the ground up. 
+Automated transparency, woven from the ground up.
 
 **Under development** --
 **NOT FOR PRODUCTION**

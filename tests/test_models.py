@@ -55,7 +55,7 @@ def test_compute_doc_uuid_differs_on_change() -> None:
 
 
 def test_clear_doc_counters_resets_sequence() -> None:
-    """Element IDs must restart from -1 after _clear_doc_counters()."""
+    """Element IDs must restart from 1 after _clear_doc_counters()."""
     doc_uuid = compute_doc_uuid("resetpkg", "1.0", [])
     _clear_doc_counters(doc_uuid)
     id1 = generate_spdx_id("Package", doc_name="resetpkg", doc_uuid=doc_uuid)

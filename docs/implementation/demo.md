@@ -19,7 +19,7 @@ A complete, runnable SBOM generator that:
 2. ✅ Generates SPDX 3.0 compliant SBOMs in JSON-LD format
 3. ✅ Tracks project dependencies with version information
 4. ✅ Provides a command-line interface
-5. ✅ Includes comprehensive tests (15 tests, all passing)
+5. ✅ Includes comprehensive tests (177 tests, all passing)
 6. ✅ Follows Python best practices (Ruff linting passes)
 
 ## Test run with sentimentdemo
@@ -133,7 +133,7 @@ def run():
 
 ### 7. Comprehensive testing
 
-18 tests covering:
+177 tests covering:
 
 - SPDX model serialization via official models
 - Metadata extraction
@@ -190,7 +190,7 @@ As documented in the design docs:
 2. **Setuptools support**: Extend beyond Hatchling
 3. **File-level analysis**: Include individual files in SBOM
 4. **Build log extraction**: Capture compiled dependencies
-5. **PEP 770 support**: Store SBOMs in .dist-info/sboms
+5. ~~**PEP 770 support**: Store SBOMs in .dist-info/sboms~~ — completed
 6. **Validation**: Schema validation for generated SBOMs
 7. **Performance**: Rust backend for large projects
 

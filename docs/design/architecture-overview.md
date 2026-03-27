@@ -195,7 +195,7 @@ pitloom/
 │       │   ├── config.py        # PitloomConfig ([tool.pitloom] settings)
 │       │   ├── creation.py      # CreationMetadata (SBOM creator / timestamp)
 │       │   ├── document.py      # DocumentModel (assembled, pre-serialization)
-│       │   ├── models.py        # SPDX ID generation utilities
+│       │   ├── models.py        # Deterministic UUIDs, Merkle root, SPDX ID generation
 │       │   └── project.py       # ProjectMetadata
 │       ├── export/              # Layer 4 — serialise to physical format
 │       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
@@ -203,8 +203,8 @@ pitloom/
 │       │   ├── ai_model.py      # AI model files → AiModelMetadata
 │       │   ├── mlflow.py        # MLflow run → SPDX AI fragment [planned]
 │       │   └── pyproject.py     # pyproject.toml → ProjectMetadata
-│       ├── plugins/             # Build system integrations [planned]
-│       │   └── hatch.py         # Hatchling BuildHookInterface [planned]
+│       ├── plugins/             # Build system integrations
+│       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point (argparse)
 │       └── bom.py               # ML tracking SDK (Track context manager)
@@ -236,7 +236,7 @@ Three features extend the existing pipeline into a fully automated workflow:
 A Hatchling `BuildHookInterface` plugin that generates the SBOM automatically
 during `hatch build` or `python -m build` and embeds it in the wheel's
 `.dist-info/sboms/` directory per PEP 770. Users opt in by adding
-`loom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.pitloom]`.
+`pitloom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.pitloom]`.
 See `docs/design/hatchling-build-hook.md`.
 
 #### 2. PEP 770 wheel embedding
@@ -275,7 +275,8 @@ DocumentModel(
 
 Serialization
 ─────────────
-build(doc: DocumentModel)                 → Spdx3JsonExporter → JSON-LD
+compute_wheel_merkle_root(project_dir)    → merkle_root (or None)
+build(doc: DocumentModel, merkle_root)    → Spdx3JsonExporter → JSON-LD
 merge_fragments(pitloom_config.fragments) → (inlined into exporter)
 exporter.to_json(pretty=...)              → SBOM string / file
 ```
@@ -293,9 +294,10 @@ mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
 Build time (zero extra commands)
 ─────────────────────────────────
 hatch build  /  python -m build
-  └── PitloomBuildHook.initialize()                           [planned]
-        ├── generate_sbom()          (reads pyproject.toml)
-        │     └── DocumentModel → build() → Spdx3JsonExporter
+  └── PitloomBuildHook.initialize()
+        ├── read_pyproject()         (reads pyproject.toml)
+        ├── compute_wheel_merkle_root() (WheelBuilder file set → deterministic UUID)
+        ├── DocumentModel → build(merkle_root) → Spdx3JsonExporter
         ├── merge fragments/run.spdx3.json    (AI provenance)
         └── → .dist-info/sboms/sbom.spdx3.json  ← PEP 770
 

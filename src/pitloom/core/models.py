@@ -78,6 +78,8 @@ def compute_wheel_merkle_root(project_dir: Path) -> str | None:
     Returns:
         str: Hex-encoded Merkle root, or ``None`` if no files are found.
     """
+    # TODO: Update this when supporting setuptools or other build backends.
+    # pylint: disable=import-outside-toplevel,cyclic-import
     from hatchling.builders.wheel import WheelBuilder  # runtime dep, local import
 
     try:
@@ -87,7 +89,10 @@ def compute_wheel_merkle_root(project_dir: Path) -> str | None:
             source = Path(included_file.path)
             if source.is_file():
                 file_entries.append(
-                    (included_file.distribution_path, hashlib.sha256(source.read_bytes()).digest())
+                    (
+                        included_file.distribution_path,
+                        hashlib.sha256(source.read_bytes()).digest(),
+                    )
                 )
     except Exception:  # pylint: disable=broad-exception-caught
         # hatchling raises ValueError when it cannot determine the file set
@@ -118,8 +123,8 @@ def _normalize_dep(dep: str) -> str:
 
     Examples::
 
-        "Foo_Bar>=1.0"          → "foo-bar>=1.0"
-        "PyProject.Metadata"    → "pyproject-metadata"
+        "Foo_Bar>=1.0"                       → "foo-bar>=1.0"
+        "PyProject.Metadata"                 → "pyproject-metadata"
         "tomli>=2.0; python_version<'3.11'"  → "tomli>=2.0; python_version<'3.11'"
     """
     dep = dep.strip()
