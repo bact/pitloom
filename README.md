@@ -6,14 +6,19 @@ SPDX-License-Identifier: CC0-1.0
 
 # Pitloom
 
-Creating SBOM during the build process. Now targeting Python Hatchling support.
+Automated transparency, woven from the ground up. 
+
+**Under development** --
+**NOT FOR PRODUCTION**
 
 ## Overview
 
-Pitloom is an automated Software Bill of Materials (SBOM) generator for Python
-projects that use Hatchling as their build backend.
-It generates SPDX 3 compliant SBOMs that document the composition,
-provenance, and dependencies of software systems.
+**Pitloom** automates the generation of SPDX 3-compliant SBOMs for Python projects,
+documenting the composition and provenance of software systems.
+By reading metadata directly from Python packages and AI models (GGUF, ONNX,
+Safetensors), it creates standardized SPDX 3 JSON artifacts.
+It also offers native Hatchling integration, allowing users to hook into
+the build process to generate SBOMs automatically.
 
 ## Features
 
@@ -24,7 +29,7 @@ provenance, and dependencies of software systems.
 - **Dependency tracking**:
   Automatically includes project dependencies in the SBOM
 - **AI/ML model metadata**:
-  Extracts metadata from model files (ONNX, Safetensors, GGUF)
+  Extracts metadata from model files (GGUF, ONNX, Safetensors)
   for SPDX AI profile
 - **Metadata provenance**:
   Tracks the source of each metadata field for transparency and auditability
@@ -36,7 +41,7 @@ provenance, and dependencies of software systems.
 Install Pitloom using pip:
 
 ```bash
-pip install -e .
+pip install pitloom
 ```
 
 For development (lint + test), using pip >= 25:
