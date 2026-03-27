@@ -1,0 +1,57 @@
+{
+    "@context": "https://w3id.org/codemeta/3.0",
+    "@type": "SoftwareSourceCode",
+    "applicationCategory": "text analysis",
+    "author": [
+        {
+            "@id": "https://orcid.org/0000-0002-9698-1899",
+            "@type": "Person",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "ADAPT Centre, Trinity College Dublin"
+            },
+            "familyName": "Suriyawongkul",
+            "givenName": "Arthit"
+        }
+    ],
+    "codeRepository": "https://github.com/bact/pitloom",
+    "copyrightYear": 2026,
+    "dateCreated": "2026-03-27",
+    "dateModified": "2026-03-27",
+    "datePublished": "2026-03-27",
+    "description": "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, and Safetensors models with native Hatchling build-hook support.",
+    "developmentStatus": "active",
+    "downloadUrl": "https://github.com/bact/pitloom/releases",
+    "identifier": "10.5281/zenodo.19243681",
+    "isAccessibleForFree": true,
+    "issueTracker": "https://github.com/bact/pitloom/issues",
+    "keywords": [
+        "sbom",
+        "software bill of materials",
+        "hatchling",
+        "spdx",
+        "aibom",
+        "metadata",
+        "gguf",
+        "onnx",
+        "safetensors"
+    ],
+    "license": "https://spdx.org/licenses/Apache-2.0",
+    "maintainer": [
+        {
+            "@id": "https://orcid.org/0000-0002-9698-1899",
+            "@type": "Person",
+            "affiliation": {
+                "@type": "Organization",
+                "name": "ADAPT Centre, Trinity College Dublin"
+            },
+            "familyName": "Suriyawongkul",
+            "givenName": "Arthit"
+        }
+    ],
+    "name": "Pitloom",
+    "programmingLanguage": "Python 3",
+    "readme": "https://github.com/bact/pitloom/blob/main/README.md",
+    "url": "https://github.com/bact/pitloom",
+    "version": "0.1.0"
+}
