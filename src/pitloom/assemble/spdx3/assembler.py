@@ -7,22 +7,26 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import generate_spdx_id
+from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
-def build(doc: DocumentModel) -> Spdx3JsonExporter:
+def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
     Args:
         doc: Format-neutral document model with project metadata, creation
             metadata, and any AI model metadata.
+        merkle_root: Optional hex-encoded SHA-256 Merkle root of the wheel
+            source files, forwarded to
+            :func:`~pitloom.core.models.compute_doc_uuid`.  When provided,
+            the document UUID (and all derived SPDX IDs) reflects the exact
+            content of the packaged files, enabling fully reproducible SBOMs.
 
     Returns:
         A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`
@@ -37,7 +41,13 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
     )
 
     exporter = Spdx3JsonExporter()
-    doc_uuid = str(uuid4())
+    doc_uuid = compute_doc_uuid(
+        name=metadata.name,
+        version=metadata.version or "unknown",
+        dependencies=metadata.dependencies,
+        merkle_root=merkle_root,
+    )
+    _clear_doc_counters(doc_uuid)
 
     # --- Creation info, creator agent, and creation tool ---
     spdx_ci = spdx3.CreationInfo(
