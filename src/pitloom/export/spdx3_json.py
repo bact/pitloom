@@ -17,6 +17,8 @@ class Spdx3JsonExporter:
 
     def __init__(self) -> None:
         self.object_set = spdx3.SHACLObjectSet()
+        # Maps simplelicensing_licenseText -> spdxId for deduplication.
+        self._license_index: dict[str, str] = {}
 
     def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.
@@ -42,15 +44,31 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(package)
 
+    def find_license(self, license_id: str) -> str | None:
+        """Return the spdxId of an existing SimpleLicensingText with the given
+        ``simplelicensing_licenseText``, or ``None`` if not yet added.
+
+        Args:
+            license_id: The license text value to look up (e.g. ``"Apache-2.0"``).
+        """
+        return self._license_index.get(license_id)
+
     def add_license(
-        self, license_text: spdx3.simplelicensing_SimpleLicensingText
+        self, simple_licensing_text: spdx3.simplelicensing_SimpleLicensingText
     ) -> None:
         """Add a SimpleLicensingText element to the document.
+
+        Updates the internal license index so subsequent calls to
+        :meth:`find_license` with the same ``simplelicensing_licenseText``
+        return this element's spdxId.
 
         Args:
             license_text: The simplelicensing_SimpleLicensingText object
         """
-        self.object_set.add(license_text)
+        self.object_set.add(simple_licensing_text)
+        license_id: str | None = simple_licensing_text.simplelicensing_licenseText
+        if license_id:
+            self._license_index[license_id] = simple_licensing_text.spdxId
 
     def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.
