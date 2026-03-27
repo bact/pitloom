@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import tempfile
+import types
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -52,33 +53,23 @@ requires-python = ">=3.10"
 """
 
 
-# pylint: disable=too-few-public-methods
-class _StubBuildConfig:
-    """Minimal stub of ``BuilderConfig`` for tests that bypass
-    ``BuildHookInterface.__init__``.
-
-    Only ``packages`` is needed: ``initialize()`` reads it to discover wheel
-    source directories for the Merkle-root computation.  An empty list means
-    no source dirs are scanned and ``merkle_root`` is ``None``, which is the
-    correct behaviour for ephemeral temp-dir fixtures that contain no package
-    source tree.
-    """
-
-    packages: list[str] = []
-
-
 def make_hook(root: str, config: dict[str, Any]) -> PitloomBuildHook:
     """Construct a ``PitloomBuildHook`` without invoking
     ``BuildHookInterface.__init__``.
 
     ``BuildHookInterface`` stores ``root``, ``config``, and ``build_config``
     under mangled names and exposes them as read-only properties, so we set
-    the mangled attributes directly via ``object.__setattr__``.
+    the mangled attributes directly via ``object.__setattr__``.  A bare
+    ``SimpleNamespace`` satisfies ``build_config`` — ``initialize()`` does not
+    access it (file discovery uses ``WheelBuilder`` directly), but the slot
+    must exist to prevent ``AttributeError`` from base-class property access.
     """
     hook: PitloomBuildHook = object.__new__(PitloomBuildHook)
     object.__setattr__(hook, "_BuildHookInterface__root", root)
     object.__setattr__(hook, "_BuildHookInterface__config", config)
-    object.__setattr__(hook, "_BuildHookInterface__build_config", _StubBuildConfig())
+    object.__setattr__(
+        hook, "_BuildHookInterface__build_config", types.SimpleNamespace()
+    )
     hook._staging_dir = None
     hook._sbom_staging_path = None
     hook._sbom_filename = "sbom.spdx3.json"

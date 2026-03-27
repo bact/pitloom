@@ -62,7 +62,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         """Generate the SBOM and register it for injection into the wheel.
 
         Called by Hatchling before packaging.  The staged SBOM path is
-        appended to ``build_data["sbom_files"]``, which Hatchling 1.16.0+
+        appended to ``build_data["sbom_files"]``, which Hatchling 1.28.0+
         places at ``.dist-info/sboms/<basename>`` inside the wheel
         (PEP 770).  The temporary staging directory is cleaned up in
         :meth:`finalize`.
@@ -117,7 +117,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
         self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
 
-        # Hatchling 1.16.0+ places each path in sbom_files at
+        # Hatchling 1.28.0+ places each path in sbom_files at
         # .dist-info/sboms/<basename> inside the wheel (PEP 770).
         build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
 
