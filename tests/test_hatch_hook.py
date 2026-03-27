@@ -52,19 +52,33 @@ requires-python = ">=3.10"
 """
 
 
+# pylint: disable=too-few-public-methods
+class _StubBuildConfig:
+    """Minimal stub of ``BuilderConfig`` for tests that bypass
+    ``BuildHookInterface.__init__``.
+
+    Only ``packages`` is needed: ``initialize()`` reads it to discover wheel
+    source directories for the Merkle-root computation.  An empty list means
+    no source dirs are scanned and ``merkle_root`` is ``None``, which is the
+    correct behaviour for ephemeral temp-dir fixtures that contain no package
+    source tree.
+    """
+
+    packages: list[str] = []
+
+
 def make_hook(root: str, config: dict[str, Any]) -> PitloomBuildHook:
     """Construct a ``PitloomBuildHook`` without invoking
     ``BuildHookInterface.__init__``.
 
-    ``root`` and ``config`` are stored under mangled names by ``BuildHookInterface``
-    and exposed as read-only properties, so we set the mangled attributes directly.
+    ``BuildHookInterface`` stores ``root``, ``config``, and ``build_config``
+    under mangled names and exposes them as read-only properties, so we set
+    the mangled attributes directly via ``object.__setattr__``.
     """
     hook: PitloomBuildHook = object.__new__(PitloomBuildHook)
-    # BuildHookInterface stores root/config as __root / __config (name-mangled).
-    # Use object.__setattr__ so the mangled name is passed as a string and
-    # static name-style checkers (pylint C0103) do not flag the assignment.
     object.__setattr__(hook, "_BuildHookInterface__root", root)
     object.__setattr__(hook, "_BuildHookInterface__config", config)
+    object.__setattr__(hook, "_BuildHookInterface__build_config", _StubBuildConfig())
     hook._staging_dir = None
     hook._sbom_staging_path = None
     hook._sbom_filename = "sbom.spdx3.json"
