@@ -1,9 +1,3 @@
----
-SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC0-1.0
----
-
 # Pitloom
 
 Automated transparency, woven from the ground up. 
@@ -61,9 +55,9 @@ uv sync --group dev
 Install extras to enable metadata extraction from model files:
 
 ```bash
+pip install -e ".[gguf]"          # GGUF models
 pip install -e ".[onnx]"          # ONNX models
 pip install -e ".[safetensors]"   # Safetensors models
-pip install -e ".[gguf]"          # GGUF models
 pip install -e ".[aimodel]"       # all of the above
 ```
 
@@ -264,7 +258,7 @@ pitloom/
 │       └── summary.md
 ├── src/
 │   └── pitloom/
-│       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
+│       ├── assemble/
 │       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
 │       │   │   ├── assembler.py # SPDX 3 assembler — build(DocumentModel)
 │       │   │   ├── deps.py      # Dependency element assembly
@@ -277,9 +271,9 @@ pitloom/
 │       │   ├── document.py      # Format-neutral document model (DocumentModel)
 │       │   ├── models.py        # SPDX ID generation utilities
 │       │   └── project.py       # Python project metadata (ProjectMetadata)
-│       ├── export/              # Layer 4 — serialise to physical format
+│       ├── export/
 │       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-│       ├── extract/             # Layer 1 — read from sources
+│       ├── extract/
 │       │   ├── ai_model.py      # AI model file extractor (GGUF, ONNX, Safetensors)
 │       │   └── pyproject.py     # pyproject.toml extractor
 │       ├── plugins/
