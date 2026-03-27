@@ -23,12 +23,18 @@ class CreationMetadata:
             When ``None`` the assembler uses the current UTC time.
         creation_tool: Name of the tool that produced the SBOM.
             Defaults to ``"Pitloom"``.
+        build_datetime: ISO 8601 string for when the artifact was built
+            (e.g. the moment the Hatchling hook fires).  When set, the
+            assembler records it as ``builtTime`` on the main
+            ``software_Package`` element.  When ``None`` (default),
+            ``builtTime`` is omitted from the SBOM.
     """
 
     creator_name: str = "Pitloom"
     creator_email: str = ""
     creation_datetime: str | None = None
     creation_tool: str = "Pitloom"
+    build_datetime: str | None = None
 
 
 __all__ = ["CreationMetadata"]

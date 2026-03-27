@@ -11,81 +11,10 @@ from uuid import uuid4
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.deps import add_dependencies
+from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-
-
-def _build_license_elements(
-    license_id: str,
-    package_spdx_id: str,
-    license_provenance: str,
-    creation_info: spdx3.CreationInfo,
-    doc_name: str,
-    doc_uuid: str,
-) -> tuple[
-    spdx3.simplelicensing_SimpleLicensingText,
-    spdx3.Relationship,
-    spdx3.Relationship,
-]:
-    """Build a SimpleLicensingText element and its hasDeclaredLicense /
-    hasConcludedLicense relationships for a given package.
-
-    Args:
-        license_id: SPDX license identifier string (e.g. ``"Apache-2.0"``)
-                    (the "to" in a relationship).
-        package_spdx_id: SPDX ID of the package the license applies to
-                         (the "from" in a relationship).
-        license_provenance: Human-readable provenance note for the comment field.
-        creation_info: Shared CreationInfo for all new elements.
-        doc_name: Document name used in SPDX ID generation.
-        doc_uuid: Document UUID used in SPDX ID generation.
-
-    Returns:
-        A 3-tuple of ``(SimpleLicensingText, hasDeclaredLicense Relationship,
-        hasConcludedLicense Relationship)``.
-    """
-    license_text = spdx3.simplelicensing_SimpleLicensingText(
-        spdxId=generate_spdx_id("License", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
-    )
-    license_text.name = license_id
-    license_text.simplelicensing_licenseText = license_id
-    license_text.comment = f"Metadata provenance: license: {license_provenance}"
-
-    # The license actually found in the Software Artifact.
-    rel_has_declared_license = spdx3.Relationship(
-        spdxId=generate_spdx_id(
-            "Relationship", doc_name=f"{doc_name}-declared-license", doc_uuid=doc_uuid
-        ),
-        creationInfo=creation_info,
-        from_=package_spdx_id,
-        relationshipType=spdx3.RelationshipType.hasDeclaredLicense,
-        to=[license_text.spdxId],
-    )
-
-    # The license identified by the SPDX data creator.
-    # This can be more complicated.
-    # For example, if there are mulitple declared licenses,
-    # or if there is no declared licenes but a license
-    # can be concluded from other evidence.
-    # See https://spdx.github.io/spdx-spec/v3.0/model/Licensing/Licensing/
-    # Sort this out in future versions.
-    # Eventually we may need to create the relationships separately,
-    # as hasDeclaredLicense and hasConcludedLicense can be different and
-    # the value of having this helper function will be less clear.
-    rel_has_concluded_license = spdx3.Relationship(
-        spdxId=generate_spdx_id(
-            "Relationship", doc_name=f"{doc_name}-concluded-license", doc_uuid=doc_uuid
-        ),
-        creationInfo=creation_info,
-        from_=package_spdx_id,
-        relationshipType=spdx3.RelationshipType.hasConcludedLicense,
-        to=[license_text.spdxId],
-    )
-
-    return license_text, rel_has_declared_license, rel_has_concluded_license
 
 
 def build(doc: DocumentModel) -> Spdx3JsonExporter:
@@ -128,7 +57,7 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
             )
         ]
     tool = spdx3.Tool(
-        spdxId=generate_spdx_id("Tool", doc_name=ci.creation_tool, doc_uuid=doc_uuid),
+        spdxId=generate_spdx_id("Tool", doc_name=metadata.name, doc_uuid=doc_uuid),
         name=ci.creation_tool,
         creationInfo=spdx_ci,
     )
@@ -169,6 +98,8 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
         f"Copyright (c) {datetime.now().year} {copyright_holder}"
     )
     main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
+    if ci.build_datetime:
+        main_package.builtTime = datetime.fromisoformat(ci.build_datetime)
     if provenance_comment:
         main_package.comment = provenance_comment
 
@@ -198,7 +129,7 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
 
     # --- License ---
     if metadata.license_name:
-        license_elements = _build_license_elements(
+        rel_declared, rel_concluded = build_license_elements(
             license_id=metadata.license_name,
             package_spdx_id=main_package.spdxId,
             license_provenance=metadata.provenance.get(
@@ -207,9 +138,8 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
             creation_info=spdx_ci,
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
+            exporter=exporter,
         )
-        license_text, rel_declared, rel_concluded = license_elements
-        exporter.add_license(license_text)
         exporter.add_relationship(rel_declared)
         exporter.add_relationship(rel_concluded)
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
@@ -220,6 +150,7 @@ def build(doc: DocumentModel) -> Spdx3JsonExporter:
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
         main_package_spdx_id=main_package.spdxId,
         creation_info=spdx_ci,
+        doc_name=metadata.name,
         doc_uuid=doc_uuid,
         exporter=exporter,
     )

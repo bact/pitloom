@@ -9,7 +9,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from spdx_python_model import v3_0_1 as spdx3
+
 from pitloom.assemble import generate_sbom
+
+_VALID_RELATIONSHIP_TYPES: frozenset[str] = frozenset(
+    iri.split("/")[-1] for iri in spdx3.RelationshipType.NAMED_INDIVIDUALS.values()
+)
 
 
 def test_spdx3_json_structure() -> None:
@@ -210,12 +216,7 @@ dependencies = ["numpy==1.24.0"]
                 assert to_id in valid_ids, f"Invalid 'to' reference: {to_id}"
 
             # Relationship type should be valid
-            assert rel["relationshipType"] in [
-                "dependsOn",
-                "contains",
-                "describes",
-                "hasDistributionPoint",
-            ]
+            assert rel["relationshipType"] in _VALID_RELATIONSHIP_TYPES
 
 
 # ---------------------------------------------------------------------------

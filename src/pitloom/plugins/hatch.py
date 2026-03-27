@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -87,9 +88,11 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         project_dir = Path(self.root)
         metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
 
+        build_time = datetime.now(timezone.utc).isoformat()
         creation_meta = CreationMetadata(
             creator_name=creator_name,
             creator_email=creator_email,
+            build_datetime=build_time,
         )
         doc = DocumentModel(project=metadata, creation=creation_meta)
         exporter = assemble_spdx3(doc)
