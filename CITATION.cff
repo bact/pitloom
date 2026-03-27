@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: Pitloom
+authors:
+  - family-names: Suriyawongkul
+    given-names: Arthit
+    orcid: https://orcid.org/0000-0002-9698-1899
+abstract: Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, and Safetensors models with native Hatchling build-hook support.
+repository-code: "https://github.com/bact/pitloom"
+type: software
+doi: 10.5281/zenodo.19243681
+version: 0.1.0
+license-url: "https://spdx.org/licenses/Apache-2.0"
+keywords:
+  - sbom
+  - software bill of materials
+  - hatchling
+  - spdx
+  - aibom
+  - metadata
+  - gguf
+  - onnx
+  - safetensors
+date-released: 2026-03-27
