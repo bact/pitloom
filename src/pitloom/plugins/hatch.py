@@ -20,6 +20,7 @@ from pitloom.assemble.spdx3.assembler import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.models import compute_merkle_root
 from pitloom.extract.pyproject import read_pyproject
 
 log = logging.getLogger(__name__)
@@ -95,7 +96,14 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             build_datetime=build_time,
         )
         doc = DocumentModel(project=metadata, creation=creation_meta)
-        exporter = assemble_spdx3(doc)
+
+        # Compute Merkle root of wheel source files for a reproducible doc UUID.
+        # build_config.packages is a cached_property on BuilderConfig that returns
+        # the normalized list from [tool.hatch.build.targets.wheel] packages.
+        package_dirs = [project_dir / pkg for pkg in self.build_config.packages]
+        merkle_root = compute_merkle_root(package_dirs)
+
+        exporter = assemble_spdx3(doc, merkle_root=merkle_root)
 
         # Merge fragments from [tool.pitloom] and [tool.hatch.build.hooks.pitloom]
         all_fragments = pitloom_config.fragments + hook_fragments
