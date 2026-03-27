@@ -12,6 +12,7 @@ from pitloom.assemble.spdx3.assembler import build
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.models import compute_wheel_merkle_root
 from pitloom.extract.pyproject import read_pyproject
 
 
@@ -41,14 +42,19 @@ def generate_sbom(
         FileNotFoundError: If ``pyproject.toml`` is not found in ``project_dir``.
         ValueError: If required project metadata (e.g., ``name``) is missing.
     """
-    metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
+    pyproject_path = project_dir / "pyproject.toml"
+    metadata, pitloom_config = read_pyproject(pyproject_path)
     effective_pretty: bool = pitloom_config.pretty if pretty is None else pretty
+
+    # Compute Merkle root via hatchling's own file discovery so the UUID
+    # matches the build-hook path exactly (same WheelBuilder, same file set).
+    merkle_root = compute_wheel_merkle_root(project_dir)
 
     doc = DocumentModel(
         project=metadata,
         creation=creation_info or CreationMetadata(),
     )
-    exporter = build(doc)
+    exporter = build(doc, merkle_root=merkle_root)
     merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
     sbom_json = exporter.to_json(pretty=effective_pretty)
