@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pitloom"
-version = "0.1.0"
+version = "0.2.0"
 description = "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, and Safetensors models with native Hatchling build-hook support."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -53,7 +53,7 @@ onnx = ["onnx>=1.14.1"]
 safetensors = ["safetensors[numpy]>=0.4.0"]
 
 [dependency-groups]
-lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.1.0"]
+lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
 test = ["pytest>=9.0.2"]
 typecheck = ["mypy>=1.19.1"]
 dev = [
