@@ -1,5 +1,7 @@
 # Pitloom
 
+![anonymous pitloom](./docs/mascot.png)
+
 Automated transparency, woven from the ground up.
 
 **Under development** --
