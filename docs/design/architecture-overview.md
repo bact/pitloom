@@ -281,6 +281,67 @@ merge_fragments(pitloom_config.fragments) → (inlined into exporter)
 exporter.to_json(pretty=...)              → SBOM string / file
 ```
 
+### JSON-LD `@graph` element ordering
+
+The `@graph` array in JSON-LD output contains one object per SPDX element.
+Its order has direct implications for two concerns:
+
+**Reproducibility.** `SHACLObjectSet` stores objects in a Python `set`, which
+is unordered. `SHACLObjectSet.encode()` accepts a `key=` parameter and sorts
+before serializing, but `JSONLDSerializer` does not pass one, so the emitted
+order varies across runs. This makes byte-for-byte reproducibility impossible
+and destabilizes text diffs and hash calculations (e.g., Merkle root, integrity
+checksums embedded in the wheel).
+
+**Stream-processing performance.** Consumers that parse the document
+incrementally (validators, SCA scanners) must buffer the entire `@graph` before
+they can resolve forward references. Placing high-centrality nodes near the
+front of the list allows early rejection or early establishment of processing
+context without reading the full document. The highest-priority nodes are:
+`CreationInfo` (blank node referenced by every element), `SpdxDocument`
+(document envelope and `profileConformance`), and `software_Sbom`
+(root element pointer and `sbomType`).
+
+**Approach.** Because `to_json()` already round-trips through `json.loads()`,
+a deterministic sort can be applied to `data["@graph"]` before the final
+`json.dumps()` call with no changes to `spdx-python-model`. A two-level key
+suffices:
+
+1. **Type-priority tier** — promote `CreationInfo`, `SpdxDocument`,
+   `software_Sbom` to the front (in that order), then root `software_Package`,
+   then all other elements.
+2. **`@id` lexicographic order** — within each tier, sort by the element's
+   `@id` (or `_:ClassName` for blank nodes) so output is fully deterministic.
+
+**Relationship to JSON canonicalization standards.**
+RFC 8259 §4 ([datatracker.ietf.org/doc/rfc8259](https://datatracker.ietf.org/doc/rfc8259/))
+defines JSON arrays as *ordered sequences* of values, meaning `@graph` element
+order is semantically meaningful and is preserved by all conforming parsers.
+RFC 8259 §4 also defines JSON objects as *unordered* collections of name/value
+pairs, so parsers must not rely on property order within an object.
+
+RFC 8785 (JSON Canonicalization Scheme, JCS —
+[datatracker.ietf.org/doc/rfc8785](https://datatracker.ietf.org/doc/rfc8785/))
+addresses object-property ordering by requiring lexicographic sorting of
+property names (by UTF-16 code units). However, JCS explicitly states that
+**array element order MUST NOT be changed** — it only recurses into objects
+found within arrays to sort their properties. JCS therefore cannot, by itself,
+produce a deterministic `@graph` element ordering.
+
+This limitation is acknowledged in the SPDX specification repository
+([spdx/spdx-spec#1362](https://github.com/spdx/spdx-spec/issues/1362)),
+where the working group proposes referencing JCS as part of the canonical
+serialization specification while noting that "additional specifications are
+needed to cover items like graph serialization and handling contexts and
+namespace prefixes." The issue remains open.
+
+The SPDX 3.0.1 canonical serialization specification
+([spdx.github.io/spdx-spec/v3.0.1/serializations](https://spdx.github.io/spdx-spec/v3.0.1/serializations/))
+currently mandates alphabetical ordering of *properties within each object*,
+but is silent on `@graph` element ordering. Imposing an explicit element order
+is therefore compliant with RFC 8259, RFC 8785 (JCS), and the current SPDX
+canonical specification, and fills a gap that none of the three yet closes.
+
 ### Revised end-to-end flow (with planned integrations)
 
 ```text
