@@ -61,9 +61,7 @@ def _keys_sorted_recursive(obj: Any, path: str = "") -> list[str]:
     if isinstance(obj, dict):
         keys = list(obj.keys())
         if keys != sorted(keys):
-            violations.append(
-                f"Keys not in lexicographic order at {path!r}: {keys}"
-            )
+            violations.append(f"Keys not in lexicographic order at {path!r}: {keys}")
         for k, v in obj.items():
             violations.extend(_keys_sorted_recursive(v, f"{path}.{k}"))
     elif isinstance(obj, list):
@@ -145,9 +143,7 @@ def test_compact_output_has_no_extra_whitespace() -> None:
 
         # Directly check for the most common forms of insignificant whitespace.
         assert not output.startswith(" "), "Leading whitespace found"
-        assert not output.endswith((" ", "\n", "\r", "\t")), (
-            "Trailing whitespace found"
-        )
+        assert not output.endswith((" ", "\n", "\r", "\t")), "Trailing whitespace found"
 
 
 def test_compact_output_graph_array_order_preserved() -> None:
