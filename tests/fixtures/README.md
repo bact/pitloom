@@ -16,9 +16,7 @@ build hook (`pitloom.plugins.hatch`).  See
 
 The `fasttext/`, `gguf/`, `hdf5/`, `keras/`, `numpy/`, `onnx/`,
 `pytorch/`, and `safetensors/` subdirectories contain small AI model
-files used as integration test fixtures.  The `pytorch/` directory is
-currently empty — tests for that format are skipped automatically when
-no fixture file is present.
+files used as integration test fixtures.
 The files are committed to the repository because they are small enough
 (all under 6 MB) and stable enough to serve as reliable test inputs.
 
@@ -47,14 +45,15 @@ dependency is not installed or the file is absent.
 | `keras/example-model.keras` | Keras v3 | Sequential dense model — 1 input, 1 output | CC0-1.0 |
 | `numpy/example-model-v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
-| `numpy/example-model-v3.npy` | NumPy v3.0 | Structured array with Unicode field `π_weights` | CC0-1.0 |
+| `numpy/example-model-v3.npy` | NumPy v3.0 | Structured array | CC0-1.0 |
 | `numpy/example-model-bundle.npz` | NumPy NPZ | Archive with `weights` array (2 × 2 float32) | CC0-1.0 |
 | `onnx/encoder-model-q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
 | `onnx/gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
 | `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `pytorch/` | PyTorch | *(no fixtures yet — add `.pt`, `.pth`, or `.pt2` files)* | — |
+| `pytorch/example-model-full.pt` | PyTorch | Full model | CC0-1.0 |
+| `pytorch/example-model-weights.pth` | PyTorch | Weights only | CC0-1.0 |
 | `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
 | `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
 | `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
@@ -515,6 +514,24 @@ Notable metadata extracted by the ONNX extractor:
 - `name` = `"main"` (from `graph.name`)
 - `type_of_model` = `"neural network"` (domain is empty, falls back to default)
 - `properties["opset.ai.onnx"]` = `"7"`
+
+---
+
+### pytorch/example-model-full.pt
+
+| Property | Value |
+| :--- | :--- |
+| License | CC0-1.0 |
+| Source | Generated for testing purpose |
+
+---
+
+### pytorch/example-model-weights.pth
+
+| Property | Value |
+| :--- | :--- |
+| License | CC0-1.0 |
+| Source | Generated for testing purpose |
 
 ---
 

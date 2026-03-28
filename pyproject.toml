@@ -50,7 +50,7 @@ dependencies = [
 [project.optional-dependencies]
 aimodel = [
     "fasttext>=0.9.3",
-    "fickling>=0.0.9",
+    "fickling>=0.1.10",
     "gguf>=0.10.0",
     "h5py>=3.0.0",
     "numpy>=1.24.0",
@@ -62,7 +62,7 @@ gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
 numpy = ["numpy>=1.24.0"]
 onnx = ["onnx>=1.14.1"]
-pytorch = ["fickling>=0.0.9"]
+pytorch = ["fickling>=0.1.10"]
 safetensors = ["safetensors[numpy]>=0.4.0"]
 
 [dependency-groups]

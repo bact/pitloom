@@ -2,7 +2,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""PyTorch PT2 Archive metadata extractor (.pt2 / ExecuTorch)."""
+"""PyTorch PT2 Archive metadata extractor (.pt2 / ExecuTorch).
+
+References:
+    - https://docs.pytorch.org/docs/stable/user_guide/torch_compiler/export.html
+"""
 
 from __future__ import annotations
 

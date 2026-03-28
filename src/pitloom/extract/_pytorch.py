@@ -2,7 +2,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Classic PyTorch model metadata extractor (.pt, .pth)."""
+"""PyTorch classic format metadata extractor (.pt, .pth).
+
+References:
+    - https://docs.pytorch.org/docs/stable/notes/serialization.html
+    - https://www.loc.gov/preservation/digital/formats/fdd/fdd000644.shtml
+"""
 
 from __future__ import annotations
 
