@@ -181,19 +181,19 @@ def test_onnx_load_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (encoder_model_q4f16.onnx)
+# Integration tests — real ONNX file (encoder-model-q4f16.onnx)
 # Source: onnx-community/whisper-tiny-ONNX (~6.3 MB)
 # Whisper tiny speech encoder, quantised Q4F16, two opset domains
 # Require: onnx installed AND
-#          tests/fixtures/onnx/encoder_model_q4f16.onnx present
+#          tests/fixtures/onnx/encoder-model-q4f16.onnx present
 # ---------------------------------------------------------------------------
 
-WHISPER_ENCODER_FIXTURE = _ONNX / "encoder_model_q4f16.onnx"
+WHISPER_ENCODER_FIXTURE = _ONNX / "encoder-model-q4f16.onnx"
 
 
 @pytest.fixture(scope="module")
 def whisper_encoder_metadata() -> AiModelMetadata:
-    """Extract metadata from the encoder_model_q4f16.onnx fixture once per session."""
+    """Extract metadata from the encoder-model-q4f16.onnx fixture once per session."""
     pytest.importorskip("onnx")
     if not WHISPER_ENCODER_FIXTURE.exists():
         pytest.skip(f"Fixture file not found: {WHISPER_ENCODER_FIXTURE}")

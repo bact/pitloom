@@ -4,15 +4,15 @@
 
 """Extractor for model metadata from AI model files.
 
-Supports fastText, GGUF, HDF5/Keras, NumPy, ONNX, PyTorch, and Safetensors
+Supports fastText, GGUF, HDF5, NumPy, ONNX, PyTorch, and Safetensors
 formats via optional dependencies.
 
     pip install pitloom[fasttext]    # for fastText support
     pip install pitloom[gguf]        # for GGUF support
-    pip install pitloom[hdf5]        # for HDF5/Keras support
+    pip install pitloom[hdf5]        # for HDF5 support
     pip install pitloom[numpy]       # for NumPy support
     pip install pitloom[onnx]        # for ONNX support
-    pip install pitloom[pytorch]     # for PyTorch support (fickling)
+    pip install pitloom[pytorch]     # for PyTorch support
     pip install pitloom[safetensors] # for Safetensors support
     pip install pitloom[aimodel]     # for all model formats
 """
@@ -27,6 +27,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract._fasttext import read_fasttext
 from pitloom.extract._gguf import read_gguf
 from pitloom.extract._hdf5 import read_hdf5
+from pitloom.extract._keras import read_keras
 from pitloom.extract._numpy import read_numpy
 from pitloom.extract._onnx import read_onnx
 from pitloom.extract._pytorch import read_pytorch
@@ -43,6 +44,7 @@ __all__ = [
     "read_fasttext",
     "read_gguf",
     "read_hdf5",
+    "read_keras",
     "read_numpy",
     "read_onnx",
     "read_pytorch",
@@ -77,6 +79,7 @@ REGISTRY: tuple[FormatInfo, ...] = (
     FormatInfo(format=AiModelFormat.FASTTEXT, reader=read_fasttext),
     FormatInfo(format=AiModelFormat.GGUF, reader=read_gguf),
     FormatInfo(format=AiModelFormat.HDF5, reader=read_hdf5),
+    FormatInfo(format=AiModelFormat.KERAS, reader=read_keras),
     FormatInfo(format=AiModelFormat.NUMPY, reader=read_numpy),
     FormatInfo(format=AiModelFormat.ONNX, reader=read_onnx),
     FormatInfo(format=AiModelFormat.PYTORCH, reader=read_pytorch),

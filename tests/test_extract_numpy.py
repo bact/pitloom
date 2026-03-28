@@ -242,25 +242,25 @@ def _load_fixture(filename: str) -> Any:
 
 @pytest.fixture(scope="module")
 def fixture_v1() -> Any:
-    return _load_fixture("model_v1.npy")
+    return _load_fixture("example-model-v1.npy")
 
 
 @pytest.fixture(scope="module")
 def fixture_v2() -> Any:
-    return _load_fixture("model_v2.npy")
+    return _load_fixture("example-model-v2.npy")
 
 
 @pytest.fixture(scope="module")
 def fixture_v3() -> Any:
-    return _load_fixture("model_v3.npy")
+    return _load_fixture("example-model-v3.npy")
 
 
 @pytest.fixture(scope="module")
 def fixture_bundle() -> Any:
-    return _load_fixture("model_bundle.npz")
+    return _load_fixture("example-model-bundle.npz")
 
 
-# --- model_v1.npy ---
+# --- example-model-v1.npy ---
 
 
 def test_numpy_v1_format(fixture_v1: Any) -> None:
@@ -283,7 +283,7 @@ def test_numpy_v1_dtype(fixture_v1: Any) -> None:
     assert fixture_v1.inputs[0]["dtype"] == "float32"
 
 
-# --- model_v2.npy ---
+# --- example-model-v2.npy ---
 
 
 def test_numpy_v2_format(fixture_v2: Any) -> None:
@@ -306,7 +306,7 @@ def test_numpy_v2_dtype(fixture_v2: Any) -> None:
     assert fixture_v2.inputs[0]["dtype"] == "float32"
 
 
-# --- model_v3.npy (structured dtype with Unicode field name) ---
+# --- example-model-v3.npy (structured dtype with Unicode field name) ---
 
 
 def test_numpy_v3_format(fixture_v3: Any) -> None:
@@ -329,7 +329,7 @@ def test_numpy_v3_dtype_contains_unicode_field(fixture_v3: Any) -> None:
     assert "π_weights" in fixture_v3.inputs[0]["dtype"]
 
 
-# --- model_bundle.npz ---
+# --- example-model-bundle.npz ---
 
 
 def test_numpy_bundle_format(fixture_bundle: Any) -> None:

@@ -14,11 +14,11 @@ build hook (`pitloom.plugins.hatch`).  See
 
 ## AI model fixtures
 
-The `fasttext/`, `gguf/`, `hdf5/`, `numpy/`, `onnx/`, `pytorch/`, and
-`safetensors/` subdirectories contain small AI model files used as
-integration test fixtures.  The `hdf5/` and `pytorch/`
-directories are currently empty — tests for those formats are skipped
-automatically when no fixture file is present.
+The `fasttext/`, `gguf/`, `hdf5/`, `keras/`, `numpy/`, `onnx/`,
+`pytorch/`, and `safetensors/` subdirectories contain small AI model
+files used as integration test fixtures.  The `pytorch/` directory is
+currently empty — tests for that format are skipped automatically when
+no fixture file is present.
 The files are committed to the repository because they are small enough
 (all under 6 MB) and stable enough to serve as reliable test inputs.
 
@@ -43,13 +43,13 @@ dependency is not installed or the file is absent.
 | `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
 | `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
 | `gguf/stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
-| `hdf5/` | HDF5 | *(no fixtures yet — add `.h5` or `.hdf5` files)* | — |
-| `keras/` | Keras | *(no fixtures yet — add `.keras` files)* | — |
-| `numpy/model_v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
-| `numpy/model_v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
-| `numpy/model_v3.npy` | NumPy v3.0 | Structured array with Unicode field `π_weights` | CC0-1.0 |
-| `numpy/model_bundle.npz` | NumPy NPZ | Archive with `weights` array (2 × 2 float32) | CC0-1.0 |
-| `onnx/encoder_model_q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
+| `hdf5/example-model.h5` | HDF5 (Keras legacy) | Sequential dense model — 1 input, 1 output | CC0-1.0 |
+| `keras/example-model.keras` | Keras v3 | Sequential dense model — 1 input, 1 output | CC0-1.0 |
+| `numpy/example-model-v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
+| `numpy/example-model-v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
+| `numpy/example-model-v3.npy` | NumPy v3.0 | Structured array with Unicode field `π_weights` | CC0-1.0 |
+| `numpy/example-model-bundle.npz` | NumPy NPZ | Archive with `weights` array (2 × 2 float32) | CC0-1.0 |
+| `onnx/encoder-model-q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
 | `onnx/gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
@@ -241,7 +241,63 @@ specifically for use in unit tests and similar lightweight scenarios).
 
 ---
 
-### numpy/model_bundle.npz
+### hdf5/example-model.h5
+
+| Property | Value |
+| :--- | :--- |
+| Format | HDF5 — legacy Keras v2 format (`.h5`) |
+| Magic bytes | `\x89HDF\r\n\x1a\n` (HDF5 signature) |
+| Architecture | Sequential: Dense(1, activation=linear) |
+| Input shape | `(None, 1)` — batch × 1 feature |
+| Output shape | `(None, 1)` — batch × 1 unit |
+| Size | 13 432 bytes (0.01 MB) |
+| SHA-256 | `37b3c4bbc8e17556dffa1283d877739459fc68fe2e8f266ad42125a3d5f2c7bf` |
+| License | CC0-1.0 |
+| Source | Generated for testing purposes |
+| Required library | `h5py` (`pip install pitloom[hdf5]`) |
+
+Notable metadata extracted by the HDF5 extractor:
+
+- `type_of_model` extracted from `model_config.class_name` (if present)
+- `version` extracted from `keras_version` root attribute (if present)
+- `name` extracted from `model_config.config.name` (if present)
+- Plain HDF5 files without Keras attributes return an empty metadata object
+  with `format=AiModelFormat.HDF5`
+
+---
+
+### keras/example-model.keras
+
+| Property | Value |
+| :--- | :--- |
+| Format | Keras v3 native format (`.keras`) — ZIP archive |
+| Keras version | 3.13.2 |
+| Architecture | Sequential: Dense(units=1, activation=linear) |
+| Input shape | `(None, 1)` — batch × 1 feature |
+| Size | 11 491 bytes (0.01 MB) |
+| SHA-256 | `c994685daebe6d18d0eb8bcce75dad004d1494b78247a44054ec81a918556e15` |
+| License | CC0-1.0 |
+| Source | Generated for testing purposes |
+| Required library | None (uses stdlib `zipfile` + `json`) |
+
+ZIP contents:
+
+- `metadata.json` — `keras_version`, `date_saved`
+- `config.json` — full model architecture (`class_name`, `config`, `build_config`)
+- `model.weights.h5` — weights in HDF5 (not read by the Keras extractor)
+
+Notable metadata extracted by the Keras extractor:
+
+- `version` = `"3.13.2"` (from `metadata.json keras_version`)
+- `type_of_model` = `"Sequential"` (from `config.json class_name`)
+- `name` = `"sequential_1"` (from `config.json config.name`)
+- `hyperparameters["trainable"]` = `True`
+- `inputs[0]["shape"]` = `[None, 1]` (from `config.json build_config.input_shape`)
+- `properties["date_saved"]` = save timestamp
+
+---
+
+### numpy/example-model-bundle.npz
 
 | Property | Value |
 | :--- | :--- |
@@ -263,7 +319,7 @@ Notable metadata extracted by the NumPy extractor:
 
 ---
 
-### numpy/model_v1.npy
+### numpy/example-model-v1.npy
 
 | Property | Value |
 | :--- | :--- |
@@ -286,7 +342,7 @@ Notable metadata extracted by the NumPy extractor:
 
 ---
 
-### numpy/model_v2.npy
+### numpy/example-model-v2.npy
 
 | Property | Value |
 | :--- | :--- |
@@ -310,7 +366,7 @@ Notable metadata extracted by the NumPy extractor:
 
 ---
 
-### numpy/model_v3.npy
+### numpy/example-model-v3.npy
 
 | Property | Value |
 | :--- | :--- |
@@ -336,7 +392,7 @@ Notable metadata extracted by the NumPy extractor:
 
 ---
 
-### onnx/encoder_model_q4f16.onnx
+### onnx/encoder-model-q4f16.onnx
 
 | Property | Value |
 | :--- | :--- |

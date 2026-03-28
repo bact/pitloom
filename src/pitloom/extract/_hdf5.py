@@ -2,7 +2,22 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""HDF5/Keras model metadata extractor."""
+"""Generic HDF5 model metadata extractor.
+
+HDF5 is a general-purpose hierarchical data format used by many frameworks.
+Historically, Keras (v1/v2) stored models in HDF5 with JSON-encoded
+``model_config``, ``training_config``, ``keras_version``, and ``backend``
+root attributes.  This extractor reads those attributes when present so that
+legacy Keras HDF5 files are enriched automatically.  The returned
+:attr:`~AiModelMetadata.format` is always :attr:`AiModelFormat.HDF5`.
+
+Native Keras v3 models use the ``.keras`` format (ZIP archive) and are
+handled by the separate :mod:`pitloom.extract._keras` extractor.
+
+References:
+    - https://docs.hdfgroup.org/hdf5/
+    - https://keras.io/api/saving/model_saving_and_loading/
+"""
 
 from __future__ import annotations
 
@@ -110,12 +125,12 @@ def _parse_training_config(raw: str) -> dict[str, str]:
 
 
 def read_hdf5(model_path: Path) -> AiModelMetadata:
-    """Extract metadata from an HDF5 model file, including Keras models.
+    """Extract metadata from a generic HDF5 file (``.h5`` or ``.hdf5``).
 
     Requires the ``h5py`` package (``pip install h5py``).
 
-    Keras saves models in HDF5 with JSON-encoded ``model_config`` and
-    ``training_config`` root attributes.  This extractor reads:
+    Reads root-level HDF5 attributes.  When the file was produced by Keras
+    v1/v2, the following optional attributes are also extracted:
 
     - ``model_config.class_name`` → :attr:`~AiModelMetadata.type_of_model`
     - ``model_config.config.name`` → :attr:`~AiModelMetadata.name`
@@ -123,6 +138,9 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
     - ``training_config`` (optimizer, loss, metrics) → properties
     - ``keras_version`` → :attr:`~AiModelMetadata.version`
     - ``backend`` → properties
+
+    For native Keras v3 (``.keras``) files use
+    :func:`pitloom.extract._keras.read_keras` instead.
 
     Args:
         model_path: Path to a ``.h5`` or ``.hdf5`` file.
@@ -182,9 +200,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             properties.update(training_props)
 
         if properties:
-            provenance["properties"] = (
-                f"{source} | Fields: training_config, keras_version, backend"
-            )
+            provenance["properties"] = f"{source} | Fields: HDF5 root attributes"
 
     return AiModelMetadata(
         format=AiModelFormat.HDF5,

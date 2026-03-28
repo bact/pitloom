@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for the HDF5/Keras metadata extractor (mocked and integration)."""
+"""Tests for the generic HDF5 metadata extractor (mocked and integration)."""
 
 # pylint: disable=missing-function-docstring
 # pylint: disable=redefined-outer-name
@@ -21,7 +21,7 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model import read_hdf5
 
 # ---------------------------------------------------------------------------
-# HDF5/Keras extractor (mocked)
+# HDF5 extractor (mocked) — generic HDF5 with optional Keras legacy attrs
 # ---------------------------------------------------------------------------
 
 _HDF5_DIR = Path(__file__).parent / "fixtures" / "hdf5"
@@ -183,19 +183,30 @@ def test_read_hdf5_no_keras_attrs(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — HDF5/Keras fixtures (hdf5/*.h5, *.hdf5)
+# Integration tests — HDF5 fixtures (hdf5/*.h5, *.hdf5)
 # Require: h5py installed AND fixture files present
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-def hdf5_fixture() -> Any:
+def fixture_hdf5() -> Any:
     pytest.importorskip("h5py")
-    h5_files = list(_HDF5_DIR.glob("*.h5")) + list(_HDF5_DIR.glob("*.hdf5"))
-    if not h5_files:
-        pytest.skip("No .h5/.hdf5 fixture files found in tests/fixtures/hdf5/")
-    return read_hdf5(h5_files[0])
+    path = _HDF5_DIR / "example-model.h5"
+    if not path.exists():
+        pytest.skip(f"Fixture not found: {path}")
+    return read_hdf5(path)
 
 
-def test_hdf5_fixture_format(hdf5_fixture: Any) -> None:
-    assert hdf5_fixture.format == AiModelFormat.HDF5
+def test_hdf5_fixture_format(fixture_hdf5: Any) -> None:
+    assert fixture_hdf5.format == AiModelFormat.HDF5
+
+
+def test_hdf5_fixture_has_version(fixture_hdf5: Any) -> None:
+    # Legacy Keras HDF5 files carry keras_version; plain HDF5 may not.
+    if fixture_hdf5.version is not None:
+        assert isinstance(fixture_hdf5.version, str)
+
+
+def test_hdf5_fixture_type_of_model(fixture_hdf5: Any) -> None:
+    if fixture_hdf5.type_of_model is not None:
+        assert isinstance(fixture_hdf5.type_of_model, str)
