@@ -12,6 +12,7 @@ from typing import Any
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
+from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import (
     _deduplicate_creation_infos,
     _deduplicate_named_elements,
@@ -360,12 +361,17 @@ name = "ordering-test"
 version = "1.0.0"
 dependencies = ["requests>=2.28.0"]
 """
+    # Fixed timestamp so two calls with identical inputs produce identical output.
+    # Without this, datetime.now() is called on each invocation and the
+    # CreationInfo.created field would differ between runs.
+    fixed_ci = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json_1 = generate_sbom(tmppath)
-        sbom_json_2 = generate_sbom(tmppath)
+        sbom_json_1 = generate_sbom(tmppath, creation_info=fixed_ci)
+        sbom_json_2 = generate_sbom(tmppath, creation_info=fixed_ci)
 
         # Determinism: two calls with identical inputs must produce identical output
         assert sbom_json_1 == sbom_json_2, (

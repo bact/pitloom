@@ -11,6 +11,7 @@ import json
 from collections import defaultdict
 from typing import Any
 
+import rfc8785
 from spdx_python_model import v3_0_1 as spdx3
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
@@ -27,16 +28,20 @@ _GRAPH_TYPE_PRIORITY: dict[str, int] = {
 }
 
 
-def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str]:
+def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
     """Return a deterministic sort key for a @graph element.
 
     Primary key: type-priority tier (see _GRAPH_TYPE_PRIORITY).
     Secondary key: spdxId or @id, lexicographic — puts root Package-1 before
     Package-2, etc., and gives stable order within every other type.
+    Tertiary key: JCS canonical form of the element, used only when two
+    elements share the same priority and identifier (e.g. conflicting
+    duplicates retained by :func:`_deduplicate_named_elements`).
     """
     priority = _GRAPH_TYPE_PRIORITY.get(element.get("type", ""), 4)
     node_id = element.get("spdxId") or element.get("@id") or ""
-    return (priority, node_id)
+    content_key = rfc8785.dumps(element).decode("utf-8")
+    return (priority, node_id, content_key)
 
 
 def _creation_info_fingerprint(element: dict[str, Any]) -> tuple[str, ...]:
@@ -66,7 +71,7 @@ def _deduplicate_creation_infos(
     object set, each fragment may contribute its own CreationInfo blank node
     carrying identical data.  Keeping only one canonical node per unique
     content fingerprint eliminates redundancy and is a prerequisite for
-    byte-for-byte reproducibility.
+    reproducibility.
 
     Returns a new graph list with duplicates removed and all intra-document
     references to removed nodes redirected to the surviving canonical node.
@@ -114,10 +119,10 @@ def _deduplicate_named_elements(
     When SPDX fragments are merged, the same named element (e.g. a shared
     licence text or a common dependency package) may appear more than once
     with an identical spdxId.  An element is removed only when every field
-    of every copy is byte-for-byte identical to the first copy seen — the
-    100 % certainty threshold.  If any two copies with the same spdxId differ
-    in even one field, all copies are retained unchanged so that no data is
-    silently lost.
+    of every copy is semantically identical to the first copy seen (deep
+    JSON-object equality, key-ordering-independent) — the 100 % certainty
+    threshold.  If any two copies with the same spdxId differ in even one
+    field, all copies are retained unchanged so that no data is silently lost.
 
     Blank nodes (CreationInfo, which uses ``@id`` instead of ``spdxId``) are
     handled separately by :func:`_deduplicate_creation_infos` and are passed
@@ -234,9 +239,11 @@ class Spdx3JsonExporter:
         """Export to JSON-LD string.
 
         Args:
-            pretty: If True, indent output with 2 spaces for human readability.
-                    If False (default), produce compact output with no extra
-                    whitespace, suitable for machine consumption and PEP 770
+            pretty: If True, indent output with 2 spaces for human readability,
+                    with keys sorted alphabetically within each object.
+                    If False (default), produce RFC 8785 (JCS) canonical output:
+                    compact, no extra whitespace, keys lexicographically sorted —
+                    suitable for machine consumption, hashing, and PEP 770
                     wheel embedding.
 
         Returns:
@@ -251,8 +258,8 @@ class Spdx3JsonExporter:
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
             data["@graph"].sort(key=_graph_sort_key)
         if pretty:
-            return json.dumps(data, indent=2, ensure_ascii=False)
-        return json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+            return json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False)
+        return rfc8785.dumps(data).decode("utf-8")
 
     def to_file(self, file_path: str, pretty: bool = False) -> None:
         """Export to JSON-LD file.
@@ -260,7 +267,7 @@ class Spdx3JsonExporter:
         Args:
             file_path: Path to write the JSON-LD file
             pretty: If True, indent output with 2 spaces for human readability.
-                    If False (default), produce compact output.
+                    If False (default), produce RFC 8785 (JCS) canonical output.
         """
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(self.to_json(pretty=pretty))
