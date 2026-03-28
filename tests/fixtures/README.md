@@ -14,8 +14,11 @@ build hook (`pitloom.plugins.hatch`).  See
 
 ## AI model fixtures
 
-The `fasttext/`, `gguf/`, `onnx/`, and `safetensors/` subdirectories contain
-small AI model files used as integration test fixtures.
+The `fasttext/`, `gguf/`, `hdf5/`, `numpy/`, `onnx/`, `pytorch/`, and
+`safetensors/` subdirectories contain small AI model files used as
+integration test fixtures.  The `hdf5/`, `numpy/`, and `pytorch/`
+directories are currently empty — tests for those formats are skipped
+automatically when no fixture file is present.
 The files are committed to the repository because they are small enough
 (all under 6 MB) and stable enough to serve as reliable test inputs.
 
@@ -34,7 +37,11 @@ dependency is not installed or the file is absent.
 
 | Path | Format | Task | License |
 | :--- | :--- | :--- | :--- |
+| `fasttext/lid.176.ftz` | fastText | Language identification | CC-BY-SA-3.0 |
 | `fasttext/sentimentdemo.bin` | fastText | Text sentiment classification | CC0-1.0 |
+| `hdf5/` | HDF5/Keras | *(no fixtures yet — add `.h5` or `.hdf5` files)* | — |
+| `numpy/` | NumPy | *(no fixtures yet — add `.npy` or `.npz` files)* | — |
+| `pytorch/` | PyTorch | *(no fixtures yet — add `.pt`, `.pth`, or `.pt2` files)* | — |
 | `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
 | `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
 | `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
@@ -52,6 +59,32 @@ dependency is not installed or the file is absent.
 
 ## File details
 
+### fasttext/lid.176.ftz
+
+| Property | Value |
+| :--- | :--- |
+| Format | fastText quantised (`ftz`) |
+| Architecture | Supervised text classifier — 176-class language identification |
+| Task | Language identification (176 languages) |
+| Embedding dim | 16 |
+| Labels | 176 ISO language codes (e.g. `__label__en`, `__label__de`, …) |
+| Training | epoch=5, lr=0.05, wordNgrams=1, loss=hs |
+| n-gram range | minn=2, maxn=4 |
+| Size | 938 013 bytes (0.89 MB) |
+| SHA-256 | `8f3472cfe8738a7b6099e8e999c3cbfae0dcd15696aac7d7738a8039db603e83` |
+| License | CC-BY-SA-3.0 |
+| Source | <https://fasttext.cc/docs/en/language-identification.html> (`lid.176.ftz`) |
+| Required library | `fasttext` (`pip install pitloom[fasttext]`) |
+
+Notable metadata extracted by the fastText extractor:
+
+- `type_of_model` = `"supervised"` (from `args.model`)
+- `hyperparameters`: `dim=16`, `lr=0.05`, `epoch=5`, `wordNgrams=1`,
+  `minCount=1000`, `minn=2`, `maxn=4`, `neg=5`, `bucket=2000000`, `ws=5`
+- `properties["lossName"]` = `"hs"` (hierarchical softmax)
+- `properties["labels"]` contains 176 comma-separated language codes
+- `name`, `description`, `version` are all `None`
+
 ### fasttext/sentimentdemo.bin
 
 | Property | Value |
@@ -66,6 +99,7 @@ dependency is not installed or the file is absent.
 | Size | 96 339 bytes (0.09 MB) |
 | SHA-256 | `a88bf0de7dff74d740cd45048521d319ff7c2560085f2604af265561e72ec4bc` |
 | License | CC0-1.0 |
+| Source | <https://github.com/bact/sentimentdemo> (`model.bin`) |
 | Required library | `fasttext` (`pip install pitloom[fasttext]`) |
 
 Notable metadata extracted by the fastText extractor:

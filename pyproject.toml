@@ -50,13 +50,19 @@ dependencies = [
 [project.optional-dependencies]
 aimodel = [
     "fasttext>=0.9.3",
+    "fickling>=0.0.9",
+    "gguf>=0.10.0",
+    "h5py>=3.0.0",
+    "numpy>=1.24.0",
     "onnx>=1.14.1",
     "safetensors[numpy]>=0.4.0",
-    "gguf>=0.10.0",
 ]
 fasttext = ["fasttext>=0.9.3"]
 gguf = ["gguf>=0.10.0"]
+hdf5 = ["h5py>=3.0.0"]
+numpy = ["numpy>=1.24.0"]
 onnx = ["onnx>=1.14.1"]
+pytorch = ["fickling>=0.0.9"]
 safetensors = ["safetensors[numpy]>=0.4.0"]
 
 [dependency-groups]
@@ -97,7 +103,14 @@ exclude = [
     "tests/fixtures/fasttext/*.bin",
     "tests/fixtures/fasttext/*.ftz",
     "tests/fixtures/gguf/*.gguf",
+    "tests/fixtures/hdf5/*.h5",
+    "tests/fixtures/hdf5/*.hdf5",
+    "tests/fixtures/numpy/*.npy",
+    "tests/fixtures/numpy/*.npz",
     "tests/fixtures/onnx/*.onnx",
+    "tests/fixtures/pytorch/*.pt",
+    "tests/fixtures/pytorch/*.pt2",
+    "tests/fixtures/pytorch/*.pth",
     "tests/fixtures/safetensors/*.safetensors",
 ]
 
@@ -118,6 +131,14 @@ show_error_context = true
 strict = true
 strict_equality_for_none = true
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = "fickling.*"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = "h5py.*"
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true

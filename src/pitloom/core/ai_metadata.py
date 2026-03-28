@@ -22,7 +22,11 @@ class AiModelFormat(str, Enum):
     UNKNOWN = "unknown"
     FASTTEXT = "fasttext"
     GGUF = "gguf"
+    HDF5 = "hdf5"
+    NUMPY = "numpy"
     ONNX = "onnx"
+    PYTORCH = "pytorch"
+    PYTORCH_PT2 = "pytorch_pt2"
     SAFETENSORS = "safetensors"
 
 
