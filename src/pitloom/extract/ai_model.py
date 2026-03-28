@@ -53,92 +53,35 @@ __all__ = [
 
 @dataclass(frozen=True)
 class FormatInfo:
-    """Describes a supported AI model file format.
+    """Associates an :class:`AiModelFormat` with its metadata reader function.
 
-    This is the single source of truth for format detection and dispatch.
-    The :data:`REGISTRY` tuple collects one :class:`FormatInfo` per format.
+    Format identification metadata (extensions, magic bytes) lives on the
+    :class:`AiModelFormat` enum member itself.  :class:`FormatInfo` only
+    registers the reader/extractor for a given format.
 
     Attributes:
         format: The :class:`~pitloom.core.ai_metadata.AiModelFormat` value.
-        extensions: File extensions (lowercase, with leading dot) that
-            unambiguously identify this format and are used as the
-            extension-fallback detection step.  Extensions shared across
-            formats (e.g. ``.bin``) are omitted here; those files are
-            detected by magic bytes instead.
-        magic: Fixed magic-byte prefix at byte offset 0, or ``None`` when
-            the format has no fixed file-level signature (ONNX, Safetensors,
-            NumPy ``.npz``, PyTorch ``.pt``/``.pth``/``.pt2``).
         reader: Callable that extracts :class:`AiModelMetadata` from a file
             of this format, or ``None`` if no reader is registered yet.
     """
 
     format: AiModelFormat
-    extensions: tuple[str, ...]
-    magic: bytes | None = None
     reader: Callable[[Path], AiModelMetadata] | None = None
 
 
 # Registry of all supported AI model formats — ordered alphabetically by name.
-#
-# Notes on detection:
-# - fastText .bin files are detected by magic; .ftz is fastText-specific extension.
-#   .bin is excluded from extensions: it is too generic (word2vec, BERT vocab, …).
-# - NumPy .npy has magic b'\x93NUMPY'; .npz is a ZIP archive with no NumPy magic
-#   and is detected by extension fallback.
-# - PT2 Archive (.pt2) and classic PyTorch (.pt/.pth) are both ZIP archives;
-#   ZIP magic b'PK\x03\x04' is shared with other formats, so detection falls
-#   back to extension.
-# - Safetensors has no fixed magic: it uses an 8-byte LE uint64 header-size
-#   followed by an opening '{'.  This heuristic lives in _match_magic.
+# Format identification metadata (extensions, magic bytes) is on AiModelFormat.
+# Safetensors has no fixed magic: it uses an 8-byte LE uint64 header-size
+# followed by an opening '{'; this heuristic lives in _match_magic.
 REGISTRY: tuple[FormatInfo, ...] = (
-    FormatInfo(
-        format=AiModelFormat.FASTTEXT,
-        extensions=(".ftz",),
-        magic=b"\xba\x16\x4f\x2f",
-        reader=read_fasttext,
-    ),
-    FormatInfo(
-        format=AiModelFormat.GGUF,
-        extensions=(".gguf",),
-        magic=b"GGUF",
-        reader=read_gguf,
-    ),
-    FormatInfo(
-        format=AiModelFormat.HDF5,
-        extensions=(".h5", ".hdf5"),
-        magic=b"\x89HDF\r\n\x1a\n",
-        reader=read_hdf5,
-    ),
-    FormatInfo(
-        format=AiModelFormat.NUMPY,
-        extensions=(".npy", ".npz"),
-        magic=b"\x93NUMPY",
-        reader=read_numpy,
-    ),
-    FormatInfo(
-        format=AiModelFormat.ONNX,
-        extensions=(".onnx",),
-        magic=None,
-        reader=read_onnx,
-    ),
-    FormatInfo(
-        format=AiModelFormat.PYTORCH,
-        extensions=(".pt", ".pth"),
-        magic=None,
-        reader=read_pytorch,
-    ),
-    FormatInfo(
-        format=AiModelFormat.PYTORCH_PT2,
-        extensions=(".pt2",),
-        magic=None,
-        reader=read_pytorch_pt2,
-    ),
-    FormatInfo(
-        format=AiModelFormat.SAFETENSORS,
-        extensions=(".safetensors",),
-        magic=None,
-        reader=read_safetensors,
-    ),
+    FormatInfo(format=AiModelFormat.FASTTEXT, reader=read_fasttext),
+    FormatInfo(format=AiModelFormat.GGUF, reader=read_gguf),
+    FormatInfo(format=AiModelFormat.HDF5, reader=read_hdf5),
+    FormatInfo(format=AiModelFormat.NUMPY, reader=read_numpy),
+    FormatInfo(format=AiModelFormat.ONNX, reader=read_onnx),
+    FormatInfo(format=AiModelFormat.PYTORCH, reader=read_pytorch),
+    FormatInfo(format=AiModelFormat.PYTORCH_PT2, reader=read_pytorch_pt2),
+    FormatInfo(format=AiModelFormat.SAFETENSORS, reader=read_safetensors),
 )
 
 # Safetensors header JSON is bounded in practice; 100 MB is a generous upper limit.
@@ -146,9 +89,9 @@ _SAFETENSORS_MAX_HEADER: int = 100_000_000
 # Number of bytes needed to run all magic checks (8-byte HDF5 + 1 for Safetensors).
 _SNIFF_BYTES: int = 9
 
-# Derived lookups built from REGISTRY — do not edit these directly.
+# Derived lookups — built from AiModelFormat enum members and REGISTRY.
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
-    ext: info.format for info in REGISTRY for ext in info.extensions
+    ext: fmt for fmt in AiModelFormat for ext in fmt.extensions
 }
 _READERS: dict[AiModelFormat, Callable[[Path], AiModelMetadata]] = {
     info.format: info.reader for info in REGISTRY if info.reader is not None
@@ -158,8 +101,8 @@ _READERS: dict[AiModelFormat, Callable[[Path], AiModelMetadata]] = {
 def _match_magic(header: bytes) -> AiModelFormat:
     """Match *header* bytes against known magic signatures.
 
-    Checks fixed prefixes from :data:`REGISTRY` first, then applies the
-    Safetensors heuristic (no fixed magic).
+    Checks fixed prefixes from :class:`AiModelFormat` members first, then
+    applies the Safetensors heuristic (no fixed magic).
 
     Args:
         header: The first :data:`_SNIFF_BYTES` bytes of a file.
@@ -167,11 +110,11 @@ def _match_magic(header: bytes) -> AiModelFormat:
     Returns:
         Detected :class:`AiModelFormat`, or :attr:`AiModelFormat.UNKNOWN`.
     """
-    for info in REGISTRY:
-        if info.magic is not None:
-            n = len(info.magic)
-            if len(header) >= n and header[:n] == info.magic:
-                return info.format
+    for fmt in AiModelFormat:
+        if fmt.magic is not None:
+            n = len(fmt.magic)
+            if len(header) >= n and header[:n] == fmt.magic:
+                return fmt
 
     # Safetensors: 8-byte LE uint64 header size, then JSON opening brace.
     if len(header) >= 9:
@@ -203,13 +146,12 @@ def detect_ai_model_format(model_path: Path) -> AiModelFormat:
     Detection strategy (in order):
 
     1. **Magic bytes** — if *model_path* is an existing file, read the first
-       :data:`_SNIFF_BYTES` bytes and match known signatures via
-       :data:`REGISTRY`.  This is reliable even when the file extension is
-       wrong or absent.
+       :data:`_SNIFF_BYTES` bytes and match known signatures from
+       :class:`AiModelFormat` members.  This is reliable even when the file
+       extension is wrong or absent.
     2. **File extension** — fall back to a case-insensitive extension lookup
-       derived from :data:`REGISTRY` for formats without a fixed magic
-       signature (ONNX, PyTorch, Safetensors, NumPy ``.npz``) and for paths
-       that are not yet accessible on disk.
+       for formats without a fixed magic signature (ONNX, PyTorch, Safetensors,
+       NumPy ``.npz``) and for paths that are not yet accessible on disk.
 
     Args:
         model_path: Path to the model file.
