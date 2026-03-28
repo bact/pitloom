@@ -222,7 +222,7 @@ def test_pretty_output_is_not_jcs_canonical() -> None:
 
 def _first_diff(a: str, b: str) -> int:
     """Return the index of the first character where strings a and b differ."""
-    for i, (ca, cb) in enumerate(zip(a, b)):
+    for i, (ca, cb) in enumerate(zip(a, b, strict=False)):
         if ca != cb:
             return i
     return min(len(a), len(b))
