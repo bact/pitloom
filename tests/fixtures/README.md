@@ -39,21 +39,22 @@ dependency is not installed or the file is absent.
 | :--- | :--- | :--- | :--- |
 | `fasttext/lid.176.ftz` | fastText | Language identification | CC-BY-SA-3.0 |
 | `fasttext/sentimentdemo.bin` | fastText | Text sentiment classification | CC0-1.0 |
-| `hdf5/` | HDF5/Keras | *(no fixtures yet — add `.h5` or `.hdf5` files)* | — |
-| `numpy/model_v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
-| `numpy/model_v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
-| `numpy/model_v3.npy` | NumPy v3.0 | Structured array with Unicode field `π_weights` | CC0-1.0 |
-| `numpy/model_bundle.npz` | NumPy NPZ | Archive with `weights` array (2 × 2 float32) | CC0-1.0 |
-| `pytorch/` | PyTorch | *(no fixtures yet — add `.pt`, `.pth`, or `.pt2` files)* | — |
 | `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
 | `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
 | `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
 | `gguf/stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
+| `hdf5/` | HDF5 | *(no fixtures yet — add `.h5` or `.hdf5` files)* | — |
+| `keras/` | Keras | *(no fixtures yet — add `.keras` files)* | — |
+| `numpy/model_v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
+| `numpy/model_v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
+| `numpy/model_v3.npy` | NumPy v3.0 | Structured array with Unicode field `π_weights` | CC0-1.0 |
+| `numpy/model_bundle.npz` | NumPy NPZ | Archive with `weights` array (2 × 2 float32) | CC0-1.0 |
 | `onnx/encoder_model_q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
 | `onnx/gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
 | `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
+| `pytorch/` | PyTorch | *(no fixtures yet — add `.pt`, `.pth`, or `.pt2` files)* | — |
 | `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
 | `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
 | `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
@@ -61,98 +62,6 @@ dependency is not installed or the file is absent.
 | `safetensors/whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
 
 ## File details
-
-### numpy/model_v1.npy
-
-| Property | Value |
-| :--- | :--- |
-| Format | NumPy v1.0 (`.npy`) |
-| NPY version | 1.0 — 2-byte LE uint16 header length, latin1 header encoding |
-| Shape | `(2, 2)` |
-| dtype | `float32` |
-| Data | `[[1.0, 2.0], [3.0, 4.0]]` |
-| Size | 144 bytes |
-| SHA-256 | `e8072b61f5d81a3cc4dc59b9d5e14187b20b5d8a3ddd8e6d0bc5128bda5f27aa` |
-| License | CC0-1.0 |
-| Required library | `numpy` (`pip install pitloom[numpy]`) |
-
-Notable metadata extracted by the NumPy extractor:
-
-- `properties["npy_format_version"]` = `"1.0"`
-- `properties["header_encoding"]` = `"latin1"`
-- `inputs[0]` = `{"shape": [2, 2], "dtype": "float32"}`
-- `name`, `description`, `version` are all `None`
-
----
-
-### numpy/model_v2.npy
-
-| Property | Value |
-| :--- | :--- |
-| Format | NumPy v2.0 (`.npy`) |
-| NPY version | 2.0 — 4-byte LE uint32 header length, latin1 header encoding |
-| Shape | `(2, 2)` |
-| dtype | `float32` |
-| Data | `[[1.0, 2.0], [3.0, 4.0]]` |
-| Size | 144 bytes |
-| SHA-256 | `f133b24fb6c1a4cd7dff975636fdc2d93616bb40afa0e2e6ce59e4bbf34e18e1` |
-| License | CC0-1.0 |
-| Required library | `numpy` (`pip install pitloom[numpy]`) |
-
-Notable metadata extracted by the NumPy extractor:
-
-- `properties["npy_format_version"]` = `"2.0"`
-- `properties["header_encoding"]` = `"latin1"`
-- `inputs[0]` = `{"shape": [2, 2], "dtype": "float32"}`
-- `name`, `description`, `version` are all `None`
-
----
-
-### numpy/model_v3.npy
-
-| Property | Value |
-| :--- | :--- |
-| Format | NumPy v3.0 (`.npy`) |
-| NPY version | 3.0 — 4-byte LE uint32 header length, UTF-8 header encoding |
-| Shape | `(2,)` |
-| dtype | `[('π_weights', '<f4', (2,))]` (structured dtype with Unicode field name) |
-| Data | `[([1., 2.],), ([3., 4.],)]` |
-| Size | 144 bytes |
-| SHA-256 | `8cd3ec2addd4446899352d1408a4849762e4d453d584c56e375216fce3344dd8` |
-| License | CC0-1.0 |
-| Required library | `numpy` (`pip install pitloom[numpy]`) |
-
-Notable metadata extracted by the NumPy extractor:
-
-- `properties["npy_format_version"]` = `"3.0"`
-- `properties["header_encoding"]` = `"utf-8"` — required for the Unicode field
-  name `π_weights` (Greek letter π); version 1.x/2.x latin1 encoding would
-  reject this header
-- `inputs[0]["dtype"]` contains `"π_weights"` — confirms UTF-8 round-trip
-- `name`, `description`, `version` are all `None`
-
----
-
-### numpy/model_bundle.npz
-
-| Property | Value |
-| :--- | :--- |
-| Format | NumPy NPZ archive (`.npz`) |
-| Arrays | 1: `weights` — shape `(2, 2)`, dtype `float32` |
-| Data | `weights`: `[[1.0, 2.0], [3.0, 4.0]]` |
-| Size | 284 bytes |
-| SHA-256 | `dc19291ff85cbe795eba48c2c84bd31cf32263b3219bc53a97128467070ae3b5` |
-| License | CC0-1.0 |
-| Required library | `numpy` (`pip install pitloom[numpy]`) |
-
-Notable metadata extracted by the NumPy extractor:
-
-- `inputs` lists 1 array: `{"name": "weights", "shape": [2, 2], "dtype": "float32"}`
-- `properties` does not contain `npy_format_version` — NPZ archives do not
-  expose a per-file NPY version at the archive level
-- `name`, `description`, `version` are all `None`
-
----
 
 ### fasttext/lid.176.ftz
 
@@ -329,6 +238,101 @@ Notable metadata extracted by the GGUF extractor:
 
 The model is intentionally tiny (added to the tinyllamas collection
 specifically for use in unit tests and similar lightweight scenarios).
+
+---
+
+### numpy/model_bundle.npz
+
+| Property | Value |
+| :--- | :--- |
+| Format | NumPy NPZ archive (`.npz`) |
+| Arrays | 1: `weights` — shape `(2, 2)`, dtype `float32` |
+| Data | `weights`: `[[1.0, 2.0], [3.0, 4.0]]` |
+| Size | 284 bytes |
+| SHA-256 | `dc19291ff85cbe795eba48c2c84bd31cf32263b3219bc53a97128467070ae3b5` |
+| License | CC0-1.0 |
+| Source | Generated for testing purpose |
+| Required library | `numpy` (`pip install pitloom[numpy]`) |
+
+Notable metadata extracted by the NumPy extractor:
+
+- `inputs` lists 1 array: `{"name": "weights", "shape": [2, 2], "dtype": "float32"}`
+- `properties` does not contain `npy_format_version` — NPZ archives do not
+  expose a per-file NPY version at the archive level
+- `name`, `description`, `version` are all `None`
+
+---
+
+### numpy/model_v1.npy
+
+| Property | Value |
+| :--- | :--- |
+| Format | NumPy v1.0 (`.npy`) |
+| NPY version | 1.0 — 2-byte LE uint16 header length, latin1 header encoding |
+| Shape | `(2, 2)` |
+| dtype | `float32` |
+| Data | `[[1.0, 2.0], [3.0, 4.0]]` |
+| Size | 144 bytes |
+| SHA-256 | `e8072b61f5d81a3cc4dc59b9d5e14187b20b5d8a3ddd8e6d0bc5128bda5f27aa` |
+| License | CC0-1.0 |
+| Required library | `numpy` (`pip install pitloom[numpy]`) |
+
+Notable metadata extracted by the NumPy extractor:
+
+- `properties["npy_format_version"]` = `"1.0"`
+- `properties["header_encoding"]` = `"latin1"`
+- `inputs[0]` = `{"shape": [2, 2], "dtype": "float32"}`
+- `name`, `description`, `version` are all `None`
+
+---
+
+### numpy/model_v2.npy
+
+| Property | Value |
+| :--- | :--- |
+| Format | NumPy v2.0 (`.npy`) |
+| NPY version | 2.0 — 4-byte LE uint32 header length, latin1 header encoding |
+| Shape | `(2, 2)` |
+| dtype | `float32` |
+| Data | `[[1.0, 2.0], [3.0, 4.0]]` |
+| Size | 144 bytes |
+| SHA-256 | `f133b24fb6c1a4cd7dff975636fdc2d93616bb40afa0e2e6ce59e4bbf34e18e1` |
+| License | CC0-1.0 |
+| Source | Generated for testing purpose |
+| Required library | `numpy` (`pip install pitloom[numpy]`) |
+
+Notable metadata extracted by the NumPy extractor:
+
+- `properties["npy_format_version"]` = `"2.0"`
+- `properties["header_encoding"]` = `"latin1"`
+- `inputs[0]` = `{"shape": [2, 2], "dtype": "float32"}`
+- `name`, `description`, `version` are all `None`
+
+---
+
+### numpy/model_v3.npy
+
+| Property | Value |
+| :--- | :--- |
+| Format | NumPy v3.0 (`.npy`) |
+| NPY version | 3.0 — 4-byte LE uint32 header length, UTF-8 header encoding |
+| Shape | `(2,)` |
+| dtype | `[('π_weights', '<f4', (2,))]` (structured dtype with Unicode field name) |
+| Data | `[([1., 2.],), ([3., 4.],)]` |
+| Size | 144 bytes |
+| SHA-256 | `8cd3ec2addd4446899352d1408a4849762e4d453d584c56e375216fce3344dd8` |
+| License | CC0-1.0 |
+| Source | Generated for testing purpose |
+| Required library | `numpy` (`pip install pitloom[numpy]`) |
+
+Notable metadata extracted by the NumPy extractor:
+
+- `properties["npy_format_version"]` = `"3.0"`
+- `properties["header_encoding"]` = `"utf-8"` — required for the Unicode field
+  name `π_weights` (Greek letter π); version 1.x/2.x latin1 encoding would
+  reject this header
+- `inputs[0]["dtype"]` contains `"π_weights"` — confirms UTF-8 round-trip
+- `name`, `description`, `version` are all `None`
 
 ---
 
