@@ -4,8 +4,9 @@
 
 """Extractor for model metadata from AI model files.
 
-Supports GGUF, ONNX, and Safetensors formats via optional dependencies.
+Supports fastText, GGUF, ONNX, and Safetensors formats via optional dependencies.
 
+    pip install pitloom[fasttext]    # for fastText support
     pip install pitloom[gguf]        # for GGUF support
     pip install pitloom[onnx]        # for ONNX support
     pip install pitloom[safetensors] # for Safetensors support
@@ -24,31 +25,88 @@ __all__ = [
     "AiModelMetadata",
     "detect_ai_model_format",
     "read_ai_model",
+    "read_fasttext",
     "read_gguf",
     "read_onnx",
     "read_safetensors",
 ]
 
-# File extension to format mapping
+# File extension to format mapping — used as fallback when magic bytes are absent
+# or the file is not yet accessible (e.g. path objects before file creation).
+# .bin is intentionally excluded: it is too generic (word2vec, BERT vocab, …).
+# fastText .bin files are detected by magic bytes; .ftz is fastText-specific.
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
+    ".ftz": AiModelFormat.FASTTEXT,
     ".gguf": AiModelFormat.GGUF,
     ".onnx": AiModelFormat.ONNX,
     ".safetensors": AiModelFormat.SAFETENSORS,
 }
 
+# Magic-byte signatures read from the first few bytes of the file.
+# fastText: little-endian int32 constant FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314
+#   → int.from_bytes(b'\xba\x16\x4f\x2f', 'little') == 793712314
+# GGUF: 4-byte ASCII magic at offset 0
+# Safetensors: no fixed signature, but the first 8 bytes are a little-endian
+#   uint64 header-JSON length, and byte 9 is always the opening '{' of that JSON.
+_FASTTEXT_MAGIC: bytes = b"\xba\x16\x4f\x2f"
+_GGUF_MAGIC: bytes = b"GGUF"
+# Safetensors header JSON is bounded in practice; 100 MB is a generous upper limit.
+_SAFETENSORS_MAX_HEADER: int = 100_000_000
+# Number of bytes needed to run all magic checks (8-byte Safetensors size + 1).
+_SNIFF_BYTES: int = 9
+
+
+def _sniff_format(model_path: Path) -> AiModelFormat:
+    """Return the format detected from the first few bytes of *model_path*.
+
+    Reads at most :data:`_SNIFF_BYTES` bytes.  Returns
+    :attr:`AiModelFormat.UNKNOWN` on any I/O error or unrecognised signature.
+    """
+    try:
+        with model_path.open("rb") as fh:
+            header = fh.read(_SNIFF_BYTES)
+    except OSError:
+        return AiModelFormat.UNKNOWN
+
+    if len(header) >= 4 and header[:4] == _GGUF_MAGIC:
+        return AiModelFormat.GGUF
+
+    if len(header) >= 4 and header[:4] == _FASTTEXT_MAGIC:
+        return AiModelFormat.FASTTEXT
+
+    # Safetensors: 8-byte LE uint64 header size, then JSON opening brace.
+    if len(header) >= 9:
+        header_size = int.from_bytes(header[:8], byteorder="little")
+        if 0 < header_size < _SAFETENSORS_MAX_HEADER and header[8:9] == b"{":
+            return AiModelFormat.SAFETENSORS
+
+    return AiModelFormat.UNKNOWN
+
 
 def detect_ai_model_format(model_path: Path) -> AiModelFormat:
-    """Detect model file format from its extension.
+    """Detect the format of an AI model file.
 
-    The detection is based on the file extension (case-insensitive).
-    If the extension is not recognized, ModelFormat.UNKNOWN is returned.
+    Detection strategy (in order):
+
+    1. **Magic bytes** — if *model_path* is an existing file, read the first
+       :data:`_SNIFF_BYTES` bytes and match known signatures (GGUF, fastText,
+       Safetensors).  This is reliable even when the file extension is wrong or
+       absent.
+    2. **File extension** — fall back to a case-insensitive extension lookup
+       for formats without a file-level magic signature (ONNX) and for paths
+       that are not yet accessible on disk.
 
     Args:
         model_path: Path to the model file.
 
     Returns:
-        ModelFormat matching the file extension, or ModelFormat.UNKNOWN.
+        Detected :class:`AiModelFormat`, or :attr:`AiModelFormat.UNKNOWN`.
     """
+    if model_path.is_file():
+        fmt = _sniff_format(model_path)
+        if fmt != AiModelFormat.UNKNOWN:
+            return fmt
+
     return _EXTENSION_TO_FORMAT.get(model_path.suffix.lower(), AiModelFormat.UNKNOWN)
 
 
@@ -70,6 +128,8 @@ def read_ai_model(model_path: Path) -> AiModelMetadata:
 
     fmt = detect_ai_model_format(model_path)
 
+    if fmt == AiModelFormat.FASTTEXT:
+        return read_fasttext(model_path)
     if fmt == AiModelFormat.GGUF:
         return read_gguf(model_path)
     if fmt == AiModelFormat.ONNX:
@@ -80,6 +140,128 @@ def read_ai_model(model_path: Path) -> AiModelMetadata:
     raise ValueError(
         f"Unsupported model format for file: {model_path}. "
         f"Supported extensions: {', '.join(_EXTENSION_TO_FORMAT)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# fastText extractor
+# ---------------------------------------------------------------------------
+
+# Maps Args attribute names (from model.f.getArgs()) to hyperparameter keys.
+# The Python fasttext package exposes training configuration via the C++
+# binding at model.f.getArgs(), not via individual get_*() methods on the
+# model object.  model.get_dimension() is the only training param available
+# directly on the model; it mirrors args.dim.
+_FASTTEXT_ARGS_HYPERPARAMS: tuple[tuple[str, str], ...] = (
+    ("dim", "dim"),
+    ("lr", "lr"),
+    ("epoch", "epoch"),
+    ("wordNgrams", "wordNgrams"),
+    ("minCount", "minCount"),
+    ("minCountLabel", "minCountLabel"),
+    ("minn", "minn"),
+    ("maxn", "maxn"),
+    ("neg", "neg"),
+    ("bucket", "bucket"),
+    ("ws", "ws"),
+)
+
+
+def read_fasttext(model_path: Path) -> AiModelMetadata:
+    """Extract metadata from a fastText binary model file.
+
+    Requires the ``fasttext`` package (``pip install fasttext``).
+
+    fastText binary models (``.bin``) and quantised models (``.ftz``) store
+    their training configuration in an Args struct accessible via the C++
+    binding at ``model.f.getArgs()``.  This extractor reads all available
+    training hyperparameters and maps them to the SPDX 3 AI profile
+    ``hyperparameter`` field.  The model type (``skipgram``, ``cbow``, or
+    ``supervised``) is mapped to ``type_of_model``.
+
+    Extracted hyperparameters: dim, lr, epoch, wordNgrams, minCount,
+    minCountLabel, minn, maxn, neg, bucket, ws (window size).
+
+    Args:
+        model_path: Path to a ``.bin`` or ``.ftz`` fastText model file.
+
+    Returns:
+        AiModelMetadata with available fields populated.
+
+    Raises:
+        ImportError: If ``fasttext`` is not installed.
+        ValueError: If the file cannot be loaded as a valid fastText model.
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        import fasttext  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise ImportError(
+            "The 'fasttext' package is required to extract fastText model metadata. "
+            "Install it with: pip install fasttext"
+        ) from exc
+
+    try:
+        model = fasttext.load_model(str(model_path))
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        raise ValueError(
+            f"Failed to load fastText model from {model_path}: {exc}"
+        ) from exc
+
+    source = f"Source: {model_path.name}"
+    provenance: dict[str, str] = {}
+    hyperparameters: dict[str, Any] = {}
+    properties: dict[str, str] = {}
+
+    # Training args are on the C++ binding at model.f.getArgs().
+    args = None
+    try:
+        args = model.f.getArgs()
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+    if args is not None:
+        for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
+            value = getattr(args, attr, None)
+            if value is not None:
+                hyperparameters[param_key] = value
+
+        # model attribute is a model_name enum; .name gives the string value.
+        model_enum = getattr(args, "model", None)
+        type_of_model: str | None = getattr(model_enum, "name", None) or None
+        if type_of_model:
+            provenance["type_of_model"] = f"{source} | Field: args.model"
+
+        # loss attribute is a loss_name enum; .name gives the string value.
+        loss_enum = getattr(args, "loss", None)
+        loss_name: str | None = getattr(loss_enum, "name", None) or None
+        if loss_name:
+            properties["lossName"] = loss_name
+    else:
+        type_of_model = None
+
+    if hyperparameters:
+        provenance["hyperparameters"] = f"{source} | Fields: args.*"
+
+    # Labels for supervised models (empty for unsupervised word vectors).
+    get_labels = getattr(model, "get_labels", None)
+    if get_labels is not None:
+        try:
+            labels = get_labels()
+            if labels:
+                properties["labels"] = ",".join(labels)
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+    if properties:
+        provenance["properties"] = f"{source} | Fields: args.loss, labels"
+
+    return AiModelMetadata(
+        format=AiModelFormat.FASTTEXT,
+        type_of_model=type_of_model,
+        hyperparameters=hyperparameters,
+        properties=properties,
+        provenance=provenance,
     )
 
 

@@ -20,6 +20,7 @@ class AiModelFormat(str, Enum):
     """Supported AI model file formats."""
 
     UNKNOWN = "unknown"
+    FASTTEXT = "fasttext"
     GGUF = "gguf"
     ONNX = "onnx"
     SAFETENSORS = "safetensors"
