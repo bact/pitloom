@@ -48,7 +48,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-aimodel = ["onnx>=1.14.1", "safetensors[numpy]>=0.4.0", "gguf>=0.10.0"]
+aimodel = [
+    "fasttext>=0.9.3",
+    "onnx>=1.14.1",
+    "safetensors[numpy]>=0.4.0",
+    "gguf>=0.10.0",
+]
+fasttext = ["fasttext>=0.9.3"]
 gguf = ["gguf>=0.10.0"]
 onnx = ["onnx>=1.14.1"]
 safetensors = ["safetensors[numpy]>=0.4.0"]
@@ -67,7 +73,7 @@ dev = [
 pitloom = "pitloom.plugins.hatch"
 
 [project.scripts]
-loom = "pitloom.__main__:main"  # default command-line entry point
+loom = "pitloom.__main__:main"    # default command-line entry point
 pitloom = "pitloom.__main__:main"
 
 [project.urls]
@@ -88,6 +94,8 @@ exclude = [
     ".gitignore",
     ".markdownlint.json",
     "AGENTS.md",
+    "tests/fixtures/fasttext/*.bin",
+    "tests/fixtures/fasttext/*.ftz",
     "tests/fixtures/gguf/*.gguf",
     "tests/fixtures/onnx/*.onnx",
     "tests/fixtures/safetensors/*.safetensors",
@@ -97,8 +105,8 @@ exclude = [
 packages = ["src/pitloom"]
 
 [tool.pitloom]
-pretty = true # TODO: By default, SBOM in wheel should be compact,
-              # but pretty-printed in sdist for easier inspection
+# TODO: By default, SBOM in wheel and sdist should be compact
+pretty = true
 
 [tool.mypy]
 pretty = true

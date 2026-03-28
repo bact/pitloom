@@ -12,14 +12,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, TypedDict, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model import (
+    _FASTTEXT_MAGIC,
+    _GGUF_MAGIC,
+    _sniff_format,
     detect_ai_model_format,
     read_ai_model,
+    read_fasttext,
     read_gguf,
     read_onnx,
     read_safetensors,
@@ -50,6 +55,70 @@ def test_detect_format_unknown() -> None:
 
 def test_detect_format_case_insensitive() -> None:
     assert detect_ai_model_format(Path("MODEL.ONNX")) == AiModelFormat.ONNX
+
+
+def test_detect_format_fasttext_ftz() -> None:
+    assert detect_ai_model_format(Path("model.ftz")) == AiModelFormat.FASTTEXT
+
+
+def test_detect_format_bin_without_file_is_unknown() -> None:
+    # .bin has no extension entry; non-existent path → UNKNOWN (no magic sniff).
+    assert detect_ai_model_format(Path("model.bin")) == AiModelFormat.UNKNOWN
+
+
+# ---------------------------------------------------------------------------
+# Magic-byte sniffing (_sniff_format / detect_ai_model_format with real files)
+# ---------------------------------------------------------------------------
+
+
+def test_sniff_gguf_magic(tmp_path: Path) -> None:
+    f = tmp_path / "model.bin"  # wrong extension — magic wins
+    f.write_bytes(_GGUF_MAGIC + b"\x00" * 20)
+    assert detect_ai_model_format(f) == AiModelFormat.GGUF
+
+
+def test_sniff_fasttext_magic(tmp_path: Path) -> None:
+    f = tmp_path / "model.bin"
+    f.write_bytes(_FASTTEXT_MAGIC + b"\x00" * 20)
+    assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
+
+
+def test_sniff_safetensors_magic(tmp_path: Path) -> None:
+    # Construct a minimal Safetensors header: 8-byte LE size + JSON opening brace.
+    header_json = b'{"__metadata__":{}}'
+    size_bytes = len(header_json).to_bytes(8, byteorder="little")
+    f = tmp_path / "model.bin"
+    f.write_bytes(size_bytes + header_json)
+    assert detect_ai_model_format(f) == AiModelFormat.SAFETENSORS
+
+
+def test_sniff_unknown_returns_extension_fallback(tmp_path: Path) -> None:
+    # Unrecognised magic + .onnx extension → extension fallback gives ONNX.
+    f = tmp_path / "model.onnx"
+    f.write_bytes(b"\x08\x01\x12\x04" + b"\x00" * 20)  # typical protobuf, no magic
+    assert detect_ai_model_format(f) == AiModelFormat.ONNX
+
+
+def test_sniff_empty_file_falls_back_to_extension(tmp_path: Path) -> None:
+    f = tmp_path / "model.ftz"
+    f.write_bytes(b"")
+    assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
+
+
+def test_sniff_format_direct_gguf(tmp_path: Path) -> None:
+    f = tmp_path / "x"
+    f.write_bytes(_GGUF_MAGIC + b"\x00" * 5)
+    assert _sniff_format(f) == AiModelFormat.GGUF
+
+
+def test_sniff_format_direct_fasttext(tmp_path: Path) -> None:
+    f = tmp_path / "x"
+    f.write_bytes(_FASTTEXT_MAGIC + b"\x00" * 5)
+    assert _sniff_format(f) == AiModelFormat.FASTTEXT
+
+
+def test_sniff_format_nonexistent_returns_unknown() -> None:
+    assert _sniff_format(Path("/no/such/file")) == AiModelFormat.UNKNOWN
 
 
 # ---------------------------------------------------------------------------
@@ -1303,3 +1372,290 @@ def test_whisper_st_tensor_names(whisper_st_metadata: AiModelMetadata) -> None:
 def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
     assert "inputs" in whisper_st_metadata.provenance
     assert "properties" in whisper_st_metadata.provenance
+
+
+# ---------------------------------------------------------------------------
+# fastText extractor (mocked)
+# ---------------------------------------------------------------------------
+
+# The Python fasttext package exposes training configuration via the C++
+# binding at model.f.getArgs().  Loss and model type are enum objects whose
+# .name attribute gives the string value (e.g. "softmax", "supervised").
+
+
+class _FasttextArgsConfig(TypedDict, total=False):
+    model_name: str
+    loss_name: str
+    dim: int
+    lr: float
+    epoch: int
+    word_ngrams: int
+    min_count: int
+    min_count_label: int
+    minn: int
+    maxn: int
+    neg: int
+    bucket: int
+    ws: int
+
+
+_FASTTEXT_ARGS_DEFAULTS: _FasttextArgsConfig = {
+    "model_name": "skipgram",
+    "loss_name": "ns",
+    "dim": 100,
+    "lr": 0.05,
+    "epoch": 5,
+    "word_ngrams": 1,
+    "min_count": 5,
+    "min_count_label": 0,
+    "minn": 3,
+    "maxn": 6,
+    "neg": 5,
+    "bucket": 2000000,
+    "ws": 5,
+}
+
+
+def _make_fasttext_args(config: _FasttextArgsConfig) -> MagicMock:
+    """Build a mock Args object as returned by model.f.getArgs().
+
+    All keys must be present in *config*; merge with
+    :data:`_FASTTEXT_ARGS_DEFAULTS` before calling when supplying partial
+    overrides.
+    """
+    mock_loss = MagicMock()
+    mock_loss.name = config["loss_name"]
+    mock_model_enum = MagicMock()
+    mock_model_enum.name = config["model_name"]
+
+    args = MagicMock()
+    args.dim = config["dim"]
+    args.lr = config["lr"]
+    args.epoch = config["epoch"]
+    args.wordNgrams = config["word_ngrams"]
+    args.minCount = config["min_count"]
+    args.minCountLabel = config["min_count_label"]
+    args.minn = config["minn"]
+    args.maxn = config["maxn"]
+    args.neg = config["neg"]
+    args.bucket = config["bucket"]
+    args.ws = config["ws"]
+    args.loss = mock_loss
+    args.model = mock_model_enum
+    return args
+
+
+def _make_fasttext_model(
+    labels: list[str] | None = None,
+    **kwargs: Any,
+) -> MagicMock:
+    """Build a mock fasttext model backed by a mock args object."""
+    config = cast(_FasttextArgsConfig, {**_FASTTEXT_ARGS_DEFAULTS, **kwargs})
+    mock_args = _make_fasttext_args(config)
+    mock_f = MagicMock()
+    mock_f.getArgs.return_value = mock_args
+
+    mock_model = MagicMock()
+    mock_model.f = mock_f
+    mock_model.get_labels.return_value = labels or []
+    return mock_model
+
+
+def test_fasttext_missing_library(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+    with patch.dict("sys.modules", {"fasttext": None}):
+        with pytest.raises(ImportError, match="fasttext"):
+            read_fasttext(model_file)
+
+
+def test_fasttext_load_failure(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"corrupt")
+
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.side_effect = OSError("bad file")
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        with pytest.raises(ValueError, match="Failed to load fastText"):
+            read_fasttext(model_file)
+
+
+def test_fasttext_basic_extraction(tmp_path: Path) -> None:
+    model_file = tmp_path / "skipgram.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model(
+        model_name="skipgram", dim=300, lr=0.025, epoch=10
+    )
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.format == AiModelFormat.FASTTEXT
+    assert meta.type_of_model == "skipgram"
+    assert meta.hyperparameters["dim"] == 300
+    assert meta.hyperparameters["lr"] == 0.025
+    assert meta.hyperparameters["epoch"] == 10
+    assert meta.properties["lossName"] == "ns"
+    assert "hyperparameters" in meta.provenance
+    assert "type_of_model" in meta.provenance
+    assert "properties" in meta.provenance
+
+
+def test_fasttext_all_hyperparameters(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model(
+        word_ngrams=2,
+        min_count=3,
+        min_count_label=1,
+        minn=2,
+        maxn=5,
+        neg=10,
+        bucket=1000000,
+        ws=3,
+    )
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    hp = meta.hyperparameters
+    assert hp["wordNgrams"] == 2
+    assert hp["minCount"] == 3
+    assert hp["minCountLabel"] == 1
+    assert hp["minn"] == 2
+    assert hp["maxn"] == 5
+    assert hp["neg"] == 10
+    assert hp["bucket"] == 1000000
+    assert hp["ws"] == 3
+
+
+def test_fasttext_supervised_with_labels(tmp_path: Path) -> None:
+    model_file = tmp_path / "classifier.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model(
+        model_name="supervised",
+        loss_name="softmax",
+        dim=100,
+        labels=["__label__pos", "__label__neg"],
+    )
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.type_of_model == "supervised"
+    assert meta.properties["lossName"] == "softmax"
+    assert "__label__pos" in meta.properties["labels"]
+    assert "__label__neg" in meta.properties["labels"]
+
+
+def test_fasttext_ftz_extension(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.ftz"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model(model_name="cbow")
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.format == AiModelFormat.FASTTEXT
+    assert meta.type_of_model == "cbow"
+
+
+def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
+    """fastText models do not store a name or description field."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model()
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.name is None
+    assert meta.description is None
+    assert meta.version is None
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — real fastText file (fasttext/sentimentdemo.bin)
+# Thai text sentiment classifier; 4 labels: pos, neg, neu, q
+# Require: fasttext installed AND tests/fixtures/fasttext/sentimentdemo.bin present
+# ---------------------------------------------------------------------------
+
+_FT = Path(__file__).parent / "fixtures" / "fasttext"
+SENTIMENT_DEMO_FIXTURE = _FT / "sentimentdemo.bin"
+
+
+@pytest.fixture(scope="module")
+def sentiment_demo_metadata() -> AiModelMetadata:
+    """Extract metadata from sentimentdemo.bin once per session."""
+    pytest.importorskip("fasttext")
+    if not SENTIMENT_DEMO_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {SENTIMENT_DEMO_FIXTURE}")
+    return read_fasttext(SENTIMENT_DEMO_FIXTURE)
+
+
+def test_sentiment_demo_format(sentiment_demo_metadata: AiModelMetadata) -> None:
+    assert sentiment_demo_metadata.format == AiModelFormat.FASTTEXT
+
+
+def test_sentiment_demo_type_of_model(sentiment_demo_metadata: AiModelMetadata) -> None:
+    assert sentiment_demo_metadata.type_of_model == "supervised"
+    assert "args.model" in sentiment_demo_metadata.provenance["type_of_model"]
+
+
+def test_sentiment_demo_hyperparameters(
+    sentiment_demo_metadata: AiModelMetadata,
+) -> None:
+    hp = sentiment_demo_metadata.hyperparameters
+    assert hp["dim"] == 21
+    assert hp["lr"] == pytest.approx(0.05)
+    assert hp["epoch"] == 100
+    assert hp["wordNgrams"] == 4
+    assert hp["minCount"] == 1
+    assert hp["minCountLabel"] == 0
+    assert hp["minn"] == 3
+    assert hp["maxn"] == 6
+    assert hp["neg"] == 5
+    assert hp["bucket"] == 33502
+    assert hp["ws"] == 5
+    assert "hyperparameters" in sentiment_demo_metadata.provenance
+
+
+def test_sentiment_demo_loss(sentiment_demo_metadata: AiModelMetadata) -> None:
+    assert sentiment_demo_metadata.properties["lossName"] == "softmax"
+
+
+def test_sentiment_demo_labels(sentiment_demo_metadata: AiModelMetadata) -> None:
+    labels_str = sentiment_demo_metadata.properties["labels"]
+    labels = labels_str.split(",")
+    assert set(labels) == {"__label__pos", "__label__neu", "__label__neg", "__label__q"}
+
+
+def test_sentiment_demo_no_name_description_version(
+    sentiment_demo_metadata: AiModelMetadata,
+) -> None:
+    assert sentiment_demo_metadata.name is None
+    assert sentiment_demo_metadata.description is None
+    assert sentiment_demo_metadata.version is None
+
+
+def test_sentiment_demo_magic_bytes_detect() -> None:
+    """Magic byte sniffing must identify sentimentdemo.bin as FASTTEXT."""
+    if not SENTIMENT_DEMO_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {SENTIMENT_DEMO_FIXTURE}")
+    assert detect_ai_model_format(SENTIMENT_DEMO_FIXTURE) == AiModelFormat.FASTTEXT

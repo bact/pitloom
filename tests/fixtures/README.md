@@ -14,10 +14,10 @@ build hook (`pitloom.plugins.hatch`).  See
 
 ## AI model fixtures
 
-The `gguf/`, `onnx/`, and `safetensors/` subdirectories contain small AI
-model files used as integration test fixtures.  The files are committed to
-the repository because they are small enough (all under 6 MB) and stable
-enough to serve as reliable test inputs.
+The `fasttext/`, `gguf/`, `onnx/`, and `safetensors/` subdirectories contain
+small AI model files used as integration test fixtures.
+The files are committed to the repository because they are small enough
+(all under 6 MB) and stable enough to serve as reliable test inputs.
 
 Each fixture is used by a corresponding `scope="module"` pytest fixture in
 [tests/test_ai_model_extractor.py](../test_ai_model_extractor.py) which calls
@@ -34,6 +34,7 @@ dependency is not installed or the file is absent.
 
 | Path | Format | Task | License |
 | :--- | :--- | :--- | :--- |
+| `fasttext/sentimentdemo.bin` | fastText | Text sentiment classification | CC0-1.0 |
 | `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
 | `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
 | `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
@@ -50,6 +51,34 @@ dependency is not installed or the file is absent.
 | `safetensors/whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
 
 ## File details
+
+### fasttext/sentimentdemo.bin
+
+| Property | Value |
+| :--- | :--- |
+| Format | fastText binary (quantised, version 12) |
+| Architecture | Supervised text classifier — 4-class Thai sentiment |
+| Task | Sentiment classification: `pos`, `neg`, `neu`, `q` (question) |
+| Embedding dim | 21 |
+| Labels | `__label__pos`, `__label__neg`, `__label__neu`, `__label__q` |
+| Training | epoch=100, lr=0.05, wordNgrams=4, loss=softmax |
+| n-gram range | minn=3, maxn=6 |
+| Size | 96 339 bytes (0.09 MB) |
+| SHA-256 | `a88bf0de7dff74d740cd45048521d319ff7c2560085f2604af265561e72ec4bc` |
+| License | CC0-1.0 |
+| Required library | `fasttext` (`pip install pitloom[fasttext]`) |
+
+Notable metadata extracted by the fastText extractor:
+
+- `type_of_model` = `"supervised"` (from `args.model`)
+- `hyperparameters`: `dim=21`, `lr=0.05`, `epoch=100`, `wordNgrams=4`,
+  `minCount=1`, `minn=3`, `maxn=6`, `neg=5`, `bucket=33502`, `ws=5`
+- `properties["lossName"]` = `"softmax"`
+- `properties["labels"]` = `"__label__pos,__label__neg,__label__neu,__label__q"`
+- `name`, `description`, `version` are all `None` — fastText binary files
+  do not embed a model name or description
+
+---
 
 ### gguf/ggml-vocab-bert-bge.gguf
 
