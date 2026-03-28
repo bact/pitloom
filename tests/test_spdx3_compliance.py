@@ -12,6 +12,12 @@ from typing import Any
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
+from pitloom.core.creation import CreationMetadata
+from pitloom.export.spdx3_json import (
+    _deduplicate_creation_infos,
+    _deduplicate_named_elements,
+    _graph_sort_key,
+)
 
 _VALID_RELATIONSHIP_TYPES: frozenset[str] = frozenset(
     iri.split("/")[-1] for iri in spdx3.RelationshipType.NAMED_INDIVIDUALS.values()
@@ -335,3 +341,190 @@ version = "1.0.0"
             assert ci.get("createdUsing"), (
                 "CreationInfo must reference the generation tool via createdUsing"
             )
+
+
+def test_graph_element_ordering() -> None:
+    """@graph elements must follow the canonical priority order.
+
+    Required order:
+      0. CreationInfo   — blank node referenced by every element
+      1. SpdxDocument   — document envelope / profileConformance
+      2. software_Sbom  — root element pointer / sbomType
+      3+ everything else, sorted by spdxId/@id
+
+    This test also verifies that repeated calls produce identical output
+    (i.e., ordering is deterministic across runs).
+    """
+    pyproject_content = """
+[project]
+name = "ordering-test"
+version = "1.0.0"
+dependencies = ["requests>=2.28.0"]
+"""
+    # Fixed timestamp so two calls with identical inputs produce identical output.
+    # Without this, datetime.now() is called on each invocation and the
+    # CreationInfo.created field would differ between runs.
+    fixed_ci = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json_1 = generate_sbom(tmppath, creation_info=fixed_ci)
+        sbom_json_2 = generate_sbom(tmppath, creation_info=fixed_ci)
+
+        # Determinism: two calls with identical inputs must produce identical output
+        assert sbom_json_1 == sbom_json_2, (
+            "@graph order is not deterministic across runs"
+        )
+
+        graph: list[dict[str, Any]] = json.loads(sbom_json_1)["@graph"]
+        types = [e["type"] for e in graph]
+
+        # Priority elements must appear before everything else
+        assert "CreationInfo" in types
+        assert "SpdxDocument" in types
+        assert "software_Sbom" in types
+
+        ci_idx = types.index("CreationInfo")
+        doc_idx = types.index("SpdxDocument")
+        sbom_idx = types.index("software_Sbom")
+
+        assert ci_idx < doc_idx, "CreationInfo must precede SpdxDocument"
+        assert doc_idx < sbom_idx, "SpdxDocument must precede software_Sbom"
+
+        # If a core Bom element is present it must sit between SpdxDocument
+        # and software_Sbom (priority 2, between 1 and 3).
+        if "Bom" in types:
+            bom_idx = types.index("Bom")
+            assert doc_idx < bom_idx < sbom_idx, (
+                "Bom must appear after SpdxDocument and before software_Sbom"
+            )
+
+        # All priority elements must appear before the general population
+        priority_types = {"CreationInfo", "SpdxDocument", "Bom", "software_Sbom"}
+        first_other = next(
+            (i for i, e in enumerate(graph) if e["type"] not in priority_types),
+            len(graph),
+        )
+        assert sbom_idx < first_other, (
+            "All priority elements must precede non-priority elements"
+        )
+
+
+def test_creation_info_deduplication() -> None:
+    """Identical CreationInfo blank nodes must be collapsed to one canonical node."""
+    ci_shared = {
+        "type": "CreationInfo",
+        "@id": "_:CreationInfo0",
+        "specVersion": "3.0.1",
+        "created": "2026-01-01T00:00:00Z",
+        "createdBy": ["https://example.org/Person-1"],
+        "createdUsing": ["https://example.org/Tool-1"],
+    }
+    ci_duplicate = {**ci_shared, "@id": "_:CreationInfo1"}
+    pkg = {
+        "type": "software_Package",
+        "spdxId": "https://example.org/Package-1",
+        "creationInfo": "_:CreationInfo1",
+        "name": "example",
+    }
+    graph: list[dict[str, Any]] = [ci_shared, ci_duplicate, pkg]
+
+    result = _deduplicate_creation_infos(graph)
+
+    ci_nodes = [e for e in result if e["type"] == "CreationInfo"]
+    assert len(ci_nodes) == 1, "Duplicate CreationInfo must be removed"
+    canonical_id = ci_nodes[0]["@id"]
+
+    pkg_result = next(e for e in result if e["type"] == "software_Package")
+    assert pkg_result["creationInfo"] == canonical_id, (
+        "Reference to removed CreationInfo must be redirected to canonical node"
+    )
+
+
+def test_creation_info_deduplication_distinct_kept() -> None:
+    """CreationInfo nodes with different content must both be retained."""
+    ci_a = {
+        "type": "CreationInfo",
+        "@id": "_:CreationInfo0",
+        "specVersion": "3.0.1",
+        "created": "2026-01-01T00:00:00Z",
+        "createdBy": ["https://example.org/Person-1"],
+        "createdUsing": [],
+    }
+    ci_b = {
+        "type": "CreationInfo",
+        "@id": "_:CreationInfo1",
+        "specVersion": "3.0.1",
+        "created": "2026-06-01T00:00:00Z",  # different timestamp
+        "createdBy": ["https://example.org/Person-1"],
+        "createdUsing": [],
+    }
+    graph = [ci_a, ci_b]
+
+    result = _deduplicate_creation_infos(graph)
+    assert len(result) == 2, "Distinct CreationInfo nodes must not be merged"
+
+
+def test_named_element_deduplication_identical() -> None:
+    """Exact-duplicate named elements (same spdxId, same content) collapse to one."""
+    pkg = {
+        "type": "software_Package",
+        "spdxId": "https://example.org/Package-1",
+        "name": "example",
+        "creationInfo": "_:CreationInfo0",
+    }
+    graph: list[dict[str, Any]] = [dict(pkg), dict(pkg)]
+
+    result = _deduplicate_named_elements(graph)
+    assert len(result) == 1, "Identical named elements must be deduplicated"
+    assert result[0]["spdxId"] == pkg["spdxId"]
+
+
+def test_named_element_deduplication_conflict_retained() -> None:
+    """Named elements with the same spdxId but different content must all be kept."""
+    pkg_a = {
+        "type": "software_Package",
+        "spdxId": "https://example.org/Package-1",
+        "name": "example",
+        "software_packageVersion": "1.0.0",
+    }
+    pkg_b = {**pkg_a, "software_packageVersion": "1.0.1"}  # version differs
+    graph: list[dict[str, Any]] = [pkg_a, pkg_b]
+
+    result = _deduplicate_named_elements(graph)
+    assert len(result) == 2, "Conflicting named elements must all be retained"
+
+
+def test_named_element_deduplication_no_spdx_id_passthrough() -> None:
+    """Elements without spdxId (blank nodes) must pass through untouched."""
+    ci = {
+        "type": "CreationInfo",
+        "@id": "_:CreationInfo0",
+        "specVersion": "3.0.1",
+        "created": "2026-01-01T00:00:00Z",
+    }
+    graph: list[dict[str, Any]] = [ci]
+
+    result = _deduplicate_named_elements(graph)
+    assert result == graph
+
+
+def test_graph_sort_key_priority_order() -> None:
+    """_graph_sort_key must assign lower values to higher-priority types."""
+    elements = [
+        {"type": "software_Sbom", "spdxId": "https://example.org/Sbom-1"},
+        {"type": "Bom", "spdxId": "https://example.org/Bom-1"},
+        {"type": "SpdxDocument", "spdxId": "https://example.org/Doc-1"},
+        {"type": "CreationInfo", "@id": "_:CreationInfo0"},
+        {"type": "software_Package", "spdxId": "https://example.org/Package-1"},
+    ]
+    sorted_elements = sorted(elements, key=_graph_sort_key)
+    sorted_types = [e["type"] for e in sorted_elements]
+
+    assert sorted_types[0] == "CreationInfo"
+    assert sorted_types[1] == "SpdxDocument"
+    assert sorted_types[2] == "Bom"
+    assert sorted_types[3] == "software_Sbom"
+    assert sorted_types[4] == "software_Package"
