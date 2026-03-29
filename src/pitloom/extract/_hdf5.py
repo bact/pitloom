@@ -58,12 +58,6 @@ from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 
-# Root HDF5 attribute names written by Keras v1/v2.
-# 'keras_version' is the decisive Keras-specific marker; 'model_config' and
-# 'backend' may also appear in other HDF5-based frameworks and are not used
-# alone to identify a Keras file.
-_KERAS_ATTRS = frozenset({"keras_version", "model_config", "backend"})
-
 
 def _decode_h5_attr(value: Any) -> str | None:
     """Decode an h5py attribute value to a Python string.
