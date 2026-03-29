@@ -13,7 +13,7 @@ from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
@@ -258,7 +258,7 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     """Test that AI model metadata with inputs/outputs is serialized into SPDX 3."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
-        format=AiModelFormat.PYTORCH_PT2,
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.PYTORCH_PT2),
         name="linear-model",
         version="1.0.0",
         type_of_model="linear regression",

@@ -13,7 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from zipfile import ZipFile
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 
 def _read_pt2_meta_entry(
@@ -381,9 +381,12 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
         ) = _read_pt2_zip(zf, source)
 
     return AiModelMetadata(
-        format=AiModelFormat.PYTORCH_PT2,
-        format_version=format_version,
-        framework="executorch",
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.PYTORCH_PT2,
+            format_version=format_version,
+            framework="executorch",
+        ),
         name=name,
         description=description,
         version=version,

@@ -52,7 +52,7 @@ def test_read_numpy_npy_format(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_arr
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert meta.format == AiModelFormat.NUMPY
+    assert meta.format_info.model_format == AiModelFormat.NUMPY
 
 
 def test_read_numpy_npy_shape_and_dtype(tmp_path: Path) -> None:
@@ -113,7 +113,7 @@ def test_read_numpy_npy_v1_version(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_arr
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert meta.format_version == "1.0"
+    assert meta.format_info.format_version == "1.0"
     assert meta.properties["header_encoding"] == "latin1"
     assert "npy_format_version" not in meta.properties
 
@@ -128,7 +128,7 @@ def test_read_numpy_npy_v2_version(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_arr
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert meta.format_version == "2.0"
+    assert meta.format_info.format_version == "2.0"
     assert meta.properties["header_encoding"] == "latin1"
     assert "npy_format_version" not in meta.properties
 
@@ -143,7 +143,7 @@ def test_read_numpy_npy_v3_version(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_arr
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert meta.format_version == "3.0"
+    assert meta.format_info.format_version == "3.0"
     assert meta.properties["header_encoding"] == "utf-8"
     assert "npy_format_version" not in meta.properties
 
@@ -158,7 +158,7 @@ def test_read_numpy_npy_framework(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_arr
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert meta.framework == "numpy"
+    assert meta.format_info.framework == "numpy"
 
 
 def test_read_numpy_npy_version_in_provenance(tmp_path: Path) -> None:
@@ -207,7 +207,7 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
 
-    assert meta.format == AiModelFormat.NUMPY
+    assert meta.format_info.model_format == AiModelFormat.NUMPY
     assert len(meta.inputs) == 2
     names = [inp["name"] for inp in meta.inputs]
     assert "weights" in names
@@ -228,7 +228,7 @@ def test_read_numpy_npz_no_format_version(tmp_path: Path) -> None:
     mock_np.load.return_value = mock_npz
     with patch.dict("sys.modules", {"numpy": mock_np}):
         meta = read_numpy(model_file)
-    assert meta.format_version is None
+    assert meta.format_info.format_version is None
 
 
 def test_read_numpy_invalid_file(tmp_path: Path) -> None:
@@ -280,11 +280,11 @@ def fixture_bundle() -> Any:
 
 
 def test_numpy_v1_format(fixture_v1: Any) -> None:
-    assert fixture_v1.format == AiModelFormat.NUMPY
+    assert fixture_v1.format_info.model_format == AiModelFormat.NUMPY
 
 
 def test_numpy_v1_format_version(fixture_v1: Any) -> None:
-    assert fixture_v1.format_version == "1.0"
+    assert fixture_v1.format_info.format_version == "1.0"
 
 
 def test_numpy_v1_encoding(fixture_v1: Any) -> None:
@@ -303,11 +303,11 @@ def test_numpy_v1_dtype(fixture_v1: Any) -> None:
 
 
 def test_numpy_v2_format(fixture_v2: Any) -> None:
-    assert fixture_v2.format == AiModelFormat.NUMPY
+    assert fixture_v2.format_info.model_format == AiModelFormat.NUMPY
 
 
 def test_numpy_v2_format_version(fixture_v2: Any) -> None:
-    assert fixture_v2.format_version == "2.0"
+    assert fixture_v2.format_info.format_version == "2.0"
 
 
 def test_numpy_v2_encoding(fixture_v2: Any) -> None:
@@ -326,11 +326,11 @@ def test_numpy_v2_dtype(fixture_v2: Any) -> None:
 
 
 def test_numpy_v3_format(fixture_v3: Any) -> None:
-    assert fixture_v3.format == AiModelFormat.NUMPY
+    assert fixture_v3.format_info.model_format == AiModelFormat.NUMPY
 
 
 def test_numpy_v3_format_version(fixture_v3: Any) -> None:
-    assert fixture_v3.format_version == "3.0"
+    assert fixture_v3.format_info.format_version == "3.0"
 
 
 def test_numpy_v3_encoding(fixture_v3: Any) -> None:
@@ -349,7 +349,7 @@ def test_numpy_v3_dtype_contains_unicode_field(fixture_v3: Any) -> None:
 
 
 def test_numpy_bundle_format(fixture_bundle: Any) -> None:
-    assert fixture_bundle.format == AiModelFormat.NUMPY
+    assert fixture_bundle.format_info.model_format == AiModelFormat.NUMPY
 
 
 def test_numpy_bundle_array_count(fixture_bundle: Any) -> None:
@@ -370,4 +370,4 @@ def test_numpy_bundle_weights_dtype(fixture_bundle: Any) -> None:
 
 def test_numpy_bundle_no_format_version(fixture_bundle: Any) -> None:
     # .npz archives don't have a per-file NPY format version.
-    assert fixture_bundle.format_version is None
+    assert fixture_bundle.format_info.format_version is None

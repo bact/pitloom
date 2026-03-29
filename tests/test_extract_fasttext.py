@@ -142,7 +142,7 @@ def test_fasttext_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
         meta = read_fasttext(model_file)
 
-    assert meta.format == AiModelFormat.FASTTEXT
+    assert meta.format_info.model_format == AiModelFormat.FASTTEXT
     assert meta.type_of_model == "skipgram"
     assert meta.hyperparameters["dim"] == 300
     assert meta.hyperparameters["lr"] == 0.025
@@ -251,7 +251,7 @@ def test_fasttext_ftz_extension(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
         meta = read_fasttext(model_file)
 
-    assert meta.format == AiModelFormat.FASTTEXT
+    assert meta.format_info.model_format == AiModelFormat.FASTTEXT
     assert meta.type_of_model == "cbow"
 
 
@@ -292,7 +292,7 @@ def sentiment_demo_metadata() -> AiModelMetadata:
 
 
 def test_sentiment_demo_format(sentiment_demo_metadata: AiModelMetadata) -> None:
-    assert sentiment_demo_metadata.format == AiModelFormat.FASTTEXT
+    assert sentiment_demo_metadata.format_info.model_format == AiModelFormat.FASTTEXT
 
 
 def test_sentiment_demo_type_of_model(sentiment_demo_metadata: AiModelMetadata) -> None:
@@ -369,7 +369,7 @@ def lid_176_metadata() -> AiModelMetadata:
 
 
 def test_lid_176_format(lid_176_metadata: AiModelMetadata) -> None:
-    assert lid_176_metadata.format == AiModelFormat.FASTTEXT
+    assert lid_176_metadata.format_info.model_format == AiModelFormat.FASTTEXT
 
 
 def test_lid_176_type_of_model(lid_176_metadata: AiModelMetadata) -> None:

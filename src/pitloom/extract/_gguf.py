@@ -10,13 +10,14 @@ import struct
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 # Standard GGUF general keys used for SPDX AI fields
 _GGUF_NAME_KEYS = ("general.name",)
 _GGUF_DESCRIPTION_KEYS = ("general.description",)
 _GGUF_ARCH_KEY = "general.architecture"
 _GGUF_VERSION_KEY = "general.version"
+_GGUF_FILE_TYPE_KEY = "general.file_type"
 
 # Hyperparameter key suffixes that are architecture-specific
 _GGUF_HYPERPARAM_SUFFIXES = (
@@ -32,7 +33,34 @@ _GGUF_HYPERPARAM_SUFFIXES = (
 )
 
 
-def read_gguf(model_path: Path) -> AiModelMetadata:
+def _resolve_quantization(file_type_value: Any) -> str | None:
+    """Resolve a GGUF ``general.file_type`` integer to a quantization name.
+
+    Uses the ``gguf`` library's ``GGMLQuantizationType`` enum when available,
+    otherwise returns the raw integer as a string.
+
+    Args:
+        file_type_value: The raw value extracted from the ``general.file_type``
+            GGUF field (an integer or a list containing one integer).
+
+    Returns:
+        Quantization name string (e.g. ``"Q4_K_M"``) or ``None``.
+    """
+    if file_type_value is None:
+        return None
+    try:
+        int_val = int(file_type_value)
+    except (TypeError, ValueError):
+        return None
+    try:
+        from gguf import GGMLQuantizationType  # pylint: disable=import-outside-toplevel
+
+        return GGMLQuantizationType(int_val).name
+    except Exception:  # pylint: disable=broad-exception-caught
+        return str(int_val)
+
+
+def read_gguf(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-locals
     """Extract metadata from a GGUF model file.
 
     Requires the ``gguf`` package (``pip install gguf``).
@@ -40,6 +68,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     GGUF stores typed key-value pairs in its header. This extractor reads:
     - ``general.*`` keys for name, description, architecture, and version
     - Architecture-specific hyperparameter keys (e.g. ``llama.context_length``)
+    - ``general.file_type`` for quantization level
     - All remaining key-value pairs as generic properties
 
     Args:
@@ -121,15 +150,23 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
             provenance["description"] = f"{source} | Field: {key}"
             break
 
+    # general.architecture → architecture (specific arch name, e.g. "llama", "bert")
     architecture: str | None = fields.get(_GGUF_ARCH_KEY)
     if architecture is not None:
         architecture = str(architecture)
-        provenance["type_of_model"] = f"{source} | Field: {_GGUF_ARCH_KEY}"
+        provenance["architecture"] = f"{source} | Field: {_GGUF_ARCH_KEY}"
 
     version: str | None = None
     if _GGUF_VERSION_KEY in fields and fields[_GGUF_VERSION_KEY] is not None:
         version = str(fields[_GGUF_VERSION_KEY])
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
+
+    # general.file_type → quantization level (e.g. "Q4_K_M", "F16")
+    quantization: str | None = None
+    if _GGUF_FILE_TYPE_KEY in fields:
+        quantization = _resolve_quantization(fields[_GGUF_FILE_TYPE_KEY])
+        if quantization:
+            provenance["quantization"] = f"{source} | Field: {_GGUF_FILE_TYPE_KEY}"
 
     # Separate hyperparameters from general properties
     for key, value in fields.items():
@@ -147,13 +184,17 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         provenance["properties"] = f"{source} | Fields: general.* and other GGUF keys"
 
     return AiModelMetadata(
-        format=AiModelFormat.GGUF,
-        format_version=format_version,
-        framework=framework,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.GGUF,
+            format_version=format_version,
+            framework=framework,
+        ),
         name=name,
         description=description,
         version=version,
-        type_of_model=architecture,
+        architecture=architecture,
+        quantization=quantization,
         hyperparameters=hyperparameters,
         properties=properties,
         provenance=provenance,

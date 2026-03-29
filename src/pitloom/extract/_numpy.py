@@ -14,7 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 # Maps NPY format major version → header encoding.
 #   Version 1.x: 2-byte LE uint16 header-length field, latin1 encoding.
@@ -134,9 +134,12 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc
 
     return AiModelMetadata(
-        format=AiModelFormat.NUMPY,
-        format_version=format_version,
-        framework=framework,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.NUMPY,
+            format_version=format_version,
+            framework=framework,
+        ),
         type_of_model="numpy array",
         inputs=inputs,
         properties=properties,

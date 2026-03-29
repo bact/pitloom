@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract.ai_model import (
     REGISTRY,
     FormatInfo,
@@ -339,7 +339,7 @@ def test_extract_metadata_unsupported_format(tmp_path: Path) -> None:
 
 def test_ai_model_metadata_defaults() -> None:
     meta = AiModelMetadata()
-    assert meta.format == AiModelFormat.UNKNOWN
+    assert meta.format_info.model_format == AiModelFormat.UNKNOWN
     assert meta.name is None
     assert meta.hyperparameters == {}
     assert meta.properties == {}
@@ -350,14 +350,14 @@ def test_ai_model_metadata_defaults() -> None:
 
 def test_ai_model_metadata_construction() -> None:
     meta = AiModelMetadata(
-        format=AiModelFormat.ONNX,
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
         name="MyModel",
         version="1.0",
         type_of_model="transformer",
         hyperparameters={"num_heads": 12},
         provenance={"name": "Source: model.onnx | Field: graph.name"},
     )
-    assert meta.format == AiModelFormat.ONNX
+    assert meta.format_info.model_format == AiModelFormat.ONNX
     assert meta.name == "MyModel"
     assert meta.hyperparameters["num_heads"] == 12
     assert "name" in meta.provenance
