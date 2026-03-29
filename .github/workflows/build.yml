@@ -93,7 +93,7 @@ jobs:
         id: verify_wheel_sbom
         if: steps.build.outcome == 'success'
         run: |
-          python3 << 'EOF'
+          python << 'EOF'
           import sys
           import zipfile
           from pathlib import Path
