@@ -36,7 +36,7 @@ _ParseResult = tuple[
 ]
 
 
-def _parse_keras_config(config_data: dict[str, Any], source: str) -> _ParseResult:
+def _parse_model_config(config_data: dict[str, Any], source: str) -> _ParseResult:
     """Parse ``config.json`` from a ``.keras`` archive.
 
     Args:
@@ -136,7 +136,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
             if "config.json" in names:
                 config_data = json.loads(zf.read("config.json"))
                 type_of_model, name, hyperparameters, inputs, prov = (
-                    _parse_keras_config(config_data, source)
+                    _parse_model_config(config_data, source)
                 )
                 provenance.update(prov)
 
