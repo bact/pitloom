@@ -26,11 +26,8 @@ class AiModelFormat(str, Enum):
             formats (e.g. ``.bin``) are omitted; those files are identified
             by magic bytes instead.
         magic: Fixed magic-byte prefix at byte offset 0, or ``None`` when
-            the format has no fixed file-level signature (Keras, ONNX,
-            Safetensors, NumPy ``.npz``, PyTorch ``.pt``/``.pth``/``.pt2``).
-            Keras ``.keras`` files are ZIP archives (``PK\\x03\\x04``) but
-            that signature is shared with PyTorch and other ZIP-based formats
-            so it is not used for magic-byte detection.
+            the format has no fixed file-level signature or shares its
+            signature with other formats (like ZIP-based formats).
     """
 
     # Declare instance attributes so static type checkers recognise them.
