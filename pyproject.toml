@@ -5,7 +5,7 @@
 # pitloom is listed here so that isolated builds (pip install pitloom) embed the
 # SBOM via the Hatchling hook.  For CI and local dev, build with --no-isolation
 # so the current checkout is used instead of the PyPI-published version.
-requires = ["hatchling", "pitloom"]
+requires = ["hatchling>=1.28.0", "pitloom"]
 build-backend = "hatchling.build"
 
 [project]
