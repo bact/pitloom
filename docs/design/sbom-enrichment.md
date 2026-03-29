@@ -115,7 +115,7 @@ no authentication requirement and provides immediate supply chain security value
 4. Provenance is recorded for each enriched field (source, field path)
    using the existing `AiModelMetadata.provenance` dict.
 
-## AI SBOM field mapping: `loom:ai` namespace (CycloneDX)
+## AI SBOM field mapping: `pitloom:ai` namespace (CycloneDX)
 
 When Pitloom gains CycloneDX output support, SPDX 3 native fields have no
 direct equivalent and must be expressed as CycloneDX `properties` entries.
@@ -123,40 +123,40 @@ The following namespace is reserved for that purpose:
 
 ### Model identification and architecture
 
-- `loom:ai:model:type` — broad category (e.g., `transformer`, `cnn`)
-- `loom:ai:model:architecture_family` — specific structural family
-- `loom:ai:model:parameters_count` — total parameter count
-- `loom:ai:model:format_version` — version of the model file format
+- `pitloom:ai:model:type` — broad category (e.g., `transformer`, `cnn`)
+- `pitloom:ai:model:architecture_family` — specific structural family
+- `pitloom:ai:model:parameters_count` — total parameter count
+- `pitloom:ai:model:format_version` — version of the model file format
   (e.g., `v2` for Keras v2, `1.0` for NumPy 1.0)
-- `loom:ai:model:framework` — base framework/format
+- `pitloom:ai:model:framework` — base framework/format
   (e.g., `pytorch`, `onnx`, `keras`)
-- `loom:ai:model:framework_version` — version of the framework that produced
+- `pitloom:ai:model:framework_version` — version of the framework that produced
   the model (e.g., `2.15.0` for Keras 2.15.0)
 
 ### Training and hyperparameters
 
-- `loom:ai:training:learning_rate`
-- `loom:ai:training:batch_size`
-- `loom:ai:training:epochs`
-- `loom:ai:training:optimizer` — optimizer algorithm (e.g., `adamw`, `sgd`)
-- `loom:ai:training:random_seed`
+- `pitloom:ai:training:learning_rate`
+- `pitloom:ai:training:batch_size`
+- `pitloom:ai:training:epochs`
+- `pitloom:ai:training:optimizer` — optimizer algorithm (e.g., `adamw`, `sgd`)
+- `pitloom:ai:training:random_seed`
 
 ### Dataset constraints and provenance
 
-- `loom:ai:dataset:training:name` — name or URI of the training dataset
-- `loom:ai:dataset:training:size` — volume of data (e.g., `1.2TB`)
-- `loom:ai:dataset:training:split` — ratio or segment used (e.g., `train`)
-- `loom:ai:dataset:preprocessing` — normalization or transformation applied
+- `pitloom:ai:dataset:training:name` — name or URI of the training dataset
+- `pitloom:ai:dataset:training:size` — volume of data (e.g., `1.2TB`)
+- `pitloom:ai:dataset:training:split` — ratio or segment used (e.g., `train`)
+- `pitloom:ai:dataset:preprocessing` — normalization or transformation applied
 
 ### Metrics and evaluation
 
-- `loom:ai:metric:accuracy`
-- `loom:ai:metric:f1_score`
-- `loom:ai:metric:loss`
+- `pitloom:ai:metric:accuracy`
+- `pitloom:ai:metric:f1_score`
+- `pitloom:ai:metric:loss`
 
 ### Ethical and compliance considerations
 
-- `loom:ai:compliance:license_category` — e.g., `open-weights`
-- `loom:ai:safety:bias_mitigation` — notes on debiasing techniques applied
-- `loom:ai:safety:intended_use` — approved use cases
-- `loom:ai:safety:restricted_use` — explicitly prohibited use cases
+- `pitloom:ai:compliance:license_category` — e.g., `open-weights`
+- `pitloom:ai:safety:bias_mitigation` — notes on debiasing techniques applied
+- `pitloom:ai:safety:intended_use` — approved use cases
+- `pitloom:ai:safety:restricted_use` — explicitly prohibited use cases

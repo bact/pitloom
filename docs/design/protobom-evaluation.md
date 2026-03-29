@@ -109,11 +109,11 @@ to the `protobom/protobom` repository to introduce:
 Protobom allows for injecting custom properties/key-values into its nodes.
 
 - *Implementation:* We generate a generic `PACKAGE` Protobom node,
-  but attach a custom property prefix (e.g., `loom:ai:hyperparameter:learning_rate`).
-  **Note:** See `sbom-enrichment.md` for the full taxonomy of the `loom:ai`
+  but attach a custom property prefix (e.g., `pitloom:ai:hyperparameter:learning_rate`).
+  **Note:** See `sbom-enrichment.md` for the full taxonomy of the `pitloom:ai`
   namespace and AI-specific enrichment strategies.
 - *Caution:* This guarantees extreme information loss when exporting to SPDX
-  3.0, as standard Protobom exporters will not know how to map `loom:ai:`
+  3.0, as standard Protobom exporters will not know how to map `pitloom:ai:`
   strings back into the formal SPDX 3 `ai_AIPackage` class properties.
 
 ### Option C: The hybrid dual-state architecture (recommended short-term)
