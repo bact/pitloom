@@ -201,12 +201,26 @@ def test_hdf5_fixture_format(fixture_hdf5: Any) -> None:
     assert fixture_hdf5.format == AiModelFormat.HDF5
 
 
-def test_hdf5_fixture_has_version(fixture_hdf5: Any) -> None:
-    # Legacy Keras HDF5 files carry keras_version; plain HDF5 may not.
-    if fixture_hdf5.version is not None:
-        assert isinstance(fixture_hdf5.version, str)
+def test_hdf5_fixture_version(fixture_hdf5: Any) -> None:
+    assert fixture_hdf5.version == "3.13.2"
 
 
 def test_hdf5_fixture_type_of_model(fixture_hdf5: Any) -> None:
-    if fixture_hdf5.type_of_model is not None:
-        assert isinstance(fixture_hdf5.type_of_model, str)
+    assert fixture_hdf5.type_of_model == "Sequential"
+
+
+def test_hdf5_fixture_name(fixture_hdf5: Any) -> None:
+    assert fixture_hdf5.name == "Binary_Classifier_v1"
+
+
+def test_hdf5_fixture_input_shape(fixture_hdf5: Any) -> None:
+    assert len(fixture_hdf5.inputs) == 1
+    assert fixture_hdf5.inputs[0]["shape"] == [None, 10]
+
+
+def test_hdf5_fixture_provenance_has_version(fixture_hdf5: Any) -> None:
+    assert "version" in fixture_hdf5.provenance
+
+
+def test_hdf5_fixture_provenance_has_name(fixture_hdf5: Any) -> None:
+    assert "name" in fixture_hdf5.provenance

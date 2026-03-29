@@ -179,7 +179,7 @@ def test_keras_fixture_type_of_model(fixture_keras: Any) -> None:
 
 
 def test_keras_fixture_name(fixture_keras: Any) -> None:
-    assert fixture_keras.name == "sequential_1"
+    assert fixture_keras.name == "Binary_Classifier_v1"
 
 
 def test_keras_fixture_trainable_hyperparameter(fixture_keras: Any) -> None:
@@ -188,7 +188,7 @@ def test_keras_fixture_trainable_hyperparameter(fixture_keras: Any) -> None:
 
 def test_keras_fixture_input_shape(fixture_keras: Any) -> None:
     assert len(fixture_keras.inputs) == 1
-    assert fixture_keras.inputs[0]["shape"] == [None, 1]
+    assert fixture_keras.inputs[0]["shape"] == [None, 10]
 
 
 def test_keras_fixture_date_saved_in_properties(fixture_keras: Any) -> None:

@@ -248,3 +248,57 @@ files = ["fragment1.json", "fragment2.json"]
 
         dataset_packages = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
         assert dataset_packages[0]["name"] == "cool-dataset"
+
+
+def test_assembler_ai_model_with_inputs_outputs() -> None:
+    """Test that AI model metadata with inputs/outputs is serialized into SPDX 3."""
+    import json as _json
+
+    from pitloom.assemble.spdx3.assembler import build
+    from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+    from pitloom.core.creation import CreationMetadata
+    from pitloom.core.document import DocumentModel
+    from pitloom.core.project import ProjectMetadata
+
+    project = ProjectMetadata(name="ai-project", version="0.1.0")
+    ai_model = AiModelMetadata(
+        format=AiModelFormat.PYTORCH_PT2,
+        name="linear-model",
+        version="1.0.0",
+        type_of_model="linear regression",
+        inputs=[{"name": "x"}],
+        outputs=[{"name": "linear"}],
+        hyperparameters={"trainable": True},
+        provenance={"inputs": "Source: model.pt2 | Field: models/model.json"},
+    )
+    doc = DocumentModel(
+        project=project, creation=CreationMetadata(), ai_models=[ai_model]
+    )
+
+    exporter = build(doc)
+    data = _json.loads(exporter.to_json(pretty=True))
+    graph = data["@graph"]
+
+    ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
+    assert len(ai_pkgs) == 1
+    pkg = ai_pkgs[0]
+    assert pkg["name"] == "linear-model"
+    assert pkg["software_packageVersion"] == "1.0.0"
+    assert pkg["ai_typeOfModel"] == ["linear regression"]
+
+    info = _json.loads(pkg["ai_informationAboutApplication"])
+    assert info["inputs"] == [{"name": "x"}]
+    assert info["outputs"] == [{"name": "linear"}]
+
+    hp = pkg["ai_hyperparameter"]
+    assert any(e["key"] == "trainable" and e["value"] == "True" for e in hp)
+
+    # profileConformance must include "ai"
+    spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]
+    assert "ai" in spdx_docs[0]["profileConformance"]
+
+    # contains relationship from main package to AI package
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    contains_rels = [r for r in rels if r.get("relationshipType") == "contains"]
+    assert len(contains_rels) == 1
+    assert any(pkg["spdxId"] in r["to"] for r in contains_rels)

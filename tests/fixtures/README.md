@@ -15,8 +15,8 @@ build hook (`pitloom.plugins.hatch`).  See
 ## AI model fixtures
 
 The `fasttext/`, `gguf/`, `hdf5/`, `keras/`, `numpy/`, `onnx/`,
-`pytorch/`, and `safetensors/` subdirectories contain small AI model
-files used as integration test fixtures.
+`pytorch/`, `pytorch_pt2/`, and `safetensors/` subdirectories
+contain small AI model files used as integration test fixtures.
 The files are committed to the repository because they are small enough
 (all under 6 MB) and stable enough to serve as reliable test inputs.
 
@@ -41,8 +41,8 @@ dependency is not installed or the file is absent.
 | `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
 | `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
 | `gguf/stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
-| `hdf5/example-model.h5` | HDF5 (Keras legacy) | Sequential dense model — 1 input, 1 output | CC0-1.0 |
-| `keras/example-model.keras` | Keras v3 | Sequential dense model — 1 input, 1 output | CC0-1.0 |
+| `hdf5/example-model.h5` | HDF5 (Keras legacy) | Binary classification (10 features → 1 output) | CC0-1.0 |
+| `keras/example-model.keras` | Keras v3 | Binary classification (10 features → 1 output) | CC0-1.0 |
 | `numpy/example-model-v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v3.npy` | NumPy v3.0 | Structured array | CC0-1.0 |
@@ -52,8 +52,9 @@ dependency is not installed or the file is absent.
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
 | `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `pytorch/example-model-full.pt` | PyTorch | Full model | CC0-1.0 |
-| `pytorch/example-model-weights.pth` | PyTorch | Weights only | CC0-1.0 |
+| `pytorch/example-model.pt` | PyTorch classic | Linear regression (10 features → 1 output) — full model save | CC0-1.0 |
+| `pytorch/example-model.pth` | PyTorch classic | Linear regression (10 features → 1 output) — weights-only save | CC0-1.0 |
+| `pytorch_pt2/example-model.pt2` | PyTorch PT2 Archive | Linear regression (10 features → 1 output) | CC0-1.0 |
 | `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
 | `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
 | `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
@@ -69,6 +70,8 @@ dependency is not installed or the file is absent.
 | Format | fastText quantised (`ftz`) |
 | Architecture | Supervised text classifier — 176-class language identification |
 | Task | Language identification (176 languages) |
+| Input | Text (UTF-8 string) |
+| Output | Class probabilities `[176]` (one score per ISO language code) |
 | Embedding dim | 16 |
 | Labels | 176 ISO language codes (e.g. `__label__en`, `__label__de`, …) |
 | Training | epoch=5, lr=0.05, wordNgrams=1, loss=hs |
@@ -95,6 +98,8 @@ Notable metadata extracted by the fastText extractor:
 | Format | fastText binary (quantised, version 12) |
 | Architecture | Supervised text classifier — 4-class Thai sentiment |
 | Task | Sentiment classification: `pos`, `neg`, `neu`, `q` (question) |
+| Input | Text (UTF-8 string, Thai language) |
+| Output | Class probabilities `[4]` (`pos`, `neg`, `neu`, `q`) |
 | Embedding dim | 21 |
 | Labels | `__label__pos`, `__label__neg`, `__label__neu`, `__label__q` |
 | Training | epoch=100, lr=0.05, wordNgrams=4, loss=softmax |
@@ -124,6 +129,8 @@ Notable metadata extracted by the fastText extractor:
 | Format | GGUF version 3 |
 | Architecture | BERT (BGE tokenizer vocabulary only — no model weights) |
 | Task | Tokenizer test fixture for llama.cpp |
+| Input | N/A (vocabulary-only file — no model weights for inference) |
+| Output | N/A |
 | Tensors | 0 (vocabulary-only; no weight tensors) |
 | Context length | 512 tokens |
 | Embedding length | 384 |
@@ -154,6 +161,8 @@ Notable metadata extracted by the GGUF extractor:
 | Format | GGUF version 3 |
 | Architecture | Phi-3 (vocabulary only — no model weights) |
 | Task | Tokenizer test fixture for llama.cpp |
+| Input | N/A (vocabulary-only file — no model weights for inference) |
+| Output | N/A |
 | Tensors | 0 (vocabulary-only; no weight tensors) |
 | Context length | 4 096 tokens |
 | Embedding length | 3 072 |
@@ -184,6 +193,8 @@ Notable metadata extracted by the GGUF extractor:
 | Format | GGUF version 3 |
 | Architecture | CLIP vision projector for tinygemma3 (multimodal) |
 | Task | Multimodal image–text alignment (vision encoder → language model) |
+| Input | Image patches: float32 `[n_patches, clip_embed_dim]` (32 × 32 px) |
+| Output | Projected embeddings: float32 `[n_patches, 128]` |
 | Tensors | 71 |
 | Image size | 32 × 32 px, patch size 2 × 2 |
 | Projection dim | 128 |
@@ -217,6 +228,8 @@ non-LLM GGUF architectures correctly.
 | Format | GGUF version 3 |
 | Architecture | LLaMA (260 K parameters, 5 layers, 64-dim embeddings, 8 attention heads) |
 | Task | Text generation — trained on the TinyStories dataset |
+| Input | Token IDs: int32 sequence, up to 2 048 tokens |
+| Output | Next-token logits: float32 `[vocab_size]` |
 | Tensors | 48 |
 | Context length | 2 048 tokens |
 | Size | 1 185 376 bytes (1.13 MB) |
@@ -246,22 +259,26 @@ specifically for use in unit tests and similar lightweight scenarios).
 | :--- | :--- |
 | Format | HDF5 — legacy Keras v2 format (`.h5`) |
 | Magic bytes | `\x89HDF\r\n\x1a\n` (HDF5 signature) |
-| Architecture | Sequential: Dense(1, activation=linear) |
-| Input shape | `(None, 1)` — batch × 1 feature |
-| Output shape | `(None, 1)` — batch × 1 unit |
-| Size | 13 432 bytes (0.01 MB) |
-| SHA-256 | `37b3c4bbc8e17556dffa1283d877739459fc68fe2e8f266ad42125a3d5f2c7bf` |
+| Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent — Dense(1, sigmoid)) |
+| Task | Binary classification (10 features → 1 output) |
+| Input | float32 `[None, 10]` |
+| Output | float32 `[None, 1]` (sigmoid probability) |
+| Version | 3.13.2 (Keras version) |
+| Model name | `Binary_Classifier_v1` |
+| Size | 23 352 bytes (0.02 MB) |
+| SHA-256 | `587004a95c71efffd650977f9530deab113e5017a04a8af91403011a4302be59` |
 | License | CC0-1.0 |
 | Source | Generated for testing purposes |
 | Required library | `h5py` (`pip install pitloom[hdf5]`) |
 
 Notable metadata extracted by the HDF5 extractor:
 
-- `type_of_model` extracted from `model_config.class_name` (if present)
-- `version` extracted from `keras_version` root attribute (if present)
-- `name` extracted from `model_config.config.name` (if present)
-- Plain HDF5 files without Keras attributes return an empty metadata object
-  with `format=AiModelFormat.HDF5`
+- `version` = `"3.13.2"` (from `keras_version` attribute)
+- `type_of_model` = `"Sequential"` (from `model_config.class_name`)
+- `name` = `"Binary_Classifier_v1"` (from `model_config.config.name`)
+- `inputs[0]["shape"]` = `[None, 10]`
+- `hyperparameters`: `trainable=True`
+- `properties["backend"]` contains the Keras backend name
 
 ---
 
@@ -270,29 +287,26 @@ Notable metadata extracted by the HDF5 extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | Keras v3 native format (`.keras`) — ZIP archive |
-| Keras version | 3.13.2 |
-| Architecture | Sequential: Dense(units=1, activation=linear) |
-| Input shape | `(None, 1)` — batch × 1 feature |
-| Size | 11 491 bytes (0.01 MB) |
-| SHA-256 | `c994685daebe6d18d0eb8bcce75dad004d1494b78247a44054ec81a918556e15` |
+| Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent — Dense(1, sigmoid)) |
+| Task | Binary classification (10 features → 1 output) |
+| Input | float32 `[None, 10]` |
+| Output | float32 `[None, 1]` (sigmoid probability) |
+| Version | 3.13.2 (Keras version) |
+| Model name | `Binary_Classifier_v1` |
+| Size | 19 215 bytes (0.02 MB) |
+| SHA-256 | `d0941f8de74c5afdfdcb93e395bb1e3538b6029eac4001a31dd283d95e979fde` |
 | License | CC0-1.0 |
 | Source | Generated for testing purposes |
 | Required library | None (uses stdlib `zipfile` + `json`) |
 
-ZIP contents:
-
-- `metadata.json` — `keras_version`, `date_saved`
-- `config.json` — full model architecture (`class_name`, `config`, `build_config`)
-- `model.weights.h5` — weights in HDF5 (not read by the Keras extractor)
-
 Notable metadata extracted by the Keras extractor:
 
-- `version` = `"3.13.2"` (from `metadata.json keras_version`)
-- `type_of_model` = `"Sequential"` (from `config.json class_name`)
-- `name` = `"sequential_1"` (from `config.json config.name`)
-- `hyperparameters["trainable"]` = `True`
-- `inputs[0]["shape"]` = `[None, 1]` (from `config.json build_config.input_shape`)
-- `properties["date_saved"]` = save timestamp
+- `version` = `"3.13.2"` (from `metadata.json`)
+- `type_of_model` = `"Sequential"` (from `config.json`)
+- `name` = `"Binary_Classifier_v1"` (from `config.json`)
+- `inputs[0]["shape"]` = `[None, 10]`
+- `hyperparameters`: `trainable=True`
+- `properties["date_saved"]` contains the save timestamp
 
 ---
 
@@ -517,21 +531,84 @@ Notable metadata extracted by the ONNX extractor:
 
 ---
 
-### pytorch/example-model-full.pt
+### pytorch/example-model.pt
 
 | Property | Value |
 | :--- | :--- |
+| Format | PyTorch classic (`.pt`) — full model (`torch.save(model, ...)`) |
+| Architecture | `nn.Linear(10, 1)` (linear regression) |
+| Task | Linear regression (10 features → 1 output) |
+| Input | `x`: float32 `[batch, 10]` |
+| Output | float32 `[batch, 1]` |
+| Size | 2 637 bytes |
+| SHA-256 | `38c9cf8d5d491fd9a85e8e311e172406f6edda0d961fa9aa6ec04f249a002186` |
 | License | CC0-1.0 |
-| Source | Generated for testing purpose |
+| Source | Generated for testing purposes |
+| Required library | `torch` (`pip install pitloom[pytorch]`) |
+
+Notable metadata extracted by the PyTorch extractor:
+
+- `format` = `AiModelFormat.PYTORCH` (detected via ZIP magic bytes)
+- `type_of_model` = `None` — class name extraction requires the optional
+  `fickling` library
+- `name`, `description`, `version` are all `None` — PyTorch classic format
+  embeds no model metadata
 
 ---
 
-### pytorch/example-model-weights.pth
+### pytorch/example-model.pth
 
 | Property | Value |
 | :--- | :--- |
+| Format | PyTorch classic (`.pth`) — weights-only (`torch.save(model.state_dict(), ...)`) |
+| Architecture | `nn.Linear(10, 1)` (linear regression) |
+| Task | Linear regression (10 features → 1 output) — weights-only save (no class info) |
+| Input | `x`: float32 `[batch, 10]` |
+| Output | float32 `[batch, 1]` |
+| Size | 2 005 bytes |
+| SHA-256 | `748f37e6fc24a5ec7b77aa5186cb7cff662e5635317f65a4f2b800a6bd7f14d2` |
 | License | CC0-1.0 |
-| Source | Generated for testing purpose |
+| Source | Generated for testing purposes |
+| Required library | `torch` (`pip install pitloom[pytorch]`) |
+
+Notable metadata extracted by the PyTorch extractor:
+
+- `format` = `AiModelFormat.PYTORCH` (detected via ZIP magic bytes)
+- `type_of_model` = `None` — state-dict saves contain only tensors, no class name
+- `name`, `description`, `version` are all `None`
+
+---
+
+### pytorch_pt2/example-model.pt2
+
+| Property | Value |
+| :--- | :--- |
+| Format | PyTorch PT2 Archive (ExecuTorch on-device format) — ZIP archive |
+| Architecture | `nn.Linear(10, 1)` (linear regression) |
+| Task | Linear regression (10 features → 1 output) |
+| Description | A serialized PT2 model for metadata extraction test. |
+| Version | 1.0.0 |
+| Input | `x`: float32 `[batch, 10]` |
+| Output | `linear`: float32 `[batch, 1]` |
+| Author | Pitloom |
+| Tags | regression |
+| Size | 8 800 bytes |
+| SHA-256 | `7f057931a7094fd88dcc1a9331a73b5a2fe0769e285ea8b63e1d31a8372319f5` |
+| License | CC0-1.0 |
+| Source | Generated for testing purposes |
+| Required library | None (uses stdlib `zipfile` + `json`) |
+
+Notable metadata extracted by the PT2 extractor:
+
+- `version` = `"1.0.0"` (from `extra/model_version`; takes precedence over `archive_version`)
+- `description` = `"A serialized PT2 model for metadata extraction test."`
+  (from `extra/description`)
+- `license` = `"CC0-1.0"` (from `extra/license`)
+- `properties["author"]` = `"Pitloom"` (from `extra/author`)
+- `properties["tags"]` = `"regression"` (from `extra/tags`)
+- `inputs` = `[{"name": "x"}]`, `outputs` = `[{"name": "linear"}]` (from `models/model.json`)
+- `type_of_model` = `None` — PT2 extractor does not inspect pickle data
+- `name` = `None` — no `extra/name` or `METADATA.json` with name in this fixture
 
 ---
 

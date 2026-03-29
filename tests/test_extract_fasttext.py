@@ -206,6 +206,40 @@ def test_fasttext_supervised_with_labels(tmp_path: Path) -> None:
     assert "__label__neg" in meta.properties["labels"]
 
 
+def test_fasttext_supervised_outputs_label_count(tmp_path: Path) -> None:
+    model_file = tmp_path / "classifier.bin"
+    model_file.write_bytes(b"fake")
+
+    labels = ["__label__pos", "__label__neg", "__label__neu"]
+    mock_model = _make_fasttext_model(
+        model_name="supervised", loss_name="softmax", labels=labels
+    )
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert len(meta.outputs) == 1
+    assert meta.outputs[0]["name"] == "label_probabilities"
+    assert meta.outputs[0]["shape"] == [3]
+    assert "outputs" in meta.provenance
+
+
+def test_fasttext_unsupervised_no_outputs(tmp_path: Path) -> None:
+    model_file = tmp_path / "skipgram.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model(model_name="skipgram", labels=[])
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.outputs == []
+
+
 def test_fasttext_ftz_extension(tmp_path: Path) -> None:
     model_file = tmp_path / "model.ftz"
     model_file.write_bytes(b"fake")
@@ -294,6 +328,13 @@ def test_sentiment_demo_labels(sentiment_demo_metadata: AiModelMetadata) -> None
     assert set(labels) == {"__label__pos", "__label__neu", "__label__neg", "__label__q"}
 
 
+def test_sentiment_demo_outputs(sentiment_demo_metadata: AiModelMetadata) -> None:
+    # Supervised model with 4 labels → outputs[0].shape == [4]
+    assert len(sentiment_demo_metadata.outputs) == 1
+    assert sentiment_demo_metadata.outputs[0]["shape"] == [4]
+    assert "outputs" in sentiment_demo_metadata.provenance
+
+
 def test_sentiment_demo_no_name_description_version(
     sentiment_demo_metadata: AiModelMetadata,
 ) -> None:
@@ -361,6 +402,12 @@ def test_lid_176_labels(lid_176_metadata: AiModelMetadata) -> None:
     assert len(labels) == 176
     assert "__label__en" in labels
     assert "__label__de" in labels
+
+
+def test_lid_176_outputs(lid_176_metadata: AiModelMetadata) -> None:
+    # 176 language labels → outputs[0].shape == [176]
+    assert len(lid_176_metadata.outputs) == 1
+    assert lid_176_metadata.outputs[0]["shape"] == [176]
 
 
 def test_lid_176_no_name_description_version(

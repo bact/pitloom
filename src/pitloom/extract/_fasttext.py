@@ -108,22 +108,28 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         provenance["hyperparameters"] = f"{source} | Fields: args.*"
 
     # Labels for supervised models (empty for unsupervised word vectors).
+    outputs: list[dict[str, Any]] = []
     get_labels = getattr(model, "get_labels", None)
     if get_labels is not None:
         try:
             labels = get_labels()
             if labels:
                 properties["labels"] = ",".join(labels)
+                outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
         except Exception:  # pylint: disable=broad-exception-caught
             pass
 
     if properties:
         provenance["properties"] = f"{source} | Fields: args.loss, labels"
 
+    if outputs:
+        provenance["outputs"] = f"{source} | Field: labels (supervised class count)"
+
     return AiModelMetadata(
         format=AiModelFormat.FASTTEXT,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,
+        outputs=outputs,
         provenance=provenance,
     )

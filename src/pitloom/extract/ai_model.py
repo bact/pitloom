@@ -4,8 +4,10 @@
 
 """Extractor for model metadata from AI model files.
 
-Supports fastText, GGUF, HDF5, NumPy, ONNX, PyTorch, and Safetensors
-formats via optional dependencies.
+Supports fastText, GGUF, HDF5, Keras, NumPy, ONNX, PyTorch,
+PyTorch PT2, and Safetensors formats.
+
+Some formats require optional dependencies to read metadata:
 
     pip install pitloom[fasttext]    # for fastText support
     pip install pitloom[gguf]        # for GGUF support
@@ -14,7 +16,6 @@ formats via optional dependencies.
     pip install pitloom[onnx]        # for ONNX support
     pip install pitloom[pytorch]     # for PyTorch support
     pip install pitloom[safetensors] # for Safetensors support
-    pip install pitloom[aimodel]     # for all model formats
 """
 
 from __future__ import annotations

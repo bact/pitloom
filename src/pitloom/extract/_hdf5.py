@@ -106,7 +106,7 @@ def _extract_input_from_layers(
         one-element list or empty and ``provenance_value`` is the source
         description string (empty string when nothing was found).
     """
-    for layer in layers:
+    for i, layer in enumerate(layers):
         layer_class = layer.get("class_name", "")
         if layer_class == "InputLayer":
             batch_shape = (layer.get("config") or {}).get("batch_shape")
@@ -120,7 +120,7 @@ def _extract_input_from_layers(
             in_shape = (layer.get("build_config") or {}).get("input_shape")
             if in_shape is not None:
                 prov = (
-                    f"{source} | Field: model_config.config.layers[0]"
+                    f"{source} | Field: model_config.config.layers[{i}]"
                     ".build_config.input_shape"
                 )
                 return [{"shape": in_shape}], prov
@@ -360,7 +360,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             )
             properties.update(cfg_props)
             provenance.update(prov_updates)
-            if not type_of_model and not name and not _is_keras_hdf5(hf.attrs):
+            if not type_of_model and not name:
                 properties["model_config_raw"] = model_config_raw[:500]
                 provenance["properties.model_config_raw"] = (
                     f"{source} | Field: model_config attribute (unparsed)"
