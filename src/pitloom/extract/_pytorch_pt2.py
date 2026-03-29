@@ -243,12 +243,12 @@ def _read_pt2_zip(
         provenance, inputs, outputs).
     """
     file_list = zf.namelist()
-    properties: dict[str, str] = {}
-    provenance: dict[str, str] = {}
     name: str | None = None
     description: str | None = None
     version: str | None = None
     license_expr: str | None = None
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
 
     properties["archive_contents"] = ", ".join(file_list[:20])
     if len(file_list) > 20:

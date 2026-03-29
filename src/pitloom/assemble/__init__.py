@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pitloom.assemble.spdx3.assembler import build
+from pitloom.assemble.spdx3.document import build
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel

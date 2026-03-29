@@ -151,8 +151,9 @@ SBOM written to: sbom.spdx3.json
 src/pitloom/
 ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
 │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
+│   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
 │   │   ├── deps.py      # Dependency element assembly
+│   │   ├── ai.py        # AI model element assembly
 │   │   └── fragments.py # Fragment merging
 │   └── __init__.py      # generate_sbom() orchestrator
 ├── core/                # Format-neutral data models (no SBOM lib dependencies)

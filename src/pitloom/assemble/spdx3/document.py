@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 assembler for Python projects."""
+"""SPDX 3 document assembly for Python projects."""
 
 from __future__ import annotations
 

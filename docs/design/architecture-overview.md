@@ -186,8 +186,9 @@ pitloom/
 │   └── pitloom/
 │       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
 │       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│       │   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
+│       │   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
 │       │   │   ├── deps.py      # dependency element assembly
+│       │   │   ├── ai.py        # AI model element assembly
 │       │   │   └── fragments.py # pre-generated fragment merging
 │       │   └── __init__.py      # generate_sbom() public API
 │       ├── core/                # Format-neutral data models (no SBOM lib deps)

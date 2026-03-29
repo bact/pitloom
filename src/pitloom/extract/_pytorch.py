@@ -72,9 +72,9 @@ def _read_pytorch_zip(
         Tuple of (type_of_model, properties, provenance).
     """
     file_list = zf.namelist()
+    type_of_model: str | None = None
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
-    type_of_model: str | None = None
 
     shown = file_list[:20]
     properties["archive_contents"] = ", ".join(shown)
@@ -132,9 +132,9 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     import zipfile  # pylint: disable=import-outside-toplevel
 
     source = f"Source: {model_path.name}"
-    provenance: dict[str, str] = {}
-    properties: dict[str, str] = {}
     type_of_model: str | None = None
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
 
     try:
         is_zip = zipfile.is_zipfile(str(model_path))

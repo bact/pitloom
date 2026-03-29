@@ -16,7 +16,7 @@ from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.plugin import hookimpl
 
-from pitloom.assemble.spdx3.assembler import build as assemble_spdx3
+from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel

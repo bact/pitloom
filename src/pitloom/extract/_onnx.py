@@ -73,8 +73,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"
-    provenance: dict[str, str] = {}
     properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
 
     # Graph name as the model name fallback
     graph_name = model.graph.name if model.graph.name else None

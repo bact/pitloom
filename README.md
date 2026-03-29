@@ -262,8 +262,9 @@ pitloom/
 │   └── pitloom/
 │       ├── assemble/
 │       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│       │   │   ├── assembler.py # SPDX 3 assembler — build(DocumentModel)
+│       │   │   ├── document.py  # SPDX 3 document assembly — build(DocumentModel)
 │       │   │   ├── deps.py      # Dependency element assembly
+│       │   │   ├── ai.py        # AI model element assembly
 │       │   │   └── fragments.py # Fragment merging
 │       │   └── __init__.py      # generate_sbom() orchestrator
 │       ├── core/

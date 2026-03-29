@@ -73,9 +73,9 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         ) from exc
 
     source = f"Source: {model_path.name}"
-    provenance: dict[str, str] = {}
     hyperparameters: dict[str, Any] = {}
     properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
 
     # Training args are on the C++ binding at model.f.getArgs().
     args = None

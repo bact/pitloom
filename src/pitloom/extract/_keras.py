@@ -31,55 +31,64 @@ from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 
-_ParseResult = tuple[
-    str | None, str | None, dict[str, Any], list[dict[str, Any]], dict[str, str]
-]
 
-
-def _parse_model_config(config_data: dict[str, Any], source: str) -> _ParseResult:
+def _parse_model_config(
+    config_data: dict[str, Any],
+    source: str,
+    hyperparameters: dict[str, Any],
+    inputs: list[dict[str, Any]],
+    provenance: dict[str, str],
+) -> tuple[str | None, str | None]:
     """Parse ``config.json`` from a ``.keras`` archive.
+
+    Extracts:
+
+    - ``class_name`` → ``type_of_model`` (returned)
+    - ``config.name`` → ``name`` (returned)
+    - Scalar entries of ``config`` (excluding ``name``, ``layers``, ``dtype``)
+      → ``hyperparameters`` (updated in-place)
+    - ``build_config.input_shape``
+      → ``inputs`` (updated in-place)
+    - Per-field source paths → ``provenance`` (updated in-place)
 
     Args:
         config_data: Parsed JSON object from ``config.json``.
         source: Provenance source string (e.g. ``"Source: model.keras"``).
+        hyperparameters: Updated in-place with scalar config entries.
+        inputs: Updated in-place with extracted input shape entries.
+        provenance: Updated in-place with per-field source descriptions.
 
     Returns:
-        Tuple of ``(type_of_model, name, hyperparameters, inputs,
-        provenance_updates)``.
+        Tuple of ``(type_of_model, name)``.
     """
     type_of_model: str | None = config_data.get("class_name") or None
-    provenance_updates: dict[str, str] = {}
-    hyperparameters: dict[str, Any] = {}
-    inputs: list[dict[str, Any]] = []
     name: str | None = None
 
     if type_of_model:
-        provenance_updates["type_of_model"] = f"{source} | Field: config.class_name"
+        provenance["type_of_model"] = f"{source} | Field: config.class_name"
 
     config = config_data.get("config", {})
     if isinstance(config, dict):
         name = config.get("name") or None
         if name:
-            provenance_updates["name"] = f"{source} | Field: config.config.name"
+            provenance["name"] = f"{source} | Field: config.config.name"
         for key, val in config.items():
             if key in ("name", "layers", "dtype"):
                 continue
             if isinstance(val, (int, float, bool, str)):
                 hyperparameters[key] = val
         if hyperparameters:
-            provenance_updates["hyperparameters"] = f"{source} | Field: config.config.*"
+            provenance["hyperparameters"] = f"{source} | Field: config.config.*"
 
     # Input shape from top-level build_config.
     build_config = config_data.get("build_config", {})
     if isinstance(build_config, dict):
         input_shape = build_config.get("input_shape")
         if input_shape is not None:
-            inputs = [{"shape": input_shape}]
-            provenance_updates["inputs"] = (
-                f"{source} | Field: config.build_config.input_shape"
-            )
+            inputs.append({"shape": input_shape})
+            provenance["inputs"] = f"{source} | Field: config.build_config.input_shape"
 
-    return type_of_model, name, hyperparameters, inputs, provenance_updates
+    return type_of_model, name
 
 
 def read_keras(model_path: Path) -> AiModelMetadata:
@@ -107,13 +116,13 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         ValueError: If the file is not a valid ``.keras`` archive.
     """
     source = f"Source: {model_path.name}"
-    provenance: dict[str, str] = {}
-    properties: dict[str, str] = {}
+    name: str | None = None
     version: str | None = None
     type_of_model: str | None = None
-    name: str | None = None
     hyperparameters: dict[str, Any] = {}
+    properties: dict[str, str] = {}
     inputs: list[dict[str, Any]] = []
+    provenance: dict[str, str] = {}
 
     try:
         with zipfile.ZipFile(str(model_path), "r") as zf:
@@ -135,10 +144,9 @@ def read_keras(model_path: Path) -> AiModelMetadata:
 
             if "config.json" in names:
                 config_data = json.loads(zf.read("config.json"))
-                type_of_model, name, hyperparameters, inputs, prov = (
-                    _parse_model_config(config_data, source)
+                type_of_model, name = _parse_model_config(
+                    config_data, source, hyperparameters, inputs, provenance
                 )
-                provenance.update(prov)
 
     except zipfile.BadZipFile as exc:
         raise ValueError(

@@ -129,73 +129,66 @@ def _extract_input_from_layers(
 
 
 def _parse_model_config(
-    raw: str, source: str
-) -> tuple[
-    str | None,
-    str | None,
-    dict[str, Any],
-    list[dict[str, Any]],
-    dict[str, str],
-    dict[str, str],
-]:
+    raw: str,
+    source: str,
+    hyperparameters: dict[str, Any],
+    inputs: list[dict[str, Any]],
+    properties: dict[str, str],
+    provenance: dict[str, str],
+) -> tuple[str | None, str | None]:
     """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model.
 
     Extracts:
 
-    - ``class_name`` → ``type_of_model``
-    - ``config.name`` / ``config.model_name`` → ``name``
+    - ``class_name`` → ``type_of_model`` (returned)
+    - ``config.name`` / ``config.model_name`` → ``name`` (returned)
     - Scalar entries of ``config`` (excluding ``name`` and ``layers``)
-      → ``hyperparameters``
-    - ``config.layers`` count → ``config_properties["layer_count"]``
+      → ``hyperparameters`` (updated in-place)
+    - ``config.layers`` count → ``properties["layer_count"]`` (updated in-place)
     - Input shape from layers or ``build_config.input_shape``
-      → ``inputs``
+      → ``inputs`` (updated in-place)
+    - Per-field source paths → ``provenance`` (updated in-place)
 
     Args:
         raw: Raw JSON string from the ``model_config`` HDF5 attribute.
         source: Provenance source string (e.g. ``"Source: model.h5"``).
+        hyperparameters: Updated in-place with scalar config entries.
+        inputs: Updated in-place with extracted input shape entries.
+        properties: Updated in-place with ``layer_count`` and similar.
+        provenance: Updated in-place with per-field source descriptions.
 
     Returns:
-        Tuple of ``(type_of_model, name, hyperparameters, inputs,
-        config_properties, provenance_updates)``.
-        ``config_properties`` contains additional string properties derived
-        from the model config (e.g. ``layer_count``).
-        ``provenance_updates`` maps field names to their source descriptions.
+        Tuple of ``(type_of_model, name)``.
     """
     import json  # pylint: disable=import-outside-toplevel
 
     type_of_model: str | None = None
     name: str | None = None
-    hyperparameters: dict[str, Any] = {}
-    inputs: list[dict[str, Any]] = []
-    config_properties: dict[str, str] = {}
-    provenance_updates: dict[str, str] = {}
 
     try:
         model_config = json.loads(raw)
 
         type_of_model = model_config.get("class_name") or None
         if type_of_model:
-            provenance_updates["type_of_model"] = (
-                f"{source} | Field: model_config.class_name"
-            )
+            provenance["type_of_model"] = f"{source} | Field: model_config.class_name"
 
         config = model_config.get("config", {})
         if isinstance(config, dict):
             name = config.get("name") or config.get("model_name") or None
             if name:
-                provenance_updates["name"] = (
-                    f"{source} | Field: model_config.config.name"
-                )
+                provenance["name"] = f"{source} | Field: model_config.config.name"
 
             layers = config.get("layers")
             if isinstance(layers, list):
-                config_properties["layer_count"] = str(len(layers))
-                provenance_updates["properties.layer_count"] = (
+                properties["layer_count"] = str(len(layers))
+                provenance["properties.layer_count"] = (
                     f"{source} | Field: model_config.config.layers (count)"
                 )
-                inputs, inputs_prov = _extract_input_from_layers(layers, source)
+                new_inputs, inputs_prov = _extract_input_from_layers(layers, source)
+                if new_inputs:
+                    inputs.extend(new_inputs)
                 if inputs_prov:
-                    provenance_updates["inputs"] = inputs_prov
+                    provenance["inputs"] = inputs_prov
 
             for key, val in config.items():
                 if key in ("name", "layers"):
@@ -204,7 +197,7 @@ def _parse_model_config(
                     hyperparameters[key] = val
 
             if hyperparameters:
-                provenance_updates["hyperparameters"] = (
+                provenance["hyperparameters"] = (
                     f"{source} | Field: model_config.config.*"
                     " (scalar entries, excluding name and layers)"
                 )
@@ -213,51 +206,42 @@ def _parse_model_config(
         if not inputs:
             in_shape = (model_config.get("build_config") or {}).get("input_shape")
             if in_shape is not None:
-                inputs = [{"shape": in_shape}]
-                provenance_updates["inputs"] = (
+                inputs.append({"shape": in_shape})
+                provenance["inputs"] = (
                     f"{source} | Field: model_config.build_config.input_shape"
                 )
 
     except (json.JSONDecodeError, AttributeError):
         pass
 
-    return (
-        type_of_model,
-        name,
-        hyperparameters,
-        inputs,
-        config_properties,
-        provenance_updates,
-    )
+    return type_of_model, name
 
 
 def _parse_training_config(
-    raw: str, source: str
-) -> tuple[dict[str, str], dict[str, str]]:
+    raw: str,
+    source: str,
+    properties: dict[str, str],
+    provenance: dict[str, str],
+) -> None:
     """Parse ``training_config`` JSON from a Keras v1/v2 HDF5 model.
 
     Extracts:
 
     - ``optimizer_config.class_name`` (or ``optimizer.class_name``)
-      → ``properties["optimizer"]``
+      → ``properties["optimizer"]`` (updated in-place)
     - ``loss``
-      → ``properties["loss"]``
+      → ``properties["loss"]`` (updated in-place)
     - ``metrics``
-      → ``properties["metrics"]``
+      → ``properties["metrics"]`` (updated in-place)
+    - Per-field source paths → ``provenance`` (updated in-place)
 
     Args:
         raw: Raw JSON string from the ``training_config`` HDF5 attribute.
         source: Provenance source string (e.g. ``"Source: model.h5"``).
-
-    Returns:
-        Tuple of ``(properties, provenance_updates)``.
-        ``provenance_updates`` maps ``"properties.<key>"`` to its HDF5/JSON
-        source path so that the caller can record per-field provenance.
+        properties: Updated in-place with optimizer, loss, and metrics entries.
+        provenance: Updated in-place with per-field source descriptions.
     """
     import json  # pylint: disable=import-outside-toplevel
-
-    properties: dict[str, str] = {}
-    provenance_updates: dict[str, str] = {}
 
     try:
         training_config = json.loads(raw)
@@ -270,28 +254,24 @@ def _parse_training_config(
             opt_class = optimizer.get("class_name") or ""
             if opt_class:
                 properties["optimizer"] = opt_class
-                provenance_updates["properties.optimizer"] = (
+                provenance["properties.optimizer"] = (
                     f"{source} | Field: training_config.{opt_key}.class_name"
                 )
 
         loss = training_config.get("loss")
         if loss is not None:
             properties["loss"] = str(loss)
-            provenance_updates["properties.loss"] = (
-                f"{source} | Field: training_config.loss"
-            )
+            provenance["properties.loss"] = f"{source} | Field: training_config.loss"
 
         metrics = training_config.get("metrics")
         if metrics:
             properties["metrics"] = json.dumps(metrics)
-            provenance_updates["properties.metrics"] = (
+            provenance["properties.metrics"] = (
                 f"{source} | Field: training_config.metrics"
             )
 
     except (json.JSONDecodeError, AttributeError):
         pass
-
-    return properties, provenance_updates
 
 
 def read_hdf5(model_path: Path) -> AiModelMetadata:
@@ -334,13 +314,13 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
     with hf:
         source = f"Source: {model_path.name}"
-        provenance: dict[str, str] = {}
-        hyperparameters: dict[str, Any] = {}
-        properties: dict[str, str] = {}
-        inputs: list[dict[str, Any]] = []
         name: str | None = None
         version: str | None = None
         type_of_model: str | None = None
+        hyperparameters: dict[str, Any] = {}
+        properties: dict[str, str] = {}
+        inputs: list[dict[str, Any]] = []
+        provenance: dict[str, str] = {}
 
         keras_version_raw = _decode_h5_attr(hf.attrs.get("keras_version"))
         model_config_raw = _decode_h5_attr(hf.attrs.get("model_config"))
@@ -356,11 +336,14 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             provenance["properties.backend"] = f"{source} | Field: backend attribute"
 
         if model_config_raw:
-            type_of_model, name, hyperparameters, inputs, cfg_props, prov_updates = (
-                _parse_model_config(model_config_raw, source)
+            type_of_model, name = _parse_model_config(
+                model_config_raw,
+                source,
+                hyperparameters,
+                inputs,
+                properties,
+                provenance,
             )
-            properties.update(cfg_props)
-            provenance.update(prov_updates)
             if not type_of_model and not name:
                 properties["model_config_raw"] = model_config_raw[:500]
                 provenance["properties.model_config_raw"] = (
@@ -368,11 +351,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 )
 
         if training_config_raw and _is_keras_hdf5(hf.attrs):
-            training_props, training_prov = _parse_training_config(
-                training_config_raw, source
-            )
-            properties.update(training_props)
-            provenance.update(training_prov)
+            _parse_training_config(training_config_raw, source, properties, provenance)
 
     return AiModelMetadata(
         format=AiModelFormat.HDF5,

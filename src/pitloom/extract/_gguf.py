@@ -68,9 +68,9 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"
-    provenance: dict[str, str] = {}
-    properties: dict[str, str] = {}
     hyperparameters: dict[str, Any] = {}
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
 
     # Resolve field values to plain Python scalars
     def _field_value(gguf_field: Any) -> Any:

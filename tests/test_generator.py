@@ -12,7 +12,7 @@ from pathlib import Path
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
-from pitloom.assemble.spdx3.assembler import build
+from pitloom.assemble.spdx3.document import build
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel

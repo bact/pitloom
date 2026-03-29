@@ -90,9 +90,9 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         ) from exc
 
     source = f"Source: {model_path.name}"
-    provenance: dict[str, str] = {}
     properties: dict[str, str] = {}
     inputs: list[dict[str, Any]] = []
+    provenance: dict[str, str] = {}
 
     suffix = model_path.suffix.lower()
 
