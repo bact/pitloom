@@ -2,8 +2,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 SBOM assembler."""
+"""SPDX 3 SBOM document assembly."""
 
-from pitloom.assemble.spdx3.assembler import build
+from pitloom.assemble.spdx3.document import build
 
 __all__ = ["build"]

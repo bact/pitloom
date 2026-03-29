@@ -151,8 +151,9 @@ SBOM written to: sbom.spdx3.json
 src/pitloom/
 ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
 │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│   │   ├── assembler.py # build(DocumentModel) → Spdx3JsonExporter
+│   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
 │   │   ├── deps.py      # Dependency element assembly
+│   │   ├── ai.py        # AI model element assembly
 │   │   └── fragments.py # Fragment merging
 │   └── __init__.py      # generate_sbom() orchestrator
 ├── core/                # Format-neutral data models (no SBOM lib dependencies)
@@ -165,7 +166,16 @@ src/pitloom/
 ├── export/              # Layer 4 — serialise to physical format
 │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
 ├── extract/             # Layer 1 — read from sources
-│   ├── ai_model.py      # AI model file extractor (ONNX, Safetensors, GGUF)
+│   ├── ai_model.py      # AI model dispatcher + format detection
+│   ├── _fasttext.py     # fastText (.ftz, .bin)
+│   ├── _gguf.py         # GGUF (.gguf)
+│   ├── _hdf5.py         # HDF5 / Keras v1–v2 (.h5, .hdf5)
+│   ├── _keras.py        # Keras v3 (.keras)
+│   ├── _numpy.py        # NumPy (.npy, .npz)
+│   ├── _onnx.py         # ONNX (.onnx)
+│   ├── _pytorch.py      # PyTorch classic (.pt, .pth)
+│   ├── _pytorch_pt2.py  # PyTorch PT2 / ExecuTorch (.pt2)
+│   ├── _safetensors.py  # Safetensors (.safetensors)
 │   └── pyproject.py     # pyproject.toml extractor
 ├── __main__.py          # CLI entry point
 └── bom.py               # ML tracking SDK
@@ -248,16 +258,31 @@ Based on the design document and problem requirements:
 
 ### Short-term (Next Phase)
 
-1. **File-level Analysis**
-   - Scan source files and include in SBOM
-   - Capture file metadata (purpose, content type)
+1. **Additional AI model format extractors**
+   - JAX (Orbax checkpoints) — higher priority
+   - TensorFlow SavedModel and TensorFlow Lite
+   - Scikit-learn (pickle/joblib; complex — no single standard format)
+   - See `docs/design/model-metadata-extraction.md`
 
-2. **License Expression Support**
+2. **Dataset-to-model relationship linking**
+   - Extend `AiModelMetadata` with dataset references
+   - Emit `dataset_DatasetPackage` elements and SPDX 3 relationship types
+     (`trainedOn`, `testedOn`, `finetunedOn`, `validatedOn`, `pretrainedOn`)
+   - See `docs/design/sbom-enrichment.md`
+
+3. **SBOM enrichment from external sources**
+   - Repository README / model card parsing (local, no network)
+   - OpenSSF Scorecard (enabled by default — public API)
+   - Hugging Face Hub, PyPI metadata (user opt-in)
+   - Per-source enable/disable via `[tool.pitloom.enrich]`
+   - See `docs/design/sbom-enrichment.md`
+
+4. **License Expression Support**
    - PEP 639 compliance
    - SPDX license expression parsing
    - License relationship modeling
 
-3. **Enhanced Dependency Analysis**
+5. **Enhanced Dependency Analysis**
    - Transitive dependencies
    - Optional dependencies
    - Development dependencies

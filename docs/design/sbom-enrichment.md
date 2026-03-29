@@ -6,142 +6,157 @@ SPDX-License-Identifier: CC0-1.0
 
 # SBOM enrichment and AI SBOMs
 
-This document outlines the strategies for enriching standard SBOMs with
-additional metadata, specifically focusing on the generation of AI SBOMs for
-machine learning models and datasets natively within Pitloom.
+This document outlines strategies for enriching SBOMs with additional metadata,
+focusing on AI model and dataset information in Pitloom.
 
-## 1. AI SBOM field mapping design (The `loom:ai` namespace)
+## Current implementation
 
-To establish a foundation for AI SBOMs that works across any format natively
-supporting key-value pairs (e.g., CycloneDX `properties` or SPDX
-`Annotations`), we define a strict namespace.
+Pitloom maps extracted model metadata to SPDX 3 native AI profile fields on
+`ai_AIPackage`. The mapping is handled in `pitloom.assemble.spdx3.ai`:
 
-### 1.1 Model identification & architecture
+| `AiModelMetadata` field | SPDX 3 field |
+| :---- | :---- |
+| `name` | `name` |
+| `version` | `software_packageVersion` |
+| `description` | `description` |
+| `type_of_model` | `ai_typeOfModel` |
+| `hyperparameters` | `ai_hyperparameter` (list of `DictionaryEntry`) |
+| `inputs` / `outputs` | `ai_informationAboutApplication` (JSON string) |
+| `format_version` | not yet mapped — candidate: `comment` or custom `ExternalRef` |
+| `framework` | not yet mapped — candidate: `ai_informationAboutApplication` or `comment` |
+| `framework_version` | not yet mapped — candidate: `comment` or `ExternalRef` |
+| `properties` | not yet mapped (stored in `AiModelMetadata.properties`, not emitted to SPDX) |
+| `provenance` | `comment` |
 
-- `loom:ai:model:type`: Broad category (e.g., `transformer`, `cnn`).
-- `loom:ai:model:architecture_family`: Specific structural family.
-- `loom:ai:model:parameters_count`: Total number of parameters.
-- `loom:ai:model:framework`: Base framework/format (e.g., `pytorch`, `onnx`).
+`ai_AIPackage` elements are linked to the main Python package via an SPDX
+`contains` relationship.
 
-### 1.2 Training & hyperparameters
+## Planned: dataset-to-model relationship linking
 
-- `loom:ai:training:learning_rate`: The base learning rate.
-- `loom:ai:training:batch_size`: Training batch size.
-- `loom:ai:training:epochs`: Number of full passes over the dataset.
-- `loom:ai:training:optimizer`: Optimizer algorithm (e.g., `adamw`, `sgd`).
-- `loom:ai:training:random_seed`: Initialization seed for reproducibility.
+A current gap in Pitloom's SBOM output is that only the AI model itself is
+documented, not its associated training, evaluation, or fine-tuning datasets.
 
-### 1.3 Dataset constraints & provenance
+SPDX 3 provides the `dataset_DatasetPackage` class and dedicated relationship
+types between `ai_AIPackage` and `dataset_DatasetPackage`:
 
-- `loom:ai:dataset:training:name`: Name/URI of the dataset.
-- `loom:ai:dataset:training:size`: Volume of the data (e.g., `1.2TB`).
-- `loom:ai:dataset:training:split`: Ratio/segment used (e.g., `train`).
-- `loom:ai:dataset:preprocessing`: Normalization or transformation applied.
+| SPDX 3 Relationship type | Meaning |
+| :---- | :---- |
+| `trainedOn` | Primary dataset used to train the model |
+| `testedOn` | Dataset(s) used to evaluate the trained model |
+| `finetunedOn` | Dataset used for fine-tuning a pre-trained model |
+| `validatedOn` | Dataset used for validation during training |
+| `pretrainedOn` | Dataset used to pre-train a foundation model |
 
-### 1.4 Metrics & evaluation
+### Implementation approach
 
-- `loom:ai:metric:accuracy`: Example: `0.95`.
-- `loom:ai:metric:f1_score`: Example: `0.92`.
-- `loom:ai:metric:loss`: Final evaluation loss.
+1. Extend `AiModelMetadata` with a `datasets` field (list of `DatasetReference`
+   dataclass) carrying: role (trained/tested/etc.), name, URI, and license.
+2. Add `dataset_DatasetPackage` element creation to `pitloom.assemble.spdx3.ai`.
+3. Emit the appropriate relationship type for each dataset reference.
+4. Append `ProfileIdentifierType.dataset` to `profileConformance` when at least
+   one dataset element is present.
 
-### 1.5 Ethical & compliance considerations
+### Dataset metadata sources
 
-- `loom:ai:compliance:license_category`: E.g., `open-weights`.
-- `loom:ai:safety:bias_mitigation`: Notes on debiasing techniques applied.
-- `loom:ai:safety:intended_use`: Approved use-cases.
-- `loom:ai:safety:restricted_use`: Explicitly prohibited use-cases.
+When a dataset is available on a recognised hub, its metadata can be retrieved
+in machine-readable Croissant format (JSON-LD extension of `schema.org/Dataset`),
+adopted by Hugging Face, Kaggle, and OpenML.
+<https://github.com/mlcommons/croissant>
 
-## 2. SBOM enrichment strategies for AI models
+To avoid SBOM bloat, only top-level identity fields (name, license, task) should
+be inlined into the `dataset_DatasetPackage` element; exhaustive provenance can
+be linked via an `ExternalRef` pointing to the Croissant document URL.
 
-Beyond statically defining fields at compilation time, Pitloom can employ active
-sub-component enrichment strategies post-build or during CI/CD pipelines to
-construct a more complex and accurate AI SBOM.
+## Planned: SBOM enrichment from external sources
 
-This involves unifying traditional SCA/SBOM tools with AI-specific metadata
-extractors.
+Model formats that carry little embedded metadata (PyTorch classic, Scikit-learn
+pickles, some HDF5 files) can be enriched with information from external sources.
+This is analogous to what
+[AIMMX](https://github.com/IBM/AIMMX) does at the repository level and what
+[Parlay](https://github.com/snyk/parlay) does by querying third-party services
+such as OpenSSF Scorecard and package registries.
 
-### 2.1 Repository-level extraction (AIMMX)
+### Enrichment data sources
 
-[AIMMX](https://github.com/IBM/AIMMX) (Automated AI Model Metadata eXtractor)
-represents a repository-level approach to metadata discovery. AIMMX infers AI
-model characteristics by statically analyzing a software repository's structure,
-README files, requirements, and training scripts.
+| Source | What it provides | Network required | Default |
+| :----- | :--------------- | :--------------- | :------ |
+| Repository README / model card | Task description, intended use, dataset references, license notes | No (local file) | Enabled |
+| Hugging Face Hub metadata | Architecture, tags, license, dataset links, paper references | Yes | User opt-in |
+| OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | Enabled (low cost, public API) |
+| Parlay package enrichment | Package ecosystem metadata (description, homepage, license) | Yes | Enabled |
+| PyPI / conda metadata | Version history, maintainers, download stats | Yes | User opt-in |
 
-**Pitloom integration strategy:**
+### Enable/disable per source
 
-- Invoke AIMMX against the target source repository prior to the build phase.
-- Map the inferred architectural details, target tasks (e.g., Natural Language
-  Processing), and dataset URIs discovered by AIMMX directly into the `loom:ai`
-  namespace.
-- **Value:** Fills gaps for models where explicit documentation (Model Cards)
-  does not exist but context is present in the codebase.
+Because some enrichment functions require a network connection or may raise
+licensing questions (e.g., pulling data from a hub that has terms of use),
+Pitloom should allow users to enable or disable each source independently in
+`pyproject.toml`:
 
-### 2.2 Structural model introspection
+```toml
+[tool.pitloom.enrich]
+local = true          # README / model card — always safe, on by default
+openssf_scorecard = true   # public API, no auth required
+huggingface = false   # opt-in: requires network, data under HF ToS
+pypi = false          # opt-in: requires network
+```
 
-Modern model serialization formats natively embed metadata alongside neural
-weights. Pitloom's `bom.py` generator can directly parse these files during the
-build process to enrich the Protobom graph dynamically.
+OpenSSF Scorecard should be enabled by default as it is a public API with
+no authentication requirement and provides immediate supply chain security value.
 
-- **GGUF (`.gguf`):** A single-file binary format designed for edge deployments
-  that mandates extensive key-value metadata within its header.
-  - *Strategy:* Utilize `gguf-parser` to extract the architecture type and
-    quantization parameters. Map quantization specifics to a new field like
-    `loom:ai:model:quantization`.
+### Enricher implementation approach
 
-- **ONNX (`.onnx`):** Open Neural Network Exchange uses protobufs and possesses
-  defined properties like `doc_string` and a `metadata_props` dictionary.
-  - *Strategy:* Use the `onnx` Python package to parse the graph properties. Map
-    the ONNX `domain` and `producer_name` to standard SBOM fields while mapping
-    custom `metadata_props` into the `loom:ai` extensions.
+1. Add an `enrich/` subpackage to `pitloom` with one module per data source
+   (e.g., `enrich/readme.py`, `enrich/openssf.py`, `enrich/huggingface.py`).
+2. Each enricher accepts an `AiModelMetadata` and updates it in-place, following
+   the same in-place mutation pattern used by the model extractors.
+3. The `generate_sbom()` orchestrator reads the `[tool.pitloom.enrich]` config
+   and dispatches to the enabled enrichers after extraction but before assembly.
+4. Provenance is recorded for each enriched field (source, field path)
+   using the existing `AiModelMetadata.provenance` dict.
 
-- **Safetensors (`.safetensors`):** Prefix the file with an 8-byte length
-  indicator followed by a JSON object containing the `__metadata__` field.
-  - *Strategy:* Use `huggingface_hub.get_safetensors_metadata` to parse this
-    JSON header without loading multi-gigabyte weight tensors. Extract framework
-    details and training hyperparameters into `loom:ai:training:*`.
+## AI SBOM field mapping: `loom:ai` namespace (CycloneDX)
 
-### 2.3 The hybrid AI-enrichment architecture
+When Pitloom gains CycloneDX output support, SPDX 3 native fields have no
+direct equivalent and must be expressed as CycloneDX `properties` entries.
+The following namespace is reserved for that purpose:
 
-To achieve a complete AI SBOM, Pitloom should orchestrate a multi-stage pipeline:
+### Model identification and architecture
 
-1. **Standard SCA execution:** Pitloom runs traditional dependency scanners (e.g.,
-  `syft` or `pip-audit`) to generate the baseline Protobom graph of standard
-  libraries (`torch`, `numpy`).
-2. **Deep introspection:** Pitloom actively scans for `.safetensors`, `.gguf`, or
-  `.onnx` files, parses their headers, and extracts internal model state into
-  `loom:ai:*` properties attached to the model's `PACKAGE` node.
-3. **Repository contextualization:** Pitloom merges metadata derived from AIMMX
-  analysis (e.g., intended use cases found in READMEs, license contexts) to
-  populate compliance and safety fields (`loom:ai:safety:*`).
-4. **Protobom export:** The final, enriched Protobom graph is serialized out to
-  a complete CycloneDX 1.6/1.7 or SPDX 3.0 document.
+- `loom:ai:model:type` — broad category (e.g., `transformer`, `cnn`)
+- `loom:ai:model:architecture_family` — specific structural family
+- `loom:ai:model:parameters_count` — total parameter count
+- `loom:ai:model:format_version` — version of the model file format
+  (e.g., `v2` for Keras v2, `1.0` for NumPy 1.0)
+- `loom:ai:model:framework` — base framework/format
+  (e.g., `pytorch`, `onnx`, `keras`)
+- `loom:ai:model:framework_version` — version of the framework that produced
+  the model (e.g., `2.15.0` for Keras 2.15.0)
 
-### 2.4 External reference linking & dataset repositories
+### Training and hyperparameters
 
-Attempting to aggressively inline the entirety of a dataset's metadata,
-descriptive statistics, and ethical considerations (RAI properties) directly
-into the SBOM can lead to severe structural bloat.
+- `loom:ai:training:learning_rate`
+- `loom:ai:training:batch_size`
+- `loom:ai:training:epochs`
+- `loom:ai:training:optimizer` — optimizer algorithm (e.g., `adamw`, `sgd`)
+- `loom:ai:training:random_seed`
 
-Instead, Pitloom should support persistent URI linking,
-specifically leveraging the
-[Croissant format](https://mlcommons.org/working-groups/data/croissant/).
-Croissant is a JSON-LD based extension of `schema.org/Dataset` heavily adopted
-for dataset representation by Hugging Face, Kaggle, and OpenML.
+### Dataset constraints and provenance
 
-**Pitloom integration strategy:**
+- `loom:ai:dataset:training:name` — name or URI of the training dataset
+- `loom:ai:dataset:training:size` — volume of data (e.g., `1.2TB`)
+- `loom:ai:dataset:training:split` — ratio or segment used (e.g., `train`)
+- `loom:ai:dataset:preprocessing` — normalization or transformation applied
 
-- **API interrogation:** If a dataset is ingested via a recognized hub, query
-  its metadata API (e.g., `huggingface.co/api/datasets/{id}/croissant`).
-- **Selective extraction:** Extract only crucial, top-level identity
-  characteristics (Name, License, Target Task) into the `loom:ai:*` schema for
-  immediate SBOM visibility.
-- **Machine-readable linking:** Create an `ExternalReference` node inside the
-  Protobom representation bridging to the full metadata.
-  - Map the Croissant document's canonical `@id` (or direct API endpoint) to
-    this reference to establish a persistent URI.
-  - In SPDX 3, map this to an `ExternalReference` with an explicit semantic
-    relationship type.
-  - In CycloneDX, place it within the `externalReferences` array.
-- **Value:** This drastically prevents SBOM bloat while establishing a highly
-  reliable, machine-readable cryptographic chain back to exhaustive RAI/MLCommons
-  standards that security tools can subsequently traverse and audit dynamically.
+### Metrics and evaluation
+
+- `loom:ai:metric:accuracy`
+- `loom:ai:metric:f1_score`
+- `loom:ai:metric:loss`
+
+### Ethical and compliance considerations
+
+- `loom:ai:compliance:license_category` — e.g., `open-weights`
+- `loom:ai:safety:bias_mitigation` — notes on debiasing techniques applied
+- `loom:ai:safety:intended_use` — approved use cases
+- `loom:ai:safety:restricted_use` — explicitly prohibited use cases

@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""SPDX 3 assembler for Python projects."""
+"""SPDX 3 document assembly for Python projects."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from spdx_python_model import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3.ai import add_ai_models
 from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
@@ -77,15 +78,11 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     exporter.object_set.add(tool)
 
     # --- Main package ---
-    copyright_holder = (
-        metadata.authors[0].get("name", metadata.name)
-        if metadata.authors
-        else metadata.name
-    )
     provenance_comment: str | None = None
     if metadata.provenance:
-        parts = [f"{field}: {source}" for field, source in metadata.provenance.items()]
-        provenance_comment = "Metadata provenance: " + "; ".join(parts)
+        provenance_comment = "Metadata provenance: " + "; ".join(
+            f"{field}: {source}" for field, source in metadata.provenance.items()
+        )
 
     download_location = metadata.urls.get("Source") or metadata.urls.get("Homepage")
 
@@ -102,8 +99,10 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         main_package.software_downloadLocation = download_location
     if metadata.urls.get("Homepage"):
         main_package.software_homePage = metadata.urls.get("Homepage")
-    main_package.software_copyrightText = (
-        f"Copyright (c) {datetime.now().year} {copyright_holder}"
+    main_package.software_copyrightText = f"Copyright (c) {datetime.now().year} " + (
+        metadata.authors[0].get("name", metadata.name)
+        if metadata.authors
+        else metadata.name
     )
     main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
     if ci.build_datetime:
@@ -162,5 +161,17 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         doc_uuid=doc_uuid,
         exporter=exporter,
     )
+
+    # --- AI models ---
+    if doc.ai_models:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
+        add_ai_models(
+            ai_models=doc.ai_models,
+            main_package_spdx_id=main_package.spdxId,
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+        )
 
     return exporter
