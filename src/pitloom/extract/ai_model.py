@@ -9,6 +9,7 @@ PyTorch PT2, and Safetensors formats.
 
 Some formats require optional dependencies to read metadata:
 
+    pip install pitloom[aimodel]     # for all model formats
     pip install pitloom[fasttext]    # for fastText support
     pip install pitloom[gguf]        # for GGUF support
     pip install pitloom[hdf5]        # for HDF5 support

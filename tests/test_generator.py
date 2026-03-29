@@ -12,8 +12,12 @@ from pathlib import Path
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
+from pitloom.assemble.spdx3.assembler import build
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
+from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
@@ -252,14 +256,6 @@ files = ["fragment1.json", "fragment2.json"]
 
 def test_assembler_ai_model_with_inputs_outputs() -> None:
     """Test that AI model metadata with inputs/outputs is serialized into SPDX 3."""
-    import json as _json
-
-    from pitloom.assemble.spdx3.assembler import build
-    from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-    from pitloom.core.creation import CreationMetadata
-    from pitloom.core.document import DocumentModel
-    from pitloom.core.project import ProjectMetadata
-
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
         format=AiModelFormat.PYTORCH_PT2,
@@ -276,7 +272,7 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     )
 
     exporter = build(doc)
-    data = _json.loads(exporter.to_json(pretty=True))
+    data = json.loads(exporter.to_json(pretty=True))
     graph = data["@graph"]
 
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
@@ -286,7 +282,7 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     assert pkg["software_packageVersion"] == "1.0.0"
     assert pkg["ai_typeOfModel"] == ["linear regression"]
 
-    info = _json.loads(pkg["ai_informationAboutApplication"])
+    info = json.loads(pkg["ai_informationAboutApplication"])
     assert info["inputs"] == [{"name": "x"}]
     assert info["outputs"] == [{"name": "linear"}]
 
