@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import rfc8785
 
 # Skip the entire module if hatchling is not installed.
 pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
@@ -420,3 +421,51 @@ def test_hook_invalid_config_raises_before_io() -> None:
 
         assert hook._staging_dir is None
         assert hook._sbom_staging_path is None
+
+
+# ---------------------------------------------------------------------------
+# Compact / JCS-canonical output enforcement
+# ---------------------------------------------------------------------------
+
+PYPROJECT_WITH_PRETTY = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpkg"
+version = "0.1.0"
+description = "Test package."
+requires-python = ">=3.10"
+
+[tool.pitloom]
+pretty = true
+"""
+
+
+def test_hook_sbom_is_compact_despite_pretty_config() -> None:
+    """The SBOM staged for the wheel must be RFC 8785 (JCS) canonical even when
+    ``[tool.pitloom] pretty = true`` is set in the project's pyproject.toml.
+
+    Compact, canonically-ordered output is required by the SPDX JSON
+    Serialization Scheme for embedded SBOMs (PEP 770).
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, PYPROJECT_WITH_PRETTY)
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        raw = hook._sbom_staging_path.read_bytes()
+
+        # Must be byte-for-byte identical to RFC 8785 canonical form.
+        data = json.loads(raw)
+        assert raw == rfc8785.dumps(data), (
+            "Embedded SBOM is not RFC 8785/JCS canonical. "
+            "The [tool.pitloom] pretty=true setting must be ignored by the hook."
+        )
+
+        hook.finalize("standard", build_data, "")

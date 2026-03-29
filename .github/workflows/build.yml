@@ -207,7 +207,7 @@ jobs:
         id: metadata
         if: steps.validate.outcome == 'success'
         run: |
-          python3 << 'EOF'
+          python << 'EOF'
           import json
           import os
           from pathlib import Path
