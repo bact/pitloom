@@ -73,6 +73,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         ) from exc
 
     source = f"Source: {model_path.name}"
+    framework = "fasttext"
     hyperparameters: dict[str, Any] = {}
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
@@ -127,6 +128,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.FASTTEXT,
+        framework=framework,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,

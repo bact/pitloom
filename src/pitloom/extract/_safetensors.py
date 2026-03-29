@@ -60,6 +60,16 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     source = f"Source: {model_path.name}"
     provenance: dict[str, str] = {}
 
+    # Some Safetensors files record the originating framework under "format"
+    # (e.g. "pt" for PyTorch) or "modelspec.implementation".
+    framework = (
+        raw_metadata.get("format")
+        or raw_metadata.get("modelspec.implementation")
+        or None
+    )
+    if framework:
+        provenance["framework"] = f"{source} | Field: __metadata__"
+
     # Pull well-known keys from __metadata__
     name = (
         raw_metadata.get("modelspec.title")
@@ -97,6 +107,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.SAFETENSORS,
+        framework=framework,
         name=name,
         description=description,
         version=version,

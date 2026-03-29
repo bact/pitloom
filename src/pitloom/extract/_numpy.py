@@ -90,6 +90,8 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         ) from exc
 
     source = f"Source: {model_path.name}"
+    framework = "numpy"
+    format_version: str | None = None
     properties: dict[str, str] = {}
     inputs: list[dict[str, Any]] = []
     provenance: dict[str, str] = {}
@@ -100,9 +102,12 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         if suffix == ".npy":
             major, minor = _read_npy_version(model_path)
             fmt_version = f"{major}.{minor}"
+            format_version = fmt_version
             encoding = _NPY_HEADER_ENCODING.get(major, "utf-8")
-            properties["npy_format_version"] = fmt_version
             properties["header_encoding"] = encoding
+            provenance["format_version"] = (
+                f"{source} | Field: .npy format header version (bytes 6-7)"
+            )
             provenance["properties"] = (
                 f"{source} | Field: .npy format header version (bytes 6-7)"
             )
@@ -130,6 +135,8 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.NUMPY,
+        format_version=format_version,
+        framework=framework,
         type_of_model="numpy array",
         inputs=inputs,
         properties=properties,

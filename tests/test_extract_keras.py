@@ -53,16 +53,31 @@ def test_read_keras_format(tmp_path: Path) -> None:
     assert read_keras(f).format == AiModelFormat.KERAS
 
 
-def test_read_keras_version_from_metadata(tmp_path: Path) -> None:
+def test_read_keras_framework_version_from_metadata(tmp_path: Path) -> None:
+    # keras_version is the Keras library version → framework_version.
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata={"keras_version": "3.5.0"}))
-    assert read_keras(f).version == "3.5.0"
+    meta = read_keras(f)
+    assert meta.framework_version == "3.5.0"
+    assert meta.version is None
 
 
-def test_read_keras_version_in_provenance(tmp_path: Path) -> None:
+def test_read_keras_framework_version_in_provenance(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata={"keras_version": "3.5.0"}))
-    assert "version" in read_keras(f).provenance
+    assert "framework_version" in read_keras(f).provenance
+
+
+def test_read_keras_format_version(tmp_path: Path) -> None:
+    f = tmp_path / "model.keras"
+    f.write_bytes(_make_keras_zip())
+    assert read_keras(f).format_version == "v3"
+
+
+def test_read_keras_framework(tmp_path: Path) -> None:
+    f = tmp_path / "model.keras"
+    f.write_bytes(_make_keras_zip())
+    assert read_keras(f).framework == "keras"
 
 
 def test_read_keras_date_saved_in_properties(tmp_path: Path) -> None:
@@ -72,11 +87,11 @@ def test_read_keras_date_saved_in_properties(tmp_path: Path) -> None:
 
 
 def test_read_keras_no_metadata_file(tmp_path: Path) -> None:
-    # No metadata.json — version should be None, no crash.
+    # No metadata.json — framework_version should be None, no crash.
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata=None))
     meta = read_keras(f)
-    assert meta.version is None
+    assert meta.framework_version is None
 
 
 def test_read_keras_type_of_model_from_config(tmp_path: Path) -> None:
@@ -170,8 +185,20 @@ def test_keras_fixture_format(fixture_keras: Any) -> None:
     assert fixture_keras.format == AiModelFormat.KERAS
 
 
-def test_keras_fixture_version(fixture_keras: Any) -> None:
-    assert fixture_keras.version == "3.13.2"
+def test_keras_fixture_framework_version(fixture_keras: Any) -> None:
+    assert fixture_keras.framework_version == "3.13.2"
+
+
+def test_keras_fixture_format_version(fixture_keras: Any) -> None:
+    assert fixture_keras.format_version == "v3"
+
+
+def test_keras_fixture_framework(fixture_keras: Any) -> None:
+    assert fixture_keras.framework == "keras"
+
+
+def test_keras_fixture_version_is_none(fixture_keras: Any) -> None:
+    assert fixture_keras.version is None
 
 
 def test_keras_fixture_type_of_model(fixture_keras: Any) -> None:
@@ -195,8 +222,8 @@ def test_keras_fixture_date_saved_in_properties(fixture_keras: Any) -> None:
     assert "date_saved" in fixture_keras.properties
 
 
-def test_keras_fixture_provenance_has_version(fixture_keras: Any) -> None:
-    assert "version" in fixture_keras.provenance
+def test_keras_fixture_provenance_has_framework_version(fixture_keras: Any) -> None:
+    assert "framework_version" in fixture_keras.provenance
 
 
 def test_keras_fixture_provenance_has_name(fixture_keras: Any) -> None:

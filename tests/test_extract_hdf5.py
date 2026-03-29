@@ -58,10 +58,13 @@ def test_read_hdf5_missing_library(tmp_path: Path) -> None:
             read_hdf5(model_file)
 
 
-def test_read_hdf5_format(tmp_path: Path) -> None:
+def test_read_hdf5_format_plain(tmp_path: Path) -> None:
+    # Plain HDF5 without Keras attributes stays as HDF5.
     model_file = tmp_path / "model.h5"
     model_file.write_bytes(b"fake")
-    mock_hf = _make_hdf5_file()
+    mock_hf = _make_hdf5_file(
+        model_config=None, training_config=None, keras_version=None, backend=None
+    )
     mock_h5py = MagicMock()
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
@@ -69,7 +72,20 @@ def test_read_hdf5_format(tmp_path: Path) -> None:
     assert meta.format == AiModelFormat.HDF5
 
 
-def test_read_hdf5_keras_version(tmp_path: Path) -> None:
+def test_read_hdf5_format_keras_reclassified(tmp_path: Path) -> None:
+    # An HDF5 file with keras_version is reclassified as Keras format.
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"fake")
+    mock_hf = _make_hdf5_file()  # default keras_version="2.12.0"
+    mock_h5py = MagicMock()
+    mock_h5py.File.return_value = mock_hf
+    with patch.dict("sys.modules", {"h5py": mock_h5py}):
+        meta = read_hdf5(model_file)
+    assert meta.format == AiModelFormat.KERAS
+
+
+def test_read_hdf5_keras_version_in_framework_version(tmp_path: Path) -> None:
+    # keras_version is the Keras library version, stored in framework_version.
     model_file = tmp_path / "model.h5"
     model_file.write_bytes(b"fake")
     mock_hf = _make_hdf5_file(keras_version="2.15.0")
@@ -77,8 +93,33 @@ def test_read_hdf5_keras_version(tmp_path: Path) -> None:
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
         meta = read_hdf5(model_file)
-    assert meta.version == "2.15.0"
-    assert "version" in meta.provenance
+    assert meta.framework_version == "2.15.0"
+    assert meta.version is None
+    assert "framework_version" in meta.provenance
+
+
+def test_read_hdf5_format_version_v1(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"fake")
+    mock_hf = _make_hdf5_file(keras_version="1.2.3")
+    mock_h5py = MagicMock()
+    mock_h5py.File.return_value = mock_hf
+    with patch.dict("sys.modules", {"h5py": mock_h5py}):
+        meta = read_hdf5(model_file)
+    assert meta.format_version == "v1"
+    assert meta.framework == "keras"
+
+
+def test_read_hdf5_format_version_v2(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"fake")
+    mock_hf = _make_hdf5_file(keras_version="2.15.0")
+    mock_h5py = MagicMock()
+    mock_h5py.File.return_value = mock_hf
+    with patch.dict("sys.modules", {"h5py": mock_h5py}):
+        meta = read_hdf5(model_file)
+    assert meta.format_version == "v2"
+    assert meta.framework == "keras"
 
 
 def test_read_hdf5_type_of_model_from_model_config(tmp_path: Path) -> None:
@@ -179,6 +220,8 @@ def test_read_hdf5_no_keras_attrs(tmp_path: Path) -> None:
     assert meta.name is None
     assert meta.type_of_model is None
     assert meta.version is None
+    assert meta.framework is None
+    assert meta.framework_version is None
     assert meta.hyperparameters == {}
 
 
@@ -198,11 +241,26 @@ def fixture_hdf5() -> Any:
 
 
 def test_hdf5_fixture_format(fixture_hdf5: Any) -> None:
-    assert fixture_hdf5.format == AiModelFormat.HDF5
+    # Keras HDF5 fixture has keras_version attribute → reclassified as KERAS.
+    assert fixture_hdf5.format == AiModelFormat.KERAS
 
 
-def test_hdf5_fixture_version(fixture_hdf5: Any) -> None:
-    assert fixture_hdf5.version == "3.13.2"
+def test_hdf5_fixture_format_version(fixture_hdf5: Any) -> None:
+    # keras_version "3.13.2" → major 3 → "v2" (Keras 3 legacy HDF5 mode).
+    assert fixture_hdf5.format_version == "v2"
+
+
+def test_hdf5_fixture_framework(fixture_hdf5: Any) -> None:
+    assert fixture_hdf5.framework == "keras"
+
+
+def test_hdf5_fixture_framework_version(fixture_hdf5: Any) -> None:
+    assert fixture_hdf5.framework_version == "3.13.2"
+
+
+def test_hdf5_fixture_version_is_none(fixture_hdf5: Any) -> None:
+    # keras_version is the framework version, not the model version.
+    assert fixture_hdf5.version is None
 
 
 def test_hdf5_fixture_type_of_model(fixture_hdf5: Any) -> None:
@@ -218,8 +276,8 @@ def test_hdf5_fixture_input_shape(fixture_hdf5: Any) -> None:
     assert fixture_hdf5.inputs[0]["shape"] == [None, 10]
 
 
-def test_hdf5_fixture_provenance_has_version(fixture_hdf5: Any) -> None:
-    assert "version" in fixture_hdf5.provenance
+def test_hdf5_fixture_provenance_has_framework_version(fixture_hdf5: Any) -> None:
+    assert "framework_version" in fixture_hdf5.provenance
 
 
 def test_hdf5_fixture_provenance_has_name(fixture_hdf5: Any) -> None:

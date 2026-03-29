@@ -227,6 +227,7 @@ def _read_pt2_zip(
     str | None,
     str | None,
     str | None,
+    str | None,
     dict[str, str],
     dict[str, str],
     list[dict[str, object]],
@@ -239,14 +240,15 @@ def _read_pt2_zip(
         source: Provenance source string (e.g. "Source: model.pt2").
 
     Returns:
-        Tuple of (name, description, version, license_expr, properties,
-        provenance, inputs, outputs).
+        Tuple of (name, description, version, license_expr, format_version,
+        properties, provenance, inputs, outputs).
     """
     file_list = zf.namelist()
     name: str | None = None
     description: str | None = None
     version: str | None = None
     license_expr: str | None = None
+    format_version: str | None = None
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
@@ -263,8 +265,7 @@ def _read_pt2_zip(
         if version:
             provenance["version"] = f"{source} | Field: version file"
 
-    # ExecuTorch rich format: archive_version is the archive format version,
-    # stored in properties rather than used as the model version.
+    # ExecuTorch rich format: archive_version is the archive format version.
     if f"{prefix}archive_version" in file_list:
         try:
             arch_ver = (
@@ -273,7 +274,10 @@ def _read_pt2_zip(
                 .strip()
             )
             if arch_ver:
-                properties["archive_version"] = arch_ver
+                format_version = arch_ver
+                provenance["format_version"] = (
+                    f"{source} | Field: {prefix}archive_version"
+                )
         except Exception:  # pylint: disable=broad-exception-caught
             pass
 
@@ -311,6 +315,7 @@ def _read_pt2_zip(
         description,
         version,
         license_expr,
+        format_version,
         properties,
         provenance,
         inputs,
@@ -368,6 +373,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
             description,
             version,
             license_expr,
+            format_version,
             properties,
             provenance,
             inputs,
@@ -376,6 +382,8 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.PYTORCH_PT2,
+        format_version=format_version,
+        framework="executorch",
         name=name,
         description=description,
         version=version,

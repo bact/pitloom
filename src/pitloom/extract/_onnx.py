@@ -76,6 +76,21 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
+    # ONNX IR format version (integer, e.g. 9 for IR version 9)
+    format_version: str | None = None
+    if model.ir_version:
+        format_version = str(model.ir_version)
+        provenance["format_version"] = f"{source} | Field: ir_version"
+
+    # Producer name/version (the framework that exported the model)
+    framework = model.producer_name if model.producer_name else None
+    if framework:
+        provenance["framework"] = f"{source} | Field: producer_name"
+
+    framework_version = model.producer_version if model.producer_version else None
+    if framework_version:
+        provenance["framework_version"] = f"{source} | Field: producer_version"
+
     # Graph name as the model name fallback
     graph_name = model.graph.name if model.graph.name else None
     doc_string = model.doc_string if model.doc_string else None
@@ -123,6 +138,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.ONNX,
+        format_version=format_version,
+        framework=framework,
+        framework_version=framework_version,
         name=name,
         description=description,
         version=version,

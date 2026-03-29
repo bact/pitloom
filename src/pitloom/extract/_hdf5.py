@@ -297,8 +297,10 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
     with hf:
         source = f"Source: {model_path.name}"
+        format_version: str | None = None
+        framework: str | None = None
+        framework_version: str | None = None
         name: str | None = None
-        version: str | None = None
         type_of_model: str | None = None
         hyperparameters: dict[str, Any] = {}
         properties: dict[str, str] = {}
@@ -311,8 +313,23 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         backend_raw = _decode_h5_attr(hf.attrs.get("backend"))
 
         if keras_version_raw:
-            version = keras_version_raw
-            provenance["version"] = f"{source} | Field: keras_version attribute"
+            # keras_version is the Keras library version (e.g. "2.15.0"),
+            # not the model's semantic version.
+            framework = "keras"
+            framework_version = keras_version_raw
+            provenance["framework_version"] = (
+                f"{source} | Field: keras_version attribute"
+            )
+            # Derive the Keras HDF5 format generation from the major library version:
+            # Keras 1.x → "v1", Keras 2.x and later HDF5 legacy mode → "v2".
+            try:
+                keras_major = int(keras_version_raw.split(".")[0])
+            except (ValueError, IndexError):
+                keras_major = 2
+            format_version = "v1" if keras_major == 1 else "v2"
+            provenance["format_version"] = (
+                f"{source} | Field: keras_version attribute (major version)"
+            )
 
         if backend_raw:
             properties["backend"] = backend_raw
@@ -337,9 +354,11 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
             _parse_training_config(training_config_raw, source, properties, provenance)
 
     return AiModelMetadata(
-        format=AiModelFormat.HDF5,
+        format=AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5,
+        format_version=format_version,
+        framework=framework,
+        framework_version=framework_version,
         name=name,
-        version=version,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,

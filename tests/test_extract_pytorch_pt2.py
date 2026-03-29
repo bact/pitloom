@@ -129,7 +129,8 @@ def test_read_pytorch_pt2_extra_model_version(tmp_path: Path) -> None:
 def test_read_pytorch_pt2_extra_version_preferred_over_archive_version(
     tmp_path: Path,
 ) -> None:
-    # extra/model_version (semantic) wins over archive_version (format version).
+    # extra/model_version (semantic model version) wins over archive_version
+    # (which becomes format_version, not model version).
     model_file = tmp_path / "model.pt2"
     model_file.write_bytes(
         _make_pt2_zip(
@@ -141,7 +142,8 @@ def test_read_pytorch_pt2_extra_version_preferred_over_archive_version(
     )
     meta = read_pytorch_pt2(model_file)
     assert meta.version == "1.0.0"
-    assert meta.properties.get("archive_version") == "0"
+    assert meta.format_version == "0"
+    assert "archive_version" not in meta.properties
 
 
 def test_read_pytorch_pt2_extra_license(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import struct
 from pathlib import Path
 from typing import Any
 
@@ -68,9 +69,27 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"
+    framework = "llama.cpp"
+
+    # Read GGUF format version from the binary header (uint32 at byte offset 4).
+    format_version: str | None = None
+    try:
+        with model_path.open("rb") as fh:
+            fh.seek(4)
+            ver_bytes = fh.read(4)
+        if len(ver_bytes) == 4:
+            format_version = str(struct.unpack("<I", ver_bytes)[0])
+            provenance_format_ver = f"{source} | Field: GGUF header version (bytes 4-7)"
+        else:
+            provenance_format_ver = ""
+    except OSError:
+        provenance_format_ver = ""
+
     hyperparameters: dict[str, Any] = {}
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
+    if format_version:
+        provenance["format_version"] = provenance_format_ver
 
     # Resolve field values to plain Python scalars
     def _field_value(gguf_field: Any) -> Any:
@@ -129,6 +148,8 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.GGUF,
+        format_version=format_version,
+        framework=framework,
         name=name,
         description=description,
         version=version,

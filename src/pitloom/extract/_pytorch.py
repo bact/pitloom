@@ -132,6 +132,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     import zipfile  # pylint: disable=import-outside-toplevel
 
     source = f"Source: {model_path.name}"
+    framework = "pytorch"
     type_of_model: str | None = None
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
@@ -155,6 +156,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             pass
         return AiModelMetadata(
             format=AiModelFormat.PYTORCH,
+            framework=framework,
             type_of_model=type_of_model,
             properties=properties,
             provenance=provenance,
@@ -165,6 +167,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.PYTORCH,
+        framework=framework,
         type_of_model=type_of_model,
         properties=properties,
         provenance=provenance,

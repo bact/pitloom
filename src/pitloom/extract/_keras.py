@@ -116,8 +116,11 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         ValueError: If the file is not a valid ``.keras`` archive.
     """
     source = f"Source: {model_path.name}"
+    # .keras is always Keras v3 native format
+    format_version = "v3"
+    framework = "keras"
+    framework_version: str | None = None
     name: str | None = None
-    version: str | None = None
     type_of_model: str | None = None
     hyperparameters: dict[str, Any] = {}
     properties: dict[str, str] = {}
@@ -130,9 +133,10 @@ def read_keras(model_path: Path) -> AiModelMetadata:
 
             if "metadata.json" in names:
                 meta = json.loads(zf.read("metadata.json"))
-                version = meta.get("keras_version") or None
-                if version:
-                    provenance["version"] = (
+                # keras_version is the Keras library version, not the model version.
+                framework_version = meta.get("keras_version") or None
+                if framework_version:
+                    provenance["framework_version"] = (
                         f"{source} | Field: metadata.json keras_version"
                     )
                 date_saved = meta.get("date_saved") or None
@@ -157,8 +161,10 @@ def read_keras(model_path: Path) -> AiModelMetadata:
 
     return AiModelMetadata(
         format=AiModelFormat.KERAS,
+        format_version=format_version,
+        framework=framework,
+        framework_version=framework_version,
         name=name,
-        version=version,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,

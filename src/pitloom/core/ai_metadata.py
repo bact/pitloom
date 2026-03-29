@@ -78,6 +78,17 @@ class AiModelMetadata:
 
     format: AiModelFormat = AiModelFormat.UNKNOWN
 
+    # Version of the model file format (e.g. "v2" for Keras v2, "1.0" for NumPy 1.0)
+    format_version: str | None = None
+
+    # Framework that produced the model or is expected to consume it
+    # (e.g. "keras", "pytorch", "llama.cpp")
+    framework: str | None = None
+
+    # Version of the framework/library used to produce the model
+    # (e.g. "2.15.0" for Keras 2.15.0, "2.7.1" for PyTorch 2.7.1)
+    framework_version: str | None = None
+
     # Core identification (maps to SPDX Core: name, description)
     name: str | None = None
     description: str | None = None
