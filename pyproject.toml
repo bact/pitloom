@@ -109,7 +109,7 @@ exclude = [
     "tests/fixtures/numpy/*.npz",
     "tests/fixtures/onnx/*.onnx",
     "tests/fixtures/pytorch/*.pt",
-    "tests/fixtures/pytorch/*.pt2",
+    "tests/fixtures/pytorch_pt2/*.pt2",
     "tests/fixtures/pytorch/*.pth",
     "tests/fixtures/safetensors/*.safetensors",
 ]
