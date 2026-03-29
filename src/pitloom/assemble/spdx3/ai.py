@@ -124,7 +124,7 @@ def add_ai_models(
 
         rel = spdx3.Relationship(
             spdxId=generate_spdx_id(
-                f"Relationship-hasPart-{ai_pkg.name}",
+                f"Relationship-contains-{ai_pkg.name}",
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
             ),
