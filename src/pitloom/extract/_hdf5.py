@@ -6,40 +6,36 @@
 
 HDF5 is a general-purpose hierarchical data format used by many frameworks.
 Keras v1 and v2 stored models in HDF5 (``.h5`` / ``.hdf5``) with a set of
-JSON-encoded root attributes.  This extractor:
+JSON-encoded root attributes.  This extractor reads the following root
+attributes opportunistically — any HDF5 model that happens to carry them
+will have the corresponding metadata extracted and recorded:
 
-1. **Detects Keras legacy HDF5** by checking for the ``keras_version`` root
-   attribute, which is the decisive Keras-specific marker.  Other attributes
-   such as ``model_config`` or ``backend`` may also appear in non-Keras HDF5
-   files, so they are not used alone for detection.
-2. **Extracts all available Keras metadata** when that attribute is found:
+- ``keras_version``
+  → :attr:`~AiModelMetadata.version`
+- ``backend``
+  → ``properties["backend"]``
+- ``model_config.class_name``
+  → :attr:`~AiModelMetadata.type_of_model`
+- ``model_config.config.name``
+  → :attr:`~AiModelMetadata.name`
+- Scalar entries of ``model_config.config``
+  → :attr:`~AiModelMetadata.hyperparameters`
+- ``model_config.config.layers`` count
+  → ``properties["layer_count"]``
+- ``model_config.build_config.input_shape`` (or layer batch_shape)
+  → :attr:`~AiModelMetadata.inputs`
+- ``training_config.optimizer_config.class_name``
+  → ``properties["optimizer"]``
+- ``training_config.loss``
+  → ``properties["loss"]``
+- ``training_config.metrics``
+  → ``properties["metrics"]``
 
-   - ``keras_version``
-     → :attr:`~AiModelMetadata.version`
-   - ``backend``
-     → ``properties["backend"]``
-   - ``model_config.class_name``
-     → :attr:`~AiModelMetadata.type_of_model`
-   - ``model_config.config.name``
-     → :attr:`~AiModelMetadata.name`
-   - Scalar entries of ``model_config.config``
-     → :attr:`~AiModelMetadata.hyperparameters`
-   - ``model_config.config.layers`` count
-     → ``properties["layer_count"]``
-   - ``model_config.build_config.input_shape`` (or layer batch_shape)
-     → :attr:`~AiModelMetadata.inputs`
-   - ``training_config.optimizer_config.class_name``
-     → ``properties["optimizer"]``
-   - ``training_config.loss``
-     → ``properties["loss"]``
-   - ``training_config.metrics``
-     → ``properties["metrics"]``
+A **per-field provenance entry** is recorded for every populated field so
+that downstream consumers can trace each value back to its exact HDF5
+attribute and JSON path.
 
-3. Records a **per-field provenance entry** for every populated field so
-   that downstream consumers can trace each value back to its exact HDF5
-   attribute and JSON path.
-
-For plain HDF5 files without Keras attributes the extractor returns a
+For plain HDF5 files without any of these attributes the extractor returns a
 minimal :class:`~pitloom.core.ai_metadata.AiModelMetadata` with only
 ``format=AiModelFormat.HDF5`` populated.
 
@@ -72,20 +68,6 @@ def _decode_h5_attr(value: Any) -> str | None:
     if hasattr(value, "tobytes"):
         return str(value.tobytes().decode("utf-8", errors="replace"))
     return str(value)
-
-
-def _is_keras_hdf5(attrs: Any) -> bool:
-    """Return ``True`` if the HDF5 root attributes indicate a Keras v1/v2 model.
-
-    Uses ``keras_version`` as the decisive marker — it is unique to Keras and
-    not present in generic HDF5 files from other frameworks.  Attributes such
-    as ``model_config`` or ``backend`` may also appear in non-Keras HDF5 files
-    and are therefore not used here for classification.
-
-    Args:
-        attrs: The ``h5py.File.attrs`` mapping.
-    """
-    return "keras_version" in attrs
 
 
 def _extract_input_from_layers(
@@ -279,10 +261,11 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
     Requires the ``h5py`` package (``pip install h5py``).
 
-    Detects Keras v1/v2 legacy models by checking for the ``keras_version``
-    root attribute (the decisive Keras marker) and extracts all available
-    Keras metadata when found.  See the module docstring for the full list of
-    extracted fields and their HDF5/JSON source paths.
+    Reads ``keras_version``, ``backend``, ``model_config``, and
+    ``training_config`` root attributes opportunistically — any HDF5 model
+    that carries those attributes will have its metadata extracted.
+    See the module docstring for the full list of extracted fields and their
+    HDF5/JSON source paths.
 
     For native Keras v3 (``.keras``) files use
     :func:`pitloom.extract._keras.read_keras` instead.
@@ -292,8 +275,8 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
     Returns:
         :class:`~pitloom.core.ai_metadata.AiModelMetadata` with all
-        available fields populated.  Plain HDF5 files without Keras
-        attributes return a minimal object with only ``format`` set.
+        available fields populated.  Plain HDF5 files without recognised
+        root attributes return a minimal object with only ``format`` set.
 
     Raises:
         ImportError: If ``h5py`` is not installed.
@@ -350,7 +333,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                     f"{source} | Field: model_config attribute (unparsed)"
                 )
 
-        if training_config_raw and _is_keras_hdf5(hf.attrs):
+        if training_config_raw:
             _parse_training_config(training_config_raw, source, properties, provenance)
 
     return AiModelMetadata(
