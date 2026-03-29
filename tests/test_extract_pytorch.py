@@ -49,7 +49,7 @@ def test_read_pytorch_format(tmp_path: Path) -> None:
     )
     with patch.dict("sys.modules", {"fickling": None, "fickling.pickle": None}):
         meta = read_pytorch(model_file)
-    assert meta.format == AiModelFormat.PYTORCH
+    assert meta.format_info.model_format == AiModelFormat.PYTORCH
 
 
 def test_read_pytorch_archive_contents_in_properties(tmp_path: Path) -> None:
@@ -73,7 +73,7 @@ def test_read_pytorch_pth_format(tmp_path: Path) -> None:
     model_file.write_bytes(_make_pytorch_zip({"archive/data.pkl": b"\x80\x02."}))
     with patch.dict("sys.modules", {"fickling": None, "fickling.pickle": None}):
         meta = read_pytorch(model_file)
-    assert meta.format == AiModelFormat.PYTORCH
+    assert meta.format_info.model_format == AiModelFormat.PYTORCH
 
 
 def test_read_pytorch_raw_pickle_format_detail(tmp_path: Path) -> None:
@@ -82,7 +82,7 @@ def test_read_pytorch_raw_pickle_format_detail(tmp_path: Path) -> None:
     model_file.write_bytes(b"\x80\x02}q\x00.")  # minimal raw pickle (empty dict)
     with patch.dict("sys.modules", {"fickling": None, "fickling.pickle": None}):
         meta = read_pytorch(model_file)
-    assert meta.format == AiModelFormat.PYTORCH
+    assert meta.format_info.model_format == AiModelFormat.PYTORCH
     assert meta.properties.get("format_detail") == "raw pickle"
 
 
@@ -118,4 +118,4 @@ def pytorch_fixture() -> Any:
 
 
 def test_pytorch_fixture_format(pytorch_fixture: Any) -> None:
-    assert pytorch_fixture.format == AiModelFormat.PYTORCH
+    assert pytorch_fixture.format_info.model_format == AiModelFormat.PYTORCH

@@ -29,7 +29,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 
 def _parse_model_config(
@@ -160,10 +160,13 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc
 
     return AiModelMetadata(
-        format=AiModelFormat.KERAS,
-        format_version=format_version,
-        framework=framework,
-        framework_version=framework_version,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.KERAS,
+            format_version=format_version,
+            framework=framework,
+            framework_version=framework_version,
+        ),
         name=name,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,

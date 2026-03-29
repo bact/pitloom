@@ -67,11 +67,11 @@ def test_gguf_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
         meta = read_gguf(model_file)
 
-    assert meta.format == AiModelFormat.GGUF
+    assert meta.format_info.model_format == AiModelFormat.GGUF
     assert meta.name == "LLaMA-3-8B"
     assert meta.description == "Meta LLaMA 3 8B"
     assert meta.version == "3.0"
-    assert meta.type_of_model == "llama"
+    assert meta.architecture == "llama"
     assert meta.hyperparameters["llama.context_length"] == 8192
     assert meta.hyperparameters["llama.embedding_length"] == 4096
     assert meta.hyperparameters["llama.attention.head_count"] == 32
@@ -79,7 +79,7 @@ def test_gguf_basic_extraction(tmp_path: Path) -> None:
     # Non-hyperparam key goes to properties
     assert "tokenizer.ggml.model" in meta.properties
     assert "hyperparameters" in meta.provenance
-    assert "type_of_model" in meta.provenance
+    assert "architecture" in meta.provenance
 
 
 def test_gguf_minimal_fields(tmp_path: Path) -> None:
@@ -100,7 +100,7 @@ def test_gguf_minimal_fields(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
         meta = read_gguf(model_file)
 
-    assert meta.type_of_model == "mistral"
+    assert meta.architecture == "mistral"
     assert meta.name is None
     assert meta.description is None
     assert meta.version is None
@@ -138,7 +138,7 @@ def vocab_bert_bge_metadata() -> AiModelMetadata:
 
 
 def test_vocab_bert_bge_format(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert vocab_bert_bge_metadata.format == AiModelFormat.GGUF
+    assert vocab_bert_bge_metadata.format_info.model_format == AiModelFormat.GGUF
 
 
 def test_vocab_bert_bge_name(vocab_bert_bge_metadata: AiModelMetadata) -> None:
@@ -147,8 +147,8 @@ def test_vocab_bert_bge_name(vocab_bert_bge_metadata: AiModelMetadata) -> None:
 
 
 def test_vocab_bert_bge_architecture(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert vocab_bert_bge_metadata.type_of_model == "bert"
-    assert "general.architecture" in vocab_bert_bge_metadata.provenance["type_of_model"]
+    assert vocab_bert_bge_metadata.architecture == "bert"
+    assert "general.architecture" in vocab_bert_bge_metadata.provenance["architecture"]
 
 
 def test_vocab_bert_bge_hyperparameters(
@@ -200,7 +200,7 @@ def vocab_phi3_metadata() -> AiModelMetadata:
 
 
 def test_vocab_phi3_format(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert vocab_phi3_metadata.format == AiModelFormat.GGUF
+    assert vocab_phi3_metadata.format_info.model_format == AiModelFormat.GGUF
 
 
 def test_vocab_phi3_name(vocab_phi3_metadata: AiModelMetadata) -> None:
@@ -209,7 +209,7 @@ def test_vocab_phi3_name(vocab_phi3_metadata: AiModelMetadata) -> None:
 
 
 def test_vocab_phi3_architecture(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert vocab_phi3_metadata.type_of_model == "phi3"
+    assert vocab_phi3_metadata.architecture == "phi3"
 
 
 def test_vocab_phi3_hyperparameters(vocab_phi3_metadata: AiModelMetadata) -> None:
@@ -258,13 +258,13 @@ def mmproj_metadata() -> AiModelMetadata:
 
 
 def test_mmproj_format(mmproj_metadata: AiModelMetadata) -> None:
-    assert mmproj_metadata.format == AiModelFormat.GGUF
+    assert mmproj_metadata.format_info.model_format == AiModelFormat.GGUF
 
 
 def test_mmproj_architecture(mmproj_metadata: AiModelMetadata) -> None:
     # Multimodal projector uses the "clip" architecture
-    assert mmproj_metadata.type_of_model == "clip"
-    assert "general.architecture" in mmproj_metadata.provenance["type_of_model"]
+    assert mmproj_metadata.architecture == "clip"
+    assert "general.architecture" in mmproj_metadata.provenance["architecture"]
 
 
 def test_mmproj_no_name(mmproj_metadata: AiModelMetadata) -> None:
@@ -318,14 +318,14 @@ def stories260k_metadata() -> AiModelMetadata:
 
 
 def test_gguf_integration_format(stories260k_metadata: AiModelMetadata) -> None:
-    assert stories260k_metadata.format == AiModelFormat.GGUF
+    assert stories260k_metadata.format_info.model_format == AiModelFormat.GGUF
 
 
 def test_gguf_integration_architecture(stories260k_metadata: AiModelMetadata) -> None:
     # general.architecture = 'llama'
-    assert stories260k_metadata.type_of_model == "llama"
-    assert "type_of_model" in stories260k_metadata.provenance
-    assert "general.architecture" in stories260k_metadata.provenance["type_of_model"]
+    assert stories260k_metadata.architecture == "llama"
+    assert "architecture" in stories260k_metadata.provenance
+    assert "general.architecture" in stories260k_metadata.provenance["architecture"]
 
 
 def test_gguf_integration_name(stories260k_metadata: AiModelMetadata) -> None:

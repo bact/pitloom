@@ -69,14 +69,18 @@ class AiModelFormat(str, Enum):
 
 
 @dataclass
-class AiModelMetadata:
-    """Metadata extracted from an AI model file.
+class AiModelFormatInfo:
+    """Physical model file and format/framework metadata.
 
-    Fields align with the SPDX 3.0 AI profile where applicable.
-    See: https://spdx.github.io/spdx-spec/v3.0/model/AI/Classes/AIPackage/
+    Groups the file-level and toolchain fields that describe *how* the model
+    is stored on disk, rather than what the model does.
     """
 
-    format: AiModelFormat = AiModelFormat.UNKNOWN
+    # Physical model file name (basename only, no directory path)
+    file_name: str | None = None
+
+    # Format enum value (e.g. AiModelFormat.GGUF)
+    model_format: AiModelFormat = AiModelFormat.UNKNOWN
 
     # Version of the model file format (e.g. "v2" for Keras v2, "1.0" for NumPy 1.0)
     format_version: str | None = None
@@ -89,14 +93,74 @@ class AiModelMetadata:
     # (e.g. "2.15.0" for Keras 2.15.0, "2.7.1" for PyTorch 2.7.1)
     framework_version: str | None = None
 
+
+@dataclass
+class AiModelUsage:
+    """Model design intent, use-case restrictions, and safety metadata.
+
+    These fields describe how the model is intended (and not intended) to be
+    used, and capture known risks and biases.  They map to the SPDX 3 AI
+    profile fields ``ai_domain``, ``ai_limitation``, and
+    ``ai_safetyRiskAssessment``.
+    """
+
+    # Domains in which the model can be used (e.g. "NLP", "computer vision")
+    # Maps to SPDX 3: ai_domain (List[String])
+    domains: list[str] = field(default_factory=list)
+
+    # Intended use cases (e.g. "text summarisation", "sentiment analysis")
+    # Maps to SPDX 3: ai_informationAboutApplication (part of JSON)
+    intended_use: list[str] = field(default_factory=list)
+
+    # Unintended / out-of-scope use cases
+    # Maps to SPDX 3: ai_informationAboutApplication (part of JSON)
+    unintended_use: list[str] = field(default_factory=list)
+
+    # Known limitations of the model
+    # Maps to SPDX 3: ai_limitation (String — joined with "; " on export)
+    limitations: list[str] = field(default_factory=list)
+
+    # Known biases in the model
+    # No dedicated SPDX 3 field; serialised into comment on export
+    known_biases: list[str] = field(default_factory=list)
+
+    # General safety risk assessment result
+    # Maps to SPDX 3: ai_safetyRiskAssessment (enum: high | medium | low | serious)
+    safety_risk_assessment: str | None = None
+
+
+@dataclass
+class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
+    """Metadata extracted from an AI model file.
+
+    Fields align with the SPDX 3.0 AI profile where applicable.
+    See: https://spdx.github.io/spdx-spec/v3.0/model/AI/Classes/AIPackage/
+
+    Attributes that naturally form a group are collected into sub-dataclasses
+    to keep the attribute count manageable:
+
+    - :class:`AiModelFormatInfo` — physical file, format, and framework fields.
+    - :class:`AiModelUsage` — use-case, limitation, bias, and safety fields.
+    """
+
+    # Physical file, format, and framework metadata
+    format_info: AiModelFormatInfo = field(default_factory=AiModelFormatInfo)
+
     # Core identification (maps to SPDX Core: name, description)
     name: str | None = None
     description: str | None = None
     version: str | None = None
     license: str | None = None  # SPDX license expression if available
 
+    # Technical model metadata
     # SPDX AI profile: typeOfModel (e.g. "neural network", "transformer")
     type_of_model: str | None = None
+    # Specific model architecture (e.g. "llama", "bert", "stable-diffusion-xl")
+    # Maps to SPDX 3: ai_typeOfModel (together with type_of_model)
+    architecture: str | None = None
+    # Quantization level (e.g. "Q4_K_M", "int8", "fp16")
+    # Maps to SPDX 3: ai_hyperparameter as key="quantization"
+    quantization: str | None = None
 
     # SPDX AI profile: hyperparameter — model configuration values
     hyperparameters: dict[str, Any] = field(default_factory=dict)
@@ -107,6 +171,9 @@ class AiModelMetadata:
     # Input and output tensor specifications
     inputs: list[dict[str, Any]] = field(default_factory=list)
     outputs: list[dict[str, Any]] = field(default_factory=list)
+
+    # Use-case, limitation, bias, and safety metadata
+    usage: AiModelUsage = field(default_factory=AiModelUsage)
 
     # Provenance tracking: field name -> source description
     provenance: dict[str, str] = field(default_factory=dict)

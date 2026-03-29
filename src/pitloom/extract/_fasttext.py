@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 # Maps Args attribute names (from model.f.getArgs()) to hyperparameter keys.
 # The Python fasttext package exposes training configuration via the C++
@@ -127,8 +127,11 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         provenance["outputs"] = f"{source} | Field: labels (supervised class count)"
 
     return AiModelMetadata(
-        format=AiModelFormat.FASTTEXT,
-        framework=framework,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.FASTTEXT,
+            framework=framework,
+        ),
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,

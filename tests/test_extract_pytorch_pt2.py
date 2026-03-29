@@ -46,7 +46,7 @@ def test_read_pytorch_pt2_format(tmp_path: Path) -> None:
     model_file = tmp_path / "model.pt2"
     model_file.write_bytes(_make_pt2_zip({"version": b"2\n"}))
     meta = read_pytorch_pt2(model_file)
-    assert meta.format == AiModelFormat.PYTORCH_PT2
+    assert meta.format_info.model_format == AiModelFormat.PYTORCH_PT2
 
 
 def test_read_pytorch_pt2_version_file(tmp_path: Path) -> None:
@@ -142,7 +142,7 @@ def test_read_pytorch_pt2_extra_version_preferred_over_archive_version(
     )
     meta = read_pytorch_pt2(model_file)
     assert meta.version == "1.0.0"
-    assert meta.format_version == "0"
+    assert meta.format_info.format_version == "0"
     assert "archive_version" not in meta.properties
 
 
@@ -204,7 +204,7 @@ def pt2_fixture() -> Any:
 
 
 def test_pt2_fixture_format(pt2_fixture: Any) -> None:
-    assert pt2_fixture.format == AiModelFormat.PYTORCH_PT2
+    assert pt2_fixture.format_info.model_format == AiModelFormat.PYTORCH_PT2
 
 
 def test_pt2_fixture_description(pt2_fixture: Any) -> None:

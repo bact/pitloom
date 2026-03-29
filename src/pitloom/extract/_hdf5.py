@@ -37,7 +37,7 @@ attribute and JSON path.
 
 For plain HDF5 files without any of these attributes the extractor returns a
 minimal :class:`~pitloom.core.ai_metadata.AiModelMetadata` with only
-``format=AiModelFormat.HDF5`` populated.
+``format_info`` set.
 
 Native Keras v3 models use the ``.keras`` format (ZIP archive) and are
 handled by the separate :mod:`pitloom.extract._keras` extractor.
@@ -52,7 +52,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 
 def _decode_h5_attr(value: Any) -> str | None:
@@ -276,7 +276,8 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
     Returns:
         :class:`~pitloom.core.ai_metadata.AiModelMetadata` with all
         available fields populated.  Plain HDF5 files without recognised
-        root attributes return a minimal object with only ``format`` set.
+        root attributes return a minimal object with only ``format_info``
+        set.
 
     Raises:
         ImportError: If ``h5py`` is not installed.
@@ -353,11 +354,15 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         if training_config_raw:
             _parse_training_config(training_config_raw, source, properties, provenance)
 
+    fmt = AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5
     return AiModelMetadata(
-        format=AiModelFormat.KERAS if keras_version_raw else AiModelFormat.HDF5,
-        format_version=format_version,
-        framework=framework,
-        framework_version=framework_version,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=fmt,
+            format_version=format_version,
+            framework=framework,
+            framework_version=framework_version,
+        ),
         name=name,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,

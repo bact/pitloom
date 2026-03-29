@@ -58,11 +58,11 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
         meta = read_safetensors(model_file)
 
-    assert meta.format == AiModelFormat.SAFETENSORS
+    assert meta.format_info.model_format == AiModelFormat.SAFETENSORS
     assert meta.name == "My Diffusion Model"
     assert meta.description == "A latent diffusion model"
     assert meta.version == "1.0"
-    assert meta.type_of_model == "stable-diffusion-xl-v1"
+    assert meta.architecture == "stable-diffusion-xl-v1"
     assert meta.properties["custom_key"] == "custom_value"
     assert len(meta.inputs) == 2
     assert meta.inputs[0]["name"] == "model.embed_tokens.weight"
@@ -120,7 +120,7 @@ def test_safetensors_fallback_keys(tmp_path: Path) -> None:
     assert meta.name == "Fallback Name"
     assert meta.description == "Fallback description"
     assert meta.version == "0.1"
-    assert meta.type_of_model == "llama"
+    assert meta.architecture == "llama"
 
 
 def test_safetensors_read_failure(tmp_path: Path) -> None:
@@ -156,7 +156,7 @@ def marian_metadata() -> AiModelMetadata:
 
 
 def test_marian_format(marian_metadata: AiModelMetadata) -> None:
-    assert marian_metadata.format == AiModelFormat.SAFETENSORS
+    assert marian_metadata.format_info.model_format == AiModelFormat.SAFETENSORS
 
 
 def test_marian_no_model_metadata(marian_metadata: AiModelMetadata) -> None:
@@ -210,7 +210,7 @@ def phi_metadata() -> AiModelMetadata:
 
 
 def test_phi_format(phi_metadata: AiModelMetadata) -> None:
-    assert phi_metadata.format == AiModelFormat.SAFETENSORS
+    assert phi_metadata.format_info.model_format == AiModelFormat.SAFETENSORS
 
 
 def test_phi_no_model_metadata(phi_metadata: AiModelMetadata) -> None:
@@ -264,7 +264,7 @@ def speech2text_metadata() -> AiModelMetadata:
 
 
 def test_speech2text_format(speech2text_metadata: AiModelMetadata) -> None:
-    assert speech2text_metadata.format == AiModelFormat.SAFETENSORS
+    assert speech2text_metadata.format_info.model_format == AiModelFormat.SAFETENSORS
 
 
 def test_speech2text_no_model_metadata(speech2text_metadata: AiModelMetadata) -> None:
@@ -317,7 +317,7 @@ def vits_metadata() -> AiModelMetadata:
 
 
 def test_vits_format(vits_metadata: AiModelMetadata) -> None:
-    assert vits_metadata.format == AiModelFormat.SAFETENSORS
+    assert vits_metadata.format_info.model_format == AiModelFormat.SAFETENSORS
 
 
 def test_vits_no_model_metadata(vits_metadata: AiModelMetadata) -> None:
@@ -370,7 +370,7 @@ def whisper_st_metadata() -> AiModelMetadata:
 
 
 def test_whisper_st_format(whisper_st_metadata: AiModelMetadata) -> None:
-    assert whisper_st_metadata.format == AiModelFormat.SAFETENSORS
+    assert whisper_st_metadata.format_info.model_format == AiModelFormat.SAFETENSORS
 
 
 def test_whisper_st_no_model_metadata(whisper_st_metadata: AiModelMetadata) -> None:

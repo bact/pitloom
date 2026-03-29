@@ -50,7 +50,7 @@ def _make_keras_zip(
 def test_read_keras_format(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip())
-    assert read_keras(f).format == AiModelFormat.KERAS
+    assert read_keras(f).format_info.model_format == AiModelFormat.KERAS
 
 
 def test_read_keras_framework_version_from_metadata(tmp_path: Path) -> None:
@@ -58,7 +58,7 @@ def test_read_keras_framework_version_from_metadata(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata={"keras_version": "3.5.0"}))
     meta = read_keras(f)
-    assert meta.framework_version == "3.5.0"
+    assert meta.format_info.framework_version == "3.5.0"
     assert meta.version is None
 
 
@@ -71,13 +71,13 @@ def test_read_keras_framework_version_in_provenance(tmp_path: Path) -> None:
 def test_read_keras_format_version(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip())
-    assert read_keras(f).format_version == "v3"
+    assert read_keras(f).format_info.format_version == "v3"
 
 
 def test_read_keras_framework(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip())
-    assert read_keras(f).framework == "keras"
+    assert read_keras(f).format_info.framework == "keras"
 
 
 def test_read_keras_date_saved_in_properties(tmp_path: Path) -> None:
@@ -91,7 +91,7 @@ def test_read_keras_no_metadata_file(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata=None))
     meta = read_keras(f)
-    assert meta.framework_version is None
+    assert meta.format_info.framework_version is None
 
 
 def test_read_keras_type_of_model_from_config(tmp_path: Path) -> None:
@@ -182,19 +182,19 @@ def fixture_keras() -> Any:
 
 
 def test_keras_fixture_format(fixture_keras: Any) -> None:
-    assert fixture_keras.format == AiModelFormat.KERAS
+    assert fixture_keras.format_info.model_format == AiModelFormat.KERAS
 
 
 def test_keras_fixture_framework_version(fixture_keras: Any) -> None:
-    assert fixture_keras.framework_version == "3.13.2"
+    assert fixture_keras.format_info.framework_version == "3.13.2"
 
 
 def test_keras_fixture_format_version(fixture_keras: Any) -> None:
-    assert fixture_keras.format_version == "v3"
+    assert fixture_keras.format_info.format_version == "v3"
 
 
 def test_keras_fixture_framework(fixture_keras: Any) -> None:
-    assert fixture_keras.framework == "keras"
+    assert fixture_keras.format_info.framework == "keras"
 
 
 def test_keras_fixture_version_is_none(fixture_keras: Any) -> None:

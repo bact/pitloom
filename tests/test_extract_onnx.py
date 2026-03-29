@@ -124,7 +124,7 @@ def test_onnx_basic_extraction(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
         meta = read_onnx(model_file)
 
-    assert meta.format == AiModelFormat.ONNX
+    assert meta.format_info.model_format == AiModelFormat.ONNX
     assert meta.name == "ResNet50"
     assert meta.description == "Image classification model"
     assert meta.version == "2"
@@ -165,7 +165,7 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
     assert meta.name is None
     assert meta.description is None
     assert meta.version is None
-    assert meta.format == AiModelFormat.ONNX
+    assert meta.format_info.model_format == AiModelFormat.ONNX
 
 
 def test_onnx_load_failure(tmp_path: Path) -> None:
@@ -201,7 +201,7 @@ def whisper_encoder_metadata() -> AiModelMetadata:
 
 
 def test_whisper_encoder_format(whisper_encoder_metadata: AiModelMetadata) -> None:
-    assert whisper_encoder_metadata.format == AiModelFormat.ONNX
+    assert whisper_encoder_metadata.format_info.model_format == AiModelFormat.ONNX
 
 
 def test_whisper_encoder_name(whisper_encoder_metadata: AiModelMetadata) -> None:
@@ -263,7 +263,7 @@ def gpt2_decoder_metadata() -> AiModelMetadata:
 
 
 def test_gpt2_decoder_format(gpt2_decoder_metadata: AiModelMetadata) -> None:
-    assert gpt2_decoder_metadata.format == AiModelFormat.ONNX
+    assert gpt2_decoder_metadata.format_info.model_format == AiModelFormat.ONNX
 
 
 def test_gpt2_decoder_name(gpt2_decoder_metadata: AiModelMetadata) -> None:
@@ -317,7 +317,7 @@ def inception_v2_metadata() -> AiModelMetadata:
 
 
 def test_inception_v2_format(inception_v2_metadata: AiModelMetadata) -> None:
-    assert inception_v2_metadata.format == AiModelFormat.ONNX
+    assert inception_v2_metadata.format_info.model_format == AiModelFormat.ONNX
 
 
 def test_inception_v2_name(inception_v2_metadata: AiModelMetadata) -> None:
@@ -380,7 +380,7 @@ def resnet_beans_metadata() -> AiModelMetadata:
 
 
 def test_resnet_beans_format(resnet_beans_metadata: AiModelMetadata) -> None:
-    assert resnet_beans_metadata.format == AiModelFormat.ONNX
+    assert resnet_beans_metadata.format_info.model_format == AiModelFormat.ONNX
 
 
 def test_resnet_beans_name(resnet_beans_metadata: AiModelMetadata) -> None:
@@ -433,7 +433,7 @@ def squeezenet_metadata() -> AiModelMetadata:
 
 
 def test_onnx_integration_format(squeezenet_metadata: AiModelMetadata) -> None:
-    assert squeezenet_metadata.format == AiModelFormat.ONNX
+    assert squeezenet_metadata.format_info.model_format == AiModelFormat.ONNX
 
 
 def test_onnx_integration_name(squeezenet_metadata: AiModelMetadata) -> None:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 
 def read_safetensors(model_path: Path) -> AiModelMetadata:
@@ -21,9 +21,10 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     reads only the header — it does not load tensor data into memory.
 
     Commonly stored ``__metadata__`` keys (by convention):
-    - ``modelspec.architecture`` -> type_of_model
+    - ``modelspec.architecture`` -> architecture
     - ``modelspec.title`` or ``name`` -> name
     - ``modelspec.description`` or ``description`` -> description
+    - ``modelspec.precision`` -> quantization (e.g. "fp16", "bf16")
 
     Args:
         model_path: Path to a ``.safetensors`` file.
@@ -89,11 +90,19 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     if version:
         provenance["version"] = f"{source} | Field: __metadata__"
 
-    type_of_model = raw_metadata.get("modelspec.architecture") or raw_metadata.get(
+    # modelspec.architecture → architecture (specific arch name)
+    architecture = raw_metadata.get("modelspec.architecture") or raw_metadata.get(
         "architecture"
     )
-    if type_of_model:
-        provenance["type_of_model"] = f"{source} | Field: __metadata__"
+    if architecture:
+        provenance["architecture"] = f"{source} | Field: __metadata__"
+
+    # modelspec.precision → quantization (e.g. "fp16", "bf16", "int8")
+    quantization = raw_metadata.get("modelspec.precision") or raw_metadata.get(
+        "precision"
+    )
+    if quantization:
+        provenance["quantization"] = f"{source} | Field: __metadata__"
 
     # Remaining metadata as properties
     properties = dict(raw_metadata.items())
@@ -106,12 +115,16 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         provenance["inputs"] = f"{source} | Field: tensor keys (header only)"
 
     return AiModelMetadata(
-        format=AiModelFormat.SAFETENSORS,
-        framework=framework,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.SAFETENSORS,
+            framework=framework,
+        ),
         name=name,
         description=description,
         version=version,
-        type_of_model=type_of_model,
+        architecture=architecture,
+        quantization=quantization,
         properties=properties,
         inputs=inputs,
         provenance=provenance,

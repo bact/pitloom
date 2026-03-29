@@ -15,6 +15,9 @@ from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
+# Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
+_SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}
+
 
 def _build_ai_package(
     ai_model: AiModelMetadata,
@@ -24,14 +27,33 @@ def _build_ai_package(
 ) -> spdx3.ai_AIPackage:
     """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`.
 
-    Maps available fields as follows:
+    Field mapping:
 
-    - ``name`` → ``name`` (falls back to the format value string)
+    **Core identification**
+
+    - ``name`` → ``name`` (falls back to ``format_info.model_format`` string)
     - ``version`` → ``software_packageVersion``
     - ``description`` → ``description``
-    - ``type_of_model`` → ``ai_typeOfModel``
+
+    **Technical model metadata**
+
+    - ``type_of_model`` and/or ``architecture`` → ``ai_typeOfModel`` (list)
+    - ``quantization`` → ``ai_hyperparameter`` (key="quantization")
     - ``hyperparameters`` → ``ai_hyperparameter`` (list of DictionaryEntry)
-    - ``inputs`` / ``outputs`` → ``ai_informationAboutApplication`` (JSON string)
+    - ``inputs`` / ``outputs`` → ``ai_informationAboutApplication`` (JSON)
+
+    **Use-case and safety** (from ``usage`` sub-object)
+
+    - ``usage.domains`` → ``ai_domain``
+    - ``usage.limitations`` → ``ai_limitation`` (joined with "; ")
+    - ``usage.safety_risk_assessment`` → ``ai_safetyRiskAssessment``
+      (enum: high | medium | low | serious)
+    - ``usage.intended_use`` + ``usage.unintended_use``
+      → merged into ``ai_informationAboutApplication`` JSON
+    - ``usage.known_biases`` → appended to ``comment``
+
+    **Provenance**
+
     - ``provenance`` → ``comment``
 
     Args:
@@ -43,7 +65,7 @@ def _build_ai_package(
     Returns:
         A populated :class:`spdx3.ai_AIPackage` instance.
     """
-    pkg_name = ai_model.name or str(ai_model.format)
+    pkg_name = ai_model.name or str(ai_model.format_info.model_format)
     ai_pkg = spdx3.ai_AIPackage(
         spdxId=generate_spdx_id(
             f"AIPackage-{pkg_name}", doc_name=doc_name, doc_uuid=doc_uuid
@@ -58,30 +80,69 @@ def _build_ai_package(
     if ai_model.description:
         ai_pkg.description = ai_model.description
 
+    # ai_typeOfModel: collect both the general type and the specific architecture.
+    type_of_model_values: list[str] = []
     if ai_model.type_of_model:
-        ai_pkg.ai_typeOfModel = [ai_model.type_of_model]
+        type_of_model_values.append(ai_model.type_of_model)
+    if ai_model.architecture:
+        type_of_model_values.append(ai_model.architecture)
+    if type_of_model_values:
+        ai_pkg.ai_typeOfModel = type_of_model_values
 
-    # Hyperparameters → ai_hyperparameter (list of DictionaryEntry)
-    if ai_model.hyperparameters:
-        entries: list[spdx3.DictionaryEntry] = []
-        for key, val in ai_model.hyperparameters.items():
-            entry = spdx3.DictionaryEntry(key=str(key), value=str(val))
-            entries.append(entry)
-        ai_pkg.ai_hyperparameter = entries
+    # ai_hyperparameter: quantization first (if present), then training hyperparams.
+    hyperparameter_entries: list[spdx3.DictionaryEntry] = []
+    if ai_model.quantization:
+        hyperparameter_entries.append(
+            spdx3.DictionaryEntry(key="quantization", value=ai_model.quantization)
+        )
+    for key, val in ai_model.hyperparameters.items():
+        hyperparameter_entries.append(
+            spdx3.DictionaryEntry(key=str(key), value=str(val))
+        )
+    if hyperparameter_entries:
+        ai_pkg.ai_hyperparameter = hyperparameter_entries
 
-    # Inputs / outputs → ai_informationAboutApplication as JSON string.
+    # ai_domain: directly from usage.domains (List[String]).
+    if ai_model.usage.domains:
+        ai_pkg.ai_domain = list(ai_model.usage.domains)
+
+    # ai_limitation: SPDX 3 field is a single String; join list with "; ".
+    if ai_model.usage.limitations:
+        ai_pkg.ai_limitation = "; ".join(ai_model.usage.limitations)
+
+    # ai_safetyRiskAssessment: enum (high | medium | low | serious).
+    if ai_model.usage.safety_risk_assessment:
+        risk_val = ai_model.usage.safety_risk_assessment.lower()
+        if risk_val in _SAFETY_RISK_VALUES:
+            ai_pkg.ai_safetyRiskAssessment = getattr(
+                spdx3.ai_SafetyRiskAssessmentType, risk_val, None
+            )
+
+    # ai_informationAboutApplication: JSON dict combining I/O specs and use-case info.
     io_parts: dict[str, Any] = {}
     if ai_model.inputs:
         io_parts["inputs"] = ai_model.inputs
     if ai_model.outputs:
         io_parts["outputs"] = ai_model.outputs
+    if ai_model.usage.intended_use:
+        io_parts["intended_use"] = ai_model.usage.intended_use
+    if ai_model.usage.unintended_use:
+        io_parts["unintended_use"] = ai_model.usage.unintended_use
     if io_parts:
         ai_pkg.ai_informationAboutApplication = json.dumps(io_parts, ensure_ascii=False)
 
-    # Provenance → comment.
+    # comment: provenance + known_biases.
+    comment_parts: list[str] = []
     if ai_model.provenance:
-        parts = [f"{field}: {src}" for field, src in ai_model.provenance.items()]
-        ai_pkg.comment = "Metadata provenance: " + "; ".join(parts)
+        prov_str = "; ".join(
+            f"{field}: {src}" for field, src in ai_model.provenance.items()
+        )
+        comment_parts.append(f"Metadata provenance: {prov_str}")
+    if ai_model.usage.known_biases:
+        biases_str = "; ".join(ai_model.usage.known_biases)
+        comment_parts.append(f"Known biases: {biases_str}")
+    if comment_parts:
+        ai_pkg.comment = "\n".join(comment_parts)
 
     return ai_pkg
 
@@ -101,10 +162,16 @@ def add_ai_models(
 
     - An ``ai_AIPackage`` element is built from the extracted metadata.
     - A ``contains`` relationship links the main Python package to the AI model.
-    - Hyperparameters are stored as ``ai_hyperparameter`` DictionaryEntry list.
-    - Inputs and outputs are serialised as a JSON string in
-      ``ai_informationAboutApplication``.
-    - Provenance is recorded in the SPDX ``comment`` attribute.
+    - ``type_of_model`` and ``architecture`` are both stored in
+      ``ai_typeOfModel``.
+    - ``quantization`` and hyperparameters are stored as ``ai_hyperparameter``
+      DictionaryEntry list (quantization first).
+    - ``usage.domains`` → ``ai_domain``.
+    - ``usage.limitations`` → ``ai_limitation`` (joined string).
+    - ``usage.safety_risk_assessment`` → ``ai_safetyRiskAssessment`` enum.
+    - ``usage.intended_use`` / ``usage.unintended_use`` → merged into
+      ``ai_informationAboutApplication`` JSON alongside I/O specs.
+    - ``usage.known_biases`` and provenance → SPDX ``comment``.
 
     The caller is responsible for appending
     ``ProfileIdentifierType.ai`` to the document's ``profileConformance``

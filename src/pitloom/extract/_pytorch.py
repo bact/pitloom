@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 from zipfile import ZipFile
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 
 def _fickling_get_top_class(pkl_bytes: bytes) -> str | None:
@@ -155,8 +155,11 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         except OSError:
             pass
         return AiModelMetadata(
-            format=AiModelFormat.PYTORCH,
-            framework=framework,
+            format_info=AiModelFormatInfo(
+                file_name=model_path.name,
+                model_format=AiModelFormat.PYTORCH,
+                framework=framework,
+            ),
             type_of_model=type_of_model,
             properties=properties,
             provenance=provenance,
@@ -166,8 +169,11 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         type_of_model, properties, provenance = _read_pytorch_zip(zf, source)
 
     return AiModelMetadata(
-        format=AiModelFormat.PYTORCH,
-        framework=framework,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.PYTORCH,
+            framework=framework,
+        ),
         type_of_model=type_of_model,
         properties=properties,
         provenance=provenance,

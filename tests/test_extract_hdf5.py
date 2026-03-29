@@ -69,7 +69,7 @@ def test_read_hdf5_format_plain(tmp_path: Path) -> None:
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
         meta = read_hdf5(model_file)
-    assert meta.format == AiModelFormat.HDF5
+    assert meta.format_info.model_format == AiModelFormat.HDF5
 
 
 def test_read_hdf5_format_keras_reclassified(tmp_path: Path) -> None:
@@ -81,7 +81,7 @@ def test_read_hdf5_format_keras_reclassified(tmp_path: Path) -> None:
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
         meta = read_hdf5(model_file)
-    assert meta.format == AiModelFormat.KERAS
+    assert meta.format_info.model_format == AiModelFormat.KERAS
 
 
 def test_read_hdf5_keras_version_in_framework_version(tmp_path: Path) -> None:
@@ -93,7 +93,7 @@ def test_read_hdf5_keras_version_in_framework_version(tmp_path: Path) -> None:
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
         meta = read_hdf5(model_file)
-    assert meta.framework_version == "2.15.0"
+    assert meta.format_info.framework_version == "2.15.0"
     assert meta.version is None
     assert "framework_version" in meta.provenance
 
@@ -106,8 +106,8 @@ def test_read_hdf5_format_version_v1(tmp_path: Path) -> None:
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
         meta = read_hdf5(model_file)
-    assert meta.format_version == "v1"
-    assert meta.framework == "keras"
+    assert meta.format_info.format_version == "v1"
+    assert meta.format_info.framework == "keras"
 
 
 def test_read_hdf5_format_version_v2(tmp_path: Path) -> None:
@@ -118,8 +118,8 @@ def test_read_hdf5_format_version_v2(tmp_path: Path) -> None:
     mock_h5py.File.return_value = mock_hf
     with patch.dict("sys.modules", {"h5py": mock_h5py}):
         meta = read_hdf5(model_file)
-    assert meta.format_version == "v2"
-    assert meta.framework == "keras"
+    assert meta.format_info.format_version == "v2"
+    assert meta.format_info.framework == "keras"
 
 
 def test_read_hdf5_type_of_model_from_model_config(tmp_path: Path) -> None:
@@ -220,8 +220,8 @@ def test_read_hdf5_no_keras_attrs(tmp_path: Path) -> None:
     assert meta.name is None
     assert meta.type_of_model is None
     assert meta.version is None
-    assert meta.framework is None
-    assert meta.framework_version is None
+    assert meta.format_info.framework is None
+    assert meta.format_info.framework_version is None
     assert meta.hyperparameters == {}
 
 
@@ -242,20 +242,20 @@ def fixture_hdf5() -> Any:
 
 def test_hdf5_fixture_format(fixture_hdf5: Any) -> None:
     # Keras HDF5 fixture has keras_version attribute → reclassified as KERAS.
-    assert fixture_hdf5.format == AiModelFormat.KERAS
+    assert fixture_hdf5.format_info.model_format == AiModelFormat.KERAS
 
 
 def test_hdf5_fixture_format_version(fixture_hdf5: Any) -> None:
     # keras_version "3.13.2" → major 3 → "v2" (Keras 3 legacy HDF5 mode).
-    assert fixture_hdf5.format_version == "v2"
+    assert fixture_hdf5.format_info.format_version == "v2"
 
 
 def test_hdf5_fixture_framework(fixture_hdf5: Any) -> None:
-    assert fixture_hdf5.framework == "keras"
+    assert fixture_hdf5.format_info.framework == "keras"
 
 
 def test_hdf5_fixture_framework_version(fixture_hdf5: Any) -> None:
-    assert fixture_hdf5.framework_version == "3.13.2"
+    assert fixture_hdf5.format_info.framework_version == "3.13.2"
 
 
 def test_hdf5_fixture_version_is_none(fixture_hdf5: Any) -> None:

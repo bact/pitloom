@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
 
 def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
@@ -35,7 +35,7 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
     return specs
 
 
-def read_onnx(model_path: Path) -> AiModelMetadata:
+def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-locals
     """Extract metadata from an ONNX model file.
 
     Requires the ``onnx`` package (``pip install onnx``).
@@ -137,10 +137,13 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         provenance["outputs"] = f"{source} | Field: graph.output"
 
     return AiModelMetadata(
-        format=AiModelFormat.ONNX,
-        format_version=format_version,
-        framework=framework,
-        framework_version=framework_version,
+        format_info=AiModelFormatInfo(
+            file_name=model_path.name,
+            model_format=AiModelFormat.ONNX,
+            format_version=format_version,
+            framework=framework,
+            framework_version=framework_version,
+        ),
         name=name,
         description=description,
         version=version,
