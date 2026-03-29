@@ -107,7 +107,11 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         all_fragments = pitloom_config.fragments + hook_fragments
         merge_fragments(project_dir, all_fragments, exporter)
 
-        sbom_json = exporter.to_json(pretty=pitloom_config.pretty)
+        # Wheels (and sdists) must always contain a compact, RFC 8785 (JCS)
+        # canonical SBOM regardless of the project's [tool.pitloom] pretty
+        # setting or any --pretty CLI flag.  Canonicalization is required by
+        # the SPDX JSON Serialization Scheme.
+        sbom_json = exporter.to_json(pretty=False)
 
         self._sbom_filename = sbom_filename
         # Not used as a context manager: the directory must outlive initialize()

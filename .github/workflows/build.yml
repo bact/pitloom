@@ -68,10 +68,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
 
+      - name: Install Pitloom from checkout
+        run: |
+          pip install -e .
+
       - name: Build wheel
         id: build
         run: |
-          python -m build --wheel
+          # --no-isolation: use the locally installed Pitloom so the build hook
+          # embeds a freshly generated SBOM into the wheel (.dist-info/sboms/).
+          python -m build --wheel --no-isolation
           WHEEL_NAME=$(ls dist/*.whl | xargs -n 1 basename)
           echo "wheel_name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
           echo "::notice title=Build Success::Successfully built wheel: ${WHEEL_NAME}"
@@ -83,10 +89,39 @@ jobs:
           echo "::error title=Build Failed::Wheel build failed for Python ${{ matrix.python-version }}. Check the build logs for details."
           exit 1
 
-      - name: Install Pitloom for SBOM generation
+      - name: Verify SBOM embedded in wheel
+        id: verify_wheel_sbom
         if: steps.build.outcome == 'success'
         run: |
-          pip install -e .
+          python << 'EOF'
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          wheels = list(Path("dist").glob("*.whl"))
+          if not wheels:
+              print("::error title=No Wheel Found::No .whl file found in dist/")
+              sys.exit(1)
+
+          wheel_path = wheels[0]
+          with zipfile.ZipFile(wheel_path) as zf:
+              sbom_entries = [n for n in zf.namelist()
+                              if "/sboms/" in n and n.endswith(".spdx3.json")]
+
+          if not sbom_entries:
+              print(f"::error title=SBOM Missing::No .spdx3.json found under "
+                    f".dist-info/sboms/ in {wheel_path.name}")
+              sys.exit(1)
+
+          for entry in sbom_entries:
+              print(f"::notice title=SBOM Embedded::Found {entry} in {wheel_path.name}")
+          EOF
+        continue-on-error: true
+
+      - name: Display wheel SBOM verification error
+        if: steps.build.outcome == 'success' && steps.verify_wheel_sbom.outcome == 'failure'
+        run: |
+          echo "::error title=Embedded SBOM Missing::The wheel was built but does not contain an SBOM in .dist-info/sboms/. Check that the Pitloom build hook ran correctly."
 
       - name: Generate SBOM
         id: sbom
@@ -172,7 +207,7 @@ jobs:
         id: metadata
         if: steps.validate.outcome == 'success'
         run: |
-          python3 << 'EOF'
+          python << 'EOF'
           import json
           import os
           from pathlib import Path
@@ -283,7 +318,7 @@ jobs:
           EOF
 
       - name: Create failure summary
-        if: always() && (steps.build.outcome == 'failure' || steps.sbom.outcome == 'failure' || steps.validate.outcome == 'failure')
+        if: always() && (steps.build.outcome == 'failure' || steps.verify_wheel_sbom.outcome == 'failure' || steps.sbom.outcome == 'failure' || steps.validate.outcome == 'failure')
         run: |
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## ❌ Build Failed - Python ${{ matrix.python-version }}
@@ -292,7 +327,8 @@ jobs:
           | Step | Status | Description |
           | :--- | :--- | :--- |
           | Build Wheel | ${{ steps.build.outcome == 'failure' && '❌ Failed' || '✅ Passed' }} | ${{ steps.build.outcome == 'failure' && 'Wheel build failed. Check build logs above.' || 'Successfully built wheel.' }} |
-          | Generate SBOM | ${{ steps.sbom.outcome == 'failure' && '❌ Failed' || steps.sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.sbom.outcome == 'failure' && 'SBOM generation failed. Verify project structure.' || steps.sbom.outcome == 'success' && 'Successfully generated SBOM.' || 'Skipped due to build failure.' }} |
+          | SBOM Embedded in Wheel | ${{ steps.verify_wheel_sbom.outcome == 'failure' && '❌ Failed' || steps.verify_wheel_sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.verify_wheel_sbom.outcome == 'failure' && 'SBOM not found inside wheel. Pitloom build hook may not have run.' || steps.verify_wheel_sbom.outcome == 'success' && 'SBOM found in .dist-info/sboms/.' || 'Skipped due to build failure.' }} |
+          | Generate SBOM (standalone) | ${{ steps.sbom.outcome == 'failure' && '❌ Failed' || steps.sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.sbom.outcome == 'failure' && 'SBOM generation failed. Verify project structure.' || steps.sbom.outcome == 'success' && 'Successfully generated SBOM.' || 'Skipped due to build failure.' }} |
           | Validate SBOM (spdx3-validate) | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
 
           ### 💡 Troubleshooting Tips
@@ -345,17 +381,23 @@ jobs:
           echo ""
 
           BUILD_STATUS="${{ steps.build.outcome }}"
+          VERIFY_WHEEL_SBOM_STATUS="${{ steps.verify_wheel_sbom.outcome }}"
           SBOM_STATUS="${{ steps.sbom.outcome }}"
           VALIDATE_STATUS="${{ steps.validate.outcome }}"
 
           echo "Build: ${BUILD_STATUS}"
-          echo "SBOM: ${SBOM_STATUS}"
+          echo "Verify SBOM in wheel: ${VERIFY_WHEEL_SBOM_STATUS}"
+          echo "SBOM (standalone): ${SBOM_STATUS}"
           echo "spdx3-validate: ${VALIDATE_STATUS}"
           echo ""
           echo "::endgroup::"
 
           if [ "$BUILD_STATUS" != "success" ]; then
             echo "::error title=Workflow Failed::Build step failed for Python ${{ matrix.python-version }}"
+            exit 1
+          fi
+          if [ "$VERIFY_WHEEL_SBOM_STATUS" != "success" ]; then
+            echo "::error title=Workflow Failed::Embedded SBOM verification failed for Python ${{ matrix.python-version }}"
             exit 1
           fi
           if [ "$SBOM_STATUS" != "success" ]; then
