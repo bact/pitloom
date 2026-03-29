@@ -171,6 +171,10 @@ disable = [
     "fixme",          # TODO comments are tracked intentionally
 ]
 
+[tool.pylint.typecheck]
+# Optional extra dependencies; not always installed when pylint runs
+ignored-modules = ["gguf"]
+
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]
 pythonpath = ["src"]
