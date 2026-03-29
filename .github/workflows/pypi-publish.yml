@@ -27,8 +27,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
 
+      - name: Install Pitloom from checkout
+        run: pip install -e .
+
       - name: Build sdist and wheel
-        run: python -m build
+        run: |
+          # --no-isolation: use the locally installed Pitloom so the build hook
+          # embeds a freshly generated SBOM into the wheel (.dist-info/sboms/).
+          python -m build --no-isolation
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v7
