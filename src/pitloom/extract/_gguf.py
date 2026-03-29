@@ -48,10 +48,12 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
     """
     if file_type_value is None:
         return None
+
     try:
         int_val = int(file_type_value)
     except (TypeError, ValueError):
         return None
+
     try:
         from gguf import GGMLQuantizationType  # pylint: disable=import-outside-toplevel
 
