@@ -1,0 +1,5 @@
+{
+  "@context": {"@vocab": "https://schema.org/"},
+  "@type": "Dataset",
+  "name": "Minimal Dataset"
+}

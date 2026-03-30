@@ -1,0 +1,24 @@
+{
+  "@context": {
+    "sc": "https://schema.org/",
+    "cr": "http://mlcommons.org/croissant/1.0/",
+    "rai": "http://mlcommons.org/croissant/RAI/1.0/"
+  },
+  "@type": "sc:Dataset",
+  "sc:name": "Prefixed Keys Dataset",
+  "sc:description": "Dataset using explicit sc: prefix.",
+  "sc:version": "2.0",
+  "sc:license": "MIT",
+  "sc:url": "https://example.com/prefixed",
+  "sc:keywords": "vision, image",
+  "sc:creator": "Research Lab",
+  "rai:personalSensitiveInformation": "yes",
+  "cr:recordSet": [
+    {
+      "cr:field": [
+        {"sc:dataType": "sc:ImageObject"}
+      ],
+      "cr:totalItems": "2500"
+    }
+  ]
+}
