@@ -8,7 +8,10 @@
 
 from __future__ import annotations
 
+import io
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -349,10 +352,16 @@ def test_read_croissant_non_object_json_raises(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_read_croissant_url_string_sets_croissant_url() -> None:
-    # Use a local file but pass it as a URL string via a file:// scheme trick —
-    # instead, just verify the logic branch by writing a minimal test using
-    # a URL-shaped string stored in a local server is impractical without network.
-    # We test the branch indirectly: if source is a Path, croissant_url is None.
+def test_read_croissant_path_leaves_croissant_url_none() -> None:
     meta = read_croissant(FIXTURES / "minimal.json")
     assert meta.croissant_url is None
+
+
+def test_read_croissant_url_string_sets_croissant_url() -> None:
+    dataset_doc = {"@type": "Dataset", "name": "Remote Dataset"}
+    url = "https://example.com/dataset.json"
+    mock_resp = io.BytesIO(json.dumps(dataset_doc).encode())
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        meta = read_croissant(url)
+    assert meta.croissant_url == url
+    assert meta.name == "Remote Dataset"

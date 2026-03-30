@@ -48,7 +48,7 @@ RAI_SENSITIVITY_KEYS = (
 )
 RAI_ANONYMIZATION_KEYS = (
     "rai:anonymizationMethodUsed",
-    "rai:annotationsPerItem",
+    "rai:AnonymizationMethodUsed",
 )
 RAI_INTENDED_USE_KEYS = ("rai:intendedUse", "rai:IntendedUse")
 
