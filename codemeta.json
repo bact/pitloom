@@ -1,7 +1,8 @@
 {
     "@context": "https://w3id.org/codemeta/3.0",
     "@type": "SoftwareSourceCode",
-    "applicationCategory": "text analysis",
+    "applicationCategory": "build tool",
+    "applicationSubCategory": "sbom generator",
     "author": [
         {
             "@id": "https://orcid.org/0000-0002-9698-1899",
@@ -17,9 +18,9 @@
     "codeRepository": "https://github.com/bact/pitloom",
     "copyrightYear": 2026,
     "dateCreated": "2026-03-27",
-    "dateModified": "2026-03-27",
-    "datePublished": "2026-03-27",
-    "description": "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, and Safetensors models with native Hatchling build-hook support.",
+    "dateModified": "2026-03-31",
+    "datePublished": "2026-03-31",
+    "description": "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support.",
     "developmentStatus": "active",
     "downloadUrl": "https://github.com/bact/pitloom/releases",
     "identifier": "10.5281/zenodo.19243681",
@@ -53,5 +54,5 @@
     "programmingLanguage": "Python 3",
     "readme": "https://github.com/bact/pitloom/blob/main/README.md",
     "url": "https://github.com/bact/pitloom",
-    "version": "0.2.0"
+    "version": "0.3.0"
 }

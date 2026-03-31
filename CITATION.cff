@@ -5,11 +5,11 @@ authors:
   - family-names: Suriyawongkul
     given-names: Arthit
     orcid: https://orcid.org/0000-0002-9698-1899
-abstract: Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, and Safetensors models with native Hatchling build-hook support.
+abstract: Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support.
 repository-code: "https://github.com/bact/pitloom"
 type: software
 doi: 10.5281/zenodo.19243681
-version: 0.2.0
+version: 0.3.0
 license-url: "https://spdx.org/licenses/Apache-2.0"
 keywords:
   - sbom
@@ -21,4 +21,4 @@ keywords:
   - gguf
   - onnx
   - safetensors
-date-released: 2026-03-27
+date-released: 2026-03-31
