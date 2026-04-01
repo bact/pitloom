@@ -1,0 +1,40 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "cr": "http://mlcommons.org/croissant/1.0/",
+    "rai": "http://mlcommons.org/croissant/RAI/1.0/"
+  },
+  "@type": "Dataset",
+  "name": "Sample NLP Dataset",
+  "description": "A sample dataset for text classification testing.",
+  "version": "1.2.0",
+  "license": "Apache-2.0",
+  "url": "https://example.com/datasets/sample-nlp",
+  "keywords": ["NLP", "text classification", "sentiment"],
+  "creator": {
+    "@type": "Person",
+    "name": "Test Author"
+  },
+  "rai:dataCollection": "Data was collected from public web sources.",
+  "rai:dataBiases": "Selection bias: only English-language text included.",
+  "rai:dataPreprocessingProtocol": "Tokenization and lowercasing applied.",
+  "rai:personalSensitiveInformation": "no",
+  "cr:recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "cr:field": [
+        {
+          "@type": "cr:Field",
+          "name": "text",
+          "sc:dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "name": "label",
+          "sc:dataType": "sc:Integer"
+        }
+      ],
+      "cr:totalItems": 5000
+    }
+  ]
+}

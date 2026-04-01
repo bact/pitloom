@@ -11,6 +11,7 @@ from typing import Any
 
 from spdx_python_model import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -188,6 +189,16 @@ def add_ai_models(
     for ai_model in ai_models:
         ai_pkg = _build_ai_package(ai_model, creation_info, doc_name, doc_uuid)
         exporter.add_package(ai_pkg)
+
+        if ai_model.datasets:
+            add_datasets_for_model(
+                ai_package_spdx_id=ai_pkg.spdxId,
+                datasets=ai_model.datasets,
+                creation_info=creation_info,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                exporter=exporter,
+            )
 
         rel = spdx3.Relationship(
             spdxId=generate_spdx_id(

@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from pitloom.core.dataset_metadata import DatasetReference
+
 
 class AiModelFormat(str, Enum):
     """Supported AI model file formats.
@@ -174,6 +176,10 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
 
     # Use-case, limitation, bias, and safety metadata
     usage: AiModelUsage = field(default_factory=AiModelUsage)
+
+    # Datasets associated with this model (training, evaluation, fine-tuning, etc.)
+    # Maps to SPDX 3 via dataset_DatasetPackage + trainedOn/testedOn relationships.
+    datasets: list[DatasetReference] = field(default_factory=list)
 
     # Provenance tracking: field name -> source description
     provenance: dict[str, str] = field(default_factory=dict)

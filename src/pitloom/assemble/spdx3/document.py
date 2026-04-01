@@ -162,9 +162,11 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         exporter=exporter,
     )
 
-    # --- AI models ---
+    # --- AI models (and their associated datasets) ---
     if doc.ai_models:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
+        if any(m.datasets for m in doc.ai_models):
+            spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
         add_ai_models(
             ai_models=doc.ai_models,
             main_package_spdx_id=main_package.spdxId,
