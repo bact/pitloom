@@ -21,8 +21,4 @@ keywords:
   - gguf
   - onnx
   - safetensors
-<<<<<<< extract-dataset-metadata
 date-released: 2026-04-01
-=======
-date-released: 2026-03-31
->>>>>>> main
