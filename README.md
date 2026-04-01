@@ -12,7 +12,7 @@ Automated transparency, woven from the ground up.
 **Pitloom** automates the generation of SPDX 3-compliant SBOMs for Python projects,
 documenting the composition and provenance of software systems.
 By reading metadata directly from Python packages and AI models (GGUF, ONNX,
-Safetensors), it creates standardized SPDX 3 JSON artifacts.
+PyTorch, Safetensors), it creates standardized SPDX 3 JSON artifacts.
 It also offers native Hatchling integration, allowing users to hook into
 the build process to generate SBOMs automatically.
 
@@ -25,7 +25,7 @@ the build process to generate SBOMs automatically.
 - **Dependency tracking**:
   Automatically includes project dependencies in the SBOM
 - **AI/ML model metadata**:
-  Extracts metadata from model files (GGUF, ONNX, Safetensors)
+  Extracts metadata from model files (GGUF, ONNX, PyTorch, Safetensors)
   for SPDX AI profile
 - **Metadata provenance**:
   Tracks the source of each metadata field for transparency and auditability

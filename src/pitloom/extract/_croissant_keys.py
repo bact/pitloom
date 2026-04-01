@@ -13,9 +13,10 @@ The alias tuples below enumerate the variants for each semantic field,
 ordered most-common first.  The :func:`~pitloom.extract._extract_utils.get_first`
 helper picks the first matching key found in a given document dict.
 
-We deliberately do not resolve ``@context`` prefix declarations — alias-based
-lookup covers the overwhelming majority of real-world files without requiring
-a JSON-LD processor.
+At this point, we deliberately do not resolve ``@context`` prefix declarations
+— alias-based lookup covers the overwhelming majority of real-world files
+without requiring a JSON-LD processor.
+A future version could optionally support JSON-LD expansion for edge cases.
 """
 
 from __future__ import annotations
@@ -36,28 +37,15 @@ CREATOR_KEYS = ("creator", "sc:creator", "schema:creator")
 # RAI extension field aliases
 # ---------------------------------------------------------------------------
 
-RAI_COLLECTION_KEYS = ("rai:dataCollection", "rai:DataCollection")
-RAI_BIASES_KEYS = ("rai:dataBiases", "rai:DataBiases")
-RAI_PREPROCESSING_KEYS = (
-    "rai:dataPreprocessingStrategies",
-    "rai:DataPreprocessingStrategies",
-)
-RAI_SENSITIVITY_KEYS = (
-    "rai:personalSensitiveInformation",
-    "rai:PersonalSensitiveInformation",
-)
-RAI_ANONYMIZATION_KEYS = (
-    "rai:anonymizationMethodUsed",
-    "rai:AnonymizationMethodUsed",
-)
-RAI_INTENDED_USE_KEYS = ("rai:intendedUse", "rai:IntendedUse")
+RAI_COLLECTION_KEYS = ("rai:dataCollection",)
+RAI_BIASES_KEYS = ("rai:dataBiases",)
+RAI_PREPROCESSING_KEYS = ("rai:dataPreprocessingProtocol",)
+RAI_SENSITIVITY_KEYS = ("rai:personalSensitiveInformation",)
 
 # ---------------------------------------------------------------------------
 # Croissant structure field aliases
 # ---------------------------------------------------------------------------
 
-RECORD_SET_KEYS = ("cr:recordSet", "recordSet", "ml:RecordSet")
-TOTAL_ITEMS_KEYS = ("cr:totalItems", "totalItems", "schema:totalItems")
 DATA_TYPE_KEYS = ("sc:dataType", "dataType", "schema:dataType", "cr:dataType")
 
 # ---------------------------------------------------------------------------

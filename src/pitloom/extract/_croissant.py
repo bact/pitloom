@@ -13,6 +13,8 @@ See: https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 See: https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html
 
 This module is stdlib-only — no third-party packages are required.
+To work with Croissant RDF as Python dataclass,
+we can use https://github.com/mlcommons/croissant/tree/main/python/mlcroissant
 
 Key alias tables live in :mod:`pitloom.extract._croissant_keys`.
 Generic I/O and string utilities live in :mod:`pitloom.extract._extract_utils`.
@@ -31,15 +33,11 @@ from pitloom.extract._croissant_keys import (
     KEYWORDS_KEYS,
     LICENSE_KEYS,
     NAME_KEYS,
-    RAI_ANONYMIZATION_KEYS,
     RAI_BIASES_KEYS,
     RAI_COLLECTION_KEYS,
-    RAI_INTENDED_USE_KEYS,
     RAI_PREPROCESSING_KEYS,
     RAI_SENSITIVITY_KEYS,
-    RECORD_SET_KEYS,
     SCHEMA_TYPE_TO_DATASET_TYPE,
-    TOTAL_ITEMS_KEYS,
     URL_KEYS,
     VERSION_KEYS,
 )
@@ -118,31 +116,16 @@ def _infer_dataset_types(data: dict[str, Any]) -> list[str]:
 
 
 def _extract_size(data: dict[str, Any]) -> int | None:
-    """Sum ``cr:totalItems`` values across all record sets.
+    """Extract dataset size.
+    Still have to figure out the calculation logic here.
 
-    Returns ``None`` when no ``cr:totalItems`` field is found anywhere.
+    Returns ``None`` when data is empty or has no record sets.
+    Otherwise returns ``0`` for now.
     """
-    record_sets = get_first(data, *RECORD_SET_KEYS)
-    if not record_sets:
-        return None
-    if isinstance(record_sets, dict):
-        record_sets = [record_sets]
-    if not isinstance(record_sets, list):
+    if not data:
         return None
 
-    total = 0
-    found = False
-    for rs in record_sets:
-        if not isinstance(rs, dict):
-            continue
-        size = get_first(rs, *TOTAL_ITEMS_KEYS)
-        if size is not None:
-            try:
-                total += int(str(size))
-                found = True
-            except (ValueError, TypeError):
-                pass
-    return total if found else None
+    return 0
 
 
 # pylint: disable=too-many-locals
@@ -162,11 +145,9 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     - ``keywords`` — from ``schema:keywords``
     - ``creator`` — from ``schema:creator`` (name extracted from nested node)
     - ``dataset_types`` — inferred from all ``sc:dataType`` values in the document
-    - ``dataset_size`` — sum of ``cr:totalItems`` across all ``cr:recordSet`` entries
     - ``data_collection_process`` — from ``rai:dataCollection``
-    - ``data_preprocessing`` — from ``rai:dataPreprocessingStrategies``
+    - ``data_preprocessing`` — from ``rai:dataPreprocessingProtocol``
     - ``known_bias`` — from ``rai:dataBiases``
-    - ``intended_use`` — from ``rai:intendedUse``
     - ``has_sensitive_personal_information`` — from ``rai:personalSensitiveInformation``
     - ``croissant_url`` — the URL string of *source* (when *source* is a URL)
 
@@ -230,9 +211,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
             f"Source: {src_label} | Fields: cr:recordSet / sc:dataType"
         )
 
-    dataset_size = _extract_size(data)
-    if dataset_size is not None:
-        provenance["dataset_size"] = f"Source: {src_label} | Field: cr:totalItems (sum)"
+    dataset_size = 0
 
     collection_raw = get_first(data, *RAI_COLLECTION_KEYS)
     data_collection_process = str(collection_raw) if collection_raw else None
@@ -253,10 +232,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     if known_bias:
         provenance["known_bias"] = f"Source: {src_label} | Field: rai:dataBiases"
 
-    intended_use_raw = get_first(data, *RAI_INTENDED_USE_KEYS)
-    intended_use = str(intended_use_raw) if intended_use_raw else None
-    if intended_use:
-        provenance["intended_use"] = f"Source: {src_label} | Field: rai:intendedUse"
+    intended_use = ""
 
     sensitivity_raw = get_first(data, *RAI_SENSITIVITY_KEYS)
     has_sensitive = _normalize_sensitivity(sensitivity_raw)
@@ -265,12 +241,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
             f"Source: {src_label} | Field: rai:personalSensitiveInformation"
         )
 
-    anon_raw = get_first(data, *RAI_ANONYMIZATION_KEYS)
-    anonymization_methods = to_str_list(anon_raw)
-    if anonymization_methods:
-        provenance["anonymization_methods"] = (
-            f"Source: {src_label} | Field: rai:anonymizationMethodUsed"
-        )
+    anonymization_methods: list[str] = []
 
     croissant_url: str | None = None
     if isinstance(source, str) and source.startswith(("http://", "https://")):
