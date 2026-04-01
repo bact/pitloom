@@ -232,7 +232,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     if known_bias:
         provenance["known_bias"] = f"Source: {src_label} | Field: rai:dataBiases"
 
-    intended_use = ""
+    intended_use = None
 
     sensitivity_raw = get_first(data, *RAI_SENSITIVITY_KEYS)
     has_sensitive = _normalize_sensitivity(sensitivity_raw)
