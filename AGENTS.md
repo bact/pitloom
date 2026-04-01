@@ -175,8 +175,14 @@ names, license, description, repository URL, keywords/tags (same order).
   vs. plural forms. Use singular names for classes representing a single entity
   and reserve plural names only for collections, utility modules, or clear
   aggregates.
-- Ontology/vocabulary: consult Schema.org vocabularies for naming decisions.
+- Ontology/vocabulary: consult Schema.org vocabularies for naming decisions,
+  also FIBO naming conventions
+  <https://github.com/edmcouncil/fibo/blob/master/ONTOLOGY_GUIDE.md>
+  and OBO Foundary naming conventions
+  <https://obofoundry.org/principles/fp-012-naming-conventions.html>
 - URLs/IRIs: lowercase letters and hyphens; follow W3C Cool URIs: <https://www.w3.org/TR/cooluris/>
+- Consult SEMIC Style Guide for Semantic Engineers
+  <https://semiceu.github.io/style-guide/1.0.0/index.html>
 
 ## JSON
 
