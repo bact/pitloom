@@ -267,9 +267,9 @@ def test_read_croissant_full_data_collection() -> None:
     assert meta.data_collection_process == "Data was collected from public web sources."
 
 
-# def test_read_croissant_full_data_preprocessing() -> None:
-#     meta = read_croissant(FIXTURES / "full.json")
-#     assert "xxx" in meta.data_preprocessing
+def test_read_croissant_full_data_preprocessing() -> None:
+    meta = read_croissant(FIXTURES / "full.json")
+    assert "Tokenization and lowercasing applied." in meta.data_preprocessing
 
 
 # def test_read_croissant_full_known_bias() -> None:

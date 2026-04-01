@@ -211,7 +211,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
             f"Source: {src_label} | Fields: cr:recordSet / sc:dataType"
         )
 
-    dataset_size = 0
+    dataset_size = 0  # To implement
 
     collection_raw = get_first(data, *RAI_COLLECTION_KEYS)
     data_collection_process = str(collection_raw) if collection_raw else None
@@ -224,7 +224,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     data_preprocessing = to_str_list(preprocessing_raw)
     if data_preprocessing:
         provenance["data_preprocessing"] = (
-            f"Source: {src_label} | Field: rai:dataPreprocessingStrategies"
+            f"Source: {src_label} | Field: rai:dataPreprocessingProtocol"
         )
 
     biases_raw = get_first(data, *RAI_BIASES_KEYS)

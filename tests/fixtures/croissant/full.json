@@ -17,7 +17,7 @@
   },
   "rai:dataCollection": "Data was collected from public web sources.",
   "rai:dataBiases": "Selection bias: only English-language text included.",
-  "rai:dataPreprocessingStrategies": "Tokenization and lowercasing applied.",
+  "rai:dataPreprocessingProtocol": "Tokenization and lowercasing applied.",
   "rai:personalSensitiveInformation": "no",
   "cr:recordSet": [
     {
