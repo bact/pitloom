@@ -28,12 +28,26 @@ class PitloomConfig:
             The full filename is derived by appending the format-specific
             extension (e.g., ``".spdx3.json"``).
             When ``None``, callers choose a context-appropriate default.
+        creation_creator_name: Optional creator name override from
+            ``[tool.pitloom.creation]``.
+        creation_creator_email: Optional creator email override from
+            ``[tool.pitloom.creation]``.
+        creation_creation_datetime: Optional creation timestamp override from
+            ``[tool.pitloom.creation]``.
+        creation_creation_tool: Optional creation tool name override from
+            ``[tool.pitloom.creation]``.
+        creation_comment: Optional comment mapped to SPDX ``CreationInfo.comment``.
     """
 
     fragments: list[str] = field(default_factory=list)
     pretty: bool = False
     describe_relationship: bool | None = None
     sbom_basename: str | None = None
+    creation_creator_name: str | None = None
+    creation_creator_email: str | None = None
+    creation_creation_datetime: str | None = None
+    creation_creation_tool: str | None = None
+    creation_comment: str | None = None
 
 
 __all__ = ["PitloomConfig"]

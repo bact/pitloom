@@ -142,8 +142,28 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """
     Read ``[tool.pitloom]`` settings and return
     a :class:`~pitloom.core.config.PitloomConfig`.
+
+    Creation metadata can be set in either:
+
+    * ``[tool.pitloom.creation]`` (preferred)
+    * legacy flat keys under ``[tool.pitloom]``
+
+    Field processing follows :class:`~pitloom.core.creation.CreationMetadata`
+    order: creator name, creator email, creation datetime, creation tool,
+    creation comment.
     """
     pitloom_data = data.get("tool", {}).get("pitloom", {})
+    creation_data = pitloom_data.get("creation", {})
+    if not isinstance(creation_data, dict):
+        creation_data = {}
+
+    def _pick_str(source: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+        for key in keys:
+            value = source.get(key)
+            if isinstance(value, str):
+                return value
+        return None
+
     raw_fragments = pitloom_data.get("fragments", {}).get("files", [])
     fragments = (
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
@@ -155,11 +175,35 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     if desc_rel is not None:
         desc_rel = bool(desc_rel)
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
+    creation_creator_name = _pick_str(
+        creation_data, ("creator-name", "creator_name")
+    ) or _pick_str(pitloom_data, ("creator-name", "creator_name"))
+    creation_creator_email = _pick_str(
+        creation_data, ("creator-email", "creator_email")
+    ) or _pick_str(pitloom_data, ("creator-email", "creator_email"))
+    creation_creation_datetime = _pick_str(
+        creation_data,
+        ("creation-datetime", "creation_datetime", "datetime"),
+    ) or _pick_str(pitloom_data, ("creation-datetime", "creation_datetime"))
+    creation_creation_tool = _pick_str(
+        creation_data,
+        ("creation-tool", "creation_tool", "tool"),
+    ) or _pick_str(pitloom_data, ("creation-tool", "creation_tool"))
+    creation_comment = _pick_str(
+        creation_data,
+        ("creation-comment", "creation_comment", "comment"),
+    ) or _pick_str(pitloom_data, ("creation-comment", "creation_comment"))
+
     return PitloomConfig(
         pretty=pretty,
         fragments=fragments,
         describe_relationship=desc_rel,
         sbom_basename=sbom_basename,
+        creation_creator_name=creation_creator_name,
+        creation_creator_email=creation_creator_email,
+        creation_creation_datetime=creation_creation_datetime,
+        creation_creation_tool=creation_creation_tool,
+        creation_comment=creation_comment,
     )
 
 

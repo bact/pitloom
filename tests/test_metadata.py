@@ -127,3 +127,32 @@ description = "A test package"
 
         assert metadata.name == "test-package"
         assert metadata.version == "2.0.0"
+
+
+def test_extract_pitloom_creation_settings() -> None:
+    """Read creation metadata settings from ``[tool.pitloom.creation]``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+creator-name = "Config Creator"
+creator-email = "config@example.com"
+creation-datetime = "2026-01-01T00:00:00+00:00"
+creation-tool = "Config Tool"
+creation-comment = "Created from config"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.creation_creator_name == "Config Creator"
+        assert config.creation_creator_email == "config@example.com"
+        assert config.creation_creation_datetime == "2026-01-01T00:00:00+00:00"
+        assert config.creation_creation_tool == "Config Tool"
+        assert config.creation_comment == "Created from config"
