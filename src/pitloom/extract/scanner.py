@@ -66,9 +66,16 @@ def scan_project_for_ai_models(
                 log.debug(
                     "Discovered AI model: %s (format: %s)", pf.distribution_path, fmt
                 )
+            except ImportError as e:
+                log.warning(
+                    "FORMAT=%s FILE=%s: required library not installed; %s",
+                    fmt,
+                    phys_path,
+                    e,
+                )
             except Exception as e:  # pylint: disable=broad-exception-caught
                 log.warning(
-                    "Failed to extract metadata for format %s from %s: %s",
+                    "FORMAT=%s FILE=%s: failed to extract metadata; %s",
                     fmt,
                     phys_path,
                     e,
