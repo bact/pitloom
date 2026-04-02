@@ -214,7 +214,11 @@ def add_ai_models(
         )
         exporter.add_relationship(rel)
 
-        model_file_id = file_spdx_ids.get(ai_model.format_info.file_path_relative) if ai_model.format_info.file_path_relative else None
+        model_file_id = (
+            file_spdx_ids.get(ai_model.format_info.file_path_relative)
+            if ai_model.format_info.file_path_relative
+            else None
+        )
         if model_file_id:
             rel_contains_file = spdx3.Relationship(
                 spdxId=generate_spdx_id(

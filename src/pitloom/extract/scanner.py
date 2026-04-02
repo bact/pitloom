@@ -63,9 +63,16 @@ def scan_project_for_ai_models(
                 meta.format_info.file_name = phys_path.name
                 meta.format_info.file_path_relative = pf.distribution_path
                 ai_models.append(meta)
-                log.debug("Discovered AI model: %s (format: %s)", pf.distribution_path, fmt)
+                log.debug(
+                    "Discovered AI model: %s (format: %s)", pf.distribution_path, fmt
+                )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                log.warning("Failed to extract metadata for format %s from %s: %s", fmt, phys_path, e)
+                log.warning(
+                    "Failed to extract metadata for format %s from %s: %s",
+                    fmt,
+                    phys_path,
+                    e,
+                )
 
     # 2. Find usages in code
     for pf in files:
@@ -78,8 +85,14 @@ def scan_project_for_ai_models(
                     # Basic string matching heuristic for file loading.
                     if file_name and file_name in content:
                         meta.usage_files.append(pf.distribution_path)
-                        log.debug("Found usage of %s inside %s", file_name, pf.distribution_path)
+                        log.debug(
+                            "Found usage of %s inside %s",
+                            file_name,
+                            pf.distribution_path,
+                        )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                log.warning("Could not read text from %s for usage scanning: %s", phys_path, e)
+                log.warning(
+                    "Could not read text from %s for usage scanning: %s", phys_path, e
+                )
 
     return ai_models

@@ -175,17 +175,25 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
             dpath_str = dpath.as_posix()
             if dpath_str not in dir_spdx_ids:
                 d_file = spdx3.software_File(
-                    spdxId=generate_spdx_id("File", doc_name=metadata.name, doc_uuid=doc_uuid),
+                    spdxId=generate_spdx_id(
+                        "File", doc_name=metadata.name, doc_uuid=doc_uuid
+                    ),
                     name=dpath_str,
                     creationInfo=spdx_ci,
                 )
                 d_file.software_fileKind = spdx3.software_FileKindType.directory
                 exporter.add_file(d_file)
                 dir_spdx_ids[dpath_str] = d_file.spdxId
-                
-                parent_id = main_package.spdxId if i == 0 else dir_spdx_ids[parent_paths[i-1].as_posix()]
+
+                parent_id = (
+                    main_package.spdxId
+                    if i == 0
+                    else dir_spdx_ids[parent_paths[i - 1].as_posix()]
+                )
                 rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id("Relationship", doc_name=metadata.name, doc_uuid=doc_uuid),
+                    spdxId=generate_spdx_id(
+                        "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
+                    ),
                     from_=parent_id,
                     to=[d_file.spdxId],
                     relationshipType=spdx3.RelationshipType.contains,
@@ -202,9 +210,15 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         exporter.add_file(f)
         file_spdx_ids[pf.distribution_path] = f.spdxId
 
-        parent_id = dir_spdx_ids[parent_paths[-1].as_posix()] if parent_paths else main_package.spdxId
+        parent_id = (
+            dir_spdx_ids[parent_paths[-1].as_posix()]
+            if parent_paths
+            else main_package.spdxId
+        )
         rel = spdx3.Relationship(
-            spdxId=generate_spdx_id("Relationship", doc_name=metadata.name, doc_uuid=doc_uuid),
+            spdxId=generate_spdx_id(
+                "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
+            ),
             from_=parent_id,
             to=[f.spdxId],
             relationshipType=spdx3.RelationshipType.contains,

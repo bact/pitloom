@@ -201,7 +201,7 @@ def build_license_elements(
             name_str = name_str.split("\n")[0]
         if len(name_str) > 60:
             name_str = name_str[:57] + "..."
-            
+
         license_text = spdx3.simplelicensing_SimpleLicensingText(
             spdxId=generate_spdx_id("License", doc_name=doc_name, doc_uuid=doc_uuid),
             creationInfo=creation_info,

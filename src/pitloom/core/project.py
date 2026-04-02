@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+
 @dataclass
 class ProjectFile:
     """A file included in the project distribution.
-    
+
     Attributes:
         physical_path: Absolute or relative path to the physical file on disk.
         distribution_path: Canonical path of the file inside the wheel/package.
