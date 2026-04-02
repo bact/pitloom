@@ -1,7 +1,6 @@
 # Pitloom
 
 [![PyPI - Version](https://img.shields.io/pypi/v/pitloom)](https://pypi.org/project/pitloom/)
-https://doi.org/10.5281/zenodo.19376560
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19376560.svg)](https://doi.org/10.5281/zenodo.19376560)
 
 ![The Pippin Pitloom](./docs/mascot.png)
