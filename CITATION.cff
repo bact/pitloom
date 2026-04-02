@@ -6,7 +6,6 @@ authors:
     given-names: Arthit
     orcid: https://orcid.org/0000-0002-9698-1899
 abstract: Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support.
-repository: "https://pypi.org/project/pitloom/"
 repository-code: "https://github.com/bact/pitloom"
 type: software
 doi: 10.5281/zenodo.19243681
