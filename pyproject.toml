@@ -10,7 +10,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pitloom"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -123,6 +123,9 @@ packages = ["src/pitloom"]
 
 [tool.hatch.build.hooks.pitloom]
 sbom-basename = "sbom"
+
+[tool.hatch.version]
+path = "src/pitloom/__about__.py"
 
 [tool.pitloom]
 pretty = true
