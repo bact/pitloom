@@ -195,7 +195,8 @@ def main() -> int:
             print(f"  pretty: {eff_pretty}  [{pretty_src}]")
             print(f"  describe_relationship: {eff_desc}  [{desc_src}]")
             print(
-                f"  creator_name: '{args.creator_name or 'Pitloom'}'  [{creator_name_src}]"
+                f"  creator_name: '{args.creator_name or 'Pitloom'}'  "
+                f"[{creator_name_src}]"
             )
             print(
                 f"  creator_email: '{args.creator_email or ''}'  [{creator_email_src}]"
