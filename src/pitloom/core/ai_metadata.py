@@ -81,6 +81,9 @@ class AiModelFormatInfo:
     # Physical model file name (basename only, no directory path)
     file_name: str | None = None
 
+    # Canonical distribution path of the file inside the project
+    file_path_relative: str | None = None
+
     # Format enum value (e.g. AiModelFormat.GGUF)
     model_format: AiModelFormat = AiModelFormat.UNKNOWN
 
@@ -154,6 +157,9 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     version: str | None = None
     license: str | None = None  # SPDX license expression if available
 
+    # General model metadata
+    domain: list[str] = field(default_factory=list)
+
     # Technical model metadata
     # SPDX AI profile: typeOfModel (e.g. "neural network", "transformer")
     type_of_model: str | None = None
@@ -183,3 +189,6 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
 
     # Provenance tracking: field name -> source description
     provenance: dict[str, str] = field(default_factory=dict)
+
+    # Distribution paths of Python scripts that use/load this model
+    usage_files: list[str] = field(default_factory=list)

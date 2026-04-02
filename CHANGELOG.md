@@ -17,6 +17,12 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.2.0...v0.3.0>
 
+## [Unreleased]
+
+### Added
+
+- File-level information in SBOM
+
 ## [0.3.0] - 2026-04-01
 
 ### Added

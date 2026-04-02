@@ -16,6 +16,14 @@ The goal is to eliminate double instrumentation. A project already using MLflow
 for experiment tracking should be able to produce a compliance-grade SBOM
 fragment without adding a second set of `pitloom.bom` calls to the training script.
 
+The initial idea of using MLflow, together with a controlled vocabulary
+([STAV][]), as a source of truth for SBOM generation was discussed in
+[Accountability Taxonomy for AI Software Bill of Materials][ossna2024]
+presentation at Open Source Summit North America 2024.
+
+[stav]: https://github.com/bact/stav
+[ossna2024]: https://ossna2024.sched.com/event/1aBNk/accountability-taxonomy-for-ai-software-bill-of-materials-arthit-suriyawongkul-adapt-centre-trinity-college-dublin
+
 ## Motivation and the double-instrumentation problem
 
 The current `pitloom.bom` SDK requires explicit calls alongside MLflow:
