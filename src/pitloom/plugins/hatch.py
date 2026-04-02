@@ -29,6 +29,52 @@ log = logging.getLogger(__name__)
 _SPDX3_JSON_EXT = ".spdx3.json"
 
 
+def _get_hook_settings(config: dict[str, Any]) -> tuple[str, str, str, list[str]]:
+    """Read validated hook settings with defaults applied."""
+    return (
+        config.get("sbom-basename", "") or "sbom",
+        config.get("creator-name", "") or "Pitloom",
+        config.get("creator-email", ""),
+        config.get("fragments", []),
+    )
+
+
+def _build_document_model(
+    project_dir: Path,
+    creator_name: str,
+    creator_email: str,
+) -> tuple[DocumentModel, str | None, list[str]]:
+    """Load project metadata and assemble the format-neutral document."""
+    metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
+    creation_meta = CreationMetadata(
+        creator_name=creator_name,
+        creator_email=creator_email,
+        build_datetime=datetime.now(timezone.utc).isoformat(),
+    )
+    merkle_root, project_files = get_wheel_files(project_dir)
+    metadata.files = project_files
+    ai_models = scan_project_for_ai_models(project_dir, project_files)
+    document = DocumentModel(
+        project=metadata,
+        creation=creation_meta,
+        ai_models=ai_models,
+    )
+    return document, merkle_root, pitloom_config.fragments
+
+
+def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[
+    tempfile.TemporaryDirectory[str], Path
+]:
+    """Write the canonical SBOM to a temporary staging location."""
+    # Not used as a context manager: the directory must outlive initialize()
+    # and be cleaned up in finalize() after the wheel is packaged.
+    # pylint: disable=consider-using-with
+    staging_dir = tempfile.TemporaryDirectory()  # noqa: SIM115
+    staging_path = Path(staging_dir.name) / sbom_filename
+    staging_path.write_text(sbom_json, encoding="utf-8")
+    return staging_dir, staging_path
+
+
 class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
     """Hatchling build hook that embeds an SPDX 3 SBOM in the wheel.
 
@@ -81,36 +127,22 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             log.info("Pitloom build hook: disabled; skipping SBOM generation.")
             return
 
-        sbom_basename: str = config.get("sbom-basename", "") or "sbom"
+        sbom_basename, creator_name, creator_email, hook_fragments = _get_hook_settings(
+            config
+        )
         sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
-        creator_name: str = config.get("creator-name", "") or "Pitloom"
-        creator_email: str = config.get("creator-email", "")
-        hook_fragments: list[str] = config.get("fragments", [])
 
         project_dir = Path(self.root)
-        metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
-
-        build_time = datetime.now(timezone.utc).isoformat()
-        creation_meta = CreationMetadata(
-            creator_name=creator_name,
-            creator_email=creator_email,
-            build_datetime=build_time,
-        )
-        # Compute Merkle root via hatchling's own file discovery so the UUID
-        # matches the CLI path exactly (same WheelBuilder, same file set).
-        merkle_root, project_files = get_wheel_files(project_dir)
-        metadata.files = project_files
-
-        ai_models = scan_project_for_ai_models(project_dir, project_files)
-
-        doc = DocumentModel(
-            project=metadata, creation=creation_meta, ai_models=ai_models
+        document, merkle_root, pitloom_fragments = _build_document_model(
+            project_dir,
+            creator_name,
+            creator_email,
         )
 
-        exporter = assemble_spdx3(doc, merkle_root=merkle_root)
+        exporter = assemble_spdx3(document, merkle_root=merkle_root)
 
         # Merge fragments from [tool.pitloom] and [tool.hatch.build.hooks.pitloom]
-        all_fragments = pitloom_config.fragments + hook_fragments
+        all_fragments = pitloom_fragments + hook_fragments
         merge_fragments(project_dir, all_fragments, exporter)
 
         # Wheels (and sdists) must always contain a compact, RFC 8785 (JCS)
@@ -120,12 +152,9 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         sbom_json = exporter.to_json(pretty=False)
 
         self._sbom_filename = sbom_filename
-        # Not used as a context manager: the directory must outlive initialize()
-        # and be cleaned up in finalize() after the wheel is packaged.
-        # pylint: disable=consider-using-with
-        self._staging_dir = tempfile.TemporaryDirectory()  # noqa: SIM115
-        self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
-        self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
+        self._staging_dir, self._sbom_staging_path = _stage_sbom_file(
+            sbom_json, sbom_filename
+        )
 
         # Hatchling 1.28.0+ places each path in sbom_files at
         # .dist-info/sboms/<basename> inside the wheel (PEP 770).

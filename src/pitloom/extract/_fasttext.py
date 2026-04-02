@@ -31,6 +31,79 @@ _FASTTEXT_ARGS_HYPERPARAMS: tuple[tuple[str, str], ...] = (
 )
 
 
+def _load_fasttext_model(model_path: Path) -> Any:
+    """Load a fastText model with consistent dependency and format errors."""
+    try:
+        # pylint: disable=import-outside-toplevel
+        import fasttext  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise ImportError(
+            "The 'fasttext' package is required to extract fastText model metadata. "
+            "Install it with: pip install fasttext"
+        ) from exc
+
+    try:
+        return fasttext.load_model(str(model_path))
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        raise ValueError(
+            f"Failed to load fastText model from {model_path}: {exc}"
+        ) from exc
+
+
+def _extract_fasttext_args(
+    model: Any, source: str
+) -> tuple[dict[str, Any], dict[str, str], str | None]:
+    """Read optional training arguments exposed by the fastText binding."""
+    hyperparameters: dict[str, Any] = {}
+    properties: dict[str, str] = {}
+    type_of_model: str | None = None
+
+    try:
+        args = model.f.getArgs()
+    except Exception:  # pylint: disable=broad-exception-caught
+        return hyperparameters, properties, type_of_model
+
+    for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
+        value = getattr(args, attr, None)
+        if value is not None:
+            hyperparameters[param_key] = value
+
+    model_enum = getattr(args, "model", None)
+    type_of_model = getattr(model_enum, "name", None) or None
+
+    loss_enum = getattr(args, "loss", None)
+    loss_name: str | None = getattr(loss_enum, "name", None) or None
+    if loss_name:
+        properties["lossName"] = loss_name
+
+    if hyperparameters:
+        properties["__hyperparameters_provenance__"] = f"{source} | Fields: args.*"
+    if type_of_model:
+        properties["__type_of_model_provenance__"] = f"{source} | Field: args.model"
+    return hyperparameters, properties, type_of_model
+
+
+def _extract_fasttext_outputs(
+    model: Any,
+) -> tuple[dict[str, str], list[dict[str, Any]]]:
+    """Read supervised labels when available."""
+    properties: dict[str, str] = {}
+    outputs: list[dict[str, Any]] = []
+    get_labels = getattr(model, "get_labels", None)
+    if get_labels is None:
+        return properties, outputs
+
+    try:
+        labels = get_labels()
+    except Exception:  # pylint: disable=broad-exception-caught
+        return properties, outputs
+
+    if labels:
+        properties["labels"] = ",".join(labels)
+        outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
+    return properties, outputs
+
+
 def read_fasttext(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a fastText binary model file.
 
@@ -56,72 +129,25 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         ImportError: If ``fasttext`` is not installed.
         ValueError: If the file cannot be loaded as a valid fastText model.
     """
-    try:
-        # pylint: disable=import-outside-toplevel
-        import fasttext  # type: ignore[import-untyped]
-    except ImportError as exc:
-        raise ImportError(
-            "The 'fasttext' package is required to extract fastText model metadata. "
-            "Install it with: pip install fasttext"
-        ) from exc
-
-    try:
-        model = fasttext.load_model(str(model_path))
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        raise ValueError(
-            f"Failed to load fastText model from {model_path}: {exc}"
-        ) from exc
+    model = _load_fasttext_model(model_path)
 
     source = f"Source: {model_path.name}"
-    framework = "fasttext"
     # Since fastText is a text classification and word embedding library,
     # we will assume the domains.
     domain: list[str] = ["text classification", "natural language processing"]
-    hyperparameters: dict[str, Any] = {}
-    properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
+    hyperparameters, args_properties, type_of_model = _extract_fasttext_args(
+        model, source
+    )
+    properties, outputs = _extract_fasttext_outputs(model)
+    properties.update(args_properties)
 
-    # Training args are on the C++ binding at model.f.getArgs().
-    args = None
-    try:
-        args = model.f.getArgs()
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
-
-    if args is not None:
-        for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
-            value = getattr(args, attr, None)
-            if value is not None:
-                hyperparameters[param_key] = value
-
-        # model attribute is a model_name enum; .name gives the string value.
-        model_enum = getattr(args, "model", None)
-        type_of_model: str | None = getattr(model_enum, "name", None) or None
-        if type_of_model:
-            provenance["type_of_model"] = f"{source} | Field: args.model"
-
-        # loss attribute is a loss_name enum; .name gives the string value.
-        loss_enum = getattr(args, "loss", None)
-        loss_name: str | None = getattr(loss_enum, "name", None) or None
-        if loss_name:
-            properties["lossName"] = loss_name
-    else:
-        type_of_model = None
-
-    if hyperparameters:
-        provenance["hyperparameters"] = f"{source} | Fields: args.*"
-
-    # Labels for supervised models (empty for unsupervised word vectors).
-    outputs: list[dict[str, Any]] = []
-    get_labels = getattr(model, "get_labels", None)
-    if get_labels is not None:
-        try:
-            labels = get_labels()
-            if labels:
-                properties["labels"] = ",".join(labels)
-                outputs = [{"name": "label_probabilities", "shape": [len(labels)]}]
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+    hyperparameters_provenance = properties.pop("__hyperparameters_provenance__", None)
+    type_of_model_provenance = properties.pop("__type_of_model_provenance__", None)
+    if hyperparameters_provenance is not None:
+        provenance["hyperparameters"] = hyperparameters_provenance
+    if type_of_model_provenance is not None:
+        provenance["type_of_model"] = type_of_model_provenance
 
     if properties:
         provenance["properties"] = f"{source} | Fields: args.loss, labels"
@@ -133,7 +159,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
             model_format=AiModelFormat.FASTTEXT,
-            framework=framework,
+            framework="fasttext",
         ),
         domain=domain,
         type_of_model=type_of_model,
