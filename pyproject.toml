@@ -144,6 +144,10 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
+module = ["fasttext", "fasttext.*"]
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
 module = "fickling.*"
 
 [[tool.mypy.overrides]]

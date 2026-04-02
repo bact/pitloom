@@ -35,7 +35,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
     """Load a fastText model with consistent dependency and format errors."""
     try:
         # pylint: disable=import-outside-toplevel
-        import fasttext  # type: ignore[import-untyped]
+        import fasttext
     except ImportError as exc:
         raise ImportError(
             "The 'fasttext' package is required to extract fastText model metadata. "
