@@ -74,6 +74,9 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
 
     source = f"Source: {model_path.name}"
     framework = "fasttext"
+    # Since fastText is a text classification and word embedding library,
+    # we will assume the domains.
+    domain: list[str] = ["text classification", "natural language processing"]
     hyperparameters: dict[str, Any] = {}
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
@@ -132,6 +135,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
             model_format=AiModelFormat.FASTTEXT,
             framework=framework,
         ),
+        domain=domain,
         type_of_model=type_of_model,
         hyperparameters=hyperparameters,
         properties=properties,

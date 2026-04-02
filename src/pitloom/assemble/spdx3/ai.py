@@ -151,6 +151,7 @@ def _build_ai_package(
 def add_ai_models(
     ai_models: list[AiModelMetadata],
     main_package_spdx_id: str,
+    file_spdx_ids: dict[str, str],
     creation_info: spdx3.CreationInfo,
     doc_name: str,
     doc_uuid: str,
@@ -202,7 +203,7 @@ def add_ai_models(
 
         rel = spdx3.Relationship(
             spdxId=generate_spdx_id(
-                f"Relationship-contains-{ai_pkg.name}",
+                "Relationship",
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
             ),
@@ -212,3 +213,34 @@ def add_ai_models(
             creationInfo=creation_info,
         )
         exporter.add_relationship(rel)
+
+        model_file_id = file_spdx_ids.get(ai_model.format_info.file_path_relative) if ai_model.format_info.file_path_relative else None
+        if model_file_id:
+            rel_contains_file = spdx3.Relationship(
+                spdxId=generate_spdx_id(
+                    "Relationship",
+                    doc_name=doc_name,
+                    doc_uuid=doc_uuid,
+                ),
+                from_=ai_pkg.spdxId,
+                to=[model_file_id],
+                relationshipType=spdx3.RelationshipType.contains,
+                creationInfo=creation_info,
+            )
+            exporter.add_relationship(rel_contains_file)
+
+            for usage_path in ai_model.usage_files:
+                usage_file_id = file_spdx_ids.get(usage_path)
+                if usage_file_id:
+                    rel_usage = spdx3.Relationship(
+                        spdxId=generate_spdx_id(
+                            "Relationship",
+                            doc_name=doc_name,
+                            doc_uuid=doc_uuid,
+                        ),
+                        from_=usage_file_id,
+                        to=[model_file_id],
+                        relationshipType=spdx3.RelationshipType.hasDataFile,
+                        creationInfo=creation_info,
+                    )
+                    exporter.add_relationship(rel_usage)

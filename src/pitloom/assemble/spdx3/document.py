@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from spdx_python_model import v3_0_1 as spdx3
 
@@ -162,6 +163,55 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         exporter=exporter,
     )
 
+    # --- Files ---
+    file_spdx_ids: dict[str, str] = {}
+    dir_spdx_ids: dict[str, str] = {}
+
+    for pf in metadata.files:
+        dist_path = Path(pf.distribution_path)
+        parent_paths = [p for p in list(dist_path.parents)[::-1] if p.name]
+
+        for i, dpath in enumerate(parent_paths):
+            dpath_str = dpath.as_posix()
+            if dpath_str not in dir_spdx_ids:
+                d_file = spdx3.software_File(
+                    spdxId=generate_spdx_id("File", doc_name=metadata.name, doc_uuid=doc_uuid),
+                    name=dpath_str,
+                    creationInfo=spdx_ci,
+                )
+                d_file.software_fileKind = spdx3.software_FileKindType.directory
+                exporter.add_file(d_file)
+                dir_spdx_ids[dpath_str] = d_file.spdxId
+                
+                parent_id = main_package.spdxId if i == 0 else dir_spdx_ids[parent_paths[i-1].as_posix()]
+                rel = spdx3.Relationship(
+                    spdxId=generate_spdx_id("Relationship", doc_name=metadata.name, doc_uuid=doc_uuid),
+                    from_=parent_id,
+                    to=[d_file.spdxId],
+                    relationshipType=spdx3.RelationshipType.contains,
+                    creationInfo=spdx_ci,
+                )
+                exporter.add_relationship(rel)
+
+        f = spdx3.software_File(
+            spdxId=generate_spdx_id("File", doc_name=metadata.name, doc_uuid=doc_uuid),
+            name=pf.distribution_path,
+            creationInfo=spdx_ci,
+        )
+        f.software_fileKind = spdx3.software_FileKindType.file
+        exporter.add_file(f)
+        file_spdx_ids[pf.distribution_path] = f.spdxId
+
+        parent_id = dir_spdx_ids[parent_paths[-1].as_posix()] if parent_paths else main_package.spdxId
+        rel = spdx3.Relationship(
+            spdxId=generate_spdx_id("Relationship", doc_name=metadata.name, doc_uuid=doc_uuid),
+            from_=parent_id,
+            to=[f.spdxId],
+            relationshipType=spdx3.RelationshipType.contains,
+            creationInfo=spdx_ci,
+        )
+        exporter.add_relationship(rel)
+
     # --- AI models (and their associated datasets) ---
     if doc.ai_models:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
@@ -170,6 +220,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         add_ai_models(
             ai_models=doc.ai_models,
             main_package_spdx_id=main_package.spdxId,
+            file_spdx_ids=file_spdx_ids,
             creation_info=spdx_ci,
             doc_name=metadata.name,
             doc_uuid=doc_uuid,

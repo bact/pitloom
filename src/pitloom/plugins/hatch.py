@@ -20,8 +20,9 @@ from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import compute_wheel_merkle_root
+from pitloom.core.models import get_wheel_files
 from pitloom.extract.pyproject import read_pyproject
+from pitloom.extract.scanner import scan_project_for_ai_models
 
 log = logging.getLogger(__name__)
 
@@ -95,11 +96,16 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             creator_email=creator_email,
             build_datetime=build_time,
         )
-        doc = DocumentModel(project=metadata, creation=creation_meta)
-
         # Compute Merkle root via hatchling's own file discovery so the UUID
         # matches the CLI path exactly (same WheelBuilder, same file set).
-        merkle_root = compute_wheel_merkle_root(project_dir)
+        merkle_root, project_files = get_wheel_files(project_dir)
+        metadata.files = project_files
+
+        ai_models = scan_project_for_ai_models(project_dir, project_files)
+
+        doc = DocumentModel(
+            project=metadata, creation=creation_meta, ai_models=ai_models
+        )
 
         exporter = assemble_spdx3(doc, merkle_root=merkle_root)
 

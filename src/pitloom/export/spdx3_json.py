@@ -185,6 +185,14 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(package)
 
+    def add_file(self, file_obj: spdx3.software_File) -> None:
+        """Add a software file to the document.
+
+        Args:
+            file_obj: The software_File object
+        """
+        self.object_set.add(file_obj)
+
     def find_license(self, license_id: str) -> str | None:
         """Return the spdxId of an existing SimpleLicensingText with the given
         ``simplelicensing_licenseText``, or ``None`` if not yet added.

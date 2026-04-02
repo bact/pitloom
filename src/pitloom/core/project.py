@@ -8,6 +8,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+@dataclass
+class ProjectFile:
+    """A file included in the project distribution.
+    
+    Attributes:
+        physical_path: Absolute or relative path to the physical file on disk.
+        distribution_path: Canonical path of the file inside the wheel/package.
+        digest_sha256: Hex-encoded SHA-256 digest of the file contents.
+    """
+
+    physical_path: str
+    distribution_path: str
+    digest_sha256: str
+
 
 @dataclass
 class ProjectMetadata:
@@ -39,3 +53,4 @@ class ProjectMetadata:
     urls: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
     provenance: dict[str, str] = field(default_factory=dict)
+    files: list[ProjectFile] = field(default_factory=list)

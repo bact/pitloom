@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5
 
+from pitloom.core.project import ProjectFile
+
 # Fixed pitloom namespace UUID, stable across all versions.
 # Derived from: uuid5(NAMESPACE_URL, "https://github.com/bact/pitloom")
 # DO NOT CHANGE: Modifying this constant will break the deterministic
@@ -62,8 +64,8 @@ def _build_merkle_tree(leaf_hashes: list[bytes]) -> str:
     return nodes[0].hex()
 
 
-def compute_wheel_merkle_root(project_dir: Path) -> str | None:
-    """Compute the SHA-256 Merkle root of all files included in the wheel.
+def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
+    """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
     Uses hatchling's :class:`~hatchling.builders.wheel.WheelBuilder` to
     discover the exact file set — respecting every include/exclude rule,
@@ -76,7 +78,7 @@ def compute_wheel_merkle_root(project_dir: Path) -> str | None:
         project_dir: Project root directory containing ``pyproject.toml``.
 
     Returns:
-        str: Hex-encoded Merkle root, or ``None`` if no files are found.
+        Tuple of (Hex-encoded Merkle root or None, List of ProjectFile objects).
     """
     # TODO: Update this when supporting setuptools or other build backends.
     # pylint: disable=import-outside-toplevel,cyclic-import
@@ -84,14 +86,22 @@ def compute_wheel_merkle_root(project_dir: Path) -> str | None:
 
     try:
         builder = WheelBuilder(str(project_dir))
+        project_files: list[ProjectFile] = []
         file_entries: list[tuple[str, bytes]] = []
         for included_file in builder.recurse_included_files():
             source = Path(included_file.path)
             if source.is_file():
-                file_entries.append(
-                    (
-                        included_file.distribution_path,
-                        hashlib.sha256(source.read_bytes()).digest(),
+                digest_bytes = hashlib.sha256(source.read_bytes()).digest()
+                file_entries.append((included_file.distribution_path, digest_bytes))
+                try:
+                    rel_path = source.relative_to(project_dir).as_posix()
+                except ValueError:
+                    rel_path = source.as_posix()
+                project_files.append(
+                    ProjectFile(
+                        physical_path=rel_path,
+                        distribution_path=included_file.distribution_path,
+                        digest_sha256=digest_bytes.hex(),
                     )
                 )
     except Exception:  # pylint: disable=broad-exception-caught
@@ -99,13 +109,14 @@ def compute_wheel_merkle_root(project_dir: Path) -> str | None:
         # (e.g. no pyproject.toml, no recognisable package layout).  Treat
         # this the same as "no files found" so UUID computation degrades
         # gracefully to name + version + deps only.
-        return None
+        return None, []
 
     if not file_entries:
-        return None
+        return None, []
 
     file_entries.sort(key=operator.itemgetter(0))
-    return _build_merkle_tree([digest for _, digest in file_entries])
+    merkle_root = _build_merkle_tree([digest for _, digest in file_entries])
+    return merkle_root, project_files
 
 
 # Matches the package name at the start of a dependency specifier,

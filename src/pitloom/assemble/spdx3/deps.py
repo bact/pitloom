@@ -196,11 +196,17 @@ def build_license_elements(
     if existing_spdx_id:
         license_spdx_id = existing_spdx_id
     else:
+        name_str = license_id.strip()
+        if "\n" in name_str:
+            name_str = name_str.split("\n")[0]
+        if len(name_str) > 60:
+            name_str = name_str[:57] + "..."
+            
         license_text = spdx3.simplelicensing_SimpleLicensingText(
             spdxId=generate_spdx_id("License", doc_name=doc_name, doc_uuid=doc_uuid),
             creationInfo=creation_info,
         )
-        license_text.name = license_id
+        license_text.name = name_str
         license_text.simplelicensing_licenseText = license_id
         license_text.comment = f"Metadata provenance: license: {license_provenance}"
         exporter.add_license(license_text)
