@@ -129,6 +129,7 @@ path = "src/pitloom/__about__.py"
 
 [tool.pitloom]
 pretty = true
+# creation-datetime = "2026-04-01T00:00:00"  # Fixed for reproducibility
 
 [tool.mypy]
 pretty = true

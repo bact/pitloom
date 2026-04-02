@@ -18,9 +18,35 @@ from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
+def _parse_iso_datetime(value: str) -> datetime:
+    """Parse a full ISO 8601 datetime string.
+
+    Accepts offset forms (including trailing ``Z``) and optional fractional
+    seconds. Naive values are interpreted as UTC.
+    """
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(f"Invalid ISO 8601 datetime: {value}") from exc
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _to_spdx3_datetime(value: datetime) -> datetime:
+    """Convert datetime to SPDX 3 DateTime constraints (UTC, whole seconds)."""
+    return value.astimezone(timezone.utc).replace(microsecond=0)
+
+
+def _spdx3_utc_now() -> datetime:
+    """Return current UTC time truncated to whole seconds for SPDX DateTime."""
+    return _to_spdx3_datetime(datetime.now(timezone.utc))
+
+
 def _build_creation_bundle(
     doc: DocumentModel, doc_uuid: str, created_at: datetime
-) -> tuple[spdx3.CreationInfo, spdx3.Person, spdx3.Tool]:
+) -> tuple[spdx3.CreationInfo, spdx3.Person, spdx3.Tool | None]:
     """Create shared SPDX creation objects for the document."""
     metadata = doc.project
     creation = doc.creation
@@ -29,6 +55,9 @@ def _build_creation_bundle(
         specVersion="3.0.1",
         created=created_at,
     )
+    if creation.creation_comment:
+        spdx_ci.comment = creation.creation_comment
+
     creator = spdx3.Person(
         spdxId=generate_spdx_id("Person", doc_name=metadata.name, doc_uuid=doc_uuid),
         name=creation.creator_name,
@@ -42,13 +71,17 @@ def _build_creation_bundle(
             )
         ]
 
-    tool = spdx3.Tool(
-        spdxId=generate_spdx_id("Tool", doc_name=metadata.name, doc_uuid=doc_uuid),
-        name=creation.creation_tool,
-        creationInfo=spdx_ci,
-    )
+    tool: spdx3.Tool | None = None
+    if creation.creation_tool:
+        tool = spdx3.Tool(
+            spdxId=generate_spdx_id("Tool", doc_name=metadata.name, doc_uuid=doc_uuid),
+            name=creation.creation_tool,
+            creationInfo=spdx_ci,
+        )
+
     spdx_ci.createdBy = [creator.spdxId]
-    spdx_ci.createdUsing = [tool.spdxId]
+    if tool is not None:
+        spdx_ci.createdUsing = [tool.spdxId]
     return spdx_ci, creator, tool
 
 
@@ -196,9 +229,9 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     metadata = doc.project
     ci = doc.creation
     created_at = (
-        datetime.fromisoformat(ci.creation_datetime)
+        _to_spdx3_datetime(_parse_iso_datetime(ci.creation_datetime))
         if ci.creation_datetime
-        else datetime.now(timezone.utc)
+        else _spdx3_utc_now()
     )
 
     exporter = Spdx3JsonExporter()
@@ -215,7 +248,8 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
 
     exporter.add_creation_info(spdx_ci)
     exporter.add_person(creator)
-    exporter.object_set.add(tool)
+    if tool is not None:
+        exporter.object_set.add(tool)
 
     # --- Main package ---
     main_package = _build_main_package(doc, spdx_ci, creator, doc_uuid)

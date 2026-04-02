@@ -110,6 +110,75 @@ description = "A simple application"
         assert "@graph" in sbom_data
 
 
+def test_generate_sbom_creation_comment_and_no_tool() -> None:
+    """Creation comment must map to CreationInfo.comment and tool is optional."""
+    pyproject_content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "comment-app"
+version = "0.1.0"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        sbom_json = generate_sbom(
+            tmppath,
+            creation_info=CreationMetadata(
+                creator_name="Test Creator",
+                creation_tool=None,
+                creation_comment="Generated in CI",
+            ),
+        )
+        sbom_data = json.loads(sbom_json)
+        graph = sbom_data["@graph"]
+
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+        assert len(creation_infos) == 1
+        assert creation_infos[0]["comment"] == "Generated in CI"
+        assert "createdUsing" not in creation_infos[0]
+
+        tool_elements = [e for e in graph if e["type"] == "Tool"]
+        assert not tool_elements
+
+
+def test_generate_sbom_creation_datetime_normalized_on_export() -> None:
+    """Full ISO creation_datetime must be normalised only at SPDX export time."""
+    pyproject_content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datetime-app"
+version = "0.1.0"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        sbom_json = generate_sbom(
+            tmppath,
+            creation_info=CreationMetadata(
+                creator_name="Test Creator",
+                creation_datetime="2026-01-01T12:34:56.789123+02:30",
+            ),
+        )
+        sbom_data = json.loads(sbom_json)
+        graph = sbom_data["@graph"]
+
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+        assert len(creation_infos) == 1
+        assert creation_infos[0]["created"] == "2026-01-01T10:04:56Z"
+
+
 def test_generate_sbom_sentimentdemo_structure() -> None:
     """Test SBOM generation with sentimentdemo-like structure."""
     pyproject_content = """
