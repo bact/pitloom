@@ -60,6 +60,7 @@ uv sync --group dev
 Install extras to enable metadata extraction from model files:
 
 ```bash
+pip install -e ".[fasttext]"      # fastText models
 pip install -e ".[gguf]"          # GGUF models
 pip install -e ".[onnx]"          # ONNX models
 pip install -e ".[safetensors]"   # Safetensors models
@@ -70,10 +71,10 @@ pip install -e ".[aimodel]"       # all of the above
 
 ### Command line
 
-Generate an SBOM for a Python project:
+Generate an SBOM for a Python project in current directory:
 
 ```bash
-loom /path/to/project
+loom .
 ```
 
 Specify output file:
@@ -82,10 +83,10 @@ Specify output file:
 loom /path/to/project -o sbom.spdx3.json
 ```
 
-Specify creator information:
+Show help:
 
 ```bash
-loom /path/to/project --creator-name "Your Name" --creator-email "your@example.com"
+loom -h
 ```
 
 ### Python API
@@ -134,10 +135,11 @@ Enable the hook by adding a section to your `pyproject.toml`:
 [tool.hatch.build.hooks.pitloom]
 # All fields are optional. Defaults are shown.
 enabled = true
-sbom-basename = ""      # name part only (no extension); default "sbom"
-creator-name = ""       # defaults to "Pitloom"
-creator-email = ""
-fragments = []          # extra SPDX fragment paths (relative to project root)
+sbom-basename = "package-name"      # name part only (no extension); default "sbom"
+creator-name = "SBOM Creator"       # defaults to "Pitloom"
+creator-email = "mail@example.com"  # defaults to None
+creation-datetime = "2026-04-01T00:00:00Z"  # Date and time in ISO 8601 UTC format
+fragments = []  # extra SPDX fragment paths (relative to project root)
 ```
 
 The full SBOM filename is `{sbom-basename}.spdx3.json` — e.g., the default

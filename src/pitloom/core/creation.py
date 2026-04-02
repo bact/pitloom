@@ -37,7 +37,7 @@ class CreationMetadata:
     """
 
     creator_name: str = "Pitloom"
-    creator_email: str = ""
+    creator_email: str | None = None
     creation_datetime: str | None = None
     creation_tool: str | None = "Pitloom"
     creation_comment: str | None = None

@@ -15,13 +15,20 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.2.0...v0.3.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.3.0...v0.4.0>
 
-## [Unreleased]
+## [0.4.0] 2026-04-02
 
 ### Added
 
-- File-level information in SBOM
+- File and directory information in SBOM, with "contains" relationship
+  ([#42][])
+- Human-readable description to Relationship ([#44][])
+- Creation information config to pyproject.toml and command line ([#47][])
+
+[#42]: https://github.com/bact/pitloom/pull/42
+[#44]: https://github.com/bact/pitloom/pull/44
+[#47]: https://github.com/bact/pitloom/pull/47
 
 ## [0.3.0] - 2026-04-01
 
@@ -47,11 +54,11 @@ and this project adheres to
 [spdx3-canon]: https://spdx.github.io/spdx-spec/v3.0.1/serializations/#canonical-serialization
 [jcs]: https://www.rfc-editor.org/rfc/rfc8785
 [spdx-spec-1339]: https://github.com/spdx/spdx-spec/issues/1339
-[#29]: https://github.com/bact/pitloom/issues/29
-[#33]: https://github.com/bact/pitloom/issues/33
-[#36]: https://github.com/bact/pitloom/issues/36
-[#39]: https://github.com/bact/pitloom/issues/39
-[#40]: https://github.com/bact/pitloom/issues/40
+[#29]: https://github.com/bact/pitloom/pull/29
+[#33]: https://github.com/bact/pitloom/pull/33
+[#36]: https://github.com/bact/pitloom/pull/36
+[#39]: https://github.com/bact/pitloom/pull/39
+[#40]: https://github.com/bact/pitloom/pull/40
 
 ## [0.2.0] - 2026-03-27
 
@@ -61,7 +68,7 @@ and this project adheres to
   - A UUIDv5 generated using seeds from the project name, project version,
     dependency list, and the Merkle root of all files included in the wheel.
 
-[#27]: https://github.com/bact/pitloom/issues/27
+[#27]: https://github.com/bact/pitloom/pull/27
 
 ## [0.1.0] - 2026-03-27
 
@@ -77,13 +84,14 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 - AI model metadata extraction from GGUF, ONNX, and Safetensors ([#11][])
 - Add Hatch plugin (hatchling.plugin.hookimpl) ([#17][])
 
-[#9]: https://github.com/bact/pitloom/issues/9
-[#10]: https://github.com/bact/pitloom/issues/10
-[#11]: https://github.com/bact/pitloom/issues/11
-[#17]: https://github.com/bact/pitloom/issues/17
+[#9]: https://github.com/bact/pitloom/pull/9
+[#10]: https://github.com/bact/pitloom/pull/10
+[#11]: https://github.com/bact/pitloom/pull/11
+[#17]: https://github.com/bact/pitloom/pull/17
 
 ---
 
+[0.4.0]: https://github.com/bact/pitloom/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/bact/pitloom/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/bact/pitloom/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/bact/pitloom/releases/tag/v0.1.0

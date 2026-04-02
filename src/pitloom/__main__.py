@@ -18,6 +18,7 @@ from pitloom.assemble import generate_sbom
 from pitloom.core.creation import CreationMetadata
 
 _SPDX3_JSON_EXT = ".spdx3.json"
+_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ class _ResolvedCreationMetadata:
         """Convert resolved values to :class:`CreationMetadata`."""
         return CreationMetadata(
             creator_name=self.creator_name.value or "Pitloom",
-            creator_email=self.creator_email.value or "",
+            creator_email=self.creator_email.value,
             creation_datetime=self.creation_datetime.value,
             creation_tool=self.creation_tool.value,
             creation_comment=self.creation_comment.value,
@@ -172,7 +173,7 @@ def _resolve_creation_field(
     if cli_value is not None:
         return _ResolvedValue(value=cli_value, source="command-line")
     if config_value is not None:
-        return _ResolvedValue(value=config_value, source="pyproject.toml")
+        return _ResolvedValue(value=config_value, source=_PROJECT_PYPROJECT_SOURCE)
     return _ResolvedValue(value=default_value, source="default")
 
 
@@ -250,7 +251,7 @@ def _resolve_output_source(args: argparse.Namespace, pitloom_config: Any) -> str
     if args.output is not None:
         return "command-line"
     if pitloom_config.sbom_basename:
-        return "pyproject.toml"
+        return _PROJECT_PYPROJECT_SOURCE
     return "default"
 
 
@@ -264,7 +265,7 @@ def _resolve_pretty(
     if args.pretty is not None:
         return value, "command-line"
     if "pretty" in pitloom_tool:
-        return value, "pyproject.toml"
+        return value, _PROJECT_PYPROJECT_SOURCE
     return value, "default"
 
 
@@ -285,12 +286,14 @@ def _resolve_describe_relationship(
         "describe_relationship" in pitloom_tool
         or "describe-relationship" in pitloom_tool
     ):
-        return value, "pyproject.toml"
+        return value, _PROJECT_PYPROJECT_SOURCE
     return value, "default"
 
 
 def _quote_optional(value: str | None) -> str:
-    """Render optional string values with single quotes for verbose output."""
+    """Render optional values, leaving ``None`` unquoted for readability."""
+    if value is None:
+        return "None"
     return f"'{value}'"
 
 
@@ -361,6 +364,7 @@ def _print_verbose(
 
     top_rows: list[tuple[str, str, str]] = [
         ("Project directory", str(project_dir), "command-line"),
+        ("Config file", str(pyproject_path), "command-line"),
         ("Output path", str(output_path), out_src),
     ]
     option_rows = _build_creation_option_rows(
@@ -384,7 +388,7 @@ def _print_verbose(
     for row in top_rows:
         _print_row(*row)
     print("Effective options:")
-    for row in aligned_rows[2:]:
+    for row in aligned_rows[len(top_rows) :]:
         _print_row(*row)
 
 

@@ -188,6 +188,11 @@ names, license, description, repository URL, keywords/tags (same order).
 
 - Enclose decimal values (e.g., `xs:decimal`) in quotes to preserve precision.
 - Output must be valid and well-formatted JSON.
+- For SPDX 3 JSON, follow SPDX 3 canonical serialization
+  <https://spdx.github.io/spdx-spec/v3.0.1/serializations/#canonical-serialization>
+- Follow RFC 8785 JSON Canonicalization Scheme (JCS)
+  <https://www.rfc-editor.org/rfc/rfc8785>
+- For JSON-LD, follow RDF canonicalization <https://www.w3.org/TR/rdf-canon/>
 
 ## Markdown
 
