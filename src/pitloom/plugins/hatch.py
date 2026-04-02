@@ -62,9 +62,9 @@ def _build_document_model(
     return document, merkle_root, pitloom_config.fragments
 
 
-def _stage_sbom_file(sbom_json: str, sbom_filename: str) -> tuple[
-    tempfile.TemporaryDirectory[str], Path
-]:
+def _stage_sbom_file(
+    sbom_json: str, sbom_filename: str
+) -> tuple[tempfile.TemporaryDirectory[str], Path]:
     """Write the canonical SBOM to a temporary staging location."""
     # Not used as a context manager: the directory must outlive initialize()
     # and be cleaned up in finalize() after the wheel is packaged.
