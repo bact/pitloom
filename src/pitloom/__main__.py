@@ -66,6 +66,13 @@ def main() -> int:
         version=f"Pitloom {__version__}",
     )
     parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Print verbose output including Pitloom version, paths, "
+        "and effective options.",
+    )
+    parser.add_argument(
         "project_dir",
         type=Path,
         help="Path to the project directory (containing pyproject.toml)",
@@ -101,6 +108,17 @@ def main() -> int:
             "Default is compact output (machine-optimized)."
         ),
     )
+    parser.add_argument(
+        "-d",
+        "--describe-relationship",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Add descriptive text to relationships to ease human reading. "
+            "Overrides 'describe-relationship' in pyproject.toml. "
+            "Default is False (machine-optimized format, no extra text in SBOM)."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -120,7 +138,70 @@ def main() -> int:
 
         output_path = _resolve_output_path(args.output, project_dir)
 
-        print(f"Generating SBOM for project in: {project_dir}")
+        if args.verbose:
+            # pylint: disable=import-outside-toplevel
+            if sys.version_info >= (3, 11):
+                import tomllib
+            else:
+                import tomli as tomllib
+
+            from pitloom.extract.pyproject import read_pyproject
+
+            _, pitloom_config = read_pyproject(pyproject_path)
+
+            try:
+                raw_toml = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+                pitloom_tool = raw_toml.get("tool", {}).get("pitloom", {})
+            except Exception:  # pylint: disable=broad-exception-caught
+                pitloom_tool = {}
+
+            if args.output is not None:
+                out_src = "command-line"
+            elif pitloom_config.sbom_basename:
+                out_src = "pyproject.toml"
+            else:
+                out_src = "default"
+
+            eff_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
+            if args.pretty is not None:
+                pretty_src = "command-line"
+            elif "pretty" in pitloom_tool:
+                pretty_src = "pyproject.toml"
+            else:
+                pretty_src = "default"
+
+            eff_desc = bool(
+                pitloom_config.describe_relationship
+                if args.describe_relationship is None
+                else args.describe_relationship
+            )
+            if args.describe_relationship is not None:
+                desc_src = "command-line"
+            elif (
+                "describe_relationship" in pitloom_tool
+                or "describe-relationship" in pitloom_tool
+            ):
+                desc_src = "pyproject.toml"
+            else:
+                desc_src = "default"
+
+            creator_name_src = "command-line" if args.creator_name else "default"
+            creator_email_src = "command-line" if args.creator_email else "default"
+
+            print(f"Pitloom version: {__version__}")
+            print(f"Project directory: {project_dir}")
+            print(f"Output path: {output_path}  [{out_src}]")
+            print("Effective options:")
+            print(f"  pretty: {eff_pretty}  [{pretty_src}]")
+            print(f"  describe_relationship: {eff_desc}  [{desc_src}]")
+            print(
+                f"  creator_name: '{args.creator_name or 'Pitloom'}'  "
+                f"[{creator_name_src}]"
+            )
+            print(
+                f"  creator_email: '{args.creator_email or ''}'  [{creator_email_src}]"
+            )
+
         generate_sbom(
             project_dir,
             output_path=output_path,
@@ -129,8 +210,8 @@ def main() -> int:
                 creator_email=args.creator_email or "",
             ),
             pretty=args.pretty,
+            describe_relationship=args.describe_relationship,
         )
-        print(f"SBOM written to: {output_path}")
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught

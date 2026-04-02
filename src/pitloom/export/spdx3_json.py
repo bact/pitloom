@@ -153,6 +153,38 @@ def _deduplicate_named_elements(
     return result
 
 
+def _annotate_relationships(graph: list[dict[str, Any]]) -> None:
+    """Add a descriptive 'description' field to Relationship elements
+    to ease human reading.
+
+    Format: <name of from Element> <relationship type>: <name of to Elements>
+    """
+    id_to_name: dict[str, str] = {}
+    for el in graph:
+        spdx_id = el.get("spdxId") or el.get("@id")
+        if spdx_id:
+            name = el.get("name")
+            if not name:
+                name = el.get("simplelicensing_licenseExpression") or el.get(
+                    "description"
+                )
+            if not name:
+                name = spdx_id.split("#")[-1]
+            if isinstance(name, str):
+                id_to_name[spdx_id] = name
+
+    for el in graph:
+        if "relationshipType" not in el:
+            continue
+        rel_type = el.get("relationshipType")
+        from_id = el.get("from")
+        to_ids = el.get("to")
+        if rel_type and from_id and to_ids and isinstance(to_ids, list):
+            from_name = id_to_name.get(from_id, from_id.split("#")[-1])
+            to_names = [id_to_name.get(tid, tid.split("#")[-1]) for tid in to_ids]
+            el["description"] = f"{from_name} {rel_type}: {', '.join(to_names)}"
+
+
 class Spdx3JsonExporter:
     """Exports SPDX 3 data structures to JSON-LD format using spdx-python-model."""
 
@@ -243,7 +275,7 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(document)
 
-    def to_json(self, pretty: bool = False) -> str:
+    def to_json(self, pretty: bool = False, describe_relationship: bool = False) -> str:
         """Export to JSON-LD string.
 
         Args:
@@ -264,6 +296,8 @@ class Spdx3JsonExporter:
         if "@graph" in data:
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
+            if describe_relationship:
+                _annotate_relationships(data["@graph"])
             data["@graph"].sort(key=_graph_sort_key)
         if pretty:
             return json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False)

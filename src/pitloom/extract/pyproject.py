@@ -149,9 +149,17 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
     )
     pretty = bool(pitloom_data.get("pretty", False))
+    desc_rel = pitloom_data.get("describe-relationship")
+    if desc_rel is None:
+        desc_rel = pitloom_data.get("describe_relationship")
+    if desc_rel is not None:
+        desc_rel = bool(desc_rel)
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
     return PitloomConfig(
-        pretty=pretty, fragments=fragments, sbom_basename=sbom_basename
+        pretty=pretty,
+        fragments=fragments,
+        describe_relationship=desc_rel,
+        sbom_basename=sbom_basename,
     )
 
 
