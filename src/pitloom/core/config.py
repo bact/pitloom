@@ -32,6 +32,7 @@ class PitloomConfig:
 
     fragments: list[str] = field(default_factory=list)
     pretty: bool = False
+    describe_relationship: bool | None = None
     sbom_basename: str | None = None
 
 
