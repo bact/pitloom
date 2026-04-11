@@ -34,10 +34,10 @@ hooks during normal SBOM generation.
   canonical; source file parsing is considered unreliable for vulnerability
   scanning.
 - **No PEP 517 execution.** Running arbitrary build code is a security risk
-  and a performance cost.  Trivy's threat model centres on container image
+  and a performance cost. Trivy's threat model centres on container image
   scanning where packages are already installed.
 - **Language-agnostic architecture.** The same pipeline handles PyPI, npm,
-  Maven, etc.  Per-language parsers produce a uniform `Package` struct.
+  Maven, etc. Per-language parsers produce a uniform `Package` struct.
 
 ### Implications for pitloom
 
@@ -74,7 +74,7 @@ selected depending on the scan target (container image vs. directory).
 - **Static parsing throughout.** Lock files and `pyproject.toml` are
   parsed without invoking the build backend.
 - **Dual-mode operation.** In container image scans Syft works from installed
-  metadata; in source directory scans it reads declared dependencies.  Pitloom
+  metadata; in source directory scans it reads declared dependencies. Pitloom
   follows a similar pattern: build-hook path (installed, post-wheel) vs. CLI
   path (source tree).
 
@@ -102,7 +102,7 @@ before falling back to raw source parsing.
 PEP 517 defines a set of hooks that a build frontend (pip, build) calls on
 a build backend (setuptools, Hatchling, Flit …) via a subprocess interface:
 
-```
+```text
 build_wheel(wheel_directory, config_settings, metadata_directory)
 prepare_metadata_for_build_wheel(metadata_directory, config_settings)
 build_sdist(sdist_directory, config_settings)
@@ -110,7 +110,7 @@ build_sdist(sdist_directory, config_settings)
 
 `prepare_metadata_for_build_wheel` builds only the `.dist-info` directory
 (containing `METADATA`, `WHEEL`, `top_level.txt`, `entry_points.txt`, etc.)
-without compiling or packaging the rest of the project.  The backend returns
+without compiling or packaging the rest of the project. The backend returns
 the directory name, e.g. `mypackage-1.0.dist-info`.
 
 ### Why it matters for pitloom
@@ -126,7 +126,7 @@ It is the only **backend-agnostic, dynamic-metadata-aware** mechanism that:
 
 ### Proposed integration
 
-```
+```text
 Priority order (planned — highest to lowest)
 ────────────────────────────────────────────
 1. PEP 517  prepare_metadata_for_build_wheel   ← future, opt-in
@@ -169,7 +169,7 @@ handling.
 | Concern | Notes |
 | :--- | :--- |
 | **Accuracy** | Highest possible — identical to what pip installs. |
-| **Side effects** | May run arbitrary build-backend code.  Backends can have network access, write files, etc. |
+| **Side effects** | May run arbitrary build-backend code. Backends can have network access, write files, etc. |
 | **Performance** | Slower than static parsing; adds a subprocess per project. |
 | **Isolation** | Should be run in an isolated environment (`--no-build-isolation` or a fresh venv) to avoid polluting the user's environment. |
 | **Availability** | Requires the build backend and its dependencies to be installed. |
@@ -177,7 +177,7 @@ handling.
 ### Recommended adoption path
 
 1. **Opt-in flag** — add `[tool.pitloom] pep517-metadata = true` (default
-   `false`).  When enabled, pitloom calls `prepare_metadata_for_build_wheel`
+   `false`). When enabled, pitloom calls `prepare_metadata_for_build_wheel`
    and uses its output as a higher-priority source.
 2. **Graceful fallback** — if the call fails (backend not installed, hook not
    implemented), log a warning and fall back to static sources.
@@ -191,7 +191,7 @@ handling.
 Drawing from the Trivy, Syft, and PEP 517 research, the recommended long-term
 priority order for `_load_project_metadata()` is:
 
-```
+```text
 1. PEP 517 prepare_metadata_for_build_wheel   [opt-in; future]
    └─ parses the resulting METADATA file via email.parser
 
@@ -221,6 +221,9 @@ which pitloom's dependency `pyproject-metadata` transitively includes.
 
 ## See also
 
-- [docs/implementation/setuptools-support.md](../implementation/setuptools-support.md) — implementation notes for the static `setup.cfg` / `setup.py` extractors
-- [docs/design/hatchling-build-hook.md](hatchling-build-hook.md) — PEP 770 wheel embedding via the Hatchling hook
-- [docs/design/metadata-provenance.md](metadata-provenance.md) — provenance tracking per field
+- [docs/implementation/setuptools-support.md](../implementation/setuptools-support.md)
+  implementation notes for the static `setup.cfg` / `setup.py` extractors
+- [docs/design/hatchling-build-hook.md](hatchling-build-hook.md) —
+  PEP 770 wheel embedding via the Hatchling hook
+- [docs/design/metadata-provenance.md](metadata-provenance.md) —
+  provenance tracking per field

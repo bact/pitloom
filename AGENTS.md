@@ -111,7 +111,7 @@ All source files must have SPDX tags in this order (alphabetical):
 
 ```text
 SPDX-FileCopyrightText: <year> <name>
-SPDX-FileType: SOURCE          # or DOCUMENTATION
+SPDX-FileType: SOURCE                # or DOCUMENTATION
 SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 ```
 
