@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -62,7 +62,7 @@ class _ActiveRun:
             name="Pitloom SDK (Automated Run)",
             creationInfo=self.creation_info,
         )
-        self.creation_info.createdBy = [person.spdxId]
+        self.creation_info.createdBy = [person.spdxId]  # type: ignore[attr-defined, assignment]
 
         self.exporter = Spdx3JsonExporter()
         self.exporter.add_person(person)
@@ -95,7 +95,7 @@ class _ActiveRun:
         dt = getattr(
             spdx3.dataset_DatasetType, dataset_type, spdx3.dataset_DatasetType.text
         )
-        dataset_pkg.dataset_datasetType = [dt]
+        dataset_pkg.dataset_datasetType = [dt]  # type: ignore[assignment]
 
         self.datasets.append(dataset_pkg)
         self.exporter.add_package(dataset_pkg)
@@ -110,8 +110,8 @@ class _ActiveRun:
                         f"{self.model.name}-trainedOn-{dataset.name}",
                         self.doc_uuid,
                     ),
-                    from_=self.model.spdxId,
-                    to=[dataset.spdxId],
+                    from_=self.model.spdxId,  # type: ignore[attr-defined]
+                    to=[dataset.spdxId],  # type: ignore[attr-defined]
                     relationshipType=spdx3.RelationshipType.trainedOn,
                     creationInfo=self.creation_info,
                 )

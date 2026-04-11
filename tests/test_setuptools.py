@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.project import ProjectMetadata
 from pitloom.extract.setuptools import (
     detect_build_backend,
     merge_metadata,
@@ -27,6 +28,7 @@ SETUPTOOLS_FIXTURE = FIXTURE_DIR / "sampleproject-setuptools"
 
 
 def test_detect_backend_hatchling() -> None:
+    """Detects hatchling backend from pyproject.toml build-backend key."""
     content = """
 [build-system]
 requires = ["hatchling"]
@@ -38,6 +40,7 @@ build-backend = "hatchling.build"
 
 
 def test_detect_backend_setuptools_in_pyproject() -> None:
+    """Detects setuptools backend when pyproject.toml declares setuptools.build_meta."""
     content = """
 [build-system]
 requires = ["setuptools>=68"]
@@ -53,12 +56,14 @@ version = "1.0.0"
 
 
 def test_detect_backend_no_pyproject_with_setup_cfg() -> None:
+    """Infers setuptools backend when only setup.cfg exists."""
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
         assert detect_build_backend(Path(d)) == "setuptools"
 
 
 def test_detect_backend_no_pyproject_with_setup_py() -> None:
+    """Infers setuptools backend when only setup.py exists."""
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(
             'from setuptools import setup\nsetup(name="pkg")\n'
@@ -67,11 +72,13 @@ def test_detect_backend_no_pyproject_with_setup_py() -> None:
 
 
 def test_detect_backend_no_config_files() -> None:
+    """Returns None when no build configuration files are present."""
     with tempfile.TemporaryDirectory() as d:
         assert detect_build_backend(Path(d)) is None
 
 
 def test_detect_backend_unknown_backend() -> None:
+    """Returns the raw backend string for unrecognised build backends."""
     content = """
 [build-system]
 requires = ["meson-python"]
@@ -88,6 +95,7 @@ build-backend = "mesonpy"
 
 
 def test_read_setup_cfg_basic() -> None:
+    """Extracts core metadata fields from a minimal setup.cfg."""
     content = """
 [metadata]
 name = mypackage
@@ -107,7 +115,7 @@ install_requires =
 """
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
-        metadata, config = read_setup_cfg(Path(d))
+        metadata, _ = read_setup_cfg(Path(d))
 
     assert metadata.name == "mypackage"
     assert metadata.version == "1.2.3"
@@ -123,6 +131,7 @@ install_requires =
 
 
 def test_read_setup_cfg_keywords_comma_separated() -> None:
+    """Parses comma-separated keywords into a list."""
     content = "[metadata]\nname = pkg\nversion = 1.0\nkeywords = alpha, beta, gamma\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -131,6 +140,7 @@ def test_read_setup_cfg_keywords_comma_separated() -> None:
 
 
 def test_read_setup_cfg_project_urls() -> None:
+    """Reads project_urls into a dict of label to URL mappings."""
     content = """
 [metadata]
 name = pkg
@@ -147,12 +157,14 @@ project_urls =
 
 
 def test_read_setup_cfg_missing_file() -> None:
+    """Raises FileNotFoundError when setup.cfg does not exist."""
     with tempfile.TemporaryDirectory() as d:
         with pytest.raises(FileNotFoundError):
             read_setup_cfg(Path(d))
 
 
 def test_read_setup_cfg_missing_name() -> None:
+    """Raises ValueError when [metadata] name is absent."""
     content = "[metadata]\nversion = 1.0\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -161,6 +173,7 @@ def test_read_setup_cfg_missing_name() -> None:
 
 
 def test_read_setup_cfg_author_only_name() -> None:
+    """Author entry with name only — no email key in dict."""
     content = "[metadata]\nname = pkg\nversion = 1.0\nauthor = Bob\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -169,6 +182,7 @@ def test_read_setup_cfg_author_only_name() -> None:
 
 
 def test_read_setup_cfg_author_only_email() -> None:
+    """Author entry with email only — no name key in dict."""
     content = "[metadata]\nname = pkg\nversion = 1.0\nauthor_email = bob@example.com\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -182,6 +196,7 @@ def test_read_setup_cfg_author_only_email() -> None:
 
 
 def test_read_setup_cfg_version_file_directive() -> None:
+    """Resolves `version = file: VERSION` by reading the VERSION file."""
     content = "[metadata]\nname = pkg\nversion = file: VERSION\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -192,6 +207,7 @@ def test_read_setup_cfg_version_file_directive() -> None:
 
 
 def test_read_setup_cfg_version_file_directive_missing_file() -> None:
+    """Returns None version when the referenced VERSION file is absent."""
     content = "[metadata]\nname = pkg\nversion = file: VERSION\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -200,6 +216,7 @@ def test_read_setup_cfg_version_file_directive_missing_file() -> None:
 
 
 def test_read_setup_cfg_version_attr_directive() -> None:
+    """Resolves `version = attr: pkg.__version__` via AST in package root."""
     content = "[metadata]\nname = mypackage\nversion = attr: mypackage.__version__\n"
     with tempfile.TemporaryDirectory() as d:
         pkg_dir = Path(d) / "mypackage"
@@ -212,6 +229,7 @@ def test_read_setup_cfg_version_attr_directive() -> None:
 
 
 def test_read_setup_cfg_version_attr_directive_src_layout() -> None:
+    """Resolves attr directive for a src-layout package."""
     content = "[metadata]\nname = mypkg\nversion = attr: mypkg.__version__\n"
     with tempfile.TemporaryDirectory() as d:
         src_pkg = Path(d) / "src" / "mypkg"
@@ -228,6 +246,7 @@ def test_read_setup_cfg_version_attr_directive_src_layout() -> None:
 
 
 def test_read_setup_cfg_readme_file_directive() -> None:
+    """Reads long_description = file: README.md content into readme field."""
     content = (
         "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.md\n"
     )
@@ -239,6 +258,7 @@ def test_read_setup_cfg_readme_file_directive() -> None:
 
 
 def test_read_setup_cfg_readme_file_missing_returns_filename() -> None:
+    """Falls back to the filename hint when the README file is absent."""
     content = (
         "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.rst\n"
     )
@@ -255,6 +275,7 @@ def test_read_setup_cfg_readme_file_missing_returns_filename() -> None:
 
 
 def test_read_setup_cfg_pitloom_config() -> None:
+    """Reads [tool:pitloom] settings into PitloomConfig."""
     content = """
 [metadata]
 name = pkg
@@ -276,6 +297,7 @@ creator-email = test@example.com
 
 
 def test_read_setup_cfg_pitloom_config_creation_section() -> None:
+    """Reads [tool:pitloom:creation] sub-section into PitloomConfig."""
     content = """
 [metadata]
 name = pkg
@@ -293,13 +315,14 @@ creation-datetime = 2026-01-01T00:00:00+00:00
 
 
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
+    """Returns default PitloomConfig when [tool:pitloom] is absent."""
     content = "[metadata]\nname = pkg\nversion = 1.0\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         _, config = read_setup_cfg(Path(d))
     assert config.pretty is False
     assert config.sbom_basename is None
-    assert config.fragments == []
+    assert not config.fragments
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +331,7 @@ def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
 
 
 def test_read_setup_cfg_provenance() -> None:
+    """Each extracted field records setup.cfg as its source in provenance."""
     content = "[metadata]\nname = pkg\nversion = 1.0\nauthor = Alice\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -324,6 +348,7 @@ def test_read_setup_cfg_provenance() -> None:
 
 
 def test_read_setup_py_basic() -> None:
+    """Extracts core metadata from a fully-populated setup() call."""
     content = """
 from setuptools import setup
 
@@ -342,7 +367,7 @@ setup(
 """
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
-        metadata, config = read_setup_py(Path(d))
+        metadata, _ = read_setup_py(Path(d))
 
     assert metadata.name == "mypackage"
     assert metadata.version == "1.0.0"
@@ -370,6 +395,7 @@ setuptools.setup(name="mypkg", version="0.1")
 
 
 def test_read_setup_py_missing_file() -> None:
+    """Raises FileNotFoundError when setup.py does not exist."""
     with tempfile.TemporaryDirectory() as d:
         with pytest.raises(FileNotFoundError):
             read_setup_py(Path(d))
@@ -402,6 +428,7 @@ setup(name="mypkg", version=get_version())
 
 
 def test_read_setup_py_project_urls() -> None:
+    """Reads project_urls dict literal from setup()."""
     content = """
 from setuptools import setup
 setup(
@@ -421,7 +448,11 @@ setup(
 
 
 def test_read_setup_py_keywords_string() -> None:
-    content = "from setuptools import setup\nsetup(name='pkg', version='1.0', keywords='a b c')\n"
+    """Splits space-separated keywords string into a list."""
+    content = (
+        "from setuptools import setup\n"
+        "setup(name='pkg', version='1.0', keywords='a b c')\n"
+    )
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
         metadata, _ = read_setup_py(Path(d))
@@ -429,6 +460,7 @@ def test_read_setup_py_keywords_string() -> None:
 
 
 def test_read_setup_py_provenance() -> None:
+    """Each extracted field records setup.py as its source in provenance."""
     content = (
         "from setuptools import setup\nsetup(name='pkg', version='1.0', author='X')\n"
     )
@@ -441,6 +473,7 @@ def test_read_setup_py_provenance() -> None:
 
 
 def test_read_setup_py_returns_default_pitloom_config() -> None:
+    """setup.py provides no pitloom config — defaults are returned."""
     content = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
@@ -455,6 +488,7 @@ def test_read_setup_py_returns_default_pitloom_config() -> None:
 
 
 def test_read_setuptools_cfg_only() -> None:
+    """read_setuptools() succeeds with setup.cfg alone."""
     content = "[metadata]\nname = pkg\nversion = 1.0\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -463,6 +497,7 @@ def test_read_setuptools_cfg_only() -> None:
 
 
 def test_read_setuptools_py_only() -> None:
+    """read_setuptools() succeeds with setup.py alone."""
     content = "from setuptools import setup\nsetup(name='pkg2', version='2.0')\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
@@ -473,7 +508,10 @@ def test_read_setuptools_py_only() -> None:
 def test_read_setuptools_cfg_wins_over_py() -> None:
     """setup.cfg fields take precedence over setup.py."""
     cfg = "[metadata]\nname = cfg-pkg\nversion = 3.0\n"
-    py = "from setuptools import setup\nsetup(name='py-pkg', version='9.9', description='from py')\n"
+    py = (
+        "from setuptools import setup\n"
+        "setup(name='py-pkg', version='9.9', description='from py')\n"
+    )
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(cfg)
         (Path(d) / "setup.py").write_text(py)
@@ -485,6 +523,7 @@ def test_read_setuptools_cfg_wins_over_py() -> None:
 
 
 def test_read_setuptools_neither_exists() -> None:
+    """Raises FileNotFoundError when neither setup.cfg nor setup.py exists."""
     with tempfile.TemporaryDirectory() as d:
         with pytest.raises(FileNotFoundError):
             read_setuptools(Path(d))
@@ -507,8 +546,7 @@ def test_read_setuptools_cfg_config_returned() -> None:
 
 
 def test_merge_metadata_primary_wins() -> None:
-    from pitloom.core.project import ProjectMetadata
-
+    """Primary field values are never overwritten by secondary."""
     primary = ProjectMetadata(
         name="primary-pkg",
         version="2.0",
@@ -530,8 +568,7 @@ def test_merge_metadata_primary_wins() -> None:
 
 
 def test_merge_metadata_secondary_fills_gaps() -> None:
-    from pitloom.core.project import ProjectMetadata
-
+    """Secondary fills all None or empty fields left by primary."""
     primary = ProjectMetadata(name="pkg", version="1.0")
     secondary = ProjectMetadata(
         name="secondary",
@@ -556,8 +593,7 @@ def test_merge_metadata_secondary_fills_gaps() -> None:
 
 
 def test_merge_metadata_provenance_merged() -> None:
-    from pitloom.core.project import ProjectMetadata
-
+    """Provenance dicts are merged with primary entries winning on conflict."""
     primary = ProjectMetadata(
         name="pkg",
         version="1.0",
@@ -581,8 +617,7 @@ def test_merge_metadata_provenance_merged() -> None:
 
 
 def test_merge_metadata_empty_lists_filled_from_secondary() -> None:
-    from pitloom.core.project import ProjectMetadata
-
+    """Empty lists in primary are treated as gaps and filled from secondary."""
     primary = ProjectMetadata(name="pkg", version="1.0", keywords=[])
     secondary = ProjectMetadata(name="s", version="0", keywords=["a", "b"])
     merged = merge_metadata(primary, secondary)
@@ -600,39 +635,46 @@ def test_fixture_detect_backend() -> None:
 
 
 def test_fixture_read_setup_cfg_name_and_version() -> None:
+    """Fixture setup.cfg name and version match expected values."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.name == "sampleproject-setuptools"
     assert metadata.version == "0.1.0"
 
 
 def test_fixture_read_setup_cfg_description() -> None:
+    """Fixture description contains the word 'setuptools'."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.description is not None
     assert "setuptools" in metadata.description.lower()
 
 
 def test_fixture_read_setup_cfg_author() -> None:
+    """Fixture author name and email match CI metadata."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.authors == [{"name": "Pitloom CI", "email": "ci@loom.example"}]
 
 
 def test_fixture_read_setup_cfg_license() -> None:
+    """Fixture license identifier is CC0-1.0."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.license_name == "CC0-1.0"
 
 
 def test_fixture_read_setup_cfg_urls() -> None:
+    """Fixture project_urls includes Source and Tracker entries."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert "Source" in metadata.urls
     assert "Tracker" in metadata.urls
 
 
 def test_fixture_read_setup_cfg_dependencies() -> None:
+    """Fixture install_requires includes a requests dependency."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert any("requests" in dep for dep in metadata.dependencies)
 
 
 def test_fixture_read_setup_cfg_requires_python() -> None:
+    """Fixture python_requires is >=3.10."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.requires_python == ">=3.10"
 

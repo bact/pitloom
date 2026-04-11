@@ -284,7 +284,7 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
     if sys.version_info >= (3, 11):
         import tomllib
     else:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
 
     try:
         raw_toml = tomllib.loads(config_path.read_text(encoding="utf-8"))

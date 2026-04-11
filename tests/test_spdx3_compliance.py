@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
 from pitloom.core.creation import CreationMetadata

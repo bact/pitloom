@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import add_ai_models
 from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
@@ -64,7 +64,7 @@ def _build_creation_bundle(
         creationInfo=spdx_ci,
     )
     if creation.creator_email:
-        creator.externalIdentifier = [
+        creator.externalIdentifier = [  # type: ignore[assignment]
             spdx3.ExternalIdentifier(
                 externalIdentifierType=spdx3.ExternalIdentifierType.email,
                 identifier=creation.creator_email,
@@ -79,9 +79,9 @@ def _build_creation_bundle(
             creationInfo=spdx_ci,
         )
 
-    spdx_ci.createdBy = [creator.spdxId]
+    spdx_ci.createdBy = [creator.spdxId]  # type: ignore[attr-defined, assignment]
     if tool is not None:
-        spdx_ci.createdUsing = [tool.spdxId]
+        spdx_ci.createdUsing = [tool.spdxId]  # type: ignore[attr-defined, assignment]
     return spdx_ci, creator, tool
 
 
@@ -112,7 +112,7 @@ def _build_main_package(
         creationInfo=spdx_ci,
     )
     main_package.software_packageVersion = metadata.version or "unknown"
-    main_package.suppliedBy = creator.spdxId
+    main_package.suppliedBy = creator.spdxId  # type: ignore[attr-defined]
     if metadata.description:
         main_package.description = metadata.description
     if download_location:
@@ -164,10 +164,10 @@ def _add_package_files(
             )
             directory_file.software_fileKind = spdx3.software_FileKindType.directory
             exporter.add_file(directory_file)
-            dir_spdx_ids[directory_name] = directory_file.spdxId
+            dir_spdx_ids[directory_name] = directory_file.spdxId  # type: ignore[attr-defined]
 
             parent_id = (
-                main_package.spdxId
+                main_package.spdxId  # type: ignore[attr-defined]
                 if index == 0
                 else dir_spdx_ids[parent_paths[index - 1].as_posix()]
             )
@@ -177,7 +177,7 @@ def _add_package_files(
                         "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
                     ),
                     from_=parent_id,
-                    to=[directory_file.spdxId],
+                    to=[directory_file.spdxId],  # type: ignore[attr-defined]
                     relationshipType=spdx3.RelationshipType.contains,
                     creationInfo=spdx_ci,
                 )
@@ -190,12 +190,12 @@ def _add_package_files(
         )
         package_entry.software_fileKind = spdx3.software_FileKindType.file
         exporter.add_file(package_entry)
-        file_spdx_ids[package_file.distribution_path] = package_entry.spdxId
+        file_spdx_ids[package_file.distribution_path] = package_entry.spdxId  # type: ignore[attr-defined]
 
         parent_id = (
             dir_spdx_ids[parent_paths[-1].as_posix()]
             if parent_paths
-            else main_package.spdxId
+            else main_package.spdxId  # type: ignore[attr-defined]
         )
         exporter.add_relationship(
             spdx3.Relationship(
@@ -203,7 +203,7 @@ def _add_package_files(
                     "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
                 ),
                 from_=parent_id,
-                to=[package_entry.spdxId],
+                to=[package_entry.spdxId],  # type: ignore[attr-defined]
                 relationshipType=spdx3.RelationshipType.contains,
                 creationInfo=spdx_ci,
             )
@@ -258,18 +258,18 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     sbom = spdx3.software_Sbom(
         spdxId=generate_spdx_id("Sbom", doc_name=metadata.name, doc_uuid=doc_uuid),
         creationInfo=spdx_ci,
-        rootElement=[main_package.spdxId],
+        rootElement=[main_package.spdxId],  # type: ignore[attr-defined]
     )
-    sbom.software_sbomType = [spdx3.software_SbomType.build]
+    sbom.software_sbomType = [spdx3.software_SbomType.build]  # type: ignore[assignment]
 
     spdx_doc = spdx3.SpdxDocument(
         spdxId=generate_spdx_id(
             "SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid
         ),
         creationInfo=spdx_ci,
-        rootElement=[sbom.spdxId],
+        rootElement=[sbom.spdxId],  # type: ignore[attr-defined]
     )
-    spdx_doc.profileConformance = [
+    spdx_doc.profileConformance = [  # type: ignore[assignment]
         spdx3.ProfileIdentifierType.core,
         spdx3.ProfileIdentifierType.software,
     ]
@@ -282,7 +282,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     if metadata.license_name:
         rel_declared, rel_concluded = build_license_elements(
             license_id=metadata.license_name,
-            package_spdx_id=main_package.spdxId,
+            package_spdx_id=main_package.spdxId,  # type: ignore[attr-defined]
             license_provenance=metadata.provenance.get(
                 "license", "Source: pyproject.toml | Field: project.license"
             ),
@@ -299,7 +299,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     add_dependencies(
         dependencies=metadata.dependencies,
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
-        main_package_spdx_id=main_package.spdxId,
+        main_package_spdx_id=main_package.spdxId,  # type: ignore[attr-defined]
         creation_info=spdx_ci,
         doc_name=metadata.name,
         doc_uuid=doc_uuid,
@@ -316,7 +316,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
             spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
         add_ai_models(
             ai_models=doc.ai_models,
-            main_package_spdx_id=main_package.spdxId,
+            main_package_spdx_id=main_package.spdxId,  # type: ignore[attr-defined]
             file_spdx_ids=file_spdx_ids,
             creation_info=spdx_ci,
             doc_name=metadata.name,

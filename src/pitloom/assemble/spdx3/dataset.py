@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import generate_spdx_id
@@ -15,24 +15,24 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
 # finetunedOn, validatedOn, pretrainedOn do not exist in SPDX 3.0.1;
 # they fall back to RelationshipType.other with a comment (see _role_to_rel).
-_ROLE_TO_RELATIONSHIP: dict[str, spdx3.RelationshipType] = {
+_ROLE_TO_RELATIONSHIP: dict[str, str] = {
     "trainedOn": spdx3.RelationshipType.trainedOn,
     "testedOn": spdx3.RelationshipType.testedOn,
 }
 
 # PresenceType mapping for has_sensitive_personal_information.
-_PRESENCE_MAP: dict[str, spdx3.PresenceType] = {
+_PRESENCE_MAP: dict[str, str] = {
     "yes": spdx3.PresenceType.yes,
     "no": spdx3.PresenceType.no,
     "noAssertion": spdx3.PresenceType.noAssertion,
 }
 
 
-def _role_to_rel(role: str) -> tuple[spdx3.RelationshipType, str | None]:
+def _role_to_rel(role: str) -> tuple[str, str | None]:
     """Return the SPDX RelationshipType and optional fallback comment for *role*.
 
     Returns:
-        A 2-tuple of ``(RelationshipType, comment_or_None)``.  ``comment``
+        A 2-tuple of ``(relationship_type_str, comment_or_None)``.  ``comment``
         is non-``None`` only when *role* has no direct SPDX 3.0.1 equivalent
         and ``RelationshipType.other`` is used as a stand-in.
     """
@@ -112,14 +112,15 @@ def _build_dataset_package(
     # dataset_datasetType is required by the SPDX model; always set it.
     # Map known string names to enum values, skip unknowns silently.
     # Fall back to [noAssertion] when no type information is available.
-    type_values: list[spdx3.dataset_DatasetType] = []
+    # dataset_DatasetType named individuals are str at runtime; stubs type them as str.
+    type_values: list[str] = []
     for type_name in meta.dataset_types:
         enum_val = getattr(spdx3.dataset_DatasetType, type_name, None)
         if enum_val is not None:
             type_values.append(enum_val)
     if not type_values:
         type_values = [spdx3.dataset_DatasetType.noAssertion]
-    dataset_pkg.dataset_datasetType = type_values
+    dataset_pkg.dataset_datasetType = type_values  # type: ignore[assignment]
 
     if meta.dataset_size is not None:
         dataset_pkg.dataset_datasetSize = meta.dataset_size
@@ -128,10 +129,10 @@ def _build_dataset_package(
         dataset_pkg.dataset_dataCollectionProcess = meta.data_collection_process
 
     if meta.data_preprocessing:
-        dataset_pkg.dataset_dataPreprocessing = list(meta.data_preprocessing)
+        dataset_pkg.dataset_dataPreprocessing = list(meta.data_preprocessing)  # type: ignore[assignment]
 
     if meta.known_bias:
-        dataset_pkg.dataset_knownBias = list(meta.known_bias)
+        dataset_pkg.dataset_knownBias = list(meta.known_bias)  # type: ignore[assignment]
 
     if meta.intended_use:
         dataset_pkg.dataset_intendedUse = meta.intended_use
@@ -142,7 +143,7 @@ def _build_dataset_package(
             dataset_pkg.dataset_hasSensitivePersonalInformation = presence
 
     if meta.anonymization_methods:
-        dataset_pkg.dataset_anonymizationMethodUsed = list(meta.anonymization_methods)
+        dataset_pkg.dataset_anonymizationMethodUsed = list(meta.anonymization_methods)  # type: ignore[assignment]
 
     # ExternalRef pointing to the Croissant document for full provenance.
     if meta.croissant_url:
@@ -151,7 +152,7 @@ def _build_dataset_package(
             locator=[meta.croissant_url],
             comment="Croissant metadata",
         )
-        dataset_pkg.externalRef = [ext_ref]
+        dataset_pkg.externalRef = [ext_ref]  # type: ignore[assignment]
 
     # comment: provenance
     if meta.provenance:
@@ -210,7 +211,7 @@ def add_datasets_for_model(
             ),
             creationInfo=creation_info,
             from_=ai_package_spdx_id,
-            to=[dataset_pkg.spdxId],
+            to=[dataset_pkg.spdxId],  # type: ignore[attr-defined]
             relationshipType=rel_type,
         )
         if fallback_comment:

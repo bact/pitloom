@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.core.ai_metadata import AiModelMetadata
@@ -88,7 +88,7 @@ def _build_ai_package(
     if ai_model.architecture:
         type_of_model_values.append(ai_model.architecture)
     if type_of_model_values:
-        ai_pkg.ai_typeOfModel = type_of_model_values
+        ai_pkg.ai_typeOfModel = type_of_model_values  # type: ignore[assignment]
 
     # ai_hyperparameter: quantization first (if present), then training hyperparams.
     hyperparameter_entries: list[spdx3.DictionaryEntry] = []
@@ -101,11 +101,11 @@ def _build_ai_package(
             spdx3.DictionaryEntry(key=str(key), value=str(val))
         )
     if hyperparameter_entries:
-        ai_pkg.ai_hyperparameter = hyperparameter_entries
+        ai_pkg.ai_hyperparameter = hyperparameter_entries  # type: ignore[assignment]
 
     # ai_domain: directly from usage.domains (List[String]).
     if ai_model.usage.domains:
-        ai_pkg.ai_domain = list(ai_model.usage.domains)
+        ai_pkg.ai_domain = list(ai_model.usage.domains)  # type: ignore[assignment]
 
     # ai_limitation: SPDX 3 field is a single String; join list with "; ".
     if ai_model.usage.limitations:
@@ -193,7 +193,7 @@ def add_ai_models(
 
         if ai_model.datasets:
             add_datasets_for_model(
-                ai_package_spdx_id=ai_pkg.spdxId,
+                ai_package_spdx_id=ai_pkg.spdxId,  # type: ignore[attr-defined]
                 datasets=ai_model.datasets,
                 creation_info=creation_info,
                 doc_name=doc_name,
@@ -208,7 +208,7 @@ def add_ai_models(
                 doc_uuid=doc_uuid,
             ),
             from_=main_package_spdx_id,
-            to=[ai_pkg.spdxId],
+            to=[ai_pkg.spdxId],  # type: ignore[attr-defined]
             relationshipType=spdx3.RelationshipType.contains,
             creationInfo=creation_info,
         )
@@ -226,7 +226,7 @@ def add_ai_models(
                     doc_name=doc_name,
                     doc_uuid=doc_uuid,
                 ),
-                from_=ai_pkg.spdxId,
+                from_=ai_pkg.spdxId,  # type: ignore[attr-defined]
                 to=[model_file_id],
                 relationshipType=spdx3.RelationshipType.contains,
                 creationInfo=creation_info,

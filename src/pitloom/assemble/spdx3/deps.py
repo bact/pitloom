@@ -10,7 +10,7 @@ from importlib.metadata import PackageMetadata, PackageNotFoundError
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -149,7 +149,7 @@ def _enrich_from_installed(
     if license_id and license_id != "UNKNOWN":
         rel_declared, _ = build_license_elements(
             license_id=license_id,
-            package_spdx_id=dep_package.spdxId,
+            package_spdx_id=dep_package.spdxId,  # type: ignore[attr-defined]
             license_provenance=provenance_source,
             creation_info=creation_info,
             doc_name=doc_name,
@@ -210,7 +210,7 @@ def build_license_elements(
         license_text.simplelicensing_licenseText = license_id
         license_text.comment = f"Metadata provenance: license: {license_provenance}"
         exporter.add_license(license_text)
-        license_spdx_id = license_text.spdxId
+        license_spdx_id = license_text.spdxId  # type: ignore[attr-defined]
 
     # The license actually found in the Software Artifact.
     rel_has_declared_license = spdx3.Relationship(
@@ -305,7 +305,7 @@ def add_dependencies(
                 "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
             ),
             from_=main_package_spdx_id,
-            to=[dep_package.spdxId],
+            to=[dep_package.spdxId],  # type: ignore[attr-defined]
             relationshipType=spdx3.RelationshipType.dependsOn,
             creationInfo=creation_info,
         )

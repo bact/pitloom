@@ -9,7 +9,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build
@@ -271,7 +271,7 @@ files = ["fragment1.json", "fragment2.json"]
             name="Author 1",
             creationInfo=ci1,
         )
-        ci1.createdBy = [person1.spdxId]
+        ci1.createdBy = [person1.spdxId]  # type: ignore[attr-defined, assignment]
         ai_pkg = spdx3.ai_AIPackage(
             spdxId=generate_spdx_id("AIPackage", "test-ai-model", doc_uuid_1),
             name="cool-ai-model",
@@ -292,13 +292,13 @@ files = ["fragment1.json", "fragment2.json"]
             name="Author 2",
             creationInfo=ci2,
         )
-        ci2.createdBy = [person2.spdxId]
+        ci2.createdBy = [person2.spdxId]  # type: ignore[attr-defined, assignment]
         dataset_pkg = spdx3.dataset_DatasetPackage(
             spdxId=generate_spdx_id("DatasetPackage", "test-dataset", doc_uuid_2),
             name="cool-dataset",
             creationInfo=ci2,
         )
-        dataset_pkg.dataset_datasetType = [spdx3.dataset_DatasetType.text]
+        dataset_pkg.dataset_datasetType = [spdx3.dataset_DatasetType.text]  # type: ignore[assignment]
         exporter2 = Spdx3JsonExporter()
         exporter2.add_person(person2)
         exporter2.add_package(dataset_pkg)

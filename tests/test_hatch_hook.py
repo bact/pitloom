@@ -26,7 +26,7 @@ pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 
 # Imports below require hatchling (guarded by importorskip above).
 # pylint: disable=wrong-import-position
-from spdx_python_model import v3_0_1 as spdx3  # noqa: E402
+from spdx_python_model.bindings import v3_0_1 as spdx3  # noqa: E402
 
 from pitloom.core.models import generate_spdx_id  # noqa: E402
 from pitloom.export.spdx3_json import Spdx3JsonExporter  # noqa: E402
@@ -336,7 +336,7 @@ def test_hook_with_pitloom_fragments() -> None:
             name="Frag Author",
             creationInfo=ci,
         )
-        ci.createdBy = [person.spdxId]
+        ci.createdBy = [person.spdxId]  # type: ignore[attr-defined, assignment]
         pkg = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", "fragment-lib", doc_uuid),
             name="fragment-lib",

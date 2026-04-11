@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 

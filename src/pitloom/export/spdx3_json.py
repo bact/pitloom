@@ -12,7 +12,7 @@ from collections import defaultdict
 from typing import Any
 
 import rfc8785
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
 # Order rationale:
@@ -249,7 +249,7 @@ class Spdx3JsonExporter:
         self.object_set.add(simple_licensing_text)
         license_id: str | None = simple_licensing_text.simplelicensing_licenseText
         if license_id:
-            self._license_index[license_id] = simple_licensing_text.spdxId
+            self._license_index[license_id] = simple_licensing_text.spdxId  # type: ignore[attr-defined]
 
     def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.
