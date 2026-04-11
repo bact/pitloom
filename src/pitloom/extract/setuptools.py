@@ -639,7 +639,7 @@ def _ast_literal(node: ast.expr) -> Any:
         return [v for elt in node.elts if (v := _ast_literal(elt)) is not None]
     if isinstance(node, ast.Dict):
         result: dict[str, Any] = {}
-        for key, value in zip(node.keys, node.values):
+        for key, value in zip(node.keys, node.values, strict=False):
             if key is None:
                 continue  # **unpacking
             k = _ast_literal(key)
@@ -680,8 +680,10 @@ def _read_pitloom_config_from_cfg(
     pretty = pretty_str in ("true", "1", "yes")
 
     desc_rel_str = (
-        raw.get("describe-relationship") or raw.get("describe_relationship") or ""
-    ).strip().lower()
+        (raw.get("describe-relationship") or raw.get("describe_relationship") or "")
+        .strip()
+        .lower()
+    )
     if desc_rel_str in ("true", "1", "yes"):
         desc_rel: bool | None = True
     elif desc_rel_str in ("false", "0", "no"):

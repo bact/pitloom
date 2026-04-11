@@ -41,7 +41,7 @@ jobs:
         # --no-isolation picks up the locally installed Pitloom instead of
         # fetching it from PyPI, so the hook under test is the current code.
         run: |
-          cd tests/fixtures/sampleproject
+          cd tests/fixtures/sampleproject-hatchling
           python -m build --wheel --no-isolation
           WHEEL=$(ls dist/*.whl | head -1)
           echo "WHEEL_PATH=${WHEEL}" >> "$GITHUB_ENV"
@@ -49,7 +49,7 @@ jobs:
 
       - name: Verify SBOM is present inside the wheel
         run: |
-          cd tests/fixtures/sampleproject
+          cd tests/fixtures/sampleproject-hatchling
           python - <<'EOF'
           import sys
           import zipfile
@@ -105,7 +105,7 @@ jobs:
 
       - name: Extract SBOM from wheel for validation
         run: |
-          cd tests/fixtures/sampleproject
+          cd tests/fixtures/sampleproject-hatchling
           python - <<'EOF'
           import zipfile
           from pathlib import Path
@@ -122,7 +122,7 @@ jobs:
 
       - name: Validate SBOM with spdx3-validate
         run: |
-          spdx3-validate --json tests/fixtures/sampleproject/dist/sbom.spdx3.json
+          spdx3-validate --json tests/fixtures/sampleproject-hatchling/dist/sbom.spdx3.json
           echo "SBOM validation passed."
 
       - name: Create job summary
@@ -144,6 +144,6 @@ jobs:
         with:
           name: hatch-integration-py${{ matrix.python-version }}
           path: |
-            tests/fixtures/sampleproject/dist/*.whl
-            tests/fixtures/sampleproject/dist/sbom.spdx3.json
+            tests/fixtures/sampleproject-hatchling/dist/*.whl
+            tests/fixtures/sampleproject-hatchling/dist/sbom.spdx3.json
           retention-days: 7

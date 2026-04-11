@@ -132,10 +132,9 @@ def _load_project_metadata(
     )
 
     pyproject_path = project_dir / "pyproject.toml"
-    has_setuptools_files = (
-        (project_dir / "setup.cfg").exists()
-        or (project_dir / "setup.py").exists()
-    )
+    has_setuptools_files = (project_dir / "setup.cfg").exists() or (
+        project_dir / "setup.py"
+    ).exists()
 
     pyproject_meta: ProjectMetadata | None = None
     pyproject_config: PitloomConfig | None = None

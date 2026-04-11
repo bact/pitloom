@@ -60,7 +60,9 @@ def test_detect_backend_no_pyproject_with_setup_cfg() -> None:
 
 def test_detect_backend_no_pyproject_with_setup_py() -> None:
     with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.py").write_text('from setuptools import setup\nsetup(name="pkg")\n')
+        (Path(d) / "setup.py").write_text(
+            'from setuptools import setup\nsetup(name="pkg")\n'
+        )
         assert detect_build_backend(Path(d)) == "setuptools"
 
 
@@ -226,7 +228,9 @@ def test_read_setup_cfg_version_attr_directive_src_layout() -> None:
 
 
 def test_read_setup_cfg_readme_file_directive() -> None:
-    content = "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.md\n"
+    content = (
+        "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.md\n"
+    )
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         (Path(d) / "README.md").write_text("# My Package\n\nA great package.")
@@ -235,7 +239,9 @@ def test_read_setup_cfg_readme_file_directive() -> None:
 
 
 def test_read_setup_cfg_readme_file_missing_returns_filename() -> None:
-    content = "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.rst\n"
+    content = (
+        "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.rst\n"
+    )
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         metadata, _ = read_setup_cfg(Path(d))
@@ -423,7 +429,9 @@ def test_read_setup_py_keywords_string() -> None:
 
 
 def test_read_setup_py_provenance() -> None:
-    content = "from setuptools import setup\nsetup(name='pkg', version='1.0', author='X')\n"
+    content = (
+        "from setuptools import setup\nsetup(name='pkg', version='1.0', author='X')\n"
+    )
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
         metadata, _ = read_setup_py(Path(d))
@@ -553,7 +561,10 @@ def test_merge_metadata_provenance_merged() -> None:
     primary = ProjectMetadata(
         name="pkg",
         version="1.0",
-        provenance={"name": "Source: pyproject.toml", "version": "Source: pyproject.toml"},
+        provenance={
+            "name": "Source: pyproject.toml",
+            "version": "Source: pyproject.toml",
+        },
     )
     secondary = ProjectMetadata(
         name="pkg2",
