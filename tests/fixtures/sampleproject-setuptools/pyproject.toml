@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal setuptools project used as a fixture for testing Pitloom's
+# setuptools metadata extraction.
+#
+# This fixture intentionally has only [build-system] here; all project
+# metadata lives in setup.cfg to test the transitional pattern where a
+# project has adopted pyproject.toml for the build-system declaration
+# but still keeps its metadata in the legacy setup.cfg format.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

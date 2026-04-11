@@ -19,6 +19,8 @@ from pitloom.core.creation import CreationMetadata
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
+_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
+_PROJECT_SETUP_PY_SOURCE = "setup.py"
 
 
 @dataclass(frozen=True)
@@ -72,7 +74,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "project_dir",
         type=Path,
-        help="Path to the project directory (containing pyproject.toml)",
+        help=(
+            "Path to the project directory "
+            "(containing pyproject.toml, setup.cfg, or setup.py)"
+        ),
     )
     parser.add_argument(
         "-o",
@@ -81,7 +86,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Output file path. "
-            "Default: <name>-<version>.spdx3.json derived from pyproject.toml, "
+            "Default: <name>-<version>.spdx3.json derived from project metadata, "
             "or the basename from [tool.pitloom] sbom-basename if set."
         ),
     )
@@ -147,21 +152,29 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
-    """Resolve and validate project directory and pyproject path."""
+    """Resolve and validate project directory and primary config file path.
+
+    The second element of the tuple is the path of whichever configuration
+    file was found first in priority order:
+    ``pyproject.toml`` > ``setup.cfg`` > ``setup.py``.
+    It is ``None`` only when the project directory itself does not exist.
+    """
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
         print(f"Error: Project directory not found: {project_dir}", file=sys.stderr)
         return None, None
 
-    pyproject_path = project_dir / "pyproject.toml"
-    if not pyproject_path.exists():
-        print(
-            f"Error: pyproject.toml not found in {project_dir}",
-            file=sys.stderr,
-        )
-        return None, None
+    for candidate in ("pyproject.toml", "setup.cfg", "setup.py"):
+        config_path = project_dir / candidate
+        if config_path.exists():
+            return project_dir, config_path
 
-    return project_dir, pyproject_path
+    print(
+        f"Error: No project configuration found in {project_dir}. "
+        "Expected pyproject.toml, setup.cfg, or setup.py.",
+        file=sys.stderr,
+    )
+    return None, None
 
 
 def _resolve_creation_field(
@@ -223,16 +236,58 @@ def _resolve_creation_metadata(
     )
 
 
-def _load_pitloom_tool_section(pyproject_path: Path) -> dict[str, Any]:
-    """Load ``[tool.pitloom]`` as raw TOML for source reporting."""
+def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
+    """Load :class:`~pitloom.core.config.PitloomConfig` from the project.
+
+    Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
+    Returns a 2-tuple of ``(PitloomConfig, config_file_path)``.
+    """
+    # pylint: disable=import-outside-toplevel
+    from pitloom.core.config import PitloomConfig
+
+    pyproject_path = project_dir / "pyproject.toml"
+    if pyproject_path.exists():
+        try:
+            from pitloom.extract.pyproject import read_pyproject
+
+            _, config = read_pyproject(pyproject_path)
+            return config, pyproject_path
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+    setup_cfg = project_dir / "setup.cfg"
+    setup_py = project_dir / "setup.py"
+    if setup_cfg.exists() or setup_py.exists():
+        try:
+            from pitloom.extract.setuptools import read_setuptools
+
+            _, config = read_setuptools(project_dir)
+            config_path = setup_cfg if setup_cfg.exists() else setup_py
+            return config, config_path
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+    return PitloomConfig(), None
+
+
+def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
+    """Load ``[tool.pitloom]`` keys for verbose source reporting.
+
+    For ``pyproject.toml`` reads ``[tool.pitloom]`` as raw TOML.
+    For other files returns an empty dict (verbose source labels default
+    to ``"default"``).
+    """
+    if config_path is None or config_path.name != "pyproject.toml":
+        return {}
+
     # pylint: disable=import-outside-toplevel
     if sys.version_info >= (3, 11):
         import tomllib
     else:
-        import tomli as tomllib
+        import tomli as tomllib  # type: ignore[no-redef]
 
     try:
-        raw_toml = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+        raw_toml = tomllib.loads(config_path.read_text(encoding="utf-8"))
         tool_section = raw_toml.get("tool")
         if not isinstance(tool_section, dict):
             return {}
@@ -246,12 +301,14 @@ def _load_pitloom_tool_section(pyproject_path: Path) -> dict[str, Any]:
         return {}
 
 
-def _resolve_output_source(args: argparse.Namespace, pitloom_config: Any) -> str:
+def _resolve_output_source(
+    args: argparse.Namespace, pitloom_config: Any, config_path: Path | None
+) -> str:
     """Return source label for output path choice."""
     if args.output is not None:
         return "command-line"
     if pitloom_config.sbom_basename:
-        return _PROJECT_PYPROJECT_SOURCE
+        return config_path.name if config_path else _PROJECT_PYPROJECT_SOURCE
     return "default"
 
 
@@ -259,13 +316,14 @@ def _resolve_pretty(
     args: argparse.Namespace,
     pitloom_config: Any,
     pitloom_tool: dict[str, Any],
+    config_source: str = _PROJECT_PYPROJECT_SOURCE,
 ) -> tuple[bool, str]:
     """Resolve effective pretty option and its source label."""
     value = pitloom_config.pretty if args.pretty is None else args.pretty
     if args.pretty is not None:
         return value, "command-line"
     if "pretty" in pitloom_tool:
-        return value, _PROJECT_PYPROJECT_SOURCE
+        return value, config_source
     return value, "default"
 
 
@@ -273,6 +331,7 @@ def _resolve_describe_relationship(
     args: argparse.Namespace,
     pitloom_config: Any,
     pitloom_tool: dict[str, Any],
+    config_source: str = _PROJECT_PYPROJECT_SOURCE,
 ) -> tuple[bool, str]:
     """Resolve effective describe-relationship option and source label."""
     value = bool(
@@ -286,7 +345,7 @@ def _resolve_describe_relationship(
         "describe_relationship" in pitloom_tool
         or "describe-relationship" in pitloom_tool
     ):
-        return value, _PROJECT_PYPROJECT_SOURCE
+        return value, config_source
     return value, "default"
 
 
@@ -349,22 +408,26 @@ def _print_verbose(
     project_dir: Path,
     output_path: Path,
     pitloom_config: Any,
-    pyproject_path: Path,
+    config_path: Path | None,
     creation: _ResolvedCreationMetadata,
 ) -> None:
     """Print verbose summary of effective CLI options and their sources."""
-    pitloom_tool = _load_pitloom_tool_section(pyproject_path)
-    out_src = _resolve_output_source(args, pitloom_config)
-    eff_pretty, pretty_src = _resolve_pretty(args, pitloom_config, pitloom_tool)
+    pitloom_tool = _load_pitloom_tool_section(config_path)
+    config_source = config_path.name if config_path else "project config"
+    out_src = _resolve_output_source(args, pitloom_config, config_path)
+    eff_pretty, pretty_src = _resolve_pretty(
+        args, pitloom_config, pitloom_tool, config_source
+    )
     eff_desc, desc_src = _resolve_describe_relationship(
         args,
         pitloom_config,
         pitloom_tool,
+        config_source,
     )
 
     top_rows: list[tuple[str, str, str]] = [
         ("Project directory", str(project_dir), "command-line"),
-        ("Config file", str(pyproject_path), "command-line"),
+        ("Config file", str(config_path) if config_path else "(none)", "command-line"),
         ("Output path", str(output_path), out_src),
     ]
     option_rows = _build_creation_option_rows(
@@ -397,7 +460,7 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
 
     Priority:
     1. Explicit ``-o`` / ``--output`` argument.
-    2. ``[tool.pitloom] sbom-basename`` from ``pyproject.toml``
+    2. ``[tool.pitloom] sbom-basename`` from the project config
        → ``<basename>.spdx3.json``.
     3. ``<name>-<version>.spdx3.json`` derived from project metadata.
     4. Fallback: ``sbom.spdx3.json``.
@@ -407,9 +470,9 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
 
     try:
         # pylint: disable=import-outside-toplevel
-        from pitloom.extract.pyproject import read_pyproject
+        from pitloom.assemble import _load_project_metadata
 
-        metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
+        metadata, pitloom_config = _load_project_metadata(project_dir)
 
         if pitloom_config.sbom_basename:
             return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
@@ -433,14 +496,11 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        project_dir, pyproject_path = _resolve_project_paths(args)
-        if project_dir is None or pyproject_path is None:
+        project_dir, _ = _resolve_project_paths(args)
+        if project_dir is None:
             return 1
 
-        # pylint: disable=import-outside-toplevel
-        from pitloom.extract.pyproject import read_pyproject
-
-        _, pitloom_config = read_pyproject(pyproject_path)
+        pitloom_config, config_path = _load_project_config(project_dir)
         creation = _resolve_creation_metadata(args, pitloom_config)
         effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
         effective_describe_relationship = (
@@ -457,7 +517,7 @@ def main() -> int:
                 project_dir,
                 output_path,
                 pitloom_config,
-                pyproject_path,
+                config_path,
                 creation,
             )
 

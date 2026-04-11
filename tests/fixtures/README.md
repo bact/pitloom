@@ -6,11 +6,22 @@ SPDX-License-Identifier: CC0-1.0
 
 # Test fixtures
 
-## Build-hook fixture
+## Build-backend fixtures
 
-`sampleproject/` is a minimal Python package used to test the Pitloom Hatchling
-build hook (`pitloom.plugins.hatch`).  See
-[sampleproject/README.md](sampleproject/README.md) for build instructions.
+### Hatchling
+
+`sampleproject-hatchling/` is a minimal Python package used to test the
+Pitloom Hatchling build hook (`pitloom.plugins.hatch`).  See
+[sampleproject-hatchling/README.md](sampleproject-hatchling/README.md) for
+build instructions.
+
+### Setuptools
+
+`sampleproject-setuptools/` is a minimal Python package that exercises
+Pitloom's setuptools metadata extraction (`pitloom.extract.setuptools`).
+It uses the common transitional layout: `pyproject.toml` for the
+`[build-system]` table only, with all project metadata in `setup.cfg`
+and a bare `setup.py` shim.
 
 ## AI model fixtures
 
