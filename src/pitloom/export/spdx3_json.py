@@ -249,7 +249,9 @@ class Spdx3JsonExporter:
         self.object_set.add(simple_licensing_text)
         license_id: str | None = simple_licensing_text.simplelicensing_licenseText
         if license_id:
-            self._license_index[license_id] = simple_licensing_text.spdxId  # type: ignore[attr-defined]
+            self._license_index[
+                license_id
+            ] = simple_licensing_text.spdxId  # type: ignore[attr-defined]
 
     def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.

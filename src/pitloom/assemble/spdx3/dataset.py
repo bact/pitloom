@@ -112,7 +112,8 @@ def _build_dataset_package(
     # dataset_datasetType is required by the SPDX model; always set it.
     # Map known string names to enum values, skip unknowns silently.
     # Fall back to [noAssertion] when no type information is available.
-    # dataset_DatasetType named individuals are str at runtime; stubs type them as str.
+    # dataset_DatasetType named individuals are str at runtime;
+    # stubs type them as str.
     type_values: list[str] = []
     for type_name in meta.dataset_types:
         enum_val = getattr(spdx3.dataset_DatasetType, type_name, None)
@@ -129,10 +130,12 @@ def _build_dataset_package(
         dataset_pkg.dataset_dataCollectionProcess = meta.data_collection_process
 
     if meta.data_preprocessing:
-        dataset_pkg.dataset_dataPreprocessing = list(meta.data_preprocessing)  # type: ignore[assignment]
+        dataset_pkg.dataset_dataPreprocessing = (
+            meta.data_preprocessing  # type: ignore[assignment]
+        )
 
     if meta.known_bias:
-        dataset_pkg.dataset_knownBias = list(meta.known_bias)  # type: ignore[assignment]
+        dataset_pkg.dataset_knownBias = meta.known_bias  # type: ignore[assignment]
 
     if meta.intended_use:
         dataset_pkg.dataset_intendedUse = meta.intended_use
@@ -143,7 +146,9 @@ def _build_dataset_package(
             dataset_pkg.dataset_hasSensitivePersonalInformation = presence
 
     if meta.anonymization_methods:
-        dataset_pkg.dataset_anonymizationMethodUsed = list(meta.anonymization_methods)  # type: ignore[assignment]
+        dataset_pkg.dataset_anonymizationMethodUsed = (
+            meta.anonymization_methods  # type: ignore[assignment]
+        )
 
     # ExternalRef pointing to the Croissant document for full provenance.
     if meta.croissant_url:

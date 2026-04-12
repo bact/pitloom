@@ -164,7 +164,9 @@ def _add_package_files(
             )
             directory_file.software_fileKind = spdx3.software_FileKindType.directory
             exporter.add_file(directory_file)
-            dir_spdx_ids[directory_name] = directory_file.spdxId  # type: ignore[attr-defined]
+            dir_spdx_ids[
+                directory_name
+            ] = directory_file.spdxId  # type: ignore[attr-defined]
 
             parent_id = (
                 main_package.spdxId  # type: ignore[attr-defined]
@@ -190,7 +192,9 @@ def _add_package_files(
         )
         package_entry.software_fileKind = spdx3.software_FileKindType.file
         exporter.add_file(package_entry)
-        file_spdx_ids[package_file.distribution_path] = package_entry.spdxId  # type: ignore[attr-defined]
+        file_spdx_ids[
+            package_file.distribution_path
+        ] = package_entry.spdxId  # type: ignore[attr-defined]
 
         parent_id = (
             dir_spdx_ids[parent_paths[-1].as_posix()]

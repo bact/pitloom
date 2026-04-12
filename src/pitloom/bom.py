@@ -62,7 +62,7 @@ class _ActiveRun:
             name="Pitloom SDK (Automated Run)",
             creationInfo=self.creation_info,
         )
-        self.creation_info.createdBy = [person.spdxId]  # type: ignore[attr-defined, assignment]
+        self.creation_info.createdBy = [person.spdxId]  # type: ignore[attr-defined, assignment]  # pylint: disable=line-too-long  # noqa: E501
 
         self.exporter = Spdx3JsonExporter()
         self.exporter.add_person(person)
