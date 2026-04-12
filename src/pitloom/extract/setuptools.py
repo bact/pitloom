@@ -83,16 +83,9 @@ def detect_build_backend(project_dir: Path) -> str | None:
         with open(pyproject_path, "rb") as f:
             data = tomllib.load(f)
         build_backend: str = data.get("build-system", {}).get("build-backend", "")
-        if "setuptools" in build_backend:
-            return "setuptools"
-        if "hatchling" in build_backend:
-            return "hatchling"
-        if "flit" in build_backend:
-            return "flit"
-        if "poetry" in build_backend:
-            return "poetry"
-        if "pdm" in build_backend:
-            return "pdm"
+        for backend in ("setuptools", "hatchling", "flit", "poetry", "pdm"):
+            if backend in build_backend:
+                return backend
         if build_backend:
             return build_backend.split(".")[0].lower()
     except Exception:  # pylint: disable=broad-exception-caught
@@ -156,7 +149,10 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     return py_metadata, PitloomConfig()
 
 
-def read_setup_cfg(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
+# pylint: disable=too-many-locals
+def read_setup_cfg(
+    project_dir: Path,
+) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from ``setup.cfg``.
 
     Parses ``[metadata]`` for core project info and ``[options]`` for
@@ -252,7 +248,10 @@ def read_setup_cfg(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     return project_metadata, pitloom_config
 
 
-def read_setup_py(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
+# pylint: disable=too-many-locals
+def read_setup_py(
+    project_dir: Path,
+) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from ``setup.py`` using AST parsing.
 
     Extracts keyword arguments from ``setup()`` or ``setuptools.setup()``
@@ -486,9 +485,8 @@ def _resolve_cfg_version(
             # Expect plain version string (possibly with a leading "v")
             if content and "\n" not in content and not content.startswith("#"):
                 return content, f"Source: {value} | Method: file_directive"
-        return None, None
 
-    if directive == "attr":
+    elif directive == "attr":
         # attr: package.module.ATTR  →  look for package/module.py or __init__.py
         parts = value.rsplit(".", 1)
         if len(parts) == 2:
@@ -506,7 +504,6 @@ def _resolve_cfg_version(
                     if version:
                         rel = module_file.relative_to(project_dir)
                         return version, f"Source: {rel} | Method: attr_directive"
-        return None, None
 
     return None, None
 
@@ -535,15 +532,15 @@ def _read_version_attr(file_path: Path, attr_name: str) -> str | None:
         source = file_path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(file_path))
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Assign)
-                and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == attr_name
-                and isinstance(node.value, ast.Constant)
-                and isinstance(node.value.value, str)
-            ):
-                return node.value.value
+            if isinstance(node, ast.Assign) and len(node.targets) == 1:
+                target = node.targets[0]
+                if (
+                    isinstance(target, ast.Name)
+                    and target.id == attr_name
+                    and isinstance(node.value, ast.Constant)
+                    and isinstance(node.value.value, str)
+                ):
+                    return node.value.value
     except (OSError, SyntaxError):
         pass
     return None
