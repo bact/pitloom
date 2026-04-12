@@ -298,9 +298,7 @@ files = ["fragment1.json", "fragment2.json"]
             name="cool-dataset",
             creationInfo=ci2,
         )
-        dataset_pkg.dataset_datasetType = [
-            spdx3.dataset_DatasetType.text
-        ]  # type: ignore[assignment]
+        dataset_pkg.dataset_datasetType = [spdx3.dataset_DatasetType.text]  # type: ignore[assignment]  # pylint: disable=line-too-long  # noqa: E501
         exporter2 = Spdx3JsonExporter()
         exporter2.add_person(person2)
         exporter2.add_package(dataset_pkg)
