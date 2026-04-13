@@ -311,7 +311,9 @@ class TestMultipleFragmentsMerge:
             _AI_MODEL_FRAGMENT, _DATASET_FRAGMENT, _TRAINING_RUN_FRAGMENT
         )
         ai_pkgs = _by_type(graph, "ai_AIPackage")
-        assert len(ai_pkgs) == 2, f"Expected 2 ai_AIPackage elements, got {len(ai_pkgs)}"
+        assert len(ai_pkgs) == 2, (
+            f"Expected 2 ai_AIPackage elements, got {len(ai_pkgs)}"
+        )
 
     def test_all_dataset_packages_from_all_fragments_present(self) -> None:
         """All 3 dataset_DatasetPackage elements (1 + 2) must appear."""
@@ -324,7 +326,8 @@ class TestMultipleFragmentsMerge:
         )
 
     def test_all_relationships_from_all_fragments_present(self) -> None:
-        """trainedOn + testedOn relationships from training-run fragment must survive."""
+        """trainedOn + testedOn relationships from training-run fragment must
+        survive."""
         graph, _ = _merge_and_parse(
             _AI_MODEL_FRAGMENT, _DATASET_FRAGMENT, _TRAINING_RUN_FRAGMENT
         )
