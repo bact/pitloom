@@ -20,6 +20,9 @@ The ``_resolve`` / ``_entries`` helpers below dereference those IDs so that
 tests can navigate nested structures without depending on blank-node internals.
 """
 
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+
 from __future__ import annotations
 
 import json
