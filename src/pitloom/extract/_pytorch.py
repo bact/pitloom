@@ -29,7 +29,7 @@ def _fickling_get_top_class(pkl_bytes: bytes) -> str | None:
         import ast as pyast  # pylint: disable=import-outside-toplevel
         import io  # pylint: disable=import-outside-toplevel
 
-        from fickling.pickle import (  # pylint: disable=import-outside-toplevel
+        from fickling.fickle import (  # pylint: disable=import-outside-toplevel
             Pickle,
         )
     except ImportError:

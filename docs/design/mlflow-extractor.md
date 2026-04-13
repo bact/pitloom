@@ -14,7 +14,7 @@ metrics into an SPDX 3 AI BOM fragment.
 
 The goal is to eliminate double instrumentation. A project already using MLflow
 for experiment tracking should be able to produce a compliance-grade SBOM
-fragment without adding a second set of `pitloom.bom` calls to the training script.
+fragment without adding a second set of `pitloom.loom` calls to the training script.
 
 The initial idea of using MLflow, together with a controlled vocabulary
 ([STAV][]), as a source of truth for SBOM generation was discussed in
@@ -26,19 +26,19 @@ presentation at Open Source Summit North America 2024.
 
 ## Motivation and the double-instrumentation problem
 
-The current `pitloom.bom` SDK requires explicit calls alongside MLflow:
+The current `pitloom.loom` SDK requires explicit calls alongside MLflow:
 
 ```python
 # Current state — duplicated effort
 import mlflow
-import pitloom.bom as bom
+from pitloom import loom
 
 with mlflow.start_run():
     mlflow.set_tag("typeOfModel", "transformer")
     mlflow.log_param("learning_rate", 3e-4)
     mlflow.log_metric("accuracy", 0.95)
 
-with bom.track("fragment.spdx3.json") as run:
+with loom.shoot("fragment.spdx3.json") as run:
     run.set_model("my-transformer")
     # The same facts, typed again
 ```
@@ -49,7 +49,7 @@ it and emit the fragment automatically:
 ```python
 # Desired state — one source of truth
 import mlflow
-import pitloom.bom as bom
+from pitloom import loom
 
 with mlflow.start_run() as mlflow_run:
     mlflow.set_tag("typeOfModel", "transformer")
@@ -58,7 +58,7 @@ with mlflow.start_run() as mlflow_run:
     # ... training ...
 
 # After training: generate SBOM fragment from the MLflow run record
-bom.from_mlflow_run(
+loom.from_mlflow_run(
     mlflow_run.info.run_id,
     output_file="fragments/train.spdx3.json",
 )
@@ -464,12 +464,12 @@ def extract_from_mlflow_run(
     return fragment_json
 ```
 
-### Integration with `pitloom.bom`
+### Integration with `pitloom.loom`
 
-`pitloom.bom` gains one new top-level function delegating to the extractor:
+`pitloom.loom` gains one new top-level function delegating to the extractor:
 
 ```python
-# In src/pitloom/bom.py
+# In src/pitloom/loom.py
 
 def from_mlflow_run(
     run_id: str,
@@ -524,8 +524,8 @@ pip install "pitloom[mlflow]"
 
 ```python
 import mlflow
-import pitloom.bom as bom
 import stav
+from pitloom import loom
 
 # --- Training script (train.py) ---
 
@@ -544,7 +544,7 @@ with mlflow.start_run(run_name="bert-finetune-v3") as mlflow_run:
     train_model(...)
 
     # Emit SPDX fragment after training completes
-    bom.from_mlflow_run(
+    loom.from_mlflow_run(
         mlflow_run.info.run_id,
         output_file="fragments/bert-finetune-v3.spdx3.json",
     )
@@ -570,7 +570,7 @@ tests/
 
 | File | Change |
 | :--- | :--- |
-| `src/pitloom/bom.py` | Add `from_mlflow_run()` top-level function |
+| `src/pitloom/loom.py` | Add `from_mlflow_run()` top-level function |
 | `pyproject.toml` | Add `mlflow` optional-dependency group |
 
 ## Test plan
@@ -585,7 +585,7 @@ tests/
 | `test_missing_mlflow_import_error` | Import extractor without mlflow installed; assert `ImportError` with install hint. |
 | `test_stav_not_required` | Run extraction without stav installed; assert fallback alias mapping works. |
 | `test_output_file_written` | Pass `output_file`; assert JSON file is created at the path. |
-| `test_bom_from_mlflow_run_delegates` | Assert `bom.from_mlflow_run()` calls `extract_from_mlflow_run()`. |
+| `test_loom_from_mlflow_run_delegates` | Assert `loom.from_mlflow_run()` calls `extract_from_mlflow_run()`. |
 
 ## References
 

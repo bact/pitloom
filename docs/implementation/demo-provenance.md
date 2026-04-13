@@ -154,15 +154,15 @@ dependencies: Source: pyproject.toml | Field: project.dependencies
 
 Dependencies were extracted from the `project.dependencies` field in `pyproject.toml`.
 
-### Use case 5: ML Traceability with `pitloom.bom`
+### Use case 5: ML Traceability with `pitloom.loom`
 
 **Question**: "Where did this specific AI Model or Dataset originate?"
 
-**Answer**: Check the provenance embedded dynamically by the `pitloom.bom`
+**Answer**: Check the provenance embedded dynamically by the `pitloom.loom`
 tracking SDK when generating fragments:
 
 ```text
-comment: Metadata provenance: package: Source: src/eval.py | Method: inspect_caller (tool: pitloom.bom, function: evaluate)
+comment: Metadata provenance: package: Source: src/eval.py | Method: inspect_caller (tool: pitloom.loom, function: evaluate)
 ```
 
 Pitloom inherently uses Python's `inspect` module at runtime to identify
@@ -192,7 +192,7 @@ Source: [location] | Method: [method_name]
 - **Dynamic extraction**: `Source: src/pkg/__about__.py | Method:...`
 - **Inferred data**: `Source: Pitloom generator | Method: inferred_from_authors`
 - **Tracking SDK**:
-  `Source: src/eval.py | Method: inspect_caller (tool: pitloom.bom, function: eval)`
+  `Source: src/eval.py | Method: inspect_caller (tool: pitloom.loom, function: eval)`
 - **External tool**: `Source: licensee tool | Method: license_detection`
 
 ## Advanced: Custom provenance parser

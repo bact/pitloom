@@ -59,15 +59,15 @@ in JSON-LD format.
    - Clear error messages
 
 7. **Metadata provenance tracking** (`src/pitloom/extract/pyproject.py`,
-   `src/pitloom/bom.py`)
+   `src/pitloom/loom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
-   - Supports dynamic introspection via `bom.py` inspection
+   - Supports dynamic introspection via `loom.py` inspection
    - Uses SPDX 3 comment attribute
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
-8. **ML tracking SDK** (`src/pitloom/bom.py`)
-   - Dual-syntax ContextDecorator (`@bom.track` and `with bom.track`)
+8. **ML tracking SDK** (`src/pitloom/loom.py`)
+   - Dual-syntax ContextDecorator (`@loom.shoot` and `with loom.shoot`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
    - Seamlessly ingested into project SBOMs using `[tool.pitloom.fragments]` config
 
@@ -88,7 +88,7 @@ in JSON-LD format.
    - Generic fragment merging via Deserialization
 
 4. **SDK tracker tests**
-   - `test_bom.py` verifies both Decorator and Context Manager tracking
+   - `test_loom.py` verifies both Decorator and Context Manager tracking
    - Asserts caller-inspection relative path generation
 
 ### ✅ Quality assurance
@@ -178,7 +178,7 @@ src/pitloom/
 │   ├── _safetensors.py  # Safetensors (.safetensors)
 │   └── pyproject.py     # pyproject.toml extractor
 ├── __main__.py          # CLI entry point
-└── bom.py               # ML tracking SDK
+└── loom.py              # ML tracking SDK
 ```
 
 ### 2. Extensible Design
@@ -336,7 +336,7 @@ Based on the design document and problem requirements:
 **New Requirements Addressed:**
 
 - Migrated to `spdx-python-model` as the core ontology
-- Engineered `pitloom.bom` for comprehensive Machine Learning Annotation Support
+- Engineered `pitloom.loom` for comprehensive Machine Learning Annotation Support
 - Configured format-neutral internal representation roadmap
 
 ## Conclusion

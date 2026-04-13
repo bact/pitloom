@@ -208,7 +208,7 @@ pitloom/
 │       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point (argparse)
-│       └── bom.py               # ML tracking SDK (Track context manager)
+│       └── loom.py              # ML tracking SDK (Shoot context manager)
 ├── tests/                       # Pytest-based testing suite
 ├── LICENSE                      # Software license
 ├── README.md                    # Project documentation
@@ -218,19 +218,33 @@ pitloom/
 ## Integration with the SCA pipeline and DevOps ecosystem
 
 Pitloom serves as a critical node in the broader Software Component Analysis (SCA)
-pipeline (Wiz 2026). It exposes the `pitloom.bom` tracking SDK, a wrapper
-interface that seamlessly intercepts metrics from training scripts and notebooks
-to output SBOM fragments representing models and datasets.
+pipeline (Wiz 2026). Its core role is as a **SBOM assembler**: it collects
+information from every available source — the source repository, the build
+backend, model files, ML tracking platforms, dataset registries, and
+pre-generated partner SBOM fragments — and assembles them into a single,
+compliant, composite SBOM document.
 
-These fragments are dynamically aggregated during the `hatch build` phase.
-This ensures that every model deployed from an MLflow registry is accompanied by
-a cryptographically verifiable record of its constituent software
-and data sources, meeting emerging AI governance requirements
-(Linux Foundation 2024).
+This assembly model reflects the reality that no single tool or team
+has visibility into the full provenance of a modern AI system.
+See `docs/design/sbom-fragments.md` for the detailed design of the
+fragment system, vocabulary alignment with SPDX 3 / CycloneDX / CISA
+standards, and the roadmap for new integrations.
+
+### Information sources and extractors
+
+| Source | Extractor / mechanism | What it contributes |
+| :---- | :---- | :---- |
+| `pyproject.toml` | `pitloom.extract.pyproject` | Package identity, version, license, dependencies, authors |
+| AI model files (GGUF, ONNX, SafeTensors, etc.) | `pitloom.extract.ai_model` | Model architecture, format, hyperparameters, framework |
+| Dataset files (Croissant JSON-LD) | `pitloom.extract.dataset` | Dataset identity, schema, license, provenance |
+| MLflow tracking server | `pitloom.extract.mlflow` [planned] | Training run tags, params, metrics, dataset inputs |
+| W&B Weave | `pitloom.extract.weave` [planned] | Versioned model objects, dataset objects, evaluation traces |
+| DVC repository | `pitloom.extract.dvc` [planned] | Content-hashed data/model files, pipeline stage provenance |
+| Jupyter notebooks | `pitloom.loom` session API [planned] | Incrementally recorded model/dataset metadata, cell provenance |
+| Pre-generated fragments | `pitloom.assemble.spdx3.fragments` | SBOM elements from external teams, binary vendors, or earlier builds |
+| Build backend (Hatchling) | `pitloom.plugins.hatch` | Wheel file set, Merkle root, build timestamp |
 
 ### Planned integrations
-
-Three features extend the existing pipeline into a fully automated workflow:
 
 #### 1. Hatchling build hook (`pitloom.plugins.hatch`)
 
@@ -253,18 +267,55 @@ Reads a completed MLflow run and maps its tags, parameters, and metrics
 to an SPDX 3 AI BOM fragment. Uses
 [STAV](https://github.com/bact/stav) constants as a shared vocabulary
 layer so projects already tagging MLflow runs with STAV keys require no
-additional instrumentation. The top-level `pitloom.bom.from_mlflow_run()`
+additional instrumentation. The top-level `pitloom.loom.from_mlflow_run()`
 function provides the public API.
 See `docs/design/mlflow-extractor.md`.
 
-### Data flow: extraction → document model → serialization
+#### 4. W&B Weave extractor (`pitloom.extract.weave`) [planned]
+
+Reads versioned model and dataset objects from W&B Weave
+([github.com/wandb/weave](https://github.com/wandb/weave)), a tracing layer
+for LLM applications that automatically captures full call graphs, model
+parameter versions, and structured evaluation results.
+Weave's model version URIs (`weave:///entity/project/object/Name:hash`)
+map naturally to SPDX `ai_AIPackage` with a content-addressed
+`software_downloadLocation`. Evaluation results become SPDX `Annotation`
+elements. The top-level function is `pitloom.loom.from_weave_model()`.
+See `docs/design/sbom-fragments.md` for the full object mapping.
+
+#### 5. DVC extractor (`pitloom.extract.dvc`) [planned]
+
+Reads `dvc.lock` (the frozen, hash-committed view of the DVC pipeline)
+to extract content-hashed dataset and model file references.
+DVC's content hashes map to SPDX `verifiedUsing` integrity elements,
+and DVC remote URLs map to `software_downloadLocation`.
+This provides strong, git-anchored provenance for projects that
+use DVC for data versioning.
+
+#### 6. SBOM fragment system (`pitloom.assemble.spdx3.fragments`) [partially implemented]
+
+Merges pre-generated SPDX 3 fragment files from external teams, binary
+vendors, or earlier build stages into the composite SBOM.
+Current implementation performs basic element merge.
+Planned improvements: structured fragment declaration in `pyproject.toml`
+(with role, sha256, link-to-main relationship), pre-merge validation,
+duplicate-ID detection, and `SpdxDocument.imports` population for
+cross-document traceability.
+See `docs/design/sbom-fragments.md`.
+
+### Data flow: extraction → document model → assembly
 
 ```text
-Extraction
-──────────
-read_pyproject(pyproject.toml).     → ProjectMetadata
-read_ai_model(model.onnx)           → AiModelMetadata [optional]
-bom.track() / bom.from_mlflow_run() → SPDX fragments [optional]
+Information sources
+───────────────────
+pyproject.toml            → ProjectMetadata          (pitloom.extract.pyproject)
+model.onnx / .gguf / …    → AiModelMetadata          (pitloom.extract.ai_model)
+dataset.croissant.json    → DatasetMetadata           (pitloom.extract.dataset)
+MLflow run                → SPDX AI fragment          (pitloom.extract.mlflow) [planned]
+W&B Weave model object    → SPDX AI fragment          (pitloom.extract.weave)  [planned]
+dvc.lock                  → SPDX Dataset elements     (pitloom.extract.dvc)    [planned]
+Jupyter notebook session  → SPDX AI/Dataset fragment  (pitloom.loom session)    [planned]
+fragments/*.spdx3.json    → pre-generated elements    (partner / vendor SBOMs)
 
 Assembly (format-neutral)
 ─────────────────────────
@@ -272,14 +323,15 @@ DocumentModel(
     project=ProjectMetadata,
     creation=CreationMetadata,
     ai_models=[AiModelMetadata, ...],
+    fragments=[FragmentConfig, ...],    # structured fragment metadata [planned]
 )
 
-Serialization
-─────────────
-compute_wheel_merkle_root(project_dir)    → merkle_root (or None)
-build(doc: DocumentModel, merkle_root)    → Spdx3JsonExporter → JSON-LD
-merge_fragments(pitloom_config.fragments) → (inlined into exporter)
-exporter.to_json(pretty=...)              → SBOM string / file
+Serialization and merge
+───────────────────────
+compute_wheel_merkle_root(project_dir)          → merkle_root (or None)
+build(doc: DocumentModel, merkle_root)          → Spdx3JsonExporter → JSON-LD
+merge_fragments(fragments, exporter, ...)       → elements inlined; imports recorded
+exporter.to_json(pretty=...)                    → composite SBOM string / file
 ```
 
 ### JSON-LD `@graph` element ordering
@@ -350,7 +402,7 @@ Training time
 ─────────────
 mlflow.set_tag(stav.MODEL_TYPE, "transformer")
 mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
-→ bom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
+→ loom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
         └── pitloom.extract.mlflow → SPDX AI fragment [planned]
 
 Build time (zero extra commands)

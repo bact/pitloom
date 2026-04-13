@@ -24,7 +24,7 @@ def merge_fragments(
     """Load SPDX 3 JSON-LD fragment files and merge them into the exporter.
 
     Each fragment is a standalone SPDX document (e.g., produced by
-    ``pitloom.bom.track``). Its elements are merged into the main document's
+    ``pitloom.loom.shoot``). Its elements are merged into the main document's
     object set so they appear in the final SBOM output.
 
     Missing or unreadable fragment files are logged as warnings; they do not
