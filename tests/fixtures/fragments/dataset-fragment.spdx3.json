@@ -1,0 +1,33 @@
+{
+    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+    "@graph": [
+        {
+            "@id": "_:creationinfo",
+            "created": "2026-03-01T11:00:00Z",
+            "createdBy": [
+                "https://spdx.org/spdxdocs/pitloom-test/Person/data-curator-01"
+            ],
+            "specVersion": "3.0.1",
+            "type": "CreationInfo"
+        },
+        {
+            "creationInfo": "_:creationinfo",
+            "name": "DataCurator",
+            "spdxId": "https://spdx.org/spdxdocs/pitloom-test/Person/data-curator-01",
+            "type": "Person"
+        },
+        {
+            "creationInfo": "_:creationinfo",
+            "dataset_datasetAvailability": "directDownload",
+            "dataset_datasetSize": 50000,
+            "dataset_datasetType": [
+                "image"
+            ],
+            "description": "A small image dataset used for training and testing.",
+            "name": "tiny-image-dataset",
+            "software_downloadLocation": "https://example.org/datasets/tiny-image",
+            "spdxId": "https://spdx.org/spdxdocs/pitloom-test/DatasetPackage/tiny-image-01",
+            "type": "dataset_DatasetPackage"
+        }
+    ]
+}
