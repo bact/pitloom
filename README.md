@@ -252,60 +252,8 @@ This transparency is crucial for:
 
 ## Project structure
 
-```text
-pitloom/
-├── docs/
-│   ├── design/
-│   │   ├── architecture-overview.md
-│   │   ├── format-neutral-representation.md
-│   │   └── metadata-provenance.md
-│   └── implementation/
-│       ├── demo.md
-│       ├── demo-provenance.md
-│       └── summary.md
-├── src/
-│   └── pitloom/
-│       ├── assemble/
-│       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│       │   │   ├── document.py  # SPDX 3 document assembly — build(DocumentModel)
-│       │   │   ├── deps.py      # Dependency element assembly
-│       │   │   ├── ai.py        # AI model element assembly
-│       │   │   └── fragments.py # Fragment merging
-│       │   └── __init__.py      # generate_sbom() orchestrator
-│       ├── core/
-│       │   ├── ai_metadata.py   # Format-neutral AI model metadata
-│       │   ├── config.py        # [tool.pitloom] settings (PitloomConfig)
-│       │   ├── creation.py      # SBOM creation metadata (CreationMetadata)
-│       │   ├── document.py      # Format-neutral document model (DocumentModel)
-│       │   ├── models.py        # SPDX ID generation utilities
-│       │   └── project.py       # Python project metadata (ProjectMetadata)
-│       ├── export/
-│       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-│       ├── extract/
-│       │   ├── ai_model.py      # AI model file extractor (GGUF, ONNX, Safetensors)
-│       │   └── pyproject.py     # pyproject.toml extractor
-│       ├── plugins/
-│       │   ├── __init__.py
-│       │   └── hatch.py         # Hatchling build hook (PEP 770)
-│       ├── __about__.py
-│       ├── __init__.py
-│       ├── __main__.py          # CLI entry point
-│       └── loom.py              # ML tracking SDK
-├── tests/
-│   ├── fixtures/
-│   │   └── sampleproject/       # minimal wheel-build fixture
-│   ├── test_ai_model_extractor.py
-│   ├── test_loom.py
-│   ├── test_generator.py
-│   ├── test_hatch_hook.py
-│   ├── test_metadata.py
-│   ├── test_models.py
-│   ├── test_provenance.py
-│   └── test_spdx3_compliance.py
-├── LICENSE
-├── README.md
-└── pyproject.toml
-```
+See [docs/implementation/summary.md](docs/implementation/summary.md) for the
+canonical, up-to-date project tree.
 
 ## Development
 
@@ -330,17 +278,7 @@ python -m build
 
 ## Roadmap
 
-- [x] Basic SPDX 3.0 SBOM generation
-- [x] Hatchling metadata extraction
-- [x] Dependency tracking
-- [ ] Support for setuptools
-- [x] Format-neutral internal representation (`DocumentModel`
-  — see [design doc](docs/design/format-neutral-representation.md))
-- [ ] Build log extraction for compiled dependencies
-- [x] AI/ML package profiles (AIPackage, DatasetPackage)
-- [x] PEP 770 support (.dist-info/sboms via `build_data["sbom_files"]`)
-- [ ] PEP 740 attestation support
-- [ ] Rust backend for performance optimization
+See [docs/design/roadmap.md](docs/design/roadmap.md).
 
 ## References
 
