@@ -44,7 +44,7 @@ without executing model code.
 | TensorFlow SavedModel | Planned | Parse `saved_model.pb` via Protocol Buffers; inspect `MetaGraphDef` for signature defs | `tensorflow` package or `tensorflow.core.protobuf.saved_model_pb2` for protobuf-only parsing |
 | TensorFlow Lite | Planned | Parse FlatBuffer binary without loading the TF runtime | `flatbuffers` Python package; no GPU/runtime required |
 | Scikit-learn | Planned, complex | Pickle/joblib serialisation — no single standard format; `fickling` for safe AST inspection to extract estimator class and `get_params()` values | Common extensions: `.pkl`, `.joblib`. Fickling is already an optional dependency. The challenge is that the serialized type varies widely (`Pipeline`, `GridSearchCV`, etc.) |
-| MLflow model flavors | Planned | `MLmodel` YAML file in the artifact directory records `flavors`, `run_id`, and artifact paths | Partially addressed via `pitloom.bom.from_mlflow_run()` (SPDX fragment path); direct model flavor parsing is a separate step |
+| MLflow model flavors | Planned | `MLmodel` YAML file in the artifact directory records `flavors`, `run_id`, and artifact paths | Partially addressed via `pitloom.loom.from_mlflow_run()` (SPDX fragment path); direct model flavor parsing is a separate step |
 
 ## Format reference tools and prior art
 

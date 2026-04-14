@@ -67,7 +67,7 @@ fragments = []              # List of pre-generated fragment paths to merge
 The full SBOM filename is derived by appending the format extension to the
 basename: `{sbom-basename}.spdx3.json` (e.g., `sbom.spdx3.json` by default).
 
-Specifying fragments allows the hook to merge `pitloom.bom`-generated AI/ML
+Specifying fragments allows the hook to merge `pitloom.loom`-generated AI/ML
 fragments produced during training before the build:
 
 ```toml

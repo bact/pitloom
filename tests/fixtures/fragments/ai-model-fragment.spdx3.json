@@ -1,0 +1,85 @@
+{
+    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+    "@graph": [
+        {
+            "@id": "_:creationinfo",
+            "created": "2026-03-01T10:00:00Z",
+            "createdBy": [
+                "https://spdx.org/spdxdocs/pitloom-test/Person/researcher-01"
+            ],
+            "specVersion": "3.0.1",
+            "type": "CreationInfo"
+        },
+        {
+            "creationInfo": "_:creationinfo",
+            "name": "Test Researcher",
+            "spdxId": "https://spdx.org/spdxdocs/pitloom-test/Person/researcher-01",
+            "type": "Person"
+        },
+        {
+            "ai_autonomyType": "yes",
+            "ai_domain": [
+                "image classification",
+                "computer vision"
+            ],
+            "ai_energyConsumption": {
+                "ai_inferenceEnergyConsumption": [
+                    {
+                        "ai_energyQuantity": "0.001",
+                        "ai_energyUnit": "kilowattHour",
+                        "type": "ai_EnergyConsumptionDescription"
+                    }
+                ],
+                "ai_trainingEnergyConsumption": [
+                    {
+                        "ai_energyQuantity": "0.5",
+                        "ai_energyUnit": "kilowattHour",
+                        "type": "ai_EnergyConsumptionDescription"
+                    }
+                ],
+                "type": "ai_EnergyConsumption"
+            },
+            "ai_hyperparameter": [
+                {
+                    "key": "learning_rate",
+                    "type": "DictionaryEntry",
+                    "value": "0.001"
+                },
+                {
+                    "key": "batch_size",
+                    "type": "DictionaryEntry",
+                    "value": "32"
+                },
+                {
+                    "key": "epochs",
+                    "type": "DictionaryEntry",
+                    "value": "50"
+                }
+            ],
+            "ai_metric": [
+                {
+                    "key": "accuracy",
+                    "type": "DictionaryEntry",
+                    "value": "0.9234"
+                },
+                {
+                    "key": "f1",
+                    "type": "DictionaryEntry",
+                    "value": "0.9187"
+                }
+            ],
+            "ai_typeOfModel": [
+                "classification",
+                "convolutional"
+            ],
+            "ai_useSensitivePersonalInformation": "no",
+            "creationInfo": "_:creationinfo",
+            "description": "A minimal image classification model for fragment merge testing.",
+            "name": "resnet-tiny-classifier",
+            "software_packageVersion": "1.0.0",
+            "software_primaryPurpose": "model",
+            "spdxId": "https://spdx.org/spdxdocs/pitloom-test/AIPackage/resnet-tiny-01",
+            "type": "ai_AIPackage"
+        }
+    ]
+}

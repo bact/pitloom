@@ -50,7 +50,7 @@ Pitloom uses a consistent, machine-parsable format for provenance information:
 - Dynamic extraction: `Source: src/pkg/__about__.py | Method: dynamic_extraction`
 - Inferred data: `Source: Pitloom generator | Method: inferred_from_authors`
 - Tracking SDK:
-  `Source: src/eval.py | Method: inspect_caller (tool: pitloom.bom, function: evaluate)`
+  `Source: src/eval.py | Method: inspect_caller (tool: pitloom.loom, function: evaluate)`
 
 ### 3. Tracked metadata fields
 

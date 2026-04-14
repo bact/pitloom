@@ -18,7 +18,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
 def _get_caller_info() -> str:
-    """Find the first caller frame outside of the pitloom.bom module."""
+    """Find the first caller frame outside of the pitloom.loom module."""
     try:
         for frame_info in inspect.stack():
             if frame_info.filename != __file__:
@@ -32,21 +32,21 @@ def _get_caller_info() -> str:
                 if func_name == "<module>":
                     return (
                         f"Source: {filename} | "
-                        f"Method: inspect_caller (tool: pitloom.bom, "
+                        f"Method: inspect_caller (tool: pitloom.loom, "
                         f"function: <module>)"
                     )
                 return (
                     f"Source: {filename} | "
-                    f"Method: inspect_caller (tool: pitloom.bom, "
+                    f"Method: inspect_caller (tool: pitloom.loom, "
                     f"function: {func_name})"
                 )
     except Exception:  # pylint: disable=broad-exception-caught
         pass
-    return "Source: unknown | Method: inspect_caller (tool: pitloom.bom)"
+    return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
 
-class _ActiveRun:
-    """Internal state for an active BOM tracking run."""
+class _ActiveShot:
+    """Internal state for an active BOM recording shot."""
 
     def __init__(self, output_file: str, pretty: bool = False):
         self.output_file = output_file
@@ -101,7 +101,7 @@ class _ActiveRun:
         self.exporter.add_package(dataset_pkg)
 
     def finalize(self) -> None:
-        """Finalize the run and output the SBOM fragment."""
+        """Finalize the shot and output the SBOM fragment."""
         if self.model and self.datasets:
             for dataset in self.datasets:
                 rel = spdx3.Relationship(
@@ -125,27 +125,40 @@ class _ActiveRun:
             f.write(self.exporter.to_json(pretty=self.pretty))
 
 
-# Global state holding the active run
-_active_run: _ActiveRun | None = None  # pylint: disable=invalid-name
+# Global state holding the active shot
+_active_shot: _ActiveShot | None = None  # pylint: disable=invalid-name
 
 
-class Track(contextlib.ContextDecorator):
+class Shoot(contextlib.ContextDecorator):
     """Context manager and decorator for capturing SPDX fragments.
 
-    Can be used as a context manager (`with track(output_file=...):`)
-    or as a function decorator (`@track(output_file=...)`).
+    Each ``Shoot`` is one pass of the shuttle — a single recording session
+    that weaves metadata about a model and its datasets into an SBOM fragment.
+
+    Can be used as a context manager::
+
+        with loom.shoot("fragments/model.spdx3.json") as shot:
+            shot.set_model("my-model")
+            shot.add_dataset("my-dataset")
+
+    Or as a function decorator::
+
+        @loom.shoot("fragments/model.spdx3.json")
+        def train():
+            loom.set_model("my-model")
+            loom.add_dataset("my-dataset")
     """
 
     def __init__(self, output_file: str | Path, pretty: bool = False):
         self.output_file = str(output_file)
         self.pretty = pretty
-        self.previous_run: _ActiveRun | None = None
+        self.previous_shot: _ActiveShot | None = None
 
-    def __enter__(self) -> _ActiveRun:
-        global _active_run  # pylint: disable=global-statement
-        self.previous_run = _active_run
-        _active_run = _ActiveRun(self.output_file, pretty=self.pretty)
-        return _active_run
+    def __enter__(self) -> _ActiveShot:
+        global _active_shot  # pylint: disable=global-statement
+        self.previous_shot = _active_shot
+        _active_shot = _ActiveShot(self.output_file, pretty=self.pretty)
+        return _active_shot
 
     def __exit__(
         self,
@@ -153,33 +166,33 @@ class Track(contextlib.ContextDecorator):
         exc_val: BaseException | None,
         exc_tb: types.TracebackType | None,
     ) -> None:
-        global _active_run  # pylint: disable=global-statement
-        if _active_run is not None:
+        global _active_shot  # pylint: disable=global-statement
+        if _active_shot is not None:
             # Generate the fragment only if the code block executed successfully
             if exc_type is None:
-                _active_run.finalize()
-        _active_run = self.previous_run
+                _active_shot.finalize()
+        _active_shot = self.previous_shot
 
 
-#: Lowercase alias for :class:`Track`
-track = Track  # pylint: disable=invalid-name
+#: Lowercase alias for :class:`Shoot`
+shoot = Shoot  # pylint: disable=invalid-name
 
 
 def set_model(name: str) -> None:
-    """Set the name of the AI model being trained in the current run."""
-    if _active_run is None:
+    """Set the name of the AI model being trained in the current shot."""
+    if _active_shot is None:
         raise RuntimeError(
-            "No active run found. Please use `bom.set_model()` inside a "
-            "`with pitloom.bom.track():` block or decorated function."
+            "No active shot found. Please use `loom.set_model()` inside a "
+            "`with pitloom.loom.shoot():` block or decorated function."
         )
-    _active_run.set_model(name)
+    _active_shot.set_model(name)
 
 
 def add_dataset(name: str, dataset_type: str = "text") -> None:
-    """Add a dataset utilized by the AI model in the current run."""
-    if _active_run is None:
+    """Add a dataset utilized by the AI model in the current shot."""
+    if _active_shot is None:
         raise RuntimeError(
-            "No active run found. Please use `bom.add_dataset()` inside a "
-            "`with pitloom.bom.track():` block or decorated function."
+            "No active shot found. Please use `loom.add_dataset()` inside a "
+            "`with pitloom.loom.shoot():` block or decorated function."
         )
-    _active_run.add_dataset(name, dataset_type)
+    _active_shot.add_dataset(name, dataset_type)

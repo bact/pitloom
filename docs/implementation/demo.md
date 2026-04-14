@@ -119,16 +119,16 @@ schemas are effortlessly adhered to during native JSON-LD execution.
 
 ### 6. Embedded ML Metadata Trackers
 
-Provides a contextual wrapper `pitloom.bom` to emit isolated fragments
+Provides a contextual wrapper `pitloom.loom` to emit isolated fragments
 dynamically from training loops into your main SBOM seamlessly:
 
 ```python
-from pitloom import bom
+from pitloom import loom
 
-@bom.track("fragments/model.json")
+@loom.shoot("fragments/model.json")
 def run():
-    bom.set_model("my-classifier")
-    bom.add_dataset("my-text-data")
+    loom.set_model("my-classifier")
+    loom.add_dataset("my-text-data")
 ```
 
 ### 7. Comprehensive testing

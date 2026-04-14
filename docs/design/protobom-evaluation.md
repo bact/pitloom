@@ -77,7 +77,7 @@ links (e.g., `DEPENDS_ON`, `CONTAINS`, `STATIC_LINK`).
 
 ### Resulting information loss
 
-If Pitloom’s `bom.py` tracker extracts deep introspection data from a PyTorch
+If Pitloom’s `loom.py` tracker extracts deep introspection data from a PyTorch
 training loop (e.g., model architecture, preprocessing metrics, and dataset
 constraints), passing it through a standard Protobom parser would cause
 **forced downgrading**:
@@ -124,7 +124,7 @@ hybrid architecture inside `loom.generator`.
 
 1. **Standard packages:** Python wheels, libraries, and compiler outputs are
   ingested into the `Protobom` universal graph.
-2. **AI fragments:** Data emitted strictly from `pitloom.bom` (datasets, models)
+2. **AI fragments:** Data emitted strictly from `pitloom.loom` (datasets, models)
   bypass Protobom and are maintained natively in `spdx-python-model` classes.
 3. **Merge phase:** At export time, if the user targets SPDX 3, the Protobom
   exporter runs. We then dynamically merge our native `run.model` graphs into
