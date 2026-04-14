@@ -152,7 +152,7 @@ embed the SBOM automatically — no extra commands needed.
 #### Merging AI/ML fragments
 
 For AI-powered software, you can track model and dataset provenance during
-training using `pitloom.bom`, then include those fragments in the wheel SBOM:
+training using `pitloom.loom`, then include those fragments in the wheel SBOM:
 
 ```toml
 [tool.hatch.build.hooks.pitloom]
@@ -180,19 +180,19 @@ Developers can easily annotate scripts or Jupyter notebooks to generate
 external SBOM fragments that Pitloom will merge during the build process:
 
 ```python
-from pitloom import bom
+from pitloom import loom
 
 # Use as a function decorator...
-@bom.track(output_file="fragments/sentiment_model.json")
+@loom.shoot(output_file="fragments/sentiment_model.json")
 def train_model():
-    bom.set_model("sentiment-clf")
-    bom.add_dataset("imdb-reviews", dataset_type="text")
+    loom.set_model("sentiment-clf")
+    loom.add_dataset("imdb-reviews", dataset_type="text")
     # ... training logic ...
 
 # ...or use as a context manager
-with bom.track(output_file="fragments/sentiment_model.json"):
-    bom.set_model("sentiment-clf")
-    bom.add_dataset("imdb-reviews", dataset_type="text")
+with loom.shoot(output_file="fragments/sentiment_model.json"):
+    loom.set_model("sentiment-clf")
+    loom.add_dataset("imdb-reviews", dataset_type="text")
 ```
 
 ## Example

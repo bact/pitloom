@@ -18,7 +18,7 @@ SPDX-License-Identifier: CC0-1.0
 - [x] AI/ML package profiles (`software_Package` with AI BOM profile, `dataset_DatasetPackage`)
 - [x] PEP 770 support (`.dist-info/sboms/` via `build_data["sbom_files"]`)
 - [x] Hatchling build hook (`pitloom.plugins.hatch`) with fragment merging
-- [x] ML tracking SDK (`pitloom.bom` — context manager / decorator)
+- [x] ML tracking SDK (`pitloom.loom` — context manager / decorator)
 - [x] Metadata provenance tracking (per-field source attribution)
 - [x] CLI (`loom`) with verbose mode and creator info options
 - [x] Setuptools support — initial implementation
