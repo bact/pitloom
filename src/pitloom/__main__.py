@@ -81,7 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Output file path. "
-            "Default: <name>-<version>.spdx3.json derived from pyproject.toml, "
+            "Default: <name>-<version>.spdx3.json derived from project metadata, "
             "or the basename from [tool.pitloom] sbom-basename if set."
         ),
     )
@@ -147,7 +147,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
-    """Resolve and validate project directory and pyproject path."""
+    """Resolve and validate project directory and primary config file path."""
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
         print(f"Error: Project directory not found: {project_dir}", file=sys.stderr)
