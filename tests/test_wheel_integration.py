@@ -26,18 +26,18 @@ from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 # pylint: enable=wrong-import-position
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sampleproject"
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sampleproject-hatchling"
 
 
 @pytest.fixture(scope="module")
 def built_wheel(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Build a wheel from the sampleproject fixture and return its path.
+    """Build a wheel from the sampleproject-hatchling fixture and return its path.
 
     Uses ``WheelBuilder`` directly (no subprocess, no network) so the locally
     installed Pitloom is picked up.  Skipped when the fixture is absent.
     """
     if not FIXTURE_DIR.exists():
-        pytest.skip("sampleproject fixture not found")
+        pytest.skip("sampleproject-hatchling fixture not found")
 
     out_dir = tmp_path_factory.mktemp("wheel_out")
     builder = WheelBuilder(str(FIXTURE_DIR))
@@ -99,7 +99,7 @@ def test_sbom_graph_contains_creator(built_wheel: Path) -> None:
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
         data = json.loads(zf.read(sbom_entry))
-    # sampleproject/pyproject.toml sets creator-name = "Pitloom CI"
+    # sampleproject-hatchling/pyproject.toml sets creator-name = "Pitloom CI"
     person_names = [e.get("name") for e in data["@graph"] if e.get("type") == "Person"]
     assert "Pitloom CI" in person_names, (
         f"Expected creator 'Pitloom CI' in SBOM graph, found: {person_names}"

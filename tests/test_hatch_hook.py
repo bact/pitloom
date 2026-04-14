@@ -382,15 +382,15 @@ def test_hook_missing_fragment_logs_warning(
 
 
 # ---------------------------------------------------------------------------
-# Integration: sampleproject fixture
+# Integration: sampleproject-hatchling fixture
 # ---------------------------------------------------------------------------
 
 
-def test_hook_with_sampleproject_fixture() -> None:
-    """initialize() succeeds on the real sampleproject fixture."""
-    fixture_dir = Path(__file__).parent / "fixtures" / "sampleproject"
+def test_hook_with_sampleproject_hatchling_fixture() -> None:
+    """initialize() succeeds on the real sampleproject-hatchling fixture."""
+    fixture_dir = Path(__file__).parent / "fixtures" / "sampleproject-hatchling"
     if not fixture_dir.exists():
-        pytest.skip("sampleproject fixture not found")
+        pytest.skip("sampleproject-hatchling fixture not found")
 
     hook = make_hook(str(fixture_dir), {"creator-name": "Pitloom CI"})
     build_data: dict[str, Any] = {}
