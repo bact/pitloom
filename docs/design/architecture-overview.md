@@ -177,43 +177,8 @@ Pitloom will follow modern Python software engineering best practices,
 utilizing the "src" layout to prevent subtle import-path bugs and ensure
 the development environment mirrors production (Ghadge 2025).
 
-### Python project structure
-
-```text
-pitloom/
-├── .github/workflows/           # CI/CD pipeline definitions
-├── src/
-│   └── pitloom/
-│       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
-│       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│       │   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
-│       │   │   ├── deps.py      # dependency element assembly
-│       │   │   ├── ai.py        # AI model element assembly
-│       │   │   └── fragments.py # pre-generated fragment merging
-│       │   └── __init__.py      # generate_sbom() public API
-│       ├── core/                # Format-neutral data models (no SBOM lib deps)
-│       │   ├── ai_metadata.py   # AiModelMetadata, ModelFormat
-│       │   ├── config.py        # PitloomConfig ([tool.pitloom] settings)
-│       │   ├── creation.py      # CreationMetadata (SBOM creator / timestamp)
-│       │   ├── document.py      # DocumentModel (assembled, pre-serialization)
-│       │   ├── models.py        # Deterministic UUIDs, Merkle root, SPDX ID generation
-│       │   └── project.py       # ProjectMetadata
-│       ├── export/              # Layer 4 — serialise to physical format
-│       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-│       ├── extract/             # Layer 1 — read data from sources
-│       │   ├── ai_model.py      # AI model files → AiModelMetadata
-│       │   ├── mlflow.py        # MLflow run → SPDX AI fragment [planned]
-│       │   └── pyproject.py     # pyproject.toml → ProjectMetadata
-│       ├── plugins/             # Build system integrations
-│       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
-│       ├── __init__.py
-│       ├── __main__.py          # CLI entry point (argparse)
-│       └── loom.py              # ML tracking SDK (Shoot context manager)
-├── tests/                       # Pytest-based testing suite
-├── LICENSE                      # Software license
-├── README.md                    # Project documentation
-└── pyproject.toml               # Unified configuration (Hatchling)
-```
+See [docs/implementation/summary.md](../implementation/summary.md) for the
+canonical, up-to-date project tree.
 
 ## Integration with the SCA pipeline and DevOps ecosystem
 
