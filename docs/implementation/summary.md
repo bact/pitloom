@@ -59,10 +59,10 @@ in JSON-LD format.
    - Clear error messages
 
 7. **Metadata provenance tracking** (`src/pitloom/extract/pyproject.py`,
-   `src/pitloom/bom.py`)
+   `src/pitloom/loom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
-   - Supports dynamic introspection via `bom.py` inspection
+   - Supports dynamic introspection via `loom.py` inspection
    - Uses SPDX 3 comment attribute
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
@@ -88,7 +88,7 @@ in JSON-LD format.
    - Generic fragment merging via Deserialization
 
 4. **SDK tracker tests**
-   - `test_bom.py` verifies both Decorator and Context Manager tracking
+   - `test_loom.py` verifies both Decorator and Context Manager tracking
    - Asserts caller-inspection relative path generation
 
 ### ✅ Quality assurance
