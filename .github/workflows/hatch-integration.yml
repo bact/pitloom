@@ -140,10 +140,10 @@ jobs:
 
       - name: Upload wheel and SBOM artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hatch-integration-py${{ matrix.python-version }}
           path: |
             tests/fixtures/sampleproject-hatchling/dist/*.whl
             tests/fixtures/sampleproject-hatchling/dist/sbom.spdx3.json
-          retention-days: 7
+          retention-days: 3

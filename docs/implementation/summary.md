@@ -147,9 +147,7 @@ SBOM written to: sbom.spdx3.json
 
 ### 1. Clean architecture
 
-> **Single source of truth for project structure.**
-> This tree is the canonical reference; README.md and design docs point here
-> rather than duplicating it.
+> This tree is the canonical reference; README.md and design docs point here.
 
 ```text
 pitloom/
@@ -159,18 +157,18 @@ pitloom/
 │   │   ├── format-neutral-representation.md
 │   │   ├── hatchling-build-hook.md
 │   │   ├── metadata-provenance.md
-│   │   ├── metadata-sources.md  # Trivy/Syft research; PEP 517 integration plan
+│   │   ├── metadata-sources.md
 │   │   ├── mlflow-extractor.md
 │   │   ├── model-metadata-extraction.md
 │   │   ├── protobom-evaluation.md
-│   │   ├── roadmap.md           # Canonical roadmap — single source of truth
+│   │   ├── roadmap.md             # Canonical roadmap
 │   │   ├── sbom-enrichment.md
 │   │   └── sbom-fragments.md
 │   ├── implementation/
 │   │   ├── demo.md
 │   │   ├── demo-provenance.md
 │   │   ├── setuptools-support.md  # Setuptools extractor design and limitations
-│   │   └── summary.md             ← this file; canonical project structure
+│   │   └── summary.md             # this file; canonical project structure
 │   ├── mascot.png
 │   └── resources.md
 ├── src/
