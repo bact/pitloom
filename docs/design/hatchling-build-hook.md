@@ -309,7 +309,7 @@ dependencies = [
 | `test_hook_sbom_files_appended_to_existing` | Pre-populates `sbom_files`; asserts `initialize()` appends rather than replaces. |
 | `test_hook_with_pitloom_fragments` | Provides a valid fragment; asserts its content is merged into the SBOM. |
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
-| `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject-hatching` fixture; asserts package name appears in SBOM. |
+| `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject-hatchling` fixture; asserts package name appears in SBOM. |
 | `test_hook_invalid_config_raises_before_io` | Passes bad config; asserts `ValueError` is raised before any filesystem access. |
 
 ## References

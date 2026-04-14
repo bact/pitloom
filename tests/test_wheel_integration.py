@@ -66,9 +66,9 @@ def test_sbom_path_matches_pep770(built_wheel: Path) -> None:
     assert len(sbom_entries) == 1
     entry = sbom_entries[0]
     # Path must be: <name>-<version>.dist-info/sboms/<filename>
-    assert entry.endswith(
-        ".dist-info/sboms/sbom.spdx3.json"
-    ), f"Unexpected SBOM path in wheel: {entry}"
+    assert entry.endswith(".dist-info/sboms/sbom.spdx3.json"), (
+        f"Unexpected SBOM path in wheel: {entry}"
+    )
 
 
 def test_sbom_is_valid_json_ld(built_wheel: Path) -> None:
@@ -82,16 +82,18 @@ def test_sbom_is_valid_json_ld(built_wheel: Path) -> None:
 
 
 def test_sbom_graph_contains_package(built_wheel: Path) -> None:
-    """The SBOM graph must contain a software_Package element for sampleproject."""
+    """The SBOM graph must contain a software_Package element for
+    sampleproject_hatchling.
+    """
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
         data = json.loads(zf.read(sbom_entry))
     pkg_names = [
         e.get("name") for e in data["@graph"] if e.get("type") == "software_Package"
     ]
-    assert (
-        "sampleproject-hatchling" in pkg_names
-    ), f"Expected 'sampleproject-hatchling' package in SBOM graph, found: {pkg_names}"
+    assert "sampleproject_hatchling" in pkg_names, (
+        f"Expected 'sampleproject_hatchling' package in SBOM graph, found: {pkg_names}"
+    )
 
 
 def test_sbom_graph_contains_creator(built_wheel: Path) -> None:
@@ -101,9 +103,9 @@ def test_sbom_graph_contains_creator(built_wheel: Path) -> None:
         data = json.loads(zf.read(sbom_entry))
     # sampleproject-hatchling/pyproject.toml sets creator-name = "Pitloom CI"
     person_names = [e.get("name") for e in data["@graph"] if e.get("type") == "Person"]
-    assert (
-        "Pitloom CI" in person_names
-    ), f"Expected creator 'Pitloom CI' in SBOM graph, found: {person_names}"
+    assert "Pitloom CI" in person_names, (
+        f"Expected creator 'Pitloom CI' in SBOM graph, found: {person_names}"
+    )
 
 
 def test_sbom_is_not_empty(built_wheel: Path) -> None:

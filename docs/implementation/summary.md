@@ -24,8 +24,11 @@ in JSON-LD format.
      name, version, normalized dependencies, and SHA-256 Merkle root of wheel files
    - Per-element sequential IDs (`generate_spdx_id`) reproducible across builds
 
-2. **Metadata extraction** (`src/pitloom/extract/pyproject.py`)
-   - Reads pyproject.toml files
+2. **Metadata extraction** (`src/pitloom/extract/`)
+   - `pyproject.py` — reads `pyproject.toml` (any PEP 517 backend)
+   - `setuptools.py` — reads `setup.cfg` and `setup.py` for setuptools projects;
+     `detect_build_backend()` auto-selects the right extractor;
+     `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
@@ -93,19 +96,23 @@ in JSON-LD format.
 
 ### ✅ Quality assurance
 
-- **Linting**: All Ruff checks pass
-- **Security**: CodeQL scan with 0 alerts
+- **Linting**: pylint 10.00/10, flake8 clean, ruff clean
+- **Type checking**: mypy — no issues across all source files
 - **Type hints**: Comprehensive type annotations throughout
 - **Documentation**: Inline docstrings for all public APIs
-- **Code review**: All feedback addressed
 
 ### ✅ Documentation
 
 1. **README.md**: Complete usage guide with examples
-2. **DEMONSTRATION.md**: Prototype capabilities and validation
-3. **docs/design/format-neutral-representation.md**: Multi-format support plan
-4. **docs/design/metadata-provenance.md**: Provenance tracking specification
-5. **Inline Documentation**: Comprehensive docstrings
+2. **docs/implementation/demo.md**: Prototype capabilities and validation
+3. **docs/implementation/demo-provenance.md**: Provenance tracking demo
+4. **docs/design/format-neutral-representation.md**: Multi-format support plan
+5. **docs/design/metadata-provenance.md**: Provenance tracking specification
+6. **docs/design/metadata-sources.md**: Metadata sources research and
+   integration plan
+7. **docs/implementation/setuptools-support.md**: Setuptools extractor
+   design and limitations
+8. **Inline documentation**: Comprehensive docstrings
 
 ## Validation with sentimentdemo
 
@@ -281,7 +288,7 @@ pitloom/
 - src-layout for proper package structure
 - Type hints with Python 3.10+ compatibility
 - Comprehensive error handling
-- No external runtime dependencies (pure Python)
+- Runtime dependencies kept minimal and declared in `pyproject.toml`
 
 ## Comparison with reference SBOM
 
