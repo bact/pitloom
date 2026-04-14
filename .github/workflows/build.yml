@@ -363,7 +363,7 @@ jobs:
         with:
           name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.whl
-          retention-days: 15
+          retention-days: 3
 
       - name: Upload SBOM artifact
         if: steps.validate.outcome == 'success'
@@ -371,7 +371,7 @@ jobs:
         with:
           name: sbom-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.spdx3.json
-          retention-days: 15
+          retention-days: 3
 
       - name: Final status check
         if: always()
