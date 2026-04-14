@@ -642,10 +642,10 @@ def test_fixture_read_setup_cfg_name_and_version() -> None:
 
 
 def test_fixture_read_setup_cfg_description() -> None:
-    """Fixture description contains the word 'sampleproject'."""
+    """Fixture description contains the word 'sample project'."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.description is not None
-    assert "sampleproject" in metadata.description.lower()
+    assert "sample project" in metadata.description.lower()
 
 
 def test_fixture_read_setup_cfg_author() -> None:
