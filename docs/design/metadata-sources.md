@@ -132,8 +132,8 @@ Priority order (planned — highest to lowest)
 1. PEP 517  prepare_metadata_for_build_wheel   ← future, opt-in
 2. .dist-info/METADATA or .egg-info/PKG-INFO   ← future (installed env)
 3. pyproject.toml [project]                    ← implemented
-4. setup.cfg [metadata] / [options]            ← future
-5. setup.py setup() literal arguments          ← future
+4. setup.cfg [metadata] / [options]            ← implemented
+5. setup.py setup() literal arguments          ← implemented
 ```
 
 ### Implementation sketch
@@ -200,10 +200,10 @@ Recommended long-term priority order for `_load_project_metadata()` is:
 3. pyproject.toml [project]                   [implemented]
    └─ read_pyproject() → ProjectMetadata
 
-4. setup.cfg [metadata] / [options]           [future]
+4. setup.cfg [metadata] / [options]           [implemented]
    └─ read_setup_cfg() → ProjectMetadata
 
-5. setup.py setup() literal arguments         [future]
+5. setup.py setup() literal arguments         [implemented]
    └─ read_setup_py() (AST) → ProjectMetadata
 ```
 

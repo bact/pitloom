@@ -167,6 +167,7 @@ pitloom/
 │   ├── implementation/
 │   │   ├── demo.md
 │   │   ├── demo-provenance.md
+│   │   ├── setuptools-support.md  # Setuptools extractor design and limitations
 │   │   └── summary.md             # this file; canonical project structure
 │   ├── mascot.png
 │   └── resources.md
@@ -207,7 +208,8 @@ pitloom/
 │       │   ├── _safetensors.py     # Safetensors (.safetensors)
 │       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
 │       │   ├── pyproject.py        # pyproject.toml extractor (any PEP 517 backend)
-│       │   └── scanner.py          # Heuristic scanner for AI model files
+│       │   ├── scanner.py          # Heuristic scanner for AI model files
+│       │   └── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
 │       ├── plugins/             # Build-system integrations
 │       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
 │       ├── __about__.py         # Package version (__version__)
@@ -254,6 +256,7 @@ pitloom/
 │   ├── test_metadata.py
 │   ├── test_models.py
 │   ├── test_provenance.py
+│   ├── test_setuptools.py
 │   ├── test_spdx3_compliance.py
 │   ├── test_spdx3_dataset.py
 │   └── test_wheel_integration.py
