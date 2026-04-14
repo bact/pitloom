@@ -637,15 +637,15 @@ def test_fixture_detect_backend() -> None:
 def test_fixture_read_setup_cfg_name_and_version() -> None:
     """Fixture setup.cfg name and version match expected values."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
-    assert metadata.name == "sampleproject-setuptools"
+    assert metadata.name == "sampleproject"
     assert metadata.version == "0.1.0"
 
 
 def test_fixture_read_setup_cfg_description() -> None:
-    """Fixture description contains the word 'setuptools'."""
+    """Fixture description contains the word 'sampleproject'."""
     metadata, _ = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert metadata.description is not None
-    assert "setuptools" in metadata.description.lower()
+    assert "sampleproject" in metadata.description.lower()
 
 
 def test_fixture_read_setup_cfg_author() -> None:
@@ -706,6 +706,6 @@ def test_fixture_read_setuptools_merges_cfg_and_py() -> None:
     """read_setuptools() falls back gracefully when setup.py has no literals."""
     metadata, config = read_setuptools(SETUPTOOLS_FIXTURE)
     # Metadata comes from setup.cfg (setup.py has no literal args)
-    assert metadata.name == "sampleproject-setuptools"
+    assert metadata.name == "sampleproject"
     assert metadata.version == "0.1.0"
     assert config.sbom_basename == "sbom"
