@@ -46,7 +46,7 @@ dependencies = [
     "hatchling>=1.28.0",
     "pyproject-metadata>=0.11.0",
     "rfc8785>=0.1.4",
-    "spdx-python-model>=0.0.5",
+    "spdx-python-model==0.0.4",
     "tomli>=2.0.0; python_version<'3.11'",
 ]
 

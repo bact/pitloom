@@ -200,6 +200,7 @@ standards, and the roadmap for new integrations.
 | Source | Extractor / mechanism | What it contributes |
 | :---- | :---- | :---- |
 | `pyproject.toml` | `pitloom.extract.pyproject` | Package identity, version, license, dependencies, authors |
+| `setup.cfg` / `setup.py` | `pitloom.extract.setuptools` | Package identity, version, license, dependencies, authors |
 | AI model files (GGUF, ONNX, SafeTensors, etc.) | `pitloom.extract.ai_model` | Model architecture, format, hyperparameters, framework |
 | Dataset files (Croissant JSON-LD) | `pitloom.extract.dataset` | Dataset identity, schema, license, provenance |
 | MLflow tracking server | `pitloom.extract.mlflow` [planned] | Training run tags, params, metrics, dataset inputs |
@@ -273,13 +274,14 @@ See `docs/design/sbom-fragments.md`.
 ```text
 Information sources
 ───────────────────
-pyproject.toml            → ProjectMetadata          (pitloom.extract.pyproject)
-model.onnx / .gguf / …    → AiModelMetadata          (pitloom.extract.ai_model)
+pyproject.toml            → ProjectMetadata           (pitloom.extract.pyproject)
+setup.cfg / setup.py      → ProjectMetadata           (pitloom.extract.setuptools)
+model.onnx / .gguf / …    → AiModelMetadata           (pitloom.extract.ai_model)
 dataset.croissant.json    → DatasetMetadata           (pitloom.extract.dataset)
-MLflow run                → SPDX AI fragment          (pitloom.extract.mlflow) [planned]
-W&B Weave model object    → SPDX AI fragment          (pitloom.extract.weave)  [planned]
-dvc.lock                  → SPDX Dataset elements     (pitloom.extract.dvc)    [planned]
-Jupyter notebook session  → SPDX AI/Dataset fragment  (pitloom.loom session)   [planned]
+MLflow run                → SPDX AI fragment          (pitloom.extract.mlflow)  [planned]
+W&B Weave model object    → SPDX AI fragment          (pitloom.extract.weave)   [planned]
+dvc.lock                  → SPDX Dataset elements     (pitloom.extract.dvc)     [planned]
+Jupyter notebook session  → SPDX AI/Dataset fragment  (pitloom.loom session)    [planned]
 fragments/*.spdx3.json    → pre-generated elements    (partner / vendor SBOMs)
 
 Assembly (format-neutral)
@@ -368,7 +370,7 @@ Training time
 mlflow.set_tag(stav.MODEL_TYPE, "transformer")
 mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
 → loom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
-        └── pitloom.extract.mlflow → SPDX AI fragment [planned]
+        └── pitloom.extract.mlflow → SPDX AI fragment  [planned]
 
 Build time (zero extra commands)
 ─────────────────────────────────

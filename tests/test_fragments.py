@@ -50,7 +50,9 @@ _TRAINING_RUN_FRAGMENT = "training-run-fragment.spdx3.json"
 # ---------------------------------------------------------------------------
 
 
-def _merge_and_parse(*fragment_names: str) -> tuple[list[dict], dict[str, dict]]:
+def _merge_and_parse(
+    *fragment_names: str,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """Merge named fragments into a fresh exporter; return ``(graph, index)``.
 
     ``index`` maps every blank-node ``@id`` to its graph entry so that
@@ -60,23 +62,25 @@ def _merge_and_parse(*fragment_names: str) -> tuple[list[dict], dict[str, dict]]
     exporter = Spdx3JsonExporter()
     merge_fragments(_FRAGMENTS_DIR, list(fragment_names), exporter)
     data = json.loads(exporter.to_json(pretty=True))
-    graph: list[dict] = data.get("@graph", [])
-    index: dict[str, dict] = {e["@id"]: e for e in graph if "@id" in e}
+    graph: list[dict[str, Any]] = data.get("@graph", [])
+    index: dict[str, dict[str, Any]] = {e["@id"]: e for e in graph if "@id" in e}
     return graph, index
 
 
-def _by_type(graph: list[dict], type_name: str) -> list[dict]:
+def _by_type(graph: list[dict[str, Any]], type_name: str) -> list[dict[str, Any]]:
     return [e for e in graph if e.get("type") == type_name]
 
 
-def _resolve(ref: Any, index: dict[str, dict]) -> Any:
+def _resolve(ref: Any, index: dict[str, dict[str, Any]]) -> Any:
     """Dereference a blank-node string; return non-blank values unchanged."""
     if isinstance(ref, str) and ref.startswith("_:"):
         return index.get(ref, ref)
     return ref
 
 
-def _entries(element: dict, field: str, index: dict[str, dict]) -> list[dict]:
+def _entries(
+    element: dict[str, Any], field: str, index: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Return all resolved dict entries for a list field that uses blank refs."""
     result = []
     for ref in element.get(field, []):
@@ -86,12 +90,16 @@ def _entries(element: dict, field: str, index: dict[str, dict]) -> list[dict]:
     return result
 
 
-def _hyperparams(element: dict, index: dict[str, dict]) -> dict[str, str]:
+def _hyperparams(
+    element: dict[str, Any], index: dict[str, dict[str, Any]]
+) -> dict[str, str]:
     """Return ``{key: value}`` for all ai_hyperparameter entries."""
     return {e["key"]: e["value"] for e in _entries(element, "ai_hyperparameter", index)}
 
 
-def _metrics(element: dict, index: dict[str, dict]) -> dict[str, str]:
+def _metrics(
+    element: dict[str, Any], index: dict[str, dict[str, Any]]
+) -> dict[str, str]:
     """Return ``{key: value}`` for all ai_metric entries."""
     return {e["key"]: e["value"] for e in _entries(element, "ai_metric", index)}
 
@@ -419,8 +427,8 @@ def test_generate_sbom_includes_ai_model_fragment_elements() -> None:
             creation_info=CreationMetadata(creator_name="Test"),
         )
         data = json.loads(sbom_json)
-        graph: list[dict] = data.get("@graph", [])
-        index: dict[str, dict] = {e["@id"]: e for e in graph if "@id" in e}
+        graph: list[dict[str, Any]] = data.get("@graph", [])
+        index: dict[str, dict[str, Any]] = {e["@id"]: e for e in graph if "@id" in e}
 
         # ai_AIPackage elements from both fragments must be in the final SBOM
         ai_pkgs = _by_type(graph, "ai_AIPackage")

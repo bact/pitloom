@@ -13,27 +13,34 @@ SPDX-License-Identifier: CC0-1.0
 - [x] SPDX 3.0 SBOM generation (JSON-LD)
 - [x] Hatchling metadata extraction (`pyproject.toml`)
 - [x] Dependency tracking and SPDX relationship elements
-- [x] Format-neutral internal representation (`DocumentModel` — see [format-neutral-representation.md](format-neutral-representation.md))
-- [x] AI/ML package profiles (`software_Package` with AI BOM profile, `dataset_DatasetPackage`)
+- [x] Format-neutral internal representation
+  (`DocumentModel` — see [format-neutral-representation.md](format-neutral-representation.md))
+- [x] AI/ML package profiles
+  (`software_Package` with AI BOM profile, `dataset_DatasetPackage`)
 - [x] PEP 770 support (`.dist-info/sboms/` via `build_data["sbom_files"]`)
 - [x] Hatchling build hook (`pitloom.plugins.hatch`) with fragment merging
 - [x] ML tracking SDK (`pitloom.loom` — context manager / decorator)
 - [x] Metadata provenance tracking (per-field source attribution)
 - [x] CLI (`loom`) with verbose mode and creator info options
+- [x] Setuptools support — initial implementation
+  - `read_setup_cfg()`, `read_setup_py()`, `read_setuptools()`,
+    `merge_metadata()`, `detect_build_backend()`
+    in `src/pitloom/extract/setuptools.py`
+  - Conflict resolution: `pyproject.toml` > `setup.cfg` > `setup.py`
+  - CLI and `generate_sbom()` work without `pyproject.toml`
+  - `[tool:pitloom]` config section in `setup.cfg`
 
 ## Near-term
 
 ### Build backend improvements
 
-- [ ] **Setuptools support**
-  - Conflict resolution between `pyproject.toml`, `setup.cfg`, `setup.py`
-- [ ] **Setuptools wheel file discovery** — use setuptools' own file inclusion
-  logic to compute a Merkle root for setuptools projects (currently
-  `get_wheel_files()` returns `None` for non-Hatchling projects).
 - [ ] **PEP 517 `prepare_metadata_for_build_wheel`** (opt-in) — call the build
   backend in a subprocess to resolve dynamic metadata (Git-tag versions,
   computed deps) that static parsing cannot handle.
   See [metadata-sources.md](metadata-sources.md).
+- [ ] **Setuptools wheel file discovery** — use setuptools' own file inclusion
+  logic to compute a Merkle root for setuptools projects (currently
+  `get_wheel_files()` returns `None` for non-Hatchling projects).
 - [ ] **Installed `.dist-info` / `.egg-info` as metadata source** — treat
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
@@ -78,7 +85,7 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Long-term
 
-- [ ] **PEP 740 attestations** — cryptographic signing and provenance tracking
-  for generated SBOMs.
-- [ ] **Performance optimization** — Rust backend for large-project log parsing;
-  parallel file hashing for Merkle root computation.
+- [ ] **PEP 740 attestations** — cryptographic signing and provenance
+  tracking for generated SBOMs.
+- [ ] **Performance optimization** — Rust backend for large-project
+  log parsing; parallel file hashing for Merkle root computation.

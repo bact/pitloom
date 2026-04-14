@@ -82,15 +82,17 @@ def test_sbom_is_valid_json_ld(built_wheel: Path) -> None:
 
 
 def test_sbom_graph_contains_package(built_wheel: Path) -> None:
-    """The SBOM graph must contain a software_Package element for sampleproject."""
+    """The SBOM graph must contain a software_Package element for
+    sampleproject_hatchling.
+    """
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
         data = json.loads(zf.read(sbom_entry))
     pkg_names = [
         e.get("name") for e in data["@graph"] if e.get("type") == "software_Package"
     ]
-    assert "sampleproject" in pkg_names, (
-        f"Expected 'sampleproject' package in SBOM graph, found: {pkg_names}"
+    assert "sampleproject_hatchling" in pkg_names, (
+        f"Expected 'sampleproject_hatchling' package in SBOM graph, found: {pkg_names}"
     )
 
 

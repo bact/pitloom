@@ -38,8 +38,9 @@ An ideal internal representation must be:
 Extractors                     Core model              Serializers / Assemblers
 ──────────────────────         ─────────────────       ─────────────────────────
 read_pyproject()           ─┐
+read_setuptools()          ─┤
 read_ai_model()            ─┤─→  DocumentModel   ─→   Spdx3Assembler              → SPDX 3 JSON-LD
-loom.shoot() (fragments)   ─┘    (pitloom.core)          [future] CycloneDXAssembler → CycloneDX JSON
+loom.shoot() (fragments)   ─┘    (pitloom.core)       [future] CycloneDXAssembler → CycloneDX JSON
                                                       [future] AidocRenderer      → AIDOC markdown
                                                       [future] TechOpsDoc         → documentation
 ```
@@ -50,7 +51,7 @@ loom.shoot() (fragments)   ─┘    (pitloom.core)          [future] CycloneDXA
 @dataclass
 class DocumentModel:
     creation: CreationMetadata        # who/when generated this document
-    project: ProjectMetadata          # from read_pyproject()
+    project: ProjectMetadata          # from read_pyproject() / read_setuptools()
     ai_models: list[AiModelMetadata]  # from read_ai_model()
 ```
 

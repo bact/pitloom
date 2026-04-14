@@ -92,9 +92,9 @@ jobs:
               for e in graph
               if e.get("type") == "software_Package"
           ]
-          if "sampleproject" not in pkg_names:
+          if "sampleproject_hatchling" not in pkg_names:
               print(
-                  f"ERROR: 'sampleproject' not found in SBOM packages: {pkg_names}",
+                  f"ERROR: 'sampleproject_hatchling' not found in SBOM packages: {pkg_names}",
                   file=sys.stderr,
               )
               sys.exit(1)
