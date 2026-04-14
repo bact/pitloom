@@ -279,7 +279,7 @@ dataset.croissant.json    → DatasetMetadata           (pitloom.extract.dataset
 MLflow run                → SPDX AI fragment          (pitloom.extract.mlflow) [planned]
 W&B Weave model object    → SPDX AI fragment          (pitloom.extract.weave)  [planned]
 dvc.lock                  → SPDX Dataset elements     (pitloom.extract.dvc)    [planned]
-Jupyter notebook session  → SPDX AI/Dataset fragment  (pitloom.loom session)    [planned]
+Jupyter notebook session  → SPDX AI/Dataset fragment  (pitloom.loom session)   [planned]
 fragments/*.spdx3.json    → pre-generated elements    (partner / vendor SBOMs)
 
 Assembly (format-neutral)
