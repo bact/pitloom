@@ -147,38 +147,123 @@ SBOM written to: sbom.spdx3.json
 
 ### 1. Clean architecture
 
+> This tree is the canonical reference; README.md and design docs point here.
+
 ```text
-src/pitloom/
-├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
-│   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
-│   │   ├── deps.py      # Dependency element assembly
-│   │   ├── ai.py        # AI model element assembly
-│   │   └── fragments.py # Fragment merging
-│   └── __init__.py      # generate_sbom() orchestrator
-├── core/                # Format-neutral data models (no SBOM lib dependencies)
-│   ├── ai_metadata.py   # AiModelMetadata, ModelFormat
-│   ├── config.py        # PitloomConfig ([tool.pitloom] settings)
-│   ├── creation.py      # CreationMetadata
-│   ├── document.py      # DocumentModel (assembled document)
-│   ├── models.py        # Deterministic UUIDs, Merkle root, SPDX ID generation
-│   └── project.py       # ProjectMetadata
-├── export/              # Layer 4 — serialise to physical format
-│   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-├── extract/             # Layer 1 — read from sources
-│   ├── ai_model.py      # AI model dispatcher + format detection
-│   ├── _fasttext.py     # fastText (.ftz, .bin)
-│   ├── _gguf.py         # GGUF (.gguf)
-│   ├── _hdf5.py         # HDF5 / Keras v1–v2 (.h5, .hdf5)
-│   ├── _keras.py        # Keras v3 (.keras)
-│   ├── _numpy.py        # NumPy (.npy, .npz)
-│   ├── _onnx.py         # ONNX (.onnx)
-│   ├── _pytorch.py      # PyTorch classic (.pt, .pth)
-│   ├── _pytorch_pt2.py  # PyTorch PT2 / ExecuTorch (.pt2)
-│   ├── _safetensors.py  # Safetensors (.safetensors)
-│   └── pyproject.py     # pyproject.toml extractor
-├── __main__.py          # CLI entry point
-└── loom.py              # ML tracking SDK
+pitloom/
+├── docs/
+│   ├── design/
+│   │   ├── architecture-overview.md
+│   │   ├── format-neutral-representation.md
+│   │   ├── hatchling-build-hook.md
+│   │   ├── metadata-provenance.md
+│   │   ├── metadata-sources.md
+│   │   ├── mlflow-extractor.md
+│   │   ├── model-metadata-extraction.md
+│   │   ├── protobom-evaluation.md
+│   │   ├── roadmap.md             # Canonical roadmap
+│   │   ├── sbom-enrichment.md
+│   │   └── sbom-fragments.md
+│   ├── implementation/
+│   │   ├── demo.md
+│   │   ├── demo-provenance.md
+│   │   └── summary.md             # this file; canonical project structure
+│   ├── mascot.png
+│   └── resources.md
+├── src/
+│   └── pitloom/
+│       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
+│       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
+│       │   │   ├── ai.py        # AI model element assembly
+│       │   │   ├── dataset.py   # Dataset element assembly
+│       │   │   ├── deps.py      # Dependency element assembly
+│       │   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
+│       │   │   ├── fragments.py # Fragment merging
+│       │   │   └── __init__.py
+│       │   └── __init__.py      # generate_sbom() orchestrator + backend routing
+│       ├── core/                # Format-neutral data models (no SBOM lib deps)
+│       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
+│       │   ├── config.py           # PitloomConfig ([tool.pitloom] settings)
+│       │   ├── creation.py         # CreationMetadata (creator / timestamp)
+│       │   ├── dataset_metadata.py # DatasetMetadata
+│       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
+│       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation
+│       │   └── project.py          # ProjectMetadata, ProjectFile
+│       ├── export/              # Layer 4 — serialise to physical format
+│       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
+│       ├── extract/             # Layer 1 — read from sources
+│       │   ├── ai_model.py         # AI model dispatcher + format detection
+│       │   ├── _croissant.py       # Croissant metadata parser
+│       │   ├── _croissant_keys.py  # Croissant JSON-LD key constants
+│       │   ├── _extract_utils.py   # Shared extraction utilities
+│       │   ├── _fasttext.py        # fastText (.ftz, .bin)
+│       │   ├── _gguf.py            # GGUF (.gguf)
+│       │   ├── _hdf5.py            # HDF5 / Keras v1–v2 (.h5, .hdf5)
+│       │   ├── _keras.py           # Keras v3 (.keras)
+│       │   ├── _numpy.py           # NumPy (.npy, .npz)
+│       │   ├── _onnx.py            # ONNX (.onnx)
+│       │   ├── _pytorch.py         # PyTorch classic (.pt, .pth)
+│       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
+│       │   ├── _safetensors.py     # Safetensors (.safetensors)
+│       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
+│       │   ├── pyproject.py        # pyproject.toml extractor (any PEP 517 backend)
+│       │   └── scanner.py          # Heuristic scanner for AI model files
+│       ├── plugins/             # Build-system integrations
+│       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
+│       ├── __about__.py         # Package version (__version__)
+│       ├── __init__.py
+│       ├── __main__.py          # CLI entry point (loom / python -m pitloom)
+│       ├── loom.py              # ML tracking SDK (Shoot context manager / decorator)
+│       └── py.typed             # PEP 561 marker
+├── tests/
+│   ├── fixtures/
+│   │   ├── croissant/           # Croissant dataset metadata fixtures
+│   │   ├── fasttext/            # fastText model fixtures
+│   │   ├── fragments/           # Pre-generated SPDX 3 fragment fixtures
+│   │   ├── gguf/                # GGUF model fixtures
+│   │   ├── hdf5/                # HDF5 / Keras model fixtures
+│   │   ├── keras/               # Keras v3 model fixtures
+│   │   ├── numpy/               # NumPy array fixtures
+│   │   ├── onnx/                # ONNX model fixtures
+│   │   ├── pytorch/             # PyTorch classic model fixtures
+│   │   ├── pytorch_pt2/         # PyTorch PT2 / ExecuTorch fixtures
+│   │   ├── safetensors/         # Safetensors model fixtures
+│   │   ├── sampleproject-hatchling/   # Minimal Hatchling wheel-build fixture
+│   │   ├── sampleproject-setuptools/  # Minimal setuptools metadata fixture
+│   │   ├── sentimentdemo-handcrafted.spdx3.json
+│   │   └── README.md
+│   ├── conftest.py
+│   ├── test_dataset_metadata.py
+│   ├── test_extract_ai_model.py
+│   ├── test_extract_croissant.py
+│   ├── test_extract_fasttext.py
+│   ├── test_extract_gguf.py
+│   ├── test_extract_hdf5.py
+│   ├── test_extract_keras.py
+│   ├── test_extract_numpy.py
+│   ├── test_extract_onnx.py
+│   ├── test_extract_pytorch.py
+│   ├── test_extract_pytorch_pt2.py
+│   ├── test_extract_safetensors.py
+│   ├── test_fragments.py
+│   ├── test_generator.py
+│   ├── test_hatch_hook.py
+│   ├── test_jcs.py
+│   ├── test_loom.py
+│   ├── test_main_cli.py
+│   ├── test_metadata.py
+│   ├── test_models.py
+│   ├── test_provenance.py
+│   ├── test_spdx3_compliance.py
+│   ├── test_spdx3_dataset.py
+│   └── test_wheel_integration.py
+├── AGENTS.md
+├── CHANGELOG.md
+├── CITATION.cff
+├── LICENSE
+├── README.md
+├── codemeta.json
+└── pyproject.toml               # Project config and Hatchling build settings
 ```
 
 ### 2. Extensible Design
