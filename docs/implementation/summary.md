@@ -269,14 +269,14 @@ pitloom/
 └── pyproject.toml               # Project config and Hatchling build settings
 ```
 
-### 2. Extensible Design
+### 2. Extensible design
 
 - Easy to add new extractors (setuptools, poetry, etc.)
 - Easy to add new assemblers/exporters (CycloneDX, AIDOC, etc.) consuming
   the same `DocumentModel` — no changes to extractors needed
 - Clean separation of concerns: extractors → `DocumentModel` → serializers
 
-### 3. Best Practices
+### 3. Best practices
 
 - src-layout for proper package structure
 - Type hints with Python 3.10+ compatibility
@@ -301,94 +301,7 @@ pitloom/
 - ⚠️ Basic: Core functionality present, enhancements planned
 - 🔄 Roadmap: Planned for future releases
 
-## Installation and usage
-
-### Install
-
-```bash
-cd /path/to/loom
-pip install -e .
-```
-
-### Generate SBOM
-
-```bash
-# Basic usage
-loom /path/to/project
-
-# Custom output
-loom /path/to/project -o my-sbom.spdx3.json
-
-# With creator info
-loom /path/to/project \
-  --creator-name "Your Name" \
-  --creator-email "your@example.com"
-```
-
-### Run Tests
-
-```bash
-pytest                    # Run all tests
-pytest -v                 # Verbose output
-pytest tests/test_*.py    # Specific test file
-```
-
-### Build Package
-
-```bash
-pip install build
-python -m build
-```
-
 ## Roadmap
 
 See [docs/design/roadmap.md](../design/roadmap.md) for the canonical,
 up-to-date roadmap.
-
-## Success metrics
-
-✅ **All Goals Achieved:**
-
-- [x] Runnable prototype
-- [x] Uses Hatchling/works with Hatchling
-- [x] Built with hatch and hatchling
-- [x] Contains test suite
-- [x] Can build sentimentdemo source
-- [x] Generates SPDX 3 SBOM
-- [x] Comparable to reference SBOM
-- [x] More accurate than manual SBOM (access to build info)
-
-## Acknowledgments
-
-**New Requirements Addressed:**
-
-- Migrated to `spdx-python-model` as the core ontology
-- Engineered `pitloom.loom` for comprehensive Machine Learning Annotation Support
-- Configured format-neutral internal representation roadmap
-
-## Conclusion
-
-The Pitloom SBOM Generator prototype is **complete, tested, and production-ready**
-for its current scope. It successfully:
-
-1. ✅ Generates valid SPDX 3.0 SBOMs
-2. ✅ Extracts metadata from Hatchling projects
-3. ✅ Tracks dependencies accurately
-4. ✅ Provides user-friendly CLI
-5. ✅ Passes comprehensive test suite
-6. ✅ Meets security and quality standards
-7. ✅ Successfully validated with reference project
-8. ✅ Captures metadata provenance automatically for auditability
-9. ✅ Merges external SBOM fragments seamlessly
-10. ✅ Exposes an intuitive ML tracking SDK natively
-
-The foundation is solid for future enhancements toward a comprehensive,
-production-grade SBOM generator supporting multiple build systems and
-advanced SPDX features.
-
----
-
-**Repository**: <https://github.com/bact/pitloom>
-**Tests**: 177 passed, 0 failed
-**Security**: 0 alerts (CodeQL)
-**Linting**: All checks passed (Ruff)
