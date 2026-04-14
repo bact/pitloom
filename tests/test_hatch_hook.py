@@ -400,6 +400,8 @@ def test_hook_with_sampleproject_fixture() -> None:
     data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
     graph = data["@graph"]
     pkg_names = [e.get("name") for e in graph if e.get("type") == "software_Package"]
+    # When change this line, also change the corresponding Verify SBOM step
+    # in .github/workflows/hatch-integration.yml
     assert "sampleproject_hatchling" in pkg_names
 
     hook.finalize("standard", build_data, "")
