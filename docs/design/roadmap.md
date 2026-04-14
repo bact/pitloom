@@ -6,7 +6,6 @@ SPDX-License-Identifier: CC0-1.0
 
 # Roadmap
 
-> **Single source of truth.**
 > README.md and other docs point here rather than maintaining their own lists.
 
 ## Completed

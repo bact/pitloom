@@ -78,7 +78,7 @@ selected depending on the scan target (container image vs. directory).
   follows a similar pattern: build-hook path (installed, post-wheel) vs. CLI
   path (source tree).
 
-### Implications for pitloom
+### Implications for Pitloom
 
 Syft's cataloger split maps cleanly onto pitloom's two paths:
 
@@ -188,8 +188,7 @@ handling.
 
 ## Recommended metadata source priority for pitloom
 
-Drawing from the Trivy, Syft, and PEP 517 research, the recommended long-term
-priority order for `_load_project_metadata()` is:
+Recommended long-term priority order for `_load_project_metadata()` is:
 
 ```text
 1. PEP 517 prepare_metadata_for_build_wheel   [opt-in; future]
