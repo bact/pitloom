@@ -1,92 +1,72 @@
+The compressed file isn't on disk — it's being passed as text. I'll output the fixed version directly with only the two URL fixes applied:
+
+---
+
 # Agent instructions
 
 ## Project context
 
 - SBOM generator targeting Python/Hatchling ecosystem, outputting SPDX 3 JSON-LD.
-- Design documents: `docs/design/`
-- Implementation documents and progress reports: `docs/implementation/`
+- Design docs: `docs/design/`
+- Implementation docs and progress reports: `docs/implementation/`
 - Test fixtures: `tests/fixtures/README.md`
-- This project is in private alpha stage with only one developer.
-  Do not worry about breaking changes or keeping backward compatibility yet.
+- Private alpha, one developer. No backward compat needed yet.
 
 ### SBOM output
 
-- Deterministic generation: To ensure reproducible builds,
-  generated SBOMs must be bit-for-bit identical across builds when the
-  input and environment remain unchanged.
-- Idempotency: Avoid non-deterministic data (e.g., current timestamps or
-  random UUIDs) to maintain reproducibility in the resulting SBOM.
-- Schema compliance: Every SBOM must be strictly validated against its
-  primary specification (e.g., CycloneDX/SPDX) and its specific serialization
-  format (JSON/XML) prior to finalization. Automated validation is mandatory.
+- Deterministic: SBOMs must be bit-for-bit identical across builds when input/environment unchanged.
+- Idempotency: No non-deterministic data (timestamps, random UUIDs).
+- Schema compliance: Validate every SBOM against primary spec (CycloneDX/SPDX) and serialization format before finalization. Automated validation mandatory.
 
 ## CLI output
 
-Follow Unix philosophy.
-Output must be consistent, predictable and parseable.
+Unix philosophy. Consistent, predictable, parseable.
 
-- Default output: line-delimited, one discrete data point per line.
-- Field separator within a line: space or tab (consistent).
-- Key-value output: `KEY=VALUE` format — uppercase KEY, no spaces around `=`.
-- Error output: `ERROR: <short description>` to stderr.
-- Output must work cleanly with `awk`, `wc`, `xargs`, and similar Unix tools.
-- Format flags (JSON, CSV, etc.) and file output are supported as options.
+- Default: line-delimited, one data point per line.
+- Field separator: space or tab (consistent).
+- Key-value: `KEY=VALUE` — uppercase KEY, no spaces around `=`.
+- Errors: `ERROR: <short description>` to stderr.
+- Must work with `awk`, `wc`, `xargs`, similar Unix tools.
+- JSON/CSV/file output supported as options.
 
 ## Python
 
-- Minimum supported version: Python 3.10. Do not use syntax or features
-  unavailable before 3.10 unless via `__future__` imports.
-- Do not use `A | B` union syntax outside `TYPE_CHECKING` blocks if
-  the minimum version is below 3.10.
-- Use idiomatic Python. Prefer built-in data structures (`list`, `dict`,
-  `set`, `tuple`) unless a specialized type from `collections` or
-  `collections.abc` is clearly better.
-- Complete type annotations for all functions, methods, classes, and
-  variables. Minimize use of `Any`. Use `if TYPE_CHECKING:` blocks for
-  heavy type-only imports.
-- Verify types with mypy (strict=true).
-  Use pyright or pytype for second opinions.
-  Recheck necessity of `# noqa:` and `# type: ignore`.
-  Reset mypy cache if unexpected errors occur.
-- For type stubs: if no official stubs are available,
-  check <https://github.com/python/typeshed> for stubs;
-  if unavailable, find source code on GitHub/GitLab/repo
-  and derive correct types.
-- Use full qualified names in docstrings for non-stdlib types (e.g.,
-  `numpy.ndarray`, not `ndarray`).
-- No `assert` in production code — only in tests.
+- Min version: Python 3.10. No syntax/features unavailable before 3.10 unless via `__future__`.
+- No `A | B` union syntax outside `TYPE_CHECKING` blocks below 3.10.
+- Idiomatic Python. Prefer built-ins (`list`, `dict`, `set`, `tuple`) unless `collections`/`collections.abc` clearly better.
+- Full type annotations on all functions, methods, classes, variables. Minimize `Any`. Use `if TYPE_CHECKING:` for heavy type-only imports.
+- Verify types with mypy (strict=true). Use pyright/pytype for second opinions. Recheck `# noqa:` and `# type: ignore`. Reset mypy cache on unexpected errors.
+- Type stubs: no official stubs → check <https://github.com/python/typeshed> for stubs; unavailable → derive from source on GitHub/GitLab.
+- Fully qualified names in docstrings for non-stdlib types (e.g., `numpy.ndarray`, not `ndarray`).
+- No `assert` in production — tests only.
 - No mutable default arguments.
 - No wildcard imports (`from module import *`).
-- No `pickle` for serialization/deserialization (CWE-502).
+- No `pickle` (CWE-502).
 - No `eval()` unless absolutely necessary and demonstrably safe.
-- No hardcoded secrets, credentials, or tokens.
-- Defensive coding: check for `None`/empty and handle exceptions for all
-  external inputs (function args, file I/O, network I/O).
-- Use `time.monotonic()` for durations, not `time.time()`.
-- All configuration in `pyproject.toml` where possible.
-- `requires-python` must reflect the actual minimum supported version.
+- No hardcoded secrets/credentials/tokens.
+- Defensive coding: check `None`/empty, handle exceptions for all external inputs.
+- `time.monotonic()` for durations, not `time.time()`.
+- All config in `pyproject.toml` where possible.
+- `requires-python` must match actual min version.
 - Make packages zip-safe when possible.
-- Packaging metadata must follow the Core metadata spec: <https://packaging.python.org/en/latest/specifications/core-metadata/>
+- Packaging metadata follows Core metadata spec: <https://packaging.python.org/en/latest/specifications/core-metadata/>
 
 ### Import order
 
-Group imports: stdlib → third-party → local, then alphabetically within
-each group. Do not reorder imports if a comment explains a required order
-(circular import or init constraint).
+Groups: stdlib → third-party → local, alphabetically within each. Don't reorder imports with comments explaining required order (circular import/init constraint).
 
 ### Type completeness
 
-- All visible class variables, instance variables, and methods are annotated.
-- All function/method parameters and return types are annotated.
-- Generic base classes have type arguments specified.
-- Type annotations can be omitted only for:
-  - Simple literal constants (e.g., `MAX = 50`, `RED = '#F00'`),
-    preferably with `Final`.
-  - Enum member values inside an `Enum` class.
+- All visible class vars, instance vars, methods annotated.
+- All function/method params and return types annotated.
+- Generic base classes have type args specified.
+- Omit annotations only for:
+  - Simple literal constants (e.g., `MAX = 50`, `RED = '#F00'`), preferably `Final`.
+  - Enum member values inside `Enum`.
   - Module-level type aliases.
-  - `self` and `cls` parameters.
+  - `self` and `cls` params.
   - `__init__` return type.
-  - `__all__`, `__author__`, `__version__`, and similar dunder module attributes.
+  - `__all__`, `__author__`, `__version__`, similar dunder module attrs.
 
 ## Linting and formatting
 
@@ -100,10 +80,10 @@ flake8
 ruff format
 ```
 
-- McCabe complexity must stay ≤ 10; refactor new code that exceeds this.
-- Cognitive complexity must stay ≤ 15; refactor new code that exceeds this.
+- McCabe complexity ≤ 10; refactor if exceeded.
+- Cognitive complexity ≤ 15; refactor if exceeded.
 - Remove unused imports and trailing whitespace.
-- Code max line length = 88
+- Max line length = 88
 
 ## File headers
 
@@ -119,125 +99,105 @@ Sort SPDX metadata keys alphabetically.
 
 ## Testing
 
-- Add tests for new behavior — cover success, failure, and edge cases.
+- Add tests for new behavior — cover success, failure, edge cases.
 - Use pytest patterns, not `unittest.TestCase`.
-- Use `spec`/`autospec` when mocking.
-- Use `time_machine` for time-dependent tests.
-- Use `@pytest.mark.parametrize` for multiple similar inputs.
+- `spec`/`autospec` when mocking.
+- `time_machine` for time-dependent tests.
+- `@pytest.mark.parametrize` for multiple similar inputs.
 
 ## Git and pull requests
 
-- Write commit messages focused on user impact, not implementation details.
+- Commit messages: user impact, not implementation details.
 - Follow: <https://chris.beams.io/posts/git-commit/>
-- Every pull request must address: **What changed?** / **Why?** / **Breaking changes?**
-- Update `CHANGELOG.md` for significant changes following
-  Keep a Changelog (<https://keepachangelog.com/>) and
-  Semantic Versioning (<https://semver.org/>). Mark breaking changes
-  clearly and provide migration instructions.
+- Every PR must address: **What changed?** / **Why?** / **Breaking changes?**
+- Update `CHANGELOG.md` for significant changes per Keep a Changelog (<https://keepachangelog.com/>) and Semantic Versioning (<https://semver.org/>). Mark breaking changes clearly with migration instructions.
 
 ## Project metadata consistency
 
-Keep these files in sync: `pyproject.toml`, `codemeta.json`,
-`CITATION.cff`, and other metadata files.
+Keep in sync: `pyproject.toml`, `codemeta.json`, `CITATION.cff`, other metadata files.
 
-Fields to keep consistent: project name, version, author/contributor
-names, license, description, repository URL, keywords/tags (same order).
+Consistent fields: project name, version, author/contributor names, license, description, repository URL, keywords/tags (same order).
 
 ## Dependencies
 
-- Sort dependencies in `pyproject.toml` and `requirements.txt`.
-- Use the most current version compatible with the OS/framework.
-- Verify package names carefully — guard against typosquatting and slopsquatting.
+- Sort in `pyproject.toml` and `requirements.txt`.
+- Use most current compatible version.
+- Verify package names — guard against typosquatting/slopsquatting.
 - Remove unused imports and dependencies.
-- Warn about abandoned packages and suggest maintained replacements.
+- Warn about abandoned packages; suggest maintained replacements.
 
 ## Security
 
-- No deprecated, obsolete, or insecure libraries/APIs.
-- Validate and sanitize all user inputs (SQL injection, XSS, buffer
-  overflows, path traversal CWE-22).
-- No hardcoded secrets. Use environment variables or secret managers.
-- Use strong, well-established cryptographic algorithms and key sizes.
-- Follow OAuth2/OpenID Connect for authentication/authorization.
-- Regularly update dependencies to their latest secure versions.
+- No deprecated/obsolete/insecure libraries/APIs.
+- Validate/sanitize all user inputs (SQL injection, XSS, buffer overflows, path traversal CWE-22).
+- No hardcoded secrets. Use env vars or secret managers.
+- Strong, well-established crypto algorithms and key sizes.
+- OAuth2/OpenID Connect for auth.
+- Regularly update dependencies to latest secure versions.
 
 ## Shell scripts
 
-- Account for differences between GNU, BSD, macOS, and other Unix tool implementations.
-- Be defensive with variable expansion; quote paths and variables appropriately.
-- Be mindful of single-quote vs double-quote semantics.
+- Account for GNU/BSD/macOS/Unix tool differences.
+- Defensive variable expansion; quote paths and variables.
+- Mind single-quote vs double-quote semantics.
 
 ## Naming
 
-- ASCII letters, digits, hyphens (`-`), and underscores (`_`) only in names.
-- Follow standard naming conventions for the language/framework in use.
-- Noun number consistency: Maintain strict intentionality regarding singular
-  vs. plural forms. Use singular names for classes representing a single entity
-  and reserve plural names only for collections, utility modules, or clear
-  aggregates.
-- Ontology/vocabulary: consult Schema.org vocabularies for naming decisions,
-  also FIBO naming conventions
-  <https://github.com/edmcouncil/fibo/blob/master/ONTOLOGY_GUIDE.md>
-  and OBO Foundary naming conventions
-  <https://obofoundry.org/principles/fp-012-naming-conventions.html>
-- URLs/IRIs: lowercase letters and hyphens; follow W3C Cool URIs: <https://www.w3.org/TR/cooluris/>
-- Consult SEMIC Style Guide for Semantic Engineers
-  <https://semiceu.github.io/style-guide/1.0.0/index.html>
+- ASCII letters, digits, hyphens (`-`), underscores (`_`) only.
+- Standard naming conventions for the language/framework.
+- Noun number: singular for single-entity classes, plural only for collections/utility modules/aggregates.
+- Ontology/vocab: consult Schema.org; also FIBO <https://github.com/edmcouncil/fibo/blob/master/ONTOLOGY_GUIDE.md> and OBO Foundry <https://obofoundry.org/principles/fp-012-naming-conventions.html>
+- URLs/IRIs: lowercase + hyphens; W3C Cool URIs: <https://www.w3.org/TR/cooluris/>
+- Consult SEMIC Style Guide: <https://semiceu.github.io/style-guide/1.0.0/index.html>
 
 ## JSON
 
-- Enclose decimal values (e.g., `xs:decimal`) in quotes to preserve precision.
-- Output must be valid and well-formatted JSON.
-- For SPDX 3 JSON, follow SPDX 3 canonical serialization
-  <https://spdx.github.io/spdx-spec/v3.0.1/serializations/#canonical-serialization>
-- Follow RFC 8785 JSON Canonicalization Scheme (JCS)
-  <https://www.rfc-editor.org/rfc/rfc8785>
-- For JSON-LD, follow RDF canonicalization <https://www.w3.org/TR/rdf-canon/>
+- Decimal values (e.g., `xs:decimal`) in quotes to preserve precision.
+- Valid, well-formatted JSON.
+- SPDX 3 JSON: follow canonical serialization <https://spdx.github.io/spdx-spec/v3.0.1/serializations/#canonical-serialization>
+- Follow RFC 8785 JCS <https://www.rfc-editor.org/rfc/rfc8785>
+- JSON-LD: follow RDF canonicalization <https://www.w3.org/TR/rdf-canon/>
 
 ## Markdown
 
 - Metadata as YAML front matter between triple-dashed lines (Hugo/Jekyll style).
-- Use standard Markdown; avoid GitHub-specific extensions for portability.
-- Use `sentence case` for headings and titles.
+- Standard Markdown; avoid GitHub-specific extensions.
+- `sentence case` for headings/titles.
 - Max line length = 80
-- Run Markdownlint to detect issues.
+- Run Markdownlint.
 
 ## HTML and CSS
 
-- Valid, well-formatted HTML with no trailing whitespace.
-- Follow W3C accessibility recommendations.
-- Sensible, concise element IDs and names; group related names.
+- Valid, well-formatted HTML, no trailing whitespace.
+- W3C accessibility recommendations.
+- Concise element IDs/names; group related names.
 - No unused CSS styles.
 
 ## API
 
-- Follow the latest OpenAPI specification: <https://spec.openapis.org/oas/>
-- Use proper HTTP status codes.
-- Follow web best practices from OpenAPI, IETF, and W3C.
+- Latest OpenAPI spec: <https://spec.openapis.org/oas/>
+- Proper HTTP status codes.
+- Follow OpenAPI, IETF, W3C web best practices.
 
 ## Writing style
 
-- British English spelling for documentation, comments, and other text.
-- American English spelling only for code.
-- Active voice; concise sentences; no jargon or idioms.
-- Short comments — do not restate the obvious.
-- Consistent terminology throughout code and documentation.
+- British English for docs, comments, text. American English for code only.
+- Active voice; concise sentences; no jargon/idioms.
+- Short comments — don't restate the obvious.
+- Consistent terminology throughout.
 - Define acronyms on first use.
 - Parallel structure in lists.
-- Use IETF verbal forms (RFC 2119/8174) for internet/web/semantic web
-  projects; ISO verbal forms for SPDX documents.
-- Dates: ISO 8601. Numbers and units: SI conventions. Timezone: UTC+0.
-  Currency: Euros (€) primary, USD in parentheses.
-- Citations: Chicago style unless otherwise specified.
+- IETF verbal forms (RFC 2119/8174) for internet/web/semantic web projects; ISO verbal forms for SPDX docs.
+- Dates: ISO 8601. Numbers/units: SI. Timezone: UTC+0. Currency: Euros (€) primary, USD in parentheses.
+- Citations: Chicago style unless specified.
 
 ## Diagrams (ASCII/text)
 
-Count characters and align lines carefully. Misaligned ASCII diagrams are a bug.
+Count characters, align carefully. Misaligned ASCII = bug.
 
 ## Versions
 
-When suggesting dependencies, verify the version exists and is compatible
-with the current system and other dependencies. Prefer Semantic Versioning.
+Verify version exists and is compatible before suggesting. Prefer Semantic Versioning.
 
 ## Boundaries
 
@@ -250,10 +210,9 @@ with the current system and other dependencies. Prefer Semantic Versioning.
 **Never:**
 
 - Commit secrets, credentials, or tokens.
-- Edit generated files by hand when a generation workflow exists.
+- Edit generated files by hand when generation workflow exists.
 - Use destructive git operations unless explicitly requested.
 
 ## More guidelines and best practices
 
-- Look at `docs/resources.md` for resources, guidelines, and best practices
-  for SBOM, AIBOM, SPDX, and standards.
+See `docs/resources.md` for SBOM, AIBOM, SPDX, standards resources and best practices.
