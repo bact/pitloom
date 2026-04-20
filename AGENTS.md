@@ -1,7 +1,3 @@
-The compressed file isn't on disk — it's being passed as text. I'll output the fixed version directly with only the two URL fixes applied:
-
----
-
 # Agent instructions
 
 ## Project context
