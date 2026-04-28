@@ -14,6 +14,11 @@ from pyproject_metadata import StandardMetadata
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._license import (
+    _looks_like_spdx_expression,
+    _looks_like_spdx_id,
+    detect_license_for_project,
+)
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -84,18 +89,22 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     except Exception as exc:  # pylint: disable=broad-exception-caught
         raise ValueError(f"Failed to parse project metadata: {exc}") from exc
 
+    license_name, license_prov = _extract_and_detect_license(std, pyproject_path.parent)
+
     metadata = ProjectMetadata(
         name=std.name,
         version=str(std.version) if std.version else None,
         description=std.description,
         readme=_extract_readme(std, readme_override),
         requires_python=str(std.requires_python) if std.requires_python else None,
-        license_name=_extract_license_name(std),
+        license_name=license_name,
         keywords=std.keywords or [],
         authors=_extract_authors(std),
         urls=std.urls or {},
         dependencies=[str(d) for d in std.dependencies],
-        provenance=_build_provenance(data.get("project", {}), version_source),
+        provenance=_build_provenance(
+            data.get("project", {}), version_source, license_prov
+        ),
     )
     return metadata, pitloom_config
 
@@ -116,6 +125,7 @@ _FIELD_PROVENANCE = {
 def _build_provenance(
     project_data: dict[str, Any],
     version_source: str | None,
+    license_prov_override: str | None = None,
 ) -> dict[str, str]:
     """Build the provenance dict from the raw project section data."""
     prov: dict[str, str] = {
@@ -127,8 +137,16 @@ def _build_provenance(
         prov["version"] = "Source: pyproject.toml | Field: project.version"
 
     for field_key, source in _FIELD_PROVENANCE.items():
-        if field_key in project_data:
+        if field_key == "license":
+            if license_prov_override:
+                prov["license"] = license_prov_override
+            elif field_key in project_data:
+                prov["license"] = source
+        elif field_key in project_data:
             prov[field_key] = source
+
+    if license_prov_override and "license" not in prov:
+        prov["license"] = license_prov_override
 
     if project_data.get("authors"):
         prov["copyright_text"] = (
@@ -242,28 +260,71 @@ def _extract_readme(std: StandardMetadata, override: str | None) -> str | None:
     return None
 
 
-def _extract_license_name(std: StandardMetadata) -> str | None:
-    """Return an SPDX license identifier string from StandardMetadata.
+def _resolve_license_hint(
+    license_obj: Any,
+    project_dir: Path,
+) -> tuple[str | None, str, tuple[str | None, str | None]]:
+    """Extract ``(hint, base_prov, fallback)`` from a raw license object.
+
+    *hint* is the text or string to attempt detection on.  *fallback* is the
+    ``(license_id, provenance)`` pair to return when detection finds nothing
+    new.  Returns ``hint=None`` when the object format is unrecognised or the
+    referenced file cannot be read.
+    """
+    base = "Source: pyproject.toml | Field: project.license"
+    if isinstance(license_obj, str):
+        # str: let detect_license_for_project provide the fallback
+        return license_obj.strip(), base, (None, None)
+    if hasattr(license_obj, "text") and license_obj.text:
+        hint = license_obj.text
+        return hint, f"{base}.text", (hint, None)
+    if hasattr(license_obj, "file") and license_obj.file:
+        fname = str(license_obj.file)
+        try:
+            text = (project_dir / fname).read_text(encoding="utf-8", errors="replace")
+            return text, f"Source: {fname}", (fname, None)
+        except OSError:
+            return None, base, (fname, None)
+    return None, base, (str(license_obj), None)
+
+
+def _extract_and_detect_license(
+    std: StandardMetadata,
+    project_dir: Path,
+) -> tuple[str | None, str | None]:
+    """Return ``(license_id, provenance_override)`` from StandardMetadata.
 
     Handles both plain string format (PEP 639) and License object format.
+    When the metadata field contains license text rather than an SPDX ID,
+    falls back to :func:`~pitloom.extract._license.detect_license_for_project`
+    which searches the project directory and uses the ``licenseid`` library for
+    text-based detection.
 
-    Note: Does not yet parse or validate full SPDX license expressions.
-    See ``docs/design/architecture-overview.md`` for the planned
-    ``license-expression`` integration.
+    Returns a 2-tuple:
+
+    * ``license_id`` — SPDX ID, SPDX expression, or raw string fallback.
+    * ``provenance_override`` — non-``None`` when provenance differs from the
+      default ``pyproject.toml`` field string (e.g. detected from a file).
     """
-    # TODO:
-    # - Handle license expression via https://pypi.org/project/license-expression/
-    # - Validate against SPDX License List https://spdx.org/licenses/
     license_obj = std.license
     if not license_obj:
-        return None
-    if isinstance(license_obj, str):
-        return license_obj
-    if hasattr(license_obj, "text") and license_obj.text:
-        return license_obj.text
-    if hasattr(license_obj, "file") and license_obj.file:
-        return str(license_obj.file)
-    return str(license_obj)
+        return detect_license_for_project(project_dir)
+
+    hint, base_prov, fallback = _resolve_license_hint(license_obj, project_dir)
+    if hint is None:
+        return fallback
+
+    if _looks_like_spdx_id(hint) or _looks_like_spdx_expression(hint):
+        return hint, None
+
+    detected, prov = detect_license_for_project(project_dir, hint)
+    if detected and detected != hint:
+        return detected, f"{base_prov} | Method: licenseid_detection"
+
+    fallback_id, fallback_prov = fallback
+    if fallback_id is not None:
+        return fallback_id, fallback_prov
+    return detected, prov
 
 
 def _extract_authors(std: StandardMetadata) -> list[dict[str, str]]:

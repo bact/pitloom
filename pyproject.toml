@@ -160,6 +160,10 @@ module = "hatchling.*"
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
+module = "licenseid.*"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
 module = "spdx_python_model.*"
 
 [tool.pylint.main]
