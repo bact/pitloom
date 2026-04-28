@@ -286,6 +286,13 @@ See [docs/design/roadmap.md](docs/design/roadmap.md).
 - [PEP 770 – SBOM metadata in Python packages](https://peps.python.org/pep-0770/)
 - [Design document](docs/design/architecture-overview.md)
 
+For more information about implementing AI BOM using SPDX specification,
+see *Karen Bennet, Gopi Krishnan Rajbahadur, Arthit Suriyawongkul,
+and Kate Stewart,
+[“Implementing AI Bill of Materials (AI BOM) with SPDX 3.0: A Comprehensive Guide to Creating AI and
+Dataset Bill of Materials”](https://www.linuxfoundation.org/research/ai-bom),
+The Linux Foundation, October 2024*.
+
 ## License
 
 - Source code: Apache License 2.0.
