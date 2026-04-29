@@ -189,7 +189,7 @@ def test_loom_model_type() -> None:
 
 
 def test_loom_dataset_lineage() -> None:
-    """Test add_input/output_dataset creates hasInput relationship for dataset lineage."""
+    """Test add_input/output_dataset creates hasInput relationship for lineage."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_lineage.json"
 

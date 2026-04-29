@@ -83,9 +83,11 @@ class _ActiveShot:
 
         Args:
             name: Model name or file path.
-            model_type: Type of model, e.g. ``"supervised"``, ``"text-classification"``.
-            hyperparameters: Key-value pairs of hyperparameters known at declaration time.
-                Use :meth:`set_model_hyperparameters` to update after training completes.
+            model_type: Type of model, e.g. ``"supervised"``,
+                ``"text-classification"``.
+            hyperparameters: Key-value pairs of hyperparameters known at
+                declaration time. Use :meth:`set_model_hyperparameters` to
+                update after training completes.
         """
         caller_info = _get_caller_info()
         self.model = spdx3.ai_AIPackage(
@@ -114,8 +116,7 @@ class _ActiveShot:
                 "No model set. Call set_model() before set_model_hyperparameters()."
             )
         self.model.ai_hyperparameter = [
-            spdx3.DictionaryEntry(key=k, value=v)
-            for k, v in hyperparameters.items()
+            spdx3.DictionaryEntry(key=k, value=v) for k, v in hyperparameters.items()
         ]
 
     def add_dataset(self, name: str, dataset_type: str = "text") -> None:
@@ -199,7 +200,8 @@ class _ActiveShot:
         """Declare a derived/processed dataset produced by a preprocessing step.
 
         Use together with :meth:`add_input_dataset` to record dataset lineage.
-        Creates ``hasInput`` relationships from this dataset to all declared input datasets.
+        Creates ``hasInput`` relationships from this dataset to all declared
+        input datasets.
 
         Args:
             name: Dataset name or file path.
@@ -358,8 +360,8 @@ def set_model_hyperparameters(hyperparameters: dict[str, str]) -> None:
     """Update the active model with hyperparameters captured after training."""
     if _active_shot is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.set_model_hyperparameters()` inside a "
-            "`with pitloom.loom.shoot():` block or decorated function."
+            "No active shot found. Please use `loom.set_model_hyperparameters()`"
+            " inside a `with pitloom.loom.shoot():` block or decorated function."
         )
     _active_shot.set_model_hyperparameters(hyperparameters)
 
@@ -405,4 +407,6 @@ def add_output_dataset(
             "No active shot found. Please use `loom.add_output_dataset()` inside a "
             "`with pitloom.loom.shoot():` block or decorated function."
         )
-    _active_shot.add_output_dataset(name, dataset_type, data_preprocessing=data_preprocessing)
+    _active_shot.add_output_dataset(
+        name, dataset_type, data_preprocessing=data_preprocessing
+    )
