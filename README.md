@@ -30,6 +30,10 @@ the build process to generate SBOMs automatically.
 - **AI/ML model metadata**:
   Extracts metadata from model files (GGUF, ONNX, PyTorch, Safetensors)
   for SPDX AI profile
+- **License detection**:
+  Detect [SPDX License ID](https://spdx.org/licenses/)
+  from project metadata and license text,
+  using [LicenseID](https://github.com/bact/licenseid/)
 - **Metadata provenance**:
   Tracks the source of each metadata field for transparency and auditability
 - **Standards compliant**:
