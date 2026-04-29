@@ -28,8 +28,10 @@ keywords = [
 ]
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: Legal Industry",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -52,7 +54,7 @@ dependencies = [
 
 [project.optional-dependencies]
 aimodel = [
-    "fasttext>=0.9.3",  # or fasttext-community>=0.11.7
+    "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
     "fickling>=0.1.10",
     "gguf>=0.10.0",
     "h5py>=3.0.0",
@@ -60,7 +62,7 @@ aimodel = [
     "onnx>=1.14.1",
     "safetensors[numpy]>=0.4.0",
 ]
-fasttext = ["fasttext>=0.9.3"]  # or fasttext-community>=0.11.7
+fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
 numpy = ["numpy>=1.24.0"]

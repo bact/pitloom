@@ -11,8 +11,8 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.extract._license import (
-    _looks_like_spdx_expression,
-    _looks_like_spdx_id,
+    _looks_like_spdx_license_expression,
+    _looks_like_spdx_license_id,
     _read_license_from_citation_cff,
     _read_license_from_codemeta_json,
     collect_license_candidates,
@@ -22,7 +22,7 @@ from pitloom.extract._license import (
 )
 
 # ---------------------------------------------------------------------------
-# _looks_like_spdx_id
+# _looks_like_spdx_license_id
 # ---------------------------------------------------------------------------
 
 
@@ -30,9 +30,9 @@ from pitloom.extract._license import (
     "value",
     ["MIT", "Apache-2.0", "GPL-3.0-or-later", "LicenseRef-custom", "GPL-2.0+"],
 )
-def test_looks_like_spdx_id_valid(value: str) -> None:
-    """Bare SPDX IDs are recognised as IDs."""
-    assert _looks_like_spdx_id(value) is True
+def test_looks_like_spdx_license_id_valid(value: str) -> None:
+    """Bare SPDX License IDs are recognised as IDs."""
+    assert _looks_like_spdx_license_id(value) is True
 
 
 @pytest.mark.parametrize(
@@ -45,13 +45,14 @@ def test_looks_like_spdx_id_valid(value: str) -> None:
         "a" * 101,  # too long
     ],
 )
-def test_looks_like_spdx_id_invalid(value: str) -> None:
-    """Non-ID strings (text, expressions, empty) are not recognised as SPDX IDs."""
-    assert _looks_like_spdx_id(value) is False
+def test_looks_like_spdx_license_id_invalid(value: str) -> None:
+    """Non-ID strings (text, expressions, empty) are not recognised as
+    SPDX License IDs."""
+    assert _looks_like_spdx_license_id(value) is False
 
 
 # ---------------------------------------------------------------------------
-# _looks_like_spdx_expression
+# _looks_like_spdx_license_expression
 # ---------------------------------------------------------------------------
 
 
@@ -59,14 +60,14 @@ def test_looks_like_spdx_id_invalid(value: str) -> None:
     "value",
     ["MIT OR Apache-2.0", "GPL-2.0 AND MIT", "GPL-2.0 WITH Classpath-exception-2.0"],
 )
-def test_looks_like_spdx_expression_valid(value: str) -> None:
+def test_looks_like_spdx_license_expression_valid(value: str) -> None:
     """Compound SPDX expressions with OR/AND/WITH are recognised."""
-    assert _looks_like_spdx_expression(value) is True
+    assert _looks_like_spdx_license_expression(value) is True
 
 
-def test_looks_like_spdx_expression_simple_id() -> None:
-    """A simple SPDX ID is not a compound expression."""
-    assert _looks_like_spdx_expression("MIT") is False
+def test_looks_like_spdx_license_expression_simple_id() -> None:
+    """A simple SPDX License ID is not a compound expression."""
+    assert _looks_like_spdx_license_expression("MIT") is False
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +176,7 @@ def test_citation_cff_absent() -> None:
 
 
 def test_codemeta_json_bare_id() -> None:
-    """Bare SPDX ID in codemeta.json is extracted directly."""
+    """Bare SPDX License ID in codemeta.json is extracted directly."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "codemeta.json").write_text('{"license": "MIT"}')
@@ -283,16 +284,17 @@ def test_detect_license_from_text_library_not_installed(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_detect_project_spdx_id_passthrough() -> None:
-    """A bare SPDX ID hint is returned unchanged without calling detection."""
+def test_detect_project_spdx_license_id_passthrough() -> None:
+    """A bare SPDX License ID hint is returned unchanged without calling detection."""
     with tempfile.TemporaryDirectory() as d:
         result_id, prov = detect_license_for_project(Path(d), "Apache-2.0")
         assert result_id == "Apache-2.0"
         assert prov is None
 
 
-def test_detect_project_spdx_expression_passthrough() -> None:
-    """A compound SPDX expression hint is returned unchanged without detection."""
+def test_detect_project_spdx_license_expression_passthrough() -> None:
+    """A compound SPDX License Expression hint is returned unchanged
+    without detection."""
     with tempfile.TemporaryDirectory() as d:
         result_id, prov = detect_license_for_project(Path(d), "MIT OR Apache-2.0")
         assert result_id == "MIT OR Apache-2.0"
@@ -300,7 +302,8 @@ def test_detect_project_spdx_expression_passthrough() -> None:
 
 
 def test_detect_project_from_citation_cff_no_detection_needed() -> None:
-    """SPDX ID from CITATION.cff is returned directly without running detection."""
+    """SPDX License ID from CITATION.cff is returned directly
+    without running detection."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "CITATION.cff").write_text("license: GPL-3.0-or-later\n")
@@ -310,7 +313,8 @@ def test_detect_project_from_citation_cff_no_detection_needed() -> None:
 
 
 def test_detect_project_from_codemeta_json_no_detection_needed() -> None:
-    """SPDX ID from codemeta.json is returned directly without running detection."""
+    """SPDX License ID from codemeta.json is returned directly
+    without running detection."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "codemeta.json").write_text('{"license": "MIT"}')
@@ -349,7 +353,7 @@ def test_detect_project_no_sources_returns_none() -> None:
 
 
 def test_detect_project_hint_text_detection_succeeds() -> None:
-    """License text in hint triggers detection when it is not a bare SPDX ID."""
+    """License text in hint triggers detection when it is not a bare SPDX License ID."""
     hint = "MIT License\n\nPermission is hereby granted..."
     with tempfile.TemporaryDirectory() as d:
         with patch(
@@ -399,20 +403,24 @@ SOFTWARE.
 
 
 def test_detect_license_from_text_returns_spdx_id(licenseid_db_path: Path) -> None:
-    """Detection with a real DB returns a valid SPDX ID string (not None or raw text)."""
+    """Detection with a real DB returns a valid SPDX License ID string
+    (not None or raw text)."""
     with patch(
         "pitloom.extract._license._get_licenseid_db_path",
         return_value=licenseid_db_path,
     ):
         result = detect_license_from_text(_MIT_TEXT)
     # Result may be None if score is below threshold; when not None it must
-    # look like an SPDX ID (no newlines, alphanumeric with dashes/dots)
+    # look like an SPDX License ID (no newlines, alphanumeric with dashes/dots)
     if result is not None:
-        assert _looks_like_spdx_id(result), f"Expected SPDX ID, got: {result!r}"
+        assert _looks_like_spdx_license_id(result), (
+            f"Expected SPDX License ID, got: {result!r}"
+        )
 
 
 def test_detect_project_from_license_file_integration(licenseid_db_path: Path) -> None:
-    """End-to-end: LICENSE file text is processed; result is None or a valid SPDX ID."""
+    """End-to-end: LICENSE file text is processed;
+    result is None or a valid SPDX License ID."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "LICENSE").write_text(_MIT_TEXT)
@@ -422,5 +430,7 @@ def test_detect_project_from_license_file_integration(licenseid_db_path: Path) -
         ):
             result_id, prov = detect_license_for_project(p)
     if result_id is not None:
-        assert _looks_like_spdx_id(result_id), f"Expected SPDX ID, got: {result_id!r}"
+        assert _looks_like_spdx_license_id(result_id), (
+            f"Expected SPDX License ID, got: {result_id!r}"
+        )
         assert prov is not None and "LICENSE" in prov and "licenseid_detection" in prov

@@ -28,37 +28,37 @@ try:
 except ImportError:
     _AggregatedLicenseMatcher = None
 
-# Heuristic: single-token SPDX IDs and expressions like "GPL-3.0-or-later"
-_SPDX_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
+# Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
+_SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
 # Detects compound SPDX expressions: "MIT OR Apache-2.0", "GPL-2.0 WITH ..."
-_SPDX_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECASE)
+_SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECASE)
 
 # Candidate filenames in priority order (no-extension first, then common suffixes)
 _LICENSE_STEMS = ("LICENSE", "LICENCE", "COPYING", "COPYRIGHT")
 _LICENSE_SUFFIXES = ("", ".txt", ".rst", ".md")
 
 
-def _looks_like_spdx_id(value: str) -> bool:
-    """Return True when *value* looks like a bare SPDX ID, not license text."""
+def _looks_like_spdx_license_id(value: str) -> bool:
+    """Return True when *value* looks like a bare SPDX License ID, not license text."""
     stripped = value.strip()
     return bool(
         stripped
         and "\n" not in stripped
         and len(stripped) < 100
-        and _SPDX_ID_RE.match(stripped)
+        and _SPDX_LICENSE_ID_RE.match(stripped)
     )
 
 
-def _looks_like_spdx_expression(value: str) -> bool:
-    """Return True when *value* looks like a compound SPDX expression.
+def _looks_like_spdx_license_expression(value: str) -> bool:
+    """Return True when *value* looks like a compound SPDX License Expression.
 
-    SPDX expressions are single-line and short (e.g. ``MIT OR Apache-2.0``).
+    SPDX License Expressions are single-line and short (e.g. ``MIT OR Apache-2.0``).
     Full license texts that happen to contain the word "AND" are excluded.
     """
     stripped = value.strip()
     if "\n" in stripped or len(stripped) > 200:
         return False
-    return bool(_SPDX_EXPR_KEYWORDS_RE.search(stripped))
+    return bool(_SPDX_LICENSE_EXPR_KEYWORDS_RE.search(stripped))
 
 
 def _get_licenseid_db_path() -> Path:
@@ -66,9 +66,9 @@ def _get_licenseid_db_path() -> Path:
 
 
 def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
-    """Detect SPDX license ID from *text* using the licenseid library.
+    """Detect SPDX License ID from *text* using the licenseid library.
 
-    Returns the top-ranked SPDX ID when its score meets *threshold*, or
+    Returns the top-ranked SPDX License ID when its score meets *threshold*, or
     ``None`` when the database is absent, the library is not installed, or no
     match exceeds the threshold.
 
@@ -161,9 +161,13 @@ def _read_license_from_citation_cff(project_dir: Path) -> str | None:
 def _read_license_from_codemeta_json(project_dir: Path) -> str | None:
     """Extract the ``license`` field from ``codemeta.json``.
 
-    The field may be an SPDX ID string or a URL such as
+    The field may be an SPDX License ID string or a URL such as
     ``https://spdx.org/licenses/MIT.html``.  URL-style values are reduced to
     their trailing path segment with common extensions stripped.
+
+    TODO: If the URL prefix is not https://spdx.org/licenses/,
+    we could try fetching the URL and applying licenseid detection to the
+    content as a fallback.
     """
     codemeta_path = project_dir / "codemeta.json"
     if not codemeta_path.exists():
@@ -181,15 +185,16 @@ def _read_license_from_codemeta_json(project_dir: Path) -> str | None:
     if "/" in value:
         candidate = value.rstrip("/").rsplit("/", 1)[-1]
         candidate = re.sub(r"\.(html|txt|md)$", "", candidate, flags=re.IGNORECASE)
-        return candidate if _looks_like_spdx_id(candidate) else None
+        return candidate if _looks_like_spdx_license_id(candidate) else None
 
-    return value if _looks_like_spdx_id(value) else None
+    return value if _looks_like_spdx_license_id(value) else None
 
 
 def collect_license_candidates(project_dir: Path) -> list[tuple[str, str]]:
     """Return ``[(value, source_description), ...]`` for all license sources.
 
-    Each *value* is either a bare SPDX ID (check with :func:`_looks_like_spdx_id`)
+    Each *value* is either a bare SPDX License ID
+    (check with :func:`_looks_like_spdx_license_id`)
     or full license text suitable for passing to :func:`detect_license_from_text`.
     Sources are ordered by priority: ``CITATION.cff``, ``codemeta.json``,
     then license files.
@@ -224,9 +229,9 @@ def detect_license_for_project(
 
     Resolution order:
 
-    1. *license_hint* is already a bare SPDX ID → returned unchanged (caller
-       should set provenance from the original metadata field).
-    2. *license_hint* is a compound SPDX expression → returned unchanged.
+    1. *license_hint* is already a bare SPDX License ID → returned unchanged
+       (caller should set provenance from the original metadata field).
+    2. *license_hint* is a compound SPDX License Expression → returned unchanged.
     3. *license_hint* is license text → run :func:`detect_license_from_text`.
     4. Search ``CITATION.cff``, ``codemeta.json``, and license files in
        *project_dir*.
@@ -235,7 +240,9 @@ def detect_license_for_project(
     """
     if license_hint:
         hint = license_hint.strip()
-        if _looks_like_spdx_id(hint) or _looks_like_spdx_expression(hint):
+        if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(
+            hint
+        ):
             return hint, None  # already good; let caller record original provenance
 
         # Hint is likely license text — try detection first
@@ -245,7 +252,9 @@ def detect_license_for_project(
 
     # Search project directory sources
     for value, source in collect_license_candidates(project_dir):
-        if _looks_like_spdx_id(value) or _looks_like_spdx_expression(value):
+        if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
+            value
+        ):
             return value, source
         detected = detect_license_from_text(value)
         if detected:

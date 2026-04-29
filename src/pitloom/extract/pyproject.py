@@ -15,8 +15,8 @@ from pyproject_metadata import StandardMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
-    _looks_like_spdx_expression,
-    _looks_like_spdx_id,
+    _looks_like_spdx_license_expression,
+    _looks_like_spdx_license_id,
     detect_license_for_project,
 )
 
@@ -295,14 +295,14 @@ def _extract_and_detect_license(
     """Return ``(license_id, provenance_override)`` from StandardMetadata.
 
     Handles both plain string format (PEP 639) and License object format.
-    When the metadata field contains license text rather than an SPDX ID,
+    When the metadata field contains license text rather than an SPDX License ID,
     falls back to :func:`~pitloom.extract._license.detect_license_for_project`
     which searches the project directory and uses the ``licenseid`` library for
     text-based detection.
 
     Returns a 2-tuple:
 
-    * ``license_id`` — SPDX ID, SPDX expression, or raw string fallback.
+    * ``license_id`` — SPDX License ID, SPDX License Expression, or raw string fallback.
     * ``provenance_override`` — non-``None`` when provenance differs from the
       default ``pyproject.toml`` field string (e.g. detected from a file).
     """
@@ -314,7 +314,7 @@ def _extract_and_detect_license(
     if hint is None:
         return fallback
 
-    if _looks_like_spdx_id(hint) or _looks_like_spdx_expression(hint):
+    if _looks_like_spdx_license_id(hint) or _looks_like_spdx_license_expression(hint):
         return hint, None
 
     detected, prov = detect_license_for_project(project_dir, hint)
