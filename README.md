@@ -65,11 +65,16 @@ uv sync --group dev
 Install extras to enable metadata extraction from model files:
 
 ```bash
+pip install -e ".[aimodel]"       # all supported AI model formats
+```
+
+or choose individually:
+
+```bash
 pip install -e ".[fasttext]"      # fastText models
 pip install -e ".[gguf]"          # GGUF models
 pip install -e ".[onnx]"          # ONNX models
 pip install -e ".[safetensors]"   # Safetensors models
-pip install -e ".[aimodel]"       # all of the above
 ```
 
 ## Usage

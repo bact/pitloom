@@ -15,7 +15,15 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.4.1...v0.5.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1>
+
+## [0.5.1] - 2026-04-29
+
+### Changed
+
+- Fallback gracefully if `[project]` is not found in `pyproject.toml` ([#63])
+
+[#63]: https://github.com/bact/pitloom/pull/63
 
 ## [0.5.0] - 2026-04-29
 
@@ -109,6 +117,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.5.1]: https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/bact/pitloom/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/bact/pitloom/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/bact/pitloom/compare/v0.3.0...v0.4.0

@@ -23,11 +23,6 @@ from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
-try:
-    from licenseid import AggregatedLicenseMatcher as _AggregatedLicenseMatcher
-except ImportError:
-    _AggregatedLicenseMatcher = None
-
 # Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
 _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
 # Detects compound SPDX expressions: "MIT OR Apache-2.0", "GPL-2.0 WITH ..."
@@ -84,11 +79,14 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
             db_path,
         )
         return None
-    if _AggregatedLicenseMatcher is None:
+    try:
+        # pylint: disable=import-outside-toplevel
+        from licenseid import AggregatedLicenseMatcher
+    except ImportError:
         _logger.debug("licenseid not installed; skipping license text detection")
         return None
     try:
-        matcher = _AggregatedLicenseMatcher(str(db_path))
+        matcher = AggregatedLicenseMatcher(str(db_path))
         results = matcher.match(text)
         filtered = [r for r in results if r["score"] >= threshold]
         return filtered[0]["license_id"] if filtered else None
