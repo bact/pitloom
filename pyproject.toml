@@ -65,6 +65,7 @@ aimodel = [
 fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
+license = ["licenseid>=0.2.2"]
 numpy = ["numpy>=1.24.0"]
 onnx = ["onnx>=1.14.1"]
 pytorch = ["fickling>=0.1.10"]
