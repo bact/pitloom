@@ -134,6 +134,7 @@ pretty = true
 # creation-datetime = "2026-04-01T00:00:00"  # Fixed for reproducibility
 
 [tool.mypy]
+exclude = ["tests/fixtures/"]
 pretty = true
 python_version = "3.10"
 mypy_path = ["src"]
@@ -165,6 +166,7 @@ ignore_missing_imports = true
 module = "spdx_python_model.*"
 
 [tool.pylint.main]
+ignore-paths = ["^tests/fixtures/.*$"]
 init-hook = "import sys; sys.path.insert(0, 'src')" # for IDE's Pylint
 source-roots = ["src"]
 
@@ -196,10 +198,14 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py310"
+exclude = ["tests/fixtures"]
 line-length = 88
+target-version = "py310"
 
 [tool.ruff.lint]
+ignore = [
+    "E501", # line too long, handled by formatter
+]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -208,9 +214,6 @@ select = [
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
-]
-ignore = [
-    "E501", # line too long, handled by formatter
 ]
 
 [tool.ruff.lint.isort]

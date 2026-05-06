@@ -83,12 +83,12 @@ line-length = 88
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        metadata, config = read_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
         assert metadata.name == ""
         assert metadata.version is None
         assert metadata.description is None
-        assert metadata.keywords == []
-        assert metadata.dependencies == []
+        assert not metadata.keywords
+        assert not metadata.dependencies
 
 
 def test_extract_metadata_missing_name() -> None:
@@ -104,7 +104,7 @@ description = "A test package"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        metadata, config = read_pyproject(pyproject_path)
+        metadata, _ = read_pyproject(pyproject_path)
         assert metadata.name == ""
         assert metadata.version is None
         assert metadata.description is None
