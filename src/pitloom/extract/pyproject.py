@@ -46,7 +46,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
 
     Raises:
         FileNotFoundError: If the file does not exist.
-        ValueError: If the ``[project]`` section is missing or ``name`` is absent.
+        ValueError: If ``pyproject-metadata`` cannot parse the ``[project]`` section.
     """
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
@@ -55,10 +55,21 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
         data: dict[str, Any] = tomllib.load(f)
 
     project_data: dict[str, Any] = data.get("project", {})
-    if not project_data:
-        raise ValueError("No [project] section found in pyproject.toml")
-    if not project_data.get("name"):
-        raise ValueError("Project name is required in pyproject.toml")
+    pitloom_config = _read_pitloom_config(data)
+
+    name: str = (project_data.get("name") or "").strip()
+
+    if not project_data or not name:
+        license_name, license_prov = detect_license_for_project(pyproject_path.parent)
+        prov: dict[str, str] = {}
+        if name:
+            prov["name"] = "Source: pyproject.toml | Field: project.name"
+        if license_prov:
+            prov["license"] = license_prov
+        return (
+            ProjectMetadata(name=name, license_name=license_name, provenance=prov),
+            pitloom_config,
+        )
 
     dynamic_fields: list[str] = list(project_data.get("dynamic", []))
     version_source: str | None = None
@@ -77,7 +88,6 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
             dynamic_fields = [f for f in dynamic_fields if f != "version"]
 
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
-    pitloom_config = _read_pitloom_config(data)
 
     try:
         std = StandardMetadata.from_pyproject(

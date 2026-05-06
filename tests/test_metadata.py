@@ -68,11 +68,14 @@ def test_extract_metadata_missing_file() -> None:
 
 
 def test_extract_metadata_missing_project_section() -> None:
-    """Test extraction with missing [project] section."""
+    """Test graceful fallback when [project] section is absent."""
     pyproject_content = """
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 88
 """
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -80,12 +83,16 @@ build-backend = "hatchling.build"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="No \\[project\\] section found"):
-            read_pyproject(pyproject_path)
+        metadata, config = read_pyproject(pyproject_path)
+        assert metadata.name == ""
+        assert metadata.version is None
+        assert metadata.description is None
+        assert metadata.keywords == []
+        assert metadata.dependencies == []
 
 
 def test_extract_metadata_missing_name() -> None:
-    """Test extraction with missing project name."""
+    """Test graceful fallback when project name is absent from [project] section."""
     pyproject_content = """
 [project]
 version = "1.0.0"
@@ -97,8 +104,31 @@ description = "A test package"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="Project name is required"):
-            read_pyproject(pyproject_path)
+        metadata, config = read_pyproject(pyproject_path)
+        assert metadata.name == ""
+        assert metadata.version is None
+        assert metadata.description is None
+
+
+def test_extract_metadata_no_project_section_reads_pitloom_config() -> None:
+    """[tool.pitloom] config is still read even when [project] section is absent."""
+    pyproject_content = """
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.pitloom]
+pretty = true
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        metadata, config = read_pyproject(pyproject_path)
+        assert metadata.name == ""
+        assert config.pretty is True
 
 
 def test_extract_metadata_dynamic_version() -> None:

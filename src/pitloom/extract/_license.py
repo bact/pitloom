@@ -23,10 +23,11 @@ from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
+_AggregatedLicenseMatcher: type | None = None
 try:
     from licenseid import AggregatedLicenseMatcher as _AggregatedLicenseMatcher
 except ImportError:
-    _AggregatedLicenseMatcher = None
+    pass
 
 # Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
 _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
