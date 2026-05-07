@@ -22,7 +22,9 @@ and this project adheres to
 ### Added
 
 - `-m` / `--aimodel` command-line option to generate an SBOM for standalone
-  AI model (may not be part of a Python project)
+  AI model (may not be part of a Python project) ([#69])
+
+[#69]: https://github.com/bact/pitloom/pull/69
 
 ## [0.6.0] - 2026-05-07
 
