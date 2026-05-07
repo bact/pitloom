@@ -252,6 +252,7 @@ def test_model_mode_no_project_dir_required(
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
+        _ = (creation_info, pretty, describe_relationship)
         captured["model_path"] = model_path
         captured["output_path"] = output_path
         return "{}"
@@ -277,6 +278,7 @@ def test_model_mode_explicit_output_path(
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
+        _ = (model_path, creation_info, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
@@ -301,6 +303,7 @@ def test_model_mode_default_output_path_uses_stem(
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
+        _ = (model_path, creation_info, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
@@ -325,6 +328,7 @@ def test_model_mode_passes_pretty_flag(
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
+        _ = (model_path, output_path, creation_info, describe_relationship)
         captured["pretty"] = pretty
         return "{}"
 
@@ -347,6 +351,7 @@ def test_model_mode_passes_creation_info(
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
+        _ = (model_path, output_path, pretty, describe_relationship)
         captured["creation_info"] = creation_info
         return "{}"
 
@@ -393,6 +398,7 @@ def test_model_mode_verbose_shows_model_path(
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
+        _ = (model_path, output_path, creation_info, pretty, describe_relationship)
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)

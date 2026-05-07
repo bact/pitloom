@@ -15,7 +15,10 @@ from typing import Any
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import generate_ai_model_sbom, generate_sbom
+from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract.pyproject import read_pyproject
+from pitloom.extract.setuptools import read_setuptools
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
@@ -260,14 +263,9 @@ def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
     Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
     Returns a 2-tuple of ``(PitloomConfig, config_file_path)``.
     """
-    # pylint: disable=import-outside-toplevel
-    from pitloom.core.config import PitloomConfig
-
     pyproject_path = project_dir / "pyproject.toml"
     if pyproject_path.exists():
         try:
-            from pitloom.extract.pyproject import read_pyproject
-
             _, config = read_pyproject(pyproject_path)
             return config, pyproject_path
         except Exception:  # pylint: disable=broad-exception-caught
@@ -277,8 +275,6 @@ def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
     setup_py = project_dir / "setup.py"
     if setup_cfg.exists() or setup_py.exists():
         try:
-            from pitloom.extract.setuptools import read_setuptools
-
             _, config = read_setuptools(project_dir)
             config_path = setup_cfg if setup_cfg.exists() else setup_py
             return config, config_path
@@ -487,15 +483,10 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
         return explicit
 
     try:
-        # pylint: disable=import-outside-toplevel
         pyproject_path = project_dir / "pyproject.toml"
         if pyproject_path.exists():
-            from pitloom.extract.pyproject import read_pyproject
-
             metadata, pitloom_config = read_pyproject(pyproject_path)
         else:
-            from pitloom.extract.setuptools import read_setuptools
-
             metadata, pitloom_config = read_setuptools(project_dir)
 
         if pitloom_config.sbom_basename:
@@ -552,10 +543,6 @@ def _run_model_mode(args: argparse.Namespace) -> int:
         if not model_path.exists():
             print(f"Error: Model file not found: {model_path}", file=sys.stderr)
             return 1
-
-        from pitloom.core.config import (
-            PitloomConfig,  # pylint: disable=import-outside-toplevel
-        )
 
         pitloom_config = PitloomConfig()
         creation = _resolve_creation_metadata(args, pitloom_config)
