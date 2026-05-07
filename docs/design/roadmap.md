@@ -29,6 +29,14 @@ SPDX-License-Identifier: CC0-1.0
   - Conflict resolution: `pyproject.toml` > `setup.cfg` > `setup.py`
   - CLI and `generate_sbom()` work without `pyproject.toml`
   - `[tool:pitloom]` config section in `setup.cfg`
+- [x] Poetry support — initial implementation
+  - `read_poetry()`, `extract_poetry_metadata()`
+    in `src/pitloom/extract/poetry.py`
+  - Reads `[tool.poetry]` and `[tool.poetry.dependencies]`
+  - `[tool.poetry.group.*]` dev/deploy dependency groups intentionally excluded
+  - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440
+  - `read_pyproject()` falls back to `[tool.poetry]` when `[project]` is absent;
+    merges both sections when both are present (`[project]` wins field-by-field)
 
 ## Near-term
 
@@ -79,7 +87,7 @@ SPDX-License-Identifier: CC0-1.0
   `DocumentModel`.
 - [ ] **Build log extraction** — capture compiled dependencies, linker flags,
   and bundled libraries from build output logs.
-- [ ] **Poetry / PDM / Flit extractors** — extend `detect_build_backend()` and
+- [ ] **PDM / Flit extractors** — extend `detect_build_backend()` and
   add per-backend extractor functions following the same
   `read_X() → (ProjectMetadata, PitloomConfig)` pattern.
 

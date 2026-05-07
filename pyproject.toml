@@ -185,8 +185,9 @@ max-line-length = 88
 
 [tool.pylint.messages_control]
 disable = [
-    "duplicate-code", # boilerplate in tests is expected
-    "fixme",          # TODO comments are tracked intentionally
+    "duplicate-code",              # boilerplate in tests is expected
+    "fixme",                       # TODO comments are tracked intentionally
+    "missing-function-docstring",  # not required in test files
 ]
 
 [tool.pylint.typecheck]

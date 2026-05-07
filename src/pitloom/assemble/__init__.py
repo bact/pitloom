@@ -27,7 +27,11 @@ def generate_sbom(
     """Generate an SPDX 3 SBOM for a Python project.
 
     Args:
-        project_dir: Path to the project directory containing ``pyproject.toml``.
+        project_dir: Path to the project directory.  Must contain a
+            ``pyproject.toml``.  Supports PEP 621 ``[project]``,
+            Poetry ``[tool.poetry]`` (used as fallback when ``[project]`` is
+            absent), and projects that declare both (``[project]`` wins
+            field-by-field).
         output_path: If given, the JSON-LD output is also written to this path.
         creation_info: Creator and timestamp metadata for the SBOM document.
             When ``None`` a default :class:`~pitloom.core.creation.CreationMetadata`

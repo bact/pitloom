@@ -2,7 +2,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for Python project metadata from pyproject.toml."""
+"""Extractor for Python project metadata from pyproject.toml.
+
+Supports ``[project]`` (PEP 517/518/621) and ``[tool.poetry]`` sections.
+When both are present, ``[project]`` values take precedence and
+``[tool.poetry]`` fills any gaps.
+"""
 
 from __future__ import annotations
 
@@ -12,13 +17,14 @@ from typing import Any
 
 from pyproject_metadata import StandardMetadata
 
-from pitloom.core.config import PitloomConfig
+from pitloom.core.config import PitloomConfig, _read_pitloom_config
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
     detect_license_for_project,
 )
+from pitloom.extract.poetry import extract_poetry_metadata
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -31,6 +37,9 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
 
     Parses the ``[project]`` section via ``pyproject-metadata``, resolves
     dynamic versions, and reads Pitloom-specific settings from ``[tool.pitloom]``.
+    When ``[project]`` is absent or has no ``name``, falls back to
+    ``[tool.poetry]``.  When both sections are present, ``[project]`` wins
+    field-by-field and ``[tool.poetry]`` fills any gaps.
 
     Args:
         pyproject_path: Path to the ``pyproject.toml`` file.
@@ -60,6 +69,10 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     name: str = (project_data.get("name") or "").strip()
 
     if not project_data or not name:
+        # No [project] section (or no name) — try [tool.poetry] as primary source.
+        poetry_meta = _try_read_poetry(data)
+        if poetry_meta is not None:
+            return poetry_meta, pitloom_config
         license_name, license_prov = detect_license_for_project(pyproject_path.parent)
         prov: dict[str, str] = {}
         if name:
@@ -116,6 +129,12 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
             data.get("project", {}), version_source, license_prov
         ),
     )
+
+    # Fill any remaining gaps from [tool.poetry] (project fields win).
+    poetry_meta = _try_read_poetry(data)
+    if poetry_meta is not None:
+        metadata = _merge_with_poetry(metadata, poetry_meta)
+
     return metadata, pitloom_config
 
 
@@ -164,75 +183,6 @@ def _build_provenance(
         )
 
     return prov
-
-
-def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
-    """
-    Read ``[tool.pitloom]`` settings and return
-    a :class:`~pitloom.core.config.PitloomConfig`.
-
-    Creation metadata can be set in either:
-
-    * ``[tool.pitloom.creation]`` (preferred)
-    * legacy flat keys under ``[tool.pitloom]``
-
-    Field processing follows :class:`~pitloom.core.creation.CreationMetadata`
-    order: creator name, creator email, creation datetime, creation tool,
-    creation comment.
-    """
-    pitloom_data = data.get("tool", {}).get("pitloom", {})
-    creation_data = pitloom_data.get("creation", {})
-    if not isinstance(creation_data, dict):
-        creation_data = {}
-
-    def _pick_str(source: dict[str, Any], keys: tuple[str, ...]) -> str | None:
-        for key in keys:
-            value = source.get(key)
-            if isinstance(value, str):
-                return value
-        return None
-
-    raw_fragments = pitloom_data.get("fragments", {}).get("files", [])
-    fragments = (
-        [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
-    )
-    pretty = bool(pitloom_data.get("pretty", False))
-    desc_rel = pitloom_data.get("describe-relationship")
-    if desc_rel is None:
-        desc_rel = pitloom_data.get("describe_relationship")
-    if desc_rel is not None:
-        desc_rel = bool(desc_rel)
-    sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
-    creation_creator_name = _pick_str(
-        creation_data, ("creator-name", "creator_name")
-    ) or _pick_str(pitloom_data, ("creator-name", "creator_name"))
-    creation_creator_email = _pick_str(
-        creation_data, ("creator-email", "creator_email")
-    ) or _pick_str(pitloom_data, ("creator-email", "creator_email"))
-    creation_creation_datetime = _pick_str(
-        creation_data,
-        ("creation-datetime", "creation_datetime", "datetime"),
-    ) or _pick_str(pitloom_data, ("creation-datetime", "creation_datetime"))
-    creation_creation_tool = _pick_str(
-        creation_data,
-        ("creation-tool", "creation_tool", "tool"),
-    ) or _pick_str(pitloom_data, ("creation-tool", "creation_tool"))
-    creation_comment = _pick_str(
-        creation_data,
-        ("creation-comment", "creation_comment", "comment"),
-    ) or _pick_str(pitloom_data, ("creation-comment", "creation_comment"))
-
-    return PitloomConfig(
-        pretty=pretty,
-        fragments=fragments,
-        describe_relationship=desc_rel,
-        sbom_basename=sbom_basename,
-        creation_creator_name=creation_creator_name,
-        creation_creator_email=creation_creator_email,
-        creation_creation_datetime=creation_creation_datetime,
-        creation_creation_tool=creation_creation_tool,
-        creation_comment=creation_comment,
-    )
 
 
 def _strip_missing_readme(
@@ -406,3 +356,45 @@ def _read_version_from_file(file_path: Path) -> str | None:
     except (OSError, UnicodeDecodeError):
         pass
     return None
+
+
+def _try_read_poetry(
+    data: dict[str, Any],
+) -> ProjectMetadata | None:
+    """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``."""
+    if not data.get("tool", {}).get("poetry"):
+        return None
+    try:
+        return extract_poetry_metadata(data)
+    except (ValueError, KeyError):
+        return None
+
+
+def _merge_with_poetry(
+    primary: ProjectMetadata,
+    secondary: ProjectMetadata,
+) -> ProjectMetadata:
+    """Return *primary* with empty/falsy fields filled from *secondary*.
+
+    ``primary`` is always the ``[project]`` metadata; ``secondary`` is the
+    ``[tool.poetry]`` metadata.  Provenance entries are merged with primary
+    entries winning on key conflicts.
+    """
+
+    def _pick(p: Any, s: Any) -> Any:
+        return p if p else s
+
+    return ProjectMetadata(
+        name=primary.name,
+        version=_pick(primary.version, secondary.version),
+        description=_pick(primary.description, secondary.description),
+        readme=_pick(primary.readme, secondary.readme),
+        requires_python=_pick(primary.requires_python, secondary.requires_python),
+        license_name=_pick(primary.license_name, secondary.license_name),
+        keywords=_pick(primary.keywords, secondary.keywords),
+        authors=_pick(primary.authors, secondary.authors),
+        urls=_pick(primary.urls, secondary.urls),
+        dependencies=_pick(primary.dependencies, secondary.dependencies),
+        provenance={**secondary.provenance, **primary.provenance},
+        files=_pick(primary.files, secondary.files),
+    )
