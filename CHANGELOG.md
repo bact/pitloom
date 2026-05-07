@@ -15,13 +15,13 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.5.1...v0.6.0>
 
-## [Unreleased]
+## [0.6.0] - 2026-05-07
 
 ### Added
 
-- Poetry build backend support ([#64])
+- `[tool.poetry]` support ([#67])
   - Reads project metadata from `[tool.poetry]` in `pyproject.toml`
   - Reads runtime dependencies from `[tool.poetry.dependencies]`;
     `[tool.poetry.group.*]` dev/deploy dependency groups are excluded
@@ -29,11 +29,10 @@ and this project adheres to
     to PEP 440 format
   - `read_pyproject()` falls back to `[tool.poetry]` when `[project]`
     is absent; merges both when both are present (`[project]` wins)
-  - `read_poetry()` public API for standalone Poetry extraction
 
-[#64]: https://github.com/bact/pitloom/issues/64
+[#67]: https://github.com/bact/pitloom/pull/67
 
-## [0.5.1] - 2026-04-29
+## [0.5.1] - 2026-05-06
 
 ### Changed
 
@@ -55,7 +54,7 @@ and this project adheres to
 
 ### Changed
 
-- Warns if the AI extraction library is not installed ([#50][])
+- Warns if the AI extraction library is not installed ([#50])
 
 [#50]: https://github.com/bact/pitloom/pull/50
 
@@ -64,9 +63,9 @@ and this project adheres to
 ### Added
 
 - File and directory information in SBOM, with "contains" relationship
-  ([#42][])
-- Human-readable description to Relationship ([#44][])
-- Creation information config to pyproject.toml and command line ([#47][])
+  ([#42])
+- Human-readable description to Relationship ([#44])
+- Creation information config to pyproject.toml and command line ([#47])
 
 [#42]: https://github.com/bact/pitloom/pull/42
 [#44]: https://github.com/bact/pitloom/pull/44
@@ -77,13 +76,13 @@ and this project adheres to
 ### Added
 
 - AI model metadata extraction from fastText, HDF5, Keras, NumPy,
-  PyTorch, PyTorch PT2 ([#33][], [#36][])
-- Dogfooding: Pitloom Hatchling plugin in Pitloom's pyproject.toml ([#39][])
-- Dataset metadata model and extraction (experiment) ([#40][])
+  PyTorch, PyTorch PT2 ([#33], [#36])
+- Dogfooding: Pitloom Hatchling plugin in Pitloom's pyproject.toml ([#39])
+- Dataset metadata model and extraction (experiment) ([#40])
 
 ### Changed
 
-- JSON output is now sorted ([#29][]), implements:
+- JSON output is now sorted ([#29]), implements:
   - [RFC 8785 JSON Canonicalization Scheme (JCS)][jcs]
   - [SPDX 3 canonical serialization][spdx3-canon]
   - Ordering as proposed in [spdx/spdx-spec issue #1339][spdx-spec-1339]:
@@ -106,7 +105,7 @@ and this project adheres to
 
 ### Changed
 
-- spdxId is now using deterministic UUID ([#27][])
+- spdxId is now using deterministic UUID ([#27])
   - A UUIDv5 generated using seeds from the project name, project version,
     dependency list, and the Merkle root of all files included in the wheel.
 
@@ -121,10 +120,10 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ### Added
 
-- Minimum SBOM generation ([#9][])
-- SBOM fragments integration ([#10][])
-- AI model metadata extraction from GGUF, ONNX, and Safetensors ([#11][])
-- Add Hatch plugin (hatchling.plugin.hookimpl) ([#17][])
+- Minimum SBOM generation ([#9])
+- SBOM fragments integration ([#10])
+- AI model metadata extraction from GGUF, ONNX, and Safetensors ([#11])
+- Add Hatch plugin (hatchling.plugin.hookimpl) ([#17])
 
 [#9]: https://github.com/bact/pitloom/pull/9
 [#10]: https://github.com/bact/pitloom/pull/10
@@ -133,6 +132,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.6.0]: https://github.com/bact/pitloom/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/bact/pitloom/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/bact/pitloom/compare/v0.4.0...v0.4.1
