@@ -83,7 +83,9 @@ pip install -e ".[safetensors]"   # Safetensors models
 
 ### Command line
 
-Generate an SBOM for a Python project in current directory:
+#### Project SBOM
+
+Generate an SBOM for a Python project in the current directory:
 
 ```bash
 loom .
@@ -93,6 +95,39 @@ Specify output file:
 
 ```bash
 loom /path/to/project -o sbom.spdx3.json
+```
+
+#### AI model SBOM
+
+Generate an SBOM for a single AI model file, without a Python
+project directory. The model is treated as an `ai_AIPackage` root element.
+The output file is written to the **current working directory**:
+
+```bash
+loom -m path/to/model.safetensors
+loom -m path/to/model.onnx
+loom -m path/to/model.gguf
+```
+
+Supported formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
+Keras, HDF5, NumPy, fastText.
+
+Specify the output file explicitly:
+
+```bash
+loom -m model.safetensors -o my-model.spdx3.json
+```
+
+Pretty-print the output:
+
+```bash
+loom -m model.gguf --pretty
+```
+
+Set creator metadata:
+
+```bash
+loom -m model.safetensors --creator-name "Alice" --creator-email "alice@example.com"
 ```
 
 Show help:
@@ -108,9 +143,9 @@ The SBOM generator can be used programmatically:
 ```python
 from pathlib import Path
 from pitloom.core.creation import CreationMetadata
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate_sbom, generate_ai_model_sbom
 
-# Generate SBOM for a project
+# Generate SBOM for a Python project
 generate_sbom(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
@@ -119,6 +154,14 @@ generate_sbom(
         creator_email="your@example.com",
     ),
     pretty=False,
+)
+
+# Generate an SBOM for a standalone AI model file
+generate_ai_model_sbom(
+    model_path=Path("model.safetensors"),
+    output_path=Path("model.spdx3.json"),
+    creation_info=CreationMetadata(creator_name="Your Name"),
+    pretty=True,
 )
 ```
 

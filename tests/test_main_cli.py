@@ -314,6 +314,7 @@ def test_model_mode_default_output_path_uses_stem(
     out = captured["output_path"]
     assert isinstance(out, Path)
     assert out.name == "whisper-tiny-random.spdx3.json"
+    assert out.parent == Path.cwd()
 
 
 def test_model_mode_passes_pretty_flag(

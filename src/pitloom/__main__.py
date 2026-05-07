@@ -504,14 +504,12 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
     """Return the SBOM output path for a standalone model SBOM.
 
-    Uses the explicit ``-o`` path when given; otherwise derives the name from
-    the model file stem (e.g. ``llama-7b.gguf`` → ``llama-7b.spdx3.json``).
+    Uses the explicit ``-o`` path when given; otherwise writes
+    ``<stem>.spdx3.json`` to the current working directory.
     """
     if explicit is not None:
         return explicit
-    return model_path.with_suffix("").with_suffix("").parent / (
-        model_path.stem + _SPDX3_JSON_EXT
-    )
+    return Path.cwd() / (model_path.stem + _SPDX3_JSON_EXT)
 
 
 def main() -> int:
