@@ -9,9 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 ## Project overview
 
 Successfully implemented a complete, production-ready prototype of an SBOM
-(Software Bill of Materials) generator for Python projects using Hatchling as
-their build backend. The generator produces SPDX 3.0 compliant SBOMs
-in JSON-LD format.
+(Software Bill of Materials) generator for Python projects.  Supports
+Hatchling, Poetry, and setuptools build backends.  The generator produces
+SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 ## What was delivered
 
@@ -25,7 +25,13 @@ in JSON-LD format.
    - Per-element sequential IDs (`generate_spdx_id`) reproducible across builds
 
 2. **Metadata extraction** (`src/pitloom/extract/`)
-   - `pyproject.py` — reads `pyproject.toml` (any PEP 517 backend)
+   - `pyproject.py` — reads `pyproject.toml`; supports PEP 621 `[project]`,
+     Poetry `[tool.poetry]` (fallback when `[project]` is absent), and merging
+     of both when both sections are present (`[project]` wins field-by-field)
+   - `poetry.py` — extracts metadata from `[tool.poetry]` and
+     `[tool.poetry.dependencies]`; converts Poetry version specifiers
+     (`^`, `~`, bare versions) to PEP 440; `[tool.poetry.group.*]` dev/deploy
+     dependency groups are intentionally excluded from the SBOM
    - `setuptools.py` — reads `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
@@ -214,7 +220,8 @@ pitloom/
 │       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
 │       │   ├── _safetensors.py     # Safetensors (.safetensors)
 │       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
-│       │   ├── pyproject.py        # pyproject.toml extractor (any PEP 517 backend)
+│       │   ├── poetry.py           # [tool.poetry] extractor; Poetry → PEP 440 conversion
+│       │   ├── pyproject.py        # pyproject.toml extractor ([project] + [tool.poetry] merge)
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
 │       │   └── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
 │       ├── plugins/             # Build-system integrations
@@ -238,6 +245,7 @@ pitloom/
 │   │   ├── pytorch_pt2/         # PyTorch PT2 / ExecuTorch fixtures
 │   │   ├── safetensors/         # Safetensors model fixtures
 │   │   ├── sampleproject-hatchling/   # Minimal Hatchling wheel-build fixture
+│   │   ├── sampleproject-poetry/      # Real-world Poetry fixture (mistral-inference)
 │   │   ├── sampleproject-setuptools/  # Minimal setuptools metadata fixture
 │   │   ├── sentimentdemo-handcrafted.spdx3.json
 │   │   └── README.md
@@ -263,6 +271,7 @@ pitloom/
 │   ├── test_metadata.py
 │   ├── test_models.py
 │   ├── test_provenance.py
+│   ├── test_poetry.py
 │   ├── test_setuptools.py
 │   ├── test_spdx3_compliance.py
 │   ├── test_spdx3_dataset.py
@@ -278,7 +287,7 @@ pitloom/
 
 ### 2. Extensible design
 
-- Easy to add new extractors (setuptools, poetry, etc.)
+- Easy to add new extractors (PDM, Flit, etc.)
 - Easy to add new assemblers/exporters (CycloneDX, AIDOC, etc.) consuming
   the same `DocumentModel` — no changes to extractors needed
 - Clean separation of concerns: extractors → `DocumentModel` → serializers

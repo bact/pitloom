@@ -17,6 +17,22 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1>
 
+## [Unreleased]
+
+### Added
+
+- Poetry build backend support ([#64])
+  - Reads project metadata from `[tool.poetry]` in `pyproject.toml`
+  - Reads runtime dependencies from `[tool.poetry.dependencies]`;
+    `[tool.poetry.group.*]` dev/deploy dependency groups are excluded
+  - Converts Poetry version specifiers (`^`, `~`, bare exact versions)
+    to PEP 440 format
+  - `read_pyproject()` falls back to `[tool.poetry]` when `[project]`
+    is absent; merges both when both are present (`[project]` wins)
+  - `read_poetry()` public API for standalone Poetry extraction
+
+[#64]: https://github.com/bact/pitloom/issues/64
+
 ## [0.5.1] - 2026-04-29
 
 ### Changed

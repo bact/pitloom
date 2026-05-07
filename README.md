@@ -24,8 +24,10 @@ the build process to generate SBOMs automatically.
 
 - **SPDX 3 support**:
   Generates SBOMs in SPDX 3 JSON-LD format
-- **Hatchling integration**:
-  Extracts metadata from Python projects using Hatchling
+- **Multi-backend metadata extraction**:
+  Reads project metadata from `pyproject.toml` (PEP 621 `[project]`),
+  [Poetry](https://python-poetry.org/) (`[tool.poetry]`),
+  and [setuptools](https://setuptools.pypa.io/) (`setup.cfg` / `setup.py`)
 - **Dependency tracking**:
   Automatically includes project dependencies in the SBOM
 - **AI/ML model metadata**:
