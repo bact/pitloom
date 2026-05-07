@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -13,6 +14,10 @@ import pytest
 
 from pitloom import __main__
 from pitloom.core.creation import CreationMetadata
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
+SAFETENSORS_FIXTURE = FIXTURE_DIR / "safetensors" / "whisper-tiny-random.safetensors"
+ONNX_FIXTURE = FIXTURE_DIR / "onnx" / "squeezenet1.1-7.onnx"
 
 
 def test_main_uses_pretty_from_pyproject(
@@ -228,3 +233,264 @@ version = "0.1.0"
     assert "Config file" in captured.out
     assert "creation_datetime     : None" in captured.out
     assert "creation_comment      : None" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# -m / --aimodel: model-mode tests
+# ---------------------------------------------------------------------------
+
+
+def test_model_mode_no_project_dir_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_info: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+    ) -> str:
+        _ = (creation_info, pretty, describe_relationship)
+        captured["model_path"] = model_path
+        captured["output_path"] = output_path
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(SAFETENSORS_FIXTURE)])
+
+    assert __main__.main() == 0
+    assert captured["model_path"] == SAFETENSORS_FIXTURE.resolve()
+
+
+def test_model_mode_explicit_output_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    explicit_out = tmp_path / "my-model.spdx3.json"
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_info: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+    ) -> str:
+        _ = (model_path, creation_info, pretty, describe_relationship)
+        captured["output_path"] = output_path
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "-o", str(explicit_out)]
+    )
+
+    assert __main__.main() == 0
+    assert captured["output_path"] == explicit_out
+
+
+def test_model_mode_default_output_path_uses_stem(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_info: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+    ) -> str:
+        _ = (model_path, creation_info, pretty, describe_relationship)
+        captured["output_path"] = output_path
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(SAFETENSORS_FIXTURE)])
+
+    assert __main__.main() == 0
+    out = captured["output_path"]
+    assert isinstance(out, Path)
+    assert out.name == "whisper-tiny-random.spdx3.json"
+
+
+def test_model_mode_passes_pretty_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_info: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+    ) -> str:
+        _ = (model_path, output_path, creation_info, describe_relationship)
+        captured["pretty"] = pretty
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "--pretty"])
+
+    assert __main__.main() == 0
+    assert captured["pretty"] is True
+
+
+def test_model_mode_passes_creation_info(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_info: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+    ) -> str:
+        _ = (model_path, output_path, pretty, describe_relationship)
+        captured["creation_info"] = creation_info
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "-m", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
+    )
+
+    assert __main__.main() == 0
+    ci = captured["creation_info"]
+    assert isinstance(ci, CreationMetadata)
+    assert ci.creator_name == "TestBot"
+
+
+def test_model_mode_nonexistent_file_returns_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "-m", str(tmp_path / "no-such-model.safetensors")]
+    )
+    assert __main__.main() == 1
+
+
+def test_no_args_returns_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["loom"])
+    assert __main__.main() == 1
+    assert "project_dir" in capsys.readouterr().err
+
+
+def test_model_mode_verbose_shows_model_path(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_info: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+    ) -> str:
+        _ = (model_path, output_path, creation_info, pretty, describe_relationship)
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "-v"])
+
+    assert __main__.main() == 0
+    out = capsys.readouterr().out
+    assert str(ONNX_FIXTURE.resolve()) in out
+    assert "Pitloom version" in out
+
+
+# ---------------------------------------------------------------------------
+# -m / --aimodel: integration tests with real model fixtures
+# ---------------------------------------------------------------------------
+
+
+def test_model_mode_safetensors_produces_ai_package(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "whisper.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "-m", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+    )
+
+    assert __main__.main() == 0
+    assert out.exists()
+
+    doc = json.loads(out.read_text())
+    graph = doc.get("@graph", [])
+    types = [node.get("type") for node in graph]
+    assert "ai_AIPackage" in types
+
+
+def test_model_mode_onnx_produces_ai_package(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "squeezenet.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "-m", str(ONNX_FIXTURE), "-o", str(out)],
+    )
+
+    assert __main__.main() == 0
+    assert out.exists()
+
+    doc = json.loads(out.read_text())
+    graph = doc.get("@graph", [])
+    types = [node.get("type") for node in graph]
+    assert "ai_AIPackage" in types
+
+
+def test_model_mode_safetensors_no_software_package(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "whisper.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "-m", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+    )
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    graph = doc.get("@graph", [])
+    types = [node.get("type") for node in graph]
+    assert "software_Package" not in types
+
+
+def test_model_mode_onnx_sbom_root_is_ai_package(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "squeezenet.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "-m", str(ONNX_FIXTURE), "-o", str(out)],
+    )
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    graph = doc.get("@graph", [])
+    sbom = next((n for n in graph if n.get("type") == "software_Sbom"), None)
+    assert sbom is not None
+    ai_pkg = next((n for n in graph if n.get("type") == "ai_AIPackage"), None)
+    assert ai_pkg is not None
+    assert ai_pkg["spdxId"] in sbom.get("rootElement", [])

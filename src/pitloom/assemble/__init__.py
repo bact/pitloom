@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pitloom.assemble.spdx3.document import build
+from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
+from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.pyproject import read_pyproject
 from pitloom.extract.scanner import scan_project_for_ai_models
 
@@ -83,4 +84,45 @@ def generate_sbom(
     return sbom_json
 
 
-__all__ = ["generate_sbom"]
+def generate_ai_model_sbom(
+    model_path: Path,
+    output_path: Path | None = None,
+    creation_info: CreationMetadata | None = None,
+    pretty: bool = False,
+    describe_relationship: bool = False,
+) -> str:
+    """Generate a standalone SPDX 3 SBOM for a single AI model file.
+
+    The model is treated as an ``ai_AIPackage`` root element — no surrounding
+    Python project is required.
+
+    Args:
+        model_path: Path to the AI model file (GGUF, ONNX, Safetensors, etc.).
+        output_path: If given, the JSON-LD output is also written to this path.
+        creation_info: Creator and timestamp metadata.  Defaults to a
+            ``CreationMetadata`` with creator ``"Pitloom"`` and current UTC time.
+        pretty: Indent JSON output with 2 spaces when ``True``.
+        describe_relationship: Add human-readable text to SPDX relationships.
+
+    Returns:
+        JSON-LD string of the generated SPDX 3 SBOM.
+
+    Raises:
+        FileNotFoundError: If *model_path* does not exist.
+        ValueError: If the model format is unsupported or cannot be parsed.
+    """
+    model = read_ai_model(model_path)
+    exporter = build_model(model, creation_info or CreationMetadata())
+
+    sbom_json = exporter.to_json(
+        pretty=pretty,
+        describe_relationship=describe_relationship,
+    )
+
+    if output_path is not None:
+        output_path.write_text(sbom_json, encoding="utf-8")
+
+    return sbom_json
+
+
+__all__ = ["generate_ai_model_sbom", "generate_sbom"]

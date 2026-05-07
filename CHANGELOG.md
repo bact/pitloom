@@ -15,7 +15,16 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.5.1...v0.6.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.6.0...v0.6.1>
+
+## [0.6.1] - 2026-05-07
+
+### Added
+
+- `-m` / `--aimodel` command-line option to generate an SBOM for standalone
+  AI model (may not be part of a Python project) ([#69])
+
+[#69]: https://github.com/bact/pitloom/pull/69
 
 ## [0.6.0] - 2026-05-07
 
@@ -132,6 +141,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.6.1]: https://github.com/bact/pitloom/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/bact/pitloom/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/bact/pitloom/compare/v0.4.1...v0.5.0

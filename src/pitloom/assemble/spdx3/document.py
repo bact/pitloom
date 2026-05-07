@@ -11,8 +11,11 @@ from pathlib import Path
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.ai import add_ai_models
+from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
+from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
+from pitloom.core.ai_metadata import AiModelMetadata
+from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -323,5 +326,115 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
             doc_uuid=doc_uuid,
             exporter=exporter,
         )
+
+    return exporter
+
+
+def build_model(
+    model: AiModelMetadata,
+    creation: CreationMetadata,
+) -> Spdx3JsonExporter:
+    """Assemble a standalone SPDX 3 SBOM for a single AI model file.
+
+    Produces a minimal document containing only the ``ai_AIPackage`` element
+    derived from *model*.  There is no parent Python package — the AI package
+    is itself the root element of the ``software_Sbom``.
+
+    Args:
+        model: Extracted AI model metadata.
+        creation: Creator and timestamp metadata for the SBOM document.
+
+    Returns:
+        A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`.
+    """
+    doc_name: str = model.name or model.format_info.file_name or "model"
+
+    created_at = (
+        _to_spdx3_datetime(_parse_iso_datetime(creation.creation_datetime))
+        if creation.creation_datetime
+        else _spdx3_utc_now()
+    )
+
+    exporter = Spdx3JsonExporter()
+    doc_uuid = compute_doc_uuid(
+        name=doc_name,
+        version=model.version or "unknown",
+        dependencies=[],
+        merkle_root=None,
+    )
+    _clear_doc_counters(doc_uuid)
+
+    spdx_ci = spdx3.CreationInfo(
+        specVersion="3.0.1",
+        created=created_at,
+    )
+    if creation.creation_comment:
+        spdx_ci.comment = creation.creation_comment
+
+    creator = spdx3.Person(
+        spdxId=generate_spdx_id("Person", doc_name=doc_name, doc_uuid=doc_uuid),
+        name=creation.creator_name,
+        creationInfo=spdx_ci,
+    )
+    if creation.creator_email:
+        creator.externalIdentifier = [
+            spdx3.ExternalIdentifier(
+                externalIdentifierType=spdx3.ExternalIdentifierType.email,
+                identifier=creation.creator_email,
+            )
+        ]
+
+    tool: spdx3.Tool | None = None
+    if creation.creation_tool:
+        tool = spdx3.Tool(
+            spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
+            name=creation.creation_tool,
+            creationInfo=spdx_ci,
+        )
+
+    spdx_ci.createdBy = [creator.spdxId]
+    if tool is not None:
+        spdx_ci.createdUsing = [tool.spdxId]
+
+    exporter.add_creation_info(spdx_ci)
+    exporter.add_person(creator)
+    if tool is not None:
+        exporter.object_set.add(tool)
+
+    ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid)
+    exporter.add_package(ai_pkg)
+
+    if model.datasets:
+        add_datasets_for_model(
+            ai_package_spdx_id=ai_pkg.spdxId,
+            datasets=model.datasets,
+            creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+        )
+
+    sbom = spdx3.software_Sbom(
+        spdxId=generate_spdx_id("Sbom", doc_name=doc_name, doc_uuid=doc_uuid),
+        creationInfo=spdx_ci,
+        rootElement=[ai_pkg.spdxId],
+    )
+    sbom.software_sbomType = [spdx3.software_SbomType.build]
+
+    spdx_doc = spdx3.SpdxDocument(
+        spdxId=generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid),
+        creationInfo=spdx_ci,
+        rootElement=[sbom.spdxId],
+    )
+    spdx_doc.profileConformance = [
+        spdx3.ProfileIdentifierType.core,
+        spdx3.ProfileIdentifierType.software,
+        spdx3.ProfileIdentifierType.ai,
+    ]
+    if model.datasets:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
+
+    exporter.add_document(spdx_doc)
+    exporter.add_sbom(sbom)
 
     return exporter

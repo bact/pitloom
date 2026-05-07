@@ -14,8 +14,11 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.__about__ import __version__
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate_ai_model_sbom, generate_sbom
+from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract.pyproject import read_pyproject
+from pitloom.extract.setuptools import read_setuptools
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
@@ -74,9 +77,27 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "project_dir",
         type=Path,
+        nargs="?",
+        default=None,
         help=(
             "Path to the project directory "
-            "(containing pyproject.toml, setup.cfg, or setup.py)"
+            "(containing pyproject.toml, setup.cfg, or setup.py). "
+            "Required unless -m/--aimodel is used."
+        ),
+    )
+    parser.add_argument(
+        "-m",
+        "--aimodel",
+        dest="aimodel",
+        type=Path,
+        default=None,
+        metavar="MODEL_FILE",
+        help=(
+            "Path to an AI model file. "
+            "Generate a standalone SBOM for the model as an AIPackage, "
+            "without requiring a project directory. "
+            "Supported formats: GGUF, ONNX, Safetensors, PyTorch, "
+            "Keras, HDF5, NumPy, fastText."
         ),
     )
     parser.add_argument(
@@ -242,14 +263,9 @@ def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
     Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
     Returns a 2-tuple of ``(PitloomConfig, config_file_path)``.
     """
-    # pylint: disable=import-outside-toplevel
-    from pitloom.core.config import PitloomConfig
-
     pyproject_path = project_dir / "pyproject.toml"
     if pyproject_path.exists():
         try:
-            from pitloom.extract.pyproject import read_pyproject
-
             _, config = read_pyproject(pyproject_path)
             return config, pyproject_path
         except Exception:  # pylint: disable=broad-exception-caught
@@ -259,8 +275,6 @@ def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
     setup_py = project_dir / "setup.py"
     if setup_cfg.exists() or setup_py.exists():
         try:
-            from pitloom.extract.setuptools import read_setuptools
-
             _, config = read_setuptools(project_dir)
             config_path = setup_cfg if setup_cfg.exists() else setup_py
             return config, config_path
@@ -469,15 +483,10 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
         return explicit
 
     try:
-        # pylint: disable=import-outside-toplevel
         pyproject_path = project_dir / "pyproject.toml"
         if pyproject_path.exists():
-            from pitloom.extract.pyproject import read_pyproject
-
             metadata, pitloom_config = read_pyproject(pyproject_path)
         else:
-            from pitloom.extract.setuptools import read_setuptools
-
             metadata, pitloom_config = read_setuptools(project_dir)
 
         if pitloom_config.sbom_basename:
@@ -492,6 +501,19 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
         return Path(f"sbom{_SPDX3_JSON_EXT}")
 
 
+def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
+    """Return the SBOM output path for a standalone model SBOM.
+
+    Uses the explicit ``-o`` path when given; otherwise derives the name from
+    the model file stem (e.g. ``llama-7b.gguf`` → ``llama-7b.spdx3.json``).
+    """
+    if explicit is not None:
+        return explicit
+    return model_path.with_suffix("").with_suffix("").parent / (
+        model_path.stem + _SPDX3_JSON_EXT
+    )
+
+
 def main() -> int:
     """Main entry point for the Pitloom CLI.
 
@@ -501,6 +523,60 @@ def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
 
+    if args.aimodel is not None:
+        return _run_model_mode(args)
+
+    if args.project_dir is None:
+        print(
+            "Error: project_dir is required unless -m/--aimodel is used.",
+            file=sys.stderr,
+        )
+        return 1
+
+    return _run_project_mode(args)
+
+
+def _run_model_mode(args: argparse.Namespace) -> int:
+    """Generate a standalone SBOM for a single AI model file."""
+    try:
+        model_path: Path = args.aimodel.resolve()
+        if not model_path.exists():
+            print(f"Error: Model file not found: {model_path}", file=sys.stderr)
+            return 1
+
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+        effective_describe = (
+            bool(args.describe_relationship)
+            if args.describe_relationship is not None
+            else False
+        )
+
+        output_path = _resolve_model_output_path(args.output, model_path)
+
+        if args.verbose:
+            print(f"Pitloom version: {__version__}")
+            print(f"Model file      : {model_path}")
+            print(f"Output path     : {output_path}")
+
+        generate_ai_model_sbom(
+            model_path,
+            output_path=output_path,
+            creation_info=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe,
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating model SBOM: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return 1
+
+
+def _run_project_mode(args: argparse.Namespace) -> int:
+    """Generate a full project SBOM from a project directory."""
     try:
         project_dir, _ = _resolve_project_paths(args)
         if project_dir is None:
