@@ -86,6 +86,7 @@ ruff format
 - Max line length = 88
 - Stick with ASCII characters in source code;
   Only use non-ASCII when native human language scripts provides clearer message.
+- Avoid ambiguous variable name (E741)
 
 ## File headers
 

@@ -98,12 +98,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="MODEL_FILE_OR_HF_URL",
         help=(
-            "Path to a local AI model file, or a HuggingFace URL / model ID. "
+            "Path to a local AI model file, or a Hugging Face URL / model ID. "
             "Generate a standalone SBOM for the model as an AIPackage, "
             "without requiring a project directory. "
             "Local formats: GGUF, ONNX, Safetensors, PyTorch, "
             "Keras, HDF5, NumPy, fastText. "
-            "HuggingFace: full URL "
+            "Hugging Face: full URL "
             "(e.g. https://huggingface.co/mistralai/Mistral-7B-v0.1) "
             "or bare model ID (e.g. Qwen/Qwen3-235B-A22B)."
         ),
@@ -521,7 +521,7 @@ def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
 
 
 def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
-    """Return the SBOM output path for a HuggingFace model SBOM.
+    """Return the SBOM output path for a Hugging Face model SBOM.
 
     Uses the explicit ``-o`` path when given; otherwise derives
     ``<model-name>.spdx3.json`` from the model ID and writes it to the
@@ -604,12 +604,12 @@ def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:
 
 
 def _run_hf_model_mode(args: argparse.Namespace, source: str) -> int:
-    """Generate a standalone SBOM from a HuggingFace model repository."""
+    """Generate a standalone SBOM from a Hugging Face model repository."""
     try:
         model_id = parse_hf_model_id(source)
         if model_id is None:
             print(
-                f"Error: Not a valid HuggingFace URL or model ID: {source!r}",
+                f"Error: Not a valid Hugging Face URL or model ID: {source!r}",
                 file=sys.stderr,
             )
             return 1
@@ -626,9 +626,9 @@ def _run_hf_model_mode(args: argparse.Namespace, source: str) -> int:
         output_path = _resolve_hf_output_path(args.output, model_id)
 
         if args.verbose:
-            print(f"Pitloom version: {__version__}")
-            print(f"HuggingFace model : {model_id}")
-            print(f"Output path       : {output_path}")
+            print(f"Pitloom version    : {__version__}")
+            print(f"Hugging Face model : {model_id}")
+            print(f"Output path        : {output_path}")
 
         generate_huggingface_sbom(
             model_id,
@@ -640,7 +640,7 @@ def _run_hf_model_mode(args: argparse.Namespace, source: str) -> int:
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating HuggingFace model SBOM: {e}", file=sys.stderr)
+        print(f"Error generating Hugging Face model SBOM: {e}", file=sys.stderr)
         traceback.print_exc()
         return 1
 

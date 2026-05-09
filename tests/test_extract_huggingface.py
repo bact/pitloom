@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # pylint: disable=too-many-lines
 
-"""Tests for the HuggingFace model metadata extractor."""
+"""Tests for the Hugging Face model metadata extractor."""
 
 from __future__ import annotations
 
@@ -543,7 +543,7 @@ def test_license_from_file_when_card_has_none() -> None:
             "pitloom.extract._huggingface._detect_license_from_hf_files",
             return_value=(
                 "Apache-2.0",
-                "Source: HuggingFace Hub | File: LICENSE | Method: licenseid_detection",
+                "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection",
             ),
         ):
             meta = read_huggingface("org/model")
@@ -559,7 +559,7 @@ def test_license_from_file_when_card_says_other() -> None:
             "pitloom.extract._huggingface._detect_license_from_hf_files",
             return_value=(
                 "MIT",
-                "Source: HuggingFace Hub | File: LICENSE | Method: licenseid_detection",
+                "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection",
             ),
         ):
             meta = read_huggingface("org/model")
@@ -611,7 +611,7 @@ def test_detect_license_from_hf_files_returns_none_on_empty_file(
 
 
 def test_read_huggingface_invalid_source_raises() -> None:
-    with pytest.raises(ValueError, match="Not a valid HuggingFace"):
+    with pytest.raises(ValueError, match="Not a valid Hugging Face"):
         read_huggingface("/path/to/not/a/hf/model")
 
 
@@ -632,7 +632,7 @@ def test_read_huggingface_no_huggingface_hub_raises() -> None:
 # Model zoo: varied real-world profiles (all mocked, no network calls)
 # ===========================================================================
 #
-# Each fixture captures the real card/config data observed from HuggingFace Hub
+# Each fixture captures the real card/config data observed from Hugging Face Hub
 # on 2026-05-08.  They exercise distinct characteristics:
 #
 #   Kokoro-82M          - TTS, custom config schema (no model_type/architectures)
@@ -932,7 +932,7 @@ def test_kimi_vague_license_triggers_file_detection() -> None:
     detected_mock = MagicMock(
         return_value=(
             "MIT",
-            "Source: HuggingFace Hub | File: LICENSE | Method: licenseid_detection",
+            "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection",
         )
     )
     with _patch_kimi():

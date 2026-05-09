@@ -317,6 +317,14 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
         if any(m.datasets for m in doc.ai_models):
             spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
+        if (
+            any(m.license for m in doc.ai_models)
+            and spdx3.ProfileIdentifierType.simpleLicensing
+            not in spdx_doc.profileConformance
+        ):
+            spdx_doc.profileConformance.append(
+                spdx3.ProfileIdentifierType.simpleLicensing
+            )
         add_ai_models(
             ai_models=doc.ai_models,
             main_package_spdx_id=main_package.spdxId,
@@ -404,6 +412,22 @@ def build_model(
     ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid)
     exporter.add_package(ai_pkg)
 
+    if model.license:
+        rel_declared, rel_concluded = build_license_elements(
+            license_id=model.license,
+            package_spdx_id=ai_pkg.spdxId,
+            license_provenance=model.provenance.get(
+                "license",
+                "Source: model file / Hugging Face Hub",
+            ),
+            creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+        )
+        exporter.add_relationship(rel_declared)
+        exporter.add_relationship(rel_concluded)
+
     if model.datasets:
         add_datasets_for_model(
             ai_package_spdx_id=ai_pkg.spdxId,
@@ -431,6 +455,8 @@ def build_model(
         spdx3.ProfileIdentifierType.software,
         spdx3.ProfileIdentifierType.ai,
     ]
+    if model.license:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
     if model.datasets:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
 

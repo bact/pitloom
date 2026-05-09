@@ -2,9 +2,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""HuggingFace model repository metadata extractor.
+"""Hugging Face model repository metadata extractor.
 
-Fetches model metadata from a HuggingFace Hub repository URL or model ID
+Fetches model metadata from a Hugging Face Hub repository URL or model ID
 and maps it to :class:`~pitloom.core.ai_metadata.AiModelMetadata`.
 
 Sources used (all optional - missing files are silently skipped):
@@ -173,7 +173,7 @@ _BASE_MODEL_RELATIONS: frozenset[str] = frozenset(
 def parse_hf_model_id(source: str) -> str | None:
     """Return the HF model ID (``owner/name``) from a URL or direct ID.
 
-    Returns ``None`` when *source* does not look like a HuggingFace reference.
+    Returns ``None`` when *source* does not look like a Hugging Face reference.
     The check is intentionally conservative: the ``owner/name`` pattern is
     only accepted when the path does *not* exist on the local filesystem,
     to avoid misidentifying relative project paths like ``models/my_model``.
@@ -193,7 +193,7 @@ def parse_hf_model_id(source: str) -> str | None:
 
 
 def is_huggingface_source(source: str) -> bool:
-    """Return ``True`` when *source* is a HuggingFace URL or model ID."""
+    """Return ``True`` when *source* is a Hugging Face URL or model ID."""
     return parse_hf_model_id(source) is not None
 
 
@@ -317,7 +317,7 @@ def _detect_license_from_hf_files(
         if detected:
             return (
                 detected,
-                f"Source: HuggingFace Hub | File: {filename}"
+                f"Source: Hugging Face Hub | File: {filename}"
                 " | Method: licenseid_detection",
             )
 
@@ -404,7 +404,7 @@ def _extract_description(
         return None
     desc = _extract_card_description(card_text)
     if desc:
-        provenance["description"] = "Source: HuggingFace Hub | Field: model card"
+        provenance["description"] = "Source: Hugging Face Hub | Field: model card"
     return desc
 
 
@@ -425,7 +425,7 @@ def _resolve_license(
 
     if raw_license_str and raw_license_str.lower() not in _VAGUE_LICENSE_VALUES:
         provenance["license"] = (
-            "Source: HuggingFace Hub | Field: model card YAML (license)"
+            "Source: Hugging Face Hub | Field: model card YAML (license)"
         )
         return raw_license_str, None
 
@@ -437,7 +437,7 @@ def _resolve_license(
     detected_id, detected_src = _detect_license_from_hf_files(model_id)
     if detected_id:
         provenance["license"] = detected_src or (
-            "Source: HuggingFace Hub | Method: licenseid_detection"
+            "Source: Hugging Face Hub | Method: licenseid_detection"
         )
         return detected_id, vague_raw
     return None, vague_raw
@@ -458,13 +458,13 @@ def _parse_config_data(
         if model_type:
             type_of_model = str(model_type)
             provenance["type_of_model"] = (
-                "Source: HuggingFace Hub | Field: config.json (model_type)"
+                "Source: Hugging Face Hub | Field: config.json (model_type)"
             )
         architectures = config.get("architectures")
         if isinstance(architectures, list) and architectures:
             architecture = str(architectures[0])
             provenance["architecture"] = (
-                "Source: HuggingFace Hub | Field: config.json (architectures)"
+                "Source: Hugging Face Hub | Field: config.json (architectures)"
             )
 
     hyperparameters: dict[str, Any] = {}
@@ -480,7 +480,7 @@ def _parse_config_data(
                 hyperparameters[f"generation.{key}"] = val
     if hyperparameters:
         provenance["hyperparameters"] = (
-            "Source: HuggingFace Hub | Field: config.json / generation_config.json"
+            "Source: Hugging Face Hub | Field: config.json / generation_config.json"
         )
     return type_of_model, architecture, hyperparameters
 
@@ -529,7 +529,7 @@ def _extract_domains(
     if pipeline_tag:
         usage_domains.append(str(pipeline_tag))
         provenance["domain"] = (
-            "Source: HuggingFace Hub | Field: model card YAML (pipeline_tag)"
+            "Source: Hugging Face Hub | Field: model card YAML (pipeline_tag)"
         )
     for tag in card_data.get("tags") or []:
         tag_str = str(tag)
@@ -558,7 +558,7 @@ def _extract_datasets(
                         download_url=f"https://huggingface.co/datasets/{ds_name}",
                         provenance={
                             "name": (
-                                "Source: HuggingFace Hub"
+                                "Source: Hugging Face Hub"
                                 " | Field: model card YAML (datasets)"
                             )
                         },
@@ -566,7 +566,7 @@ def _extract_datasets(
                 )
             )
         provenance["datasets"] = (
-            "Source: HuggingFace Hub | Field: model card YAML (datasets)"
+            "Source: Hugging Face Hub | Field: model card YAML (datasets)"
         )
     elif info_dataset_ids:
         for ds_name in info_dataset_ids:
@@ -578,7 +578,7 @@ def _extract_datasets(
                         download_url=f"https://huggingface.co/datasets/{ds_name}",
                         provenance={
                             "name": (
-                                "Source: HuggingFace Hub"
+                                "Source: Hugging Face Hub"
                                 " | Field: model_info tags (dataset:*)"
                             )
                         },
@@ -586,7 +586,7 @@ def _extract_datasets(
                 )
             )
         provenance["datasets"] = (
-            "Source: HuggingFace Hub | Field: model_info tags (dataset:*)"
+            "Source: Hugging Face Hub | Field: model_info tags (dataset:*)"
         )
     return datasets
 
@@ -662,19 +662,19 @@ def _build_extra_data(
     if base_model_id:
         extra_data["hf.base_model"] = base_model_id
         provenance["base_model"] = (
-            "Source: HuggingFace Hub | Field: model card YAML (base_model)"
+            "Source: Hugging Face Hub | Field: model card YAML (base_model)"
         )
     if tag_data.base_model_relation:
         extra_data["hf.base_model_relation"] = tag_data.base_model_relation
         provenance["base_model_relation"] = (
-            "Source: HuggingFace Hub | Field: model_info tags (base_model:relation)"
+            "Source: Hugging Face Hub | Field: model_info tags (base_model:relation)"
         )
     if tag_data.doi_val:
         extra_data["hf.doi"] = tag_data.doi_val
-        provenance["doi"] = "Source: HuggingFace Hub | Field: model_info tags (doi:*)"
+        provenance["doi"] = "Source: Hugging Face Hub | Field: model_info tags (doi:*)"
     if extra_data:
         provenance["extra_data"] = (
-            "Source: HuggingFace Hub"
+            "Source: Hugging Face Hub"
             " | Field: hub API / model card / tokenizer_config.json"
         )
     return extra_data
@@ -716,7 +716,7 @@ def _build_extra_lists(
 
     if extra_lists:
         provenance["extra_lists"] = (
-            "Source: HuggingFace Hub"
+            "Source: Hugging Face Hub"
             " | Field: model card YAML (language / tags)"
             " / model_info tags (arxiv:*)"
         )
@@ -729,7 +729,7 @@ def _build_extra_lists(
 
 
 def read_huggingface(source: str) -> AiModelMetadata:
-    """Extract metadata from a HuggingFace model repository.
+    """Extract metadata from a Hugging Face model repository.
 
     Args:
         source: Full HF URL
@@ -745,7 +745,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
 
     Raises:
         ImportError: If ``huggingface_hub`` is not installed.
-        ValueError: If *source* is not a valid HuggingFace URL or model ID.
+        ValueError: If *source* is not a valid Hugging Face URL or model ID.
     """
     try:
         # pylint: disable=import-outside-toplevel
@@ -753,17 +753,17 @@ def read_huggingface(source: str) -> AiModelMetadata:
     except ImportError as exc:
         raise ImportError(
             "The 'huggingface_hub' package is required "
-            "to extract HuggingFace model metadata. "
+            "to extract Hugging Face model metadata. "
             "Install it with: pip install pitloom[huggingface]"
         ) from exc
 
     model_id = parse_hf_model_id(source)
     if model_id is None:
-        raise ValueError(f"Not a valid HuggingFace URL or model ID: {source!r}")
+        raise ValueError(f"Not a valid Hugging Face URL or model ID: {source!r}")
 
     hf_url = f"https://huggingface.co/{model_id}"
     model_name = model_id.split("/")[-1]
-    provenance: dict[str, str] = {"name": "Source: HuggingFace Hub | Field: model_id"}
+    provenance: dict[str, str] = {"name": "Source: Hugging Face Hub | Field: model_id"}
 
     hf_data = _fetch_all_hf_data(model_id)
     description = _extract_description(hf_data, provenance)
