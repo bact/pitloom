@@ -235,7 +235,7 @@ _AGENT_TYPES: frozenset[str] = frozenset({"Person", "Organization"})
 
 
 def _build_spdx_id_type_map(graph: list[dict[str, Any]]) -> dict[str, str]:
-    """Return a mapping of spdxId → JSON-LD type for all elements."""
+    """Return a mapping of spdxId -> JSON-LD type for all elements."""
     return {elem["spdxId"]: elem["type"] for elem in graph if "spdxId" in elem}
 
 
@@ -347,9 +347,9 @@ def test_graph_element_ordering() -> None:
     """@graph elements must follow the canonical priority order.
 
     Required order:
-      0. CreationInfo   — blank node referenced by every element
-      1. SpdxDocument   — document envelope / profileConformance
-      2. software_Sbom  — root element pointer / sbomType
+      0. CreationInfo   -- blank node referenced by every element
+      1. SpdxDocument   -- document envelope / profileConformance
+      2. software_Sbom  -- root element pointer / sbomType
       3+ everything else, sorted by spdxId/@id
 
     This test also verifies that repeated calls produce identical output

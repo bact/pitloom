@@ -181,7 +181,7 @@ def test_onnx_load_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (encoder-model-q4f16.onnx)
+# Integration tests -- real ONNX file (encoder-model-q4f16.onnx)
 # Source: onnx-community/whisper-tiny-ONNX (~6.3 MB)
 # Whisper tiny speech encoder, quantised Q4F16, two opset domains
 # Require: onnx installed AND
@@ -244,7 +244,7 @@ def test_whisper_encoder_provenance(whisper_encoder_metadata: AiModelMetadata) -
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (gpt2-tiny-decoder.onnx)
+# Integration tests -- real ONNX file (gpt2-tiny-decoder.onnx)
 # Source: fxmarty/gpt2-tiny-onnx (~1.0 MB)
 # GPT-2 causal LM decoder with KV-cache outputs; opset 13
 # Require: onnx installed AND tests/fixtures/onnx/gpt2-tiny-decoder.onnx present
@@ -298,7 +298,7 @@ def test_gpt2_decoder_provenance(gpt2_decoder_metadata: AiModelMetadata) -> None
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (light-inception-v2.onnx)
+# Integration tests -- real ONNX file (light-inception-v2.onnx)
 # Source: onnx/onnx GitHub (onnx/backend/test/data/light/light_inception_v2.onnx)
 # Lightweight InceptionV2, opset 9; weight initializers listed as graph inputs
 # Require: onnx installed AND tests/fixtures/onnx/light-inception-v2.onnx present
@@ -331,7 +331,7 @@ def test_inception_v2_type_of_model(inception_v2_metadata: AiModelMetadata) -> N
 
 
 def test_inception_v2_opset(inception_v2_metadata: AiModelMetadata) -> None:
-    # Opset 9 — oldest opset in the test fixtures
+    # Opset 9 -- oldest opset in the test fixtures
     assert inception_v2_metadata.properties.get("opset.ai.onnx") == "9"
 
 
@@ -361,7 +361,7 @@ def test_inception_v2_provenance(inception_v2_metadata: AiModelMetadata) -> None
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (resnet-tiny-beans.onnx)
+# Integration tests -- real ONNX file (resnet-tiny-beans.onnx)
 # Source: fxmarty/resnet-tiny-beans (~761 KB)
 # ResNet fine-tuned for 3-class bean disease classification; opset 11
 # Require: onnx installed AND tests/fixtures/onnx/resnet-tiny-beans.onnx present
@@ -416,7 +416,7 @@ def test_resnet_beans_provenance(resnet_beans_metadata: AiModelMetadata) -> None
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real ONNX file (squeezenet1.1-7.onnx)
+# Integration tests -- real ONNX file (squeezenet1.1-7.onnx)
 # Require: onnx installed AND tests/fixtures/onnx/squeezenet1.1-7.onnx present
 # ---------------------------------------------------------------------------
 

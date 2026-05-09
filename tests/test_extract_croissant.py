@@ -206,7 +206,7 @@ def test_extract_size_no_record_sets() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_croissant — file-based
+# read_croissant -- file-based
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +316,7 @@ def test_read_croissant_prefixed_keywords_csv() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_croissant — error cases
+# read_croissant -- error cases
 # ---------------------------------------------------------------------------
 
 
@@ -347,7 +347,7 @@ def test_read_croissant_non_object_json_raises(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_croissant — URL detection
+# read_croissant -- URL detection
 # ---------------------------------------------------------------------------
 
 

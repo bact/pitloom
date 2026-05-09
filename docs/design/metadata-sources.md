@@ -4,7 +4,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Metadata sources — design notes
+# Metadata sources -- design notes
 
 This document records research into how other SBOM and SCA tools handle
 Python package metadata extraction, and derives design guidance for
@@ -20,12 +20,12 @@ hooks during normal SBOM generation.
 
 ### Priority order (highest to lowest)
 
-1. **`.dist-info/METADATA`** (wheel installs) — RFC 822-style email header
+1. **`.dist-info/METADATA`** (wheel installs) -- RFC 822-style email header
    format; parsed by Trivy's `packaging` parser.
 2. **`.egg-info/PKG-INFO`** or **`EGG-INFO/PKG-INFO`** (egg / editable installs).
-3. **Lock files** — `poetry.lock`, `Pipfile.lock`, `uv.lock`,
-   `requirements.txt` — for declared (not necessarily installed) dependencies.
-4. **`pyproject.toml`** — parsed statically for `[project]` (PEP 621) and
+3. **Lock files** -- `poetry.lock`, `Pipfile.lock`, `uv.lock`,
+   `requirements.txt` -- for declared (not necessarily installed) dependencies.
+4. **`pyproject.toml`** -- parsed statically for `[project]` (PEP 621) and
    `[tool.poetry]` sections; no execution of the build backend.
 
 ### Key design choices
@@ -43,7 +43,7 @@ hooks during normal SBOM generation.
 
 Trivy's approach is appropriate for *scanning installed environments*.
 Pitloom operates at *build time* (source tree + build hook), so it has
-access to information Trivy does not — but it should follow Trivy's lead
+access to information Trivy does not -- but it should follow Trivy's lead
 in treating `.dist-info/METADATA` as the highest-fidelity source when
 operating in an installed context (e.g., the CLI run against an editable
 install or a virtual environment).
@@ -85,7 +85,7 @@ Syft's cataloger split maps cleanly onto pitloom's two paths:
 | Pitloom path | Syft analogue | Primary metadata source |
 | :--- | :--- | :--- |
 | Hatchling / setuptools build hook | installed-package cataloger | `.dist-info/METADATA` (inside wheel) |
-| CLI (`loom <project_dir>`) | source-file cataloger | `pyproject.toml` → `setup.cfg` → `setup.py` |
+| CLI (`loom <project_dir>`) | source-file cataloger | `pyproject.toml` -> `setup.cfg` -> `setup.py` |
 
 The CLI should additionally consider checking for an existing `.dist-info` or
 `.egg-info` directory (from an editable install) as a high-fidelity supplement
@@ -93,7 +93,7 @@ before falling back to raw source parsing.
 
 ---
 
-## PEP 517 — `prepare_metadata_for_build_wheel`
+## PEP 517 -- `prepare_metadata_for_build_wheel`
 
 **Reference:** <https://peps.python.org/pep-0517/>
 
@@ -127,13 +127,13 @@ It is the only **backend-agnostic, dynamic-metadata-aware** mechanism that:
 ### Proposed integration
 
 ```text
-Priority order (planned — highest to lowest)
+Priority order (planned -- highest to lowest)
 ────────────────────────────────────────────
-1. PEP 517  prepare_metadata_for_build_wheel   ← future, opt-in
-2. .dist-info/METADATA or .egg-info/PKG-INFO   ← future (installed env)
-3. pyproject.toml [project]                    ← implemented
-4. setup.cfg [metadata] / [options]            ← implemented
-5. setup.py setup() literal arguments          ← implemented
+1. PEP 517  prepare_metadata_for_build_wheel   <- future, opt-in
+2. .dist-info/METADATA or .egg-info/PKG-INFO   <- future (installed env)
+3. pyproject.toml [project]                    <- implemented
+4. setup.cfg [metadata] / [options]            <- implemented
+5. setup.py setup() literal arguments          <- implemented
 ```
 
 ### Implementation sketch
@@ -168,7 +168,7 @@ handling.
 
 | Concern | Notes |
 | :--- | :--- |
-| **Accuracy** | Highest possible — identical to what pip installs. |
+| **Accuracy** | Highest possible -- identical to what pip installs. |
 | **Side effects** | May run arbitrary build-backend code. Backends can have network access, write files, etc. |
 | **Performance** | Slower than static parsing; adds a subprocess per project. |
 | **Isolation** | Should be run in an isolated environment (`--no-build-isolation` or a fresh venv) to avoid polluting the user's environment. |
@@ -176,12 +176,12 @@ handling.
 
 ### Recommended adoption path
 
-1. **Opt-in flag** — add `[tool.pitloom] pep517-metadata = true` (default
+1. **Opt-in flag** -- add `[tool.pitloom] pep517-metadata = true` (default
    `false`). When enabled, pitloom calls `prepare_metadata_for_build_wheel`
    and uses its output as a higher-priority source.
-2. **Graceful fallback** — if the call fails (backend not installed, hook not
+2. **Graceful fallback** -- if the call fails (backend not installed, hook not
    implemented), log a warning and fall back to static sources.
-3. **Cache result** — write the `.dist-info` directory to the project's build
+3. **Cache result** -- write the `.dist-info` directory to the project's build
    cache so repeated `loom` invocations do not re-run the backend.
 
 ---
@@ -198,18 +198,18 @@ Recommended long-term priority order for `_load_project_metadata()` is:
    └─ present when running inside an editable install or venv
 
 3. pyproject.toml [project]                   [implemented]
-   └─ read_pyproject() → ProjectMetadata
+   └─ read_pyproject() -> ProjectMetadata
 
 4. setup.cfg [metadata] / [options]           [implemented]
-   └─ read_setup_cfg() → ProjectMetadata
+   └─ read_setup_cfg() -> ProjectMetadata
 
 5. setup.py setup() literal arguments         [implemented]
-   └─ read_setup_py() (AST) → ProjectMetadata
+   └─ read_setup_py() (AST) -> ProjectMetadata
 ```
 
 Sources 3–5 are combined via `merge_metadata(primary, secondary)` so gaps at
 one level are filled by the next without overwriting already-resolved fields.
-Sources 1–2 (when implemented) will be treated the same way — as a
+Sources 1–2 (when implemented) will be treated the same way -- as a
 higher-priority primary passed to `merge_metadata`.
 
 The `METADATA` file format (RFC 822 / `email.parser`) is straightforward and
@@ -222,7 +222,7 @@ which pitloom's dependency `pyproject-metadata` transitively includes.
 
 - [docs/implementation/setuptools-support.md](../implementation/setuptools-support.md)
   implementation notes for the static `setup.cfg` / `setup.py` extractors
-- [docs/design/hatchling-build-hook.md](hatchling-build-hook.md) —
+- [docs/design/hatchling-build-hook.md](hatchling-build-hook.md) --
   PEP 770 wheel embedding via the Hatchling hook
-- [docs/design/metadata-provenance.md](metadata-provenance.md) —
+- [docs/design/metadata-provenance.md](metadata-provenance.md) --
   provenance tracking per field

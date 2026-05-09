@@ -22,9 +22,9 @@ Pitloom maps extracted model metadata to SPDX 3 native AI profile fields on
 | `type_of_model` | `ai_typeOfModel` |
 | `hyperparameters` | `ai_hyperparameter` (list of `DictionaryEntry`) |
 | `inputs` / `outputs` | `ai_informationAboutApplication` (JSON string) |
-| `format_version` | not yet mapped — candidate: `comment` or custom `ExternalRef` |
-| `framework` | not yet mapped — candidate: `ai_informationAboutApplication` or `comment` |
-| `framework_version` | not yet mapped — candidate: `comment` or `ExternalRef` |
+| `format_version` | not yet mapped -- candidate: `comment` or custom `ExternalRef` |
+| `framework` | not yet mapped -- candidate: `ai_informationAboutApplication` or `comment` |
+| `framework_version` | not yet mapped -- candidate: `comment` or `ExternalRef` |
 | `properties` | not yet mapped (stored in `AiModelMetadata.properties`, not emitted to SPDX) |
 | `provenance` | `comment` |
 
@@ -95,7 +95,7 @@ Pitloom should allow users to enable or disable each source independently in
 
 ```toml
 [tool.pitloom.enrich]
-local = true          # README / model card — always safe, on by default
+local = true          # README / model card -- always safe, on by default
 openssf_scorecard = true   # public API, no auth required
 huggingface = false   # opt-in: requires network, data under HF ToS
 pypi = false          # opt-in: requires network
@@ -123,14 +123,14 @@ The following namespace is reserved for that purpose:
 
 ### Model identification and architecture
 
-- `pitloom:ai:model:type` — broad category (e.g., `transformer`, `cnn`)
-- `pitloom:ai:model:architecture_family` — specific structural family
-- `pitloom:ai:model:parameters_count` — total parameter count
-- `pitloom:ai:model:format_version` — version of the model file format
+- `pitloom:ai:model:type` -- broad category (e.g., `transformer`, `cnn`)
+- `pitloom:ai:model:architecture_family` -- specific structural family
+- `pitloom:ai:model:parameters_count` -- total parameter count
+- `pitloom:ai:model:format_version` -- version of the model file format
   (e.g., `v2` for Keras v2, `1.0` for NumPy 1.0)
-- `pitloom:ai:model:framework` — base framework/format
+- `pitloom:ai:model:framework` -- base framework/format
   (e.g., `pytorch`, `onnx`, `keras`)
-- `pitloom:ai:model:framework_version` — version of the framework that produced
+- `pitloom:ai:model:framework_version` -- version of the framework that produced
   the model (e.g., `2.15.0` for Keras 2.15.0)
 
 ### Training and hyperparameters
@@ -138,15 +138,15 @@ The following namespace is reserved for that purpose:
 - `pitloom:ai:training:learning_rate`
 - `pitloom:ai:training:batch_size`
 - `pitloom:ai:training:epochs`
-- `pitloom:ai:training:optimizer` — optimizer algorithm (e.g., `adamw`, `sgd`)
+- `pitloom:ai:training:optimizer` -- optimizer algorithm (e.g., `adamw`, `sgd`)
 - `pitloom:ai:training:random_seed`
 
 ### Dataset constraints and provenance
 
-- `pitloom:ai:dataset:training:name` — name or URI of the training dataset
-- `pitloom:ai:dataset:training:size` — volume of data (e.g., `1.2TB`)
-- `pitloom:ai:dataset:training:split` — ratio or segment used (e.g., `train`)
-- `pitloom:ai:dataset:preprocessing` — normalization or transformation applied
+- `pitloom:ai:dataset:training:name` -- name or URI of the training dataset
+- `pitloom:ai:dataset:training:size` -- volume of data (e.g., `1.2TB`)
+- `pitloom:ai:dataset:training:split` -- ratio or segment used (e.g., `train`)
+- `pitloom:ai:dataset:preprocessing` -- normalization or transformation applied
 
 ### Metrics and evaluation
 
@@ -156,7 +156,7 @@ The following namespace is reserved for that purpose:
 
 ### Ethical and compliance considerations
 
-- `pitloom:ai:compliance:license_category` — e.g., `open-weights`
-- `pitloom:ai:safety:bias_mitigation` — notes on debiasing techniques applied
-- `pitloom:ai:safety:intended_use` — approved use cases
-- `pitloom:ai:safety:restricted_use` — explicitly prohibited use cases
+- `pitloom:ai:compliance:license_category` -- e.g., `open-weights`
+- `pitloom:ai:safety:bias_mitigation` -- notes on debiasing techniques applied
+- `pitloom:ai:safety:intended_use` -- approved use cases
+- `pitloom:ai:safety:restricted_use` -- explicitly prohibited use cases

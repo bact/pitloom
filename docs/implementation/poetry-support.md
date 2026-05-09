@@ -4,7 +4,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Poetry support — implementation notes
+# Poetry support -- implementation notes
 
 ## Motivation
 
@@ -76,7 +76,7 @@ Poetry uses specifiers that are not valid PEP 440/508:
 | `"~X.Y.Z"` | `>=X.Y.Z,<X.(Y+1).0` | `>=X.Y.Z,<X.Y+1.0` |
 | `"X.Y.Z"` (bare) | exact match | `==X.Y.Z` |
 | `"*"` | any | (no constraint) |
-| `">=X"` etc. | PEP 440 — pass-through | unchanged |
+| `">=X"` etc. | PEP 440 -- pass-through | unchanged |
 
 Inline-table constraints (`{version = "^1.0", optional = true, …}`) have their
 `version` key extracted and converted.  Entries with `path`, `git`, or `url`
@@ -87,8 +87,8 @@ sources cannot be expressed as simple PEP 508 specifiers and are skipped.
 `read_pyproject()` merges the two sources when both exist.  Priority order
 (highest first):
 
-1. `[project]` — parsed by `pyproject-metadata` (PEP 621)
-2. `[tool.poetry]` — fills any empty/falsy fields not covered by `[project]`
+1. `[project]` -- parsed by `pyproject-metadata` (PEP 621)
+2. `[tool.poetry]` -- fills any empty/falsy fields not covered by `[project]`
 
 When `[project]` is absent or has no `name`, `[tool.poetry]` is used
 as the sole source.
@@ -111,14 +111,14 @@ case for Poetry support (issue [#62]).  It has:
 
 ## Known limitations
 
-- **Dynamic versions** — Poetry supports `version = {attr = "pkg.__version__"}`
+- **Dynamic versions** -- Poetry supports `version = {attr = "pkg.__version__"}`
   style dynamic versions.  These are not resolved; the literal string is
   returned as-is.
-- **Path / git / URL dependencies** — entries with `path`, `git`, or `url`
+- **Path / git / URL dependencies** -- entries with `path`, `git`, or `url`
   sources are silently skipped because they cannot be expressed as PEP 508
   specifiers.
-- **`poetry.lock`** — the lock file is present as a fixture for future work
+- **`poetry.lock`** -- the lock file is present as a fixture for future work
   but is not yet read.  Resolving the full transitive dependency graph from
   `poetry.lock` is a planned enhancement.
-- **`[tool.poetry.extras]`** — optional extras are not yet mapped to
+- **`[tool.poetry.extras]`** -- optional extras are not yet mapped to
   `ProjectMetadata`.

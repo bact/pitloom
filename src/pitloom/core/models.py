@@ -68,7 +68,7 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
     Uses hatchling's :class:`~hatchling.builders.wheel.WheelBuilder` to
-    discover the exact file set — respecting every include/exclude rule,
+    discover the exact file set -- respecting every include/exclude rule,
     ``force-include`` entry, and ``packages`` configuration from
     ``pyproject.toml``.  Files are sorted by their ``distribution_path``
     (the canonical path inside the wheel), so both the hatchling build hook
@@ -134,9 +134,9 @@ def _normalize_dep(dep: str) -> str:
 
     Examples::
 
-        "Foo_Bar>=1.0"                       → "foo-bar>=1.0"
-        "PyProject.Metadata"                 → "pyproject-metadata"
-        "tomli>=2.0; python_version<'3.11'"  → "tomli>=2.0; python_version<'3.11'"
+        "Foo_Bar>=1.0"                       -> "foo-bar>=1.0"
+        "PyProject.Metadata"                 -> "pyproject-metadata"
+        "tomli>=2.0; python_version<'3.11'"  -> "tomli>=2.0; python_version<'3.11'"
     """
     dep = dep.strip()
     match = _DEP_NAME_RE.match(dep)
@@ -157,7 +157,7 @@ def compute_doc_uuid(
     The UUID is derived from the project's primary package name and version,
     the normalized sorted list of declared dependencies (``[project]
     dependencies`` in ``pyproject.toml``, optional dependencies excluded), and
-    — when available — the Merkle root of all files that will be included in
+    -- when available -- the Merkle root of all files that will be included in
     the wheel.  The same inputs always produce the same UUID, enabling
     reproducible builds and reproducible SBOMs.
 

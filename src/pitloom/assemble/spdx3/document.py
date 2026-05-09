@@ -337,7 +337,7 @@ def build_model(
     """Assemble a standalone SPDX 3 SBOM for a single AI model file.
 
     Produces a minimal document containing only the ``ai_AIPackage`` element
-    derived from *model*.  There is no parent Python package — the AI package
+    derived from *model*.  There is no parent Python package -- the AI package
     is itself the root element of the ``software_Sbom``.
 
     Args:

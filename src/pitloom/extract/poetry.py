@@ -44,11 +44,11 @@ Poetry uses ``^X.Y`` / ``~X.Y`` version specifiers which are not valid
 PEP 508.  This module converts them to PEP 440 ranges on a best-effort
 basis:
 
-* ``^X.Y.Z`` (X > 0) → ``>=X.Y.Z,<X+1.0.0``
-* ``^0.Y.Z``          → ``>=0.Y.Z,<0.Y+1.0``
-* ``~X.Y.Z``          → ``>=X.Y.Z,<X.Y+1.0``
-* ``*``               → no constraint (package name only)
-* Anything else       → passed through unchanged.
+* ``^X.Y.Z`` (X > 0) -> ``>=X.Y.Z,<X+1.0.0``
+* ``^0.Y.Z``          -> ``>=0.Y.Z,<0.Y+1.0``
+* ``~X.Y.Z``          -> ``>=X.Y.Z,<X.Y+1.0``
+* ``*``               -> no constraint (package name only)
+* Anything else       -> passed through unchanged.
 
 See Also:
     https://python-poetry.org/docs/pyproject/

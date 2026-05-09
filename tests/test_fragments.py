@@ -2,19 +2,19 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for SBOM fragment merging — verifies that informational fields
+"""Tests for SBOM fragment merging -- verifies that informational fields
 from SPDX 3 fragment files are not dropped during the stitch/merge step.
 
 Fixtures live in tests/fixtures/fragments/:
-  ai-model-fragment.spdx3.json       — ai_AIPackage with full AI metadata
-  dataset-fragment.spdx3.json        — dataset_DatasetPackage with dataset metadata
-  training-run-fragment.spdx3.json   — loom.shoot()-style combined fragment:
+  ai-model-fragment.spdx3.json       -- ai_AIPackage with full AI metadata
+  dataset-fragment.spdx3.json        -- dataset_DatasetPackage with dataset metadata
+  training-run-fragment.spdx3.json   -- loom.shoot()-style combined fragment:
                                         ai_AIPackage + 2 datasets + trainedOn/testedOn
 
 Implementation note
 -------------------
-The spdx-python-model library serialises anonymous (blank) node objects —
-DictionaryEntry, ai_EnergyConsumption, ai_EnergyConsumptionDescription — as
+The spdx-python-model library serialises anonymous (blank) node objects --
+DictionaryEntry, ai_EnergyConsumption, ai_EnergyConsumptionDescription -- as
 separate @graph entries referenced by blank-node IDs like ``_:DictionaryEntry0``.
 The ``_resolve`` / ``_entries`` helpers below dereference those IDs so that
 tests can navigate nested structures without depending on blank-node internals.
@@ -105,7 +105,7 @@ def _metrics(
 
 
 # ---------------------------------------------------------------------------
-# AI model fragment — all AI-profile fields must survive the merge
+# AI model fragment -- all AI-profile fields must survive the merge
 # ---------------------------------------------------------------------------
 
 
@@ -193,7 +193,7 @@ class TestAiModelFragment:
 
 
 # ---------------------------------------------------------------------------
-# Dataset fragment — all dataset-profile fields must survive the merge
+# Dataset fragment -- all dataset-profile fields must survive the merge
 # ---------------------------------------------------------------------------
 
 
@@ -237,7 +237,7 @@ class TestDatasetFragment:
 
 
 # ---------------------------------------------------------------------------
-# Training-run fragment — relationships and combined elements preserved
+# Training-run fragment -- relationships and combined elements preserved
 # ---------------------------------------------------------------------------
 
 
@@ -311,7 +311,7 @@ class TestTrainingRunFragment:
 
 
 # ---------------------------------------------------------------------------
-# Multiple fragments merged together — no element from any fragment dropped
+# Multiple fragments merged together -- no element from any fragment dropped
 # ---------------------------------------------------------------------------
 
 
@@ -385,7 +385,7 @@ class TestMultipleFragmentsMerge:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end via generate_sbom — fragment elements survive full pipeline
+# End-to-end via generate_sbom -- fragment elements survive full pipeline
 # ---------------------------------------------------------------------------
 
 
@@ -508,7 +508,7 @@ def test_missing_fragment_does_not_raise(caplog: pytest.LogCaptureFixture) -> No
             ["nonexistent-fragment.spdx3.json"],
             exporter,
         )
-    # Object set must be empty — nothing merged
+    # Object set must be empty -- nothing merged
     data = json.loads(exporter.to_json())
     graph = data.get("@graph", [])
     assert len(graph) == 0

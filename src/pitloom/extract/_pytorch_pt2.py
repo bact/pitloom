@@ -88,12 +88,12 @@ def _read_pt2_extra_files(
     ExecuTorch archives may include individual UTF-8 files under
     ``{prefix}extra/`` carrying human-readable metadata:
 
-    - ``name``          → :attr:`~AiModelMetadata.name`
-    - ``description``   → :attr:`~AiModelMetadata.description`
-    - ``model_version`` or ``version`` → :attr:`~AiModelMetadata.version`
-    - ``license``       → :attr:`~AiModelMetadata.license`
-    - ``author``        → ``properties["author"]``
-    - ``tags``          → ``properties["tags"]`` (JSON array serialized as
+    - ``name``          -> :attr:`~AiModelMetadata.name`
+    - ``description``   -> :attr:`~AiModelMetadata.description`
+    - ``model_version`` or ``version`` -> :attr:`~AiModelMetadata.version`
+    - ``license``       -> :attr:`~AiModelMetadata.license`
+    - ``author``        -> ``properties["author"]``
+    - ``tags``          -> ``properties["tags"]`` (JSON array serialized as
       comma-separated string, or raw value if not JSON)
 
     Args:
@@ -329,21 +329,21 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     PT2 Archive is the ExecuTorch on-device deployment format.  It is a ZIP
     archive.  Two layout variants are supported:
 
-    **Simple format** — a root-level ``version`` file and optionally a
+    **Simple format** -- a root-level ``version`` file and optionally a
     ``METADATA.json`` with ``name`` / ``model_name``.  No pickle inspection
     is performed.
 
-    **Rich ExecuTorch format** — a single root directory
+    **Rich ExecuTorch format** -- a single root directory
     (e.g. ``model_name/``) containing:
 
-    - ``archive_version``      → :attr:`~AiModelMetadata.version`
-    - ``extra/name``           → :attr:`~AiModelMetadata.name`
-    - ``extra/description``    → :attr:`~AiModelMetadata.description`
-    - ``extra/model_version``  → :attr:`~AiModelMetadata.version` (preferred)
-    - ``extra/license``        → :attr:`~AiModelMetadata.license`
-    - ``extra/author``         → ``properties["author"]``
-    - ``extra/tags``           → ``properties["tags"]``
-    - ``models/model.json``    → :attr:`~AiModelMetadata.inputs` /
+    - ``archive_version``      -> :attr:`~AiModelMetadata.version`
+    - ``extra/name``           -> :attr:`~AiModelMetadata.name`
+    - ``extra/description``    -> :attr:`~AiModelMetadata.description`
+    - ``extra/model_version``  -> :attr:`~AiModelMetadata.version` (preferred)
+    - ``extra/license``        -> :attr:`~AiModelMetadata.license`
+    - ``extra/author``         -> ``properties["author"]``
+    - ``extra/tags``           -> ``properties["tags"]``
+    - ``models/model.json``    -> :attr:`~AiModelMetadata.inputs` /
       :attr:`~AiModelMetadata.outputs` (graph tensor names)
 
     Args:

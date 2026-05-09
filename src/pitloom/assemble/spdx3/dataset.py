@@ -59,31 +59,31 @@ def _build_dataset_package(
 
     **Core identification**
 
-    - ``name`` → ``name``
-    - ``version`` → ``software_packageVersion``
-    - ``description`` → ``description``
-    - ``download_url`` → ``software_downloadLocation``
+    - ``name`` -> ``name``
+    - ``version`` -> ``software_packageVersion``
+    - ``description`` -> ``description``
+    - ``download_url`` -> ``software_downloadLocation``
 
     **Dataset profile**
 
-    - ``dataset_types`` → ``dataset_datasetType`` (list of enum values)
-    - ``dataset_size`` → ``dataset_datasetSize``
-    - ``data_collection_process`` → ``dataset_dataCollectionProcess``
-    - ``data_preprocessing`` → ``dataset_dataPreprocessing``
-    - ``known_bias`` → ``dataset_knownBias``
-    - ``intended_use`` → ``dataset_intendedUse``
+    - ``dataset_types`` -> ``dataset_datasetType`` (list of enum values)
+    - ``dataset_size`` -> ``dataset_datasetSize``
+    - ``data_collection_process`` -> ``dataset_dataCollectionProcess``
+    - ``data_preprocessing`` -> ``dataset_dataPreprocessing``
+    - ``known_bias`` -> ``dataset_knownBias``
+    - ``intended_use`` -> ``dataset_intendedUse``
     - ``has_sensitive_personal_information``
-      → ``dataset_hasSensitivePersonalInformation`` (``PresenceType`` enum)
-    - ``anonymization_methods`` → ``dataset_anonymizationMethodUsed``
+      -> ``dataset_hasSensitivePersonalInformation`` (``PresenceType`` enum)
+    - ``anonymization_methods`` -> ``dataset_anonymizationMethodUsed``
 
     **External reference**
 
-    - ``croissant_url`` → ``externalRef`` with type ``other`` and comment
+    - ``croissant_url`` -> ``externalRef`` with type ``other`` and comment
       ``"Croissant metadata"``
 
     **Provenance**
 
-    - ``provenance`` → ``comment``
+    - ``provenance`` -> ``comment``
 
     Args:
         meta: Extracted dataset metadata.

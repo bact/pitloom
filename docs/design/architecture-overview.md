@@ -38,7 +38,7 @@ application, providing exhaustive details on every library, framework, and
 sub-module included in the distribution (IBM 2026).
 In the context of increasing cybersecurity threats, such as the Log4j and
 XZ Utils exploits, the absence of an accurate SBOM forces organizations into
-reactive, manual inspection of their environments—a process that is
+reactive, manual inspection of their environments--a process that is
 fundamentally unscalable (Alpha Omega 2025).
 
 The utility of an SBOM spans across visibility, security, and
@@ -103,7 +103,7 @@ to document data collection processes, preprocessing steps,
 and privacy considerations, such as the `hasSensitivePersonalInformation` flag
 (Linux Foundation 2024). By linking an `AIPackage` to its constituent
 `DatasetPackage` via SPDX relationships, Pitloom provides a complete picture
-of an AI system's origin—a requirement increasingly mandated
+of an AI system's origin--a requirement increasingly mandated
 by global security frameworks (Linux Foundation 2024).
 
 ## Python ecosystem standards: PEPs and packaging evolution
@@ -184,9 +184,9 @@ canonical, up-to-date project tree.
 
 Pitloom serves as a critical node in the broader Software Component Analysis (SCA)
 pipeline (Wiz 2026). Its core role is as a **SBOM assembler**: it collects
-information from every available source — the source repository, the build
+information from every available source -- the source repository, the build
 backend, model files, ML tracking platforms, dataset registries, and
-pre-generated partner SBOM fragments — and assembles them into a single,
+pre-generated partner SBOM fragments -- and assembles them into a single,
 compliant, composite SBOM document.
 
 This assembly model reflects the reality that no single tool or team
@@ -269,20 +269,20 @@ duplicate-ID detection, and `SpdxDocument.imports` population for
 cross-document traceability.
 See `docs/design/sbom-fragments.md`.
 
-### Data flow: extraction → document model → assembly
+### Data flow: extraction -> document model -> assembly
 
 ```text
 Information sources
 ───────────────────
-pyproject.toml            → ProjectMetadata           (pitloom.extract.pyproject)
-setup.cfg / setup.py      → ProjectMetadata           (pitloom.extract.setuptools)
-model.onnx / .gguf / …    → AiModelMetadata           (pitloom.extract.ai_model)
-dataset.croissant.json    → DatasetMetadata           (pitloom.extract.dataset)
-MLflow run                → SPDX AI fragment          (pitloom.extract.mlflow)  [planned]
-W&B Weave model object    → SPDX AI fragment          (pitloom.extract.weave)   [planned]
-dvc.lock                  → SPDX Dataset elements     (pitloom.extract.dvc)     [planned]
-Jupyter notebook session  → SPDX AI/Dataset fragment  (pitloom.loom session)    [planned]
-fragments/*.spdx3.json    → pre-generated elements    (partner / vendor SBOMs)
+pyproject.toml            -> ProjectMetadata           (pitloom.extract.pyproject)
+setup.cfg / setup.py      -> ProjectMetadata           (pitloom.extract.setuptools)
+model.onnx / .gguf / …    -> AiModelMetadata           (pitloom.extract.ai_model)
+dataset.croissant.json    -> DatasetMetadata           (pitloom.extract.dataset)
+MLflow run                -> SPDX AI fragment          (pitloom.extract.mlflow)  [planned]
+W&B Weave model object    -> SPDX AI fragment          (pitloom.extract.weave)   [planned]
+dvc.lock                  -> SPDX Dataset elements     (pitloom.extract.dvc)     [planned]
+Jupyter notebook session  -> SPDX AI/Dataset fragment  (pitloom.loom session)    [planned]
+fragments/*.spdx3.json    -> pre-generated elements    (partner / vendor SBOMs)
 
 Assembly (format-neutral)
 ─────────────────────────
@@ -295,10 +295,10 @@ DocumentModel(
 
 Serialization and merge
 ───────────────────────
-compute_wheel_merkle_root(project_dir)          → merkle_root (or None)
-build(doc: DocumentModel, merkle_root)          → Spdx3JsonExporter → JSON-LD
-merge_fragments(fragments, exporter, ...)       → elements inlined; imports recorded
-exporter.to_json(pretty=...)                    → composite SBOM string / file
+compute_wheel_merkle_root(project_dir)          -> merkle_root (or None)
+build(doc: DocumentModel, merkle_root)          -> Spdx3JsonExporter -> JSON-LD
+merge_fragments(fragments, exporter, ...)       -> elements inlined; imports recorded
+exporter.to_json(pretty=...)                    -> composite SBOM string / file
 ```
 
 ### JSON-LD `@graph` element ordering
@@ -327,10 +327,10 @@ a deterministic sort can be applied to `data["@graph"]` before the final
 `json.dumps()` call with no changes to `spdx-python-model`. A two-level key
 suffices:
 
-1. **Type-priority tier** — promote `CreationInfo`, `SpdxDocument`,
+1. **Type-priority tier** -- promote `CreationInfo`, `SpdxDocument`,
    `software_Sbom` to the front (in that order), then root `software_Package`,
    then all other elements.
-2. **`@id` lexicographic order** — within each tier, sort by the element's
+2. **`@id` lexicographic order** -- within each tier, sort by the element's
    `@id` (or `_:ClassName` for blank nodes) so output is fully deterministic.
 
 **Relationship to JSON canonicalization standards.**
@@ -340,11 +340,11 @@ order is semantically meaningful and is preserved by all conforming parsers.
 RFC 8259 §4 also defines JSON objects as *unordered* collections of name/value
 pairs, so parsers must not rely on property order within an object.
 
-RFC 8785 (JSON Canonicalization Scheme, JCS —
+RFC 8785 (JSON Canonicalization Scheme, JCS --
 [datatracker.ietf.org/doc/rfc8785](https://datatracker.ietf.org/doc/rfc8785/))
 addresses object-property ordering by requiring lexicographic sorting of
 property names (by UTF-16 code units). However, JCS explicitly states that
-**array element order MUST NOT be changed** — it only recurses into objects
+**array element order MUST NOT be changed** -- it only recurses into objects
 found within arrays to sort their properties. JCS therefore cannot, by itself,
 produce a deterministic `@graph` element ordering.
 
@@ -369,23 +369,23 @@ Training time
 ─────────────
 mlflow.set_tag(stav.MODEL_TYPE, "transformer")
 mlflow.log_metric(stav.METRICS_ACCURACY, 0.91)
-→ loom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
-        └── pitloom.extract.mlflow → SPDX AI fragment  [planned]
+-> loom.from_mlflow_run(run_id, "fragments/run.spdx3.json")
+        └── pitloom.extract.mlflow -> SPDX AI fragment  [planned]
 
 Build time (zero extra commands)
 ─────────────────────────────────
 hatch build  /  python -m build
   └── PitloomBuildHook.initialize()
         ├── read_pyproject()         (reads pyproject.toml)
-        ├── compute_wheel_merkle_root() (WheelBuilder file set → deterministic UUID)
-        ├── DocumentModel → build(merkle_root) → Spdx3JsonExporter
+        ├── compute_wheel_merkle_root() (WheelBuilder file set -> deterministic UUID)
+        ├── DocumentModel -> build(merkle_root) -> Spdx3JsonExporter
         ├── merge fragments/run.spdx3.json    (AI provenance)
-        └── → .dist-info/sboms/sbom.spdx3.json  ← PEP 770
+        └── -> .dist-info/sboms/sbom.spdx3.json  <- PEP 770
 
 Downstream consumption
 ───────────────────────
-trivy image mypackage-1.0.whl     → reads .dist-info/sboms/
-pip show mypackage                → SBOM included in .dist-info
+trivy image mypackage-1.0.whl     -> reads .dist-info/sboms/
+pip show mypackage                -> SBOM included in .dist-info
 ```
 
 ## Quantifying the problem: Python dependency proliferation

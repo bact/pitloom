@@ -32,30 +32,30 @@ def _build_ai_package(
 
     **Core identification**
 
-    - ``name`` → ``name`` (falls back to ``format_info.model_format`` string)
-    - ``version`` → ``software_packageVersion``
-    - ``description`` → ``description``
+    - ``name`` -> ``name`` (falls back to ``format_info.model_format`` string)
+    - ``version`` -> ``software_packageVersion``
+    - ``description`` -> ``description``
 
     **Technical model metadata**
 
-    - ``type_of_model`` and/or ``architecture`` → ``ai_typeOfModel`` (list)
-    - ``quantization`` → ``ai_hyperparameter`` (key="quantization")
-    - ``hyperparameters`` → ``ai_hyperparameter`` (list of DictionaryEntry)
-    - ``inputs`` / ``outputs`` → ``ai_informationAboutApplication`` (JSON)
+    - ``type_of_model`` and/or ``architecture`` -> ``ai_typeOfModel`` (list)
+    - ``quantization`` -> ``ai_hyperparameter`` (key="quantization")
+    - ``hyperparameters`` -> ``ai_hyperparameter`` (list of DictionaryEntry)
+    - ``inputs`` / ``outputs`` -> ``ai_informationAboutApplication`` (JSON)
 
     **Use-case and safety** (from ``usage`` sub-object)
 
-    - ``domain`` + ``usage.domains`` → ``ai_domain`` (merged, de-duplicated)
-    - ``usage.limitations`` → ``ai_limitation`` (joined with "; ")
-    - ``usage.safety_risk_assessment`` → ``ai_safetyRiskAssessment``
+    - ``domain`` + ``usage.domains`` -> ``ai_domain`` (merged, de-duplicated)
+    - ``usage.limitations`` -> ``ai_limitation`` (joined with "; ")
+    - ``usage.safety_risk_assessment`` -> ``ai_safetyRiskAssessment``
       (enum: high | medium | low | serious)
     - ``usage.intended_use`` + ``usage.unintended_use``
-      → merged into ``ai_informationAboutApplication`` JSON
-    - ``usage.known_biases`` → appended to ``comment``
+      -> merged into ``ai_informationAboutApplication`` JSON
+    - ``usage.known_biases`` -> appended to ``comment``
 
     **Provenance**
 
-    - ``provenance`` → ``comment``
+    - ``provenance`` -> ``comment``
 
     Args:
         ai_model: Extracted AI model metadata.
@@ -174,12 +174,12 @@ def add_ai_models(
       ``ai_typeOfModel``.
     - ``quantization`` and hyperparameters are stored as ``ai_hyperparameter``
       DictionaryEntry list (quantization first).
-    - ``domain`` + ``usage.domains`` → ``ai_domain`` (merged, de-duplicated).
-    - ``usage.limitations`` → ``ai_limitation`` (joined string).
-    - ``usage.safety_risk_assessment`` → ``ai_safetyRiskAssessment`` enum.
-    - ``usage.intended_use`` / ``usage.unintended_use`` → merged into
+    - ``domain`` + ``usage.domains`` -> ``ai_domain`` (merged, de-duplicated).
+    - ``usage.limitations`` -> ``ai_limitation`` (joined string).
+    - ``usage.safety_risk_assessment`` -> ``ai_safetyRiskAssessment`` enum.
+    - ``usage.intended_use`` / ``usage.unintended_use`` -> merged into
       ``ai_informationAboutApplication`` JSON alongside I/O specs.
-    - ``usage.known_biases`` and provenance → SPDX ``comment``.
+    - ``usage.known_biases`` and provenance -> SPDX ``comment``.
 
     The caller is responsible for appending
     ``ProfileIdentifierType.ai`` to the document's ``profileConformance``

@@ -25,11 +25,11 @@ def to_str_list(value: Any) -> list[str]:
 
     Handles:
 
-    - ``None`` → ``[]``
-    - a single string → ``[value]`` (splits on commas when the string looks
+    - ``None`` -> ``[]``
+    - a single string -> ``[value]`` (splits on commas when the string looks
       like a CSV: contains a comma, no semicolons, and is short enough to be
       a keyword list rather than a sentence)
-    - a list → each element converted to ``str``, ``None`` elements dropped
+    - a list -> each element converted to ``str``, ``None`` elements dropped
     """
     if value is None:
         return []

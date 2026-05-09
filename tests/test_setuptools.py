@@ -90,7 +90,7 @@ build-backend = "mesonpy"
 
 
 # ---------------------------------------------------------------------------
-# read_setup_cfg — basic fields
+# read_setup_cfg -- basic fields
 # ---------------------------------------------------------------------------
 
 
@@ -173,7 +173,7 @@ def test_read_setup_cfg_missing_name() -> None:
 
 
 def test_read_setup_cfg_author_only_name() -> None:
-    """Author entry with name only — no email key in dict."""
+    """Author entry with name only -- no email key in dict."""
     content = "[metadata]\nname = pkg\nversion = 1.0\nauthor = Bob\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -182,7 +182,7 @@ def test_read_setup_cfg_author_only_name() -> None:
 
 
 def test_read_setup_cfg_author_only_email() -> None:
-    """Author entry with email only — no name key in dict."""
+    """Author entry with email only -- no name key in dict."""
     content = "[metadata]\nname = pkg\nversion = 1.0\nauthor_email = bob@example.com\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
@@ -191,7 +191,7 @@ def test_read_setup_cfg_author_only_email() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_setup_cfg — version directives
+# read_setup_cfg -- version directives
 # ---------------------------------------------------------------------------
 
 
@@ -241,7 +241,7 @@ def test_read_setup_cfg_version_attr_directive_src_layout() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_setup_cfg — long_description file directive
+# read_setup_cfg -- long_description file directive
 # ---------------------------------------------------------------------------
 
 
@@ -270,7 +270,7 @@ def test_read_setup_cfg_readme_file_missing_returns_filename() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_setup_cfg — [tool:pitloom] config
+# read_setup_cfg -- [tool:pitloom] config
 # ---------------------------------------------------------------------------
 
 
@@ -326,7 +326,7 @@ def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_setup_cfg — provenance
+# read_setup_cfg -- provenance
 # ---------------------------------------------------------------------------
 
 
@@ -343,7 +343,7 @@ def test_read_setup_cfg_provenance() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_setup_py — basic
+# read_setup_py -- basic
 # ---------------------------------------------------------------------------
 
 
@@ -415,7 +415,7 @@ setup(name=pkg_name, version="1.0")
 
 
 def test_read_setup_py_dynamic_version_skipped() -> None:
-    """Dynamic version (function call) is silently skipped — version is None."""
+    """Dynamic version (function call) is silently skipped -- version is None."""
     content = """
 from setuptools import setup
 setup(name="mypkg", version=get_version())
@@ -473,7 +473,7 @@ def test_read_setup_py_provenance() -> None:
 
 
 def test_read_setup_py_returns_default_pitloom_config() -> None:
-    """setup.py provides no pitloom config — defaults are returned."""
+    """setup.py provides no pitloom config -- defaults are returned."""
     content = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
@@ -483,7 +483,7 @@ def test_read_setup_py_returns_default_pitloom_config() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_setuptools — merging
+# read_setuptools -- merging
 # ---------------------------------------------------------------------------
 
 
@@ -696,7 +696,7 @@ def test_fixture_read_setup_cfg_readme_content() -> None:
 
 def test_fixture_read_setup_py_bare_setup() -> None:
     """setup.py with bare setup() call extracts no metadata (all in setup.cfg)."""
-    # The fixture's setup.py calls setup() with no arguments — name comes
+    # The fixture's setup.py calls setup() with no arguments -- name comes
     # from setup.cfg which setuptools reads at runtime, but AST sees nothing.
     with pytest.raises(ValueError, match="project name"):
         read_setup_py(SETUPTOOLS_FIXTURE)

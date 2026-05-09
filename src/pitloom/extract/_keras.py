@@ -6,9 +6,9 @@
 
 The ``.keras`` format introduced in Keras 3 is a ZIP archive containing:
 
-- ``metadata.json`` — Keras version and save timestamp.
-- ``config.json``   — Full model architecture (class name, layer configs).
-- ``model.weights.h5`` — Weights stored in HDF5 (not read here).
+- ``metadata.json`` -- Keras version and save timestamp.
+- ``config.json``   -- Full model architecture (class name, layer configs).
+- ``model.weights.h5`` -- Weights stored in HDF5 (not read here).
 
 The file starts with the standard ZIP magic ``PK\\x03\\x04`` which is shared
 with other ZIP-based formats (PyTorch, etc.), so format detection relies on
@@ -43,13 +43,13 @@ def _parse_model_config(
 
     Extracts:
 
-    - ``class_name`` → ``type_of_model`` (returned)
-    - ``config.name`` → ``name`` (returned)
+    - ``class_name`` -> ``type_of_model`` (returned)
+    - ``config.name`` -> ``name`` (returned)
     - Scalar entries of ``config`` (excluding ``name``, ``layers``, ``dtype``)
-      → ``hyperparameters`` (updated in-place)
+      -> ``hyperparameters`` (updated in-place)
     - ``build_config.input_shape``
-      → ``inputs`` (updated in-place)
-    - Per-field source paths → ``provenance`` (updated in-place)
+      -> ``inputs`` (updated in-place)
+    - Per-field source paths -> ``provenance`` (updated in-place)
 
     Args:
         config_data: Parsed JSON object from ``config.json``.
@@ -94,17 +94,17 @@ def _parse_model_config(
 def read_keras(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a Keras v3 ``.keras`` archive.
 
-    No extra dependencies are required — the standard-library
+    No extra dependencies are required -- the standard-library
     :mod:`zipfile` and :mod:`json` modules are used.
 
     Reads:
 
-    - ``metadata.json``: ``keras_version`` →
-      :attr:`~AiModelMetadata.version`; ``date_saved`` → properties.
-    - ``config.json``: ``class_name`` →
-      :attr:`~AiModelMetadata.type_of_model`; ``config.name`` →
-      :attr:`~AiModelMetadata.name`; scalar config entries →
-      hyperparameters; ``build_config.input_shape`` → inputs.
+    - ``metadata.json``: ``keras_version`` ->
+      :attr:`~AiModelMetadata.version`; ``date_saved`` -> properties.
+    - ``config.json``: ``class_name`` ->
+      :attr:`~AiModelMetadata.type_of_model`; ``config.name`` ->
+      :attr:`~AiModelMetadata.name`; scalar config entries ->
+      hyperparameters; ``build_config.input_shape`` -> inputs.
 
     Args:
         model_path: Path to a ``.keras`` file.

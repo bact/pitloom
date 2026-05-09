@@ -50,7 +50,7 @@ def _make_meta(**kwargs) -> DatasetMetadata:  # type: ignore[no-untyped-def]
 
 
 # ---------------------------------------------------------------------------
-# _build_dataset_package — core fields
+# _build_dataset_package -- core fields
 # ---------------------------------------------------------------------------
 
 
@@ -88,7 +88,7 @@ def test_build_dataset_package_download_url() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _build_dataset_package — dataset-profile fields
+# _build_dataset_package -- dataset-profile fields
 # ---------------------------------------------------------------------------
 
 
@@ -219,7 +219,7 @@ def test_build_dataset_package_anonymization() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _build_dataset_package — Croissant ExternalRef
+# _build_dataset_package -- Croissant ExternalRef
 # ---------------------------------------------------------------------------
 
 
@@ -244,7 +244,7 @@ def test_build_dataset_package_no_croissant_url_no_external_ref() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _build_dataset_package — provenance comment
+# _build_dataset_package -- provenance comment
 # ---------------------------------------------------------------------------
 
 
@@ -262,7 +262,7 @@ def test_build_dataset_package_provenance_in_comment() -> None:
 
 
 # ---------------------------------------------------------------------------
-# add_datasets_for_model — relationship types
+# add_datasets_for_model -- relationship types
 # ---------------------------------------------------------------------------
 
 

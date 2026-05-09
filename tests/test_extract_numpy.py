@@ -242,7 +242,7 @@ def test_read_numpy_invalid_file(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — NumPy fixtures (numpy/*.npy, *.npz)
+# Integration tests -- NumPy fixtures (numpy/*.npy, *.npz)
 # Require: numpy installed AND fixture files present
 # ---------------------------------------------------------------------------
 

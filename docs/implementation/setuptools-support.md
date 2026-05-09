@@ -4,7 +4,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Setuptools support — implementation notes
+# Setuptools support -- implementation notes
 
 ## Motivation
 
@@ -60,10 +60,10 @@ Parses `[metadata]` and `[options]` using stdlib `configparser`.
 
 **Version directives:**
 
-- **Literal** (`version = 1.2.3`) — used as-is.
-- **`file:` directive** (`version = file: VERSION`) — reads the referenced
+- **Literal** (`version = 1.2.3`) -- used as-is.
+- **`file:` directive** (`version = file: VERSION`) -- reads the referenced
   file; expects a plain version string on a single line.
-- **`attr:` directive** (`version = attr: package.__version__`) — resolves via
+- **`attr:` directive** (`version = attr: package.__version__`) -- resolves via
   AST parsing of the referenced module file.  Checks both flat-layout
   (`package.py`) and src-layout (`src/package/__init__.py`).  Falls back to
   `None` when the attribute is dynamic (e.g., assigned by a function call).
@@ -128,7 +128,7 @@ overriding secondary on key conflicts.
 
 Multiple metadata sources may coexist in a single project (common during
 migration to pyproject.toml).  Pitloom resolves conflicts using the
-following priority order — highest to lowest:
+following priority order -- highest to lowest:
 
 ```text
 1. pyproject.toml [project]          (read_pyproject)
@@ -158,10 +158,10 @@ Each field records its source using the same `"Source: X | Field: Y"` /
 `"Source: X | Method: Y"` pattern as `read_pyproject`:
 
 ```text
-name         → "Source: setup.cfg | Field: metadata.name"
-version      → "Source: VERSION | Method: file_directive"
-version      → "Source: src/mypkg/__init__.py | Method: attr_directive"
-authors      → "Source: setup.py | Field: setup(author=...)"
+name         -> "Source: setup.cfg | Field: metadata.name"
+version      -> "Source: VERSION | Method: file_directive"
+version      -> "Source: src/mypkg/__init__.py | Method: attr_directive"
+authors      -> "Source: setup.py | Field: setup(author=...)"
 ```
 
 When fields are filled by `merge_metadata`, the higher-priority provenance
@@ -175,7 +175,7 @@ source had no value.
 
 ```text
 sampleproject-setuptools/
-├── pyproject.toml        # [build-system] only — no [project] section
+├── pyproject.toml        # [build-system] only -- no [project] section
 ├── setup.cfg             # [metadata] + [options] + [tool:pitloom]
 ├── setup.py              # bare setup() shim
 ├── README.md

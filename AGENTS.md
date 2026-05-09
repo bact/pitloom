@@ -20,7 +20,7 @@ Unix philosophy. Consistent, predictable, parseable.
 
 - Default: line-delimited, one data point per line.
 - Field separator: space or tab (consistent).
-- Key-value: `KEY=VALUE` — uppercase KEY, no spaces around `=`.
+- Key-value: `KEY=VALUE` -- uppercase KEY, no spaces around `=`.
 - Errors: `ERROR: <short description>` to stderr.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
 - JSON/CSV/file output supported as options.
@@ -32,9 +32,9 @@ Unix philosophy. Consistent, predictable, parseable.
 - Idiomatic Python. Prefer built-ins (`list`, `dict`, `set`, `tuple`) unless `collections`/`collections.abc` clearly better.
 - Full type annotations on all functions, methods, classes, variables. Minimize `Any`. Use `if TYPE_CHECKING:` for heavy type-only imports.
 - Verify types with mypy (strict=true). Use pyright/pytype for second opinions. Recheck `# noqa:` and `# type: ignore`. Reset mypy cache on unexpected errors.
-- Type stubs: no official stubs → check <https://github.com/python/typeshed> for stubs; unavailable → derive from source on GitHub/GitLab.
+- Type stubs: no official stubs -> check <https://github.com/python/typeshed> for stubs; unavailable -> derive from source on GitHub/GitLab.
 - Fully qualified names in docstrings for non-stdlib types (e.g., `numpy.ndarray`, not `ndarray`).
-- No `assert` in production — tests only.
+- No `assert` in production -- tests only.
 - No mutable default arguments.
 - No wildcard imports (`from module import *`).
 - No `pickle` (CWE-502).
@@ -49,7 +49,7 @@ Unix philosophy. Consistent, predictable, parseable.
 
 ### Import order
 
-Groups: stdlib → third-party → local, alphabetically within each. Don't reorder imports with comments explaining required order (circular import/init constraint).
+Groups: stdlib -> third-party -> local, alphabetically within each. Don't reorder imports with comments explaining required order (circular import/init constraint).
 
 ### Type completeness
 
@@ -69,17 +69,23 @@ Groups: stdlib → third-party → local, alphabetically within each. Don't reor
 Run and fix all errors before committing:
 
 ```shell
-ruff check
+ruff check --fix
 mypy
 pylint
 flake8
 ruff format
 ```
 
+- Return statements ≤ 6; refactor if exceeded.
+- Arguments ≤ 5; refactor if exceeded.
+- Local variables ≤ 15; refactor if exceeded.
+- Nested blocks ≤ 5; refactor if exceeded.
 - McCabe complexity ≤ 10; refactor if exceeded.
 - Cognitive complexity ≤ 15; refactor if exceeded.
 - Remove unused imports and trailing whitespace.
 - Max line length = 88
+- Stick with ASCII characters in source code;
+  Only use non-ASCII when native human language scripts provides clearer message.
 
 ## File headers
 
@@ -95,7 +101,7 @@ Sort SPDX metadata keys alphabetically.
 
 ## Testing
 
-- Add tests for new behavior — cover success, failure, edge cases.
+- Add tests for new behavior -- cover success, failure, edge cases.
 - Use pytest patterns, not `unittest.TestCase`.
 - `spec`/`autospec` when mocking.
 - `time_machine` for time-dependent tests.
@@ -118,7 +124,7 @@ Consistent fields: project name, version, author/contributor names, license, des
 
 - Sort in `pyproject.toml` and `requirements.txt`.
 - Use most current compatible version.
-- Verify package names — guard against typosquatting/slopsquatting.
+- Verify package names -- guard against typosquatting/slopsquatting.
 - Remove unused imports and dependencies.
 - Warn about abandoned packages; suggest maintained replacements.
 
@@ -179,7 +185,7 @@ Consistent fields: project name, version, author/contributor names, license, des
 
 - British English for docs, comments, text. American English for code only.
 - Active voice; concise sentences; no jargon/idioms.
-- Short comments — don't restate the obvious.
+- Short comments -- don't restate the obvious.
 - Consistent terminology throughout.
 - Define acronyms on first use.
 - Parallel structure in lists.

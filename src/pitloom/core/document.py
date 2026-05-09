@@ -10,7 +10,7 @@ so that any serializer can use what it needs without touching the extractors.
 
 Architecture::
 
-    Extractors → DocumentModel → Serializers / Assemblers
+    Extractors -> DocumentModel -> Serializers / Assemblers
 """
 
 from __future__ import annotations

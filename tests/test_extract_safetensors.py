@@ -136,7 +136,7 @@ def test_safetensors_read_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (marian-tiny-random.safetensors)
+# Integration tests -- real Safetensors file (marian-tiny-random.safetensors)
 # Source: optimum-internal-testing/tiny-random-marian (~690 KB)
 # Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
 # Require: safetensors installed AND
@@ -190,7 +190,7 @@ def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (phi-tiny-random.safetensors)
+# Integration tests -- real Safetensors file (phi-tiny-random.safetensors)
 # Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
 # Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
 # Require: safetensors installed AND
@@ -244,7 +244,7 @@ def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (speech2text-tiny-random.safetensors)
+# Integration tests -- real Safetensors file (speech2text-tiny-random.safetensors)
 # Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
 # Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
 # Require: safetensors installed AND
@@ -297,7 +297,7 @@ def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (vits-tiny-random.safetensors)
+# Integration tests -- real Safetensors file (vits-tiny-random.safetensors)
 # Source: echarlaix/tiny-random-vits (~344 KB)
 # Randomly initialised VITS text-to-speech model; 438 tensors
 # Require: safetensors installed AND
@@ -350,7 +350,7 @@ def test_vits_provenance(vits_metadata: AiModelMetadata) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real Safetensors file (whisper-tiny-random.safetensors)
+# Integration tests -- real Safetensors file (whisper-tiny-random.safetensors)
 # Source: optimum-internal-testing/tiny-random-whisper (~872 KB)
 # Randomly initialised Whisper ASR encoder-decoder; 50 tensors
 # Require: safetensors installed AND

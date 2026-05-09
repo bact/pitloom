@@ -48,7 +48,7 @@ def built_wheel(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Wheel structure — SBOM placement (PEP 770)
+# Wheel structure -- SBOM placement (PEP 770)
 # ---------------------------------------------------------------------------
 
 

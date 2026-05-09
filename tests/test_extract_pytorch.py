@@ -104,7 +104,7 @@ def test_read_pytorch_no_name_version(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — classic PyTorch fixtures (pytorch/*.pt, *.pth)
+# Integration tests -- classic PyTorch fixtures (pytorch/*.pt, *.pth)
 # Require: fixture files present (fickling optional for class name extraction)
 # ---------------------------------------------------------------------------
 

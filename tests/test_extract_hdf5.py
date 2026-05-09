@@ -21,7 +21,7 @@ from pitloom.core.ai_metadata import AiModelFormat
 from pitloom.extract.ai_model import read_hdf5
 
 # ---------------------------------------------------------------------------
-# HDF5 extractor (mocked) — generic HDF5 with optional Keras legacy attrs
+# HDF5 extractor (mocked) -- generic HDF5 with optional Keras legacy attrs
 # ---------------------------------------------------------------------------
 
 _HDF5_DIR = Path(__file__).parent / "fixtures" / "hdf5"
@@ -226,7 +226,7 @@ def test_read_hdf5_no_keras_attrs(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — HDF5 fixtures (hdf5/*.h5, *.hdf5)
+# Integration tests -- HDF5 fixtures (hdf5/*.h5, *.hdf5)
 # Require: h5py installed AND fixture files present
 # ---------------------------------------------------------------------------
 
@@ -241,12 +241,12 @@ def fixture_hdf5() -> Any:
 
 
 def test_hdf5_fixture_format(fixture_hdf5: Any) -> None:
-    # Keras HDF5 fixture has keras_version attribute → reclassified as KERAS.
+    # Keras HDF5 fixture has keras_version attribute -> reclassified as KERAS.
     assert fixture_hdf5.format_info.model_format == AiModelFormat.KERAS
 
 
 def test_hdf5_fixture_format_version(fixture_hdf5: Any) -> None:
-    # keras_version "3.13.2" → major 3 → "v2" (Keras 3 legacy HDF5 mode).
+    # keras_version "3.13.2" -> major 3 -> "v2" (Keras 3 legacy HDF5 mode).
     assert fixture_hdf5.format_info.format_version == "v2"
 
 

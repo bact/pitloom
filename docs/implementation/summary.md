@@ -25,14 +25,14 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Per-element sequential IDs (`generate_spdx_id`) reproducible across builds
 
 2. **Metadata extraction** (`src/pitloom/extract/`)
-   - `pyproject.py` — reads `pyproject.toml`; supports PEP 621 `[project]`,
+   - `pyproject.py` -- reads `pyproject.toml`; supports PEP 621 `[project]`,
      Poetry `[tool.poetry]` (fallback when `[project]` is absent), and merging
      of both when both sections are present (`[project]` wins field-by-field)
-   - `poetry.py` — extracts metadata from `[tool.poetry]` and
+   - `poetry.py` -- extracts metadata from `[tool.poetry]` and
      `[tool.poetry.dependencies]`; converts Poetry version specifiers
      (`^`, `~`, bare versions) to PEP 440; `[tool.poetry.group.*]` dev/deploy
      dependency groups are intentionally excluded from the SBOM
-   - `setuptools.py` — reads `setup.cfg` and `setup.py` for setuptools projects;
+   - `setuptools.py` -- reads `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
    - Extracts project metadata (name, version, description, authors, URLs)
@@ -55,7 +55,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 5. **Hatchling build hook** (`src/pitloom/plugins/hatch.py`)
    - `PitloomBuildHook` registered via pluggy entry point (`[project.entry-points."hatch"]`)
    - Generates SBOM in `initialize()`, stages to a `TemporaryDirectory`
-   - Appends staged path to `build_data["sbom_files"]` — Hatchling 1.28.0+ places
+   - Appends staged path to `build_data["sbom_files"]` -- Hatchling 1.28.0+ places
      it at `.dist-info/sboms/<filename>` (PEP 770) natively
    - `finalize()` cleans up the staging directory
    - Config: `sbom-basename`, `creator-name`, `creator-email`, `fragments`, `enabled`
@@ -103,7 +103,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 ### ✅ Quality assurance
 
 - **Linting**: pylint 10.00/10, flake8 clean, ruff clean
-- **Type checking**: mypy — no issues across all source files
+- **Type checking**: mypy -- no issues across all source files
 - **Type hints**: Comprehensive type annotations throughout
 - **Documentation**: Inline docstrings for all public APIs
 
@@ -186,12 +186,12 @@ pitloom/
 │   └── resources.md
 ├── src/
 │   └── pitloom/
-│       ├── assemble/            # Layers 2+3 — build DocumentModel + map to spec
+│       ├── assemble/            # Layers 2+3 -- build DocumentModel + map to spec
 │       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
 │       │   │   ├── ai.py        # AI model element assembly
 │       │   │   ├── dataset.py   # Dataset element assembly
 │       │   │   ├── deps.py      # Dependency element assembly
-│       │   │   ├── document.py  # build(DocumentModel) → Spdx3JsonExporter
+│       │   │   ├── document.py  # build(DocumentModel) -> Spdx3JsonExporter
 │       │   │   ├── fragments.py # Fragment merging
 │       │   │   └── __init__.py
 │       │   └── __init__.py      # generate_sbom() orchestrator + backend routing
@@ -203,9 +203,9 @@ pitloom/
 │       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation
 │       │   └── project.py          # ProjectMetadata, ProjectFile
-│       ├── export/              # Layer 4 — serialise to physical format
+│       ├── export/              # Layer 4 -- serialise to physical format
 │       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-│       ├── extract/             # Layer 1 — read from sources
+│       ├── extract/             # Layer 1 -- read from sources
 │       │   ├── ai_model.py         # AI model dispatcher + format detection
 │       │   ├── _croissant.py       # Croissant metadata parser
 │       │   ├── _croissant_keys.py  # Croissant JSON-LD key constants
@@ -220,7 +220,7 @@ pitloom/
 │       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
 │       │   ├── _safetensors.py     # Safetensors (.safetensors)
 │       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
-│       │   ├── poetry.py           # [tool.poetry] extractor; Poetry → PEP 440 conversion
+│       │   ├── poetry.py           # [tool.poetry] extractor; Poetry -> PEP 440 conversion
 │       │   ├── pyproject.py        # pyproject.toml extractor ([project] + [tool.poetry] merge)
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
 │       │   └── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
@@ -289,8 +289,8 @@ pitloom/
 
 - Easy to add new extractors (PDM, Flit, etc.)
 - Easy to add new assemblers/exporters (CycloneDX, AIDOC, etc.) consuming
-  the same `DocumentModel` — no changes to extractors needed
-- Clean separation of concerns: extractors → `DocumentModel` → serializers
+  the same `DocumentModel` -- no changes to extractors needed
+- Clean separation of concerns: extractors -> `DocumentModel` -> serializers
 
 ### 3. Best practices
 

@@ -54,7 +54,7 @@ def test_read_keras_format(tmp_path: Path) -> None:
 
 
 def test_read_keras_framework_version_from_metadata(tmp_path: Path) -> None:
-    # keras_version is the Keras library version → framework_version.
+    # keras_version is the Keras library version -> framework_version.
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata={"keras_version": "3.5.0"}))
     meta = read_keras(f)
@@ -87,7 +87,7 @@ def test_read_keras_date_saved_in_properties(tmp_path: Path) -> None:
 
 
 def test_read_keras_no_metadata_file(tmp_path: Path) -> None:
-    # No metadata.json — framework_version should be None, no crash.
+    # No metadata.json -- framework_version should be None, no crash.
     f = tmp_path / "model.keras"
     f.write_bytes(_make_keras_zip(metadata=None))
     meta = read_keras(f)
@@ -168,7 +168,7 @@ def test_read_keras_no_name_description_license(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — Keras fixture (keras/example-model.keras)
+# Integration tests -- Keras fixture (keras/example-model.keras)
 # No optional dependency required (uses stdlib zipfile + json).
 # ---------------------------------------------------------------------------
 

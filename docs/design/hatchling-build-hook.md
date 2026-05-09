@@ -95,9 +95,9 @@ with multi-SBOM scenarios.
 When no `-o` / `--output` argument is given, the CLI derives the default
 output filename in priority order:
 
-1. `{sbom-basename}.spdx3.json` — if `sbom-basename` is set in `[tool.pitloom]`
-2. `{name}-{version}.spdx3.json` — derived from project metadata
-3. `sbom.spdx3.json` — fallback
+1. `{sbom-basename}.spdx3.json` -- if `sbom-basename` is set in `[tool.pitloom]`
+2. `{name}-{version}.spdx3.json` -- derived from project metadata
+3. `sbom.spdx3.json` -- fallback
 
 ## Build hook class design
 
@@ -173,7 +173,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         sbom_json = exporter.to_json(pretty=pitloom_config.pretty)
 
         self._sbom_filename = sbom_filename
-        # TemporaryDirectory intentionally spans initialize() → finalize().
+        # TemporaryDirectory intentionally spans initialize() -> finalize().
         self._staging_dir = tempfile.TemporaryDirectory()
         self._sbom_staging_path = Path(self._staging_dir.name) / sbom_filename
         self._sbom_staging_path.write_text(sbom_json, encoding="utf-8")
@@ -236,11 +236,11 @@ Developer runs:
          │       ├── assemble_spdx3(DocumentModel, merkle_root)
          │       ├── merge_fragments(all_fragments)
          │       ├── exporter.to_json()
-         │       ├── write staged SBOM → TemporaryDirectory
+         │       ├── write staged SBOM -> TemporaryDirectory
          │       └── build_data["sbom_files"].append(staged_path)
          │
          ├─── Hatchling packages wheel
-         │       └── copies sbom_files → .dist-info/sboms/  ← PEP 770
+         │       └── copies sbom_files -> .dist-info/sboms/  <- PEP 770
          │
          └─── PitloomBuildHook.finalize()
                  └── TemporaryDirectory.cleanup()

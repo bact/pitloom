@@ -32,7 +32,7 @@ def _magic(fmt: AiModelFormat) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# AiModelFormat enum — extensions and magic attributes
+# AiModelFormat enum -- extensions and magic attributes
 # ---------------------------------------------------------------------------
 
 
@@ -140,7 +140,7 @@ def test_format_str_returns_value_consistently() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FormatInfo dataclass — reader registration only
+# FormatInfo dataclass -- reader registration only
 # ---------------------------------------------------------------------------
 
 
@@ -211,7 +211,7 @@ def test_detect_format_fasttext_ftz() -> None:
 
 
 def test_detect_format_bin_without_file_is_unknown() -> None:
-    # .bin has no extension entry; non-existent path → UNKNOWN (no magic sniff).
+    # .bin has no extension entry; non-existent path -> UNKNOWN (no magic sniff).
     assert detect_ai_model_format(Path("model.bin")) == AiModelFormat.UNKNOWN
 
 
@@ -221,7 +221,7 @@ def test_detect_format_bin_without_file_is_unknown() -> None:
 
 
 def test_sniff_gguf_magic(tmp_path: Path) -> None:
-    f = tmp_path / "model.bin"  # wrong extension — magic wins
+    f = tmp_path / "model.bin"  # wrong extension -- magic wins
     f.write_bytes(_magic(AiModelFormat.GGUF) + b"\x00" * 20)
     assert detect_ai_model_format(f) == AiModelFormat.GGUF
 
@@ -242,7 +242,7 @@ def test_sniff_safetensors_magic(tmp_path: Path) -> None:
 
 
 def test_sniff_unknown_returns_extension_fallback(tmp_path: Path) -> None:
-    # Unrecognised magic + .onnx extension → extension fallback gives ONNX.
+    # Unrecognised magic + .onnx extension -> extension fallback gives ONNX.
     f = tmp_path / "model.onnx"
     f.write_bytes(b"\x08\x01\x12\x04" + b"\x00" * 20)  # typical protobuf, no magic
     assert detect_ai_model_format(f) == AiModelFormat.ONNX
@@ -271,19 +271,19 @@ def test_sniff_format_nonexistent_returns_unknown() -> None:
 
 
 def test_sniff_numpy_npy_magic(tmp_path: Path) -> None:
-    f = tmp_path / "array.bin"  # wrong extension — magic wins
+    f = tmp_path / "array.bin"  # wrong extension -- magic wins
     f.write_bytes(_magic(AiModelFormat.NUMPY) + b"\x00" * 20)
     assert detect_ai_model_format(f) == AiModelFormat.NUMPY
 
 
 def test_sniff_hdf5_magic(tmp_path: Path) -> None:
-    f = tmp_path / "model.bin"  # wrong extension — magic wins
+    f = tmp_path / "model.bin"  # wrong extension -- magic wins
     f.write_bytes(_magic(AiModelFormat.HDF5) + b"\x00" * 20)
     assert detect_ai_model_format(f) == AiModelFormat.HDF5
 
 
 # ---------------------------------------------------------------------------
-# detect_ai_model_format — extension-based
+# detect_ai_model_format -- extension-based
 # ---------------------------------------------------------------------------
 
 
@@ -316,7 +316,7 @@ def test_detect_format_pytorch_pt2() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_ai_model — dispatch
+# read_ai_model -- dispatch
 # ---------------------------------------------------------------------------
 
 

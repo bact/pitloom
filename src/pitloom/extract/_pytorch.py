@@ -143,7 +143,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         is_zip = False
 
     if not is_zip:
-        # Old-style raw pickle — use fickling for safe, non-executing inspection.
+        # Old-style raw pickle -- use fickling for safe, non-executing inspection.
         properties["format_detail"] = "raw pickle"
         provenance["properties"] = f"{source} | raw pickle format"
         try:

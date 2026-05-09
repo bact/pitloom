@@ -29,7 +29,7 @@ presentation at Open Source Summit North America 2024.
 The current `pitloom.loom` SDK requires explicit calls alongside MLflow:
 
 ```python
-# Current state — duplicated effort
+# Current state -- duplicated effort
 import mlflow
 from pitloom import loom
 
@@ -47,7 +47,7 @@ The MLflow extractor closes this gap. Once an MLflow run exists, Pitloom can rea
 it and emit the fragment automatically:
 
 ```python
-# Desired state — one source of truth
+# Desired state -- one source of truth
 import mlflow
 from pitloom import loom
 
@@ -87,7 +87,7 @@ against well-known MLflow tag prefixes and metric names when STAV is not install
 
 ## Tag and metric mapping
 
-### MLflow tags → SPDX 3 AI Profile fields
+### MLflow tags -> SPDX 3 AI Profile fields
 
 | MLflow tag key (stav constant) | SPDX 3.0 `ai_AIPackage` field | Notes |
 | :--- | :--- | :--- |
@@ -102,7 +102,7 @@ against well-known MLflow tag prefixes and metric names when STAV is not install
 | `mlflow.source.git.commit` | provenance `comment` | Git commit SHA |
 | `mlflow.source.git.repoURL` | `software_downloadLocation` | Repository link |
 
-### MLflow params (logged via `log_param`) → SPDX `ai_hyperparameter`
+### MLflow params (logged via `log_param`) -> SPDX `ai_hyperparameter`
 
 All `log_param` entries are mapped to the `ai_hyperparameter` list
 as `{name: key, value: str(value)}` objects. Individual params with
@@ -112,7 +112,7 @@ known stav keys are additionally promoted to their SPDX fields:
 | :--- | :--- |
 | `stav.HYPERPARAMETER` / any other | `ai_hyperparameter[{name, value}]` |
 
-### MLflow metrics → SPDX Annotations
+### MLflow metrics -> SPDX Annotations
 
 MLflow metrics (logged via `log_metric`) do not have a direct scalar
 SPDX 3.0 field on `ai_AIPackage`. They are recorded as SPDX `Annotation`
@@ -279,7 +279,7 @@ class MlflowExtractor:
 # Tag mapping helpers
 # ------------------------------------------------------------------
 
-# Canonical tag key aliases (stav constants → fallback string keys)
+# Canonical tag key aliases (stav constants -> fallback string keys)
 _TAG_ALIASES: dict[str, list[str]] = {
     "type_of_model": ["typeOfModel", "type_of_model", "model_type"],
     "information_about_training": [
@@ -561,7 +561,7 @@ at build time.
 ```text
 src/pitloom/
 └── extractors/
-    └── mlflow.py           ← MlflowExtractor, extract_from_mlflow_run
+    └── mlflow.py           <- MlflowExtractor, extract_from_mlflow_run
 tests/
 └── test_mlflow_extractor.py
 ```

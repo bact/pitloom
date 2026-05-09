@@ -18,7 +18,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
 
     The Safetensors format stores an optional ``__metadata__`` dict in its
     header alongside tensor descriptors (name, dtype, shape). This extractor
-    reads only the header — it does not load tensor data into memory.
+    reads only the header -- it does not load tensor data into memory.
 
     Commonly stored ``__metadata__`` keys (by convention):
     - ``modelspec.architecture`` -> architecture
@@ -90,14 +90,14 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     if version:
         provenance["version"] = f"{source} | Field: __metadata__"
 
-    # modelspec.architecture → architecture (specific arch name)
+    # modelspec.architecture -> architecture (specific arch name)
     architecture = raw_metadata.get("modelspec.architecture") or raw_metadata.get(
         "architecture"
     )
     if architecture:
         provenance["architecture"] = f"{source} | Field: __metadata__"
 
-    # modelspec.precision → quantization (e.g. "fp16", "bf16", "int8")
+    # modelspec.precision -> quantization (e.g. "fp16", "bf16", "int8")
     quantization = raw_metadata.get("modelspec.precision") or raw_metadata.get(
         "precision"
     )

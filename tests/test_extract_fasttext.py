@@ -273,7 +273,7 @@ def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real fastText file (fasttext/sentimentdemo.bin)
+# Integration tests -- real fastText file (fasttext/sentimentdemo.bin)
 # Thai text sentiment classifier; 4 labels: pos, neg, neu, q
 # Require: fasttext installed AND tests/fixtures/fasttext/sentimentdemo.bin present
 # ---------------------------------------------------------------------------
@@ -329,7 +329,7 @@ def test_sentiment_demo_labels(sentiment_demo_metadata: AiModelMetadata) -> None
 
 
 def test_sentiment_demo_outputs(sentiment_demo_metadata: AiModelMetadata) -> None:
-    # Supervised model with 4 labels → outputs[0].shape == [4]
+    # Supervised model with 4 labels -> outputs[0].shape == [4]
     assert len(sentiment_demo_metadata.outputs) == 1
     assert sentiment_demo_metadata.outputs[0]["shape"] == [4]
     assert "outputs" in sentiment_demo_metadata.provenance
@@ -351,7 +351,7 @@ def test_sentiment_demo_magic_bytes_detect() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real fastText file (fasttext/lid.176.ftz)
+# Integration tests -- real fastText file (fasttext/lid.176.ftz)
 # Facebook language identification model; 176 language labels
 # Require: fasttext installed AND tests/fixtures/fasttext/lid.176.ftz present
 # ---------------------------------------------------------------------------
@@ -405,7 +405,7 @@ def test_lid_176_labels(lid_176_metadata: AiModelMetadata) -> None:
 
 
 def test_lid_176_outputs(lid_176_metadata: AiModelMetadata) -> None:
-    # 176 language labels → outputs[0].shape == [176]
+    # 176 language labels -> outputs[0].shape == [176]
     assert len(lid_176_metadata.outputs) == 1
     assert lid_176_metadata.outputs[0]["shape"] == [176]
 

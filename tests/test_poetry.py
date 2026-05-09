@@ -183,7 +183,7 @@ def test_parse_deps_not_a_dict() -> None:
 
 
 # ---------------------------------------------------------------------------
-# extract_poetry_metadata — from dict
+# extract_poetry_metadata -- from dict
 # ---------------------------------------------------------------------------
 
 
@@ -280,7 +280,7 @@ def test_extract_provenance_sources() -> None:
 
 
 # ---------------------------------------------------------------------------
-# read_poetry — file-based
+# read_poetry -- file-based
 # ---------------------------------------------------------------------------
 
 
@@ -314,7 +314,7 @@ pretty = true
 
 
 # ---------------------------------------------------------------------------
-# read_pyproject — poetry fallback when [project] absent
+# read_pyproject -- poetry fallback when [project] absent
 # ---------------------------------------------------------------------------
 
 
@@ -359,7 +359,7 @@ requests = "^2.28"
 
 
 # ---------------------------------------------------------------------------
-# read_pyproject — [project] overrides [tool.poetry]
+# read_pyproject -- [project] overrides [tool.poetry]
 # ---------------------------------------------------------------------------
 
 
@@ -424,7 +424,7 @@ def test_fixture_read_poetry_name_and_version() -> None:
 
 
 def test_fixture_read_poetry_description_empty() -> None:
-    # mistral-inference has description = "" — maps to None after stripping.
+    # mistral-inference has description = "" -- maps to None after stripping.
     metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.description is None
 
@@ -452,7 +452,7 @@ def test_fixture_read_poetry_urls_empty() -> None:
 
 
 def test_fixture_read_poetry_requires_python() -> None:
-    # python = "^3.9.10" → >=3.9.10,<4.0.0
+    # python = "^3.9.10" -> >=3.9.10,<4.0.0
     metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.requires_python == ">=3.9.10,<4.0.0"
 
@@ -476,7 +476,7 @@ def test_fixture_read_poetry_main_dependencies_only() -> None:
 
 
 def test_fixture_read_poetry_no_pitloom_section_defaults() -> None:
-    # mistral-inference has no [tool.pitloom] — all defaults apply.
+    # mistral-inference has no [tool.pitloom] -- all defaults apply.
     _, config = read_poetry(POETRY_FIXTURE / "pyproject.toml")
     assert config.sbom_basename is None
     assert config.pretty is False
@@ -484,7 +484,7 @@ def test_fixture_read_poetry_no_pitloom_section_defaults() -> None:
 
 
 def test_fixture_read_pyproject_falls_back_to_poetry() -> None:
-    # No [project] section → falls back to [tool.poetry].
+    # No [project] section -> falls back to [tool.poetry].
     metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.name == "mistral_inference"
     assert metadata.version == "1.6.0"

@@ -14,7 +14,7 @@ ordered most-common first.  The :func:`~pitloom.extract._extract_utils.get_first
 helper picks the first matching key found in a given document dict.
 
 At this point, we deliberately do not resolve ``@context`` prefix declarations
-— alias-based lookup covers the overwhelming majority of real-world files
+-- alias-based lookup covers the overwhelming majority of real-world files
 without requiring a JSON-LD processor.
 A future version could optionally support JSON-LD expansion for edge cases.
 """
@@ -49,7 +49,7 @@ RAI_SENSITIVITY_KEYS = ("rai:personalSensitiveInformation",)
 DATA_TYPE_KEYS = ("sc:dataType", "dataType", "schema:dataType", "cr:dataType")
 
 # ---------------------------------------------------------------------------
-# schema.org type IRI → SPDX dataset_DatasetType enum name
+# schema.org type IRI -> SPDX dataset_DatasetType enum name
 # ---------------------------------------------------------------------------
 
 SCHEMA_TYPE_TO_DATASET_TYPE: dict[str, str] = {

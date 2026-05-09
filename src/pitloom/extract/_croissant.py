@@ -12,7 +12,7 @@ Hugging Face, Kaggle, and OpenML.
 See: https://docs.mlcommons.org/croissant/docs/croissant-spec-1.1.html
 See: https://docs.mlcommons.org/croissant/docs/croissant-rai-spec.html
 
-This module is stdlib-only — no third-party packages are required.
+This module is stdlib-only -- no third-party packages are required.
 To work with Croissant RDF as Python dataclass,
 we can use https://github.com/mlcommons/croissant/tree/main/python/mlcroissant
 
@@ -133,23 +133,23 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     """Extract metadata from a Croissant JSON-LD document.
 
     Accepts a local file path or an HTTP/HTTPS URL.  No third-party packages
-    are required — only the Python stdlib is used.
+    are required -- only the Python stdlib is used.
 
     Extracted fields:
 
-    - ``name`` — from ``schema:name`` (required; raises if absent)
-    - ``version`` — from ``schema:version``
-    - ``description`` — from ``schema:description``
-    - ``download_url`` — from ``schema:url``
-    - ``license`` — from ``schema:license``
-    - ``keywords`` — from ``schema:keywords``
-    - ``creator`` — from ``schema:creator`` (name extracted from nested node)
-    - ``dataset_types`` — inferred from all ``sc:dataType`` values in the document
-    - ``data_collection_process`` — from ``rai:dataCollection``
-    - ``data_preprocessing`` — from ``rai:dataPreprocessingProtocol``
-    - ``known_bias`` — from ``rai:dataBiases``
-    - ``has_sensitive_personal_information`` — from ``rai:personalSensitiveInformation``
-    - ``croissant_url`` — the URL string of *source* (when *source* is a URL)
+    - ``name`` -- from ``schema:name`` (required; raises if absent)
+    - ``version`` -- from ``schema:version``
+    - ``description`` -- from ``schema:description``
+    - ``download_url`` -- from ``schema:url``
+    - ``license`` -- from ``schema:license``
+    - ``keywords`` -- from ``schema:keywords``
+    - ``creator`` -- from ``schema:creator`` (name extracted from nested node)
+    - ``dataset_types`` -- inferred from all ``sc:dataType`` values in the document
+    - ``data_collection_process`` -- from ``rai:dataCollection``
+    - ``data_preprocessing`` -- from ``rai:dataPreprocessingProtocol``
+    - ``known_bias`` -- from ``rai:dataBiases``
+    - ``has_sensitive_personal_information`` -- from ``rai:personalSensitiveInformation``
+    - ``croissant_url`` -- the URL string of *source* (when *source* is a URL)
 
     Args:
         source: Path to a local ``.json`` file or an HTTP/HTTPS URL.

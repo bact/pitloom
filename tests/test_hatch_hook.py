@@ -61,7 +61,7 @@ def make_hook(root: str, config: dict[str, Any]) -> PitloomBuildHook:
     ``BuildHookInterface`` stores ``root``, ``config``, and ``build_config``
     under mangled names and exposes them as read-only properties, so we set
     the mangled attributes directly via ``object.__setattr__``.  A bare
-    ``SimpleNamespace`` satisfies ``build_config`` — ``initialize()`` does not
+    ``SimpleNamespace`` satisfies ``build_config`` -- ``initialize()`` does not
     access it (file discovery uses ``WheelBuilder`` directly), but the slot
     must exist to prevent ``AttributeError`` from base-class property access.
     """
@@ -124,7 +124,7 @@ def test_validate_config_invalid_raises(field: str, bad_value: Any, match: str) 
 
 
 # ---------------------------------------------------------------------------
-# initialize() — happy path
+# initialize() -- happy path
 # ---------------------------------------------------------------------------
 
 
@@ -201,7 +201,7 @@ def test_hook_custom_basename_stored() -> None:
 
 
 # ---------------------------------------------------------------------------
-# initialize() — disabled
+# initialize() -- disabled
 # ---------------------------------------------------------------------------
 
 
@@ -220,7 +220,7 @@ def test_hook_disabled_skips_generation() -> None:
 
 
 # ---------------------------------------------------------------------------
-# finalize() — cleanup
+# finalize() -- cleanup
 # ---------------------------------------------------------------------------
 
 
@@ -259,7 +259,7 @@ def test_hook_finalize_idempotent() -> None:
 
 
 # ---------------------------------------------------------------------------
-# PEP 770 — build_data["sbom_files"] registration
+# PEP 770 -- build_data["sbom_files"] registration
 # ---------------------------------------------------------------------------
 
 
@@ -414,7 +414,7 @@ def test_hook_with_sampleproject_fixture() -> None:
 
 def test_hook_invalid_config_raises_before_io() -> None:
     """initialize() raises ValueError on bad config without touching the filesystem."""
-    # No pyproject.toml written — error must occur before reading it
+    # No pyproject.toml written -- error must occur before reading it
     with tempfile.TemporaryDirectory() as tmp:
         hook = make_hook(tmp, {"enabled": "yes"})
         build_data: dict[str, Any] = {}

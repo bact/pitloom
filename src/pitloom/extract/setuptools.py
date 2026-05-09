@@ -13,7 +13,7 @@ Supports setuptools-based projects that declare metadata in ``setup.cfg``
 When multiple sources are present, fields are merged with this priority order
 (highest to lowest):
 
-1. ``pyproject.toml [project]`` — handled upstream by
+1. ``pyproject.toml [project]`` -- handled upstream by
    :func:`~pitloom.extract.pyproject.read_pyproject`; merged via
    :func:`merge_metadata` by the assembler.
 2. ``setup.cfg [metadata]`` / ``[options]``
@@ -25,7 +25,7 @@ recorded per field so consumers can audit the source.
 .. rubric:: Limitations (static analysis)
 
 - Dynamic values in ``setup.py`` (variables, function calls, conditional
-  expressions) are **not resolvable** — they are silently skipped.
+  expressions) are **not resolvable** -- they are silently skipped.
 - ``version = attr: package.__version__`` in ``setup.cfg`` uses best-effort
   file scanning via AST parsing of the referenced module file.
 - Build-time metadata obtained via PEP 517
@@ -487,7 +487,7 @@ def _resolve_cfg_version(
                 return content, f"Source: {value} | Method: file_directive"
 
     elif directive == "attr":
-        # attr: package.module.ATTR  →  look for package/module.py or __init__.py
+        # attr: package.module.ATTR  ->  look for package/module.py or __init__.py
         parts = value.rsplit(".", 1)
         if len(parts) == 2:
             module_path, attr_name = parts

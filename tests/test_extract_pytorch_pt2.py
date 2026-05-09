@@ -190,7 +190,7 @@ def test_read_pytorch_pt2_model_json_inputs_outputs(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — PT2 Archive fixtures (pytorch_pt2/*.pt2)
+# Integration tests -- PT2 Archive fixtures (pytorch_pt2/*.pt2)
 # Require: fixture files present
 # ---------------------------------------------------------------------------
 

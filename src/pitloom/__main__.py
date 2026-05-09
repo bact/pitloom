@@ -483,7 +483,7 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
     Priority:
     1. Explicit ``-o`` / ``--output`` argument.
     2. ``[tool.pitloom] sbom-basename`` from the project config
-       → ``<basename>.spdx3.json``.
+       -> ``<basename>.spdx3.json``.
     3. ``<name>-<version>.spdx3.json`` derived from project metadata.
     4. Fallback: ``sbom.spdx3.json``.
     """

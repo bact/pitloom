@@ -292,7 +292,7 @@ _active_shot: _ActiveShot | None = None  # pylint: disable=invalid-name
 class Shoot(contextlib.ContextDecorator):
     """Context manager and decorator for capturing SPDX fragments.
 
-    Each ``Shoot`` is one pass of the shuttle — a single recording session
+    Each ``Shoot`` is one pass of the shuttle -- a single recording session
     that weaves metadata about a model and its datasets into an SBOM fragment.
 
     Can be used as a context manager::

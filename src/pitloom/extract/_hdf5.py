@@ -7,29 +7,29 @@
 HDF5 is a general-purpose hierarchical data format used by many frameworks.
 Keras v1 and v2 stored models in HDF5 (``.h5`` / ``.hdf5``) with a set of
 JSON-encoded root attributes.  This extractor reads the following root
-attributes opportunistically — any HDF5 model that happens to carry them
+attributes opportunistically -- any HDF5 model that happens to carry them
 will have the corresponding metadata extracted and recorded:
 
 - ``keras_version``
-  → :attr:`~AiModelMetadata.version`
+  -> :attr:`~AiModelMetadata.version`
 - ``backend``
-  → ``properties["backend"]``
+  -> ``properties["backend"]``
 - ``model_config.class_name``
-  → :attr:`~AiModelMetadata.type_of_model`
+  -> :attr:`~AiModelMetadata.type_of_model`
 - ``model_config.config.name``
-  → :attr:`~AiModelMetadata.name`
+  -> :attr:`~AiModelMetadata.name`
 - Scalar entries of ``model_config.config``
-  → :attr:`~AiModelMetadata.hyperparameters`
+  -> :attr:`~AiModelMetadata.hyperparameters`
 - ``model_config.config.layers`` count
-  → ``properties["layer_count"]``
+  -> ``properties["layer_count"]``
 - ``model_config.build_config.input_shape`` (or layer batch_shape)
-  → :attr:`~AiModelMetadata.inputs`
+  -> :attr:`~AiModelMetadata.inputs`
 - ``training_config.optimizer_config.class_name``
-  → ``properties["optimizer"]``
+  -> ``properties["optimizer"]``
 - ``training_config.loss``
-  → ``properties["loss"]``
+  -> ``properties["loss"]``
 - ``training_config.metrics``
-  → ``properties["metrics"]``
+  -> ``properties["metrics"]``
 
 A **per-field provenance entry** is recorded for every populated field so
 that downstream consumers can trace each value back to its exact HDF5
@@ -122,14 +122,14 @@ def _parse_model_config(
 
     Extracts:
 
-    - ``class_name`` → ``type_of_model`` (returned)
-    - ``config.name`` / ``config.model_name`` → ``name`` (returned)
+    - ``class_name`` -> ``type_of_model`` (returned)
+    - ``config.name`` / ``config.model_name`` -> ``name`` (returned)
     - Scalar entries of ``config`` (excluding ``name`` and ``layers``)
-      → ``hyperparameters`` (updated in-place)
-    - ``config.layers`` count → ``properties["layer_count"]`` (updated in-place)
+      -> ``hyperparameters`` (updated in-place)
+    - ``config.layers`` count -> ``properties["layer_count"]`` (updated in-place)
     - Input shape from layers or ``build_config.input_shape``
-      → ``inputs`` (updated in-place)
-    - Per-field source paths → ``provenance`` (updated in-place)
+      -> ``inputs`` (updated in-place)
+    - Per-field source paths -> ``provenance`` (updated in-place)
 
     Args:
         raw: Raw JSON string from the ``model_config`` HDF5 attribute.
@@ -184,7 +184,7 @@ def _parse_model_config(
                     " (scalar entries, excluding name and layers)"
                 )
 
-        # Top-level build_config — fallback if layers didn't give a shape.
+        # Top-level build_config -- fallback if layers didn't give a shape.
         if not inputs:
             in_shape = (model_config.get("build_config") or {}).get("input_shape")
             if in_shape is not None:
@@ -210,12 +210,12 @@ def _parse_training_config(
     Extracts:
 
     - ``optimizer_config.class_name`` (or ``optimizer.class_name``)
-      → ``properties["optimizer"]`` (updated in-place)
+      -> ``properties["optimizer"]`` (updated in-place)
     - ``loss``
-      → ``properties["loss"]`` (updated in-place)
+      -> ``properties["loss"]`` (updated in-place)
     - ``metrics``
-      → ``properties["metrics"]`` (updated in-place)
-    - Per-field source paths → ``provenance`` (updated in-place)
+      -> ``properties["metrics"]`` (updated in-place)
+    - Per-field source paths -> ``provenance`` (updated in-place)
 
     Args:
         raw: Raw JSON string from the ``training_config`` HDF5 attribute.
@@ -262,7 +262,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
     Requires the ``h5py`` package (``pip install h5py``).
 
     Reads ``keras_version``, ``backend``, ``model_config``, and
-    ``training_config`` root attributes opportunistically — any HDF5 model
+    ``training_config`` root attributes opportunistically -- any HDF5 model
     that carries those attributes will have its metadata extracted.
     See the module docstring for the full list of extracted fields and their
     HDF5/JSON source paths.
@@ -322,7 +322,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
                 f"{source} | Field: keras_version attribute"
             )
             # Derive the Keras HDF5 format generation from the major library version:
-            # Keras 1.x → "v1", Keras 2.x and later HDF5 legacy mode → "v2".
+            # Keras 1.x -> "v1", Keras 2.x and later HDF5 legacy mode -> "v2".
             try:
                 keras_major = int(keras_version_raw.split(".")[0])
             except (ValueError, IndexError):

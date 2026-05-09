@@ -190,7 +190,7 @@ As documented in the design docs:
 2. **Setuptools support**: Extend beyond Hatchling
 3. **File-level analysis**: Include individual files in SBOM
 4. **Build log extraction**: Capture compiled dependencies
-5. ~~**PEP 770 support**: Store SBOMs in .dist-info/sboms~~ — completed
+5. ~~**PEP 770 support**: Store SBOMs in .dist-info/sboms~~ -- completed
 6. **Validation**: Schema validation for generated SBOMs
 7. **Performance**: Rust backend for large projects
 

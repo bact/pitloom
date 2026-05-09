@@ -26,10 +26,10 @@ Standard fields populated:
 * ``type_of_model``, ``architecture`` - from ``config.json``
 * ``hyperparameters`` - selected numeric/type fields from ``config.json``
   and ``generation_config.json``
-* ``usage.domains`` - pipeline tag and broad category tags (→ SPDX ``ai_domain``)
+* ``usage.domains`` - pipeline tag and broad category tags (-> SPDX ``ai_domain``)
 * ``datasets`` - from model card ``datasets:`` list; falls back to
   ``dataset:*`` prefix tags in ``model_info()`` when no card datasets exist
-  (→ SPDX ``trainedOn``)
+  (-> SPDX ``trainedOn``)
 
 Extension slots populated:
 
@@ -116,7 +116,7 @@ _HF_LICENSE_FILENAMES: tuple[str, ...] = (
     "COPYING.md",
 )
 
-# Tags that describe broad model categories - kept in usage.domains (→ ai_domain)
+# Tags that describe broad model categories - kept in usage.domains (-> ai_domain)
 # rather than in extra_lists["hf.tags"].
 _DOMAIN_TAGS: frozenset[str] = frozenset(
     {

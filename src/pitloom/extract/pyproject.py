@@ -47,9 +47,9 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     Returns:
         A 2-tuple of:
 
-        * :class:`~pitloom.core.project.ProjectMetadata` — populated project
+        * :class:`~pitloom.core.project.ProjectMetadata` -- populated project
           metadata.
-        * :class:`~pitloom.core.config.PitloomConfig` — settings from
+        * :class:`~pitloom.core.config.PitloomConfig` -- settings from
           ``[tool.pitloom]`` (all fields default gracefully when the section is
           absent).
 
@@ -69,7 +69,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     name: str = (project_data.get("name") or "").strip()
 
     if not project_data or not name:
-        # No [project] section (or no name) — try [tool.poetry] as primary source.
+        # No [project] section (or no name) -- try [tool.poetry] as primary source.
         poetry_meta = _try_read_poetry(data)
         if poetry_meta is not None:
             return poetry_meta, pitloom_config
@@ -262,8 +262,8 @@ def _extract_and_detect_license(
 
     Returns a 2-tuple:
 
-    * ``license_id`` — SPDX License ID, SPDX License Expression, or raw string fallback.
-    * ``provenance_override`` — non-``None`` when provenance differs from the
+    * ``license_id`` -- SPDX License ID, SPDX License Expression, or raw string fallback.
+    * ``provenance_override`` -- non-``None`` when provenance differs from the
       default ``pyproject.toml`` field string (e.g. detected from a file).
     """
     license_obj = std.license

@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 The current Pitloom implementation integrates with `spdx-python-model` to produce
 SPDX 3 output. While SPDX 3 is the primary target, the future software supply
 chain landscape will require support for multiple output specifications and
-formats — and potentially non-SBOM outputs such as AIDOC documentation or
+formats -- and potentially non-SBOM outputs such as AIDOC documentation or
 TechOps reports.
 
 To ensure long-term maintainability and flexibility, Pitloom introduces a
@@ -39,10 +39,10 @@ Extractors                     Core model              Serializers / Assemblers
 ──────────────────────         ─────────────────       ─────────────────────────
 read_pyproject()           ─┐
 read_setuptools()          ─┤
-read_ai_model()            ─┤─→  DocumentModel   ─→   Spdx3Assembler              → SPDX 3 JSON-LD
-loom.shoot() (fragments)   ─┘    (pitloom.core)       [future] CycloneDXAssembler → CycloneDX JSON
-                                                      [future] AidocRenderer      → AIDOC markdown
-                                                      [future] TechOpsDoc         → documentation
+read_ai_model()            ─┤─->  DocumentModel   ─->   Spdx3Assembler              -> SPDX 3 JSON-LD
+loom.shoot() (fragments)   ─┘    (pitloom.core)       [future] CycloneDXAssembler -> CycloneDX JSON
+                                                      [future] AidocRenderer      -> AIDOC markdown
+                                                      [future] TechOpsDoc         -> documentation
 ```
 
 ### `DocumentModel` (``pitloom.core.document``)
@@ -64,7 +64,7 @@ Serializers pick the fields they understand and ignore the rest.
 | :---- | :---- | :---- |
 | **Extractors** | Read data sources; populate metadata objects | `ProjectMetadata`, `AiModelMetadata` |
 | **Core model** | Format-neutral assembled document | `DocumentModel`, `PitloomConfig`, `CreationMetadata` |
-| **Assemblers** | Translate `DocumentModel` → format-specific objects | `Spdx3JsonExporter`, future exporters |
+| **Assemblers** | Translate `DocumentModel` -> format-specific objects | `Spdx3JsonExporter`, future exporters |
 | **Orchestrator** | Build `DocumentModel`, call assembler, merge fragments | `generate_sbom()` |
 
 ## Data classes in ``pitloom.core``

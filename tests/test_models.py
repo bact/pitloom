@@ -73,7 +73,7 @@ def test_compute_doc_uuid_field_boundary_no_collision() -> None:
     The NUL separator is immune because PEP 508 names, PEP 440 versions, and
     SHA-256 hex digests cannot contain \\x00.
     """
-    # Same number of ':' characters — would collide with ':' separator
+    # Same number of ':' characters -- would collide with ':' separator
     uuid_split_in_name = compute_doc_uuid("my-pkg", "1.0", ["dep-a>=1", "dep-b>=2"])
     uuid_split_in_version = compute_doc_uuid("my-pkg", "2.0", ["dep-a>=1"])
     uuid_no_deps = compute_doc_uuid("my-pkg", "1.0", [])

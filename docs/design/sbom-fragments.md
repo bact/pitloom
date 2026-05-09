@@ -48,13 +48,13 @@ elements may in turn contain or relate to any number of other elements.
 
 The relevant composition mechanisms in SPDX 3 are:
 
-- **`software_Sbom`** — a typed collection of SPDX elements describing a
+- **`software_Sbom`** -- a typed collection of SPDX elements describing a
   specific artifact. Multiple `software_Sbom` objects can exist within
   one `SpdxDocument`.
-- **`SpdxDocument.imports`** — an `ExternalMap` allowing a document to
+- **`SpdxDocument.imports`** -- an `ExternalMap` allowing a document to
   formally declare dependencies on other SPDX documents by their namespace
   URI, enabling verified cross-document references.
-- **Element identity** — every element has a `spdxId` URI. Elements in
+- **Element identity** -- every element has a `spdxId` URI. Elements in
   different documents may safely overlap in the graph if their IDs are
   globally unique.
 
@@ -67,13 +67,13 @@ primary SBOM document.
 
 CycloneDX addresses composition via:
 
-- **BOM-Link** — a URI scheme (`urn:cdx:bomSerialNumber/version#componentRef`)
+- **BOM-Link** -- a URI scheme (`urn:cdx:bomSerialNumber/version#componentRef`)
   that allows one BOM to reference a component or the entirety of another BOM
   document, preserving organizational boundaries without embedding the full
   content.
-- **Assemblies** — nested `component` entries that describe sub-assemblies,
+- **Assemblies** -- nested `component` entries that describe sub-assemblies,
   mapping directly to the multi-team ownership scenario.
-- **Compositions** — formal declarations of how complete or incomplete a BOM
+- **Compositions** -- formal declarations of how complete or incomplete a BOM
   section is (e.g., `complete`, `incomplete`, `incomplete_first_party_only`).
 
 The `compositions` concept is particularly valuable for Pitloom: it lets
@@ -95,7 +95,7 @@ NTIA's **Minimum Elements for SBOM** (2021, updated 2025 by CISA) require
 that composed SBOMs preserve supplier information, component names and
 versions, cryptographic hashes, and known relationships. The updated 2025
 elements also require dependency relationship declarations and build
-environment information — all of which are relevant to fragment content.
+environment information -- all of which are relevant to fragment content.
 
 ### Adopted Pitloom vocabulary
 
@@ -164,7 +164,7 @@ practitioners already use daily. Key missing capabilities:
 ### 4. No W&B Weave integration
 
 W&B Weave captures automatic execution traces, versioned model objects,
-versioned dataset objects, and structured evaluation results — all of which
+versioned dataset objects, and structured evaluation results -- all of which
 map cleanly to SPDX 3 AI and Dataset profile elements. There is currently no
 extractor for Weave, even though it is rapidly becoming the primary tracking
 layer for LLM-based applications.
@@ -194,7 +194,7 @@ Pitloom can fill.
 Replace the flat `list[str]` with a list of structured fragment descriptors:
 
 ```toml
-# Minimal form — backward-compatible; role defaults to "software"
+# Minimal form -- backward-compatible; role defaults to "software"
 [tool.pitloom]
 fragments = ["fragments/legacy.spdx3.json"]
 
@@ -259,7 +259,7 @@ A backward-compatible loader will accept both the old `list[str]` form
 
 ### Merge protocol
 
-1. **Pre-merge validation** — for each configured fragment:
+1. **Pre-merge validation** -- for each configured fragment:
    - Check file existence; if missing and `required=True`, raise; if `False`,
      log warning and skip.
    - If `sha256` is set, verify the file hash matches.
@@ -268,23 +268,23 @@ A backward-compatible loader will accept both the old `list[str]` form
    - Log a structured merge summary entry (path, element count, validation
      result).
 
-2. **Namespace-aware element ingestion** — for each element in the fragment:
+2. **Namespace-aware element ingestion** -- for each element in the fragment:
    - If the element's `spdxId` already exists in the main object set,
      log a warning and skip (first-writer-wins). Future enhancement:
      implement merge-by-identity using PURL or hash comparison.
    - Otherwise, add the element to the main object set.
 
-3. **Fragment-to-main relationship** — if `link_to_main` is set and the
+3. **Fragment-to-main relationship** -- if `link_to_main` is set and the
    fragment contains a `software_Sbom` or a root element identifiable via
    the fragment's `rootElement` list, emit an SPDX `Relationship` from the
    project's main package to the fragment's root element using the specified
    relationship type.
 
-4. **External document reference** — for each successfully merged fragment,
+4. **External document reference** -- for each successfully merged fragment,
    add an `ExternalMap` entry to `SpdxDocument.imports` recording the
    fragment's namespace URI and integrity checksum.
 
-5. **Merge summary** — after all fragments are processed, emit a structured
+5. **Merge summary** -- after all fragments are processed, emit a structured
    log entry (or write to a sidecar `.merge-report.json`) listing:
    - Fragment path, role, element count, relationships added.
    - Skipped element count and reason (duplicate IDs).
@@ -313,7 +313,7 @@ def merge_fragments(
 ### Design goals
 
 The redesigned SDK should feel familiar to practitioners who already use
-MLflow, W&B, or Weave — using the same vocabulary where possible — while
+MLflow, W&B, or Weave -- using the same vocabulary where possible -- while
 emitting SPDX 3 elements rather than metrics records.
 
 The API adopts the MLflow `log_*` naming convention because it is widely
@@ -404,8 +404,8 @@ The `%%pitloom_record` cell magic:
 W&B Weave ([github.com/wandb/weave](https://github.com/wandb/weave)) is a
 next-generation tracing layer specifically designed for LLM-based
 applications. Unlike MLflow's run-centric model or W&B's artifact-centric
-model, Weave captures the **full call graph** of an AI application —
-automatically, via function decoration — including:
+model, Weave captures the **full call graph** of an AI application --
+automatically, via function decoration -- including:
 
 - All inputs and outputs to every decorated function (`@weave.op()`).
 - Model versioning based on code hash (a new version is created whenever
@@ -473,7 +473,7 @@ Weave model versions use content-addressed URIs:
 `weave:///entity/project/object/ModelName:abc123def456`
 
 This URI is a natural fit for `software_downloadLocation` on
-`ai_AIPackage` — it is both a stable reference and an integrity signal
+`ai_AIPackage` -- it is both a stable reference and an integrity signal
 (the hash is part of the URI). The full Weave trace URL provides a
 navigable link back to the execution record in the W&B UI.
 
@@ -601,19 +601,19 @@ See `docs/design/mlflow-extractor.md` for the full MLflow extractor design.
 
 Updates motivated by this document:
 
-1. **Dataset references from MLflow runs** — MLflow 2.x supports
+1. **Dataset references from MLflow runs** -- MLflow 2.x supports
    `mlflow.log_input(mlflow.data.from_pandas(...))` to log dataset provenance
    per run. The MLflow extractor should read `run.inputs.dataset_inputs` and
    emit `dataset_DatasetPackage` elements linked via `trainedOn` / `testedOn`
    relationships. This eliminates manual `add_dataset` calls in most workflows.
 
-2. **MLflow Model Registry** — a registered model version in the Model Registry
+2. **MLflow Model Registry** -- a registered model version in the Model Registry
    has a `model_uri` (`models:/name/version` or `runs:/run_id/artifacts/model`).
    This URI maps to `software_downloadLocation` on `ai_AIPackage`.
    The `MlflowExtractor` should accept a registered model version reference
    as an alternative to a raw run ID.
 
-3. **Artifact logging** — `mlflow.log_artifact(path)` uploads files.
+3. **Artifact logging** -- `mlflow.log_artifact(path)` uploads files.
    Large non-model artifacts (dataset files, evaluation outputs) could be
    translated to `software_File` elements with `verifiedUsing` checksums
    if MLflow stores the artifact hash (it does in MLflow 2.9+).
@@ -648,46 +648,46 @@ all earlier items; each can be delivered independently.
 
 ### Phase 1: Structural improvements (high impact, low effort)
 
-1. **`FragmentConfig` data class** — replace `list[str]` in `PitloomConfig`.
+1. **`FragmentConfig` data class** -- replace `list[str]` in `PitloomConfig`.
    Loader remains backward-compatible with plain strings.
-2. **`merge_fragments` rewrite** — add pre-merge validation, duplicate-ID
+2. **`merge_fragments` rewrite** -- add pre-merge validation, duplicate-ID
    detection, link-to-main relationship emission, and merge report logging.
-3. **`fragment list` CLI command** — cheapest way to surface fragment status
+3. **`fragment list` CLI command** -- cheapest way to surface fragment status
    to developers; reads config and checks file existence + parse validity.
-4. **SHA-256 verification in merge** — add `fragment sign` CLI command +
+4. **SHA-256 verification in merge** -- add `fragment sign` CLI command +
    hash check on merge.
 
 ### Phase 2: SDK improvements (notebook and ML workflow ergonomics)
 
-1. **`log_param`, `log_metric`, `log_tag` on `_ActiveShot`** — expands the
+1. **`log_param`, `log_metric`, `log_tag` on `_ActiveShot`** -- expands the
    existing `Shoot` API without breaking changes.
-2. **`add_dataset` builder object** — replace the current `add_dataset(name,
+2. **`add_dataset` builder object** -- replace the current `add_dataset(name,
    type)` with a fluent builder that supports `set_size`, `set_license`, etc.
-3. **`log_evaluation` on `_ActiveShot`** — maps to SPDX `Annotation` elements.
-4. **Persistent session mode** — `loom.start_session()` / `loom.end_session()`.
-5. **IPython magic** — `%%pitloom_record` cell magic; optional, only activated
+3. **`log_evaluation` on `_ActiveShot`** -- maps to SPDX `Annotation` elements.
+4. **Persistent session mode** -- `loom.start_session()` / `loom.end_session()`.
+5. **IPython magic** -- `%%pitloom_record` cell magic; optional, only activated
    if `ipython` is installed.
 
 ### Phase 3: New extractors
 
-1. **MLflow dataset input extraction** — read `run.inputs.dataset_inputs`;
+1. **MLflow dataset input extraction** -- read `run.inputs.dataset_inputs`;
    update `MlflowExtractor.extract()`.
-2. **W&B Weave extractor** — `pitloom.extract.weave.WeaveExtractor`; add
+2. **W&B Weave extractor** -- `pitloom.extract.weave.WeaveExtractor`; add
    `loom.from_weave_model()` to public API; add `weave` optional-dependency
    group to `pyproject.toml`.
-3. **DVC extractor** — `pitloom.extract.dvc.DvcExtractor`; reads `dvc.lock`;
+3. **DVC extractor** -- `pitloom.extract.dvc.DvcExtractor`; reads `dvc.lock`;
    emits `dataset_DatasetPackage` elements with content hashes.
 
 ### Phase 4: Compliance and interoperability
 
-1. **`SpdxDocument.imports` population** — add `ExternalMap` entries for
+1. **`SpdxDocument.imports` population** -- add `ExternalMap` entries for
    each merged fragment in the assembler.
-2. **CycloneDX BOM-Link emission** — when the CycloneDX assembler is
+2. **CycloneDX BOM-Link emission** -- when the CycloneDX assembler is
    implemented, emit `bom-link` references for fragments instead of
    inlining all elements.
-3. **`fragment validate` CLI command** — wraps `spdx3-validate`; clear
+3. **`fragment validate` CLI command** -- wraps `spdx3-validate`; clear
    error messages with line numbers.
-4. **Fragment completeness declaration** — add a `completeness` field to
+4. **Fragment completeness declaration** -- add a `completeness` field to
    `FragmentConfig` (values: `complete`, `incomplete`, `unknown`) that
    maps to CycloneDX `compositions` and is emitted as an SPDX `Annotation`
    on the fragment's `software_Sbom` element.

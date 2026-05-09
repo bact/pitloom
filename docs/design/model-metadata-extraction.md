@@ -43,7 +43,7 @@ without executing model code.
 | JAX (Orbax) | Higher | `orbax-checkpoint` for pytree structure inspection without full restoration | Stores checkpoints as directories of arrays; metadata in YAML config files alongside checkpoint data |
 | TensorFlow SavedModel | Planned | Parse `saved_model.pb` via Protocol Buffers; inspect `MetaGraphDef` for signature defs | `tensorflow` package or `tensorflow.core.protobuf.saved_model_pb2` for protobuf-only parsing |
 | TensorFlow Lite | Planned | Parse FlatBuffer binary without loading the TF runtime | `flatbuffers` Python package; no GPU/runtime required |
-| Scikit-learn | Planned, complex | Pickle/joblib serialisation — no single standard format; `fickling` for safe AST inspection to extract estimator class and `get_params()` values | Common extensions: `.pkl`, `.joblib`. Fickling is already an optional dependency. The challenge is that the serialized type varies widely (`Pipeline`, `GridSearchCV`, etc.) |
+| Scikit-learn | Planned, complex | Pickle/joblib serialisation -- no single standard format; `fickling` for safe AST inspection to extract estimator class and `get_params()` values | Common extensions: `.pkl`, `.joblib`. Fickling is already an optional dependency. The challenge is that the serialized type varies widely (`Pipeline`, `GridSearchCV`, etc.) |
 | MLflow model flavors | Planned | `MLmodel` YAML file in the artifact directory records `flavors`, `run_id`, and artifact paths | Partially addressed via `pitloom.loom.from_mlflow_run()` (SPDX fragment path); direct model flavor parsing is a separate step |
 
 ## Format reference tools and prior art
@@ -72,7 +72,7 @@ is a research library that mines AI-specific metadata from software
 repositories. Rather than parsing model files directly, AIMMX infers
 characteristics from README files, training scripts, and requirements.
 
-AIMMX is relevant to Pitloom's planned SBOM enrichment capability —
+AIMMX is relevant to Pitloom's planned SBOM enrichment capability --
 filling metadata gaps in model formats that carry little embedded information
 by looking at the surrounding repository context.
 See `docs/design/sbom-enrichment.md` for the enrichment design.
@@ -93,7 +93,7 @@ See `docs/design/sbom-enrichment.md` for the enrichment design.
 | **JAX (Orbax)** | 🔄 Planned (Higher) | `orbax-checkpoint` for pytree structure inspection without full restoration | jax, orbax-checkpoint |
 | **TensorFlow SavedModel** | 🔄 Planned | `saved_model.pb` protobuf; `tflite-support` for TFLite metadata | tensorflow, tflite-support |
 | **TensorFlow Lite** | 🔄 Planned | FlatBuffer format; parse without loading the TF runtime | flatbuffers |
-| **Scikit-learn** | 🔄 Planned (Complex) | Pickle/joblib; `fickling` AST inspection for class name and `get_params()` values — no single standard format | scikit-learn, fickling |
+| **Scikit-learn** | 🔄 Planned (Complex) | Pickle/joblib; `fickling` AST inspection for class name and `get_params()` values -- no single standard format | scikit-learn, fickling |
 
 ## AI dataset metadata extraction
 
@@ -106,6 +106,6 @@ For dataset-to-model linking within the SBOM, SPDX 3 provides dedicated
 relationship types between `ai_AIPackage` and `dataset_DatasetPackage`:
 `trainedOn`, `testedOn`, `finetunedOn`, `validatedOn`, and `pretrainedOn`.
 Documenting the datasets associated with a model is a current gap in Pitloom's
-SBOM output — only the AI model itself is recorded, not its training or
+SBOM output -- only the AI model itself is recorded, not its training or
 evaluation datasets.
 See `docs/design/sbom-enrichment.md` for the dataset linking design plan.

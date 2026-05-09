@@ -52,8 +52,8 @@ dependency is not installed or the file is absent.
 | `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary - Phi-3 (vocab only) | MIT |
 | `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal - CLIP vision projector | Apache-2.0 |
 | `gguf/stories260K.gguf` | GGUF | Text generation - LLaMA 260 K (TinyStories) | MIT |
-| `hdf5/example-model.h5` | HDF5 (Keras legacy) | Binary classification (10 features → 1 output) | CC0-1.0 |
-| `keras/example-model.keras` | Keras v3 | Binary classification (10 features → 1 output) | CC0-1.0 |
+| `hdf5/example-model.h5` | HDF5 (Keras legacy) | Binary classification (10 features -> 1 output) | CC0-1.0 |
+| `keras/example-model.keras` | Keras v3 | Binary classification (10 features -> 1 output) | CC0-1.0 |
 | `numpy/example-model-v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v3.npy` | NumPy v3.0 | Structured array | CC0-1.0 |
@@ -63,9 +63,9 @@ dependency is not installed or the file is absent.
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
 | `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification - bean disease (3 classes) | Apache-2.0 |
 | `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `pytorch/example-model.pt` | PyTorch classic | Linear regression (10 features → 1 output) - full model save | CC0-1.0 |
-| `pytorch/example-model.pth` | PyTorch classic | Linear regression (10 features → 1 output) - weights-only save | CC0-1.0 |
-| `pytorch_pt2/example-model.pt2` | PyTorch PT2 Archive | Linear regression (10 features → 1 output) | CC0-1.0 |
+| `pytorch/example-model.pt` | PyTorch classic | Linear regression (10 features -> 1 output) - full model save | CC0-1.0 |
+| `pytorch/example-model.pth` | PyTorch classic | Linear regression (10 features -> 1 output) - weights-only save | CC0-1.0 |
+| `pytorch_pt2/example-model.pt2` | PyTorch PT2 Archive | Linear regression (10 features -> 1 output) | CC0-1.0 |
 | `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation - MarianMT (random weights) | MIT |
 | `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation - Phi (random weights) | Apache-2.0 |
 | `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition - Speech2Text (random weights) | Apache-2.0 |
@@ -91,12 +91,12 @@ and metadata patterns encountered in practice.
 | `Qwen/Qwen3-235B-A22B` | MoE architecture (`qwen3_moe`), `qwen` custom license, thinking-mode generation config |
 | `openthaigpt/openthaigpt-r1-32b-instruct` | `license="other"` overridden by file detection, `license_name` secondary field, Thai language |
 | `hexgrad/Kokoro-82M` | Custom config schema (no `model_type`/`architectures` keys) - architecture not extractable |
-| `bigcode/starcoder2-3b` | `"code"` tag → `usage.domains` (not `extra_lists["hf.tags"]`), training dataset reference |
+| `bigcode/starcoder2-3b` | `"code"` tag -> `usage.domains` (not `extra_lists["hf.tags"]`), training dataset reference |
 | `openai/whisper-large-v3` | 99-language ASR; YAML 1.1 parses ISO code `"no"` (Norwegian) as `False` - must be filtered |
-| `moonshotai/Kimi-K2.6` | `license="other"` → file detection triggered, `hf.license_raw` preserved |
+| `moonshotai/Kimi-K2.6` | `license="other"` -> file detection triggered, `hf.license_raw` preserved |
 | `google/gemma-2b` | Gated: `config.json` inaccessible (401); non-standard `"gemma"` license in card YAML |
 | `meta-llama/Llama-3.2-1B` | Gated: `config.json` inaccessible; custom `"llama3.2"` license; 8 languages |
-| `deepseek-ai/DeepSeek-R1` | MIT license, no `pipeline_tag` → empty `usage.domains`, MoE architecture |
+| `deepseek-ai/DeepSeek-R1` | MIT license, no `pipeline_tag` -> empty `usage.domains`, MoE architecture |
 | `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF` | GGUF-only repo: no `config.json`; 9 SEA languages; `"gemma"` license |
 | `SeaLLMs/SeaLLMs-v3-7B-Chat` | `license="other"`, no `pipeline_tag`, 12 SEA/Asian languages, qwen2 base |
 | `typhoon-ai/typhoon-7b` | Thai-only (`["th"]`), GQA (`num_key_value_heads=8`), apache-2.0 |
@@ -117,7 +117,7 @@ languages, datasets.
 Non-SPDX license identifiers in the card YAML are passed through as-is when they
 do not appear in `_VAGUE_LICENSE_VALUES`.
 
-**Vague license → file detection** (`"other"`, `"custom"`, …)
+**Vague license -> file detection** (`"other"`, `"custom"`, …)
 `openthaigpt/openthaigpt-r1-32b-instruct`, `moonshotai/Kimi-K2.6`,
 `SeaLLMs/SeaLLMs-v3-7B-Chat` - the raw card value is preserved in
 `extra_data["hf.license_raw"]`; `_detect_license_from_hf_files` is called to
@@ -136,7 +136,7 @@ architecture is absent; all metadata from the card YAML.
 `UBC-NLP/serengeti-E250`, `facebook/nllb-200-distilled-600M` - `ModelCard.load()`
 fails; `card_data = {}`.  Architecture and hyperparameters come from `config.json`.
 Domain, language, and license that are only in `model_info().tags` are not
-captured → `usage.domains == []` and `"hf.language" ∉ extra_lists`.  This is a
+captured -> `usage.domains == []` and `"hf.language" ∉ extra_lists`.  This is a
 **known gap**: `_load_model_info` extracts author/sha/dates only, not tags.
 
 **Fully gated** (`CohereLabs/aya-vision-8b`, `lelapa/InkubaLM-0.4B`)
@@ -329,7 +329,7 @@ Notable metadata extracted by the GGUF extractor:
 | :--- | :--- |
 | Format | GGUF version 3 |
 | Architecture | CLIP vision projector for tinygemma3 (multimodal) |
-| Task | Multimodal image–text alignment (vision encoder → language model) |
+| Task | Multimodal image–text alignment (vision encoder -> language model) |
 | Input | Image patches: float32 `[n_patches, clip_embed_dim]` (32 × 32 px) |
 | Output | Projected embeddings: float32 `[n_patches, 128]` |
 | Tensors | 71 |
@@ -397,7 +397,7 @@ specifically for use in unit tests and similar lightweight scenarios).
 | Format | HDF5 - legacy Keras v2 format (`.h5`) |
 | Magic bytes | `\x89HDF\r\n\x1a\n` (HDF5 signature) |
 | Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent - Dense(1, sigmoid)) |
-| Task | Binary classification (10 features → 1 output) |
+| Task | Binary classification (10 features -> 1 output) |
 | Input | float32 `[None, 10]` |
 | Output | float32 `[None, 1]` (sigmoid probability) |
 | Version | 3.13.2 (Keras version) |
@@ -425,7 +425,7 @@ Notable metadata extracted by the HDF5 extractor:
 | :--- | :--- |
 | Format | Keras v3 native format (`.keras`) - ZIP archive |
 | Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent - Dense(1, sigmoid)) |
-| Task | Binary classification (10 features → 1 output) |
+| Task | Binary classification (10 features -> 1 output) |
 | Input | float32 `[None, 10]` |
 | Output | float32 `[None, 1]` (sigmoid probability) |
 | Version | 3.13.2 (Keras version) |
@@ -674,7 +674,7 @@ Notable metadata extracted by the ONNX extractor:
 | :--- | :--- |
 | Format | PyTorch classic (`.pt`) - full model (`torch.save(model, ...)`) |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
-| Task | Linear regression (10 features → 1 output) |
+| Task | Linear regression (10 features -> 1 output) |
 | Input | `x`: float32 `[batch, 10]` |
 | Output | float32 `[batch, 1]` |
 | Size | 2 637 bytes |
@@ -699,7 +699,7 @@ Notable metadata extracted by the PyTorch extractor:
 | :--- | :--- |
 | Format | PyTorch classic (`.pth`) - weights-only (`torch.save(model.state_dict(), ...)`) |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
-| Task | Linear regression (10 features → 1 output) - weights-only save (no class info) |
+| Task | Linear regression (10 features -> 1 output) - weights-only save (no class info) |
 | Input | `x`: float32 `[batch, 10]` |
 | Output | float32 `[batch, 1]` |
 | Size | 2 005 bytes |
@@ -722,7 +722,7 @@ Notable metadata extracted by the PyTorch extractor:
 | :--- | :--- |
 | Format | PyTorch PT2 Archive (ExecuTorch on-device format) - ZIP archive |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
-| Task | Linear regression (10 features → 1 output) |
+| Task | Linear regression (10 features -> 1 output) |
 | Description | A serialized PT2 model for metadata extraction test. |
 | Version | 1.0.0 |
 | Input | `x`: float32 `[batch, 10]` |

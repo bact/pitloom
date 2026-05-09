@@ -245,12 +245,12 @@ def licenseid_db_path_fixture() -> Path:
     """
     db = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
     if not db.exists():
-        pytest.skip("licenseid database not built — run 'licenseid update'")
+        pytest.skip("licenseid database not built -- run 'licenseid update'")
     return db
 
 
 # ---------------------------------------------------------------------------
-# detect_license_from_text — DB absent / library missing
+# detect_license_from_text -- DB absent / library missing
 # ---------------------------------------------------------------------------
 
 
@@ -280,7 +280,7 @@ def test_detect_license_from_text_library_not_installed(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# detect_license_for_project — mocked detection
+# detect_license_for_project -- mocked detection
 # ---------------------------------------------------------------------------
 
 
@@ -377,7 +377,7 @@ def test_detect_project_hint_text_detection_fails_returns_hint() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — require real licenseid database
+# Integration tests -- require real licenseid database
 # ---------------------------------------------------------------------------
 
 # Canonical MIT license text (no copyright header, matches SPDX template closely)

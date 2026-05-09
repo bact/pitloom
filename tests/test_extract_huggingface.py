@@ -262,7 +262,7 @@ def test_read_huggingface_license_from_card() -> None:
 
 
 def test_read_huggingface_domain_from_pipeline_tag_via_usage() -> None:
-    # pipeline_tag should land in usage.domains → serialised to SPDX ai_domain
+    # pipeline_tag should land in usage.domains -> serialised to SPDX ai_domain
     with _patch_hf_calls():
         meta = read_huggingface("mistralai/Mistral-7B-v0.1")
     assert "text-generation" in meta.usage.domains
@@ -416,7 +416,7 @@ def test_read_huggingface_extra_lists_specific_tags() -> None:
 
 
 def test_read_huggingface_domain_tags_not_duplicated_in_extra_lists() -> None:
-    # "text-generation" is a domain tag → stays in usage.domains only
+    # "text-generation" is a domain tag -> stays in usage.domains only
     with _patch_hf_calls():
         meta = read_huggingface("mistralai/Mistral-7B-v0.1")
     assert "text-generation" in meta.usage.domains
@@ -587,7 +587,7 @@ def test_license_detection_not_called_when_card_has_real_spdx_id() -> None:
 
 
 def test_license_remains_none_when_file_detection_also_fails() -> None:
-    # Neither card YAML nor file detection → license is None (not a vague string).
+    # Neither card YAML nor file detection -> license is None (not a vague string).
     card_data = _make_card_data(license=None)
     with _patch_hf_calls(card_data=card_data):
         # _detect_license_from_hf_files already mocked to (None, None) in base helper
@@ -638,7 +638,7 @@ def test_read_huggingface_no_huggingface_hub_raises() -> None:
 #   Kokoro-82M          - TTS, custom config schema (no model_type/architectures)
 #   starcoder2-3b       - code model, training dataset, non-standard license
 #   whisper-large-v3    - 99 languages including YAML boolean False for "no"
-#   Kimi-K2.6           - multimodal, license="other" → file detection path
+#   Kimi-K2.6           - multimodal, license="other" -> file detection path
 #   gemma-2b            - gated repo (no config.json), proprietary-style license
 #   Llama-3.2-1B        - gated repo (no config.json), multilingual, has LICENSE.txt
 #   DeepSeek-R1         - no pipeline_tag, MIT, has LICENSE file
@@ -700,7 +700,7 @@ def test_kokoro_tts_domain() -> None:
 
 
 def test_kokoro_no_model_type_when_custom_config() -> None:
-    # Custom config without model_type/architectures → both fields are None
+    # Custom config without model_type/architectures -> both fields are None
     with _patch_kokoro():
         meta = read_huggingface("hexgrad/Kokoro-82M")
     assert meta.type_of_model is None
@@ -712,7 +712,7 @@ def test_kokoro_hyperparameters_from_custom_config() -> None:
     # (none of the standard _HYPER_KEYS match, so hyperparameters should be empty)
     with _patch_kokoro():
         meta = read_huggingface("hexgrad/Kokoro-82M")
-    # Kokoro config has no standard keys → empty hyperparameters
+    # Kokoro config has no standard keys -> empty hyperparameters
     assert not meta.hyperparameters
 
 
@@ -756,7 +756,7 @@ def test_starcoder2_architecture() -> None:
 
 
 def test_starcoder2_non_standard_license_passed_through() -> None:
-    # "bigcode-openrail-m" is not in _VAGUE_LICENSE_VALUES → used directly
+    # "bigcode-openrail-m" is not in _VAGUE_LICENSE_VALUES -> used directly
     with _patch_starcoder2():
         meta = read_huggingface("bigcode/starcoder2-3b")
     assert meta.license == "bigcode-openrail-m"
@@ -770,7 +770,7 @@ def test_starcoder2_training_dataset() -> None:
 
 
 def test_starcoder2_code_tag_in_domain() -> None:
-    # "code" is in _DOMAIN_TAGS → goes to usage.domains, NOT to extra_lists["hf.tags"]
+    # "code" is in _DOMAIN_TAGS -> goes to usage.domains, NOT to extra_lists["hf.tags"]
     with _patch_starcoder2():
         meta = read_huggingface("bigcode/starcoder2-3b")
     assert "code" in meta.usage.domains
@@ -888,7 +888,7 @@ def test_whisper_valid_languages_preserved() -> None:
 def test_whisper_audio_tag_in_extra_lists() -> None:
     with _patch_whisper():
         meta = read_huggingface("openai/whisper-large-v3")
-    # "audio" is not a domain tag → goes to extra_lists["hf.tags"]
+    # "audio" is not a domain tag -> goes to extra_lists["hf.tags"]
     assert "audio" in meta.extra_lists.get("hf.tags", [])
 
 
@@ -956,7 +956,7 @@ def test_kimi_multimodal_domain() -> None:
 # ---------------------------------------------------------------------------
 
 _GEMMA_CARD_DATA = _make_card_data(
-    license="gemma",  # Non-standard but passes SPDX ID regex → not vague
+    license="gemma",  # Non-standard but passes SPDX ID regex -> not vague
     pipeline_tag=None,
     tags=None,
     language=None,
@@ -1295,7 +1295,7 @@ def test_typhoon_license() -> None:
 
 
 def test_typhoon_grouped_query_attention_hyperparameter() -> None:
-    # num_key_value_heads < num_attention_heads → GQA
+    # num_key_value_heads < num_attention_heads -> GQA
     with _patch_typhoon():
         meta = read_huggingface("typhoon-ai/typhoon-7b")
     assert meta.hyperparameters.get("num_key_value_heads") == 8
@@ -1377,7 +1377,7 @@ def test_serengeti_large_multilingual_vocab() -> None:
 
 def test_serengeti_no_domain_when_no_card() -> None:
     # pipeline_tag="fill-mask" exists in model_info.tags but the extractor
-    # reads it from card YAML - absent card → empty domains.
+    # reads it from card YAML - absent card -> empty domains.
     with _patch_serengeti():
         meta = read_huggingface("UBC-NLP/serengeti-E250")
     assert not meta.usage.domains
@@ -1392,7 +1392,7 @@ def test_serengeti_no_language_when_no_card() -> None:
 
 
 def test_serengeti_no_license_when_no_card_and_no_file() -> None:
-    # No card license + file detection mock returns nothing → license is None.
+    # No card license + file detection mock returns nothing -> license is None.
     with _patch_serengeti():
         meta = read_huggingface("UBC-NLP/serengeti-E250")
     assert meta.license is None
@@ -1465,7 +1465,7 @@ def test_aya_vision_no_domain_when_gated() -> None:
 
 def test_aya_vision_no_license_when_gated() -> None:
     # model_info reports license="cc-by-nc-4.0" but the extractor reads
-    # license from card YAML → absent card → license is None.
+    # license from card YAML -> absent card -> license is None.
     # This test documents a known gap: license is only captured when the
     # model card YAML is accessible or a license file can be downloaded.
     with _patch_aya_vision():
@@ -1550,7 +1550,7 @@ def test_inkubalm_no_architecture_when_gated() -> None:
 
 def test_inkubalm_no_license_when_gated() -> None:
     # model_info reports cc-by-nc-4.0 but the extractor reads license from
-    # card YAML only - absent card → license is None.
+    # card YAML only - absent card -> license is None.
     with _patch_inkubalm():
         meta = read_huggingface("lelapa/InkubaLM-0.4B")
     assert meta.license is None
@@ -1728,7 +1728,7 @@ def test_sonoisa_feature_extraction_domain() -> None:
 
 
 def test_sonoisa_sentence_bert_tags_in_extra_lists() -> None:
-    # "sentence-bert" is not a domain tag → extra_lists["hf.tags"]
+    # "sentence-bert" is not a domain tag -> extra_lists["hf.tags"]
     with _patch_sonoisa():
         meta = read_huggingface("sonoisa/sentence-bert-base-ja-mean-tokens")
     assert "sentence-bert" in meta.extra_lists.get("hf.tags", [])
@@ -2046,7 +2046,7 @@ def test_nomic_gguf_base_model_quantized() -> None:
     assert meta.extra_data.get("hf.base_model_relation") == "quantized"
 
 
-# lmg-anon/vntl-llama3-8b-v2-gguf  - Japanese→English translation GGUF; llama3 license
+# lmg-anon/vntl-llama3-8b-v2-gguf  - Japanese->English translation GGUF; llama3 license
 _VNTL_CARD_DATA = _make_card_data(
     license="llama3",
     pipeline_tag="translation",
@@ -2318,7 +2318,7 @@ def test_llava_video_text_to_text_domain() -> None:
 
 
 def test_llava_image_text_tag_also_domain() -> None:
-    # "image-text-to-text" in tags list is also a domain tag → usage.domains
+    # "image-text-to-text" in tags list is also a domain tag -> usage.domains
     with _patch_llava_video():
         meta = read_huggingface("llava-hf/LLaVA-NeXT-Video-7B-hf")
     assert "image-text-to-text" in meta.usage.domains
@@ -2638,7 +2638,7 @@ def _patch_swin() -> Any:
 def test_swin_no_pipeline_tag_but_image_classification_from_tags() -> None:
     with _patch_swin():
         meta = read_huggingface("microsoft/swin-tiny-patch4-window7-224")
-    # pipeline_tag absent in card → domain comes from card tags
+    # pipeline_tag absent in card -> domain comes from card tags
     assert "image-classification" in meta.usage.domains
 
 
@@ -3275,7 +3275,7 @@ def test_falconsai_tokenizer_max_length() -> None:
     assert meta.extra_data.get("hf.tokenizer_max_length") == 512
 
 
-# Helsinki-NLP/opus-mt-th-en  - MarianMT Thai→English translation
+# Helsinki-NLP/opus-mt-th-en  - MarianMT Thai->English translation
 def _patch_opus_mt_th_en() -> Any:
     return _patch_hf_calls(
         config={

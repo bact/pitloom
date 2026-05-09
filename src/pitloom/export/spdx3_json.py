@@ -16,10 +16,10 @@ from spdx_python_model import v3_0_1 as spdx3
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
 # Order rationale:
-#   0 CreationInfo  — blank node referenced by every element; must resolve first
-#   1 SpdxDocument  — document envelope; carries profileConformance for validation
-#   2 Bom           — Core profile BOM root (base class of software_Sbom)
-#   3 software_Sbom — Software profile BOM; root element pointer and sbomType
+#   0 CreationInfo  -- blank node referenced by every element; must resolve first
+#   1 SpdxDocument  -- document envelope; carries profileConformance for validation
+#   2 Bom           -- Core profile BOM root (base class of software_Sbom)
+#   3 software_Sbom -- Software profile BOM; root element pointer and sbomType
 _GRAPH_TYPE_PRIORITY: dict[str, int] = {
     "CreationInfo": 0,
     "SpdxDocument": 1,
@@ -32,7 +32,7 @@ def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
     """Return a deterministic sort key for a @graph element.
 
     Primary key: type-priority tier (see _GRAPH_TYPE_PRIORITY).
-    Secondary key: spdxId or @id, lexicographic — puts root Package-1 before
+    Secondary key: spdxId or @id, lexicographic -- puts root Package-1 before
     Package-2, etc., and gives stable order within every other type.
     Tertiary key: JCS canonical form of the element, used only when two
     elements share the same priority and identifier (e.g. conflicting
@@ -120,7 +120,7 @@ def _deduplicate_named_elements(
     licence text or a common dependency package) may appear more than once
     with an identical spdxId.  An element is removed only when every field
     of every copy is semantically identical to the first copy seen (deep
-    JSON-object equality, key-ordering-independent) — the 100 % certainty
+    JSON-object equality, key-ordering-independent) -- the 100 % certainty
     threshold.  If any two copies with the same spdxId differ in even one
     field, all copies are retained unchanged so that no data is silently lost.
 
@@ -147,9 +147,9 @@ def _deduplicate_named_elements(
         # Python dict == performs deep equality with key-order independence for
         # nested dicts, which is the right semantics for JSON objects.
         if all(c == copies[0] for c in copies[1:]):
-            result.append(copies[0])  # all identical — keep one
+            result.append(copies[0])  # all identical -- keep one
         else:
-            result.extend(copies)  # conflict — retain all, do not guess
+            result.extend(copies)  # conflict -- retain all, do not guess
     return result
 
 
@@ -282,7 +282,7 @@ class Spdx3JsonExporter:
             pretty: If True, indent output with 2 spaces for human readability,
                     with keys sorted alphabetically within each object.
                     If False (default), produce RFC 8785 (JCS) canonical output:
-                    compact, no extra whitespace, keys lexicographically sorted —
+                    compact, no extra whitespace, keys lexicographically sorted --
                     suitable for machine consumption, hashing, and PEP 770
                     wheel embedding.
 

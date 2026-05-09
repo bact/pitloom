@@ -122,7 +122,7 @@ class AiModelUsage:
     unintended_use: list[str] = field(default_factory=list)
 
     # Known limitations of the model
-    # Maps to SPDX 3: ai_limitation (String — joined with "; " on export)
+    # Maps to SPDX 3: ai_limitation (String -- joined with "; " on export)
     limitations: list[str] = field(default_factory=list)
 
     # Known biases in the model
@@ -144,8 +144,8 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     Attributes that naturally form a group are collected into sub-dataclasses
     to keep the attribute count manageable:
 
-    - :class:`AiModelFormatInfo` — physical file, format, and framework fields.
-    - :class:`AiModelUsage` — use-case, limitation, bias, and safety fields.
+    - :class:`AiModelFormatInfo` -- physical file, format, and framework fields.
+    - :class:`AiModelUsage` -- use-case, limitation, bias, and safety fields.
     """
 
     # Physical file, format, and framework metadata
@@ -170,7 +170,7 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     # Maps to SPDX 3: ai_hyperparameter as key="quantization"
     quantization: str | None = None
 
-    # SPDX AI profile: hyperparameter — model configuration values
+    # SPDX AI profile: hyperparameter -- model configuration values
     hyperparameters: dict[str, Any] = field(default_factory=dict)
 
     # Format-specific key/value metadata (e.g. GGUF general.*, ONNX metadata_props)
@@ -200,13 +200,13 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     #   "hf.library_name", "hf.license_name", "onnx.producer_version", …
     # The exporter decides how (or whether) to include these in the SBOM.
 
-    # Key → any scalar or structured value (str, int, float, bool, dict).
+    # Key -> any scalar or structured value (str, int, float, bool, dict).
     # For single-valued metadata that is richer than a plain string.
-    # Examples: "hf.model_index" → {…eval results…}, "hf.sha" → "abc123"
+    # Examples: "hf.model_index" -> {…eval results…}, "hf.sha" -> "abc123"
     extra_data: dict[str, Any] = field(default_factory=dict)
 
-    # Key → list of values (str, int, dict, …) for multi-valued properties.
+    # Key -> list of values (str, int, dict, …) for multi-valued properties.
     # Examples:
-    #   "hf.language"  → ["en", "th"]
-    #   "hf.tags"      → ["pretrained", "reasoning"]
+    #   "hf.language"  -> ["en", "th"]
+    #   "hf.tags"      -> ["pretrained", "reasoning"]
     extra_lists: dict[str, list[Any]] = field(default_factory=dict)

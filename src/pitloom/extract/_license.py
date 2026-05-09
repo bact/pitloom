@@ -74,7 +74,7 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     db_path = _get_licenseid_db_path()
     if not db_path.exists():
         _logger.warning(
-            "licenseid database not found at %s — "
+            "licenseid database not found at %s -- "
             "run 'licenseid update' to enable license text detection",
             db_path,
         )
@@ -101,7 +101,7 @@ def find_license_files(project_dir: Path) -> list[Path]:
     Checks both upper- and lower-case variants of common license filenames.
     No-extension filenames (e.g. ``LICENSE``) take priority over suffixed ones.
     """
-    # Map lowercase name → actual on-disk path so provenance uses the real filename
+    # Map lowercase name -> actual on-disk path so provenance uses the real filename
     try:
         actual: dict[str, Path] = {
             p.name.lower(): p for p in project_dir.iterdir() if p.is_file()
@@ -179,7 +179,7 @@ def _read_license_from_codemeta_json(project_dir: Path) -> str | None:
     if not isinstance(value, str) or not value:
         return None
 
-    # Strip URL prefix: https://spdx.org/licenses/MIT.html → MIT
+    # Strip URL prefix: https://spdx.org/licenses/MIT.html -> MIT
     if "/" in value:
         candidate = value.rstrip("/").rsplit("/", 1)[-1]
         candidate = re.sub(r"\.(html|txt|md)$", "", candidate, flags=re.IGNORECASE)
@@ -227,10 +227,10 @@ def detect_license_for_project(
 
     Resolution order:
 
-    1. *license_hint* is already a bare SPDX License ID → returned unchanged
+    1. *license_hint* is already a bare SPDX License ID -> returned unchanged
        (caller should set provenance from the original metadata field).
-    2. *license_hint* is a compound SPDX License Expression → returned unchanged.
-    3. *license_hint* is license text → run :func:`detect_license_from_text`.
+    2. *license_hint* is a compound SPDX License Expression -> returned unchanged.
+    3. *license_hint* is license text -> run :func:`detect_license_from_text`.
     4. Search ``CITATION.cff``, ``codemeta.json``, and license files in
        *project_dir*.
 
@@ -243,7 +243,7 @@ def detect_license_for_project(
         ):
             return hint, None  # already good; let caller record original provenance
 
-        # Hint is likely license text — try detection first
+        # Hint is likely license text -- try detection first
         detected = detect_license_from_text(hint)
         if detected:
             return detected, "Method: licenseid_detection"

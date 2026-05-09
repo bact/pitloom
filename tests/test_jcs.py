@@ -134,7 +134,7 @@ def test_compact_output_has_no_extra_whitespace() -> None:
         # outside string values.  A simpler proxy: verify the output
         # re-encodes with separators=(",", ":") to the same string.
         re_encoded = json.dumps(json.loads(output), separators=(",", ":"))
-        # rfc8785 sorts keys; json.dumps without sort_keys does not —
+        # rfc8785 sorts keys; json.dumps without sort_keys does not --
         # compare lengths only to confirm no extra characters were added.
         assert len(output) == len(re_encoded), (
             f"Output length {len(output)} differs from compact re-encode "

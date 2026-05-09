@@ -59,20 +59,20 @@ Pitloom tracks provenance for the following metadata fields:
 #### Package metadata
 
 - **name**: Package name
-  - Source: `pyproject.toml` → `project.name`
+  - Source: `pyproject.toml` -> `project.name`
 - **version**: Package version
-  - Source: `pyproject.toml` → `project.version` (static)
+  - Source: `pyproject.toml` -> `project.version` (static)
   - Source: `__about__.py` or `__version__.py` (dynamic)
 - **description**: Package description
-  - Source: `pyproject.toml` → `project.description`
+  - Source: `pyproject.toml` -> `project.description`
 - **dependencies**: Package dependencies
-  - Source: `pyproject.toml` → `project.dependencies`
+  - Source: `pyproject.toml` -> `project.dependencies`
 - **urls**: Project URLs (homepage, source, etc.)
-  - Source: `pyproject.toml` → `project.urls`
+  - Source: `pyproject.toml` -> `project.urls`
 - **authors**: Package authors
-  - Source: `pyproject.toml` → `project.authors`
+  - Source: `pyproject.toml` -> `project.authors`
 - **license**: License information
-  - Source: `pyproject.toml` → `project.license`
+  - Source: `pyproject.toml` -> `project.license`
 - **copyright_text**: Copyright information
   - Source: Pitloom generator (inferred from authors)
 

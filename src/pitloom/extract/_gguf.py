@@ -152,7 +152,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
             provenance["description"] = f"{source} | Field: {key}"
             break
 
-    # general.architecture → architecture (specific arch name, e.g. "llama", "bert")
+    # general.architecture -> architecture (specific arch name, e.g. "llama", "bert")
     architecture: str | None = fields.get(_GGUF_ARCH_KEY)
     if architecture is not None:
         architecture = str(architecture)
@@ -163,7 +163,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
         version = str(fields[_GGUF_VERSION_KEY])
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
 
-    # general.file_type → quantization level (e.g. "Q4_K_M", "F16")
+    # general.file_type -> quantization level (e.g. "Q4_K_M", "F16")
     quantization: str | None = None
     if _GGUF_FILE_TYPE_KEY in fields:
         quantization = _resolve_quantization(fields[_GGUF_FILE_TYPE_KEY])

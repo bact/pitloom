@@ -119,7 +119,7 @@ def test_gguf_load_failure(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (ggml-vocab-bert-bge.gguf)
+# Integration tests -- real GGUF file (ggml-vocab-bert-bge.gguf)
 # Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-bert-bge.gguf)
 # Vocabulary-only GGUF for the BGE BERT tokenizer; zero model tensors
 # Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-bert-bge.gguf present
@@ -163,7 +163,7 @@ def test_vocab_bert_bge_hyperparameters(
 
 
 def test_vocab_bert_bge_zero_tensors(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    # Vocabulary-only GGUF — no model weight tensors
+    # Vocabulary-only GGUF -- no model weight tensors
     assert vocab_bert_bge_metadata.properties.get("GGUF.tensor_count") == "0"
 
 
@@ -181,7 +181,7 @@ def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> 
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (ggml-vocab-phi-3.gguf)
+# Integration tests -- real GGUF file (ggml-vocab-phi-3.gguf)
 # Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-phi-3.gguf)
 # Vocabulary-only GGUF for the Phi-3 tokenizer (LLaMA BPE, RoPE architecture)
 # Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-phi-3.gguf present
@@ -238,7 +238,7 @@ def test_vocab_phi3_provenance(vocab_phi3_metadata: AiModelMetadata) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (mmproj-tinygemma3.gguf)
+# Integration tests -- real GGUF file (mmproj-tinygemma3.gguf)
 # Source: ggml-org/tinygemma3-GGUF (~1.0 MB)
 # CLIP vision multimodal projector for tinygemma3; architecture = "clip"
 # Require: gguf installed AND
@@ -299,7 +299,7 @@ def test_mmproj_provenance(mmproj_metadata: AiModelMetadata) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — real GGUF file (stories260K.gguf)
+# Integration tests -- real GGUF file (stories260K.gguf)
 # Source: ggml-org/models tinyllamas/stories260K.gguf (~1.1 MB)
 # A 260K-parameter LLaMA model trained on TinyStories (Karpathy / llama2.c)
 # Require: gguf installed AND tests/fixtures/gguf/stories260K.gguf present

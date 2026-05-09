@@ -116,7 +116,7 @@ jobs:
                   if name.endswith(".dist-info/sboms/sbom.spdx3.json"):
                       data = zf.read(name)
                       Path("dist/sbom.spdx3.json").write_bytes(data)
-                      print(f"Extracted {name} → dist/sbom.spdx3.json")
+                      print(f"Extracted {name} -> dist/sbom.spdx3.json")
                       break
           EOF
 
@@ -129,7 +129,7 @@ jobs:
         if: always()
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          ## Hatch integration — Python ${{ matrix.python-version }}
+          ## Hatch integration -- Python ${{ matrix.python-version }}
 
           | Step | Result |
           | :--- | :--- |

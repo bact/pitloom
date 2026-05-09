@@ -16,7 +16,7 @@ from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 
-# Maps NPY format major version → header encoding.
+# Maps NPY format major version -> header encoding.
 #   Version 1.x: 2-byte LE uint16 header-length field, latin1 encoding.
 #   Version 2.x: 4-byte LE uint32 header-length field, latin1 encoding.
 #   Version 3.x: 4-byte LE uint32 header-length field, UTF-8 encoding.
@@ -56,9 +56,9 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
     For ``.npy`` files the format version is read directly from the file
     header bytes 6-7 and stored in ``properties``:
 
-    - **Version 1.x** — 2-byte header-length field, latin1-encoded header.
-    - **Version 2.x** — 4-byte header-length field, latin1-encoded header.
-    - **Version 3.x** — 4-byte header-length field, UTF-8-encoded header.
+    - **Version 1.x** -- 2-byte header-length field, latin1-encoded header.
+    - **Version 2.x** -- 4-byte header-length field, latin1-encoded header.
+    - **Version 3.x** -- 4-byte header-length field, UTF-8-encoded header.
 
     Shape and dtype are extracted via memory-mapping so the full tensor data
     is never loaded.  For ``.npz`` archives each constituent array's shape

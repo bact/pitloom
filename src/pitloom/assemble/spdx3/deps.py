@@ -59,7 +59,7 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
 
 
 def _parse_project_urls(pkg_meta: PackageMetadata) -> dict[str, str]:
-    """Return a lowercased-label → URL dict from ``Project-URL`` metadata entries."""
+    """Return a lowercased-label -> URL dict from ``Project-URL`` metadata entries."""
     result: dict[str, str] = {}
     entries = pkg_meta.get_all("Project-URL") or []
     for entry in entries:
@@ -115,7 +115,7 @@ def _enrich_from_installed(
     if summary and summary != "UNKNOWN":
         dep_package.description = summary
 
-    # homePage — core field first, then well-known Project-URL labels
+    # homePage -- core field first, then well-known Project-URL labels
     home_page = pkg_meta["Home-page"] or ""
     if not home_page or home_page == "UNKNOWN":
         for label in _HOMEPAGE_LABELS:
@@ -125,7 +125,7 @@ def _enrich_from_installed(
     if home_page and home_page != "UNKNOWN":
         dep_package.software_homePage = home_page
 
-    # downloadLocation — core field first, then well-known Project-URL labels
+    # downloadLocation -- core field first, then well-known Project-URL labels
     download_url = pkg_meta["Download-URL"] or ""
     if not download_url or download_url == "UNKNOWN":
         for label in _DOWNLOAD_LABELS:
@@ -135,7 +135,7 @@ def _enrich_from_installed(
     if download_url and download_url != "UNKNOWN":
         dep_package.software_downloadLocation = download_url
 
-    # packageUrl — PyPI PURL (pkg:pypi/<name>@<version>)
+    # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>)
     # The package was resolved from the build environment, so it is pip-installable.
     # Per PURL spec: name lowercased, underscores replaced with hyphens.
     # See ECMA-427 https://tc54.org/purl/
@@ -144,7 +144,7 @@ def _enrich_from_installed(
         purl_name = dep_name.lower().replace("_", "-")
         dep_package.software_packageUrl = f"pkg:pypi/{purl_name}@{version}"
 
-    # hasDeclaredLicense — prefer PEP 639 License-Expression over legacy License
+    # hasDeclaredLicense -- prefer PEP 639 License-Expression over legacy License
     license_id = pkg_meta["License-Expression"] or pkg_meta["License"] or ""
     if license_id and license_id != "UNKNOWN":
         rel_declared, _ = build_license_elements(
@@ -174,7 +174,7 @@ def build_license_elements(
     If a ``SimpleLicensingText`` with the same ``simplelicensing_licenseText``
     was already added to *exporter*, it is reused.  Otherwise a new element is
     created and registered.  Either way, two fresh ``Relationship`` elements
-    are returned — the caller is responsible for adding them to the exporter.
+    are returned -- the caller is responsible for adding them to the exporter.
 
     Args:
         license_id: SPDX license identifier string (e.g. ``"Apache-2.0"``).

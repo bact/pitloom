@@ -266,7 +266,7 @@ with any fragments already listed under `[tool.pitloom]`.
 mypackage-1.0-py3-none-any.whl
 └── mypackage-1.0.dist-info/
     └── sboms/
-        └── sbom.spdx3.json   ← PEP 770
+        └── sbom.spdx3.json   <- PEP 770
 ```
 
 ### Python tracking decorator
@@ -334,9 +334,9 @@ For a package with metadata extracted from various sources:
 
 The provenance information shows:
 
-- **Package name**: Extracted from `pyproject.toml` → `project.name`
+- **Package name**: Extracted from `pyproject.toml` -> `project.name`
 - **Version**: Dynamically extracted from `src/mypackage/__about__.py`
-- **Dependencies**: Listed in `pyproject.toml` → `project.dependencies`
+- **Dependencies**: Listed in `pyproject.toml` -> `project.dependencies`
 
 This transparency is crucial for:
 
