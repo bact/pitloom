@@ -60,17 +60,19 @@ aimodel = [
     "h5py>=3.0.0",
     "numpy>=1.24.0",
     "onnx>=1.14.1",
-    "safetensors[numpy]>=0.4.0",
+    "safetensors[numpy]>=0.7.0",
 ]
+huggingface = ["huggingface_hub>=1.14.0"]
 license = ["licenseid>=0.2.2"]
 
 fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
+huggingface_hub = ["huggingface_hub>=1.14.0"]
 numpy = ["numpy>=1.24.0"]
 onnx = ["onnx>=1.14.1"]
 pytorch = ["fickling>=0.1.10"]
-safetensors = ["safetensors[numpy]>=0.4.0"]
+safetensors = ["safetensors[numpy]>=0.7.0"]
 
 [dependency-groups]
 lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]

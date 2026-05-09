@@ -48,29 +48,140 @@ dependency is not installed or the file is absent.
 | :--- | :--- | :--- | :--- |
 | `fasttext/lid.176.ftz` | fastText | Language identification | CC-BY-SA-3.0 |
 | `fasttext/sentimentdemo.bin` | fastText | Text sentiment classification | CC0-1.0 |
-| `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary — BERT BGE (vocab only) | MIT |
-| `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary — Phi-3 (vocab only) | MIT |
-| `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal — CLIP vision projector | Apache-2.0 |
-| `gguf/stories260K.gguf` | GGUF | Text generation — LLaMA 260 K (TinyStories) | MIT |
+| `gguf/ggml-vocab-bert-bge.gguf` | GGUF | Tokenizer vocabulary - BERT BGE (vocab only) | MIT |
+| `gguf/ggml-vocab-phi-3.gguf` | GGUF | Tokenizer vocabulary - Phi-3 (vocab only) | MIT |
+| `gguf/mmproj-tinygemma3.gguf` | GGUF | Multimodal - CLIP vision projector | Apache-2.0 |
+| `gguf/stories260K.gguf` | GGUF | Text generation - LLaMA 260 K (TinyStories) | MIT |
 | `hdf5/example-model.h5` | HDF5 (Keras legacy) | Binary classification (10 features → 1 output) | CC0-1.0 |
 | `keras/example-model.keras` | Keras v3 | Binary classification (10 features → 1 output) | CC0-1.0 |
 | `numpy/example-model-v1.npy` | NumPy v1.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v2.npy` | NumPy v2.0 | Array `[[1, 2], [3, 4]]` float32 | CC0-1.0 |
 | `numpy/example-model-v3.npy` | NumPy v3.0 | Structured array | CC0-1.0 |
 | `numpy/example-model-bundle.npz` | NumPy NPZ | Archive with `weights` array (2 × 2 float32) | CC0-1.0 |
-| `onnx/encoder-model-q4f16.onnx` | ONNX | Speech recognition — Whisper encoder | Apache-2.0 |
-| `onnx/gpt2-tiny-decoder.onnx` | ONNX | Text generation — GPT-2 decoder with KV-cache | MIT |
+| `onnx/encoder-model-q4f16.onnx` | ONNX | Speech recognition - Whisper encoder | Apache-2.0 |
+| `onnx/gpt2-tiny-decoder.onnx` | ONNX | Text generation - GPT-2 decoder with KV-cache | MIT |
 | `onnx/light-inception-v2.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification — bean disease (3 classes) | Apache-2.0 |
+| `onnx/resnet-tiny-beans.onnx` | ONNX | Image classification - bean disease (3 classes) | Apache-2.0 |
 | `onnx/squeezenet1.1-7.onnx` | ONNX | Image classification (ImageNet 1 000) | Apache-2.0 |
-| `pytorch/example-model.pt` | PyTorch classic | Linear regression (10 features → 1 output) — full model save | CC0-1.0 |
-| `pytorch/example-model.pth` | PyTorch classic | Linear regression (10 features → 1 output) — weights-only save | CC0-1.0 |
+| `pytorch/example-model.pt` | PyTorch classic | Linear regression (10 features → 1 output) - full model save | CC0-1.0 |
+| `pytorch/example-model.pth` | PyTorch classic | Linear regression (10 features → 1 output) - weights-only save | CC0-1.0 |
 | `pytorch_pt2/example-model.pt2` | PyTorch PT2 Archive | Linear regression (10 features → 1 output) | CC0-1.0 |
-| `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation — MarianMT (random weights) | MIT |
-| `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation — Phi (random weights) | Apache-2.0 |
-| `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition — Speech2Text (random weights) | Apache-2.0 |
-| `safetensors/vits-tiny-random.safetensors` | Safetensors | Text-to-speech — VITS (random weights) | Apache-2.0 |
-| `safetensors/whisper-tiny-random.safetensors` | Safetensors | Speech recognition — Whisper (random weights) | Apache-2.0 |
+| `safetensors/marian-tiny-random.safetensors` | Safetensors | Machine translation - MarianMT (random weights) | MIT |
+| `safetensors/phi-tiny-random.safetensors` | Safetensors | Text generation - Phi (random weights) | Apache-2.0 |
+| `safetensors/speech2text-tiny-random.safetensors` | Safetensors | Speech recognition - Speech2Text (random weights) | Apache-2.0 |
+| `safetensors/vits-tiny-random.safetensors` | Safetensors | Text-to-speech - VITS (random weights) | Apache-2.0 |
+| `safetensors/whisper-tiny-random.safetensors` | Safetensors | Speech recognition - Whisper (random weights) | Apache-2.0 |
+
+## HuggingFace Hub mock fixtures
+
+`tests/test_extract_huggingface.py` exercises the HuggingFace metadata extractor
+(`pitloom.extract._huggingface`) entirely through mocks - no network calls are
+made.  Each model is represented by inline Python dicts that mirror the real
+HuggingFace API responses (`config.json`, `tokenizer_config.json`,
+`generation_config.json`, and the model card YAML frontmatter).
+
+The models were chosen to cover different configurations, access restrictions,
+and metadata patterns encountered in practice.
+
+### Mock fixture summary
+
+| Model ID | Notable characteristics |
+| :--- | :--- |
+| `mistralai/Mistral-7B-v0.1` | Baseline: standard transformer, apache-2.0, `text-generation` pipeline, grouped-query attention |
+| `Qwen/Qwen3-235B-A22B` | MoE architecture (`qwen3_moe`), `qwen` custom license, thinking-mode generation config |
+| `openthaigpt/openthaigpt-r1-32b-instruct` | `license="other"` overridden by file detection, `license_name` secondary field, Thai language |
+| `hexgrad/Kokoro-82M` | Custom config schema (no `model_type`/`architectures` keys) - architecture not extractable |
+| `bigcode/starcoder2-3b` | `"code"` tag → `usage.domains` (not `extra_lists["hf.tags"]`), training dataset reference |
+| `openai/whisper-large-v3` | 99-language ASR; YAML 1.1 parses ISO code `"no"` (Norwegian) as `False` - must be filtered |
+| `moonshotai/Kimi-K2.6` | `license="other"` → file detection triggered, `hf.license_raw` preserved |
+| `google/gemma-2b` | Gated: `config.json` inaccessible (401); non-standard `"gemma"` license in card YAML |
+| `meta-llama/Llama-3.2-1B` | Gated: `config.json` inaccessible; custom `"llama3.2"` license; 8 languages |
+| `deepseek-ai/DeepSeek-R1` | MIT license, no `pipeline_tag` → empty `usage.domains`, MoE architecture |
+| `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF` | GGUF-only repo: no `config.json`; 9 SEA languages; `"gemma"` license |
+| `SeaLLMs/SeaLLMs-v3-7B-Chat` | `license="other"`, no `pipeline_tag`, 12 SEA/Asian languages, qwen2 base |
+| `typhoon-ai/typhoon-7b` | Thai-only (`["th"]`), GQA (`num_key_value_heads=8`), apache-2.0 |
+| `UBC-NLP/serengeti-E250` | **No model card**: domains/languages only in `model_info.tags`, not captured; 250 K-vocab Electra; unlimited tokenizer sentinel filtered |
+| `CohereLabs/aya-vision-8b` | **Fully gated**: card + config both inaccessible; license (`cc-by-nc-4.0`) only in `model_info`, not captured |
+| `lelapa/InkubaLM-0.4B` | **Fully gated** African LLM (0.4 B); cc-by-nc-4.0 + 6 African languages only in `model_info` - not captured; dataset `lelapa/Inkuba-Mono` now captured via `dataset:*` tag fallback |
+| `facebook/nllb-200-distilled-600M` | **No model card**, config accessible; seq2seq m2m_100 for 200 languages; 256 K vocab; `d_model`/`encoder_layers` not in `_HYPER_KEYS`; tokenizer max-length 1 024 (real value, captured) |
+
+### Metadata availability patterns documented
+
+**Standard (card + config accessible)**
+`mistralai/Mistral-7B-v0.1`, `Qwen/Qwen3-235B-A22B`, `bigcode/starcoder2-3b`,
+`openai/whisper-large-v3`, `deepseek-ai/DeepSeek-R1`, `typhoon-ai/typhoon-7b` -
+full extraction: name, type, architecture, hyperparameters, license, domains,
+languages, datasets.
+
+**Custom license via card YAML** (`"gemma"`, `"llama3.2"`, `"bigcode-openrail-m"`)
+Non-SPDX license identifiers in the card YAML are passed through as-is when they
+do not appear in `_VAGUE_LICENSE_VALUES`.
+
+**Vague license → file detection** (`"other"`, `"custom"`, …)
+`openthaigpt/openthaigpt-r1-32b-instruct`, `moonshotai/Kimi-K2.6`,
+`SeaLLMs/SeaLLMs-v3-7B-Chat` - the raw card value is preserved in
+`extra_data["hf.license_raw"]`; `_detect_license_from_hf_files` is called to
+find a real SPDX ID from license files (LICENSE, COPYING, etc.).
+
+**Gated config, accessible card**
+`google/gemma-2b`, `meta-llama/Llama-3.2-1B` - `config.json` returns 401;
+type/architecture/hyperparameters are absent but license, language, and domain
+still come from the card YAML.
+
+**GGUF-only repo (no config.json)**
+`aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF` - no `config.json` (404, not gated);
+architecture is absent; all metadata from the card YAML.
+
+**No model card, config accessible**
+`UBC-NLP/serengeti-E250`, `facebook/nllb-200-distilled-600M` - `ModelCard.load()`
+fails; `card_data = {}`.  Architecture and hyperparameters come from `config.json`.
+Domain, language, and license that are only in `model_info().tags` are not
+captured → `usage.domains == []` and `"hf.language" ∉ extra_lists`.  This is a
+**known gap**: `_load_model_info` extracts author/sha/dates only, not tags.
+
+**Fully gated** (`CohereLabs/aya-vision-8b`, `lelapa/InkubaLM-0.4B`)
+Both the model card and `config.json` return 401.  `model_info()` exposes
+license, language codes, and sometimes dataset references in `card_data`, but
+those are in the API response object, not in the ModelCard YAML - the extractor
+does not read them.  The result object is nearly empty: only `name`,
+`hf.model_id`, `hf.url`, and `hf.author` are populated.  This documents a
+**known gap**: extending `_load_model_info` to extract license and language
+from `model_info().card_data` would improve coverage for gated repos.
+
+Additionally for InkubaLM-0.4B: the tags list contains a
+`"dataset:lelapa/Inkuba-Mono"` entry using the Hub's prefix-tag convention
+for linking datasets.  The extractor does not parse this `dataset:*` tag form,
+so no `DatasetReference` is produced.  This is a second **known gap**: parsing
+`dataset:*` prefix tags from `model_info().tags` would yield dataset references
+even when the card YAML is inaccessible.
+
+**YAML 1.1 boolean hazard** (`openai/whisper-large-v3`)
+The ISO 639-1 code `"no"` (Norwegian Bokmål) is parsed by the PyYAML 1.1
+parser as the boolean `False`.  The extractor filters language list entries
+with `if lang is not False and lang` before storing them.
+
+**`"code"` is a domain tag** (`bigcode/starcoder2-3b`)
+`"code"` appears in `_DOMAIN_TAGS`, so it goes to `usage.domains` rather than
+`extra_lists["hf.tags"]`.  This distinction matters for SPDX `ai_domain` output.
+
+### Encoder-decoder config keys (`facebook/nllb-200-distilled-600M`)
+
+The m2m_100 config uses non-standard keys for its hidden dimension and layer
+counts: `d_model` (instead of `hidden_size`) and `encoder_layers` /
+`decoder_layers` (alongside `num_hidden_layers`).  Only keys in `_HYPER_KEYS`
+are extracted, so `d_model=1024`, `encoder_layers=12`, `decoder_layers=12`,
+`encoder_attention_heads=16`, and `decoder_attention_heads=16` are all
+silently skipped.  This is a general pattern: models with non-transformer
+config schemas (seq2seq, vision, etc.) may have fewer hyperparameters captured
+than standard decoder-only transformers.
+
+### Tokenizer max-length sentinel (`UBC-NLP/serengeti-E250`)
+
+Some tokenizer configs set `model_max_length` to the sentinel
+`1 000 000 000 000 000 019 884 624 838 656` (≈ 10³⁰) to indicate "no limit".
+The extractor compares against `_TOKENIZER_MAX_LEN_UNLIMITED = 10**20` and
+skips values at or above that threshold - so `hf.tokenizer_max_length` is not
+populated for the Electra tokenizer despite the field being present in the file.
 
 ## SBOM fragment fixtures
 
@@ -94,7 +205,7 @@ Tests that exercise these fixtures live in `tests/test_fragments.py`.
 | Property | Value |
 | :--- | :--- |
 | Format | fastText quantised (`ftz`) |
-| Architecture | Supervised text classifier — 176-class language identification |
+| Architecture | Supervised text classifier - 176-class language identification |
 | Task | Language identification (176 languages) |
 | Input | Text (UTF-8 string) |
 | Output | Class probabilities `[176]` (one score per ISO language code) |
@@ -122,7 +233,7 @@ Notable metadata extracted by the fastText extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | fastText binary (quantised, version 12) |
-| Architecture | Supervised text classifier — 4-class Thai sentiment |
+| Architecture | Supervised text classifier - 4-class Thai sentiment |
 | Task | Sentiment classification: `pos`, `neg`, `neu`, `q` (question) |
 | Input | Text (UTF-8 string, Thai language) |
 | Output | Class probabilities `[4]` (`pos`, `neg`, `neu`, `q`) |
@@ -143,7 +254,7 @@ Notable metadata extracted by the fastText extractor:
   `minCount=1`, `minn=3`, `maxn=6`, `neg=5`, `bucket=33502`, `ws=5`
 - `properties["lossName"]` = `"softmax"`
 - `properties["labels"]` = `"__label__pos,__label__neg,__label__neu,__label__q"`
-- `name`, `description`, `version` are all `None` — fastText binary files
+- `name`, `description`, `version` are all `None` - fastText binary files
   do not embed a model name or description
 
 ---
@@ -153,9 +264,9 @@ Notable metadata extracted by the fastText extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | GGUF version 3 |
-| Architecture | BERT (BGE tokenizer vocabulary only — no model weights) |
+| Architecture | BERT (BGE tokenizer vocabulary only - no model weights) |
 | Task | Tokenizer test fixture for llama.cpp |
-| Input | N/A (vocabulary-only file — no model weights for inference) |
+| Input | N/A (vocabulary-only file - no model weights for inference) |
 | Output | N/A |
 | Tensors | 0 (vocabulary-only; no weight tensors) |
 | Context length | 512 tokens |
@@ -173,7 +284,7 @@ Notable metadata extracted by the GGUF extractor:
 - `hyperparameters`: `block_count=12`, `context_length=512`,
   `embedding_length=384`, `feed_forward_length=1536`,
   `attention.head_count=12`
-- `properties["GGUF.tensor_count"]` = `"0"` — distinguishing feature:
+- `properties["GGUF.tensor_count"]` = `"0"` - distinguishing feature:
   vocabulary-only GGUF files carry no weight tensors
 - `properties["tokenizer.ggml.model"]` = `"bert"`,
   `properties["tokenizer.ggml.pre"]` = `"bert-bge"`
@@ -185,9 +296,9 @@ Notable metadata extracted by the GGUF extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | GGUF version 3 |
-| Architecture | Phi-3 (vocabulary only — no model weights) |
+| Architecture | Phi-3 (vocabulary only - no model weights) |
 | Task | Tokenizer test fixture for llama.cpp |
-| Input | N/A (vocabulary-only file — no model weights for inference) |
+| Input | N/A (vocabulary-only file - no model weights for inference) |
 | Output | N/A |
 | Tensors | 0 (vocabulary-only; no weight tensors) |
 | Context length | 4 096 tokens |
@@ -206,7 +317,7 @@ Notable metadata extracted by the GGUF extractor:
   `block_count=32`, `attention.head_count=32`,
   `rope.dimension_count=96`, `rope.freq_base=10000.0`
 - `properties["GGUF.tensor_count"]` = `"0"` (vocab-only)
-- `properties["tokenizer.ggml.model"]` = `"llama"` — uses LLaMA BPE
+- `properties["tokenizer.ggml.model"]` = `"llama"` - uses LLaMA BPE
   tokenizer, unlike `ggml-vocab-bert-bge.gguf` which uses BERT
   WordPiece
 
@@ -253,7 +364,7 @@ non-LLM GGUF architectures correctly.
 | :--- | :--- |
 | Format | GGUF version 3 |
 | Architecture | LLaMA (260 K parameters, 5 layers, 64-dim embeddings, 8 attention heads) |
-| Task | Text generation — trained on the TinyStories dataset |
+| Task | Text generation - trained on the TinyStories dataset |
 | Input | Token IDs: int32 sequence, up to 2 048 tokens |
 | Output | Next-token logits: float32 `[vocab_size]` |
 | Tensors | 48 |
@@ -283,9 +394,9 @@ specifically for use in unit tests and similar lightweight scenarios).
 
 | Property | Value |
 | :--- | :--- |
-| Format | HDF5 — legacy Keras v2 format (`.h5`) |
+| Format | HDF5 - legacy Keras v2 format (`.h5`) |
 | Magic bytes | `\x89HDF\r\n\x1a\n` (HDF5 signature) |
-| Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent — Dense(1, sigmoid)) |
+| Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent - Dense(1, sigmoid)) |
 | Task | Binary classification (10 features → 1 output) |
 | Input | float32 `[None, 10]` |
 | Output | float32 `[None, 1]` (sigmoid probability) |
@@ -312,8 +423,8 @@ Notable metadata extracted by the HDF5 extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | Keras v3 native format (`.keras`) — ZIP archive |
-| Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent — Dense(1, sigmoid)) |
+| Format | Keras v3 native format (`.keras`) - ZIP archive |
+| Architecture | `Sequential` (`nn.Linear(10, 1)` equivalent - Dense(1, sigmoid)) |
 | Task | Binary classification (10 features → 1 output) |
 | Input | float32 `[None, 10]` |
 | Output | float32 `[None, 1]` (sigmoid probability) |
@@ -341,7 +452,7 @@ Notable metadata extracted by the Keras extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | NumPy NPZ archive (`.npz`) |
-| Arrays | 1: `weights` — shape `(2, 2)`, dtype `float32` |
+| Arrays | 1: `weights` - shape `(2, 2)`, dtype `float32` |
 | Data | `weights`: `[[1.0, 2.0], [3.0, 4.0]]` |
 | Size | 284 bytes |
 | SHA-256 | `dc19291ff85cbe795eba48c2c84bd31cf32263b3219bc53a97128467070ae3b5` |
@@ -352,7 +463,7 @@ Notable metadata extracted by the Keras extractor:
 Notable metadata extracted by the NumPy extractor:
 
 - `inputs` lists 1 array: `{"name": "weights", "shape": [2, 2], "dtype": "float32"}`
-- `properties` does not contain `npy_format_version` — NPZ archives do not
+- `properties` does not contain `npy_format_version` - NPZ archives do not
   expose a per-file NPY version at the archive level
 - `name`, `description`, `version` are all `None`
 
@@ -363,7 +474,7 @@ Notable metadata extracted by the NumPy extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | NumPy v1.0 (`.npy`) |
-| NPY version | 1.0 — 2-byte LE uint16 header length, latin1 header encoding |
+| NPY version | 1.0 - 2-byte LE uint16 header length, latin1 header encoding |
 | Shape | `(2, 2)` |
 | dtype | `float32` |
 | Data | `[[1.0, 2.0], [3.0, 4.0]]` |
@@ -386,7 +497,7 @@ Notable metadata extracted by the NumPy extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | NumPy v2.0 (`.npy`) |
-| NPY version | 2.0 — 4-byte LE uint32 header length, latin1 header encoding |
+| NPY version | 2.0 - 4-byte LE uint32 header length, latin1 header encoding |
 | Shape | `(2, 2)` |
 | dtype | `float32` |
 | Data | `[[1.0, 2.0], [3.0, 4.0]]` |
@@ -410,7 +521,7 @@ Notable metadata extracted by the NumPy extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | NumPy v3.0 (`.npy`) |
-| NPY version | 3.0 — 4-byte LE uint32 header length, UTF-8 header encoding |
+| NPY version | 3.0 - 4-byte LE uint32 header length, UTF-8 header encoding |
 | Shape | `(2,)` |
 | dtype | `[('π_weights', '<f4', (2,))]` (structured dtype with Unicode field name) |
 | Data | `[([1., 2.],), ([3., 4.],)]` |
@@ -423,10 +534,10 @@ Notable metadata extracted by the NumPy extractor:
 Notable metadata extracted by the NumPy extractor:
 
 - `properties["npy_format_version"]` = `"3.0"`
-- `properties["header_encoding"]` = `"utf-8"` — required for the Unicode field
+- `properties["header_encoding"]` = `"utf-8"` - required for the Unicode field
   name `π_weights` (Greek letter π); version 1.x/2.x latin1 encoding would
   reject this header
-- `inputs[0]["dtype"]` contains `"π_weights"` — confirms UTF-8 round-trip
+- `inputs[0]["dtype"]` contains `"π_weights"` - confirms UTF-8 round-trip
 - `name`, `description`, `version` are all `None`
 
 ---
@@ -436,7 +547,7 @@ Notable metadata extracted by the NumPy extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | ONNX (IR version 8, opsets: ai.onnx 14, com.microsoft 1) |
-| Architecture | Whisper tiny — speech encoder |
+| Architecture | Whisper tiny - speech encoder |
 | Task | Automatic speech recognition (encoder half only) |
 | Quantisation | Q4F16 (4-bit weights, float16 activations) |
 | Input | `input_features`: float32 `[batch_size, 80, 3000]` (mel spectrogram) |
@@ -477,7 +588,7 @@ Notable metadata extracted by the ONNX extractor:
 - `name` = `"torch_jit"` (PyTorch JIT export)
 - `properties["opset.ai.onnx"]` = `"13"`
 - `outputs` includes `logits` and 10 KV-cache tensors
-  (`present.0.key` … `present.4.value`) — unique decoder structure
+  (`present.0.key` … `present.4.value`) - unique decoder structure
   not present in the encoder-only ONNX fixtures
 
 ---
@@ -487,7 +598,7 @@ Notable metadata extracted by the ONNX extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | ONNX (IR version 3, opset 9) |
-| Architecture | InceptionV2 — lightweight CNN for ImageNet classification |
+| Architecture | InceptionV2 - lightweight CNN for ImageNet classification |
 | Task | Image classification (1 000 ImageNet classes) |
 | Input | `data_0`: float32 `[1, 3, 224, 224]` (NCHW) |
 | Output | `prob_1`: float32 `[1, 1000]` |
@@ -503,7 +614,7 @@ Notable metadata extracted by the ONNX extractor:
 
 - `name` = `"inception_v2"` (from `graph.name`)
 - `type_of_model` = `"neural network"` (empty domain falls back to default)
-- `properties["opset.ai.onnx"]` = `"9"` — oldest opset in the fixture set
+- `properties["opset.ai.onnx"]` = `"9"` - oldest opset in the fixture set
 - 487 graph inputs: the first is `data_0` [1, 3, 224, 224]; the remaining
   486 are weight initializers listed in `graph.input` following the pre-ONNX
   opset-9 convention where initializers were included in the input list
@@ -516,7 +627,7 @@ Notable metadata extracted by the ONNX extractor:
 | :--- | :--- |
 | Format | ONNX (IR version 7, opset 11) |
 | Architecture | ResNet (2-stage, basic blocks) fine-tuned for bean disease |
-| Task | Image classification — 3 classes: angular\_leaf\_spot, bean\_rust, healthy |
+| Task | Image classification - 3 classes: angular\_leaf\_spot, bean\_rust, healthy |
 | Input | `pixel_values`: float32 `[batch, channels, 224, 224]` |
 | Output | `logits`: float32 `[batch, 3]` |
 | Size | 761 053 bytes (0.73 MB) |
@@ -538,7 +649,7 @@ Notable metadata extracted by the ONNX extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | ONNX (IR version 3, opset 7) |
-| Architecture | SqueezeNet 1.1 — lightweight CNN for ImageNet classification |
+| Architecture | SqueezeNet 1.1 - lightweight CNN for ImageNet classification |
 | Task | Image classification (1 000 ImageNet classes) |
 | Parameters | ~1.2 M |
 | Input | `data`: float32 `[1, 3, 224, 224]` (NCHW, normalised RGB) |
@@ -561,7 +672,7 @@ Notable metadata extracted by the ONNX extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | PyTorch classic (`.pt`) — full model (`torch.save(model, ...)`) |
+| Format | PyTorch classic (`.pt`) - full model (`torch.save(model, ...)`) |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
 | Task | Linear regression (10 features → 1 output) |
 | Input | `x`: float32 `[batch, 10]` |
@@ -575,9 +686,9 @@ Notable metadata extracted by the ONNX extractor:
 Notable metadata extracted by the PyTorch extractor:
 
 - `format` = `AiModelFormat.PYTORCH` (detected via ZIP magic bytes)
-- `type_of_model` = `None` — class name extraction requires the optional
+- `type_of_model` = `None` - class name extraction requires the optional
   `fickling` library
-- `name`, `description`, `version` are all `None` — PyTorch classic format
+- `name`, `description`, `version` are all `None` - PyTorch classic format
   embeds no model metadata
 
 ---
@@ -586,9 +697,9 @@ Notable metadata extracted by the PyTorch extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | PyTorch classic (`.pth`) — weights-only (`torch.save(model.state_dict(), ...)`) |
+| Format | PyTorch classic (`.pth`) - weights-only (`torch.save(model.state_dict(), ...)`) |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
-| Task | Linear regression (10 features → 1 output) — weights-only save (no class info) |
+| Task | Linear regression (10 features → 1 output) - weights-only save (no class info) |
 | Input | `x`: float32 `[batch, 10]` |
 | Output | float32 `[batch, 1]` |
 | Size | 2 005 bytes |
@@ -600,7 +711,7 @@ Notable metadata extracted by the PyTorch extractor:
 Notable metadata extracted by the PyTorch extractor:
 
 - `format` = `AiModelFormat.PYTORCH` (detected via ZIP magic bytes)
-- `type_of_model` = `None` — state-dict saves contain only tensors, no class name
+- `type_of_model` = `None` - state-dict saves contain only tensors, no class name
 - `name`, `description`, `version` are all `None`
 
 ---
@@ -609,7 +720,7 @@ Notable metadata extracted by the PyTorch extractor:
 
 | Property | Value |
 | :--- | :--- |
-| Format | PyTorch PT2 Archive (ExecuTorch on-device format) — ZIP archive |
+| Format | PyTorch PT2 Archive (ExecuTorch on-device format) - ZIP archive |
 | Architecture | `nn.Linear(10, 1)` (linear regression) |
 | Task | Linear regression (10 features → 1 output) |
 | Description | A serialized PT2 model for metadata extraction test. |
@@ -633,8 +744,8 @@ Notable metadata extracted by the PT2 extractor:
 - `properties["author"]` = `"Pitloom"` (from `extra/author`)
 - `properties["tags"]` = `"regression"` (from `extra/tags`)
 - `inputs` = `[{"name": "x"}]`, `outputs` = `[{"name": "linear"}]` (from `models/model.json`)
-- `type_of_model` = `None` — PT2 extractor does not inspect pickle data
-- `name` = `None` — no `extra/name` or `METADATA.json` with name in this fixture
+- `type_of_model` = `None` - PT2 extractor does not inspect pickle data
+- `name` = `None` - no `extra/name` or `METADATA.json` with name in this fixture
 
 ---
 
@@ -644,7 +755,7 @@ Notable metadata extracted by the PT2 extractor:
 | :--- | :--- |
 | Format | Safetensors |
 | Architecture | MarianMT encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
-| Task | Neural machine translation (not usable for real inference — random weights) |
+| Task | Neural machine translation (not usable for real inference - random weights) |
 | Tensors | 86 (shared embedding, encoder layers, decoder layers, projection bias) |
 | `__metadata__` | `{"format": "pt"}` |
 | Size | 707 324 bytes (0.67 MB) |
@@ -658,7 +769,7 @@ Notable metadata extracted by the Safetensors extractor:
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
 - `inputs` lists 86 tensors covering `model.encoder.*`, `model.decoder.*`,
-  and `model.shared.weight` — confirming the seq2seq encoder-decoder structure
+  and `model.shared.weight` - confirming the seq2seq encoder-decoder structure
 
 ---
 
@@ -668,7 +779,7 @@ Notable metadata extracted by the Safetensors extractor:
 | :--- | :--- |
 | Format | Safetensors |
 | Architecture | Phi (2-layer causal LM, randomly initialised weights) |
-| Task | Text generation (not usable for real inference — random weights) |
+| Task | Text generation (not usable for real inference - random weights) |
 | Tensors | 33 (embeddings, 2 × self-attention blocks, LM head) |
 | `__metadata__` | `{"format": "pt"}` |
 | Size | 323 520 bytes (0.31 MB) |
@@ -692,7 +803,7 @@ Notable metadata extracted by the Safetensors extractor:
 | :--- | :--- |
 | Format | Safetensors |
 | Architecture | Speech2Text encoder-decoder (2 encoder + 2 decoder layers, randomly initialised) |
-| Task | Automatic speech recognition (not usable for real inference — random weights) |
+| Task | Automatic speech recognition (not usable for real inference - random weights) |
 | Tensors | 93 (encoder with convolutional sub-sampler, decoder, embeddings) |
 | `__metadata__` | `{"format": "pt"}` |
 | Size | 705 880 bytes (0.67 MB) |
@@ -706,7 +817,7 @@ Notable metadata extracted by the Safetensors extractor:
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
 - `inputs` lists 93 tensors with `model.encoder.*` (including conv sub-sampler)
-  and `model.decoder.*` — distinguishes the convolutional ASR encoder from the
+  and `model.decoder.*` - distinguishes the convolutional ASR encoder from the
   attention-only Whisper encoder in `whisper-tiny-random.safetensors`
 
 ---
@@ -716,8 +827,8 @@ Notable metadata extracted by the Safetensors extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | Safetensors |
-| Architecture | VITS — randomly initialised text-to-speech model |
-| Task | Text-to-speech synthesis (not usable — random weights) |
+| Architecture | VITS - randomly initialised text-to-speech model |
+| Task | Text-to-speech synthesis (not usable - random weights) |
 | Tensors | 438 (decoder, text encoder, flow network, posterior encoder) |
 | `__metadata__` | `{"format": "pt"}` |
 | Size | 344 288 bytes (0.33 MB) |
@@ -730,7 +841,7 @@ Notable metadata extracted by the Safetensors extractor:
 
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
-- `inputs` lists 438 tensors — the most in the fixture set — covering
+- `inputs` lists 438 tensors - the most in the fixture set - covering
   sub-modules `decoder.*`, `text_encoder.*`, `flow.*`, and
   `posterior_encoder.*`
 
@@ -741,8 +852,8 @@ Notable metadata extracted by the Safetensors extractor:
 | Property | Value |
 | :--- | :--- |
 | Format | Safetensors |
-| Architecture | Whisper encoder-decoder — randomly initialised |
-| Task | Automatic speech recognition (not usable — random weights) |
+| Architecture | Whisper encoder-decoder - randomly initialised |
+| Task | Automatic speech recognition (not usable - random weights) |
 | Tensors | 50 (encoder and decoder layers) |
 | `__metadata__` | `{"format": "pt"}` |
 | Size | 871 760 bytes (0.83 MB) |
@@ -756,6 +867,6 @@ Notable metadata extracted by the Safetensors extractor:
 - `name`, `description`, `version`, `type_of_model` are all `None`
 - `properties["format"]` = `"pt"`
 - `inputs` lists 50 tensors with both `model.encoder.*` and
-  `model.decoder.*` keys — confirms encoder-decoder architecture
+  `model.decoder.*` keys - confirms encoder-decoder architecture
 
 ---

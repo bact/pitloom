@@ -45,7 +45,7 @@ def _build_ai_package(
 
     **Use-case and safety** (from ``usage`` sub-object)
 
-    - ``usage.domains`` → ``ai_domain``
+    - ``domain`` + ``usage.domains`` → ``ai_domain`` (merged, de-duplicated)
     - ``usage.limitations`` → ``ai_limitation`` (joined with "; ")
     - ``usage.safety_risk_assessment`` → ``ai_safetyRiskAssessment``
       (enum: high | medium | low | serious)
@@ -103,9 +103,15 @@ def _build_ai_package(
     if hyperparameter_entries:
         ai_pkg.ai_hyperparameter = hyperparameter_entries
 
-    # ai_domain: directly from usage.domains (List[String]).
-    if ai_model.usage.domains:
-        ai_pkg.ai_domain = list(ai_model.usage.domains)
+    # ai_domain: merge top-level domain list with usage.domains (de-duplicated).
+    combined_domains: list[str] = []
+    seen_domains: set[str] = set()
+    for d in list(ai_model.domain) + list(ai_model.usage.domains):
+        if d not in seen_domains:
+            combined_domains.append(d)
+            seen_domains.add(d)
+    if combined_domains:
+        ai_pkg.ai_domain = combined_domains
 
     # ai_limitation: SPDX 3 field is a single String; join list with "; ".
     if ai_model.usage.limitations:
@@ -168,7 +174,7 @@ def add_ai_models(
       ``ai_typeOfModel``.
     - ``quantization`` and hyperparameters are stored as ``ai_hyperparameter``
       DictionaryEntry list (quantization first).
-    - ``usage.domains`` → ``ai_domain``.
+    - ``domain`` + ``usage.domains`` → ``ai_domain`` (merged, de-duplicated).
     - ``usage.limitations`` → ``ai_limitation`` (joined string).
     - ``usage.safety_risk_assessment`` → ``ai_safetyRiskAssessment`` enum.
     - ``usage.intended_use`` / ``usage.unintended_use`` → merged into
