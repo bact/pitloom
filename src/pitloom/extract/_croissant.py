@@ -148,7 +148,8 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     - ``data_collection_process`` -- from ``rai:dataCollection``
     - ``data_preprocessing`` -- from ``rai:dataPreprocessingProtocol``
     - ``known_bias`` -- from ``rai:dataBiases``
-    - ``has_sensitive_personal_information`` -- from ``rai:personalSensitiveInformation``
+    - ``has_sensitive_personal_information`` --
+      from ``rai:personalSensitiveInformation``
     - ``croissant_url`` -- the URL string of *source* (when *source* is a URL)
 
     Args:

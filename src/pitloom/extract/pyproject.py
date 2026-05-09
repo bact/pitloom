@@ -262,7 +262,8 @@ def _extract_and_detect_license(
 
     Returns a 2-tuple:
 
-    * ``license_id`` -- SPDX License ID, SPDX License Expression, or raw string fallback.
+    * ``license_id`` -- SPDX License ID, SPDX License Expression,
+      or raw string fallback.
     * ``provenance_override`` -- non-``None`` when provenance differs from the
       default ``pyproject.toml`` field string (e.g. detected from a file).
     """
