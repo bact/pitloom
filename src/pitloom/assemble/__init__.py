@@ -13,6 +13,7 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
+from pitloom.extract._huggingface import read_huggingface
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.pyproject import read_pyproject
 from pitloom.extract.scanner import scan_project_for_ai_models
@@ -93,7 +94,7 @@ def generate_ai_model_sbom(
 ) -> str:
     """Generate a standalone SPDX 3 SBOM for a single AI model file.
 
-    The model is treated as an ``ai_AIPackage`` root element — no surrounding
+    The model is treated as an ``ai_AIPackage`` root element - no surrounding
     Python project is required.
 
     Args:
@@ -125,4 +126,48 @@ def generate_ai_model_sbom(
     return sbom_json
 
 
-__all__ = ["generate_ai_model_sbom", "generate_sbom"]
+def generate_huggingface_sbom(
+    model_source: str,
+    output_path: Path | None = None,
+    creation_info: CreationMetadata | None = None,
+    pretty: bool = False,
+    describe_relationship: bool = False,
+) -> str:
+    """Generate a standalone SPDX 3 SBOM for a HuggingFace model repository.
+
+    Fetches metadata from the HuggingFace Hub (``config.json``, model card,
+    ``tokenizer_config.json``, etc.) and assembles an ``ai_AIPackage`` SBOM.
+    No local model file is required.
+
+    Args:
+        model_source: Full HF URL
+            (e.g. ``https://huggingface.co/mistralai/Mistral-7B-v0.1``)
+            or bare model ID (e.g. ``Qwen/Qwen3-235B-A22B``).
+        output_path: If given, the JSON-LD output is also written to this path.
+        creation_info: Creator and timestamp metadata.  Defaults to a
+            ``CreationMetadata`` with creator ``"Pitloom"`` and current UTC time.
+        pretty: Indent JSON output with 2 spaces when ``True``.
+        describe_relationship: Add human-readable text to SPDX relationships.
+
+    Returns:
+        JSON-LD string of the generated SPDX 3 SBOM.
+
+    Raises:
+        ImportError: If ``huggingface_hub`` is not installed.
+        ValueError: If *model_source* is not a valid HuggingFace URL or model ID.
+    """
+    model = read_huggingface(model_source)
+    exporter = build_model(model, creation_info or CreationMetadata())
+
+    sbom_json = exporter.to_json(
+        pretty=pretty,
+        describe_relationship=describe_relationship,
+    )
+
+    if output_path is not None:
+        output_path.write_text(sbom_json, encoding="utf-8")
+
+    return sbom_json
+
+
+__all__ = ["generate_ai_model_sbom", "generate_huggingface_sbom", "generate_sbom"]

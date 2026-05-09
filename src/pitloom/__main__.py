@@ -14,9 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.__about__ import __version__
-from pitloom.assemble import generate_ai_model_sbom, generate_sbom
+from pitloom.assemble import (
+    generate_ai_model_sbom,
+    generate_huggingface_sbom,
+    generate_sbom,
+)
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
 from pitloom.extract.pyproject import read_pyproject
 from pitloom.extract.setuptools import read_setuptools
 
@@ -89,15 +94,18 @@ def _build_parser() -> argparse.ArgumentParser:
         "-m",
         "--aimodel",
         dest="aimodel",
-        type=Path,
+        type=str,
         default=None,
-        metavar="MODEL_FILE",
+        metavar="MODEL_FILE_OR_HF_URL",
         help=(
-            "Path to an AI model file. "
+            "Path to a local AI model file, or a HuggingFace URL / model ID. "
             "Generate a standalone SBOM for the model as an AIPackage, "
             "without requiring a project directory. "
-            "Supported formats: GGUF, ONNX, Safetensors, PyTorch, "
-            "Keras, HDF5, NumPy, fastText."
+            "Local formats: GGUF, ONNX, Safetensors, PyTorch, "
+            "Keras, HDF5, NumPy, fastText. "
+            "HuggingFace: full URL "
+            "(e.g. https://huggingface.co/mistralai/Mistral-7B-v0.1) "
+            "or bare model ID (e.g. Qwen/Qwen3-235B-A22B)."
         ),
     )
     parser.add_argument(
@@ -512,6 +520,20 @@ def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
     return Path.cwd() / (model_path.stem + _SPDX3_JSON_EXT)
 
 
+def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
+    """Return the SBOM output path for a HuggingFace model SBOM.
+
+    Uses the explicit ``-o`` path when given; otherwise derives
+    ``<model-name>.spdx3.json`` from the model ID and writes it to the
+    current working directory.
+    """
+    if explicit is not None:
+        return explicit
+    # model_id is "owner/name" - use the name part as the stem
+    stem = model_id.split("/")[-1]
+    return Path.cwd() / (stem + _SPDX3_JSON_EXT)
+
+
 def main() -> int:
     """Main entry point for the Pitloom CLI.
 
@@ -535,9 +557,17 @@ def main() -> int:
 
 
 def _run_model_mode(args: argparse.Namespace) -> int:
-    """Generate a standalone SBOM for a single AI model file."""
+    """Generate a standalone SBOM - dispatches to HF or local-file mode."""
+    source: str = args.aimodel
+    if is_huggingface_source(source):
+        return _run_hf_model_mode(args, source)
+    return _run_local_model_mode(args, source)
+
+
+def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:
+    """Generate a standalone SBOM for a single local AI model file."""
     try:
-        model_path: Path = args.aimodel.resolve()
+        model_path: Path = Path(source).resolve()
         if not model_path.exists():
             print(f"Error: Model file not found: {model_path}", file=sys.stderr)
             return 1
@@ -569,6 +599,48 @@ def _run_model_mode(args: argparse.Namespace) -> int:
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error generating model SBOM: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return 1
+
+
+def _run_hf_model_mode(args: argparse.Namespace, source: str) -> int:
+    """Generate a standalone SBOM from a HuggingFace model repository."""
+    try:
+        model_id = parse_hf_model_id(source)
+        if model_id is None:
+            print(
+                f"Error: Not a valid HuggingFace URL or model ID: {source!r}",
+                file=sys.stderr,
+            )
+            return 1
+
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+        effective_describe = (
+            bool(args.describe_relationship)
+            if args.describe_relationship is not None
+            else False
+        )
+
+        output_path = _resolve_hf_output_path(args.output, model_id)
+
+        if args.verbose:
+            print(f"Pitloom version: {__version__}")
+            print(f"HuggingFace model : {model_id}")
+            print(f"Output path       : {output_path}")
+
+        generate_huggingface_sbom(
+            model_id,
+            output_path=output_path,
+            creation_info=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe,
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating HuggingFace model SBOM: {e}", file=sys.stderr)
         traceback.print_exc()
         return 1
 

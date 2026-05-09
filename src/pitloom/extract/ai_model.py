@@ -73,7 +73,7 @@ class FormatInfo:
     reader: Callable[[Path], AiModelMetadata] | None = None
 
 
-# Registry of all supported AI model formats — ordered alphabetically by name.
+# Registry of all supported AI model formats - ordered alphabetically by name.
 # Format identification metadata (extensions, magic bytes) is on AiModelFormat.
 # Safetensors has no fixed magic: it uses an 8-byte LE uint64 header-size
 # followed by an opening '{'; this heuristic lives in _match_magic.
@@ -94,7 +94,7 @@ _SAFETENSORS_MAX_HEADER: int = 100_000_000
 # Number of bytes needed to run all magic checks (8-byte HDF5 + 1 for Safetensors).
 _SNIFF_BYTES: int = 9
 
-# Derived lookups — built from AiModelFormat enum members and REGISTRY.
+# Derived lookups - built from AiModelFormat enum members and REGISTRY.
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
     ext: fmt for fmt in AiModelFormat for ext in fmt.extensions
 }
@@ -150,11 +150,11 @@ def detect_ai_model_format(model_path: Path) -> AiModelFormat:
 
     Detection strategy (in order):
 
-    1. **Magic bytes** — if *model_path* is an existing file, read the first
+    1. **Magic bytes** - if *model_path* is an existing file, read the first
        :data:`_SNIFF_BYTES` bytes and match known signatures from
        :class:`AiModelFormat` members.  This is reliable even when the file
        extension is wrong or absent.
-    2. **File extension** — fall back to a case-insensitive extension lookup
+    2. **File extension** - fall back to a case-insensitive extension lookup
        for formats without a fixed magic signature (ONNX, PyTorch, Safetensors,
        NumPy ``.npz``) and for paths that are not yet accessible on disk.
 

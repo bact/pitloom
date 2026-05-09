@@ -67,10 +67,11 @@ uv sync --group dev
 Install extras to enable metadata extraction from model files:
 
 ```bash
-pip install -e ".[aimodel]"       # all supported AI model formats
+pip install -e ".[aimodel]"       # all supported local AI model formats
+pip install -e ".[huggingface]"   # HuggingFace Hub model metadata
 ```
 
-or choose individually:
+or choose individual local formats:
 
 ```bash
 pip install -e ".[fasttext]"      # fastText models
@@ -109,19 +110,48 @@ loom -m path/to/model.onnx
 loom -m path/to/model.gguf
 ```
 
-Supported formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
+Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
 Keras, HDF5, NumPy, fastText.
+
+#### HuggingFace model SBOM
+
+Pass a HuggingFace URL or model ID directly - no local file required.
+Pitloom fetches metadata from the Hub (model card, `config.json`,
+`tokenizer_config.json`, and `generation_config.json`) and produces an
+enriched `ai_AIPackage` SBOM with architecture, hyperparameters, license,
+language, and linked training datasets.
+
+```bash
+# Full URL
+loom -m https://huggingface.co/mistralai/Mistral-7B-v0.1
+
+# URL with tree path (stripped automatically)
+loom -m https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main
+
+# Bare model ID
+loom -m Qwen/Qwen3-235B-A22B
+```
+
+Requires `huggingface_hub`:
+
+```bash
+pip install pitloom[huggingface]
+```
+
+#### Common model SBOM options
 
 Specify the output file explicitly:
 
 ```bash
 loom -m model.safetensors -o my-model.spdx3.json
+loom -m mistralai/Mistral-7B-v0.1 -o mistral.spdx3.json
 ```
 
 Pretty-print the output:
 
 ```bash
 loom -m model.gguf --pretty
+loom -m Qwen/Qwen3-235B-A22B --pretty
 ```
 
 Set creator metadata:
@@ -163,6 +193,16 @@ generate_ai_model_sbom(
     creation_info=CreationMetadata(creator_name="Your Name"),
     pretty=True,
 )
+
+# Generate an SBOM from a HuggingFace model repository (no local file needed)
+from pitloom.assemble import generate_huggingface_sbom
+
+generate_huggingface_sbom(
+    model_source="mistralai/Mistral-7B-v0.1",  # or full URL
+    output_path=Path("mistral.spdx3.json"),
+    creation_info=CreationMetadata(creator_name="Your Name"),
+    pretty=True,
+)
 ```
 
 ### Hatchling build hook
@@ -197,12 +237,12 @@ creation-datetime = "2026-04-01T00:00:00Z"  # Date and time in ISO 8601 UTC form
 fragments = []  # extra SPDX fragment paths (relative to project root)
 ```
 
-The full SBOM filename is `{sbom-basename}.spdx3.json` — e.g., the default
+The full SBOM filename is `{sbom-basename}.spdx3.json` - e.g., the default
 produces `sbom.spdx3.json`.  Setting `sbom-basename = "mypackage-1.0"` would
 produce `mypackage-1.0.spdx3.json`.
 
 That is all. Running `hatch build` or `python -m build` will now generate and
-embed the SBOM automatically — no extra commands needed.
+embed the SBOM automatically - no extra commands needed.
 
 #### Merging AI/ML fragments
 
