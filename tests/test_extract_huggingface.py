@@ -97,7 +97,8 @@ def test_is_huggingface_source_plain_filename() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_card_data(  # pylint: disable=too-many-arguments,too-many-positional-arguments,redefined-builtin
+# pylint: disable=too-many-arguments,too-many-positional-arguments,redefined-builtin
+def _make_card_data(
     license: str | None = "apache-2.0",
     pipeline_tag: str | None = "text-generation",
     tags: list[str] | None = None,
