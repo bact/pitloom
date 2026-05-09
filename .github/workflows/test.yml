@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ".[onnx,safetensors]" --group test
+          pip install ".[aimodel,huggingface]" --group test
 
       - name: Run tests
         run: |
