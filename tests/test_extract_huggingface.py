@@ -543,7 +543,9 @@ def test_license_from_file_when_card_has_none() -> None:
             "pitloom.extract._huggingface._detect_license_from_hf_files",
             return_value=(
                 "Apache-2.0",
-                "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection",
+                "Source: Hugging Face Hub "
+                "| File: LICENSE "
+                "| Method: licenseid_detection",
             ),
         ):
             meta = read_huggingface("org/model")
@@ -559,7 +561,9 @@ def test_license_from_file_when_card_says_other() -> None:
             "pitloom.extract._huggingface._detect_license_from_hf_files",
             return_value=(
                 "MIT",
-                "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection",
+                "Source: Hugging Face Hub "
+                "| File: LICENSE "
+                "| Method: licenseid_detection",
             ),
         ):
             meta = read_huggingface("org/model")
