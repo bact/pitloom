@@ -25,67 +25,67 @@ Licence data flows through three distinct stages:
 
 ```text
 Source inputs
-----------------------------------------------------------------------
-pyproject.toml      AI model file     HuggingFace Hub repo
-setup.cfg           (PT2 extra/       (model card YAML)
-CITATION.cff         license)         (LICENSE file + licenseid)
+──────────────────────────────────────────────────────────────────────────────
+pyproject.toml      AI model file          HuggingFace Hub repo
+setup.cfg           (PT2 extra/license)    (model card YAML)
+CITATION.cff                               (LICENSE file + licenseid)
 codemeta.json
 LICENSE / LICENCE /
   COPYING file
   (+ licenseid)
-      |                  |                    |
-      v                  v                    v
-----------------------------------------------------------------------
+      │                    │                        │
+      ▼                    ▼                        ▼
+──────────────────────────────────────────────────────────────────────────────
 EXTRACT LAYER  (src/pitloom/extract/)
-----------------------------------------------------------------------
-pyproject.py        _pytorch_pt2.py   _huggingface.py
-setuptools.py       (zip entry        +---------------------------+
-poetry.py            extra/license)  | 1. card YAML license:     |
-                                     |    if vague/missing:       |
-_license.py ------------------------ | 2. _detect_license_        |
- detect_license_for_project()        |      from_hf_files()       |
-  |- pyproject.toml project.license  |      -> licenseid library  |
-  |- CITATION.cff   license:         |         (>=0.85 confidence)|
-  |- codemeta.json  license:         +---------------------------+
-  +- LICENSE file   (via licenseid)
-      |                  |                    |
-      v                  v                    v
-----------------------------------------------------------------------
+──────────────────────────────────────────────────────────────────────────────
+pyproject.py         _pytorch_pt2.py        _huggingface.py
+setuptools.py        (zip entry            ┌──────────────────────────────┐
+poetry.py             extra/license)       │ 1. card YAML license:        │
+                                           │    if vague/missing:         │
+_license.py ─────────────────────────      │ 2. _detect_license_          │
+ detect_license_for_project()              │      from_hf_files()         │
+  ├─ pyproject.toml  project.license       │      → licenseid library     │
+  ├─ CITATION.cff    license:              │        (≥ 0.85 confidence)   │
+  ├─ codemeta.json   license:              └──────────────────────────────┘
+  └─ LICENSE file    (via licenseid)
+      │                    │                        │
+      ▼                    ▼                        ▼
+──────────────────────────────────────────────────────────────────────────────
 FORMAT-NEUTRAL MODEL  (src/pitloom/core/)
-----------------------------------------------------------------------
-ProjectMetadata               AiModelMetadata
-  .license_name: str | None     .license: str | None
-  .provenance["license"]: str   .provenance["license"]: str
-      |                               |
-      v                               v
-----------------------------------------------------------------------
+──────────────────────────────────────────────────────────────────────────────
+ProjectMetadata                       AiModelMetadata
+  .license_name: str | None             .license: str | None
+  .provenance["license"]: str           .provenance["license"]: str
+      │                                       │
+      ▼                                       ▼
+──────────────────────────────────────────────────────────────────────────────
 ASSEMBLE LAYER  (src/pitloom/assemble/spdx3/)
-----------------------------------------------------------------------
-document.py build()         document.py build_model()
- main package / deps         standalone AI model
-      |                               |
-      +---------------+---------------+
-                      |
-              ai.py add_ai_models()
-              deps.py build_license_elements()
-                |- reuse SimpleLicensingText if duplicate
-                +- else create simplelicensing_SimpleLicensingText
-                      |
-           +----------+----------+
-           v                     v
-  Relationship             Relationship
-  hasDeclaredLicense       hasConcludedLicense
-  (package -> license)     (package -> license)
-      |
-      v
-----------------------------------------------------------------------
+──────────────────────────────────────────────────────────────────────────────
+document.py build()              document.py build_model()
+ main package / deps              standalone AI model
+      │                                       │
+      └──────────────────┬────────────────────┘
+                         │
+                 ai.py add_ai_models()
+                 deps.py build_license_elements()
+                   ├─ reuse SimpleLicensingText if duplicate
+                   └─ else create simplelicensing_SimpleLicensingText
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+    Relationship             Relationship
+    hasDeclaredLicense       hasConcludedLicense
+    (package → license)      (package → license)
+      │
+      ▼
+──────────────────────────────────────────────────────────────────────────────
 EXPORT LAYER  (src/pitloom/export/spdx3_json.py)
-----------------------------------------------------------------------
+──────────────────────────────────────────────────────────────────────────────
 Spdx3JsonExporter.to_json()
-  +- JSON-LD graph  (@context + @graph)
-       |- simplelicensing_SimpleLicensingText
-       |- Relationship  {relationshipType: hasDeclaredLicense}
-       +- Relationship  {relationshipType: hasConcludedLicense}
+  └─ JSON-LD graph  (@context + @graph)
+       ├─ simplelicensing_SimpleLicensingText
+       ├─ Relationship  {relationshipType: hasDeclaredLicense}
+       └─ Relationship  {relationshipType: hasConcludedLicense}
 ```
 
 ## Stage 1: extract

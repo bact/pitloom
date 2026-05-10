@@ -85,7 +85,8 @@ ruff format
 - Remove unused imports and trailing whitespace.
 - Max line length = 88; Try to be within 80.
 - Stick with ASCII characters in source code;
-  Only use non-ASCII when native human language scripts provides clearer message.
+  Only use non-ASCII when native human language scripts provides clearer message;
+  or it provides more readable diagram/box drawing.
 - Avoid ambiguous variable name (E741)
 
 ## File headers
