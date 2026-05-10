@@ -498,7 +498,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
 
 
 # ---------------------------------------------------------------------------
-# -m / --aimodel: HuggingFace URL / model-ID mode tests (mocked)
+# -m / --aimodel: Hugging Face URL / model-ID mode tests (mocked)
 # ---------------------------------------------------------------------------
 
 

@@ -68,7 +68,7 @@ Install extras to enable metadata extraction from model files:
 
 ```bash
 pip install -e ".[aimodel]"       # all supported local AI model formats
-pip install -e ".[huggingface]"   # HuggingFace Hub model metadata
+pip install -e ".[huggingface]"   # Hugging Face Hub model metadata
 ```
 
 or choose individual local formats:
@@ -113,9 +113,9 @@ loom -m path/to/model.gguf
 Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
 Keras, HDF5, NumPy, fastText.
 
-#### HuggingFace model SBOM
+#### Hugging Face model SBOM
 
-Pass a HuggingFace URL or model ID directly - no local file required.
+Pass a Hugging Face URL or model ID directly - no local file required.
 Pitloom fetches metadata from the Hub (model card, `config.json`,
 `tokenizer_config.json`, and `generation_config.json`) and produces an
 enriched `ai_AIPackage` SBOM with architecture, hyperparameters, license,
@@ -194,7 +194,7 @@ generate_ai_model_sbom(
     pretty=True,
 )
 
-# Generate an SBOM from a HuggingFace model repository (no local file needed)
+# Generate an SBOM from a Hugging Face model repository (no local file needed)
 from pitloom.assemble import generate_huggingface_sbom
 
 generate_huggingface_sbom(

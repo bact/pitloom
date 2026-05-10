@@ -72,12 +72,12 @@ dependency is not installed or the file is absent.
 | `safetensors/vits-tiny-random.safetensors` | Safetensors | Text-to-speech - VITS (random weights) | Apache-2.0 |
 | `safetensors/whisper-tiny-random.safetensors` | Safetensors | Speech recognition - Whisper (random weights) | Apache-2.0 |
 
-## HuggingFace Hub mock fixtures
+## Hugging Face Hub mock fixtures
 
-`tests/test_extract_huggingface.py` exercises the HuggingFace metadata extractor
+`tests/test_extract_huggingface.py` exercises the Hugging Face metadata extractor
 (`pitloom.extract._huggingface`) entirely through mocks - no network calls are
 made.  Each model is represented by inline Python dicts that mirror the real
-HuggingFace API responses (`config.json`, `tokenizer_config.json`,
+Hugging Face API responses (`config.json`, `tokenizer_config.json`,
 `generation_config.json`, and the model card YAML frontmatter).
 
 The models were chosen to cover different configurations, access restrictions,

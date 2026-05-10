@@ -133,9 +133,9 @@ def generate_huggingface_sbom(
     pretty: bool = False,
     describe_relationship: bool = False,
 ) -> str:
-    """Generate a standalone SPDX 3 SBOM for a HuggingFace model repository.
+    """Generate a standalone SPDX 3 SBOM for a Hugging Face model repository.
 
-    Fetches metadata from the HuggingFace Hub (``config.json``, model card,
+    Fetches metadata from the Hugging Face Hub (``config.json``, model card,
     ``tokenizer_config.json``, etc.) and assembles an ``ai_AIPackage`` SBOM.
     No local model file is required.
 
@@ -154,7 +154,7 @@ def generate_huggingface_sbom(
 
     Raises:
         ImportError: If ``huggingface_hub`` is not installed.
-        ValueError: If *model_source* is not a valid HuggingFace URL or model ID.
+        ValueError: If *model_source* is not a valid Hugging Face URL or model ID.
     """
     model = read_huggingface(model_source)
     exporter = build_model(model, creation_info or CreationMetadata())

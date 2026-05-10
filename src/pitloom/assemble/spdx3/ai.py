@@ -12,6 +12,7 @@ from typing import Any
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
+from pitloom.assemble.spdx3.deps import build_license_elements
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -206,6 +207,22 @@ def add_ai_models(
                 doc_uuid=doc_uuid,
                 exporter=exporter,
             )
+
+        if ai_model.license:
+            rel_declared, rel_concluded = build_license_elements(
+                license_id=ai_model.license,
+                package_spdx_id=ai_pkg.spdxId,
+                license_provenance=ai_model.provenance.get(
+                    "license",
+                    "Source: model file / Hugging Face Hub",
+                ),
+                creation_info=creation_info,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                exporter=exporter,
+            )
+            exporter.add_relationship(rel_declared)
+            exporter.add_relationship(rel_concluded)
 
         rel = spdx3.Relationship(
             spdxId=generate_spdx_id(

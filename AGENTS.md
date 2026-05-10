@@ -83,9 +83,10 @@ ruff format
 - McCabe complexity ≤ 10; refactor if exceeded.
 - Cognitive complexity ≤ 15; refactor if exceeded.
 - Remove unused imports and trailing whitespace.
-- Max line length = 88
+- Max line length = 88; Try to be within 80.
 - Stick with ASCII characters in source code;
   Only use non-ASCII when native human language scripts provides clearer message.
+- Avoid ambiguous variable name (E741)
 
 ## File headers
 
@@ -165,7 +166,7 @@ Consistent fields: project name, version, author/contributor names, license, des
 - Metadata as YAML front matter between triple-dashed lines (Hugo/Jekyll style).
 - Standard Markdown; avoid GitHub-specific extensions.
 - `sentence case` for headings/titles.
-- Max line length = 80
+- Max line length = 80; Except diagram, table, and URLs.
 - Run Markdownlint.
 
 ## HTML and CSS
