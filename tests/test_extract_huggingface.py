@@ -3477,3 +3477,2618 @@ def test_dataset_info_tag_fallback_when_no_card_datasets() -> None:
         meta = read_huggingface("pythainlp/wangchanglm-7.5B-sft-enth")
     ds_names = [d.metadata.name for d in meta.datasets]
     assert "fallback-dataset" in ds_names
+
+
+# ===========================================================================
+# NEW MODEL BATCH 4 -- 42 models covering new patterns
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# PATTERN: visual-question-answering pipeline tag
+# ---------------------------------------------------------------------------
+
+
+# dandelin/vilt-b32-finetuned-vqa
+# ViLT fine-tuned on VQAv2; fine-tuned from dandelin/vilt-b32.
+def _patch_vilt_vqa() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "vilt",
+            "architectures": ["ViltForVisualQuestionAnswering"],
+            "num_hidden_layers": 12,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="visual-question-answering",
+            tags=["vilt", "visual-question-answering"],
+            base_model=["dandelin/vilt-b32"],
+        ),
+        hub_info={
+            "author": "dandelin",
+            "tags": [
+                "arxiv:2102.03334",
+                "base_model:dandelin/vilt-b32",
+                "base_model:finetune:dandelin/vilt-b32",
+            ],
+        },
+    )
+
+
+def test_vilt_vqa_domain() -> None:
+    with _patch_vilt_vqa():
+        meta = read_huggingface("dandelin/vilt-b32-finetuned-vqa")
+    assert "visual-question-answering" in meta.usage.domains
+
+
+def test_vilt_vqa_base_model_finetune() -> None:
+    with _patch_vilt_vqa():
+        meta = read_huggingface("dandelin/vilt-b32-finetuned-vqa")
+    assert meta.extra_data.get("hf.base_model") == "dandelin/vilt-b32"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+def test_vilt_vqa_arxiv() -> None:
+    with _patch_vilt_vqa():
+        meta = read_huggingface("dandelin/vilt-b32-finetuned-vqa")
+    assert "2102.03334" in meta.extra_lists.get("hf.arxiv", [])
+
+
+# google/deplot
+# pix2struct for chart→table; VQA pipeline; image-text-to-text also in tags.
+def _patch_deplot() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "pix2struct",
+            "architectures": ["Pix2StructForConditionalGeneration"],
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="visual-question-answering",
+            tags=["pix2struct", "image-text-to-text"],
+            language=["en", "fr", "de", "es", "pt"],
+        ),
+        hub_info={
+            "author": "google",
+            "tags": ["arxiv:2212.10505"],
+        },
+    )
+
+
+def test_deplot_vqa_domain() -> None:
+    with _patch_deplot():
+        meta = read_huggingface("google/deplot")
+    assert "visual-question-answering" in meta.usage.domains
+
+
+def test_deplot_image_text_tag_also_domain() -> None:
+    # "image-text-to-text" in tags also captured as domain.
+    with _patch_deplot():
+        meta = read_huggingface("google/deplot")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_deplot_arxiv() -> None:
+    with _patch_deplot():
+        meta = read_huggingface("google/deplot")
+    assert "2212.10505" in meta.extra_lists.get("hf.arxiv", [])
+
+
+# Salesforce/blip-vqa-base
+# BLIP for VQA; bsd-3-clause license (non-SPDX passthrough).
+def _patch_blip_vqa() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "blip",
+            "architectures": ["BlipForQuestionAnswering"],
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="bsd-3-clause",
+            pipeline_tag="visual-question-answering",
+            tags=["blip"],
+            language=["en"],
+        ),
+        hub_info={
+            "author": "Salesforce",
+            "tags": ["arxiv:2201.12086"],
+        },
+    )
+
+
+def test_blip_vqa_domain() -> None:
+    with _patch_blip_vqa():
+        meta = read_huggingface("Salesforce/blip-vqa-base")
+    assert "visual-question-answering" in meta.usage.domains
+
+
+def test_blip_vqa_bsd_license_passthrough() -> None:
+    # bsd-3-clause not in _VAGUE_LICENSE_VALUES -- passed through as-is.
+    with _patch_blip_vqa():
+        meta = read_huggingface("Salesforce/blip-vqa-base")
+    assert meta.license == "bsd-3-clause"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: text-to-speech domain tag
+# ---------------------------------------------------------------------------
+
+
+# k2-fsa/OmniVoice
+# Zero-shot TTS; 646 languages; fine-tuned from Qwen3-0.6B; arxiv DOI.
+def _patch_omnivoice() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-to-speech",
+            tags=["zero-shot", "multilingual", "voice-cloning"],
+            language=["multilingual"],
+            base_model=["Qwen/Qwen3-0.6B"],
+        ),
+        hub_info={
+            "author": "k2-fsa",
+            "tags": [
+                "arxiv:2604.00688",
+                "base_model:Qwen/Qwen3-0.6B",
+                "base_model:finetune:Qwen/Qwen3-0.6B",
+            ],
+        },
+    )
+
+
+def test_omnivoice_text_to_speech_domain() -> None:
+    with _patch_omnivoice():
+        meta = read_huggingface("k2-fsa/OmniVoice")
+    assert "text-to-speech" in meta.usage.domains
+
+
+def test_omnivoice_arxiv_and_base_model() -> None:
+    with _patch_omnivoice():
+        meta = read_huggingface("k2-fsa/OmniVoice")
+    assert "2604.00688" in meta.extra_lists.get("hf.arxiv", [])
+    assert meta.extra_data.get("hf.base_model") == "Qwen/Qwen3-0.6B"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# drbaph/OmniVoice-bf16
+# BF16 conversion of k2-fsa/OmniVoice.
+def _patch_omnivoice_bf16() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-to-speech",
+            tags=["omnivoice", "bf16"],
+            language=["multilingual"],
+            base_model=["k2-fsa/OmniVoice"],
+        ),
+        hub_info={
+            "author": "drbaph",
+            "tags": [
+                "base_model:k2-fsa/OmniVoice",
+                "base_model:finetune:k2-fsa/OmniVoice",
+            ],
+        },
+    )
+
+
+def test_omnivoice_bf16_tts_domain_and_base_model() -> None:
+    with _patch_omnivoice_bf16():
+        meta = read_huggingface("drbaph/OmniVoice-bf16")
+    assert "text-to-speech" in meta.usage.domains
+    assert meta.extra_data.get("hf.base_model") == "k2-fsa/OmniVoice"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: speaker-diarization (new domain tag, gated model)
+# ---------------------------------------------------------------------------
+
+
+# pyannote/speaker-diarization-community-1
+# Gated (cc-by-4.0 acceptance required); pyannote.audio library.
+def _patch_pyannote_diar() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="cc-by-4.0",
+            pipeline_tag="speaker-diarization",
+            tags=["pyannote", "speaker-diarization", "voice-activity-detection"],
+            library_name="pyannote.audio",
+        ),
+        hub_info={"author": "pyannote"},
+    )
+
+
+def test_pyannote_speaker_diarization_domain() -> None:
+    with _patch_pyannote_diar():
+        meta = read_huggingface("pyannote/speaker-diarization-community-1")
+    assert "speaker-diarization" in meta.usage.domains
+
+
+def test_pyannote_library_name() -> None:
+    with _patch_pyannote_diar():
+        meta = read_huggingface("pyannote/speaker-diarization-community-1")
+    assert meta.extra_data.get("hf.library_name") == "pyannote.audio"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: audio-to-audio (new domain tag) + multi-task speech model
+# ---------------------------------------------------------------------------
+
+
+# facebook/seamless-m4t-v2-large
+# ASR + S2TT + T2ST + S2ST; cc-by-nc-4.0; audio-to-audio in tags.
+def _patch_seamless_m4t() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "seamless_m4t_v2",
+            "architectures": ["SeamlessM4Tv2Model"],
+            "num_hidden_layers": 24,
+            "hidden_size": 1024,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="cc-by-nc-4.0",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["audio-to-audio", "text-to-speech", "speech-translation"],
+            language=["en", "fr", "de", "es", "zh", "ar", "hi", "ja", "ko", "pt"],
+        ),
+        hub_info={
+            "author": "facebook",
+            "tags": ["arxiv:2312.05187"],
+        },
+    )
+
+
+def test_seamless_asr_domain_from_pipeline_tag() -> None:
+    with _patch_seamless_m4t():
+        meta = read_huggingface("facebook/seamless-m4t-v2-large")
+    assert "automatic-speech-recognition" in meta.usage.domains
+
+
+def test_seamless_audio_to_audio_tag_in_domain() -> None:
+    # "audio-to-audio" in tags → captured as domain (audio-to-audio domain tag).
+    with _patch_seamless_m4t():
+        meta = read_huggingface("facebook/seamless-m4t-v2-large")
+    assert "audio-to-audio" in meta.usage.domains
+
+
+def test_seamless_nc_license() -> None:
+    with _patch_seamless_m4t():
+        meta = read_huggingface("facebook/seamless-m4t-v2-large")
+    assert meta.license == "cc-by-nc-4.0"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: ASR -- various architectures and bases
+# ---------------------------------------------------------------------------
+
+
+# ibm-granite/granite-speech-4.1-2b
+# Conformer + Q-Former + LM; fine-tuned from granite-4.0-1b-base; 6 languages.
+def _patch_granite_speech() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "granite_speech",
+            "architectures": ["GraniteSpeechForConditionalGeneration"],
+            "num_hidden_layers": 40,
+            "hidden_size": 2560,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["speech-translation", "multilingual-asr"],
+            language=["en", "fr", "de", "es", "pt", "ja"],
+            base_model=["ibm-granite/granite-4.0-1b-base"],
+        ),
+        hub_info={
+            "author": "ibm-granite",
+            "tags": [
+                "base_model:ibm-granite/granite-4.0-1b-base",
+                "base_model:finetune:ibm-granite/granite-4.0-1b-base",
+            ],
+        },
+    )
+
+
+def test_granite_speech_asr_domain() -> None:
+    with _patch_granite_speech():
+        meta = read_huggingface("ibm-granite/granite-speech-4.1-2b")
+    assert "automatic-speech-recognition" in meta.usage.domains
+
+
+def test_granite_speech_base_model_finetune() -> None:
+    with _patch_granite_speech():
+        meta = read_huggingface("ibm-granite/granite-speech-4.1-2b")
+    assert meta.extra_data.get("hf.base_model") == "ibm-granite/granite-4.0-1b-base"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# ai4bharat/indic-conformer-600m-multilingual
+# Gated; 22 Indian-language ASR; custom_code.
+def _patch_indic_conformer() -> Any:
+    return _patch_hf_calls(
+        config=None,  # Gated
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="mit",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["custom_code", "ONNX"],
+            language=[
+                "as",
+                "bn",
+                "gu",
+                "hi",
+                "kn",
+                "ml",
+                "mr",
+                "or",
+                "pa",
+                "sa",
+                "ta",
+                "te",
+                "ur",
+                "mai",
+                "doi",
+                "mni",
+                "sat",
+                "kok",
+                "ks",
+                "brx",
+                "ne",
+                "sd",
+            ],
+        ),
+        hub_info={"author": "ai4bharat"},
+    )
+
+
+def test_indic_conformer_22_indian_languages() -> None:
+    with _patch_indic_conformer():
+        meta = read_huggingface("ai4bharat/indic-conformer-600m-multilingual")
+    assert "automatic-speech-recognition" in meta.usage.domains
+    langs = meta.extra_lists.get("hf.language", [])
+    assert "hi" in langs and "ta" in langs and "te" in langs
+    assert len(langs) == 22
+
+
+# cstr/mimo-asr-GGUF
+# GGUF ASR; quantized from XiaomiMiMo/MiMo-V2.5-ASR; Mandarin+English.
+def _patch_mimo_asr_gguf() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="mit",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["GGUF", "audio", "mimo", "qwen2"],
+            language=["zh", "en"],
+            base_model=["XiaomiMiMo/MiMo-V2.5-ASR"],
+        ),
+        hub_info={
+            "author": "cstr",
+            "tags": [
+                "base_model:XiaomiMiMo/MiMo-V2.5-ASR",
+                "base_model:quantized:XiaomiMiMo/MiMo-V2.5-ASR",
+            ],
+        },
+    )
+
+
+def test_mimo_asr_quantized_gguf() -> None:
+    with _patch_mimo_asr_gguf():
+        meta = read_huggingface("cstr/mimo-asr-GGUF")
+    assert "automatic-speech-recognition" in meta.usage.domains
+    assert meta.extra_data.get("hf.base_model") == "XiaomiMiMo/MiMo-V2.5-ASR"
+    assert meta.extra_data.get("hf.base_model_relation") == "quantized"
+
+
+# microsoft/VibeVoice-ASR
+# Large ASR with speaker diarization; 51+ languages; arxiv paper.
+def _patch_vibevoice_asr() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "vibevoice",
+            "architectures": ["VibeVoiceForASRTraining"],
+            "num_hidden_layers": 40,
+            "hidden_size": 4096,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="mit",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["ASR", "Diarization", "Speech-to-Text"],
+            language=["en", "zh", "fr", "de", "es", "ja", "ko", "ar"],
+        ),
+        hub_info={
+            "author": "microsoft",
+            "tags": ["arxiv:2601.18184"],
+        },
+    )
+
+
+def test_vibevoice_asr_domain_and_arxiv() -> None:
+    with _patch_vibevoice_asr():
+        meta = read_huggingface("microsoft/VibeVoice-ASR")
+    assert "automatic-speech-recognition" in meta.usage.domains
+    assert "2601.18184" in meta.extra_lists.get("hf.arxiv", [])
+
+
+# neurlang/ipa-whisper-medium
+# Whisper fine-tuned for IPA phonetic output; 74 languages.
+def _patch_ipa_whisper() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "whisper",
+            "architectures": ["WhisperForConditionalGeneration"],
+            "num_hidden_layers": 24,
+            "hidden_size": 1024,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["whisper", "IPA", "phonetic"],
+            language=["en", "fr", "de", "es", "zh", "ar", "ja"],
+            base_model=["openai/whisper-medium"],
+        ),
+        hub_info={
+            "author": "neurlang",
+            "tags": [
+                "base_model:openai/whisper-medium",
+                "base_model:finetune:openai/whisper-medium",
+            ],
+        },
+    )
+
+
+def test_ipa_whisper_base_model_finetune() -> None:
+    with _patch_ipa_whisper():
+        meta = read_huggingface("neurlang/ipa-whisper-medium")
+    assert meta.extra_data.get("hf.base_model") == "openai/whisper-medium"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+def test_ipa_whisper_asr_domain() -> None:
+    with _patch_ipa_whisper():
+        meta = read_huggingface("neurlang/ipa-whisper-medium")
+    assert "automatic-speech-recognition" in meta.usage.domains
+
+
+# indonesian-nlp/wav2vec2-indonesian-javanese-sundanese
+# Indonesian + Javanese + Sundanese ASR; fine-tuned from xlsr-53.
+def _patch_wav2vec2_id_jv_su() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "wav2vec2",
+            "architectures": ["Wav2Vec2ForCTC"],
+            "vocab_size": 63,
+            "num_hidden_layers": 24,
+            "hidden_size": 1024,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="automatic-speech-recognition",
+            tags=["wav2vec2", "hf-asr-leaderboard"],
+            language=["id", "jv", "su"],
+            base_model=["facebook/wav2vec2-large-xlsr-53"],
+        ),
+        hub_info={
+            "author": "indonesian-nlp",
+            "tags": [
+                "base_model:facebook/wav2vec2-large-xlsr-53",
+                "base_model:finetune:facebook/wav2vec2-large-xlsr-53",
+            ],
+        },
+    )
+
+
+def test_wav2vec2_id_asr_domain_three_languages() -> None:
+    with _patch_wav2vec2_id_jv_su():
+        meta = read_huggingface("indonesian-nlp/wav2vec2-indonesian-javanese-sundanese")
+    assert "automatic-speech-recognition" in meta.usage.domains
+    langs = meta.extra_lists.get("hf.language", [])
+    assert "id" in langs and "jv" in langs and "su" in langs
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: IBM Granite family (three tasks: text, speech, geospatial, embed)
+# ---------------------------------------------------------------------------
+
+
+# ibm-granite/granite-4.1-8b
+# Dense LLM; GQA; 12 languages; fine-tuned from granite-4.1-8b-base.
+def _patch_granite_4_1_8b() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "granite",
+            "architectures": ["GraniteForCausalLM"],
+            "vocab_size": 49152,
+            "num_hidden_layers": 40,
+            "hidden_size": 4096,
+            "num_attention_heads": 32,
+            "num_key_value_heads": 8,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["granite", "conversational"],
+            language=[
+                "en",
+                "de",
+                "es",
+                "fr",
+                "ja",
+                "pt",
+                "ar",
+                "cs",
+                "it",
+                "ko",
+                "nl",
+                "zh",
+            ],
+            base_model=["ibm-granite/granite-4.1-8b-base"],
+        ),
+        hub_info={
+            "author": "ibm-granite",
+            "tags": [
+                "base_model:ibm-granite/granite-4.1-8b-base",
+                "base_model:finetune:ibm-granite/granite-4.1-8b-base",
+            ],
+        },
+    )
+
+
+def test_granite_4_1_8b_gqa_and_12_languages() -> None:
+    with _patch_granite_4_1_8b():
+        meta = read_huggingface("ibm-granite/granite-4.1-8b")
+    assert meta.hyperparameters.get("num_key_value_heads") == 8
+    langs = meta.extra_lists.get("hf.language", [])
+    assert len(langs) == 12 and "ja" in langs and "ar" in langs
+
+
+def test_granite_4_1_8b_base_model_finetune() -> None:
+    with _patch_granite_4_1_8b():
+        meta = read_huggingface("ibm-granite/granite-4.1-8b")
+    assert meta.extra_data.get("hf.base_model") == "ibm-granite/granite-4.1-8b-base"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# ibm-granite/granite-embedding-97m-multilingual-r2
+# ModernBERT bi-encoder; 200+ languages; sentence-transformers library.
+def _patch_granite_embed() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "modernbert",
+            "architectures": ["ModernBertModel"],
+            "vocab_size": 180000,
+            "num_hidden_layers": 12,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="feature-extraction",
+            tags=["granite", "embeddings", "multilingual", "mteb"],
+            language=["multilingual"],
+            library_name="sentence-transformers",
+        ),
+        hub_info={"author": "ibm-granite"},
+    )
+
+
+def test_granite_embed_modernbert_arch_and_library() -> None:
+    with _patch_granite_embed():
+        meta = read_huggingface("ibm-granite/granite-embedding-97m-multilingual-r2")
+    assert meta.type_of_model == "modernbert"
+    assert meta.extra_data.get("hf.library_name") == "sentence-transformers"
+
+
+def test_granite_embed_feature_extraction_domain() -> None:
+    with _patch_granite_embed():
+        meta = read_huggingface("ibm-granite/granite-embedding-97m-multilingual-r2")
+    assert "feature-extraction" in meta.usage.domains
+
+
+# ibm-granite/granite-geospatial-uki-flooddetection
+# TerraTorch-based; image-segmentation; references two HF dataset-namespace
+# flood datasets.
+# Note:
+# ai-for-good-lab/ai4g-flood-dataset and blanchon/ETCI-2021-Flood-Detection
+# are HuggingFace datasets (not model repos) referenced in this model's card.
+def _patch_granite_geo_flood() -> Any:
+    return _patch_hf_calls(
+        config=None,  # TerraTorch -- no standard transformers config.json
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="image-segmentation",
+            tags=["geospatial", "flood-detection", "sentinel-2", "sentinel-1"],
+            datasets=[
+                "ai-for-good-lab/ai4g-flood-dataset",
+                "blanchon/ETCI-2021-Flood-Detection",
+            ],
+            base_model=["ibm-granite/granite-geospatial-uki"],
+            library_name="terratorch",
+        ),
+        hub_info={
+            "author": "ibm-granite",
+            "tags": [
+                "base_model:ibm-granite/granite-geospatial-uki",
+                "base_model:finetune:ibm-granite/granite-geospatial-uki",
+            ],
+        },
+    )
+
+
+def test_granite_geo_flood_image_segmentation_domain() -> None:
+    with _patch_granite_geo_flood():
+        meta = read_huggingface("ibm-granite/granite-geospatial-uki-flooddetection")
+    assert "image-segmentation" in meta.usage.domains
+
+
+def test_granite_geo_flood_dataset_refs_from_hf_dataset_repos() -> None:
+    # Both flood dataset HF IDs captured as DatasetReference objects.
+    with _patch_granite_geo_flood():
+        meta = read_huggingface("ibm-granite/granite-geospatial-uki-flooddetection")
+    ds_names = [d.metadata.name for d in meta.datasets]
+    assert "ai-for-good-lab/ai4g-flood-dataset" in ds_names
+    assert "blanchon/ETCI-2021-Flood-Detection" in ds_names
+
+
+def test_granite_geo_flood_terratorch_library_and_base_model() -> None:
+    with _patch_granite_geo_flood():
+        meta = read_huggingface("ibm-granite/granite-geospatial-uki-flooddetection")
+    assert meta.extra_data.get("hf.library_name") == "terratorch"
+    assert meta.extra_data.get("hf.base_model") == "ibm-granite/granite-geospatial-uki"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: flood detection (image classification, siglip, arxiv)
+# ---------------------------------------------------------------------------
+
+
+# prithivMLmods/Flood-Image-Detection
+# SiGLIP2 fine-tuned for binary flood/no-flood classification; arxiv.
+def _patch_flood_image_detect() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "siglip",
+            "architectures": ["SiglipForImageClassification"],
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="image-classification",
+            tags=["siglip", "Flood-Detection", "climate"],
+            language=["en"],
+            base_model=["google/siglip2-base-patch16-512"],
+        ),
+        hub_info={
+            "author": "prithivMLmods",
+            "tags": [
+                "arxiv:2502.14786",
+                "base_model:google/siglip2-base-patch16-512",
+                "base_model:finetune:google/siglip2-base-patch16-512",
+            ],
+        },
+    )
+
+
+def test_flood_image_detect_domain_and_base_model() -> None:
+    with _patch_flood_image_detect():
+        meta = read_huggingface("prithivMLmods/Flood-Image-Detection")
+    assert "image-classification" in meta.usage.domains
+    assert meta.extra_data.get("hf.base_model") == "google/siglip2-base-patch16-512"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: fill-mask (multilingual BERT family)
+# ---------------------------------------------------------------------------
+
+
+# FacebookAI/xlm-roberta-base
+# XLM-RoBERTa; fill-mask; MIT; 100+ languages.
+def _patch_xlm_roberta_base() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "xlm-roberta",
+            "architectures": ["XLMRobertaForMaskedLM"],
+            "vocab_size": 250002,
+            "num_hidden_layers": 12,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="mit",
+            pipeline_tag="fill-mask",
+            tags=[],
+            language=[
+                "af",
+                "am",
+                "ar",
+                "en",
+                "fr",
+                "de",
+                "hi",
+                "ja",
+                "ko",
+                "pt",
+                "ru",
+                "es",
+                "sw",
+                "th",
+                "tr",
+                "vi",
+                "yo",
+                "zh",
+            ],
+        ),
+        hub_info={"author": "FacebookAI"},
+    )
+
+
+def test_xlm_roberta_fill_mask_domain_and_languages() -> None:
+    with _patch_xlm_roberta_base():
+        meta = read_huggingface("FacebookAI/xlm-roberta-base")
+    assert "fill-mask" in meta.usage.domains
+    langs = meta.extra_lists.get("hf.language", [])
+    assert "hi" in langs and "ar" in langs and "zh" in langs
+
+
+# distilbert/distilbert-base-multilingual-cased
+# 6-layer DistilBERT; fill-mask; apache-2.0; 104 languages.
+def _patch_distilbert_multilingual() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "distilbert",
+            "architectures": ["DistilBertForMaskedLM"],
+            "vocab_size": 119547,
+            "num_hidden_layers": 6,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="fill-mask",
+            tags=[],
+            language=["multilingual"],
+        ),
+        hub_info={"author": "distilbert"},
+    )
+
+
+def test_distilbert_multilingual_fill_mask_and_6_layers() -> None:
+    # DistilBERT halves BERT's 12 layers to 6.
+    with _patch_distilbert_multilingual():
+        meta = read_huggingface("distilbert/distilbert-base-multilingual-cased")
+    assert "fill-mask" in meta.usage.domains
+    assert meta.type_of_model == "distilbert"
+    assert meta.hyperparameters.get("num_hidden_layers") == 6
+
+
+# DCU-NLP/bert-base-irish-cased-v1 (gaBERT)
+# Irish BERT; fill-mask; no license in card YAML.
+def _patch_gabert() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "bert",
+            "architectures": ["BertForMaskedLM"],
+            "vocab_size": 30000,
+            "num_hidden_layers": 12,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license=None,
+            pipeline_tag="fill-mask",
+            tags=["bert"],
+            language=["ga"],
+        ),
+        hub_info={"author": "DCU-NLP"},
+    )
+
+
+def test_gabert_fill_mask_irish_no_license() -> None:
+    with _patch_gabert():
+        meta = read_huggingface("DCU-NLP/bert-base-irish-cased-v1")
+    assert "fill-mask" in meta.usage.domains
+    assert meta.extra_lists.get("hf.language") == ["ga"]
+    assert meta.license is None
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: base_model merge relation
+# ---------------------------------------------------------------------------
+
+
+# Crownelius/Crow-9B-HERETIC-4.6
+# Qwen3.5 merge model; 26 languages; merge relation.
+def _patch_crow_9b() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "qwen3_5",
+            "architectures": ["Qwen3_5ForCausalLM"],
+            "vocab_size": 151936,
+            "num_hidden_layers": 40,
+            "hidden_size": 3584,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["agent", "conversational"],
+            language=[
+                "en",
+                "zh",
+                "fr",
+                "de",
+                "es",
+                "pt",
+                "it",
+                "ja",
+                "ko",
+                "ru",
+                "ar",
+                "hi",
+                "nl",
+                "pl",
+                "sv",
+                "da",
+                "no",
+                "fi",
+                "cs",
+                "hu",
+                "ro",
+                "tr",
+                "vi",
+                "id",
+                "th",
+                "uk",
+            ],
+            base_model=["Qwen/Qwen3.5-9B-Base"],
+        ),
+        hub_info={
+            "author": "Crownelius",
+            "tags": [
+                "base_model:Qwen/Qwen3.5-9B-Base",
+                "base_model:merge:Qwen/Qwen3.5-9B-Base",
+            ],
+        },
+    )
+
+
+def test_crow_9b_merge_relation() -> None:
+    with _patch_crow_9b():
+        meta = read_huggingface("Crownelius/Crow-9B-HERETIC-4.6")
+    assert meta.extra_data.get("hf.base_model") == "Qwen/Qwen3.5-9B-Base"
+    assert meta.extra_data.get("hf.base_model_relation") == "merge"
+
+
+def test_crow_9b_26_languages() -> None:
+    with _patch_crow_9b():
+        meta = read_huggingface("Crownelius/Crow-9B-HERETIC-4.6")
+    assert len(meta.extra_lists.get("hf.language", [])) == 26
+
+
+# SamsungSAILMontreal/Qwen3-Coder-Next-REAP
+# Qwen3-Next MoE compressed via REAP expert pruning; merge relation.
+def _patch_qwen3_reap() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "qwen3_moe",
+            "architectures": ["Qwen3MoeForCausalLM"],
+            "num_hidden_layers": 94,
+            "hidden_size": 4096,
+            "num_experts": 384,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["mixture-of-experts", "code", "expert-merging"],
+            base_model=["Qwen/Qwen3-Coder-Next"],
+        ),
+        hub_info={
+            "author": "SamsungSAILMontreal",
+            "tags": [
+                "base_model:Qwen/Qwen3-Coder-Next",
+                "base_model:merge:Qwen/Qwen3-Coder-Next",
+            ],
+        },
+    )
+
+
+def test_qwen3_reap_merge_relation_moe() -> None:
+    with _patch_qwen3_reap():
+        meta = read_huggingface("SamsungSAILMontreal/Qwen3-Coder-Next-REAP")
+    assert meta.extra_data.get("hf.base_model") == "Qwen/Qwen3-Coder-Next"
+    assert meta.extra_data.get("hf.base_model_relation") == "merge"
+    assert meta.type_of_model == "qwen3_moe"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: classic / early LLMs (diverse architectures)
+# ---------------------------------------------------------------------------
+
+
+# facebook/opt-2.7b
+# OPT 2.7B; license=other (Meta non-commercial).
+def _patch_opt_2_7b() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "opt",
+            "architectures": ["OPTForCausalLM"],
+            "vocab_size": 50272,
+            "num_hidden_layers": 32,
+            "hidden_size": 2560,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="other",
+            pipeline_tag="text-generation",
+            tags=[],
+        ),
+        hub_info={"author": "facebook"},
+    )
+
+
+def test_opt_2_7b_vague_license_and_opt_arch() -> None:
+    with _patch_opt_2_7b():
+        meta = read_huggingface("facebook/opt-2.7b")
+    assert meta.license is None
+    assert meta.extra_data.get("hf.license_raw") == "other"
+    assert meta.type_of_model == "opt"
+
+
+# facebook/opt-iml-max-1.3b
+# OPT instruction-tuned on ~2000 NLP tasks; arxiv.
+def _patch_opt_iml() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "opt",
+            "architectures": ["OPTForCausalLM"],
+            "vocab_size": 50272,
+            "num_hidden_layers": 24,
+            "hidden_size": 2048,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="other",
+            pipeline_tag="text-generation",
+            tags=["opt"],
+        ),
+        hub_info={
+            "author": "facebook",
+            "tags": ["arxiv:2212.12017"],
+        },
+    )
+
+
+def test_opt_iml_arxiv_and_vague_license() -> None:
+    with _patch_opt_iml():
+        meta = read_huggingface("facebook/opt-iml-max-1.3b")
+    assert "2212.12017" in meta.extra_lists.get("hf.arxiv", [])
+    assert meta.license is None
+    assert meta.extra_data.get("hf.license_raw") == "other"
+
+
+# EleutherAI/gpt-neo-2.7B
+# GPT-Neo 2.7B; apache-2.0; English.
+def _patch_gpt_neo_2_7b() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "gpt_neo",
+            "architectures": ["GPTNeoForCausalLM"],
+            "vocab_size": 50257,
+            "num_hidden_layers": 32,
+            "hidden_size": 2560,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=[],
+            language=["en"],
+        ),
+        hub_info={"author": "EleutherAI"},
+    )
+
+
+def test_gpt_neo_2_7b_architecture() -> None:
+    with _patch_gpt_neo_2_7b():
+        meta = read_huggingface("EleutherAI/gpt-neo-2.7B")
+    assert meta.type_of_model == "gpt_neo"
+    assert meta.architecture == "GPTNeoForCausalLM"
+
+
+# stabilityai/stablelm-2-zephyr-1_6b
+# StableLM 2 Zephyr; apache-2.0; 12 languages.
+def _patch_stablelm_zephyr() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "stablelm_epoch",
+            "architectures": ["StableLMEpochForCausalLM"],
+            "vocab_size": 100352,
+            "num_hidden_layers": 24,
+            "hidden_size": 2048,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["conversational"],
+            language=[
+                "en",
+                "de",
+                "es",
+                "fr",
+                "it",
+                "nl",
+                "pt",
+                "pl",
+                "ru",
+                "zh",
+                "ja",
+                "ko",
+            ],
+        ),
+        hub_info={"author": "stabilityai"},
+    )
+
+
+def test_stablelm_zephyr_architecture() -> None:
+    with _patch_stablelm_zephyr():
+        meta = read_huggingface("stabilityai/stablelm-2-zephyr-1_6b")
+    assert meta.type_of_model == "stablelm_epoch"
+    assert meta.architecture == "StableLMEpochForCausalLM"
+
+
+# TinyLlama/TinyLlama-1.1B-Chat-v1.0
+# TinyLlama 1.1B Chat; apache-2.0; English; 22 layers.
+def _patch_tinyllama_chat() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "llama",
+            "architectures": ["LlamaForCausalLM"],
+            "vocab_size": 32000,
+            "num_hidden_layers": 22,
+            "hidden_size": 2048,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["conversational"],
+            language=["en"],
+        ),
+        hub_info={"author": "TinyLlama"},
+    )
+
+
+def test_tinyllama_chat_architecture_and_depth() -> None:
+    with _patch_tinyllama_chat():
+        meta = read_huggingface("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    assert meta.type_of_model == "llama"
+    assert meta.hyperparameters.get("num_hidden_layers") == 22
+
+
+# microsoft/phi-2
+# Phi-2 (2.7B); MIT; English; "code" tag → usage.domains.
+def _patch_phi2() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "phi",
+            "architectures": ["PhiForCausalLM"],
+            "vocab_size": 51200,
+            "num_hidden_layers": 32,
+            "hidden_size": 2560,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="mit",
+            pipeline_tag="text-generation",
+            tags=["nlp", "code"],
+            language=["en"],
+        ),
+        hub_info={"author": "microsoft"},
+    )
+
+
+def test_phi2_phi_architecture_mit_license() -> None:
+    with _patch_phi2():
+        meta = read_huggingface("microsoft/phi-2")
+    assert meta.type_of_model == "phi"
+    assert meta.license == "mit"
+
+
+def test_phi2_code_tag_in_domain() -> None:
+    # "code" is in _DOMAIN_TAGS → usage.domains, not extra_lists["hf.tags"].
+    with _patch_phi2():
+        meta = read_huggingface("microsoft/phi-2")
+    assert "code" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: Llama 3.2 3B variants (gated base vs gated instruct)
+# ---------------------------------------------------------------------------
+
+
+# meta-llama/Llama-3.2-3B (gated base model)
+def _patch_llama_3_2_3b() -> Any:
+    return _patch_hf_calls(
+        config=None,  # Gated
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="llama3.2",
+            pipeline_tag="text-generation",
+            tags=[],
+            language=["en", "de", "fr", "it", "pt", "hi", "es", "th"],
+        ),
+        hub_info={"author": "meta-llama"},
+    )
+
+
+def test_llama_3_2_3b_gated_base_no_architecture() -> None:
+    with _patch_llama_3_2_3b():
+        meta = read_huggingface("meta-llama/Llama-3.2-3B")
+    assert meta.license == "llama3.2"
+    assert meta.type_of_model is None  # config gated → not extractable
+
+
+# meta-llama/Llama-3.2-3B-Instruct (gated, fine-tuned from 3B base)
+def _patch_llama_3_2_3b_instruct() -> Any:
+    return _patch_hf_calls(
+        config=None,  # Gated
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="llama3.2",
+            pipeline_tag="text-generation",
+            tags=["conversational"],
+            language=["en", "de", "fr", "it", "pt", "hi", "es", "th"],
+            base_model=["meta-llama/Llama-3.2-3B"],
+        ),
+        hub_info={
+            "author": "meta-llama",
+            "tags": [
+                "base_model:meta-llama/Llama-3.2-3B",
+                "base_model:finetune:meta-llama/Llama-3.2-3B",
+            ],
+        },
+    )
+
+
+def test_llama_3_2_3b_instruct_base_model_finetune() -> None:
+    with _patch_llama_3_2_3b_instruct():
+        meta = read_huggingface("meta-llama/Llama-3.2-3B-Instruct")
+    assert meta.extra_data.get("hf.base_model") == "meta-llama/Llama-3.2-3B"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# NousResearch/Hermes-3-Llama-3.2-3B (accessible, llama3 license)
+def _patch_hermes_3_llama_3b() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "llama",
+            "architectures": ["LlamaForCausalLM"],
+            "vocab_size": 128256,
+            "num_hidden_layers": 28,
+            "hidden_size": 3072,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="llama3",
+            pipeline_tag="text-generation",
+            tags=["chatml", "instruct", "function-calling"],
+            language=["en"],
+            base_model=["meta-llama/Llama-3.2-3B"],
+        ),
+        hub_info={
+            "author": "NousResearch",
+            "tags": [
+                "base_model:meta-llama/Llama-3.2-3B",
+                "base_model:finetune:meta-llama/Llama-3.2-3B",
+            ],
+        },
+    )
+
+
+def test_hermes_3_llama_3b_finetune_and_license() -> None:
+    with _patch_hermes_3_llama_3b():
+        meta = read_huggingface("NousResearch/Hermes-3-Llama-3.2-3B")
+    assert meta.license == "llama3"
+    assert meta.extra_data.get("hf.base_model") == "meta-llama/Llama-3.2-3B"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: text-classification (multiple models)
+# ---------------------------------------------------------------------------
+
+
+# HuggingFaceFW/fineweb-edu-classifier
+# Educational quality scorer (0–5); bert-like; fine-tuned from Snowflake arctic embed.
+def _patch_fineweb_edu() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "bert",
+            "architectures": ["BertForSequenceClassification"],
+            "vocab_size": 30522,
+            "num_hidden_layers": 12,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-classification",
+            tags=["BERT"],
+            language=["en"],
+            base_model=["Snowflake/snowflake-arctic-embed-m"],
+        ),
+        hub_info={
+            "author": "HuggingFaceFW",
+            "tags": [
+                "base_model:Snowflake/snowflake-arctic-embed-m",
+                "base_model:finetune:Snowflake/snowflake-arctic-embed-m",
+            ],
+        },
+    )
+
+
+def test_fineweb_edu_text_classification_and_base_model() -> None:
+    with _patch_fineweb_edu():
+        meta = read_huggingface("HuggingFaceFW/fineweb-edu-classifier")
+    assert "text-classification" in meta.usage.domains
+    assert meta.extra_data.get("hf.base_model") == "Snowflake/snowflake-arctic-embed-m"
+
+
+# tum-nlp/Deberta_Human_Value_Detector
+# Custom DeBERTa (trust_remote_code); openrail++ license; 20 human value categories.
+def _patch_deberta_human_value() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "deberta_arg_classifier",
+            "architectures": ["DebertaArgClassifier"],
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="openrail++",
+            pipeline_tag="text-classification",
+            tags=["custom_code", "human-values", "deberta"],
+            language=["en"],
+        ),
+        hub_info={"author": "tum-nlp"},
+    )
+
+
+def test_deberta_human_value_openrail_license() -> None:
+    # openrail++ is not in _VAGUE_LICENSE_VALUES -- passed through as-is.
+    with _patch_deberta_human_value():
+        meta = read_huggingface("tum-nlp/Deberta_Human_Value_Detector")
+    assert meta.license == "openrail++"
+    assert "text-classification" in meta.usage.domains
+
+
+# nlp-chula/aspect-finnlp-th
+# CamemBERT Thai financial NLP; no license; fine-tuned from wangchanberta.
+def _patch_aspect_finnlp_th() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "camembert",
+            "architectures": ["CamembertForSequenceClassification"],
+            "vocab_size": 25000,
+            "num_hidden_layers": 12,
+            "hidden_size": 768,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license=None,
+            pipeline_tag="text-classification",
+            tags=["generated_from_trainer"],
+            language=["th"],
+            base_model=["airesearch/wangchanberta-base-att-spm-uncased"],
+        ),
+        hub_info={
+            "author": "nlp-chula",
+            "tags": [
+                "base_model:airesearch/wangchanberta-base-att-spm-uncased",
+                "base_model:finetune:airesearch/wangchanberta-base-att-spm-uncased",
+            ],
+        },
+    )
+
+
+def test_aspect_finnlp_th_camembert_no_license() -> None:
+    with _patch_aspect_finnlp_th():
+        meta = read_huggingface("nlp-chula/aspect-finnlp-th")
+    assert meta.type_of_model == "camembert"
+    assert meta.license is None
+    assert "text-classification" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: legal domain models (diverse languages and regions)
+# ---------------------------------------------------------------------------
+
+
+# FINAL-Bench/Darwin-28B-KR-Legal
+# Korean legal LLM; Qwen3.5 arch; fine-tuned from Darwin-28B-KR.
+def _patch_darwin_kr_legal() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "qwen3_5",
+            "architectures": ["Qwen3_5ForCausalLM"],
+            "vocab_size": 151936,
+            "num_hidden_layers": 64,
+            "hidden_size": 5120,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["korean", "legal", "conversational"],
+            language=["ko", "en"],
+            base_model=["FINAL-Bench/Darwin-28B-KR"],
+        ),
+        hub_info={
+            "author": "FINAL-Bench",
+            "tags": [
+                "base_model:FINAL-Bench/Darwin-28B-KR",
+                "base_model:finetune:FINAL-Bench/Darwin-28B-KR",
+            ],
+        },
+    )
+
+
+def test_darwin_kr_legal_architecture_and_finetune() -> None:
+    with _patch_darwin_kr_legal():
+        meta = read_huggingface("FINAL-Bench/Darwin-28B-KR-Legal")
+    assert meta.type_of_model == "qwen3_5"
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+    assert "ko" in meta.extra_lists.get("hf.language", [])
+
+
+# protonx-models/protonx-legal-tc
+# Vietnamese legal text correction; seq2seq; proprietary NC license → other.
+def _patch_protonx_legal() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "t5",
+            "architectures": ["T5ForConditionalGeneration"],
+            "vocab_size": 32128,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="other",
+            pipeline_tag="text2text-generation",
+            tags=["text-to-text", "t5"],
+            language=["vi"],
+            base_model=["vit5-base"],
+        ),
+        hub_info={
+            "author": "protonx-models",
+            "tags": [
+                "base_model:vit5-base",
+                "base_model:finetune:vit5-base",
+            ],
+        },
+    )
+
+
+def test_protonx_legal_vietnamese_nc_license() -> None:
+    # Proprietary NC license → "other" in card → hf.license_raw.
+    with _patch_protonx_legal():
+        meta = read_huggingface("protonx-models/protonx-legal-tc")
+    assert meta.license is None
+    assert meta.extra_data.get("hf.license_raw") == "other"
+    assert "text2text-generation" in meta.usage.domains
+    assert meta.extra_lists.get("hf.language") == ["vi"]
+
+
+# ReDiX/Legal-Embedding-ita-0.6B
+# Italian legal embedding; Qwen3-based; cc-by-nc-4.0.
+def _patch_legal_embed_ita() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "qwen3",
+            "architectures": ["Qwen3Model"],
+            "vocab_size": 151936,
+            "num_hidden_layers": 28,
+            "hidden_size": 1024,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="cc-by-nc-4.0",
+            pipeline_tag="sentence-similarity",
+            tags=["qwen3", "feature-extraction", "legal"],
+            language=["it"],
+            base_model=["Qwen/Qwen3-Embedding-0.6B"],
+        ),
+        hub_info={
+            "author": "ReDiX",
+            "tags": [
+                "base_model:Qwen/Qwen3-Embedding-0.6B",
+                "base_model:finetune:Qwen/Qwen3-Embedding-0.6B",
+            ],
+        },
+    )
+
+
+def test_legal_embed_ita_nc_license_italian() -> None:
+    with _patch_legal_embed_ita():
+        meta = read_huggingface("ReDiX/Legal-Embedding-ita-0.6B")
+    assert meta.license == "cc-by-nc-4.0"
+    assert meta.extra_lists.get("hf.language") == ["it"]
+    assert "sentence-similarity" in meta.usage.domains
+
+
+# bakrianoo/arabic-legal-documents-ocr-1.0
+# Gemma3-based Arabic+English OCR; gemma license; image-text-to-text.
+def _patch_arabic_legal_ocr() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "gemma3",
+            "architectures": ["Gemma3ForConditionalGeneration"],
+            "vocab_size": 262208,
+            "num_hidden_layers": 34,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="gemma",
+            pipeline_tag="image-text-to-text",
+            tags=["ocr", "arabic", "vision", "lora"],
+            language=["ar", "en"],
+            base_model=["google/gemma-3-4b-it"],
+        ),
+        hub_info={
+            "author": "bakrianoo",
+            "tags": [
+                "base_model:google/gemma-3-4b-it",
+                "base_model:finetune:google/gemma-3-4b-it",
+            ],
+        },
+    )
+
+
+def test_arabic_legal_ocr_domain_and_gemma_license() -> None:
+    with _patch_arabic_legal_ocr():
+        meta = read_huggingface("bakrianoo/arabic-legal-documents-ocr-1.0")
+    assert "image-text-to-text" in meta.usage.domains
+    assert meta.license == "gemma"
+    assert "ar" in meta.extra_lists.get("hf.language", [])
+
+
+# ---------------------------------------------------------------------------
+# PATTERN: multimodal / specialty
+# ---------------------------------------------------------------------------
+
+
+# tokyotech-llm/Qwen3-Swallow-8B-SFT-v0.2
+# Japanese Qwen3 SFT; English+Japanese; fine-tuned from Qwen3-Swallow CPT.
+def _patch_qwen3_swallow() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "qwen3",
+            "architectures": ["Qwen3ForCausalLM"],
+            "vocab_size": 151936,
+            "num_hidden_layers": 36,
+            "hidden_size": 4096,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-generation",
+            tags=["conversational"],
+            language=["en", "ja"],
+            base_model=["tokyotech-llm/Qwen3-Swallow-8B-CPT-v0.2"],
+        ),
+        hub_info={
+            "author": "tokyotech-llm",
+            "tags": [
+                "base_model:tokyotech-llm/Qwen3-Swallow-8B-CPT-v0.2",
+                "base_model:finetune:tokyotech-llm/Qwen3-Swallow-8B-CPT-v0.2",
+            ],
+        },
+    )
+
+
+def test_qwen3_swallow_sft_japanese_finetune() -> None:
+    with _patch_qwen3_swallow():
+        meta = read_huggingface("tokyotech-llm/Qwen3-Swallow-8B-SFT-v0.2")
+    assert meta.type_of_model == "qwen3"
+    langs = meta.extra_lists.get("hf.language", [])
+    assert "ja" in langs and "en" in langs
+    assert meta.extra_data.get("hf.base_model_relation") == "finetune"
+
+
+# aisingapore/Gemma-SEA-LION-v4-27B-IT
+# SEA LION 27B IT; 11 SEA languages; gemma license;
+# text-generation + image-text-to-text tag.
+def _patch_sealion_27b_it() -> Any:
+    return _patch_hf_calls(
+        config={
+            "model_type": "gemma3",
+            "architectures": ["Gemma3ForCausalLM"],
+            "vocab_size": 262208,
+            "num_hidden_layers": 62,
+        },
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="gemma",
+            pipeline_tag="text-generation",
+            tags=["conversational", "image-text-to-text"],
+            language=["my", "en", "id", "km", "lo", "ms", "zh", "tl", "ta", "th", "vi"],
+            base_model=["google/gemma-3-27b-it"],
+        ),
+        hub_info={
+            "author": "aisingapore",
+            "tags": [
+                "base_model:google/gemma-3-27b-it",
+                "base_model:finetune:google/gemma-3-27b-it",
+            ],
+        },
+    )
+
+
+def test_sealion_27b_it_sea_languages_gemma_license() -> None:
+    with _patch_sealion_27b_it():
+        meta = read_huggingface("aisingapore/Gemma-SEA-LION-v4-27B-IT")
+    assert meta.license == "gemma"
+    langs = meta.extra_lists.get("hf.language", [])
+    assert len(langs) == 11 and "th" in langs and "vi" in langs
+
+
+def test_sealion_27b_it_image_text_tag_also_domain() -> None:
+    # "image-text-to-text" in tags → also captured as domain.
+    with _patch_sealion_27b_it():
+        meta = read_huggingface("aisingapore/Gemma-SEA-LION-v4-27B-IT")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+# Doses-AI/boba-0.8b-food-GGUF
+# Tiny food/nutrition GGUF; image-text-to-text; no config.json.
+def _patch_boba_food_gguf() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="image-text-to-text",
+            tags=["food", "nutrition", "vision", "on-device"],
+            language=["en"],
+            base_model=["Qwen/Qwen3.5-0.8B"],
+        ),
+        hub_info={
+            "author": "Doses-AI",
+            "tags": [
+                "base_model:Qwen/Qwen3.5-0.8B",
+                "base_model:finetune:Qwen/Qwen3.5-0.8B",
+            ],
+        },
+    )
+
+
+def test_boba_food_gguf_domain_base_model_no_arch() -> None:
+    with _patch_boba_food_gguf():
+        meta = read_huggingface("Doses-AI/boba-0.8b-food-GGUF")
+    assert "image-text-to-text" in meta.usage.domains
+    assert meta.extra_data.get("hf.base_model") == "Qwen/Qwen3.5-0.8B"
+    assert meta.type_of_model is None  # GGUF-only, no config.json
+
+
+# baidu/ERNIE-Image-Turbo
+# Distilled DiT text-to-image; diffusers; apache-2.0; Chinese+English.
+def _patch_ernie_image_turbo() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_make_card_data(
+            license="apache-2.0",
+            pipeline_tag="text-to-image",
+            tags=["diffusion", "distilled"],
+            language=["en", "zh"],
+            library_name="diffusers",
+        ),
+        hub_info={"author": "baidu"},
+    )
+
+
+def test_ernie_image_turbo_text_to_image_domain_diffusers() -> None:
+    with _patch_ernie_image_turbo():
+        meta = read_huggingface("baidu/ERNIE-Image-Turbo")
+    assert "text-to-image" in meta.usage.domains
+    assert meta.extra_data.get("hf.library_name") == "diffusers"
+
+
+# ---------------------------------------------------------------------------
+# Qwen/Qwen3-235B-A22B  (MoE, qwen license, thinking-mode generation config)
+# ---------------------------------------------------------------------------
+
+# 235B sparse MoE (22B active params), 128 experts, 8 active per token.
+# "qwen" is a custom HF license identifier -- not in _VAGUE_LICENSE_VALUES,
+# so it passes through unchanged in meta.license.
+# generation_config includes temperature + top_p (thinking-mode params).
+
+_QWEN3_235B_CONFIG: dict[str, Any] = {
+    "model_type": "qwen3_moe",
+    "architectures": ["Qwen3MoeForCausalLM"],
+    "vocab_size": 152064,
+    "hidden_size": 7168,
+    "num_hidden_layers": 94,
+    "num_attention_heads": 64,
+    "num_key_value_heads": 4,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_QWEN3_235B_GENERATION_CONFIG: dict[str, Any] = {
+    "temperature": 0.6,
+    "top_p": 0.95,
+}
+
+_QWEN3_235B_CARD_DATA = _make_card_data(
+    license="qwen",
+    pipeline_tag="text-generation",
+    language=["multilingual"],
+    library_name="transformers",
+)
+
+
+def _patch_qwen3_235b() -> Any:
+    return _patch_hf_calls(
+        config=_QWEN3_235B_CONFIG,
+        tokenizer_config={
+            "tokenizer_class": "Qwen2Tokenizer",
+            "model_max_length": 32768,
+        },
+        generation_config=_QWEN3_235B_GENERATION_CONFIG,
+        card_data=_QWEN3_235B_CARD_DATA,
+        hub_info={"author": "Qwen", "sha": "abc123ef"},
+    )
+
+
+def test_qwen3_235b_moe_type_of_model() -> None:
+    with _patch_qwen3_235b():
+        meta = read_huggingface("Qwen/Qwen3-235B-A22B")
+    assert meta.type_of_model == "qwen3_moe"
+
+
+def test_qwen3_235b_moe_architecture() -> None:
+    with _patch_qwen3_235b():
+        meta = read_huggingface("Qwen/Qwen3-235B-A22B")
+    assert meta.architecture == "Qwen3MoeForCausalLM"
+
+
+def test_qwen3_235b_qwen_license_passthrough() -> None:
+    # "qwen" not in _VAGUE_LICENSE_VALUES → stored as-is
+    with _patch_qwen3_235b():
+        meta = read_huggingface("Qwen/Qwen3-235B-A22B")
+    assert meta.license == "qwen"
+
+
+def test_qwen3_235b_text_generation_domain() -> None:
+    with _patch_qwen3_235b():
+        meta = read_huggingface("Qwen/Qwen3-235B-A22B")
+    assert "text-generation" in meta.usage.domains
+
+
+def test_qwen3_235b_generation_hyperparameters() -> None:
+    with _patch_qwen3_235b():
+        meta = read_huggingface("Qwen/Qwen3-235B-A22B")
+    assert meta.hyperparameters.get("generation.temperature") == 0.6
+    assert meta.hyperparameters.get("generation.top_p") == 0.95
+
+
+# ---------------------------------------------------------------------------
+# Qwen/Qwen3.5-27B  (dense Qwen3.5, GQA, apache-2.0)
+# ---------------------------------------------------------------------------
+
+# Dense 27B model in the Qwen3.5 family. Grouped-query attention (8 KV heads
+# vs 40 attention heads). Standard apache-2.0 license. text-generation domain.
+
+_QWEN35_27B_CONFIG: dict[str, Any] = {
+    "model_type": "qwen3",
+    "architectures": ["Qwen3ForCausalLM"],
+    "vocab_size": 152064,
+    "hidden_size": 5120,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 40,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_QWEN35_27B_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["multilingual"],
+    library_name="transformers",
+)
+
+
+def _patch_qwen35_27b() -> Any:
+    return _patch_hf_calls(
+        config=_QWEN35_27B_CONFIG,
+        tokenizer_config={
+            "tokenizer_class": "Qwen2Tokenizer",
+            "model_max_length": 131072,
+        },
+        card_data=_QWEN35_27B_CARD_DATA,
+        hub_info={"author": "Qwen", "sha": "deadf00d"},
+    )
+
+
+def test_qwen35_27b_type_of_model() -> None:
+    with _patch_qwen35_27b():
+        meta = read_huggingface("Qwen/Qwen3.5-27B")
+    assert meta.type_of_model == "qwen3"
+
+
+def test_qwen35_27b_architecture() -> None:
+    with _patch_qwen35_27b():
+        meta = read_huggingface("Qwen/Qwen3.5-27B")
+    assert meta.architecture == "Qwen3ForCausalLM"
+
+
+def test_qwen35_27b_apache_license() -> None:
+    with _patch_qwen35_27b():
+        meta = read_huggingface("Qwen/Qwen3.5-27B")
+    assert meta.license == "apache-2.0"
+
+
+def test_qwen35_27b_gqa() -> None:
+    # GQA: num_key_value_heads=8 < num_attention_heads=40
+    with _patch_qwen35_27b():
+        meta = read_huggingface("Qwen/Qwen3.5-27B")
+    assert meta.hyperparameters.get("num_key_value_heads") == 8
+    assert meta.hyperparameters.get("num_attention_heads") == 40
+
+
+def test_qwen35_27b_text_generation_domain() -> None:
+    with _patch_qwen35_27b():
+        meta = read_huggingface("Qwen/Qwen3.5-27B")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# kakaobank/kanana-1.5-v-3b-instruct  (custom license passthrough, VLM)
+# ---------------------------------------------------------------------------
+
+# Korean multimodal VLM from Kakao Bank. Custom "kanana-license" identifier is
+# NOT in _VAGUE_LICENSE_VALUES → stored as-is (passthrough).
+# image-text-to-text pipeline tag.
+
+_KANANA_15V_CONFIG: dict[str, Any] = {
+    "model_type": "kanana-1.5-v",
+    "architectures": ["KananaVForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 3072,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_KANANA_15V_CARD_DATA = _make_card_data(
+    license="kanana-license",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="transformers",
+)
+
+
+def _patch_kanana_15v() -> Any:
+    return _patch_hf_calls(
+        config=_KANANA_15V_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_KANANA_15V_CARD_DATA,
+        hub_info={"author": "kakaobank", "sha": "deadf00d"},
+    )
+
+
+def test_kanana_15v_type_of_model() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert meta.type_of_model == "kanana-1.5-v"
+
+
+def test_kanana_15v_architecture() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert meta.architecture == "KananaVForConditionalGeneration"
+
+
+def test_kanana_15v_license_passthrough() -> None:
+    # "kanana-license" is not in _VAGUE_LICENSE_VALUES → stored as-is, no detection
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert meta.license == "kanana-license"
+    assert "hf.license_raw" not in (meta.extra_data or {})
+
+
+def test_kanana_15v_image_text_to_text_domain() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_kanana_15v_korean_english_language() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert "ko" in langs
+    assert "en" in langs
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B  (multimodal, vague license, Korean + multilingual)
+# ---------------------------------------------------------------------------
+
+# Korean multimodal LLM from LG AI Research. Pipeline tag image-text-to-text.
+# Card license="other" → vague → _detect_license_from_hf_files triggered (mock
+# returns (None, None)); license stored as hf.license_raw.
+
+_EXAONE45_33B_CONFIG: dict[str, Any] = {
+    "model_type": "exaone4_5",
+    "architectures": ["Exaone4_5_ForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 7168,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 56,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_EXAONE45_33B_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en", "zh", "ja", "es", "fr"],
+    library_name="transformers",
+)
+
+
+def _patch_exaone45_33b() -> Any:
+    return _patch_hf_calls(
+        config=_EXAONE45_33B_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_EXAONE45_33B_CARD_DATA,
+        hub_info={"author": "LGAI-EXAONE", "sha": "deadf00d"},
+    )
+
+
+def test_exaone45_33b_type_of_model() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert meta.type_of_model == "exaone4_5"
+
+
+def test_exaone45_33b_architecture() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert meta.architecture == "Exaone4_5_ForConditionalGeneration"
+
+
+def test_exaone45_33b_vague_license() -> None:
+    # license="other" → vague → detection mock returns (None, None) → license=None
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+def test_exaone45_33b_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_exaone45_33b_multilingual() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert "ko" in langs
+    assert "en" in langs
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B-AWQ  (AWQ quantized, config accessible)
+# ---------------------------------------------------------------------------
+
+# AWQ quantization of EXAONE-4.5-33B. Unlike GGUF, config.json IS present and
+# accessible. base_model_relation=quantized from hub tags.
+
+_EXAONE45_33B_AWQ_CONFIG: dict[str, Any] = {
+    "model_type": "exaone4_5",
+    "architectures": ["Exaone4_5_ForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 7168,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 56,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "float16",
+    "quantization_config": {"quant_type": "awq", "bits": 4},
+}
+
+_EXAONE45_33B_AWQ_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="transformers",
+    base_model="LGAI-EXAONE/EXAONE-4.5-33B",
+)
+
+
+def _patch_exaone45_33b_awq() -> Any:
+    return _patch_hf_calls(
+        config=_EXAONE45_33B_AWQ_CONFIG,
+        card_data=_EXAONE45_33B_AWQ_CARD_DATA,
+        hub_info={
+            "author": "LGAI-EXAONE",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:LGAI-EXAONE/EXAONE-4.5-33B"],
+        },
+    )
+
+
+def test_exaone45_33b_awq_type_of_model() -> None:
+    # AWQ: config.json is present (unlike GGUF) → type_of_model extractable
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert meta.type_of_model == "exaone4_5"
+
+
+def test_exaone45_33b_awq_base_model_relation() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_exaone45_33b_awq_base_model() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert (meta.extra_data or {}).get("hf.base_model") == "LGAI-EXAONE/EXAONE-4.5-33B"
+
+
+def test_exaone45_33b_awq_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_exaone45_33b_awq_vague_license() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B-FP8  (FP8 quantized, torch_dtype in hyperparameters)
+# ---------------------------------------------------------------------------
+
+# FP8 quantization of EXAONE-4.5-33B. torch_dtype="float8_e4m3fn" is in
+# _HYPER_KEYS → captured in hyperparameters dict.
+
+_EXAONE45_33B_FP8_CONFIG: dict[str, Any] = {
+    "model_type": "exaone4_5",
+    "architectures": ["Exaone4_5_ForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 7168,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 56,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "float8_e4m3fn",
+}
+
+_EXAONE45_33B_FP8_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="transformers",
+    base_model="LGAI-EXAONE/EXAONE-4.5-33B",
+)
+
+
+def _patch_exaone45_33b_fp8() -> Any:
+    return _patch_hf_calls(
+        config=_EXAONE45_33B_FP8_CONFIG,
+        card_data=_EXAONE45_33B_FP8_CARD_DATA,
+        hub_info={
+            "author": "LGAI-EXAONE",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:LGAI-EXAONE/EXAONE-4.5-33B"],
+        },
+    )
+
+
+def test_exaone45_33b_fp8_type_of_model() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert meta.type_of_model == "exaone4_5"
+
+
+def test_exaone45_33b_fp8_dtype_in_hyperparameters() -> None:
+    # torch_dtype is in _HYPER_KEYS → captured even for FP8 quantized dtype
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert meta.hyperparameters.get("torch_dtype") == "float8_e4m3fn"
+
+
+def test_exaone45_33b_fp8_base_model_relation() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_exaone45_33b_fp8_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_exaone45_33b_fp8_vague_license() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B-GGUF  (GGUF format, no config.json)
+# ---------------------------------------------------------------------------
+
+# GGUF format: config.json absent → type_of_model and architecture are None.
+# Card still carries license and pipeline_tag.
+
+_EXAONE45_33B_GGUF_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="gguf",
+    base_model="LGAI-EXAONE/EXAONE-4.5-33B",
+)
+
+
+def _patch_exaone45_33b_gguf() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_EXAONE45_33B_GGUF_CARD_DATA,
+        hub_info={
+            "author": "LGAI-EXAONE",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:LGAI-EXAONE/EXAONE-4.5-33B"],
+        },
+    )
+
+
+def test_exaone45_33b_gguf_no_type_of_model() -> None:
+    # GGUF: config.json absent → cannot determine model_type
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_exaone45_33b_gguf_base_model_relation() -> None:
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_exaone45_33b_gguf_vague_license() -> None:
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+def test_exaone45_33b_gguf_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR  (gated, non-standard pipeline tag)
+# ---------------------------------------------------------------------------
+
+# Gated pathology vision model. pipeline_tag="pathology-image-analysis" is NOT
+# in _DOMAIN_TAGS → usage.domains is empty. Config inaccessible (401 gated).
+
+_EXAONE_PATH_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="pathology-image-analysis",
+    language=["en"],
+    library_name="transformers",
+)
+
+
+def _patch_exaone_path() -> Any:
+    return _patch_hf_calls(
+        config=None,  # gated → 401
+        tokenizer_config=None,
+        card_data=_EXAONE_PATH_CARD_DATA,
+        hub_info={"author": "LGAI-EXAONE", "sha": "deadf00d"},
+    )
+
+
+def test_exaone_path_no_architecture() -> None:
+    # Config gated → no type_of_model or architecture
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_exaone_path_pipeline_tag_captured_as_domain() -> None:
+    # pipeline_tag is always added to usage.domains regardless of _DOMAIN_TAGS.
+    # _DOMAIN_TAGS only governs which card *tags* qualify as domains.
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert "pathology-image-analysis" in meta.usage.domains
+
+
+def test_exaone_path_only_pipeline_tag_domain() -> None:
+    # Only the pipeline_tag domain is present; no other domain tags in card.
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert meta.usage.domains == ["pathology-image-analysis"]
+
+
+def test_exaone_path_vague_license() -> None:
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# THUDM/GLM-4.5-Air-REAP  (MoE, merge relation, apache-2.0)
+# ---------------------------------------------------------------------------
+
+# GLM4 MoE model adapted by Samsung (REAP). base_model_relation=merge.
+# glm4_moe model_type; apache-2.0 license; text-generation domain.
+
+_GLM45_AIR_REAP_CONFIG: dict[str, Any] = {
+    "model_type": "glm4_moe",
+    "architectures": ["Glm4MoeForCausalLM"],
+    "vocab_size": 151552,
+    "hidden_size": 4096,
+    "num_hidden_layers": 62,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 2,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_GLM45_AIR_REAP_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["en", "ko", "zh"],
+    library_name="transformers",
+    base_model="THUDM/GLM-4.5-Air",
+)
+
+
+def _patch_glm45_air_reap() -> Any:
+    return _patch_hf_calls(
+        config=_GLM45_AIR_REAP_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_GLM45_AIR_REAP_CARD_DATA,
+        hub_info={
+            "author": "THUDM",
+            "sha": "deadf00d",
+            "tags": ["base_model:merge:THUDM/GLM-4.5-Air"],
+        },
+    )
+
+
+def test_glm45_air_reap_type_of_model() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert meta.type_of_model == "glm4_moe"
+
+
+def test_glm45_air_reap_architecture() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert meta.architecture == "Glm4MoeForCausalLM"
+
+
+def test_glm45_air_reap_apache_license() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert meta.license == "apache-2.0"
+
+
+def test_glm45_air_reap_merge_relation() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "merge"
+
+
+def test_glm45_air_reap_text_generation_domain() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# line-corporation/line-distilbert-base-japanese  (DistilBERT, fill-mask)
+# ---------------------------------------------------------------------------
+
+# Japanese DistilBERT: 6 transformer layers (half of BERT-base's 12).
+# fill-mask pipeline tag. apache-2.0 license.
+
+_LINE_DISTILBERT_CONFIG: dict[str, Any] = {
+    "model_type": "distilbert",
+    "architectures": ["DistilBertForMaskedLM"],
+    "vocab_size": 32000,
+    "hidden_size": 768,
+    "num_hidden_layers": 6,
+    "num_attention_heads": 12,
+    "max_position_embeddings": 512,
+    "torch_dtype": "float32",
+}
+
+_LINE_DISTILBERT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="fill-mask",
+    language=["ja"],
+    library_name="transformers",
+)
+
+
+def _patch_line_distilbert() -> Any:
+    return _patch_hf_calls(
+        config=_LINE_DISTILBERT_CONFIG,
+        tokenizer_config={"tokenizer_class": "BertJapaneseTokenizer"},
+        card_data=_LINE_DISTILBERT_CARD_DATA,
+        hub_info={"author": "line-corporation", "sha": "deadf00d"},
+    )
+
+
+def test_line_distilbert_type_of_model() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.type_of_model == "distilbert"
+
+
+def test_line_distilbert_architecture() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.architecture == "DistilBertForMaskedLM"
+
+
+def test_line_distilbert_six_layers() -> None:
+    # DistilBERT halves BERT's 12 layers → 6 layers
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.hyperparameters.get("num_hidden_layers") == 6
+
+
+def test_line_distilbert_fill_mask_domain() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert "fill-mask" in meta.usage.domains
+
+
+def test_line_distilbert_apache_license() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.license == "apache-2.0"
+
+
+# ---------------------------------------------------------------------------
+# line-corporation/clip-japanese-base-v2  (CLYP / custom CLIP, feature-extraction)
+# ---------------------------------------------------------------------------
+
+# Line Corp custom CLIP variant (CLYP). model_type="clyp" is non-standard.
+# feature-extraction pipeline tag; apache-2.0 license; Japanese text encoder.
+
+_CLIP_JAPANESE_V2_CONFIG: dict[str, Any] = {
+    "model_type": "clyp",
+    "architectures": ["CLYPModel"],
+    "hidden_size": 768,
+    "vocab_size": 32000,
+    "torch_dtype": "float32",
+}
+
+_CLIP_JAPANESE_V2_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="feature-extraction",
+    language=["ja"],
+    library_name="transformers",
+)
+
+
+def _patch_clip_japanese_v2() -> Any:
+    return _patch_hf_calls(
+        config=_CLIP_JAPANESE_V2_CONFIG,
+        tokenizer_config={"tokenizer_class": "BertJapaneseTokenizer"},
+        card_data=_CLIP_JAPANESE_V2_CARD_DATA,
+        hub_info={"author": "line-corporation", "sha": "deadf00d"},
+    )
+
+
+def test_clip_japanese_v2_type_of_model() -> None:
+    # Custom "clyp" model_type stored as-is
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.type_of_model == "clyp"
+
+
+def test_clip_japanese_v2_architecture() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.architecture == "CLYPModel"
+
+
+def test_clip_japanese_v2_feature_extraction_domain() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert "feature-extraction" in meta.usage.domains
+
+
+def test_clip_japanese_v2_apache_license() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.license == "apache-2.0"
+
+
+def test_clip_japanese_v2_hidden_size() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.hyperparameters.get("hidden_size") == 768
+
+
+# ---------------------------------------------------------------------------
+# Fujitsu/Fujitsu-LLM-KG-8x7B  (gated, NeMo library, apache-2.0)
+# ---------------------------------------------------------------------------
+
+# Gated Fujitsu MoE LLM built with NVIDIA NeMo framework.
+# Config inaccessible (401); library_name="nemo" → extra_data["hf.library_name"].
+
+_FUJITSU_LLM_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["ja", "en"],
+    library_name="nemo",
+)
+
+
+def _patch_fujitsu_llm() -> Any:
+    return _patch_hf_calls(
+        config=None,  # gated → 401
+        tokenizer_config=None,
+        card_data=_FUJITSU_LLM_CARD_DATA,
+        hub_info={"author": "Fujitsu", "sha": "deadf00d"},
+    )
+
+
+def test_fujitsu_llm_no_architecture() -> None:
+    # Config gated → type_of_model and architecture not available
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_fujitsu_llm_nemo_library_name() -> None:
+    # NeMo framework: library_name="nemo" → extra_data["hf.library_name"]
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert (meta.extra_data or {}).get("hf.library_name") == "nemo"
+
+
+def test_fujitsu_llm_apache_license() -> None:
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert meta.license == "apache-2.0"
+
+
+def test_fujitsu_llm_text_generation_domain() -> None:
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# windowseat-ai/windowseat-reflection  (no config, PEFT library, image-to-image)
+# ---------------------------------------------------------------------------
+
+# PEFT adapter model for image-to-image; config.json absent (404).
+# library_name="peft" → extra_data["hf.library_name"]; apache-2.0.
+
+_WINDOWSEAT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="image-to-image",
+    language=None,
+    library_name="peft",
+)
+
+
+def _patch_windowseat() -> Any:
+    return _patch_hf_calls(
+        config=None,  # absent → 404
+        tokenizer_config=None,
+        card_data=_WINDOWSEAT_CARD_DATA,
+        hub_info={"author": "windowseat-ai", "sha": "deadf00d"},
+    )
+
+
+def test_windowseat_no_architecture() -> None:
+    # No config.json → type_of_model and architecture are None
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_windowseat_peft_library_name() -> None:
+    # PEFT adapter: library_name="peft" → extra_data["hf.library_name"]
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert (meta.extra_data or {}).get("hf.library_name") == "peft"
+
+
+def test_windowseat_image_to_image_domain() -> None:
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert "image-to-image" in meta.usage.domains
+
+
+def test_windowseat_apache_license() -> None:
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert meta.license == "apache-2.0"
+
+
+# ---------------------------------------------------------------------------
+# Salesforce/moirai-2.0-R-small  (time-series-forecasting domain, custom config)
+# ---------------------------------------------------------------------------
+
+# Moirai time-series foundation model. pipeline_tag="time-series-forecasting"
+# is a newly added _DOMAIN_TAGS entry. config.json has custom non-transformer
+# keys (patch_sizes, d_model, context_length) → none match _HYPER_KEYS →
+# hyperparameters is empty. model_type and architectures absent from config.
+
+_MOIRAI_CONFIG: dict[str, Any] = {
+    "patch_sizes": [8, 16, 32, 64, 128],
+    "d_model": 384,
+    "num_encoder_layers": 6,
+    "nhead": 8,
+    "context_length": 4096,
+}
+
+_MOIRAI_CARD_DATA = _make_card_data(
+    license="cc-by-nc-4.0",
+    pipeline_tag="time-series-forecasting",
+    language=None,
+    library_name="transformers",
+)
+
+
+def _patch_moirai() -> Any:
+    return _patch_hf_calls(
+        config=_MOIRAI_CONFIG,
+        tokenizer_config=None,
+        card_data=_MOIRAI_CARD_DATA,
+        hub_info={"author": "Salesforce", "sha": "deadf00d"},
+    )
+
+
+def test_moirai_no_type_of_model() -> None:
+    # Config has no "model_type" key → type_of_model=None
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert meta.type_of_model is None
+
+
+def test_moirai_no_architecture() -> None:
+    # Config has no "architectures" key → architecture=None
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert meta.architecture is None
+
+
+def test_moirai_empty_hyperparameters() -> None:
+    # Custom config keys (patch_sizes, d_model, etc.) not in _HYPER_KEYS
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert not meta.hyperparameters
+
+
+def test_moirai_time_series_forecasting_domain() -> None:
+    # "time-series-forecasting" added to _DOMAIN_TAGS → captured as domain
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert "time-series-forecasting" in meta.usage.domains
+
+
+def test_moirai_cc_by_nc_license() -> None:
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert meta.license == "cc-by-nc-4.0"
+
+
+# ---------------------------------------------------------------------------
+# HKUSTAudio/Llasa-3B  (LLaMA for TTS, large vocabulary, cc-by-nc-4.0)
+# ---------------------------------------------------------------------------
+
+# LLaMA-based text-to-speech model. vocab_size=193800 (greatly extended for
+# speech tokens). pipeline_tag="text-to-speech"; cc-by-nc-4.0 license.
+
+_LLASA_3B_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 193800,
+    "hidden_size": 3072,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 24,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 4096,
+    "torch_dtype": "bfloat16",
+}
+
+_LLASA_3B_CARD_DATA = _make_card_data(
+    license="cc-by-nc-4.0",
+    pipeline_tag="text-to-speech",
+    language=["en", "zh"],
+    library_name="transformers",
+)
+
+
+def _patch_llasa_3b() -> Any:
+    return _patch_hf_calls(
+        config=_LLASA_3B_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_LLASA_3B_CARD_DATA,
+        hub_info={"author": "HKUSTAudio", "sha": "deadf00d"},
+    )
+
+
+def test_llasa_3b_type_of_model() -> None:
+    # LLaMA architecture repurposed for TTS generation
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.type_of_model == "llama"
+
+
+def test_llasa_3b_architecture() -> None:
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.architecture == "LlamaForCausalLM"
+
+
+def test_llasa_3b_large_vocab_for_tts() -> None:
+    # 193 800-token vocab: base LLaMA vocab + speech tokens
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.hyperparameters.get("vocab_size") == 193800
+
+
+def test_llasa_3b_text_to_speech_domain() -> None:
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert "text-to-speech" in meta.usage.domains
+
+
+def test_llasa_3b_cc_by_nc_license() -> None:
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.license == "cc-by-nc-4.0"
