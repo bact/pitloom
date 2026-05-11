@@ -76,12 +76,11 @@ dependency is not installed or the file is absent.
 
 `tests/test_extract_huggingface.py` exercises `pitloom.extract._huggingface`
 entirely through mocks -- no network calls are made at test time.  The survey
-covers **132 real model repositories** (plus 2 dataset-namespace repos referenced
-as dataset entries) observed on Hugging Face Hub in May 2026.
+covers **132 real model repositories** observed on Hugging Face Hub in May 2026.
 
 ### Data source
 
-The 104 models were chosen to stress-test every branch of the extractor.
+The 132 models were chosen to stress-test every branch of the extractor.
 They span a wide range of tasks, access restrictions, and metadata patterns:
 
 - **Mainstream LLMs**: Mistral, Qwen, DeepSeek, LLaMA, Gemma, Phi, GPT-Neo,
@@ -533,6 +532,7 @@ are captured normally as `hf.tokenizer_max_length`.
 | `LGAI-EXAONE/EXAONE-4.5-33B-AWQ` | AWQ quantized, config accessible (unlike GGUF) | Config present; `base_model_relation=quantized`; `license=other` |
 | `LGAI-EXAONE/EXAONE-4.5-33B-FP8` | FP8 quantized, `torch_dtype=float8_e4m3fn` | `torch_dtype` in `_HYPER_KEYS` → captured in hyperparameters |
 | `LGAI-EXAONE/EXAONE-4.5-33B-GGUF` | GGUF, no config.json, vague license | `type_of_model=None`; `base_model_relation=quantized`; `license=other` |
+| `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF` | GGUF-only VLM, `gemma` license, SEA langs | No config.json; `image-text-to-text`; 9 SEA languages; `gemma` license passthrough |
 
 #### Audio and speech
 
