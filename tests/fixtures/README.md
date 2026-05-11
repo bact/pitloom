@@ -76,7 +76,7 @@ dependency is not installed or the file is absent.
 
 `tests/test_extract_huggingface.py` exercises `pitloom.extract._huggingface`
 entirely through mocks -- no network calls are made at test time.  The survey
-covers **107 real model repositories** (plus 2 dataset-namespace repos referenced
+covers **120 real model repositories** (plus 2 dataset-namespace repos referenced
 as dataset entries) observed on Hugging Face Hub in May 2026.
 
 ### Data source
@@ -174,17 +174,17 @@ Affected models: `sonoisa/sentence-bert-base-ja-mean-tokens`,
 `jonatasgrosman/wav2vec2-large-xlsr-53-japanese`, `impira/layoutlm-document-qa`,
 `google/tapas-large-finetuned-wtq`, `abeja/gpt-neox-japanese-2.7b`.
 
-#### 2. Expanded `_DOMAIN_TAGS` (14 new pipeline tags)
+#### 2. Expanded `_DOMAIN_TAGS` (15 new pipeline tags)
 
 The frozenset `_DOMAIN_TAGS` controls which HF pipeline tags become
 `ai_domain` values in the SPDX output (rather than raw `hf.tags`).  Survey
-of the 104 models found 14 tags missing:
+of the 120 models found 15 tags missing:
 
 | New tag | Example model(s) |
 | :--- | :--- |
 | `image-text-to-text` | `aisingapore/Gemma-SEA-LION-v4-4B-VL` |
 | `video-text-to-text` | `llava-hf/LLaVA-NeXT-Video-7B-hf` |
-| `image-to-image` | `briaai/Fibo-Edit-RMBG` |
+| `image-to-image` | `briaai/Fibo-Edit-RMBG`, `windowseat-ai/windowseat-reflection` |
 | `image-feature-extraction` | `facebook/dinov2-small` |
 | `depth-estimation` | `apple/DepthPro-hf`, `prs-eth/marigold-depth-v1-0` |
 | `keypoint-detection` | `usyd-community/vitpose-plus-huge` |
@@ -193,9 +193,10 @@ of the 104 models found 14 tags missing:
 | `table-question-answering` | `google/tapas-large-finetuned-wtq` |
 | `visual-document-retrieval` | `jinaai/jina-embeddings-v4` |
 | `any-to-any` | `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16` |
-| `text-to-speech` | `k2-fsa/OmniVoice`, `drbaph/OmniVoice-bf16` |
+| `text-to-speech` | `k2-fsa/OmniVoice`, `drbaph/OmniVoice-bf16`, `HKUSTAudio/Llasa-3B` |
 | `speaker-diarization` | `pyannote/speaker-diarization-community-1` |
 | `audio-to-audio` | `facebook/seamless-m4t-v2-large` (via card `tags` list) |
+| `time-series-forecasting` | `Salesforce/moirai-2.0-R-small` |
 
 #### 3. New extraction: `base_model`, `base_model_relation`, `arxiv`, `doi`
 
@@ -214,8 +215,8 @@ the first entry.  The *relation type* always comes from the computed
 `base_model:{rel}:{id}` tag in `model_info().tags`, not from card YAML.
 
 The survey also confirmed all four relation keywords in practice:
-`finetune` (most common), `quantized` (GGUF repos), `merge` (Crow-9B, Qwen3-REAP),
-`adapter` (no new examples, already supported).
+`finetune` (most common), `quantized` (GGUF/AWQ/FP8 repos), `merge` (Crow-9B,
+Qwen3-REAP, GLM-4.5-Air-REAP), `adapter` (no new examples, already supported).
 
 #### 4. Dataset fallback from `model_info` tags
 
@@ -242,7 +243,8 @@ real strings.
 Anything outside this set is stored as-is in `meta.license`, including
 non-SPDX HuggingFace custom identifiers such as `"gemma"`, `"llama3.2"`,
 `"llama3"`, `"bigcode-openrail-m"`, `"openrail++"`, `"apple-amlr"`,
-`"bsd-3-clause"`, `"cc-by-nc-4.0"`, `"cc-by-4.0"`, `"cc-by-sa-4.0"`.
+`"kanana-license"`, `"bsd-3-clause"`, `"cc-by-nc-4.0"`, `"cc-by-4.0"`,
+`"cc-by-sa-4.0"`.
 
 When the card YAML contains a vague value, the raw string is saved in
 `extra_data["hf.license_raw"]` and `_detect_license_from_hf_files` is called
@@ -263,7 +265,11 @@ Full extraction: name, type_of_model, architecture, hyperparameters, license,
 domains, languages, datasets, base_model, arxiv, doi.
 Examples: `mistralai/Mistral-7B-v0.1`, `Qwen/Qwen3-235B-A22B`,
 `bigcode/starcoder2-3b`, `openai/whisper-large-v3`, `deepseek-ai/DeepSeek-R1`,
-`typhoon-ai/typhoon-7b`, `EleutherAI/gpt-neo-2.7B`, most batch-3/4 models.
+`typhoon-ai/typhoon-7b`, `EleutherAI/gpt-neo-2.7B`,
+`kakaobank/kanana-1.5-v-3b-instruct`, `LGAI-EXAONE/EXAONE-4.5-33B`,
+`THUDM/GLM-4.5-Air-REAP`, `line-corporation/line-distilbert-base-japanese`,
+`line-corporation/clip-japanese-base-v2`, `Salesforce/moirai-2.0-R-small`,
+`HKUSTAudio/Llasa-3B`.
 
 **Gated config, accessible card**
 `config.json` returns 401; `type_of_model`, `architecture`, and `hyperparameters`
@@ -271,7 +277,8 @@ are absent, but `license`, `language`, and `usage.domains` still come from
 the card YAML.  Examples: `google/gemma-2b`, `meta-llama/Llama-3.2-1B`,
 `meta-llama/Llama-3.2-3B`, `meta-llama/Llama-3.2-3B-Instruct`,
 `MahmoodLab/UNI2-h`, `ai4bharat/indic-conformer-600m-multilingual`,
-`pyannote/speaker-diarization-community-1`, `briaai/RMBG-2.0`.
+`pyannote/speaker-diarization-community-1`, `briaai/RMBG-2.0`,
+`LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR`, `Fujitsu/Fujitsu-LLM-KG-8x7B`.
 
 **GGUF-only repo (no `config.json`, not gated)**
 `config.json` returns 404 (file absent, not a permissions error); all metadata
@@ -280,8 +287,8 @@ Examples: `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF`,
 `nomic-ai/nomic-embed-text-v1.5-GGUF`, `iapp/chinda-qwen3-4b-gguf`,
 `cstr/mimo-asr-GGUF`, `Doses-AI/boba-0.8b-food-GGUF`, `lmg-anon/vntl-llama3-8b-v2-gguf`.
 Same pattern applies to diffusers repos (`prs-eth/marigold-depth-v1-0`,
-`briaai/Fibo-Edit-RMBG`) and library-specific repos
-(`lerobot/pi05_base`, `timm/convnext_large.dinov3_lvd1689m`,
+`briaai/Fibo-Edit-RMBG`), PEFT adapter repos (`windowseat-ai/windowseat-reflection`),
+and other library-specific repos (`lerobot/pi05_base`, `timm/convnext_large.dinov3_lvd1689m`,
 `ibm-granite/granite-geospatial-uki-flooddetection`).
 
 **No model card, config accessible**
@@ -310,7 +317,10 @@ and overridden per-test when the detection path is being exercised.
 Examples: `openthaigpt/openthaigpt-r1-32b-instruct`, `moonshotai/Kimi-K2.6`,
 `SeaLLMs/SeaLLMs-v3-7B-Chat`, `briaai/RMBG-1.4`, `facebook/opt-2.7b`,
 `facebook/opt-iml-max-1.3b`, `timm/convnext_large.dinov3_lvd1689m`,
-`mistralai/Mistral-Medium-3.5-128B`, `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16`.
+`mistralai/Mistral-Medium-3.5-128B`, `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16`,
+`LGAI-EXAONE/EXAONE-4.5-33B`, `LGAI-EXAONE/EXAONE-4.5-33B-AWQ`,
+`LGAI-EXAONE/EXAONE-4.5-33B-FP8`, `LGAI-EXAONE/EXAONE-4.5-33B-GGUF`,
+`LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR`.
 
 **No license** (`license` field absent from card YAML)
 `meta.license` is `None`; `hf.license_raw` is not set.
@@ -366,7 +376,7 @@ threshold.  Examples: `UBC-NLP/serengeti-E250`, `tencent/HY-MT1.5-1.8B`,
 (`Falconsai/medical_summarization`) and 128 000 (`openai/privacy-filter`)
 are captured normally as `hf.tokenizer_max_length`.
 
-### Model zoo (107 model repos)
+### Model zoo (120 model repos)
 
 #### Text generation and language models
 
@@ -409,6 +419,8 @@ are captured normally as `hf.tokenizer_max_length`.
 | `aisingapore/Gemma-SEA-LION-v4-27B-IT` | `image-text-to-text` in tags → extra domain | Gemma3 27B; 11 SEA languages; `gemma` license |
 | `FINAL-Bench/Darwin-28B-KR-Legal` | Korean legal LLM, finetune | `qwen3_5` arch; 64 layers; Korean+English |
 | `Intelligent-Internet/II-Medical-8B` | Qwen3 finetune, empty card tags | Medical domain; `hidden_size=4096`; no pipeline_tag; apache-2.0 |
+| `THUDM/GLM-4.5-Air-REAP` | MoE, `base_model_relation=merge`, apache-2.0 | `glm4_moe` arch; `Glm4MoeForCausalLM`; Samsung REAP merge from GLM-4.5-Air |
+| `Fujitsu/Fujitsu-LLM-KG-8x7B` | Gated config, NeMo library | Config 401; `library_name=nemo` → `hf.library_name`; apache-2.0 |
 
 #### Embeddings, retrieval, and text classification
 
@@ -427,6 +439,8 @@ are captured normally as `hf.tokenizer_max_length`.
 | `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` passthrough | `openrail++` ∉ `_VAGUE_LICENSE_VALUES`; 20 value categories |
 | `nlp-chula/aspect-finnlp-th` | text-classification, Thai financial, no license | CamemBERT-based; fine-tuned from wangchanberta; `license=None` |
 | `openai/privacy-filter` | token-classification, 128 K context | `hf.tokenizer_max_length=128000` captured; custom arch |
+| `line-corporation/line-distilbert-base-japanese` | fill-mask, DistilBERT (6 layers) | Japanese BERT distilled to 6 layers; `DistilBertForMaskedLM`; apache-2.0 |
+| `line-corporation/clip-japanese-base-v2` | feature-extraction, custom `clyp` model_type | Line Corp CLIP variant; `CLYPModel` arch; apache-2.0; Japanese |
 
 #### Vision
 
@@ -447,6 +461,8 @@ are captured normally as `hf.tokenizer_max_length`.
 | `briaai/RMBG-2.0` | Gated config, vague license | Config gated → no type_of_model; domain from card; `license=other` |
 | `ibm-granite/granite-geospatial-uki-flooddetection` | image-segmentation, TerraTorch, HF dataset refs | No transformers config; two `/datasets/` repos as `DatasetReference` |
 | `prithivMLmods/Flood-Image-Detection` | image-classification, siglip, arxiv, finetune | Fine-tuned from google/siglip2-base-patch16-512; `arxiv:2502.14786` |
+| `LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR` | Gated config, non-standard pipeline tag | Config 401; `pathology-image-analysis` captured as domain (pipeline_tag, not tags); `license=other` |
+| `windowseat-ai/windowseat-reflection` | No config, PEFT library, image-to-image | Config 404; `library_name=peft` → `hf.library_name`; apache-2.0 |
 
 #### Multimodal and visual question answering
 
@@ -466,6 +482,11 @@ are captured normally as `hf.tokenizer_max_length`.
 | `baidu/ERNIE-Image-Turbo` | text-to-image, diffusers, Chinese+English | Distilled DiT; `library_name=diffusers`; apache-2.0 |
 | `Doses-AI/boba-0.8b-food-GGUF` | image-text-to-text, GGUF, food domain | No config.json → `type_of_model=None`; finetune from Qwen3.5-0.8B |
 | `bakrianoo/arabic-legal-documents-ocr-1.0` | image-text-to-text, gemma license, Arabic OCR | Gemma3; `license=gemma`; scanned Arabic legal documents |
+| `kakaobank/kanana-1.5-v-3b-instruct` | image-text-to-text, `kanana-license` passthrough | `kanana-1.5-v` arch; `KananaVForConditionalGeneration`; Korean VLM |
+| `LGAI-EXAONE/EXAONE-4.5-33B` | image-text-to-text, vague license, 6 languages | `exaone4_5` arch; Korean+multilingual; `license=other` → `hf.license_raw` |
+| `LGAI-EXAONE/EXAONE-4.5-33B-AWQ` | AWQ quantized, config accessible (unlike GGUF) | Config present; `base_model_relation=quantized`; `license=other` |
+| `LGAI-EXAONE/EXAONE-4.5-33B-FP8` | FP8 quantized, `torch_dtype=float8_e4m3fn` | `torch_dtype` in `_HYPER_KEYS` → captured in hyperparameters |
+| `LGAI-EXAONE/EXAONE-4.5-33B-GGUF` | GGUF, no config.json, vague license | `type_of_model=None`; `base_model_relation=quantized`; `license=other` |
 
 #### Audio and speech
 
@@ -483,6 +504,7 @@ are captured normally as `hf.tokenizer_max_length`.
 | `k2-fsa/OmniVoice` | text-to-speech domain, arxiv, base_model finetune | 646 languages as `["multilingual"]`; `arxiv:2604.00688`; Qwen3-0.6B base |
 | `drbaph/OmniVoice-bf16` | text-to-speech domain, finetune | BF16 conversion of k2-fsa/OmniVoice; same TTS domain |
 | `pyannote/speaker-diarization-community-1` | speaker-diarization domain, gated, pyannote.audio | cc-by-4.0 (permissive, despite gating); no config.json; `library_name=pyannote.audio` |
+| `HKUSTAudio/Llasa-3B` | text-to-speech, LLaMA arch, large vocab | `LlamaForCausalLM` repurposed for TTS; `vocab_size=193800` (speech tokens); cc-by-nc-4.0 |
 
 #### Translation, seq2seq, and domain-specific
 
@@ -503,6 +525,7 @@ are captured normally as `hf.tokenizer_max_length`.
 | `lelapa/InkubaLM-0.4B` | Fully gated, dataset captured via tag fallback | Card + config 401; `dataset:lelapa/Inkuba-Mono` captured from `model_info` tags |
 | `nvidia/GR00T-N1.7-3B` | Robotics domain, no license | Humanoid robot foundation model; `pipeline_tag=robotics`; `license=None` |
 | `lerobot/pi05_base` | Robotics, lerobot library, custom license, no config | `license=gemma`; `library_name=lerobot`; no config.json; Pi0.5 policy |
+| `Salesforce/moirai-2.0-R-small` | `time-series-forecasting` domain, custom config keys | New `_DOMAIN_TAGS` entry; config keys (`d_model`, `patch_sizes`) not in `_HYPER_KEYS` → empty hyperparameters; cc-by-nc-4.0 |
 
 ## SBOM fragment fixtures
 

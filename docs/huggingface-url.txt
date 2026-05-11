@@ -78,7 +78,6 @@ https://huggingface.co/microsoft/swin-tiny-patch4-window7-224
 https://huggingface.co/microsoft/VibeVoice-ASR
 https://huggingface.co/mistralai/Mistral-7B-v0.1
 https://huggingface.co/mistralai/Mistral-Medium-3.5-128B
-https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602
 https://huggingface.co/moonshotai/Kimi-K2.6
 https://huggingface.co/naver-clova-ix/donut-base-finetuned-docvqa
 https://huggingface.co/neurlang/ipa-whisper-medium
@@ -126,3 +125,16 @@ https://huggingface.co/tum-nlp/Deberta_Human_Value_Detector
 https://huggingface.co/typhoon-ai/typhoon-7b
 https://huggingface.co/UBC-NLP/serengeti-E250
 https://huggingface.co/usyd-community/vitpose-plus-huge
+
+https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602
+https://huggingface.co/TildeAI/TildeOpen-30b-64k
+https://huggingface.co/TildeAI/TildeOpen-30b
+https://huggingface.co/openeurollm/datamix-9b-80-20
+https://huggingface.co/bigscience/bloom
+https://huggingface.co/bigscience/bloomz-7b1
+https://huggingface.co/CohereLabs/aya-23-8B
+https://huggingface.co/occiglot/occiglot-7b-eu5-instruct
+https://huggingface.co/Aleph-Alpha/Pharia-1-LLM-7B-control
+https://huggingface.co/Aleph-Alpha/Pharia-1-LLM-7B-control-aligned
+https://huggingface.co/Unbabel/wmt22-cometkiwi-da
+https://huggingface.co/utter-project/EuroLLM-1.7B

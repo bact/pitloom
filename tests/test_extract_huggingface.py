@@ -5258,3 +5258,837 @@ def test_qwen35_27b_text_generation_domain() -> None:
     with _patch_qwen35_27b():
         meta = read_huggingface("Qwen/Qwen3.5-27B")
     assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# kakaobank/kanana-1.5-v-3b-instruct  (custom license passthrough, VLM)
+# ---------------------------------------------------------------------------
+
+# Korean multimodal VLM from Kakao Bank. Custom "kanana-license" identifier is
+# NOT in _VAGUE_LICENSE_VALUES → stored as-is (passthrough).
+# image-text-to-text pipeline tag.
+
+_KANANA_15V_CONFIG: dict[str, Any] = {
+    "model_type": "kanana-1.5-v",
+    "architectures": ["KananaVForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 3072,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_KANANA_15V_CARD_DATA = _make_card_data(
+    license="kanana-license",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="transformers",
+)
+
+
+def _patch_kanana_15v() -> Any:
+    return _patch_hf_calls(
+        config=_KANANA_15V_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_KANANA_15V_CARD_DATA,
+        hub_info={"author": "kakaobank", "sha": "deadf00d"},
+    )
+
+
+def test_kanana_15v_type_of_model() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert meta.type_of_model == "kanana-1.5-v"
+
+
+def test_kanana_15v_architecture() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert meta.architecture == "KananaVForConditionalGeneration"
+
+
+def test_kanana_15v_license_passthrough() -> None:
+    # "kanana-license" is not in _VAGUE_LICENSE_VALUES → stored as-is, no detection
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert meta.license == "kanana-license"
+    assert "hf.license_raw" not in (meta.extra_data or {})
+
+
+def test_kanana_15v_image_text_to_text_domain() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_kanana_15v_korean_english_language() -> None:
+    with _patch_kanana_15v():
+        meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert "ko" in langs
+    assert "en" in langs
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B  (multimodal, vague license, Korean + multilingual)
+# ---------------------------------------------------------------------------
+
+# Korean multimodal LLM from LG AI Research. Pipeline tag image-text-to-text.
+# Card license="other" → vague → _detect_license_from_hf_files triggered (mock
+# returns (None, None)); license stored as hf.license_raw.
+
+_EXAONE45_33B_CONFIG: dict[str, Any] = {
+    "model_type": "exaone4_5",
+    "architectures": ["Exaone4_5_ForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 7168,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 56,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_EXAONE45_33B_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en", "zh", "ja", "es", "fr"],
+    library_name="transformers",
+)
+
+
+def _patch_exaone45_33b() -> Any:
+    return _patch_hf_calls(
+        config=_EXAONE45_33B_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_EXAONE45_33B_CARD_DATA,
+        hub_info={"author": "LGAI-EXAONE", "sha": "deadf00d"},
+    )
+
+
+def test_exaone45_33b_type_of_model() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert meta.type_of_model == "exaone4_5"
+
+
+def test_exaone45_33b_architecture() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert meta.architecture == "Exaone4_5_ForConditionalGeneration"
+
+
+def test_exaone45_33b_vague_license() -> None:
+    # license="other" → vague → detection mock returns (None, None) → license=None
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+def test_exaone45_33b_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_exaone45_33b_multilingual() -> None:
+    with _patch_exaone45_33b():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert "ko" in langs
+    assert "en" in langs
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B-AWQ  (AWQ quantized, config accessible)
+# ---------------------------------------------------------------------------
+
+# AWQ quantization of EXAONE-4.5-33B. Unlike GGUF, config.json IS present and
+# accessible. base_model_relation=quantized from hub tags.
+
+_EXAONE45_33B_AWQ_CONFIG: dict[str, Any] = {
+    "model_type": "exaone4_5",
+    "architectures": ["Exaone4_5_ForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 7168,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 56,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "float16",
+    "quantization_config": {"quant_type": "awq", "bits": 4},
+}
+
+_EXAONE45_33B_AWQ_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="transformers",
+    base_model="LGAI-EXAONE/EXAONE-4.5-33B",
+)
+
+
+def _patch_exaone45_33b_awq() -> Any:
+    return _patch_hf_calls(
+        config=_EXAONE45_33B_AWQ_CONFIG,
+        card_data=_EXAONE45_33B_AWQ_CARD_DATA,
+        hub_info={
+            "author": "LGAI-EXAONE",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:LGAI-EXAONE/EXAONE-4.5-33B"],
+        },
+    )
+
+
+def test_exaone45_33b_awq_type_of_model() -> None:
+    # AWQ: config.json is present (unlike GGUF) → type_of_model extractable
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert meta.type_of_model == "exaone4_5"
+
+
+def test_exaone45_33b_awq_base_model_relation() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_exaone45_33b_awq_base_model() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert (meta.extra_data or {}).get("hf.base_model") == "LGAI-EXAONE/EXAONE-4.5-33B"
+
+
+def test_exaone45_33b_awq_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_exaone45_33b_awq_vague_license() -> None:
+    with _patch_exaone45_33b_awq():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B-FP8  (FP8 quantized, torch_dtype in hyperparameters)
+# ---------------------------------------------------------------------------
+
+# FP8 quantization of EXAONE-4.5-33B. torch_dtype="float8_e4m3fn" is in
+# _HYPER_KEYS → captured in hyperparameters dict.
+
+_EXAONE45_33B_FP8_CONFIG: dict[str, Any] = {
+    "model_type": "exaone4_5",
+    "architectures": ["Exaone4_5_ForConditionalGeneration"],
+    "vocab_size": 102400,
+    "hidden_size": 7168,
+    "num_hidden_layers": 64,
+    "num_attention_heads": 56,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "float8_e4m3fn",
+}
+
+_EXAONE45_33B_FP8_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="transformers",
+    base_model="LGAI-EXAONE/EXAONE-4.5-33B",
+)
+
+
+def _patch_exaone45_33b_fp8() -> Any:
+    return _patch_hf_calls(
+        config=_EXAONE45_33B_FP8_CONFIG,
+        card_data=_EXAONE45_33B_FP8_CARD_DATA,
+        hub_info={
+            "author": "LGAI-EXAONE",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:LGAI-EXAONE/EXAONE-4.5-33B"],
+        },
+    )
+
+
+def test_exaone45_33b_fp8_type_of_model() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert meta.type_of_model == "exaone4_5"
+
+
+def test_exaone45_33b_fp8_dtype_in_hyperparameters() -> None:
+    # torch_dtype is in _HYPER_KEYS → captured even for FP8 quantized dtype
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert meta.hyperparameters.get("torch_dtype") == "float8_e4m3fn"
+
+
+def test_exaone45_33b_fp8_base_model_relation() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_exaone45_33b_fp8_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+def test_exaone45_33b_fp8_vague_license() -> None:
+    with _patch_exaone45_33b_fp8():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-4.5-33B-GGUF  (GGUF format, no config.json)
+# ---------------------------------------------------------------------------
+
+# GGUF format: config.json absent → type_of_model and architecture are None.
+# Card still carries license and pipeline_tag.
+
+_EXAONE45_33B_GGUF_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="image-text-to-text",
+    language=["ko", "en"],
+    library_name="gguf",
+    base_model="LGAI-EXAONE/EXAONE-4.5-33B",
+)
+
+
+def _patch_exaone45_33b_gguf() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_EXAONE45_33B_GGUF_CARD_DATA,
+        hub_info={
+            "author": "LGAI-EXAONE",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:LGAI-EXAONE/EXAONE-4.5-33B"],
+        },
+    )
+
+
+def test_exaone45_33b_gguf_no_type_of_model() -> None:
+    # GGUF: config.json absent → cannot determine model_type
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_exaone45_33b_gguf_base_model_relation() -> None:
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_exaone45_33b_gguf_vague_license() -> None:
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+def test_exaone45_33b_gguf_image_text_to_text_domain() -> None:
+    with _patch_exaone45_33b_gguf():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
+    assert "image-text-to-text" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR  (gated, non-standard pipeline tag)
+# ---------------------------------------------------------------------------
+
+# Gated pathology vision model. pipeline_tag="pathology-image-analysis" is NOT
+# in _DOMAIN_TAGS → usage.domains is empty. Config inaccessible (401 gated).
+
+_EXAONE_PATH_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="pathology-image-analysis",
+    language=["en"],
+    library_name="transformers",
+)
+
+
+def _patch_exaone_path() -> Any:
+    return _patch_hf_calls(
+        config=None,  # gated → 401
+        tokenizer_config=None,
+        card_data=_EXAONE_PATH_CARD_DATA,
+        hub_info={"author": "LGAI-EXAONE", "sha": "deadf00d"},
+    )
+
+
+def test_exaone_path_no_architecture() -> None:
+    # Config gated → no type_of_model or architecture
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_exaone_path_pipeline_tag_captured_as_domain() -> None:
+    # pipeline_tag is always added to usage.domains regardless of _DOMAIN_TAGS.
+    # _DOMAIN_TAGS only governs which card *tags* qualify as domains.
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert "pathology-image-analysis" in meta.usage.domains
+
+
+def test_exaone_path_only_pipeline_tag_domain() -> None:
+    # Only the pipeline_tag domain is present; no other domain tags in card.
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert meta.usage.domains == ["pathology-image-analysis"]
+
+
+def test_exaone_path_vague_license() -> None:
+    with _patch_exaone_path():
+        meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# THUDM/GLM-4.5-Air-REAP  (MoE, merge relation, apache-2.0)
+# ---------------------------------------------------------------------------
+
+# GLM4 MoE model adapted by Samsung (REAP). base_model_relation=merge.
+# glm4_moe model_type; apache-2.0 license; text-generation domain.
+
+_GLM45_AIR_REAP_CONFIG: dict[str, Any] = {
+    "model_type": "glm4_moe",
+    "architectures": ["Glm4MoeForCausalLM"],
+    "vocab_size": 151552,
+    "hidden_size": 4096,
+    "num_hidden_layers": 62,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 2,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_GLM45_AIR_REAP_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["en", "ko", "zh"],
+    library_name="transformers",
+    base_model="THUDM/GLM-4.5-Air",
+)
+
+
+def _patch_glm45_air_reap() -> Any:
+    return _patch_hf_calls(
+        config=_GLM45_AIR_REAP_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_GLM45_AIR_REAP_CARD_DATA,
+        hub_info={
+            "author": "THUDM",
+            "sha": "deadf00d",
+            "tags": ["base_model:merge:THUDM/GLM-4.5-Air"],
+        },
+    )
+
+
+def test_glm45_air_reap_type_of_model() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert meta.type_of_model == "glm4_moe"
+
+
+def test_glm45_air_reap_architecture() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert meta.architecture == "Glm4MoeForCausalLM"
+
+
+def test_glm45_air_reap_apache_license() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert meta.license == "apache-2.0"
+
+
+def test_glm45_air_reap_merge_relation() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "merge"
+
+
+def test_glm45_air_reap_text_generation_domain() -> None:
+    with _patch_glm45_air_reap():
+        meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# line-corporation/line-distilbert-base-japanese  (DistilBERT, fill-mask)
+# ---------------------------------------------------------------------------
+
+# Japanese DistilBERT: 6 transformer layers (half of BERT-base's 12).
+# fill-mask pipeline tag. apache-2.0 license.
+
+_LINE_DISTILBERT_CONFIG: dict[str, Any] = {
+    "model_type": "distilbert",
+    "architectures": ["DistilBertForMaskedLM"],
+    "vocab_size": 32000,
+    "hidden_size": 768,
+    "num_hidden_layers": 6,
+    "num_attention_heads": 12,
+    "max_position_embeddings": 512,
+    "torch_dtype": "float32",
+}
+
+_LINE_DISTILBERT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="fill-mask",
+    language=["ja"],
+    library_name="transformers",
+)
+
+
+def _patch_line_distilbert() -> Any:
+    return _patch_hf_calls(
+        config=_LINE_DISTILBERT_CONFIG,
+        tokenizer_config={"tokenizer_class": "BertJapaneseTokenizer"},
+        card_data=_LINE_DISTILBERT_CARD_DATA,
+        hub_info={"author": "line-corporation", "sha": "deadf00d"},
+    )
+
+
+def test_line_distilbert_type_of_model() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.type_of_model == "distilbert"
+
+
+def test_line_distilbert_architecture() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.architecture == "DistilBertForMaskedLM"
+
+
+def test_line_distilbert_six_layers() -> None:
+    # DistilBERT halves BERT's 12 layers → 6 layers
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.hyperparameters.get("num_hidden_layers") == 6
+
+
+def test_line_distilbert_fill_mask_domain() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert "fill-mask" in meta.usage.domains
+
+
+def test_line_distilbert_apache_license() -> None:
+    with _patch_line_distilbert():
+        meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
+    assert meta.license == "apache-2.0"
+
+
+# ---------------------------------------------------------------------------
+# line-corporation/clip-japanese-base-v2  (CLYP / custom CLIP, feature-extraction)
+# ---------------------------------------------------------------------------
+
+# Line Corp custom CLIP variant (CLYP). model_type="clyp" is non-standard.
+# feature-extraction pipeline tag; apache-2.0 license; Japanese text encoder.
+
+_CLIP_JAPANESE_V2_CONFIG: dict[str, Any] = {
+    "model_type": "clyp",
+    "architectures": ["CLYPModel"],
+    "hidden_size": 768,
+    "vocab_size": 32000,
+    "torch_dtype": "float32",
+}
+
+_CLIP_JAPANESE_V2_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="feature-extraction",
+    language=["ja"],
+    library_name="transformers",
+)
+
+
+def _patch_clip_japanese_v2() -> Any:
+    return _patch_hf_calls(
+        config=_CLIP_JAPANESE_V2_CONFIG,
+        tokenizer_config={"tokenizer_class": "BertJapaneseTokenizer"},
+        card_data=_CLIP_JAPANESE_V2_CARD_DATA,
+        hub_info={"author": "line-corporation", "sha": "deadf00d"},
+    )
+
+
+def test_clip_japanese_v2_type_of_model() -> None:
+    # Custom "clyp" model_type stored as-is
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.type_of_model == "clyp"
+
+
+def test_clip_japanese_v2_architecture() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.architecture == "CLYPModel"
+
+
+def test_clip_japanese_v2_feature_extraction_domain() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert "feature-extraction" in meta.usage.domains
+
+
+def test_clip_japanese_v2_apache_license() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.license == "apache-2.0"
+
+
+def test_clip_japanese_v2_hidden_size() -> None:
+    with _patch_clip_japanese_v2():
+        meta = read_huggingface("line-corporation/clip-japanese-base-v2")
+    assert meta.hyperparameters.get("hidden_size") == 768
+
+
+# ---------------------------------------------------------------------------
+# Fujitsu/Fujitsu-LLM-KG-8x7B  (gated, NeMo library, apache-2.0)
+# ---------------------------------------------------------------------------
+
+# Gated Fujitsu MoE LLM built with NVIDIA NeMo framework.
+# Config inaccessible (401); library_name="nemo" → extra_data["hf.library_name"].
+
+_FUJITSU_LLM_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["ja", "en"],
+    library_name="nemo",
+)
+
+
+def _patch_fujitsu_llm() -> Any:
+    return _patch_hf_calls(
+        config=None,  # gated → 401
+        tokenizer_config=None,
+        card_data=_FUJITSU_LLM_CARD_DATA,
+        hub_info={"author": "Fujitsu", "sha": "deadf00d"},
+    )
+
+
+def test_fujitsu_llm_no_architecture() -> None:
+    # Config gated → type_of_model and architecture not available
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_fujitsu_llm_nemo_library_name() -> None:
+    # NeMo framework: library_name="nemo" → extra_data["hf.library_name"]
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert (meta.extra_data or {}).get("hf.library_name") == "nemo"
+
+
+def test_fujitsu_llm_apache_license() -> None:
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert meta.license == "apache-2.0"
+
+
+def test_fujitsu_llm_text_generation_domain() -> None:
+    with _patch_fujitsu_llm():
+        meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# windowseat-ai/windowseat-reflection  (no config, PEFT library, image-to-image)
+# ---------------------------------------------------------------------------
+
+# PEFT adapter model for image-to-image; config.json absent (404).
+# library_name="peft" → extra_data["hf.library_name"]; apache-2.0.
+
+_WINDOWSEAT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="image-to-image",
+    language=None,
+    library_name="peft",
+)
+
+
+def _patch_windowseat() -> Any:
+    return _patch_hf_calls(
+        config=None,  # absent → 404
+        tokenizer_config=None,
+        card_data=_WINDOWSEAT_CARD_DATA,
+        hub_info={"author": "windowseat-ai", "sha": "deadf00d"},
+    )
+
+
+def test_windowseat_no_architecture() -> None:
+    # No config.json → type_of_model and architecture are None
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_windowseat_peft_library_name() -> None:
+    # PEFT adapter: library_name="peft" → extra_data["hf.library_name"]
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert (meta.extra_data or {}).get("hf.library_name") == "peft"
+
+
+def test_windowseat_image_to_image_domain() -> None:
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert "image-to-image" in meta.usage.domains
+
+
+def test_windowseat_apache_license() -> None:
+    with _patch_windowseat():
+        meta = read_huggingface("windowseat-ai/windowseat-reflection")
+    assert meta.license == "apache-2.0"
+
+
+# ---------------------------------------------------------------------------
+# Salesforce/moirai-2.0-R-small  (time-series-forecasting domain, custom config)
+# ---------------------------------------------------------------------------
+
+# Moirai time-series foundation model. pipeline_tag="time-series-forecasting"
+# is a newly added _DOMAIN_TAGS entry. config.json has custom non-transformer
+# keys (patch_sizes, d_model, context_length) → none match _HYPER_KEYS →
+# hyperparameters is empty. model_type and architectures absent from config.
+
+_MOIRAI_CONFIG: dict[str, Any] = {
+    "patch_sizes": [8, 16, 32, 64, 128],
+    "d_model": 384,
+    "num_encoder_layers": 6,
+    "nhead": 8,
+    "context_length": 4096,
+}
+
+_MOIRAI_CARD_DATA = _make_card_data(
+    license="cc-by-nc-4.0",
+    pipeline_tag="time-series-forecasting",
+    language=None,
+    library_name="transformers",
+)
+
+
+def _patch_moirai() -> Any:
+    return _patch_hf_calls(
+        config=_MOIRAI_CONFIG,
+        tokenizer_config=None,
+        card_data=_MOIRAI_CARD_DATA,
+        hub_info={"author": "Salesforce", "sha": "deadf00d"},
+    )
+
+
+def test_moirai_no_type_of_model() -> None:
+    # Config has no "model_type" key → type_of_model=None
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert meta.type_of_model is None
+
+
+def test_moirai_no_architecture() -> None:
+    # Config has no "architectures" key → architecture=None
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert meta.architecture is None
+
+
+def test_moirai_empty_hyperparameters() -> None:
+    # Custom config keys (patch_sizes, d_model, etc.) not in _HYPER_KEYS
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert not meta.hyperparameters
+
+
+def test_moirai_time_series_forecasting_domain() -> None:
+    # "time-series-forecasting" added to _DOMAIN_TAGS → captured as domain
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert "time-series-forecasting" in meta.usage.domains
+
+
+def test_moirai_cc_by_nc_license() -> None:
+    with _patch_moirai():
+        meta = read_huggingface("Salesforce/moirai-2.0-R-small")
+    assert meta.license == "cc-by-nc-4.0"
+
+
+# ---------------------------------------------------------------------------
+# HKUSTAudio/Llasa-3B  (LLaMA for TTS, large vocabulary, cc-by-nc-4.0)
+# ---------------------------------------------------------------------------
+
+# LLaMA-based text-to-speech model. vocab_size=193800 (greatly extended for
+# speech tokens). pipeline_tag="text-to-speech"; cc-by-nc-4.0 license.
+
+_LLASA_3B_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 193800,
+    "hidden_size": 3072,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 24,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 4096,
+    "torch_dtype": "bfloat16",
+}
+
+_LLASA_3B_CARD_DATA = _make_card_data(
+    license="cc-by-nc-4.0",
+    pipeline_tag="text-to-speech",
+    language=["en", "zh"],
+    library_name="transformers",
+)
+
+
+def _patch_llasa_3b() -> Any:
+    return _patch_hf_calls(
+        config=_LLASA_3B_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_LLASA_3B_CARD_DATA,
+        hub_info={"author": "HKUSTAudio", "sha": "deadf00d"},
+    )
+
+
+def test_llasa_3b_type_of_model() -> None:
+    # LLaMA architecture repurposed for TTS generation
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.type_of_model == "llama"
+
+
+def test_llasa_3b_architecture() -> None:
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.architecture == "LlamaForCausalLM"
+
+
+def test_llasa_3b_large_vocab_for_tts() -> None:
+    # 193 800-token vocab: base LLaMA vocab + speech tokens
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.hyperparameters.get("vocab_size") == 193800
+
+
+def test_llasa_3b_text_to_speech_domain() -> None:
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert "text-to-speech" in meta.usage.domains
+
+
+def test_llasa_3b_cc_by_nc_license() -> None:
+    with _patch_llasa_3b():
+        meta = read_huggingface("HKUSTAudio/Llasa-3B")
+    assert meta.license == "cc-by-nc-4.0"

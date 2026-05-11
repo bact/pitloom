@@ -163,6 +163,7 @@ _DOMAIN_TAGS: frozenset[str] = frozenset(
         "robotics",
         "tabular-classification",
         "tabular-regression",
+        "time-series-forecasting",
         "video-classification",
     }
 )
