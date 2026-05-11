@@ -113,3 +113,17 @@ https://huggingface.co/Sony/VIRTUE-2B-SCaR
 https://huggingface.co/Sony/humangif
 https://huggingface.co/Sony/soundctm
 https://huggingface.co/NYU-OLAB/LLaVA-Next-Med-OLAB
+
+https://huggingface.co/kakaocorp/kanana-1.5-v-3b-instruct
+https://huggingface.co/LGAI-EXAONE/EXAONE-4.5-33B
+https://huggingface.co/LGAI-EXAONE/EXAONE-4.5-33B-AWQ
+https://huggingface.co/LGAI-EXAONE/EXAONE-4.5-33B-FP8
+https://huggingface.co/LGAI-EXAONE/EXAONE-4.5-33B-GGUF
+https://huggingface.co/LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR
+https://huggingface.co/SamsungSAILMontreal/GLM-4.5-Air-REAP
+https://huggingface.co/line-corporation/line-distilbert-base-japanese
+https://huggingface.co/line-corporation/clip-japanese-base-v2
+https://huggingface.co/Fujitsu-LLM-KG/Fujitsu-LLM-KG-8x7B_inst-infer_v2
+https://huggingface.co/huawei-bayerlab/windowseat-reflection-removal-v1-0
+https://huggingface.co/Salesforce/moirai-2.0-R-small
+https://huggingface.co/HKUSTAudio/Llasa-3B
