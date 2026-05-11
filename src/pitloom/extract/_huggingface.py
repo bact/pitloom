@@ -153,6 +153,9 @@ _DOMAIN_TAGS: frozenset[str] = frozenset(
         # Audio / speech
         "automatic-speech-recognition",
         "audio-classification",
+        "audio-to-audio",
+        "speaker-diarization",
+        "text-to-speech",
         # Specialised
         "any-to-any",
         "code",
