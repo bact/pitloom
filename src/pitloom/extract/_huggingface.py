@@ -81,6 +81,7 @@ _HYPER_KEYS: tuple[str, ...] = (
     "torch_dtype",
     "rope_theta",
     "sliding_window",
+    "seq_length",
 )
 
 # generation_config.json keys included as hyperparameters

@@ -6092,3 +6092,1103 @@ def test_llasa_3b_cc_by_nc_license() -> None:
     with _patch_llasa_3b():
         meta = read_huggingface("HKUSTAudio/Llasa-3B")
     assert meta.license == "cc-by-nc-4.0"
+
+
+# ---------------------------------------------------------------------------
+# mistralai/Voxtral-Mini-4B-Realtime-2602  (multimodal ASR, voxtral_realtime, vllm)
+# ---------------------------------------------------------------------------
+
+# Voxtral is a multimodal audio+text model: an audio encoder (970 M params)
+# feeds into a Ministral text decoder (3.4 B params). library_name="vllm" →
+# extra_data["hf.library_name"]. pipeline_tag=automatic-speech-recognition.
+# The config carries nested audio_config; top-level _HYPER_KEYS are still
+# present and captured (hidden_size etc. from the text decoder).
+
+_VOXTRAL_MINI_CONFIG: dict[str, Any] = {
+    "model_type": "voxtral_realtime",
+    "architectures": ["VoxtralRealtimeForConditionalGeneration"],
+    "vocab_size": 131072,
+    "hidden_size": 3072,
+    "num_hidden_layers": 26,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+    "audio_config": {"audio_length_per_tok": 8},
+    "projector_hidden_act": "gelu",
+}
+
+_VOXTRAL_MINI_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="automatic-speech-recognition",
+    language=[
+        "en",
+        "fr",
+        "es",
+        "de",
+        "ru",
+        "zh",
+        "ja",
+        "it",
+        "pt",
+        "nl",
+        "ar",
+        "hi",
+        "ko",
+    ],
+    library_name="vllm",
+    base_model="mistralai/Ministral-3-3B-Base-2512",
+)
+
+
+def _patch_voxtral_mini() -> Any:
+    return _patch_hf_calls(
+        config=_VOXTRAL_MINI_CONFIG,
+        tokenizer_config=None,
+        card_data=_VOXTRAL_MINI_CARD_DATA,
+        hub_info={
+            "author": "mistralai",
+            "sha": "deadf00d",
+            "tags": ["base_model:finetune:mistralai/Ministral-3-3B-Base-2512"],
+        },
+    )
+
+
+def test_voxtral_mini_type_of_model() -> None:
+    with _patch_voxtral_mini():
+        meta = read_huggingface("mistralai/Voxtral-Mini-4B-Realtime-2602")
+    assert meta.type_of_model == "voxtral_realtime"
+
+
+def test_voxtral_mini_architecture() -> None:
+    with _patch_voxtral_mini():
+        meta = read_huggingface("mistralai/Voxtral-Mini-4B-Realtime-2602")
+    assert meta.architecture == "VoxtralRealtimeForConditionalGeneration"
+
+
+def test_voxtral_mini_asr_domain() -> None:
+    with _patch_voxtral_mini():
+        meta = read_huggingface("mistralai/Voxtral-Mini-4B-Realtime-2602")
+    assert "automatic-speech-recognition" in meta.usage.domains
+
+
+def test_voxtral_mini_vllm_library() -> None:
+    # vllm as serving framework: library_name="vllm" → hf.library_name
+    with _patch_voxtral_mini():
+        meta = read_huggingface("mistralai/Voxtral-Mini-4B-Realtime-2602")
+    assert (meta.extra_data or {}).get("hf.library_name") == "vllm"
+
+
+def test_voxtral_mini_hyperparameters() -> None:
+    with _patch_voxtral_mini():
+        meta = read_huggingface("mistralai/Voxtral-Mini-4B-Realtime-2602")
+    assert meta.hyperparameters.get("hidden_size") == 3072
+    assert meta.hyperparameters.get("num_key_value_heads") == 8
+
+
+# ---------------------------------------------------------------------------
+# TildeAI/TildeOpen-30b-64k  (YaRN RoPE scaling, 34 EU langs, 7 datasets, cc-by-4.0)
+# ---------------------------------------------------------------------------
+
+# Tilde's 30B European LLM fine-tuned with YaRN RoPE to extend context from
+# 8 192 → 65 536 tokens. rope_scaling is a dict in config, NOT in _HYPER_KEYS →
+# silently skipped; max_position_embeddings=65536 IS captured.
+# tokenizer model_max_length=65536 (real value, not unlimited sentinel).
+# 7 training corpora in card YAML datasets list.
+
+_TILDEOPEN_30B_64K_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 131072,
+    "hidden_size": 6144,
+    "num_hidden_layers": 60,
+    "num_attention_heads": 48,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 65536,
+    "torch_dtype": "bfloat16",
+    "rope_scaling": {
+        "rope_type": "yarn",
+        "factor": 10.0,
+        "original_max_position_embeddings": 8192,
+    },
+}
+
+_TILDEOPEN_30B_64K_CARD_DATA = _make_card_data(
+    license="cc-by-4.0",
+    pipeline_tag="text-generation",
+    language=[
+        "af",
+        "bg",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fi",
+        "fr",
+        "ga",
+        "hr",
+        "hu",
+        "is",
+        "it",
+        "lt",
+        "lv",
+        "mk",
+        "mt",
+        "nl",
+        "no",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "sq",
+        "sv",
+        "uk",
+        "la",
+    ],
+    library_name="transformers",
+    datasets=[
+        "HPLT/HPLT2.0_cleaned",
+        "HPLT/hplt_monolingual_v1_2",
+        "HuggingFaceFW/fineweb-2",
+        "allenai/MADLAD-400",
+        "uonlp/CulturaX",
+        "bigcode/the-stack",
+        "common-pile/arxiv_papers",
+    ],
+)
+
+
+def _patch_tildeopen_30b_64k() -> Any:
+    return _patch_hf_calls(
+        config=_TILDEOPEN_30B_64K_CONFIG,
+        tokenizer_config={
+            "tokenizer_class": "PreTrainedTokenizerFast",
+            "model_max_length": 65536,
+        },
+        card_data=_TILDEOPEN_30B_64K_CARD_DATA,
+        hub_info={"author": "TildeAI", "sha": "deadf00d"},
+    )
+
+
+def test_tildeopen_30b_64k_type_of_model() -> None:
+    with _patch_tildeopen_30b_64k():
+        meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
+    assert meta.type_of_model == "llama"
+
+
+def test_tildeopen_30b_64k_yarn_extended_context() -> None:
+    # YaRN RoPE extends context from 8192 → 65536; max_position_embeddings captured
+    with _patch_tildeopen_30b_64k():
+        meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
+    assert meta.hyperparameters.get("max_position_embeddings") == 65536
+
+
+def test_tildeopen_30b_64k_tokenizer_max_length() -> None:
+    # model_max_length=65536 is a real value (not unlimited sentinel) → captured
+    with _patch_tildeopen_30b_64k():
+        meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
+    assert (meta.extra_data or {}).get("hf.tokenizer_max_length") == 65536
+
+
+def test_tildeopen_30b_64k_seven_datasets() -> None:
+    with _patch_tildeopen_30b_64k():
+        meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
+    dataset_names = [d.metadata.name for d in (meta.datasets or [])]
+    assert "HPLT/HPLT2.0_cleaned" in dataset_names
+    assert "HuggingFaceFW/fineweb-2" in dataset_names
+    assert "bigcode/the-stack" in dataset_names
+    assert len(dataset_names) == 7
+
+
+def test_tildeopen_30b_64k_cc_by_license() -> None:
+    with _patch_tildeopen_30b_64k():
+        meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
+    assert meta.license == "cc-by-4.0"
+
+
+# ---------------------------------------------------------------------------
+# TildeAI/TildeOpen-30b  (base model, no YaRN, unlimited tokenizer sentinel)
+# ---------------------------------------------------------------------------
+
+# Base 30B model without YaRN context extension. LlamaTokenizer returns the
+# ~10^23 sentinel for model_max_length → filtered (not captured). Max position
+# is the native 65536 before any extension. Same 7-corpus training dataset list.
+
+_TILDEOPEN_30B_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 131072,
+    "hidden_size": 6144,
+    "num_hidden_layers": 60,
+    "num_attention_heads": 48,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 65536,
+    "torch_dtype": "bfloat16",
+}
+
+_TILDEOPEN_30B_CARD_DATA = _make_card_data(
+    license="cc-by-4.0",
+    pipeline_tag="text-generation",
+    language=[
+        "af",
+        "bg",
+        "ca",
+        "cs",
+        "cy",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "eu",
+        "fi",
+        "fr",
+        "ga",
+        "hr",
+        "hu",
+        "is",
+        "it",
+        "lt",
+        "lv",
+        "mk",
+        "mt",
+        "nl",
+        "no",
+        "pl",
+        "pt",
+        "ro",
+        "sk",
+        "sl",
+        "sq",
+        "sv",
+        "uk",
+        "la",
+    ],
+    library_name="transformers",
+    datasets=[
+        "HPLT/HPLT2.0_cleaned",
+        "HPLT/hplt_monolingual_v1_2",
+        "HuggingFaceFW/fineweb-2",
+        "allenai/MADLAD-400",
+        "uonlp/CulturaX",
+        "bigcode/the-stack",
+        "common-pile/arxiv_papers",
+    ],
+)
+
+# LlamaTokenizer sentinel: ~10^23 → _TOKENIZER_MAX_LEN_UNLIMITED threshold
+_TILDEOPEN_TOKENIZER_SENTINEL: int = 1_000_000_000_000_000_019_884_624_838_656
+
+
+def _patch_tildeopen_30b() -> Any:
+    return _patch_hf_calls(
+        config=_TILDEOPEN_30B_CONFIG,
+        tokenizer_config={
+            "tokenizer_class": "LlamaTokenizer",
+            "model_max_length": _TILDEOPEN_TOKENIZER_SENTINEL,
+        },
+        card_data=_TILDEOPEN_30B_CARD_DATA,
+        hub_info={"author": "TildeAI", "sha": "deadf00d"},
+    )
+
+
+def test_tildeopen_30b_type_of_model() -> None:
+    with _patch_tildeopen_30b():
+        meta = read_huggingface("TildeAI/TildeOpen-30b")
+    assert meta.type_of_model == "llama"
+
+
+def test_tildeopen_30b_sentinel_tokenizer_max_length_filtered() -> None:
+    # LlamaTokenizer unlimited sentinel → hf.tokenizer_max_length NOT set
+    with _patch_tildeopen_30b():
+        meta = read_huggingface("TildeAI/TildeOpen-30b")
+    assert "hf.tokenizer_max_length" not in (meta.extra_data or {})
+
+
+def test_tildeopen_30b_seven_datasets() -> None:
+    with _patch_tildeopen_30b():
+        meta = read_huggingface("TildeAI/TildeOpen-30b")
+    assert len(meta.datasets or []) == 7
+
+
+def test_tildeopen_30b_text_generation_domain() -> None:
+    with _patch_tildeopen_30b():
+        meta = read_huggingface("TildeAI/TildeOpen-30b")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# openeurollm/datamix-9b-80-20  (Gemma-3 tokenizer 262K vocab, no GQA, no pipeline_tag)
+# ---------------------------------------------------------------------------
+
+# European LLM pretrained with a Gemma-3-style tokenizer (262 400-token vocab,
+# much larger than LLaMA's 128K). num_key_value_heads == num_attention_heads == 32
+# (standard MHA, no GQA). No pipeline_tag → empty usage.domains. 3 training datasets.
+# tokenizer_config.json absent (404) in real repo; mock uses None.
+
+_OPENEUROLLM_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 262400,
+    "hidden_size": 4096,
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 32,
+    "max_position_embeddings": 2048,
+    "torch_dtype": "bfloat16",
+    "tie_word_embeddings": True,
+}
+
+_OPENEUROLLM_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag=None,
+    language=[
+        "en",
+        "de",
+        "fr",
+        "es",
+        "pt",
+        "it",
+        "nl",
+        "pl",
+        "sv",
+        "no",
+        "da",
+        "fi",
+        "cs",
+        "sk",
+        "sl",
+        "hr",
+        "bg",
+        "ro",
+        "hu",
+        "el",
+        "lt",
+        "lv",
+        "et",
+        "ga",
+        "mt",
+        "eu",
+        "ca",
+        "cy",
+        "sq",
+        "mk",
+        "uk",
+        "ru",
+        "tr",
+        "is",
+    ],
+    library_name="transformers",
+    datasets=[
+        "HPLT/HPLT2.0_cleaned",
+        "HuggingFaceTB/finemath",
+        "bigcode/starcoderdata",
+    ],
+)
+
+
+def _patch_openeurollm() -> Any:
+    return _patch_hf_calls(
+        config=_OPENEUROLLM_CONFIG,
+        tokenizer_config=None,  # 404 in real repo
+        card_data=_OPENEUROLLM_CARD_DATA,
+        hub_info={"author": "openeurollm", "sha": "deadf00d"},
+    )
+
+
+def test_openeurollm_type_of_model() -> None:
+    with _patch_openeurollm():
+        meta = read_huggingface("openeurollm/datamix-9b-80-20")
+    assert meta.type_of_model == "llama"
+
+
+def test_openeurollm_large_gemma3_vocab() -> None:
+    # 262 400-token Gemma-3 tokenizer (vs 128 000 for typical LLaMA models)
+    with _patch_openeurollm():
+        meta = read_huggingface("openeurollm/datamix-9b-80-20")
+    assert meta.hyperparameters.get("vocab_size") == 262400
+
+
+def test_openeurollm_no_gqa() -> None:
+    # num_key_value_heads == num_attention_heads == 32 → standard MHA, no GQA
+    with _patch_openeurollm():
+        meta = read_huggingface("openeurollm/datamix-9b-80-20")
+    assert meta.hyperparameters.get("num_key_value_heads") == 32
+    assert meta.hyperparameters.get("num_attention_heads") == 32
+
+
+def test_openeurollm_no_pipeline_tag_empty_domains() -> None:
+    with _patch_openeurollm():
+        meta = read_huggingface("openeurollm/datamix-9b-80-20")
+    assert not meta.usage.domains
+
+
+def test_openeurollm_three_datasets() -> None:
+    with _patch_openeurollm():
+        meta = read_huggingface("openeurollm/datamix-9b-80-20")
+    assert len(meta.datasets or []) == 3
+
+
+# ---------------------------------------------------------------------------
+# bigscience/bloom  (BLOOM 176B, custom key names, ALiBi, custom license)
+# ---------------------------------------------------------------------------
+
+# BigScience BLOOM 176B uses:
+#  • n_layer / n_head instead of num_hidden_layers / num_attention_heads →
+#    those keys are NOT in _HYPER_KEYS → layer count NOT captured
+#  • No max_position_embeddings (uses ALiBi positional bias, not RoPE)
+#  • seq_length (added to _HYPER_KEYS) is absent in the 176B config
+#  • bigscience-bloom-rail-1.0 is a custom HF identifier NOT in
+#    _VAGUE_LICENSE_VALUES → stored as-is (passthrough)
+#  • 59 languages (46 natural + 13 programming languages)
+
+_BLOOM_CONFIG: dict[str, Any] = {
+    "model_type": "bloom",
+    "architectures": ["BloomForCausalLM"],
+    "vocab_size": 250880,
+    "hidden_size": 14336,
+    "n_layer": 70,  # BLOOM-specific: extractor does NOT capture (not in _HYPER_KEYS)
+    "n_head": 112,  # BLOOM-specific: extractor does NOT capture (not in _HYPER_KEYS)
+    "attention_softmax_in_fp32": True,
+    "masked_softmax_fusion": True,
+    # No max_position_embeddings (ALiBi)
+    # No torch_dtype in config
+}
+
+_BLOOM_CARD_DATA = _make_card_data(
+    license="bigscience-bloom-rail-1.0",
+    pipeline_tag="text-generation",
+    language=[
+        "ak",
+        "ar",
+        "as",
+        "bm",
+        "bn",
+        "ca",
+        "code",
+        "en",
+        "es",
+        "eu",
+        "fon",
+        "fr",
+        "gu",
+        "hi",
+        "id",
+        "ig",
+        "ki",
+        "kn",
+        "lg",
+        "ln",
+        "ml",
+        "mr",
+        "ne",
+        "nso",
+        "ny",
+        "or",
+        "pa",
+        "pt",
+        "rn",
+        "rw",
+        "sn",
+        "st",
+        "sw",
+        "ta",
+        "te",
+        "tn",
+        "ts",
+        "tum",
+        "tw",
+        "ur",
+        "ve",
+        "vi",
+        "wo",
+        "xh",
+        "yo",
+        "zh",
+        "zu",
+    ],
+    library_name="transformers",
+)
+
+
+def _patch_bloom() -> Any:
+    return _patch_hf_calls(
+        config=_BLOOM_CONFIG,
+        tokenizer_config={"tokenizer_class": "BloomTokenizerFast"},
+        card_data=_BLOOM_CARD_DATA,
+        hub_info={"author": "bigscience", "sha": "deadf00d"},
+    )
+
+
+def test_bloom_type_of_model() -> None:
+    with _patch_bloom():
+        meta = read_huggingface("bigscience/bloom")
+    assert meta.type_of_model == "bloom"
+
+
+def test_bloom_architecture() -> None:
+    with _patch_bloom():
+        meta = read_huggingface("bigscience/bloom")
+    assert meta.architecture == "BloomForCausalLM"
+
+
+def test_bloom_custom_license_passthrough() -> None:
+    # "bigscience-bloom-rail-1.0" not in _VAGUE_LICENSE_VALUES → stored as-is
+    with _patch_bloom():
+        meta = read_huggingface("bigscience/bloom")
+    assert meta.license == "bigscience-bloom-rail-1.0"
+    assert "hf.license_raw" not in (meta.extra_data or {})
+
+
+def test_bloom_vocab_size_captured() -> None:
+    with _patch_bloom():
+        meta = read_huggingface("bigscience/bloom")
+    assert meta.hyperparameters.get("vocab_size") == 250880
+
+
+def test_bloom_nonstandard_layer_key_not_captured() -> None:
+    # BLOOM uses n_layer (not num_hidden_layers) → not in _HYPER_KEYS → absent
+    with _patch_bloom():
+        meta = read_huggingface("bigscience/bloom")
+    assert "num_hidden_layers" not in meta.hyperparameters
+    assert "n_layer" not in meta.hyperparameters
+
+
+def test_bloom_no_max_position_embeddings() -> None:
+    # ALiBi positional bias: no fixed max_position_embeddings in config
+    with _patch_bloom():
+        meta = read_huggingface("bigscience/bloom")
+    assert "max_position_embeddings" not in meta.hyperparameters
+
+
+# ---------------------------------------------------------------------------
+# bigscience/bloomz-7b1  (BLOOM 7B, seq_length captured, xP3 dataset, finetune)
+# ---------------------------------------------------------------------------
+
+# Instruction-tuned 7B BLOOM variant. seq_length=2048 is BLOOM's context-length
+# key (ALiBi models have no max_position_embeddings); added to _HYPER_KEYS so
+# it IS now captured. base_model=bigscience/bloom-7b1 (finetune from base).
+
+_BLOOMZ_7B1_CONFIG: dict[str, Any] = {
+    "model_type": "bloom",
+    "architectures": ["BloomForCausalLM"],
+    "vocab_size": 250880,
+    "hidden_size": 4096,
+    "n_layer": 30,  # BLOOM-specific: not captured
+    "n_head": 32,  # BLOOM-specific: not captured
+    "seq_length": 2048,  # added to _HYPER_KEYS → captured as context length
+    "attention_softmax_in_fp32": True,
+    "masked_softmax_fusion": True,
+    "bias_dropout_fusion": True,
+}
+
+_BLOOMZ_7B1_CARD_DATA = _make_card_data(
+    license="bigscience-bloom-rail-1.0",
+    pipeline_tag="text-generation",
+    language=[
+        "ak",
+        "ar",
+        "as",
+        "bm",
+        "bn",
+        "ca",
+        "code",
+        "en",
+        "es",
+        "eu",
+        "fon",
+        "fr",
+        "gu",
+        "hi",
+        "id",
+        "ig",
+        "ki",
+        "kn",
+        "lg",
+        "ln",
+        "ml",
+        "mr",
+        "ne",
+        "nso",
+        "ny",
+        "or",
+        "pa",
+        "pt",
+        "rn",
+        "rw",
+        "sn",
+        "st",
+        "sw",
+        "ta",
+        "te",
+        "tn",
+        "ts",
+        "tum",
+        "tw",
+        "ur",
+        "ve",
+        "vi",
+        "wo",
+        "xh",
+        "yo",
+        "zh",
+        "zu",
+    ],
+    library_name="transformers",
+    base_model="bigscience/bloom-7b1",
+    datasets=["bigscience/xP3"],
+)
+
+
+def _patch_bloomz_7b1() -> Any:
+    return _patch_hf_calls(
+        config=_BLOOMZ_7B1_CONFIG,
+        tokenizer_config={"tokenizer_class": "BloomTokenizerFast"},
+        card_data=_BLOOMZ_7B1_CARD_DATA,
+        hub_info={
+            "author": "bigscience",
+            "sha": "deadf00d",
+            "tags": ["base_model:finetune:bigscience/bloom-7b1"],
+        },
+    )
+
+
+def test_bloomz_7b1_type_of_model() -> None:
+    with _patch_bloomz_7b1():
+        meta = read_huggingface("bigscience/bloomz-7b1")
+    assert meta.type_of_model == "bloom"
+
+
+def test_bloomz_7b1_seq_length_captured() -> None:
+    # seq_length added to _HYPER_KEYS → BLOOM context length now captured
+    with _patch_bloomz_7b1():
+        meta = read_huggingface("bigscience/bloomz-7b1")
+    assert meta.hyperparameters.get("seq_length") == 2048
+
+
+def test_bloomz_7b1_base_model_finetune() -> None:
+    with _patch_bloomz_7b1():
+        meta = read_huggingface("bigscience/bloomz-7b1")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "finetune"
+    assert (meta.extra_data or {}).get("hf.base_model") == "bigscience/bloom-7b1"
+
+
+def test_bloomz_7b1_xp3_dataset() -> None:
+    with _patch_bloomz_7b1():
+        meta = read_huggingface("bigscience/bloomz-7b1")
+    assert any(d.metadata.name == "bigscience/xP3" for d in (meta.datasets or []))
+
+
+def test_bloomz_7b1_custom_license_passthrough() -> None:
+    with _patch_bloomz_7b1():
+        meta = read_huggingface("bigscience/bloomz-7b1")
+    assert meta.license == "bigscience-bloom-rail-1.0"
+
+
+# ---------------------------------------------------------------------------
+# CohereLabs/aya-23-8B  (fully gated: card + config both 401)
+# ---------------------------------------------------------------------------
+
+# Cohere Aya 23 multilingual instruction model. Both model card and config.json
+# return 401 → nearly empty metadata. Pattern matches CohereLabs/aya-vision-8b.
+
+
+def _patch_cohere_aya_23() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data={},  # gated card → empty dict
+        hub_info={"author": "CohereLabs", "sha": "deadf00d"},
+    )
+
+
+def test_cohere_aya_23_no_type_of_model() -> None:
+    with _patch_cohere_aya_23():
+        meta = read_huggingface("CohereLabs/aya-23-8B")
+    assert meta.type_of_model is None
+
+
+def test_cohere_aya_23_no_license() -> None:
+    with _patch_cohere_aya_23():
+        meta = read_huggingface("CohereLabs/aya-23-8B")
+    assert meta.license is None
+
+
+def test_cohere_aya_23_empty_domains() -> None:
+    with _patch_cohere_aya_23():
+        meta = read_huggingface("CohereLabs/aya-23-8B")
+    assert not meta.usage.domains
+
+
+def test_cohere_aya_23_author_captured_from_hub_info() -> None:
+    with _patch_cohere_aya_23():
+        meta = read_huggingface("CohereLabs/aya-23-8B")
+    assert (meta.extra_data or {}).get("hf.author") == "CohereLabs"
+
+
+# ---------------------------------------------------------------------------
+# occiglot/occiglot-7b-eu5-instruct  (Mistral, sliding_window, 5 EU langs, finetune)
+# ---------------------------------------------------------------------------
+
+# European Mistral-based instruct model fine-tuned on 5 EU languages.
+# sliding_window=4096 is in _HYPER_KEYS → captured. Tokenizer uses unlimited
+# sentinel (LlamaTokenizer) → hf.tokenizer_max_length not set.
+
+_OCCIGLOT_CONFIG: dict[str, Any] = {
+    "model_type": "mistral",
+    "architectures": ["MistralForCausalLM"],
+    "vocab_size": 32002,
+    "hidden_size": 4096,
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 32768,
+    "sliding_window": 4096,
+    "torch_dtype": "bfloat16",
+}
+
+_OCCIGLOT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["en", "es", "de", "fr", "it"],
+    library_name="transformers",
+    base_model="occiglot/occiglot-7b-eu5",
+)
+
+_OCCIGLOT_TOKENIZER_SENTINEL: int = 1_000_000_000_000_000_019_884_624_838_656
+
+
+def _patch_occiglot() -> Any:
+    return _patch_hf_calls(
+        config=_OCCIGLOT_CONFIG,
+        tokenizer_config={
+            "tokenizer_class": "LlamaTokenizer",
+            "model_max_length": _OCCIGLOT_TOKENIZER_SENTINEL,
+        },
+        card_data=_OCCIGLOT_CARD_DATA,
+        hub_info={
+            "author": "occiglot",
+            "sha": "deadf00d",
+            "tags": ["base_model:finetune:occiglot/occiglot-7b-eu5"],
+        },
+    )
+
+
+def test_occiglot_type_of_model() -> None:
+    with _patch_occiglot():
+        meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
+    assert meta.type_of_model == "mistral"
+
+
+def test_occiglot_sliding_window_captured() -> None:
+    # sliding_window is in _HYPER_KEYS → captured as hyperparameter
+    with _patch_occiglot():
+        meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
+    assert meta.hyperparameters.get("sliding_window") == 4096
+
+
+def test_occiglot_finetune_from_base() -> None:
+    with _patch_occiglot():
+        meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "finetune"
+    assert (meta.extra_data or {}).get("hf.base_model") == "occiglot/occiglot-7b-eu5"
+
+
+def test_occiglot_five_eu_languages() -> None:
+    with _patch_occiglot():
+        meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert set(langs) == {"en", "es", "de", "fr", "it"}
+
+
+def test_occiglot_sentinel_filtered() -> None:
+    # Unlimited sentinel → hf.tokenizer_max_length not set
+    with _patch_occiglot():
+        meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
+    assert "hf.tokenizer_max_length" not in (meta.extra_data or {})
+
+
+# ---------------------------------------------------------------------------
+# Aleph-Alpha/Pharia-1-LLM-7B-control  (other + license_name, custom scaling lib)
+# ---------------------------------------------------------------------------
+
+# Aleph-Alpha's 7B LLM uses a custom "scaling" framework (not transformers).
+# config.json is absent (404) — the model uses a proprietary weight format.
+# Card: license=other + license_name=open-aleph-license (secondary field).
+# 7 European languages.
+
+_PHARIA_CONTROL_CARD_DATA = _make_card_data(
+    license="other",
+    license_name="open-aleph-license",
+    pipeline_tag="text-generation",
+    language=["de", "en", "fr", "es", "it", "pt", "nl"],
+    library_name="scaling",
+)
+
+
+def _patch_pharia_control() -> Any:
+    return _patch_hf_calls(
+        config=None,  # absent (404) — custom scaling framework
+        tokenizer_config=None,
+        card_data=_PHARIA_CONTROL_CARD_DATA,
+        hub_info={"author": "Aleph-Alpha", "sha": "deadf00d"},
+    )
+
+
+def test_pharia_control_no_architecture() -> None:
+    # Config absent: no type_of_model or architecture
+    with _patch_pharia_control():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_pharia_control_vague_license_with_license_name() -> None:
+    # license=other (vague) → detection triggered → mock returns (None, None)
+    # license_name=open-aleph-license stored in extra_data["hf.license_name"]
+    with _patch_pharia_control():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+    assert (meta.extra_data or {}).get("hf.license_name") == "open-aleph-license"
+
+
+def test_pharia_control_scaling_library() -> None:
+    # Custom "scaling" framework: library_name="scaling" → hf.library_name
+    with _patch_pharia_control():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
+    assert (meta.extra_data or {}).get("hf.library_name") == "scaling"
+
+
+def test_pharia_control_text_generation_domain() -> None:
+    with _patch_pharia_control():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
+    assert "text-generation" in meta.usage.domains
+
+
+def test_pharia_control_seven_eu_languages() -> None:
+    with _patch_pharia_control():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert set(langs) == {"de", "en", "fr", "es", "it", "pt", "nl"}
+
+
+# ---------------------------------------------------------------------------
+# Aleph-Alpha/Pharia-1-LLM-7B-control-aligned  (DPO-aligned variant of control)
+# ---------------------------------------------------------------------------
+
+# DPO/RLHF-aligned variant of Pharia-1-LLM-7B-control. Same custom "scaling"
+# framework, same config-absent (404) pattern. base_model_relation=finetune
+# from the unaligned control variant.
+
+_PHARIA_ALIGNED_CARD_DATA = _make_card_data(
+    license="other",
+    license_name="open-aleph-license",
+    pipeline_tag="text-generation",
+    language=["de", "en", "fr", "es", "it", "pt", "nl"],
+    library_name="scaling",
+    base_model="Aleph-Alpha/Pharia-1-LLM-7B-control",
+)
+
+
+def _patch_pharia_aligned() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_PHARIA_ALIGNED_CARD_DATA,
+        hub_info={
+            "author": "Aleph-Alpha",
+            "sha": "deadf00d",
+            "tags": ["base_model:finetune:Aleph-Alpha/Pharia-1-LLM-7B-control"],
+        },
+    )
+
+
+def test_pharia_aligned_no_architecture() -> None:
+    with _patch_pharia_aligned():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control-aligned")
+    assert meta.type_of_model is None
+
+
+def test_pharia_aligned_finetune_from_control() -> None:
+    with _patch_pharia_aligned():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control-aligned")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "finetune"
+    assert (meta.extra_data or {}).get(
+        "hf.base_model"
+    ) == "Aleph-Alpha/Pharia-1-LLM-7B-control"
+
+
+def test_pharia_aligned_vague_license_with_license_name() -> None:
+    with _patch_pharia_aligned():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control-aligned")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_name") == "open-aleph-license"
+
+
+def test_pharia_aligned_text_generation_domain() -> None:
+    with _patch_pharia_aligned():
+        meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control-aligned")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# Unbabel/wmt22-cometkiwi-da  (fully gated: card + config both 401)
+# ---------------------------------------------------------------------------
+
+# Unbabel's COMET-Kiwi quality estimation model for MT evaluation. Gated access
+# requires accepting a license agreement; both card and config return 401.
+# Pattern matches other fully gated repos (CohereLabs/aya-vision-8b, aya-23-8B).
+
+
+def _patch_wmt22_cometkiwi() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data={},  # gated → empty
+        hub_info={"author": "Unbabel", "sha": "deadf00d"},
+    )
+
+
+def test_wmt22_cometkiwi_no_type_of_model() -> None:
+    with _patch_wmt22_cometkiwi():
+        meta = read_huggingface("Unbabel/wmt22-cometkiwi-da")
+    assert meta.type_of_model is None
+
+
+def test_wmt22_cometkiwi_no_license() -> None:
+    with _patch_wmt22_cometkiwi():
+        meta = read_huggingface("Unbabel/wmt22-cometkiwi-da")
+    assert meta.license is None
+
+
+def test_wmt22_cometkiwi_empty_domains() -> None:
+    with _patch_wmt22_cometkiwi():
+        meta = read_huggingface("Unbabel/wmt22-cometkiwi-da")
+    assert not meta.usage.domains
+
+
+def test_wmt22_cometkiwi_author_from_hub_info() -> None:
+    with _patch_wmt22_cometkiwi():
+        meta = read_huggingface("Unbabel/wmt22-cometkiwi-da")
+    assert (meta.extra_data or {}).get("hf.author") == "Unbabel"
+
+
+# ---------------------------------------------------------------------------
+# utter-project/EuroLLM-1.7B  (34 EU langs, GQA 16h/8kv, no pipeline_tag)
+# ---------------------------------------------------------------------------
+
+# Small multilingual European LLM. Grouped-query attention (8 KV heads vs 16
+# attention heads). 34 languages (EU + some major world languages). No
+# pipeline_tag → empty usage.domains. Unlimited tokenizer sentinel filtered.
+
+_EUROLLM_1B7_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 128000,
+    "hidden_size": 2048,
+    "num_hidden_layers": 24,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 4096,
+    "torch_dtype": "bfloat16",
+}
+
+_EUROLLM_1B7_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag=None,
+    language=[
+        "en",
+        "de",
+        "es",
+        "fr",
+        "it",
+        "pt",
+        "pl",
+        "nl",
+        "tr",
+        "sv",
+        "cs",
+        "el",
+        "hu",
+        "ro",
+        "fi",
+        "uk",
+        "sl",
+        "sk",
+        "da",
+        "lt",
+        "lv",
+        "et",
+        "bg",
+        "no",
+        "ca",
+        "hr",
+        "ga",
+        "mt",
+        "gl",
+        "zh",
+        "ru",
+        "ko",
+        "ja",
+        "ar",
+    ],
+    library_name="transformers",
+)
+
+_EUROLLM_TOKENIZER_SENTINEL: int = 1_000_000_000_000_000_019_884_624_838_656
+
+
+def _patch_eurollm_1b7() -> Any:
+    return _patch_hf_calls(
+        config=_EUROLLM_1B7_CONFIG,
+        tokenizer_config={
+            "tokenizer_class": "LlamaTokenizer",
+            "model_max_length": _EUROLLM_TOKENIZER_SENTINEL,
+        },
+        card_data=_EUROLLM_1B7_CARD_DATA,
+        hub_info={"author": "utter-project", "sha": "deadf00d"},
+    )
+
+
+def test_eurollm_1b7_type_of_model() -> None:
+    with _patch_eurollm_1b7():
+        meta = read_huggingface("utter-project/EuroLLM-1.7B")
+    assert meta.type_of_model == "llama"
+
+
+def test_eurollm_1b7_gqa() -> None:
+    # GQA: 8 KV heads for 16 attention heads
+    with _patch_eurollm_1b7():
+        meta = read_huggingface("utter-project/EuroLLM-1.7B")
+    assert meta.hyperparameters.get("num_attention_heads") == 16
+    assert meta.hyperparameters.get("num_key_value_heads") == 8
+
+
+def test_eurollm_1b7_no_pipeline_tag_empty_domains() -> None:
+    with _patch_eurollm_1b7():
+        meta = read_huggingface("utter-project/EuroLLM-1.7B")
+    assert not meta.usage.domains
+
+
+def test_eurollm_1b7_34_languages() -> None:
+    with _patch_eurollm_1b7():
+        meta = read_huggingface("utter-project/EuroLLM-1.7B")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert len(langs) == 34
+    assert "ga" in langs  # Irish (low-resource EU language)
+    assert "mt" in langs  # Maltese
+
+
+def test_eurollm_1b7_sentinel_filtered() -> None:
+    with _patch_eurollm_1b7():
+        meta = read_huggingface("utter-project/EuroLLM-1.7B")
+    assert "hf.tokenizer_max_length" not in (meta.extra_data or {})
