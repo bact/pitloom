@@ -76,7 +76,7 @@ dependency is not installed or the file is absent.
 
 `tests/test_extract_huggingface.py` exercises `pitloom.extract._huggingface`
 entirely through mocks -- no network calls are made at test time.  The survey
-covers **120 real model repositories** (plus 2 dataset-namespace repos referenced
+covers **132 real model repositories** (plus 2 dataset-namespace repos referenced
 as dataset entries) observed on Hugging Face Hub in May 2026.
 
 ### Data source
@@ -178,7 +178,7 @@ Affected models: `sonoisa/sentence-bert-base-ja-mean-tokens`,
 
 The frozenset `_DOMAIN_TAGS` controls which HF pipeline tags become
 `ai_domain` values in the SPDX output (rather than raw `hf.tags`).  Survey
-of the 120 models found 15 tags missing:
+of the 132 models found 15 tags missing:
 
 | New tag | Example model(s) |
 | :--- | :--- |
@@ -243,8 +243,8 @@ real strings.
 Anything outside this set is stored as-is in `meta.license`, including
 non-SPDX HuggingFace custom identifiers such as `"gemma"`, `"llama3.2"`,
 `"llama3"`, `"bigcode-openrail-m"`, `"openrail++"`, `"apple-amlr"`,
-`"kanana-license"`, `"bsd-3-clause"`, `"cc-by-nc-4.0"`, `"cc-by-4.0"`,
-`"cc-by-sa-4.0"`.
+`"kanana-license"`, `"bigscience-bloom-rail-1.0"`, `"bsd-3-clause"`,
+`"cc-by-nc-4.0"`, `"cc-by-4.0"`, `"cc-by-sa-4.0"`.
 
 When the card YAML contains a vague value, the raw string is saved in
 `extra_data["hf.license_raw"]` and `_detect_license_from_hf_files` is called
@@ -258,6 +258,32 @@ calls `build_license_elements()` whenever `ai_model.license` is non-None,
 emitting `hasDeclaredLicense` and `hasConcludedLicense` relationships into the
 SPDX output and adding `simpleLicensing` to `profileConformance`.
 
+#### 7. BLOOM architecture: non-standard config key names (known gap)
+
+BLOOM models (`bigscience/bloom`, `bigscience/bloomz-7b1`) use `n_layer` and
+`n_head` instead of `num_hidden_layers` and `num_attention_heads` — these are
+**not** in `_HYPER_KEYS` → layer count and head count are silently skipped.
+Similarly, BLOOM uses ALiBi positional bias with no fixed `max_position_embeddings`
+field; instead it has `seq_length` for the training context window.
+
+`"seq_length"` was **added to `_HYPER_KEYS`** so BLOOM's (and similar models')
+training context length is now captured.  `n_layer` and `n_head` remain
+unaliased — adding generic BLOOM aliases is deferred until other models using
+those key names are found.
+
+#### 8. Additional library names
+
+The survey expanded the set of known `library_name` values stored in
+`extra_data["hf.library_name"]`:
+
+| `library_name` | Example model | Notes |
+| :--- | :--- | :--- |
+| `vllm` | `mistralai/Voxtral-Mini-4B-Realtime-2602` | vLLM serving framework for multimodal models |
+| `scaling` | `Aleph-Alpha/Pharia-1-LLM-7B-control` | Aleph-Alpha proprietary training framework; config 404 |
+
+Previously seen: `sentence-transformers`, `diffusers`, `open_clip`, `timm`,
+`pyannote.audio`, `lerobot`, `TerraTorch`, `nemo`, `peft`, `gguf`.
+
 ### Metadata availability patterns
 
 **Standard access (card + config accessible)**
@@ -269,7 +295,10 @@ Examples: `mistralai/Mistral-7B-v0.1`, `Qwen/Qwen3-235B-A22B`,
 `kakaobank/kanana-1.5-v-3b-instruct`, `LGAI-EXAONE/EXAONE-4.5-33B`,
 `THUDM/GLM-4.5-Air-REAP`, `line-corporation/line-distilbert-base-japanese`,
 `line-corporation/clip-japanese-base-v2`, `Salesforce/moirai-2.0-R-small`,
-`HKUSTAudio/Llasa-3B`.
+`HKUSTAudio/Llasa-3B`, `mistralai/Voxtral-Mini-4B-Realtime-2602`,
+`TildeAI/TildeOpen-30b-64k`, `TildeAI/TildeOpen-30b`,
+`openeurollm/datamix-9b-80-20`, `bigscience/bloom`, `bigscience/bloomz-7b1`,
+`occiglot/occiglot-7b-eu5-instruct`, `utter-project/EuroLLM-1.7B`.
 
 **Gated config, accessible card**
 `config.json` returns 401; `type_of_model`, `architecture`, and `hyperparameters`
@@ -278,7 +307,8 @@ the card YAML.  Examples: `google/gemma-2b`, `meta-llama/Llama-3.2-1B`,
 `meta-llama/Llama-3.2-3B`, `meta-llama/Llama-3.2-3B-Instruct`,
 `MahmoodLab/UNI2-h`, `ai4bharat/indic-conformer-600m-multilingual`,
 `pyannote/speaker-diarization-community-1`, `briaai/RMBG-2.0`,
-`LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR`, `Fujitsu/Fujitsu-LLM-KG-8x7B`.
+`LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR`, `Fujitsu/Fujitsu-LLM-KG-8x7B`,
+`CohereLabs/aya-23-8B` (partially gated — card 401, config 401).
 
 **GGUF-only repo (no `config.json`, not gated)**
 `config.json` returns 404 (file absent, not a permissions error); all metadata
@@ -288,7 +318,9 @@ Examples: `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF`,
 `cstr/mimo-asr-GGUF`, `Doses-AI/boba-0.8b-food-GGUF`, `lmg-anon/vntl-llama3-8b-v2-gguf`.
 Same pattern applies to diffusers repos (`prs-eth/marigold-depth-v1-0`,
 `briaai/Fibo-Edit-RMBG`), PEFT adapter repos (`windowseat-ai/windowseat-reflection`),
-and other library-specific repos (`lerobot/pi05_base`, `timm/convnext_large.dinov3_lvd1689m`,
+custom-framework repos (`Aleph-Alpha/Pharia-1-LLM-7B-control`,
+`Aleph-Alpha/Pharia-1-LLM-7B-control-aligned`), and other library-specific repos
+(`lerobot/pi05_base`, `timm/convnext_large.dinov3_lvd1689m`,
 `ibm-granite/granite-geospatial-uki-flooddetection`).
 
 **No model card, config accessible**
@@ -306,7 +338,8 @@ for `author`, `sha`, dates, and computed tag prefixes -- not for the
 `hf.model_id`, `hf.url`, and `hf.author` are populated.
 **Known gap**: extending `_load_model_info` to read `model_info().card_data`
 would improve coverage for gated repos.
-Examples: `CohereLabs/aya-vision-8b`, `lelapa/InkubaLM-0.4B`
+Examples: `CohereLabs/aya-vision-8b`, `CohereLabs/aya-23-8B`,
+`Unbabel/wmt22-cometkiwi-da`, `lelapa/InkubaLM-0.4B`
 (InkubaLM's dataset is still captured via the `dataset:*` tag fallback).
 
 **Vague license → file detection** (`"other"`, `"custom"`, …)
@@ -320,7 +353,8 @@ Examples: `openthaigpt/openthaigpt-r1-32b-instruct`, `moonshotai/Kimi-K2.6`,
 `mistralai/Mistral-Medium-3.5-128B`, `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16`,
 `LGAI-EXAONE/EXAONE-4.5-33B`, `LGAI-EXAONE/EXAONE-4.5-33B-AWQ`,
 `LGAI-EXAONE/EXAONE-4.5-33B-FP8`, `LGAI-EXAONE/EXAONE-4.5-33B-GGUF`,
-`LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR`.
+`LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR`,
+`Aleph-Alpha/Pharia-1-LLM-7B-control`, `Aleph-Alpha/Pharia-1-LLM-7B-control-aligned`.
 
 **No license** (`license` field absent from card YAML)
 `meta.license` is `None`; `hf.license_raw` is not set.
@@ -376,7 +410,7 @@ threshold.  Examples: `UBC-NLP/serengeti-E250`, `tencent/HY-MT1.5-1.8B`,
 (`Falconsai/medical_summarization`) and 128 000 (`openai/privacy-filter`)
 are captured normally as `hf.tokenizer_max_length`.
 
-### Model zoo (120 model repos)
+### Model zoo (132 model repos)
 
 #### Text generation and language models
 
@@ -421,6 +455,18 @@ are captured normally as `hf.tokenizer_max_length`.
 | `Intelligent-Internet/II-Medical-8B` | Qwen3 finetune, empty card tags | Medical domain; `hidden_size=4096`; no pipeline_tag; apache-2.0 |
 | `THUDM/GLM-4.5-Air-REAP` | MoE, `base_model_relation=merge`, apache-2.0 | `glm4_moe` arch; `Glm4MoeForCausalLM`; Samsung REAP merge from GLM-4.5-Air |
 | `Fujitsu/Fujitsu-LLM-KG-8x7B` | Gated config, NeMo library | Config 401; `library_name=nemo` → `hf.library_name`; apache-2.0 |
+| `mistralai/Voxtral-Mini-4B-Realtime-2602` | Multimodal audio+text (ASR), `vllm` library | `voxtral_realtime` arch; audio encoder + text decoder; `library_name=vllm` |
+| `TildeAI/TildeOpen-30b-64k` | YaRN RoPE context extension, 7 datasets, cc-by-4.0 | 8 192 → 65 536 tokens via YaRN; `rope_scaling` not in `_HYPER_KEYS`; `tokenizer_max_length=65536` |
+| `TildeAI/TildeOpen-30b` | Base 30B, unlimited tokenizer sentinel | Same 7 corpora; LlamaTokenizer sentinel filtered; no YaRN |
+| `openeurollm/datamix-9b-80-20` | Gemma-3 tokenizer (262K vocab), no GQA, no pipeline_tag | `vocab_size=262400`; `num_kv_heads=num_attn_heads=32`; empty `usage.domains` |
+| `bigscience/bloom` | BLOOM 176B, ALiBi, custom key names, custom license | `n_layer`/`n_head` not in `_HYPER_KEYS` → layers skipped; `bigscience-bloom-rail-1.0` passthrough |
+| `bigscience/bloomz-7b1` | BLOOM 7B, `seq_length` captured, xP3 finetune | `seq_length=2048` (new `_HYPER_KEYS` entry); finetune from bloom-7b1; `bigscience/xP3` dataset |
+| `CohereLabs/aya-23-8B` | Fully gated (card + config 401) | Same pattern as `CohereLabs/aya-vision-8b`; only `hf.author` from `model_info` |
+| `occiglot/occiglot-7b-eu5-instruct` | Mistral, `sliding_window` captured, 5 EU langs | `sliding_window=4096` in `_HYPER_KEYS`; finetune from occiglot-7b-eu5 |
+| `Aleph-Alpha/Pharia-1-LLM-7B-control` | Config 404, custom `scaling` lib, `license_name` | `library_name=scaling`; `license_name=open-aleph-license`; 7 EU langs |
+| `Aleph-Alpha/Pharia-1-LLM-7B-control-aligned` | DPO-aligned variant of control, finetune | Same `scaling` framework; `base_model_relation=finetune` from control |
+| `utter-project/EuroLLM-1.7B` | 34 languages, GQA (16h/8kv), no pipeline_tag | Smallest multilingual EU model; unlimited tokenizer sentinel filtered |
+| `Unbabel/wmt22-cometkiwi-da` | Fully gated (card + config 401) | MT quality estimation; only `hf.author` captured |
 
 #### Embeddings, retrieval, and text classification
 
