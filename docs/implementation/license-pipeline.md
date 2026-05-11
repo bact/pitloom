@@ -14,11 +14,11 @@ SPDX 3 SBOM document.
 
 Licence data flows through three distinct stages:
 
-1. **Extract** — one or more source-specific extractors read licence
+1. **Extract** -- one or more source-specific extractors read licence
    information from files and remote APIs.
-2. **Model** — extracted data is normalised into a format-neutral
+2. **Model** -- extracted data is normalised into a format-neutral
    intermediate representation (`ProjectMetadata` or `AiModelMetadata`).
-3. **Assemble and export** — the assembler converts the intermediate model
+3. **Assemble and export** -- the assembler converts the intermediate model
    into SPDX 3 elements and serialises them as JSON-LD.
 
 ## Data flow diagram
@@ -132,11 +132,11 @@ relationships.
 
 `_huggingface.py` implements a two-step resolution in `_resolve_license()`:
 
-1. **Card YAML** — reads `license:` from the model card frontmatter. If
+1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
    `unknown`, `unlicensed`), it is accepted as-is and stored in
    `AiModelMetadata.license`.
-2. **File detection** — when the card YAML value is absent or vague,
+2. **File detection** -- when the card YAML value is absent or vague,
    `_detect_license_from_hf_files()` iterates through candidate files in
    the repository (`LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, and
    suffixed variants) in priority order. Each file is downloaded via
@@ -165,8 +165,8 @@ against vectorised licence texts with a default threshold of 0.85.
 
 After extraction, licence data lives in one of two dataclasses:
 
-- `ProjectMetadata.license_name: str | None` — for Python projects.
-- `AiModelMetadata.license: str | None` — for AI model files and
+- `ProjectMetadata.license_name: str | None` -- for Python projects.
+- `AiModelMetadata.license: str | None` -- for AI model files and
   HuggingFace Hub models.
 
 Both carry a `provenance: dict[str, str]` where the `"license"` key
@@ -180,7 +180,7 @@ Source: model.pt2 | Field: extra/license
 
 ## Stage 3: assemble and export
 
-### `build_license_elements()` — `assemble/spdx3/deps.py`
+### `build_license_elements()` -- `assemble/spdx3/deps.py`
 
 This shared helper is called by every code path that needs to emit
 licence relationships. It:
@@ -195,9 +195,9 @@ licence relationships. It:
    - `simplelicensing_licenseText`: the full licence identifier string.
    - `comment`: `"Metadata provenance: license: <provenance>"`.
 3. Builds and returns two fresh `Relationship` elements:
-   - `hasDeclaredLicense` — the licence declared in the software
+   - `hasDeclaredLicense` -- the licence declared in the software
      artefact itself.
-   - `hasConcludedLicense` — the licence as concluded by the SBOM
+   - `hasConcludedLicense` -- the licence as concluded by the SBOM
      creator (currently set to the same value; see in-code comment for
      planned refinement).
 
@@ -284,8 +284,8 @@ For each package with a known licence, the JSON-LD graph contains:
 | `src/pitloom/assemble/spdx3/deps.py` | `build_license_elements()`
   shared helper |
 | `src/pitloom/assemble/spdx3/document.py` | `build()` and
-  `build_model()` — licence wiring |
-| `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` — AI model
+  `build_model()` -- licence wiring |
+| `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model
   licence wiring |
 | `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license()`,
   `add_license()` |

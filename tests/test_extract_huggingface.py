@@ -3480,12 +3480,13 @@ def test_dataset_info_tag_fallback_when_no_card_datasets() -> None:
 
 
 # ===========================================================================
-# NEW MODEL BATCH 4 — 42 models covering new patterns
+# NEW MODEL BATCH 4 -- 42 models covering new patterns
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
 # PATTERN: visual-question-answering pipeline tag
 # ---------------------------------------------------------------------------
+
 
 # dandelin/vilt-b32-finetuned-vqa
 # ViLT fine-tuned on VQAv2; fine-tuned from dandelin/vilt-b32.
@@ -3604,7 +3605,7 @@ def test_blip_vqa_domain() -> None:
 
 
 def test_blip_vqa_bsd_license_passthrough() -> None:
-    # bsd-3-clause not in _VAGUE_LICENSE_VALUES — passed through as-is.
+    # bsd-3-clause not in _VAGUE_LICENSE_VALUES -- passed through as-is.
     with _patch_blip_vqa():
         meta = read_huggingface("Salesforce/blip-vqa-base")
     assert meta.license == "bsd-3-clause"
@@ -3613,6 +3614,7 @@ def test_blip_vqa_bsd_license_passthrough() -> None:
 # ---------------------------------------------------------------------------
 # PATTERN: text-to-speech domain tag
 # ---------------------------------------------------------------------------
+
 
 # k2-fsa/OmniVoice
 # Zero-shot TTS; 646 languages; fine-tuned from Qwen3-0.6B; arxiv DOI.
@@ -3686,6 +3688,7 @@ def test_omnivoice_bf16_tts_domain_and_base_model() -> None:
 # PATTERN: speaker-diarization (new domain tag, gated model)
 # ---------------------------------------------------------------------------
 
+
 # pyannote/speaker-diarization-community-1
 # Gated (cc-by-4.0 acceptance required); pyannote.audio library.
 def _patch_pyannote_diar() -> Any:
@@ -3717,6 +3720,7 @@ def test_pyannote_library_name() -> None:
 # ---------------------------------------------------------------------------
 # PATTERN: audio-to-audio (new domain tag) + multi-task speech model
 # ---------------------------------------------------------------------------
+
 
 # facebook/seamless-m4t-v2-large
 # ASR + S2TT + T2ST + S2ST; cc-by-nc-4.0; audio-to-audio in tags.
@@ -3762,8 +3766,9 @@ def test_seamless_nc_license() -> None:
 
 
 # ---------------------------------------------------------------------------
-# PATTERN: ASR — various architectures and bases
+# PATTERN: ASR -- various architectures and bases
 # ---------------------------------------------------------------------------
+
 
 # ibm-granite/granite-speech-4.1-2b
 # Conformer + Q-Former + LM; fine-tuned from granite-4.0-1b-base; 6 languages.
@@ -3810,15 +3815,36 @@ def test_granite_speech_base_model_finetune() -> None:
 # Gated; 22 Indian-language ASR; custom_code.
 def _patch_indic_conformer() -> Any:
     return _patch_hf_calls(
-        config=None,   # Gated
+        config=None,  # Gated
         tokenizer_config=None,
         card_data=_make_card_data(
             license="mit",
             pipeline_tag="automatic-speech-recognition",
             tags=["custom_code", "ONNX"],
-            language=["as", "bn", "gu", "hi", "kn", "ml", "mr", "or", "pa",
-                      "sa", "ta", "te", "ur", "mai", "doi", "mni", "sat",
-                      "kok", "ks", "brx", "ne", "sd"],
+            language=[
+                "as",
+                "bn",
+                "gu",
+                "hi",
+                "kn",
+                "ml",
+                "mr",
+                "or",
+                "pa",
+                "sa",
+                "ta",
+                "te",
+                "ur",
+                "mai",
+                "doi",
+                "mni",
+                "sat",
+                "kok",
+                "ks",
+                "brx",
+                "ne",
+                "sd",
+            ],
         ),
         hub_info={"author": "ai4bharat"},
     )
@@ -3977,6 +4003,7 @@ def test_wav2vec2_id_asr_domain_three_languages() -> None:
 # PATTERN: IBM Granite family (three tasks: text, speech, geospatial, embed)
 # ---------------------------------------------------------------------------
 
+
 # ibm-granite/granite-4.1-8b
 # Dense LLM; GQA; 12 languages; fine-tuned from granite-4.1-8b-base.
 def _patch_granite_4_1_8b() -> Any:
@@ -3995,7 +4022,20 @@ def _patch_granite_4_1_8b() -> Any:
             license="apache-2.0",
             pipeline_tag="text-generation",
             tags=["granite", "conversational"],
-            language=["en", "de", "es", "fr", "ja", "pt", "ar", "cs", "it", "ko", "nl", "zh"],
+            language=[
+                "en",
+                "de",
+                "es",
+                "fr",
+                "ja",
+                "pt",
+                "ar",
+                "cs",
+                "it",
+                "ko",
+                "nl",
+                "zh",
+            ],
             base_model=["ibm-granite/granite-4.1-8b-base"],
         ),
         hub_info={
@@ -4060,12 +4100,14 @@ def test_granite_embed_feature_extraction_domain() -> None:
 
 
 # ibm-granite/granite-geospatial-uki-flooddetection
-# TerraTorch-based; image-segmentation; references two HF dataset-namespace flood datasets.
-# Note: ai-for-good-lab/ai4g-flood-dataset and blanchon/ETCI-2021-Flood-Detection
+# TerraTorch-based; image-segmentation; references two HF dataset-namespace
+# flood datasets.
+# Note:
+# ai-for-good-lab/ai4g-flood-dataset and blanchon/ETCI-2021-Flood-Detection
 # are HuggingFace datasets (not model repos) referenced in this model's card.
 def _patch_granite_geo_flood() -> Any:
     return _patch_hf_calls(
-        config=None,    # TerraTorch — no standard transformers config.json
+        config=None,  # TerraTorch -- no standard transformers config.json
         tokenizer_config=None,
         card_data=_make_card_data(
             license="apache-2.0",
@@ -4114,6 +4156,7 @@ def test_granite_geo_flood_terratorch_library_and_base_model() -> None:
 # PATTERN: flood detection (image classification, siglip, arxiv)
 # ---------------------------------------------------------------------------
 
+
 # prithivMLmods/Flood-Image-Detection
 # SiGLIP2 fine-tuned for binary flood/no-flood classification; arxiv.
 def _patch_flood_image_detect() -> Any:
@@ -4153,6 +4196,7 @@ def test_flood_image_detect_domain_and_base_model() -> None:
 # PATTERN: fill-mask (multilingual BERT family)
 # ---------------------------------------------------------------------------
 
+
 # FacebookAI/xlm-roberta-base
 # XLM-RoBERTa; fill-mask; MIT; 100+ languages.
 def _patch_xlm_roberta_base() -> Any:
@@ -4169,8 +4213,26 @@ def _patch_xlm_roberta_base() -> Any:
             license="mit",
             pipeline_tag="fill-mask",
             tags=[],
-            language=["af", "am", "ar", "en", "fr", "de", "hi", "ja", "ko",
-                      "pt", "ru", "es", "sw", "th", "tr", "vi", "yo", "zh"],
+            language=[
+                "af",
+                "am",
+                "ar",
+                "en",
+                "fr",
+                "de",
+                "hi",
+                "ja",
+                "ko",
+                "pt",
+                "ru",
+                "es",
+                "sw",
+                "th",
+                "tr",
+                "vi",
+                "yo",
+                "zh",
+            ],
         ),
         hub_info={"author": "FacebookAI"},
     )
@@ -4249,6 +4311,7 @@ def test_gabert_fill_mask_irish_no_license() -> None:
 # PATTERN: base_model merge relation
 # ---------------------------------------------------------------------------
 
+
 # Crownelius/Crow-9B-HERETIC-4.6
 # Qwen3.5 merge model; 26 languages; merge relation.
 def _patch_crow_9b() -> Any:
@@ -4265,9 +4328,34 @@ def _patch_crow_9b() -> Any:
             license="apache-2.0",
             pipeline_tag="text-generation",
             tags=["agent", "conversational"],
-            language=["en", "zh", "fr", "de", "es", "pt", "it", "ja", "ko",
-                      "ru", "ar", "hi", "nl", "pl", "sv", "da", "no", "fi",
-                      "cs", "hu", "ro", "tr", "vi", "id", "th", "uk"],
+            language=[
+                "en",
+                "zh",
+                "fr",
+                "de",
+                "es",
+                "pt",
+                "it",
+                "ja",
+                "ko",
+                "ru",
+                "ar",
+                "hi",
+                "nl",
+                "pl",
+                "sv",
+                "da",
+                "no",
+                "fi",
+                "cs",
+                "hu",
+                "ro",
+                "tr",
+                "vi",
+                "id",
+                "th",
+                "uk",
+            ],
             base_model=["Qwen/Qwen3.5-9B-Base"],
         ),
         hub_info={
@@ -4332,6 +4420,7 @@ def test_qwen3_reap_merge_relation_moe() -> None:
 # ---------------------------------------------------------------------------
 # PATTERN: classic / early LLMs (diverse architectures)
 # ---------------------------------------------------------------------------
+
 
 # facebook/opt-2.7b
 # OPT 2.7B; license=other (Meta non-commercial).
@@ -4439,7 +4528,20 @@ def _patch_stablelm_zephyr() -> Any:
             license="apache-2.0",
             pipeline_tag="text-generation",
             tags=["conversational"],
-            language=["en", "de", "es", "fr", "it", "nl", "pt", "pl", "ru", "zh", "ja", "ko"],
+            language=[
+                "en",
+                "de",
+                "es",
+                "fr",
+                "it",
+                "nl",
+                "pt",
+                "pl",
+                "ru",
+                "zh",
+                "ja",
+                "ko",
+            ],
         ),
         hub_info={"author": "stabilityai"},
     )
@@ -4521,10 +4623,11 @@ def test_phi2_code_tag_in_domain() -> None:
 # PATTERN: Llama 3.2 3B variants (gated base vs gated instruct)
 # ---------------------------------------------------------------------------
 
+
 # meta-llama/Llama-3.2-3B (gated base model)
 def _patch_llama_3_2_3b() -> Any:
     return _patch_hf_calls(
-        config=None,   # Gated
+        config=None,  # Gated
         tokenizer_config=None,
         card_data=_make_card_data(
             license="llama3.2",
@@ -4540,13 +4643,13 @@ def test_llama_3_2_3b_gated_base_no_architecture() -> None:
     with _patch_llama_3_2_3b():
         meta = read_huggingface("meta-llama/Llama-3.2-3B")
     assert meta.license == "llama3.2"
-    assert meta.type_of_model is None   # config gated → not extractable
+    assert meta.type_of_model is None  # config gated → not extractable
 
 
 # meta-llama/Llama-3.2-3B-Instruct (gated, fine-tuned from 3B base)
 def _patch_llama_3_2_3b_instruct() -> Any:
     return _patch_hf_calls(
-        config=None,   # Gated
+        config=None,  # Gated
         tokenizer_config=None,
         card_data=_make_card_data(
             license="llama3.2",
@@ -4612,6 +4715,7 @@ def test_hermes_3_llama_3b_finetune_and_license() -> None:
 # PATTERN: text-classification (multiple models)
 # ---------------------------------------------------------------------------
 
+
 # HuggingFaceFW/fineweb-edu-classifier
 # Educational quality scorer (0–5); bert-like; fine-tuned from Snowflake arctic embed.
 def _patch_fineweb_edu() -> Any:
@@ -4668,7 +4772,7 @@ def _patch_deberta_human_value() -> Any:
 
 
 def test_deberta_human_value_openrail_license() -> None:
-    # openrail++ is not in _VAGUE_LICENSE_VALUES — passed through as-is.
+    # openrail++ is not in _VAGUE_LICENSE_VALUES -- passed through as-is.
     with _patch_deberta_human_value():
         meta = read_huggingface("tum-nlp/Deberta_Human_Value_Detector")
     assert meta.license == "openrail++"
@@ -4715,6 +4819,7 @@ def test_aspect_finnlp_th_camembert_no_license() -> None:
 # ---------------------------------------------------------------------------
 # PATTERN: legal domain models (diverse languages and regions)
 # ---------------------------------------------------------------------------
+
 
 # FINAL-Bench/Darwin-28B-KR-Legal
 # Korean legal LLM; Qwen3.5 arch; fine-tuned from Darwin-28B-KR.
@@ -4867,6 +4972,7 @@ def test_arabic_legal_ocr_domain_and_gemma_license() -> None:
 # PATTERN: multimodal / specialty
 # ---------------------------------------------------------------------------
 
+
 # tokyotech-llm/Qwen3-Swallow-8B-SFT-v0.2
 # Japanese Qwen3 SFT; English+Japanese; fine-tuned from Qwen3-Swallow CPT.
 def _patch_qwen3_swallow() -> Any:
@@ -4906,7 +5012,8 @@ def test_qwen3_swallow_sft_japanese_finetune() -> None:
 
 
 # aisingapore/Gemma-SEA-LION-v4-27B-IT
-# SEA LION 27B IT; 11 SEA languages; gemma license; text-generation + image-text-to-text tag.
+# SEA LION 27B IT; 11 SEA languages; gemma license;
+# text-generation + image-text-to-text tag.
 def _patch_sealion_27b_it() -> Any:
     return _patch_hf_calls(
         config={
@@ -4976,7 +5083,7 @@ def test_boba_food_gguf_domain_base_model_no_arch() -> None:
         meta = read_huggingface("Doses-AI/boba-0.8b-food-GGUF")
     assert "image-text-to-text" in meta.usage.domains
     assert meta.extra_data.get("hf.base_model") == "Qwen/Qwen3.5-0.8B"
-    assert meta.type_of_model is None   # GGUF-only, no config.json
+    assert meta.type_of_model is None  # GGUF-only, no config.json
 
 
 # baidu/ERNIE-Image-Turbo
@@ -5002,12 +5109,13 @@ def test_ernie_image_turbo_text_to_image_domain_diffusers() -> None:
     assert "text-to-image" in meta.usage.domains
     assert meta.extra_data.get("hf.library_name") == "diffusers"
 
+
 # ---------------------------------------------------------------------------
 # Qwen/Qwen3-235B-A22B  (MoE, qwen license, thinking-mode generation config)
 # ---------------------------------------------------------------------------
 
 # 235B sparse MoE (22B active params), 128 experts, 8 active per token.
-# "qwen" is a custom HF license identifier — not in _VAGUE_LICENSE_VALUES,
+# "qwen" is a custom HF license identifier -- not in _VAGUE_LICENSE_VALUES,
 # so it passes through unchanged in meta.license.
 # generation_config includes temperature + top_p (thinking-mode params).
 
@@ -5039,7 +5147,10 @@ _QWEN3_235B_CARD_DATA = _make_card_data(
 def _patch_qwen3_235b() -> Any:
     return _patch_hf_calls(
         config=_QWEN3_235B_CONFIG,
-        tokenizer_config={"tokenizer_class": "Qwen2Tokenizer", "model_max_length": 32768},
+        tokenizer_config={
+            "tokenizer_class": "Qwen2Tokenizer",
+            "model_max_length": 32768,
+        },
         generation_config=_QWEN3_235B_GENERATION_CONFIG,
         card_data=_QWEN3_235B_CARD_DATA,
         hub_info={"author": "Qwen", "sha": "abc123ef"},
@@ -5108,7 +5219,10 @@ _QWEN35_27B_CARD_DATA = _make_card_data(
 def _patch_qwen35_27b() -> Any:
     return _patch_hf_calls(
         config=_QWEN35_27B_CONFIG,
-        tokenizer_config={"tokenizer_class": "Qwen2Tokenizer", "model_max_length": 131072},
+        tokenizer_config={
+            "tokenizer_class": "Qwen2Tokenizer",
+            "model_max_length": 131072,
+        },
         card_data=_QWEN35_27B_CARD_DATA,
         hub_info={"author": "Qwen", "sha": "deadf00d"},
     )

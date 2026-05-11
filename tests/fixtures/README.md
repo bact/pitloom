@@ -75,7 +75,7 @@ dependency is not installed or the file is absent.
 ## Hugging Face Hub mock data
 
 `tests/test_extract_huggingface.py` exercises `pitloom.extract._huggingface`
-entirely through mocks — no network calls are made at test time.  The survey
+entirely through mocks -- no network calls are made at test time.  The survey
 covers **107 real model repositories** (plus 2 dataset-namespace repos referenced
 as dataset entries) observed on Hugging Face Hub in May 2026.
 
@@ -114,7 +114,7 @@ They span a wide range of tasks, access restrictions, and metadata patterns:
 
 Two dataset-namespace entries (`ai-for-good-lab/ai4g-flood-dataset`,
 `blanchon/ETCI-2021-Flood-Detection`) appear in the granite-geospatial model card
-`datasets:` field — these are HuggingFace `/datasets/` repos, not model repos,
+`datasets:` field -- these are HuggingFace `/datasets/` repos, not model repos,
 and cannot be passed to `read_huggingface`.  They appear as `DatasetReference`
 objects in the extracted metadata.
 
@@ -125,7 +125,7 @@ Using real network calls in tests creates four problems:
 1. **Flaky CI**: HuggingFace Hub access can be rate-limited, authenticated, or
    temporarily unavailable.
 2. **Credential requirements**: gated models (Llama, Gemma, pyannote, etc.) require
-   an accepted agreement and a token — impossible to replicate in public CI.
+   an accepted agreement and a token -- impossible to replicate in public CI.
 3. **API instability**: model card YAML, config files, and computed tags can change
    at any time; tests would drift silently.
 4. **Latency**: fetching dozens of large `config.json` files from the Hub in every
@@ -219,8 +219,8 @@ The survey also confirmed all four relation keywords in practice:
 
 #### 4. Dataset fallback from `model_info` tags
 
-When `card_data.get("datasets")` is empty — either because the model has no
-card, or because the card and config are both gated — the extractor falls back
+When `card_data.get("datasets")` is empty -- either because the model has no
+card, or because the card and config are both gated -- the extractor falls back
 to `dataset:*` prefix tags from `model_info().tags`.  Card YAML always takes
 priority when non-empty; the fallback fires only for no-card or fully-gated repos.
 
@@ -294,7 +294,7 @@ Examples: `UBC-NLP/serengeti-E250`, `facebook/nllb-200-distilled-600M`.
 
 **Fully gated (card + config both return 401)**
 `model_info()` exposes `card_data`, but the extractor reads `model_info` only
-for `author`, `sha`, dates, and computed tag prefixes — not for the
+for `author`, `sha`, dates, and computed tag prefixes -- not for the
 `card_data` object on the API response.  Result is nearly empty: only `name`,
 `hf.model_id`, `hf.url`, and `hf.author` are populated.
 **Known gap**: extending `_load_model_info` to read `model_info().card_data`

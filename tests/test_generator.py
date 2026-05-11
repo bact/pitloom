@@ -395,15 +395,27 @@ _AI_LICENSE_CASES: list[tuple[str, str, str]] = [
     ("Kokoro-82M", "apache-2.0", "hexgrad/Kokoro-82M"),
     ("DeepSeek-R1", "mit", "deepseek-ai/DeepSeek-R1"),
     ("blip-vqa-base", "bsd-3-clause", "Salesforce/blip-vqa-base"),
-    ("speaker-diarization-community-1", "cc-by-4.0", "pyannote/speaker-diarization-community-1"),
+    (
+        "speaker-diarization-community-1",
+        "cc-by-4.0",
+        "pyannote/speaker-diarization-community-1",
+    ),
     ("seamless-m4t-v2-large", "cc-by-nc-4.0", "facebook/seamless-m4t-v2-large"),
-    ("wangchanglm-7.5B-sft-enth", "cc-by-sa-4.0", "pythainlp/wangchanglm-7.5B-sft-enth"),
+    (
+        "wangchanglm-7.5B-sft-enth",
+        "cc-by-sa-4.0",
+        "pythainlp/wangchanglm-7.5B-sft-enth",
+    ),
     # non-standard / custom Hugging Face license identifiers
     ("starcoder2-3b", "bigcode-openrail-m", "bigcode/starcoder2-3b"),
     ("Llama-3.2-1B", "llama3.2", "meta-llama/Llama-3.2-1B"),
     ("Hermes-3-Llama-3.2-3B", "llama3", "NousResearch/Hermes-3-Llama-3.2-3B"),
     ("Gemma-SEA-LION-v4-27B-IT", "gemma", "aisingapore/Gemma-SEA-LION-v4-27B-IT"),
-    ("Deberta_Human_Value_Detector", "openrail++", "tum-nlp/Deberta_Human_Value_Detector"),
+    (
+        "Deberta_Human_Value_Detector",
+        "openrail++",
+        "tum-nlp/Deberta_Human_Value_Detector",
+    ),
     ("DepthPro-hf", "apple-amlr", "apple/DepthPro-hf"),
 ]
 
