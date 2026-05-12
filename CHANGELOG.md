@@ -15,7 +15,22 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.6.0...v0.6.1>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.6.1...v0.7.0>
+
+## [0.7.0] - 2026-05-12
+
+### Added
+
+- `-m` / `--aimodel` command-line option now works with Hugging Face Hub URL
+  ([#71])
+
+### Fixed
+
+- Export license information of an AI model
+  (was previously extracted but not being exported) ([#72])
+
+[#71]: https://github.com/bact/pitloom/pull/71
+[#72]: https://github.com/bact/pitloom/pull/72
 
 ## [0.6.1] - 2026-05-07
 
@@ -141,6 +156,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.7.0]: https://github.com/bact/pitloom/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/bact/pitloom/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/bact/pitloom/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/bact/pitloom/compare/v0.5.0...v0.5.1

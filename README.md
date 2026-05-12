@@ -115,7 +115,7 @@ Keras, HDF5, NumPy, fastText.
 
 #### Hugging Face model SBOM
 
-Pass a Hugging Face URL or model ID directly - no local file required.
+Pass a Hugging Face Hub URL or model ID directly - no local file required.
 Pitloom fetches metadata from the Hub (model card, `config.json`,
 `tokenizer_config.json`, and `generation_config.json`) and produces an
 enriched `ai_AIPackage` SBOM with architecture, hyperparameters, license,
