@@ -7192,3 +7192,1584 @@ def test_eurollm_1b7_sentinel_filtered() -> None:
     with _patch_eurollm_1b7():
         meta = read_huggingface("utter-project/EuroLLM-1.7B")
     assert "hf.tokenizer_max_length" not in (meta.extra_data or {})
+
+
+# ===========================================================================
+# Batch 8 – 3D generation, new library formats, new architectures
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# stabilityai/stable-zero123  (text-to-3d, diffusers, vague license)
+# ---------------------------------------------------------------------------
+
+# Stable-Zero123 lifts 2-D images to 3-D objects. pipeline_tag=text-to-3d
+# (new _DOMAIN_TAGS entry). Config absent (404); library_name=diffusers.
+# Card: license=other → _detect_license_from_hf_files triggered.
+
+_STABLE_ZERO123_CARD_DATA = _make_card_data(
+    license="other",
+    license_name="sai-nc-community",
+    pipeline_tag="text-to-3d",
+    language=None,
+    library_name="diffusers",
+)
+
+
+def _patch_stable_zero123() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_STABLE_ZERO123_CARD_DATA,
+        hub_info={"author": "stabilityai", "sha": "deadf00d"},
+    )
+
+
+def test_stable_zero123_text_to_3d_domain() -> None:
+    # text-to-3d added to _DOMAIN_TAGS; as pipeline_tag it is captured directly
+    with _patch_stable_zero123():
+        meta = read_huggingface("stabilityai/stable-zero123")
+    assert "text-to-3d" in meta.usage.domains
+
+
+def test_stable_zero123_vague_license() -> None:
+    with _patch_stable_zero123():
+        meta = read_huggingface("stabilityai/stable-zero123")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+    assert (meta.extra_data or {}).get("hf.license_name") == "sai-nc-community"
+
+
+def test_stable_zero123_no_architecture() -> None:
+    with _patch_stable_zero123():
+        meta = read_huggingface("stabilityai/stable-zero123")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_stable_zero123_diffusers_library() -> None:
+    with _patch_stable_zero123():
+        meta = read_huggingface("stabilityai/stable-zero123")
+    assert (meta.extra_data or {}).get("hf.library_name") == "diffusers"
+
+
+# ---------------------------------------------------------------------------
+# openai/shap-e  (text-to-3d, MIT, no config)
+# ---------------------------------------------------------------------------
+
+# Shap·E generates 3-D assets from text or images. No config.json (404).
+# License: MIT. library_name absent.
+
+_SHAP_E_CARD_DATA = _make_card_data(
+    license="mit",
+    pipeline_tag="text-to-3d",
+    language=None,
+    library_name=None,
+)
+
+
+def _patch_shap_e() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_SHAP_E_CARD_DATA,
+        hub_info={"author": "openai", "sha": "deadf00d"},
+    )
+
+
+def test_shap_e_text_to_3d_domain() -> None:
+    with _patch_shap_e():
+        meta = read_huggingface("openai/shap-e")
+    assert "text-to-3d" in meta.usage.domains
+
+
+def test_shap_e_mit_license() -> None:
+    with _patch_shap_e():
+        meta = read_huggingface("openai/shap-e")
+    assert meta.license == "mit"
+
+
+def test_shap_e_no_architecture() -> None:
+    with _patch_shap_e():
+        meta = read_huggingface("openai/shap-e")
+    assert meta.type_of_model is None
+
+
+# ---------------------------------------------------------------------------
+# FreedomIntelligence/BlenderLLM  (text-to-3d pipeline, Qwen2 LLM)
+# ---------------------------------------------------------------------------
+
+# BlenderLLM is a standard Qwen2 LLM fine-tuned to generate Blender Python
+# scripts for 3-D modelling. pipeline_tag=text-to-3d even though the
+# underlying arch is a plain decoder LLM (not a diffusion/3D model).
+
+_BLENDERLLM_CONFIG: dict[str, Any] = {
+    "model_type": "qwen2",
+    "architectures": ["Qwen2ForCausalLM"],
+    "vocab_size": 152064,
+    "hidden_size": 3584,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 28,
+    "num_key_value_heads": 4,
+    "max_position_embeddings": 32768,
+    "torch_dtype": "bfloat16",
+}
+
+_BLENDERLLM_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-to-3d",
+    language=["en"],
+    library_name="transformers",
+)
+
+
+def _patch_blenderllm() -> Any:
+    return _patch_hf_calls(
+        config=_BLENDERLLM_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_BLENDERLLM_CARD_DATA,
+        hub_info={"author": "FreedomIntelligence", "sha": "deadf00d"},
+    )
+
+
+def test_blenderllm_type_of_model() -> None:
+    # Standard Qwen2 decoder with text-to-3d pipeline (Blender script generation)
+    with _patch_blenderllm():
+        meta = read_huggingface("FreedomIntelligence/BlenderLLM")
+    assert meta.type_of_model == "qwen2"
+
+
+def test_blenderllm_text_to_3d_domain() -> None:
+    with _patch_blenderllm():
+        meta = read_huggingface("FreedomIntelligence/BlenderLLM")
+    assert "text-to-3d" in meta.usage.domains
+
+
+def test_blenderllm_hyperparameters() -> None:
+    with _patch_blenderllm():
+        meta = read_huggingface("FreedomIntelligence/BlenderLLM")
+    assert meta.hyperparameters.get("hidden_size") == 3584
+
+
+# ---------------------------------------------------------------------------
+# hellork/BlenderLLM-IQ3_XXS-GGUF  (GGUF of BlenderLLM, text-to-3d, quantized)
+# ---------------------------------------------------------------------------
+
+# GGUF quantization of BlenderLLM. No config.json (404). pipeline_tag=text-to-3d
+# inherited from base. base_model_relation=quantized.
+
+_BLENDERLLM_GGUF_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-to-3d",
+    language=None,
+    library_name="gguf",
+    base_model="FreedomIntelligence/BlenderLLM",
+)
+
+
+def _patch_blenderllm_gguf() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_BLENDERLLM_GGUF_CARD_DATA,
+        hub_info={
+            "author": "hellork",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:FreedomIntelligence/BlenderLLM"],
+        },
+    )
+
+
+def test_blenderllm_gguf_no_architecture() -> None:
+    with _patch_blenderllm_gguf():
+        meta = read_huggingface("hellork/BlenderLLM-IQ3_XXS-GGUF")
+    assert meta.type_of_model is None
+
+
+def test_blenderllm_gguf_text_to_3d_domain() -> None:
+    with _patch_blenderllm_gguf():
+        meta = read_huggingface("hellork/BlenderLLM-IQ3_XXS-GGUF")
+    assert "text-to-3d" in meta.usage.domains
+
+
+def test_blenderllm_gguf_quantized_relation() -> None:
+    with _patch_blenderllm_gguf():
+        meta = read_huggingface("hellork/BlenderLLM-IQ3_XXS-GGUF")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+    assert (meta.extra_data or {}).get(
+        "hf.base_model"
+    ) == "FreedomIntelligence/BlenderLLM"
+
+
+# ---------------------------------------------------------------------------
+# tencent/HY-Motion-1.0  (text-to-3d, vague license, HY-Motion library)
+# ---------------------------------------------------------------------------
+
+# Tencent Hunyuan Motion generation model. pipeline_tag=text-to-3d. Library
+# name is the model series name itself ("HY-Motion-1.0"). Card: license=other
+# + license_name=tencent-hunyuan-community. Config accessible but uses
+# custom keys (no standard _HYPER_KEYS present).
+
+_HY_MOTION_CONFIG: dict[str, Any] = {
+    "Name": "HunyuanMotion",  # non-standard metadata field
+    "motion_module_type": "vanilla",
+    "num_transformer_blocks": 20,
+}
+
+_HY_MOTION_CARD_DATA = _make_card_data(
+    license="other",
+    license_name="tencent-hunyuan-community",
+    pipeline_tag="text-to-3d",
+    language=["zh", "en"],
+    library_name="HY-Motion-1.0",
+)
+
+
+def _patch_hy_motion() -> Any:
+    return _patch_hf_calls(
+        config=_HY_MOTION_CONFIG,
+        tokenizer_config=None,
+        card_data=_HY_MOTION_CARD_DATA,
+        hub_info={"author": "tencent", "sha": "deadf00d"},
+    )
+
+
+def test_hy_motion_text_to_3d_domain() -> None:
+    with _patch_hy_motion():
+        meta = read_huggingface("tencent/HY-Motion-1.0")
+    assert "text-to-3d" in meta.usage.domains
+
+
+def test_hy_motion_vague_license_with_license_name() -> None:
+    # license=other (vague) + license_name=tencent-hunyuan-community
+    with _patch_hy_motion():
+        meta = read_huggingface("tencent/HY-Motion-1.0")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+    assert (meta.extra_data or {}).get("hf.license_name") == "tencent-hunyuan-community"
+
+
+def test_hy_motion_no_type_of_model() -> None:
+    # Custom config keys, no model_type/architectures at top level
+    with _patch_hy_motion():
+        meta = read_huggingface("tencent/HY-Motion-1.0")
+    assert meta.type_of_model is None
+    assert not meta.hyperparameters
+
+
+def test_hy_motion_library_name() -> None:
+    with _patch_hy_motion():
+        meta = read_huggingface("tencent/HY-Motion-1.0")
+    assert (meta.extra_data or {}).get("hf.library_name") == "HY-Motion-1.0"
+
+
+# ---------------------------------------------------------------------------
+# apple/Sharp  (image-to-3d, apple-amlr passthrough, ml-sharp library)
+# ---------------------------------------------------------------------------
+
+# Apple Sharp generates 3-D from a single 2-D image. pipeline_tag=image-to-3d
+# (new _DOMAIN_TAGS entry). library_name=ml-sharp (Apple's custom library).
+# license=apple-amlr → passthrough (not in _VAGUE_LICENSE_VALUES). No config.
+
+_APPLE_SHARP_CARD_DATA = _make_card_data(
+    license="apple-amlr",
+    pipeline_tag="image-to-3d",
+    language=None,
+    library_name="ml-sharp",
+)
+
+
+def _patch_apple_sharp() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_APPLE_SHARP_CARD_DATA,
+        hub_info={"author": "apple", "sha": "deadf00d"},
+    )
+
+
+def test_apple_sharp_image_to_3d_domain() -> None:
+    # image-to-3d added to _DOMAIN_TAGS
+    with _patch_apple_sharp():
+        meta = read_huggingface("apple/Sharp")
+    assert "image-to-3d" in meta.usage.domains
+
+
+def test_apple_sharp_apple_amlr_license_passthrough() -> None:
+    # apple-amlr not in _VAGUE_LICENSE_VALUES → stored as-is
+    with _patch_apple_sharp():
+        meta = read_huggingface("apple/Sharp")
+    assert meta.license == "apple-amlr"
+    assert "hf.license_raw" not in (meta.extra_data or {})
+
+
+def test_apple_sharp_ml_sharp_library() -> None:
+    with _patch_apple_sharp():
+        meta = read_huggingface("apple/Sharp")
+    assert (meta.extra_data or {}).get("hf.library_name") == "ml-sharp"
+
+
+def test_apple_sharp_no_architecture() -> None:
+    with _patch_apple_sharp():
+        meta = read_huggingface("apple/Sharp")
+    assert meta.type_of_model is None
+
+
+# ---------------------------------------------------------------------------
+# FireRedTeam/FireRedVAD  (voice-activity-detection, no config)
+# ---------------------------------------------------------------------------
+
+# Voice Activity Detection model. pipeline_tag=voice-activity-detection
+# (new _DOMAIN_TAGS entry). No config.json (404).
+
+_FIRERED_VAD_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="voice-activity-detection",
+    language=None,
+    library_name=None,
+)
+
+
+def _patch_firered_vad() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_FIRERED_VAD_CARD_DATA,
+        hub_info={"author": "FireRedTeam", "sha": "deadf00d"},
+    )
+
+
+def test_firered_vad_voice_activity_detection_domain() -> None:
+    # voice-activity-detection added to _DOMAIN_TAGS
+    with _patch_firered_vad():
+        meta = read_huggingface("FireRedTeam/FireRedVAD")
+    assert "voice-activity-detection" in meta.usage.domains
+
+
+def test_firered_vad_apache_license() -> None:
+    with _patch_firered_vad():
+        meta = read_huggingface("FireRedTeam/FireRedVAD")
+    assert meta.license == "apache-2.0"
+
+
+def test_firered_vad_no_architecture() -> None:
+    with _patch_firered_vad():
+        meta = read_huggingface("FireRedTeam/FireRedVAD")
+    assert meta.type_of_model is None
+
+
+# ---------------------------------------------------------------------------
+# Alibaba-NLP/gte-multilingual-reranker-base  (text-ranking, "new" model_type)
+# ---------------------------------------------------------------------------
+
+# GTE multilingual reranker uses pipeline_tag=text-ranking (new _DOMAIN_TAGS
+# entry). Unusually, model_type="new" is a literal placeholder string used by
+# the GTE model family — not a descriptive name. architectures uses the same
+# placeholder: NewForSequenceClassification.
+
+_GTE_RERANKER_CONFIG: dict[str, Any] = {
+    "model_type": "new",
+    "architectures": ["NewForSequenceClassification"],
+    "vocab_size": 250002,
+    "hidden_size": 768,
+    "num_hidden_layers": 12,
+    "torch_dtype": "bfloat16",
+}
+
+_GTE_RERANKER_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-ranking",
+    language=["multilingual"],
+    library_name="sentence-transformers",
+)
+
+
+def _patch_gte_reranker() -> Any:
+    return _patch_hf_calls(
+        config=_GTE_RERANKER_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_GTE_RERANKER_CARD_DATA,
+        hub_info={"author": "Alibaba-NLP", "sha": "deadf00d"},
+    )
+
+
+def test_gte_reranker_text_ranking_domain() -> None:
+    # text-ranking added to _DOMAIN_TAGS; captured via pipeline_tag
+    with _patch_gte_reranker():
+        meta = read_huggingface("Alibaba-NLP/gte-multilingual-reranker-base")
+    assert "text-ranking" in meta.usage.domains
+
+
+def test_gte_reranker_model_type_placeholder() -> None:
+    # model_type="new" is a literal placeholder string used by Alibaba GTE
+    with _patch_gte_reranker():
+        meta = read_huggingface("Alibaba-NLP/gte-multilingual-reranker-base")
+    assert meta.type_of_model == "new"
+    assert meta.architecture == "NewForSequenceClassification"
+
+
+def test_gte_reranker_apache_license() -> None:
+    with _patch_gte_reranker():
+        meta = read_huggingface("Alibaba-NLP/gte-multilingual-reranker-base")
+    assert meta.license == "apache-2.0"
+
+
+def test_gte_reranker_sentence_transformers_library() -> None:
+    with _patch_gte_reranker():
+        meta = read_huggingface("Alibaba-NLP/gte-multilingual-reranker-base")
+    assert (meta.extra_data or {}).get("hf.library_name") == "sentence-transformers"
+
+
+# ---------------------------------------------------------------------------
+# apple/OpenELM-270M  (openelm arch, apple-amlr passthrough, custom config)
+# ---------------------------------------------------------------------------
+
+# Apple OpenELM-270M uses a custom efficient architecture ("openelm").
+# Config has non-standard keys (activation_fn_name, ffn_dim_divisor) alongside
+# the standard head_dim (which IS in _HYPER_KEYS → captured).
+# license=apple-amlr → passthrough.
+
+_OPENELM_270M_CONFIG: dict[str, Any] = {
+    "model_type": "openelm",
+    "architectures": ["OpenELMForCausalLM"],
+    "vocab_size": 32000,
+    "hidden_size": 1280,
+    "num_hidden_layers": 16,
+    "num_attention_heads": 10,
+    "head_dim": 64,
+    "max_position_embeddings": 2048,
+    "torch_dtype": "float16",
+    "activation_fn_name": "swiglu",  # non-standard
+    "ffn_dim_divisor": 256,  # non-standard
+}
+
+_OPENELM_270M_CARD_DATA = _make_card_data(
+    license="apple-amlr",
+    pipeline_tag="text-generation",
+    language=["en"],
+    library_name="transformers",
+)
+
+
+def _patch_openelm_270m() -> Any:
+    return _patch_hf_calls(
+        config=_OPENELM_270M_CONFIG,
+        tokenizer_config={"tokenizer_class": "LlamaTokenizer"},
+        card_data=_OPENELM_270M_CARD_DATA,
+        hub_info={"author": "apple", "sha": "deadf00d"},
+    )
+
+
+def test_openelm_270m_type_of_model() -> None:
+    with _patch_openelm_270m():
+        meta = read_huggingface("apple/OpenELM-270M")
+    assert meta.type_of_model == "openelm"
+
+
+def test_openelm_270m_architecture() -> None:
+    with _patch_openelm_270m():
+        meta = read_huggingface("apple/OpenELM-270M")
+    assert meta.architecture == "OpenELMForCausalLM"
+
+
+def test_openelm_270m_head_dim_captured() -> None:
+    # head_dim is in _HYPER_KEYS → captured even for custom arch
+    with _patch_openelm_270m():
+        meta = read_huggingface("apple/OpenELM-270M")
+    assert meta.hyperparameters.get("head_dim") == 64
+
+
+def test_openelm_270m_apple_amlr_passthrough() -> None:
+    with _patch_openelm_270m():
+        meta = read_huggingface("apple/OpenELM-270M")
+    assert meta.license == "apple-amlr"
+
+
+# ---------------------------------------------------------------------------
+# MiniMaxAI/MiniMax-M2.7  (minimax_m2 arch, MoE with MTP, vague license)
+# ---------------------------------------------------------------------------
+
+# MiniMax M2 is a hybrid MoE model with multi-head latent attention and
+# multi-token prediction (MTP). Custom config keys: attn_type_list (mixed
+# attention types), mtp_transformer_layers (MTP depth), num_experts_per_tok
+# (MoE routing) — none are in _HYPER_KEYS → silently skipped.
+# license=other → vague → file detection triggered.
+
+_MINIMAX_M2_CONFIG: dict[str, Any] = {
+    "model_type": "minimax_m2",
+    "architectures": ["MiniMaxM2ForCausalLM"],
+    "vocab_size": 200064,
+    "hidden_size": 7168,
+    "num_hidden_layers": 80,
+    "num_attention_heads": 64,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 1000000,
+    "torch_dtype": "bfloat16",
+    "attn_type_list": ["mhsa", "local"] * 40,  # non-standard: mixed attention
+    "mtp_transformer_layers": 3,  # non-standard: multi-token prediction
+    "num_experts_per_tok": 2,  # non-standard: MoE routing
+}
+
+_MINIMAX_M2_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="text-generation",
+    language=["en", "zh"],
+    library_name="transformers",
+)
+
+
+def _patch_minimax_m2() -> Any:
+    return _patch_hf_calls(
+        config=_MINIMAX_M2_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_MINIMAX_M2_CARD_DATA,
+        hub_info={"author": "MiniMaxAI", "sha": "deadf00d"},
+    )
+
+
+def test_minimax_m2_type_of_model() -> None:
+    with _patch_minimax_m2():
+        meta = read_huggingface("MiniMaxAI/MiniMax-M2.7")
+    assert meta.type_of_model == "minimax_m2"
+
+
+def test_minimax_m2_architecture() -> None:
+    with _patch_minimax_m2():
+        meta = read_huggingface("MiniMaxAI/MiniMax-M2.7")
+    assert meta.architecture == "MiniMaxM2ForCausalLM"
+
+
+def test_minimax_m2_very_long_context() -> None:
+    # max_position_embeddings=1_000_000 → captured
+    with _patch_minimax_m2():
+        meta = read_huggingface("MiniMaxAI/MiniMax-M2.7")
+    assert meta.hyperparameters.get("max_position_embeddings") == 1_000_000
+
+
+def test_minimax_m2_vague_license() -> None:
+    with _patch_minimax_m2():
+        meta = read_huggingface("MiniMaxAI/MiniMax-M2.7")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# inclusionAI/LLaDA2.0-Uni  (llada2_moe arch, diffusion LM, any-to-any)
+# ---------------------------------------------------------------------------
+
+# LLaDA2.0-Uni is a Large Language Diffusion with mAsking model — it uses
+# discrete diffusion (masked tokens) rather than autoregressive generation.
+# model_type=llada2_moe; pipeline_tag=any-to-any (already in _DOMAIN_TAGS).
+
+_LLADA2_MOE_CONFIG: dict[str, Any] = {
+    "model_type": "llada2_moe",
+    "architectures": ["LLaDA2MoeModelLM"],
+    "vocab_size": 151936,
+    "hidden_size": 2048,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 16,
+    "torch_dtype": "bfloat16",
+    "use_qkv_bias": True,  # non-standard
+    "use_qk_norm": True,  # non-standard
+}
+
+_LLADA2_MOE_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="any-to-any",
+    language=["en", "zh"],
+    library_name="transformers",
+)
+
+
+def _patch_llada2_moe() -> Any:
+    return _patch_hf_calls(
+        config=_LLADA2_MOE_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_LLADA2_MOE_CARD_DATA,
+        hub_info={"author": "inclusionAI", "sha": "deadf00d"},
+    )
+
+
+def test_llada2_moe_type_of_model() -> None:
+    with _patch_llada2_moe():
+        meta = read_huggingface("inclusionAI/LLaDA2.0-Uni")
+    assert meta.type_of_model == "llada2_moe"
+
+
+def test_llada2_moe_architecture() -> None:
+    with _patch_llada2_moe():
+        meta = read_huggingface("inclusionAI/LLaDA2.0-Uni")
+    assert meta.architecture == "LLaDA2MoeModelLM"
+
+
+def test_llada2_moe_any_to_any_domain() -> None:
+    with _patch_llada2_moe():
+        meta = read_huggingface("inclusionAI/LLaDA2.0-Uni")
+    assert "any-to-any" in meta.usage.domains
+
+
+def test_llada2_moe_apache_license() -> None:
+    with _patch_llada2_moe():
+        meta = read_huggingface("inclusionAI/LLaDA2.0-Uni")
+    assert meta.license == "apache-2.0"
+
+
+# ---------------------------------------------------------------------------
+# ByteDance-Seed/BAGEL-7B-MoT  (bagel arch, nested config, bagel-mot library)
+# ---------------------------------------------------------------------------
+
+# BAGEL is a Balanced multimodal model with Mixture-of-Tokens (MoT). The config
+# has ONLY nested sub-configs (llm_config, vit_config, vae_config) — no top-level
+# keys matching _HYPER_KEYS → hyperparameters is empty. library_name=bagel-mot.
+
+_BAGEL_CONFIG: dict[str, Any] = {
+    "model_type": "bagel",
+    "architectures": ["BagelForConditionalGeneration"],
+    "llm_config": {"hidden_size": 3584, "num_hidden_layers": 28},  # nested
+    "vit_config": {"hidden_size": 1024, "num_hidden_layers": 24},  # nested
+    "vae_config": {"in_channels": 8},  # nested
+    "visual_gen": True,
+    "visual_und": True,
+}
+
+_BAGEL_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="any-to-any",
+    language=["en"],
+    library_name="bagel-mot",
+)
+
+
+def _patch_bagel() -> Any:
+    return _patch_hf_calls(
+        config=_BAGEL_CONFIG,
+        tokenizer_config=None,
+        card_data=_BAGEL_CARD_DATA,
+        hub_info={"author": "ByteDance-Seed", "sha": "deadf00d"},
+    )
+
+
+def test_bagel_type_of_model() -> None:
+    with _patch_bagel():
+        meta = read_huggingface("ByteDance-Seed/BAGEL-7B-MoT")
+    assert meta.type_of_model == "bagel"
+
+
+def test_bagel_empty_hyperparameters() -> None:
+    # All numeric keys are nested inside llm_config/vit_config → not captured
+    with _patch_bagel():
+        meta = read_huggingface("ByteDance-Seed/BAGEL-7B-MoT")
+    assert not meta.hyperparameters
+
+
+def test_bagel_any_to_any_domain() -> None:
+    with _patch_bagel():
+        meta = read_huggingface("ByteDance-Seed/BAGEL-7B-MoT")
+    assert "any-to-any" in meta.usage.domains
+
+
+def test_bagel_bagel_mot_library() -> None:
+    with _patch_bagel():
+        meta = read_huggingface("ByteDance-Seed/BAGEL-7B-MoT")
+    assert (meta.extra_data or {}).get("hf.library_name") == "bagel-mot"
+
+
+# ---------------------------------------------------------------------------
+# sensenova/SenseNova-U1-8B-MoT  (neo_chat arch, nested config, any-to-any)
+# ---------------------------------------------------------------------------
+
+# SenseNova U1 uses a proprietary "neo_chat" architecture. Like BAGEL, the
+# config has a nested llm_config — top-level _HYPER_KEYS are absent →
+# hyperparameters is empty.
+
+_SENSENOVA_CONFIG: dict[str, Any] = {
+    "model_type": "neo_chat",
+    "architectures": ["NEOChatModel"],
+    "llm_config": {"hidden_size": 3584, "num_hidden_layers": 28},  # nested
+    "downsample_ratio": 2,  # non-standard
+    "template": "chat",  # non-standard
+}
+
+_SENSENOVA_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="any-to-any",
+    language=["zh", "en"],
+    library_name="transformers",
+)
+
+
+def _patch_sensenova() -> Any:
+    return _patch_hf_calls(
+        config=_SENSENOVA_CONFIG,
+        tokenizer_config=None,
+        card_data=_SENSENOVA_CARD_DATA,
+        hub_info={"author": "sensenova", "sha": "deadf00d"},
+    )
+
+
+def test_sensenova_type_of_model() -> None:
+    with _patch_sensenova():
+        meta = read_huggingface("sensenova/SenseNova-U1-8B-MoT")
+    assert meta.type_of_model == "neo_chat"
+
+
+def test_sensenova_architecture() -> None:
+    with _patch_sensenova():
+        meta = read_huggingface("sensenova/SenseNova-U1-8B-MoT")
+    assert meta.architecture == "NEOChatModel"
+
+
+def test_sensenova_empty_hyperparameters() -> None:
+    # Numeric keys only in nested llm_config → not captured by extractor
+    with _patch_sensenova():
+        meta = read_huggingface("sensenova/SenseNova-U1-8B-MoT")
+    assert not meta.hyperparameters
+
+
+def test_sensenova_any_to_any_domain() -> None:
+    with _patch_sensenova():
+        meta = read_huggingface("sensenova/SenseNova-U1-8B-MoT")
+    assert "any-to-any" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# Gen-Verse/MMaDA-8B-Base  (llada arch, ALiBi, any-to-any, MIT)
+# ---------------------------------------------------------------------------
+
+# MMaDA uses ALiBi positional bias (like BLOOM) — no max_position_embeddings.
+# model_type=llada; architectures=LLaDAModelLM. The "alibi" and "alibi_bias_max"
+# keys are non-standard and not in _HYPER_KEYS → not captured.
+
+_MMADA_CONFIG: dict[str, Any] = {
+    "model_type": "llada",
+    "architectures": ["LLaDAModelLM"],
+    "vocab_size": 32000,
+    "hidden_size": 4096,
+    "num_hidden_layers": 32,
+    "alibi": True,  # ALiBi positional bias (non-standard, not in _HYPER_KEYS)
+    "alibi_bias_max": 8,  # non-standard
+    "attention_layer_norm": True,  # non-standard
+    # No max_position_embeddings (ALiBi models don't have a fixed limit)
+}
+
+_MMADA_CARD_DATA = _make_card_data(
+    license="mit",
+    pipeline_tag="any-to-any",
+    language=["en"],
+    library_name="transformers",
+)
+
+
+def _patch_mmada() -> Any:
+    return _patch_hf_calls(
+        config=_MMADA_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_MMADA_CARD_DATA,
+        hub_info={"author": "Gen-Verse", "sha": "deadf00d"},
+    )
+
+
+def test_mmada_type_of_model() -> None:
+    with _patch_mmada():
+        meta = read_huggingface("Gen-Verse/MMaDA-8B-Base")
+    assert meta.type_of_model == "llada"
+
+
+def test_mmada_alibi_no_max_position_embeddings() -> None:
+    # ALiBi: no max_position_embeddings in config → not in hyperparameters
+    with _patch_mmada():
+        meta = read_huggingface("Gen-Verse/MMaDA-8B-Base")
+    assert "max_position_embeddings" not in meta.hyperparameters
+
+
+def test_mmada_vocab_size_captured() -> None:
+    with _patch_mmada():
+        meta = read_huggingface("Gen-Verse/MMaDA-8B-Base")
+    assert meta.hyperparameters.get("vocab_size") == 32000
+
+
+def test_mmada_any_to_any_domain() -> None:
+    with _patch_mmada():
+        meta = read_huggingface("Gen-Verse/MMaDA-8B-Base")
+    assert "any-to-any" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# XiaomiMiMo/MiMo-Audio-7B-Instruct  (MiMoAudioModel on qwen2, any-to-any)
+# ---------------------------------------------------------------------------
+
+# MiMo-Audio wraps a Qwen2 decoder with an audio front-end. Unusually,
+# model_type="qwen2" (the base) but architectures=["MiMoAudioModel"] (the
+# custom wrapper) — extractor captures the architectures field correctly.
+# Non-standard audio keys (audio_channels, delay_pattern) are skipped.
+
+_MIMO_AUDIO_CONFIG: dict[str, Any] = {
+    "model_type": "qwen2",
+    "architectures": ["MiMoAudioModel"],  # custom arch despite qwen2 model_type
+    "vocab_size": 152064,
+    "hidden_size": 3584,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 28,
+    "num_key_value_heads": 4,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+    "audio_channels": 128,  # non-standard
+    "delay_pattern": "valley",  # non-standard
+}
+
+_MIMO_AUDIO_CARD_DATA = _make_card_data(
+    license="mit",
+    pipeline_tag="any-to-any",
+    language=["en", "zh"],
+    library_name="transformers",
+)
+
+
+def _patch_mimo_audio() -> Any:
+    return _patch_hf_calls(
+        config=_MIMO_AUDIO_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_MIMO_AUDIO_CARD_DATA,
+        hub_info={"author": "XiaomiMiMo", "sha": "deadf00d"},
+    )
+
+
+def test_mimo_audio_model_type_is_qwen2() -> None:
+    # model_type stays "qwen2" (base) even though architecture is MiMoAudioModel
+    with _patch_mimo_audio():
+        meta = read_huggingface("XiaomiMiMo/MiMo-Audio-7B-Instruct")
+    assert meta.type_of_model == "qwen2"
+
+
+def test_mimo_audio_custom_architecture() -> None:
+    # architectures field contains the wrapper class, not the base Qwen2 class
+    with _patch_mimo_audio():
+        meta = read_huggingface("XiaomiMiMo/MiMo-Audio-7B-Instruct")
+    assert meta.architecture == "MiMoAudioModel"
+
+
+def test_mimo_audio_hyperparameters() -> None:
+    with _patch_mimo_audio():
+        meta = read_huggingface("XiaomiMiMo/MiMo-Audio-7B-Instruct")
+    assert meta.hyperparameters.get("hidden_size") == 3584
+    assert meta.hyperparameters.get("num_key_value_heads") == 4
+
+
+def test_mimo_audio_any_to_any_domain() -> None:
+    with _patch_mimo_audio():
+        meta = read_huggingface("XiaomiMiMo/MiMo-Audio-7B-Instruct")
+    assert "any-to-any" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# ETH-CVG/lightglue_superpoint  (lightglue arch, keypoint-detection, vague)
+# ---------------------------------------------------------------------------
+
+# LightGlue+SuperPoint feature matching model. model_type=lightglue;
+# architectures=LightGlueForKeypointMatching. Config has a nested
+# keypoint_detector_config dict and custom numeric keys (descriptor_dim,
+# filter_threshold, depth_confidence) — none are in _HYPER_KEYS → skipped.
+# license=other → vague → file detection triggered.
+
+_LIGHTGLUE_CONFIG: dict[str, Any] = {
+    "model_type": "lightglue",
+    "architectures": ["LightGlueForKeypointMatching"],
+    "descriptor_dim": 256,  # non-standard
+    "filter_threshold": 0.1,  # non-standard
+    "depth_confidence": 0.95,  # non-standard
+    "keypoint_detector_config": {"name": "superpoint", "descriptor_dim": 256},
+}
+
+_LIGHTGLUE_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="keypoint-detection",
+    language=None,
+    library_name="transformers",
+)
+
+
+def _patch_lightglue() -> Any:
+    return _patch_hf_calls(
+        config=_LIGHTGLUE_CONFIG,
+        tokenizer_config=None,
+        card_data=_LIGHTGLUE_CARD_DATA,
+        hub_info={"author": "ETH-CVG", "sha": "deadf00d"},
+    )
+
+
+def test_lightglue_type_of_model() -> None:
+    with _patch_lightglue():
+        meta = read_huggingface("ETH-CVG/lightglue_superpoint")
+    assert meta.type_of_model == "lightglue"
+
+
+def test_lightglue_architecture() -> None:
+    with _patch_lightglue():
+        meta = read_huggingface("ETH-CVG/lightglue_superpoint")
+    assert meta.architecture == "LightGlueForKeypointMatching"
+
+
+def test_lightglue_empty_hyperparameters() -> None:
+    # descriptor_dim, filter_threshold, depth_confidence not in _HYPER_KEYS
+    with _patch_lightglue():
+        meta = read_huggingface("ETH-CVG/lightglue_superpoint")
+    assert not meta.hyperparameters
+
+
+def test_lightglue_vague_license() -> None:
+    with _patch_lightglue():
+        meta = read_huggingface("ETH-CVG/lightglue_superpoint")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+# ---------------------------------------------------------------------------
+# polymathic-ai/aion-base  (aion library, any-to-any, no model_type, custom config)
+# ---------------------------------------------------------------------------
+
+# Aion is a multi-domain scientific foundation model (fluid dynamics, climate,
+# etc.). library_name=aion (custom framework). Config accessible but has NO
+# model_type, NO architectures, and only custom keys (decoder_depth, domains_in,
+# domains_out, encoder_depth) → type_of_model=None, architecture=None,
+# hyperparameters={}.
+
+_AION_CONFIG: dict[str, Any] = {
+    "decoder_depth": 8,
+    "encoder_depth": 8,
+    "domains_in": ["fluids", "climate", "seismology"],
+    "domains_out": ["fluids", "climate", "seismology"],
+    "patch_size": 16,
+}
+
+_AION_CARD_DATA = _make_card_data(
+    license="mit",
+    pipeline_tag="any-to-any",
+    language=None,
+    library_name="aion",
+)
+
+
+def _patch_aion() -> Any:
+    return _patch_hf_calls(
+        config=_AION_CONFIG,
+        tokenizer_config=None,
+        card_data=_AION_CARD_DATA,
+        hub_info={"author": "polymathic-ai", "sha": "deadf00d"},
+    )
+
+
+def test_aion_no_type_of_model() -> None:
+    # Custom aion config: no model_type key
+    with _patch_aion():
+        meta = read_huggingface("polymathic-ai/aion-base")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_aion_empty_hyperparameters() -> None:
+    # decoder_depth, encoder_depth, domains_in, patch_size not in _HYPER_KEYS
+    with _patch_aion():
+        meta = read_huggingface("polymathic-ai/aion-base")
+    assert not meta.hyperparameters
+
+
+def test_aion_any_to_any_domain() -> None:
+    with _patch_aion():
+        meta = read_huggingface("polymathic-ai/aion-base")
+    assert "any-to-any" in meta.usage.domains
+
+
+def test_aion_library_name() -> None:
+    with _patch_aion():
+        meta = read_huggingface("polymathic-ai/aion-base")
+    assert (meta.extra_data or {}).get("hf.library_name") == "aion"
+
+
+# ---------------------------------------------------------------------------
+# stanfordnlp/stanza-fi  (stanza library, no config, Finnish)
+# ---------------------------------------------------------------------------
+
+# Stanford Stanza NLP pipeline model for Finnish. Uses the stanza Python
+# library (not transformers). No config.json (404). No pipeline_tag.
+
+_STANZA_FI_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag=None,
+    language=["fi"],
+    library_name="stanza",
+)
+
+
+def _patch_stanza_fi() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_STANZA_FI_CARD_DATA,
+        hub_info={"author": "stanfordnlp", "sha": "deadf00d"},
+    )
+
+
+def test_stanza_fi_no_architecture() -> None:
+    # Stanza: no config.json → no type_of_model or architecture
+    with _patch_stanza_fi():
+        meta = read_huggingface("stanfordnlp/stanza-fi")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_stanza_fi_stanza_library() -> None:
+    with _patch_stanza_fi():
+        meta = read_huggingface("stanfordnlp/stanza-fi")
+    assert (meta.extra_data or {}).get("hf.library_name") == "stanza"
+
+
+def test_stanza_fi_language() -> None:
+    with _patch_stanza_fi():
+        meta = read_huggingface("stanfordnlp/stanza-fi")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert "fi" in langs
+
+
+def test_stanza_fi_empty_domains() -> None:
+    # No pipeline_tag → empty usage.domains
+    with _patch_stanza_fi():
+        meta = read_huggingface("stanfordnlp/stanza-fi")
+    assert not meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# stanfordnlp/stanza-de  (stanza library, no config, German)
+# ---------------------------------------------------------------------------
+
+# Same pattern as stanza-fi; covers German (de) to verify the language field.
+
+_STANZA_DE_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag=None,
+    language=["de"],
+    library_name="stanza",
+)
+
+
+def _patch_stanza_de() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_STANZA_DE_CARD_DATA,
+        hub_info={"author": "stanfordnlp", "sha": "deadf00d"},
+    )
+
+
+def test_stanza_de_stanza_library() -> None:
+    with _patch_stanza_de():
+        meta = read_huggingface("stanfordnlp/stanza-de")
+    assert (meta.extra_data or {}).get("hf.library_name") == "stanza"
+
+
+def test_stanza_de_german_language() -> None:
+    with _patch_stanza_de():
+        meta = read_huggingface("stanfordnlp/stanza-de")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert langs == ["de"]
+
+
+def test_stanza_de_no_architecture() -> None:
+    with _patch_stanza_de():
+        meta = read_huggingface("stanfordnlp/stanza-de")
+    assert meta.type_of_model is None
+
+
+# ---------------------------------------------------------------------------
+# OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov  (openvino library, config accessible)
+# ---------------------------------------------------------------------------
+
+# OpenVINO int8-quantized Mixtral. Unlike GGUF, config.json IS accessible
+# (200) and retains the original model_type and architectures → extractor can
+# still identify the model. torch_dtype="int8" captured in hyperparameters.
+# library_name=openvino → hf.library_name.
+
+_OPENVINO_MIXTRAL_CONFIG: dict[str, Any] = {
+    "model_type": "mixtral",
+    "architectures": ["MixtralForCausalLM"],
+    "vocab_size": 32000,
+    "hidden_size": 4096,
+    "num_hidden_layers": 32,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 32768,
+    "torch_dtype": "int8",  # quantized dtype captured
+    "num_experts_per_tok": 2,  # non-standard (MoE)
+    "router_aux_loss_coef": 0.001,  # non-standard (MoE routing)
+}
+
+_OPENVINO_MIXTRAL_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["en", "de", "fr", "es", "it"],
+    library_name="openvino",
+    base_model="mistralai/Mixtral-8x7B-Instruct-v0.1",
+)
+
+
+def _patch_openvino_mixtral() -> Any:
+    return _patch_hf_calls(
+        config=_OPENVINO_MIXTRAL_CONFIG,
+        tokenizer_config=None,
+        card_data=_OPENVINO_MIXTRAL_CARD_DATA,
+        hub_info={
+            "author": "OpenVINO",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:mistralai/Mixtral-8x7B-Instruct-v0.1"],
+        },
+    )
+
+
+def test_openvino_mixtral_type_of_model() -> None:
+    # Config accessible despite OpenVINO quantization → model_type extractable
+    with _patch_openvino_mixtral():
+        meta = read_huggingface("OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov")
+    assert meta.type_of_model == "mixtral"
+
+
+def test_openvino_mixtral_int8_dtype_captured() -> None:
+    # torch_dtype="int8" is in _HYPER_KEYS → captured even for quantized model
+    with _patch_openvino_mixtral():
+        meta = read_huggingface("OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov")
+    assert meta.hyperparameters.get("torch_dtype") == "int8"
+
+
+def test_openvino_mixtral_openvino_library() -> None:
+    with _patch_openvino_mixtral():
+        meta = read_huggingface("OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov")
+    assert (meta.extra_data or {}).get("hf.library_name") == "openvino"
+
+
+def test_openvino_mixtral_quantized_relation() -> None:
+    with _patch_openvino_mixtral():
+        meta = read_huggingface("OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+# ---------------------------------------------------------------------------
+# mlx-community/gemma-4-e2b-it-4bit  (mlx library, gemma4 arch, quantized)
+# ---------------------------------------------------------------------------
+
+# Apple MLX 4-bit quantization of Gemma 4. Config accessible with model_type=gemma4.
+# library_name=mlx → hf.library_name. pipeline_tag=any-to-any (multimodal gemma-4).
+
+_MLX_GEMMA4_CONFIG: dict[str, Any] = {
+    "model_type": "gemma4",
+    "architectures": ["Gemma4ForConditionalGeneration"],
+    "vocab_size": 262144,
+    "hidden_size": 2560,
+    "num_hidden_layers": 34,
+    "num_attention_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_MLX_GEMMA4_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="any-to-any",
+    language=["multilingual"],
+    library_name="mlx",
+    base_model="google/gemma-4-e2b-it",
+)
+
+
+def _patch_mlx_gemma4() -> Any:
+    return _patch_hf_calls(
+        config=_MLX_GEMMA4_CONFIG,
+        tokenizer_config=None,
+        card_data=_MLX_GEMMA4_CARD_DATA,
+        hub_info={
+            "author": "mlx-community",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:google/gemma-4-e2b-it"],
+        },
+    )
+
+
+def test_mlx_gemma4_type_of_model() -> None:
+    # MLX: config.json accessible → model_type extractable
+    with _patch_mlx_gemma4():
+        meta = read_huggingface("mlx-community/gemma-4-e2b-it-4bit")
+    assert meta.type_of_model == "gemma4"
+
+
+def test_mlx_gemma4_mlx_library() -> None:
+    with _patch_mlx_gemma4():
+        meta = read_huggingface("mlx-community/gemma-4-e2b-it-4bit")
+    assert (meta.extra_data or {}).get("hf.library_name") == "mlx"
+
+
+def test_mlx_gemma4_quantized_relation() -> None:
+    with _patch_mlx_gemma4():
+        meta = read_huggingface("mlx-community/gemma-4-e2b-it-4bit")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+def test_mlx_gemma4_any_to_any_domain() -> None:
+    with _patch_mlx_gemma4():
+        meta = read_huggingface("mlx-community/gemma-4-e2b-it-4bit")
+    assert "any-to-any" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# onnx-community/gemma-4-E2B-it-ONNX  (transformers.js library, gemma4)
+# ---------------------------------------------------------------------------
+
+# ONNX export of Gemma 4. library_name=transformers.js (the Transformers.js
+# community typically uses this). Same gemma4 model_type; config accessible.
+
+_ONNX_GEMMA4_CONFIG: dict[str, Any] = {
+    "model_type": "gemma4",
+    "architectures": ["Gemma4ForConditionalGeneration"],
+    "vocab_size": 262144,
+    "hidden_size": 2560,
+    "num_hidden_layers": 34,
+    "num_attention_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+}
+
+_ONNX_GEMMA4_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="any-to-any",
+    language=["multilingual"],
+    library_name="transformers.js",
+    base_model="google/gemma-4-E2B-it",
+)
+
+
+def _patch_onnx_gemma4() -> Any:
+    return _patch_hf_calls(
+        config=_ONNX_GEMMA4_CONFIG,
+        tokenizer_config=None,
+        card_data=_ONNX_GEMMA4_CARD_DATA,
+        hub_info={
+            "author": "onnx-community",
+            "sha": "deadf00d",
+            "tags": ["base_model:quantized:google/gemma-4-E2B-it"],
+        },
+    )
+
+
+def test_onnx_gemma4_type_of_model() -> None:
+    with _patch_onnx_gemma4():
+        meta = read_huggingface("onnx-community/gemma-4-E2B-it-ONNX")
+    assert meta.type_of_model == "gemma4"
+
+
+def test_onnx_gemma4_transformers_js_library() -> None:
+    with _patch_onnx_gemma4():
+        meta = read_huggingface("onnx-community/gemma-4-E2B-it-ONNX")
+    assert (meta.extra_data or {}).get("hf.library_name") == "transformers.js"
+
+
+def test_onnx_gemma4_quantized_relation() -> None:
+    with _patch_onnx_gemma4():
+        meta = read_huggingface("onnx-community/gemma-4-E2B-it-ONNX")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+
+
+# ---------------------------------------------------------------------------
+# sail/Sailor2-20B  (Qwen2-based, SEA multilingual, apache-2.0)
+# ---------------------------------------------------------------------------
+
+# Sailor2 is a South-East Asian multilingual LLM built on Qwen2. Covers 10+
+# SEA and regional languages. Standard Qwen2 architecture and apache-2.0 license.
+
+_SAILOR2_20B_CONFIG: dict[str, Any] = {
+    "model_type": "qwen2",
+    "architectures": ["Qwen2ForCausalLM"],
+    "vocab_size": 151936,
+    "hidden_size": 5120,
+    "num_hidden_layers": 48,
+    "num_attention_heads": 40,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 32768,
+    "torch_dtype": "bfloat16",
+}
+
+_SAILOR2_20B_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-generation",
+    language=["en", "zh", "th", "id", "vi", "ms", "my", "km", "lo", "tl"],
+    library_name="transformers",
+)
+
+
+def _patch_sailor2_20b() -> Any:
+    return _patch_hf_calls(
+        config=_SAILOR2_20B_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_SAILOR2_20B_CARD_DATA,
+        hub_info={"author": "sail", "sha": "deadf00d"},
+    )
+
+
+def test_sailor2_20b_type_of_model() -> None:
+    with _patch_sailor2_20b():
+        meta = read_huggingface("sail/Sailor2-20B")
+    assert meta.type_of_model == "qwen2"
+
+
+def test_sailor2_20b_sea_languages() -> None:
+    with _patch_sailor2_20b():
+        meta = read_huggingface("sail/Sailor2-20B")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert "th" in langs  # Thai
+    assert "km" in langs  # Khmer
+    assert "lo" in langs  # Lao
+
+
+def test_sailor2_20b_gqa() -> None:
+    with _patch_sailor2_20b():
+        meta = read_huggingface("sail/Sailor2-20B")
+    assert meta.hyperparameters.get("num_key_value_heads") == 8
+    assert meta.hyperparameters.get("num_attention_heads") == 40
+
+
+def test_sailor2_20b_text_generation_domain() -> None:
+    with _patch_sailor2_20b():
+        meta = read_huggingface("sail/Sailor2-20B")
+    assert "text-generation" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# Alibaba-NLP/gte-modernbert-base  (modernbert arch, sentence-similarity)
+# ---------------------------------------------------------------------------
+
+# GTE ModernBERT embedding model. model_type=modernbert; architectures=
+# ModernBertModel (base encoder, not a masked-LM head). sentence-similarity
+# pipeline tag → already in _DOMAIN_TAGS.
+
+_GTE_MODERNBERT_CONFIG: dict[str, Any] = {
+    "model_type": "modernbert",
+    "architectures": ["ModernBertModel"],
+    "vocab_size": 30528,
+    "hidden_size": 768,
+    "num_hidden_layers": 22,
+    "num_attention_heads": 12,
+    "max_position_embeddings": 8192,
+    "torch_dtype": "bfloat16",
+}
+
+_GTE_MODERNBERT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="sentence-similarity",
+    language=["multilingual"],
+    library_name="transformers",
+)
+
+
+def _patch_gte_modernbert() -> Any:
+    return _patch_hf_calls(
+        config=_GTE_MODERNBERT_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_GTE_MODERNBERT_CARD_DATA,
+        hub_info={"author": "Alibaba-NLP", "sha": "deadf00d"},
+    )
+
+
+def test_gte_modernbert_type_of_model() -> None:
+    with _patch_gte_modernbert():
+        meta = read_huggingface("Alibaba-NLP/gte-modernbert-base")
+    assert meta.type_of_model == "modernbert"
+
+
+def test_gte_modernbert_architecture() -> None:
+    with _patch_gte_modernbert():
+        meta = read_huggingface("Alibaba-NLP/gte-modernbert-base")
+    assert meta.architecture == "ModernBertModel"
+
+
+def test_gte_modernbert_sentence_similarity_domain() -> None:
+    with _patch_gte_modernbert():
+        meta = read_huggingface("Alibaba-NLP/gte-modernbert-base")
+    assert "sentence-similarity" in meta.usage.domains
+
+
+def test_gte_modernbert_hyperparameters() -> None:
+    with _patch_gte_modernbert():
+        meta = read_huggingface("Alibaba-NLP/gte-modernbert-base")
+    assert meta.hyperparameters.get("max_position_embeddings") == 8192
+
+
+# ---------------------------------------------------------------------------
+# huggingface/CodeBERTa-small-v1  (roberta, fill-mask, no license, code language)
+# ---------------------------------------------------------------------------
+
+# CodeBERTa-small is a RoBERTa model pre-trained on code (The Stack).
+# No license field in the card YAML → meta.license=None.
+# language=["code"] (not an ISO 639-1 code but used by HF for code content).
+
+_CODEBERTA_CONFIG: dict[str, Any] = {
+    "model_type": "roberta",
+    "architectures": ["RobertaForMaskedLM"],
+    "vocab_size": 50265,
+    "hidden_size": 512,
+    "num_hidden_layers": 6,
+    "num_attention_heads": 8,
+    "max_position_embeddings": 514,
+}
+
+_CODEBERTA_CARD_DATA = _make_card_data(
+    license=None,  # no license field in card
+    pipeline_tag="fill-mask",
+    language=["code"],  # non-ISO identifier for programming languages
+    library_name="transformers",
+)
+
+
+def _patch_codeberta() -> Any:
+    return _patch_hf_calls(
+        config=_CODEBERTA_CONFIG,
+        tokenizer_config={"tokenizer_class": "RobertaTokenizerFast"},
+        card_data=_CODEBERTA_CARD_DATA,
+        hub_info={"author": "huggingface", "sha": "deadf00d"},
+    )
+
+
+def test_codeberta_type_of_model() -> None:
+    with _patch_codeberta():
+        meta = read_huggingface("huggingface/CodeBERTa-small-v1")
+    assert meta.type_of_model == "roberta"
+
+
+def test_codeberta_no_license() -> None:
+    # No license field in card YAML → meta.license=None
+    with _patch_codeberta():
+        meta = read_huggingface("huggingface/CodeBERTa-small-v1")
+    assert meta.license is None
+    assert "hf.license_raw" not in (meta.extra_data or {})
+
+
+def test_codeberta_code_language_preserved() -> None:
+    # "code" is not ISO 639-1 but the extractor preserves it as-is
+    with _patch_codeberta():
+        meta = read_huggingface("huggingface/CodeBERTa-small-v1")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert langs == ["code"]
+
+
+def test_codeberta_fill_mask_domain() -> None:
+    with _patch_codeberta():
+        meta = read_huggingface("huggingface/CodeBERTa-small-v1")
+    assert "fill-mask" in meta.usage.domains
+
+
+# ---------------------------------------------------------------------------
+# Bencode92/tradepulse-finbert-sentiment  (bert, text-classification, FinBERT)
+# ---------------------------------------------------------------------------
+
+# TradePulse FinBERT is a financial sentiment classifier fine-tuned from
+# ProsusAI/finbert. BertForSequenceClassification; text-classification domain.
+
+_TRADEPULSE_CONFIG: dict[str, Any] = {
+    "model_type": "bert",
+    "architectures": ["BertForSequenceClassification"],
+    "vocab_size": 30522,
+    "hidden_size": 768,
+    "num_hidden_layers": 12,
+    "num_attention_heads": 12,
+    "max_position_embeddings": 512,
+    "problem_type": "single_label_classification",  # non-standard (fine-tune config)
+}
+
+_TRADEPULSE_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-classification",
+    language=["en"],
+    library_name="transformers",
+    base_model="ProsusAI/finbert",
+)
+
+
+def _patch_tradepulse() -> Any:
+    return _patch_hf_calls(
+        config=_TRADEPULSE_CONFIG,
+        tokenizer_config={"tokenizer_class": "BertTokenizer"},
+        card_data=_TRADEPULSE_CARD_DATA,
+        hub_info={
+            "author": "Bencode92",
+            "sha": "deadf00d",
+            "tags": ["base_model:finetune:ProsusAI/finbert"],
+        },
+    )
+
+
+def test_tradepulse_type_of_model() -> None:
+    with _patch_tradepulse():
+        meta = read_huggingface("Bencode92/tradepulse-finbert-sentiment")
+    assert meta.type_of_model == "bert"
+
+
+def test_tradepulse_architecture() -> None:
+    with _patch_tradepulse():
+        meta = read_huggingface("Bencode92/tradepulse-finbert-sentiment")
+    assert meta.architecture == "BertForSequenceClassification"
+
+
+def test_tradepulse_text_classification_domain() -> None:
+    with _patch_tradepulse():
+        meta = read_huggingface("Bencode92/tradepulse-finbert-sentiment")
+    assert "text-classification" in meta.usage.domains
+
+
+def test_tradepulse_finetune_from_finbert() -> None:
+    with _patch_tradepulse():
+        meta = read_huggingface("Bencode92/tradepulse-finbert-sentiment")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "finetune"
+    assert (meta.extra_data or {}).get("hf.base_model") == "ProsusAI/finbert"
+
+
+# ---------------------------------------------------------------------------
+# qualcomm/HRNetPose  (keypoint-detection, pytorch library, vague license)
+# ---------------------------------------------------------------------------
+
+# Qualcomm HRNet pose estimation model. library_name=pytorch (Qualcomm publishes
+# models in native PyTorch format). No config.json (404). license=other → vague
+# → file detection triggered. pipeline_tag=keypoint-detection (in _DOMAIN_TAGS).
+
+_HRNETPOSE_CARD_DATA = _make_card_data(
+    license="other",
+    pipeline_tag="keypoint-detection",
+    language=None,
+    library_name="pytorch",
+)
+
+
+def _patch_hrnetpose() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_HRNETPOSE_CARD_DATA,
+        hub_info={"author": "qualcomm", "sha": "deadf00d"},
+    )
+
+
+def test_hrnetpose_keypoint_detection_domain() -> None:
+    with _patch_hrnetpose():
+        meta = read_huggingface("qualcomm/HRNetPose")
+    assert "keypoint-detection" in meta.usage.domains
+
+
+def test_hrnetpose_pytorch_library() -> None:
+    # Qualcomm uses library_name=pytorch for native PyTorch format
+    with _patch_hrnetpose():
+        meta = read_huggingface("qualcomm/HRNetPose")
+    assert (meta.extra_data or {}).get("hf.library_name") == "pytorch"
+
+
+def test_hrnetpose_vague_license() -> None:
+    with _patch_hrnetpose():
+        meta = read_huggingface("qualcomm/HRNetPose")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+
+
+def test_hrnetpose_no_architecture() -> None:
+    with _patch_hrnetpose():
+        meta = read_huggingface("qualcomm/HRNetPose")
+    assert meta.type_of_model is None

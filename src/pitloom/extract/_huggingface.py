@@ -160,12 +160,16 @@ _DOMAIN_TAGS: frozenset[str] = frozenset(
         # Specialised
         "any-to-any",
         "code",
+        "image-to-3d",
         "reinforcement-learning",
         "robotics",
         "tabular-classification",
         "tabular-regression",
+        "text-ranking",
+        "text-to-3d",
         "time-series-forecasting",
         "video-classification",
+        "voice-activity-detection",
     }
 )
 
