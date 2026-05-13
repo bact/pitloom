@@ -23,7 +23,7 @@ under `[tool.poetry]`.  Issue [#64].
 | `src/pitloom/extract/poetry.py` | New extraction module |
 | `src/pitloom/extract/pyproject.py` | Updated to fall back to / merge Poetry data |
 | `tests/test_poetry.py` | 51 unit and integration tests |
-| `tests/fixtures/sampleproject-poetry/` | Real-world fixture (mistral-inference) |
+| `tests/fixtures/projects/sampleproject-poetry/` | Real-world fixture (mistral-inference) |
 
 ## Extraction functions
 
@@ -95,7 +95,7 @@ as the sole source.
 
 ## Test fixture
 
-`tests/fixtures/sampleproject-poetry/` contains a verbatim copy of the
+`tests/fixtures/projects/sampleproject-poetry/` contains a verbatim copy of the
 [mistral-inference](https://github.com/mistralai/mistral-inference) repository's
 `pyproject.toml` and `poetry.lock`.  This project was the original motivating
 case for Poetry support (issue [#62]).  It has:

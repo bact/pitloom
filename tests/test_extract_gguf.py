@@ -122,7 +122,8 @@ def test_gguf_load_failure(tmp_path: Path) -> None:
 # Integration tests -- real GGUF file (ggml-vocab-bert-bge.gguf)
 # Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-bert-bge.gguf)
 # Vocabulary-only GGUF for the BGE BERT tokenizer; zero model tensors
-# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-bert-bge.gguf present
+# Require: gguf installed AND
+#          tests/fixtures/aimodels/gguf/ggml-vocab-bert-bge.gguf present
 # ---------------------------------------------------------------------------
 
 VOCAB_BERT_BGE_FIXTURE = _GGUF / "ggml-vocab-bert-bge.gguf"
@@ -184,7 +185,8 @@ def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> 
 # Integration tests -- real GGUF file (ggml-vocab-phi-3.gguf)
 # Source: ggerganov/llama.cpp GitHub (models/ggml-vocab-phi-3.gguf)
 # Vocabulary-only GGUF for the Phi-3 tokenizer (LLaMA BPE, RoPE architecture)
-# Require: gguf installed AND tests/fixtures/gguf/ggml-vocab-phi-3.gguf present
+# Require: gguf installed AND
+#          tests/fixtures/aimodels/gguf/ggml-vocab-phi-3.gguf present
 # ---------------------------------------------------------------------------
 
 VOCAB_PHI3_FIXTURE = _GGUF / "ggml-vocab-phi-3.gguf"

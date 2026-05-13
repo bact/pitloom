@@ -572,7 +572,8 @@ def test_build_model_without_license() -> None:
 # ---------------------------------------------------------------------------
 # Fixture-based end-to-end license export tests
 # ---------------------------------------------------------------------------
-# These tests extract real metadata from local model files in tests/fixtures/,
+# These tests extract real metadata from local model files in
+# tests/fixtures/aimodels/,
 # then assemble a standalone SPDX 3 document and verify the license
 # relationships are present in the output.
 #

@@ -140,7 +140,7 @@ def test_safetensors_read_failure(tmp_path: Path) -> None:
 # Source: optimum-internal-testing/tiny-random-marian (~690 KB)
 # Tiny randomly-initialised MarianMT translation encoder-decoder; 86 tensors, MIT
 # Require: safetensors installed AND
-#          tests/fixtures/safetensors/marian-tiny-random.safetensors present
+#          tests/fixtures/aimodels/safetensors/marian-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 MARIAN_FIXTURE = _ST / "marian-tiny-random.safetensors"
@@ -194,7 +194,7 @@ def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
 # Source: echarlaix/tiny-random-PhiForCausalLM (~316 KB)
 # Tiny randomly-initialised Phi causal language model; 33 tensors, Apache-2.0
 # Require: safetensors installed AND
-#          tests/fixtures/safetensors/phi-tiny-random.safetensors present
+#          tests/fixtures/aimodels/safetensors/phi-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 PHI_FIXTURE = _ST / "phi-tiny-random.safetensors"
@@ -248,7 +248,8 @@ def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
 # Source: optimum-internal-testing/tiny-random-Speech2TextModel (~689 KB)
 # Tiny randomly-initialised Speech2Text ASR encoder-decoder; 93 tensors, Apache-2.0
 # Require: safetensors installed AND
-#          tests/fixtures/safetensors/speech2text-tiny-random.safetensors present
+#          tests/fixtures/aimodels/safetensors/speech2text-tiny-random.safetensors
+#          present
 # ---------------------------------------------------------------------------
 
 SPEECH2TEXT_FIXTURE = _ST / "speech2text-tiny-random.safetensors"
@@ -301,7 +302,7 @@ def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
 # Source: echarlaix/tiny-random-vits (~344 KB)
 # Randomly initialised VITS text-to-speech model; 438 tensors
 # Require: safetensors installed AND
-#          tests/fixtures/safetensors/vits-tiny-random.safetensors present
+#          tests/fixtures/aimodels/safetensors/vits-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 VITS_FIXTURE = _ST / "vits-tiny-random.safetensors"
@@ -354,7 +355,7 @@ def test_vits_provenance(vits_metadata: AiModelMetadata) -> None:
 # Source: optimum-internal-testing/tiny-random-whisper (~872 KB)
 # Randomly initialised Whisper ASR encoder-decoder; 50 tensors
 # Require: safetensors installed AND
-#          tests/fixtures/safetensors/whisper-tiny-random.safetensors present
+#          tests/fixtures/aimodels/safetensors/whisper-tiny-random.safetensors present
 # ---------------------------------------------------------------------------
 
 WHISPER_ST_FIXTURE = _ST / "whisper-tiny-random.safetensors"
