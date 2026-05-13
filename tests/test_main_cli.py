@@ -16,8 +16,10 @@ from pitloom import __main__
 from pitloom.core.creation import CreationMetadata
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
-SAFETENSORS_FIXTURE = FIXTURE_DIR / "safetensors" / "whisper-tiny-random.safetensors"
-ONNX_FIXTURE = FIXTURE_DIR / "onnx" / "squeezenet1.1-7.onnx"
+SAFETENSORS_FIXTURE = (
+    FIXTURE_DIR / "aimodels" / "safetensors" / "whisper-tiny-random.safetensors"
+)
+ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
 
 
 def test_main_uses_pretty_from_pyproject(

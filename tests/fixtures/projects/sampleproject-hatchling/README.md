@@ -20,7 +20,7 @@ filename inside the wheel.
 Build with `--no-isolation` so the locally installed Pitloom is picked up:
 
 ```bash
-cd tests/fixtures/sampleproject-hatchling
+cd tests/fixtures/projects/sampleproject-hatchling
 python -m build --wheel --no-isolation
 ```
 

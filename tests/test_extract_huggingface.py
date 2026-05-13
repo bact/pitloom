@@ -8773,3 +8773,489 @@ def test_hrnetpose_no_architecture() -> None:
     with _patch_hrnetpose():
         meta = read_huggingface("qualcomm/HRNetPose")
     assert meta.type_of_model is None
+
+
+# ===========================================================================
+# Batch 8: object detection, tabular, VLM nested config, missing architectures
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# PekingU/rtdetr_r50vd_coco_o365  (rt_detr arch, object-detection, COCO+O365)
+# ---------------------------------------------------------------------------
+
+# RT-DETR (Real-Time DEtection TRansformer) ResNet-50vd pretrained on COCO
+# and Objects365 then fine-tuned on COCO. Pure vision/detection model —
+# no LM config keys (no vocab_size, hidden_size, num_hidden_layers, etc.).
+# The only _HYPER_KEYS match is torch_dtype=float32.
+# pipeline_tag=object-detection (already in _DOMAIN_TAGS).
+
+_RTDETR_COCO_O365_CONFIG: dict[str, Any] = {
+    "model_type": "rt_detr",
+    "architectures": ["RTDetrForObjectDetection"],
+    "torch_dtype": "float32",
+    # Detection-specific keys — none in _HYPER_KEYS
+    "d_model": 256,
+    "decoder_attention_heads": 8,
+    "encoder_attention_heads": 8,
+    "decoder_layers": 6,
+    "encoder_layers": 1,
+    "num_queries": 300,
+    "is_encoder_decoder": True,
+}
+
+_RTDETR_COCO_O365_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="object-detection",
+    language=["en"],
+    library_name="transformers",
+    datasets=["coco"],
+)
+
+
+def _patch_rtdetr_coco_o365() -> Any:
+    return _patch_hf_calls(
+        config=_RTDETR_COCO_O365_CONFIG,
+        tokenizer_config=None,
+        card_data=_RTDETR_COCO_O365_CARD_DATA,
+        hub_info={
+            "author": "PekingU",
+            "sha": "deadf00d",
+            "tags": ["arxiv:2304.08069", "dataset:coco"],
+        },
+    )
+
+
+def test_rtdetr_coco_o365_type_of_model() -> None:
+    with _patch_rtdetr_coco_o365():
+        meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
+    assert meta.type_of_model == "rt_detr"
+
+
+def test_rtdetr_coco_o365_architecture() -> None:
+    with _patch_rtdetr_coco_o365():
+        meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
+    assert meta.architecture == "RTDetrForObjectDetection"
+
+
+def test_rtdetr_coco_o365_object_detection_domain() -> None:
+    # object-detection is in _DOMAIN_TAGS — captured as domain
+    with _patch_rtdetr_coco_o365():
+        meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
+    assert "object-detection" in meta.usage.domains
+
+
+def test_rtdetr_coco_o365_only_torch_dtype_in_hyperparameters() -> None:
+    # Detection config has no LM keys; only torch_dtype matches _HYPER_KEYS
+    with _patch_rtdetr_coco_o365():
+        meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
+    assert meta.hyperparameters.get("torch_dtype") == "float32"
+    assert "hidden_size" not in meta.hyperparameters
+    assert "vocab_size" not in meta.hyperparameters
+
+
+def test_rtdetr_coco_o365_arxiv() -> None:
+    with _patch_rtdetr_coco_o365():
+        meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
+    arxivs = (meta.extra_lists or {}).get("hf.arxiv", [])
+    assert "2304.08069" in arxivs
+
+
+def test_rtdetr_coco_o365_coco_dataset() -> None:
+    with _patch_rtdetr_coco_o365():
+        meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
+    assert meta.datasets
+    names = [d.metadata.name for d in meta.datasets if d.metadata and d.metadata.name]
+    assert "coco" in names
+
+
+# ---------------------------------------------------------------------------
+# PekingU/rtdetr_r50vd  (rt_detr arch, object-detection, COCO-only variant)
+# ---------------------------------------------------------------------------
+
+# Identical architecture to rtdetr_r50vd_coco_o365 but trained on COCO only
+# (no Objects365 pretraining). Tests that the rt_detr pattern is consistent.
+
+_RTDETR_COCO_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="object-detection",
+    language=["en"],
+    library_name="transformers",
+    datasets=["coco"],
+)
+
+
+def _patch_rtdetr_coco() -> Any:
+    return _patch_hf_calls(
+        config=_RTDETR_COCO_O365_CONFIG,  # same config schema
+        tokenizer_config=None,
+        card_data=_RTDETR_COCO_CARD_DATA,
+        hub_info={
+            "author": "PekingU",
+            "sha": "deadf00d",
+            "tags": ["arxiv:2304.08069", "dataset:coco"],
+        },
+    )
+
+
+def test_rtdetr_coco_type_of_model() -> None:
+    with _patch_rtdetr_coco():
+        meta = read_huggingface("PekingU/rtdetr_r50vd")
+    assert meta.type_of_model == "rt_detr"
+
+
+def test_rtdetr_coco_object_detection_domain() -> None:
+    with _patch_rtdetr_coco():
+        meta = read_huggingface("PekingU/rtdetr_r50vd")
+    assert "object-detection" in meta.usage.domains
+
+
+def test_rtdetr_coco_no_lm_hyperparameters() -> None:
+    # Detection model: d_model, decoder_layers, etc. are NOT in _HYPER_KEYS
+    with _patch_rtdetr_coco():
+        meta = read_huggingface("PekingU/rtdetr_r50vd")
+    assert "hidden_size" not in meta.hyperparameters
+    assert "vocab_size" not in meta.hyperparameters
+
+
+# ---------------------------------------------------------------------------
+# SAP/sap-rpt-1-oss  (gated config, tabular-classification, custom library_name)
+# ---------------------------------------------------------------------------
+
+# SAP Relational Pre-trained Transformer (RPT-1). Uses .pt files instead of
+# safetensors; no config.json (401 — gated). pipeline_tag=tabular-classification
+# (already in _DOMAIN_TAGS). library_name="sap-rpt-1-oss" is self-referential —
+# the library_name matches the model slug, a non-standard pattern.
+
+_SAP_RPT_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="tabular-classification",
+    language=None,
+    library_name="sap-rpt-1-oss",
+    datasets=["mlfoundations/t4-full"],
+)
+
+
+def _patch_sap_rpt() -> Any:
+    return _patch_hf_calls(
+        config=None,  # 401 gated
+        tokenizer_config=None,
+        card_data=_SAP_RPT_CARD_DATA,
+        hub_info={
+            "author": "SAP",
+            "sha": "deadf00d",
+            "tags": ["arxiv:2506.10707", "dataset:mlfoundations/t4-full"],
+        },
+    )
+
+
+def test_sap_rpt_tabular_classification_domain() -> None:
+    # tabular-classification is in _DOMAIN_TAGS
+    with _patch_sap_rpt():
+        meta = read_huggingface("SAP/sap-rpt-1-oss")
+    assert "tabular-classification" in meta.usage.domains
+
+
+def test_sap_rpt_no_architecture_gated() -> None:
+    # Config 401 → no type_of_model or architecture
+    with _patch_sap_rpt():
+        meta = read_huggingface("SAP/sap-rpt-1-oss")
+    assert meta.type_of_model is None
+    assert meta.architecture is None
+
+
+def test_sap_rpt_self_referential_library_name() -> None:
+    # library_name = model-slug string (non-standard pattern)
+    with _patch_sap_rpt():
+        meta = read_huggingface("SAP/sap-rpt-1-oss")
+    assert (meta.extra_data or {}).get("hf.library_name") == "sap-rpt-1-oss"
+
+
+def test_sap_rpt_arxiv() -> None:
+    with _patch_sap_rpt():
+        meta = read_huggingface("SAP/sap-rpt-1-oss")
+    arxivs = (meta.extra_lists or {}).get("hf.arxiv", [])
+    assert "2506.10707" in arxivs
+
+
+def test_sap_rpt_dataset() -> None:
+    with _patch_sap_rpt():
+        meta = read_huggingface("SAP/sap-rpt-1-oss")
+    assert meta.datasets
+    names = [d.metadata.name for d in meta.datasets if d.metadata and d.metadata.name]
+    assert "mlfoundations/t4-full" in names
+
+
+# ---------------------------------------------------------------------------
+# TencentARC/TimeLens-8B  (qwen3_vl, nested text_config, vague license)
+# ---------------------------------------------------------------------------
+
+# TimeLens-8B is a video-grounding VLM fine-tuned from Qwen3-VL-8B-Instruct.
+# The config uses `dtype` (not `torch_dtype`) at the top level, and nests all
+# LM numeric parameters inside `text_config` — so the top-level _HYPER_KEYS
+# lookup finds nothing → hyperparameters is empty.
+# license=other (vague) + license_name=bsd-3-clause (SPDX identifier as name).
+# pipeline_tag=video-text-to-text (already in _DOMAIN_TAGS).
+
+_TIMELENS_CONFIG: dict[str, Any] = {
+    "model_type": "qwen3_vl",
+    "architectures": ["Qwen3VLForConditionalGeneration"],
+    "dtype": "bfloat16",  # non-standard: uses dtype, not torch_dtype
+    # All LM numeric fields are nested inside text_config — NOT at top level
+    "text_config": {
+        "vocab_size": 151936,
+        "hidden_size": 4096,
+        "num_hidden_layers": 36,
+        "num_attention_heads": 32,
+        "num_key_value_heads": 8,
+        "head_dim": 128,
+        "intermediate_size": 12288,
+        "max_position_embeddings": 262144,
+        "rope_theta": 5000000,
+    },
+    "vision_config": {
+        "hidden_size": 1152,
+        "depth": 27,
+        "num_heads": 16,
+    },
+}
+
+_TIMELENS_CARD_DATA = _make_card_data(
+    license="other",
+    license_name="bsd-3-clause",
+    pipeline_tag="video-text-to-text",
+    language=["en"],
+    library_name="transformers",
+    datasets=["TencentARC/TimeLens-100K", "TencentARC/TimeLens-Bench"],
+    base_model="Qwen/Qwen3-VL-8B-Instruct",
+)
+
+
+def _patch_timelens() -> Any:
+    return _patch_hf_calls(
+        config=_TIMELENS_CONFIG,
+        tokenizer_config=None,
+        card_data=_TIMELENS_CARD_DATA,
+        hub_info={
+            "author": "TencentARC",
+            "sha": "deadf00d",
+            "tags": [
+                "arxiv:2512.14698",
+                "base_model:Qwen/Qwen3-VL-8B-Instruct",
+                "base_model:finetune:Qwen/Qwen3-VL-8B-Instruct",
+            ],
+        },
+    )
+
+
+def test_timelens_type_of_model() -> None:
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    assert meta.type_of_model == "qwen3_vl"
+
+
+def test_timelens_architecture() -> None:
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    assert meta.architecture == "Qwen3VLForConditionalGeneration"
+
+
+def test_timelens_video_text_to_text_domain() -> None:
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    assert "video-text-to-text" in meta.usage.domains
+
+
+def test_timelens_nested_text_config_empty_hyperparameters() -> None:
+    # All LM numeric keys are inside text_config → not captured by _HYPER_KEYS
+    # dtype at top level is NOT in _HYPER_KEYS (only torch_dtype is)
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    assert not meta.hyperparameters
+
+
+def test_timelens_vague_license_with_spdx_license_name() -> None:
+    # license=other (vague) + license_name=bsd-3-clause (an actual SPDX identifier)
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    assert meta.license is None
+    assert (meta.extra_data or {}).get("hf.license_raw") == "other"
+    assert (meta.extra_data or {}).get("hf.license_name") == "bsd-3-clause"
+
+
+def test_timelens_finetune_base_model() -> None:
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "finetune"
+    assert (meta.extra_data or {}).get("hf.base_model") == "Qwen/Qwen3-VL-8B-Instruct"
+
+
+def test_timelens_arxiv() -> None:
+    with _patch_timelens():
+        meta = read_huggingface("TencentARC/TimeLens-8B")
+    arxivs = (meta.extra_lists or {}).get("hf.arxiv", [])
+    assert "2512.14698" in arxivs
+
+
+# ---------------------------------------------------------------------------
+# dbmdz/bert-base-turkish-cased  (bert, no architectures field, Turkish)
+# ---------------------------------------------------------------------------
+
+# Turkish BERT model. Unusually, config.json has NO `architectures` field —
+# only `model_type: bert` is present. The extractor must handle this gracefully:
+# type_of_model is set from model_type, but architecture is None.
+# Minimal card: only `language: tr` and `license: mit` — no pipeline_tag,
+# no tags, no datasets, no library_name.
+
+_BERT_TURKISH_CONFIG: dict[str, Any] = {
+    "model_type": "bert",
+    # "architectures" field absent — different from [] (empty list)
+    "vocab_size": 32000,
+    "hidden_size": 768,
+    "num_hidden_layers": 12,
+    "num_attention_heads": 12,
+    "intermediate_size": 3072,
+    "max_position_embeddings": 512,
+}
+
+_BERT_TURKISH_CARD_DATA = _make_card_data(
+    license="mit",
+    pipeline_tag=None,  # no pipeline_tag in card
+    language=["tr"],
+    library_name=None,
+)
+
+
+def _patch_bert_turkish() -> Any:
+    return _patch_hf_calls(
+        config=_BERT_TURKISH_CONFIG,
+        tokenizer_config=None,
+        card_data=_BERT_TURKISH_CARD_DATA,
+        hub_info={"author": "dbmdz", "sha": "deadf00d"},
+    )
+
+
+def test_bert_turkish_type_of_model() -> None:
+    # model_type present even though architectures field is absent
+    with _patch_bert_turkish():
+        meta = read_huggingface("dbmdz/bert-base-turkish-cased")
+    assert meta.type_of_model == "bert"
+
+
+def test_bert_turkish_architecture_none() -> None:
+    # architectures key absent from config → architecture=None
+    with _patch_bert_turkish():
+        meta = read_huggingface("dbmdz/bert-base-turkish-cased")
+    assert meta.architecture is None
+
+
+def test_bert_turkish_no_pipeline_tag_empty_domains() -> None:
+    # No pipeline_tag in card → empty usage.domains
+    with _patch_bert_turkish():
+        meta = read_huggingface("dbmdz/bert-base-turkish-cased")
+    assert not meta.usage.domains
+
+
+def test_bert_turkish_language() -> None:
+    with _patch_bert_turkish():
+        meta = read_huggingface("dbmdz/bert-base-turkish-cased")
+    langs = (meta.extra_lists or {}).get("hf.language", [])
+    assert langs == ["tr"]
+
+
+def test_bert_turkish_hyperparameters() -> None:
+    # Standard BERT keys are captured despite no architectures field
+    with _patch_bert_turkish():
+        meta = read_huggingface("dbmdz/bert-base-turkish-cased")
+    assert meta.hyperparameters.get("hidden_size") == 768
+    assert meta.hyperparameters.get("vocab_size") == 32000
+
+
+# ---------------------------------------------------------------------------
+# cross-encoder/ms-marco-MiniLM-L6-v2  (distilled BERT, text-ranking, quantized)
+# ---------------------------------------------------------------------------
+
+# MiniLM-L6 is a 6-layer BERT model fine-tuned for MS MARCO passage ranking.
+# It is tagged as `base_model:quantized:cross-encoder/ms-marco-MiniLM-L12-v2`
+# in the Hub API — treated as a compressed/distilled variant of the L12 model,
+# even though it is not a typical numeric quantization (it is a layer reduction).
+# hidden_size=384 — half of standard BERT-base (768).
+# library_name=sentence-transformers; pipeline_tag=text-ranking.
+
+_CROSS_ENCODER_CONFIG: dict[str, Any] = {
+    "model_type": "bert",
+    "architectures": ["BertForSequenceClassification"],
+    "vocab_size": 30522,
+    "hidden_size": 384,
+    "num_hidden_layers": 6,
+    "num_attention_heads": 12,
+    "intermediate_size": 1536,
+    "max_position_embeddings": 512,
+    # Sentence-transformers-specific config key
+    "sbert_ce_default_activation_function": "torch.nn.modules.linear.Identity",
+}
+
+_CROSS_ENCODER_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-ranking",
+    language=["en"],
+    library_name="sentence-transformers",
+    datasets=["sentence-transformers/msmarco"],
+    base_model="cross-encoder/ms-marco-MiniLM-L12-v2",
+)
+
+
+def _patch_cross_encoder() -> Any:
+    return _patch_hf_calls(
+        config=_CROSS_ENCODER_CONFIG,
+        tokenizer_config={"tokenizer_class": "BertTokenizerFast"},
+        card_data=_CROSS_ENCODER_CARD_DATA,
+        hub_info={
+            "author": "cross-encoder",
+            "sha": "deadf00d",
+            "tags": [
+                "base_model:quantized:cross-encoder/ms-marco-MiniLM-L12-v2",
+                "dataset:sentence-transformers/msmarco",
+            ],
+        },
+    )
+
+
+def test_cross_encoder_type_of_model() -> None:
+    with _patch_cross_encoder():
+        meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
+    assert meta.type_of_model == "bert"
+
+
+def test_cross_encoder_architecture() -> None:
+    with _patch_cross_encoder():
+        meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
+    assert meta.architecture == "BertForSequenceClassification"
+
+
+def test_cross_encoder_text_ranking_domain() -> None:
+    with _patch_cross_encoder():
+        meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
+    assert "text-ranking" in meta.usage.domains
+
+
+def test_cross_encoder_small_hidden_size() -> None:
+    # hidden_size=384 — half of standard BERT-base
+    with _patch_cross_encoder():
+        meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
+    assert meta.hyperparameters.get("hidden_size") == 384
+
+
+def test_cross_encoder_quantized_relation() -> None:
+    # base_model:quantized: tag used for layer-reduced/distilled model (not GGUF)
+    with _patch_cross_encoder():
+        meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
+    assert (meta.extra_data or {}).get("hf.base_model_relation") == "quantized"
+    assert (meta.extra_data or {}).get(
+        "hf.base_model"
+    ) == "cross-encoder/ms-marco-MiniLM-L12-v2"
+
+
+def test_cross_encoder_sentence_transformers_library() -> None:
+    with _patch_cross_encoder():
+        meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
+    assert (meta.extra_data or {}).get("hf.library_name") == "sentence-transformers"

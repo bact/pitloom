@@ -275,10 +275,11 @@ def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Integration tests -- real fastText file (fasttext/sentimentdemo.bin)
 # Thai text sentiment classifier; 4 labels: pos, neg, neu, q
-# Require: fasttext installed AND tests/fixtures/fasttext/sentimentdemo.bin present
+# Require: fasttext installed AND
+#          tests/fixtures/aimodels/fasttext/sentimentdemo.bin present
 # ---------------------------------------------------------------------------
 
-_FT = Path(__file__).parent / "fixtures" / "fasttext"
+_FT = Path(__file__).parent / "fixtures" / "aimodels" / "fasttext"
 SENTIMENT_DEMO_FIXTURE = _FT / "sentimentdemo.bin"
 
 
@@ -353,7 +354,8 @@ def test_sentiment_demo_magic_bytes_detect() -> None:
 # ---------------------------------------------------------------------------
 # Integration tests -- real fastText file (fasttext/lid.176.ftz)
 # Facebook language identification model; 176 language labels
-# Require: fasttext installed AND tests/fixtures/fasttext/lid.176.ftz present
+# Require: fasttext installed AND
+#          tests/fixtures/aimodels/fasttext/lid.176.ftz present
 # ---------------------------------------------------------------------------
 
 LID_176_FIXTURE = _FT / "lid.176.ftz"

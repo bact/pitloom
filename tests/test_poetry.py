@@ -20,7 +20,7 @@ from pitloom.extract.poetry import (
 from pitloom.extract.pyproject import read_pyproject
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
-POETRY_FIXTURE = FIXTURE_DIR / "sampleproject-poetry"
+POETRY_FIXTURE = FIXTURE_DIR / "projects" / "sampleproject-poetry"
 
 
 # ---------------------------------------------------------------------------
@@ -411,7 +411,7 @@ keywords = ["extra"]
 # ---------------------------------------------------------------------------
 # Fixture-based integration tests (mistral-inference pyproject.toml)
 #
-# The fixture at tests/fixtures/sampleproject-poetry/ is a copy of
+# The fixture at tests/fixtures/projects/sampleproject-poetry/ is a copy of
 # https://github.com/mistralai/mistral-inference/blob/main/pyproject.toml
 # It uses Poetry as build backend with no [project] section.
 # ---------------------------------------------------------------------------

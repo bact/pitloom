@@ -388,7 +388,9 @@ def test_hook_missing_fragment_logs_warning(
 
 def test_hook_with_sampleproject_fixture() -> None:
     """initialize() succeeds on the real 'sampleproject-hatchling' fixture."""
-    fixture_dir = Path(__file__).parent / "fixtures" / "sampleproject-hatchling"
+    fixture_dir = (
+        Path(__file__).parent / "fixtures" / "projects" / "sampleproject-hatchling"
+    )
     if not fixture_dir.exists():
         pytest.skip("sampleproject-hatchling fixture not found")
 

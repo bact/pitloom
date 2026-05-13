@@ -65,7 +65,7 @@ aimodel = [
 huggingface = ["huggingface_hub>=1.14.0"]
 license = ["licenseid>=0.2.2"]
 
-fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
+fasttext = ["fasttext>=0.9.3"]                # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
 huggingface_hub = ["huggingface_hub>=1.14.0"]
@@ -109,19 +109,21 @@ exclude = [
     ".gitignore",
     ".markdownlint.json",
     "AGENTS.md",
-    "tests/fixtures/fasttext/*.bin",
-    "tests/fixtures/fasttext/*.ftz",
-    "tests/fixtures/gguf/*.gguf",
-    "tests/fixtures/hdf5/*.h5",
-    "tests/fixtures/hdf5/*.hdf5",
-    "tests/fixtures/keras/*.keras",
-    "tests/fixtures/numpy/*.npy",
-    "tests/fixtures/numpy/*.npz",
-    "tests/fixtures/onnx/*.onnx",
-    "tests/fixtures/pytorch/*.pt",
-    "tests/fixtures/pytorch/*.pth",
-    "tests/fixtures/pytorch_pt2/*.pt2",
-    "tests/fixtures/safetensors/*.safetensors",
+    "tests/fixtures/aimodels/fasttext/*.bin",
+    "tests/fixtures/aimodels/fasttext/*.ftz",
+    "tests/fixtures/aimodels/gguf/*.gguf",
+    "tests/fixtures/aimodels/hdf5/*.h5",
+    "tests/fixtures/aimodels/hdf5/*.hdf5",
+    "tests/fixtures/aimodels/keras/*.keras",
+    "tests/fixtures/aimodels/numpy/*.npy",
+    "tests/fixtures/aimodels/numpy/*.npz",
+    "tests/fixtures/aimodels/onnx/*.onnx",
+    "tests/fixtures/aimodels/pytorch/*.pt",
+    "tests/fixtures/aimodels/pytorch/*.pth",
+    "tests/fixtures/aimodels/pytorch_pt2/*.pt2",
+    "tests/fixtures/aimodels/safetensors/*.safetensors",
+    "tests/fixtures/croissant/*.json",
+    "tests/fixtures/fragments/*.json",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -188,9 +190,9 @@ max-line-length = 88
 
 [tool.pylint.messages_control]
 disable = [
-    "duplicate-code",              # boilerplate in tests is expected
-    "fixme",                       # TODO comments are tracked intentionally
-    "missing-function-docstring",  # not required in test files
+    "duplicate-code",             # boilerplate in tests is expected
+    "fixme",                      # TODO comments are tracked intentionally
+    "missing-function-docstring", # not required in test files
 ]
 
 [tool.pylint.typecheck]

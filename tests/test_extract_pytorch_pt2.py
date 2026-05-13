@@ -28,7 +28,7 @@ from pitloom.extract.ai_model import read_pytorch_pt2
 # PT2 Archive extractor (mocked / stdlib ZIP)
 # ---------------------------------------------------------------------------
 
-_PT2_DIR = Path(__file__).parent / "fixtures" / "pytorch_pt2"
+_PT2_DIR = Path(__file__).parent / "fixtures" / "aimodels" / "pytorch_pt2"
 
 
 def _make_pt2_zip(
@@ -199,7 +199,9 @@ def test_read_pytorch_pt2_model_json_inputs_outputs(tmp_path: Path) -> None:
 def pt2_fixture() -> Any:
     pt2_files = list(_PT2_DIR.glob("*.pt2"))
     if not pt2_files:
-        pytest.skip("No .pt2 fixture files found in tests/fixtures/pytorch_pt2/")
+        pytest.skip(
+            "No .pt2 fixture files found in tests/fixtures/aimodels/pytorch_pt2/"
+        )
     return read_pytorch_pt2(pt2_files[0])
 
 

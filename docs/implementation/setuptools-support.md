@@ -22,7 +22,7 @@ initial setuptools support added in the `setuptools-support` branch.
 | `src/pitloom/assemble/__init__.py` | Updated orchestrator (`_load_project_metadata`) |
 | `src/pitloom/__main__.py` | CLI updated to accept projects without `pyproject.toml` |
 | `tests/test_setuptools.py` | 53 new unit and integration tests |
-| `tests/fixtures/sampleproject-setuptools/` | Transitional-layout fixture project |
+| `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
 
 ## Extraction functions
 
@@ -170,7 +170,7 @@ source had no value.
 
 ## Fixture project
 
-`tests/fixtures/sampleproject-setuptools/` demonstrates the common
+`tests/fixtures/projects/sampleproject-setuptools/` demonstrates the common
 **transitional layout**:
 
 ```text
