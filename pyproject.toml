@@ -46,6 +46,7 @@ classifiers = [
 ]
 dependencies = [
     "hatchling>=1.28.0",
+    "licenseid>=0.2.3",
     "pyproject-metadata>=0.11.0",
     "rfc8785>=0.1.4",
     "spdx-python-model==0.0.4",
@@ -63,7 +64,6 @@ aimodel = [
     "safetensors[numpy]>=0.7.0",
 ]
 huggingface = ["huggingface_hub>=1.14.0"]
-license = ["licenseid>=0.2.2"]
 
 fasttext = ["fasttext>=0.9.3"]                # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
@@ -124,6 +124,7 @@ exclude = [
     "tests/fixtures/aimodels/safetensors/*.safetensors",
     "tests/fixtures/croissant/*.json",
     "tests/fixtures/fragments/*.json",
+    "tests/fixtures/huggingface-hub/*.txt",
 ]
 
 [tool.hatch.build.targets.wheel]

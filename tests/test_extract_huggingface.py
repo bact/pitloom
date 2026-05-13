@@ -258,7 +258,7 @@ def test_read_huggingface_hyperparameters_include_vocab_size() -> None:
 def test_read_huggingface_license_from_card() -> None:
     with _patch_hf_calls():
         meta = read_huggingface("mistralai/Mistral-7B-v0.1")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_read_huggingface_domain_from_pipeline_tag_via_usage() -> None:
@@ -573,7 +573,7 @@ def test_license_from_file_when_card_says_other() -> None:
 
 
 def test_vague_license_raw_not_stored_when_card_has_real_spdx_id() -> None:
-    # A proper SPDX ID in the card YAML should NOT create hf.license_raw.
+    # A proper SPDX License ID in the card YAML should NOT create hf.license_raw.
     with _patch_hf_calls():  # uses apache-2.0 card data
         meta = read_huggingface("mistralai/Mistral-7B-v0.1")
     assert "hf.license_raw" not in meta.extra_data
@@ -694,7 +694,7 @@ def test_kokoro_name() -> None:
 def test_kokoro_license() -> None:
     with _patch_kokoro():
         meta = read_huggingface("hexgrad/Kokoro-82M")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_kokoro_tts_domain() -> None:
@@ -960,7 +960,7 @@ def test_kimi_multimodal_domain() -> None:
 # ---------------------------------------------------------------------------
 
 _GEMMA_CARD_DATA = _make_card_data(
-    license="gemma",  # Non-standard but passes SPDX ID regex -> not vague
+    license="gemma",  # Non-standard but passes SPDX License ID regex -> not vague
     pipeline_tag=None,
     tags=None,
     language=None,
@@ -1027,7 +1027,9 @@ def _patch_llama() -> Any:
 
 
 def test_llama_custom_license_used_directly() -> None:
-    # "llama3.2" matches SPDX ID regex - treated as a license identifier
+    # "llama3.2" is not in _VAGUE_LICENSE_VALUES, so it is taken from the card.
+    # Not recognized by licenseid matcher → _canonicalize_license_id returns
+    # it unchanged.
     with _patch_llama():
         meta = read_huggingface("meta-llama/Llama-3.2-1B")
     assert meta.license == "llama3.2"
@@ -1098,7 +1100,7 @@ def test_deepseek_architecture() -> None:
 def test_deepseek_mit_license() -> None:
     with _patch_deepseek():
         meta = read_huggingface("deepseek-ai/DeepSeek-R1")
-    assert meta.license == "mit"
+    assert meta.license == "MIT"
 
 
 def test_deepseek_no_domain_when_no_pipeline_tag() -> None:
@@ -1295,7 +1297,7 @@ def test_typhoon_thai_language() -> None:
 def test_typhoon_license() -> None:
     with _patch_typhoon():
         meta = read_huggingface("typhoon-ai/typhoon-7b")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_typhoon_grouped_query_attention_hyperparameter() -> None:
@@ -2756,7 +2758,7 @@ def _patch_uni2() -> Any:
 def test_uni2_nc_nd_license() -> None:
     with _patch_uni2():
         meta = read_huggingface("MahmoodLab/UNI2-h")
-    assert meta.license == "cc-by-nc-nd-4.0"
+    assert meta.license == "CC-BY-NC-ND-4.0"
 
 
 def test_uni2_pathology_tags_in_extra_lists() -> None:
@@ -3577,7 +3579,7 @@ def test_deplot_arxiv() -> None:
 
 
 # Salesforce/blip-vqa-base
-# BLIP for VQA; bsd-3-clause license (non-SPDX passthrough).
+# BLIP for VQA; bsd-3-clause license (normalised to BSD-3-Clause).
 def _patch_blip_vqa() -> Any:
     return _patch_hf_calls(
         config={
@@ -3604,11 +3606,12 @@ def test_blip_vqa_domain() -> None:
     assert "visual-question-answering" in meta.usage.domains
 
 
-def test_blip_vqa_bsd_license_passthrough() -> None:
-    # bsd-3-clause not in _VAGUE_LICENSE_VALUES -- passed through as-is.
+def test_blip_vqa_bsd_license_normalized() -> None:
+    # bsd-3-clause not in _VAGUE_LICENSE_VALUES; _canonicalize_license_id maps
+    # it to the canonical SPDX License ID BSD-3-Clause via licenseid matcher.
     with _patch_blip_vqa():
         meta = read_huggingface("Salesforce/blip-vqa-base")
-    assert meta.license == "bsd-3-clause"
+    assert meta.license == "BSD-3-Clause"
 
 
 # ---------------------------------------------------------------------------
@@ -3762,7 +3765,7 @@ def test_seamless_audio_to_audio_tag_in_domain() -> None:
 def test_seamless_nc_license() -> None:
     with _patch_seamless_m4t():
         meta = read_huggingface("facebook/seamless-m4t-v2-large")
-    assert meta.license == "cc-by-nc-4.0"
+    assert meta.license == "CC-BY-NC-4.0"
 
 
 # ---------------------------------------------------------------------------
@@ -4609,7 +4612,7 @@ def test_phi2_phi_architecture_mit_license() -> None:
     with _patch_phi2():
         meta = read_huggingface("microsoft/phi-2")
     assert meta.type_of_model == "phi"
-    assert meta.license == "mit"
+    assert meta.license == "MIT"
 
 
 def test_phi2_code_tag_in_domain() -> None:
@@ -4927,7 +4930,7 @@ def _patch_legal_embed_ita() -> Any:
 def test_legal_embed_ita_nc_license_italian() -> None:
     with _patch_legal_embed_ita():
         meta = read_huggingface("ReDiX/Legal-Embedding-ita-0.6B")
-    assert meta.license == "cc-by-nc-4.0"
+    assert meta.license == "CC-BY-NC-4.0"
     assert meta.extra_lists.get("hf.language") == ["it"]
     assert "sentence-similarity" in meta.usage.domains
 
@@ -5170,7 +5173,8 @@ def test_qwen3_235b_moe_architecture() -> None:
 
 
 def test_qwen3_235b_qwen_license_passthrough() -> None:
-    # "qwen" not in _VAGUE_LICENSE_VALUES → stored as-is
+    # "qwen" not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher →
+    # _canonicalize_license_id returns it unchanged
     with _patch_qwen3_235b():
         meta = read_huggingface("Qwen/Qwen3-235B-A22B")
     assert meta.license == "qwen"
@@ -5243,7 +5247,7 @@ def test_qwen35_27b_architecture() -> None:
 def test_qwen35_27b_apache_license() -> None:
     with _patch_qwen35_27b():
         meta = read_huggingface("Qwen/Qwen3.5-27B")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_qwen35_27b_gqa() -> None:
@@ -5265,7 +5269,8 @@ def test_qwen35_27b_text_generation_domain() -> None:
 # ---------------------------------------------------------------------------
 
 # Korean multimodal VLM from Kakao Bank. Custom "kanana-license" identifier is
-# NOT in _VAGUE_LICENSE_VALUES → stored as-is (passthrough).
+# NOT in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher →
+# _canonicalize_license_id returns it unchanged.
 # image-text-to-text pipeline tag.
 
 _KANANA_15V_CONFIG: dict[str, Any] = {
@@ -5310,7 +5315,9 @@ def test_kanana_15v_architecture() -> None:
 
 
 def test_kanana_15v_license_passthrough() -> None:
-    # "kanana-license" is not in _VAGUE_LICENSE_VALUES → stored as-is, no detection
+    # "kanana-license" not in _VAGUE_LICENSE_VALUES; not recognized by
+    # licenseid matcher → _canonicalize_license_id returns it unchanged;
+    # no file detection triggered
     with _patch_kanana_15v():
         meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
     assert meta.license == "kanana-license"
@@ -5712,7 +5719,7 @@ def test_glm45_air_reap_architecture() -> None:
 def test_glm45_air_reap_apache_license() -> None:
     with _patch_glm45_air_reap():
         meta = read_huggingface("THUDM/GLM-4.5-Air-REAP")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_glm45_air_reap_merge_relation() -> None:
@@ -5790,7 +5797,7 @@ def test_line_distilbert_fill_mask_domain() -> None:
 def test_line_distilbert_apache_license() -> None:
     with _patch_line_distilbert():
         meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -5847,7 +5854,7 @@ def test_clip_japanese_v2_feature_extraction_domain() -> None:
 def test_clip_japanese_v2_apache_license() -> None:
     with _patch_clip_japanese_v2():
         meta = read_huggingface("line-corporation/clip-japanese-base-v2")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_clip_japanese_v2_hidden_size() -> None:
@@ -5898,7 +5905,7 @@ def test_fujitsu_llm_nemo_library_name() -> None:
 def test_fujitsu_llm_apache_license() -> None:
     with _patch_fujitsu_llm():
         meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_fujitsu_llm_text_generation_domain() -> None:
@@ -5955,7 +5962,7 @@ def test_windowseat_image_to_image_domain() -> None:
 def test_windowseat_apache_license() -> None:
     with _patch_windowseat():
         meta = read_huggingface("windowseat-ai/windowseat-reflection")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -6023,7 +6030,7 @@ def test_moirai_time_series_forecasting_domain() -> None:
 def test_moirai_cc_by_nc_license() -> None:
     with _patch_moirai():
         meta = read_huggingface("Salesforce/moirai-2.0-R-small")
-    assert meta.license == "cc-by-nc-4.0"
+    assert meta.license == "CC-BY-NC-4.0"
 
 
 # ---------------------------------------------------------------------------
@@ -6091,7 +6098,7 @@ def test_llasa_3b_text_to_speech_domain() -> None:
 def test_llasa_3b_cc_by_nc_license() -> None:
     with _patch_llasa_3b():
         meta = read_huggingface("HKUSTAudio/Llasa-3B")
-    assert meta.license == "cc-by-nc-4.0"
+    assert meta.license == "CC-BY-NC-4.0"
 
 
 # ---------------------------------------------------------------------------
@@ -6310,7 +6317,7 @@ def test_tildeopen_30b_64k_seven_datasets() -> None:
 def test_tildeopen_30b_64k_cc_by_license() -> None:
     with _patch_tildeopen_30b_64k():
         meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
-    assert meta.license == "cc-by-4.0"
+    assert meta.license == "CC-BY-4.0"
 
 
 # ---------------------------------------------------------------------------
@@ -6547,7 +6554,8 @@ def test_openeurollm_three_datasets() -> None:
 #  • No max_position_embeddings (uses ALiBi positional bias, not RoPE)
 #  • seq_length (added to _HYPER_KEYS) is absent in the 176B config
 #  • bigscience-bloom-rail-1.0 is a custom HF identifier NOT in
-#    _VAGUE_LICENSE_VALUES → stored as-is (passthrough)
+#    _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher →
+#    _canonicalize_license_id returns it unchanged
 #  • 59 languages (46 natural + 13 programming languages)
 
 _BLOOM_CONFIG: dict[str, Any] = {
@@ -6641,7 +6649,9 @@ def test_bloom_architecture() -> None:
 
 
 def test_bloom_custom_license_passthrough() -> None:
-    # "bigscience-bloom-rail-1.0" not in _VAGUE_LICENSE_VALUES → stored as-is
+    # "bigscience-bloom-rail-1.0" not in _VAGUE_LICENSE_VALUES, not a known
+    # Not recognized by licenseid matcher → _canonicalize_license_id returns
+    # it unchanged.
     with _patch_bloom():
         meta = read_huggingface("bigscience/bloom")
     assert meta.license == "bigscience-bloom-rail-1.0"
@@ -7285,7 +7295,7 @@ def test_shap_e_text_to_3d_domain() -> None:
 def test_shap_e_mit_license() -> None:
     with _patch_shap_e():
         meta = read_huggingface("openai/shap-e")
-    assert meta.license == "mit"
+    assert meta.license == "MIT"
 
 
 def test_shap_e_no_architecture() -> None:
@@ -7468,7 +7478,8 @@ def test_hy_motion_library_name() -> None:
 
 # Apple Sharp generates 3-D from a single 2-D image. pipeline_tag=image-to-3d
 # (new _DOMAIN_TAGS entry). library_name=ml-sharp (Apple's custom library).
-# license=apple-amlr → passthrough (not in _VAGUE_LICENSE_VALUES). No config.
+# license=apple-amlr → not in _VAGUE_LICENSE_VALUES; not recognized by
+# licenseid matcher → _canonicalize_license_id returns it unchanged. No config.
 
 _APPLE_SHARP_CARD_DATA = _make_card_data(
     license="apple-amlr",
@@ -7495,7 +7506,8 @@ def test_apple_sharp_image_to_3d_domain() -> None:
 
 
 def test_apple_sharp_apple_amlr_license_passthrough() -> None:
-    # apple-amlr not in _VAGUE_LICENSE_VALUES → stored as-is
+    # apple-amlr not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher →
+    # _canonicalize_license_id returns it unchanged
     with _patch_apple_sharp():
         meta = read_huggingface("apple/Sharp")
     assert meta.license == "apple-amlr"
@@ -7548,7 +7560,7 @@ def test_firered_vad_voice_activity_detection_domain() -> None:
 def test_firered_vad_apache_license() -> None:
     with _patch_firered_vad():
         meta = read_huggingface("FireRedTeam/FireRedVAD")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_firered_vad_no_architecture() -> None:
@@ -7610,7 +7622,7 @@ def test_gte_reranker_model_type_placeholder() -> None:
 def test_gte_reranker_apache_license() -> None:
     with _patch_gte_reranker():
         meta = read_huggingface("Alibaba-NLP/gte-multilingual-reranker-base")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 def test_gte_reranker_sentence_transformers_library() -> None:
@@ -7626,7 +7638,8 @@ def test_gte_reranker_sentence_transformers_library() -> None:
 # Apple OpenELM-270M uses a custom efficient architecture ("openelm").
 # Config has non-standard keys (activation_fn_name, ffn_dim_divisor) alongside
 # the standard head_dim (which IS in _HYPER_KEYS → captured).
-# license=apple-amlr → passthrough.
+# license=apple-amlr → not in _VAGUE_LICENSE_VALUES; not recognized by
+# licenseid matcher → _canonicalize_license_id returns it unchanged.
 
 _OPENELM_270M_CONFIG: dict[str, Any] = {
     "model_type": "openelm",
@@ -7810,7 +7823,7 @@ def test_llada2_moe_any_to_any_domain() -> None:
 def test_llada2_moe_apache_license() -> None:
     with _patch_llada2_moe():
         meta = read_huggingface("inclusionAI/LLaDA2.0-Uni")
-    assert meta.license == "apache-2.0"
+    assert meta.license == "Apache-2.0"
 
 
 # ---------------------------------------------------------------------------

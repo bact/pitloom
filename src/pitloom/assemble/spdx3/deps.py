@@ -111,12 +111,12 @@ def _enrich_from_installed(
     provenance_source = f"Source: installed metadata | Package: {dep_name}"
 
     # description
-    summary = pkg_meta["Summary"] or ""
+    summary = pkg_meta.get("Summary") or ""
     if summary and summary != "UNKNOWN":
         dep_package.description = summary
 
     # homePage -- core field first, then well-known Project-URL labels
-    home_page = pkg_meta["Home-page"] or ""
+    home_page = pkg_meta.get("Home-page") or ""
     if not home_page or home_page == "UNKNOWN":
         for label in _HOMEPAGE_LABELS:
             if label in project_urls:
@@ -126,7 +126,7 @@ def _enrich_from_installed(
         dep_package.software_homePage = home_page
 
     # downloadLocation -- core field first, then well-known Project-URL labels
-    download_url = pkg_meta["Download-URL"] or ""
+    download_url = pkg_meta.get("Download-URL") or ""
     if not download_url or download_url == "UNKNOWN":
         for label in _DOWNLOAD_LABELS:
             if label in project_urls:
@@ -145,7 +145,7 @@ def _enrich_from_installed(
         dep_package.software_packageUrl = f"pkg:pypi/{purl_name}@{version}"
 
     # hasDeclaredLicense -- prefer PEP 639 License-Expression over legacy License
-    license_id = pkg_meta["License-Expression"] or pkg_meta["License"] or ""
+    license_id = pkg_meta.get("License-Expression") or pkg_meta.get("License") or ""
     if license_id and license_id != "UNKNOWN":
         rel_declared, _ = build_license_elements(
             license_id=license_id,

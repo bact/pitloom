@@ -224,32 +224,79 @@ The `hf.language` extractor passes non-standard values through unchanged
 | `"code"` | Programming-language content | `huggingface/CodeBERTa-small-v1` |
 | `False` (bool) | ISO code `"no"` parsed by YAML 1.1 | `openai/whisper-large-v3` — filtered out |
 
-### 8. License handling: passthrough, vague, and no-license patterns
+### 8. License handling: sources, canonicalization, vague values, and no-license patterns
+
+pitloom's role is to **find license information** from available sources.
+Once found, it delegates identification to the `licenseid` library.
+
+#### License sources (priority order)
+
+1. **Model card YAML `license` field** — the primary source; a license
+   identifier string supplied by the model author.
+2. **License files** (`LICENSE`, `COPYING`, etc.) — full license text;
+   used when the card value is vague (see below).  Detection performed by
+   `_detect_license_from_hf_files()` via `licenseid`.
+
+#### Canonicalization: `_canonicalize_license_id()`
+
+HF Hub stores license identifiers in **lowercase** (e.g. `apache-2.0`,
+`bsd-3-clause`), while SPDX requires specific mixed casing.
+`_canonicalize_license_id()` delegates to `canonicalize_license_id()` in
+`pitloom.extract._license`, which calls `AggregatedLicenseMatcher.match()`
+from the `licenseid` library.  The matcher's Tier-0 short-text path performs
+fuzzy name/ID matching and returns the canonical casing when it finds an
+exact match (internal score > 1.0); otherwise the value is returned
+**verbatim**.
+
+pitloom does **not** add `LicenseRef-` prefixes or otherwise interpret
+unrecognized values — that is the responsibility of `licenseid` or downstream
+SBOM tooling.
+
+| HF card value | `meta.license` recorded | Source |
+| :--- | :--- | :--- |
+| `apache-2.0` | `Apache-2.0` | recognized by licenseid — canonical SPDX License ID |
+| `mit` | `MIT` | recognized by licenseid |
+| `bsd-3-clause` | `BSD-3-Clause` | recognized by licenseid |
+| `cc-by-4.0` | `CC-BY-4.0` | recognized by licenseid |
+| `cc-by-nc-4.0` | `CC-BY-NC-4.0` | recognized by licenseid |
+| `cc-by-nc-nd-4.0` | `CC-BY-NC-ND-4.0` | recognized by licenseid |
+| `cc-by-sa-4.0` | `CC-BY-SA-4.0` | recognized by licenseid |
+| `gemma` | `gemma` | not recognized by licenseid — recorded verbatim |
+| `llama3.2` | `llama3.2` | not recognized by licenseid — recorded verbatim |
+| `llama3` | `llama3` | not recognized by licenseid — recorded verbatim |
+| `apple-amlr` | `apple-amlr` | not recognized by licenseid — recorded verbatim |
+| `bigscience-bloom-rail-1.0` | `bigscience-bloom-rail-1.0` | not recognized by licenseid — recorded verbatim |
+| `bigcode-openrail-m` | `bigcode-openrail-m` | not recognized by licenseid — recorded verbatim |
+| `openrail++` | `openrail++` | not recognized by licenseid — recorded verbatim |
+| `agpl-3.0` | `agpl-3.0` | deprecated SPDX License ID, not recognized by licenseid — recorded verbatim |
+| `gpl-3.0` | `gpl-3.0` | deprecated SPDX License ID, not recognized by licenseid — recorded verbatim |
+
+Deprecated bare copyleft forms (`agpl-3.0`, `gpl-3.0`, `lgpl-2.1`, etc.) are
+not recognized by `licenseid` (SPDX replaced them with `-only` /
+`-or-later` variants requiring explicit intent).  They are recorded verbatim;
+downstream tooling can decide whether to map them to `-only`, `-or-later`, or
+add a `LicenseRef-` prefix.
+
+Requires `licenseid update` to populate the database.  When the database is
+unavailable all card values are recorded verbatim (no canonicalization).
+
+#### Vague license values
 
 `_VAGUE_LICENSE_VALUES` = `{"other", "custom", "proprietary", "unknown", "unlicensed"}`.
-Anything outside this set is stored as-is in `meta.license`.  This includes
-non-SPDX HuggingFace custom identifiers:
+When the card YAML `license` field matches one of these, the extractor:
 
-| Custom identifier | Example model(s) |
-| :--- | :--- |
-| `gemma` | `google/gemma-2b`, `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF`, `lerobot/pi05_base`, `bakrianoo/arabic-legal-documents-ocr-1.0` |
-| `llama3.2` | `meta-llama/Llama-3.2-1B`, `meta-llama/Llama-3.2-3B`, `meta-llama/Llama-3.2-3B-Instruct` |
-| `llama3` | `NousResearch/Hermes-3-Llama-3.2-3B` |
-| `apple-amlr` | `apple/DepthPro-hf`, `apple/OpenELM-270M`, `apple/Sharp` |
-| `kanana-license` | `kakaobank/kanana-1.5-v-3b-instruct` |
-| `bigscience-bloom-rail-1.0` | `bigscience/bloom`, `bigscience/bloomz-7b1` |
-| `bigcode-openrail-m` | `bigcode/starcoder2-3b` |
-| `openrail++` | `tum-nlp/Deberta_Human_Value_Detector` |
-| `bsd-3-clause` | `Salesforce/blip-vqa-base` |
-| `cc-by-nc-4.0` | `geolocal/StreetCLIP`, `MahmoodLab/UNI2-h`, `facebook/seamless-m4t-v2-large`, `HKUSTAudio/Llasa-3B` |
-| `cc-by-4.0` | `pyannote/speaker-diarization-community-1`, `TildeAI/TildeOpen-30b-64k`, `TildeAI/TildeOpen-30b` |
-| `cc-by-sa-4.0` | `sonoisa/sentence-bert-base-ja-mean-tokens`, `pythainlp/wangchanglm-7.5B-sft-enth` |
-| `cc-by-nc-nd-4.0` | `MahmoodLab/UNI2-h` |
-| `qwen` | `openthaigpt/openthaigpt-r1-32b-instruct` (via `license_name`) |
-| `llava2` | `llava-hf/LLaVA-NeXT-Video-7B-hf` |
+1. Saves the raw value in `extra_data["hf.license_raw"]`
+2. Calls `_detect_license_from_hf_files()` — downloads license files and uses
+   `licenseid` text detection to identify the SPDX License ID
 
-**The `license_name` secondary field** appears when the primary `license` field
-is vague or unrecognised.  It is stored in `extra_data["hf.license_name"]`:
+When the `license` field is absent entirely, `meta.license` is `None` and
+`hf.license_raw` is not set (distinct from the vague-value path).
+
+#### `license_name` secondary field
+
+Some model cards include a `license_name` key alongside the primary `license`
+field — typically a human-readable or more specific name.  pitloom records it
+verbatim in `extra_data["hf.license_name"]` without canonicalization.
 
 | `license_name` value | Example model | Notes |
 | :--- | :--- | :--- |
@@ -257,14 +304,7 @@ is vague or unrecognised.  It is stored in `extra_data["hf.license_name"]`:
 | `sai-nc-community` | `stabilityai/stable-zero123` | Stability AI non-commercial |
 | `tencent-hunyuan-community` | `tencent/HY-Motion-1.0` | Tencent Hunyuan community |
 | `open-aleph-license` | `Aleph-Alpha/Pharia-1-LLM-7B-control` | Aleph Alpha open licence |
-| `bsd-3-clause` | `TencentARC/TimeLens-8B` | SPDX ID used as `license_name` when HF has no SPDX slot |
-
-When the card YAML contains a vague `license` value, the raw string is saved in
-`extra_data["hf.license_raw"]` and `_detect_license_from_hf_files` is called
-to look for a real SPDX ID in license files (`LICENSE`, `COPYING`, etc.).
-
-When the `license` field is absent entirely, `meta.license` is `None` and
-`hf.license_raw` is not set (distinct from the vague-value path).
+| `bsd-3-clause` | `TencentARC/TimeLens-8B` | SPDX License ID used as secondary name |
 
 ### 9. BLOOM architecture: non-standard config key names (known gap)
 
@@ -618,50 +658,50 @@ come from `config.json`.
 
 | Model ID | Pattern | Notable |
 | :--- | :--- | :--- |
-| `mistralai/Mistral-7B-v0.1` | Baseline transformer | Standard LLM: GQA, apache-2.0, `text-generation` pipeline |
-| `Qwen/Qwen3-235B-A22B` | MoE, `qwen` license passthrough, generation config | `qwen3_moe` arch; `Qwen3MoeForCausalLM`; thinking-mode temperature+top_p |
-| `Qwen/Qwen3.5-27B` | Dense Qwen3.5, GQA (8 KV heads), apache-2.0 | `qwen3` arch; `Qwen3ForCausalLM`; 40 attention heads / 8 KV heads |
+| `mistralai/Mistral-7B-v0.1` | Baseline transformer | Standard LLM: GQA, `Apache-2.0`, `text-generation` pipeline |
+| `Qwen/Qwen3-235B-A22B` | MoE, `qwen` license (verbatim), generation config | `qwen3_moe` arch; `Qwen3MoeForCausalLM`; thinking-mode temperature+top_p |
+| `Qwen/Qwen3.5-27B` | Dense Qwen3.5, GQA (8 KV heads), `Apache-2.0` | `qwen3` arch; `Qwen3ForCausalLM`; 40 attention heads / 8 KV heads |
 | `openthaigpt/openthaigpt-r1-32b-instruct` | Vague license + file detection | `license=other`; `license_name=qwen` secondary field; Thai |
 | `hexgrad/Kokoro-82M` | No `model_type` / `architectures` | Custom config schema → `type_of_model=None`, `architecture=None` |
 | `moonshotai/Kimi-K2.6` | Vague license + file detection | `license=other` → `hf.license_raw`; `_detect_license_from_hf_files` triggered |
-| `google/gemma-2b` | Gated config, custom license | 401 on config.json; `gemma` license in card |
-| `meta-llama/Llama-3.2-1B` | Gated config, custom license, 8 languages | `llama3.2` license; config inaccessible → no arch |
-| `meta-llama/Llama-3.2-3B` | Gated base, no architecture | Config gated → `type_of_model=None`; llama3.2 license |
+| `google/gemma-2b` | Gated config, custom license | 401 on config.json; `gemma` recorded verbatim |
+| `meta-llama/Llama-3.2-1B` | Gated config, custom license, 8 languages | `llama3.2` recorded verbatim; config inaccessible → no arch |
+| `meta-llama/Llama-3.2-3B` | Gated base, no architecture | Config gated → `type_of_model=None`; `llama3.2` recorded verbatim |
 | `meta-llama/Llama-3.2-3B-Instruct` | Gated instruct, base_model finetune | Config gated; `base_model_relation=finetune` from 3B base |
-| `NousResearch/Hermes-3-Llama-3.2-3B` | Not gated, llama3 license, finetune | `LlamaForCausalLM`; `llama3` license; finetune from Llama-3.2-3B |
+| `NousResearch/Hermes-3-Llama-3.2-3B` | Not gated, llama3 license, finetune | `LlamaForCausalLM`; `llama3` recorded verbatim; finetune from Llama-3.2-3B |
 | `deepseek-ai/DeepSeek-R1` | MIT license, no pipeline_tag, MoE | Empty `usage.domains`; standard SPDX MIT |
-| `bigcode/starcoder2-3b` | `"code"` tag → domain, dataset ref | `code` → `usage.domains` not `extra_lists["hf.tags"]`; training dataset |
+| `bigcode/starcoder2-3b` | `"code"` tag → domain, dataset ref, custom license | `code` → `usage.domains`; `bigcode-openrail-m` recorded verbatim |
 | `SeaLLMs/SeaLLMs-v3-7B-Chat` | Vague license, 12 SEA/Asian languages | `license=other`; no pipeline_tag; qwen2 base |
-| `typhoon-ai/typhoon-7b` | Thai-only, GQA | `["th"]`; `num_key_value_heads=8`; apache-2.0 |
-| `iapp/chinda-qwen3-4b` | Base_model finetune, DOI | Thai LLM; Qwen3-4B base; `doi:10.57967/hf/5709`; apache-2.0 |
+| `typhoon-ai/typhoon-7b` | Thai-only, GQA | `["th"]`; `num_key_value_heads=8`; Apache-2.0 |
+| `iapp/chinda-qwen3-4b` | Base_model finetune, DOI | Thai LLM; Qwen3-4B base; `doi:10.57967/hf/5709`; Apache-2.0 |
 | `iapp/chinda-qwen3-4b-gguf` | GGUF-only, base_model quantized, scalar base_model | `base_model` as scalar string in card YAML; no config.json |
 | `talkie-lm/talkie-1930-13b-it` | No config.json, finetune, no domain | No pipeline_tag → empty `usage.domains` |
-| `pythainlp/wangchanglm-7.5B-sft-enth` | Multi-dataset, tokenizer sentinel | 3 datasets; `model_max_length` sentinel filtered; cc-by-sa-4.0 |
+| `pythainlp/wangchanglm-7.5B-sft-enth` | Multi-dataset, tokenizer sentinel | 3 datasets; `model_max_length` sentinel filtered; `CC-BY-SA-4.0` |
 | `mesolitica/mallam-1.1B-4096` | No license, Malay only | `license=None`; `language=["ms"]`; mistral base |
-| `llm-jp/llm-jp-3-1.8b` | Large JP vocab LLaMA | 99 584-token vocab; apache-2.0; Japanese+English |
+| `llm-jp/llm-jp-3-1.8b` | Large JP vocab LLaMA | 99 584-token vocab; Apache-2.0; Japanese+English |
 | `mistralai/Mistral-Medium-3.5-128B` | 22 languages, vague license, no pipeline_tag | `usage.domains==[]`; `license=other` |
 | `poolside/Laguna-XS.2` | Custom `model_type` and architecture | `model_type=laguna`; `LagunaForCausalLM`; custom tags preserved |
 | `abeja/gpt-neox-japanese-2.7b` | Language scalar, multi-dataset | `language: ja` scalar → `["ja"]`; cc100+wikipedia datasets |
-| `ibm-granite/granite-4.1-8b` | GQA (8 KV heads), 12 languages, finetune | granite arch; finetune from granite-4.1-8b-base; apache-2.0 |
+| `ibm-granite/granite-4.1-8b` | GQA (8 KV heads), 12 languages, finetune | granite arch; finetune from granite-4.1-8b-base; Apache-2.0 |
 | `Crownelius/Crow-9B-HERETIC-4.6` | `base_model_relation=merge`, 26 languages | Qwen3.5; merged/distilled from Claude |
 | `SamsungSAILMontreal/Qwen3-Coder-Next-REAP` | `base_model_relation=merge`, MoE | Qwen3-Next 80B→60B expert pruning; merge relation |
 | `facebook/opt-2.7b` | Vague license (other), OPT arch | `opt` arch; Meta non-commercial → `hf.license_raw=other` |
 | `facebook/opt-iml-max-1.3b` | Vague license, arxiv, instruction-tuned OPT | `arxiv:2212.12017`; instruction-tuned on ~2000 NLP tasks |
-| `EleutherAI/gpt-neo-2.7B` | gpt_neo arch, standard SPDX license | `GPTNeoForCausalLM`; 32 layers; apache-2.0 |
-| `stabilityai/stablelm-2-zephyr-1_6b` | stablelm_epoch arch, 12 languages | `StableLMEpochForCausalLM`; 100 352-token vocab; apache-2.0 |
-| `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | Shallow LLaMA (22 layers) | Shallower than standard 7B (32 layers); apache-2.0 |
+| `EleutherAI/gpt-neo-2.7B` | gpt_neo arch, standard SPDX license | `GPTNeoForCausalLM`; 32 layers; Apache-2.0 |
+| `stabilityai/stablelm-2-zephyr-1_6b` | stablelm_epoch arch, 12 languages | `StableLMEpochForCausalLM`; 100 352-token vocab; Apache-2.0 |
+| `TinyLlama/TinyLlama-1.1B-Chat-v1.0` | Shallow LLaMA (22 layers) | Shallower than standard 7B (32 layers); Apache-2.0 |
 | `microsoft/phi-2` | phi arch, `"code"` tag → domain | `code` in `_DOMAIN_TAGS`; MIT; `code` not in `hf.tags` |
-| `tokyotech-llm/Qwen3-Swallow-8B-SFT-v0.2` | Qwen3 finetune, Japanese+English | SFT from CPT stage; apache-2.0 |
+| `tokyotech-llm/Qwen3-Swallow-8B-SFT-v0.2` | Qwen3 finetune, Japanese+English | SFT from CPT stage; Apache-2.0 |
 | `aisingapore/Gemma-SEA-LION-v4-27B-IT` | `image-text-to-text` in tags → extra domain | Gemma3 27B; 11 SEA languages; `gemma` license |
 | `FINAL-Bench/Darwin-28B-KR-Legal` | Korean legal LLM, finetune | `qwen3_5` arch; 64 layers; Korean+English |
-| `Intelligent-Internet/II-Medical-8B` | Qwen3 finetune, empty card tags | Medical domain; `hidden_size=4096`; no pipeline_tag; apache-2.0 |
-| `THUDM/GLM-4.5-Air-REAP` | MoE, `base_model_relation=merge`, apache-2.0 | `glm4_moe` arch; `Glm4MoeForCausalLM`; Samsung REAP merge from GLM-4.5-Air |
-| `Fujitsu/Fujitsu-LLM-KG-8x7B` | Gated config, NeMo library | Config 401; `library_name=nemo` → `hf.library_name`; apache-2.0 |
+| `Intelligent-Internet/II-Medical-8B` | Qwen3 finetune, empty card tags | Medical domain; `hidden_size=4096`; no pipeline_tag; Apache-2.0 |
+| `THUDM/GLM-4.5-Air-REAP` | MoE, `base_model_relation=merge`, `Apache-2.0` | `glm4_moe` arch; `Glm4MoeForCausalLM`; Samsung REAP merge from GLM-4.5-Air |
+| `Fujitsu/Fujitsu-LLM-KG-8x7B` | Gated config, NeMo library | Config 401; `library_name=nemo` → `hf.library_name`; Apache-2.0 |
 | `mistralai/Voxtral-Mini-4B-Realtime-2602` | Multimodal audio+text (ASR), `vllm` library | `voxtral_realtime` arch; audio encoder + text decoder; `library_name=vllm` |
-| `TildeAI/TildeOpen-30b-64k` | YaRN RoPE context extension, 7 datasets, cc-by-4.0 | 8 192 → 65 536 tokens via YaRN; `rope_scaling` not in `_HYPER_KEYS`; `tokenizer_max_length=65536` |
+| `TildeAI/TildeOpen-30b-64k` | YaRN RoPE context extension, 7 datasets, `CC-BY-4.0` | 8 192 → 65 536 tokens via YaRN; `rope_scaling` not in `_HYPER_KEYS`; `tokenizer_max_length=65536` |
 | `TildeAI/TildeOpen-30b` | Base 30B, unlimited tokenizer sentinel | Same 7 corpora; LlamaTokenizer sentinel filtered; no YaRN |
 | `openeurollm/datamix-9b-80-20` | Gemma-3 tokenizer (262K vocab), no GQA, no pipeline_tag | `vocab_size=262400`; `num_kv_heads=num_attn_heads=32`; empty `usage.domains` |
-| `bigscience/bloom` | BLOOM 176B, ALiBi, custom key names, custom license | `n_layer`/`n_head` not in `_HYPER_KEYS` → layers skipped; `bigscience-bloom-rail-1.0` passthrough |
+| `bigscience/bloom` | BLOOM 176B, ALiBi, custom key names, custom license | `n_layer`/`n_head` not in `_HYPER_KEYS` → layers skipped; `bigscience-bloom-rail-1.0` recorded verbatim |
 | `bigscience/bloomz-7b1` | BLOOM 7B, `seq_length` captured, xP3 finetune | `seq_length=2048` (new `_HYPER_KEYS` entry); finetune from bloom-7b1; `bigscience/xP3` dataset |
 | `CohereLabs/aya-23-8B` | Fully gated (card + config 401) | Same pattern as `CohereLabs/aya-vision-8b`; only `hf.author` from `model_info` |
 | `occiglot/occiglot-7b-eu5-instruct` | Mistral, `sliding_window` captured, 5 EU langs | `sliding_window=4096` in `_HYPER_KEYS`; finetune from occiglot-7b-eu5 |
@@ -671,8 +711,8 @@ come from `config.json`.
 | `FreedomIntelligence/BlenderLLM` | text-to-3d pipeline, Qwen2 LLM | Standard Qwen2 decoder fine-tuned for Blender script generation; `pipeline_tag=text-to-3d` |
 | `hellork/BlenderLLM-IQ3_XXS-GGUF` | GGUF of BlenderLLM, text-to-3d, quantized | No config.json; `base_model_relation=quantized`; `text-to-3d` domain inherited |
 | `MiniMaxAI/MiniMax-M2.7` | minimax_m2 arch, MoE with MTP, 1M context, vague license | `MiniMaxM2ForCausalLM`; `max_position_embeddings=1_000_000`; `license=other` |
-| `apple/OpenELM-270M` | openelm arch, apple-amlr passthrough, head_dim captured | Custom efficient arch; `head_dim=64` in `_HYPER_KEYS` → captured; non-standard keys skipped |
-| `sail/Sailor2-20B` | Qwen2, 10 SEA languages, apache-2.0 | Covers Thai, Khmer, Lao, Malay, Burmese, Filipino; `num_key_value_heads=8` |
+| `apple/OpenELM-270M` | openelm arch, `apple-amlr` license (verbatim), head_dim captured | Custom efficient arch; `head_dim=64` in `_HYPER_KEYS` → captured; non-standard keys skipped |
+| `sail/Sailor2-20B` | Qwen2, 10 SEA languages, `Apache-2.0` | Covers Thai, Khmer, Lao, Malay, Burmese, Filipino; `num_key_value_heads=8` |
 | `huggingface/CodeBERTa-small-v1` | RoBERTa, fill-mask, no license, `language=["code"]` | Pre-trained on The Stack; `language="code"` preserved (non-ISO identifier) |
 | `Bencode92/tradepulse-finbert-sentiment` | BERT, text-classification, finetune from finbert | `BertForSequenceClassification`; financial sentiment; `base_model_relation=finetune` |
 | `OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov` | OpenVINO int8 quant, config accessible | Config.json present (unlike GGUF); `torch_dtype=int8` captured; `library_name=openvino` |
@@ -682,7 +722,7 @@ come from `config.json`.
 
 | Model ID | Pattern | Notable |
 | :--- | :--- | :--- |
-| `sonoisa/sentence-bert-base-ja-mean-tokens` | Language scalar string fix | `language: ja` → `["ja"]`; sentence-similarity; cc-by-sa-4.0 |
+| `sonoisa/sentence-bert-base-ja-mean-tokens` | Language scalar string fix | `language: ja` → `["ja"]`; sentence-similarity; `CC-BY-SA-4.0` |
 | `cl-nagoya/ruri-v3-310m` | ModernBERT, base_model finetune, arxiv | `arxiv:2409.07737`; Japanese embedding; sentence-similarity |
 | `nomic-ai/nomic-embed-text-v1.5-GGUF` | GGUF-only, base_model quantized | No config.json; `base_model_relation=quantized`; nomic-embed |
 | `ibm-granite/granite-embedding-97m-multilingual-r2` | ModernBERT, sentence-transformers library | 200+ languages; `hf.library_name=sentence-transformers`; feature-extraction |
@@ -692,11 +732,11 @@ come from `config.json`.
 | `airesearch/WangchanX-Legal-ThaiCCL-Retriever` | Base_model finetune, MIT, dataset ref | Fine-tuned from BAAI/bge-m3; xlm-roberta arch; Thai legal |
 | `jinaai/jina-embeddings-v4` | visual-document-retrieval domain, no license | 131 072 token context; `language=["multilingual"]` keyword preserved; `license=None` |
 | `HuggingFaceFW/fineweb-edu-classifier` | text-classification, base_model finetune | Fine-tuned from Snowflake arctic-embed; educational quality 0–5 |
-| `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` passthrough | `openrail++` ∉ `_VAGUE_LICENSE_VALUES`; 20 value categories |
+| `tum-nlp/Deberta_Human_Value_Detector` | text-classification, `openrail++` verbatim | `openrail++` ∉ `_VAGUE_LICENSE_VALUES`; not recognized by licenseid → recorded verbatim; 20 value categories |
 | `nlp-chula/aspect-finnlp-th` | text-classification, Thai financial, no license | CamemBERT-based; fine-tuned from wangchanberta; `license=None` |
 | `openai/privacy-filter` | token-classification, 128 K context | `hf.tokenizer_max_length=128000` captured; custom arch |
-| `line-corporation/line-distilbert-base-japanese` | fill-mask, DistilBERT (6 layers) | Japanese BERT distilled to 6 layers; `DistilBertForMaskedLM`; apache-2.0 |
-| `line-corporation/clip-japanese-base-v2` | feature-extraction, custom `clyp` model_type | Line Corp CLIP variant; `CLYPModel` arch; apache-2.0; Japanese |
+| `line-corporation/line-distilbert-base-japanese` | fill-mask, DistilBERT (6 layers) | Japanese BERT distilled to 6 layers; `DistilBertForMaskedLM`; Apache-2.0 |
+| `line-corporation/clip-japanese-base-v2` | feature-extraction, custom `clyp` model_type | Line Corp CLIP variant; `CLYPModel` arch; Apache-2.0; Japanese |
 | `Alibaba-NLP/gte-multilingual-reranker-base` | text-ranking domain, `model_type="new"` placeholder | `NewForSequenceClassification`; `model_type="new"` is a literal string, not a typo |
 | `Alibaba-NLP/gte-modernbert-base` | modernbert arch, sentence-similarity, multilingual | `ModernBertModel` (base encoder); `max_position_embeddings=8192` captured |
 | `dbmdz/bert-base-turkish-cased` | bert, no `architectures` field, Turkish, no pipeline_tag | `model_type=bert` present; `architectures` absent → `architecture=None`; minimal card (2 fields) |
@@ -706,26 +746,26 @@ come from `config.json`.
 
 | Model ID | Pattern | Notable |
 | :--- | :--- | :--- |
-| `apple/DepthPro-hf` | depth-estimation domain, custom license | `apple-amlr` ∉ `_VAGUE_LICENSE_VALUES` → stored as-is; DepthPro arch |
+| `apple/DepthPro-hf` | depth-estimation domain, custom license | `apple-amlr` recorded verbatim; DepthPro arch |
 | `prs-eth/marigold-depth-v1-0` | depth-estimation, diffusers, no config | `library_name=diffusers`; no config.json → no arch |
 | `usyd-community/vitpose-plus-huge` | keypoint-detection domain | ViTPose arch; human pose estimation |
 | `laion/CLIP-convnext_base_w-laion2B-s13B-b82K-augreg` | zero-shot-image-classification, no config | No config.json → no arch; `library_name=open_clip` |
-| `geolocal/StreetCLIP` | zero-shot-image-classification, CLIP, cc-by-nc-4.0 | CLIP arch; geo-localisation tags in extra_lists |
+| `geolocal/StreetCLIP` | zero-shot-image-classification, CLIP, `CC-BY-NC-4.0` | CLIP arch; geo-localisation tags in extra_lists |
 | `microsoft/swin-tiny-patch4-window7-224` | No pipeline_tag, domain from card tags | `"image-classification"` in `tags` → domain; imagenet-1k dataset |
-| `microsoft/resnet-18` | image-classification from card tags | `resnet` arch; apache-2.0; same tag-domain pattern as Swin |
-| `facebook/dinov2-small` | image-feature-extraction domain | DINOv2 self-supervised ViT; apache-2.0 |
+| `microsoft/resnet-18` | image-classification from card tags | `resnet` arch; Apache-2.0; same tag-domain pattern as Swin |
+| `facebook/dinov2-small` | image-feature-extraction domain | DINOv2 self-supervised ViT; Apache-2.0 |
 | `microsoft/rad-dino` | image-feature-extraction, no license | DINOv2 fine-tuned on radiology; `license=None` |
-| `MahmoodLab/UNI2-h` | Gated config, `cc-by-nc-nd-4.0` | Pathology/histology ViT; restrictive NC+ND license; tags in extra_lists |
+| `MahmoodLab/UNI2-h` | Gated config, `CC-BY-NC-ND-4.0` | Pathology/histology ViT; restrictive NC+ND license; tags in extra_lists |
 | `timm/convnext_large.dinov3_lvd1689m` | Vague license, timm library, no config | `license=other`; `library_name=timm`; no config.json |
 | `briaai/RMBG-1.4` | Vague license, image-segmentation | `license=other` → `hf.license_raw`; custom tags |
 | `briaai/RMBG-2.0` | Gated config, vague license | Config gated → no type_of_model; domain from card; `license=other` |
 | `ibm-granite/granite-geospatial-uki-flooddetection` | image-segmentation, TerraTorch, HF dataset refs | No transformers config; two `/datasets/` repos as `DatasetReference` |
 | `prithivMLmods/Flood-Image-Detection` | image-classification, siglip, arxiv, finetune | Fine-tuned from google/siglip2-base-patch16-512; `arxiv:2502.14786` |
 | `LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR` | Gated config, non-standard pipeline tag | Config 401; `pathology-image-analysis` captured as domain (pipeline_tag, not tags); `license=other` |
-| `windowseat-ai/windowseat-reflection` | No config, PEFT library, image-to-image | Config 404; `library_name=peft` → `hf.library_name`; apache-2.0 |
+| `windowseat-ai/windowseat-reflection` | No config, PEFT library, image-to-image | Config 404; `library_name=peft` → `hf.library_name`; Apache-2.0 |
 | `stabilityai/stable-zero123` | text-to-3d, diffusers, vague license + `license_name` | No config.json; `hf.license_name=sai-nc-community`; `library_name=diffusers` |
 | `openai/shap-e` | text-to-3d, MIT, no config | Generates 3D assets from text/images; no config.json; MIT |
-| `apple/Sharp` | image-to-3d, apple-amlr passthrough, ml-sharp library | Single-image 3D generation; `library_name=ml-sharp`; no config.json |
+| `apple/Sharp` | image-to-3d, `apple-amlr` license (verbatim), ml-sharp library | Single-image 3D generation; `library_name=ml-sharp`; no config.json |
 | `FireRedTeam/FireRedVAD` | voice-activity-detection, no config, apache-2.0 | VAD; new `_DOMAIN_TAGS` entry; no config.json → `type_of_model=None` |
 | `ETH-CVG/lightglue_superpoint` | keypoint-detection, lightglue arch, vague license | Feature matching; non-standard config keys → `hyperparameters={}`; `license=other` |
 | `qualcomm/HRNetPose` | keypoint-detection, pytorch library, vague license | Native PyTorch format; `library_name=pytorch`; no config.json; `license=other` |
@@ -738,30 +778,30 @@ come from `config.json`.
 | :--- | :--- | :--- |
 | `dandelin/vilt-b32-finetuned-vqa` | visual-question-answering, base_model finetune, arxiv | ViLT on VQAv2; `arxiv:2102.03334`; finetune from vilt-b32 |
 | `google/deplot` | visual-question-answering + `image-text-to-text` in tags | pix2struct; both pipeline tag and card tag → two domains; `arxiv:2212.10505` |
-| `Salesforce/blip-vqa-base` | visual-question-answering, `bsd-3-clause` passthrough | `bsd-3-clause` ∉ `_VAGUE_LICENSE_VALUES`; blip arch |
+| `Salesforce/blip-vqa-base` | visual-question-answering, `BSD-3-Clause` | `bsd-3-clause` → `BSD-3-Clause` (canonical SPDX); blip arch |
 | `naver-clova-ix/donut-base-finetuned-docvqa` | document-question-answering, vision-encoder-decoder | `image-to-text` also captured via card tags; donut arch |
 | `impira/layoutlm-document-qa` | document-question-answering, language scalar | `language: en` scalar → `["en"]`; layoutlm arch; MIT |
 | `google/tapas-large-finetuned-wtq` | table-question-answering, language scalar, dataset ref | `language: en` scalar; dataset ref; tapas arch |
-| `llava-hf/LLaVA-NeXT-Video-7B-hf` | video-text-to-text + image-text-to-text (two domains) | Both pipeline tag and card tag → two domain entries; llava2 license |
-| `aisingapore/Gemma-SEA-LION-v4-4B-VL` | image-text-to-text, gemma license, SEA, finetune | Gemma3 multimodal; 9 SEA languages; finetune from google/gemma-3-4b-it |
+| `llava-hf/LLaVA-NeXT-Video-7B-hf` | video-text-to-text + image-text-to-text (two domains) | Both pipeline tag and card tag → two domain entries; `llava2` recorded verbatim |
+| `aisingapore/Gemma-SEA-LION-v4-4B-VL` | image-text-to-text, `gemma` license (verbatim), SEA, finetune | Gemma3 multimodal; 9 SEA languages; finetune from google/gemma-3-4b-it |
 | `openvla/openvla-7b` | robotics + image-text-to-text (two domains), MIT | VLA policy; pipeline tag and card tag → two domains |
 | `nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16` | any-to-any domain, vague license | Reasoning + audio+video+text; `license=other`; card dataset takes priority |
 | `briaai/Fibo-Edit-RMBG` | image-to-image, arxiv, base_model finetune | `arxiv:2511.06876`; finetune from briaai/Fibo-Edit; diffusers |
-| `baidu/ERNIE-Image-Turbo` | text-to-image, diffusers, Chinese+English | Distilled DiT; `library_name=diffusers`; apache-2.0 |
+| `baidu/ERNIE-Image-Turbo` | text-to-image, diffusers, Chinese+English | Distilled DiT; `library_name=diffusers`; Apache-2.0 |
 | `Doses-AI/boba-0.8b-food-GGUF` | image-text-to-text, GGUF, food domain | No config.json → `type_of_model=None`; finetune from Qwen3.5-0.8B |
-| `bakrianoo/arabic-legal-documents-ocr-1.0` | image-text-to-text, gemma license, Arabic OCR | Gemma3; `license=gemma`; scanned Arabic legal documents |
-| `kakaobank/kanana-1.5-v-3b-instruct` | image-text-to-text, `kanana-license` passthrough | `kanana-1.5-v` arch; `KananaVForConditionalGeneration`; Korean VLM |
+| `bakrianoo/arabic-legal-documents-ocr-1.0` | image-text-to-text, `gemma` license (verbatim), Arabic OCR | Gemma3; `gemma` recorded verbatim; scanned Arabic legal documents |
+| `kakaobank/kanana-1.5-v-3b-instruct` | image-text-to-text, `kanana-license` (verbatim) | `kanana-1.5-v` arch; `KananaVForConditionalGeneration`; Korean VLM |
 | `LGAI-EXAONE/EXAONE-4.5-33B` | image-text-to-text, vague license, 6 languages | `exaone4_5` arch; Korean+multilingual; `license=other` → `hf.license_raw` |
 | `LGAI-EXAONE/EXAONE-4.5-33B-AWQ` | AWQ quantized, config accessible (unlike GGUF) | Config present; `base_model_relation=quantized`; `license=other` |
 | `LGAI-EXAONE/EXAONE-4.5-33B-FP8` | FP8 quantized, `torch_dtype=float8_e4m3fn` | `torch_dtype` in `_HYPER_KEYS` → captured in hyperparameters |
 | `LGAI-EXAONE/EXAONE-4.5-33B-GGUF` | GGUF, no config.json, vague license | `type_of_model=None`; `base_model_relation=quantized`; `license=other` |
-| `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF` | GGUF-only VLM, `gemma` license, SEA langs | No config.json; `image-text-to-text`; 9 SEA languages; `gemma` license passthrough |
+| `aisingapore/Gemma-SEA-LION-v4-4B-VL-GGUF` | GGUF-only VLM, `gemma` license (verbatim), SEA langs | No config.json; `image-text-to-text`; 9 SEA languages; `gemma` recorded verbatim |
 | `Gen-Verse/MMaDA-8B-Base` | llada arch, ALiBi positional bias, any-to-any, MIT | ALiBi: no `max_position_embeddings`; `vocab_size=32000` captured; masked-token diffusion |
 | `mlx-community/gemma-4-e2b-it-4bit` | MLX 4-bit quant, gemma4 arch, any-to-any | `library_name=mlx`; config.json accessible; `base_model_relation=quantized` |
 | `onnx-community/gemma-4-E2B-it-ONNX` | ONNX export, gemma4 arch, transformers.js | `library_name=transformers.js`; config.json accessible; `base_model_relation=quantized` |
 | `ByteDance-Seed/BAGEL-7B-MoT` | bagel arch, any-to-any, nested config | Mixture-of-Tokens multimodal; `hyperparameters={}`; `library_name=bagel-mot` |
 | `sensenova/SenseNova-U1-8B-MoT` | neo_chat arch, any-to-any, nested config | `NEOChatModel`; Chinese+English; `hyperparameters={}` |
-| `inclusionAI/LLaDA2.0-Uni` | llada2_moe arch, discrete diffusion, any-to-any | Masked-token diffusion model; `LLaDA2MoeModelLM`; apache-2.0 |
+| `inclusionAI/LLaDA2.0-Uni` | llada2_moe arch, discrete diffusion, any-to-any | Masked-token diffusion model; `LLaDA2MoeModelLM`; Apache-2.0 |
 | `XiaomiMiMo/MiMo-Audio-7B-Instruct` | qwen2 base + MiMoAudioModel wrapper, any-to-any | Architecture field captures custom wrapper; `model_type=qwen2` (base) preserved |
 | `tencent/HY-Motion-1.0` | text-to-3d, custom config, vague license + `license_name` | `library_name=HY-Motion-1.0`; non-standard config → `type_of_model=None`; `hf.license_name=tencent-hunyuan-community` |
 | `TencentARC/TimeLens-8B` | qwen3_vl, nested text_config, video-text-to-text, `dtype` key | All LM keys inside `text_config` → `hyperparameters={}`; `dtype` (not `torch_dtype`); `license_name=bsd-3-clause` |
@@ -771,8 +811,8 @@ come from `config.json`.
 
 | Model ID | Pattern | Notable |
 | :--- | :--- | :--- |
-| `openai/whisper-large-v3` | 99-language ASR, YAML 1.1 boolean hazard | ISO code `"no"` parsed as `False` → filtered; apache-2.0 |
-| `facebook/seamless-m4t-v2-large` | ASR pipeline + `audio-to-audio` + `text-to-speech` from tags | Three domains captured; cc-by-nc-4.0 |
+| `openai/whisper-large-v3` | 99-language ASR, YAML 1.1 boolean hazard | ISO code `"no"` parsed as `False` → filtered; Apache-2.0 |
+| `facebook/seamless-m4t-v2-large` | ASR pipeline + `audio-to-audio` + `text-to-speech` from tags | Three domains captured; `CC-BY-NC-4.0` |
 | `ibm-granite/granite-speech-4.1-2b` | ASR, base_model finetune, 6 languages | Conformer + Q-Former + granite LM; finetune from granite-4.0-1b-base |
 | `ai4bharat/indic-conformer-600m-multilingual` | Gated ASR, 22 Indian language codes | MIT; config gated; 22 ISO language codes extracted from card |
 | `cstr/mimo-asr-GGUF` | GGUF ASR, base_model quantized | Qwen2-based; quantized from XiaomiMiMo/MiMo-V2.5-ASR; zh+en |
@@ -782,8 +822,8 @@ come from `config.json`.
 | `jonatasgrosman/wav2vec2-large-xlsr-53-japanese` | Language scalar, DOI | `language: ja` scalar; `doi:10.57967/hf/3568`; ASR domain |
 | `k2-fsa/OmniVoice` | text-to-speech domain, arxiv, base_model finetune | 646 languages as `["multilingual"]`; `arxiv:2604.00688`; Qwen3-0.6B base |
 | `drbaph/OmniVoice-bf16` | text-to-speech domain, finetune | BF16 conversion of k2-fsa/OmniVoice; same TTS domain |
-| `pyannote/speaker-diarization-community-1` | speaker-diarization domain, gated, pyannote.audio | cc-by-4.0 (permissive, despite gating); no config.json; `library_name=pyannote.audio` |
-| `HKUSTAudio/Llasa-3B` | text-to-speech, LLaMA arch, large vocab | `LlamaForCausalLM` repurposed for TTS; `vocab_size=193800` (speech tokens); cc-by-nc-4.0 |
+| `pyannote/speaker-diarization-community-1` | speaker-diarization domain, gated, pyannote.audio | `CC-BY-4.0` (permissive, despite gating); no config.json; `library_name=pyannote.audio` |
+| `HKUSTAudio/Llasa-3B` | text-to-speech, LLaMA arch, large vocab | `LlamaForCausalLM` repurposed for TTS; `vocab_size=193800` (speech tokens); `CC-BY-NC-4.0` |
 
 ### Translation, seq2seq, and domain-specific
 
@@ -795,16 +835,16 @@ come from `config.json`.
 | `tencent/Hy-MT1.5-1.8B-2bit-GGUF` | GGUF quantized, `"multilingual"` language keyword | No config.json; `language=["multilingual"]`; `base_model_relation=quantized` |
 | `tencent/Hunyuan-MT-7B` | Translation from tag, no license | Same hunyuan arch as HY-MT1.5; `license=None` |
 | `protonx-models/protonx-legal-tc` | text2text-generation, NC license → other, Vietnamese | T5; proprietary non-commercial → `license=other` → `hf.license_raw` |
-| `ReDiX/Legal-Embedding-ita-0.6B` | sentence-similarity, Italian legal, cc-by-nc-4.0 | Qwen3 base; Italian legal corpus |
+| `ReDiX/Legal-Embedding-ita-0.6B` | sentence-similarity, Italian legal, `CC-BY-NC-4.0` | Qwen3 base; Italian legal corpus |
 | `lmg-anon/vntl-llama3-8b-v2-gguf` | GGUF, base_model quantized, llama3 license | Quantized from rinna/llama-3-youko-8b; translation domain |
 | `sugoitoolkit/Sugoi-14B-Ultra-GGUF` | GGUF, base_model as list | `base_model: ["sugoitoolkit/Sugoi-14B-Ultra-HF"]` → first entry extracted |
 | `Falconsai/medical_summarization` | T5 summarization, tokenizer max length | `model_type=t5`; `hf.tokenizer_max_length=512` captured |
 | `UBC-NLP/serengeti-E250` | No model card, 250 K-vocab Electra, tokenizer sentinel | Domains/languages only in `model_info.tags` → not captured; sentinel filtered |
-| `CohereLabs/aya-vision-8b` | Fully gated, license not captured | Card + config 401; `cc-by-nc-4.0` only in `model_info` object |
+| `CohereLabs/aya-vision-8b` | Fully gated, license not captured | Card + config 401; `CC-BY-NC-4.0` only in `model_info` object |
 | `lelapa/InkubaLM-0.4B` | Fully gated, dataset captured via tag fallback | Card + config 401; `dataset:lelapa/Inkuba-Mono` captured from `model_info` tags |
 | `nvidia/GR00T-N1.7-3B` | Robotics domain, no license | Humanoid robot foundation model; `pipeline_tag=robotics`; `license=None` |
 | `lerobot/pi05_base` | Robotics, lerobot library, custom license, no config | `license=gemma`; `library_name=lerobot`; no config.json; Pi0.5 policy |
-| `Salesforce/moirai-2.0-R-small` | `time-series-forecasting` domain, custom config keys | New `_DOMAIN_TAGS` entry; config keys (`d_model`, `patch_sizes`) not in `_HYPER_KEYS` → empty hyperparameters; cc-by-nc-4.0 |
+| `Salesforce/moirai-2.0-R-small` | `time-series-forecasting` domain, custom config keys | New `_DOMAIN_TAGS` entry; config keys (`d_model`, `patch_sizes`) not in `_HYPER_KEYS` → empty hyperparameters; `CC-BY-NC-4.0` |
 | `stanfordnlp/stanza-fi` | stanza library, no config, Finnish, empty domains | `library_name=stanza`; no pipeline_tag → empty `usage.domains`; language=`["fi"]` |
 | `stanfordnlp/stanza-de` | stanza library, no config, German | Same pattern as stanza-fi; language=`["de"]`; no config.json |
 | `SAP/sap-rpt-1-oss` | tabular-classification, gated config, self-referential `library_name` | Uses `.pt` files; `library_name=sap-rpt-1-oss` (same as model slug); `arxiv:2506.10707` |

@@ -4,13 +4,12 @@
 
 """License text detection utilities using the licenseid library.
 
-Provides best-effort SPDX license ID detection from license text found in
-project files.  All detection is optional and degrades gracefully when the
-``licenseid`` package is not installed or its database has not been built.
+Provides SPDX license ID detection from license text and metadata found in
+project files.  Text detection requires a populated database; other sources
+(``CITATION.cff``, ``codemeta.json``) work without it.
 
-To enable detection, install the package and build the database::
+Build the database before first use::
 
-    pip install licenseid
     licenseid update
 """
 
@@ -20,6 +19,8 @@ import json
 import logging
 import re
 from pathlib import Path
+
+from licenseid import AggregatedLicenseMatcher
 
 _logger = logging.getLogger(__name__)
 
@@ -56,43 +57,57 @@ def _looks_like_spdx_license_expression(value: str) -> bool:
     return bool(_SPDX_LICENSE_EXPR_KEYWORDS_RE.search(stripped))
 
 
-def _get_licenseid_db_path() -> Path:
-    return Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
-
-
 def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     """Detect SPDX License ID from *text* using the licenseid library.
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
-    ``None`` when the database is absent, the library is not installed, or no
-    match exceeds the threshold.
+    ``None`` when the database is not populated or no match exceeds the threshold.
 
     The database must be built before detection is possible::
 
         licenseid update
     """
-    db_path = _get_licenseid_db_path()
-    if not db_path.exists():
-        _logger.warning(
-            "licenseid database not found at %s -- "
-            "run 'licenseid update' to enable license text detection",
-            db_path,
-        )
-        return None
     try:
-        # pylint: disable=import-outside-toplevel
-        from licenseid import AggregatedLicenseMatcher
-    except ImportError:
-        _logger.debug("licenseid not installed; skipping license text detection")
-        return None
-    try:
-        matcher = AggregatedLicenseMatcher(str(db_path))
+        matcher = AggregatedLicenseMatcher()
+        # Probe with a well-known license ID to confirm the database is populated.
+        if not matcher.match(license_id="MIT"):
+            _logger.warning(
+                "licenseid database appears empty -- "
+                "run 'licenseid update' to enable license text detection"
+            )
+            return None
         results = matcher.match(text)
         filtered = [r for r in results if r["score"] >= threshold]
-        return filtered[0]["license_id"] if filtered else None
+        return str(filtered[0]["license_id"]) if filtered else None
     except Exception as exc:  # pylint: disable=broad-exception-caught
         _logger.debug("licenseid detection failed: %s", exc)
         return None
+
+
+def canonicalize_license_id(raw: str) -> str:
+    """Return the canonical SPDX License ID for *raw*, or *raw* unchanged.
+
+    Uses ``AggregatedLicenseMatcher.match(license_id=raw)`` for a direct
+    database lookup.  Returns the canonical casing when *raw* is a recognised
+    SPDX License ID (e.g. ``"bsd-3-clause"`` → ``"BSD-3-Clause"``).
+
+    For unrecognised values — non-SPDX identifiers, deprecated bare
+    copyleft forms (``"agpl-3.0"``, ``"gpl-3.0"``), or vendor-specific
+    strings (``"gemma"``, ``"llama3.2"``) — the original string is
+    returned verbatim.  pitloom records what it found and leaves further
+    interpretation (e.g. deciding whether to add a ``LicenseRef-`` prefix)
+    to the ``licenseid`` library or downstream SBOM tooling.
+
+    Requires a populated database (``licenseid update``).  When the database
+    is not populated *raw* is returned unchanged.
+    """
+    try:
+        results = AggregatedLicenseMatcher().match(license_id=raw)
+        if results:
+            return str(results[0]["license_id"])
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+    return raw
 
 
 def find_license_files(project_dir: Path) -> list[Path]:
