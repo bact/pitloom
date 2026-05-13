@@ -21,3 +21,4 @@ SPDX-License-Identifier: CC0-1.0
     - [Details](./huggingface-hub/README.md)
 5. Croissant fixtures (`croissant/`)
     - For Dataset metadata extraction testing
+    - [Details](./croissant/README.md)
