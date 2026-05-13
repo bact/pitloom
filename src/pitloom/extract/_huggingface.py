@@ -116,9 +116,8 @@ def _canonicalize_license_id(raw: str) -> str:
     add a ``LicenseRef-`` prefix for non-SPDX identifiers) to the
     ``licenseid`` library or downstream SBOM tooling.
 
-    Requires ``licenseid`` (``pip install pitloom[license]``) and a populated
-    database (``licenseid update``).  When the database is unavailable *raw*
-    is always returned unchanged.
+    Requires a populated ``licenseid`` database (``licenseid update``).
+    When the database has not been built, *raw* is returned unchanged.
     """
     # pylint: disable=import-outside-toplevel
     from pitloom.extract._license import canonicalize_license_id

@@ -239,11 +239,13 @@ def test_collect_candidates_empty_dir() -> None:
 
 @pytest.fixture(name="licenseid_db_path")
 def licenseid_db_path_fixture() -> Path:
-    """Return the path to the licenseid database, skipping if not built.
+    """Skip if the licenseid database has not been built yet.
 
     Build with: ``licenseid update``
     """
-    db = Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
+    from licenseid.database import get_default_db_path
+
+    db = Path(get_default_db_path())
     if not db.exists():
         pytest.skip("licenseid database not built -- run 'licenseid update'")
     return db
@@ -254,28 +256,13 @@ def licenseid_db_path_fixture() -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_detect_license_from_text_db_missing(tmp_path: Path) -> None:
-    """Returns None gracefully when the licenseid database does not exist."""
+def test_detect_license_from_text_db_not_populated(tmp_path: Path) -> None:
+    """Returns None gracefully when the licenseid database is not populated."""
     with patch(
-        "pitloom.extract._license._get_licenseid_db_path",
-        return_value=tmp_path / "nonexistent.db",
+        "licenseid.matcher.get_default_db_path",
+        return_value=str(tmp_path / "empty.db"),
     ):
         result = detect_license_from_text("MIT License\n\nPermission is hereby granted")
-        assert result is None
-
-
-def test_detect_license_from_text_library_not_installed(tmp_path: Path) -> None:
-    """Returns None gracefully when the licenseid library is not installed."""
-    fake_db = tmp_path / "licenses.db"
-    fake_db.touch()
-    with (
-        patch(
-            "pitloom.extract._license._get_licenseid_db_path",
-            return_value=fake_db,
-        ),
-        patch.dict("sys.modules", {"licenseid": None}),
-    ):
-        result = detect_license_from_text("MIT License")
         assert result is None
 
 
@@ -402,14 +389,10 @@ SOFTWARE.
 """
 
 
-def test_detect_license_from_text_returns_spdx_id(licenseid_db_path: Path) -> None:
+def test_detect_license_from_text_returns_spdx_id() -> None:
     """Detection with a real DB returns a valid SPDX License ID string
     (not None or raw text)."""
-    with patch(
-        "pitloom.extract._license._get_licenseid_db_path",
-        return_value=licenseid_db_path,
-    ):
-        result = detect_license_from_text(_MIT_TEXT)
+    result = detect_license_from_text(_MIT_TEXT)
     # Result may be None if score is below threshold; when not None it must
     # look like an SPDX License ID (no newlines, alphanumeric with dashes/dots)
     if result is not None:
@@ -418,17 +401,13 @@ def test_detect_license_from_text_returns_spdx_id(licenseid_db_path: Path) -> No
         )
 
 
-def test_detect_project_from_license_file_integration(licenseid_db_path: Path) -> None:
+def test_detect_project_from_license_file_integration() -> None:
     """End-to-end: LICENSE file text is processed;
     result is None or a valid SPDX License ID."""
     with tempfile.TemporaryDirectory() as d:
         p = Path(d)
         (p / "LICENSE").write_text(_MIT_TEXT)
-        with patch(
-            "pitloom.extract._license._get_licenseid_db_path",
-            return_value=licenseid_db_path,
-        ):
-            result_id, prov = detect_license_for_project(p)
+        result_id, prov = detect_license_for_project(p)
     if result_id is not None:
         assert _looks_like_spdx_license_id(result_id), (
             f"Expected SPDX License ID, got: {result_id!r}"
