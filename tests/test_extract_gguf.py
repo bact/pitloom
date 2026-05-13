@@ -22,7 +22,7 @@ from pitloom.extract.ai_model import read_gguf
 # GGUF extractor (mocked)
 # ---------------------------------------------------------------------------
 
-_GGUF = Path(__file__).parent / "fixtures" / "gguf"
+_GGUF = Path(__file__).parent / "fixtures" / "aimodels" / "gguf"
 
 
 def _make_gguf_field(value: int | str) -> MagicMock:

@@ -24,7 +24,7 @@ from pitloom.extract.ai_model import read_hdf5
 # HDF5 extractor (mocked) -- generic HDF5 with optional Keras legacy attrs
 # ---------------------------------------------------------------------------
 
-_HDF5_DIR = Path(__file__).parent / "fixtures" / "hdf5"
+_HDF5_DIR = Path(__file__).parent / "fixtures" / "aimodels" / "hdf5"
 
 
 def _make_hdf5_file(

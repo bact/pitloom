@@ -585,6 +585,7 @@ def test_build_model_without_license() -> None:
 # ---------------------------------------------------------------------------
 
 _FIXTURE_ROOT = Path(__file__).parent / "fixtures"
+_AI_MODEL_ROOT = _FIXTURE_ROOT / "aimodels"
 _AI_MODEL_DIRS = [
     "fasttext",
     "gguf",
@@ -599,7 +600,7 @@ _AI_MODEL_DIRS = [
 _AI_MODEL_FIXTURES: list[Path] = [
     p
     for d in _AI_MODEL_DIRS
-    for p in sorted((_FIXTURE_ROOT / d).glob("*"))
+    for p in sorted((_AI_MODEL_ROOT / d).glob("*"))
     if p.is_file() and p.suffix != ""
 ]
 

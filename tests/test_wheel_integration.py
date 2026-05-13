@@ -26,7 +26,9 @@ from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 # pylint: enable=wrong-import-position
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures" / "sampleproject-hatchling"
+FIXTURE_DIR = (
+    Path(__file__).parent / "fixtures" / "projects" / "sampleproject-hatchling"
+)
 
 
 @pytest.fixture(scope="module")

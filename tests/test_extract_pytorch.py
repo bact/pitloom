@@ -28,7 +28,7 @@ from pitloom.extract.ai_model import read_pytorch
 # Classic PyTorch extractor (mocked / stdlib ZIP)
 # ---------------------------------------------------------------------------
 
-_PYTORCH_DIR = Path(__file__).parent / "fixtures" / "pytorch"
+_PYTORCH_DIR = Path(__file__).parent / "fixtures" / "aimodels" / "pytorch"
 
 
 def _make_pytorch_zip(

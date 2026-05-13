@@ -25,7 +25,7 @@ from pitloom.extract.ai_model import read_keras
 # Helpers
 # ---------------------------------------------------------------------------
 
-_KERAS_DIR = Path(__file__).parent / "fixtures" / "keras"
+_KERAS_DIR = Path(__file__).parent / "fixtures" / "aimodels" / "keras"
 
 
 def _make_keras_zip(

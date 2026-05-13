@@ -20,7 +20,7 @@ from pitloom.extract.poetry import (
 from pitloom.extract.pyproject import read_pyproject
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
-POETRY_FIXTURE = FIXTURE_DIR / "sampleproject-poetry"
+POETRY_FIXTURE = FIXTURE_DIR / "projects" / "sampleproject-poetry"
 
 
 # ---------------------------------------------------------------------------

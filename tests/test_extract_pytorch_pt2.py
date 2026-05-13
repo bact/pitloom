@@ -28,7 +28,7 @@ from pitloom.extract.ai_model import read_pytorch_pt2
 # PT2 Archive extractor (mocked / stdlib ZIP)
 # ---------------------------------------------------------------------------
 
-_PT2_DIR = Path(__file__).parent / "fixtures" / "pytorch_pt2"
+_PT2_DIR = Path(__file__).parent / "fixtures" / "aimodels" / "pytorch_pt2"
 
 
 def _make_pt2_zip(

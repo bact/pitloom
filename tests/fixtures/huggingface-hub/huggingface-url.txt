@@ -41,9 +41,11 @@ https://huggingface.co/cl-nagoya/ruri-v3-310m
 https://huggingface.co/coder3101/gemma-4-E4B-it-heretic
 https://huggingface.co/CohereLabs/aya-23-8B
 https://huggingface.co/CohereLabs/aya-vision-8b
+https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2
 https://huggingface.co/Crownelius/Crow-9B-HERETIC-4.6
 https://huggingface.co/cstr/mimo-asr-GGUF
 https://huggingface.co/dandelin/vilt-b32-finetuned-vqa
+https://huggingface.co/dbmdz/bert-base-turkish-cased
 https://huggingface.co/DCU-NLP/bert-base-irish-cased-v1
 https://huggingface.co/deepseek-ai/DeepSeek-R1
 https://huggingface.co/dfki-av/spinepose
@@ -156,6 +158,8 @@ https://huggingface.co/openeurollm/datamix-9b-80-20
 https://huggingface.co/openthaigpt/openthaigpt-r1-32b-instruct
 https://huggingface.co/OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov
 https://huggingface.co/openvla/openvla-7b
+https://huggingface.co/PekingU/rtdetr_r50vd
+https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365
 https://huggingface.co/polymathic-ai/aion-base
 https://huggingface.co/poolside/Laguna-XS.2
 https://huggingface.co/prithivMLmods/Flood-Image-Detection
@@ -177,6 +181,7 @@ https://huggingface.co/Salesforce/blip-vqa-base
 https://huggingface.co/Salesforce/moirai-2.0-R-small
 https://huggingface.co/SamsungSAILMontreal/GLM-4.5-Air-REAP
 https://huggingface.co/SamsungSAILMontreal/Qwen3-Coder-Next-REAP
+https://huggingface.co/SAP/sap-rpt-1-oss
 https://huggingface.co/SeaLLMs/SeaLLMs-v3-7B-Chat
 https://huggingface.co/sensenova/SenseNova-U1-8B-MoT
 https://huggingface.co/sensenova/SenseNova-U1-8B-MoT-SFT
@@ -200,6 +205,7 @@ https://huggingface.co/tencent/Hunyuan-MT-7B
 https://huggingface.co/tencent/HY-Motion-1.0
 https://huggingface.co/tencent/HY-MT1.5-1.8B
 https://huggingface.co/tencent/Hy-MT1.5-1.8B-2bit-GGUF
+https://huggingface.co/TencentARC/TimeLens-8B
 https://huggingface.co/TildeAI/TildeOpen-30b
 https://huggingface.co/TildeAI/TildeOpen-30b-64k
 https://huggingface.co/timm/convnext_large.dinov3_lvd1689m

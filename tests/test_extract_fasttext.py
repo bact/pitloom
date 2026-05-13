@@ -278,7 +278,7 @@ def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
 # Require: fasttext installed AND tests/fixtures/fasttext/sentimentdemo.bin present
 # ---------------------------------------------------------------------------
 
-_FT = Path(__file__).parent / "fixtures" / "fasttext"
+_FT = Path(__file__).parent / "fixtures" / "aimodels" / "fasttext"
 SENTIMENT_DEMO_FIXTURE = _FT / "sentimentdemo.bin"
 
 

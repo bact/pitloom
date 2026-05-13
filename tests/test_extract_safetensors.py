@@ -22,7 +22,7 @@ from pitloom.extract.ai_model import read_safetensors
 # Safetensors extractor (mocked)
 # ---------------------------------------------------------------------------
 
-_ST = Path(__file__).parent / "fixtures" / "safetensors"
+_ST = Path(__file__).parent / "fixtures" / "aimodels" / "safetensors"
 
 
 def test_safetensors_missing_library(tmp_path: Path) -> None:

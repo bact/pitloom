@@ -23,7 +23,7 @@ from pitloom.extract.ai_model import read_numpy
 # NumPy extractor (mocked)
 # ---------------------------------------------------------------------------
 
-_NPY_DIR = Path(__file__).parent / "fixtures" / "numpy"
+_NPY_DIR = Path(__file__).parent / "fixtures" / "aimodels" / "numpy"
 
 # Magic prefix b'\x93NUMPY' (6 bytes) + major (1 byte) + minor (1 byte).
 _NPY_MAGIC = b"\x93NUMPY"

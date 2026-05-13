@@ -22,7 +22,7 @@ from pitloom.extract.ai_model import read_onnx
 # ONNX extractor (mocked)
 # ---------------------------------------------------------------------------
 
-_ONNX = Path(__file__).parent / "fixtures" / "onnx"
+_ONNX = Path(__file__).parent / "fixtures" / "aimodels" / "onnx"
 
 # ONNX elem_type 1 = FLOAT  (TensorProto.FLOAT)
 _ONNX_FLOAT = 1

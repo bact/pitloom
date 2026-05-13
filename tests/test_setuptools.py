@@ -19,7 +19,7 @@ from pitloom.extract.setuptools import (
 )
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
-SETUPTOOLS_FIXTURE = FIXTURE_DIR / "sampleproject-setuptools"
+SETUPTOOLS_FIXTURE = FIXTURE_DIR / "projects" / "sampleproject-setuptools"
 
 
 # ---------------------------------------------------------------------------
