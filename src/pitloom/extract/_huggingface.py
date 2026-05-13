@@ -102,6 +102,30 @@ _VAGUE_LICENSE_VALUES: frozenset[str] = frozenset(
     {"other", "custom", "proprietary", "unknown", "unlicensed"}
 )
 
+
+def _canonicalize_license_id(raw: str) -> str:
+    """Return the canonical SPDX License ID for *raw*, or *raw* unchanged.
+
+    Delegates to :func:`~pitloom.extract._license.canonicalize_license_id`,
+    which uses ``AggregatedLicenseMatcher.match()`` from the ``licenseid``
+    library.  When *raw* is recognised as an SPDX License ID the canonical
+    casing is returned (e.g. ``"bsd-3-clause"`` → ``"BSD-3-Clause"``).
+
+    When *raw* is not recognised it is returned verbatim — pitloom records
+    what it found and leaves further interpretation (e.g. deciding whether to
+    add a ``LicenseRef-`` prefix for non-SPDX identifiers) to the
+    ``licenseid`` library or downstream SBOM tooling.
+
+    Requires ``licenseid`` (``pip install pitloom[license]``) and a populated
+    database (``licenseid update``).  When the database is unavailable *raw*
+    is always returned unchanged.
+    """
+    # pylint: disable=import-outside-toplevel
+    from pitloom.extract._license import canonicalize_license_id
+
+    return canonicalize_license_id(raw)
+
+
 # Filenames (case-sensitive, root of repo) considered license candidates.
 # Listed in priority order: no extension first, then common suffixes.
 _HF_LICENSE_FILENAMES: tuple[str, ...] = (
@@ -436,7 +460,7 @@ def _resolve_license(
         provenance["license"] = (
             "Source: Hugging Face Hub | Field: model card YAML (license)"
         )
-        return raw_license_str, None
+        return _canonicalize_license_id(raw_license_str), None
 
     vague_raw = (
         raw_license_str

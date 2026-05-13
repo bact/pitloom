@@ -134,8 +134,14 @@ relationships.
 
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
-   `unknown`, `unlicensed`), it is accepted as-is and stored in
-   `AiModelMetadata.license`.
+   `unknown`, `unlicensed`), it is passed through `_canonicalize_license_id()`,
+   which calls `AggregatedLicenseMatcher.match()` from the `licenseid`
+   library.  The matcher's Tier-0 short-text path recognises exact SPDX
+   License ID and name matches (internal score > 1.0) and returns the
+   canonical casing (e.g. `"apache-2.0"` → `"Apache-2.0"`). Values not
+   recognised by the matcher — proprietary or non-SPDX identifiers such as
+   `"gemma"`, `"llama3.2"`, or deprecated bare copyleft forms — are returned
+   verbatim. The result is stored in `AiModelMetadata.license`.
 2. **File detection** -- when the card YAML value is absent or vague,
    `_detect_license_from_hf_files()` iterates through candidate files in
    the repository (`LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, and

@@ -20,6 +20,10 @@ import json
 import logging
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from licenseid import AggregatedLicenseMatcher
 
 _logger = logging.getLogger(__name__)
 
@@ -60,6 +64,26 @@ def _get_licenseid_db_path() -> Path:
     return Path.home() / ".local" / "share" / "licenseid" / "licenses.db"
 
 
+def _create_license_matcher() -> AggregatedLicenseMatcher | None:
+    """Return an ``AggregatedLicenseMatcher`` instance, or ``None``.
+
+    Returns ``None`` silently when the ``licenseid`` package is not installed
+    or its database has not been built yet.  Callers that want to surface a
+    warning to users should check availability themselves via
+    :func:`_get_licenseid_db_path`.
+    """
+    db_path = _get_licenseid_db_path()
+    if not db_path.exists():
+        return None
+    try:
+        # pylint: disable=import-outside-toplevel
+        from licenseid import AggregatedLicenseMatcher
+
+        return AggregatedLicenseMatcher(str(db_path))
+    except Exception:  # pylint: disable=broad-exception-caught
+        return None
+
+
 def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     """Detect SPDX License ID from *text* using the licenseid library.
 
@@ -93,6 +117,39 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     except Exception as exc:  # pylint: disable=broad-exception-caught
         _logger.debug("licenseid detection failed: %s", exc)
         return None
+
+
+def canonicalize_license_id(raw: str) -> str:
+    """Return the canonical SPDX License ID for *raw*, or *raw* unchanged.
+
+    Calls ``AggregatedLicenseMatcher.match()`` via :func:`_create_license_matcher`
+    and returns the canonical casing when the matcher's Tier-0 short-text path
+    finds an exact name or ID match (score > 1.0,
+    e.g. ``"bsd-3-clause"`` → ``"BSD-3-Clause"``).
+
+    For unrecognised values — non-SPDX identifiers, deprecated bare
+    copyleft forms (``"agpl-3.0"``, ``"gpl-3.0"``), or vendor-specific
+    strings (``"gemma"``, ``"llama3.2"``) — the original string is
+    returned verbatim.  pitloom records what it found and leaves further
+    interpretation (e.g. deciding whether to add a ``LicenseRef-`` prefix)
+    to the ``licenseid`` library or downstream SBOM tooling.
+
+    Requires ``licenseid`` (``pip install pitloom[license]``) and a
+    populated database (``licenseid update``).  When the database is
+    unavailable *raw* is returned unchanged.
+    """
+    matcher = _create_license_matcher()
+    if matcher is None:
+        return raw
+    try:
+        results = matcher.match(raw)
+        # Score > 1.0 indicates an exact name/ID match in the Tier-0
+        # short-text path — safe to return the canonical form.
+        if results and results[0]["score"] > 1.0:
+            return str(results[0]["license_id"])
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+    return raw
 
 
 def find_license_files(project_dir: Path) -> list[Path]:
