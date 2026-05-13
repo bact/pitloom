@@ -243,6 +243,7 @@ def licenseid_db_path_fixture() -> Path:
 
     Build with: ``licenseid update``
     """
+    # pylint: disable=import-outside-toplevel
     from licenseid.database import get_default_db_path
 
     db = Path(get_default_db_path())
