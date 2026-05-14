@@ -50,7 +50,7 @@
             "givenName": "Arthit"
         }
     ],
-    "name": "Pitloom: An SBOM Generator for AI and Python Projects",
+    "name": "Pitloom - An SBOM Generator for AI and Python Projects",
     "programmingLanguage": "Python 3",
     "readme": "https://github.com/bact/pitloom/blob/main/README.md",
     "url": "https://github.com/bact/pitloom",
