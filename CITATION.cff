@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "Pitloom: An SBOM Generator for AI and Python Projects"
+title: Pitloom - An SBOM Generator for AI and Python Projects
 authors:
   - family-names: Suriyawongkul
     given-names: Arthit
