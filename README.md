@@ -8,9 +8,6 @@
 
 Automated transparency, woven from the ground up.
 
-**Under development** --
-**NOT FOR PRODUCTION**
-
 ## Overview
 
 **Pitloom** automates the generation of SPDX 3-compliant SBOMs for Python projects,
