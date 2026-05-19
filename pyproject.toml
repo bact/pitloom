@@ -53,9 +53,12 @@ dependencies = [
     "tomli>=2.0.0; python_version<'3.11'",
 ]
 
+[project.entry-points."hatch"]
+pitloom = "pitloom.plugins.hatch"
+
 [project.optional-dependencies]
 aimodel = [
-    "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
+    "fasttext>=0.9.3", # or fasttext-community>=0.11.7
     "fickling>=0.1.10",
     "gguf>=0.10.0",
     "h5py>=3.0.0",
@@ -65,7 +68,7 @@ aimodel = [
 ]
 huggingface = ["huggingface_hub>=1.14.0"]
 
-fasttext = ["fasttext>=0.9.3"]                # or fasttext-community>=0.11.7
+fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
 huggingface_hub = ["huggingface_hub>=1.14.0"]
@@ -73,6 +76,15 @@ numpy = ["numpy>=1.24.0"]
 onnx = ["onnx>=1.14.1"]
 pytorch = ["fickling>=0.1.10"]
 safetensors = ["safetensors[numpy]>=0.7.0"]
+
+[project.scripts]
+loom = "pitloom.__main__:main" # default command-line entry point
+pitloom = "pitloom.__main__:main"
+
+[project.urls]
+Documentation = "https://github.com/bact/pitloom#readme"
+Issues = "https://github.com/bact/pitloom/issues"
+Source = "https://github.com/bact/pitloom"
 
 [dependency-groups]
 lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
@@ -84,21 +96,12 @@ dev = [
     { include-group = "typecheck" },
 ]
 
-[project.entry-points."hatch"]
-pitloom = "pitloom.plugins.hatch"
-
-[project.scripts]
-loom = "pitloom.__main__:main"    # default command-line entry point
-pitloom = "pitloom.__main__:main"
-
-[project.urls]
-Documentation = "https://github.com/bact/pitloom#readme"
-Issues = "https://github.com/bact/pitloom/issues"
-Source = "https://github.com/bact/pitloom"
-
 [tool.black]
 line-length = 88
 target-version = ["py310"]
+
+[tool.hatch.build.hooks.pitloom]
+sbom-basename = "sbom"
 
 [tool.hatch.build.targets.sdist]
 exclude = [
@@ -130,15 +133,8 @@ exclude = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/pitloom"]
 
-[tool.hatch.build.hooks.pitloom]
-sbom-basename = "sbom"
-
 [tool.hatch.version]
 path = "src/pitloom/__about__.py"
-
-[tool.pitloom]
-pretty = true
-# creation-datetime = "2026-04-01T00:00:00"  # Fixed for reproducibility
 
 [tool.mypy]
 exclude = ["tests/fixtures/"]
@@ -172,6 +168,10 @@ module = "hatchling.*"
 ignore_missing_imports = true
 module = "spdx_python_model.*"
 
+[tool.pitloom]
+pretty = true
+# creation-datetime = "2026-04-01T00:00:00"  # Fixed for reproducibility
+
 [tool.pylint.main]
 ignore-paths = ["^tests/fixtures/.*$"]
 init-hook = "import sys; sys.path.insert(0, 'src')" # for IDE's Pylint
@@ -189,6 +189,11 @@ max-statements = 100
 [tool.pylint.format]
 max-line-length = 88
 
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
 [tool.pylint.messages_control]
 disable = [
     "duplicate-code",             # boilerplate in tests is expected
@@ -199,11 +204,6 @@ disable = [
 [tool.pylint.typecheck]
 # Optional extra dependencies; not always installed when pylint runs
 ignored-modules = ["gguf"]
-
-[tool.pytest.ini_options]
-addopts = ["--import-mode=importlib"]
-pythonpath = ["src"]
-testpaths = ["tests"]
 
 [tool.ruff]
 exclude = ["tests/fixtures"]
