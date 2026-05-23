@@ -1,21 +1,19 @@
-# Pitloom
+# Pitloom - An SBOM generator for AI models and Python projects
 
 [![PyPI - Version](https://img.shields.io/pypi/v/pitloom)](https://pypi.org/project/pitloom/)
 ![GitHub License](https://img.shields.io/github/license/bact/pitloom)
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19246283-blue)](https://doi.org/10.5281/zenodo.19246283)
 
-![The Pippin Pitloom](./docs/mascot.png)
+*Automated transparency, woven from the ground up.*
 
-Automated transparency, woven from the ground up.
-
-## Overview
-
-**Pitloom** automates the generation of SPDX 3-compliant SBOMs for Python projects,
+**Pitloom** automates the generation of SPDX 3-compliant SBOMs for AI models and Python projects,
 documenting the composition and provenance of software systems.
 By reading metadata directly from Python packages and AI models (GGUF, ONNX,
 PyTorch, Safetensors), it creates standardized SPDX 3 JSON artifacts.
 It also offers native Hatchling integration, allowing users to hook into
 the build process to generate SBOMs automatically.
+
+![The Pippin Pitloom](./docs/mascot.png)
 
 ## Features
 
