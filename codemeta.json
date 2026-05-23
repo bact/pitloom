@@ -9,7 +9,7 @@
             "@type": "Person",
             "affiliation": {
                 "@type": "Organization",
-                "name": "ADAPT Centre, Trinity College Dublin"
+                "name": "Trinity College Dublin"
             },
             "familyName": "Suriyawongkul",
             "givenName": "Arthit"
@@ -44,13 +44,13 @@
             "@type": "Person",
             "affiliation": {
                 "@type": "Organization",
-                "name": "ADAPT Centre, Trinity College Dublin"
+                "name": "Trinity College Dublin"
             },
             "familyName": "Suriyawongkul",
             "givenName": "Arthit"
         }
     ],
-    "name": "Pitloom - An SBOM Generator for AI and Python Projects",
+    "name": "Pitloom - An SBOM generator for AI models and Python projects",
     "programmingLanguage": "Python 3",
     "readme": "https://github.com/bact/pitloom/blob/main/README.md",
     "url": "https://github.com/bact/pitloom",
