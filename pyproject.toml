@@ -172,6 +172,17 @@ module = "hatchling.*"
 ignore_missing_imports = true
 module = "spdx_python_model.*"
 
+# safetensors safe_open and sys.modules typing changed across library versions.
+# These modules carry type: ignore comments that may be needed on older versions
+# but become unused on newer ones; suppress the churn.
+[[tool.mypy.overrides]]
+warn_unused_ignores = false
+module = "pitloom.extract._safetensors"
+
+[[tool.mypy.overrides]]
+warn_unused_ignores = false
+module = "tests.test_extract_huggingface"
+
 [tool.pitloom]
 pretty = true
 # creation-datetime = "2026-04-01T00:00:00"  # Fixed for reproducibility

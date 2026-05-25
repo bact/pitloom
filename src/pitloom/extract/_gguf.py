@@ -55,14 +55,16 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         return None
 
     try:
-        from gguf import GGMLQuantizationType  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from gguf import GGMLQuantizationType
 
-        return GGMLQuantizationType(int_val).name
+        return str(GGMLQuantizationType(int_val).name)
     except Exception:  # pylint: disable=broad-exception-caught
         return str(int_val)
 
 
-def read_gguf(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-locals
+# pylint: disable=too-many-locals
+def read_gguf(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a GGUF model file.
 
     Requires the ``gguf`` package (``pip install gguf``).
