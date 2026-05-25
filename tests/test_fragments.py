@@ -8,7 +8,7 @@ from SPDX 3 fragment files are not dropped during the stitch/merge step.
 Fixtures live in tests/fixtures/fragments/:
   ai-model-fragment.spdx3.json       -- ai_AIPackage with full AI metadata
   dataset-fragment.spdx3.json        -- dataset_DatasetPackage with dataset metadata
-  training-run-fragment.spdx3.json   -- loom.shoot()-style combined fragment:
+  training-run-fragment.spdx3.json   -- loom.run()-style combined fragment:
                                         ai_AIPackage + 2 datasets + trainedOn/testedOn
 
 Implementation note

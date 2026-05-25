@@ -58,7 +58,7 @@ pitloom = "pitloom.plugins.hatch"
 
 [project.optional-dependencies]
 aimodel = [
-    "fasttext>=0.9.3", # or fasttext-community>=0.11.7
+    "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
     "fickling>=0.1.10",
     "gguf>=0.10.0",
     "h5py>=3.0.0",
@@ -68,7 +68,7 @@ aimodel = [
 ]
 huggingface = ["huggingface_hub>=1.14.0"]
 
-fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
+fasttext = ["fasttext>=0.9.3"]                # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.10.0"]
 hdf5 = ["h5py>=3.0.0"]
 huggingface_hub = ["huggingface_hub>=1.14.0"]
@@ -78,7 +78,7 @@ pytorch = ["fickling>=0.1.10"]
 safetensors = ["safetensors[numpy]>=0.7.0"]
 
 [project.scripts]
-loom = "pitloom.__main__:main" # default command-line entry point
+loom = "pitloom.__main__:main"    # default command-line entry point
 pitloom = "pitloom.__main__:main"
 
 [project.urls]
@@ -89,7 +89,7 @@ Source = "https://github.com/bact/pitloom"
 [dependency-groups]
 lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
 test = ["pytest>=9.0.2"]
-typecheck = ["mypy>=1.19.1"]
+typecheck = ["mypy>=1.19.1", "pyrefly>=1.0.0", "pyright>=1.1.409"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
@@ -154,6 +154,10 @@ module = ["fasttext", "fasttext.*"]
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
+module = "stav.*"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
 module = "fickling.*"
 
 [[tool.mypy.overrides]]
@@ -174,8 +178,8 @@ pretty = true
 
 [tool.pylint.main]
 ignore-paths = ["^tests/fixtures/.*$"]
-init-hook = "import sys; sys.path.insert(0, 'src')" # for IDE's Pylint
-source-roots = ["src"]
+init-hook = "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, 'examples/sentimentdemo-aibom/src')"
+source-roots = ["src", "examples/sentimentdemo-aibom/src"]
 
 [tool.pylint.design]
 max-args = 8
@@ -204,6 +208,35 @@ disable = [
 [tool.pylint.typecheck]
 # Optional extra dependencies; not always installed when pylint runs
 ignored-modules = ["gguf"]
+
+[tool.pyrefly]
+project-excludes = ["**/tests/fixtures/"]
+search-path = ["src", "examples/sentimentdemo-aibom/src"]
+python-version = "3.10.0"
+preset = "legacy"
+# spdx-python-model uses SHACL-based dynamic class generation: its enum-like
+# values (RelationshipType.trainedOn, PresenceType.yes, etc.) are xsd:string
+# at runtime. Pyrefly finds the installed package, infers str for those values,
+# then rejects assignments to the declared spdx3.* type annotations. Forcing
+# the whole package to Any avoids all of these false positives.
+replace-imports-with-any = ["spdx_python_model.*"]
+ignore-missing-imports = [
+    "fasttext",
+    "fasttext.*",
+    "stav.*",
+    "fickling.*",
+    "h5py.*",
+    "hatchling.*",
+]
+
+[tool.pyright]
+# spdx-python-model uses SHACL-based dynamic class generation whose
+# attributes (enum values, spdxId type) are invisible to static analysis.
+# mypy (strict) is the primary type checker; pyright serves as a second opinion.
+reportAttributeAccessIssue = "none"
+reportArgumentType = "none"
+reportAssignmentType = "none"
+reportOperatorIssue = "none"
 
 [tool.ruff]
 exclude = ["tests/fixtures"]

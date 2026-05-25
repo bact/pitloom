@@ -181,7 +181,9 @@ def _annotate_relationships(graph: list[dict[str, Any]]) -> None:
         to_ids = el.get("to")
         if rel_type and from_id and to_ids and isinstance(to_ids, list):
             from_name = id_to_name.get(from_id, from_id.split("#")[-1])
-            to_names = [id_to_name.get(tid, tid.split("#")[-1]) for tid in to_ids]
+            to_names = [
+                id_to_name.get(str(tid)) or str(tid).split("#")[-1] for tid in to_ids
+            ]
             el["description"] = f"{from_name} {rel_type}: {', '.join(to_names)}"
 
 

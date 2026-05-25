@@ -11,12 +11,12 @@ from pathlib import Path
 from pitloom import loom
 
 
-def test_loom_shoot_as_context_manager() -> None:
-    """Test using loom.shoot as a context manager."""
+def test_loom_run_as_context_manager() -> None:
+    """Test using loom.run as a context manager."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_ctx.json"
 
-        with loom.shoot(output_file):
+        with loom.run(output_file):
             loom.set_model("test-model-1")
             loom.add_dataset("test-dataset-1", dataset_type="text")
             loom.add_dataset("test-dataset-2", dataset_type="image")
@@ -33,7 +33,7 @@ def test_loom_shoot_as_context_manager() -> None:
         models = [e for e in graph if e["type"] == "ai_AIPackage"]
         assert len(models) == 1
         assert models[0]["name"] == "test-model-1"
-        assert "test_loom_shoot_as_context_manager" in models[0].get("comment", "")
+        assert "test_loom_run_as_context_manager" in models[0].get("comment", "")
         assert "test_loom.py" in models[0].get("comment", "")
         model_id = models[0].get("@id", models[0].get("spdxId"))
 
@@ -45,8 +45,7 @@ def test_loom_shoot_as_context_manager() -> None:
         assert "test-dataset-2" in dataset_names
         assert all("test_loom.py" in d.get("comment", "") for d in datasets)
         assert all(
-            "test_loom_shoot_as_context_manager" in d.get("comment", "")
-            for d in datasets
+            "test_loom_run_as_context_manager" in d.get("comment", "") for d in datasets
         )
 
         # Verify relationships
@@ -59,12 +58,12 @@ def test_loom_shoot_as_context_manager() -> None:
             assert any(d.get("@id", d.get("spdxId")) == rel["to"][0] for d in datasets)
 
 
-def test_loom_shoot_as_decorator() -> None:
-    """Test using loom.shoot as a function decorator."""
+def test_loom_run_as_decorator() -> None:
+    """Test using loom.run as a function decorator."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_dec.json"
 
-        @loom.shoot(output_file)
+        @loom.run(output_file)
         def dummy_train_function() -> None:
             loom.set_model("test-model-2")
             loom.add_dataset("test-dataset-3", dataset_type="audio")
@@ -92,7 +91,7 @@ def test_loom_shoot_as_decorator() -> None:
         assert "test_loom.py" in datasets[0].get("comment", "")
 
 
-def test_loom_shoot_with_exception() -> None:
+def test_loom_run_with_exception() -> None:
     """Test that a fragment is NOT generated if an exception occurs."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_error.json"
@@ -101,7 +100,7 @@ def test_loom_shoot_with_exception() -> None:
             """Simulates a training failure."""
 
         try:
-            with loom.shoot(output_file):
+            with loom.run(output_file):
                 loom.set_model("error-model")
                 loom.add_dataset("error-dataset")
                 raise DummyError("Something went wrong during training")
@@ -117,7 +116,7 @@ def test_loom_validation_dataset() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_valid.json"
 
-        with loom.shoot(output_file):
+        with loom.run(output_file):
             loom.set_model("test-model-valid")
             loom.add_dataset("train.txt", dataset_type="text")
             loom.add_validation_dataset("valid.txt", dataset_type="text")
@@ -146,11 +145,11 @@ def test_loom_model_hyperparameters() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_hparams.json"
 
-        with loom.shoot(output_file) as shot:
-            shot.set_model("test-model-hparams")
-            shot.add_dataset("train.txt")
+        with loom.run(output_file) as run:
+            run.set_model("test-model-hparams")
+            run.add_dataset("train.txt")
             # Simulate post-training hyperparameter capture
-            shot.set_model_hyperparameters({"lr": "0.1", "epoch": "5", "dim": "100"})
+            run.set_model_hyperparameters({"lr": "0.1", "epoch": "5", "dim": "100"})
 
         assert output_file.exists()
 
@@ -173,7 +172,7 @@ def test_loom_model_type() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_modeltype.json"
 
-        with loom.shoot(output_file):
+        with loom.run(output_file):
             loom.set_model("test-model-type", model_type="supervised")
             loom.add_dataset("train.txt")
 
@@ -193,7 +192,7 @@ def test_loom_dataset_lineage() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_lineage.json"
 
-        with loom.shoot(output_file):
+        with loom.run(output_file):
             loom.add_input_dataset("rawdata/neg.txt", dataset_type="text")
             loom.add_input_dataset("rawdata/pos.txt", dataset_type="text")
             loom.add_output_dataset(

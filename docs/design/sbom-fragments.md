@@ -147,7 +147,7 @@ for each object. This approach:
 
 ### 3. `loom.py` SDK: sparse API surface
 
-The current `Shoot` context manager supports only `set_model` and
+The current `Run` context manager supports only `set_model` and
 `add_dataset`. This is far less expressive than ML tracking SDKs that
 practitioners already use daily. Key missing capabilities:
 
@@ -158,7 +158,7 @@ practitioners already use daily. Key missing capabilities:
 - No serialisation of individual dataset elements with schema, provenance,
   or curation notes.
 - No model evaluation / scoring records.
-- Error is raised if `loom.*` functions are called outside a `Shoot` block;
+- Error is raised if `loom.*` functions are called outside a `Run` block;
   notebook workflows need a more lenient persistent-session mode.
 
 ### 4. No W&B Weave integration
@@ -326,19 +326,19 @@ in `docs/design/mlflow-extractor.md`.
 from pitloom import loom
 
 # --- Context-managed fragment recording (existing, enhanced) ---
-with loom.shoot("fragments/bert-v3.spdx3.json") as shot:
-    shot.set_model("my-bert", type_of_model="transformer")
+with loom.run("fragments/bert-v3.spdx3.json") as run:
+    run.set_model("my-bert", model_type="transformer")
 
     # MLflow-compatible logging functions
-    shot.log_param("learning_rate", 3e-4)
-    shot.log_param("batch_size", 32)
-    shot.log_metric("accuracy", 0.91)
-    shot.log_metric("f1_score", 0.88)
-    shot.log_tag("domain", "natural_language_processing")
-    shot.log_tag(stav.INFO_TRAINING, "Fine-tuned on FLORES-200")
+    run.log_param("learning_rate", 3e-4)
+    run.log_param("batch_size", 32)
+    run.log_metric("accuracy", 0.91)
+    run.log_metric("f1_score", 0.88)
+    run.log_tag("domain", "natural_language_processing")
+    run.log_tag(stav.INFO_TRAINING, "Fine-tuned on FLORES-200")
 
     # Dataset documentation
-    ds = shot.add_dataset("flores-200", dataset_type="text")
+    ds = run.add_dataset("flores-200", dataset_type="text")
     ds.set_size(rows=5_000_000)
     ds.set_license("CC-BY-4.0")
     ds.set_source_url("https://huggingface.co/datasets/facebook/flores")
@@ -346,13 +346,13 @@ with loom.shoot("fragments/bert-v3.spdx3.json") as shot:
     ds.log_tag("language_count", "200")
 
     # Evaluation results (maps to SPDX Annotation)
-    shot.log_evaluation("flores-dev", {"accuracy": 0.91, "bleu": 42.3})
+    run.log_evaluation("flores-dev", {"accuracy": 0.91, "bleu": 42.3})
 
 # --- Persistent session mode (for notebooks) ---
 loom.start_session("fragments/notebook-run.spdx3.json")
 
 # ... cell 1 ...
-loom.set_model("incremental-model", type_of_model="classifier")
+loom.set_model("incremental-model", model_type="classifier")
 loom.log_param("epochs", 10)
 
 # ... cell 2 (appends to same session) ...
@@ -367,12 +367,12 @@ loom.end_session()
 ### Accumulation mode for notebooks
 
 The persistent session is backed by an `_ActiveSession` object (distinct
-from `_ActiveShot`) that persists in module-level state and writes a
+from `_ActiveRun`) that persists in module-level state and writes a
 checkpoint file to disk on each `loom.save_session()` call. If the kernel
 restarts, `loom.resume_session("fragments/notebook-run.spdx3.json")` reads
 the last checkpoint and continues accumulating.
 
-Key difference from `Shoot`: a session does **not** discard partial output
+Key difference from `Run`: a session does **not** discard partial output
 on exception; it preserves whatever has been recorded up to the crash.
 
 ### IPython magic integration
@@ -659,11 +659,11 @@ all earlier items; each can be delivered independently.
 
 ### Phase 2: SDK improvements (notebook and ML workflow ergonomics)
 
-1. **`log_param`, `log_metric`, `log_tag` on `_ActiveShot`** -- expands the
-   existing `Shoot` API without breaking changes.
+1. **`log_param`, `log_metric`, `log_tag` on `_ActiveRun`** -- expands the
+   existing `Run` API without breaking changes.
 2. **`add_dataset` builder object** -- replace the current `add_dataset(name,
    type)` with a fluent builder that supports `set_size`, `set_license`, etc.
-3. **`log_evaluation` on `_ActiveShot`** -- maps to SPDX `Annotation` elements.
+3. **`log_evaluation` on `_ActiveRun`** -- maps to SPDX `Annotation` elements.
 4. **Persistent session mode** -- `loom.start_session()` / `loom.end_session()`.
 5. **IPython magic** -- `%%pitloom_record` cell magic; optional, only activated
    if `ipython` is installed.

@@ -273,14 +273,14 @@ external SBOM fragments that Pitloom will merge during the build process:
 from pitloom import loom
 
 # Use as a function decorator...
-@loom.shoot(output_file="fragments/sentiment_model.json")
+@loom.run(output_file="fragments/sentiment_model.json")
 def train_model():
     loom.set_model("sentiment-clf")
     loom.add_dataset("imdb-reviews", dataset_type="text")
     # ... training logic ...
 
 # ...or use as a context manager
-with loom.shoot(output_file="fragments/sentiment_model.json"):
+with loom.run(output_file="fragments/sentiment_model.json"):
     loom.set_model("sentiment-clf")
     loom.add_dataset("imdb-reviews", dataset_type="text")
 ```
@@ -304,6 +304,8 @@ The generated SBOM will include:
 - SPDX relationships between components
 - Creator and creation timestamp information
 - **Metadata provenance** tracking for transparency
+
+See a more complete example in [examples/`](./examples/) directory.
 
 ## Metadata provenance
 

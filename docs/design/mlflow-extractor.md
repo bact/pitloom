@@ -38,7 +38,7 @@ with mlflow.start_run():
     mlflow.log_param("learning_rate", 3e-4)
     mlflow.log_metric("accuracy", 0.95)
 
-with loom.shoot("fragment.spdx3.json") as run:
+with loom.run("fragment.spdx3.json") as run:
     run.set_model("my-transformer")
     # The same facts, typed again
 ```

@@ -31,7 +31,7 @@ from pitloom.extract.ai_model import (
 # .name attribute gives the string value (e.g. "softmax", "supervised").
 
 
-class _FasttextArgsConfig(TypedDict, total=False):
+class _FasttextArgsConfig(TypedDict, total=True):
     model_name: str
     loss_name: str
     dim: int

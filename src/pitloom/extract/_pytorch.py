@@ -30,13 +30,13 @@ def _fickling_get_top_class(pkl_bytes: bytes) -> str | None:
         import io  # pylint: disable=import-outside-toplevel
 
         from fickling.fickle import (  # pylint: disable=import-outside-toplevel
-            Pickle,
+            Pickled,
         )
     except ImportError:
         return None
 
     try:
-        pkl = Pickle.load(io.BytesIO(pkl_bytes))
+        pkl = Pickled.load(io.BytesIO(pkl_bytes))
     except Exception:  # pylint: disable=broad-exception-caught
         return None
 

@@ -29,51 +29,12 @@ jobs:
 
       - name: Run mypy
         run: |
-          mypy src/pitloom --ignore-missing-imports --no-strict-optional
-        continue-on-error: true
-
-  pyright:
-    name: pyright
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyright
-          pip install -e .
+          mypy examples/ src/ tests/ --ignore-missing-imports --no-strict-optional
 
       - name: Run pyright
         run: |
-          pyright src/pitloom
-        continue-on-error: true
+          pyright examples/ src/ tests/
 
-  pyrefly:
-    name: pyrefly (via pyflakes)
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
+      - name: Run pyrefly
         run: |
-          python -m pip install --upgrade pip
-          pip install pyflakes
-          pip install -e .
-
-      - name: Run pyflakes
-        run: |
-          pyflakes src/pitloom
-        continue-on-error: true
+          pyrefly check examples/ src/ tests/

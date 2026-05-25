@@ -76,7 +76,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
 8. **ML tracking SDK** (`src/pitloom/loom.py`)
-   - Dual-syntax ContextDecorator (`@loom.shoot` and `with loom.shoot`)
+   - Dual-syntax ContextDecorator (`@loom.run` and `with loom.run`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
    - Seamlessly ingested into project SBOMs using `[tool.pitloom.fragments]` config
 
@@ -229,7 +229,7 @@ pitloom/
 │       ├── __about__.py         # Package version (__version__)
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point (loom / python -m pitloom)
-│       ├── loom.py              # ML tracking SDK (Shoot context manager / decorator)
+│       ├── loom.py              # ML tracking SDK (Run context manager / decorator)
 │       └── py.typed             # PEP 561 marker
 ├── tests/
 │   ├── fixtures/

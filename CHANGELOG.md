@@ -17,6 +17,21 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.7.0...v0.7.1>
 
+## [UNRELEASED]
+
+### Added
+
+- A complete example for SBOM fragments generation and aggregation
+
+### Changed
+
+- Rename context manager method from `loom.shoot` to `loom.run`;
+  make consistent with MLflow
+
+### Fixed
+
+- Fix wrong fickling import in in PyTorch extractor
+
 ## [0.7.1] - 2026-05-14
 
 ### Changed

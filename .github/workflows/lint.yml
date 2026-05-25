@@ -30,16 +30,16 @@ jobs:
 
       - name: Ruff linter
         run: |
-          ruff check src/ tests/
+          ruff check examples/ src/ tests/
 
       - name: Pylint
         run: |
-          pylint src/ tests/
+          pylint examples/ src/ tests/
 
       - name: Flake8
         run: |
-          flake8 src/ tests/
+          flake8 examples/ src/ tests/
 
       - name: Ruff formatter check
         run: |
-          ruff format --check src/ tests/
+          ruff format --check examples/ src/ tests/
