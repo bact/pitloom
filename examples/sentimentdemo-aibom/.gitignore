@@ -1,0 +1,8 @@
+# Build output
+dist/
+*.egg-info/
+
+# Generated artefacts - regenerate by re-running the pipeline.
+data/processed/
+models/
+fragments/

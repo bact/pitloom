@@ -45,8 +45,8 @@ def _get_caller_info() -> str:
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
 
-class _ActiveShot:
-    """Internal state for an active BOM recording shot."""
+class _ActiveRun:
+    """Internal state for an active BOM recording run."""
 
     def __init__(self, output_file: str, pretty: bool = False):
         self.output_file = output_file
@@ -120,7 +120,7 @@ class _ActiveShot:
         ]
 
     def add_dataset(self, name: str, dataset_type: str = "text") -> None:
-        """Add a dataset used for training in the current shot.
+        """Add a dataset used for training in the current run.
 
         Creates a ``trainedOn`` relationship from the model to this dataset.
         For the validation set use :meth:`add_validation_dataset`.
@@ -227,7 +227,7 @@ class _ActiveShot:
         self.exporter.add_package(dataset_pkg)
 
     def finalize(self) -> None:
-        """Finalize the shot and output the SBOM fragment."""
+        """Finalize the run and output the SBOM fragment."""
         # model trainedOn training datasets
         if self.model and self.datasets:
             for dataset in self.datasets:
@@ -285,28 +285,28 @@ class _ActiveShot:
             f.write(self.exporter.to_json(pretty=self.pretty))
 
 
-# Global state holding the active shot
-_active_shot: _ActiveShot | None = None  # pylint: disable=invalid-name
+# Global state holding the active run
+_active_run: _ActiveRun | None = None  # pylint: disable=invalid-name
 
 
-class Shoot(contextlib.ContextDecorator):
+class Run(contextlib.ContextDecorator):
     """Context manager and decorator for capturing SPDX fragments.
 
-    Each ``Shoot`` is one pass of the shuttle -- a single recording session
-    that weaves metadata about a model and its datasets into an SBOM fragment.
+    Each ``Run`` is a single recording session that weaves metadata about
+    a model and its datasets into an SBOM fragment.
 
     Can be used as a context manager::
 
-        with loom.shoot("fragments/train.spdx3.json") as shot:
-            shot.set_model("my-model")
-            shot.add_dataset("train.txt")
-            shot.add_validation_dataset("valid.txt")
+        with loom.run("fragments/train.spdx3.json") as run:
+            run.set_model("my-model")
+            run.add_dataset("train.txt")
+            run.add_validation_dataset("valid.txt")
             # ... training code ...
-            shot.set_model_hyperparameters({"lr": "0.1", "epoch": "5"})
+            run.set_model_hyperparameters({"lr": "0.1", "epoch": "5"})
 
     Or as a function decorator::
 
-        @loom.shoot("fragments/preprocess.spdx3.json")
+        @loom.run("fragments/preprocess.spdx3.json")
         def preprocess():
             loom.add_input_dataset("rawdata/neg.txt")
             loom.add_output_dataset("data/train.txt",
@@ -316,13 +316,13 @@ class Shoot(contextlib.ContextDecorator):
     def __init__(self, output_file: str | Path, pretty: bool = False):
         self.output_file = str(output_file)
         self.pretty = pretty
-        self.previous_shot: _ActiveShot | None = None
+        self.previous_run: _ActiveRun | None = None
 
-    def __enter__(self) -> _ActiveShot:
-        global _active_shot  # pylint: disable=global-statement
-        self.previous_shot = _active_shot
-        _active_shot = _ActiveShot(self.output_file, pretty=self.pretty)
-        return _active_shot
+    def __enter__(self) -> _ActiveRun:
+        global _active_run  # pylint: disable=global-statement
+        self.previous_run = _active_run
+        _active_run = _ActiveRun(self.output_file, pretty=self.pretty)
+        return _active_run
 
     def __exit__(
         self,
@@ -330,16 +330,16 @@ class Shoot(contextlib.ContextDecorator):
         exc_val: BaseException | None,
         exc_tb: types.TracebackType | None,
     ) -> None:
-        global _active_shot  # pylint: disable=global-statement
-        if _active_shot is not None:
+        global _active_run  # pylint: disable=global-statement
+        if _active_run is not None:
             # Generate the fragment only if the code block executed successfully
             if exc_type is None:
-                _active_shot.finalize()
-        _active_shot = self.previous_shot
+                _active_run.finalize()
+        _active_run = self.previous_run
 
 
-#: Lowercase alias for :class:`Shoot`
-shoot = Shoot  # pylint: disable=invalid-name
+#: Lowercase alias for :class:`Run`
+run = Run  # pylint: disable=invalid-name
 
 
 def set_model(
@@ -347,53 +347,55 @@ def set_model(
     model_type: str | None = None,
     hyperparameters: dict[str, str] | None = None,
 ) -> None:
-    """Set the name of the AI model being trained in the current shot."""
-    if _active_shot is None:
+    """Set the name of the AI model being trained in the current run."""
+    if _active_run is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.set_model()` inside a "
-            "`with pitloom.loom.shoot():` block or decorated function."
+            "No active loom.run() found. Please use `loom.set_model()` inside a "
+            "`with pitloom.loom.run():` block or decorated function."
         )
-    _active_shot.set_model(name, model_type=model_type, hyperparameters=hyperparameters)
+    _active_run.set_model(name, model_type=model_type, hyperparameters=hyperparameters)
 
 
 def set_model_hyperparameters(hyperparameters: dict[str, str]) -> None:
     """Update the active model with hyperparameters captured after training."""
-    if _active_shot is None:
+    if _active_run is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.set_model_hyperparameters()`"
-            " inside a `with pitloom.loom.shoot():` block or decorated function."
+            "No active loom.run() found. Please use `loom.set_model_hyperparameters()`"
+            " inside a `with pitloom.loom.run():` block or decorated function."
         )
-    _active_shot.set_model_hyperparameters(hyperparameters)
+    _active_run.set_model_hyperparameters(hyperparameters)
 
 
 def add_dataset(name: str, dataset_type: str = "text") -> None:
-    """Add a dataset utilized by the AI model in the current shot."""
-    if _active_shot is None:
+    """Add a dataset utilized by the AI model in the current run."""
+    if _active_run is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.add_dataset()` inside a "
-            "`with pitloom.loom.shoot():` block or decorated function."
+            "No active loom.run() found. Please use `loom.add_dataset()` inside a "
+            "`with pitloom.loom.run():` block or decorated function."
         )
-    _active_shot.add_dataset(name, dataset_type)
+    _active_run.add_dataset(name, dataset_type)
 
 
 def add_validation_dataset(name: str, dataset_type: str = "text") -> None:
-    """Add a validation/test dataset in the current shot."""
-    if _active_shot is None:
+    """Add a validation/test dataset in the current run."""
+    if _active_run is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.add_validation_dataset()` inside a "
-            "`with pitloom.loom.shoot():` block or decorated function."
+            "No active loom.run() found. Please use "
+            "`loom.add_validation_dataset()` inside a "
+            "`with pitloom.loom.run():` block or decorated function."
         )
-    _active_shot.add_validation_dataset(name, dataset_type)
+    _active_run.add_validation_dataset(name, dataset_type)
 
 
 def add_input_dataset(name: str, dataset_type: str = "text") -> None:
     """Declare a raw/source dataset consumed by a preprocessing step."""
-    if _active_shot is None:
+    if _active_run is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.add_input_dataset()` inside a "
-            "`with pitloom.loom.shoot():` block or decorated function."
+            "No active loom.run() found. Please use "
+            "`loom.add_input_dataset()` inside a "
+            "`with pitloom.loom.run():` block or decorated function."
         )
-    _active_shot.add_input_dataset(name, dataset_type)
+    _active_run.add_input_dataset(name, dataset_type)
 
 
 def add_output_dataset(
@@ -402,11 +404,12 @@ def add_output_dataset(
     data_preprocessing: list[str] | None = None,
 ) -> None:
     """Declare a derived/processed dataset produced by a preprocessing step."""
-    if _active_shot is None:
+    if _active_run is None:
         raise RuntimeError(
-            "No active shot found. Please use `loom.add_output_dataset()` inside a "
-            "`with pitloom.loom.shoot():` block or decorated function."
+            "No active loom.run() found. Please use "
+            "`loom.add_output_dataset()` inside a "
+            "`with pitloom.loom.run():` block or decorated function."
         )
-    _active_shot.add_output_dataset(
+    _active_run.add_output_dataset(
         name, dataset_type, data_preprocessing=data_preprocessing
     )

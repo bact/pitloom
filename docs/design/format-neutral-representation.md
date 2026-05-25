@@ -40,7 +40,7 @@ Extractors                     Core model              Serializers / Assemblers
 read_pyproject()           ─┐
 read_setuptools()          ─┤
 read_ai_model()            ─┤─->  DocumentModel   ─->   Spdx3Assembler              -> SPDX 3 JSON-LD
-loom.shoot() (fragments)   ─┘    (pitloom.core)       [future] CycloneDXAssembler -> CycloneDX JSON
+loom.run() (fragments)   ─┘    (pitloom.core)       [future] CycloneDXAssembler -> CycloneDX JSON
                                                       [future] AidocRenderer      -> AIDOC markdown
                                                       [future] TechOpsDoc         -> documentation
 ```

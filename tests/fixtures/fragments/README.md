@@ -15,7 +15,7 @@ the stitch step.
 | :--- | :--- | :--- |
 | `ai-model-fragment.spdx3.json` | One `ai_AIPackage` with hyperparameters, metrics, domain, energy consumption | Tests that all AI-profile fields survive `merge_fragments` |
 | `dataset-fragment.spdx3.json` | One `dataset_DatasetPackage` with type, size, availability | Tests that dataset-profile fields survive `merge_fragments` |
-| `training-run-fragment.spdx3.json` | `ai_AIPackage` + 2 `dataset_DatasetPackage` + `trainedOn`/`testedOn` relationships | Tests that provenance relationships from a simulated `loom.shoot()` output survive |
+| `training-run-fragment.spdx3.json` | `ai_AIPackage` + 2 `dataset_DatasetPackage` + `trainedOn`/`testedOn` relationships | Tests that provenance relationships from a simulated `loom.run()` output survive |
 
 All fragment fixtures are licensed CC0-1.0.
 Tests that exercise these fixtures live in `tests/test_fragments.py`.

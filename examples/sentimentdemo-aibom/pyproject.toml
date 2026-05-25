@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+[build-system]
+# Pitloom is listed as a build requirement so that the Hatchling build
+# back-end can load Pitloom's hatch hook at build time.
+requires = ["hatchling>=1.28.0", "pitloom"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sentimentdemo"
+dynamic = ["version"]
+description = "A tiny sentiment classifier used as the worked example for the Pitloom AI SBOM walkthrough."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "Arthit Suriyawongkul" }]
+keywords = ["aibom", "sbom", "spdx", "sentiment-analysis", "fasttext"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Real runtime dependencies of the trained model.  These are picked up by
+# Pitloom from [project.dependencies] during the build step.
+dependencies = [
+    "fasttext>=0.9.3",
+    "stav>=0.4.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/bact/pitloom"
+Source = "https://github.com/bact/pitloom/tree/main/examples/sentimentdemo-aibom"
+
+# ---------------------------------------------------------------------------
+# Hatch configuration
+# ---------------------------------------------------------------------------
+[tool.hatch.version]
+path = "src/sentimentdemo/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentimentdemo"]
+
+# ---------------------------------------------------------------------------
+# Pitloom Hatchling hook
+#
+# When ``hatch build`` (or ``python -m build``) runs, Pitloom's build hook:
+#   1. Extracts project metadata from this pyproject.toml (PEP 621
+#      ``[project]`` table, dynamic version from ``__about__.py``).
+#   2. Merges in every SBOM fragment listed in ``fragments`` below.
+#   3. Writes a single composite ``sentimentdemo.spdx3.json`` into the
+#      wheel under ``.dist-info/sboms/`` (PEP 770).
+# ---------------------------------------------------------------------------
+[tool.hatch.build.hooks.pitloom]
+enabled = true
+sbom-basename = "sentimentdemo"
+creator-name = "Sentiment Demo CI"
+fragments = [
+    "fragments/01_preprocess.spdx3.json",  # produced by `python -m sentimentdemo.preprocess`
+    "fragments/02_train.spdx3.json",       # produced by `python -m sentimentdemo.train`
+    "fragments/03_evaluate.spdx3.json",    # produced by `python -m sentimentdemo.evaluate`
+    "fragments/04_model_file.spdx3.json",  # produced by `loom -m models/sentiment.bin`
+]
+
+[tool.pitloom]
+pretty = true
