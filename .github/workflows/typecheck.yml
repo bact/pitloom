@@ -24,17 +24,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install . --group typecheck --group test
+          pip install --upgrade pip
+          pip install ".[aimodel,huggingface]"
+          pip install --group test --group typecheck
 
-      - name: Run mypy
+      - name: mypy
         run: |
           mypy examples/ src/ tests/
 
-      - name: Run pyright
+      - name: pyright
         run: |
           pyright examples/ src/ tests/
 
-      - name: Run pyrefly
+      - name: pyrefly
         run: |
           pyrefly check examples/ src/ tests/

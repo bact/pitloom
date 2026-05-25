@@ -22,13 +22,13 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install linting dependencies
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install ".[aimodel,huggingface]"
-          pip install . --group lint --group test
+          pip install --group lint --group test
 
-      - name: Ruff linter
+      - name: Ruff check
         run: |
           ruff check examples/ src/ tests/
 
