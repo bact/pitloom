@@ -32,7 +32,7 @@ and this project adheres to
 
 ### Fixed
 
-- Fix wrong fickling import in PyTorch extractor
+- Fix wrong fickling import in PyTorch extractor ([#80])
 
 [#80]: https://github.com/bact/pitloom/pull/80
 
