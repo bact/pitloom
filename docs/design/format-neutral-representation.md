@@ -37,12 +37,12 @@ An ideal internal representation must be:
 ```text
 Extractors                     Core model              Serializers / Assemblers
 ──────────────────────         ─────────────────       ─────────────────────────
-read_pyproject()           ─┐
-read_setuptools()          ─┤
-read_ai_model()            ─┤─->  DocumentModel   ─->   Spdx3Assembler              -> SPDX 3 JSON-LD
-loom.run() (fragments)   ─┘    (pitloom.core)       [future] CycloneDXAssembler -> CycloneDX JSON
-                                                      [future] AidocRenderer      -> AIDOC markdown
-                                                      [future] TechOpsDoc         -> documentation
+read_pyproject()         ─┐
+read_setuptools()        ─┤
+read_ai_model()          ─┤─-> DocumentModel      ─->  Spdx3Assembler              -> SPDX 3 JSON-LD
+loom.run() (fragments)   ─┘    (pitloom.core)          [future] CycloneDXAssembler -> CycloneDX JSON
+                                                       [future] AidocRenderer      -> AIDOC markdown
+                                                       [future] TechOpsDoc         -> documentation
 ```
 
 ### `DocumentModel` (``pitloom.core.document``)
