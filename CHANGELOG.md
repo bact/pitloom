@@ -15,22 +15,26 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.7.0...v0.7.1>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.7.1...v0.8.0>
 
-## [UNRELEASED]
+## [0.8.0] - 2026-05-29
 
 ### Added
 
-- A complete example for SBOM fragments generation and aggregation
+- An end-to-end example of how to use `loom.run` to create SBOM fragments
+  that document relationship between training data and model
+  (see: `examples/sentimentdemo-aibom/`) ([#80])
 
 ### Changed
 
 - Rename context manager method from `loom.shoot` to `loom.run`;
-  make consistent with MLflow
+  make it consistent with MLflow ([#80])
 
 ### Fixed
 
-- Fix wrong fickling import in in PyTorch extractor
+- Fix wrong fickling import in PyTorch extractor
+
+[#80]: https://github.com/bact/pitloom/pull/80
 
 ## [0.7.1] - 2026-05-14
 
@@ -179,6 +183,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.8.0]: https://github.com/bact/pitloom/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/bact/pitloom/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bact/pitloom/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/bact/pitloom/compare/v0.6.0...v0.6.1
