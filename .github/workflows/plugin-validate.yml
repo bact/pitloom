@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Validate Claude Code plugin
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - ".claude-plugin/**"
+      - "commands/**"
+      - "skills/**"
+      - ".github/workflows/plugin-validate.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - ".claude-plugin/**"
+      - "commands/**"
+      - "skills/**"
+      - ".github/workflows/plugin-validate.yml"
+
+jobs:
+  validate:
+    name: claude plugin validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate plugin manifest
+        run: claude plugin validate .claude-plugin/plugin.json
+
+      - name: Validate marketplace manifest
+        run: claude plugin validate .claude-plugin/marketplace.json
