@@ -125,10 +125,15 @@ runs:
           loom_args+=("--pretty")
         fi
         if [ -n "${PL_ARGS}" ]; then
-          # Word-split intentionally: PL_ARGS is a space-separated list of
-          # extra flags (e.g. "-v --creator-name CI"), not a single token.
-          # shellcheck disable=SC2206
-          extra_args=(${PL_ARGS})
+          # Quote-aware split: PL_ARGS is a shell-like list of extra flags
+          # (e.g. '--creator-name "CI Bot"'), not a single token. Plain bash
+          # word-splitting (extra_args=(${PL_ARGS})) has no quote-awareness
+          # and would break a quoted multi-word value into separate tokens,
+          # so split it with Python's shlex instead.
+          readarray -t extra_args < <(
+            python3 -c 'import shlex, sys; print(*shlex.split(sys.argv[1]), sep="\n")' \
+              "${PL_ARGS}"
+          )
           loom_args+=("${extra_args[@]}")
         fi
 
