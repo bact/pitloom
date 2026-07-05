@@ -17,7 +17,12 @@ from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
+from pitloom.core.models import (
+    _clear_doc_counters,
+    build_pypi_purl,
+    compute_doc_uuid,
+    generate_spdx_id,
+)
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
@@ -133,10 +138,10 @@ def _build_main_package(
 
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>), only when a real
     # version is known.  Mirrors the dependency PURL logic in deps.py.
-    # Per PURL spec: name lowercased, underscores replaced with hyphens.
     if metadata.version and metadata.version != "unknown":
-        purl_name = metadata.name.lower().replace("_", "-")
-        main_package.software_packageUrl = f"pkg:pypi/{purl_name}@{metadata.version}"
+        main_package.software_packageUrl = build_pypi_purl(
+            metadata.name, metadata.version
+        )
 
     provenance_comment = _build_provenance_comment(doc)
     if provenance_comment:

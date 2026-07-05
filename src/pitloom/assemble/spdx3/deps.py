@@ -12,7 +12,7 @@ from importlib.metadata import version as get_package_version
 
 from spdx_python_model import v3_0_1 as spdx3
 
-from pitloom.core.models import generate_spdx_id
+from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
@@ -137,12 +137,10 @@ def _enrich_from_installed(
 
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>)
     # The package was resolved from the build environment, so it is pip-installable.
-    # Per PURL spec: name lowercased, underscores replaced with hyphens.
     # See ECMA-427 https://tc54.org/purl/
     version = dep_package.software_packageVersion
     if version and version != "unknown":
-        purl_name = dep_name.lower().replace("_", "-")
-        dep_package.software_packageUrl = f"pkg:pypi/{purl_name}@{version}"
+        dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
 
     # hasDeclaredLicense -- prefer PEP 639 License-Expression over legacy License
     license_id = pkg_meta["License-Expression"] or pkg_meta["License"] or ""
