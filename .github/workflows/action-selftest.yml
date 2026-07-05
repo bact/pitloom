@@ -1,0 +1,108 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+# Dogfood test: exercise Pitloom's own composite action ("uses: ./") against
+# the Pitloom repository itself, so the Action is validated the same way any
+# downstream consumer would use it.
+
+name: Action self-test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  action-selftest:
+    name: Self-test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.14"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Pitloom from checkout
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[aimodel,huggingface]"
+          pip install spdx3-validate
+
+      - name: Build licenseid database
+        run: licenseid update
+        continue-on-error: true
+
+      - name: Run Pitloom action against this repository
+        id: pitloom
+        uses: ./
+        with:
+          project-path: "."
+          output: "selftest-sbom.spdx3.json"
+          pretty: "true"
+          install: "false"
+          upload-artifact: "true"
+          artifact-name: "action-selftest-sbom-py${{ matrix.python-version }}"
+
+      - name: Assert SBOM output exists and is valid JSON-LD
+        run: |
+          set -euo pipefail
+
+          SBOM_PATH="${{ steps.pitloom.outputs.sbom-path }}"
+          echo "SBOM path: ${SBOM_PATH}"
+
+          if [ ! -s "${SBOM_PATH}" ]; then
+            echo "::error title=Missing SBOM::${SBOM_PATH} was not created."
+            exit 1
+          fi
+
+          python - "${SBOM_PATH}" <<'EOF'
+          import json
+          import sys
+
+          sbom_path = sys.argv[1]
+          with open(sbom_path, encoding="utf-8") as f:
+              sbom = json.load(f)
+
+          if "@graph" not in sbom:
+              print("ERROR: SBOM is missing the '@graph' key.", file=sys.stderr)
+              sys.exit(1)
+
+          graph = sbom["@graph"]
+          names = [e.get("name") for e in graph if e.get("type") == "software_Package"]
+          purls = [
+              e.get("software_packageUrl")
+              for e in graph
+              if e.get("type") == "software_Package"
+          ]
+
+          if "pitloom" not in names:
+              print(
+                  f"ERROR: 'pitloom' package not found in SBOM. Packages: {names}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          if not any(
+              (purl or "").startswith("pkg:pypi/pitloom@") for purl in purls
+          ):
+              print(
+                  f"ERROR: No 'pkg:pypi/pitloom@...' PURL found. PURLs: {purls}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print(f"SBOM OK: {len(graph)} graph elements, packages={names[:5]}...")
+          EOF
+
+      - name: Validate SBOM with spdx3-validate (best-effort)
+        run: |
+          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
+        continue-on-error: true

@@ -1,0 +1,144 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: "Pitloom SBOM Generator"
+description: >-
+  Generate an SPDX 3 JSON-LD SBOM (or AI model AIBOM) for a Python project
+  or AI model file using Pitloom.
+author: "Arthit Suriyawongkul"
+
+branding:
+  icon: "package"
+  color: "purple"
+
+inputs:
+  project-path:
+    description: >-
+      Directory to scan for a Python project (containing pyproject.toml,
+      setup.cfg, or setup.py). Ignored when "model" is set.
+    required: false
+    default: "."
+  model:
+    description: >-
+      Path to a local AI model file, or a Hugging Face URL / model ID.
+      When set, runs model mode ("loom -m <model>") instead of project mode.
+    required: false
+    default: ""
+  output:
+    description: "SBOM output file path."
+    required: false
+    default: "sbom.spdx3.json"
+  extras:
+    description: >-
+      Comma-separated pip extras to install alongside Pitloom, e.g.
+      "aimodel,huggingface".
+    required: false
+    default: ""
+  pretty:
+    description: "Pretty-print the SBOM output with 2-space indentation."
+    required: false
+    default: "false"
+  args:
+    description: "Extra raw flags passed through to the loom command."
+    required: false
+    default: ""
+  pitloom-version:
+    description: >-
+      Pitloom version or version specifier to install, e.g. "0.8.0" or
+      ">=0.8,<0.9". Empty installs the latest release from PyPI.
+    required: false
+    default: ""
+  python-version:
+    description: "Python version passed to actions/setup-python."
+    required: false
+    default: "3.x"
+  install:
+    description: >-
+      When "false", skip installing Python and Pitloom, and assume Pitloom
+      is already available on PATH (used by Pitloom's own self-test to
+      dogfood the local checkout via "uses: ./").
+    required: false
+    default: "true"
+  upload-artifact:
+    description: "Upload the generated SBOM using actions/upload-artifact."
+    required: false
+    default: "true"
+  artifact-name:
+    description: "Artifact name used when upload-artifact is true."
+    required: false
+    default: "sbom"
+
+outputs:
+  sbom-path:
+    description: "Path to the generated SBOM file."
+    value: ${{ steps.generate.outputs.sbom-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      if: inputs.install == 'true'
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Pitloom
+      if: inputs.install == 'true'
+      shell: bash
+      env:
+        PL_EXTRAS: ${{ inputs.extras }}
+        PL_VERSION: ${{ inputs.pitloom-version }}
+      run: |
+        set -euo pipefail
+
+        spec="pitloom"
+        if [ -n "${PL_EXTRAS}" ]; then
+          spec="${spec}[${PL_EXTRAS}]"
+        fi
+        if [ -n "${PL_VERSION}" ]; then
+          spec="${spec}==${PL_VERSION}"
+        fi
+
+        python -m pip install --upgrade pip
+        pip install "${spec}"
+
+    - name: Generate SBOM
+      id: generate
+      shell: bash
+      env:
+        PL_PROJECT_PATH: ${{ inputs.project-path }}
+        PL_MODEL: ${{ inputs.model }}
+        PL_OUTPUT: ${{ inputs.output }}
+        PL_PRETTY: ${{ inputs.pretty }}
+        PL_ARGS: ${{ inputs.args }}
+      run: |
+        set -euo pipefail
+
+        declare -a loom_args
+        if [ -n "${PL_MODEL}" ]; then
+          loom_args+=("-m" "${PL_MODEL}")
+        else
+          loom_args+=("${PL_PROJECT_PATH}")
+        fi
+        loom_args+=("-o" "${PL_OUTPUT}")
+        if [ "${PL_PRETTY}" = "true" ]; then
+          loom_args+=("--pretty")
+        fi
+        if [ -n "${PL_ARGS}" ]; then
+          # Word-split intentionally: PL_ARGS is a space-separated list of
+          # extra flags (e.g. "-v --creator-name CI"), not a single token.
+          # shellcheck disable=SC2206
+          extra_args=(${PL_ARGS})
+          loom_args+=("${extra_args[@]}")
+        fi
+
+        loom "${loom_args[@]}"
+
+        echo "sbom-path=${PL_OUTPUT}" >> "${GITHUB_OUTPUT}"
+
+    - name: Upload SBOM artifact
+      if: inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.generate.outputs.sbom-path }}
