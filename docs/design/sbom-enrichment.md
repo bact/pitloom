@@ -114,9 +114,8 @@ extractor can reach -- a plausible license from ambiguous wording, what a
 dependency is actually *for*, or a `trainedOn`/`testedOn` dataset
 relationship implied by a paragraph rather than a machine-readable field.
 
-This is documented and enabled today via `skills/pitloom-sbom/`
+This is documented and enabled today via the `skills/enrich/` Skill
 (see [adoption-surfaces.md](adoption-surfaces.md) and
-[github-action.md](../implementation/github-action.md) /
 [agent-skill.md](../implementation/agent-skill.md) for the surfaces this
 builds on); it does not require new code inside Pitloom core.
 
@@ -152,8 +151,8 @@ extraction and from other configured enrichment sources. This keeps the
 result auditable: a reviewer can grep for `AI agent` in the SBOM to see
 exactly what was inferred rather than extracted.
 
-See `skills/pitloom-sbom/SKILL.md` and
-`skills/pitloom-sbom/references/examples.md` for the full agent-facing
+See `skills/enrich/SKILL.md` and
+`skills/enrich/references/examples.md` for the full agent-facing
 instructions and a worked fragment example.
 
 ### Enricher implementation approach

@@ -1,5 +1,5 @@
 ---
-name: pitloom-sbom
+name: sbom
 description: >-
   Use this skill whenever the user asks to generate an SBOM, an SPDX
   document, a software bill of materials, a dependency inventory, or an AI
@@ -15,18 +15,15 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom SBOM generator
+# Generate an SBOM with Pitloom
 
 Pitloom is a command-line tool that generates SPDX 3.0.1 JSON-LD SBOMs for
 Python projects and AI/ML model files. This skill drives Pitloom's existing
 CLI (`loom` / `pitloom`) -- it does not modify or reimplement Pitloom.
 
-See `references/examples.md` for copy-paste recipes covering both tiers
-below.
+See `references/examples.md` for copy-paste recipes.
 
-## Tier 1: generate a base SBOM (always do this first)
-
-### Run without installing anything persistent
+## Run without installing anything persistent
 
 Prefer an ephemeral run so the user's environment is not polluted:
 
@@ -46,7 +43,7 @@ loom <project-or-model-path>
 `loom` and `pitloom` are two names for the same console-script entry point;
 `uvx`/`pipx run` resolve `pitloom <args>` to that entry point automatically.
 
-### Project SBOMs (Python packages)
+## Project SBOMs (Python packages)
 
 ```bash
 loom .                              # scan the current directory
@@ -56,7 +53,7 @@ loom /path/to/project -o sbom.spdx3.json
 Requires a `pyproject.toml` (PEP 621 `[project]` or Poetry
 `[tool.poetry]`), or `setup.cfg` / `setup.py`, in the target directory.
 
-### AI model SBOMs (AIBOMs)
+## AI model SBOMs (AIBOMs)
 
 Pass `-m` with a local model file or a Hugging Face URL/model ID -- no
 project directory required:
@@ -74,7 +71,7 @@ Keras, HDF5, NumPy, fastText. Hugging Face Hub models need
 `pip install pitloom[huggingface]` (or `uvx --from 'pitloom[huggingface]'
 pitloom`).
 
-### Useful flags (both modes)
+## Useful flags (both modes)
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--pretty` -- indent the JSON for human reading (default: compact).
@@ -82,7 +79,7 @@ pitloom`).
 - `--creator-name NAME`, `--creator-email EMAIL` -- attribute the SBOM to a
   person instead of the default "Pitloom" tool identity.
 
-### What Pitloom produces
+## What Pitloom produces
 
 - An **SPDX 3.0.1 JSON-LD** document (`@context` + `@graph`), by default
   named `<name>-<version>.spdx3.json` (project mode) or
@@ -99,7 +96,7 @@ pitloom`).
   [PEP 770](https://peps.python.org/pep-0770/). Mention this if relevant,
   but do not assume it -- it only applies to projects that opt in.
 
-### How to verify the output
+## How to verify the output
 
 - Confirm the file exists and parses as JSON with an `@graph` array.
 - If `spdx3-validate` is installed (`pip install spdx3-validate`), run
@@ -107,7 +104,7 @@ pitloom`).
 - Sanity-check that the main project or model name appears among the
   `software_Package` / `ai_AIPackage` elements in `@graph`.
 
-### When NOT to use this skill
+## When NOT to use this skill
 
 - Pitloom **generates** SBOMs; it does not scan for known vulnerabilities
   or license-compliance violations. For vulnerability scanning, point the
@@ -117,69 +114,10 @@ pitloom`).
 - If the target has neither a Python project descriptor nor a supported
   model file, Pitloom has nothing to scan -- say so rather than guessing.
 
-## Tier 2: enrich the SBOM (optional, agent value-add)
+## Enriching the result
 
-Static extraction cannot read prose. An agent can go further than Pitloom
-alone: read the project's README or the model's model card, infer a
-plausible license or a dependency's purpose, or work out
-`trainedOn`/`testedOn` dataset relationships that no file format encodes
-explicitly. Do this only **after** producing a Tier 1 SBOM, and only when
-it adds real information -- do not fabricate detail for its own sake.
-
-### Contribute enrichment as a fragment, never by hand-editing
-
-Do not edit the generated SBOM JSON directly. Pitloom has a purpose-built
-mechanism for exactly this: **fragments**. Write the inferred facts as a
-small, standalone SPDX 3 JSON-LD file and let Pitloom merge it on the next
-generation run. See `references/examples.md` for a full worked example.
-
-Every inferred field's `comment` (or the fragment's
-`CreationInfo.comment`) must carry a provenance marker in this exact form,
-so it is never confused with authoritative, extracted metadata:
-
-```text
-Source: AI agent | Method: inference
-```
-
-Steps:
-
-1. Generate the Tier 1 SBOM first, if not already done.
-2. Read the project's `README.md` / model card and any other local docs.
-3. Draft a fragment (`*.spdx3.json`) containing only the elements or
-   relationships you can infer (e.g. a `dataset_DatasetPackage` plus a
-   `trainedOn` relationship, or a `comment` refining a license guess).
-   Mark every inferred value with the provenance string above.
-4. **Pre-merge check (mandatory):** validate the drafted fragment is
-   syntactically valid JSON before registering it -- a fragment with
-   broken JSON is silently dropped by `merge_fragments()`'s catch-and-warn
-   behaviour, so catch it now rather than after a wasted `loom` run:
-
-   ```bash
-   python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
-     fragments/agent-enrichment.spdx3.json
-   ```
-
-5. Register the fragment so Pitloom merges it on the next run:
-
-   ```toml
-   [tool.pitloom.fragments]
-   files = ["fragments/agent-enrichment.spdx3.json"]
-   ```
-
-6. Re-run `loom <path>` (Tier 1) so the merged, enriched SBOM is written.
-7. **Post-merge check (mandatory):** validate the merged output is still
-   a conformant SPDX 3.0.1 document -- a syntactically valid fragment can
-   still be missing a required property or use the wrong relationship
-   type, which only shape/SHACL validation catches:
-
-   ```bash
-   pip install spdx3-validate  # if not already installed
-   spdx3-validate --json <merged-sbom-file>
-   ```
-
-8. Tell the user what was inferred and why, so they can review it -- this
-   is provenance-tracked, agent-derived data, not ground truth.
-
-For the full enrichment data-source table, the `[tool.pitloom.enrich]`
-enable/disable model, and the dataset-relationship field map, see
-`docs/design/sbom-enrichment.md` in the Pitloom repository.
+Static extraction cannot read prose. For information an agent can infer
+that Pitloom's extraction cannot see -- an unstated license, a
+dependency's purpose, a `trainedOn`/`testedOn` dataset relationship --
+use the sibling `enrich` skill (`pitloom:enrich` when installed as a
+plugin) after generating the base SBOM here.

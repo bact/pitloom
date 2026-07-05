@@ -302,29 +302,49 @@ builds, AI model SBOMs).
 
 ### Use Pitloom as an AI-agent skill
 
-`skills/pitloom-sbom/` is a ready-to-install
-[Agent Skill](https://www.anthropic.com/) for Claude Code and the Claude
-Agent SDK: it lets an agent generate an SBOM on request, and optionally
-enrich it (reading a README or model card to infer detail Pitloom's static
-extraction cannot see) via Pitloom's fragment system.
+`skills/sbom/` and `skills/enrich/` are ready-to-install
+[Agent Skills](https://www.anthropic.com/) for Claude Code and the Claude
+Agent SDK: `sbom` lets an agent generate an SBOM on request; `enrich`
+optionally augments an existing one (reading a README or model card to
+infer detail Pitloom's static extraction cannot see) via Pitloom's
+fragment system. Both work independently, by natural language or by
+explicit invocation.
+
+Copy either (or both) into a skills directory Claude Code reads from:
+
+```bash
+mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install
+cp -r /path/to/pitloom/skills/sbom ~/.claude/skills/
+cp -r /path/to/pitloom/skills/enrich ~/.claude/skills/
+```
+
+A skill's invocable name is its directory name, so if you already have an
+unrelated skill called `sbom` or `enrich`, copying Pitloom's over it will
+overwrite it. Copy to a different destination name instead to avoid the
+collision -- e.g. `cp -r .../skills/sbom ~/.claude/skills/pitloom-sbom` --
+this is a plain filesystem rename with no other effect: it only changes
+what you type to invoke it explicitly (natural-language triggering and the
+skill's behavior are unaffected, and `SKILL.md` needs no edits).
 
 See [docs/implementation/agent-skill.md](docs/implementation/agent-skill.md)
-for install instructions and
+for full install instructions and
 [docs/design/adoption-surfaces.md](docs/design/adoption-surfaces.md) for
 how this fits alongside Pitloom's other surfaces.
 
 ### Use Pitloom as a Claude Code plugin
 
-The Skill above is also installable as a plugin, self-hosted from this
-repository, with an explicit `/pitloom-sbom` slash command:
+The Skills above are also installable as a plugin, self-hosted from this
+repository, with namespaced explicit invocation:
 
 ```text
 /plugin marketplace add bact/pitloom
-/plugin install pitloom-sbom@pitloom
+/plugin install pitloom@pitloom
 ```
 
-See [docs/implementation/claude-code-plugin.md](docs/implementation/claude-code-plugin.md)
-for what the plugin bundles and how `/pitloom-sbom` works.
+Once installed: `/pitloom:sbom`, `/pitloom:enrich` (or just ask in plain
+language -- both remain auto-triggerable). See
+[docs/implementation/claude-code-plugin.md](docs/implementation/claude-code-plugin.md)
+for what the plugin bundles.
 
 ## Example
 

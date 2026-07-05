@@ -4,55 +4,10 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom skill: copy-paste recipes
+# Pitloom enrich skill: copy-paste recipe
 
-Companion to `../SKILL.md`. These recipes are meant to be run as-is or
+Companion to `../SKILL.md`. This recipe is meant to be run as-is or
 adapted with minimal edits.
-
-## Tier 1: generate
-
-### Project SBOM, ephemeral run
-
-```bash
-uvx pitloom . -o sbom.spdx3.json --pretty
-```
-
-### Project SBOM, already-installed Pitloom
-
-```bash
-pip install pitloom
-loom /path/to/project -o sbom.spdx3.json
-```
-
-### AI model SBOM, local file
-
-```bash
-uvx --from 'pitloom[aimodel]' pitloom -m model.safetensors -o model.spdx3.json
-```
-
-### AI model SBOM, Hugging Face Hub model
-
-```bash
-uvx --from 'pitloom[huggingface]' pitloom -m mistralai/Mistral-7B-v0.1 \
-  -o mistral.spdx3.json --pretty
-```
-
-### Verify the result
-
-```bash
-python3 -c '
-import json, sys
-d = json.load(open(sys.argv[1]))
-assert "@graph" in d, "missing @graph"
-print(len(d["@graph"]), "elements")
-' sbom.spdx3.json
-
-# Optional schema/SHACL validation:
-pip install spdx3-validate
-spdx3-validate --json sbom.spdx3.json
-```
-
-## Tier 2: enrich
 
 The scenario: Pitloom's static extraction produced `sbom.spdx3.json` for a
 project whose README states the model was trained on the "tiny-imagenet"
@@ -60,7 +15,7 @@ dataset and evaluated on "imagenet-val" -- information no model file format
 encodes, so Pitloom's own extractors cannot see it. An agent reads the
 README and contributes that relationship back as a fragment.
 
-### 1. Draft a minimal fragment
+## 1. Draft a minimal fragment
 
 `fragments/agent-enrichment.spdx3.json`:
 
@@ -107,7 +62,7 @@ Notes:
 - IDs (`spdxId`) must be unique; namespacing them under a distinct path
   (e.g. `.../pitloom-agent/...`) avoids collisions with the main SBOM.
 
-### 2. Pre-merge check (mandatory)
+## 2. Pre-merge check (mandatory)
 
 Validate the drafted fragment is syntactically valid JSON before
 registering it -- `merge_fragments()` silently drops (and only logs a
@@ -119,7 +74,7 @@ python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
   fragments/agent-enrichment.spdx3.json
 ```
 
-### 3. Register the fragment
+## 3. Register the fragment
 
 In the project's `pyproject.toml`:
 
@@ -128,7 +83,7 @@ In the project's `pyproject.toml`:
 files = ["fragments/agent-enrichment.spdx3.json"]
 ```
 
-### 4. Re-generate the SBOM
+## 4. Re-generate the SBOM
 
 ```bash
 loom . -o sbom.spdx3.json --pretty
@@ -138,7 +93,7 @@ The merged output now contains the `dataset_DatasetPackage` element from
 the fragment alongside everything Pitloom extracted directly, with the
 inferred element's provenance clearly marked in its `comment`.
 
-### 5. Post-merge check (mandatory)
+## 5. Post-merge check (mandatory)
 
 Validate the merged output is still a conformant SPDX 3.0.1 document --
 this catches SPDX-shape/SHACL problems (e.g. a missing required property
@@ -150,7 +105,7 @@ pip install spdx3-validate  # if not already installed
 spdx3-validate --json sbom.spdx3.json
 ```
 
-### 6. Report back to the user
+## 6. Report back to the user
 
 Summarise what was inferred and from where (e.g. "Added a
 `tiny-imagenet` dataset reference based on the README's 'Training data'
@@ -161,6 +116,7 @@ extraction.
 ## See also
 
 - `../SKILL.md` -- operating instructions for this skill.
+- The sibling `sbom` skill -- generates the base SBOM this recipe enriches.
 - `docs/design/sbom-enrichment.md` -- enrichment data-source table and the
   `[tool.pitloom.enrich]` enable/disable model.
 - `docs/design/sbom-fragments.md` -- fragment system design and vocabulary.

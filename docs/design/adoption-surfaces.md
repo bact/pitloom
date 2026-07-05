@@ -30,8 +30,8 @@ provenance tracking) are identical regardless of which surface produced it.
 | Hatchling build hook | You build wheels with Hatchling and want an SBOM embedded automatically, with no extra command. | [hatchling-build-hook.md](hatchling-build-hook.md) |
 | ML tracking SDK (`pitloom.loom`) | You are training or fine-tuning a model and want to capture dataset/hyperparameter/metric provenance as you go, as an SPDX fragment. | [README.md](../../README.md#python-tracking-decorator), [sbom-fragments.md](sbom-fragments.md) |
 | GitHub Action | Your project is *not* Hatchling-based (or you just want CI to produce an SBOM artefact with one `uses:` line), regardless of build backend. | [github-action.md](../implementation/github-action.md) |
-| AI-agent Skill | You want an AI coding agent (Claude Code, the Agent SDK, or similar) to generate -- and optionally enrich -- an SBOM on request, as a first-class capability rather than an ad hoc shell command. | [agent-skill.md](../implementation/agent-skill.md) |
-| Claude Code plugin | You use Claude Code and want the Skill installable with one command (`/plugin install`), plus an explicit `/pitloom-sbom` slash command. | [claude-code-plugin.md](../implementation/claude-code-plugin.md) |
+| AI-agent Skills (`sbom`, `enrich`) | You want an AI coding agent (Claude Code, the Agent SDK, or similar) to generate -- and optionally enrich -- an SBOM on request, as a first-class capability rather than an ad hoc shell command. | [agent-skill.md](../implementation/agent-skill.md) |
+| Claude Code plugin | You use Claude Code and want both Skills installable with one command (`/plugin install`), plus namespaced explicit invocation (`/pitloom:sbom`, `/pitloom:enrich`). | [claude-code-plugin.md](../implementation/claude-code-plugin.md) |
 
 ## Why the Action and the Skill matter
 
@@ -47,15 +47,16 @@ backend they control. Two adoption paths were still missing:
 2. **Agent-native operation.** As AI coding agents become a normal part of
    how software gets written and maintained, "generate an SBOM for this"
    needs to be something an agent can just do, the same way it edits a
-   file or runs a test. An **AI-agent Skill** (`skills/pitloom-sbom/`)
-   packages Pitloom's CLI as an explicit, triggerable capability for
-   Claude Code, the Claude Agent SDK, and similar agent runtimes.
+   file or runs a test. Two **AI-agent Skills** (`skills/sbom/`,
+   `skills/enrich/`) package Pitloom's CLI as explicit, independently
+   triggerable capabilities for Claude Code, the Claude Agent SDK, and
+   similar agent runtimes.
 
-## The Skill is more than a CLI wrapper: agent-driven enrichment
+## The Skills are more than a CLI wrapper: agent-driven enrichment
 
-The Skill is deliberately framed as an **enrichment surface**, not just a
-thin CLI wrapper, because an AI agent can do things static extraction
-cannot:
+The `enrich` skill is deliberately framed as an **enrichment surface**,
+not just a thin CLI wrapper, because an AI agent can do things static
+extraction cannot:
 
 - Read a model card or README in prose and infer an unstated license.
 - Classify what a dependency is *for*, not just that it exists.
@@ -71,7 +72,7 @@ the line between "extracted fact" and "AI guess":
   are merged into the final SBOM via `[tool.pitloom.fragments]` and
   `merge_fragments()` (see [sbom-fragments.md](sbom-fragments.md)).
 
-The Skill's Tier 2 guidance has an agent contribute enrichment as a
+The `enrich` skill's guidance has an agent contribute enrichment as a
 fragment, with every inferred field marked `Source: AI agent | Method:
 inference`, so the result stays transparent and auditable. See
 [sbom-enrichment.md](sbom-enrichment.md) for the full data-source model
@@ -84,5 +85,5 @@ this builds on.
 - New enrichment *code* inside Pitloom core (README/model-card parsers,
   OpenSSF Scorecard, Hugging Face/PyPI enrichers) -- tracked separately in
   [sbom-enrichment.md](sbom-enrichment.md) and [roadmap.md](roadmap.md); the
-  Skill enables agent-driven enrichment today without waiting for that
-  code.
+  `enrich` skill enables agent-driven enrichment today without waiting for
+  that code.

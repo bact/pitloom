@@ -34,17 +34,18 @@ and this project adheres to
 - A GitHub Action so any Python project can generate an SBOM in CI with a
   single step, regardless of build backend. See
   `docs/implementation/github-action.md`.
-- An AI-agent Skill so Claude Code, the Claude Agent SDK, and similar
-  tools can generate an SBOM on request, and optionally enrich it with
-  information inferred from project docs -- with clear provenance
-  marking so inferred data is never confused with extracted data. See
-  `docs/implementation/agent-skill.md`.
+- Two AI-agent Skills (`sbom`, `enrich`) so Claude Code, the Claude Agent
+  SDK, and similar tools can generate an SBOM on request, and optionally
+  enrich it with information inferred from project docs -- with clear
+  provenance marking so inferred data is never confused with extracted
+  data. See `docs/implementation/agent-skill.md`.
 - New documentation, `docs/design/adoption-surfaces.md`, describing every
   way to use Pitloom: as a library, CLI, Hatchling build hook, ML
   tracking SDK, GitHub Action, or AI-agent Skill.
 - A Claude Code plugin (`/plugin marketplace add bact/pitloom` then
-  `/plugin install pitloom-sbom@pitloom`) providing a `/pitloom-sbom`
-  command to generate and enrich SBOMs directly from Claude Code.
+  `/plugin install pitloom@pitloom`) providing `/pitloom:sbom` and
+  `/pitloom:enrich` to generate and enrich SBOMs directly from Claude
+  Code.
 
 ## [0.8.0] - 2026-05-29
 
