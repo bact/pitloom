@@ -131,6 +131,13 @@ def _build_main_package(
     if creation.build_datetime:
         main_package.builtTime = datetime.fromisoformat(creation.build_datetime)
 
+    # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>), only when a real
+    # version is known.  Mirrors the dependency PURL logic in deps.py.
+    # Per PURL spec: name lowercased, underscores replaced with hyphens.
+    if metadata.version and metadata.version != "unknown":
+        purl_name = metadata.name.lower().replace("_", "-")
+        main_package.software_packageUrl = f"pkg:pypi/{purl_name}@{metadata.version}"
+
     provenance_comment = _build_provenance_comment(doc)
     if provenance_comment:
         main_package.comment = provenance_comment
@@ -192,6 +199,12 @@ def _add_package_files(
             creationInfo=spdx_ci,
         )
         package_entry.software_fileKind = spdx3.software_FileKindType.file
+        package_entry.verifiedUsing = [
+            spdx3.Hash(
+                algorithm=spdx3.HashAlgorithm.sha256,
+                hashValue=package_file.digest_sha256,
+            )
+        ]
         exporter.add_file(package_entry)
         file_spdx_ids[package_file.distribution_path] = package_entry.spdxId
 
