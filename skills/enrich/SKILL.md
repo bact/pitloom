@@ -10,10 +10,11 @@ description: >-
   used to train this model", "fill in missing SBOM information from the
   README/model card". Requires a Pitloom SBOM to already exist -- generate
   one first with the `sbom` skill if it does not.
-SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC0-1.0
 ---
+
+<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
+<!-- SPDX-FileType: SOURCE -->
+<!-- SPDX-License-Identifier: CC0-1.0 -->
 
 # Enrich a Pitloom SBOM
 
@@ -31,7 +32,7 @@ See `references/examples.md` for a full worked example.
 
 Do not edit the generated SBOM JSON directly. Pitloom has a purpose-built
 mechanism for exactly this: **fragments**. Write the inferred facts as a
-small, standalone SPDX 3 JSON-LD file and let Pitloom merge it on the next
+small, standalone SPDX 3 JSON file and let Pitloom merge it on the next
 generation run. See `references/examples.md` for a full worked example.
 
 Every inferred field's `comment` (or the fragment's
@@ -71,7 +72,7 @@ Steps:
 6. Re-run `loom <path>` (generate again) so the merged, enriched SBOM is
    written.
 7. **Post-merge check (mandatory):** validate the merged output is still
-   a conformant SPDX 3.0.1 document -- a syntactically valid fragment can
+   a conformant SPDX 3 JSON document -- a syntactically valid fragment can
    still be missing a required property or use the wrong relationship
    type, which only shape/SHACL validation catches:
 

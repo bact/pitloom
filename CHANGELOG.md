@@ -22,26 +22,20 @@ and this project adheres to
 ### Added
 
 - Wheel builds now embed a more complete SBOM: the Hatchling build hook
-  reads project metadata (version, dependencies, license, and more)
-  directly from the build backend's own resolved values, so
-  dynamically-computed metadata (e.g. a version from `hatch-vcs`,
-  dependencies from `hatch-requirements-txt`) is captured correctly. The
-  hook now only runs for wheel builds, not sdists.
-- Every file listed in a generated SBOM now includes a SHA-256 integrity
+  reads project metadata directly from the build backend's own resolved values,
+  so dynamically-computed metadata (e.g. a version from `hatch-vcs`,
+  dependencies from `hatch-requirements-txt`) is captured correctly.
+  The hook now only runs for wheel builds, not sdists.
+- Every file listed in a generated SBOM now includes an SHA-256 integrity
   hash.
 - The main project package in a generated SBOM now includes a PyPI
-  Package URL (PURL), matching what dependencies already had.
+  Package-URL (PURL), matching what dependencies already had.
 - A GitHub Action so any Python project can generate an SBOM in CI with a
-  single step, regardless of build backend. See
-  `docs/implementation/github-action.md`.
-- Two AI-agent Skills (`sbom`, `enrich`) so Claude Code, the Claude Agent
-  SDK, and similar tools can generate an SBOM on request, and optionally
-  enrich it with information inferred from project docs -- with clear
-  provenance marking so inferred data is never confused with extracted
-  data. See `docs/implementation/agent-skill.md`.
-- New documentation, `docs/design/adoption-surfaces.md`, describing every
-  way to use Pitloom: as a library, CLI, Hatchling build hook, ML
-  tracking SDK, GitHub Action, or AI-agent Skill.
+  single step, regardless of build backend.
+- Two AI-agent Skills (`sbom`, `enrich`) to generate an SBOM on request,
+  and optionally enrich it with information inferred from project docs --
+  with clear provenance marking so inferred data is never confused with
+  extracted data.
 - A Claude Code plugin (`/plugin marketplace add bact/pitloom` then
   `/plugin install pitloom@pitloom`) providing `/pitloom:sbom` and
   `/pitloom:enrich` to generate and enrich SBOMs directly from Claude

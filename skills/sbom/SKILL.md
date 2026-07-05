@@ -10,14 +10,15 @@ description: >-
   materials", "list this project's dependency inventory", "generate an AI
   model BOM / AIBOM", "document this model's provenance", and similar
   requests for a supply-chain transparency artefact.
-SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
-SPDX-FileType: DOCUMENTATION
-SPDX-License-Identifier: CC0-1.0
 ---
+
+<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
+<!-- SPDX-FileType: SOURCE -->
+<!-- SPDX-License-Identifier: CC0-1.0 -->
 
 # Generate an SBOM with Pitloom
 
-Pitloom is a command-line tool that generates SPDX 3.0.1 JSON-LD SBOMs for
+Pitloom is a command-line tool that generates SPDX 3 JSON SBOMs for
 Python projects and AI/ML model files. This skill drives Pitloom's existing
 CLI (`loom` / `pitloom`) -- it does not modify or reimplement Pitloom.
 
@@ -81,7 +82,7 @@ pitloom`).
 
 ## What Pitloom produces
 
-- An **SPDX 3.0.1 JSON-LD** document (`@context` + `@graph`), by default
+- An **SPDX 3 JSON** (JSON-LD) document (`@context` + `@graph`), by default
   named `<name>-<version>.spdx3.json` (project mode) or
   `<stem>.spdx3.json` (model mode).
 - Project mode includes: the main package, its dependencies, per-file
