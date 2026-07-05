@@ -14,6 +14,12 @@
 - Idempotency: No non-deterministic data (timestamps, random UUIDs).
 - Schema compliance: Validate every SBOM against primary spec (CycloneDX/SPDX) and serialization format before finalization. Automated validation mandatory.
 
+### Metadata sources
+
+- The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` (Hatchling's own resolved `hatchling.metadata.core.ProjectMetadata`), via `pitloom.extract.hatchling.metadata_from_hatchling()`, so dynamic version/dependency/license sources resolved by Hatchling plugins are reflected correctly.
+- The CLI (`pitloom.__main__` / `pitloom.assemble.generate_sbom`) has no build backend to consult, so it reads metadata by re-parsing `pyproject.toml` via `pitloom.extract.pyproject.read_pyproject()`.
+- Both paths converge on the same `pitloom.assemble.spdx3.document.build()` assembly layer, so the emitted SBOM shape (file hashes, PURLs, licensing, etc.) is identical regardless of metadata source.
+
 ## CLI output
 
 Unix philosophy. Consistent, predictable, parseable.

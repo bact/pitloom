@@ -17,6 +17,37 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.7.1...v0.8.0>
 
+## [Unreleased]
+
+### Added
+
+- New extractor `pitloom.extract.hatchling.metadata_from_hatchling()` maps
+  Hatchling's own resolved project metadata (`self.metadata`) into Pitloom's
+  format-neutral `ProjectMetadata`, so dynamic `version`/`dependencies`/
+  `license` sources resolved by Hatchling plugins (e.g. `hatch-vcs`, `code`
+  or regex version sources, `hatch-requirements-txt`) are reflected
+  correctly in the embedded SBOM.
+- Every packaged file's `software_File` element now carries a SHA-256
+  `verifiedUsing` hash, reusing the digest already computed for the
+  document-UUID Merkle root.
+- The main project package now carries a `pkg:pypi/<name>@<version>` PURL
+  (`software_packageUrl`), matching the PURL already generated for
+  dependencies.
+- `pitloom.core.config.read_pitloom_config()`: a thin wrapper that reads
+  `[tool.pitloom]` settings directly from a `pyproject.toml` path.
+
+### Changed
+
+- The Hatchling build hook (`pitloom.plugins.hatch`) now reads project
+  metadata from Hatchling's own resolved `self.metadata` instead of
+  re-parsing `pyproject.toml`, and only runs for the `wheel` build target
+  (sdists have no `.dist-info/sboms/` to populate). The CLI is unchanged and
+  continues to use `read_pyproject()`.
+- Because Hatchling normalizes project names per PEP 503 (`_`/`.` collapsed
+  to `-`, lowercased), the package name recorded in a hook-embedded SBOM may
+  now differ in casing/separators from the literal spelling in
+  `[project] name`, even though it refers to the same project.
+
 ## [0.8.0] - 2026-05-29
 
 ### Added
