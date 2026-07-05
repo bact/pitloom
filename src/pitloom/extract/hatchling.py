@@ -20,10 +20,33 @@ from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
 
+from packaging.requirements import InvalidRequirement, Requirement
+
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import detect_license_for_project
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
+
+
+def _normalize_dependencies(raw_dependencies: list[str]) -> list[str]:
+    """Return dependency specifiers in ``packaging`` canonical string form.
+
+    Hatchling exposes ``core.dependencies`` as raw strings whose environment
+    markers keep their source quoting (e.g. ``python_version < '3.11'``),
+    whereas ``pyproject-metadata`` (used by the CLI via ``read_pyproject``)
+    stringifies through ``packaging.Requirement`` (``python_version <
+    "3.11"``).  Canonicalising here keeps the two paths byte-identical, so a
+    project built via the hook and one described via the CLI share the same
+    deterministic document UUID.  Unparseable specifiers are passed through
+    unchanged rather than dropped.
+    """
+    normalized: list[str] = []
+    for dep in raw_dependencies:
+        try:
+            normalized.append(str(Requirement(dep)))
+        except InvalidRequirement:
+            normalized.append(dep)
+    return normalized
 
 
 def _authors_from_data(authors_data: dict[str, list[str]]) -> list[dict[str, str]]:
@@ -109,7 +132,7 @@ def metadata_from_hatchling(
     if urls:
         provenance["urls"] = _field_provenance("urls")
 
-    dependencies = list(core.dependencies or [])
+    dependencies = _normalize_dependencies(list(core.dependencies or []))
     if dependencies:
         provenance["dependencies"] = _field_provenance("dependencies")
 

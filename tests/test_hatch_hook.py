@@ -31,9 +31,10 @@ import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 from hatchling.plugin.manager import PluginManager  # noqa: E402
 from spdx_python_model import v3_0_1 as spdx3  # noqa: E402
 
-from pitloom.core.models import generate_spdx_id  # noqa: E402
+from pitloom.core.models import compute_doc_uuid, generate_spdx_id  # noqa: E402
 from pitloom.export.spdx3_json import Spdx3JsonExporter  # noqa: E402
 from pitloom.extract.hatchling import metadata_from_hatchling  # noqa: E402
+from pitloom.extract.pyproject import read_pyproject  # noqa: E402
 from pitloom.plugins.hatch import (  # noqa: E402
     PitloomBuildHook,
     _validate_config,
@@ -488,6 +489,42 @@ def test_metadata_from_hatchling_maps_dependencies() -> None:
     assert metadata.provenance["dependencies"] == (
         "Source: Hatchling build backend | Field: project.dependencies"
     )
+
+
+def test_metadata_from_hatchling_canonicalises_dependency_markers() -> None:
+    """Dependency specifiers are normalised to ``packaging`` canonical form.
+
+    Hatchling exposes markers with source quoting (single quotes); the CLI
+    path (``read_pyproject`` via ``pyproject-metadata``) stringifies through
+    ``packaging.Requirement`` (double quotes).  Canonicalising here keeps the
+    hook and CLI dependency lists -- and thus the deterministic document
+    UUID -- identical for the same source tree.
+    """
+    hatch_meta = _fake_hatch_metadata(
+        core={"dependencies": ["tomli>=2.0.0; python_version<'3.11'"]}
+    )
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.dependencies == ['tomli>=2.0.0; python_version < "3.11"']
+
+
+def test_metadata_from_hatchling_matches_read_pyproject_for_uuid() -> None:
+    """Hook and CLI paths must yield the same doc UUID for a static project.
+
+    Regression guard: switching the hook to Hatchling's resolved metadata
+    must not change the document identity of a project whose metadata is
+    fully static (as Pitloom's own is).
+    """
+    root = Path(__file__).resolve().parent.parent
+    cli_meta, _ = read_pyproject(root / "pyproject.toml")
+    hatch_pm = hatchling_metadata_core.ProjectMetadata(str(root), PluginManager())
+    hook_meta = metadata_from_hatchling(hatch_pm, root)
+
+    assert hook_meta.name == cli_meta.name
+    assert hook_meta.version == cli_meta.version
+    assert hook_meta.dependencies == cli_meta.dependencies
+    assert compute_doc_uuid(
+        hook_meta.name, hook_meta.version or "x", hook_meta.dependencies
+    ) == compute_doc_uuid(cli_meta.name, cli_meta.version or "x", cli_meta.dependencies)
 
 
 def test_metadata_from_hatchling_maps_urls() -> None:
