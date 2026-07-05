@@ -42,6 +42,9 @@ and this project adheres to
 - New documentation, `docs/design/adoption-surfaces.md`, describing every
   way to use Pitloom: as a library, CLI, Hatchling build hook, ML
   tracking SDK, GitHub Action, or AI-agent Skill.
+- A Claude Code plugin (`/plugin marketplace add bact/pitloom` then
+  `/plugin install pitloom-sbom@pitloom`) providing a `/pitloom-sbom`
+  command to generate and enrich SBOMs directly from Claude Code.
 
 ## [0.8.0] - 2026-05-29
 

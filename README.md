@@ -313,6 +313,19 @@ for install instructions and
 [docs/design/adoption-surfaces.md](docs/design/adoption-surfaces.md) for
 how this fits alongside Pitloom's other surfaces.
 
+### Use Pitloom as a Claude Code plugin
+
+The Skill above is also installable as a plugin, self-hosted from this
+repository, with an explicit `/pitloom-sbom` slash command:
+
+```text
+/plugin marketplace add bact/pitloom
+/plugin install pitloom-sbom@pitloom
+```
+
+See [docs/implementation/claude-code-plugin.md](docs/implementation/claude-code-plugin.md)
+for what the plugin bundles and how `/pitloom-sbom` works.
+
 ## Example
 
 Generate an SBOM for the sentimentdemo project:

@@ -97,13 +97,10 @@ fragment, add a `[tool.pitloom.fragments]` entry pointing at it, re-run
 `loom`, and confirm the inferred element appears in the output with its
 `Source: AI agent | Method: inference` provenance.
 
-## Next step (planned): a Claude Code plugin
+## Also available as a Claude Code plugin
 
-`SKILL.md` is written to be **plugin-ready**: a future
-`.claude-plugin/plugin.json` can bundle `skills/pitloom-sbom/` alongside a
-`/pitloom-sbom` slash command and a `marketplace.json`, so the skill can be
-installed with `/plugin install` directly from this repository, and the
-enrichment workflow (Tier 2) can become a turnkey `generate` +
-`enrich` command pair. This is tracked in
-[roadmap.md](../design/roadmap.md) as a committed next step, not yet
-implemented -- no changes are needed to `SKILL.md` itself when it lands.
+`SKILL.md` was written to be plugin-ready, and now is one:
+`.claude-plugin/plugin.json` bundles this Skill alongside a `/pitloom-sbom`
+slash command and a `marketplace.json`, installable with `/plugin install`
+directly from this repository -- no changes were needed to `SKILL.md`
+itself. See [claude-code-plugin.md](claude-code-plugin.md).

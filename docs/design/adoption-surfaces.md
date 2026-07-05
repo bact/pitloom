@@ -31,6 +31,7 @@ provenance tracking) are identical regardless of which surface produced it.
 | ML tracking SDK (`pitloom.loom`) | You are training or fine-tuning a model and want to capture dataset/hyperparameter/metric provenance as you go, as an SPDX fragment. | [README.md](../../README.md#python-tracking-decorator), [sbom-fragments.md](sbom-fragments.md) |
 | GitHub Action | Your project is *not* Hatchling-based (or you just want CI to produce an SBOM artefact with one `uses:` line), regardless of build backend. | [github-action.md](../implementation/github-action.md) |
 | AI-agent Skill | You want an AI coding agent (Claude Code, the Agent SDK, or similar) to generate -- and optionally enrich -- an SBOM on request, as a first-class capability rather than an ad hoc shell command. | [agent-skill.md](../implementation/agent-skill.md) |
+| Claude Code plugin | You use Claude Code and want the Skill installable with one command (`/plugin install`), plus an explicit `/pitloom-sbom` slash command. | [claude-code-plugin.md](../implementation/claude-code-plugin.md) |
 
 ## Why the Action and the Skill matter
 
@@ -80,10 +81,6 @@ this builds on.
 
 - A **Docker container action** variant of the GitHub Action (hermetic,
   self-hosted-runner friendly) -- see [roadmap.md](roadmap.md).
-- A **Claude Code plugin** bundling the Skill with a slash command and
-  marketplace manifest -- committed as the next step; the Skill is
-  authored to be plugin-ready today (see
-  [agent-skill.md](../implementation/agent-skill.md)).
 - New enrichment *code* inside Pitloom core (README/model-card parsers,
   OpenSSF Scorecard, Hugging Face/PyPI enrichers) -- tracked separately in
   [sbom-enrichment.md](sbom-enrichment.md) and [roadmap.md](roadmap.md); the

@@ -56,11 +56,12 @@ wired into a build backend. These two extend reach beyond that. See
   provenance-marked fragment).
   See [agent-skill.md](../implementation/agent-skill.md) and
   [sbom-enrichment.md](sbom-enrichment.md).
-- [ ] **Claude Code plugin** (committed next step) -- bundle
+- [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles
   `skills/pitloom-sbom/` with a `/pitloom-sbom` slash command and a
   `marketplace.json` so it installs with `/plugin install` directly from
-  this repository; turns the Skill's enrichment workflow into turnkey
-  `generate` / `enrich` commands.
+  this repository. See
+  [claude-code-plugin.md](../implementation/claude-code-plugin.md). A
+  turnkey `generate` / `enrich` command split remains a future evolution.
 - [ ] **Docker container action** (future) -- a `Dockerfile` +
   `action.yml` `using: docker` variant of the GitHub Action for hermetic
   or self-hosted-runner use.
