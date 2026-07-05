@@ -85,7 +85,12 @@ def test_sbom_is_valid_json_ld(built_wheel: Path) -> None:
 
 def test_sbom_graph_contains_package(built_wheel: Path) -> None:
     """The SBOM graph must contain a software_Package element for
-    sampleproject_hatchling.
+    sampleproject-hatchling.
+
+    Hatchling normalizes the project name (PEP 503: "_" -> "-") before the
+    build hook ever sees it via ``self.metadata``, so the package name in the
+    SBOM is "sampleproject-hatchling", not the "sampleproject_hatchling"
+    spelling written in the fixture's ``pyproject.toml`` ``[project] name``.
     """
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
@@ -93,8 +98,8 @@ def test_sbom_graph_contains_package(built_wheel: Path) -> None:
     pkg_names = [
         e.get("name") for e in data["@graph"] if e.get("type") == "software_Package"
     ]
-    assert "sampleproject_hatchling" in pkg_names, (
-        f"Expected 'sampleproject_hatchling' package in SBOM graph, found: {pkg_names}"
+    assert "sampleproject-hatchling" in pkg_names, (
+        f"Expected 'sampleproject-hatchling' package in SBOM graph, found: {pkg_names}"
     )
 
 
@@ -116,3 +121,35 @@ def test_sbom_is_not_empty(built_wheel: Path) -> None:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
         size = zf.getinfo(sbom_entry).file_size
     assert size > 100, f"SBOM is suspiciously small ({size} bytes)"
+
+
+def test_sbom_graph_contains_file_hashes(built_wheel: Path) -> None:
+    """The embedded SBOM must contain at least one file with a SHA-256
+    verifiedUsing hash (PEP 770 wheel/CLI enrichment)."""
+    with zipfile.ZipFile(built_wheel) as zf:
+        (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
+        data = json.loads(zf.read(sbom_entry))
+    files = [
+        e
+        for e in data["@graph"]
+        if e.get("type") == "software_File" and e.get("software_fileKind") == "file"
+    ]
+    assert files, "Expected at least one file-kind software_File in the SBOM"
+    assert all(e.get("verifiedUsing") for e in files), (
+        "Every packaged file must carry a verifiedUsing hash"
+    )
+    (hash_obj,) = files[0]["verifiedUsing"]
+    assert hash_obj["algorithm"] == "sha256"
+
+
+def test_sbom_graph_contains_main_package_purl(built_wheel: Path) -> None:
+    """The main package must carry a pkg:pypi PURL (name normalized to
+    sampleproject-hatchling per PEP 503)."""
+    with zipfile.ZipFile(built_wheel) as zf:
+        (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
+        data = json.loads(zf.read(sbom_entry))
+    packages = [e for e in data["@graph"] if e.get("type") == "software_Package"]
+    main_package = next(p for p in packages if p["name"] == "sampleproject-hatchling")
+    assert main_package["software_packageUrl"] == (
+        "pkg:pypi/sampleproject-hatchling@0.1.0"
+    )

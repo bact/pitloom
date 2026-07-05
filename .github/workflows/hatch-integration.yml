@@ -92,9 +92,13 @@ jobs:
               for e in graph
               if e.get("type") == "software_Package"
           ]
-          if "sampleproject_hatchling" not in pkg_names:
+          # Hatchling normalizes the project name (PEP 503: "_" -> "-") before
+          # the build hook ever sees it, so the package name in the SBOM is
+          # "sampleproject-hatchling", not the "sampleproject_hatchling" form
+          # written in pyproject.toml's [project] name.
+          if "sampleproject-hatchling" not in pkg_names:
               print(
-                  f"ERROR: 'sampleproject_hatchling' not found in SBOM packages: {pkg_names}",
+                  f"ERROR: 'sampleproject-hatchling' not found in SBOM packages: {pkg_names}",
                   file=sys.stderr,
               )
               sys.exit(1)

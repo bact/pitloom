@@ -19,7 +19,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.ai_model import read_ai_model
 
@@ -82,6 +82,93 @@ Source = "https://github.com/test/test-package"
         # Check dependencies
         dep_packages = [p for p in packages if p["name"] in ["requests", "numpy"]]
         assert len(dep_packages) >= 2
+
+
+def test_generate_sbom_basic_main_package_purl() -> None:
+    """The main package must carry a pkg:pypi PURL when a real version is known."""
+    pyproject_content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test-package"
+version = "1.0.0"
+description = "A test package"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        packages = [e for e in graph if e.get("type") == "software_Package"]
+        main_package = next(p for p in packages if p["name"] == "test-package")
+        assert main_package["software_packageUrl"] == "pkg:pypi/test-package@1.0.0"
+
+
+def test_build_main_package_no_purl_without_real_version() -> None:
+    """No PURL is set when the version is unknown."""
+    project = ProjectMetadata(name="no-version-project")
+    doc = DocumentModel(project=project, creation=CreationMetadata())
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    main_package = next(p for p in packages if p["name"] == "no-version-project")
+    assert "software_packageUrl" not in main_package
+
+
+def test_build_main_package_purl_normalizes_name() -> None:
+    """PURL name is lowercased with underscores replaced by hyphens."""
+    project = ProjectMetadata(name="My_Package", version="2.0.0")
+    doc = DocumentModel(project=project, creation=CreationMetadata())
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    main_package = next(p for p in packages if p["name"] == "My_Package")
+    assert main_package["software_packageUrl"] == "pkg:pypi/my-package@2.0.0"
+
+
+def test_build_package_files_have_sha256_verified_using() -> None:
+    """Every file (not directory) software_File must carry a SHA-256
+    verifiedUsing hash matching the corresponding ProjectFile.digest_sha256."""
+    files = [
+        ProjectFile(
+            physical_path="src/pkg/__init__.py",
+            distribution_path="pkg/__init__.py",
+            digest_sha256="a" * 64,
+        ),
+        ProjectFile(
+            physical_path="src/pkg/module.py",
+            distribution_path="pkg/module.py",
+            digest_sha256="b" * 64,
+        ),
+    ]
+    project = ProjectMetadata(name="file-hash-project", version="1.0.0", files=files)
+    doc = DocumentModel(project=project, creation=CreationMetadata())
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    file_elements = [e for e in graph if e.get("type") == "software_File"]
+    by_name = {e["name"]: e for e in file_elements}
+
+    # Directory node: no verifiedUsing hash.
+    assert "verifiedUsing" not in by_name["pkg"]
+
+    # File nodes: exactly one SHA-256 Hash matching the source digest.
+    for pf in files:
+        file_elem = by_name[pf.distribution_path]
+        assert file_elem["software_fileKind"] == "file"
+        (hash_obj,) = file_elem["verifiedUsing"]
+        assert hash_obj["algorithm"] == "sha256"
+        assert hash_obj["hashValue"] == pf.digest_sha256
 
 
 def test_generate_sbom_to_output_path() -> None:
