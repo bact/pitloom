@@ -35,6 +35,21 @@ and this project adheres to
   dependencies.
 - `pitloom.core.config.read_pitloom_config()`: a thin wrapper that reads
   `[tool.pitloom]` settings directly from a `pyproject.toml` path.
+- A composite GitHub Action (`action.yml`) so any repository can generate
+  an SBOM in CI with a single `uses:` step, independent of build backend.
+  See `docs/implementation/github-action.md`.
+- `.github/workflows/action-selftest.yml`: dogfoods the Action against the
+  Pitloom repository itself.
+- An AI-agent Skill (`skills/pitloom-sbom/`) so Claude Code, the Claude
+  Agent SDK, and similar runtimes can generate an SBOM on request and
+  optionally enrich it via Pitloom's fragment system. See
+  `docs/implementation/agent-skill.md`.
+- New design doc `docs/design/adoption-surfaces.md` enumerating every way
+  to embed Pitloom (library, CLI, build hook, tracking SDK, Action,
+  Skill).
+- `docs/design/sbom-enrichment.md`: new "AI-agent enrichment (skill /
+  plugin)" section documenting the agent as an enrichment source and the
+  fragment-merge delivery path.
 
 ### Changed
 

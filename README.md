@@ -285,6 +285,34 @@ with loom.run(output_file="fragments/sentiment_model.json"):
     loom.add_dataset("imdb-reviews", dataset_type="text")
 ```
 
+### Use Pitloom as a GitHub Action
+
+Add SBOM generation to any repository's CI with a single step -- works for
+any Python build backend, not just Hatchling:
+
+```yaml
+- uses: bact/pitloom@v1
+  with:
+    project-path: "."
+```
+
+See [docs/implementation/github-action.md](docs/implementation/github-action.md)
+for inputs, outputs, and more recipes (release-asset upload, matrix
+builds, AI model SBOMs).
+
+### Use Pitloom as an AI-agent skill
+
+`skills/pitloom-sbom/` is a ready-to-install
+[Agent Skill](https://www.anthropic.com/) for Claude Code and the Claude
+Agent SDK: it lets an agent generate an SBOM on request, and optionally
+enrich it (reading a README or model card to infer detail Pitloom's static
+extraction cannot see) via Pitloom's fragment system.
+
+See [docs/implementation/agent-skill.md](docs/implementation/agent-skill.md)
+for install instructions and
+[docs/design/adoption-surfaces.md](docs/design/adoption-surfaces.md) for
+how this fits alongside Pitloom's other surfaces.
+
 ## Example
 
 Generate an SBOM for the sentimentdemo project:
