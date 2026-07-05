@@ -85,8 +85,7 @@ README and contributes that relationship back as a fragment.
     },
     {
       "creationInfo": "_:creationinfo-agent",
-      "comment": "Source: AI agent | Method: inference -- name and role "
-        "inferred from README.md \"Training data\" section.",
+      "comment": "Source: AI agent | Method: inference -- name and role inferred from README.md \"Training data\" section.",
       "dataset_datasetAvailability": "directDownload",
       "dataset_datasetType": ["image"],
       "description": "Training dataset referenced in the project README.",
@@ -108,7 +107,19 @@ Notes:
 - IDs (`spdxId`) must be unique; namespacing them under a distinct path
   (e.g. `.../pitloom-agent/...`) avoids collisions with the main SBOM.
 
-### 2. Register the fragment
+### 2. Pre-merge check (mandatory)
+
+Validate the drafted fragment is syntactically valid JSON before
+registering it -- `merge_fragments()` silently drops (and only logs a
+warning for) a fragment it cannot parse, so catch a malformed fragment now
+rather than after a wasted `loom` run:
+
+```bash
+python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
+  fragments/agent-enrichment.spdx3.json
+```
+
+### 3. Register the fragment
 
 In the project's `pyproject.toml`:
 
@@ -117,7 +128,7 @@ In the project's `pyproject.toml`:
 files = ["fragments/agent-enrichment.spdx3.json"]
 ```
 
-### 3. Re-generate the SBOM
+### 4. Re-generate the SBOM
 
 ```bash
 loom . -o sbom.spdx3.json --pretty
@@ -127,7 +138,19 @@ The merged output now contains the `dataset_DatasetPackage` element from
 the fragment alongside everything Pitloom extracted directly, with the
 inferred element's provenance clearly marked in its `comment`.
 
-### 4. Report back to the user
+### 5. Post-merge check (mandatory)
+
+Validate the merged output is still a conformant SPDX 3.0.1 document --
+this catches SPDX-shape/SHACL problems (e.g. a missing required property
+or the wrong relationship type) that plain JSON-syntax validity would
+miss:
+
+```bash
+pip install spdx3-validate  # if not already installed
+spdx3-validate --json sbom.spdx3.json
+```
+
+### 6. Report back to the user
 
 Summarise what was inferred and from where (e.g. "Added a
 `tiny-imagenet` dataset reference based on the README's 'Training data'

@@ -149,15 +149,35 @@ Steps:
    relationships you can infer (e.g. a `dataset_DatasetPackage` plus a
    `trainedOn` relationship, or a `comment` refining a license guess).
    Mark every inferred value with the provenance string above.
-4. Register the fragment so Pitloom merges it on the next run:
+4. **Pre-merge check (mandatory):** validate the drafted fragment is
+   syntactically valid JSON before registering it -- a fragment with
+   broken JSON is silently dropped by `merge_fragments()`'s catch-and-warn
+   behaviour, so catch it now rather than after a wasted `loom` run:
+
+   ```bash
+   python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
+     fragments/agent-enrichment.spdx3.json
+   ```
+
+5. Register the fragment so Pitloom merges it on the next run:
 
    ```toml
    [tool.pitloom.fragments]
    files = ["fragments/agent-enrichment.spdx3.json"]
    ```
 
-5. Re-run `loom <path>` (Tier 1) so the merged, enriched SBOM is written.
-6. Tell the user what was inferred and why, so they can review it -- this
+6. Re-run `loom <path>` (Tier 1) so the merged, enriched SBOM is written.
+7. **Post-merge check (mandatory):** validate the merged output is still
+   a conformant SPDX 3.0.1 document -- a syntactically valid fragment can
+   still be missing a required property or use the wrong relationship
+   type, which only shape/SHACL validation catches:
+
+   ```bash
+   pip install spdx3-validate  # if not already installed
+   spdx3-validate --json <merged-sbom-file>
+   ```
+
+8. Tell the user what was inferred and why, so they can review it -- this
    is provenance-tracked, agent-derived data, not ground truth.
 
 For the full enrichment data-source table, the `[tool.pitloom.enrich]`
