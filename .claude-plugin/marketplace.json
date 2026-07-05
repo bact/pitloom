@@ -1,0 +1,15 @@
+{
+  "name": "pitloom",
+  "owner": {
+    "name": "Arthit Suriyawongkul",
+    "email": "suriyawa@tcd.ie"
+  },
+  "description": "Pitloom SBOM/AIBOM generation for Claude Code.",
+  "plugins": [
+    {
+      "name": "pitloom-sbom",
+      "source": "./",
+      "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs using Pitloom."
+    }
+  ]
+}
