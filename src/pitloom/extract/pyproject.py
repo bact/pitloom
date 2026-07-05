@@ -18,6 +18,7 @@ from typing import Any
 from pyproject_metadata import StandardMetadata
 
 from pitloom.core.config import PitloomConfig, _read_pitloom_config
+from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
@@ -124,7 +125,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
         keywords=std.keywords or [],
         authors=_extract_authors(std),
         urls=std.urls or {},
-        dependencies=[str(d) for d in std.dependencies],
+        dependencies=[normalize_dependency_specifier(str(d)) for d in std.dependencies],
         provenance=_build_provenance(
             data.get("project", {}), version_source, license_prov
         ),

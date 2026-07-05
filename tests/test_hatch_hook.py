@@ -423,13 +423,14 @@ def test_hook_with_sampleproject_fixture() -> None:
     data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
     graph = data["@graph"]
     pkg_names = [e.get("name") for e in graph if e.get("type") == "software_Package"]
-    # Hatchling normalizes the project name (PEP 503: "_" -> "-") before the
-    # build hook ever sees it via self.metadata, so the package name here is
-    # "sampleproject-hatchling", not the "sampleproject_hatchling" spelling
-    # written in pyproject.toml's [project] name.
+    # metadata_from_hatchling() uses core.raw_name (the un-normalized name),
+    # not Hatchling's PEP-503-normalized core.name, so the package name here
+    # is "sampleproject_hatchling" -- exactly the spelling written in
+    # pyproject.toml's [project] name -- matching what the CLI (read_pyproject)
+    # would report for the same project.
     # When change this line, also change the corresponding Verify SBOM step
     # in .github/workflows/hatch-integration.yml
-    assert "sampleproject-hatchling" in pkg_names
+    assert "sampleproject_hatchling" in pkg_names
 
     hook.finalize("standard", build_data, "")
 
@@ -462,10 +463,11 @@ def _fake_hatch_metadata(
     """Build a lightweight duck-typed stand-in for Hatchling's
     ``hatchling.metadata.core.ProjectMetadata`` (``.core`` + ``.version``).
 
-    *core* overrides individual ``_FAKE_CORE_DEFAULTS`` fields, e.g.
+    *core* overrides individual ``_FAKE_CORE_DEFAULTS`` fields (including
+    ``raw_name``, which defaults to *name*), e.g.
     ``_fake_hatch_metadata(core={"license_expression": "MIT"})``.
     """
-    merged_core = {**_FAKE_CORE_DEFAULTS, **(core or {})}
+    merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
     return SimpleNamespace(
         name=name, version=version, core=SimpleNamespace(**merged_core)
     )
@@ -527,6 +529,56 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_uuid() -> None:
     ) == compute_doc_uuid(cli_meta.name, cli_meta.version or "x", cli_meta.dependencies)
 
 
+SYNTHETIC_NONCANONICAL_PYPROJECT = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "My_Package.Extra"
+version = "1.0.0"
+dependencies = ["typing_extensions>=4.0", "zope.interface>=5.0"]
+"""
+
+
+def test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name() -> None:
+    """CLI and hook paths must agree even when the name/deps are non-canonical.
+
+    Regression guard for the gap the earlier, name-only ``raw_name`` fix and
+    the marker-only ``_normalize_dependencies`` helper both missed: a project
+    name with an uppercase letter, underscore, and dot (``My_Package.Extra``)
+    and dependency names with an underscore (``typing_extensions``) and a dot
+    (``zope.interface``). Before this fix, Hatchling's own PEP 503
+    normalisation made the hook report ``name == "my-package-extra"`` and
+    canonicalised dependency names, while the CLI path left both untouched,
+    giving the same project two different deterministic document UUIDs
+    depending on which path generated the SBOM.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, SYNTHETIC_NONCANONICAL_PYPROJECT)
+
+        cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
+        hatch_pm = hatchling_metadata_core.ProjectMetadata(
+            str(tmp_path), PluginManager()
+        )
+        hook_meta = metadata_from_hatchling(hatch_pm, tmp_path)
+
+        assert cli_meta.name == "My_Package.Extra"
+        assert hook_meta.name == "My_Package.Extra"
+        assert hook_meta.name == cli_meta.name
+
+        expected_deps = ["typing-extensions>=4.0", "zope-interface>=5.0"]
+        assert cli_meta.dependencies == expected_deps
+        assert hook_meta.dependencies == expected_deps
+
+        assert compute_doc_uuid(
+            hook_meta.name, hook_meta.version or "x", hook_meta.dependencies
+        ) == compute_doc_uuid(
+            cli_meta.name, cli_meta.version or "x", cli_meta.dependencies
+        )
+
+
 def test_metadata_from_hatchling_maps_urls() -> None:
     """Resolved project URLs must be carried over verbatim."""
     hatch_meta = _fake_hatch_metadata(
@@ -556,6 +608,20 @@ def test_metadata_from_hatchling_maps_authors() -> None:
     )
 
 
+def test_metadata_from_hatchling_tolerates_none_authors_data() -> None:
+    """``authors_data=None`` must not crash ``metadata_from_hatchling``.
+
+    Every sibling field is defended with ``or []``/``or {}``; a duck-typed
+    stand-in (or a future Hatchling release) returning ``None`` for
+    ``authors_data`` must degrade to "no authors" rather than raising
+    ``AttributeError`` from ``None.get(...)``.
+    """
+    hatch_meta = _fake_hatch_metadata(core={"authors_data": None})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert not metadata.authors
+    assert "authors" not in metadata.provenance
+
+
 def test_metadata_from_hatchling_license_expression_used_directly() -> None:
     """A resolved SPDX license expression needs no fallback detection."""
     hatch_meta = _fake_hatch_metadata(core={"license_expression": "Apache-2.0"})
@@ -576,6 +642,119 @@ def test_metadata_from_hatchling_license_fallback_to_project_dir() -> None:
         metadata = metadata_from_hatchling(hatch_meta, tmp_path)
         assert metadata.license_name == "MIT"
         assert "LICENSE" in (metadata.provenance.get("license") or "")
+
+
+MISSING_README_PYPROJECT = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpkg"
+version = "0.1.0"
+readme = "MISSING.md"
+"""
+
+MISSING_LICENSE_FILE_PYPROJECT = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpkg"
+version = "0.1.0"
+license = {file = "MISSING-LICENSE.txt"}
+"""
+
+
+def test_metadata_from_hatchling_tolerates_missing_readme_file() -> None:
+    """A declared readme file that does not exist must not crash the hook.
+
+    Hatchling's ``core.readme`` / ``core.readme_path`` are lazily evaluated
+    and raise a bare ``OSError`` (not ``FileNotFoundError``) when the file is
+    missing; ``metadata_from_hatchling`` must catch it and degrade to
+    ``readme=None`` rather than propagate it, mirroring
+    ``read_pyproject()``'s existing tolerance for the same situation.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, MISSING_README_PYPROJECT)
+
+        hatch_pm = hatchling_metadata_core.ProjectMetadata(
+            str(tmp_path), PluginManager()
+        )
+        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+
+        assert metadata.readme is None
+
+
+def test_metadata_from_hatchling_tolerates_missing_license_file() -> None:
+    """A declared license *file* that does not exist must not crash the hook.
+
+    Mirrors :func:`test_metadata_from_hatchling_tolerates_missing_readme_file`
+    for ``core.license`` / ``core.license_expression``, which raise the same
+    bare ``OSError`` for a missing ``project.license.file``.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, MISSING_LICENSE_FILE_PYPROJECT)
+
+        hatch_pm = hatchling_metadata_core.ProjectMetadata(
+            str(tmp_path), PluginManager()
+        )
+        # Should not raise; falls through to license detection (finds nothing).
+        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+
+        assert metadata.license_name is None
+
+
+# ---------------------------------------------------------------------------
+# [tool.poetry] gap-fill fallback (finding 6)
+# ---------------------------------------------------------------------------
+
+POETRY_GAP_FILL_PYPROJECT = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpkg"
+version = "0.1.0"
+description = "Test package."
+
+[tool.poetry]
+name = "testpkg"
+version = "0.1.0"
+authors = ["Poetry Author <poetry@example.com>"]
+keywords = ["from-poetry", "gap-fill"]
+"""
+
+
+def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
+    """``[tool.poetry]`` fills authors/keywords missing from ``[project]``.
+
+    ``read_pyproject`` (the CLI path) already recovers these fields from
+    ``[tool.poetry]`` via ``_try_read_poetry()``/``_merge_with_poetry()``;
+    the Hatchling hook path must do the same so a project relying on this
+    gap-fill is not silently incomplete when built via the hook.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
+
+        hatch_pm = hatchling_metadata_core.ProjectMetadata(
+            str(tmp_path), PluginManager()
+        )
+        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+
+        # [project] fields are untouched.
+        assert metadata.name == "testpkg"
+        assert metadata.description == "Test package."
+        # Fields absent from [project] are recovered from [tool.poetry].
+        assert metadata.authors == [
+            {"name": "Poetry Author", "email": "poetry@example.com"}
+        ]
+        assert metadata.keywords == ["from-poetry", "gap-fill"]
 
 
 # ---------------------------------------------------------------------------
@@ -610,10 +789,12 @@ def test_hook_uses_hatchling_resolved_dynamic_version() -> None:
     data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
     graph = data["@graph"]
     packages = [e for e in graph if e.get("type") == "software_Package"]
-    # Hatchling normalizes the project name (PEP 503: "_" -> "-") before the
-    # build hook ever sees it via self.metadata.
+    # metadata_from_hatchling() uses core.raw_name, so the package name is
+    # "sampleproject_hatchling_dynver" -- the un-normalized spelling written
+    # in pyproject.toml's [project] name -- while the PURL is still
+    # PEP-503-canonicalized (build_pypi_purl -> canonicalize_name()).
     (main_pkg,) = [
-        p for p in packages if p.get("name") == "sampleproject-hatchling-dynver"
+        p for p in packages if p.get("name") == "sampleproject_hatchling_dynver"
     ]
     assert main_pkg["software_packageVersion"] == "1.0.5"
     assert main_pkg["software_packageUrl"] == (

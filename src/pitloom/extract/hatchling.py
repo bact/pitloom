@@ -16,37 +16,41 @@ exclusively by the Hatchling build hook
 
 from __future__ import annotations
 
+import sys
 from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
 
-from packaging.requirements import InvalidRequirement, Requirement
-
+from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import detect_license_for_project
+from pitloom.extract.pyproject import _merge_with_poetry, _try_read_poetry
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 
 
-def _normalize_dependencies(raw_dependencies: list[str]) -> list[str]:
-    """Return dependency specifiers in ``packaging`` canonical string form.
+def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
+    """Return ``[tool.poetry]`` gap-fill metadata for *project_dir*, or ``None``.
 
-    Hatchling exposes ``core.dependencies`` as raw strings whose environment
-    markers keep their source quoting (e.g. ``python_version < '3.11'``),
-    whereas ``pyproject-metadata`` (used by the CLI via ``read_pyproject``)
-    stringifies through ``packaging.Requirement`` (``python_version <
-    "3.11"``).  Canonicalising here keeps the two paths byte-identical, so a
-    project built via the hook and one described via the CLI share the same
-    deterministic document UUID.  Unparseable specifiers are passed through
-    unchanged rather than dropped.
+    Mirrors the fallback :func:`~pitloom.extract.pyproject.read_pyproject`
+    already performs: re-reads ``pyproject.toml`` and reuses
+    :func:`~pitloom.extract.pyproject._try_read_poetry` so the Hatchling hook
+    path can also recover ``authors``/``keywords``/``urls`` (and similar)
+    from ``[tool.poetry]`` when ``[project]`` is incomplete. Returns ``None``
+    when ``pyproject.toml`` is missing or has no usable ``[tool.poetry]``
+    section.
     """
-    normalized: list[str] = []
-    for dep in raw_dependencies:
-        try:
-            normalized.append(str(Requirement(dep)))
-        except InvalidRequirement:
-            normalized.append(dep)
-    return normalized
+    pyproject_path = project_dir / "pyproject.toml"
+    if not pyproject_path.exists():
+        return None
+    with open(pyproject_path, "rb") as f:
+        data: dict[str, Any] = tomllib.load(f)
+    return _try_read_poetry(data)
 
 
 def _authors_from_data(authors_data: dict[str, list[str]]) -> list[dict[str, str]]:
@@ -117,11 +121,18 @@ def metadata_from_hatchling(
     if description:
         provenance["description"] = _field_provenance("description")
 
-    readme = core.readme_path or core.readme or None
+    # core.readme / core.readme_path are lazily evaluated and raise a bare
+    # OSError when the declared readme file does not exist on disk. Degrade
+    # gracefully instead of crashing the build, mirroring read_pyproject()'s
+    # tolerance for the same situation (_strip_missing_readme).
+    try:
+        readme = core.readme_path or core.readme or None
+    except OSError:
+        readme = None
 
     requires_python = core.requires_python or None
 
-    authors = _authors_from_data(core.authors_data)
+    authors = _authors_from_data(core.authors_data or {})
     if authors:
         provenance["authors"] = _field_provenance("authors")
         provenance["copyright_text"] = (
@@ -132,19 +143,26 @@ def metadata_from_hatchling(
     if urls:
         provenance["urls"] = _field_provenance("urls")
 
-    dependencies = _normalize_dependencies(list(core.dependencies or []))
+    dependencies = [
+        normalize_dependency_specifier(dep) for dep in (core.dependencies or [])
+    ]
     if dependencies:
         provenance["dependencies"] = _field_provenance("dependencies")
 
-    license_hint = core.license_expression or core.license or None
+    # core.license / core.license_expression can likewise raise a bare
+    # OSError when a declared license *file* does not exist on disk.
+    try:
+        license_hint = core.license_expression or core.license or None
+    except OSError:
+        license_hint = None
     license_name, license_prov = detect_license_for_project(project_dir, license_hint)
     if license_prov:
         provenance["license"] = license_prov
     elif license_name:
         provenance["license"] = _field_provenance("license")
 
-    return ProjectMetadata(
-        name=hatch_metadata.name,
+    metadata = ProjectMetadata(
+        name=core.raw_name,
         version=version,
         description=description,
         readme=readme,
@@ -156,6 +174,14 @@ def metadata_from_hatchling(
         dependencies=dependencies,
         provenance=provenance,
     )
+
+    # Fill any remaining gaps from [tool.poetry], exactly mirroring what
+    # read_pyproject() does for the CLI path (project fields always win).
+    poetry_meta = _poetry_fallback_metadata(project_dir)
+    if poetry_meta is not None:
+        metadata = _merge_with_poetry(metadata, poetry_meta)
+
+    return metadata
 
 
 __all__ = ["metadata_from_hatchling"]

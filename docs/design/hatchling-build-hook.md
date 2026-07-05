@@ -47,8 +47,12 @@ the time `initialize()` runs, Hatchling has already:
   `keywords`, `description`, `readme` (and `readme_path`), and
   `requires_python`.
 - Normalized the project `name` per PEP 503 (`_` and `.` collapsed to `-`,
-  lowercased), which may differ from the literal spelling written in
-  `[project] name` in `pyproject.toml`.
+  lowercased) as `core.name`, while retaining the original, un-normalized
+  spelling as `core.raw_name`. `metadata_from_hatchling()` uses `raw_name`,
+  matching the literal spelling `read_pyproject()` reports for the same
+  `[project] name` in `pyproject.toml`, so the CLI and the build hook agree
+  on the project's displayed name (and therefore on the deterministic
+  document UUID, which is derived from it).
 
 The build hook maps this object into Pitloom's format-neutral
 `ProjectMetadata` via

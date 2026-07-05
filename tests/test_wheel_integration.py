@@ -85,12 +85,13 @@ def test_sbom_is_valid_json_ld(built_wheel: Path) -> None:
 
 def test_sbom_graph_contains_package(built_wheel: Path) -> None:
     """The SBOM graph must contain a software_Package element for
-    sampleproject-hatchling.
+    sampleproject_hatchling.
 
-    Hatchling normalizes the project name (PEP 503: "_" -> "-") before the
-    build hook ever sees it via ``self.metadata``, so the package name in the
-    SBOM is "sampleproject-hatchling", not the "sampleproject_hatchling"
-    spelling written in the fixture's ``pyproject.toml`` ``[project] name``.
+    ``metadata_from_hatchling()`` uses ``core.raw_name`` (the un-normalized
+    name), not Hatchling's PEP-503-normalized ``core.name``, so the package
+    name in the SBOM is "sampleproject_hatchling" -- exactly the spelling
+    written in the fixture's ``pyproject.toml`` ``[project] name`` -- matching
+    what the CLI (``read_pyproject``) would report for the same project.
     """
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
@@ -98,8 +99,8 @@ def test_sbom_graph_contains_package(built_wheel: Path) -> None:
     pkg_names = [
         e.get("name") for e in data["@graph"] if e.get("type") == "software_Package"
     ]
-    assert "sampleproject-hatchling" in pkg_names, (
-        f"Expected 'sampleproject-hatchling' package in SBOM graph, found: {pkg_names}"
+    assert "sampleproject_hatchling" in pkg_names, (
+        f"Expected 'sampleproject_hatchling' package in SBOM graph, found: {pkg_names}"
     )
 
 
@@ -144,12 +145,13 @@ def test_sbom_graph_contains_file_hashes(built_wheel: Path) -> None:
 
 def test_sbom_graph_contains_main_package_purl(built_wheel: Path) -> None:
     """The main package must carry a pkg:pypi PURL (name normalized to
-    sampleproject-hatchling per PEP 503)."""
+    sampleproject-hatchling per PEP 503), even though the package element's
+    own ``name`` is the un-normalized "sampleproject_hatchling"."""
     with zipfile.ZipFile(built_wheel) as zf:
         (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
         data = json.loads(zf.read(sbom_entry))
     packages = [e for e in data["@graph"] if e.get("type") == "software_Package"]
-    main_package = next(p for p in packages if p["name"] == "sampleproject-hatchling")
+    main_package = next(p for p in packages if p["name"] == "sampleproject_hatchling")
     assert main_package["software_packageUrl"] == (
         "pkg:pypi/sampleproject-hatchling@0.1.0"
     )
