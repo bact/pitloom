@@ -143,4 +143,4 @@ Use the same assertions in your own CI if you want a smoke test beyond
   wrong thing.
 - Third-party actions are pinned by major version
   (`actions/checkout@v6`, `actions/setup-python@v6`,
-  `actions/upload-artifact@v4`).
+  `actions/upload-artifact@v7`).
