@@ -1,0 +1,143 @@
+---
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
+# Pitloom skill: copy-paste recipes
+
+Companion to `../SKILL.md`. These recipes are meant to be run as-is or
+adapted with minimal edits.
+
+## Tier 1: generate
+
+### Project SBOM, ephemeral run
+
+```bash
+uvx pitloom . -o sbom.spdx3.json --pretty
+```
+
+### Project SBOM, already-installed Pitloom
+
+```bash
+pip install pitloom
+loom /path/to/project -o sbom.spdx3.json
+```
+
+### AI model SBOM, local file
+
+```bash
+uvx --from 'pitloom[aimodel]' pitloom -m model.safetensors -o model.spdx3.json
+```
+
+### AI model SBOM, Hugging Face Hub model
+
+```bash
+uvx --from 'pitloom[huggingface]' pitloom -m mistralai/Mistral-7B-v0.1 \
+  -o mistral.spdx3.json --pretty
+```
+
+### Verify the result
+
+```bash
+python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert "@graph" in d, "missing @graph"
+print(len(d["@graph"]), "elements")
+' sbom.spdx3.json
+
+# Optional schema/SHACL validation:
+pip install spdx3-validate
+spdx3-validate --json sbom.spdx3.json
+```
+
+## Tier 2: enrich
+
+The scenario: Pitloom's static extraction produced `sbom.spdx3.json` for a
+project whose README states the model was trained on the "tiny-imagenet"
+dataset and evaluated on "imagenet-val" -- information no model file format
+encodes, so Pitloom's own extractors cannot see it. An agent reads the
+README and contributes that relationship back as a fragment.
+
+### 1. Draft a minimal fragment
+
+`fragments/agent-enrichment.spdx3.json`:
+
+```json
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "@id": "_:creationinfo-agent",
+      "created": "2026-07-05T00:00:00Z",
+      "createdBy": [
+        "https://spdx.org/spdxdocs/pitloom-agent/SoftwareAgent/agent-01"
+      ],
+      "specVersion": "3.0.1",
+      "type": "CreationInfo"
+    },
+    {
+      "creationInfo": "_:creationinfo-agent",
+      "name": "AI coding agent",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/SoftwareAgent/agent-01",
+      "type": "SoftwareAgent"
+    },
+    {
+      "creationInfo": "_:creationinfo-agent",
+      "comment": "Source: AI agent | Method: inference -- name and role "
+        "inferred from README.md \"Training data\" section.",
+      "dataset_datasetAvailability": "directDownload",
+      "dataset_datasetType": ["image"],
+      "description": "Training dataset referenced in the project README.",
+      "name": "tiny-imagenet",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/DatasetPackage/tiny-imagenet-01",
+      "type": "dataset_DatasetPackage"
+    }
+  ]
+}
+```
+
+Notes:
+
+- `comment` on the inferred element carries the required provenance marker
+  `Source: AI agent | Method: inference`, plus a short note on how the
+  value was derived.
+- Only include elements/fields the agent actually inferred -- do not
+  restate what Pitloom already extracted.
+- IDs (`spdxId`) must be unique; namespacing them under a distinct path
+  (e.g. `.../pitloom-agent/...`) avoids collisions with the main SBOM.
+
+### 2. Register the fragment
+
+In the project's `pyproject.toml`:
+
+```toml
+[tool.pitloom.fragments]
+files = ["fragments/agent-enrichment.spdx3.json"]
+```
+
+### 3. Re-generate the SBOM
+
+```bash
+loom . -o sbom.spdx3.json --pretty
+```
+
+The merged output now contains the `dataset_DatasetPackage` element from
+the fragment alongside everything Pitloom extracted directly, with the
+inferred element's provenance clearly marked in its `comment`.
+
+### 4. Report back to the user
+
+Summarise what was inferred and from where (e.g. "Added a
+`tiny-imagenet` dataset reference based on the README's 'Training data'
+section; please review before treating this as authoritative"). Never
+present agent-inferred fragment content as if it were Pitloom's own
+extraction.
+
+## See also
+
+- `../SKILL.md` -- operating instructions for this skill.
+- `docs/design/sbom-enrichment.md` -- enrichment data-source table and the
+  `[tool.pitloom.enrich]` enable/disable model.
+- `docs/design/sbom-fragments.md` -- fragment system design and vocabulary.
