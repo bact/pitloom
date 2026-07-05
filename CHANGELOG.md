@@ -21,47 +21,27 @@ and this project adheres to
 
 ### Added
 
-- New extractor `pitloom.extract.hatchling.metadata_from_hatchling()` maps
-  Hatchling's own resolved project metadata (`self.metadata`) into Pitloom's
-  format-neutral `ProjectMetadata`, so dynamic `version`/`dependencies`/
-  `license` sources resolved by Hatchling plugins (e.g. `hatch-vcs`, `code`
-  or regex version sources, `hatch-requirements-txt`) are reflected
-  correctly in the embedded SBOM.
-- Every packaged file's `software_File` element now carries a SHA-256
-  `verifiedUsing` hash, reusing the digest already computed for the
-  document-UUID Merkle root.
-- The main project package now carries a `pkg:pypi/<name>@<version>` PURL
-  (`software_packageUrl`), matching the PURL already generated for
-  dependencies.
-- `pitloom.core.config.read_pitloom_config()`: a thin wrapper that reads
-  `[tool.pitloom]` settings directly from a `pyproject.toml` path.
-- A composite GitHub Action (`action.yml`) so any repository can generate
-  an SBOM in CI with a single `uses:` step, independent of build backend.
-  See `docs/implementation/github-action.md`.
-- `.github/workflows/action-selftest.yml`: dogfoods the Action against the
-  Pitloom repository itself.
-- An AI-agent Skill (`skills/pitloom-sbom/`) so Claude Code, the Claude
-  Agent SDK, and similar runtimes can generate an SBOM on request and
-  optionally enrich it via Pitloom's fragment system. See
+- Wheel builds now embed a more complete SBOM: the Hatchling build hook
+  reads project metadata (version, dependencies, license, and more)
+  directly from the build backend's own resolved values, so
+  dynamically-computed metadata (e.g. a version from `hatch-vcs`,
+  dependencies from `hatch-requirements-txt`) is captured correctly. The
+  hook now only runs for wheel builds, not sdists.
+- Every file listed in a generated SBOM now includes a SHA-256 integrity
+  hash.
+- The main project package in a generated SBOM now includes a PyPI
+  Package URL (PURL), matching what dependencies already had.
+- A GitHub Action so any Python project can generate an SBOM in CI with a
+  single step, regardless of build backend. See
+  `docs/implementation/github-action.md`.
+- An AI-agent Skill so Claude Code, the Claude Agent SDK, and similar
+  tools can generate an SBOM on request, and optionally enrich it with
+  information inferred from project docs -- with clear provenance
+  marking so inferred data is never confused with extracted data. See
   `docs/implementation/agent-skill.md`.
-- New design doc `docs/design/adoption-surfaces.md` enumerating every way
-  to embed Pitloom (library, CLI, build hook, tracking SDK, Action,
-  Skill).
-- `docs/design/sbom-enrichment.md`: new "AI-agent enrichment (skill /
-  plugin)" section documenting the agent as an enrichment source and the
-  fragment-merge delivery path.
-
-### Changed
-
-- The Hatchling build hook (`pitloom.plugins.hatch`) now reads project
-  metadata from Hatchling's own resolved `self.metadata` instead of
-  re-parsing `pyproject.toml`, and only runs for the `wheel` build target
-  (sdists have no `.dist-info/sboms/` to populate). The CLI is unchanged and
-  continues to use `read_pyproject()`.
-- Because Hatchling normalizes project names per PEP 503 (`_`/`.` collapsed
-  to `-`, lowercased), the package name recorded in a hook-embedded SBOM may
-  now differ in casing/separators from the literal spelling in
-  `[project] name`, even though it refers to the same project.
+- New documentation, `docs/design/adoption-surfaces.md`, describing every
+  way to use Pitloom: as a library, CLI, Hatchling build hook, ML
+  tracking SDK, GitHub Action, or AI-agent Skill.
 
 ## [0.8.0] - 2026-05-29
 
