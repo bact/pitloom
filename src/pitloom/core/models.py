@@ -11,6 +11,10 @@ import re
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5
 
+from hatchling.metadata.utils import normalize_requirement
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
+
 from pitloom.core.project import ProjectFile
 
 # Fixed pitloom namespace UUID, stable across all versions.
@@ -23,6 +27,42 @@ PITLOOM_NS = UUID("aecb050b-c1a4-5c3f-aaa7-d8e12dee7e5b")
 # For example: (uuid, "software_Package") -> 1, 2, 3 …
 #              (uuid, "Relationship")     -> 1, 2, 3 …
 _ID_COUNTERS: dict[tuple[str, str], int] = {}
+
+
+def normalize_dependency_specifier(dep: str) -> str:
+    """Return *dep* with its package name canonicalized to PEP 503 form.
+
+    Parses *dep* as a :class:`packaging.requirements.Requirement` and applies
+    Hatchling's own ``normalize_requirement()`` (lowercases the name and any
+    extras, and collapses runs of ``-``/``_``/``.`` to a single ``-``) so
+    that a dependency specifier is rendered identically regardless of which
+    extractor produced it -- :func:`~pitloom.extract.pyproject.read_pyproject`
+    (the CLI) or :func:`~pitloom.extract.hatchling.metadata_from_hatchling`
+    (the Hatchling build hook). Both paths feed :func:`compute_doc_uuid`, so
+    any drift here would give the same project two different document UUIDs
+    depending on which path generated the SBOM.
+
+    Unparseable specifiers are returned unchanged rather than dropped.
+    """
+    try:
+        req = Requirement(dep)
+    except InvalidRequirement:
+        return dep
+    normalize_requirement(req)
+    return str(req)
+
+
+def build_pypi_purl(name: str, version: str) -> str:
+    """Return a canonical ``pkg:pypi/<name>@<version>`` Package URL.
+
+    Uses :func:`packaging.utils.canonicalize_name` for PEP 503
+    canonicalization (lowercase; runs of ``-``/``_``/``.`` collapsed to a
+    single ``-``), so e.g. ``zope.interface`` yields
+    ``pkg:pypi/zope-interface@...`` rather than the non-canonical
+    ``pkg:pypi/zope.interface@...`` that a naive ``.replace("_", "-")``
+    would produce (dots are left untouched by that substitution alone).
+    """
+    return f"pkg:pypi/{canonicalize_name(name)}@{version}"
 
 
 def _clear_doc_counters(doc_uuid: str) -> None:
