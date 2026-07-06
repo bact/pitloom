@@ -1,0 +1,106 @@
+---
+Created: 2026-07-06
+Last-Modified: 2026-07-06
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
+# Wheel-embedded SBOM verification (v0.9.0)
+
+## Why this exists
+
+The Hatchling-hook rewiring and code-review fixes (name/dependency
+canonicalization parity, Poetry fallback, PURLs, file hashes -- see
+[hatchling-build-hook.md](../design/hatchling-build-hook.md)) had only
+been checked against local dogfood builds and unit/integration tests
+before this pass. This document records an independent check against
+the **actual published `pitloom-0.9.0-py3-none-any.whl`** on PyPI --
+the first real, externally-built artifact produced after that work
+shipped -- so the result is durable evidence, not just a one-off chat
+answer that disappears with the session that produced it.
+
+## Method
+
+1. Resolved the wheel URL via `https://pypi.org/pypi/pitloom/0.9.0/json`
+   and downloaded it; verified its SHA-256 against the digest PyPI's
+   own API publishes for that file (exact match).
+2. Unzipped the wheel and inspected `pitloom-0.9.0.dist-info/sboms/
+   sbom.spdx3.json` directly -- the actual bytes a consumer would get,
+   not a regenerated copy.
+
+## Findings
+
+**Location (PEP 770).** File found at exactly
+`pitloom-0.9.0.dist-info/sboms/sbom.spdx3.json`. PEP 770 (status:
+Final) reserves `.dist-info/sboms/` and does not mandate a filename;
+Pitloom's own choice matches its `sbom-basename = "sbom"` config.
+
+**Fields.** `CreationInfo.specVersion` = `"3.0.1"`; a `createdBy`
+Person + `createdUsing` Tool; the main `pitloom` `software_Package`
+carries `name`/`version` sourced from Hatchling (confirmed via its own
+provenance `comment`, e.g. `"Source: Hatchling build backend | Field:
+project.name"` -- not a stale re-parse), a `pkg:pypi/pitloom@0.9.0`
+PURL, and declared+concluded license relationships. All 132 elements in
+`@graph` have a non-null `spdxId` (the PR #83 regression this was
+written to guard against holds in the real artifact).
+
+**File hashes.** All 46 non-directory `software_File` elements carry a
+SHA-256 `verifiedUsing` hash. Verified two ways: (a) recomputed each
+hash from the actual extracted file bytes -- 0 mismatches; (b)
+cross-checked against the wheel's own `RECORD` file (re-encoding
+`RECORD`'s urlsafe-base64 digests to hex) -- 0 mismatches across all 46
+shared entries. The only entries in `RECORD` but not the SBOM are the
+`.dist-info/` metadata files themselves (`METADATA`, `WHEEL`,
+`entry_points.txt`, `LICENSE`, the SBOM file itself) -- expected, since
+those aren't part of the package's source tree the SBOM documents.
+
+**Hash algorithm vs. the governing spec.** PyPA's **Binary Distribution
+Format (Wheel)** spec states verbatim: *"The hash algorithm must be
+sha256 or better; specifically, md5 and sha1 are not permitted."*
+Pitloom hardcodes SHA-256 with no weaker fallback
+(`src/pitloom/core/models.py:134`, `:99` for the Merkle-root
+aggregation; `src/pitloom/assemble/spdx3/document.py:209`).
+
+**File-collection algorithm.** `get_wheel_files()`
+(`src/pitloom/core/models.py:107-159`) does not independently walk the
+filesystem -- it instantiates Hatchling's own
+`hatchling.builders.wheel.WheelBuilder(project_dir)` and iterates
+`builder.recurse_included_files()`, the same API Hatchling itself uses
+to decide what goes into the real wheel. Directory entries in the SBOM
+are derived purely by splitting each file's own `distribution_path`
+(`_add_package_files()`, `document.py:152-227`) -- there is no second,
+independently-drifting directory walk. This is why the hash
+cross-check above matched exactly: the file *set*, not just the hash
+*algorithm*, is guaranteed by construction to match what Hatchling
+actually built.
+
+**Schema and SHACL conformance.** Ran the same validation engine
+`spdx3-validate` uses internally (`jsonschema` + `pyshacl` + `rdflib`)
+directly against the real SPDX 3.0.1 JSON Schema and SHACL model
+(`spdx.org/schema/3.0.1/spdx-json-schema.json`,
+`spdx.org/rdf/3.0.1/spdx-model.ttl`): **0 schema errors, SHACL
+`conforms: True`**, 821 triples parsed cleanly.
+
+**Comparison to other tooling.** Most mainstream Python SBOM generators
+don't do per-file hashing at all -- checked the CycloneDX v1.6 schema
+(hashes are modeled at the whole-Component level, no per-file concept)
+and the official `cyclonedx-python` generator's `environment.py`
+(zero hash-related logic; `Component`s carry no hash by default).
+Pitloom's per-file, build-backend-verified approach is more granular
+than the norm, not just adequate.
+
+**One flagged non-issue.** `tomli` (a `python_version < "3.11"`
+marker-gated dependency) shows `software_packageVersion: "unknown"` and
+no PURL in the released wheel, because whatever Python version built
+that release didn't have `tomli` installed to resolve a real version
+from. This is honest, correct degradation (the SBOM's own `comment`
+documents the declared constraint) -- not a defect.
+
+## Conclusion
+
+The v0.9.0 wheel-embedded SBOM is valid per SPDX 3.0.1 (schema +
+SHACL), correctly located per PEP 770, and every field this session's
+work was meant to produce is present and correct in the actual
+published artifact -- confirmed against the real file, not just
+against source or local test fixtures.

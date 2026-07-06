@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-07-05
+Last-Modified: 2026-07-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,7 +47,10 @@ the time `initialize()` runs, Hatchling has already:
   dynamically by a metadata hook (e.g. `hatch-requirements-txt`).
 - Resolved `license` / `license_expression`, `urls`, `authors_data`,
   `keywords`, `description`, `readme` (and `readme_path`), and
-  `requires_python`.
+  `requires_python`. Accessing a declared-but-missing readme/license file
+  raises `OSError` from these lazily-evaluated properties;
+  `metadata_from_hatchling()` catches it and degrades gracefully, mirroring
+  `read_pyproject()`'s own tolerance for the same case.
 - Normalized the project `name` per PEP 503 (`_` and `.` collapsed to `-`,
   lowercased) as `core.name`, while retaining the original, un-normalized
   spelling as `core.raw_name`. `metadata_from_hatchling()` uses `raw_name`,
@@ -55,6 +58,22 @@ the time `initialize()` runs, Hatchling has already:
   `[project] name` in `pyproject.toml`, so the CLI and the build hook agree
   on the project's displayed name (and therefore on the deterministic
   document UUID, which is derived from it).
+- Normalizes each dependency specifier's name the same PEP 503 way, via one
+  shared `normalize_dependency_specifier()` helper
+  (`pitloom.core.models`) that wraps
+  `hatchling.metadata.utils.normalize_requirement()`. Both
+  `metadata_from_hatchling()` and `read_pyproject()` call this same
+  function -- Hatchling's own `core.dependencies` is already canonicalized,
+  so the call is idempotent there, but routing both paths through one
+  function means they cannot independently drift again. The main
+  package's `pkg:pypi/<name>@<version>` PURL and each dependency's PURL are
+  likewise built through one shared `build_pypi_purl()` helper (same
+  module), which canonicalizes via `packaging.utils.canonicalize_name()`.
+- When `[project]` is missing fields (`authors`, `keywords`, `urls`, ...),
+  `metadata_from_hatchling()` reads the same `pyproject.toml` a second time
+  and reuses `read_pyproject()`'s own `_try_read_poetry()` /
+  `_merge_with_poetry()` helpers to fill the gaps from `[tool.poetry]`,
+  mirroring what `read_pyproject()` already does for the CLI path.
 
 The build hook maps this object into Pitloom's format-neutral
 `ProjectMetadata` via
@@ -99,7 +118,7 @@ The user adds `pitloom` to their build dependencies and enables the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling", "pitloom"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.9.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -158,7 +177,9 @@ high level, `initialize()`:
 2. Returns early if `enabled = false`, or if `self.target_name != "wheel"`.
 3. Builds the format-neutral document via `_build_document_model`, which
    calls `metadata_from_hatchling(self.metadata, project_dir)` for project
-   metadata and `read_pitloom_config(project_dir / "pyproject.toml")` for
+   metadata (including the Poetry-fallback gap-fill and dependency/name
+   canonicalization described above) and
+   `read_pitloom_config(project_dir / "pyproject.toml")` for
    `[tool.pitloom]` settings, then `get_wheel_files(project_dir)` for the
    packaged file set (SHA-256 digests + Merkle root) and
    `scan_project_for_ai_models` for embedded AI/ML metadata.
@@ -185,7 +206,10 @@ standalone -- includes:
   document's Merkle-root UUID seed. Directory nodes carry no hash.
 - A `pkg:pypi/<name>@<version>` PURL (`software_packageUrl`) on the main
   project package, mirroring the PURL already generated for dependencies,
-  whenever a real (non-`"unknown"`) version is known.
+  whenever a real (non-`"unknown"`) version is known. Both PURLs are built
+  through the same shared `build_pypi_purl()` helper (see above), so a
+  dotted or underscored name (e.g. `zope.interface`) canonicalizes
+  identically on the main package and on dependencies.
 
 ## Fragment merging and `[tool.pitloom]` configuration
 
@@ -309,6 +333,11 @@ dependencies = [
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
 | `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject-hatchling` fixture; asserts package name appears in SBOM. |
 | `test_metadata_from_hatchling_maps_*` | Unit tests for `metadata_from_hatchling`: version, dependencies, urls, authors, license (direct and fallback-detected). |
+| `test_metadata_from_hatchling_canonicalises_dependency_markers` | Dependency specifiers with source-quoted markers normalize to `packaging`'s canonical form via the shared helper. |
+| `test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name` | Regression guard: hook and CLI paths agree on name, dependencies, and doc UUID for a project with an uppercase/underscore/dotted name and dependencies (the gap the `raw_name`-only fix didn't fully close). |
+| `test_metadata_from_hatchling_tolerates_none_authors_data` | `authors_data=None` must not crash `metadata_from_hatchling`. |
+| `test_metadata_from_hatchling_tolerates_missing_readme_file` / `test_metadata_from_hatchling_tolerates_missing_license_file` | A declared but missing readme/license file must degrade gracefully (`OSError` caught), not crash the build. |
+| `test_metadata_from_hatchling_fills_gaps_from_poetry` | `[tool.poetry]` fills `authors`/`keywords` missing from `[project]`, mirroring `read_pyproject()`'s CLI-path fallback. |
 | `test_hook_uses_hatchling_resolved_dynamic_version` | Runs `initialize()` on the `sampleproject-hatchling-dynver` fixture (a `[tool.hatch.version] source = "code"` computed version); asserts the resolved, code-evaluated version -- not a naive text scrape -- appears in the SBOM. |
 | `test_hook_skips_non_wheel_target` | Sets `target_name = "sdist"`; asserts no staging and no `sbom_files` entry. |
 | `test_hook_invalid_config_raises_before_io` | Passes bad config; asserts `ValueError` is raised before any filesystem access. |
@@ -323,3 +352,7 @@ dependencies = [
 - Hatchling build hook interface: `hatchling.builders.hooks.plugin.interface.BuildHookInterface`
 - Hatchling resolved project metadata: `hatchling.metadata.core.ProjectMetadata`
 - Trivy PEP 770 tracking issue: <https://github.com/aquasecurity/trivy/issues/10021>
+- [wheel-sbom-verification.md](../implementation/wheel-sbom-verification.md) --
+  independent check of this design's output against the real, published
+  v0.9.0 wheel (location, fields, hashes, SPDX 3.0.1 schema/SHACL
+  conformance).
