@@ -6,8 +6,9 @@
 
 *Automated transparency, woven from the ground up.*
 
-**Pitloom** automates the generation of SPDX 3-compliant SBOMs for AI models and Python projects,
-documenting the composition and provenance of software systems.
+**Pitloom** automates the generation of SPDX 3-compliant SBOMs for AI models
+and Python projects, documenting the composition and provenance of software
+systems.
 By reading metadata directly from Python packages and AI models (GGUF, ONNX,
 PyTorch, Safetensors), it creates standardized SPDX 3 JSON artifacts.
 It also offers native Hatchling integration, allowing users to hook into
@@ -202,60 +203,37 @@ generate_huggingface_sbom(
 
 ### Hatchling build hook
 
-Pitloom can embed an SBOM automatically into every wheel you build
-by acting as a Hatchling build hook. The SBOM is placed at
-`.dist-info/sboms/sbom.spdx3.json` inside the wheel, following
-[PEP 770](https://peps.python.org/pep-0770/).
+Pitloom can embed an SBOM automatically into every wheel you build,
+acting as a native Hatchling build hook.
+The SBOM is placed at `.dist-info/sboms/sbom.spdx3.json` inside the wheel,
+per [PEP 770](https://peps.python.org/pep-0770/) --
+the hook only runs for wheels (sdists have no such convention).
 
-#### Adding Pitloom to your build requirements
-
-Add `loom` to your project's build requirements:
+Add `pitloom` as a build requirement (Hatchling **1.28.0+** is required for
+native PEP 770 support) and register the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling", "pitloom"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.9.0"]
 build-backend = "hatchling.build"
-```
 
-#### Registering the hook
-
-Enable the hook by adding a section to your `pyproject.toml`:
-
-```toml
 [tool.hatch.build.hooks.pitloom]
-# All fields are optional. Defaults are shown.
+# All fields are optional; defaults shown.
 enabled = true
-sbom-basename = "package-name"      # name part only (no extension); default "sbom"
-creator-name = "SBOM Creator"       # defaults to "Pitloom"
-creator-email = "mail@example.com"  # defaults to None
-creation-datetime = "2026-04-01T00:00:00Z"  # Date and time in ISO 8601 UTC format
-fragments = []  # extra SPDX fragment paths (relative to project root)
+sbom-basename = "sbom"    # -> "sbom.spdx3.json"; e.g. "mypkg-1.0" -> "mypkg-1.0.spdx3.json"
+creator-name = "Pitloom"
+creator-email = ""
+fragments = []            # extra SPDX fragment paths, merged with [tool.pitloom] fragments
 ```
 
-The full SBOM filename is `{sbom-basename}.spdx3.json` - e.g., the default
-produces `sbom.spdx3.json`.  Setting `sbom-basename = "mypackage-1.0"` would
-produce `mypackage-1.0.spdx3.json`.
+That's all -- running `hatch build` or `python -m build` now embeds the SBOM
+in every wheel, no extra commands needed.
+The hook always emits compact, canonical JSON regardless of `[tool.pitloom]`'s
+`pretty` setting.
 
-That is all. Running `hatch build` or `python -m build` will now generate and
-embed the SBOM automatically - no extra commands needed.
-
-#### Merging AI/ML fragments
-
-For AI-powered software, you can track model and dataset provenance during
-training using `pitloom.loom`, then include those fragments in the wheel SBOM:
-
-```toml
-[tool.hatch.build.hooks.pitloom]
-fragments = [
-    "fragments/train_run.spdx3.json",
-    "fragments/eval_run.spdx3.json",
-]
-```
-
-Fragments listed under `[tool.hatch.build.hooks.pitloom]` are merged together
-with any fragments already listed under `[tool.pitloom]`.
-
-#### Resulting wheel structure
+For AI-powered software, track model/dataset provenance during training with
+`pitloom.loom` (below), then list the resulting fragment file paths under
+`fragments` above to merge them into the wheel's SBOM.
 
 ```text
 mypackage-1.0-py3-none-any.whl
@@ -291,9 +269,7 @@ Add SBOM generation to any repository's CI with a single step -- works for
 any Python build backend, not just Hatchling:
 
 ```yaml
-- uses: bact/pitloom@v1
-  with:
-    project-path: "."
+- uses: bact/pitloom@v0.9.0
 ```
 
 See [docs/implementation/github-action.md](docs/implementation/github-action.md)
@@ -318,13 +294,11 @@ cp -r /path/to/pitloom/skills/sbom ~/.claude/skills/
 cp -r /path/to/pitloom/skills/enrich ~/.claude/skills/
 ```
 
-A skill's invocable name is its directory name, so if you already have an
-unrelated skill called `sbom` or `enrich`, copying Pitloom's over it will
-overwrite it. Copy to a different destination name instead to avoid the
-collision -- e.g. `cp -r .../skills/sbom ~/.claude/skills/pitloom-sbom` --
-this is a plain filesystem rename with no other effect: it only changes
-what you type to invoke it explicitly (natural-language triggering and the
-skill's behavior are unaffected, and `SKILL.md` needs no edits).
+A skill's invocable name is its directory name. If you already have an
+unrelated skill called `sbom` or `enrich`, copy to a different destination
+name instead of overwriting it -- e.g. `~/.claude/skills/pitloom-sbom` -- a
+plain rename that only changes the explicit-invocation name (`SKILL.md`
+needs no edits).
 
 See [docs/implementation/agent-skill.md](docs/implementation/agent-skill.md)
 for full install instructions and
@@ -366,7 +340,7 @@ The generated SBOM will include:
 - Creator and creation timestamp information
 - **Metadata provenance** tracking for transparency
 
-See a more complete example in [examples/`](./examples/) directory.
+See a more complete example in the [examples/](./examples/) directory.
 
 ## Metadata provenance
 
