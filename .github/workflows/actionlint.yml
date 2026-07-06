@@ -31,5 +31,10 @@ jobs:
       - name: Lint workflow files
         run: actionlint
 
-      - name: Lint action.yml
-        run: actionlint action.yml
+      - name: Check action.yml is valid YAML
+        # actionlint only understands workflow schema (on:/jobs:), not the
+        # composite-action manifest schema (name:/inputs:/runs:), so it
+        # cannot lint action.yml itself -- this is a syntax check only.
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 -c "import yaml; yaml.safe_load(open('action.yml'))"
