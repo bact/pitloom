@@ -6,8 +6,15 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 
 @dataclass
@@ -112,4 +119,31 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     )
 
 
-__all__ = ["PitloomConfig"]
+def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
+    """Read ``[tool.pitloom]`` settings directly from a ``pyproject.toml`` file.
+
+    Thin wrapper around :func:`_read_pitloom_config` for callers that only
+    need Pitloom's own settings without re-deriving project metadata (e.g.
+    the Hatchling build hook, which gets project metadata from
+    :func:`~pitloom.extract.hatchling.metadata_from_hatchling` instead).
+
+    Args:
+        pyproject_path: Path to the ``pyproject.toml`` file.
+
+    Returns:
+        A :class:`PitloomConfig`; all fields default gracefully when the
+        ``[tool.pitloom]`` section is absent.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
+    if not pyproject_path.exists():
+        raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+
+    with open(pyproject_path, "rb") as f:
+        data: dict[str, Any] = tomllib.load(f)
+
+    return _read_pitloom_config(data)
+
+
+__all__ = ["PitloomConfig", "read_pitloom_config"]

@@ -1,4 +1,6 @@
 ---
+Created: 2026-02-06
+Last-Modified: 2026-07-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,6 +88,18 @@ each targeting a specific functional domain (SPDX Group 2024).
 | Dataset | Data Integrity | DatasetPackage, datasetSize, confidentialityLevel (Linux Foundation 2024). |
 | Build | Build Attestation | BuildType, BuildParameters, buildEnvironment (SPDX Group 2024). |
 | Security | Vulnerability Tracking | VulnerabilityAssessment, VEX, CVSS (FOSSA 2024). |
+
+**`specVersion` must track which profiles/classes a document actually
+uses, not a fixed default.** Pitloom currently hardcodes
+`CreationInfo.specVersion = "3.0.1"` in `assemble/spdx3/document.py`,
+which is correct today only because 3.0.1 is the sole released SPDX 3.x
+version and nothing Pitloom emits requires a later one. This will stop
+being sufficient the moment Pitloom emits a class or property first
+introduced in a later minor version -- for example, the Hardware profile,
+introduced in SPDX 3.1 and absent from 3.0/3.0.1. At that point
+`specVersion` needs to be computed as the maximum version required by
+whatever profiles/classes/properties are actually present in the
+document, not left as a static string.
 
 ### Deep dive: the AI package and dataset package
 

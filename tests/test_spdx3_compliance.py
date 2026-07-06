@@ -5,6 +5,7 @@
 """Tests for SPDX 3 compliance validation."""
 
 import json
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -223,6 +224,91 @@ dependencies = ["numpy==1.24.0"]
 
             # Relationship type should be valid
             assert rel["relationshipType"] in _VALID_RELATIONSHIP_TYPES
+
+
+# ---------------------------------------------------------------------------
+# File hashes and main-package PURL
+# ---------------------------------------------------------------------------
+
+_HEX_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def test_spdx3_file_elements_carry_verified_using_sha256() -> None:
+    """Every packaged file's software_File must carry a SHA-256 verifiedUsing
+    hash; directory nodes must not.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(
+            """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hash-test-package"
+version = "1.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hash_test_package"]
+""",
+            encoding="utf-8",
+        )
+        pkg_dir = tmppath / "src" / "hash_test_package"
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "__init__.py").write_text("", encoding="utf-8")
+
+        output_path = tmppath / "sbom.spdx3.json"
+        generate_sbom(tmppath, output_path=output_path)
+
+        graph = json.loads(output_path.read_text())["@graph"]
+        file_elements = [e for e in graph if e.get("type") == "software_File"]
+        assert file_elements, "Expected at least one software_File element"
+
+        files = [e for e in file_elements if e.get("software_fileKind") == "file"]
+        directories = [
+            e for e in file_elements if e.get("software_fileKind") == "directory"
+        ]
+        assert files, "Expected at least one file-kind software_File"
+
+        for directory in directories:
+            assert "verifiedUsing" not in directory
+
+        for file_elem in files:
+            verified = file_elem.get("verifiedUsing")
+            assert verified, f"{file_elem['name']} is missing verifiedUsing"
+            (hash_obj,) = verified
+            assert hash_obj["type"] == "Hash"
+            assert hash_obj["algorithm"] == "sha256"
+            assert _HEX_SHA256_RE.match(hash_obj["hashValue"])
+
+
+def test_spdx3_main_package_has_pypi_purl() -> None:
+    """The main package must carry a pkg:pypi PURL matching name and version."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(
+            """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "purl-test-package"
+version = "3.1.4"
+""",
+            encoding="utf-8",
+        )
+
+        output_path = tmppath / "sbom.spdx3.json"
+        generate_sbom(tmppath, output_path=output_path)
+
+        graph = json.loads(output_path.read_text())["@graph"]
+        packages = [e for e in graph if e.get("type") == "software_Package"]
+        main_package = next(p for p in packages if p["name"] == "purl-test-package")
+        assert main_package["software_packageUrl"] == (
+            "pkg:pypi/purl-test-package@3.1.4"
+        )
 
 
 # ---------------------------------------------------------------------------

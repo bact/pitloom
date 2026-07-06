@@ -186,3 +186,37 @@ creation-comment = "Created from config"
         assert config.creation_creation_datetime == "2026-01-01T00:00:00+00:00"
         assert config.creation_creation_tool == "Config Tool"
         assert config.creation_comment == "Created from config"
+
+
+def test_extract_metadata_canonicalises_dependency_names() -> None:
+    """Dependency package names are canonicalised per PEP 503.
+
+    ``read_pyproject`` (the CLI path) does not itself normalise a
+    project's declared name (that stays whatever ``[project] name``
+    says), but each dependency specifier's package name must be
+    canonicalised the same way Hatchling's build hook already
+    canonicalises it -- otherwise the CLI and the hook would render the
+    same dependency differently and feed different strings into
+    ``compute_doc_uuid``.
+    """
+    pyproject_content = """
+[project]
+name = "My_Package.Extra"
+version = "1.0.0"
+dependencies = ["typing_extensions>=4.0", "zope.interface>=5.0"]
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        metadata, _ = read_pyproject(pyproject_path)
+
+        # The declared project name itself is preserved verbatim (unlike
+        # Hatchling, pyproject-metadata does not normalise [project] name).
+        assert metadata.name == "My_Package.Extra"
+        assert metadata.dependencies == [
+            "typing-extensions>=4.0",
+            "zope-interface>=5.0",
+        ]

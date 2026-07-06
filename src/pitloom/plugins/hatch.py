@@ -18,10 +18,11 @@ from hatchling.plugin import hookimpl
 
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.core.config import read_pitloom_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
-from pitloom.extract.pyproject import read_pyproject
+from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
 
 log = logging.getLogger(__name__)
@@ -41,11 +42,21 @@ def _get_hook_settings(config: dict[str, Any]) -> tuple[str, str, str, list[str]
 
 def _build_document_model(
     project_dir: Path,
+    hatch_metadata: Any,
     creator_name: str,
     creator_email: str,
 ) -> tuple[DocumentModel, str | None, list[str]]:
-    """Load project metadata and assemble the format-neutral document."""
-    metadata, pitloom_config = read_pyproject(project_dir / "pyproject.toml")
+    """Load project metadata and assemble the format-neutral document.
+
+    Project metadata (name, version, dependencies, license, urls, authors)
+    comes from Hatchling's own resolved ``hatch_metadata`` -- not from
+    re-parsing ``pyproject.toml`` -- so dynamic fields (e.g. a ``hatch-vcs``
+    version, or dependencies added by ``hatch-requirements-txt``) are
+    correctly reflected in the SBOM. ``[tool.pitloom]`` settings are read
+    separately via :func:`~pitloom.core.config.read_pitloom_config`.
+    """
+    metadata = metadata_from_hatchling(hatch_metadata, project_dir)
+    pitloom_config = read_pitloom_config(project_dir / "pyproject.toml")
     creation_meta = CreationMetadata(
         creator_name=creator_name,
         creator_email=creator_email,
@@ -114,17 +125,36 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         (PEP 770).  The temporary staging directory is cleaned up in
         :meth:`finalize`.
 
+        Args:
+            version: The build *variant* (e.g. ``"standard"``/``"editable"``),
+                **not** the project version -- the project version is read
+                from ``self.metadata.version``.
+            build_data: Mutable build data dict; ``build_data["sbom_files"]``
+                is appended to on success.
+
         Raises:
             ValueError: If a hook configuration value has an invalid type
                 or is otherwise invalid.
             FileNotFoundError: If ``pyproject.toml`` is absent from the
                 project root.
         """
+        log.debug("Pitloom build hook: build variant %r", version)
+
         config = dict(self.config)
         _validate_config(config)
 
         if not config.get("enabled", True):
             log.info("Pitloom build hook: disabled; skipping SBOM generation.")
+            return
+
+        if self.target_name != "wheel":
+            # PEP 770's .dist-info/sboms/ only applies to wheels; sdists
+            # have no such convention, so there is nothing to stage.
+            log.info(
+                "Pitloom build hook: target %r is not 'wheel'; "
+                "skipping SBOM generation.",
+                self.target_name,
+            )
             return
 
         sbom_basename, creator_name, creator_email, hook_fragments = _get_hook_settings(
@@ -135,6 +165,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         project_dir = Path(self.root)
         document, merkle_root, pitloom_fragments = _build_document_model(
             project_dir,
+            self.metadata,
             creator_name,
             creator_email,
         )

@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal project with a dynamic version, used to test that the Pitloom
+# Hatchling build hook uses Hatchling's own resolved version (self.metadata.version)
+# rather than re-deriving it from a naive pyproject.toml read.
+#
+# Build with --no-isolation so the locally installed Pitloom is used:
+#
+#   python -m build --wheel --no-isolation
+#   hatch build --target wheel
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sampleproject_hatchling_dynver"
+dynamic = ["version"]
+description = "A minimal sample project with a dynamic version for testing."
+requires-python = ">=3.10"
+license = "CC0-1.0"
+
+[tool.hatch.version]
+source = "code"
+path = "src/sampleproject_hatchling_dynver/__about__.py"
+expression = "__version__"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sampleproject_hatchling_dynver"]
+
+[tool.hatch.build.hooks.pitloom]
+sbom-basename = "sbom"
+creator-name = "Pitloom CI"
+creator-email = "ci@loom.example"

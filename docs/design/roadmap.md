@@ -1,4 +1,6 @@
 ---
+Created: 2026-04-14
+Last-Modified: 2026-07-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,6 +39,34 @@ SPDX-License-Identifier: CC0-1.0
   - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440
   - `read_pyproject()` falls back to `[tool.poetry]` when `[project]` is absent;
     merges both sections when both are present (`[project]` wins field-by-field)
+
+## Adoption surfaces
+
+Pitloom's other surfaces (library API, CLI, Hatchling build hook, ML
+tracking SDK) all assume the consumer already has Pitloom installed or
+wired into a build backend. These two extend reach beyond that. See
+[adoption-surfaces.md](adoption-surfaces.md) for the full picture.
+
+- [x] **GitHub Action** (composite `action.yml`) -- generate an SBOM in CI
+  with a single `uses:` line, for any Python project regardless of build
+  backend. Dogfooded on Pitloom itself in
+  `.github/workflows/action-selftest.yml`.
+  See [github-action.md](../implementation/github-action.md).
+- [x] **AI-agent Skills** (`skills/sbom/`, `skills/enrich/`) -- lets
+  Claude Code, the Claude Agent SDK, or similar runtimes generate an SBOM
+  on request, and optionally enrich it (README/model-card inference
+  contributed back as a provenance-marked fragment). Independently
+  triggerable by natural language or explicit invocation.
+  See [agent-skill.md](../implementation/agent-skill.md) and
+  [sbom-enrichment.md](sbom-enrichment.md).
+- [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles both Skills
+  under the `pitloom` plugin namespace so they install with
+  `/plugin install` directly from this repository, with namespaced
+  explicit invocation (`/pitloom:sbom`, `/pitloom:enrich`). See
+  [claude-code-plugin.md](../implementation/claude-code-plugin.md).
+- [ ] **Docker container action** (future) -- a `Dockerfile` +
+  `action.yml` `using: docker` variant of the GitHub Action for hermetic
+  or self-hosted-runner use.
 
 ## Near-term
 

@@ -14,6 +14,12 @@
 - Idempotency: No non-deterministic data (timestamps, random UUIDs).
 - Schema compliance: Validate every SBOM against primary spec (CycloneDX/SPDX) and serialization format before finalization. Automated validation mandatory.
 
+### Metadata sources
+
+- The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` (Hatchling's own resolved `hatchling.metadata.core.ProjectMetadata`), via `pitloom.extract.hatchling.metadata_from_hatchling()`, so dynamic version/dependency/license sources resolved by Hatchling plugins are reflected correctly.
+- The CLI (`pitloom.__main__` / `pitloom.assemble.generate_sbom`) has no build backend to consult, so it reads metadata by re-parsing `pyproject.toml` via `pitloom.extract.pyproject.read_pyproject()`.
+- Both paths converge on the same `pitloom.assemble.spdx3.document.build()` assembly layer, so the emitted SBOM shape (file hashes, PURLs, licensing, etc.) is identical regardless of metadata source.
+
 ## CLI output
 
 Unix philosophy. Consistent, predictable, parseable.
@@ -100,6 +106,46 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 ```
 
 Sort SPDX metadata keys alphabetically.
+
+`docs/design/*.md`, `docs/implementation/*.md`, and other standalone
+docs (e.g. `docs/resources.md`) additionally carry `Created` and
+`Last-Modified` (`YYYY-MM-DD`) in the same front-matter block, sorted
+alphabetically alongside the SPDX keys:
+
+```text
+Created: 2026-02-06
+Last-Modified: 2026-07-06
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+```
+
+`SKILL.md` files are the exception: their YAML front matter is limited
+to the keys the Agent Skill spec recognises (`name`, `description`,
+`license`, ...); `Created` and `Last-Modified` are not among them, so
+they don't belong in that block. Their SPDX tags already live as HTML
+comments below the front matter instead -- add `Created`/`Last-Modified`
+there too, as two more HTML comments, ordered alphabetically same as the
+YAML case:
+
+```markdown
+---
+name: enrich
+description: >-
+  ...
+license: Apache-2.0
+---
+
+<!-- Created: 2026-07-05 -->
+<!-- Last-Modified: 2026-07-06 -->
+<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
+<!-- SPDX-FileType: SOURCE -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+```
+
+Set `Created` once, when the file is added. Bump `Last-Modified` to the
+current date on every substantive edit to that doc -- this is what lets
+a human or agent judge a doc's staleness without checking git history.
 
 ## Testing
 

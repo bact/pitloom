@@ -22,7 +22,7 @@ license = "CC0-1.0"
 keywords = ["sample", "test"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sampleproject"]
+packages = ["src/sampleproject_hatchling"]
 
 [tool.hatch.build.hooks.pitloom]
 sbom-basename = "sbom"

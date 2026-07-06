@@ -1,0 +1,13 @@
+{
+  "name": "pitloom",
+  "displayName": "Pitloom",
+  "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom.",
+  "author": {
+    "name": "Arthit Suriyawongkul",
+    "url": "https://github.com/bact/pitloom"
+  },
+  "homepage": "https://github.com/bact/pitloom",
+  "repository": "https://github.com/bact/pitloom",
+  "license": "Apache-2.0",
+  "keywords": ["sbom", "spdx", "supply-chain", "aibom", "provenance"]
+}

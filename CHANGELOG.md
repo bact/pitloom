@@ -17,6 +17,29 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.7.1...v0.8.0>
 
+## [Unreleased]
+
+### Added
+
+- Wheel builds now embed a more complete SBOM: the Hatchling build hook
+  reads project metadata directly from the build backend's own resolved values,
+  so dynamically-computed metadata (e.g. a version from `hatch-vcs`,
+  dependencies from `hatch-requirements-txt`) is captured correctly.
+  The hook now only runs for wheel builds, not sdists.
+- Every file listed in a generated SBOM now includes an SHA-256 integrity hash.
+- The main project package in a generated SBOM now includes a PyPI
+  Package-URL (PURL), matching what dependencies already had.
+- A GitHub Action so any Python project can generate an SBOM in CI with a
+  single step, regardless of build backend.
+- Two AI-agent Skills (`sbom`, `enrich`) to generate an SBOM on request,
+  and optionally enrich it with information inferred from project docs --
+  with clear provenance marking so inferred data is never confused with
+  extracted data.
+- A Claude Code plugin (`/plugin marketplace add bact/pitloom` then
+  `/plugin install pitloom@pitloom`) providing `/pitloom:sbom` and
+  `/pitloom:enrich` to generate and enrich SBOMs directly from Claude
+  Code.
+
 ## [0.8.0] - 2026-05-29
 
 ### Added

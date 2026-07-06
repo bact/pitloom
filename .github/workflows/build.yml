@@ -79,8 +79,14 @@ jobs:
           # --no-isolation: use the locally installed Pitloom so the build hook
           # embeds a freshly generated SBOM into the wheel (.dist-info/sboms/).
           python -m build --wheel --no-isolation
-          WHEEL_NAME=$(ls dist/*.whl | xargs -n 1 basename)
-          echo "wheel_name=${WHEEL_NAME}" >> $GITHUB_OUTPUT
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          if [ ${#wheels[@]} -eq 0 ]; then
+            echo "::error title=No Wheel Found::No .whl file found in dist/ after build" >&2
+            exit 1
+          fi
+          WHEEL_NAME=$(basename "${wheels[0]}")
+          echo "wheel_name=${WHEEL_NAME}" >> "$GITHUB_OUTPUT"
           echo "::notice title=Build Success::Successfully built wheel: ${WHEEL_NAME}"
         continue-on-error: true
 
@@ -135,8 +141,8 @@ jobs:
           # Generate SBOM
           loom . -o "dist/${SBOM_NAME}" --creator-name "Pitloom CI" --creator-email "ci@example.com"
 
-          echo "sbom_name=${SBOM_NAME}" >> $GITHUB_OUTPUT
-          echo "sbom_path=dist/${SBOM_NAME}" >> $GITHUB_OUTPUT
+          echo "sbom_name=${SBOM_NAME}" >> "$GITHUB_OUTPUT"
+          echo "sbom_path=dist/${SBOM_NAME}" >> "$GITHUB_OUTPUT"
           echo "::notice title=SBOM Generated::Successfully created SBOM file: ${SBOM_NAME}"
         continue-on-error: true
 
@@ -277,7 +283,7 @@ jobs:
             JSONLD_CONTEXT_URL="${{ env.SPDX_JSONLD_CONTEXT_URL_3_0_1 }}"
           fi
 
-          cat >> $GITHUB_STEP_SUMMARY << EOF
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
           ## 🎉 SBOM Generated Successfully - Python ${{ matrix.python-version }}
 
           ### 📦 Build Artifacts
@@ -321,7 +327,7 @@ jobs:
       - name: Create failure summary
         if: always() && (steps.build.outcome == 'failure' || steps.verify_wheel_sbom.outcome == 'failure' || steps.sbom.outcome == 'failure' || steps.validate.outcome == 'failure')
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << EOF
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
           ## ❌ Build Failed - Python ${{ matrix.python-version }}
 
           ### 🔍 Failure Details

@@ -1,4 +1,6 @@
 ---
+Created: 2026-02-22
+Last-Modified: 2026-07-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -103,6 +105,57 @@ pypi = false          # opt-in: requires network
 
 OpenSSF Scorecard should be enabled by default as it is a public API with
 no authentication requirement and provides immediate supply chain security value.
+
+## AI-agent enrichment (skill / plugin)
+
+An AI agent (e.g. Claude Code, or another Agent-SDK-based runtime) is
+itself an enrichment source, distinct from the code-side enrichers above.
+Where a README/model-card parser is limited to pattern matching, an agent
+can read prose, reason about intent, and infer information no structured
+extractor can reach -- a plausible license from ambiguous wording, what a
+dependency is actually *for*, or a `trainedOn`/`testedOn` dataset
+relationship implied by a paragraph rather than a machine-readable field.
+
+This is documented and enabled today via the `skills/enrich/` Skill
+(see [adoption-surfaces.md](adoption-surfaces.md) and
+[agent-skill.md](../implementation/agent-skill.md) for the surfaces this
+builds on); it does not require new code inside Pitloom core.
+
+| Source | What it provides | Network required | Default |
+| :----- | :--------------- | :--------------- | :------ |
+| AI agent (Skill / plugin) | Prose-derived inference: license guesses, dependency purpose, dataset relationships, anything requiring reading comprehension rather than parsing | Optional (agent-dependent; Pitloom itself needs none) | User opt-in (agent only enriches when asked, or when a skill/plugin step explicitly runs) |
+
+### Delivery path: fragment merge, not direct edits
+
+An agent never edits a generated SBOM file in place. Instead it follows
+the same **fragment** mechanism already used by `pitloom.loom` and
+third-party fragment producers (see
+[sbom-fragments.md](sbom-fragments.md)):
+
+1. Generate (or reuse) a base SBOM with `loom <project-or-model>`.
+2. Draft a small, standalone SPDX 3 JSON-LD fragment containing only the
+   elements or relationships the agent inferred.
+3. Register the fragment in `pyproject.toml`:
+
+   ```toml
+   [tool.pitloom.fragments]
+   files = ["fragments/agent-enrichment.spdx3.json"]
+   ```
+
+4. Re-run `loom <project-or-model>` so `merge_fragments()` folds the
+   fragment into the final SBOM.
+
+Every inferred field carries a provenance marker in its `comment` --
+`Source: AI agent | Method: inference` -- reusing the same provenance
+convention documented in [metadata-provenance.md](metadata-provenance.md),
+so agent-derived content is always distinguishable from Pitloom's own
+extraction and from other configured enrichment sources. This keeps the
+result auditable: a reviewer can grep for `AI agent` in the SBOM to see
+exactly what was inferred rather than extracted.
+
+See `skills/enrich/SKILL.md` and
+`skills/enrich/references/examples.md` for the full agent-facing
+instructions and a worked fragment example.
 
 ### Enricher implementation approach
 

@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Validate GitHub Actions
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "action.yml"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "action.yml"
+      - ".github/workflows/**"
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
+          pwd >> "${GITHUB_PATH}"
+
+      - name: Lint workflow files
+        run: actionlint
+
+      - name: Validate action.yml schema
+        # actionlint only understands workflow schema (on:/jobs:), not the
+        # composite-action manifest schema (name:/inputs:/runs:), so it
+        # cannot lint action.yml itself. action-validator checks it against
+        # the published GitHub Actions JSON schema instead.
+        uses: mpalmer/action-validator@c994f427b7c42cd5ecb1bc9315cb91c3d7d72e3d  #v0.9.0
+        with:
+          version: "0.9.0"
+          patterns: "action.yml"

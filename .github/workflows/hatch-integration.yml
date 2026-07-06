@@ -43,9 +43,15 @@ jobs:
         run: |
           cd tests/fixtures/projects/sampleproject-hatchling
           python -m build --wheel --no-isolation
-          WHEEL=$(ls dist/*.whl | head -1)
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          if [ ${#wheels[@]} -eq 0 ]; then
+            echo "::error title=No Wheel Found::No .whl file found in dist/ after build" >&2
+            exit 1
+          fi
+          WHEEL="${wheels[0]}"
           echo "WHEEL_PATH=${WHEEL}" >> "$GITHUB_ENV"
-          echo "WHEEL_NAME=$(basename ${WHEEL})" >> "$GITHUB_ENV"
+          echo "WHEEL_NAME=$(basename "${WHEEL}")" >> "$GITHUB_ENV"
 
       - name: Verify SBOM is present inside the wheel
         run: |
@@ -92,6 +98,11 @@ jobs:
               for e in graph
               if e.get("type") == "software_Package"
           ]
+          # metadata_from_hatchling() uses core.raw_name (the un-normalized
+          # name), not Hatchling's PEP-503-normalized core.name, so the
+          # package name in the SBOM is "sampleproject_hatchling" -- exactly
+          # the spelling written in pyproject.toml's [project] name --
+          # matching what the CLI (read_pyproject) would report.
           if "sampleproject_hatchling" not in pkg_names:
               print(
                   f"ERROR: 'sampleproject_hatchling' not found in SBOM packages: {pkg_names}",
