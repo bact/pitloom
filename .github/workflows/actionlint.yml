@@ -26,7 +26,7 @@ jobs:
       - name: Install actionlint
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
-          echo "$(pwd)" >> "${GITHUB_PATH}"
+          pwd >> "${GITHUB_PATH}"
 
       - name: Lint workflow files
         run: actionlint

@@ -32,9 +32,11 @@ jobs:
 
       - name: Show generated CITATION.cff
         run: |
-          printf '```yaml\n' >> $GITHUB_STEP_SUMMARY
-          cat CITATION.cff >> $GITHUB_STEP_SUMMARY
-          printf '\n```' >> $GITHUB_STEP_SUMMARY
+          {
+            printf '```yaml\n'
+            cat CITATION.cff
+            printf '\n```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate CITATION.cff
         uses: dieghernan/cff-validator@114aae53e1850c3757733beb60036941900e3dc3  #v4

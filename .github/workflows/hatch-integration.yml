@@ -43,9 +43,11 @@ jobs:
         run: |
           cd tests/fixtures/projects/sampleproject-hatchling
           python -m build --wheel --no-isolation
-          WHEEL=$(ls dist/*.whl | head -1)
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          WHEEL="${wheels[0]}"
           echo "WHEEL_PATH=${WHEEL}" >> "$GITHUB_ENV"
-          echo "WHEEL_NAME=$(basename ${WHEEL})" >> "$GITHUB_ENV"
+          echo "WHEEL_NAME=$(basename "${WHEEL}")" >> "$GITHUB_ENV"
 
       - name: Verify SBOM is present inside the wheel
         run: |
