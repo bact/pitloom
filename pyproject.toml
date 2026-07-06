@@ -49,7 +49,7 @@ dependencies = [
     "licenseid>=0.2.3",
     "pyproject-metadata>=0.11.0",
     "rfc8785>=0.1.4",
-    "spdx-python-model==0.0.4",
+    "spdx-python-model>=0.0.6",
     "tomli>=2.0.0; python_version<'3.11'",
 ]
 
