@@ -10,7 +10,7 @@ from importlib.metadata import PackageMetadata, PackageNotFoundError
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id

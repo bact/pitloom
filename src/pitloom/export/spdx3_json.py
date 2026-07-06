@@ -12,7 +12,7 @@ from collections import defaultdict
 from typing import Any
 
 import rfc8785
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
 # Order rationale:

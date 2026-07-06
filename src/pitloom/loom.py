@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id

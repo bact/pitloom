@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import generate_spdx_id

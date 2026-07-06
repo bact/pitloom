@@ -29,7 +29,7 @@ pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 # pylint: disable=wrong-import-position
 import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 from hatchling.plugin.manager import PluginManager  # noqa: E402
-from spdx_python_model import v3_0_1 as spdx3  # noqa: E402
+from spdx_python_model.bindings import v3_0_1 as spdx3  # noqa: E402
 
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id  # noqa: E402
 from pitloom.export.spdx3_json import (  # noqa: E402

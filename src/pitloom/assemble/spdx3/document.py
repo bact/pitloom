@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model

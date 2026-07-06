@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import build_license_elements

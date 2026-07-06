@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build, build_model
