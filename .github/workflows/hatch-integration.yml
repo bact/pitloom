@@ -45,6 +45,10 @@ jobs:
           python -m build --wheel --no-isolation
           shopt -s nullglob
           wheels=(dist/*.whl)
+          if [ ${#wheels[@]} -eq 0 ]; then
+            echo "::error title=No Wheel Found::No .whl file found in dist/ after build" >&2
+            exit 1
+          fi
           WHEEL="${wheels[0]}"
           echo "WHEEL_PATH=${WHEEL}" >> "$GITHUB_ENV"
           echo "WHEEL_NAME=$(basename "${WHEEL}")" >> "$GITHUB_ENV"

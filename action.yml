@@ -137,8 +137,13 @@ runs:
           # word-splitting (extra_args=(${PL_ARGS})) has no quote-awareness
           # and would break a quoted multi-word value into separate tokens,
           # so split it with Python's shlex instead.
+          #
+          # When install=false, "Set up Python" is skipped, so don't assume
+          # python3 specifically is on PATH -- fall back to python.
+          python_bin=python3
+          command -v "${python_bin}" >/dev/null 2>&1 || python_bin=python
           readarray -t extra_args < <(
-            python3 -c 'import shlex, sys; print(*shlex.split(sys.argv[1]), sep="\n")' \
+            "${python_bin}" -c 'import shlex, sys; print(*shlex.split(sys.argv[1]), sep="\n")' \
               "${PL_ARGS}"
           )
           loom_args+=("${extra_args[@]}")
