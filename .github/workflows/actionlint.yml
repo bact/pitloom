@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Validate GitHub Actions
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "action.yml"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "action.yml"
+      - ".github/workflows/**"
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
+          echo "$(pwd)" >> "${GITHUB_PATH}"
+
+      - name: Lint workflow files
+        run: actionlint
+
+      - name: Lint action.yml
+        run: actionlint action.yml
