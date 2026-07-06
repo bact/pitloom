@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
@@ -23,7 +23,7 @@ from pitloom.core.models import (
     compute_doc_uuid,
     generate_spdx_id,
 )
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 
 def _parse_iso_datetime(value: str) -> datetime:
@@ -87,9 +87,9 @@ def _build_creation_bundle(
             creationInfo=spdx_ci,
         )
 
-    spdx_ci.createdBy = [creator.spdxId]
+    spdx_ci.createdBy = [require_spdx_id(creator)]
     if tool is not None:
-        spdx_ci.createdUsing = [tool.spdxId]
+        spdx_ci.createdUsing = [require_spdx_id(tool)]
     return spdx_ci, creator, tool
 
 
@@ -179,7 +179,7 @@ def _add_package_files(
             )
             directory_file.software_fileKind = spdx3.software_FileKindType.directory
             exporter.add_file(directory_file)
-            dir_spdx_ids[directory_name] = directory_file.spdxId
+            dir_spdx_ids[directory_name] = require_spdx_id(directory_file)
 
             parent_id = (
                 main_package.spdxId
@@ -192,7 +192,7 @@ def _add_package_files(
                         "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
                     ),
                     from_=parent_id,
-                    to=[directory_file.spdxId],
+                    to=[require_spdx_id(directory_file)],
                     relationshipType=spdx3.RelationshipType.contains,
                     creationInfo=spdx_ci,
                 )
@@ -211,7 +211,7 @@ def _add_package_files(
             )
         ]
         exporter.add_file(package_entry)
-        file_spdx_ids[package_file.distribution_path] = package_entry.spdxId
+        file_spdx_ids[package_file.distribution_path] = require_spdx_id(package_entry)
 
         parent_id = (
             dir_spdx_ids[parent_paths[-1].as_posix()]
@@ -224,7 +224,7 @@ def _add_package_files(
                     "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
                 ),
                 from_=parent_id,
-                to=[package_entry.spdxId],
+                to=[require_spdx_id(package_entry)],
                 relationshipType=spdx3.RelationshipType.contains,
                 creationInfo=spdx_ci,
             )
@@ -303,7 +303,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     if metadata.license_name:
         rel_declared, rel_concluded = build_license_elements(
             license_id=metadata.license_name,
-            package_spdx_id=main_package.spdxId,
+            package_spdx_id=require_spdx_id(main_package),
             license_provenance=metadata.provenance.get(
                 "license", "Source: pyproject.toml | Field: project.license"
             ),
@@ -320,7 +320,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     add_dependencies(
         dependencies=metadata.dependencies,
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
-        main_package_spdx_id=main_package.spdxId,
+        main_package_spdx_id=require_spdx_id(main_package),
         creation_info=spdx_ci,
         doc_name=metadata.name,
         doc_uuid=doc_uuid,
@@ -345,7 +345,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
             )
         add_ai_models(
             ai_models=doc.ai_models,
-            main_package_spdx_id=main_package.spdxId,
+            main_package_spdx_id=require_spdx_id(main_package),
             file_spdx_ids=file_spdx_ids,
             creation_info=spdx_ci,
             doc_name=metadata.name,
@@ -418,9 +418,9 @@ def build_model(
             creationInfo=spdx_ci,
         )
 
-    spdx_ci.createdBy = [creator.spdxId]
+    spdx_ci.createdBy = [require_spdx_id(creator)]
     if tool is not None:
-        spdx_ci.createdUsing = [tool.spdxId]
+        spdx_ci.createdUsing = [require_spdx_id(tool)]
 
     exporter.add_creation_info(spdx_ci)
     exporter.add_person(creator)
@@ -433,7 +433,7 @@ def build_model(
     if model.license:
         rel_declared, rel_concluded = build_license_elements(
             license_id=model.license,
-            package_spdx_id=ai_pkg.spdxId,
+            package_spdx_id=require_spdx_id(ai_pkg),
             license_provenance=model.provenance.get(
                 "license",
                 "Source: model file / Hugging Face Hub",
@@ -448,7 +448,7 @@ def build_model(
 
     if model.datasets:
         add_datasets_for_model(
-            ai_package_spdx_id=ai_pkg.spdxId,
+            ai_package_spdx_id=require_spdx_id(ai_pkg),
             datasets=model.datasets,
             creation_info=spdx_ci,
             doc_name=doc_name,

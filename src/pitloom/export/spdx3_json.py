@@ -12,7 +12,7 @@ from collections import defaultdict
 from typing import Any
 
 import rfc8785
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 # Lower value = earlier in @graph. Types not listed here get priority 4.
 # Order rationale:
@@ -26,6 +26,25 @@ _GRAPH_TYPE_PRIORITY: dict[str, int] = {
     "Bom": 2,
     "software_Sbom": 3,
 }
+
+
+def require_spdx_id(element: spdx3.Element) -> str:
+    """Return *element*'s ``spdxId``, narrowing away the ``None`` case.
+
+    ``spdxId`` is typed ``str | None`` upstream because the SHACL model
+    allows an Element to be constructed without one, but every element
+    pitloom builds is always given an explicit ``spdxId`` at construction
+    time (see :func:`pitloom.core.models.generate_spdx_id`). This helper
+    exists only to satisfy mypy at the many call sites that pass an
+    element's ``spdxId`` on to APIs expecting a plain ``str``.
+
+    Raises:
+        ValueError: If *element* has no ``spdxId`` assigned, which would
+            indicate a bug in how the element was constructed.
+    """
+    if element.spdxId is None:
+        raise ValueError(f"{element!r} has no spdxId assigned")
+    return element.spdxId
 
 
 def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
@@ -252,7 +271,7 @@ class Spdx3JsonExporter:
         self.object_set.add(simple_licensing_text)
         license_id: str | None = simple_licensing_text.simplelicensing_licenseText
         if license_id:
-            self._license_index[license_id] = simple_licensing_text.spdxId
+            self._license_index[license_id] = require_spdx_id(simple_licensing_text)
 
     def add_relationship(self, relationship: spdx3.Relationship) -> None:
         """Add a relationship to the document.

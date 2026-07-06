@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from spdx_python_model import v3_0_1 as spdx3
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build, build_model
@@ -20,7 +20,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.ai_model import read_ai_model
 
 
@@ -361,7 +361,7 @@ files = ["fragment1.json", "fragment2.json"]
             name="Author 1",
             creationInfo=ci1,
         )
-        ci1.createdBy = [person1.spdxId]
+        ci1.createdBy = [require_spdx_id(person1)]
         ai_pkg = spdx3.ai_AIPackage(
             spdxId=generate_spdx_id("AIPackage", "test-ai-model", doc_uuid_1),
             name="cool-ai-model",
@@ -382,7 +382,7 @@ files = ["fragment1.json", "fragment2.json"]
             name="Author 2",
             creationInfo=ci2,
         )
-        ci2.createdBy = [person2.spdxId]
+        ci2.createdBy = [require_spdx_id(person2)]
         dataset_pkg = spdx3.dataset_DatasetPackage(
             spdxId=generate_spdx_id("DatasetPackage", "test-dataset", doc_uuid_2),
             name="cool-dataset",
