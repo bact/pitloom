@@ -24,7 +24,7 @@ from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.core.project import ProjectMetadata
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 _DOC_NAME = "testproject"
 _DOC_UUID = compute_doc_uuid("testproject", "1.0", [])
@@ -41,7 +41,7 @@ def _make_ci() -> spdx3.CreationInfo:
         name="Test",
         creationInfo=ci,
     )
-    ci.createdBy = [person.spdxId]
+    ci.createdBy = [require_spdx_id(person)]
     return ci
 
 
@@ -97,7 +97,6 @@ def test_build_dataset_package_dataset_types() -> None:
     pkg = _build_dataset_package(
         _make_meta(dataset_types=["text", "numeric"]), _make_ci(), _DOC_NAME, _DOC_UUID
     )
-    assert pkg.dataset_datasetType is not None
     assert len(pkg.dataset_datasetType) == 2
 
 
@@ -229,9 +228,9 @@ def test_build_dataset_package_croissant_url_as_external_ref() -> None:
     pkg = _build_dataset_package(
         _make_meta(croissant_url=url), _make_ci(), _DOC_NAME, _DOC_UUID
     )
-    assert pkg.externalRef is not None
     assert len(pkg.externalRef) == 1
     ref = pkg.externalRef[0]
+    assert isinstance(ref, spdx3.ExternalRef)
     assert url in ref.locator
     assert ref.externalRefType == spdx3.ExternalRefType.other
     assert ref.comment == "Croissant metadata"

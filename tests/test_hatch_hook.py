@@ -32,7 +32,10 @@ from hatchling.plugin.manager import PluginManager  # noqa: E402
 from spdx_python_model import v3_0_1 as spdx3  # noqa: E402
 
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id  # noqa: E402
-from pitloom.export.spdx3_json import Spdx3JsonExporter  # noqa: E402
+from pitloom.export.spdx3_json import (  # noqa: E402
+    Spdx3JsonExporter,
+    require_spdx_id,
+)
 from pitloom.extract.hatchling import metadata_from_hatchling  # noqa: E402
 from pitloom.extract.pyproject import read_pyproject  # noqa: E402
 from pitloom.plugins.hatch import (  # noqa: E402
@@ -357,7 +360,7 @@ def test_hook_with_pitloom_fragments() -> None:
             name="Frag Author",
             creationInfo=ci,
         )
-        ci.createdBy = [person.spdxId]
+        ci.createdBy = [require_spdx_id(person)]
         pkg = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", "fragment-lib", doc_uuid),
             name="fragment-lib",

@@ -10,25 +10,27 @@ from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import generate_spdx_id
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
 # finetunedOn, validatedOn, pretrainedOn do not exist in SPDX 3.0.1;
 # they fall back to RelationshipType.other with a comment (see _role_to_rel).
-_ROLE_TO_RELATIONSHIP: dict[str, spdx3.RelationshipType] = {
+# RelationshipType members are plain str NamedIndividual IRIs, not an enum type.
+_ROLE_TO_RELATIONSHIP: dict[str, str] = {
     "trainedOn": spdx3.RelationshipType.trainedOn,
     "testedOn": spdx3.RelationshipType.testedOn,
 }
 
 # PresenceType mapping for has_sensitive_personal_information.
-_PRESENCE_MAP: dict[str, spdx3.PresenceType] = {
+# PresenceType members are plain str NamedIndividual IRIs, not an enum type.
+_PRESENCE_MAP: dict[str, str] = {
     "yes": spdx3.PresenceType.yes,
     "no": spdx3.PresenceType.no,
     "noAssertion": spdx3.PresenceType.noAssertion,
 }
 
 
-def _role_to_rel(role: str) -> tuple[spdx3.RelationshipType, str | None]:
+def _role_to_rel(role: str) -> tuple[str, str | None]:
     """Return the SPDX RelationshipType and optional fallback comment for *role*.
 
     Returns:
@@ -112,7 +114,8 @@ def _build_dataset_package(
     # dataset_datasetType is required by the SPDX model; always set it.
     # Map known string names to enum values, skip unknowns silently.
     # Fall back to [noAssertion] when no type information is available.
-    type_values: list[spdx3.dataset_DatasetType] = []
+    # dataset_DatasetType members are plain str NamedIndividual IRIs.
+    type_values: list[str] = []
     for type_name in meta.dataset_types:
         enum_val = getattr(spdx3.dataset_DatasetType, type_name, None)
         if enum_val is not None:
@@ -210,7 +213,7 @@ def add_datasets_for_model(
             ),
             creationInfo=creation_info,
             from_=ai_package_spdx_id,
-            to=[dataset_pkg.spdxId],
+            to=[require_spdx_id(dataset_pkg)],
             relationshipType=rel_type,
         )
         if fallback_comment:

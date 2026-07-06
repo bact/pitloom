@@ -15,7 +15,7 @@ from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import build_license_elements
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.models import generate_spdx_id
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
 _SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}
@@ -200,7 +200,7 @@ def add_ai_models(
 
         if ai_model.datasets:
             add_datasets_for_model(
-                ai_package_spdx_id=ai_pkg.spdxId,
+                ai_package_spdx_id=require_spdx_id(ai_pkg),
                 datasets=ai_model.datasets,
                 creation_info=creation_info,
                 doc_name=doc_name,
@@ -211,7 +211,7 @@ def add_ai_models(
         if ai_model.license:
             rel_declared, rel_concluded = build_license_elements(
                 license_id=ai_model.license,
-                package_spdx_id=ai_pkg.spdxId,
+                package_spdx_id=require_spdx_id(ai_pkg),
                 license_provenance=ai_model.provenance.get(
                     "license",
                     "Source: model file / Hugging Face Hub",
@@ -231,7 +231,7 @@ def add_ai_models(
                 doc_uuid=doc_uuid,
             ),
             from_=main_package_spdx_id,
-            to=[ai_pkg.spdxId],
+            to=[require_spdx_id(ai_pkg)],
             relationshipType=spdx3.RelationshipType.contains,
             creationInfo=creation_info,
         )

@@ -14,7 +14,7 @@ from uuid import uuid4
 from spdx_python_model import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 
 def _get_caller_info() -> str:
@@ -62,7 +62,7 @@ class _ActiveRun:
             name="Pitloom SDK (Automated Run)",
             creationInfo=self.creation_info,
         )
-        self.creation_info.createdBy = [person.spdxId]
+        self.creation_info.createdBy = [require_spdx_id(person)]
 
         self.exporter = Spdx3JsonExporter()
         self.exporter.add_person(person)
@@ -238,7 +238,7 @@ class _ActiveRun:
                         self.doc_uuid,
                     ),
                     from_=self.model.spdxId,
-                    to=[dataset.spdxId],
+                    to=[require_spdx_id(dataset)],
                     relationshipType=spdx3.RelationshipType.trainedOn,
                     creationInfo=self.creation_info,
                 )
@@ -254,7 +254,7 @@ class _ActiveRun:
                         self.doc_uuid,
                     ),
                     from_=self.model.spdxId,
-                    to=[dataset.spdxId],
+                    to=[require_spdx_id(dataset)],
                     relationshipType=spdx3.RelationshipType.testedOn,
                     creationInfo=self.creation_info,
                 )
@@ -262,7 +262,7 @@ class _ActiveRun:
 
         # output_dataset hasInput input_datasets (dataset lineage / preprocessing)
         if self.output_datasets and self.input_datasets:
-            input_ids = [ds.spdxId for ds in self.input_datasets]
+            input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
             for output_ds in self.output_datasets:
                 rel = spdx3.Relationship(
                     spdxId=generate_spdx_id(
