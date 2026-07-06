@@ -41,7 +41,12 @@ and this project adheres to
   `/pitloom:enrich` to generate and enrich SBOMs directly from Claude
   Code ([#82])
 
+### Fixed
+
+- Handle None case of spdxId ([#83])
+
 [#82]: https://github.com/bact/pitloom/pull/82
+[#83]: https://github.com/bact/pitloom/pull/83
 
 ## [0.8.0] - 2026-05-29
 
