@@ -196,7 +196,7 @@ Consistent fields: project name, version, author/contributor names, license, des
 - ASCII letters, digits, hyphens (`-`), underscores (`_`) only.
 - Standard naming conventions for the language/framework.
 - Noun number: singular for single-entity classes, plural only for collections/utility modules/aggregates.
-- Ontology/vocab: consult Schema.org; also FIBO <https://github.com/edmcouncil/fibo/blob/master/ONTOLOGY_GUIDE.md> and OBO Foundry <https://obofoundry.org/principles/fp-012-naming-conventions.html>
+- Ontology/vocab: consult Schema.org; also NIEM Model <https://github.com/niemopen/niem-model> <https://docs.oasis-open.org/niemopen/niem-model/v6.0/niem-model-v6.0.html>, FIBO <https://github.com/edmcouncil/fibo/blob/master/ONTOLOGY_GUIDE.md> and OBO Foundry <https://obofoundry.org/principles/fp-012-naming-conventions.html>
 - URLs/IRIs: lowercase + hyphens; W3C Cool URIs: <https://www.w3.org/TR/cooluris/>
 - Consult SEMIC Style Guide: <https://semiceu.github.io/style-guide/1.0.0/index.html>
 

@@ -18,7 +18,7 @@ the build process to generate SBOMs automatically.
 ## Features
 
 - **SPDX 3 support**:
-  Generates SBOMs in SPDX 3 JSON-LD format
+  Generates SBOMs in SPDX 3 JSON (JSON-LD) format
 - **Multi-backend metadata extraction**:
   Reads project metadata from `pyproject.toml` (PEP 621 `[project]`),
   [Poetry](https://python-poetry.org/) (`[tool.poetry]`),

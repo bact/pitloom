@@ -36,9 +36,9 @@
         "gguf",
         "onnx",
         "safetensors",
-        "ai-sbom",
+        "ai sbom",
         "transparency",
-        "supply-chain-security",
+        "software supply chain security"
     ],
     "license": "https://spdx.org/licenses/Apache-2.0",
     "maintainer": [

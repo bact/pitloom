@@ -15,30 +15,33 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.7.1...v0.8.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.8.0...v0.9.0>
 
-## [Unreleased]
+## [0.9.0]
 
 ### Added
 
-- Wheel builds now embed a more complete SBOM: the Hatchling build hook
-  reads project metadata directly from the build backend's own resolved values,
-  so dynamically-computed metadata (e.g. a version from `hatch-vcs`,
-  dependencies from `hatch-requirements-txt`) is captured correctly.
-  The hook now only runs for wheel builds, not sdists.
-- Every file listed in a generated SBOM now includes an SHA-256 integrity hash.
+- Hatchling build hook now reads project metadata directly from the build
+  backend's own resolved values, so dynamically-computed metadata
+  (e.g. a version from `hatch-vcs`, dependencies from `hatch-requirements-txt`)
+  is captured correctly; the hook now only runs for wheel builds, not sdists
+  ([#82])
+- Every file listed in a generated SBOM now includes an SHA-256 integrity
+  hash ([#82])
 - The main project package in a generated SBOM now includes a PyPI
-  Package-URL (PURL), matching what dependencies already had.
+  Package-URL (PURL), matching what dependencies already had ([#82])
 - A GitHub Action so any Python project can generate an SBOM in CI with a
-  single step, regardless of build backend.
+  single step, regardless of build backend ([#82])
 - Two AI-agent Skills (`sbom`, `enrich`) to generate an SBOM on request,
   and optionally enrich it with information inferred from project docs --
   with clear provenance marking so inferred data is never confused with
-  extracted data.
+  extracted data ([#82])
 - A Claude Code plugin (`/plugin marketplace add bact/pitloom` then
   `/plugin install pitloom@pitloom`) providing `/pitloom:sbom` and
   `/pitloom:enrich` to generate and enrich SBOMs directly from Claude
-  Code.
+  Code ([#82])
+
+[#82]: https://github.com/bact/pitloom/pull/82
 
 ## [0.8.0] - 2026-05-29
 
@@ -206,6 +209,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.9.0]: https://github.com/bact/pitloom/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/bact/pitloom/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/bact/pitloom/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bact/pitloom/compare/v0.6.1...v0.7.0
