@@ -107,6 +107,23 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 
 Sort SPDX metadata keys alphabetically.
 
+`docs/design/*.md` and `docs/implementation/*.md` additionally carry
+`Created` and `Last-Modified` (`YYYY-MM-DD`) in the same front-matter
+block, sorted alphabetically alongside the SPDX keys:
+
+```text
+Created: 2026-02-06
+Last-Modified: 2026-07-06
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+```
+
+Set `Created` once, when the file is added. Bump `Last-Modified` to the
+current date on every substantive edit to that doc -- this is what lets
+a human or agent judge a design/implementation doc's staleness without
+checking git history.
+
 ## Testing
 
 - Add tests for new behavior -- cover success, failure, edge cases.
