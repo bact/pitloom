@@ -107,9 +107,10 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 
 Sort SPDX metadata keys alphabetically.
 
-`docs/design/*.md` and `docs/implementation/*.md` additionally carry
-`Created` and `Last-Modified` (`YYYY-MM-DD`) in the same front-matter
-block, sorted alphabetically alongside the SPDX keys:
+`docs/design/*.md`, `docs/implementation/*.md`, and other standalone
+docs (e.g. `docs/resources.md`) additionally carry `Created` and
+`Last-Modified` (`YYYY-MM-DD`) in the same front-matter block, sorted
+alphabetically alongside the SPDX keys:
 
 ```text
 Created: 2026-02-06
@@ -119,10 +120,32 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ```
 
+`SKILL.md` files are the exception: their YAML front matter is limited
+to the keys the Agent Skill spec recognises (`name`, `description`,
+`license`, ...); `Created` and `Last-Modified` are not among them, so
+they don't belong in that block. Their SPDX tags already live as HTML
+comments below the front matter instead -- add `Created`/`Last-Modified`
+there too, as two more HTML comments, ordered alphabetically same as the
+YAML case:
+
+```markdown
+---
+name: enrich
+description: >-
+  ...
+license: Apache-2.0
+---
+
+<!-- Created: 2026-07-05 -->
+<!-- Last-Modified: 2026-07-06 -->
+<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
+<!-- SPDX-FileType: SOURCE -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+```
+
 Set `Created` once, when the file is added. Bump `Last-Modified` to the
 current date on every substantive edit to that doc -- this is what lets
-a human or agent judge a design/implementation doc's staleness without
-checking git history.
+a human or agent judge a doc's staleness without checking git history.
 
 ## Testing
 

@@ -1,4 +1,5 @@
 ---
+Created: 2026-03-26
 Last-Modified: 2026-07-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
