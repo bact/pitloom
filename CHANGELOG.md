@@ -26,8 +26,7 @@ and this project adheres to
   so dynamically-computed metadata (e.g. a version from `hatch-vcs`,
   dependencies from `hatch-requirements-txt`) is captured correctly.
   The hook now only runs for wheel builds, not sdists.
-- Every file listed in a generated SBOM now includes an SHA-256 integrity
-  hash.
+- Every file listed in a generated SBOM now includes an SHA-256 integrity hash.
 - The main project package in a generated SBOM now includes a PyPI
   Package-URL (PURL), matching what dependencies already had.
 - A GitHub Action so any Python project can generate an SBOM in CI with a

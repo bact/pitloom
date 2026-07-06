@@ -10,11 +10,14 @@ description: >-
   used to train this model", "fill in missing SBOM information from the
   README/model card". Requires a Pitloom SBOM to already exist -- generate
   one first with the `sbom` skill if it does not.
+license: Apache-2.0
 ---
 
+<!-- Created: 2026-07-05 -->
+<!-- Last-Modified: 2026-07-06 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
-<!-- SPDX-License-Identifier: CC0-1.0 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # Enrich a Pitloom SBOM
 

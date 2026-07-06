@@ -1,4 +1,5 @@
 ---
+Last-Modified: 2026-07-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,16 +14,18 @@ SPDX-License-Identifier: CC0-1.0
   - Model: <https://spdx.org/rdf/3.0/spdx-model.ttl>
   - JSON Schema: <https://spdx.org/schema/3.0/spdx-json-schema.json>
   - JSON-LD context: <https://spdx.org/rdf/3.0/spdx-context.jsonld>
+  - JSON-LD serialization annotation: <https://spdx.org/rdf/3.0/spdx-json-serialize-annotations.ttl>
 - SPDX 3.1 spec (dev): <https://spdx.github.io/spdx-spec/v3.1-dev/>
   - Terms: <https://spdx.github.io/spdx-spec/v3.1-dev/terms-and-definitions/>
-  - Model: <https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-model.ttl>
-  - JSON Schema: <https://spdx.github.io/spdx-spec/v3.1/rdf/schema.json>
-  - JSON-LD context: <https://spdx.github.io/spdx-spec/v3.1/rdf/spdx-context.jsonld>
+  - Model: <https://spdx.org/rdf/3.1/spdx-model.ttl>
+  - JSON Schema: <https://spdx.org/schema/3.1/spdx-json-schema.json>
+  - JSON-LD context: <https://spdx.org/rdf/3.1/spdx-context.jsonld>
+  - JSON-LD serialization annotation: <https://spdx.org/rdf/3.1/spdx-json-serialize-annotations.ttl>
 - SPDX 3 JSON validation guide: <https://github.com/spdx/spdx-3-model/blob/develop/serialization/jsonld/validation.md>
 - SPDX 3 model format and style guide: <https://github.com/spdx/spdx-3-model/blob/develop/docs/format.md>
 - SPDX 3 model Python binding: <https://github.com/spdx/spdx-python-model>
 - SPDX examples: <https://github.com/spdx/spdx-examples>
-- SBOM example using SPDX 3.0 AI and Dataset profile: <https://github.com/bact/sentimentdemo>
+- SBOM example using SPDX 3.0 AI and Dataset profiles: <https://github.com/bact/sentimentdemo>
 - NTIA Conformance Checker test corpus: <https://github.com/spdx/ntia-conformance-checker/tree/main/tests>
 - Validator: `spdx3-validate` on PyPI
   (<https://pypi.org/project/spdx3-validate/>);
@@ -39,6 +42,9 @@ SPDX-License-Identifier: CC0-1.0
 - 2025 Minimum Elements for a Software Bill of Materials (SBOM) (draft):
   <https://www.cisa.gov/resources-tools/resources/2025-minimum-elements-software-bill-materials-sbom>
   <https://www.cisa.gov/sites/default/files/2025-08/2025_CISA_SBOM_Minimum_Elements.pdf>
+- BSI TR-03183-2: Cyber Resilience Requirements for Manufacturers and
+  Products - Part 2: Software Bill of Materials (SBOM) Version 2.1.0
+  <https://www.bsi.bund.de/SharedDocs/Downloads/EN/BSI/Publications/TechGuidelines/TR03183/BSI-TR-03183-2_v2_1_0.pdf?__blob=publicationFile&v=5>
 - OpenChain AI SBOM Compliance Management Guide for the Supply Chain version 1.0:
   <https://github.com/OpenChain-Project/Reference-Material/blob/master/AI-SBOM-Compliance/en/Artificial-Intelligence-System-Bill-of-Materials-Compliance-Management-Guide.md>
 - The State of Software Bill of Materials (SBOM) and Cybersecurity Readiness:
@@ -61,6 +67,8 @@ SPDX-License-Identifier: CC0-1.0
 - A shared G7 vision on software bill of materials for AI: Transparency and
   Cybersecurity along the AI supply chain:
   <https://www.bsi.bund.de/SharedDocs/Downloads/EN/BSI/KI/SBOM-for-AI_Food-for-thoughts.html>
+- G7 Software Bill of Materials (SBOM) for Artificial Intelligence - Minimum Elements
+  <https://www.bsi.bund.de/SharedDocs/Downloads/EN/BSI/KI/SBOM-for-AI_minimum-elements.html>
 - BOMs Away! Inside the Minds of Stakeholders: A Comprehensive Study of Bills
   of Materials for Software Systems:
   <https://arxiv.org/abs/2309.12206>
@@ -78,3 +86,11 @@ SPDX-License-Identifier: CC0-1.0
   <https://arxiv.org/abs/2508.08804>
 - AICat: An AI Cataloguing Approach to Support the EU AI Act:
   <https://arxiv.org/abs/2501.04014>
+
+## Other resources
+
+- Agent Skills standard <https://agentskills.io/>
+- SARIF (standard format for static analysis)
+  - <https://sarifweb.azurewebsites.net/>
+  - <https://docs.oasis-open.org/sarif/sarif/v2.1.0/csprd01/sarif-v2.1.0-csprd01.html>
+  - <https://github.com/microsoft/sarif-tutorials/>

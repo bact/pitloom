@@ -10,11 +10,14 @@ description: >-
   materials", "list this project's dependency inventory", "generate an AI
   model BOM / AIBOM", "document this model's provenance", and similar
   requests for a supply-chain transparency artefact.
+license: Apache-2.0
 ---
 
+<!-- Created: 2026-07-05 -->
+<!-- Last-Modified: 2026-07-06 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
-<!-- SPDX-License-Identifier: CC0-1.0 -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # Generate an SBOM with Pitloom
 
