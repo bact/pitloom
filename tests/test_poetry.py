@@ -480,7 +480,7 @@ def test_fixture_read_poetry_no_pitloom_section_defaults() -> None:
     _, config = read_poetry(POETRY_FIXTURE / "pyproject.toml")
     assert config.sbom_basename is None
     assert config.pretty is False
-    assert config.creators == []
+    assert not config.creators
 
 
 def test_read_poetry_multiple_creators_array_of_tables() -> None:
