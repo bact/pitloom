@@ -116,6 +116,49 @@ def test_sbom_graph_contains_creator(built_wheel: Path) -> None:
     )
 
 
+def test_sbom_multiple_creators_and_tools_in_wheel(built_wheel: Path) -> None:
+    """The real, built wheel's SBOM must embed all declared creators and
+    creation tools, correctly linked from CreationInfo.
+
+    Complements ``test_hook_multiple_creators_appear_in_graph`` in
+    ``test_hatch_hook.py``, which asserts the same logical shape via a
+    direct ``BuildHookInterface.initialize()`` call rather than a real
+    ``python -m build`` / Hatchling wheel build -- this test proves the
+    result also lands correctly inside an actual ``.whl`` zip (PEP 770).
+
+    ``sampleproject-hatchling/pyproject.toml`` declares two creators
+    (a Person "Pitloom CI" and an Organization "Sample Project Org") and
+    two creation tools ("Pitloom" and "CI Wrapper").
+    """
+    with zipfile.ZipFile(built_wheel) as zf:
+        (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
+        data = json.loads(zf.read(sbom_entry))
+    graph = data["@graph"]
+
+    elements_by_id = {
+        element["spdxId"]: element for element in graph if "spdxId" in element
+    }
+
+    creation_infos = [e for e in graph if e.get("type") == "CreationInfo"]
+    assert len(creation_infos) == 1, (
+        f"Expected exactly 1 CreationInfo element, found: {creation_infos}"
+    )
+    creation_info = creation_infos[0]
+
+    created_by = [elements_by_id[i] for i in creation_info.get("createdBy", [])]
+    assert len(created_by) == 2, f"Expected 2 createdBy agents, found: {created_by}"
+    persons = [a for a in created_by if a.get("type") == "Person"]
+    orgs = [a for a in created_by if a.get("type") == "Organization"]
+    assert [p.get("name") for p in persons] == ["Pitloom CI"]
+    assert [o.get("name") for o in orgs] == ["Sample Project Org"]
+
+    created_using = [elements_by_id[i] for i in creation_info.get("createdUsing", [])]
+    tool_names = sorted(t.get("name") for t in created_using)
+    assert tool_names == ["CI Wrapper", "Pitloom"], (
+        f"Expected createdUsing tools ['CI Wrapper', 'Pitloom'], found: {tool_names}"
+    )
+
+
 def test_sbom_is_not_empty(built_wheel: Path) -> None:
     """The SBOM file inside the wheel must have non-trivial content."""
     with zipfile.ZipFile(built_wheel) as zf:

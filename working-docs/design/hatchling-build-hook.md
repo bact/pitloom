@@ -375,6 +375,7 @@ dependencies = [
 | `test_hook_sbom_is_compact_despite_pretty_config` | Sets `[tool.pitloom] pretty = true`; asserts the embedded SBOM is still RFC 8785 (JCS) canonical. |
 | `test_sbom_graph_contains_file_hashes` (`test_wheel_integration.py`) | Builds a real wheel; asserts every file-kind `software_File` in the embedded SBOM carries a SHA-256 `verifiedUsing` hash. |
 | `test_sbom_graph_contains_main_package_purl` (`test_wheel_integration.py`) | Builds a real wheel; asserts the main package carries a `pkg:pypi/...@<version>` PURL. |
+| `test_sbom_multiple_creators_and_tools_in_wheel` (`test_wheel_integration.py`) | Builds a real wheel from the `sampleproject-hatchling` fixture (now declaring 2 creators + 2 creation tools); resolves `CreationInfo.createdBy`/`createdUsing` to graph elements and asserts both agents and both tools appear correctly. |
 
 ## References
 

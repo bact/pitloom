@@ -374,6 +374,91 @@ name = "MyWrapper"
         assert config.tools == [ToolInfo(name="MyWrapper")]
 
 
+def test_extract_pitloom_creation_tool_missing_name_raises() -> None:
+    """A ``[[tool.pitloom.creation-tool]]`` entry missing ``name`` raises
+    ValueError instead of being silently dropped (which, if it were the
+    only entry, would incorrectly suppress the default ``createdUsing``
+    'Pitloom' tool)."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creation-tool]]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="missing a valid 'name'"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_blank_name_raises() -> None:
+    """A blank (empty-string) ``name`` in ``[[tool.pitloom.creation-tool]]``
+    raises ValueError, same as a missing ``name``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creation-tool]]
+name = ""
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="missing a valid 'name'"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_missing_name_raises() -> None:
+    """A ``[[tool.pitloom.creator]]`` entry missing ``name`` raises
+    ValueError instead of being silently dropped (which, if it were the
+    only entry, would silently change the effective default from a named
+    creator to the unattended SoftwareAgent 'Pitloom')."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+email = "nobody@example.com"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="missing a valid 'name'"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_empty_creation_tool_array_still_yields_empty_list() -> None:
+    """A genuinely empty ``[[tool.pitloom.creation-tool]]`` array (zero
+    tables present) still correctly yields ``tools == []`` -- only a
+    malformed *entry within* a present array raises."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-tool = []
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.tools == []
+
+
 def test_extract_metadata_canonicalises_dependency_names() -> None:
     """Dependency package names are canonicalised per PEP 503.
 

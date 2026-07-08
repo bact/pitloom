@@ -520,6 +520,61 @@ def test_project_mode_multiple_interleaved_creators(
     assert persons[0]["externalIdentifier"]
 
 
+def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """With three creators, each --creator-type/--creator-email must bind to
+    the creator most recently named, not the first or a stale index -- a
+    regression check for the switch from in-place mutation
+    (``creators[-1].type = values``) to reconstructing the last ``Creator``
+    (``creators[-1] = Creator(...)``) in ``_CreatorTypeAction``/
+    ``_CreatorEmailAction``."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "three-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "three-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "Acme Corp",
+            "--creator-type",
+            "organization",
+            "--creator-name",
+            "Alice",
+            "--creator-type",
+            "person",
+            "--creator-email",
+            "alice@example.com",
+            "--creator-name",
+            "CI Bot",
+            "--creator-type",
+            "software-agent",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    orgs = {e["name"] for e in graph if e.get("type") == "Organization"}
+    persons = {e.get("name"): e for e in graph if e.get("type") == "Person"}
+    agents = {e["name"] for e in graph if e.get("type") == "SoftwareAgent"}
+
+    assert orgs == {"Acme Corp"}
+    assert set(persons) == {"Alice"}
+    assert agents == {"CI Bot"}
+    # The email must land on Alice, not on Acme Corp or CI Bot.
+    assert persons["Alice"]["externalIdentifier"]
+
+
 def test_creator_type_invalid_choice_rejected_by_argparse(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

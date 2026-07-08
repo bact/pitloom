@@ -111,6 +111,65 @@ jobs:
               sys.exit(1)
 
           print(f"SBOM packages: {pkg_names}")
+
+          # Resolve spdxId/@id references to the actual graph elements, the
+          # same way a real SPDX 3 consumer would.
+          elements_by_id = {}
+          for element in graph:
+              element_id = element.get("spdxId", element.get("@id"))
+              if element_id is not None:
+                  elements_by_id[element_id] = element
+
+          creation_infos = [e for e in graph if e.get("type") == "CreationInfo"]
+          if len(creation_infos) != 1:
+              print(
+                  f"ERROR: Expected exactly 1 CreationInfo element, found "
+                  f"{len(creation_infos)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          creation_info = creation_infos[0]
+
+          created_by_ids = creation_info.get("createdBy", [])
+          created_by = [elements_by_id[i] for i in created_by_ids]
+          if len(created_by) != 2:
+              print(
+                  f"ERROR: Expected 2 createdBy agents, found {len(created_by)}: "
+                  f"{created_by}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          persons = [a for a in created_by if a.get("type") == "Person"]
+          orgs = [a for a in created_by if a.get("type") == "Organization"]
+          if len(persons) != 1 or persons[0].get("name") != "Pitloom CI":
+              print(
+                  f"ERROR: Expected 1 Person named 'Pitloom CI' in createdBy, "
+                  f"found: {persons}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          if len(orgs) != 1 or orgs[0].get("name") != "Sample Project Org":
+              print(
+                  f"ERROR: Expected 1 Organization named 'Sample Project Org' in "
+                  f"createdBy, found: {orgs}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          created_using_ids = creation_info.get("createdUsing", [])
+          created_using = [elements_by_id[i] for i in created_using_ids]
+          tool_names = sorted(t.get("name") for t in created_using)
+          if len(created_using) != 2 or tool_names != ["CI Wrapper", "Pitloom"]:
+              print(
+                  f"ERROR: Expected createdUsing tools ['CI Wrapper', 'Pitloom'], "
+                  f"found: {tool_names}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print(f"createdBy: {[a.get('name') for a in created_by]}")
+          print(f"createdUsing: {tool_names}")
           print("SBOM presence check passed.")
           EOF
 

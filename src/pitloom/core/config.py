@@ -105,7 +105,14 @@ def _check_moved_creation_keys(
 
 
 def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
-    """Read ``[[tool.pitloom.creator]]`` array-of-tables into ``Creator`` objects."""
+    """Read ``[[tool.pitloom.creator]]`` array-of-tables into ``Creator`` objects.
+
+    Raises:
+        ValueError: If an entry in a present ``[[tool.pitloom.creator]]``
+            array is missing a valid (non-empty string) ``name``. A silently
+            dropped entry could otherwise reduce ``creators`` to ``[]``,
+            which changes the effective default creator.
+    """
     raw = pitloom_data.get("creator", [])
     if not isinstance(raw, list):
         return []
@@ -115,7 +122,10 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
             continue
         name = entry.get("name")
         if not isinstance(name, str) or not name:
-            continue
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry is missing a valid 'name' "
+                f"(got {name!r})"
+            )
         creator_type = entry.get("type")
         email = entry.get("email")
         creators.append(
@@ -129,7 +139,17 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
 
 
 def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
-    """Read ``[[tool.pitloom.creation-tool]]`` array-of-tables into ``ToolInfo``."""
+    """Read ``[[tool.pitloom.creation-tool]]`` array-of-tables into ``ToolInfo``.
+
+    Raises:
+        ValueError: If an entry in a present ``[[tool.pitloom.creation-tool]]``
+            array is missing a valid (non-empty string) ``name``. Without this
+            check, a typo/blank ``name`` would silently be dropped, which for
+            an array of all-invalid entries would produce ``[]`` -- and an
+            empty list means "suppress createdUsing entirely" downstream,
+            unintentionally dropping the default "Pitloom" tool instead of
+            falling back to default behaviour.
+    """
     raw = pitloom_data.get("creation-tool", pitloom_data.get("creation_tool"))
     if raw is None:
         return None
@@ -140,8 +160,12 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
         if not isinstance(entry, dict):
             continue
         name = entry.get("name")
-        if isinstance(name, str) and name:
-            tools.append(ToolInfo(name=name))
+        if not isinstance(name, str) or not name:
+            raise ValueError(
+                "[[tool.pitloom.creation-tool]] entry is missing a valid "
+                f"'name' (got {name!r})"
+            )
+        tools.append(ToolInfo(name=name))
     return tools
 
 
