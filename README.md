@@ -147,13 +147,6 @@ Pretty-print the output:
 
 ```bash
 loom -m model.gguf --pretty
-loom -m Qwen/Qwen3-235B-A22B --pretty
-```
-
-Set creator metadata:
-
-```bash
-loom -m model.safetensors --creator-name "Alice" --creator-email "alice@example.com"
 ```
 
 Show help:
@@ -161,6 +154,103 @@ Show help:
 ```bash
 loom -h
 ```
+
+#### Creation metadata options
+
+These apply to project, AI model, and Hugging Face SBOM generation alike.
+`--creator-name` names *who* initiated the generation and `--creator-type`
+(`person` (default), `organization`, `software-agent`, or `agent`) selects
+how they are modelled; `--creator-email` attaches an e-mail. `--creation-tool`
+records *what* produced it (defaults to `"Pitloom"`); `--creation-comment`
+and `--creation-datetime` set free-text provenance and an ISO 8601
+timestamp. See [Creation information](#creation-information) below for how
+these fields are recorded.
+
+```bash
+loom . --creator-name "Alice" --creator-email "alice@example.com"
+loom . --creator-name "Acme Corp" --creator-type organization
+loom . --creator-name "release-bot" --creator-type software-agent
+loom . --creation-datetime "2026-01-15T10:00:00Z"
+loom . --creation-comment "Generated in CI pipeline #123"
+loom . --creation-tool "MyCompany SBOM Wrapper"
+loom . --no-creation-tool        # omit the Tool element entirely
+```
+
+The same fields can be set in `pyproject.toml` under `[tool.pitloom.creation]`
+(CLI flags take precedence):
+
+```toml
+[tool.pitloom.creation]
+creator-name = "Alice"
+creator-email = "alice@example.com"
+creator-type = "person"          # or "organization", "software-agent", "agent"
+creation-datetime = "2026-01-15T10:00:00Z"
+creation-comment = "Generated in CI pipeline #123"
+creation-tool = "MyCompany SBOM Wrapper"
+```
+
+#### Creation information
+
+Every element Pitloom emits carries a record of *who* created it, *what*
+tool produced it, *when*, and (optionally) *how* it was invoked -- Pitloom's
+own creation-metadata model (`CreationMetadata`, see
+[`pitloom.core.creation`](src/pitloom/core/creation.py)). Don't assume a
+whole SBOM has exactly one such record: elements created together in the
+same generation event share one, but a graph is free to contain several,
+each covering whichever elements actually came from that event -- see
+below.
+
+SPDX 3 is Pitloom's only output format today, and it happens to define
+almost exactly this shape as `CreationInfo`, so that's what this metadata
+becomes in practice: `createdBy` (who), `createdUsing` (what tool),
+`created` (when), `comment` (how). Should Pitloom add other output formats
+later, the same who/what/when/how model would map onto whatever equivalent
+concept that format defines -- this isn't an SPDX-specific design, just its
+current, and so far only, expression. The [SPDX 3
+spec](https://spdx.github.io/spdx-spec/v3.1-dev/model/Core/Classes/CreationInfo/)
+is the authoritative reference for the field-level detail below.
+
+A single Pitloom run -- one CLI invocation, one Hatchling build, one
+`pitloom.loom.run` -- produces one such record, shared by every element
+that run generated. When a composite SBOM merges pre-generated fragments
+(see [Hatchling build hook](#hatchling-build-hook) and [Python tracking
+decorator](#python-tracking-decorator) below) via `[tool.pitloom.fragments]`,
+each fragment keeps the record from whichever run actually produced it. The
+result contains as many of these records as generation events contributed
+to it -- correct provenance to keep, since each part genuinely was created
+separately, at a different time, possibly by a different creator.
+
+| Field (SPDX 3 name) | Meaning | What Pitloom puts there |
+| :--- | :--- | :--- |
+| `createdBy` (**≥1**) | *Who* created it | The **creator**: a person, organization, software agent, or generic agent when you name one (`--creator-type`); otherwise Pitloom itself, acting unattended (see below). |
+| `createdUsing` (0+) | *What* tool produced it | **Pitloom**, with a version summary. Suppress with `--no-creation-tool`. |
+| `created` (1) | *When* | `--creation-datetime` if set, else the current UTC time. |
+| `comment` (0-1) | *How* it was invoked | A short static note per channel (`Generated via Pitloom CLI`, `... Hatchling build hook`, `... loom SDK`), or your `--creation-comment`. |
+
+Pitloom's design distinguishes *who acted* from *what tool was used* --
+naming a creator never means naming Pitloom, and Pitloom itself is always
+recorded as the tool, never as the creator. In SPDX 3 terms this is the
+`Agent`/`Tool` split: an `Agent` (`Person` / `Organization` / `SoftwareAgent`
+/ the generic `Agent`) is who acts; a `Tool` is the instrument used. Pitloom
+is the instrument, so it belongs in `createdUsing` as a `Tool` -- **not** in
+`createdBy`.
+
+- **You name a creator** (`--creator-name`, or `[tool.pitloom.creation]`):
+  it becomes a person (default), organization, software agent, or generic
+  agent as the creator (via `--creator-type`), and the main package's
+  supplier. The software-agent/agent types are for naming an automated
+  creator that isn't Pitloom itself -- e.g. a CI bot that invoked Pitloom on
+  someone's behalf.
+- **You name no creator** (zero-config): rather than invent a fake person,
+  Pitloom records itself as the creator too, but as a software agent, not a
+  person or organization -- honestly "an unattended Pitloom run made this" --
+  and omits a supplier for the main package. Pitloom is still recorded as
+  the tool regardless, so the same Pitloom shows up twice in this case: once
+  as the (software agent) creator, once as the tool.
+
+This applies uniformly to the CLI, the Hatchling build hook, and
+`pitloom.loom` fragments -- all three accept the same creator/tool/timestamp
+overrides and fall back to the same `SoftwareAgent` default.
 
 ### Python API
 
@@ -218,22 +308,33 @@ requires = ["hatchling>=1.28.0", "pitloom>=0.9.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
-# All fields are optional; defaults shown.
-enabled = true
-sbom-basename = "sbom"    # -> "sbom.spdx3.json"; e.g. "mypkg-1.0" -> "mypkg-1.0.spdx3.json"
-creator-name = "Pitloom"
-creator-email = ""
-fragments = []            # extra SPDX fragment paths, merged with [tool.pitloom] fragments
+enabled = true    # set to false to skip SBOM generation; this is the only
+                  # setting that lives here
 ```
 
 That's all -- running `hatch build` or `python -m build` now embeds the SBOM
 in every wheel, no extra commands needed.
+
+Basename, fragments, and creator/tool metadata are configured once, under
+`[tool.pitloom]` / `[tool.pitloom.creation]` -- the same settings the CLI
+uses (see [Creation metadata options](#creation-metadata-options) above):
+
+```toml
+[tool.pitloom]
+sbom-basename = "sbom"   # -> "sbom.spdx3.json"; e.g. "mypkg-1.0" -> "mypkg-1.0.spdx3.json"
+```
+
 The hook always emits compact, canonical JSON regardless of `[tool.pitloom]`'s
 `pretty` setting.
 
 For AI-powered software, track model/dataset provenance during training with
 `pitloom.loom` (below), then list the resulting fragment file paths under
-`fragments` above to merge them into the wheel's SBOM.
+`[tool.pitloom.fragments]` to merge them into the wheel's SBOM:
+
+```toml
+[tool.pitloom.fragments]
+files = ["fragments/model.json"]
+```
 
 ```text
 mypackage-1.0-py3-none-any.whl
@@ -261,6 +362,23 @@ def train_model():
 with loom.run(output_file="fragments/sentiment_model.json"):
     loom.set_model("sentiment-clf")
     loom.add_dataset("imdb-reviews", dataset_type="text")
+```
+
+`loom.run` exposes the same [creation information](#creation-information)
+knobs as the CLI and build hook -- name a creator, override the tool,
+timestamp, or comment. With none given, the fragment records the
+unattended-run default (Pitloom itself as creator and as tool):
+
+```python
+with loom.run(
+    "fragments/train.spdx3.json",
+    creator_name="Acme Corp",
+    creator_type="organization",     # or "person" (default), "software-agent", "agent"
+    creator_email="ml@acme.example",
+    creation_datetime="2026-01-15T10:00:00Z",  # default: now
+    # creation_tool=None,            # omit the Tool element entirely
+):
+    loom.set_model("sentiment-clf")
 ```
 
 ### Use Pitloom as a GitHub Action

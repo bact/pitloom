@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-07-06
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,7 +37,8 @@ Final) reserves `.dist-info/sboms/` and does not mandate a filename;
 Pitloom's own choice matches its `sbom-basename = "sbom"` config.
 
 **Fields.** `CreationInfo.specVersion` = `"3.0.1"`; a `createdBy`
-Person + `createdUsing` Tool; the main `pitloom` `software_Package`
+SoftwareAgent ("Pitloom", the default when no creator is named) +
+`createdUsing` Tool; the main `pitloom` `software_Package`
 carries `name`/`version` sourced from Hatchling (confirmed via its own
 provenance `comment`, e.g. `"Source: Hatchling build backend | Field:
 project.name"` -- not a stale re-parse), a `pkg:pypi/pitloom@0.9.0`

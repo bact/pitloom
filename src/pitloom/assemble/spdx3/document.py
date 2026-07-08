@@ -6,12 +6,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
+from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
 from pitloom.core.ai_metadata import AiModelMetadata
@@ -26,71 +27,11 @@ from pitloom.core.models import (
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 
-def _parse_iso_datetime(value: str) -> datetime:
-    """Parse a full ISO 8601 datetime string.
-
-    Accepts offset forms (including trailing ``Z``) and optional fractional
-    seconds. Naive values are interpreted as UTC.
-    """
-    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError as exc:
-        raise ValueError(f"Invalid ISO 8601 datetime: {value}") from exc
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed
-
-
-def _to_spdx3_datetime(value: datetime) -> datetime:
-    """Convert datetime to SPDX 3 DateTime constraints (UTC, whole seconds)."""
-    return value.astimezone(timezone.utc).replace(microsecond=0)
-
-
-def _spdx3_utc_now() -> datetime:
-    """Return current UTC time truncated to whole seconds for SPDX DateTime."""
-    return _to_spdx3_datetime(datetime.now(timezone.utc))
-
-
 def _build_creation_bundle(
-    doc: DocumentModel, doc_uuid: str, created_at: datetime
-) -> tuple[spdx3.CreationInfo, spdx3.Person, spdx3.Tool | None]:
+    doc: DocumentModel, doc_uuid: str
+) -> tuple[spdx3.CreationInfo, spdx3.Agent, spdx3.Tool | None]:
     """Create shared SPDX creation objects for the document."""
-    metadata = doc.project
-    creation = doc.creation
-
-    spdx_ci = spdx3.CreationInfo(
-        specVersion="3.0.1",
-        created=created_at,
-    )
-    if creation.creation_comment:
-        spdx_ci.comment = creation.creation_comment
-
-    creator = spdx3.Person(
-        spdxId=generate_spdx_id("Person", doc_name=metadata.name, doc_uuid=doc_uuid),
-        name=creation.creator_name,
-        creationInfo=spdx_ci,
-    )
-    if creation.creator_email:
-        creator.externalIdentifier = [
-            spdx3.ExternalIdentifier(
-                externalIdentifierType=spdx3.ExternalIdentifierType.email,
-                identifier=creation.creator_email,
-            )
-        ]
-
-    tool: spdx3.Tool | None = None
-    if creation.creation_tool:
-        tool = spdx3.Tool(
-            spdxId=generate_spdx_id("Tool", doc_name=metadata.name, doc_uuid=doc_uuid),
-            name=creation.creation_tool,
-            creationInfo=spdx_ci,
-        )
-
-    spdx_ci.createdBy = [require_spdx_id(creator)]
-    if tool is not None:
-        spdx_ci.createdUsing = [require_spdx_id(tool)]
-    return spdx_ci, creator, tool
+    return build_creation_info(doc.creation, doc.project.name, doc_uuid)
 
 
 def _build_provenance_comment(doc: DocumentModel) -> str | None:
@@ -107,7 +48,7 @@ def _build_provenance_comment(doc: DocumentModel) -> str | None:
 def _build_main_package(
     doc: DocumentModel,
     spdx_ci: spdx3.CreationInfo,
-    creator: spdx3.Person,
+    creator: spdx3.Agent,
     doc_uuid: str,
 ) -> spdx3.software_Package:
     """Create the SPDX package representing the Python project."""
@@ -120,7 +61,11 @@ def _build_main_package(
         creationInfo=spdx_ci,
     )
     main_package.software_packageVersion = metadata.version or "unknown"
-    main_package.suppliedBy = creator.spdxId
+    # suppliedBy names who supplied the package, so only assert it for a real
+    # named creator -- not for the default SoftwareAgent "Pitloom", which is
+    # the SBOM tool, not the package's supplier.
+    if creation.creator_name:
+        main_package.suppliedBy = creator.spdxId
     if metadata.description:
         main_package.description = metadata.description
     if download_location:
@@ -248,12 +193,6 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         containing all SPDX 3 elements for the project and its dependencies.
     """
     metadata = doc.project
-    ci = doc.creation
-    created_at = (
-        _to_spdx3_datetime(_parse_iso_datetime(ci.creation_datetime))
-        if ci.creation_datetime
-        else _spdx3_utc_now()
-    )
 
     exporter = Spdx3JsonExporter()
     doc_uuid = compute_doc_uuid(
@@ -265,10 +204,10 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     _clear_doc_counters(doc_uuid)
 
     # --- Creation info, creator agent, and creation tool ---
-    spdx_ci, creator, tool = _build_creation_bundle(doc, doc_uuid, created_at)
+    spdx_ci, creator, tool = _build_creation_bundle(doc, doc_uuid)
 
     exporter.add_creation_info(spdx_ci)
-    exporter.add_person(creator)
+    exporter.add_agent(creator)
     if tool is not None:
         exporter.object_set.add(tool)
 
@@ -375,12 +314,6 @@ def build_model(
     """
     doc_name: str = model.name or model.format_info.file_name or "model"
 
-    created_at = (
-        _to_spdx3_datetime(_parse_iso_datetime(creation.creation_datetime))
-        if creation.creation_datetime
-        else _spdx3_utc_now()
-    )
-
     exporter = Spdx3JsonExporter()
     doc_uuid = compute_doc_uuid(
         name=doc_name,
@@ -390,40 +323,10 @@ def build_model(
     )
     _clear_doc_counters(doc_uuid)
 
-    spdx_ci = spdx3.CreationInfo(
-        specVersion="3.0.1",
-        created=created_at,
-    )
-    if creation.creation_comment:
-        spdx_ci.comment = creation.creation_comment
-
-    creator = spdx3.Person(
-        spdxId=generate_spdx_id("Person", doc_name=doc_name, doc_uuid=doc_uuid),
-        name=creation.creator_name,
-        creationInfo=spdx_ci,
-    )
-    if creation.creator_email:
-        creator.externalIdentifier = [
-            spdx3.ExternalIdentifier(
-                externalIdentifierType=spdx3.ExternalIdentifierType.email,
-                identifier=creation.creator_email,
-            )
-        ]
-
-    tool: spdx3.Tool | None = None
-    if creation.creation_tool:
-        tool = spdx3.Tool(
-            spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
-            name=creation.creation_tool,
-            creationInfo=spdx_ci,
-        )
-
-    spdx_ci.createdBy = [require_spdx_id(creator)]
-    if tool is not None:
-        spdx_ci.createdUsing = [require_spdx_id(tool)]
+    spdx_ci, creator, tool = build_creation_info(creation, doc_name, doc_uuid)
 
     exporter.add_creation_info(spdx_ci)
-    exporter.add_person(creator)
+    exporter.add_agent(creator)
     if tool is not None:
         exporter.object_set.add(tool)
 

@@ -18,7 +18,7 @@ from hatchling.plugin import hookimpl
 
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.config import read_pitloom_config
+from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
@@ -30,38 +30,45 @@ log = logging.getLogger(__name__)
 _SPDX3_JSON_EXT = ".spdx3.json"
 
 
-def _get_hook_settings(config: dict[str, Any]) -> tuple[str, str, str, list[str]]:
-    """Read validated hook settings with defaults applied."""
-    return (
-        config.get("sbom-basename", "") or "sbom",
-        config.get("creator-name", "") or "Pitloom",
-        config.get("creator-email", ""),
-        config.get("fragments", []),
-    )
+def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
+    """Build creation metadata from ``[tool.pitloom.creation]``.
+
+    Unset fields fall through to :class:`CreationMetadata`'s own defaults
+    (``creator_name``/``creation_tool`` -> ``"Pitloom"``), matching the CLI.
+    """
+    kwargs: dict[str, Any] = {
+        "creation_comment": pitloom_config.creation_comment
+        or "Generated via Pitloom Hatchling build hook (PEP 770)",
+        "build_datetime": datetime.now(timezone.utc).isoformat(),
+    }
+    if pitloom_config.creation_creator_name:
+        kwargs["creator_name"] = pitloom_config.creation_creator_name
+    if pitloom_config.creation_creator_email:
+        kwargs["creator_email"] = pitloom_config.creation_creator_email
+    if pitloom_config.creation_creator_type:
+        kwargs["creator_type"] = pitloom_config.creation_creator_type
+    if pitloom_config.creation_creation_tool:
+        kwargs["creation_tool"] = pitloom_config.creation_creation_tool
+    if pitloom_config.creation_creation_datetime:
+        kwargs["creation_datetime"] = pitloom_config.creation_creation_datetime
+    return CreationMetadata(**kwargs)
 
 
 def _build_document_model(
     project_dir: Path,
     hatch_metadata: Any,
-    creator_name: str,
-    creator_email: str,
-) -> tuple[DocumentModel, str | None, list[str]]:
+    pitloom_config: PitloomConfig,
+) -> tuple[DocumentModel, str | None]:
     """Load project metadata and assemble the format-neutral document.
 
     Project metadata (name, version, dependencies, license, urls, authors)
     comes from Hatchling's own resolved ``hatch_metadata`` -- not from
     re-parsing ``pyproject.toml`` -- so dynamic fields (e.g. a ``hatch-vcs``
     version, or dependencies added by ``hatch-requirements-txt``) are
-    correctly reflected in the SBOM. ``[tool.pitloom]`` settings are read
-    separately via :func:`~pitloom.core.config.read_pitloom_config`.
+    correctly reflected in the SBOM.
     """
     metadata = metadata_from_hatchling(hatch_metadata, project_dir)
-    pitloom_config = read_pitloom_config(project_dir / "pyproject.toml")
-    creation_meta = CreationMetadata(
-        creator_name=creator_name,
-        creator_email=creator_email,
-        build_datetime=datetime.now(timezone.utc).isoformat(),
-    )
+    creation_meta = _build_creation_metadata(pitloom_config)
     merkle_root, project_files = get_wheel_files(project_dir)
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
@@ -70,7 +77,7 @@ def _build_document_model(
         creation=creation_meta,
         ai_models=ai_models,
     )
-    return document, merkle_root, pitloom_config.fragments
+    return document, merkle_root
 
 
 def _stage_sbom_file(
@@ -96,16 +103,18 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
     conforming to PEP 770.  Hatchling 1.28.0+ handles the injection natively
     via ``build_data["sbom_files"]``.
 
-    Configuration (all fields optional):
+    ``[tool.hatch.build.hooks.pitloom]`` controls only whether the hook runs:
 
     .. code-block:: toml
 
         [tool.hatch.build.hooks.pitloom]
-        enabled = true             # set to false to skip SBOM generation
-        sbom-basename = ""         # name part only, no extension; default "sbom"
-        creator-name = ""          # defaults to "Pitloom"
-        creator-email = ""
-        fragments = []             # extra fragment paths relative to project root
+        enabled = true   # set to false to skip SBOM generation
+
+    Basename, fragments, and creator/tool metadata are read from
+    ``[tool.pitloom]`` / ``[tool.pitloom.creation]`` -- the same settings the
+    CLI uses -- so there is one place to configure them for both.  The hook
+    always emits compact, RFC 8785 (JCS) canonical JSON, ignoring
+    ``[tool.pitloom] pretty``.
     """
 
     PLUGIN_NAME = "pitloom"
@@ -157,24 +166,19 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             )
             return
 
-        sbom_basename, creator_name, creator_email, hook_fragments = _get_hook_settings(
-            config
+        project_dir = Path(self.root)
+        pitloom_config: PitloomConfig = read_pitloom_config(
+            project_dir / "pyproject.toml"
         )
+        sbom_basename = pitloom_config.sbom_basename or "sbom"
         sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
 
-        project_dir = Path(self.root)
-        document, merkle_root, pitloom_fragments = _build_document_model(
-            project_dir,
-            self.metadata,
-            creator_name,
-            creator_email,
+        document, merkle_root = _build_document_model(
+            project_dir, self.metadata, pitloom_config
         )
 
         exporter = assemble_spdx3(document, merkle_root=merkle_root)
-
-        # Merge fragments from [tool.pitloom] and [tool.hatch.build.hooks.pitloom]
-        all_fragments = pitloom_fragments + hook_fragments
-        merge_fragments(project_dir, all_fragments, exporter)
+        merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
         # Wheels (and sdists) must always contain a compact, RFC 8785 (JCS)
         # canonical SBOM regardless of the project's [tool.pitloom] pretty
@@ -195,7 +199,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             "Pitloom: staged SBOM %s (%d fragment(s)); "
             "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
             sbom_filename,
-            len(all_fragments),
+            len(pitloom_config.fragments),
         )
 
     def finalize(
@@ -211,11 +215,26 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             self._sbom_staging_path = None
 
 
+#: Keys that moved to [tool.pitloom] / [tool.pitloom.creation] -- one source
+#: of truth shared with the CLI -- mapped to their new location.
+_MOVED_KEYS = {
+    "sbom-basename": "[tool.pitloom] sbom-basename",
+    "fragments": "[tool.pitloom.fragments] files",
+    "creator-name": "[tool.pitloom.creation] creator-name",
+    "creator-email": "[tool.pitloom.creation] creator-email",
+    "creator-type": "[tool.pitloom.creation] creator-type",
+}
+
+
 def _validate_config(config: dict[str, Any]) -> None:
     """Validate ``[tool.hatch.build.hooks.pitloom]`` configuration values.
 
+    This section controls only whether the hook runs (``enabled``); all
+    other settings live in ``[tool.pitloom]`` / ``[tool.pitloom.creation]``.
+
     Raises:
-        ValueError: If any value has an unexpected type or is otherwise invalid.
+        ValueError: If ``enabled`` has an unexpected type, a moved key is
+            still present here, or an unknown key is present.
     """
     section = "[tool.hatch.build.hooks.pitloom]"
 
@@ -226,25 +245,20 @@ def _validate_config(config: dict[str, Any]) -> None:
             f"got {type(enabled).__name__!r}."
         )
 
-    sbom_basename = config.get("sbom-basename", "")
-    if not isinstance(sbom_basename, str):
-        raise ValueError(
-            f"{section} 'sbom-basename' must be a string, "
-            f"got {type(sbom_basename).__name__!r}."
-        )
-
-    for key in ("creator-name", "creator-email"):
-        value = config.get(key, "")
-        if not isinstance(value, str):
+    for key, new_location in _MOVED_KEYS.items():
+        if key in config:
             raise ValueError(
-                f"{section} {key!r} must be a string, got {type(value).__name__!r}."
+                f"{section} {key!r} is no longer supported here; "
+                f"set it under {new_location} instead."
             )
 
-    fragments = config.get("fragments", [])
-    if not isinstance(fragments, list) or not all(
-        isinstance(f, str) for f in fragments
-    ):
-        raise ValueError(f"{section} 'fragments' must be a list of strings.")
+    unknown = set(config) - {"enabled", *_MOVED_KEYS}
+    if unknown:
+        raise ValueError(
+            f"{section} unknown key(s): {sorted(unknown)!r}. "
+            "Only 'enabled' is supported; all other SBOM settings live in "
+            "[tool.pitloom] / [tool.pitloom.creation]."
+        )
 
 
 @hookimpl

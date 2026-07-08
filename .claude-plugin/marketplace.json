@@ -4,7 +4,7 @@
     "name": "Arthit Suriyawongkul",
     "email": "suriyawa@tcd.ie"
   },
-  "description": "Pitloom SBOM/AIBOM generation for Claude Code.",
+  "description": "Generate and enrich SBOMs/AIBOMs using Pitloom, for Claude Code.",
   "plugins": [
     {
       "name": "pitloom",

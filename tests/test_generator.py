@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.__about__ import __version__
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -235,6 +236,214 @@ version = "0.1.0"
 
         tool_elements = [e for e in graph if e["type"] == "Tool"]
         assert not tool_elements
+
+
+def test_generate_sbom_tool_summary_default_and_no_comment() -> None:
+    """Default creation_tool gets a Pitloom-versioned summary; no comment by default."""
+    pyproject_content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "summary-app"
+version = "0.1.0"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        sbom_data = json.loads(sbom_json)
+        graph = sbom_data["@graph"]
+
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+        assert len(creation_infos) == 1
+        assert "comment" not in creation_infos[0]
+
+        tool_elements = [e for e in graph if e["type"] == "Tool"]
+        assert len(tool_elements) == 1
+        assert tool_elements[0]["name"] == "Pitloom"
+        assert tool_elements[0]["summary"] == f"Pitloom {__version__}"
+
+
+def test_generate_sbom_tool_summary_omitted_for_custom_tool_name() -> None:
+    """A user-supplied creation_tool name gets no Pitloom-version summary."""
+    pyproject_content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "custom-tool-app"
+version = "0.1.0"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        sbom_json = generate_sbom(
+            tmppath,
+            creation_info=CreationMetadata(creation_tool="MyWrapper"),
+        )
+        sbom_data = json.loads(sbom_json)
+        graph = sbom_data["@graph"]
+
+        tool_elements = [e for e in graph if e["type"] == "Tool"]
+        assert len(tool_elements) == 1
+        assert tool_elements[0]["name"] == "MyWrapper"
+        assert "summary" not in tool_elements[0]
+
+
+def _creation_agents(graph: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the elements referenced by the single CreationInfo.createdBy."""
+    creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+    assert len(creation_infos) == 1
+    by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
+    return [by_id[ref] for ref in creation_infos[0]["createdBy"]]
+
+
+def test_generate_sbom_default_creator_is_software_agent() -> None:
+    """With no named creator, createdBy is the SoftwareAgent "Pitloom", not a
+    Person, and the package asserts no suppliedBy."""
+    pyproject_content = """
+[project]
+name = "anon-app"
+version = "0.1.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        graph = json.loads(generate_sbom(tmppath))["@graph"]
+
+        agents = _creation_agents(graph)
+        assert [a["type"] for a in agents] == ["SoftwareAgent"]
+        assert agents[0]["name"] == "Pitloom"
+        assert not [e for e in graph if e["type"] == "Person"]
+
+        packages = [e for e in graph if e["type"] == "software_Package"]
+        assert packages and all("suppliedBy" not in p for p in packages)
+
+
+def test_generate_sbom_named_creator_is_person_with_supplied_by() -> None:
+    """A named creator becomes a Person in createdBy and the main package's
+    suppliedBy."""
+    pyproject_content = """
+[project]
+name = "named-app"
+version = "0.1.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        graph = json.loads(
+            generate_sbom(
+                tmppath,
+                creation_info=CreationMetadata(
+                    creator_name="Alice", creator_email="alice@example.com"
+                ),
+            )
+        )["@graph"]
+
+        agents = _creation_agents(graph)
+        assert [a["type"] for a in agents] == ["Person"]
+        assert agents[0]["name"] == "Alice"
+
+        main_pkg = next(
+            e
+            for e in graph
+            if e["type"] == "software_Package" and e["name"] == "named-app"
+        )
+        assert main_pkg["suppliedBy"] == agents[0]["spdxId"]
+
+
+def test_generate_sbom_organization_creator() -> None:
+    """creator_type='organization' makes the named creator an Organization."""
+    pyproject_content = """
+[project]
+name = "org-app"
+version = "0.1.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        graph = json.loads(
+            generate_sbom(
+                tmppath,
+                creation_info=CreationMetadata(
+                    creator_name="Acme Corp", creator_type="organization"
+                ),
+            )
+        )["@graph"]
+
+        agents = _creation_agents(graph)
+        assert [a["type"] for a in agents] == ["Organization"]
+        assert agents[0]["name"] == "Acme Corp"
+
+
+@pytest.mark.parametrize(
+    ("creator_type", "expected_element_type"),
+    [
+        ("person", "Person"),
+        ("organization", "Organization"),
+        ("software-agent", "SoftwareAgent"),
+        ("agent", "Agent"),
+    ],
+)
+def test_generate_sbom_all_valid_creator_types(
+    creator_type: str, expected_element_type: str
+) -> None:
+    """Every SPDX 3 Agent subclass is a valid createdBy type: Person,
+    Organization, SoftwareAgent, and the generic Agent."""
+    pyproject_content = """
+[project]
+name = "creator-type-app"
+version = "0.1.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        graph = json.loads(
+            generate_sbom(
+                tmppath,
+                creation_info=CreationMetadata(
+                    creator_name="Bot", creator_type=creator_type
+                ),
+            )
+        )["@graph"]
+
+        agents = _creation_agents(graph)
+        assert [a["type"] for a in agents] == [expected_element_type]
+        assert agents[0]["name"] == "Bot"
+
+
+def test_generate_sbom_invalid_creator_type_raises() -> None:
+    """An unrecognised creator_type raises ValueError naming the valid set,
+    rather than silently falling back to Person."""
+    pyproject_content = """
+[project]
+name = "bad-creator-type-app"
+version = "0.1.0"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="Invalid creator_type"):
+            generate_sbom(
+                tmppath,
+                creation_info=CreationMetadata(
+                    creator_name="Bot", creator_type="robot"
+                ),
+            )
 
 
 def test_generate_sbom_creation_datetime_normalized_on_export() -> None:

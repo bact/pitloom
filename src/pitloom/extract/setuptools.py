@@ -702,6 +702,7 @@ def _read_pitloom_config_from_cfg(
         fragments=fragments,
         creation_creator_name=_pick_str("creator-name", "creator_name"),
         creation_creator_email=_pick_str("creator-email", "creator_email"),
+        creation_creator_type=_pick_str("creator-type", "creator_type"),
         creation_creation_datetime=_pick_str(
             "creation-datetime", "creation_datetime", "datetime"
         ),

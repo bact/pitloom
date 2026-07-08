@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-05-25
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,11 +37,12 @@ SBOM written to: sbom.spdx3.json
 ### Generated SBOM structure
 
 ```text
-Total elements: 13
+Total elements: 14
 
 Element types:
   CreationInfo: 1
-  Person: 1  
+  SoftwareAgent: 1  (default createdBy when no creator is named)
+  Tool: 1           (Pitloom, in createdUsing)
   Relationship: 4
   SpdxDocument: 1
   software_Package: 5

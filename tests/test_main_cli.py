@@ -234,7 +234,7 @@ version = "0.1.0"
     assert str(target_pyproject) in captured.out
     assert "Config file" in captured.out
     assert "creation_datetime     : None" in captured.out
-    assert "creation_comment      : None" in captured.out
+    assert "creation_comment      : 'Generated via Pitloom CLI'" in captured.out
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +379,103 @@ def test_model_mode_nonexistent_file_returns_error(
         sys, "argv", ["loom", "-m", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
+
+
+def test_project_mode_default_creation_comment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A CLI-generated SBOM must carry the CLI's default creation comment."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "cli-app.spdx3.json"
+    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir), "-o", str(out)])
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    creation_infos = [n for n in doc["@graph"] if n["type"] == "CreationInfo"]
+    assert len(creation_infos) == 1
+    assert creation_infos[0]["comment"] == "Generated via Pitloom CLI"
+
+
+def test_project_mode_creator_type_organization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """--creator-name with --creator-type organization emits an Organization."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "org-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "org-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "Acme Corp",
+            "--creator-type",
+            "organization",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
+    assert orgs == ["Acme Corp"]
+    assert not [e for e in graph if e.get("type") == "Person"]
+
+
+@pytest.mark.parametrize(
+    ("creator_type", "expected_element_type"),
+    [
+        ("software-agent", "SoftwareAgent"),
+        ("agent", "Agent"),
+    ],
+)
+def test_project_mode_creator_type_software_agent_and_agent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    creator_type: str,
+    expected_element_type: str,
+) -> None:
+    """--creator-type also accepts software-agent and the generic agent."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "bot-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "bot-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "CI Bot",
+            "--creator-type",
+            creator_type,
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    matches = [e.get("name") for e in graph if e.get("type") == expected_element_type]
+    assert "CI Bot" in matches
 
 
 def test_no_args_returns_error(

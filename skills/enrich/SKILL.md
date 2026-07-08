@@ -8,8 +8,8 @@ description: >-
   that no file format encodes explicitly. Trigger phrasings include
   "enrich this SBOM", "add more detail to the SBOM", "infer the dataset
   used to train this model", "fill in missing SBOM information from the
-  README/model card". Requires a Pitloom SBOM to already exist -- generate
-  one first with the `sbom` skill if it does not.
+  README/model card". Requires a Pitloom-generated SBOM to already exist --
+  generate one first with the `sbom` skill if it does not.
 license: Apache-2.0
 ---
 
@@ -19,7 +19,7 @@ license: Apache-2.0
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Enrich a Pitloom SBOM
+# Enrich a Pitloom-generated SBOM
 
 Static extraction cannot read prose. An agent can go further than Pitloom
 alone: read the project's README or the model's model card, infer a

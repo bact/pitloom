@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-05-25
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -553,7 +553,7 @@ with mlflow.start_run(run_name="bert-finetune-v3") as mlflow_run:
 ```
 
 The resulting fragment can then be listed under
-`[tool.hatch.build.hooks.pitloom] fragments` so it is merged into the wheel SBOM
+`[tool.pitloom.fragments] files` so it is merged into the wheel SBOM
 at build time.
 
 ## New files and changes

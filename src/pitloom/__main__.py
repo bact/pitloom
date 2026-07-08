@@ -2,7 +2,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom SBOM generator."""
+"""Command-line interface for Pitloom's SBOM generator."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from pitloom.assemble import (
     generate_huggingface_sbom,
     generate_sbom,
 )
+from pitloom.assemble.spdx3.creation_info import CREATOR_TYPES
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
@@ -45,15 +46,21 @@ class _ResolvedCreationMetadata:
 
     creator_name: _ResolvedValue
     creator_email: _ResolvedValue
+    creator_type: _ResolvedValue
     creation_datetime: _ResolvedValue
     creation_tool: _ResolvedValue
     creation_comment: _ResolvedValue
 
     def to_creation_metadata(self) -> CreationMetadata:
-        """Convert resolved values to :class:`CreationMetadata`."""
+        """Convert resolved values to :class:`CreationMetadata`.
+
+        ``creator_name`` may be ``None`` (no named creator) -- the assembler
+        then emits the default ``SoftwareAgent`` ``"Pitloom"``.
+        """
         return CreationMetadata(
-            creator_name=self.creator_name.value or "Pitloom",
+            creator_name=self.creator_name.value,
             creator_email=self.creator_email.value,
+            creator_type=self.creator_type.value or "person",
             creation_datetime=self.creation_datetime.value,
             creation_tool=self.creation_tool.value,
             creation_comment=self.creation_comment.value,
@@ -123,13 +130,28 @@ def _build_parser() -> argparse.ArgumentParser:
         "--creator-name",
         dest="creation_creator_name",
         type=str,
-        help="Name of the SBOM creator (default: Pitloom)",
+        help=(
+            "Name of the SBOM creator (a Person or Organization in "
+            "createdBy). When omitted, the SoftwareAgent 'Pitloom' is "
+            "recorded as the automated creator."
+        ),
     )
     parser.add_argument(
         "--creator-email",
         dest="creation_creator_email",
         type=str,
         help="Email of the SBOM creator",
+    )
+    parser.add_argument(
+        "--creator-type",
+        dest="creation_creator_type",
+        type=str,
+        choices=sorted(CREATOR_TYPES),
+        help=(
+            "Agent subclass for --creator-name: person (default), "
+            "organization, software-agent, or agent. "
+            "Ignored when no creator name is given."
+        ),
     )
     parser.add_argument(
         "--creation-datetime",
@@ -247,6 +269,11 @@ def _resolve_creation_metadata(
             pitloom_config.creation_creator_email,
             default_creation.creator_email,
         ),
+        creator_type=_resolve_creation_field(
+            args.creation_creator_type,
+            pitloom_config.creation_creator_type,
+            default_creation.creator_type,
+        ),
         creation_datetime=_resolve_creation_field(
             args.creation_datetime,
             pitloom_config.creation_creation_datetime,
@@ -260,7 +287,7 @@ def _resolve_creation_metadata(
         creation_comment=_resolve_creation_field(
             args.creation_comment,
             pitloom_config.creation_comment,
-            default_creation.creation_comment,
+            "Generated via Pitloom CLI",
         ),
     )
 
@@ -398,6 +425,11 @@ def _build_creation_option_rows(
             "creator_email",
             _quote_optional(creation.creator_email.value),
             creation.creator_email.source,
+        ),
+        (
+            "creator_type",
+            _quote_optional(creation.creator_type.value),
+            creation.creator_type.source,
         ),
         (
             "creation_datetime",

@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-07-06
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -122,12 +122,29 @@ requires = ["hatchling>=1.28.0", "pitloom>=0.9.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
-# All fields are optional. Defaults are shown.
-enabled = true
+enabled = true    # set to false to skip SBOM generation; the only field
+                  # this section supports
+```
+
+`[tool.hatch.build.hooks.pitloom]` controls only whether the hook runs.
+Everything else -- basename, fragments, creator/tool metadata -- is
+configured once under `[tool.pitloom]` / `[tool.pitloom.creation]`, the same
+settings the CLI reads via `read_pitloom_config()`. `_validate_config()`
+rejects `sbom-basename`, `creator-name`, `creator-email`, `creator-type`, or
+`fragments` under the hook section (naming the correct location), and
+rejects any other unrecognised key.
+
+```toml
+[tool.pitloom]
 sbom-basename = ""          # Name part only, no extension; default "sbom"
-creator-name = ""           # Defaults to "Pitloom"
+
+[tool.pitloom.creation]
+creator-name = ""           # Defaults to no named creator (SoftwareAgent "Pitloom")
 creator-email = ""          # Optional
-fragments = []              # List of pre-generated fragment paths to merge
+creator-type = ""           # person (default), organization, software-agent, agent
+
+[tool.pitloom.fragments]
+files = []                  # List of pre-generated fragment paths to merge
 ```
 
 The full SBOM filename is derived by appending the format extension to the
@@ -137,8 +154,8 @@ Specifying fragments allows the hook to merge `pitloom.loom`-generated AI/ML
 fragments produced during training before the build:
 
 ```toml
-[tool.hatch.build.hooks.pitloom]
-fragments = [
+[tool.pitloom.fragments]
+files = [
     "fragments/train_run.spdx3.json",
     "fragments/eval_run.spdx3.json",
 ]
@@ -173,19 +190,22 @@ and `finalize`, plus the module-level `_build_document_model` helper). At a
 high level, `initialize()`:
 
 1. Validates `[tool.hatch.build.hooks.pitloom]` config (`_validate_config`);
-   invalid values raise `ValueError` before any file I/O.
+   invalid values, or any of the moved keys (`sbom-basename`,
+   `creator-name`, `creator-email`, `creator-type`, `fragments`), raise
+   `ValueError` before any file I/O.
 2. Returns early if `enabled = false`, or if `self.target_name != "wheel"`.
-3. Builds the format-neutral document via `_build_document_model`, which
-   calls `metadata_from_hatchling(self.metadata, project_dir)` for project
+3. Reads `read_pitloom_config(project_dir / "pyproject.toml")` for
+   `[tool.pitloom]` / `[tool.pitloom.creation]` settings (basename,
+   fragments, creator/tool metadata), then builds the format-neutral
+   document via `_build_document_model`, which calls
+   `metadata_from_hatchling(self.metadata, project_dir)` for project
    metadata (including the Poetry-fallback gap-fill and dependency/name
-   canonicalization described above) and
-   `read_pitloom_config(project_dir / "pyproject.toml")` for
-   `[tool.pitloom]` settings, then `get_wheel_files(project_dir)` for the
-   packaged file set (SHA-256 digests + Merkle root) and
+   canonicalization described above), then `get_wheel_files(project_dir)`
+   for the packaged file set (SHA-256 digests + Merkle root) and
    `scan_project_for_ai_models` for embedded AI/ML metadata.
 4. Assembles the SPDX 3 document via `assemble_spdx3` (the shared
    `pitloom.assemble.spdx3.document.build()` used by the CLI), then merges
-   any `[tool.pitloom]` / hook-level `fragments`.
+   `[tool.pitloom.fragments]`.
 5. Serializes with `exporter.to_json(pretty=False)` -- **always** compact,
    RFC 8785 (JCS) canonical, regardless of any `[tool.pitloom] pretty = true`
    setting or CLI `--pretty` flag. Canonicalization is required by the SPDX
@@ -213,12 +233,11 @@ standalone -- includes:
 
 ## Fragment merging and `[tool.pitloom]` configuration
 
-Fragment paths listed under `[tool.hatch.build.hooks.pitloom] fragments` are
-merged with any fragments already declared under `[tool.pitloom] fragments`.
-The hook concatenates both lists and passes them to `merge_fragments()`.
-
-This means the existing fragment-merging logic is reused unchanged; the hook
-only needs to forward the combined list.
+Fragment paths listed under `[tool.pitloom.fragments] files` are passed
+directly to `merge_fragments()` -- the same call the CLI makes, on the same
+list. There is nothing hook-specific to merge in; a project's fragment list
+is the same whether it's assembled by `loom` on the command line or by the
+build hook.
 
 ## `build_data["sbom_files"]` API
 
@@ -317,19 +336,25 @@ dependencies = [
 | Test | Description |
 | :--- | :--- |
 | `test_validate_config_defaults_pass` | Empty config (all defaults) must not raise. |
-| `test_validate_config_valid_values_pass` | Fully specified valid config must not raise. |
-| `test_validate_config_invalid_raises` | Parametrized (7 cases): invalid field type or value must raise `ValueError` with a clear message. |
+| `test_validate_config_valid_values_pass` | The only supported key, `enabled`, must not raise. |
+| `test_validate_config_invalid_raises` | Parametrized: an invalid `enabled` type must raise `ValueError` with a clear message. |
+| `test_validate_config_moved_key_raises` | Parametrized: `sbom-basename`/`fragments`/`creator-name`/`creator-email`/`creator-type` under the hook section must raise, naming the new `[tool.pitloom]` / `[tool.pitloom.creation]` location. |
+| `test_validate_config_unknown_key_raises` | An unrecognised key must raise rather than being silently ignored. |
 | `test_hook_initialize_stages_sbom` | Calls `initialize()` and asserts the staged SBOM path exists and is non-empty. |
 | `test_hook_sbom_is_valid_json` | Asserts the staged SBOM is valid JSON-LD with `@context` and `@graph`. |
-| `test_hook_creator_name_propagated` | Sets `creator-name` in config; asserts it appears in `@graph`. |
-| `test_hook_custom_basename_stored` | Sets `sbom-basename`; asserts `_sbom_filename` and staged path name match. |
+| `test_hook_creator_name_propagated` | Sets `[tool.pitloom.creation] creator-name` in `pyproject.toml`; asserts it appears in `@graph`. |
+| `test_hook_organization_creator_from_config` | Sets `creator-type = "organization"`; asserts an `Organization` (not `Person`) appears. |
+| `test_hook_software_agent_and_generic_agent_creator_from_config` | Parametrized: `creator-type = "software-agent"`/`"agent"` also produce the matching Agent subclass. |
+| `test_hook_default_creator_is_software_agent` | No named creator: the hook records the `SoftwareAgent` "Pitloom" as `createdBy`. |
+| `test_hook_creation_comment_and_tool_summary` | Asserts the hook stamps its own `CreationInfo.comment` and a Pitloom-versioned `Tool.summary`. |
+| `test_hook_custom_basename_stored` | Sets `[tool.pitloom] sbom-basename`; asserts `_sbom_filename` and staged path name match. |
 | `test_hook_disabled_skips_generation` | Sets `enabled = false`; asserts no staging path and no `sbom_files` entry. |
 | `test_hook_finalize_cleans_up` | Asserts temp directory and paths are cleared after `finalize()`. |
 | `test_hook_finalize_idempotent` | Calls `finalize()` twice; asserts no exception on the second call. |
 | `test_hook_sbom_files_populated` | Asserts `build_data["sbom_files"]` is populated with the staged path after `initialize()`. |
-| `test_hook_sbom_files_custom_basename` | Asserts `sbom-basename` config is reflected in the filename in `sbom_files`. |
+| `test_hook_sbom_files_custom_basename` | Asserts `[tool.pitloom] sbom-basename` is reflected in the filename in `sbom_files`. |
 | `test_hook_sbom_files_appended_to_existing` | Pre-populates `sbom_files`; asserts `initialize()` appends rather than replaces. |
-| `test_hook_with_pitloom_fragments` | Provides a valid fragment; asserts its content is merged into the SBOM. |
+| `test_hook_with_pitloom_fragments` | Provides a valid fragment via `[tool.pitloom.fragments] files`; asserts its content is merged into the SBOM. |
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
 | `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject-hatchling` fixture; asserts package name appears in SBOM. |
 | `test_metadata_from_hatchling_maps_*` | Unit tests for `metadata_from_hatchling`: version, dependencies, urls, authors, license (direct and fallback-detected). |

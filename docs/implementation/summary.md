@@ -1,12 +1,12 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-05-25
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom SBOM generator - implementation summary
+# Pitloom - SBOM generator implementation summary
 
 ## Project overview
 
@@ -60,7 +60,9 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Appends staged path to `build_data["sbom_files"]` -- Hatchling 1.28.0+ places
      it at `.dist-info/sboms/<filename>` (PEP 770) natively
    - `finalize()` cleans up the staging directory
-   - Config: `sbom-basename`, `creator-name`, `creator-email`, `fragments`, `enabled`
+   - Config: `[tool.hatch.build.hooks.pitloom] enabled` only; basename,
+     fragments, and creator/tool metadata come from `[tool.pitloom]` /
+     `[tool.pitloom.creation]` -- the same settings the CLI uses
 
 6. **Command-line interface** (`src/pitloom/__main__.py`)
    - User-friendly argparse-based CLI
@@ -134,9 +136,12 @@ SBOM written to: sbom.spdx3.json
 
 ### Generated SBOM structure
 
-- **Total Elements**: 13
+- **Total Elements**: 14
 - **CreationInfo**: 1 (with timestamp and creator)
-- **Person**: 1 (creator information)
+- **SoftwareAgent**: 1 (default createdBy agent when no creator is named;
+  a `Person`/`Organization` instead when `[tool.pitloom.creation]
+  creator-name` is set)
+- **Tool**: 1 (Pitloom, in createdUsing)
 - **SpdxDocument**: 1 (root document)
 - **software_Sbom**: 1 (SBOM declaration)
 - **software_Package**: 5 (main package + 4 dependencies)

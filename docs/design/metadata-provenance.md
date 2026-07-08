@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-05-09
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,34 +87,57 @@ Pitloom tracks provenance for the following metadata fields:
 
 ### Current implementation
 
-CreationInfo is used to record when the SBOM was created and who created it:
+`CreationInfo` records who created a set of elements, what tool produced
+them, when, and (optionally) how. Construction is centralised in
+`pitloom.assemble.spdx3.creation_info.build_creation_info()`, shared by the
+CLI, the Hatchling build hook, and `pitloom.loom` fragments, so all three
+paths model creation identically:
 
 ```python
-creation_info = CreationInfo(
-    created=datetime.now(timezone.utc),
-    spec_version="3.0.1",
-    created_by=[creator.spdx_id]
+spdx_ci, creator, tool = build_creation_info(
+    creation,           # a CreationMetadata
+    doc_name,
+    doc_uuid,
+    default_comment="Generated via Pitloom CLI",
 )
 ```
 
-All SPDX elements share the same CreationInfo instance, which is referenced
-by the blank node identifier `_:creationinfo`.
+`creator` (`createdBy`) is a `Person` or `Organization` when
+`CreationMetadata.creator_name` is set (`creator_type` selects which, plus
+`software-agent` and the generic `agent` for naming an automated creator
+that isn't Pitloom itself); with no name given, it is the `SoftwareAgent`
+"Pitloom" -- Pitloom acting unattended, not a fabricated human. `tool`
+(`createdUsing`) is the `Tool` "Pitloom" (carrying a `summary` with
+Pitloom's version), unless suppressed via `creation_tool=None`
+(`--no-creation-tool` on the CLI).
+
+Elements created together in one generation event -- one CLI run, one
+Hatchling build, one `loom.run` -- share a single `CreationInfo` instance,
+referenced by a blank node identifier such as `_:CreationInfo0`. A composite
+SBOM assembled from merged fragments (`[tool.pitloom.fragments]`) is *not*
+limited to one: each fragment keeps the `CreationInfo` from whichever run
+actually produced it, so the final graph can contain several, one per
+generation event that contributed to it. Don't assume a single-`CreationInfo`
+graph when consuming SBOMs Pitloom produces.
 
 ### CreationInfo attributes
 
-According to SPDX 3, CreationInfo includes:
+Per SPDX 3:
 
-- **created**: Timestamp when the element was created
-- **createdBy**: List of agents who created the element
-- **specVersion**: SPDX specification version
-- **comment**: Optional comment about creation (not currently used by Pitloom)
+- **created**: Timestamp when the elements were created (`--creation-datetime`,
+  else the current UTC time)
+- **createdBy**: One or more Agents who created the elements -- see above
+- **createdUsing**: Zero or more Tools used -- Pitloom itself, unless suppressed
+- **specVersion**: SPDX specification version (`"3.0.1"`)
+- **comment**: A short, static, per-channel note (e.g. `"Generated via
+  Pitloom CLI"`), or the caller's own `--creation-comment` /
+  `creation_comment`
 
 ### Future enhancements for CreationInfo
 
-1. **Tool information**: Record the Pitloom version used to generate the SBOM
-2. **Build environment**: Track the build system and environment details
-3. **Data enrichment**: Record when third-party tools enriched the data
-4. **Validation**: Track validation steps and results
+1. **Data enrichment**: Record when third-party tools (e.g. the `enrich`
+   skill) augmented the data
+2. **Validation**: Track validation steps and results
 
 ## Use cases
 

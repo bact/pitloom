@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom sbom skill: copy-paste recipes
+# Pitloom's `sbom` skill: copy-paste recipes
 
 Companion to `../SKILL.md`. These recipes are meant to be run as-is or
 adapted with minimal edits.
