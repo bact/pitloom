@@ -1,4 +1,5 @@
 ---
+Last-Modified: 2026-07-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,7 +18,7 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.9.0...v0.10.0>
 
-## [0.10.0] - 2026-07-08
+## [0.10.0] - 2026-07-09
 
 ### Changed
 
@@ -43,10 +44,10 @@ and this project adheres to
   - `setup.cfg` keeps single-creator/-tool support only.
 - `generate_sbom()` gains optional `project_metadata`/`pitloom_config`
   keyword arguments so callers that already parsed the project
-  (e.g. the CLI) can pass them in and skip re-parsing.
+  (e.g. the CLI) can pass them in and skip re-parsing ([#89])
 - BREAKING CHANGE:
   `generate_sbom()`'s keyword arguments are now keyword-only -- excepts
-  `project_dir` that remains positional-or-keyword.
+  `project_dir` that remains positional-or-keyword ([#89])
 
 ### Fixed
 
@@ -54,10 +55,11 @@ and this project adheres to
   `Person` (`createdBy`) in generated SBOMs ([#84])
 - `generate_sbom()` (and the CLI) now supports projects that use only
   `setup.cfg`/`setup.py` with no `pyproject.toml` -- previously raised
-  `FileNotFoundError` unconditionally.
+  `FileNotFoundError` unconditionally ([#89])
 
 [#84]: https://github.com/bact/pitloom/pull/84
 [#86]: https://github.com/bact/pitloom/pull/86
+[#89]: https://github.com/bact/pitloom/pull/89
 
 ## [0.9.0] - 2026-07-06
 
