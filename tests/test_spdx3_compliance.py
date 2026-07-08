@@ -317,7 +317,9 @@ version = "3.1.4"
 
 # SPDX 3.0 SHACL: sh:class spdx:Agent; sh:path spdx:createdBy
 # Agent subclasses per the SPDX 3.0 OWL ontology
-_AGENT_TYPES: frozenset[str] = frozenset({"Person", "Organization"})
+_AGENT_TYPES: frozenset[str] = frozenset(
+    {"Person", "Organization", "SoftwareAgent", "Agent"}
+)
 
 
 def _build_spdx_id_type_map(graph: list[dict[str, Any]]) -> dict[str, str]:
@@ -326,7 +328,7 @@ def _build_spdx_id_type_map(graph: list[dict[str, Any]]) -> dict[str, str]:
 
 
 def test_spdx3_shacl_creation_info_created_by_are_agents() -> None:
-    """createdBy must reference only Agent elements (Person or Organization).
+    """createdBy must reference only Agent elements.
 
     Replicates the SPDX 3.0 SHACL shape::
 
@@ -334,8 +336,9 @@ def test_spdx3_shacl_creation_info_created_by_are_agents() -> None:
            sh:minCount 1 ;
            sh:path spdx:createdBy .
 
-    Tool is NOT an Agent subclass; placing a Tool in createdBy causes a SHACL
-    violation.  Tools must appear in createdUsing instead.
+    Agent subclasses are Person, Organization, and SoftwareAgent (the default
+    creator for an unattended run).  Tool is NOT an Agent subclass; placing a
+    Tool in createdBy causes a SHACL violation -- Tools go in createdUsing.
     """
     pyproject_content = """
 [project]
@@ -362,8 +365,8 @@ version = "1.0.0"
                 elem_type = id_to_type.get(ref_id)
                 assert elem_type in _AGENT_TYPES, (
                     f"createdBy references '{ref_id}' of type {elem_type!r}. "
-                    "Only Person and Organization (Agent subclasses) are allowed. "
-                    "Tool must go in createdUsing."
+                    "Only Agent subclasses (Person, Organization, "
+                    "SoftwareAgent) are allowed. Tool must go in createdUsing."
                 )
 
 
@@ -456,8 +459,8 @@ dependencies = ["requests>=2.28.0"]
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json_1 = generate_sbom(tmppath, creation_info=fixed_ci)
-        sbom_json_2 = generate_sbom(tmppath, creation_info=fixed_ci)
+        sbom_json_1 = generate_sbom(tmppath, creation_metadata=fixed_ci)
+        sbom_json_2 = generate_sbom(tmppath, creation_metadata=fixed_ci)
 
         # Determinism: two calls with identical inputs must produce identical output
         assert sbom_json_1 == sbom_json_2, (

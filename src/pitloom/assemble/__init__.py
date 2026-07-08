@@ -22,7 +22,7 @@ from pitloom.extract.scanner import scan_project_for_ai_models
 def generate_sbom(
     project_dir: Path,
     output_path: Path | None = None,
-    creation_info: CreationMetadata | None = None,
+    creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
     describe_relationship: bool | None = None,
 ) -> str:
@@ -35,9 +35,10 @@ def generate_sbom(
             absent), and projects that declare both (``[project]`` wins
             field-by-field).
         output_path: If given, the JSON-LD output is also written to this path.
-        creation_info: Creator and timestamp metadata for the SBOM document.
+        creation_metadata: Creator and timestamp metadata for the SBOM document.
             When ``None`` a default :class:`~pitloom.core.creation.CreationMetadata`
-            is used (creator ``"Pitloom"``, current UTC time).
+            is used -- no named creator (the assembler emits the ``SoftwareAgent``
+            ``"Pitloom"`` in ``createdBy``), current UTC time.
         pretty: If ``True``, indent the JSON output with 2 spaces.
             If ``False``, produce compact output (no extra whitespace).
             If ``None`` (default), read the setting from ``[tool.pitloom] pretty``
@@ -68,7 +69,7 @@ def generate_sbom(
 
     doc = DocumentModel(
         project=metadata,
-        creation=creation_info or CreationMetadata(),
+        creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
     )
     exporter = build(doc, merkle_root=merkle_root)
@@ -88,7 +89,7 @@ def generate_sbom(
 def generate_ai_model_sbom(
     model_path: Path,
     output_path: Path | None = None,
-    creation_info: CreationMetadata | None = None,
+    creation_metadata: CreationMetadata | None = None,
     pretty: bool = False,
     describe_relationship: bool = False,
 ) -> str:
@@ -100,8 +101,10 @@ def generate_ai_model_sbom(
     Args:
         model_path: Path to the AI model file (GGUF, ONNX, Safetensors, etc.).
         output_path: If given, the JSON-LD output is also written to this path.
-        creation_info: Creator and timestamp metadata.  Defaults to a
-            ``CreationMetadata`` with creator ``"Pitloom"`` and current UTC time.
+        creation_metadata: Creator and timestamp metadata.  Defaults to a
+            ``CreationMetadata`` with no named creator (the assembler emits
+            the ``SoftwareAgent`` ``"Pitloom"`` in ``createdBy``) and current
+            UTC time.
         pretty: Indent JSON output with 2 spaces when ``True``.
         describe_relationship: Add human-readable text to SPDX relationships.
 
@@ -113,7 +116,7 @@ def generate_ai_model_sbom(
         ValueError: If the model format is unsupported or cannot be parsed.
     """
     model = read_ai_model(model_path)
-    exporter = build_model(model, creation_info or CreationMetadata())
+    exporter = build_model(model, creation_metadata or CreationMetadata())
 
     sbom_json = exporter.to_json(
         pretty=pretty,
@@ -129,7 +132,7 @@ def generate_ai_model_sbom(
 def generate_huggingface_sbom(
     model_source: str,
     output_path: Path | None = None,
-    creation_info: CreationMetadata | None = None,
+    creation_metadata: CreationMetadata | None = None,
     pretty: bool = False,
     describe_relationship: bool = False,
 ) -> str:
@@ -144,8 +147,10 @@ def generate_huggingface_sbom(
             (e.g. ``https://huggingface.co/mistralai/Mistral-7B-v0.1``)
             or bare model ID (e.g. ``Qwen/Qwen3-235B-A22B``).
         output_path: If given, the JSON-LD output is also written to this path.
-        creation_info: Creator and timestamp metadata.  Defaults to a
-            ``CreationMetadata`` with creator ``"Pitloom"`` and current UTC time.
+        creation_metadata: Creator and timestamp metadata.  Defaults to a
+            ``CreationMetadata`` with no named creator (the assembler emits
+            the ``SoftwareAgent`` ``"Pitloom"`` in ``createdBy``) and current
+            UTC time.
         pretty: Indent JSON output with 2 spaces when ``True``.
         describe_relationship: Add human-readable text to SPDX relationships.
 
@@ -157,7 +162,7 @@ def generate_huggingface_sbom(
         ValueError: If *model_source* is not a valid Hugging Face URL or model ID.
     """
     model = read_huggingface(model_source)
-    exporter = build_model(model, creation_info or CreationMetadata())
+    exporter = build_model(model, creation_metadata or CreationMetadata())
 
     sbom_json = exporter.to_json(
         pretty=pretty,

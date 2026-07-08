@@ -231,6 +231,15 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(person)
 
+    def add_agent(self, agent: spdx3.Agent) -> None:
+        """Add a creator Agent (Person, Organization, SoftwareAgent, or the
+        generic Agent).
+
+        Args:
+            agent: Any ``Agent`` subclass used in ``CreationInfo.createdBy``.
+        """
+        self.object_set.add(agent)
+
     def add_package(self, package: spdx3.software_Package) -> None:
         """Add a software package to the document.
 

@@ -31,6 +31,7 @@ import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 from hatchling.plugin.manager import PluginManager  # noqa: E402
 from spdx_python_model.bindings import v3_0_1 as spdx3  # noqa: E402
 
+from pitloom.__about__ import __version__  # noqa: E402
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id  # noqa: E402
 from pitloom.export.spdx3_json import (  # noqa: E402
     Spdx3JsonExporter,
@@ -106,6 +107,12 @@ def write_pyproject(directory: Path, content: str = MINIMAL_PYPROJECT) -> None:
     (directory / "pyproject.toml").write_text(content, encoding="utf-8")
 
 
+def write_pyproject_with_pitloom_config(directory: Path, extra_toml: str) -> None:
+    """Write ``MINIMAL_PYPROJECT`` plus *extra_toml* (e.g. a ``[tool.pitloom]``
+    or ``[tool.pitloom.creation]`` block) as ``pyproject.toml``."""
+    write_pyproject(directory, MINIMAL_PYPROJECT + "\n" + extra_toml)
+
+
 # ---------------------------------------------------------------------------
 # Config validation
 # ---------------------------------------------------------------------------
@@ -117,16 +124,8 @@ def test_validate_config_defaults_pass() -> None:
 
 
 def test_validate_config_valid_values_pass() -> None:
-    """Fully specified valid config must not raise."""
-    _validate_config(
-        {
-            "enabled": True,
-            "sbom-basename": "my-sbom",
-            "creator-name": "Alice",
-            "creator-email": "alice@example.com",
-            "fragments": ["a.json", "b.json"],
-        }
-    )
+    """The only supported key, 'enabled', must not raise."""
+    _validate_config({"enabled": True})
 
 
 @pytest.mark.parametrize(
@@ -134,17 +133,35 @@ def test_validate_config_valid_values_pass() -> None:
     [
         ("enabled", "yes", "'enabled' must be a boolean"),
         ("enabled", 1, "'enabled' must be a boolean"),
-        ("sbom-basename", 123, "'sbom-basename' must be a string"),
-        ("creator-name", 42, "'creator-name' must be a string"),
-        ("creator-email", [], "'creator-email' must be a string"),
-        ("fragments", "oops", "'fragments' must be a list of strings"),
-        ("fragments", [1, 2], "'fragments' must be a list of strings"),
     ],
 )
 def test_validate_config_invalid_raises(field: str, bad_value: Any, match: str) -> None:
     """Invalid field type or value must raise ``ValueError`` with a clear message."""
     with pytest.raises(ValueError, match=match):
         _validate_config({field: bad_value})
+
+
+@pytest.mark.parametrize(
+    ("key", "new_location"),
+    [
+        ("sbom-basename", r"\[tool\.pitloom\] sbom-basename"),
+        ("fragments", r"\[tool\.pitloom\.fragments\] files"),
+        ("creator-name", r"\[tool\.pitloom\.creation\] creator-name"),
+        ("creator-email", r"\[tool\.pitloom\.creation\] creator-email"),
+        ("creator-type", r"\[tool\.pitloom\.creation\] creator-type"),
+    ],
+)
+def test_validate_config_moved_key_raises(key: str, new_location: str) -> None:
+    """A key that moved to [tool.pitloom]/[tool.pitloom.creation] must raise,
+    pointing at its new location, rather than being silently ignored."""
+    with pytest.raises(ValueError, match=new_location):
+        _validate_config({key: "whatever"})
+
+
+def test_validate_config_unknown_key_raises() -> None:
+    """An unrecognised key must raise rather than being silently ignored."""
+    with pytest.raises(ValueError, match="unknown key"):
+        _validate_config({"typo-field": "x"})
 
 
 # ---------------------------------------------------------------------------
@@ -189,12 +206,15 @@ def test_hook_sbom_is_valid_json() -> None:
 
 
 def test_hook_creator_name_propagated() -> None:
-    """creator-name from hook config must appear in the SBOM graph."""
+    """[tool.pitloom.creation] creator-name must appear in the SBOM graph."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            '[tool.pitloom.creation]\ncreator-name = "Test Creator"\n',
+        )
 
-        hook = make_hook(tmp, {"creator-name": "Test Creator"})
+        hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
@@ -207,13 +227,129 @@ def test_hook_creator_name_propagated() -> None:
         hook.finalize("standard", build_data, "")
 
 
-def test_hook_custom_basename_stored() -> None:
-    """A custom sbom-basename in config must be reflected in the staged filename."""
+def test_hook_organization_creator_from_config() -> None:
+    """[tool.pitloom.creation] creator-type = organization emits an
+    Organization (not a Person) in the SBOM graph."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            "[tool.pitloom.creation]\n"
+            'creator-name = "Acme Corp"\n'
+            'creator-type = "organization"\n',
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
+            "@graph"
+        ]
+        orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
+        assert orgs == ["Acme Corp"]
+        assert not [e for e in graph if e.get("type") == "Person"]
+
+        hook.finalize("standard", build_data, "")
+
+
+@pytest.mark.parametrize(
+    ("creator_type", "expected_element_type"),
+    [
+        ("software-agent", "SoftwareAgent"),
+        ("agent", "Agent"),
+    ],
+)
+def test_hook_software_agent_and_generic_agent_creator_from_config(
+    creator_type: str, expected_element_type: str
+) -> None:
+    """[tool.pitloom.creation] creator-type also allows a named
+    SoftwareAgent or generic Agent, not just Person/Organization."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            "[tool.pitloom.creation]\n"
+            'creator-name = "CI Bot"\n'
+            f'creator-type = "{creator_type}"\n',
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
+            "@graph"
+        ]
+        matches = [
+            e.get("name") for e in graph if e.get("type") == expected_element_type
+        ]
+        assert "CI Bot" in matches
+
+        hook.finalize("standard", build_data, "")
+
+
+def test_hook_default_creator_is_software_agent() -> None:
+    """With no [tool.pitloom.creation] creator-name, the hook records the
+    SoftwareAgent "Pitloom" as the createdBy agent."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path)
 
-        hook = make_hook(tmp, {"sbom-basename": "custom"})
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
+            "@graph"
+        ]
+        agents = [e for e in graph if e.get("type") == "SoftwareAgent"]
+        assert [a["name"] for a in agents] == ["Pitloom"]
+        assert not [e for e in graph if e.get("type") == "Person"]
+
+        hook.finalize("standard", build_data, "")
+
+
+def test_hook_creation_comment_and_tool_summary() -> None:
+    """Hook must stamp a build-hook comment and a Pitloom-versioned Tool.summary."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        graph = data["@graph"]
+
+        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
+        assert len(creation_infos) == 1
+        assert creation_infos[0]["comment"] == (
+            "Generated via Pitloom Hatchling build hook (PEP 770)"
+        )
+
+        tool_elements = [e for e in graph if e["type"] == "Tool"]
+        assert len(tool_elements) == 1
+        assert tool_elements[0]["summary"] == f"Pitloom {__version__}"
+
+        hook.finalize("standard", build_data, "")
+
+
+def test_hook_custom_basename_stored() -> None:
+    """A custom [tool.pitloom] sbom-basename must be reflected in the staged
+    filename."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path, '[tool.pitloom]\nsbom-basename = "custom"\n'
+        )
+
+        hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
@@ -307,12 +443,15 @@ def test_hook_sbom_files_populated() -> None:
 
 
 def test_hook_sbom_files_custom_basename() -> None:
-    """sbom-basename config must determine the filename appended to sbom_files."""
+    """[tool.pitloom] sbom-basename must determine the filename appended to
+    sbom_files."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
+        write_pyproject_with_pitloom_config(
+            tmp_path, '[tool.pitloom]\nsbom-basename = "custom"\n'
+        )
 
-        hook = make_hook(tmp, {"sbom-basename": "custom"})
+        hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
@@ -344,10 +483,12 @@ def test_hook_sbom_files_appended_to_existing() -> None:
 
 
 def test_hook_with_pitloom_fragments() -> None:
-    """Fragments listed under [tool.hatch.build.hooks.pitloom] are merged."""
+    """Fragments listed under [tool.pitloom] are merged."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
+        write_pyproject_with_pitloom_config(
+            tmp_path, '[tool.pitloom.fragments]\nfiles = ["frag.json"]\n'
+        )
 
         # Build a valid fragment via Spdx3JsonExporter
         doc_uuid = "test-frag-uuid"
@@ -372,7 +513,7 @@ def test_hook_with_pitloom_fragments() -> None:
         frag_path = tmp_path / "frag.json"
         frag_path.write_text(frag_exporter.to_json(), encoding="utf-8")
 
-        hook = make_hook(tmp, {"fragments": ["frag.json"]})
+        hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
 
@@ -390,9 +531,11 @@ def test_hook_missing_fragment_logs_warning(
     """A non-existent fragment path logs a warning rather than raising."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
+        write_pyproject_with_pitloom_config(
+            tmp_path, '[tool.pitloom.fragments]\nfiles = ["does_not_exist.json"]\n'
+        )
 
-        hook = make_hook(tmp, {"fragments": ["does_not_exist.json"]})
+        hook = make_hook(tmp, {})
         build_data: dict[str, Any] = {}
 
         with caplog.at_level(logging.WARNING):
@@ -418,7 +561,7 @@ def test_hook_with_sampleproject_fixture() -> None:
     if not fixture_dir.exists():
         pytest.skip("sampleproject-hatchling fixture not found")
 
-    hook = make_hook(str(fixture_dir), {"creator-name": "Pitloom CI"})
+    hook = make_hook(str(fixture_dir), {})
     build_data: dict[str, Any] = {}
     hook.initialize("standard", build_data)
 

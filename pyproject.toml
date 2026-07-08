@@ -105,7 +105,7 @@ line-length = 88
 target-version = ["py310"]
 
 [tool.hatch.build.hooks.pitloom]
-sbom-basename = "sbom"
+enabled = true
 
 [tool.hatch.build.targets.sdist]
 exclude = [
@@ -190,7 +190,12 @@ module = "tests.test_extract_huggingface"
 
 [tool.pitloom]
 pretty = true
-# creation-datetime = "2026-04-01T00:00:00"  # Fixed for reproducibility
+sbom-basename = "sbom"
+
+[tool.pitloom.creation]
+creator-name = "Arthit Suriyawongkul"
+creator-email = "suriyawa@tcd.ie"
+creator-type = "person"
 
 [tool.pylint.main]
 ignore-paths = ["^tests/fixtures/.*$"]
@@ -219,6 +224,7 @@ disable = [
     "duplicate-code",             # boilerplate in tests is expected
     "fixme",                      # TODO comments are tracked intentionally
     "missing-function-docstring", # not required in test files
+    "too-many-lines",             # test modules grow long, one function per case
 ]
 
 [tool.pylint.typecheck]

@@ -424,7 +424,7 @@ def test_generate_sbom_includes_ai_model_fragment_elements() -> None:
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationMetadata(creator_name="Test"),
+            creation_metadata=CreationMetadata(creator_name="Test"),
         )
         data = json.loads(sbom_json)
         graph: list[dict[str, Any]] = data.get("@graph", [])
@@ -481,7 +481,7 @@ files = ["dataset-fragment.spdx3.json"]
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationMetadata(creator_name="Test"),
+            creation_metadata=CreationMetadata(creator_name="Test"),
         )
         graph = json.loads(sbom_json).get("@graph", [])
 

@@ -88,7 +88,7 @@ To add a CycloneDX serializer, for example:
 
 1. Create `pitloom/assemble/cyclonedx/` subpackage.
 2. Write `build(doc: DocumentModel) -> str` that reads `doc.project`,
-   `doc.creation`, and `doc.ai_models`.
+   `doc.creation_metadata`, and `doc.ai_models`.
 3. Add a `--format` flag to the CLI that selects the assembler.
 4. No changes needed to `pitloom.extract` or `pitloom.core`.
 

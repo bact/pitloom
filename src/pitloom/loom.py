@@ -7,12 +7,14 @@
 import contextlib
 import inspect
 import types
-from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.__about__ import __version__
+from pitloom.assemble.spdx3.creation_info import build_creation_info
+from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -45,27 +47,40 @@ def _get_caller_info() -> str:
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
 
+def _default_run_comment() -> str:
+    """Default CreationInfo.comment for a fragment: source and tool version."""
+    return f"Generated via Pitloom loom SDK v{__version__} (script/notebook capture)"
+
+
 class _ActiveRun:
     """Internal state for an active BOM recording run."""
 
-    def __init__(self, output_file: str, pretty: bool = False):
+    def __init__(
+        self,
+        output_file: str,
+        pretty: bool = False,
+        creation_metadata: CreationMetadata | None = None,
+    ):
         self.output_file = output_file
         self.pretty = pretty
         self.doc_uuid = str(uuid4())
 
-        self.creation_info = spdx3.CreationInfo(
-            specVersion="3.0.1", created=datetime.now(timezone.utc)
+        # Same CreationMetadata handling as the CLI and build hook: a named
+        # creator becomes the matching Agent subclass, otherwise the
+        # SoftwareAgent "Pitloom" is the createdBy actor, with the Tool
+        # "Pitloom" in createdUsing. Unattended capture defaults the comment
+        # to the loom-SDK note.
+        self.creation_info, agent, tool = build_creation_info(
+            creation_metadata or CreationMetadata(),
+            "pitloom-sdk",
+            self.doc_uuid,
+            default_comment=_default_run_comment(),
         )
-        # Create a default Agent to satisfy the createdBy constraint
-        person = spdx3.Person(
-            spdxId=generate_spdx_id("Person", "pitloom-sdk", self.doc_uuid),
-            name="Pitloom SDK (Automated Run)",
-            creationInfo=self.creation_info,
-        )
-        self.creation_info.createdBy = [require_spdx_id(person)]
 
         self.exporter = Spdx3JsonExporter()
-        self.exporter.add_person(person)
+        self.exporter.add_agent(agent)
+        if tool is not None:
+            self.exporter.object_set.add(tool)
 
         self.model: spdx3.ai_AIPackage | None = None
         self.datasets: list[spdx3.dataset_DatasetPackage] = []
@@ -311,17 +326,50 @@ class Run(contextlib.ContextDecorator):
             loom.add_input_dataset("rawdata/neg.txt")
             loom.add_output_dataset("data/train.txt",
                                     data_preprocessing=["tokenization"])
+
+    The fragment's SPDX ``CreationInfo`` is configurable on par with the CLI
+    and Hatchling build hook: pass a ``CreationMetadata`` to name a creator
+    (a person, organization, or automated agent), or override the tool,
+    timestamp, and comment. With none given, the fragment records the
+    ``SoftwareAgent`` "Pitloom" (createdBy) and ``Tool`` "Pitloom"
+    (createdUsing) of an unattended run::
+
+        loom.run(
+            "fragments/train.spdx3.json",
+            creation_metadata=CreationMetadata(
+                creator_name="Alice", creator_type="person"
+            ),
+        )
+
+    Args:
+        output_file: Path to write the SBOM fragment to.
+        pretty: Indent the JSON output with 2 spaces when ``True``.
+        creation_metadata: Creator, tool, timestamp, and comment overrides for
+            the fragment's ``CreationInfo``. See :class:`CreationMetadata` for
+            all fields. When ``None`` (default), the comment defaults to an
+            auto-generated note identifying the loom SDK and its version,
+            and the creator defaults to the ``SoftwareAgent`` "Pitloom".
     """
 
-    def __init__(self, output_file: str | Path, pretty: bool = False):
+    def __init__(
+        self,
+        output_file: str | Path,
+        pretty: bool = False,
+        creation_metadata: CreationMetadata | None = None,
+    ):
         self.output_file = str(output_file)
         self.pretty = pretty
+        self.creation_metadata = creation_metadata or CreationMetadata()
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
         global _active_run  # pylint: disable=global-statement
         self.previous_run = _active_run
-        _active_run = _ActiveRun(self.output_file, pretty=self.pretty)
+        _active_run = _ActiveRun(
+            self.output_file,
+            pretty=self.pretty,
+            creation_metadata=self.creation_metadata,
+        )
         return _active_run
 
     def __exit__(

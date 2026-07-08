@@ -43,11 +43,11 @@ dependencies = ["requests>=2.28.0"]
 
 
 def _sbom_compact(tmppath: Path) -> str:
-    return generate_sbom(tmppath, creation_info=_FIXED_CI)
+    return generate_sbom(tmppath, creation_metadata=_FIXED_CI)
 
 
 def _sbom_pretty(tmppath: Path) -> str:
-    return generate_sbom(tmppath, creation_info=_FIXED_CI, pretty=True)
+    return generate_sbom(tmppath, creation_metadata=_FIXED_CI, pretty=True)
 
 
 # ---------------------------------------------------------------------------

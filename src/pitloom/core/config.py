@@ -40,6 +40,9 @@ class PitloomConfig:
             ``[tool.pitloom.creation]``.
         creation_creator_email: Optional creator email override from
             ``[tool.pitloom.creation]``.
+        creation_creator_type: Optional creator type (``"person"``,
+            ``"organization"``, ``"software-agent"``, or ``"agent"``) from
+            ``[tool.pitloom.creation]``.
         creation_creation_datetime: Optional creation timestamp override from
             ``[tool.pitloom.creation]``.
         creation_creation_tool: Optional creation tool name override from
@@ -53,6 +56,7 @@ class PitloomConfig:
     sbom_basename: str | None = None
     creation_creator_name: str | None = None
     creation_creator_email: str | None = None
+    creation_creator_type: str | None = None
     creation_creation_datetime: str | None = None
     creation_creation_tool: str | None = None
     creation_comment: str | None = None
@@ -69,11 +73,19 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     if not isinstance(creation_data, dict):
         creation_data = {}
 
-    def _pick_str(source: dict[str, Any], keys: tuple[str, ...]) -> str | None:
-        for key in keys:
-            value = source.get(key)
-            if isinstance(value, str):
-                return value
+    def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
+        """Return the first string found by key, scanning *sources* in order.
+
+        Each source is checked fully (all its keys) before moving to the
+        next, so an explicit empty string in a higher-priority source is
+        returned as-is -- it does not fall through to a lower-priority
+        source the way ``a or b`` would.
+        """
+        for source, keys in sources:
+            for key in keys:
+                value = source.get(key)
+                if isinstance(value, str):
+                    return value
         return None
 
     raw_fragments = pitloom_data.get("fragments", {}).get("files", [])
@@ -88,23 +100,29 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         desc_rel = bool(desc_rel)
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
     creation_creator_name = _pick_str(
-        creation_data, ("creator-name", "creator_name")
-    ) or _pick_str(pitloom_data, ("creator-name", "creator_name"))
+        (creation_data, ("creator-name", "creator_name")),
+        (pitloom_data, ("creator-name", "creator_name")),
+    )
     creation_creator_email = _pick_str(
-        creation_data, ("creator-email", "creator_email")
-    ) or _pick_str(pitloom_data, ("creator-email", "creator_email"))
+        (creation_data, ("creator-email", "creator_email")),
+        (pitloom_data, ("creator-email", "creator_email")),
+    )
+    creation_creator_type = _pick_str(
+        (creation_data, ("creator-type", "creator_type")),
+        (pitloom_data, ("creator-type", "creator_type")),
+    )
     creation_creation_datetime = _pick_str(
-        creation_data,
-        ("creation-datetime", "creation_datetime", "datetime"),
-    ) or _pick_str(pitloom_data, ("creation-datetime", "creation_datetime"))
+        (creation_data, ("creation-datetime", "creation_datetime", "datetime")),
+        (pitloom_data, ("creation-datetime", "creation_datetime")),
+    )
     creation_creation_tool = _pick_str(
-        creation_data,
-        ("creation-tool", "creation_tool", "tool"),
-    ) or _pick_str(pitloom_data, ("creation-tool", "creation_tool"))
+        (creation_data, ("creation-tool", "creation_tool", "tool")),
+        (pitloom_data, ("creation-tool", "creation_tool")),
+    )
     creation_comment = _pick_str(
-        creation_data,
-        ("creation-comment", "creation_comment", "comment"),
-    ) or _pick_str(pitloom_data, ("creation-comment", "creation_comment"))
+        (creation_data, ("creation-comment", "creation_comment", "comment")),
+        (pitloom_data, ("creation-comment", "creation_comment")),
+    )
 
     return PitloomConfig(
         pretty=pretty,
@@ -113,6 +131,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         sbom_basename=sbom_basename,
         creation_creator_name=creation_creator_name,
         creation_creator_email=creation_creator_email,
+        creation_creator_type=creation_creator_type,
         creation_creation_datetime=creation_creation_datetime,
         creation_creation_tool=creation_creation_tool,
         creation_comment=creation_comment,

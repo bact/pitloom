@@ -375,7 +375,7 @@ def test_document_has_dataset_profile_when_model_has_datasets() -> None:
             DatasetReference(role="trainedOn", metadata=DatasetMetadata(name="Wiki"))
         ],
     )
-    doc = DocumentModel(project=project, creation=creation, ai_models=[model])
+    doc = DocumentModel(project=project, creation_metadata=creation, ai_models=[model])
 
     exporter = build_doc(doc)
     data = json.loads(exporter.to_json())
@@ -393,7 +393,7 @@ def test_document_no_dataset_profile_when_no_datasets() -> None:
         name="MyModel",
         format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
     )
-    doc = DocumentModel(project=project, creation=creation, ai_models=[model])
+    doc = DocumentModel(project=project, creation_metadata=creation, ai_models=[model])
 
     exporter = build_doc(doc)
     data = json.loads(exporter.to_json())

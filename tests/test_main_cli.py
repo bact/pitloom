@@ -49,13 +49,13 @@ pretty = true
     def _fake_generate_sbom(
         project_dir: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
     ) -> str:
         captured["project_dir"] = project_dir
         captured["output_path"] = output_path
-        captured["creation_info"] = creation_info
+        captured["creation_metadata"] = creation_metadata
         captured["pretty"] = pretty
         captured["describe_relationship"] = describe_relationship
         return "{}"
@@ -99,12 +99,12 @@ creation-datetime = "2026-04-01T00:00:00Z"
     def _fake_generate_sbom(
         project_dir: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
     ) -> str:
         _ = (project_dir, output_path, pretty, describe_relationship)
-        captured["creation_info"] = creation_info
+        captured["creation_metadata"] = creation_metadata
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
@@ -113,8 +113,8 @@ creation-datetime = "2026-04-01T00:00:00Z"
     exit_code = __main__.main()
 
     assert exit_code == 0
-    assert isinstance(captured["creation_info"], CreationMetadata)
-    creation = captured["creation_info"]
+    assert isinstance(captured["creation_metadata"], CreationMetadata)
+    creation = captured["creation_metadata"]
     assert creation.creation_datetime == "2026-04-01T00:00:00Z"
 
 
@@ -160,12 +160,12 @@ creation-datetime = "2030-01-02T03:04:05Z"
     def _fake_generate_sbom(
         project_dir: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
     ) -> str:
         _ = (project_dir, output_path, describe_relationship)
-        captured["creation_info"] = creation_info
+        captured["creation_metadata"] = creation_metadata
         captured["pretty"] = pretty
         return "{}"
 
@@ -177,8 +177,8 @@ creation-datetime = "2030-01-02T03:04:05Z"
 
     assert exit_code == 0
     assert captured["pretty"] is False
-    assert isinstance(captured["creation_info"], CreationMetadata)
-    creation = captured["creation_info"]
+    assert isinstance(captured["creation_metadata"], CreationMetadata)
+    creation = captured["creation_metadata"]
     assert creation.creation_datetime == "2030-01-02T03:04:05Z"
 
 
@@ -216,11 +216,11 @@ version = "0.1.0"
     def _fake_generate_sbom(
         project_dir: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
     ) -> str:
-        _ = (project_dir, output_path, creation_info, pretty, describe_relationship)
+        _ = (project_dir, output_path, creation_metadata, pretty, describe_relationship)
         return "{}"
 
     monkeypatch.chdir(current_dir)
@@ -234,7 +234,7 @@ version = "0.1.0"
     assert str(target_pyproject) in captured.out
     assert "Config file" in captured.out
     assert "creation_datetime     : None" in captured.out
-    assert "creation_comment      : None" in captured.out
+    assert "creation_comment      : 'Generated via Pitloom CLI'" in captured.out
 
 
 # ---------------------------------------------------------------------------
@@ -250,11 +250,11 @@ def test_model_mode_no_project_dir_required(
     def _fake_generate_model_sbom(
         model_path: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (creation_info, pretty, describe_relationship)
+        _ = (creation_metadata, pretty, describe_relationship)
         captured["model_path"] = model_path
         captured["output_path"] = output_path
         return "{}"
@@ -276,11 +276,11 @@ def test_model_mode_explicit_output_path(
     def _fake_generate_model_sbom(
         model_path: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_path, creation_info, pretty, describe_relationship)
+        _ = (model_path, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
@@ -301,11 +301,11 @@ def test_model_mode_default_output_path_uses_stem(
     def _fake_generate_model_sbom(
         model_path: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_path, creation_info, pretty, describe_relationship)
+        _ = (model_path, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
@@ -327,11 +327,11 @@ def test_model_mode_passes_pretty_flag(
     def _fake_generate_model_sbom(
         model_path: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_path, output_path, creation_info, describe_relationship)
+        _ = (model_path, output_path, creation_metadata, describe_relationship)
         captured["pretty"] = pretty
         return "{}"
 
@@ -350,12 +350,12 @@ def test_model_mode_passes_creation_info(
     def _fake_generate_model_sbom(
         model_path: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
         _ = (model_path, output_path, pretty, describe_relationship)
-        captured["creation_info"] = creation_info
+        captured["creation_metadata"] = creation_metadata
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
@@ -366,7 +366,7 @@ def test_model_mode_passes_creation_info(
     )
 
     assert __main__.main() == 0
-    ci = captured["creation_info"]
+    ci = captured["creation_metadata"]
     assert isinstance(ci, CreationMetadata)
     assert ci.creator_name == "TestBot"
 
@@ -379,6 +379,103 @@ def test_model_mode_nonexistent_file_returns_error(
         sys, "argv", ["loom", "-m", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
+
+
+def test_project_mode_default_creation_comment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A CLI-generated SBOM must carry the CLI's default creation comment."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "cli-app.spdx3.json"
+    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir), "-o", str(out)])
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    creation_infos = [n for n in doc["@graph"] if n["type"] == "CreationInfo"]
+    assert len(creation_infos) == 1
+    assert creation_infos[0]["comment"] == "Generated via Pitloom CLI"
+
+
+def test_project_mode_creator_type_organization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """--creator-name with --creator-type organization emits an Organization."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "org-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "org-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "Acme Corp",
+            "--creator-type",
+            "organization",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
+    assert orgs == ["Acme Corp"]
+    assert not [e for e in graph if e.get("type") == "Person"]
+
+
+@pytest.mark.parametrize(
+    ("creator_type", "expected_element_type"),
+    [
+        ("software-agent", "SoftwareAgent"),
+        ("agent", "Agent"),
+    ],
+)
+def test_project_mode_creator_type_software_agent_and_agent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    creator_type: str,
+    expected_element_type: str,
+) -> None:
+    """--creator-type also accepts software-agent and the generic agent."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "bot-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "bot-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "CI Bot",
+            "--creator-type",
+            creator_type,
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    matches = [e.get("name") for e in graph if e.get("type") == expected_element_type]
+    assert "CI Bot" in matches
 
 
 def test_no_args_returns_error(
@@ -397,11 +494,11 @@ def test_model_mode_verbose_shows_model_path(
     def _fake_generate_model_sbom(
         model_path: Path,
         output_path: Path | None = None,
-        creation_info: object | None = None,
+        creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_path, output_path, creation_info, pretty, describe_relationship)
+        _ = (model_path, output_path, creation_metadata, pretty, describe_relationship)
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
@@ -512,11 +609,11 @@ def test_hf_url_routes_to_huggingface_sbom(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (output_path, creation_info, pretty, describe_relationship)
+        _ = (output_path, creation_metadata, pretty, describe_relationship)
         captured["model_source"] = model_source
         return "{}"
 
@@ -539,11 +636,11 @@ def test_hf_model_id_routes_to_huggingface_sbom(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (output_path, creation_info, pretty, describe_relationship)
+        _ = (output_path, creation_metadata, pretty, describe_relationship)
         captured["model_source"] = model_source
         return "{}"
 
@@ -562,11 +659,11 @@ def test_hf_mode_default_output_uses_model_name(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_source, creation_info, pretty, describe_relationship)
+        _ = (model_source, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
@@ -594,11 +691,11 @@ def test_hf_mode_explicit_output_path(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_source, creation_info, pretty, describe_relationship)
+        _ = (model_source, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
@@ -627,12 +724,12 @@ def test_hf_mode_passes_creation_info(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
         _ = (model_source, output_path, pretty, describe_relationship)
-        captured["creation_info"] = creation_info
+        captured["creation_metadata"] = creation_metadata
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
@@ -649,7 +746,7 @@ def test_hf_mode_passes_creation_info(
     )
 
     assert __main__.main() == 0
-    ci = captured["creation_info"]
+    ci = captured["creation_metadata"]
     assert isinstance(ci, CreationMetadata)
     assert ci.creator_name == "Researcher"
 
@@ -662,11 +759,11 @@ def test_hf_mode_passes_pretty_flag(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_source, output_path, creation_info, describe_relationship)
+        _ = (model_source, output_path, creation_metadata, describe_relationship)
         captured["pretty"] = pretty
         return "{}"
 
@@ -688,11 +785,17 @@ def test_hf_mode_verbose_shows_model_id(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (model_source, output_path, creation_info, pretty, describe_relationship)
+        _ = (
+            model_source,
+            output_path,
+            creation_metadata,
+            pretty,
+            describe_relationship,
+        )
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
@@ -716,11 +819,11 @@ def test_hf_url_with_tree_path_resolves_correctly(
     def _fake_generate_hf_sbom(
         model_source: str,
         output_path: object = None,
-        creation_info: object = None,
+        creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
     ) -> str:
-        _ = (output_path, creation_info, pretty, describe_relationship)
+        _ = (output_path, creation_metadata, pretty, describe_relationship)
         captured["model_source"] = model_source
         return "{}"
 
