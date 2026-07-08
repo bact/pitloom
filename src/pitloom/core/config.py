@@ -76,17 +76,12 @@ class PitloomConfig:
 def _check_moved_creation_keys(
     pitloom_data: dict[str, Any], creation_data: dict[str, Any]
 ) -> None:
-    """Raise a clear error if old single-valued creator/tool keys are present.
+    """Raise a clear error if single-valued creator/tool keys are present
+    directly under ``[tool.pitloom]`` or ``[tool.pitloom.creation]``; they
+    belong in ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``.
 
-    These keys used to be accepted either directly under ``[tool.pitloom]``
-    or under ``[tool.pitloom.creation]`` -- both locations are checked here.
-
-    ``[tool.pitloom]`` needs an extra check that ``[tool.pitloom.creation]``
-    doesn't: the new ``[[tool.pitloom.creation-tool]]`` array-of-tables
-    legitimately reuses the top-level key name ``creation-tool`` (as a list
-    of tables), so only a *string* value under that name at the top level
-    is the old, moved, single-valued usage -- a list is the new form and
-    must not be flagged.
+    A top-level *string* ``creation-tool`` is the invalid single-valued
+    form; a *list* is the valid array-of-tables and must not be flagged.
     """
     for key in pitloom_data:
         moved_to = _MOVED_CREATION_KEYS.get(key)
@@ -108,18 +103,26 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
     """Read ``[[tool.pitloom.creator]]`` array-of-tables into ``Creator`` objects.
 
     Raises:
-        ValueError: If an entry in a present ``[[tool.pitloom.creator]]``
-            array is missing a valid (non-empty string) ``name``. A silently
-            dropped entry could otherwise reduce ``creators`` to ``[]``,
-            which changes the effective default creator.
+        ValueError: If ``creator`` is present but not an array of tables
+            (e.g. a single ``[tool.pitloom.creator]`` table, or
+            ``creator = ["Alice"]``), or if an entry is not a table or is
+            missing a valid (non-empty string) ``name``.
     """
-    raw = pitloom_data.get("creator", [])
-    if not isinstance(raw, list):
+    raw = pitloom_data.get("creator")
+    if raw is None:
         return []
+    if not isinstance(raw, list):
+        raise ValueError(
+            "[tool.pitloom.creator] must be an array of tables "
+            f"([[tool.pitloom.creator]]), got {type(raw).__name__}"
+        )
     creators: list[Creator] = []
     for entry in raw:
         if not isinstance(entry, dict):
-            continue
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry must be a table, got "
+                f"{type(entry).__name__}: {entry!r}"
+            )
         name = entry.get("name")
         if not isinstance(name, str) or not name:
             raise ValueError(
@@ -142,23 +145,26 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
     """Read ``[[tool.pitloom.creation-tool]]`` array-of-tables into ``ToolInfo``.
 
     Raises:
-        ValueError: If an entry in a present ``[[tool.pitloom.creation-tool]]``
-            array is missing a valid (non-empty string) ``name``. Without this
-            check, a typo/blank ``name`` would silently be dropped, which for
-            an array of all-invalid entries would produce ``[]`` -- and an
-            empty list means "suppress createdUsing entirely" downstream,
-            unintentionally dropping the default "Pitloom" tool instead of
-            falling back to default behaviour.
+        ValueError: If ``creation-tool`` is present but not an array of
+            tables (e.g. a single ``[tool.pitloom.creation-tool]`` table, or
+            ``creation-tool = ["MyWrapper"]``), or if an entry is not a
+            table or is missing a valid (non-empty string) ``name``.
     """
     raw = pitloom_data.get("creation-tool", pitloom_data.get("creation_tool"))
     if raw is None:
         return None
     if not isinstance(raw, list):
-        return None
+        raise ValueError(
+            "[tool.pitloom.creation-tool] must be an array of tables "
+            f"([[tool.pitloom.creation-tool]]), got {type(raw).__name__}"
+        )
     tools: list[ToolInfo] = []
     for entry in raw:
         if not isinstance(entry, dict):
-            continue
+            raise ValueError(
+                "[[tool.pitloom.creation-tool]] entry must be a table, got "
+                f"{type(entry).__name__}: {entry!r}"
+            )
         name = entry.get("name")
         if not isinstance(name, str) or not name:
             raise ValueError(

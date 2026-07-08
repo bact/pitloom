@@ -459,6 +459,112 @@ creation-tool = []
         assert config.tools == []
 
 
+def test_extract_pitloom_creator_single_table_raises() -> None:
+    """``[tool.pitloom.creator]`` as a single table (not
+    ``[[tool.pitloom.creator]]``) raises ValueError instead of being
+    silently treated as absent."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creator]
+name = "Alice"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be an array of tables"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_list_of_strings_raises() -> None:
+    """``creator = ["Alice"]`` (a list of strings, not tables) raises
+    ValueError instead of silently dropping every entry."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creator = ["Alice"]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="entry must be a table"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_single_table_raises() -> None:
+    """``[tool.pitloom.creation-tool]`` as a single table (not
+    ``[[tool.pitloom.creation-tool]]``) raises ValueError instead of being
+    silently treated as absent."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation-tool]
+name = "MyWrapper"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be an array of tables"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_list_of_strings_raises() -> None:
+    """``creation-tool = ["MyWrapper"]`` (a list of strings, not tables)
+    raises ValueError instead of silently dropping every entry."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-tool = ["MyWrapper"]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="entry must be a table"):
+            read_pyproject(pyproject_path)
+
+
+def test_creator_empty_name_raises() -> None:
+    """``Creator(name="")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="Creator name must be non-empty"):
+        Creator(name="")
+
+
+def test_creator_whitespace_name_raises() -> None:
+    """``Creator(name="   ")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="Creator name must be non-empty"):
+        Creator(name="   ")
+
+
+def test_tool_info_empty_name_raises() -> None:
+    """``ToolInfo(name="")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="ToolInfo name must be non-empty"):
+        ToolInfo(name="")
+
+
+def test_tool_info_whitespace_name_raises() -> None:
+    """``ToolInfo(name="   ")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="ToolInfo name must be non-empty"):
+        ToolInfo(name="   ")
+
+
 def test_extract_metadata_canonicalises_dependency_names() -> None:
     """Dependency package names are canonicalised per PEP 503.
 

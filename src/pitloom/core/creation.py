@@ -34,8 +34,8 @@ class Creator:
             external identifier on the creator Agent.
 
     Raises:
-        ValueError: If ``type`` (after normalisation) is not one of
-            :data:`VALID_CREATOR_TYPES`.
+        ValueError: If ``name`` is empty or whitespace-only, or if ``type``
+            (after normalisation) is not one of :data:`VALID_CREATOR_TYPES`.
     """
 
     name: str
@@ -43,6 +43,8 @@ class Creator:
     email: str | None = None
 
     def __post_init__(self) -> None:
+        if not self.name or not self.name.strip():
+            raise ValueError(f"Creator name must be non-empty, got {self.name!r}.")
         normalized = (self.type or "person").strip().lower()
         if normalized not in VALID_CREATOR_TYPES:
             valid = ", ".join(sorted(VALID_CREATOR_TYPES))
@@ -59,9 +61,16 @@ class ToolInfo:
     Attributes:
         name: Name of the tool.  A tool literally named ``"Pitloom"`` gets
             a version summary appended automatically.
+
+    Raises:
+        ValueError: If ``name`` is empty or whitespace-only.
     """
 
     name: str
+
+    def __post_init__(self) -> None:
+        if not self.name or not self.name.strip():
+            raise ValueError(f"ToolInfo name must be non-empty, got {self.name!r}.")
 
 
 @dataclass
@@ -86,8 +95,8 @@ class CreationMetadata:
             to the *first* named creator.
         tools: Creation tools, in order.  ``None`` (default) means the
             default single ``Tool`` ``"Pitloom"``.  An empty list suppresses
-            ``createdUsing`` entirely (the old ``--no-creation-tool``
-            behaviour).  A non-empty list emits one ``Tool`` per entry.
+            ``createdUsing`` entirely (matches ``--no-creation-tool``).  A
+            non-empty list emits one ``Tool`` per entry.
         creation_datetime: ISO 8601 string for the creation timestamp.
             Full ISO forms are accepted (e.g. offsets and fractional
             seconds). Pitloom preserves input precision internally and
