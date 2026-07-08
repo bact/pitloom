@@ -10,10 +10,13 @@ References:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 
 def _read_pt2_meta_entry(
@@ -46,8 +49,8 @@ def _read_pt2_meta_entry(
                 field_name = "model_name"
             if name and field_name:
                 return name, f"{source} | Field: {meta_entry}.{field_name}"
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to parse PT2 metadata entry %s: %s", meta_entry, exc)
     return None, None
 
 
@@ -119,8 +122,8 @@ def _read_pt2_extra_files(
         if full in file_list:
             try:
                 return zf.read(full).decode("utf-8", errors="replace").strip() or None
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                log.debug("Failed to read PT2 extra file %s: %s", full, exc)
         return None
 
     name = _read_text("extra/name")
@@ -153,7 +156,8 @@ def _read_pt2_extra_files(
                 properties["tags"] = ", ".join(str(t) for t in tags_list)
             else:
                 properties["tags"] = tags_raw
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            log.debug("Failed to parse PT2 extra/tags as JSON: %s", exc)
             properties["tags"] = tags_raw
 
     if "author" in properties or "tags" in properties:
@@ -195,7 +199,8 @@ def _read_pt2_graph_io(
 
     try:
         data = json.loads(zf.read(model_json_path))
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to parse PT2 model graph %s: %s", model_json_path, exc)
         return [], []
 
     graph = (data.get("graph_module") or {}).get("graph") or {}
@@ -219,6 +224,7 @@ def _read_pt2_graph_io(
     return inputs, outputs
 
 
+# pylint: disable=too-many-locals
 def _read_pt2_zip(
     zf: ZipFile,
     source: str,
@@ -278,8 +284,8 @@ def _read_pt2_zip(
                 provenance["format_version"] = (
                     f"{source} | Field: {prefix}archive_version"
                 )
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            log.debug("Failed to read PT2 %sarchive_version: %s", prefix, exc)
 
     # PT2 Archive: optional metadata JSON (simple format).
     for meta_entry in ("METADATA.json", "metadata.json", "extra/metadata.json"):

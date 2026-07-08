@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, TypedDict, cast
 from unittest.mock import MagicMock, patch
@@ -117,7 +118,9 @@ def test_fasttext_missing_library(tmp_path: Path) -> None:
             read_fasttext(model_file)
 
 
-def test_fasttext_load_failure(tmp_path: Path) -> None:
+def test_fasttext_load_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     model_file = tmp_path / "model.bin"
     model_file.write_bytes(b"corrupt")
 
@@ -125,8 +128,60 @@ def test_fasttext_load_failure(tmp_path: Path) -> None:
     mock_fasttext.load_model.side_effect = OSError("bad file")
 
     with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
-        with pytest.raises(ValueError, match="Failed to load fastText"):
-            read_fasttext(model_file)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._fasttext"):
+            with pytest.raises(ValueError, match="Failed to load fastText"):
+                read_fasttext(model_file)
+
+    # Load failure is now logged at debug level before being re-raised.
+    assert any("model.bin" in r.message for r in caplog.records)
+
+
+def test_fasttext_get_args_failure_logs_and_returns_empty(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """model.f.getArgs() failing (e.g. an unexpected binding version) is
+    caught, logged, and hyperparameters/type_of_model fall back to empty/None
+    rather than raising."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = MagicMock()
+    mock_model.f.getArgs.side_effect = RuntimeError("binding mismatch")
+    mock_model.get_labels.return_value = []
+
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._fasttext"):
+            meta = read_fasttext(model_file)
+
+    assert meta.hyperparameters == {}
+    assert meta.type_of_model is None
+    assert any("getArgs" in r.message for r in caplog.records)
+
+
+def test_fasttext_get_labels_failure_logs_and_returns_empty_outputs(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """model.get_labels() failing is caught, logged, and outputs/labels fall
+    back to empty rather than raising."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model()
+    mock_model.get_labels.side_effect = RuntimeError("binding mismatch")
+
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._fasttext"):
+            meta = read_fasttext(model_file)
+
+    assert meta.outputs == []
+    assert "labels" not in meta.properties
+    assert any("labels" in r.message for r in caplog.records)
 
 
 def test_fasttext_basic_extraction(tmp_path: Path) -> None:

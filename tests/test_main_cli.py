@@ -237,6 +237,85 @@ version = "0.1.0"
     assert "creation_comment      : 'Generated via Pitloom CLI'" in captured.out
 
 
+def test_project_mode_malformed_pitloom_config_surfaces_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A malformed [tool.pitloom] section must be a hard error, not a silent
+    fallback to default config.
+
+    ``creator-name`` directly under ``[tool.pitloom]`` is the old/invalid
+    single-valued form (creators now live under
+    ``[[tool.pitloom.creator]]``), so ``read_pyproject`` raises ``ValueError``.
+    Before the fix, ``_load_project_config`` and ``_resolve_output_path``
+    each caught and silently discarded that error, so the CLI would still
+    exit 0 and generate an SBOM with default creators and a generic output
+    filename. It must now propagate: exit code 1, no SBOM written.
+    """
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        """
+[project]
+name = "x"
+
+[tool.pitloom]
+creator-name = 123
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def _fake_generate_sbom(*args: object, **kwargs: object) -> str:
+        raise AssertionError(
+            "generate_sbom must not run when [tool.pitloom] config is malformed"
+        )
+
+    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir)])
+
+    exit_code = __main__.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Error generating SBOM" in captured.err
+    assert not (project_dir / "x.spdx3.json").exists()
+    assert not (tmp_path / "sbom.spdx3.json").exists()
+
+
+def test_resolve_output_path_malformed_pyproject_raises(tmp_path: Path) -> None:
+    """_resolve_output_path() reads pyproject.toml directly (via
+    read_pyproject()) and must propagate a malformed [tool.pitloom]
+    ValueError rather than silently falling back to a default output path.
+
+    This is a narrower, direct-call complement to
+    test_project_mode_malformed_pitloom_config_surfaces_error above: that
+    end-to-end test never actually exercises this propagation path inside
+    _resolve_output_path(), because _load_project_config() -- called first
+    in _run_project_mode() -- raises on the same malformed config and
+    short-circuits before _resolve_output_path() is ever reached.
+    """
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        """
+[project]
+name = "x"
+
+[tool.pitloom]
+creator-name = 123
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        __main__._resolve_output_path(  # pylint: disable=protected-access
+            None, project_dir
+        )
+
+
 # ---------------------------------------------------------------------------
 # -m / --aimodel: model-mode tests
 # ---------------------------------------------------------------------------

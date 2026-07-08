@@ -6,6 +6,7 @@
 
 import contextlib
 import inspect
+import logging
 import types
 from pathlib import Path
 from uuid import uuid4
@@ -17,6 +18,8 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+
+log = logging.getLogger(__name__)
 
 
 def _get_caller_info() -> str:
@@ -42,8 +45,8 @@ def _get_caller_info() -> str:
                     f"Method: inspect_caller (tool: pitloom.loom, "
                     f"function: {func_name})"
                 )
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to determine caller info: %s", exc)
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
 

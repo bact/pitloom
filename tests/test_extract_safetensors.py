@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -123,7 +124,9 @@ def test_safetensors_fallback_keys(tmp_path: Path) -> None:
     assert meta.architecture == "llama"
 
 
-def test_safetensors_read_failure(tmp_path: Path) -> None:
+def test_safetensors_read_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     model_file = tmp_path / "model.safetensors"
     model_file.write_bytes(b"corrupt")
 
@@ -131,8 +134,12 @@ def test_safetensors_read_failure(tmp_path: Path) -> None:
     mock_safetensors.safe_open.side_effect = OSError("bad file")
 
     with patch.dict("sys.modules", {"safetensors": mock_safetensors}):
-        with pytest.raises(ValueError, match="Failed to read Safetensors"):
-            read_safetensors(model_file)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._safetensors"):
+            with pytest.raises(ValueError, match="Failed to read Safetensors"):
+                read_safetensors(model_file)
+
+    # Read failure is now logged at debug level before being re-raised.
+    assert any("model.safetensors" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

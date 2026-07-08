@@ -5,15 +5,31 @@
 """Integration and unit tests for the pitloom.loom module."""
 
 import json
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
 from pitloom import loom
 from pitloom.__about__ import __version__
 from pitloom.core.creation import CreationMetadata, Creator
+
+
+def test_get_caller_info_exception_logs_and_returns_fallback(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When inspect.stack() itself raises, _get_caller_info() catches it,
+    logs at debug level, and returns the same "unknown source" fallback
+    string as before logging was added."""
+    with patch("pitloom.loom.inspect.stack", side_effect=RuntimeError("no frames")):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
+            result = loom._get_caller_info()  # pylint: disable=protected-access
+
+    assert result == "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
+    assert any("caller info" in r.message for r in caplog.records)
 
 
 def test_loom_run_as_context_manager() -> None:

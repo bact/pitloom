@@ -6,11 +6,14 @@
 
 from __future__ import annotations
 
+import logging
 import struct
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 # Standard GGUF general keys used for SPDX AI fields
 _GGUF_NAME_KEYS = ("general.name",)
@@ -59,7 +62,12 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         from gguf import GGMLQuantizationType
 
         return str(GGMLQuantizationType(int_val).name)
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug(
+            "Failed to resolve GGUF quantization name for file_type=%r: %s",
+            file_type_value,
+            exc,
+        )
         return str(int_val)
 
 
@@ -99,6 +107,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
     try:
         reader = GGUFReader(str(model_path), mode="r")
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to open GGUF file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"

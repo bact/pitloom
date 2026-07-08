@@ -54,12 +54,14 @@ explicit `creation_metadata=CreationMetadata(...)` to that call.
 | `comment` (0-1) | *How* it was invoked | A short static note per channel (`Generated via Pitloom CLI`, `... Hatchling build hook`, `... loom SDK`), or your `--creation-comment`. |
 
 Pitloom's design distinguishes *who acted* from *what tool was used* --
-naming a creator never means naming Pitloom, and Pitloom itself is always
-recorded as a tool, never as a creator. In SPDX 3 terms this is the
-`Agent`/`Tool` split: an `Agent` (`Person` / `Organization` / `SoftwareAgent`
-/ the generic `Agent`) is who acts; a `Tool` is the instrument used. Pitloom
-is the instrument, so it belongs in `createdUsing` as a `Tool` -- **not** in
-`createdBy`.
+naming a creator (`--creator-name`) never names Pitloom itself as a
+`Person` or `Organization`. Pitloom is recorded as the tool in
+`createdUsing` by default (suppress with `--no-creation-tool`). In SPDX 3
+terms this is the `Agent`/`Tool` split: an `Agent` (`Person` /
+`Organization` / `SoftwareAgent` / the generic `Agent`) is who acts; a
+`Tool` is the instrument used. With no creator named, Pitloom stands in as
+the `SoftwareAgent` creator too (see below) -- but never pretending a
+human did the work.
 
 - **You name one or more creators** (repeatable `--creator-name`, or
   `[[tool.pitloom.creator]]`): each becomes a person (default), organization,
@@ -72,9 +74,10 @@ is the instrument, so it belongs in `createdUsing` as a `Tool` -- **not** in
 - **You name no creator** (zero-config): rather than invent a fake person,
   Pitloom records itself as the creator too, but as a software agent, not a
   person or organization -- honestly "an unattended Pitloom run made this" --
-  and omits a supplier for the main package. Pitloom is still recorded as a
-  tool regardless, so the same Pitloom shows up twice in this case: once
-  as the (software agent) creator, once as the tool.
+  and omits a supplier for the main package. Pitloom is also recorded as
+  the tool by default (unless suppressed with `--no-creation-tool`), so
+  the same Pitloom can show up twice in this case: once as the (software
+  agent) creator, once as the tool.
 
 This applies uniformly to the CLI, the Hatchling build hook, and
 `pitloom.loom` fragments -- all three accept the same creator/tool/timestamp

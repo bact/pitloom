@@ -351,6 +351,58 @@ version = "1.0.0"
             read_pyproject(pyproject_path)
 
 
+@pytest.mark.parametrize(
+    "value_toml",
+    ["123", '["x"]', "true"],
+    ids=["int", "list", "bool"],
+)
+def test_extract_pitloom_moved_creation_key_non_string_raises(
+    value_toml: str,
+) -> None:
+    """``creator-name`` has no valid form at all directly under
+    ``[tool.pitloom]`` -- the new creator schema lives entirely under a
+    different key (``[[tool.pitloom.creator]]``). Any value there (int,
+    list, bool, ...) is a leftover/typo of the old moved form and must
+    raise, not just the ``str`` case."""
+    pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creator-name = {value_toml}
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_int_top_level_raises() -> None:
+    """A non-list, non-string ``creation-tool`` (e.g. an int) directly
+    under ``[tool.pitloom]`` is still the old/invalid single-valued form
+    and must raise -- only a ``list`` is the valid new array-of-tables
+    form."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-tool = 123
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
 def test_extract_pitloom_creation_tool_array_not_flagged_as_moved() -> None:
     """The *new* ``[[tool.pitloom.creation-tool]]`` array-of-tables reuses
     the ``creation-tool`` name at the top level of ``[tool.pitloom]`` (as a
@@ -437,6 +489,49 @@ email = "nobody@example.com"
             read_pyproject(pyproject_path)
 
 
+def test_extract_pitloom_creator_type_wrong_pytype_raises() -> None:
+    """A ``[[tool.pitloom.creator]]`` entry with a non-string ``type``
+    (e.g. an int) raises ValueError instead of silently falling back to
+    the default ``"person"`` type."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+name = "Alice"
+type = 123
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="'type' must be a string"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_email_wrong_pytype_raises() -> None:
+    """A ``[[tool.pitloom.creator]]`` entry with a non-string ``email``
+    (e.g. an int) raises ValueError instead of silently becoming ``None``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+name = "Alice"
+email = 123
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="'email' must be a string"):
+            read_pyproject(pyproject_path)
+
+
 def test_extract_pitloom_empty_creation_tool_array_still_yields_empty_list() -> None:
     """A genuinely empty ``[[tool.pitloom.creation-tool]]`` array (zero
     tables present) still correctly yields ``tools == []`` -- only a
@@ -503,7 +598,10 @@ creator = ["Alice"]
 def test_extract_pitloom_creation_tool_single_table_raises() -> None:
     """``[tool.pitloom.creation-tool]`` as a single table (not
     ``[[tool.pitloom.creation-tool]]``) raises ValueError instead of being
-    silently treated as absent."""
+    silently treated as absent.
+
+    Caught by ``_check_moved_creation_keys`` (any non-list ``creation-tool``
+    is the old single-valued form) before ``_read_tools`` ever runs."""
     pyproject_content = """
 [project]
 name = "test-package"
@@ -517,7 +615,7 @@ name = "MyWrapper"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        with pytest.raises(ValueError, match="must be an array of tables"):
+        with pytest.raises(ValueError, match="has moved to"):
             read_pyproject(pyproject_path)
 
 

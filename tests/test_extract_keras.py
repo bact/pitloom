@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -156,6 +157,26 @@ def test_read_keras_bad_zip_raises_value_error(tmp_path: Path) -> None:
     f.write_bytes(b"not a zip file at all")
     with pytest.raises(ValueError, match="not a valid ZIP archive"):
         read_keras(f)
+
+
+def test_read_keras_malformed_metadata_json_logs_and_raises(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A valid ZIP whose metadata.json is not valid JSON hits the generic
+    except (distinct from the zipfile.BadZipFile branch above): the failure
+    is logged, and the same ValueError is raised as before logging was
+    added."""
+    f = tmp_path / "model.keras"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("metadata.json", "{not valid json")
+    f.write_bytes(buf.getvalue())
+
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._keras"):
+        with pytest.raises(ValueError, match="Failed to read Keras file"):
+            read_keras(f)
+
+    assert any("model.keras" in r.message for r in caplog.records)
 
 
 def test_read_keras_no_name_description_license(tmp_path: Path) -> None:

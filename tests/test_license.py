@@ -4,6 +4,7 @@
 
 """Tests for license text detection utilities."""
 
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -15,6 +16,7 @@ from pitloom.extract._license import (
     _looks_like_spdx_license_id,
     _read_license_from_citation_cff,
     _read_license_from_codemeta_json,
+    canonicalize_license_id,
     collect_license_candidates,
     detect_license_for_project,
     detect_license_from_text,
@@ -250,6 +252,28 @@ def licenseid_db_path_fixture() -> Path:
     if not db.exists():
         pytest.skip("licenseid database not built -- run 'licenseid update'")
     return db
+
+
+# ---------------------------------------------------------------------------
+# canonicalize_license_id
+# ---------------------------------------------------------------------------
+
+
+def test_canonicalize_license_id_match_failure_logs_and_returns_raw(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failure inside AggregatedLicenseMatcher (e.g. a corrupt database) is
+    caught, logged, and the raw input is returned unchanged -- same fallback
+    behaviour as before logging was added."""
+    with patch(
+        "pitloom.extract._license.AggregatedLicenseMatcher",
+        side_effect=RuntimeError("db corrupt"),
+    ):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._license"):
+            result = canonicalize_license_id("mit")
+
+    assert result == "mit"
+    assert any("mit" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

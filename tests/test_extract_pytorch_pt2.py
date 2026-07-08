@@ -15,13 +15,16 @@ from __future__ import annotations
 
 import io as _io
 import json as _json
+import logging
 import zipfile as _zipfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.extract._pytorch_pt2 import _read_pt2_extra_files, _read_pt2_zip
 from pitloom.extract.ai_model import read_pytorch_pt2
 
 # ---------------------------------------------------------------------------
@@ -167,6 +170,94 @@ def test_read_pytorch_pt2_extra_tags_json_array(tmp_path: Path) -> None:
     )
     meta = read_pytorch_pt2(model_file)
     assert meta.properties.get("tags") == "a, b"
+
+
+def test_read_pytorch_pt2_malformed_metadata_json_logs_and_name_is_none(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Invalid JSON in METADATA.json is caught, logged, and name falls back
+    to None (same behaviour as a METADATA.json without a name field)."""
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(
+        _make_pt2_zip({"version": b"2", "METADATA.json": b"{not valid json"})
+    )
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch_pt2"):
+        meta = read_pytorch_pt2(model_file)
+    assert meta.name is None
+    assert any("METADATA.json" in r.message for r in caplog.records)
+
+
+def test_read_pytorch_pt2_malformed_extra_tags_logs_and_keeps_raw_value(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """extra/tags content that isn't valid JSON is caught, logged, and the
+    raw string is kept as-is (same fallback behaviour as before logging)."""
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(_make_pt2_zip({"mdl/extra/tags": b"not a json array"}))
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch_pt2"):
+        meta = read_pytorch_pt2(model_file)
+    assert meta.properties.get("tags") == "not a json array"
+    assert any(
+        "Failed to parse PT2 extra/tags as JSON" in r.message for r in caplog.records
+    )
+
+
+def test_read_pytorch_pt2_malformed_model_json_logs_and_returns_empty_io(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Invalid JSON in models/model.json is caught, logged, and inputs/outputs
+    fall back to empty lists (same as when the file is absent)."""
+    model_file = tmp_path / "model.pt2"
+    model_file.write_bytes(_make_pt2_zip({"mdl/models/model.json": b"{not valid json"}))
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch_pt2"):
+        meta = read_pytorch_pt2(model_file)
+    assert meta.inputs == []
+    assert meta.outputs == []
+    assert any("models/model.json" in r.message for r in caplog.records)
+
+
+def test_read_pt2_extra_files_read_failure_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A ZIP member listed in the archive that fails to read (e.g. a
+    corrupt/encrypted entry) is caught, logged, and treated the same as a
+    missing extra/name file (falls back to None)."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = ["extra/name"]
+    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch_pt2"):
+        name, description, version, license_expr = _read_pt2_extra_files(
+            mock_zf, "", "Source: model.pt2", properties, provenance
+        )
+
+    assert name is None
+    assert description is None
+    assert version is None
+    assert license_expr is None
+    assert "name" not in provenance
+    assert any("extra/name" in r.message for r in caplog.records)
+
+
+def test_read_pt2_zip_archive_version_read_failure_logs_and_continues(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A ZIP member listed in the archive that fails to read while resolving
+    archive_version is caught, logged, and format_version falls back to
+    None instead of raising."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = ["archive_version"]
+    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch_pt2"):
+        result = _read_pt2_zip(mock_zf, "Source: model.pt2")
+
+    (_, _, _, _, format_version, _, provenance, _, _) = result
+    assert format_version is None
+    assert "format_version" not in provenance
+    assert any("archive_version" in r.message for r in caplog.records)
 
 
 def test_read_pytorch_pt2_model_json_inputs_outputs(tmp_path: Path) -> None:

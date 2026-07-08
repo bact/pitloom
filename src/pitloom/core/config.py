@@ -32,6 +32,13 @@ _MOVED_CREATION_KEYS: dict[str, str] = {
     "creation_tool": "[[tool.pitloom.creation-tool]] (key: name)",
 }
 
+#: Subset of ``_MOVED_CREATION_KEYS`` where a top-level ``list`` value is
+#: valid (the new array-of-tables form) rather than stale -- see
+#: :func:`_check_moved_creation_keys`.
+_MOVED_CREATION_KEYS_LIST_VALID: frozenset[str] = frozenset(
+    {"creation-tool", "creation_tool"}
+)
+
 
 @dataclass
 class PitloomConfig:
@@ -80,16 +87,25 @@ def _check_moved_creation_keys(
     directly under ``[tool.pitloom]`` or ``[tool.pitloom.creation]``; they
     belong in ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``.
 
-    A top-level *string* ``creation-tool`` is the invalid single-valued
-    form; a *list* is the valid array-of-tables and must not be flagged.
+    A top-level *list* ``creation-tool`` is the valid array-of-tables form
+    and must not be flagged; any other value there (string, int, bool,
+    ...) is the old/invalid single-valued form. The other moved keys
+    (``creator-name``/``creator-email``/``creator-type``) have no valid
+    form at all under ``[tool.pitloom]``, so any value present there --
+    regardless of type -- is flagged.
     """
     for key in pitloom_data:
         moved_to = _MOVED_CREATION_KEYS.get(key)
-        if moved_to is not None and isinstance(pitloom_data[key], str):
-            raise ValueError(
-                f"[tool.pitloom] {key!r} has moved to {moved_to}. "
-                "Update your pyproject.toml."
-            )
+        if moved_to is None:
+            continue
+        if key in _MOVED_CREATION_KEYS_LIST_VALID and isinstance(
+            pitloom_data[key], list
+        ):
+            continue
+        raise ValueError(
+            f"[tool.pitloom] {key!r} has moved to {moved_to}. "
+            "Update your pyproject.toml."
+        )
     for key in creation_data:
         moved_to = _MOVED_CREATION_KEYS.get(key)
         if moved_to is not None:
@@ -106,7 +122,8 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
         ValueError: If ``creator`` is present but not an array of tables
             (e.g. a single ``[tool.pitloom.creator]`` table, or
             ``creator = ["Alice"]``), or if an entry is not a table or is
-            missing a valid (non-empty string) ``name``.
+            missing a valid (non-empty string) ``name``, or if an entry's
+            ``type`` or ``email`` is present but not a string.
     """
     raw = pitloom_data.get("creator")
     if raw is None:
@@ -130,12 +147,22 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
                 f"(got {name!r})"
             )
         creator_type = entry.get("type")
+        if creator_type is not None and not isinstance(creator_type, str):
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry 'type' must be a string, got "
+                f"{type(creator_type).__name__}: {creator_type!r}"
+            )
         email = entry.get("email")
+        if email is not None and not isinstance(email, str):
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry 'email' must be a string, got "
+                f"{type(email).__name__}: {email!r}"
+            )
         creators.append(
             Creator(
                 name=name,
-                type=creator_type if isinstance(creator_type, str) else "person",
-                email=email if isinstance(email, str) else None,
+                type=creator_type if creator_type is not None else "person",
+                email=email,
             )
         )
     return creators

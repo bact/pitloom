@@ -391,26 +391,22 @@ def _resolve_creation_metadata(
 def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
     """Load :class:`~pitloom.core.config.PitloomConfig` from the project.
 
-    Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
+    Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``. A
+    parse or validation error from either propagates -- it is a genuine
+    config mistake, not a signal to silently try the next source.
     Returns a 2-tuple of ``(PitloomConfig, config_file_path)``.
     """
     pyproject_path = project_dir / "pyproject.toml"
     if pyproject_path.exists():
-        try:
-            _, config = read_pyproject(pyproject_path)
-            return config, pyproject_path
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        _, config = read_pyproject(pyproject_path)
+        return config, pyproject_path
 
     setup_cfg = project_dir / "setup.cfg"
     setup_py = project_dir / "setup.py"
     if setup_cfg.exists() or setup_py.exists():
-        try:
-            _, config = read_setuptools(project_dir)
-            config_path = setup_cfg if setup_cfg.exists() else setup_py
-            return config, config_path
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        _, config = read_setuptools(project_dir)
+        config_path = setup_cfg if setup_cfg.exists() else setup_py
+        return config, config_path
 
     return PitloomConfig(), None
 
@@ -634,23 +630,19 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
     if explicit is not None:
         return explicit
 
-    try:
-        pyproject_path = project_dir / "pyproject.toml"
-        if pyproject_path.exists():
-            metadata, pitloom_config = read_pyproject(pyproject_path)
-        else:
-            metadata, pitloom_config = read_setuptools(project_dir)
+    pyproject_path = project_dir / "pyproject.toml"
+    if pyproject_path.exists():
+        metadata, pitloom_config = read_pyproject(pyproject_path)
+    else:
+        metadata, pitloom_config = read_setuptools(project_dir)
 
-        if pitloom_config.sbom_basename:
-            return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
+    if pitloom_config.sbom_basename:
+        return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
 
-        parts = [metadata.name] if metadata.name else ["sbom"]
-        if metadata.version:
-            parts.append(metadata.version)
-        return Path("-".join(parts) + _SPDX3_JSON_EXT)
-
-    except Exception:  # pylint: disable=broad-exception-caught
-        return Path(f"sbom{_SPDX3_JSON_EXT}")
+    parts = [metadata.name] if metadata.name else ["sbom"]
+    if metadata.version:
+        parts.append(metadata.version)
+    return Path("-".join(parts) + _SPDX3_JSON_EXT)
 
 
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:

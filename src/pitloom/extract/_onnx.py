@@ -6,10 +6,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 
 def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
@@ -70,6 +73,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
         # load_external_data=False avoids loading large external tensor files
         model = onnx.load(str(model_path), load_external_data=False)
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to load ONNX model from %s: %s", model_path, exc)
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 
     source = f"Source: {model_path.name}"

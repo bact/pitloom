@@ -11,10 +11,13 @@ References:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 # Maps NPY format major version -> header encoding.
 #   Version 1.x: 2-byte LE uint16 header-length field, latin1 encoding.
@@ -131,6 +134,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             if inputs:
                 provenance["inputs"] = f"{source} | Fields: array names, shapes, dtypes"
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to read NumPy file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc
 
     return AiModelMetadata(

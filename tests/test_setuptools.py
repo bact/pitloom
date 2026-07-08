@@ -4,6 +4,7 @@
 
 """Tests for metadata extraction from setup.cfg and setup.py."""
 
+import logging
 import tempfile
 from pathlib import Path
 
@@ -76,6 +77,21 @@ def test_detect_backend_no_config_files() -> None:
     """Returns None when no build configuration files are present."""
     with tempfile.TemporaryDirectory() as d:
         assert detect_build_backend(Path(d)) is None
+
+
+def test_detect_backend_malformed_pyproject_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pyproject.toml that fails to parse is caught, logged, and the
+    function falls back to None -- same as when no backend can be
+    determined -- rather than raising."""
+    content = "[build-system\nbroken toml"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract.setuptools"):
+            result = detect_build_backend(Path(d))
+    assert result is None
+    assert any("pyproject.toml" in r.message for r in caplog.records)
 
 
 def test_detect_backend_unknown_backend() -> None:
@@ -573,6 +589,34 @@ def test_read_setuptools_cfg_config_returned() -> None:
         (Path(d) / "setup.py").write_text(py)
         _, config = read_setuptools(Path(d))
     assert config.pretty is True
+
+
+def test_read_setuptools_invalid_pitloom_config_raises() -> None:
+    """A malformed [tool:pitloom:creation] in setup.cfg propagates as a
+    ValueError, even when a valid setup.py exists as a fallback source --
+    it is a genuine config mistake, not a "try the next source" signal."""
+    cfg = (
+        "[metadata]\nname = pkg\nversion = 1.0\n\n"
+        "[tool:pitloom:creation]\ncreator-name = Alice\ncreator-type = bogus\n"
+    )
+    py = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(cfg)
+        (Path(d) / "setup.py").write_text(py)
+        with pytest.raises(ValueError, match="Invalid creator type"):
+            read_setuptools(Path(d))
+
+
+def test_read_setuptools_no_name_falls_through_to_setup_py() -> None:
+    """setup.cfg with no [metadata] name is the one legitimate case that
+    falls through to setup.py, rather than raising."""
+    cfg = "[metadata]\ndescription = no name here\n"
+    py = "from setuptools import setup\nsetup(name='fallback-pkg', version='1.0.0')\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(cfg)
+        (Path(d) / "setup.py").write_text(py)
+        metadata, _ = read_setuptools(Path(d))
+    assert metadata.name == "fallback-pkg"
 
 
 # ---------------------------------------------------------------------------

@@ -87,8 +87,8 @@ pitloom`).
   `--creator-type`/`--creator-email` bind to the most recently named one
   (e.g. `--creator-name "Acme Corp" --creator-type organization
   --creator-name Alice`). Without a named creator, Pitloom records itself
-  as an unattended `software-agent` creator. Pitloom is always recorded as
-  the generating tool regardless.
+  as an unattended `software-agent` creator. Pitloom is recorded as the
+  generating tool by default too (suppress with `--no-creation-tool`).
 
 ## What Pitloom produces
 

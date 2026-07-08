@@ -6,10 +6,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 # Maps Args attribute names (from model.f.getArgs()) to hyperparameter keys.
 # The Python fasttext package exposes training configuration via the C++
@@ -45,6 +48,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
     try:
         return fasttext.load_model(str(model_path))
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to load fastText model from %s: %s", model_path, exc)
         raise ValueError(
             f"Failed to load fastText model from {model_path}: {exc}"
         ) from exc
@@ -60,7 +64,8 @@ def _extract_fasttext_args(
 
     try:
         args = model.f.getArgs()
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to read fastText model.f.getArgs(): %s", exc)
         return hyperparameters, properties, type_of_model
 
     for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
@@ -95,7 +100,8 @@ def _extract_fasttext_outputs(
 
     try:
         labels = get_labels()
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to read fastText model labels: %s", exc)
         return properties, outputs
 
     if labels:

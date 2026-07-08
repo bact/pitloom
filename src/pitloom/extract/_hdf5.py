@@ -49,10 +49,13 @@ References:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 
 def _decode_h5_attr(value: Any) -> str | None:
@@ -294,6 +297,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
     try:
         hf = h5py.File(str(model_path), "r")
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to open HDF5 file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read HDF5 file {model_path}: {exc}") from exc
 
     with hf:

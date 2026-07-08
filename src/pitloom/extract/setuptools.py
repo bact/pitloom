@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import ast
 import configparser
+import logging
 import re
 import sys
 from pathlib import Path
@@ -54,6 +55,17 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
+
+log = logging.getLogger(__name__)
+
+
+class _NoProjectNameError(ValueError):
+    """A setup.cfg/setup.py file has no project name -- try the next source.
+
+    Distinct from other ``ValueError``s the same reader can raise (e.g. a
+    malformed ``[tool:pitloom]`` section), which are genuine config mistakes
+    that must propagate rather than be treated as "try elsewhere".
+    """
 
 
 # Matches "file: some/path" or "attr: module.attribute"
@@ -89,8 +101,8 @@ def detect_build_backend(project_dir: Path) -> str | None:
                 return backend
         if build_backend:
             return build_backend.split(".")[0].lower()
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to detect build backend from %s: %s", pyproject_path, exc)
     return None
 
 
@@ -112,7 +124,10 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     Raises:
         FileNotFoundError: If neither ``setup.cfg`` nor ``setup.py`` exist,
             or neither contains a project name.
-        ValueError: If a project name cannot be found in any source.
+        ValueError: If ``setup.cfg``'s ``[tool:pitloom]``/
+            ``[tool:pitloom:creation]`` has invalid config -- this
+            propagates rather than falling through to ``setup.py``, since
+            it is a genuine config mistake, not a missing-name signal.
     """
     setup_cfg = project_dir / "setup.cfg"
     setup_py = project_dir / "setup.py"
@@ -124,7 +139,7 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     if setup_cfg.exists():
         try:
             cfg_metadata, cfg_config = read_setup_cfg(project_dir)
-        except (FileNotFoundError, ValueError):
+        except (FileNotFoundError, _NoProjectNameError):
             pass
 
     if setup_py.exists():
@@ -170,7 +185,10 @@ def read_setup_cfg(
 
     Raises:
         FileNotFoundError: If ``setup.cfg`` is not found.
-        ValueError: If ``name`` is absent from the ``[metadata]`` section.
+        _NoProjectNameError: If ``name`` is absent from the ``[metadata]``
+            section.
+        ValueError: If ``[tool:pitloom]``/``[tool:pitloom:creation]`` has
+            invalid config (e.g. a bad ``creator-type``).
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not setup_cfg_path.exists():
@@ -184,7 +202,9 @@ def read_setup_cfg(
 
     name = metadata_raw.get("name", "").strip()
     if not name:
-        raise ValueError("Project name is required in setup.cfg [metadata] section")
+        raise _NoProjectNameError(
+            "Project name is required in setup.cfg [metadata] section"
+        )
 
     raw_version = metadata_raw.get("version", "").strip()
     version, version_source = _resolve_cfg_version(raw_version, project_dir)

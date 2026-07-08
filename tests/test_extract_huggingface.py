@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,10 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetReference
 from pitloom.extract._huggingface import (
     _detect_license_from_hf_files,
+    _list_license_files_in_repo,
+    _load_model_card,
+    _load_model_info,
+    _safe_load_json,
     is_huggingface_source,
     parse_hf_model_id,
     read_huggingface,
@@ -612,6 +617,80 @@ def test_detect_license_from_hf_files_returns_none_on_empty_file(
         with patch("huggingface_hub.hf_hub_download", return_value=str(empty_file)):
             detected_id, _ = _detect_license_from_hf_files("org/model")
     assert detected_id is None
+
+
+# ---------------------------------------------------------------------------
+# Robustness: each private HF I/O helper degrades gracefully and logs at
+# debug level when the underlying huggingface_hub call raises. These call
+# the helpers directly (unlike the read_huggingface() tests above, which
+# mock the helpers themselves away) so the actual except blocks run.
+# ---------------------------------------------------------------------------
+
+
+def test_safe_load_json_download_failure_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch("huggingface_hub.hf_hub_download", side_effect=OSError("network down")):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+            result = _safe_load_json("org/model", "config.json")
+    assert result is None
+    assert any("config.json" in r.message for r in caplog.records)
+
+
+def test_load_model_card_failure_logs_and_returns_empty(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch(
+        "huggingface_hub.ModelCard.load", side_effect=OSError("card fetch failed")
+    ):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+            text, data = _load_model_card("org/model")
+    assert text is None
+    assert data == {}
+    assert any("org/model" in r.message for r in caplog.records)
+
+
+def test_load_model_info_failure_logs_and_returns_empty(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch("huggingface_hub.model_info", side_effect=OSError("info fetch failed")):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+            result = _load_model_info("org/model")
+    assert not result
+    assert any("org/model" in r.message for r in caplog.records)
+
+
+def test_list_license_files_in_repo_failure_logs_and_returns_empty(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch(
+        "huggingface_hub.list_repo_files", side_effect=OSError("listing failed")
+    ):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+            result = _list_license_files_in_repo("org/model")
+    assert not result
+    assert any("org/model" in r.message for r in caplog.records)
+
+
+def test_detect_license_from_hf_files_download_failure_logs_and_continues(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # A license candidate is listed, but downloading/reading it fails --
+    # the loop must catch, log, and continue (returning (None, None) since
+    # no other candidates exist) rather than raising.
+    with patch(
+        "pitloom.extract._huggingface._list_license_files_in_repo",
+        return_value=["LICENSE"],
+    ):
+        with patch(
+            "huggingface_hub.hf_hub_download",
+            side_effect=OSError("download failed"),
+        ):
+            with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+                detected_id, provenance = _detect_license_from_hf_files("org/model")
+    assert detected_id is None
+    assert provenance is None
+    assert any("LICENSE" in r.message for r in caplog.records)
 
 
 def test_read_huggingface_invalid_source_raises() -> None:
