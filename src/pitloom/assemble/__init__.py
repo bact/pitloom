@@ -47,15 +47,15 @@ def generate_sbom(
             If ``False``, produce compact output (no extra whitespace).
             If ``None`` (default), read the setting from ``[tool.pitloom] pretty``
             in ``pyproject.toml`` (which itself defaults to ``False``).
-        metadata: Pre-parsed project metadata, e.g. already loaded by a
-            caller such as the CLI. When ``None`` (default), parsed from
+        project_metadata: Pre-parsed project metadata, e.g. already loaded by
+            a caller such as the CLI. When ``None`` (default), parsed from
             *project_dir* via :func:`~pitloom.extract.project.read_project`.
             Must be supplied together with *pitloom_config* -- if only one
             of the two is given, both are re-derived from *project_dir*
             instead. Mutated in place: its ``.files`` attribute is set from
             the wheel file scan.
         pitloom_config: Pre-parsed ``[tool.pitloom]`` settings, paired with
-            *metadata* (see above).
+            *project_metadata* (see above).
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.

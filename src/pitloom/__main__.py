@@ -761,7 +761,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
         if project_dir is None:
             return 1
 
-        metadata, pitloom_config, config_path = read_project(project_dir)
+        project_metadata, pitloom_config, config_path = read_project(project_dir)
         creation = _resolve_creation_metadata(args, pitloom_config)
         effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
         effective_describe_relationship = (
@@ -770,7 +770,9 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             else args.describe_relationship
         )
 
-        output_path = _resolve_output_path(args.output, metadata, pitloom_config)
+        output_path = _resolve_output_path(
+            args.output, project_metadata, pitloom_config
+        )
 
         if args.verbose:
             _print_verbose(
@@ -788,7 +790,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
             describe_relationship=effective_describe_relationship,
-            project_metadata=metadata,
+            project_metadata=project_metadata,
             pitloom_config=pitloom_config,
         )
         return 0
