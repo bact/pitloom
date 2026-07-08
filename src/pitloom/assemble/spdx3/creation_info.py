@@ -70,7 +70,7 @@ def _tool_summary(creation_tool: str) -> str | None:
 
 
 def build_creator_agent(
-    creation: CreationMetadata,
+    creation_metadata: CreationMetadata,
     doc_name: str,
     doc_uuid: str,
     spdx_ci: spdx3.CreationInfo,
@@ -88,7 +88,7 @@ def build_creator_agent(
         ValueError: If ``creator_type`` is set but not one of
             :data:`CREATOR_TYPES`.
     """
-    if not creation.creator_name:
+    if not creation_metadata.creator_name:
         return spdx3.SoftwareAgent(
             spdxId=generate_spdx_id(
                 "SoftwareAgent", doc_name=doc_name, doc_uuid=doc_uuid
@@ -97,32 +97,33 @@ def build_creator_agent(
             creationInfo=spdx_ci,
         )
 
-    creator_type = (creation.creator_type or "person").strip().lower()
+    creator_type = (creation_metadata.creator_type or "person").strip().lower()
     agent_cls = CREATOR_TYPES.get(creator_type)
     if agent_cls is None:
         valid = ", ".join(sorted(CREATOR_TYPES))
         raise ValueError(
-            f"Invalid creator_type {creation.creator_type!r}; must be one of: {valid}."
+            f"Invalid creator_type {creation_metadata.creator_type!r}; "
+            f"must be one of: {valid}."
         )
     agent = agent_cls(
         spdxId=generate_spdx_id(
             agent_cls.__name__, doc_name=doc_name, doc_uuid=doc_uuid
         ),
-        name=creation.creator_name,
+        name=creation_metadata.creator_name,
         creationInfo=spdx_ci,
     )
-    if creation.creator_email:
+    if creation_metadata.creator_email:
         agent.externalIdentifier = [
             spdx3.ExternalIdentifier(
                 externalIdentifierType=spdx3.ExternalIdentifierType.email,
-                identifier=creation.creator_email,
+                identifier=creation_metadata.creator_email,
             )
         ]
     return agent
 
 
 def build_tool(
-    creation: CreationMetadata,
+    creation_metadata: CreationMetadata,
     doc_name: str,
     doc_uuid: str,
     spdx_ci: spdx3.CreationInfo,
@@ -132,21 +133,21 @@ def build_tool(
     ``Tool.summary`` carries Pitloom's version, but only for the default
     ``"Pitloom"`` tool name (see :func:`_tool_summary`).
     """
-    if not creation.creation_tool:
+    if not creation_metadata.creation_tool:
         return None
     tool = spdx3.Tool(
         spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
-        name=creation.creation_tool,
+        name=creation_metadata.creation_tool,
         creationInfo=spdx_ci,
     )
-    summary = _tool_summary(creation.creation_tool)
+    summary = _tool_summary(creation_metadata.creation_tool)
     if summary:
         tool.summary = summary
     return tool
 
 
 def build_creation_info(
-    creation: CreationMetadata,
+    creation_metadata: CreationMetadata,
     doc_name: str,
     doc_uuid: str,
     *,
@@ -154,28 +155,29 @@ def build_creation_info(
 ) -> tuple[spdx3.CreationInfo, spdx3.Agent, spdx3.Tool | None]:
     """Assemble a ``CreationInfo`` plus its creator Agent and Tool.
 
-    ``created`` comes from ``creation.creation_datetime`` (normalised to SPDX
-    DateTime) or the current UTC time.  ``comment`` uses
-    ``creation.creation_comment`` if set, else *default_comment*.  The creator
-    Agent goes in ``createdBy`` and the Tool (when present) in ``createdUsing``.
+    ``created`` comes from ``creation_metadata.creation_datetime`` (normalised
+    to SPDX DateTime) or the current UTC time.  ``comment`` uses
+    ``creation_metadata.creation_comment`` if set, else *default_comment*.
+    The creator Agent goes in ``createdBy`` and the Tool (when present) in
+    ``createdUsing``.
     """
     created = (
-        to_spdx3_datetime(parse_iso_datetime(creation.creation_datetime))
-        if creation.creation_datetime
+        to_spdx3_datetime(parse_iso_datetime(creation_metadata.creation_datetime))
+        if creation_metadata.creation_datetime
         else spdx3_utc_now()
     )
     spdx_ci = spdx3.CreationInfo(specVersion="3.0.1", created=created)
 
     comment = (
-        creation.creation_comment
-        if creation.creation_comment is not None
+        creation_metadata.creation_comment
+        if creation_metadata.creation_comment is not None
         else default_comment
     )
     if comment:
         spdx_ci.comment = comment
 
-    creator = build_creator_agent(creation, doc_name, doc_uuid, spdx_ci)
-    tool = build_tool(creation, doc_name, doc_uuid, spdx_ci)
+    creator = build_creator_agent(creation_metadata, doc_name, doc_uuid, spdx_ci)
+    tool = build_tool(creation_metadata, doc_name, doc_uuid, spdx_ci)
 
     spdx_ci.createdBy = [require_spdx_id(creator)]
     if tool is not None:

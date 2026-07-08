@@ -163,7 +163,7 @@ These apply to project, AI model, and Hugging Face SBOM generation alike.
 how they are modelled; `--creator-email` attaches an e-mail. `--creation-tool`
 records *what* produced it (defaults to `"Pitloom"`); `--creation-comment`
 and `--creation-datetime` set free-text provenance and an ISO 8601
-timestamp. See [Creation information](#creation-information) below for how
+timestamp. See [Creation metadata](#creation-metadata) below for how
 these fields are recorded.
 
 ```bash
@@ -189,7 +189,7 @@ creation-comment = "Generated in CI pipeline #123"
 creation-tool = "MyCompany SBOM Wrapper"
 ```
 
-#### Creation information
+#### Creation metadata
 
 Every element Pitloom emits carries a record of *who* created it, *what*
 tool produced it, *when*, and (optionally) *how* it was invoked -- Pitloom's
@@ -265,7 +265,7 @@ from pitloom.assemble import generate_sbom, generate_ai_model_sbom
 generate_sbom(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
-    creation_info=CreationMetadata(
+    creation_metadata=CreationMetadata(
         creator_name="Your Name",
         creator_email="your@example.com",
     ),
@@ -276,7 +276,7 @@ generate_sbom(
 generate_ai_model_sbom(
     model_path=Path("model.safetensors"),
     output_path=Path("model.spdx3.json"),
-    creation_info=CreationMetadata(creator_name="Your Name"),
+    creation_metadata=CreationMetadata(creator_name="Your Name"),
     pretty=True,
 )
 
@@ -286,7 +286,7 @@ from pitloom.assemble import generate_huggingface_sbom
 generate_huggingface_sbom(
     model_source="mistralai/Mistral-7B-v0.1",  # or full URL
     output_path=Path("mistral.spdx3.json"),
-    creation_info=CreationMetadata(creator_name="Your Name"),
+    creation_metadata=CreationMetadata(creator_name="Your Name"),
     pretty=True,
 )
 ```
@@ -364,19 +364,24 @@ with loom.run(output_file="fragments/sentiment_model.json"):
     loom.add_dataset("imdb-reviews", dataset_type="text")
 ```
 
-`loom.run` exposes the same [creation information](#creation-information)
-knobs as the CLI and build hook -- name a creator, override the tool,
-timestamp, or comment. With none given, the fragment records the
-unattended-run default (Pitloom itself as creator and as tool):
+`loom.run` accepts the same [creation metadata](#creation-metadata)
+as the CLI and build hook -- via a `creation_metadata=` `CreationMetadata`:
+name a creator, override the tool, timestamp, or comment. With none given,
+the fragment records the unattended-run default (Pitloom itself as creator
+and as tool):
 
 ```python
+from pitloom.core.creation import CreationMetadata
+
 with loom.run(
     "fragments/train.spdx3.json",
-    creator_name="Acme Corp",
-    creator_type="organization",     # or "person" (default), "software-agent", "agent"
-    creator_email="ml@acme.example",
-    creation_datetime="2026-01-15T10:00:00Z",  # default: now
-    # creation_tool=None,            # omit the Tool element entirely
+    creation_metadata=CreationMetadata(
+        creator_name="Acme Corp",
+        creator_type="organization",  # or "person" (default), "software-agent", "agent"
+        creator_email="ml@acme.example",
+        creation_datetime="2026-01-15T10:00:00Z",  # default: now
+        # creation_tool=None,          # omit the Tool element entirely
+    ),
 ):
     loom.set_model("sentiment-clf")
 ```

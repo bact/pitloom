@@ -131,8 +131,8 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="creation_creator_name",
         type=str,
         help=(
-            "Name of the SBOM creator (a Person or Organization in "
-            "createdBy). When omitted, the SoftwareAgent 'Pitloom' is "
+            "Name of the SBOM creator (see --creator-type for the Agent "
+            "subclass). When omitted, the SoftwareAgent 'Pitloom' is "
             "recorded as the automated creator."
         ),
     )
@@ -176,7 +176,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--creation-comment",
         type=str,
-        help="Comment to include in the SBOM creation information",
+        help="Comment to include in the SBOM creation metadata",
     )
     parser.add_argument(
         "--pretty",
@@ -623,7 +623,7 @@ def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:
         generate_ai_model_sbom(
             model_path,
             output_path=output_path,
-            creation_info=creation.to_creation_metadata(),
+            creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
             describe_relationship=effective_describe,
         )
@@ -665,7 +665,7 @@ def _run_hf_model_mode(args: argparse.Namespace, source: str) -> int:
         generate_huggingface_sbom(
             model_id,
             output_path=output_path,
-            creation_info=creation.to_creation_metadata(),
+            creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
             describe_relationship=effective_describe,
         )
@@ -708,7 +708,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
         generate_sbom(
             project_dir,
             output_path=output_path,
-            creation_info=creation.to_creation_metadata(),
+            creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
             describe_relationship=effective_describe_relationship,
         )

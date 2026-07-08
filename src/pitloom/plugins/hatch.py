@@ -74,13 +74,13 @@ def _build_document_model(
     correctly reflected in the SBOM.
     """
     metadata = metadata_from_hatchling(hatch_metadata, project_dir)
-    creation_meta = _build_creation_metadata(pitloom_config)
+    creation_metadata = _build_creation_metadata(pitloom_config)
     merkle_root, project_files = get_wheel_files(project_dir)
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
     document = DocumentModel(
         project=metadata,
-        creation=creation_meta,
+        creation_metadata=creation_metadata,
         ai_models=ai_models,
     )
     return document, merkle_root

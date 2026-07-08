@@ -13,6 +13,7 @@ import pytest
 
 from pitloom import loom
 from pitloom.__about__ import __version__
+from pitloom.core.creation import CreationMetadata
 
 
 def test_loom_run_as_context_manager() -> None:
@@ -251,11 +252,14 @@ def test_loom_run_default_comment() -> None:
 
 
 def test_loom_run_custom_comment() -> None:
-    """An explicit comment= overrides the default loom-SDK provenance note."""
+    """An explicit creation_comment overrides the default loom-SDK provenance note."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_custom_comment.json"
 
-        with loom.run(output_file, comment="Generated during nightly training job"):
+        creation = CreationMetadata(
+            creation_comment="Generated during nightly training job"
+        )
+        with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
         with open(output_file, encoding="utf-8") as f:
@@ -306,11 +310,12 @@ def _run_creation_info(
 
 
 def test_loom_run_named_person_creator() -> None:
-    """loom.run(creator_name=...) records a Person in createdBy, on par with
-    the CLI."""
+    """loom.run(creation_metadata=CreationMetadata(creator_name=...)) records a Person
+    in createdBy, on par with the CLI."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        with loom.run(output_file, creator_name="Alice", creator_email="a@ex.com"):
+        creation = CreationMetadata(creator_name="Alice", creator_email="a@ex.com")
+        with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
         agents, _ = _run_creation_info(output_file)
@@ -319,12 +324,14 @@ def test_loom_run_named_person_creator() -> None:
 
 
 def test_loom_run_organization_creator() -> None:
-    """loom.run(creator_type='organization') records an Organization."""
+    """creator_type='organization' on the CreationMetadata records an
+    Organization."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        with loom.run(
-            output_file, creator_name="Acme Corp", creator_type="organization"
-        ):
+        creation = CreationMetadata(
+            creator_name="Acme Corp", creator_type="organization"
+        )
+        with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
         agents, _ = _run_creation_info(output_file)
@@ -342,11 +349,12 @@ def test_loom_run_organization_creator() -> None:
 def test_loom_run_software_agent_and_generic_agent_creator(
     creator_type: str, expected_element_type: str
 ) -> None:
-    """loom.run(creator_type=...) also allows a named SoftwareAgent or the
-    generic Agent, not just Person/Organization."""
+    """creator_type also allows a named SoftwareAgent or the generic Agent,
+    not just Person/Organization."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        with loom.run(output_file, creator_name="CI Bot", creator_type=creator_type):
+        creation = CreationMetadata(creator_name="CI Bot", creator_type=creator_type)
+        with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
         agents, _ = _run_creation_info(output_file)
@@ -359,21 +367,22 @@ def test_loom_run_invalid_creator_type_raises() -> None:
     falling back to Person."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
+        creation = CreationMetadata(creator_name="Bot", creator_type="robot")
         with pytest.raises(ValueError, match="Invalid creator_type"):
-            with loom.run(output_file, creator_name="Bot", creator_type="robot"):
+            with loom.run(output_file, creation_metadata=creation):
                 loom.set_model("test-model")
 
 
 def test_loom_run_suppress_tool_and_fixed_datetime() -> None:
-    """loom.run(creation_tool=None) omits createdUsing; creation_datetime is
+    """creation_tool=None omits createdUsing; creation_datetime is
     normalised into created."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        with loom.run(
-            output_file,
+        creation = CreationMetadata(
             creation_tool=None,
             creation_datetime="2026-01-15T10:00:00Z",
-        ):
+        )
+        with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
         _, ci = _run_creation_info(output_file)

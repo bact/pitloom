@@ -59,18 +59,19 @@ class _ActiveRun:
         self,
         output_file: str,
         pretty: bool = False,
-        creation: CreationMetadata | None = None,
+        creation_metadata: CreationMetadata | None = None,
     ):
         self.output_file = output_file
         self.pretty = pretty
         self.doc_uuid = str(uuid4())
 
-        # Same CreationInfo model as the CLI and build hook: a named creator
-        # becomes a Person/Organization, otherwise the SoftwareAgent "Pitloom"
-        # is the createdBy actor, with the Tool "Pitloom" in createdUsing.
-        # Unattended capture defaults the comment to the loom-SDK note.
+        # Same CreationMetadata handling as the CLI and build hook: a named
+        # creator becomes the matching Agent subclass, otherwise the
+        # SoftwareAgent "Pitloom" is the createdBy actor, with the Tool
+        # "Pitloom" in createdUsing. Unattended capture defaults the comment
+        # to the loom-SDK note.
         self.creation_info, agent, tool = build_creation_info(
-            creation or CreationMetadata(),
+            creation_metadata or CreationMetadata(),
             "pitloom-sdk",
             self.doc_uuid,
             default_comment=_default_run_comment(),
@@ -327,56 +328,47 @@ class Run(contextlib.ContextDecorator):
                                     data_preprocessing=["tokenization"])
 
     The fragment's SPDX ``CreationInfo`` is configurable on par with the CLI
-    and Hatchling build hook: name a human/organization creator, or override
-    the tool, timestamp, and comment. With none given, the fragment records
-    the ``SoftwareAgent`` "Pitloom" (createdBy) and ``Tool`` "Pitloom"
-    (createdUsing) of an unattended run.
+    and Hatchling build hook: pass a ``CreationMetadata`` to name a creator
+    (a person, organization, or automated agent), or override the tool,
+    timestamp, and comment. With none given, the fragment records the
+    ``SoftwareAgent`` "Pitloom" (createdBy) and ``Tool`` "Pitloom"
+    (createdUsing) of an unattended run::
+
+        loom.run(
+            "fragments/train.spdx3.json",
+            creation_metadata=CreationMetadata(
+                creator_name="Alice", creator_type="person"
+            ),
+        )
 
     Args:
         output_file: Path to write the SBOM fragment to.
         pretty: Indent the JSON output with 2 spaces when ``True``.
-        comment: ``CreationInfo.comment``. Defaults to an auto-generated note
-            identifying the loom SDK and its version.
-        creator_name: Name of a human/organization creator (``createdBy``).
-            When omitted, the ``SoftwareAgent`` "Pitloom" is used.
-        creator_email: E-mail of the named creator.
-        creator_type: Agent subclass for the named creator: ``"person"``
-            (default), ``"organization"``, ``"software-agent"``, or the
-            generic ``"agent"``.
-        creation_tool: Tool name for ``createdUsing`` (default ``"Pitloom"``);
-            pass ``None`` to omit the Tool entirely.
-        creation_datetime: ISO 8601 ``created`` timestamp; defaults to now.
+        creation_metadata: Creator, tool, timestamp, and comment overrides for
+            the fragment's ``CreationInfo``. See :class:`CreationMetadata` for
+            all fields. When ``None`` (default), the comment defaults to an
+            auto-generated note identifying the loom SDK and its version,
+            and the creator defaults to the ``SoftwareAgent`` "Pitloom".
     """
 
     def __init__(
         self,
         output_file: str | Path,
         pretty: bool = False,
-        comment: str | None = None,
-        *,
-        creator_name: str | None = None,
-        creator_email: str | None = None,
-        creator_type: str = "person",
-        creation_tool: str | None = "Pitloom",
-        creation_datetime: str | None = None,
+        creation_metadata: CreationMetadata | None = None,
     ):
         self.output_file = str(output_file)
         self.pretty = pretty
-        self.creation = CreationMetadata(
-            creator_name=creator_name,
-            creator_email=creator_email,
-            creator_type=creator_type,
-            creation_tool=creation_tool,
-            creation_datetime=creation_datetime,
-            creation_comment=comment,
-        )
+        self.creation_metadata = creation_metadata or CreationMetadata()
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
         global _active_run  # pylint: disable=global-statement
         self.previous_run = _active_run
         _active_run = _ActiveRun(
-            self.output_file, pretty=self.pretty, creation=self.creation
+            self.output_file,
+            pretty=self.pretty,
+            creation_metadata=self.creation_metadata,
         )
         return _active_run
 

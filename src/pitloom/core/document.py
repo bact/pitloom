@@ -31,10 +31,10 @@ class DocumentModel:
 
     Attributes:
         project: Python project metadata from ``pyproject.toml``.
-        creation: Creator and timestamp metadata for the SBOM document.
+        creation_metadata: Creator and timestamp metadata for the SBOM document.
         ai_models: AI model metadata, one entry per model file processed.
     """
 
     project: ProjectMetadata
-    creation: CreationMetadata = field(default_factory=CreationMetadata)
+    creation_metadata: CreationMetadata = field(default_factory=CreationMetadata)
     ai_models: list[AiModelMetadata] = field(default_factory=list)

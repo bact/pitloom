@@ -292,7 +292,7 @@ jobs:
           | Wheel | \`${{ steps.build.outputs.wheel_name }}\` |
           | SBOM | \`${{ steps.sbom.outputs.sbom_name }}\` |
 
-          ### 📋 Creation Information
+          ### 📋 Creation Metadata
           | Property | Value |
           | :--- | :--- |
           | SPDX Version | ${{ steps.metadata.outputs.spec_version }} |

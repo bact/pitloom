@@ -13,12 +13,13 @@ from dataclasses import dataclass
 class CreationMetadata:
     """Metadata describing who and what generated an SBOM.
 
-    This maps to SPDX 3 ``CreationInfo``: the *creator* becomes an Agent in
-    ``createdBy`` (a human ``Person`` or an ``Organization``), and the *tool*
-    becomes a ``Tool`` in ``createdUsing``.  When no creator is named, the
-    assembler records the automated ``SoftwareAgent`` ``"Pitloom"`` in
-    ``createdBy`` -- Pitloom acting on its own -- rather than inventing a
-    ``Person``.
+    Pitloom's own model for creation provenance -- distinct from, but
+    mapping onto, SPDX 3 ``CreationInfo``: the *creator* becomes an Agent in
+    ``createdBy`` (``Person``, ``Organization``, ``SoftwareAgent``, or the
+    generic ``Agent`` -- see ``creator_type``), and the *tool* becomes a
+    ``Tool`` in ``createdUsing``.  When no creator is named, the assembler
+    records the automated ``SoftwareAgent`` ``"Pitloom"`` in ``createdBy``
+    -- Pitloom acting on its own -- rather than inventing a ``Person``.
 
     Attributes:
         creator_name: Display name of the person or organisation that

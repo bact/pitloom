@@ -31,7 +31,7 @@ def _build_creation_bundle(
     doc: DocumentModel, doc_uuid: str
 ) -> tuple[spdx3.CreationInfo, spdx3.Agent, spdx3.Tool | None]:
     """Create shared SPDX creation objects for the document."""
-    return build_creation_info(doc.creation, doc.project.name, doc_uuid)
+    return build_creation_info(doc.creation_metadata, doc.project.name, doc_uuid)
 
 
 def _build_provenance_comment(doc: DocumentModel) -> str | None:
@@ -53,7 +53,7 @@ def _build_main_package(
 ) -> spdx3.software_Package:
     """Create the SPDX package representing the Python project."""
     metadata = doc.project
-    creation = doc.creation
+    creation_metadata = doc.creation_metadata
     download_location = metadata.urls.get("Source") or metadata.urls.get("Homepage")
     main_package = spdx3.software_Package(
         spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
@@ -64,7 +64,7 @@ def _build_main_package(
     # suppliedBy names who supplied the package, so only assert it for a real
     # named creator -- not for the default SoftwareAgent "Pitloom", which is
     # the SBOM tool, not the package's supplier.
-    if creation.creator_name:
+    if creation_metadata.creator_name:
         main_package.suppliedBy = creator.spdxId
     if metadata.description:
         main_package.description = metadata.description
@@ -78,8 +78,10 @@ def _build_main_package(
         else metadata.name
     )
     main_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-    if creation.build_datetime:
-        main_package.builtTime = datetime.fromisoformat(creation.build_datetime)
+    if creation_metadata.build_datetime:
+        main_package.builtTime = datetime.fromisoformat(
+            creation_metadata.build_datetime
+        )
 
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>), only when a real
     # version is known.  Mirrors the dependency PURL logic in deps.py.
@@ -297,7 +299,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
 
 def build_model(
     model: AiModelMetadata,
-    creation: CreationMetadata,
+    creation_metadata: CreationMetadata,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone SPDX 3 SBOM for a single AI model file.
 
@@ -307,7 +309,7 @@ def build_model(
 
     Args:
         model: Extracted AI model metadata.
-        creation: Creator and timestamp metadata for the SBOM document.
+        creation_metadata: Creator and timestamp metadata for the SBOM document.
 
     Returns:
         A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`.
@@ -323,7 +325,7 @@ def build_model(
     )
     _clear_doc_counters(doc_uuid)
 
-    spdx_ci, creator, tool = build_creation_info(creation, doc_name, doc_uuid)
+    spdx_ci, creator, tool = build_creation_info(creation_metadata, doc_name, doc_uuid)
 
     exporter.add_creation_info(spdx_ci)
     exporter.add_agent(creator)

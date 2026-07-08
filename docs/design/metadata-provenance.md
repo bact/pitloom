@@ -95,7 +95,7 @@ paths model creation identically:
 
 ```python
 spdx_ci, creator, tool = build_creation_info(
-    creation,           # a CreationMetadata
+    creation_metadata,  # a CreationMetadata
     doc_name,
     doc_uuid,
     default_comment="Generated via Pitloom CLI",

@@ -459,8 +459,8 @@ dependencies = ["requests>=2.28.0"]
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json_1 = generate_sbom(tmppath, creation_info=fixed_ci)
-        sbom_json_2 = generate_sbom(tmppath, creation_info=fixed_ci)
+        sbom_json_1 = generate_sbom(tmppath, creation_metadata=fixed_ci)
+        sbom_json_2 = generate_sbom(tmppath, creation_metadata=fixed_ci)
 
         # Determinism: two calls with identical inputs must produce identical output
         assert sbom_json_1 == sbom_json_2, (

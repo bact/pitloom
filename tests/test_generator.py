@@ -50,7 +50,7 @@ Source = "https://github.com/test/test-package"
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationMetadata(
+            creation_metadata=CreationMetadata(
                 creator_name="Test Creator",
                 creator_email="test@example.com",
             ),
@@ -113,7 +113,7 @@ description = "A test package"
 def test_build_main_package_no_purl_without_real_version() -> None:
     """No PURL is set when the version is unknown."""
     project = ProjectMetadata(name="no-version-project")
-    doc = DocumentModel(project=project, creation=CreationMetadata())
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
     exporter = build(doc)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -126,7 +126,7 @@ def test_build_main_package_no_purl_without_real_version() -> None:
 def test_build_main_package_purl_normalizes_name() -> None:
     """PURL name is lowercased with underscores replaced by hyphens."""
     project = ProjectMetadata(name="My_Package", version="2.0.0")
-    doc = DocumentModel(project=project, creation=CreationMetadata())
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
     exporter = build(doc)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -152,7 +152,7 @@ def test_build_package_files_have_sha256_verified_using() -> None:
         ),
     ]
     project = ProjectMetadata(name="file-hash-project", version="1.0.0", files=files)
-    doc = DocumentModel(project=project, creation=CreationMetadata())
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
     exporter = build(doc)
     graph = json.loads(exporter.to_json())["@graph"]
@@ -220,7 +220,7 @@ version = "0.1.0"
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationMetadata(
+            creation_metadata=CreationMetadata(
                 creator_name="Test Creator",
                 creation_tool=None,
                 creation_comment="Generated in CI",
@@ -288,7 +288,7 @@ version = "0.1.0"
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationMetadata(creation_tool="MyWrapper"),
+            creation_metadata=CreationMetadata(creation_tool="MyWrapper"),
         )
         sbom_data = json.loads(sbom_json)
         graph = sbom_data["@graph"]
@@ -345,7 +345,7 @@ version = "0.1.0"
         graph = json.loads(
             generate_sbom(
                 tmppath,
-                creation_info=CreationMetadata(
+                creation_metadata=CreationMetadata(
                     creator_name="Alice", creator_email="alice@example.com"
                 ),
             )
@@ -377,7 +377,7 @@ version = "0.1.0"
         graph = json.loads(
             generate_sbom(
                 tmppath,
-                creation_info=CreationMetadata(
+                creation_metadata=CreationMetadata(
                     creator_name="Acme Corp", creator_type="organization"
                 ),
             )
@@ -414,7 +414,7 @@ version = "0.1.0"
         graph = json.loads(
             generate_sbom(
                 tmppath,
-                creation_info=CreationMetadata(
+                creation_metadata=CreationMetadata(
                     creator_name="Bot", creator_type=creator_type
                 ),
             )
@@ -440,7 +440,7 @@ version = "0.1.0"
         with pytest.raises(ValueError, match="Invalid creator_type"):
             generate_sbom(
                 tmppath,
-                creation_info=CreationMetadata(
+                creation_metadata=CreationMetadata(
                     creator_name="Bot", creator_type="robot"
                 ),
             )
@@ -465,7 +465,7 @@ version = "0.1.0"
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_info=CreationMetadata(
+            creation_metadata=CreationMetadata(
                 creator_name="Test Creator",
                 creation_datetime="2026-01-01T12:34:56.789123+02:30",
             ),
@@ -636,7 +636,7 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
         provenance={"inputs": "Source: model.pt2 | Field: models/model.json"},
     )
     doc = DocumentModel(
-        project=project, creation=CreationMetadata(), ai_models=[ai_model]
+        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
     )
 
     exporter = build(doc)
@@ -774,7 +774,7 @@ def test_assembler_ai_model_with_license(
         },
     )
     doc = DocumentModel(
-        project=project, creation=CreationMetadata(), ai_models=[ai_model]
+        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
     )
 
     exporter = build(doc)
