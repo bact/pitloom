@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-07-08
+Last-Modified: 2026-07-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,7 @@ initial setuptools support added in the `setuptools-support` branch.
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/setuptools.py` | New extraction module |
-| `src/pitloom/assemble/__init__.py` | Updated orchestrator (`_load_project_metadata`) |
+| `src/pitloom/extract/project.py` | Shared resolver (`read_project()`) used by both the CLI and `generate_sbom()` |
 | `src/pitloom/__main__.py` | CLI updated to accept projects without `pyproject.toml` |
 | `tests/test_setuptools.py` | 53 new unit and integration tests |
 | `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
@@ -129,30 +129,29 @@ overriding secondary on key conflicts.
 ## Conflict resolution
 
 Multiple metadata sources may coexist in a single project (common during
-migration to pyproject.toml).  Pitloom resolves conflicts using the
-following priority order -- highest to lowest:
+migration to pyproject.toml).  Resolution happens in `read_project()` in
+`src/pitloom/extract/project.py`, the single entry point used by both the
+CLI and `generate_sbom()`'s default parsing path:
 
-```text
-1. pyproject.toml [project]          (read_pyproject)
-2. setup.cfg [metadata] / [options]  (read_setup_cfg)
-3. setup.py setup() literal args     (read_setup_py)
-```
-
-The resolution happens in `_load_project_metadata()` in
-`src/pitloom/assemble/__init__.py`:
-
-1. If `pyproject.toml` is present and parseable (`[project]` section exists),
-   its metadata is taken as the primary.
-2. If the detected backend is `setuptools` and setup files exist, a secondary
-   `ProjectMetadata` is extracted from them and merged via `merge_metadata`.
-   Fields already set by `pyproject.toml` are not overwritten.
-3. If `pyproject.toml` is absent or has no `[project]` section, `setup.cfg`
-   and/or `setup.py` are used as the sole source via `read_setuptools`.
-4. If none of the above succeed, a `FileNotFoundError` is raised.
+1. If `pyproject.toml` exists at all (existence check only -- regardless of
+   whether it has a `[project]` section), it is the sole metadata source,
+   via `read_pyproject()`. `setup.cfg`/`setup.py` are not consulted, even if
+   present -- there is no cross-source field merge at this level.
+2. Otherwise, if `setup.cfg` and/or `setup.py` exist, `read_setuptools()` is
+   used as the sole source (this is where `merge_metadata` applies -- see
+   below -- but only between `setup.cfg` and `setup.py`, not `pyproject.toml`).
+3. If none of the three files exist, `FileNotFoundError` is raised.
 
 **Why pyproject.toml wins:** PEP 517 and PEP 621 designate `[project]` in
 `pyproject.toml` as the canonical metadata location.  Setuptools itself gives
 `pyproject.toml` precedence over `setup.cfg` when both are present.
+
+**Known limitation:** a transitional project with `[build-system]`-only
+`pyproject.toml` plus real metadata in `setup.cfg` (see the fixture project
+below) does not currently get its `setup.cfg` metadata merged in -- step 1
+above takes `pyproject.toml`'s (mostly empty) metadata as-is. Field-level
+merging across `pyproject.toml` and `setup.cfg` is a possible future
+enhancement, not yet implemented.
 
 ## Provenance tracking
 

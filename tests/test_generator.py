@@ -17,6 +17,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
@@ -724,6 +725,50 @@ files = ["fragment1.json", "fragment2.json"]
 
         dataset_packages = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
         assert dataset_packages[0]["name"] == "cool-dataset"
+
+
+def test_generate_sbom_setup_cfg_only_project() -> None:
+    """generate_sbom() must support projects with no pyproject.toml at all,
+    falling back to setup.cfg via the shared read_project() helper.
+
+    Regression test: generate_sbom() previously hardcoded a pyproject.toml
+    read with no setup.cfg/setup.py fallback, so a setup.cfg-only project
+    raised FileNotFoundError.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "setup.cfg").write_text(
+            "[metadata]\nname = setup-cfg-only-package\nversion = 1.2.3\n"
+        )
+
+        sbom_json = generate_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        packages = [e for e in graph if e.get("type") == "software_Package"]
+        main_package = next(
+            p for p in packages if p["name"] == "setup-cfg-only-package"
+        )
+        assert main_package["software_packageVersion"] == "1.2.3"
+
+
+def test_generate_sbom_uses_preparsed_metadata_without_reparsing() -> None:
+    """When metadata/pitloom_config are given, generate_sbom() must not
+    re-parse project_dir via read_project()."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        # No pyproject.toml, setup.cfg, or setup.py -- read_project() would
+        # raise FileNotFoundError if generate_sbom() called it.
+        metadata = ProjectMetadata(name="preparsed-package", version="9.9.9")
+        pitloom_config = PitloomConfig()
+
+        sbom_json = generate_sbom(
+            tmppath, project_metadata=metadata, pitloom_config=pitloom_config
+        )
+        graph = json.loads(sbom_json)["@graph"]
+
+        packages = [e for e in graph if e.get("type") == "software_Package"]
+        main_package = next(p for p in packages if p["name"] == "preparsed-package")
+        assert main_package["software_packageVersion"] == "9.9.9"
 
 
 def test_assembler_ai_model_with_inputs_outputs() -> None:

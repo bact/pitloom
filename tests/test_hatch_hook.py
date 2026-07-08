@@ -72,14 +72,14 @@ def make_hook(
     ``BuildHookInterface.__init__``.
 
     ``BuildHookInterface`` stores ``root``, ``config``, ``build_config``,
-    ``metadata``, and ``target_name`` under mangled names and exposes them as
+    ``project_metadata``, and ``target_name`` under mangled names and exposes them as
     read-only properties, so we set the mangled attributes directly via
     ``object.__setattr__``.  A bare ``SimpleNamespace`` satisfies
     ``build_config`` -- ``initialize()`` does not access it (file discovery
     uses ``WheelBuilder`` directly), but the slot must exist to prevent
     ``AttributeError`` from base-class property access.
 
-    ``metadata`` is a real ``hatchling.metadata.core.ProjectMetadata`` bound
+    ``project_metadata`` is a real ``hatchling.metadata.core.ProjectMetadata`` bound
     to *root*, matching what Hatchling itself passes to a build hook; its
     properties are evaluated lazily, so constructing it does not require
     ``root`` to contain a valid ``pyproject.toml`` yet.

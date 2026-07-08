@@ -68,11 +68,13 @@ if set(CREATOR_TYPES) != VALID_CREATOR_TYPES:
     )
 
 
-def _tool_summary(tool_name: str) -> str | None:
+def _tool_summary(tool_name: str | None) -> str | None:
     """Pitloom's version, but only when *tool_name* is literally ``"Pitloom"``
     -- a user-supplied tool name may not refer to Pitloom itself, so no
     version is asserted in that case.
     """
+    if not tool_name:
+        return None
     if tool_name == "Pitloom":
         return f"Pitloom {__version__}"
     return None

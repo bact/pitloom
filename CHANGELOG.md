@@ -41,11 +41,20 @@ and this project adheres to
     old `[tool.hatch.build.hooks.pitloom]`
     `creator-name`/`creator-email` keys).
   - `setup.cfg` keeps single-creator/-tool support only.
+- `generate_sbom()` gains optional `project_metadata`/`pitloom_config`
+  keyword arguments so callers that already parsed the project
+  (e.g. the CLI) can pass them in and skip re-parsing.
+- BREAKING CHANGE:
+  `generate_sbom()`'s keyword arguments are now keyword-only -- excepts
+  `project_dir` that remains positional-or-keyword.
 
 ### Fixed
 
 - Pitloom itself is now recorded as a `Tool` (`createdUsing`) instead of a
   `Person` (`createdBy`) in generated SBOMs ([#84])
+- `generate_sbom()` (and the CLI) now supports projects that use only
+  `setup.cfg`/`setup.py` with no `pyproject.toml` -- previously raised
+  `FileNotFoundError` unconditionally.
 
 [#84]: https://github.com/bact/pitloom/pull/84
 [#86]: https://github.com/bact/pitloom/pull/86

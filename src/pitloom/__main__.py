@@ -26,9 +26,9 @@ from pitloom.core.creation import (
     Creator,
     Tool,
 )
+from pitloom.core.project import ProjectMetadata
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
-from pitloom.extract.pyproject import read_pyproject
-from pitloom.extract.setuptools import read_setuptools
+from pitloom.extract.project import read_project
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
@@ -388,29 +388,6 @@ def _resolve_creation_metadata(
     )
 
 
-def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
-    """Load :class:`~pitloom.core.config.PitloomConfig` from the project.
-
-    Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``. A
-    parse or validation error from either propagates -- it is a genuine
-    config mistake, not a signal to silently try the next source.
-    Returns a 2-tuple of ``(PitloomConfig, config_file_path)``.
-    """
-    pyproject_path = project_dir / "pyproject.toml"
-    if pyproject_path.exists():
-        _, config = read_pyproject(pyproject_path)
-        return config, pyproject_path
-
-    setup_cfg = project_dir / "setup.cfg"
-    setup_py = project_dir / "setup.py"
-    if setup_cfg.exists() or setup_py.exists():
-        _, config = read_setuptools(project_dir)
-        config_path = setup_cfg if setup_cfg.exists() else setup_py
-        return config, config_path
-
-    return PitloomConfig(), None
-
-
 def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
     """Load ``[tool.pitloom]`` keys for verbose source reporting.
 
@@ -617,7 +594,9 @@ def _print_verbose(
         _print_row(*row)
 
 
-def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
+def _resolve_output_path(
+    explicit: Path | None, metadata: ProjectMetadata, pitloom_config: Any
+) -> Path:
     """Return the SBOM output path to use.
 
     Priority:
@@ -629,12 +608,6 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
     """
     if explicit is not None:
         return explicit
-
-    pyproject_path = project_dir / "pyproject.toml"
-    if pyproject_path.exists():
-        metadata, pitloom_config = read_pyproject(pyproject_path)
-    else:
-        metadata, pitloom_config = read_setuptools(project_dir)
 
     if pitloom_config.sbom_basename:
         return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
@@ -788,7 +761,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
         if project_dir is None:
             return 1
 
-        pitloom_config, config_path = _load_project_config(project_dir)
+        metadata, pitloom_config, config_path = read_project(project_dir)
         creation = _resolve_creation_metadata(args, pitloom_config)
         effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
         effective_describe_relationship = (
@@ -797,7 +770,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             else args.describe_relationship
         )
 
-        output_path = _resolve_output_path(args.output, project_dir)
+        output_path = _resolve_output_path(args.output, metadata, pitloom_config)
 
         if args.verbose:
             _print_verbose(
@@ -815,6 +788,8 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
             describe_relationship=effective_describe_relationship,
+            project_metadata=metadata,
+            pitloom_config=pitloom_config,
         )
         return 0
 
