@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 from pitloom.assemble import generate_sbom
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.extract.pyproject import read_pyproject
 
 
@@ -104,7 +104,7 @@ dependencies = ["requests>=2.28.0"]
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_metadata=CreationMetadata(creator_name="Test"),
+            creation_metadata=CreationMetadata(creators=[Creator(name="Test")]),
         )
         sbom_data = json.loads(sbom_json)
 

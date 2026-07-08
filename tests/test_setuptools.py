@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.creation import Creator
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.setuptools import (
     detect_build_backend,
@@ -292,8 +293,7 @@ creator-email = test@example.com
         _, config = read_setup_cfg(Path(d))
     assert config.pretty is True
     assert config.sbom_basename == "my-sbom"
-    assert config.creation_creator_name == "Test Creator"
-    assert config.creation_creator_email == "test@example.com"
+    assert config.creators == [Creator(name="Test Creator", email="test@example.com")]
 
 
 def test_read_setup_cfg_pitloom_config_creation_section() -> None:
@@ -310,8 +310,43 @@ creation-datetime = 2026-01-01T00:00:00+00:00
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         _, config = read_setup_cfg(Path(d))
-    assert config.creation_creator_name == "Sub Creator"
-    assert config.creation_creation_datetime == "2026-01-01T00:00:00+00:00"
+    assert config.creators == [Creator(name="Sub Creator")]
+    assert config.creation_datetime == "2026-01-01T00:00:00+00:00"
+
+
+def test_read_setup_cfg_no_creation_tool_suppresses_tools() -> None:
+    """``[tool:pitloom:creation] no-creation-tool = true`` maps to
+    ``tools == []``, mirroring the ``pyproject.toml`` behaviour."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+
+[tool:pitloom:creation]
+no-creation-tool = true
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.tools == []
+
+
+def test_read_setup_cfg_no_creation_tool_overrides_explicit_tool_name() -> None:
+    """``no-creation-tool = true`` forces ``tools == []`` even when a
+    ``creation-tool`` name is also set -- suppression wins."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+
+[tool:pitloom]
+creation-tool = MyWrapper
+no_creation_tool = yes
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.tools == []
 
 
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
@@ -683,8 +718,7 @@ def test_fixture_read_setup_cfg_pitloom_config() -> None:
     """[tool:pitloom] in setup.cfg populates PitloomConfig correctly."""
     _, config = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert config.sbom_basename == "sbom"
-    assert config.creation_creator_name == "Pitloom CI"
-    assert config.creation_creator_email == "ci@loom.example"
+    assert config.creators == [Creator(name="Pitloom CI", email="ci@loom.example")]
 
 
 def test_fixture_read_setup_cfg_readme_content() -> None:

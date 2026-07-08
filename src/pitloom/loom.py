@@ -70,7 +70,7 @@ class _ActiveRun:
         # SoftwareAgent "Pitloom" is the createdBy actor, with the Tool
         # "Pitloom" in createdUsing. Unattended capture defaults the comment
         # to the loom-SDK note.
-        self.creation_info, agent, tool = build_creation_info(
+        self.creation_info, agents, tools = build_creation_info(
             creation_metadata or CreationMetadata(),
             "pitloom-sdk",
             self.doc_uuid,
@@ -78,8 +78,9 @@ class _ActiveRun:
         )
 
         self.exporter = Spdx3JsonExporter()
-        self.exporter.add_agent(agent)
-        if tool is not None:
+        for agent in agents:
+            self.exporter.add_agent(agent)
+        for tool in tools:
             self.exporter.object_set.add(tool)
 
         self.model: spdx3.ai_AIPackage | None = None
@@ -337,7 +338,7 @@ class Run(contextlib.ContextDecorator):
         loom.run(
             "fragments/train.spdx3.json",
             creation_metadata=CreationMetadata(
-                creator_name="Alice", creator_type="person"
+                creators=[Creator(name="Alice", type="person")]
             ),
         )
 

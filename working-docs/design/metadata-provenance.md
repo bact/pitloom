@@ -94,7 +94,7 @@ CLI, the Hatchling build hook, and `pitloom.loom` fragments, so all three
 paths model creation identically:
 
 ```python
-spdx_ci, creator, tool = build_creation_info(
+spdx_ci, agents, tools = build_creation_info(
     creation_metadata,  # a CreationMetadata
     doc_name,
     doc_uuid,
@@ -102,14 +102,14 @@ spdx_ci, creator, tool = build_creation_info(
 )
 ```
 
-`creator` (`createdBy`) is a `Person` or `Organization` when
-`CreationMetadata.creator_name` is set (`creator_type` selects which, plus
+`agents` (`createdBy`) contains a `Person` or `Organization` per entry in
+`CreationMetadata.creators` (`Creator.type` selects which, plus
 `software-agent` and the generic `agent` for naming an automated creator
-that isn't Pitloom itself); with no name given, it is the `SoftwareAgent`
-"Pitloom" -- Pitloom acting unattended, not a fabricated human. `tool`
-(`createdUsing`) is the `Tool` "Pitloom" (carrying a `summary` with
-Pitloom's version), unless suppressed via `creation_tool=None`
-(`--no-creation-tool` on the CLI).
+that isn't Pitloom itself); with no creators given, it is a single
+`SoftwareAgent` "Pitloom" -- Pitloom acting unattended, not a fabricated
+human. `tools` (`createdUsing`) defaults to a single `Tool` "Pitloom"
+(carrying a `summary` with Pitloom's version), unless suppressed via
+`tools=[]` (`--no-creation-tool` on the CLI).
 
 Elements created together in one generation event -- one CLI run, one
 Hatchling build, one `loom.run` -- share a single `CreationInfo` instance,

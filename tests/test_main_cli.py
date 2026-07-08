@@ -368,7 +368,7 @@ def test_model_mode_passes_creation_info(
     assert __main__.main() == 0
     ci = captured["creation_metadata"]
     assert isinstance(ci, CreationMetadata)
-    assert ci.creator_name == "TestBot"
+    assert [c.name for c in ci.creators] == ["TestBot"]
 
 
 def test_model_mode_nonexistent_file_returns_error(
@@ -476,6 +476,129 @@ def test_project_mode_creator_type_software_agent_and_agent(
     graph = json.loads(out.read_text())["@graph"]
     matches = [e.get("name") for e in graph if e.get("type") == expected_element_type]
     assert "CI Bot" in matches
+
+
+def test_project_mode_multiple_interleaved_creators(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Repeated --creator-name interleaved with --creator-type/--creator-email
+    starts a new creator each time; --creator-type/--creator-email bind to
+    the most recently named creator."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "multi-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "multi-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "Acme Corp",
+            "--creator-type",
+            "organization",
+            "--creator-name",
+            "Alice",
+            "--creator-email",
+            "alice@example.com",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    orgs = [e for e in graph if e.get("type") == "Organization"]
+    persons = [e for e in graph if e.get("type") == "Person"]
+    assert [o["name"] for o in orgs] == ["Acme Corp"]
+    assert [p["name"] for p in persons] == ["Alice"]
+    assert persons[0]["externalIdentifier"]
+
+
+def test_creator_type_invalid_choice_rejected_by_argparse(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``--creator-type bogus`` is rejected by argparse's ``choices=``
+    before Pitloom even sees it -- CLI validation stays uniform with the
+    eager ``Creator.__post_init__`` validation used by config/library
+    callers."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            ".",
+            "--creator-name",
+            "Bot",
+            "--creator-type",
+            "bogus",
+        ],
+    )
+    with pytest.raises(SystemExit):
+        __main__.main()
+    assert "invalid choice" in capsys.readouterr().err
+
+
+def test_creator_type_before_creator_name_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--creator-type before any --creator-name is a clear argparse error."""
+    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-type", "organization"])
+    with pytest.raises(SystemExit):
+        __main__.main()
+    assert "--creator-type must come after a --creator-name" in capsys.readouterr().err
+
+
+def test_creator_email_before_creator_name_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--creator-email before any --creator-name is a clear argparse error."""
+    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-email", "a@example.com"])
+    with pytest.raises(SystemExit):
+        __main__.main()
+    assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
+
+
+def test_project_mode_repeated_creation_tool(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Repeated --creation-tool records more than one Tool in createdUsing."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "multi-tool-cli-app"\nversion = "0.1.0"\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "multi-tool-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creation-tool",
+            "Pitloom",
+            "--creation-tool",
+            "MyWrapper",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    tools = [e for e in graph if e.get("type") == "Tool"]
+    assert sorted(t["name"] for t in tools) == ["MyWrapper", "Pitloom"]
 
 
 def test_no_args_returns_error(
@@ -748,7 +871,7 @@ def test_hf_mode_passes_creation_info(
     assert __main__.main() == 0
     ci = captured["creation_metadata"]
     assert isinstance(ci, CreationMetadata)
-    assert ci.creator_name == "Researcher"
+    assert [c.name for c in ci.creators] == ["Researcher"]
 
 
 def test_hf_mode_passes_pretty_flag(

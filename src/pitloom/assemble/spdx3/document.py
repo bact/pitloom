@@ -29,7 +29,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 def _build_creation_bundle(
     doc: DocumentModel, doc_uuid: str
-) -> tuple[spdx3.CreationInfo, spdx3.Agent, spdx3.Tool | None]:
+) -> tuple[spdx3.CreationInfo, list[spdx3.Agent], list[spdx3.Tool]]:
     """Create shared SPDX creation objects for the document."""
     return build_creation_info(doc.creation_metadata, doc.project.name, doc_uuid)
 
@@ -48,7 +48,7 @@ def _build_provenance_comment(doc: DocumentModel) -> str | None:
 def _build_main_package(
     doc: DocumentModel,
     spdx_ci: spdx3.CreationInfo,
-    creator: spdx3.Agent,
+    agents: list[spdx3.Agent],
     doc_uuid: str,
 ) -> spdx3.software_Package:
     """Create the SPDX package representing the Python project."""
@@ -63,9 +63,10 @@ def _build_main_package(
     main_package.software_packageVersion = metadata.version or "unknown"
     # suppliedBy names who supplied the package, so only assert it for a real
     # named creator -- not for the default SoftwareAgent "Pitloom", which is
-    # the SBOM tool, not the package's supplier.
-    if creation_metadata.creator_name:
-        main_package.suppliedBy = creator.spdxId
+    # the SBOM tool, not the package's supplier.  suppliedBy is single-valued
+    # in SPDX 3, so when multiple creators are named, the *first* one is used.
+    if creation_metadata.creators:
+        main_package.suppliedBy = agents[0].spdxId
     if metadata.description:
         main_package.description = metadata.description
     if download_location:
@@ -205,16 +206,17 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     )
     _clear_doc_counters(doc_uuid)
 
-    # --- Creation info, creator agent, and creation tool ---
-    spdx_ci, creator, tool = _build_creation_bundle(doc, doc_uuid)
+    # --- Creation info, creator agents, and creation tools ---
+    spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
 
     exporter.add_creation_info(spdx_ci)
-    exporter.add_agent(creator)
-    if tool is not None:
+    for agent in agents:
+        exporter.add_agent(agent)
+    for tool in tools:
         exporter.object_set.add(tool)
 
     # --- Main package ---
-    main_package = _build_main_package(doc, spdx_ci, creator, doc_uuid)
+    main_package = _build_main_package(doc, spdx_ci, agents, doc_uuid)
 
     # --- SBOM and document envelope ---
     sbom = spdx3.software_Sbom(
@@ -325,11 +327,12 @@ def build_model(
     )
     _clear_doc_counters(doc_uuid)
 
-    spdx_ci, creator, tool = build_creation_info(creation_metadata, doc_name, doc_uuid)
+    spdx_ci, agents, tools = build_creation_info(creation_metadata, doc_name, doc_uuid)
 
     exporter.add_creation_info(spdx_ci)
-    exporter.add_agent(creator)
-    if tool is not None:
+    for agent in agents:
+        exporter.add_agent(agent)
+    for tool in tools:
         exporter.object_set.add(tool)
 
     ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid)

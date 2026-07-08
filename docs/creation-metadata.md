@@ -38,50 +38,55 @@ generation events contributed to it -- correct provenance to keep, since
 each part genuinely was created separately, at a different time, possibly
 by a different creator.
 
-This means `[tool.pitloom.creation]` in `pyproject.toml` only shapes the
-record for whatever the CLI or Hatchling build hook itself generates (the
-main document) -- it does not reach into fragment files that were already
+This means `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
+`[tool.pitloom.creation]` in `pyproject.toml` only shape the record for
+whatever the CLI or Hatchling build hook itself generates (the main
+document) -- they do not reach into fragment files that were already
 generated earlier by `pitloom.loom.run`. A fragment's record is fixed at
-the moment `loom.run` produced it; give it the same creator by passing an
+the moment `loom.run` produced it; give it the same creator(s) by passing an
 explicit `creation_metadata=CreationMetadata(...)` to that call.
 
 | Field (SPDX 3 name) | Meaning | What Pitloom puts there |
 | :--- | :--- | :--- |
-| `createdBy` (**≥1**) | *Who* created it | The **creator**: a person, organization, software agent, or generic agent when you name one (`--creator-type`); otherwise Pitloom itself, acting unattended (see below). |
-| `createdUsing` (0+) | *What* tool produced it | **Pitloom**, with a version summary. Suppress with `--no-creation-tool`. |
+| `createdBy` (**≥1**) | *Who* created it | One or more **creators**: a person, organization, software agent, or generic agent for each one you name (`--creator-name`, repeatable); otherwise Pitloom itself, acting unattended (see below). |
+| `createdUsing` (0+) | *What* tool produced it | **Pitloom** by default, with a version summary; repeat `--creation-tool` for more than one. Suppress with `--no-creation-tool`. |
 | `created` (1) | *When* | `--creation-datetime` if set, else the current UTC time. |
 | `comment` (0-1) | *How* it was invoked | A short static note per channel (`Generated via Pitloom CLI`, `... Hatchling build hook`, `... loom SDK`), or your `--creation-comment`. |
 
-> Note: The `≥1`/`0+` cardinalities above are what SPDX 3 *allows* -- not
-something Pitloom currently exercises.
-> Each SPDX 3's `CreationInfo` record Pitloom writes holds exactly one creator
-> Agent and at most one Tool.
-
 Pitloom's design distinguishes *who acted* from *what tool was used* --
 naming a creator never means naming Pitloom, and Pitloom itself is always
-recorded as the tool, never as the creator. In SPDX 3 terms this is the
+recorded as a tool, never as a creator. In SPDX 3 terms this is the
 `Agent`/`Tool` split: an `Agent` (`Person` / `Organization` / `SoftwareAgent`
 / the generic `Agent`) is who acts; a `Tool` is the instrument used. Pitloom
 is the instrument, so it belongs in `createdUsing` as a `Tool` -- **not** in
 `createdBy`.
 
-- **You name a creator** (`--creator-name`, or `[tool.pitloom.creation]`):
-  it becomes a person (default), organization, software agent, or generic
-  agent as the creator (via `--creator-type`), and the main package's
-  supplier. The software-agent/agent types are for naming an automated
-  creator that isn't Pitloom itself -- e.g. a CI bot that invoked Pitloom on
-  someone's behalf.
+- **You name one or more creators** (repeatable `--creator-name`, or
+  `[[tool.pitloom.creator]]`): each becomes a person (default), organization,
+  software agent, or generic agent (via `--creator-type`/`type`, bound to the
+  most recently named creator). The software-agent/agent types are for
+  naming an automated creator that isn't Pitloom itself -- e.g. a CI bot
+  that invoked Pitloom on someone's behalf. `suppliedBy` on the main package
+  -- single-valued in SPDX 3 -- is set to the *first* named creator when two
+  or more are given.
 - **You name no creator** (zero-config): rather than invent a fake person,
   Pitloom records itself as the creator too, but as a software agent, not a
   person or organization -- honestly "an unattended Pitloom run made this" --
-  and omits a supplier for the main package. Pitloom is still recorded as
-  the tool regardless, so the same Pitloom shows up twice in this case: once
+  and omits a supplier for the main package. Pitloom is still recorded as a
+  tool regardless, so the same Pitloom shows up twice in this case: once
   as the (software agent) creator, once as the tool.
 
 This applies uniformly to the CLI, the Hatchling build hook, and
 `pitloom.loom` fragments -- all three accept the same creator/tool/timestamp
 overrides and fall back to the same `SoftwareAgent` default.
 
+`setup.cfg` (INI) is a documented exception: `configparser` cannot express
+TOML array-of-tables, so `[tool:pitloom]` / `[tool:pitloom:creation]` only
+support a single `creator-name`/`creator-email`/`creator-type` and a single
+`creation-tool`. Projects that need more than one creator or tool should use
+`pyproject.toml` or the library API.
+
 See the [README](https://github.com/bact/pitloom#readme) for the
-`--creator-*` / `--creation-*` CLI flags and the `[tool.pitloom.creation]`
-`pyproject.toml` table used to set these fields.
+`--creator-*` / `--creation-*` CLI flags and the `[[tool.pitloom.creator]]` /
+`[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]`
+`pyproject.toml` tables used to set these fields.

@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
+from pitloom.core.creation import Creator, ToolInfo
 from pitloom.core.project import ProjectMetadata
 
 if sys.version_info >= (3, 11):
@@ -695,17 +696,39 @@ def _read_pitloom_config_from_cfg(
     fragments_raw = raw.get("fragments", "")
     fragments = [f.strip() for f in fragments_raw.splitlines() if f.strip()]
 
+    # setup.cfg (INI) cannot express array-of-tables, so only a single
+    # creator and a single tool are supported here -- multi-creator/tool
+    # setups need pyproject.toml or the library API.
+    creator_name = _pick_str("creator-name", "creator_name")
+    creators = (
+        [
+            Creator(
+                name=creator_name,
+                type=_pick_str("creator-type", "creator_type") or "person",
+                email=_pick_str("creator-email", "creator_email"),
+            )
+        ]
+        if creator_name
+        else []
+    )
+    creation_tool_name = _pick_str("creation-tool", "creation_tool", "tool")
+    tools = [ToolInfo(name=creation_tool_name)] if creation_tool_name else None
+
+    no_creation_tool_str = (
+        (_pick_str("no-creation-tool", "no_creation_tool") or "").strip().lower()
+    )
+    if no_creation_tool_str in ("true", "1", "yes"):
+        tools = []
+
     return PitloomConfig(
         pretty=pretty,
         describe_relationship=desc_rel,
         sbom_basename=sbom_basename,
         fragments=fragments,
-        creation_creator_name=_pick_str("creator-name", "creator_name"),
-        creation_creator_email=_pick_str("creator-email", "creator_email"),
-        creation_creator_type=_pick_str("creator-type", "creator_type"),
-        creation_creation_datetime=_pick_str(
+        creators=creators,
+        tools=tools,
+        creation_datetime=_pick_str(
             "creation-datetime", "creation_datetime", "datetime"
         ),
-        creation_creation_tool=_pick_str("creation-tool", "creation_tool", "tool"),
         creation_comment=_pick_str("creation-comment", "creation_comment", "comment"),
     )

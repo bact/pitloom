@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-06
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,7 +47,7 @@ change any of it).
 | `output` | `sbom.spdx3.json` | SBOM output path. |
 | `extras` | `""` | Comma-separated pip extras, e.g. `aimodel,huggingface`. |
 | `pretty` | `false` | Pretty-print the SBOM JSON. |
-| `args` | `""` | Extra raw flags passed through to `loom` (e.g. `-v --creator-name CI`). |
+| `args` | `""` | Extra raw flags passed through to `loom` (e.g. `-v --creator-name CI`). This is also how to record more than one creator or tool -- `--creator-name`/`--creation-tool` are repeatable CLI flags, and the Action has no dedicated multi-creator input; see the recipe below. |
 | `pitloom-version` | `""` | Version/specifier to install; empty installs latest from PyPI. |
 | `python-version` | `3.x` | Passed to `actions/setup-python`. |
 | `install` | `true` | Set `false` to skip installing Python/Pitloom (assumes it is already on `PATH`). |
@@ -69,6 +69,23 @@ change any of it).
     extras: "aimodel"
     output: "model.spdx3.json"
     pretty: "true"
+```
+
+## Recipe: multiple creators
+
+`--creator-name` is repeatable -- each occurrence starts a new creator, and
+`--creator-type`/`--creator-email` bind to the most recently named one.
+Pass them through `args` (the Action itself has no dedicated multi-creator
+input):
+
+```yaml
+- uses: bact/pitloom@v0.10.0
+  with:
+    project-path: "."
+    output: "sbom.spdx3.json"
+    args: >-
+      --creator-name "Acme Corp" --creator-type organization
+      --creator-name Alice
 ```
 
 ## Recipe: attach the SBOM to a GitHub Release

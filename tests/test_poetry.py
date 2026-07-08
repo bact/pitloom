@@ -480,7 +480,32 @@ def test_fixture_read_poetry_no_pitloom_section_defaults() -> None:
     _, config = read_poetry(POETRY_FIXTURE / "pyproject.toml")
     assert config.sbom_basename is None
     assert config.pretty is False
-    assert config.creation_creator_name is None
+    assert config.creators == []
+
+
+def test_read_poetry_multiple_creators_array_of_tables() -> None:
+    """Poetry projects also support ``[[tool.pitloom.creator]]``."""
+    content = """
+[tool.poetry]
+name = "poetry-multi-creator"
+version = "0.1.0"
+description = "Test"
+authors = ["Someone <someone@example.com>"]
+
+[[tool.pitloom.creator]]
+name = "Acme Corp"
+type = "organization"
+
+[[tool.pitloom.creator]]
+name = "Alice"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        pyproject_path = Path(d) / "pyproject.toml"
+        pyproject_path.write_text(content, encoding="utf-8")
+        _, config = read_poetry(pyproject_path)
+
+    assert [c.name for c in config.creators] == ["Acme Corp", "Alice"]
+    assert config.creators[0].type == "organization"
 
 
 def test_fixture_read_pyproject_falls_back_to_poetry() -> None:

@@ -146,9 +146,10 @@ def test_validate_config_invalid_raises(field: str, bad_value: Any, match: str) 
     [
         ("sbom-basename", r"\[tool\.pitloom\] sbom-basename"),
         ("fragments", r"\[tool\.pitloom\.fragments\] files"),
-        ("creator-name", r"\[tool\.pitloom\.creation\] creator-name"),
-        ("creator-email", r"\[tool\.pitloom\.creation\] creator-email"),
-        ("creator-type", r"\[tool\.pitloom\.creation\] creator-type"),
+        ("creator-name", r"\[\[tool\.pitloom\.creator\]\]"),
+        ("creator-email", r"\[\[tool\.pitloom\.creator\]\]"),
+        ("creator-type", r"\[\[tool\.pitloom\.creator\]\]"),
+        ("creation-tool", r"\[\[tool\.pitloom\.creation-tool\]\]"),
     ],
 )
 def test_validate_config_moved_key_raises(key: str, new_location: str) -> None:
@@ -206,12 +207,12 @@ def test_hook_sbom_is_valid_json() -> None:
 
 
 def test_hook_creator_name_propagated() -> None:
-    """[tool.pitloom.creation] creator-name must appear in the SBOM graph."""
+    """[[tool.pitloom.creator]] name must appear in the SBOM graph."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
             tmp_path,
-            '[tool.pitloom.creation]\ncreator-name = "Test Creator"\n',
+            '[[tool.pitloom.creator]]\nname = "Test Creator"\n',
         )
 
         hook = make_hook(tmp, {})
@@ -228,15 +229,13 @@ def test_hook_creator_name_propagated() -> None:
 
 
 def test_hook_organization_creator_from_config() -> None:
-    """[tool.pitloom.creation] creator-type = organization emits an
+    """[[tool.pitloom.creator]] type = organization emits an
     Organization (not a Person) in the SBOM graph."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
             tmp_path,
-            "[tool.pitloom.creation]\n"
-            'creator-name = "Acme Corp"\n'
-            'creator-type = "organization"\n',
+            '[[tool.pitloom.creator]]\nname = "Acme Corp"\ntype = "organization"\n',
         )
 
         hook = make_hook(tmp, {})
@@ -254,6 +253,42 @@ def test_hook_organization_creator_from_config() -> None:
         hook.finalize("standard", build_data, "")
 
 
+def test_hook_multiple_creators_appear_in_graph() -> None:
+    """Multiple [[tool.pitloom.creator]] tables all appear in the SBOM
+    @graph, as their respective Agent subclasses."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            "[[tool.pitloom.creator]]\n"
+            'name = "Acme Corp"\n'
+            'type = "organization"\n'
+            "\n"
+            "[[tool.pitloom.creator]]\n"
+            'name = "Alice"\n'
+            'email = "alice@example.com"\n',
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
+            "@graph"
+        ]
+        orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
+        persons = [e.get("name") for e in graph if e.get("type") == "Person"]
+        assert orgs == ["Acme Corp"]
+        assert persons == ["Alice"]
+
+        creation_infos = [e for e in graph if e.get("type") == "CreationInfo"]
+        assert len(creation_infos) == 1
+        assert len(creation_infos[0]["createdBy"]) == 2
+
+        hook.finalize("standard", build_data, "")
+
+
 @pytest.mark.parametrize(
     ("creator_type", "expected_element_type"),
     [
@@ -264,15 +299,13 @@ def test_hook_organization_creator_from_config() -> None:
 def test_hook_software_agent_and_generic_agent_creator_from_config(
     creator_type: str, expected_element_type: str
 ) -> None:
-    """[tool.pitloom.creation] creator-type also allows a named
+    """[[tool.pitloom.creator]] type also allows a named
     SoftwareAgent or generic Agent, not just Person/Organization."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
             tmp_path,
-            "[tool.pitloom.creation]\n"
-            'creator-name = "CI Bot"\n'
-            f'creator-type = "{creator_type}"\n',
+            f'[[tool.pitloom.creator]]\nname = "CI Bot"\ntype = "{creator_type}"\n',
         )
 
         hook = make_hook(tmp, {})
@@ -292,7 +325,7 @@ def test_hook_software_agent_and_generic_agent_creator_from_config(
 
 
 def test_hook_default_creator_is_software_agent() -> None:
-    """With no [tool.pitloom.creation] creator-name, the hook records the
+    """With no [[tool.pitloom.creator]], the hook records the
     SoftwareAgent "Pitloom" as the createdBy agent."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
