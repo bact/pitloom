@@ -108,11 +108,12 @@ target-version = ["py310"]
 enabled = true
 
 [tool.hatch.build.targets.sdist]
+# /docs (curated, public) is not excluded, so it ships in the sdist as-is;
+# /working-docs (internal design + implementation notes) does not.
 exclude = [
     "/.claude-plugin",
     "/.github",
-    "/docs/design",
-    "/docs/implementation",
+    "/working-docs",
     ".editorconfig",
     ".gitignore",
     ".markdownlint.json",

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-05-25
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -320,7 +320,7 @@ emitting SPDX 3 elements rather than metrics records.
 
 The API adopts the MLflow `log_*` naming convention because it is widely
 understood and directly maps to the double-instrumentation problem described
-in `docs/design/mlflow-extractor.md`.
+in `working-docs/design/mlflow-extractor.md`.
 
 ### Proposed public API
 
@@ -599,7 +599,7 @@ pitloom fragment sign   fragments/model.spdx3.json   # compute SHA-256 + write t
 
 ## Integration with MLflow (existing design, updates)
 
-See `docs/design/mlflow-extractor.md` for the full MLflow extractor design.
+See `working-docs/design/mlflow-extractor.md` for the full MLflow extractor design.
 
 Updates motivated by this document:
 

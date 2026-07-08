@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-05-09
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -222,9 +222,9 @@ which pitloom's dependency `pyproject-metadata` transitively includes.
 
 ## See also
 
-- [docs/implementation/setuptools-support.md](../implementation/setuptools-support.md)
+- [working-docs/implementation/setuptools-support.md](../implementation/setuptools-support.md)
   implementation notes for the static `setup.cfg` / `setup.py` extractors
-- [docs/design/hatchling-build-hook.md](hatchling-build-hook.md) --
+- [working-docs/design/hatchling-build-hook.md](hatchling-build-hook.md) --
   PEP 770 wheel embedding via the Hatchling hook
-- [docs/design/metadata-provenance.md](metadata-provenance.md) --
+- [working-docs/design/metadata-provenance.md](metadata-provenance.md) --
   provenance tracking per field

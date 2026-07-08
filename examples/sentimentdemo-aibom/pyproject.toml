@@ -59,9 +59,6 @@ enabled = true
 pretty = true
 sbom-basename = "sentimentdemo"
 
-[tool.pitloom.creation]
-creator-name = "Sentiment Demo CI"
-
 [tool.pitloom.fragments]
 files = [
     "fragments/01_preprocess.spdx3.json",  # produced by `python -m sentimentdemo.preprocess`

@@ -77,7 +77,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Records extraction method (static, dynamic, or inferred)
    - Supports dynamic introspection via `loom.py` inspection
    - Uses SPDX 3 comment attribute
-   - See [docs/design/metadata-provenance.md](../design/metadata-provenance.md)
+   - See [working-docs/design/metadata-provenance.md](../design/metadata-provenance.md)
 
 8. **ML tracking SDK** (`src/pitloom/loom.py`)
    - Dual-syntax ContextDecorator (`@loom.run` and `with loom.run`)
@@ -114,13 +114,13 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 ### ✅ Documentation
 
 1. **README.md**: Complete usage guide with examples
-2. **docs/implementation/demo.md**: Prototype capabilities and validation
-3. **docs/implementation/demo-provenance.md**: Provenance tracking demo
-4. **docs/design/format-neutral-representation.md**: Multi-format support plan
-5. **docs/design/metadata-provenance.md**: Provenance tracking specification
-6. **docs/design/metadata-sources.md**: Metadata sources research and
+2. **working-docs/implementation/demo.md**: Prototype capabilities and validation
+3. **working-docs/implementation/demo-provenance.md**: Provenance tracking demo
+4. **working-docs/design/format-neutral-representation.md**: Multi-format support plan
+5. **working-docs/design/metadata-provenance.md**: Provenance tracking specification
+6. **working-docs/design/metadata-sources.md**: Metadata sources research and
    integration plan
-7. **docs/implementation/setuptools-support.md**: Setuptools extractor
+7. **working-docs/implementation/setuptools-support.md**: Setuptools extractor
    design and limitations
 8. **Inline documentation**: Comprehensive docstrings
 
@@ -326,5 +326,5 @@ pitloom/
 
 ## Roadmap
 
-See [docs/design/roadmap.md](../design/roadmap.md) for the canonical,
+See [working-docs/design/roadmap.md](../design/roadmap.md) for the canonical,
 up-to-date roadmap.

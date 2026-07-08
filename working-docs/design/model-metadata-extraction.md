@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-05
-Last-Modified: 2026-05-09
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,7 +77,7 @@ characteristics from README files, training scripts, and requirements.
 AIMMX is relevant to Pitloom's planned SBOM enrichment capability --
 filling metadata gaps in model formats that carry little embedded information
 by looking at the surrounding repository context.
-See `docs/design/sbom-enrichment.md` for the enrichment design.
+See `working-docs/design/sbom-enrichment.md` for the enrichment design.
 
 ## Framework-native metadata extraction
 
@@ -110,4 +110,4 @@ relationship types between `ai_AIPackage` and `dataset_DatasetPackage`:
 Documenting the datasets associated with a model is a current gap in Pitloom's
 SBOM output -- only the AI model itself is recorded, not its training or
 evaluation datasets.
-See `docs/design/sbom-enrichment.md` for the dataset linking design plan.
+See `working-docs/design/sbom-enrichment.md` for the dataset linking design plan.

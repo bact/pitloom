@@ -14,7 +14,7 @@ license: Apache-2.0
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-07-06 -->
+<!-- Last-Modified: 2026-07-08 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -89,4 +89,4 @@ Steps:
 
 For the full enrichment data-source table, the `[tool.pitloom.enrich]`
 enable/disable model, and the dataset-relationship field map, see
-`docs/design/sbom-enrichment.md` in the Pitloom repository.
+`working-docs/design/sbom-enrichment.md` in the Pitloom repository.

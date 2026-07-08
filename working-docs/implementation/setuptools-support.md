@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-05-13
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -199,7 +199,7 @@ in `setup.cfg`.
 | Multiple authors in `setup.cfg` | `author` / `author_email` yield at most one entry; setuptools supports comma-separated lists but pitloom does not yet parse them. |
 | Optional / extras dependencies | `[options.extras_require]` is not extracted. |
 | Wheel file discovery | `get_wheel_files()` still uses `hatchling.builders.wheel.WheelBuilder`; for setuptools projects it returns `(None, [])`, so the SBOM UUID is computed from name + version + deps only (no Merkle root). |
-| Build-time dynamic metadata | `version` set via Git tags, `importlib.metadata`, or other runtime mechanisms is not resolved statically.  See [docs/design/metadata-sources.md](../design/metadata-sources.md) for the planned PEP 517 approach. |
+| Build-time dynamic metadata | `version` set via Git tags, `importlib.metadata`, or other runtime mechanisms is not resolved statically.  See [working-docs/design/metadata-sources.md](../design/metadata-sources.md) for the planned PEP 517 approach. |
 
 ## Planned enhancements
 
@@ -210,4 +210,4 @@ in `setup.cfg`.
 - **`[options.extras_require]`** extraction.
 - **PEP 517 `prepare_metadata_for_build_wheel`** as an opt-in higher-priority
   source for dynamic metadata.  See
-  [docs/design/metadata-sources.md](../design/metadata-sources.md).
+  [working-docs/design/metadata-sources.md](../design/metadata-sources.md).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-06
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -119,6 +119,7 @@ extraction.
 
 - `../SKILL.md` -- operating instructions for this skill.
 - The sibling `sbom` skill -- generates the base SBOM this recipe enriches.
-- `docs/design/sbom-enrichment.md` -- enrichment data-source table and the
-  `[tool.pitloom.enrich]` enable/disable model.
-- `docs/design/sbom-fragments.md` -- fragment system design and vocabulary.
+- `working-docs/design/sbom-enrichment.md` -- enrichment data-source table
+  and the `[tool.pitloom.enrich]` enable/disable model.
+- `working-docs/design/sbom-fragments.md` -- fragment system design and
+  vocabulary.
