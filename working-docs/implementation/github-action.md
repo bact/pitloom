@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.9.0
+      - uses: bact/pitloom@v0.10.0
         with:
           project-path: "."
           output: "sbom.spdx3.json"
@@ -63,7 +63,7 @@ change any of it).
 ## Recipe: AI model SBOM
 
 ```yaml
-- uses: bact/pitloom@v0.9.0
+- uses: bact/pitloom@v0.10.0
   with:
     model: "models/my-model.safetensors"
     extras: "aimodel"
@@ -87,7 +87,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.9.0
+      - uses: bact/pitloom@v0.10.0
         id: pitloom
         with:
           project-path: "."
@@ -117,7 +117,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.9.0
+      - uses: bact/pitloom@v0.10.0
         with:
           project-path: "."
           python-version: ${{ matrix.python-version }}

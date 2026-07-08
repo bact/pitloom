@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-21
-Last-Modified: 2026-05-29
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,7 +95,7 @@ To add a CycloneDX serializer, for example:
 ## Protobom evaluation
 
 Protobom was evaluated as a candidate for the format-neutral layer
-(see `docs/design/protobom-evaluation.md`). While it provides a
+(see `working-docs/design/protobom-evaluation.md`). While it provides a
 Protocol Buffers–based universal SBOM representation with good support for
 SPDX 2.x and CycloneDX conversion, it does not yet cover the SPDX 3
 AI/Dataset/Build profiles that are central to Pitloom's use cases. Adopting

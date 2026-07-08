@@ -3,8 +3,8 @@
 ## Project context
 
 - SBOM generator targeting Python/Hatchling ecosystem, outputting SPDX 3 JSON-LD.
-- Design docs: `docs/design/`
-- Implementation docs and progress reports: `docs/implementation/`
+- Design docs: `working-docs/design/`
+- Implementation docs and progress reports: `working-docs/implementation/`
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
 
@@ -107,8 +107,8 @@ SPDX-License-Identifier: Apache-2.0  # or CC0-1.0 for docs
 
 Sort SPDX metadata keys alphabetically.
 
-`docs/design/*.md`, `docs/implementation/*.md`, and other standalone
-docs (e.g. `docs/resources.md`) additionally carry `Created` and
+`working-docs/design/*.md`, `working-docs/implementation/*.md`, and other
+standalone docs (e.g. `docs/resources.md`) additionally carry `Created` and
 `Last-Modified` (`YYYY-MM-DD`) in the same front-matter block, sorted
 alphabetically alongside the SPDX keys:
 

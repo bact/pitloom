@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-06
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -191,7 +191,7 @@ Pitloom will follow modern Python software engineering best practices,
 utilizing the "src" layout to prevent subtle import-path bugs and ensure
 the development environment mirrors production (Ghadge 2025).
 
-See [docs/implementation/summary.md](../implementation/summary.md) for the
+See [working-docs/implementation/summary.md](../implementation/summary.md) for the
 canonical, up-to-date project tree.
 
 ## Integration with the SCA pipeline and DevOps ecosystem
@@ -205,7 +205,7 @@ compliant, composite SBOM document.
 
 This assembly model reflects the reality that no single tool or team
 has visibility into the full provenance of a modern AI system.
-See `docs/design/sbom-fragments.md` for the detailed design of the
+See `working-docs/design/sbom-fragments.md` for the detailed design of the
 fragment system, vocabulary alignment with SPDX 3 / CycloneDX / CISA
 standards, and the roadmap for new integrations.
 
@@ -232,7 +232,7 @@ A Hatchling `BuildHookInterface` plugin that generates the SBOM automatically
 during `hatch build` or `python -m build` and embeds it in the wheel's
 `.dist-info/sboms/` directory per PEP 770. Users opt in by adding
 `pitloom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.pitloom]`.
-See `docs/design/hatchling-build-hook.md`.
+See `working-docs/design/hatchling-build-hook.md`.
 
 #### 2. PEP 770 wheel embedding
 
@@ -249,7 +249,7 @@ to an SPDX 3 AI BOM fragment. Uses
 layer so projects already tagging MLflow runs with STAV keys require no
 additional instrumentation. The top-level `pitloom.loom.from_mlflow_run()`
 function provides the public API.
-See `docs/design/mlflow-extractor.md`.
+See `working-docs/design/mlflow-extractor.md`.
 
 #### 4. W&B Weave extractor (`pitloom.extract.weave`) [planned]
 
@@ -261,7 +261,7 @@ Weave's model version URIs (`weave:///entity/project/object/Name:hash`)
 map naturally to SPDX `ai_AIPackage` with a content-addressed
 `software_downloadLocation`. Evaluation results become SPDX `Annotation`
 elements. The top-level function is `pitloom.loom.from_weave_model()`.
-See `docs/design/sbom-fragments.md` for the full object mapping.
+See `working-docs/design/sbom-fragments.md` for the full object mapping.
 
 #### 5. DVC extractor (`pitloom.extract.dvc`) [planned]
 
@@ -281,7 +281,7 @@ Planned improvements: structured fragment declaration in `pyproject.toml`
 (with role, sha256, link-to-main relationship), pre-merge validation,
 duplicate-ID detection, and `SpdxDocument.imports` population for
 cross-document traceability.
-See `docs/design/sbom-fragments.md`.
+See `working-docs/design/sbom-fragments.md`.
 
 ### Data flow: extraction -> document model -> assembly
 
@@ -302,7 +302,7 @@ Assembly (format-neutral)
 ─────────────────────────
 DocumentModel(
     project=ProjectMetadata,
-    creation=CreationMetadata,
+    creation_metadata=CreationMetadata,
     ai_models=[AiModelMetadata, ...],
     fragments=[FragmentConfig, ...],    # structured fragment metadata [planned]
 )

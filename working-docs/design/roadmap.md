@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-07-05
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,6 +95,41 @@ wired into a build backend. These two extend reach beyond that. See
   with dataset references; emit SPDX 3 relationship types (`trainedOn`,
   `testedOn`, `finetunedOn`, `validatedOn`, `pretrainedOn`).
   See [sbom-enrichment.md](sbom-enrichment.md).
+
+### Creation metadata
+
+- [ ] **Multiple creators / tools per `CreationInfo` record** -- SPDX 3
+  allows `createdBy` (≥1) and `createdUsing` (0+) to hold several Agents/
+  Tools, but `CreationMetadata` (`src/pitloom/core/creation.py`) is
+  single-valued today: one `creator_name`/`creator_type`, one
+  `creation_tool`. `build_creation_info()` always writes exactly one Agent
+  and at most one Tool per record (see
+  [creation-metadata.md](../../docs/creation-metadata.md) for the current
+  model and its workaround -- separate `CreationInfo` records per
+  generation event). Flagging early, not implementing yet: supporting this
+  properly is a breaking change to both the config surface
+  (`[tool.pitloom.creation] creator-name = "..."` would need to become a
+  list or array-of-tables) and the library API (`CreationMetadata.
+  creator_name: str | None` would need to become list-typed), so the
+  shape should be decided deliberately rather than retrofitted once more
+  code depends on the current scalar fields.
+
+  Config sketch (not yet designed/implemented): TOML array-of-tables --
+  `[[tool.pitloom.creator]]` repeated per creator (each with its own
+  `name`/`type`/`email`), and similarly `[[tool.pitloom.creation-tool]]`
+  repeated per tool -- replacing the current single
+  `[tool.pitloom.creation]` table. Still open:
+  - Library API shape for `CreationMetadata` (`list[Creator]` /
+    `list[ToolInfo]`? nested dataclasses vs. flat lists?) and whether/how
+    `--creator-name` etc. stay usable as single-value CLI shortcuts on top
+    of a list-valued field.
+  - GitHub Action (`action.yml`) inputs are flat strings
+    (`with: creator-name: ...`); a composite action can't easily accept a
+    repeated block the way TOML/array-of-tables or Python lists can, so
+    multi-creator input there needs its own design (e.g. a delimited
+    string, JSON-encoded input, or accept only single creator/tool via
+    the Action while multi-value stays a config-file/library-only
+    feature).
 
 ### Metadata quality
 

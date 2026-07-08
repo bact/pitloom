@@ -14,7 +14,7 @@ license: Apache-2.0
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-07-06 -->
+<!-- Last-Modified: 2026-07-08 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -80,8 +80,11 @@ pitloom`).
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--pretty` -- indent the JSON for human reading (default: compact).
 - `-v` / `--verbose` -- print effective options and where each came from.
-- `--creator-name NAME`, `--creator-email EMAIL` -- attribute the SBOM to a
-  person instead of the default "Pitloom" tool identity.
+- `--creator-name NAME`, `--creator-email EMAIL` -- name who created the
+  SBOM (person by default); `--creator-type` selects `person`,
+  `organization`, `software-agent`, or `agent`. Without a named creator,
+  Pitloom records itself as an unattended `software-agent` creator.
+  Pitloom is always recorded as the generating tool regardless.
 
 ## What Pitloom produces
 

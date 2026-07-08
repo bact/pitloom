@@ -118,7 +118,7 @@ The user adds `pitloom` to their build dependencies and enables the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.9.0"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.10.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
