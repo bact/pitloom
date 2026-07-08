@@ -23,23 +23,24 @@ and this project adheres to
 
 - Creators can now be `Person`, `Organization`, `SoftwareAgent`, or `Agent`
   via `--creator-type` / `creator_type` ([#84])
-- Consolidated Hatchling hook config into `[tool.pitloom]`,
-  `[tool.pitloom.creation]`, `[tool.pitloom.fragments]` ([#84])
-- SBOM fragments (`loom.run`) now carry their own `CreationInfo`, since
-  they're generated separately from the main document ([#84])
+- Consolidated config into `[tool.pitloom]`, `[tool.pitloom.creation]`,
+  `[tool.pitloom.fragments]` ([#84])
+- SBOM fragments (`loom.run`) now carry their own creation metadata,
+  since they're generated separately from the main document ([#84])
 - BREAKING CHANGE:
   Renamed the `creation_info` parameter to `creation_metadata` in
   `generate_sbom()` and related APIs ([#84])
 - BREAKING CHANGE:
-  `CreationInfo` now supports multiple creators and multiple creation
-  tools. `CreationMetadata.creator_name`/`creator_email`/`creator_type`/
-  `creation_tool` (scalar) are replaced by `creators: list[Creator]` and
-  `tools: list[ToolInfo] | None`. CLI `--creator-name`/`--creation-tool`
-  are now repeatable; config gains `[[tool.pitloom.creator]]` /
-  `[[tool.pitloom.creation-tool]]` array-of-tables (replacing the old
-  `[tool.pitloom.creation]` `creator-name`/`creator-email`/`creator-type`/
-  `creation-tool` keys, which now raise a moved-key error). `setup.cfg`
-  keeps single-creator/-tool support only.
+  Supports multiple creators and multiple creation tools ([#86])
+  - `CreationMetadata.creator_name`/`creator_email`/`creator_type`/
+    `creation_tool` (scalar) are replaced by `creators: list[Creator]`
+    and `tools: list[ToolInfo] | None`.
+  - CLI `--creator-name`/`--creation-tool` are now repeatable
+  - config gains `[[tool.pitloom.creator]]` /
+    `[[tool.pitloom.creation-tool]]` array-of-tables (replacing the
+    old `[tool.hatch.build.hooks.pitloom]`
+    `creator-name`/`creator-email` keys).
+  - `setup.cfg` keeps single-creator/-tool support only.
 
 ### Fixed
 
@@ -47,6 +48,7 @@ and this project adheres to
   `Person` (`createdBy`) in generated SBOMs ([#84])
 
 [#84]: https://github.com/bact/pitloom/pull/84
+[#86]: https://github.com/bact/pitloom/pull/86
 
 ## [0.9.0] - 2026-07-06
 
