@@ -301,6 +301,50 @@ no-creation-tool = true
         assert config.tools == []
 
 
+def test_extract_pitloom_no_creation_tool_false_boolean_keeps_tools() -> None:
+    """``no-creation-tool = false`` (a real TOML boolean) must NOT suppress
+    tools -- confirms the type-check fix distinguishes it from the string
+    ``"false"`` case below."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+no-creation-tool = false
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.tools is None
+
+
+def test_extract_pitloom_no_creation_tool_string_raises() -> None:
+    """``no-creation-tool = "false"`` (a quoted string, not a TOML boolean)
+    must raise rather than being silently treated as truthy -- a bare
+    Python ``if x:`` check would otherwise treat the non-empty string
+    ``"false"`` as enabled, suppressing tools opposite to the user's intent."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+no-creation-tool = "false"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be a boolean"):
+            read_pyproject(pyproject_path)
+
+
 @pytest.mark.parametrize(
     "old_key",
     ["creator-name", "creator-email", "creator-type", "creation-tool"],
