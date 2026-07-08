@@ -17,7 +17,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.core.creation import CreationMetadata, Creator, ToolInfo
+from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectFile, ProjectMetadata
@@ -287,7 +287,7 @@ version = "0.1.0"
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_metadata=CreationMetadata(tools=[ToolInfo("MyWrapper")]),
+            creation_metadata=CreationMetadata(tools=[Tool("MyWrapper")]),
         )
         sbom_data = json.loads(sbom_json)
         graph = sbom_data["@graph"]
@@ -567,7 +567,7 @@ version = "0.1.0"
         sbom_json = generate_sbom(
             tmppath,
             creation_metadata=CreationMetadata(
-                tools=[ToolInfo("Pitloom"), ToolInfo("MyWrapper")]
+                tools=[Tool("Pitloom"), Tool("MyWrapper")]
             ),
         )
         graph = json.loads(sbom_json)["@graph"]

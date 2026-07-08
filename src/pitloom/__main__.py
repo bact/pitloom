@@ -24,7 +24,7 @@ from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     CreationMetadata,
     Creator,
-    ToolInfo,
+    Tool,
 )
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
 from pitloom.extract.pyproject import read_pyproject
@@ -60,7 +60,7 @@ class _ResolvedTools:
     default single ``Tool`` ``"Pitloom"``; ``[]`` suppresses ``createdUsing``.
     """
 
-    value: list[ToolInfo] | None
+    value: list[Tool] | None
     source: str
 
 
@@ -347,7 +347,7 @@ def _resolve_creators(
 
 def _resolve_tools(
     args: argparse.Namespace,
-    config_tools: list[ToolInfo] | None,
+    config_tools: list[Tool] | None,
 ) -> _ResolvedTools:
     """Resolve the tool list, supporting explicit omission via CLI.
 
@@ -358,7 +358,7 @@ def _resolve_tools(
     cli_tools: list[str] | None = args.creation_tools
     if cli_tools:
         return _ResolvedTools(
-            value=[ToolInfo(name=name) for name in cli_tools],
+            value=[Tool(name=name) for name in cli_tools],
             source="command-line",
         )
     if config_tools is not None:

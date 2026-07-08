@@ -34,7 +34,7 @@ and this project adheres to
   Supports multiple creators and multiple creation tools ([#86])
   - `CreationMetadata.creator_name`/`creator_email`/`creator_type`/
     `creation_tool` (scalar) are replaced by `creators: list[Creator]`
-    and `tools: list[ToolInfo] | None`.
+    and `tools: list[Tool] | None`.
   - CLI `--creator-name`/`--creation-tool` are now repeatable
   - config gains `[[tool.pitloom.creator]]` /
     `[[tool.pitloom.creation-tool]]` array-of-tables (replacing the

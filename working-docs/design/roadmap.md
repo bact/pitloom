@@ -40,9 +40,9 @@ SPDX-License-Identifier: CC0-1.0
   - `read_pyproject()` falls back to `[tool.poetry]` when `[project]` is absent;
     merges both sections when both are present (`[project]` wins field-by-field)
 - [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator` /
-  `ToolInfo` dataclasses replace the old scalar `creator_name`/
+  `Tool` dataclasses replace the old scalar `creator_name`/
   `creation_tool` fields; `CreationMetadata.creators: list[Creator]` and
-  `.tools: list[ToolInfo] | None` allow ≥1 Agents in `createdBy` and 0+
+  `.tools: list[Tool] | None` allow ≥1 Agents in `createdBy` and 0+
   Tools in `createdUsing`, matching what SPDX 3 allows. CLI: repeatable
   `--creator-name` (stateful -- `--creator-type`/`--creator-email` bind to
   the most recently named creator) and repeatable `--creation-tool`.

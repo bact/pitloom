@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.creation import Creator, ToolInfo
+from pitloom.core.creation import Creator, Tool
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -75,7 +75,7 @@ class PitloomConfig:
     describe_relationship: bool | None = None
     sbom_basename: str | None = None
     creators: list[Creator] = field(default_factory=list)
-    tools: list[ToolInfo] | None = None
+    tools: list[Tool] | None = None
     creation_datetime: str | None = None
     creation_comment: str | None = None
 
@@ -168,8 +168,8 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
     return creators
 
 
-def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
-    """Read ``[[tool.pitloom.creation-tool]]`` array-of-tables into ``ToolInfo``.
+def _read_tools(pitloom_data: dict[str, Any]) -> list[Tool] | None:
+    """Read ``[[tool.pitloom.creation-tool]]`` array-of-tables into ``Tool``.
 
     Raises:
         ValueError: If ``creation-tool`` is present but not an array of
@@ -185,7 +185,7 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
             "[tool.pitloom.creation-tool] must be an array of tables "
             f"([[tool.pitloom.creation-tool]]), got {type(raw).__name__}"
         )
-    tools: list[ToolInfo] = []
+    tools: list[Tool] = []
     for entry in raw:
         if not isinstance(entry, dict):
             raise ValueError(
@@ -198,7 +198,7 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
                 "[[tool.pitloom.creation-tool]] entry is missing a valid "
                 f"'name' (got {name!r})"
             )
-        tools.append(ToolInfo(name=name))
+        tools.append(Tool(name=name))
     return tools
 
 

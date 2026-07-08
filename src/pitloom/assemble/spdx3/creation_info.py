@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, ToolInfo
+from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, Tool
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import require_spdx_id
 
@@ -145,23 +145,23 @@ def build_tools(
 
     ``tools is None`` yields the default single ``Tool`` ``"Pitloom"``;
     ``tools == []`` suppresses ``createdUsing`` entirely; otherwise one
-    ``Tool`` per :class:`~pitloom.core.creation.ToolInfo`.  ``Tool.summary``
+    ``Tool`` per :class:`~pitloom.core.creation.Tool`.  ``Tool.summary``
     carries Pitloom's version, but only for a tool literally named
     ``"Pitloom"`` (see :func:`_tool_summary`).
     """
-    tool_infos = (
-        [ToolInfo(name="Pitloom")]
+    source_tools = (
+        [Tool(name="Pitloom")]
         if creation_metadata.tools is None
         else creation_metadata.tools
     )
     tools: list[spdx3.Tool] = []
-    for tool_info in tool_infos:
+    for source_tool in source_tools:
         tool = spdx3.Tool(
             spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
-            name=tool_info.name,
+            name=source_tool.name,
             creationInfo=spdx_ci,
         )
-        summary = _tool_summary(tool_info.name)
+        summary = _tool_summary(tool.name)
         if summary:
             tool.summary = summary
         tools.append(tool)
