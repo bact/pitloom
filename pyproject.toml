@@ -96,7 +96,7 @@ issues = "https://github.com/bact/pitloom/issues"
 
 [dependency-groups]
 lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
-test = ["pytest>=9.0.2", "stav>=0.4.1"]
+test = ["pytest>=9.0.2", "pytest-cov>=6.1.0", "stav>=0.4.1"]
 typecheck = ["mypy>=1.19.1", "pyrefly>=1.0.0", "pyright>=1.1.409"]
 dev = [
     { include-group = "lint" },
@@ -286,3 +286,11 @@ select = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["pitloom"]
+
+[tool.coverage.run]
+branch = true
+source = ["pitloom"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
