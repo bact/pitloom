@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -168,7 +169,7 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
     assert meta.format_info.model_format == AiModelFormat.ONNX
 
 
-def test_onnx_load_failure(tmp_path: Path) -> None:
+def test_onnx_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     model_file = tmp_path / "model.onnx"
     model_file.write_bytes(b"corrupt")
 
@@ -176,8 +177,12 @@ def test_onnx_load_failure(tmp_path: Path) -> None:
     mock_onnx.load.side_effect = RuntimeError("bad protobuf")
 
     with patch.dict("sys.modules", {"onnx": mock_onnx}):
-        with pytest.raises(ValueError, match="Failed to load ONNX model"):
-            read_onnx(model_file)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._onnx"):
+            with pytest.raises(ValueError, match="Failed to load ONNX model"):
+                read_onnx(model_file)
+
+    # Load failure is now logged at debug level before being re-raised.
+    assert any("model.onnx" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

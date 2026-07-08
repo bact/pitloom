@@ -82,9 +82,13 @@ pitloom`).
 - `-v` / `--verbose` -- print effective options and where each came from.
 - `--creator-name NAME`, `--creator-email EMAIL` -- name who created the
   SBOM (person by default); `--creator-type` selects `person`,
-  `organization`, `software-agent`, or `agent`. Without a named creator,
-  Pitloom records itself as an unattended `software-agent` creator.
-  Pitloom is always recorded as the generating tool regardless.
+  `organization`, `software-agent`, or `agent`. `--creator-name` is
+  repeatable -- each occurrence starts a new creator, in order;
+  `--creator-type`/`--creator-email` bind to the most recently named one
+  (e.g. `--creator-name "Acme Corp" --creator-type organization
+  --creator-name Alice`). Without a named creator, Pitloom records itself
+  as an unattended `software-agent` creator. Pitloom is recorded as the
+  generating tool by default too (suppress with `--no-creation-tool`).
 
 ## What Pitloom produces
 

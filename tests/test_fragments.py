@@ -36,7 +36,7 @@ import pytest
 
 from pitloom.assemble import generate_sbom
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 _FRAGMENTS_DIR = Path(__file__).parent / "fixtures" / "fragments"
@@ -424,7 +424,7 @@ def test_generate_sbom_includes_ai_model_fragment_elements() -> None:
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_metadata=CreationMetadata(creator_name="Test"),
+            creation_metadata=CreationMetadata(creators=[Creator(name="Test")]),
         )
         data = json.loads(sbom_json)
         graph: list[dict[str, Any]] = data.get("@graph", [])
@@ -481,7 +481,7 @@ files = ["dataset-fragment.spdx3.json"]
 
         sbom_json = generate_sbom(
             tmppath,
-            creation_metadata=CreationMetadata(creator_name="Test"),
+            creation_metadata=CreationMetadata(creators=[Creator(name="Test")]),
         )
         graph = json.loads(sbom_json).get("@graph", [])
 

@@ -39,6 +39,19 @@ SPDX-License-Identifier: CC0-1.0
   - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440
   - `read_pyproject()` falls back to `[tool.poetry]` when `[project]` is absent;
     merges both sections when both are present (`[project]` wins field-by-field)
+- [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator` /
+  `ToolInfo` dataclasses replace the old scalar `creator_name`/
+  `creation_tool` fields; `CreationMetadata.creators: list[Creator]` and
+  `.tools: list[ToolInfo] | None` allow ≥1 Agents in `createdBy` and 0+
+  Tools in `createdUsing`, matching what SPDX 3 allows. CLI: repeatable
+  `--creator-name` (stateful -- `--creator-type`/`--creator-email` bind to
+  the most recently named creator) and repeatable `--creation-tool`.
+  Config: `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]`
+  array-of-tables in `pyproject.toml` (Poetry too); `setup.cfg` keeps
+  single-creator/-tool support only (INI can't express array-of-tables).
+  `suppliedBy` on the main package -- single-valued in SPDX 3 -- is set to
+  the first named creator. See
+  [creation-metadata.md](../../docs/creation-metadata.md).
 
 ## Adoption surfaces
 
@@ -95,41 +108,6 @@ wired into a build backend. These two extend reach beyond that. See
   with dataset references; emit SPDX 3 relationship types (`trainedOn`,
   `testedOn`, `finetunedOn`, `validatedOn`, `pretrainedOn`).
   See [sbom-enrichment.md](sbom-enrichment.md).
-
-### Creation metadata
-
-- [ ] **Multiple creators / tools per `CreationInfo` record** -- SPDX 3
-  allows `createdBy` (≥1) and `createdUsing` (0+) to hold several Agents/
-  Tools, but `CreationMetadata` (`src/pitloom/core/creation.py`) is
-  single-valued today: one `creator_name`/`creator_type`, one
-  `creation_tool`. `build_creation_info()` always writes exactly one Agent
-  and at most one Tool per record (see
-  [creation-metadata.md](../../docs/creation-metadata.md) for the current
-  model and its workaround -- separate `CreationInfo` records per
-  generation event). Flagging early, not implementing yet: supporting this
-  properly is a breaking change to both the config surface
-  (`[tool.pitloom.creation] creator-name = "..."` would need to become a
-  list or array-of-tables) and the library API (`CreationMetadata.
-  creator_name: str | None` would need to become list-typed), so the
-  shape should be decided deliberately rather than retrofitted once more
-  code depends on the current scalar fields.
-
-  Config sketch (not yet designed/implemented): TOML array-of-tables --
-  `[[tool.pitloom.creator]]` repeated per creator (each with its own
-  `name`/`type`/`email`), and similarly `[[tool.pitloom.creation-tool]]`
-  repeated per tool -- replacing the current single
-  `[tool.pitloom.creation]` table. Still open:
-  - Library API shape for `CreationMetadata` (`list[Creator]` /
-    `list[ToolInfo]`? nested dataclasses vs. flat lists?) and whether/how
-    `--creator-name` etc. stay usable as single-value CLI shortcuts on top
-    of a list-valued field.
-  - GitHub Action (`action.yml`) inputs are flat strings
-    (`with: creator-name: ...`); a composite action can't easily accept a
-    repeated block the way TOML/array-of-tables or Python lists can, so
-    multi-creator input there needs its own design (e.g. a delimited
-    string, JSON-encoded input, or accept only single creator/tool via
-    the Action while multi-value stays a config-file/library-only
-    feature).
 
 ### Metadata quality
 

@@ -5,15 +5,31 @@
 """Integration and unit tests for the pitloom.loom module."""
 
 import json
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
 from pitloom import loom
 from pitloom.__about__ import __version__
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, Creator
+
+
+def test_get_caller_info_exception_logs_and_returns_fallback(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When inspect.stack() itself raises, _get_caller_info() catches it,
+    logs at debug level, and returns the same "unknown source" fallback
+    string as before logging was added."""
+    with patch("pitloom.loom.inspect.stack", side_effect=RuntimeError("no frames")):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
+            result = loom._get_caller_info()  # pylint: disable=protected-access
+
+    assert result == "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
+    assert any("caller info" in r.message for r in caplog.records)
 
 
 def test_loom_run_as_context_manager() -> None:
@@ -310,11 +326,11 @@ def _run_creation_info(
 
 
 def test_loom_run_named_person_creator() -> None:
-    """loom.run(creation_metadata=CreationMetadata(creator_name=...)) records a Person
-    in createdBy, on par with the CLI."""
+    """loom.run(creation_metadata=CreationMetadata(creators=[Creator(...)])) records
+    a Person in createdBy, on par with the CLI."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        creation = CreationMetadata(creator_name="Alice", creator_email="a@ex.com")
+        creation = CreationMetadata(creators=[Creator(name="Alice", email="a@ex.com")])
         with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
@@ -324,12 +340,11 @@ def test_loom_run_named_person_creator() -> None:
 
 
 def test_loom_run_organization_creator() -> None:
-    """creator_type='organization' on the CreationMetadata records an
-    Organization."""
+    """type='organization' on a Creator records an Organization."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         creation = CreationMetadata(
-            creator_name="Acme Corp", creator_type="organization"
+            creators=[Creator(name="Acme Corp", type="organization")]
         )
         with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
@@ -349,11 +364,13 @@ def test_loom_run_organization_creator() -> None:
 def test_loom_run_software_agent_and_generic_agent_creator(
     creator_type: str, expected_element_type: str
 ) -> None:
-    """creator_type also allows a named SoftwareAgent or the generic Agent,
+    """A creator's type also allows a named SoftwareAgent or the generic Agent,
     not just Person/Organization."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        creation = CreationMetadata(creator_name="CI Bot", creator_type=creator_type)
+        creation = CreationMetadata(
+            creators=[Creator(name="CI Bot", type=creator_type)]
+        )
         with loom.run(output_file, creation_metadata=creation):
             loom.set_model("test-model")
 
@@ -363,23 +380,23 @@ def test_loom_run_software_agent_and_generic_agent_creator(
 
 
 def test_loom_run_invalid_creator_type_raises() -> None:
-    """An unrecognised creator_type raises ValueError rather than silently
-    falling back to Person."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        output_file = Path(tmpdir) / "frag.json"
-        creation = CreationMetadata(creator_name="Bot", creator_type="robot")
-        with pytest.raises(ValueError, match="Invalid creator_type"):
-            with loom.run(output_file, creation_metadata=creation):
-                loom.set_model("test-model")
+    """An unrecognised creator type raises ValueError rather than silently
+    falling back to Person.
+
+    Validation now happens eagerly in ``Creator.__post_init__`` (construction
+    time) rather than later at fragment assembly, so the invalid type is
+    rejected before ``loom.run`` is ever reached."""
+    with pytest.raises(ValueError, match="Invalid creator type"):
+        Creator(name="Bot", type="robot")
 
 
 def test_loom_run_suppress_tool_and_fixed_datetime() -> None:
-    """creation_tool=None omits createdUsing; creation_datetime is
+    """tools=[] omits createdUsing; creation_datetime is
     normalised into created."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         creation = CreationMetadata(
-            creation_tool=None,
+            tools=[],
             creation_datetime="2026-01-15T10:00:00Z",
         )
         with loom.run(output_file, creation_metadata=creation):

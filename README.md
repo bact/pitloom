@@ -94,29 +94,41 @@ loom -m Qwen/Qwen3-235B-A22B   # bare model ID also works
 ### Creation metadata
 
 These flags apply to project, AI model, and Hugging Face SBOM generation
-alike. `--creator-name`/`--creator-type` (`person` default, `organization`,
-`software-agent`, `agent`)/`--creator-email` name *who* initiated the run;
-`--creation-tool` records *what* produced it (default `"Pitloom"`,
-`--no-creation-tool` to omit); `--creation-comment`/`--creation-datetime`
-set free-text provenance and an ISO 8601 timestamp:
+alike. `--creator-name` is repeatable -- each occurrence starts a new
+creator, in order; `--creator-type` (`person` default, `organization`,
+`software-agent`, `agent`) and `--creator-email` set the type/email of the
+*most recently named* creator. `--creation-tool` records *what* produced
+it (default `"Pitloom"`, also repeatable; `--no-creation-tool` to omit);
+`--creation-comment`/`--creation-datetime` set free-text provenance and an
+ISO 8601 timestamp:
 
 ```bash
 loom . --creator-name "Alice" --creator-email "alice@example.com"
 loom . --creator-name "Acme Corp" --creator-type organization
+loom . --creator-name "Acme Corp" --creator-type organization --creator-name Alice
 loom . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
 ```
 
-The same fields can be set in `pyproject.toml` under `[tool.pitloom.creation]`
-(CLI flags take precedence):
+The same fields can be set in `pyproject.toml` under
+`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` (CLI flags
+take precedence, replacing the whole list rather than merging):
 
 ```toml
+[[tool.pitloom.creator]]
+name = "Alice"
+email = "alice@example.com"
+type = "person"       # or "organization", "software-agent", "agent"
+
+[[tool.pitloom.creator]]
+name = "Acme Corp"
+type = "organization"
+
+[[tool.pitloom.creation-tool]]
+name = "MyCompany SBOM Wrapper"
+
 [tool.pitloom.creation]
-creator-name = "Alice"
-creator-email = "alice@example.com"
-creator-type = "person"       # or "organization", "software-agent", "agent"
 creation-datetime = "2026-01-15T10:00:00Z"
 creation-comment = "Generated in CI pipeline #123"
-creation-tool = "MyCompany SBOM Wrapper"
 ```
 
 See [Creation metadata](docs/creation-metadata.md) for what these fields
@@ -129,13 +141,13 @@ The SBOM generator can be used programmatically:
 
 ```python
 from pathlib import Path
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.assemble import generate_sbom
 
 generate_sbom(
     project_dir=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
-    creation_metadata=CreationMetadata(creator_name="Your Name"),
+    creation_metadata=CreationMetadata(creators=[Creator(name="Your Name")]),
 )
 ```
 
@@ -163,7 +175,8 @@ enabled = true    # set to false to skip SBOM generation
 That's all -- `hatch build`/`python -m build` now embeds the SBOM, always
 as compact canonical JSON. Basename and fragments are configured under
 `[tool.pitloom]`; creator/tool metadata uses the same
-`[tool.pitloom.creation]` table the CLI reads (see
+`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
+`[tool.pitloom.creation]` tables the CLI reads (see
 [Creation metadata](#creation-metadata) above):
 
 ```toml

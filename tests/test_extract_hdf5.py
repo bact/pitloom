@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json as _json
+import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -56,6 +57,24 @@ def test_read_hdf5_missing_library(tmp_path: Path) -> None:
     with patch.dict("sys.modules", {"h5py": None}):
         with pytest.raises(ImportError, match="h5py"):
             read_hdf5(model_file)
+
+
+def test_read_hdf5_open_failure_logs_and_raises(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"corrupt")
+
+    mock_h5py = MagicMock()
+    mock_h5py.File.side_effect = OSError("unable to open file (bad signature)")
+
+    with patch.dict("sys.modules", {"h5py": mock_h5py}):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._hdf5"):
+            with pytest.raises(ValueError, match="Failed to read HDF5 file"):
+                read_hdf5(model_file)
+
+    # Open failure is now logged at debug level before being re-raised.
+    assert any("model.h5" in r.message for r in caplog.records)
 
 
 def test_read_hdf5_format_plain(tmp_path: Path) -> None:

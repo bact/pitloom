@@ -197,10 +197,10 @@ module = "tests.test_extract_huggingface"
 pretty = true
 sbom-basename = "sbom"
 
-[tool.pitloom.creation]
-creator-name = "Arthit Suriyawongkul"
-creator-email = "suriyawa@tcd.ie"
-creator-type = "person"
+[[tool.pitloom.creator]]
+name = "Arthit Suriyawongkul"
+email = "suriyawa@tcd.ie"
+type = "person"
 
 [tool.pylint.main]
 ignore-paths = ["^tests/fixtures/.*$"]

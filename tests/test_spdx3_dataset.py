@@ -19,7 +19,7 @@ from pitloom.assemble.spdx3.dataset import (
 )
 from pitloom.assemble.spdx3.document import build as build_doc
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
@@ -367,7 +367,7 @@ def test_add_datasets_empty_list_no_elements() -> None:
 
 def test_document_has_dataset_profile_when_model_has_datasets() -> None:
     project = ProjectMetadata(name="myproject", version="1.0")
-    creation = CreationMetadata(creator_name="Test")
+    creation = CreationMetadata(creators=[Creator(name="Test")])
     model = AiModelMetadata(
         name="MyModel",
         format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),
@@ -388,7 +388,7 @@ def test_document_has_dataset_profile_when_model_has_datasets() -> None:
 
 def test_document_no_dataset_profile_when_no_datasets() -> None:
     project = ProjectMetadata(name="myproject2", version="1.0")
-    creation = CreationMetadata(creator_name="Test")
+    creation = CreationMetadata(creators=[Creator(name="Test")])
     model = AiModelMetadata(
         name="MyModel",
         format_info=AiModelFormatInfo(model_format=AiModelFormat.ONNX),

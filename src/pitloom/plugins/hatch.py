@@ -32,32 +32,25 @@ _SPDX3_JSON_EXT = ".spdx3.json"
 
 
 def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
-    """Build creation metadata from ``[tool.pitloom.creation]``.
+    """Build creation metadata from ``[[tool.pitloom.creator]]`` /
+    ``[[tool.pitloom.creation-tool]]`` / ``[tool.pitloom.creation]``.
 
     Unset fields fall through to :class:`CreationMetadata`'s own defaults --
-    no named creator (the assembler emits the ``SoftwareAgent`` "Pitloom")
-    and ``creation_tool`` -> ``"Pitloom"`` -- matching the CLI.
+    no named creators (the assembler emits the ``SoftwareAgent`` "Pitloom")
+    and ``tools`` -> ``[Pitloom]`` -- matching the CLI.
     """
     comment = pitloom_config.creation_comment
-    kwargs: dict[str, Any] = {
-        "creation_comment": (
+    return CreationMetadata(
+        creators=pitloom_config.creators,
+        tools=pitloom_config.tools,
+        creation_comment=(
             comment
             if comment is not None
             else "Generated via Pitloom Hatchling build hook (PEP 770)"
         ),
-        "build_datetime": to_spdx3_datetime(datetime.now(timezone.utc)).isoformat(),
-    }
-    if pitloom_config.creation_creator_name:
-        kwargs["creator_name"] = pitloom_config.creation_creator_name
-    if pitloom_config.creation_creator_email:
-        kwargs["creator_email"] = pitloom_config.creation_creator_email
-    if pitloom_config.creation_creator_type:
-        kwargs["creator_type"] = pitloom_config.creation_creator_type
-    if pitloom_config.creation_creation_tool:
-        kwargs["creation_tool"] = pitloom_config.creation_creation_tool
-    if pitloom_config.creation_creation_datetime:
-        kwargs["creation_datetime"] = pitloom_config.creation_creation_datetime
-    return CreationMetadata(**kwargs)
+        creation_datetime=pitloom_config.creation_datetime,
+        build_datetime=to_spdx3_datetime(datetime.now(timezone.utc)).isoformat(),
+    )
 
 
 def _build_document_model(
@@ -226,9 +219,10 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
 _MOVED_KEYS = {
     "sbom-basename": "[tool.pitloom] sbom-basename",
     "fragments": "[tool.pitloom.fragments] files",
-    "creator-name": "[tool.pitloom.creation] creator-name",
-    "creator-email": "[tool.pitloom.creation] creator-email",
-    "creator-type": "[tool.pitloom.creation] creator-type",
+    "creator-name": "[[tool.pitloom.creator]] (key: name)",
+    "creator-email": "[[tool.pitloom.creator]] (key: email)",
+    "creator-type": "[[tool.pitloom.creator]] (key: type)",
+    "creation-tool": "[[tool.pitloom.creation-tool]] (key: name)",
 }
 
 

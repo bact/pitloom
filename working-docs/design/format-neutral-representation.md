@@ -52,7 +52,7 @@ loom.run() (fragments)   ─┘    (pitloom.core)          [future] CycloneDXAss
 ```python
 @dataclass
 class DocumentModel:
-    creation: CreationMetadata        # who/when generated this document
+    creation_metadata: CreationMetadata  # who/what/when generated this document
     project: ProjectMetadata          # from read_pyproject() / read_setuptools()
     ai_models: list[AiModelMetadata]  # from read_ai_model()
 ```

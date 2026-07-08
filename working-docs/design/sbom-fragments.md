@@ -631,7 +631,7 @@ fragment metadata available to assemblers without re-reading the config:
 @dataclass
 class DocumentModel:
     project: ProjectMetadata
-    creation: CreationMetadata = field(default_factory=CreationMetadata)
+    creation_metadata: CreationMetadata = field(default_factory=CreationMetadata)
     ai_models: list[AiModelMetadata] = field(default_factory=list)
     fragments: list[FragmentConfig] = field(default_factory=list)  # NEW
 ```

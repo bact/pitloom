@@ -41,18 +41,31 @@ from __future__ import annotations
 
 import ast
 import configparser
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
+from pitloom.core.creation import Creator, ToolInfo
 from pitloom.core.project import ProjectMetadata
 
 if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
+
+log = logging.getLogger(__name__)
+
+
+class _NoProjectNameError(ValueError):
+    """A setup.cfg/setup.py file has no project name -- try the next source.
+
+    Distinct from other ``ValueError``s the same reader can raise (e.g. a
+    malformed ``[tool:pitloom]`` section), which are genuine config mistakes
+    that must propagate rather than be treated as "try elsewhere".
+    """
 
 
 # Matches "file: some/path" or "attr: module.attribute"
@@ -88,8 +101,8 @@ def detect_build_backend(project_dir: Path) -> str | None:
                 return backend
         if build_backend:
             return build_backend.split(".")[0].lower()
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to detect build backend from %s: %s", pyproject_path, exc)
     return None
 
 
@@ -111,7 +124,10 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     Raises:
         FileNotFoundError: If neither ``setup.cfg`` nor ``setup.py`` exist,
             or neither contains a project name.
-        ValueError: If a project name cannot be found in any source.
+        ValueError: If ``setup.cfg``'s ``[tool:pitloom]``/
+            ``[tool:pitloom:creation]`` has invalid config -- this
+            propagates rather than falling through to ``setup.py``, since
+            it is a genuine config mistake, not a missing-name signal.
     """
     setup_cfg = project_dir / "setup.cfg"
     setup_py = project_dir / "setup.py"
@@ -123,7 +139,7 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     if setup_cfg.exists():
         try:
             cfg_metadata, cfg_config = read_setup_cfg(project_dir)
-        except (FileNotFoundError, ValueError):
+        except (FileNotFoundError, _NoProjectNameError):
             pass
 
     if setup_py.exists():
@@ -169,7 +185,10 @@ def read_setup_cfg(
 
     Raises:
         FileNotFoundError: If ``setup.cfg`` is not found.
-        ValueError: If ``name`` is absent from the ``[metadata]`` section.
+        _NoProjectNameError: If ``name`` is absent from the ``[metadata]``
+            section.
+        ValueError: If ``[tool:pitloom]``/``[tool:pitloom:creation]`` has
+            invalid config (e.g. a bad ``creator-type``).
     """
     setup_cfg_path = project_dir / "setup.cfg"
     if not setup_cfg_path.exists():
@@ -183,7 +202,9 @@ def read_setup_cfg(
 
     name = metadata_raw.get("name", "").strip()
     if not name:
-        raise ValueError("Project name is required in setup.cfg [metadata] section")
+        raise _NoProjectNameError(
+            "Project name is required in setup.cfg [metadata] section"
+        )
 
     raw_version = metadata_raw.get("version", "").strip()
     version, version_source = _resolve_cfg_version(raw_version, project_dir)
@@ -695,17 +716,39 @@ def _read_pitloom_config_from_cfg(
     fragments_raw = raw.get("fragments", "")
     fragments = [f.strip() for f in fragments_raw.splitlines() if f.strip()]
 
+    # setup.cfg (INI) cannot express array-of-tables, so only a single
+    # creator and a single tool are supported here -- multi-creator/tool
+    # setups need pyproject.toml or the library API.
+    creator_name = _pick_str("creator-name", "creator_name")
+    creators = (
+        [
+            Creator(
+                name=creator_name,
+                type=_pick_str("creator-type", "creator_type") or "person",
+                email=_pick_str("creator-email", "creator_email"),
+            )
+        ]
+        if creator_name
+        else []
+    )
+    creation_tool_name = _pick_str("creation-tool", "creation_tool", "tool")
+    tools = [ToolInfo(name=creation_tool_name)] if creation_tool_name else None
+
+    no_creation_tool_str = (
+        (_pick_str("no-creation-tool", "no_creation_tool") or "").strip().lower()
+    )
+    if no_creation_tool_str in ("true", "1", "yes"):
+        tools = []
+
     return PitloomConfig(
         pretty=pretty,
         describe_relationship=desc_rel,
         sbom_basename=sbom_basename,
         fragments=fragments,
-        creation_creator_name=_pick_str("creator-name", "creator_name"),
-        creation_creator_email=_pick_str("creator-email", "creator_email"),
-        creation_creator_type=_pick_str("creator-type", "creator_type"),
-        creation_creation_datetime=_pick_str(
+        creators=creators,
+        tools=tools,
+        creation_datetime=_pick_str(
             "creation-datetime", "creation_datetime", "datetime"
         ),
-        creation_creation_tool=_pick_str("creation-tool", "creation_tool", "tool"),
         creation_comment=_pick_str("creation-comment", "creation_comment", "comment"),
     )

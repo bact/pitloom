@@ -11,10 +11,33 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from pitloom.core.creation import Creator, ToolInfo
+
 if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
+
+
+#: Old (pre-multi-creator) ``[tool.pitloom.creation]`` keys that moved to
+#: ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``.
+_MOVED_CREATION_KEYS: dict[str, str] = {
+    "creator-name": "[[tool.pitloom.creator]] (key: name)",
+    "creator_name": "[[tool.pitloom.creator]] (key: name)",
+    "creator-email": "[[tool.pitloom.creator]] (key: email)",
+    "creator_email": "[[tool.pitloom.creator]] (key: email)",
+    "creator-type": "[[tool.pitloom.creator]] (key: type)",
+    "creator_type": "[[tool.pitloom.creator]] (key: type)",
+    "creation-tool": "[[tool.pitloom.creation-tool]] (key: name)",
+    "creation_tool": "[[tool.pitloom.creation-tool]] (key: name)",
+}
+
+#: Subset of ``_MOVED_CREATION_KEYS`` where a top-level ``list`` value is
+#: valid (the new array-of-tables form) rather than stale -- see
+#: :func:`_check_moved_creation_keys`.
+_MOVED_CREATION_KEYS_LIST_VALID: frozenset[str] = frozenset(
+    {"creation-tool", "creation_tool"}
+)
 
 
 @dataclass
@@ -36,16 +59,13 @@ class PitloomConfig:
             The full filename is derived by appending the format-specific
             extension (e.g., ``".spdx3.json"``).
             When ``None``, callers choose a context-appropriate default.
-        creation_creator_name: Optional creator name override from
-            ``[tool.pitloom.creation]``.
-        creation_creator_email: Optional creator email override from
-            ``[tool.pitloom.creation]``.
-        creation_creator_type: Optional creator type (``"person"``,
-            ``"organization"``, ``"software-agent"``, or ``"agent"``) from
-            ``[tool.pitloom.creation]``.
-        creation_creation_datetime: Optional creation timestamp override from
-            ``[tool.pitloom.creation]``.
-        creation_creation_tool: Optional creation tool name override from
+        creators: Named creators read from ``[[tool.pitloom.creator]]``
+            array-of-tables.  Empty when none are configured.
+        tools: Creation tools read from ``[[tool.pitloom.creation-tool]]``
+            array-of-tables.  ``None`` when not configured (caller default
+            applies); an explicit ``no-creation-tool = true`` under
+            ``[tool.pitloom.creation]`` maps to an empty list.
+        creation_datetime: Optional creation timestamp override from
             ``[tool.pitloom.creation]``.
         creation_comment: Optional comment mapped to SPDX ``CreationInfo.comment``.
     """
@@ -54,24 +74,156 @@ class PitloomConfig:
     pretty: bool = False
     describe_relationship: bool | None = None
     sbom_basename: str | None = None
-    creation_creator_name: str | None = None
-    creation_creator_email: str | None = None
-    creation_creator_type: str | None = None
-    creation_creation_datetime: str | None = None
-    creation_creation_tool: str | None = None
+    creators: list[Creator] = field(default_factory=list)
+    tools: list[ToolInfo] | None = None
+    creation_datetime: str | None = None
     creation_comment: str | None = None
+
+
+def _check_moved_creation_keys(
+    pitloom_data: dict[str, Any], creation_data: dict[str, Any]
+) -> None:
+    """Raise a clear error if single-valued creator/tool keys are present
+    directly under ``[tool.pitloom]`` or ``[tool.pitloom.creation]``; they
+    belong in ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``.
+
+    A top-level *list* ``creation-tool`` is the valid array-of-tables form
+    and must not be flagged; any other value there (string, int, bool,
+    ...) is the old/invalid single-valued form. The other moved keys
+    (``creator-name``/``creator-email``/``creator-type``) have no valid
+    form at all under ``[tool.pitloom]``, so any value present there --
+    regardless of type -- is flagged.
+    """
+    for key in pitloom_data:
+        moved_to = _MOVED_CREATION_KEYS.get(key)
+        if moved_to is None:
+            continue
+        if key in _MOVED_CREATION_KEYS_LIST_VALID and isinstance(
+            pitloom_data[key], list
+        ):
+            continue
+        raise ValueError(
+            f"[tool.pitloom] {key!r} has moved to {moved_to}. "
+            "Update your pyproject.toml."
+        )
+    for key in creation_data:
+        moved_to = _MOVED_CREATION_KEYS.get(key)
+        if moved_to is not None:
+            raise ValueError(
+                f"[tool.pitloom.creation] {key!r} has moved to {moved_to}. "
+                "Update your pyproject.toml."
+            )
+
+
+def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
+    """Read ``[[tool.pitloom.creator]]`` array-of-tables into ``Creator`` objects.
+
+    Raises:
+        ValueError: If ``creator`` is present but not an array of tables
+            (e.g. a single ``[tool.pitloom.creator]`` table, or
+            ``creator = ["Alice"]``), or if an entry is not a table or is
+            missing a valid (non-empty string) ``name``, or if an entry's
+            ``type`` or ``email`` is present but not a string.
+    """
+    raw = pitloom_data.get("creator")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError(
+            "[tool.pitloom.creator] must be an array of tables "
+            f"([[tool.pitloom.creator]]), got {type(raw).__name__}"
+        )
+    creators: list[Creator] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry must be a table, got "
+                f"{type(entry).__name__}: {entry!r}"
+            )
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry is missing a valid 'name' "
+                f"(got {name!r})"
+            )
+        creator_type = entry.get("type")
+        if creator_type is not None and not isinstance(creator_type, str):
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry 'type' must be a string, got "
+                f"{type(creator_type).__name__}: {creator_type!r}"
+            )
+        email = entry.get("email")
+        if email is not None and not isinstance(email, str):
+            raise ValueError(
+                "[[tool.pitloom.creator]] entry 'email' must be a string, got "
+                f"{type(email).__name__}: {email!r}"
+            )
+        creators.append(
+            Creator(
+                name=name,
+                type=creator_type if creator_type is not None else "person",
+                email=email,
+            )
+        )
+    return creators
+
+
+def _read_tools(pitloom_data: dict[str, Any]) -> list[ToolInfo] | None:
+    """Read ``[[tool.pitloom.creation-tool]]`` array-of-tables into ``ToolInfo``.
+
+    Raises:
+        ValueError: If ``creation-tool`` is present but not an array of
+            tables (e.g. a single ``[tool.pitloom.creation-tool]`` table, or
+            ``creation-tool = ["MyWrapper"]``), or if an entry is not a
+            table or is missing a valid (non-empty string) ``name``.
+    """
+    raw = pitloom_data.get("creation-tool", pitloom_data.get("creation_tool"))
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        raise ValueError(
+            "[tool.pitloom.creation-tool] must be an array of tables "
+            f"([[tool.pitloom.creation-tool]]), got {type(raw).__name__}"
+        )
+    tools: list[ToolInfo] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                "[[tool.pitloom.creation-tool]] entry must be a table, got "
+                f"{type(entry).__name__}: {entry!r}"
+            )
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(
+                "[[tool.pitloom.creation-tool]] entry is missing a valid "
+                f"'name' (got {name!r})"
+            )
+        tools.append(ToolInfo(name=name))
+    return tools
 
 
 def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
-    Creation metadata can be set in either ``[tool.pitloom.creation]``
-    (preferred) or legacy flat keys under ``[tool.pitloom]``.
+    Creators come from ``[[tool.pitloom.creator]]``, tools from
+    ``[[tool.pitloom.creation-tool]]``; ``[tool.pitloom.creation]`` still
+    carries the document-level singletons: ``creation-datetime``,
+    ``creation-comment``, and ``no-creation-tool``.
+
+    Raises:
+        ValueError: If ``[tool.pitloom]`` or ``[tool.pitloom.creation]``
+            still has old single-valued ``creator-name``/``creator-email``/
+            ``creator-type``/``creation-tool`` keys -- these moved to the
+            array-of-tables form -- or if ``no-creation-tool`` is present
+            but not a boolean (e.g. the string ``"false"``, which Python
+            truthiness would otherwise silently treat as enabled).
     """
     pitloom_data = data.get("tool", {}).get("pitloom", {})
     creation_data = pitloom_data.get("creation", {})
     if not isinstance(creation_data, dict):
         creation_data = {}
+
+    _check_moved_creation_keys(pitloom_data, creation_data)
 
     def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
         """Return the first string found by key, scanning *sources* in order.
@@ -99,25 +251,23 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     if desc_rel is not None:
         desc_rel = bool(desc_rel)
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
-    creation_creator_name = _pick_str(
-        (creation_data, ("creator-name", "creator_name")),
-        (pitloom_data, ("creator-name", "creator_name")),
-    )
-    creation_creator_email = _pick_str(
-        (creation_data, ("creator-email", "creator_email")),
-        (pitloom_data, ("creator-email", "creator_email")),
-    )
-    creation_creator_type = _pick_str(
-        (creation_data, ("creator-type", "creator_type")),
-        (pitloom_data, ("creator-type", "creator_type")),
-    )
-    creation_creation_datetime = _pick_str(
+
+    creators = _read_creators(pitloom_data)
+    tools = _read_tools(pitloom_data)
+    no_creation_tool = creation_data.get("no-creation-tool")
+    if no_creation_tool is None:
+        no_creation_tool = creation_data.get("no_creation_tool")
+    if no_creation_tool is not None and not isinstance(no_creation_tool, bool):
+        raise ValueError(
+            "[tool.pitloom.creation] 'no-creation-tool' must be a boolean, "
+            f"got {type(no_creation_tool).__name__}: {no_creation_tool!r}"
+        )
+    if no_creation_tool:
+        tools = []
+
+    creation_datetime = _pick_str(
         (creation_data, ("creation-datetime", "creation_datetime", "datetime")),
         (pitloom_data, ("creation-datetime", "creation_datetime")),
-    )
-    creation_creation_tool = _pick_str(
-        (creation_data, ("creation-tool", "creation_tool", "tool")),
-        (pitloom_data, ("creation-tool", "creation_tool")),
     )
     creation_comment = _pick_str(
         (creation_data, ("creation-comment", "creation_comment", "comment")),
@@ -129,11 +279,9 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         fragments=fragments,
         describe_relationship=desc_rel,
         sbom_basename=sbom_basename,
-        creation_creator_name=creation_creator_name,
-        creation_creator_email=creation_creator_email,
-        creation_creator_type=creation_creator_type,
-        creation_creation_datetime=creation_creation_datetime,
-        creation_creation_tool=creation_creation_tool,
+        creators=creators,
+        tools=tools,
+        creation_datetime=creation_datetime,
         creation_comment=creation_comment,
     )
 

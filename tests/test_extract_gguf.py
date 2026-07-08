@@ -10,12 +10,14 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.extract._gguf import _resolve_quantization
 from pitloom.extract.ai_model import read_gguf
 
 # ---------------------------------------------------------------------------
@@ -106,7 +108,7 @@ def test_gguf_minimal_fields(tmp_path: Path) -> None:
     assert meta.version is None
 
 
-def test_gguf_load_failure(tmp_path: Path) -> None:
+def test_gguf_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     model_file = tmp_path / "model.gguf"
     model_file.write_bytes(b"corrupt")
 
@@ -114,8 +116,28 @@ def test_gguf_load_failure(tmp_path: Path) -> None:
     mock_gguf.GGUFReader.side_effect = ValueError("bad magic")
 
     with patch.dict("sys.modules", {"gguf": mock_gguf}):
-        with pytest.raises(ValueError, match="Failed to read GGUF"):
-            read_gguf(model_file)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._gguf"):
+            with pytest.raises(ValueError, match="Failed to read GGUF"):
+                read_gguf(model_file)
+
+    # Open failure is now logged at debug level before being re-raised.
+    assert any("model.gguf" in r.message for r in caplog.records)
+
+
+def test_gguf_resolve_quantization_unknown_value_logs_and_falls_back(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An out-of-range file_type value can't be resolved to a
+    GGMLQuantizationType member; the failure is logged and the raw integer
+    string is returned as a fallback (behaviour unchanged from before the
+    logging was added)."""
+    pytest.importorskip("gguf")
+
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._gguf"):
+        result = _resolve_quantization(99999)
+
+    assert result == "99999"
+    assert any("99999" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

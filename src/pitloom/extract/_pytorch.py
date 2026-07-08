@@ -11,11 +11,14 @@ References:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 
 def _fickling_get_top_class(pkl_bytes: bytes) -> str | None:
@@ -37,7 +40,8 @@ def _fickling_get_top_class(pkl_bytes: bytes) -> str | None:
 
     try:
         pkl = Pickled.load(io.BytesIO(pkl_bytes))
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("fickling failed to parse pickle bytes: %s", exc)
         return None
 
     def _dotted_name(node: Any) -> str | None:
@@ -95,8 +99,8 @@ def _read_pytorch_zip(
                 provenance["type_of_model"] = (
                     f"{source} | Field: {pkl_entry} (fickling)"
                 )
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            log.debug("Failed to inspect %s in %s: %s", pkl_entry, source, exc)
 
     return type_of_model, properties, provenance
 

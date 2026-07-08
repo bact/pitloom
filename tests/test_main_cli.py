@@ -237,6 +237,85 @@ version = "0.1.0"
     assert "creation_comment      : 'Generated via Pitloom CLI'" in captured.out
 
 
+def test_project_mode_malformed_pitloom_config_surfaces_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A malformed [tool.pitloom] section must be a hard error, not a silent
+    fallback to default config.
+
+    ``creator-name`` directly under ``[tool.pitloom]`` is the old/invalid
+    single-valued form (creators now live under
+    ``[[tool.pitloom.creator]]``), so ``read_pyproject`` raises ``ValueError``.
+    Before the fix, ``_load_project_config`` and ``_resolve_output_path``
+    each caught and silently discarded that error, so the CLI would still
+    exit 0 and generate an SBOM with default creators and a generic output
+    filename. It must now propagate: exit code 1, no SBOM written.
+    """
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        """
+[project]
+name = "x"
+
+[tool.pitloom]
+creator-name = 123
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def _fake_generate_sbom(*args: object, **kwargs: object) -> str:
+        raise AssertionError(
+            "generate_sbom must not run when [tool.pitloom] config is malformed"
+        )
+
+    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir)])
+
+    exit_code = __main__.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Error generating SBOM" in captured.err
+    assert not (project_dir / "x.spdx3.json").exists()
+    assert not (tmp_path / "sbom.spdx3.json").exists()
+
+
+def test_resolve_output_path_malformed_pyproject_raises(tmp_path: Path) -> None:
+    """_resolve_output_path() reads pyproject.toml directly (via
+    read_pyproject()) and must propagate a malformed [tool.pitloom]
+    ValueError rather than silently falling back to a default output path.
+
+    This is a narrower, direct-call complement to
+    test_project_mode_malformed_pitloom_config_surfaces_error above: that
+    end-to-end test never actually exercises this propagation path inside
+    _resolve_output_path(), because _load_project_config() -- called first
+    in _run_project_mode() -- raises on the same malformed config and
+    short-circuits before _resolve_output_path() is ever reached.
+    """
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        """
+[project]
+name = "x"
+
+[tool.pitloom]
+creator-name = 123
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        __main__._resolve_output_path(  # pylint: disable=protected-access
+            None, project_dir
+        )
+
+
 # ---------------------------------------------------------------------------
 # -m / --aimodel: model-mode tests
 # ---------------------------------------------------------------------------
@@ -368,7 +447,7 @@ def test_model_mode_passes_creation_info(
     assert __main__.main() == 0
     ci = captured["creation_metadata"]
     assert isinstance(ci, CreationMetadata)
-    assert ci.creator_name == "TestBot"
+    assert [c.name for c in ci.creators] == ["TestBot"]
 
 
 def test_model_mode_nonexistent_file_returns_error(
@@ -476,6 +555,184 @@ def test_project_mode_creator_type_software_agent_and_agent(
     graph = json.loads(out.read_text())["@graph"]
     matches = [e.get("name") for e in graph if e.get("type") == expected_element_type]
     assert "CI Bot" in matches
+
+
+def test_project_mode_multiple_interleaved_creators(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Repeated --creator-name interleaved with --creator-type/--creator-email
+    starts a new creator each time; --creator-type/--creator-email bind to
+    the most recently named creator."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "multi-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "multi-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "Acme Corp",
+            "--creator-type",
+            "organization",
+            "--creator-name",
+            "Alice",
+            "--creator-email",
+            "alice@example.com",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    orgs = [e for e in graph if e.get("type") == "Organization"]
+    persons = [e for e in graph if e.get("type") == "Person"]
+    assert [o["name"] for o in orgs] == ["Acme Corp"]
+    assert [p["name"] for p in persons] == ["Alice"]
+    assert persons[0]["externalIdentifier"]
+
+
+def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """With three creators, each --creator-type/--creator-email must bind to
+    the creator most recently named, not the first or a stale index -- a
+    regression check for the switch from in-place mutation
+    (``creators[-1].type = values``) to reconstructing the last ``Creator``
+    (``creators[-1] = Creator(...)``) in ``_CreatorTypeAction``/
+    ``_CreatorEmailAction``."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "three-cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
+    )
+    out = tmp_path / "three-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creator-name",
+            "Acme Corp",
+            "--creator-type",
+            "organization",
+            "--creator-name",
+            "Alice",
+            "--creator-type",
+            "person",
+            "--creator-email",
+            "alice@example.com",
+            "--creator-name",
+            "CI Bot",
+            "--creator-type",
+            "software-agent",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    orgs = {e["name"] for e in graph if e.get("type") == "Organization"}
+    persons = {e.get("name"): e for e in graph if e.get("type") == "Person"}
+    agents = {e["name"] for e in graph if e.get("type") == "SoftwareAgent"}
+
+    assert orgs == {"Acme Corp"}
+    assert set(persons) == {"Alice"}
+    assert agents == {"CI Bot"}
+    # The email must land on Alice, not on Acme Corp or CI Bot.
+    assert persons["Alice"]["externalIdentifier"]
+
+
+def test_creator_type_invalid_choice_rejected_by_argparse(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``--creator-type bogus`` is rejected by argparse's ``choices=``
+    before Pitloom even sees it -- CLI validation stays uniform with the
+    eager ``Creator.__post_init__`` validation used by config/library
+    callers."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            ".",
+            "--creator-name",
+            "Bot",
+            "--creator-type",
+            "bogus",
+        ],
+    )
+    with pytest.raises(SystemExit):
+        __main__.main()
+    assert "invalid choice" in capsys.readouterr().err
+
+
+def test_creator_type_before_creator_name_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--creator-type before any --creator-name is a clear argparse error."""
+    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-type", "organization"])
+    with pytest.raises(SystemExit):
+        __main__.main()
+    assert "--creator-type must come after a --creator-name" in capsys.readouterr().err
+
+
+def test_creator_email_before_creator_name_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--creator-email before any --creator-name is a clear argparse error."""
+    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-email", "a@example.com"])
+    with pytest.raises(SystemExit):
+        __main__.main()
+    assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
+
+
+def test_project_mode_repeated_creation_tool(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Repeated --creation-tool records more than one Tool in createdUsing."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "multi-tool-cli-app"\nversion = "0.1.0"\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "multi-tool-cli-app.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--creation-tool",
+            "Pitloom",
+            "--creation-tool",
+            "MyWrapper",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    graph = json.loads(out.read_text())["@graph"]
+    tools = [e for e in graph if e.get("type") == "Tool"]
+    assert sorted(t["name"] for t in tools) == ["MyWrapper", "Pitloom"]
 
 
 def test_no_args_returns_error(
@@ -748,7 +1005,7 @@ def test_hf_mode_passes_creation_info(
     assert __main__.main() == 0
     ci = captured["creation_metadata"]
     assert isinstance(ci, CreationMetadata)
-    assert ci.creator_name == "Researcher"
+    assert [c.name for c in ci.creators] == ["Researcher"]
 
 
 def test_hf_mode_passes_pretty_flag(

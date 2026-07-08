@@ -105,8 +105,8 @@ def canonicalize_license_id(raw: str) -> str:
         results = AggregatedLicenseMatcher().match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)
     return raw
 
 

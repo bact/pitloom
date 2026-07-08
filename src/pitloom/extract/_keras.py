@@ -25,11 +25,14 @@ References:
 from __future__ import annotations
 
 import json
+import logging
 import zipfile
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 
 def _parse_model_config(
@@ -157,6 +160,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
             f"Failed to read Keras file {model_path}: not a valid ZIP archive"
         ) from exc
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to read Keras file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc
 
     return AiModelMetadata(

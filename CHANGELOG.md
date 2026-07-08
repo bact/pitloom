@@ -30,6 +30,16 @@ and this project adheres to
 - BREAKING CHANGE:
   Renamed the `creation_info` parameter to `creation_metadata` in
   `generate_sbom()` and related APIs ([#84])
+- BREAKING CHANGE:
+  `CreationInfo` now supports multiple creators and multiple creation
+  tools. `CreationMetadata.creator_name`/`creator_email`/`creator_type`/
+  `creation_tool` (scalar) are replaced by `creators: list[Creator]` and
+  `tools: list[ToolInfo] | None`. CLI `--creator-name`/`--creation-tool`
+  are now repeatable; config gains `[[tool.pitloom.creator]]` /
+  `[[tool.pitloom.creation-tool]]` array-of-tables (replacing the old
+  `[tool.pitloom.creation]` `creator-name`/`creator-email`/`creator-type`/
+  `creation-tool` keys, which now raise a moved-key error). `setup.cfg`
+  keeps single-creator/-tool support only.
 
 ### Fixed
 

@@ -128,20 +128,24 @@ enabled = true    # set to false to skip SBOM generation; the only field
 
 `[tool.hatch.build.hooks.pitloom]` controls only whether the hook runs.
 Everything else -- basename, fragments, creator/tool metadata -- is
-configured once under `[tool.pitloom]` / `[tool.pitloom.creation]`, the same
+configured once under `[tool.pitloom]` / `[[tool.pitloom.creator]]` /
+`[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]`, the same
 settings the CLI reads via `read_pitloom_config()`. `_validate_config()`
-rejects `sbom-basename`, `creator-name`, `creator-email`, `creator-type`, or
-`fragments` under the hook section (naming the correct location), and
-rejects any other unrecognised key.
+rejects `sbom-basename`, `creator-name`, `creator-email`, `creator-type`,
+`creation-tool`, or `fragments` under the hook section (naming the correct
+location), and rejects any other unrecognised key.
 
 ```toml
 [tool.pitloom]
 sbom-basename = ""          # Name part only, no extension; default "sbom"
 
-[tool.pitloom.creation]
-creator-name = ""           # Defaults to no named creator (SoftwareAgent "Pitloom")
-creator-email = ""          # Optional
-creator-type = ""           # person (default), organization, software-agent, agent
+[[tool.pitloom.creator]]    # Repeatable; omit entirely for no named creator
+name = ""                   # (SoftwareAgent "Pitloom" is recorded instead)
+email = ""                  # Optional
+type = ""                   # person (default), organization, software-agent, agent
+
+[[tool.pitloom.creation-tool]]  # Repeatable; omit for the default "Pitloom" tool
+name = ""
 
 [tool.pitloom.fragments]
 files = []                  # List of pre-generated fragment paths to merge
@@ -191,12 +195,13 @@ high level, `initialize()`:
 
 1. Validates `[tool.hatch.build.hooks.pitloom]` config (`_validate_config`);
    invalid values, or any of the moved keys (`sbom-basename`,
-   `creator-name`, `creator-email`, `creator-type`, `fragments`), raise
-   `ValueError` before any file I/O.
+   `creator-name`, `creator-email`, `creator-type`, `creation-tool`,
+   `fragments`), raise `ValueError` before any file I/O.
 2. Returns early if `enabled = false`, or if `self.target_name != "wheel"`.
 3. Reads `read_pitloom_config(project_dir / "pyproject.toml")` for
-   `[tool.pitloom]` / `[tool.pitloom.creation]` settings (basename,
-   fragments, creator/tool metadata), then builds the format-neutral
+   `[tool.pitloom]` / `[[tool.pitloom.creator]]` /
+   `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]` settings
+   (basename, fragments, creator/tool metadata), then builds the format-neutral
    document via `_build_document_model`, which calls
    `metadata_from_hatchling(self.metadata, project_dir)` for project
    metadata (including the Poetry-fallback gap-fill and dependency/name
@@ -338,13 +343,14 @@ dependencies = [
 | `test_validate_config_defaults_pass` | Empty config (all defaults) must not raise. |
 | `test_validate_config_valid_values_pass` | The only supported key, `enabled`, must not raise. |
 | `test_validate_config_invalid_raises` | Parametrized: an invalid `enabled` type must raise `ValueError` with a clear message. |
-| `test_validate_config_moved_key_raises` | Parametrized: `sbom-basename`/`fragments`/`creator-name`/`creator-email`/`creator-type` under the hook section must raise, naming the new `[tool.pitloom]` / `[tool.pitloom.creation]` location. |
+| `test_validate_config_moved_key_raises` | Parametrized: `sbom-basename`/`fragments`/`creator-name`/`creator-email`/`creator-type`/`creation-tool` under the hook section must raise, naming the new `[tool.pitloom]` / `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` location. |
 | `test_validate_config_unknown_key_raises` | An unrecognised key must raise rather than being silently ignored. |
 | `test_hook_initialize_stages_sbom` | Calls `initialize()` and asserts the staged SBOM path exists and is non-empty. |
 | `test_hook_sbom_is_valid_json` | Asserts the staged SBOM is valid JSON-LD with `@context` and `@graph`. |
-| `test_hook_creator_name_propagated` | Sets `[tool.pitloom.creation] creator-name` in `pyproject.toml`; asserts it appears in `@graph`. |
-| `test_hook_organization_creator_from_config` | Sets `creator-type = "organization"`; asserts an `Organization` (not `Person`) appears. |
-| `test_hook_software_agent_and_generic_agent_creator_from_config` | Parametrized: `creator-type = "software-agent"`/`"agent"` also produce the matching Agent subclass. |
+| `test_hook_creator_name_propagated` | Sets `[[tool.pitloom.creator]] name` in `pyproject.toml`; asserts it appears in `@graph`. |
+| `test_hook_organization_creator_from_config` | Sets `type = "organization"`; asserts an `Organization` (not `Person`) appears. |
+| `test_hook_software_agent_and_generic_agent_creator_from_config` | Parametrized: `type = "software-agent"`/`"agent"` also produce the matching Agent subclass. |
+| `test_hook_multiple_creators_appear_in_graph` | Two `[[tool.pitloom.creator]]` tables both appear in `@graph`, as their own Agent subclasses, and both are listed in `createdBy`. |
 | `test_hook_default_creator_is_software_agent` | No named creator: the hook records the `SoftwareAgent` "Pitloom" as `createdBy`. |
 | `test_hook_creation_comment_and_tool_summary` | Asserts the hook stamps its own `CreationInfo.comment` and a Pitloom-versioned `Tool.summary`. |
 | `test_hook_custom_basename_stored` | Sets `[tool.pitloom] sbom-basename`; asserts `_sbom_filename` and staged path name match. |
@@ -369,6 +375,7 @@ dependencies = [
 | `test_hook_sbom_is_compact_despite_pretty_config` | Sets `[tool.pitloom] pretty = true`; asserts the embedded SBOM is still RFC 8785 (JCS) canonical. |
 | `test_sbom_graph_contains_file_hashes` (`test_wheel_integration.py`) | Builds a real wheel; asserts every file-kind `software_File` in the embedded SBOM carries a SHA-256 `verifiedUsing` hash. |
 | `test_sbom_graph_contains_main_package_purl` (`test_wheel_integration.py`) | Builds a real wheel; asserts the main package carries a `pkg:pypi/...@<version>` PURL. |
+| `test_sbom_multiple_creators_and_tools_in_wheel` (`test_wheel_integration.py`) | Builds a real wheel from the `sampleproject-hatchling` fixture (now declaring 2 creators + 2 creation tools); resolves `CreationInfo.createdBy`/`createdUsing` to graph elements and asserts both agents and both tools appear correctly. |
 
 ## References
 

@@ -19,9 +19,13 @@ from pitloom.assemble import (
     generate_huggingface_sbom,
     generate_sbom,
 )
-from pitloom.assemble.spdx3.creation_info import CREATOR_TYPES
 from pitloom.core.config import PitloomConfig
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import (
+    VALID_CREATOR_TYPES,
+    CreationMetadata,
+    Creator,
+    ToolInfo,
+)
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
 from pitloom.extract.pyproject import read_pyproject
 from pitloom.extract.setuptools import read_setuptools
@@ -41,29 +45,100 @@ class _ResolvedValue:
 
 
 @dataclass(frozen=True)
+class _ResolvedCreators:
+    """Resolved creator list paired with its source label."""
+
+    value: list[Creator]
+    source: str
+
+
+@dataclass(frozen=True)
+class _ResolvedTools:
+    """Resolved tool list paired with its source label.
+
+    ``value`` mirrors :attr:`CreationMetadata.tools`: ``None`` means the
+    default single ``Tool`` ``"Pitloom"``; ``[]`` suppresses ``createdUsing``.
+    """
+
+    value: list[ToolInfo] | None
+    source: str
+
+
+@dataclass(frozen=True)
 class _ResolvedCreationMetadata:
     """Resolved creation metadata values and their source labels."""
 
-    creator_name: _ResolvedValue
-    creator_email: _ResolvedValue
-    creator_type: _ResolvedValue
+    creators: _ResolvedCreators
+    tools: _ResolvedTools
     creation_datetime: _ResolvedValue
-    creation_tool: _ResolvedValue
     creation_comment: _ResolvedValue
 
     def to_creation_metadata(self) -> CreationMetadata:
         """Convert resolved values to :class:`CreationMetadata`.
 
-        ``creator_name`` may be ``None`` (no named creator) -- the assembler
-        then emits the default ``SoftwareAgent`` ``"Pitloom"``.
+        ``creators`` may be empty (no named creator) -- the assembler then
+        emits the default ``SoftwareAgent`` ``"Pitloom"``.
         """
         return CreationMetadata(
-            creator_name=self.creator_name.value,
-            creator_email=self.creator_email.value,
-            creator_type=self.creator_type.value or "person",
+            creators=self.creators.value,
+            tools=self.tools.value,
             creation_datetime=self.creation_datetime.value,
-            creation_tool=self.creation_tool.value,
             creation_comment=self.creation_comment.value,
+        )
+
+
+class _CreatorNameAction(argparse.Action):
+    """``--creator-name`` starts a new :class:`Creator`, appended in order."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        creators: list[Creator] = getattr(namespace, self.dest) or []
+        creators.append(Creator(name=values))
+        setattr(namespace, self.dest, creators)
+
+
+class _CreatorTypeAction(argparse.Action):
+    """``--creator-type`` sets the type of the most recently named creator."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        creators: list[Creator] | None = getattr(namespace, self.dest)
+        if not creators:
+            parser.error(f"{option_string} must come after a --creator-name")
+        # Reconstruct rather than mutate in-place so this routes through
+        # Creator.__post_init__ normalisation/validation (defense in depth,
+        # in case `choices=` on this argument is ever loosened).
+        creators[-1] = Creator(
+            name=creators[-1].name, type=values, email=creators[-1].email
+        )
+
+
+class _CreatorEmailAction(argparse.Action):
+    """``--creator-email`` sets the email of the most recently named creator."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        creators: list[Creator] | None = getattr(namespace, self.dest)
+        if not creators:
+            parser.error(f"{option_string} must come after a --creator-name")
+        # Reconstruct rather than mutate in-place, see _CreatorTypeAction.
+        creators[-1] = Creator(
+            name=creators[-1].name, type=creators[-1].type, email=values
         )
 
 
@@ -128,29 +203,35 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--creator-name",
-        dest="creation_creator_name",
-        type=str,
+        dest="creators",
+        action=_CreatorNameAction,
+        default=None,
+        metavar="NAME",
         help=(
-            "Name of the SBOM creator (see --creator-type for the Agent "
-            "subclass). When omitted, the SoftwareAgent 'Pitloom' is "
-            "recorded as the automated creator."
+            "Name of an SBOM creator (see --creator-type/--creator-email to "
+            "set that creator's type/email). Repeatable: each occurrence "
+            "starts a new creator, in order. When omitted, the "
+            "SoftwareAgent 'Pitloom' is recorded as the automated creator."
         ),
     )
     parser.add_argument(
         "--creator-email",
-        dest="creation_creator_email",
-        type=str,
-        help="Email of the SBOM creator",
+        dest="creators",
+        action=_CreatorEmailAction,
+        default=None,
+        metavar="EMAIL",
+        help="Email of the most recently named --creator-name.",
     )
     parser.add_argument(
         "--creator-type",
-        dest="creation_creator_type",
-        type=str,
-        choices=sorted(CREATOR_TYPES),
+        dest="creators",
+        action=_CreatorTypeAction,
+        default=None,
+        choices=sorted(VALID_CREATOR_TYPES),
+        metavar="TYPE",
         help=(
-            "Agent subclass for --creator-name: person (default), "
-            "organization, software-agent, or agent. "
-            "Ignored when no creator name is given."
+            "Agent subclass for the most recently named --creator-name: "
+            "person (default), organization, software-agent, or agent."
         ),
     )
     parser.add_argument(
@@ -164,13 +245,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--creation-tool",
+        dest="creation_tools",
+        action="append",
         type=str,
-        help="Name of the tool that created the SBOM (default: Pitloom)",
+        metavar="NAME",
+        help="Name of a tool that created the SBOM (default: Pitloom). "
+        "Repeatable to record more than one tool.",
     )
     parser.add_argument(
         "--no-creation-tool",
         action="store_true",
-        help="Omit the creation tool from the SBOM. "
+        help="Omit the creation tool(s) from the SBOM. "
         "Overrides --creation-tool and pyproject.toml.",
     )
     parser.add_argument(
@@ -241,15 +326,44 @@ def _resolve_creation_field(
     return _ResolvedValue(value=default_value, source="default")
 
 
-def _resolve_creation_tool(
+def _resolve_creators(
     args: argparse.Namespace,
-    config_value: str | None,
-    default_value: str | None,
-) -> _ResolvedValue:
-    """Resolve the creation tool, supporting explicit omission via CLI."""
+    config_creators: list[Creator],
+) -> _ResolvedCreators:
+    """Resolve the creator list with precedence CLI > pyproject > default.
+
+    A whole-list replacement: if the CLI supplies any ``--creator-name``,
+    it replaces the config's creators entirely rather than merging.
+    """
+    cli_creators: list[Creator] | None = args.creators
+    if cli_creators:
+        return _ResolvedCreators(value=cli_creators, source="command-line")
+    if config_creators:
+        return _ResolvedCreators(
+            value=config_creators, source=_PROJECT_PYPROJECT_SOURCE
+        )
+    return _ResolvedCreators(value=[], source="default")
+
+
+def _resolve_tools(
+    args: argparse.Namespace,
+    config_tools: list[ToolInfo] | None,
+) -> _ResolvedTools:
+    """Resolve the tool list, supporting explicit omission via CLI.
+
+    A whole-list replacement, same as :func:`_resolve_creators`.
+    """
     if args.no_creation_tool:
-        return _ResolvedValue(value=None, source="command-line")
-    return _resolve_creation_field(args.creation_tool, config_value, default_value)
+        return _ResolvedTools(value=[], source="command-line")
+    cli_tools: list[str] | None = args.creation_tools
+    if cli_tools:
+        return _ResolvedTools(
+            value=[ToolInfo(name=name) for name in cli_tools],
+            source="command-line",
+        )
+    if config_tools is not None:
+        return _ResolvedTools(value=config_tools, source=_PROJECT_PYPROJECT_SOURCE)
+    return _ResolvedTools(value=None, source="default")
 
 
 def _resolve_creation_metadata(
@@ -259,30 +373,12 @@ def _resolve_creation_metadata(
     """Resolve creation metadata in CreationMetadata field order."""
     default_creation = CreationMetadata()
     return _ResolvedCreationMetadata(
-        creator_name=_resolve_creation_field(
-            args.creation_creator_name,
-            pitloom_config.creation_creator_name,
-            default_creation.creator_name,
-        ),
-        creator_email=_resolve_creation_field(
-            args.creation_creator_email,
-            pitloom_config.creation_creator_email,
-            default_creation.creator_email,
-        ),
-        creator_type=_resolve_creation_field(
-            args.creation_creator_type,
-            pitloom_config.creation_creator_type,
-            default_creation.creator_type,
-        ),
+        creators=_resolve_creators(args, pitloom_config.creators),
+        tools=_resolve_tools(args, pitloom_config.tools),
         creation_datetime=_resolve_creation_field(
             args.creation_datetime,
-            pitloom_config.creation_creation_datetime,
+            pitloom_config.creation_datetime,
             default_creation.creation_datetime,
-        ),
-        creation_tool=_resolve_creation_tool(
-            args,
-            pitloom_config.creation_creation_tool,
-            default_creation.creation_tool,
         ),
         creation_comment=_resolve_creation_field(
             args.creation_comment,
@@ -295,26 +391,22 @@ def _resolve_creation_metadata(
 def _load_project_config(project_dir: Path) -> tuple[Any, Path | None]:
     """Load :class:`~pitloom.core.config.PitloomConfig` from the project.
 
-    Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
+    Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``. A
+    parse or validation error from either propagates -- it is a genuine
+    config mistake, not a signal to silently try the next source.
     Returns a 2-tuple of ``(PitloomConfig, config_file_path)``.
     """
     pyproject_path = project_dir / "pyproject.toml"
     if pyproject_path.exists():
-        try:
-            _, config = read_pyproject(pyproject_path)
-            return config, pyproject_path
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        _, config = read_pyproject(pyproject_path)
+        return config, pyproject_path
 
     setup_cfg = project_dir / "setup.cfg"
     setup_py = project_dir / "setup.py"
     if setup_cfg.exists() or setup_py.exists():
-        try:
-            _, config = read_setuptools(project_dir)
-            config_path = setup_cfg if setup_cfg.exists() else setup_py
-            return config, config_path
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
+        _, config = read_setuptools(project_dir)
+        config_path = setup_cfg if setup_cfg.exists() else setup_py
+        return config, config_path
 
     return PitloomConfig(), None
 
@@ -412,41 +504,57 @@ def _build_creation_option_rows(
     eff_desc: bool,
     desc_src: str,
 ) -> list[tuple[str, str, str]]:
-    """Build ordered rows for creation-related verbose options."""
-    return [
+    """Build ordered rows for creation-related verbose options.
+
+    Each creator and each tool is listed individually with its source, since
+    both are now lists rather than single values.
+    """
+    rows: list[tuple[str, str, str]] = [
         ("pretty", str(eff_pretty), pretty_src),
         ("describe_relationship", str(eff_desc), desc_src),
-        (
-            "creator_name",
-            _quote_optional(creation.creator_name.value),
-            creation.creator_name.source,
-        ),
-        (
-            "creator_email",
-            _quote_optional(creation.creator_email.value),
-            creation.creator_email.source,
-        ),
-        (
-            "creator_type",
-            _quote_optional(creation.creator_type.value),
-            creation.creator_type.source,
-        ),
+    ]
+
+    if creation.creators.value:
+        for index, creator in enumerate(creation.creators.value, start=1):
+            rows.append(
+                (
+                    f"creator[{index}]",
+                    f"name={creator.name!r} type={creator.type!r} "
+                    f"email={_quote_optional(creator.email)}",
+                    creation.creators.source,
+                )
+            )
+    else:
+        rows.append(
+            ("creators", "[] (SoftwareAgent 'Pitloom')", creation.creators.source)
+        )
+
+    tools_value = creation.tools.value
+    if tools_value is None:
+        rows.append(("tools", "None (default: 'Pitloom')", creation.tools.source))
+    elif not tools_value:
+        rows.append(("tools", "[] (createdUsing omitted)", creation.tools.source))
+    else:
+        for index, tool in enumerate(tools_value, start=1):
+            rows.append(
+                (f"tool[{index}]", f"name={tool.name!r}", creation.tools.source)
+            )
+
+    rows.append(
         (
             "creation_datetime",
             _quote_optional(creation.creation_datetime.value),
             creation.creation_datetime.source,
-        ),
-        (
-            "creation_tool",
-            _quote_optional(creation.creation_tool.value),
-            creation.creation_tool.source,
-        ),
+        )
+    )
+    rows.append(
         (
             "creation_comment",
             _quote_optional(creation.creation_comment.value),
             creation.creation_comment.source,
-        ),
-    ]
+        )
+    )
+    return rows
 
 
 def _print_aligned_rows(rows: list[tuple[str, str, str]]) -> None:
@@ -522,23 +630,19 @@ def _resolve_output_path(explicit: Path | None, project_dir: Path) -> Path:
     if explicit is not None:
         return explicit
 
-    try:
-        pyproject_path = project_dir / "pyproject.toml"
-        if pyproject_path.exists():
-            metadata, pitloom_config = read_pyproject(pyproject_path)
-        else:
-            metadata, pitloom_config = read_setuptools(project_dir)
+    pyproject_path = project_dir / "pyproject.toml"
+    if pyproject_path.exists():
+        metadata, pitloom_config = read_pyproject(pyproject_path)
+    else:
+        metadata, pitloom_config = read_setuptools(project_dir)
 
-        if pitloom_config.sbom_basename:
-            return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
+    if pitloom_config.sbom_basename:
+        return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
 
-        parts = [metadata.name] if metadata.name else ["sbom"]
-        if metadata.version:
-            parts.append(metadata.version)
-        return Path("-".join(parts) + _SPDX3_JSON_EXT)
-
-    except Exception:  # pylint: disable=broad-exception-caught
-        return Path(f"sbom{_SPDX3_JSON_EXT}")
+    parts = [metadata.name] if metadata.name else ["sbom"]
+    if metadata.version:
+        parts.append(metadata.version)
+    return Path("-".join(parts) + _SPDX3_JSON_EXT)
 
 
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:

@@ -50,6 +50,7 @@ with an up-to-date database (``licenseid update``).
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any, NamedTuple
 
@@ -60,6 +61,8 @@ from pitloom.core.ai_metadata import (
     AiModelUsage,
 )
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+
+log = logging.getLogger(__name__)
 
 # Match full HF URLs: https://huggingface.co/owner/name[/anything]
 _HF_URL_RE = re.compile(r"https?://huggingface\.co/([^/]+/[^/]+?)(?:/.*)?$")
@@ -243,7 +246,8 @@ def _safe_load_json(model_id: str, filename: str) -> dict[str, Any] | None:
         local_path = hf_hub_download(repo_id=model_id, filename=filename)
         with open(local_path, encoding="utf-8") as fh:
             return json.load(fh)  # type: ignore[no-any-return]
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to load %s for %s: %s", filename, model_id, exc)
         return None
 
 
@@ -258,7 +262,8 @@ def _load_model_card(
         card = ModelCard.load(model_id)
         card_data: dict[str, Any] = card.data.to_dict() if card.data else {}
         return card.text or None, card_data
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to load model card for %s: %s", model_id, exc)
         return None, {}
 
 
@@ -293,7 +298,8 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         if info.tags:
             result["tags"] = list(info.tags)
         return result
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to load model_info() for %s: %s", model_id, exc)
         return {}
 
 
@@ -309,7 +315,8 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
 
         existing: set[str] = set(list_repo_files(model_id))
         return [f for f in _HF_LICENSE_FILENAMES if f in existing]
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to list repo files for %s: %s", model_id, exc)
         return []
 
 
@@ -339,7 +346,13 @@ def _detect_license_from_hf_files(
             text = (
                 _Path(local_path).read_text(encoding="utf-8", errors="replace").strip()
             )
-        except Exception:  # pylint: disable=broad-exception-caught
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            log.debug(
+                "Failed to download/read license file %s for %s: %s",
+                filename,
+                model_id,
+                exc,
+            )
             continue
 
         if not text:

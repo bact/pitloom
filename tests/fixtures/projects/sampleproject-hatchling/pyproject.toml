@@ -30,6 +30,16 @@ enabled = true
 [tool.pitloom]
 sbom-basename = "sbom"
 
-[tool.pitloom.creation]
-creator-name = "Pitloom CI"
-creator-email = "ci@loom.example"
+[[tool.pitloom.creator]]
+name = "Pitloom CI"
+email = "ci@loom.example"
+
+[[tool.pitloom.creator]]
+name = "Sample Project Org"
+type = "organization"
+
+[[tool.pitloom.creation-tool]]
+name = "Pitloom"
+
+[[tool.pitloom.creation-tool]]
+name = "CI Wrapper"

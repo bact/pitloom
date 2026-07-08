@@ -62,6 +62,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - `finalize()` cleans up the staging directory
    - Config: `[tool.hatch.build.hooks.pitloom] enabled` only; basename,
      fragments, and creator/tool metadata come from `[tool.pitloom]` /
+     `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
      `[tool.pitloom.creation]` -- the same settings the CLI uses
 
 6. **Command-line interface** (`src/pitloom/__main__.py`)
@@ -139,8 +140,8 @@ SBOM written to: sbom.spdx3.json
 - **Total Elements**: 14
 - **CreationInfo**: 1 (with timestamp and creator)
 - **SoftwareAgent**: 1 (default createdBy agent when no creator is named;
-  a `Person`/`Organization` instead when `[tool.pitloom.creation]
-  creator-name` is set)
+  one `Person`/`Organization` per `[[tool.pitloom.creator]]` table instead
+  when set)
 - **Tool**: 1 (Pitloom, in createdUsing)
 - **SpdxDocument**: 1 (root document)
 - **software_Sbom**: 1 (SBOM declaration)

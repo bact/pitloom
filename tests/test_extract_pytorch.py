@@ -14,14 +14,16 @@ Covers mocked and integration tests.
 from __future__ import annotations
 
 import io as _io
+import logging
 import zipfile as _zipfile
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.extract._pytorch import _fickling_get_top_class, _read_pytorch_zip
 from pitloom.extract.ai_model import read_pytorch
 
 # ---------------------------------------------------------------------------
@@ -101,6 +103,50 @@ def test_read_pytorch_no_name_version(tmp_path: Path) -> None:
         meta = read_pytorch(model_file)
     assert meta.name is None
     assert meta.version is None
+
+
+# ---------------------------------------------------------------------------
+# Malformed input -- exceptions are caught, logged at debug level, and
+# degrade gracefully (behaviour unchanged; only visibility was added).
+# ---------------------------------------------------------------------------
+
+
+def test_fickling_get_top_class_malformed_pickle_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pytest.importorskip("fickling")
+
+    # b"\x80\x99" starts a pickle stream (protocol opcode) but is truncated
+    # before a STOP opcode, so fickling's AST parser raises.
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch"):
+        result = _fickling_get_top_class(b"\x80\x99")
+
+    assert result is None
+    assert any(
+        "fickling failed to parse pickle bytes" in r.message for r in caplog.records
+    )
+
+
+def test_read_pytorch_zip_inspect_failure_logs_and_continues(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A ZIP entry that exists in the file list but fails to read (e.g. a
+    corrupt/encrypted archive member) is caught, logged, and the function
+    still returns its normal (type_of_model=None) result rather than
+    raising."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = ["archive/data.pkl"]
+    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch"):
+        type_of_model, properties, provenance = _read_pytorch_zip(
+            mock_zf, "Source: model.pt"
+        )
+
+    assert type_of_model is None
+    assert "type_of_model" not in provenance
+    assert "archive_contents" in properties
+    assert any("archive/data.pkl" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

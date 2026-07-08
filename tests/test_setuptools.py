@@ -4,11 +4,13 @@
 
 """Tests for metadata extraction from setup.cfg and setup.py."""
 
+import logging
 import tempfile
 from pathlib import Path
 
 import pytest
 
+from pitloom.core.creation import Creator
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.setuptools import (
     detect_build_backend,
@@ -75,6 +77,21 @@ def test_detect_backend_no_config_files() -> None:
     """Returns None when no build configuration files are present."""
     with tempfile.TemporaryDirectory() as d:
         assert detect_build_backend(Path(d)) is None
+
+
+def test_detect_backend_malformed_pyproject_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pyproject.toml that fails to parse is caught, logged, and the
+    function falls back to None -- same as when no backend can be
+    determined -- rather than raising."""
+    content = "[build-system\nbroken toml"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract.setuptools"):
+            result = detect_build_backend(Path(d))
+    assert result is None
+    assert any("pyproject.toml" in r.message for r in caplog.records)
 
 
 def test_detect_backend_unknown_backend() -> None:
@@ -292,8 +309,7 @@ creator-email = test@example.com
         _, config = read_setup_cfg(Path(d))
     assert config.pretty is True
     assert config.sbom_basename == "my-sbom"
-    assert config.creation_creator_name == "Test Creator"
-    assert config.creation_creator_email == "test@example.com"
+    assert config.creators == [Creator(name="Test Creator", email="test@example.com")]
 
 
 def test_read_setup_cfg_pitloom_config_creation_section() -> None:
@@ -310,8 +326,43 @@ creation-datetime = 2026-01-01T00:00:00+00:00
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         _, config = read_setup_cfg(Path(d))
-    assert config.creation_creator_name == "Sub Creator"
-    assert config.creation_creation_datetime == "2026-01-01T00:00:00+00:00"
+    assert config.creators == [Creator(name="Sub Creator")]
+    assert config.creation_datetime == "2026-01-01T00:00:00+00:00"
+
+
+def test_read_setup_cfg_no_creation_tool_suppresses_tools() -> None:
+    """``[tool:pitloom:creation] no-creation-tool = true`` maps to
+    ``tools == []``, mirroring the ``pyproject.toml`` behaviour."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+
+[tool:pitloom:creation]
+no-creation-tool = true
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.tools == []
+
+
+def test_read_setup_cfg_no_creation_tool_overrides_explicit_tool_name() -> None:
+    """``no-creation-tool = true`` forces ``tools == []`` even when a
+    ``creation-tool`` name is also set -- suppression wins."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+
+[tool:pitloom]
+creation-tool = MyWrapper
+no_creation_tool = yes
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.tools == []
 
 
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
@@ -540,6 +591,34 @@ def test_read_setuptools_cfg_config_returned() -> None:
     assert config.pretty is True
 
 
+def test_read_setuptools_invalid_pitloom_config_raises() -> None:
+    """A malformed [tool:pitloom:creation] in setup.cfg propagates as a
+    ValueError, even when a valid setup.py exists as a fallback source --
+    it is a genuine config mistake, not a "try the next source" signal."""
+    cfg = (
+        "[metadata]\nname = pkg\nversion = 1.0\n\n"
+        "[tool:pitloom:creation]\ncreator-name = Alice\ncreator-type = bogus\n"
+    )
+    py = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(cfg)
+        (Path(d) / "setup.py").write_text(py)
+        with pytest.raises(ValueError, match="Invalid creator type"):
+            read_setuptools(Path(d))
+
+
+def test_read_setuptools_no_name_falls_through_to_setup_py() -> None:
+    """setup.cfg with no [metadata] name is the one legitimate case that
+    falls through to setup.py, rather than raising."""
+    cfg = "[metadata]\ndescription = no name here\n"
+    py = "from setuptools import setup\nsetup(name='fallback-pkg', version='1.0.0')\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(cfg)
+        (Path(d) / "setup.py").write_text(py)
+        metadata, _ = read_setuptools(Path(d))
+    assert metadata.name == "fallback-pkg"
+
+
 # ---------------------------------------------------------------------------
 # merge_metadata
 # ---------------------------------------------------------------------------
@@ -683,8 +762,7 @@ def test_fixture_read_setup_cfg_pitloom_config() -> None:
     """[tool:pitloom] in setup.cfg populates PitloomConfig correctly."""
     _, config = read_setup_cfg(SETUPTOOLS_FIXTURE)
     assert config.sbom_basename == "sbom"
-    assert config.creation_creator_name == "Pitloom CI"
-    assert config.creation_creator_email == "ci@loom.example"
+    assert config.creators == [Creator(name="Pitloom CI", email="ci@loom.example")]
 
 
 def test_fixture_read_setup_cfg_readme_content() -> None:

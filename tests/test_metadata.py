@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.creation import Creator, ToolInfo
 from pitloom.extract.pyproject import read_pyproject
 
 
@@ -159,18 +160,72 @@ description = "A test package"
         assert metadata.version == "2.0.0"
 
 
-def test_extract_pitloom_creation_settings() -> None:
-    """Read creation metadata settings from ``[tool.pitloom.creation]``."""
+@pytest.mark.parametrize(
+    "raw_type,normalized",
+    [
+        ("person", "person"),
+        ("organization", "organization"),
+        ("software-agent", "software-agent"),
+        ("agent", "agent"),
+        ("Person", "person"),
+        (" organization ", "organization"),
+    ],
+)
+def test_creator_valid_types_construct_and_normalize(
+    raw_type: str, normalized: str
+) -> None:
+    """Every valid creator type constructs fine; type is normalised to
+    stripped lower-case."""
+    creator = Creator(name="Someone", type=raw_type)
+    assert creator.type == normalized
+
+
+def test_creator_invalid_type_raises_at_construction() -> None:
+    """``Creator(type="bogus")`` raises ValueError eagerly at construction,
+    not only later at SPDX assembly time."""
+    with pytest.raises(ValueError, match="Invalid creator type"):
+        Creator(name="Bot", type="bogus")
+
+
+def test_extract_pitloom_bad_creator_type_raises_at_config_read() -> None:
+    """A bad ``type`` in ``[[tool.pitloom.creator]]`` raises ValueError as
+    soon as the config is read, since ``_read_creators`` constructs
+    ``Creator`` objects whose ``__post_init__`` validates ``type``."""
     pyproject_content = """
 [project]
 name = "test-package"
 version = "1.0.0"
 
+[[tool.pitloom.creator]]
+name = "Bot"
+type = "robot"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="Invalid creator type"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_settings() -> None:
+    """Read creation metadata settings from ``[[tool.pitloom.creator]]`` /
+    ``[[tool.pitloom.creation-tool]]`` / ``[tool.pitloom.creation]``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+name = "Config Creator"
+email = "config@example.com"
+
+[[tool.pitloom.creation-tool]]
+name = "Config Tool"
+
 [tool.pitloom.creation]
-creator-name = "Config Creator"
-creator-email = "config@example.com"
 creation-datetime = "2026-01-01T00:00:00+00:00"
-creation-tool = "Config Tool"
 creation-comment = "Created from config"
 """
 
@@ -181,11 +236,475 @@ creation-comment = "Created from config"
 
         _, config = read_pyproject(pyproject_path)
 
-        assert config.creation_creator_name == "Config Creator"
-        assert config.creation_creator_email == "config@example.com"
-        assert config.creation_creation_datetime == "2026-01-01T00:00:00+00:00"
-        assert config.creation_creation_tool == "Config Tool"
+        assert config.creators == [
+            Creator(name="Config Creator", email="config@example.com")
+        ]
+        assert config.creation_datetime == "2026-01-01T00:00:00+00:00"
+        assert config.tools == [ToolInfo(name="Config Tool")]
         assert config.creation_comment == "Created from config"
+
+
+def test_extract_pitloom_multiple_creators_and_tools() -> None:
+    """Multiple ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``
+    tables are all read, in order."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+name = "Acme Corp"
+type = "organization"
+
+[[tool.pitloom.creator]]
+name = "Alice"
+email = "alice@example.com"
+
+[[tool.pitloom.creation-tool]]
+name = "Pitloom"
+
+[[tool.pitloom.creation-tool]]
+name = "MyWrapper"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.creators == [
+            Creator(name="Acme Corp", type="organization"),
+            Creator(name="Alice", email="alice@example.com"),
+        ]
+        assert config.tools == [ToolInfo(name="Pitloom"), ToolInfo(name="MyWrapper")]
+
+
+def test_extract_pitloom_no_creation_tool_suppresses_tools() -> None:
+    """``[tool.pitloom.creation] no-creation-tool = true`` maps to ``tools=[]``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+no-creation-tool = true
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.tools == []
+
+
+def test_extract_pitloom_no_creation_tool_false_boolean_keeps_tools() -> None:
+    """``no-creation-tool = false`` (a real TOML boolean) must NOT suppress
+    tools -- confirms the type-check fix distinguishes it from the string
+    ``"false"`` case below."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+no-creation-tool = false
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.tools is None
+
+
+def test_extract_pitloom_no_creation_tool_string_raises() -> None:
+    """``no-creation-tool = "false"`` (a quoted string, not a TOML boolean)
+    must raise rather than being silently treated as truthy -- a bare
+    Python ``if x:`` check would otherwise treat the non-empty string
+    ``"false"`` as enabled, suppressing tools opposite to the user's intent."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+no-creation-tool = "false"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be a boolean"):
+            read_pyproject(pyproject_path)
+
+
+@pytest.mark.parametrize(
+    "old_key",
+    ["creator-name", "creator-email", "creator-type", "creation-tool"],
+)
+def test_extract_pitloom_moved_creation_keys_raise(old_key: str) -> None:
+    """Old single-valued keys under ``[tool.pitloom.creation]`` raise a clear
+    moved-key error instead of being silently ignored."""
+    pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation]
+{old_key} = "whatever"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
+@pytest.mark.parametrize(
+    "old_key",
+    ["creator-name", "creator-email", "creator-type", "creation-tool"],
+)
+def test_extract_pitloom_moved_creation_keys_raise_top_level(old_key: str) -> None:
+    """The pre-multi-creator reader also accepted these keys directly under
+    ``[tool.pitloom]`` (not just ``[tool.pitloom.creation]``); that top-level
+    form must raise the same moved-key error rather than being silently
+    ignored."""
+    pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+{old_key} = "whatever"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
+@pytest.mark.parametrize(
+    "value_toml",
+    ["123", '["x"]', "true"],
+    ids=["int", "list", "bool"],
+)
+def test_extract_pitloom_moved_creation_key_non_string_raises(
+    value_toml: str,
+) -> None:
+    """``creator-name`` has no valid form at all directly under
+    ``[tool.pitloom]`` -- the new creator schema lives entirely under a
+    different key (``[[tool.pitloom.creator]]``). Any value there (int,
+    list, bool, ...) is a leftover/typo of the old moved form and must
+    raise, not just the ``str`` case."""
+    pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creator-name = {value_toml}
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_int_top_level_raises() -> None:
+    """A non-list, non-string ``creation-tool`` (e.g. an int) directly
+    under ``[tool.pitloom]`` is still the old/invalid single-valued form
+    and must raise -- only a ``list`` is the valid new array-of-tables
+    form."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-tool = 123
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_array_not_flagged_as_moved() -> None:
+    """The *new* ``[[tool.pitloom.creation-tool]]`` array-of-tables reuses
+    the ``creation-tool`` name at the top level of ``[tool.pitloom]`` (as a
+    list of tables, not a string) -- it must not be mistaken for the old,
+    moved, single-valued ``creation-tool = "name"`` usage."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creation-tool]]
+name = "MyWrapper"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.tools == [ToolInfo(name="MyWrapper")]
+
+
+def test_extract_pitloom_creation_tool_missing_name_raises() -> None:
+    """A ``[[tool.pitloom.creation-tool]]`` entry missing ``name`` raises
+    ValueError instead of being silently dropped (which, if it were the
+    only entry, would incorrectly suppress the default ``createdUsing``
+    'Pitloom' tool)."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creation-tool]]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="missing a valid 'name'"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_blank_name_raises() -> None:
+    """A blank (empty-string) ``name`` in ``[[tool.pitloom.creation-tool]]``
+    raises ValueError, same as a missing ``name``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creation-tool]]
+name = ""
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="missing a valid 'name'"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_missing_name_raises() -> None:
+    """A ``[[tool.pitloom.creator]]`` entry missing ``name`` raises
+    ValueError instead of being silently dropped (which, if it were the
+    only entry, would silently change the effective default from a named
+    creator to the unattended SoftwareAgent 'Pitloom')."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+email = "nobody@example.com"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="missing a valid 'name'"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_type_wrong_pytype_raises() -> None:
+    """A ``[[tool.pitloom.creator]]`` entry with a non-string ``type``
+    (e.g. an int) raises ValueError instead of silently falling back to
+    the default ``"person"`` type."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+name = "Alice"
+type = 123
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="'type' must be a string"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_email_wrong_pytype_raises() -> None:
+    """A ``[[tool.pitloom.creator]]`` entry with a non-string ``email``
+    (e.g. an int) raises ValueError instead of silently becoming ``None``."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[[tool.pitloom.creator]]
+name = "Alice"
+email = 123
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="'email' must be a string"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_empty_creation_tool_array_still_yields_empty_list() -> None:
+    """A genuinely empty ``[[tool.pitloom.creation-tool]]`` array (zero
+    tables present) still correctly yields ``tools == []`` -- only a
+    malformed *entry within* a present array raises."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-tool = []
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.tools == []
+
+
+def test_extract_pitloom_creator_single_table_raises() -> None:
+    """``[tool.pitloom.creator]`` as a single table (not
+    ``[[tool.pitloom.creator]]``) raises ValueError instead of being
+    silently treated as absent."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creator]
+name = "Alice"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be an array of tables"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creator_list_of_strings_raises() -> None:
+    """``creator = ["Alice"]`` (a list of strings, not tables) raises
+    ValueError instead of silently dropping every entry."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creator = ["Alice"]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="entry must be a table"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_single_table_raises() -> None:
+    """``[tool.pitloom.creation-tool]`` as a single table (not
+    ``[[tool.pitloom.creation-tool]]``) raises ValueError instead of being
+    silently treated as absent.
+
+    Caught by ``_check_moved_creation_keys`` (any non-list ``creation-tool``
+    is the old single-valued form) before ``_read_tools`` ever runs."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.creation-tool]
+name = "MyWrapper"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="has moved to"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_creation_tool_list_of_strings_raises() -> None:
+    """``creation-tool = ["MyWrapper"]`` (a list of strings, not tables)
+    raises ValueError instead of silently dropping every entry."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-tool = ["MyWrapper"]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="entry must be a table"):
+            read_pyproject(pyproject_path)
+
+
+def test_creator_empty_name_raises() -> None:
+    """``Creator(name="")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="Creator name must be non-empty"):
+        Creator(name="")
+
+
+def test_creator_whitespace_name_raises() -> None:
+    """``Creator(name="   ")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="Creator name must be non-empty"):
+        Creator(name="   ")
+
+
+def test_tool_info_empty_name_raises() -> None:
+    """``ToolInfo(name="")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="ToolInfo name must be non-empty"):
+        ToolInfo(name="")
+
+
+def test_tool_info_whitespace_name_raises() -> None:
+    """``ToolInfo(name="   ")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="ToolInfo name must be non-empty"):
+        ToolInfo(name="   ")
 
 
 def test_extract_metadata_canonicalises_dependency_names() -> None:

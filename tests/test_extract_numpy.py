@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -231,14 +232,20 @@ def test_read_numpy_npz_no_format_version(tmp_path: Path) -> None:
     assert meta.format_info.format_version is None
 
 
-def test_read_numpy_invalid_file(tmp_path: Path) -> None:
+def test_read_numpy_invalid_file(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     model_file = tmp_path / "bad.npy"
     model_file.write_bytes(b"not numpy")
     mock_np = MagicMock()
     mock_np.load.side_effect = ValueError("Invalid npy header")
     with patch.dict("sys.modules", {"numpy": mock_np}):
-        with pytest.raises(ValueError, match="Failed to read NumPy"):
-            read_numpy(model_file)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._numpy"):
+            with pytest.raises(ValueError, match="Failed to read NumPy"):
+                read_numpy(model_file)
+
+    # Read failure is now logged at debug level before being re-raised.
+    assert any("bad.npy" in r.message for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@
 
 import contextlib
 import inspect
+import logging
 import types
 from pathlib import Path
 from uuid import uuid4
@@ -17,6 +18,8 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+
+log = logging.getLogger(__name__)
 
 
 def _get_caller_info() -> str:
@@ -42,8 +45,8 @@ def _get_caller_info() -> str:
                     f"Method: inspect_caller (tool: pitloom.loom, "
                     f"function: {func_name})"
                 )
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to determine caller info: %s", exc)
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
 
@@ -70,7 +73,7 @@ class _ActiveRun:
         # SoftwareAgent "Pitloom" is the createdBy actor, with the Tool
         # "Pitloom" in createdUsing. Unattended capture defaults the comment
         # to the loom-SDK note.
-        self.creation_info, agent, tool = build_creation_info(
+        self.creation_info, agents, tools = build_creation_info(
             creation_metadata or CreationMetadata(),
             "pitloom-sdk",
             self.doc_uuid,
@@ -78,8 +81,9 @@ class _ActiveRun:
         )
 
         self.exporter = Spdx3JsonExporter()
-        self.exporter.add_agent(agent)
-        if tool is not None:
+        for agent in agents:
+            self.exporter.add_agent(agent)
+        for tool in tools:
             self.exporter.object_set.add(tool)
 
         self.model: spdx3.ai_AIPackage | None = None
@@ -337,7 +341,7 @@ class Run(contextlib.ContextDecorator):
         loom.run(
             "fragments/train.spdx3.json",
             creation_metadata=CreationMetadata(
-                creator_name="Alice", creator_type="person"
+                creators=[Creator(name="Alice", type="person")]
             ),
         )
 

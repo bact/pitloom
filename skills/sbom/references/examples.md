@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-06
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,6 +35,14 @@ uvx --from 'pitloom[aimodel]' pitloom -m model.safetensors -o model.spdx3.json
 ```bash
 uvx --from 'pitloom[huggingface]' pitloom -m mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
+```
+
+## Project SBOM, multiple creators
+
+```bash
+loom . --creator-name "Acme Corp" --creator-type organization \
+       --creator-name "Alice" --creator-email alice@example.com \
+       -o sbom.spdx3.json
 ```
 
 ## Verify the result

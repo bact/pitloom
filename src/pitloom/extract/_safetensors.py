@@ -6,9 +6,12 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+
+log = logging.getLogger(__name__)
 
 
 def read_safetensors(model_path: Path) -> AiModelMetadata:
@@ -54,6 +57,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
             raw_metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
     except Exception as exc:  # pylint: disable=broad-exception-caught
+        log.debug("Failed to read Safetensors file %s: %s", model_path, exc)
         raise ValueError(
             f"Failed to read Safetensors file {model_path}: {exc}"
         ) from exc

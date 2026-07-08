@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, ToolInfo
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import require_spdx_id
 
@@ -51,99 +51,121 @@ def spdx3_utc_now() -> datetime:
 #: Valid ``creator_type`` values -> the SPDX 3 Agent subclass to construct.
 #: All four are valid ``createdBy`` types per the spec; "agent" is the
 #: generic base class, for a creator that is deliberately unspecified.
+#: Keys must match :data:`pitloom.core.creation.VALID_CREATOR_TYPES` exactly
+#: -- that constant is the canonical source of valid creator-type names
+#: (validated eagerly in ``Creator.__post_init__``); this dict just adds the
+#: SPDX 3 Agent subclass for each, which ``core`` cannot know about since
+#: ``core`` must not import from ``assemble``.
 CREATOR_TYPES: dict[str, type[spdx3.Agent]] = {
     "person": spdx3.Person,
     "organization": spdx3.Organization,
     "software-agent": spdx3.SoftwareAgent,
     "agent": spdx3.Agent,
 }
+if set(CREATOR_TYPES) != VALID_CREATOR_TYPES:
+    raise RuntimeError(
+        "CREATOR_TYPES keys must match pitloom.core.creation.VALID_CREATOR_TYPES"
+    )
 
 
-def _tool_summary(creation_tool: str) -> str | None:
-    """Pitloom's version, but only when *creation_tool* is still the default
-    ``"Pitloom"`` name -- a user-supplied tool name may not refer to Pitloom
-    itself, so no version is asserted in that case.
+def _tool_summary(tool_name: str) -> str | None:
+    """Pitloom's version, but only when *tool_name* is literally ``"Pitloom"``
+    -- a user-supplied tool name may not refer to Pitloom itself, so no
+    version is asserted in that case.
     """
-    if creation_tool == CreationMetadata().creation_tool:
+    if tool_name == "Pitloom":
         return f"Pitloom {__version__}"
     return None
 
 
-def build_creator_agent(
+def build_creator_agents(
     creation_metadata: CreationMetadata,
     doc_name: str,
     doc_uuid: str,
     spdx_ci: spdx3.CreationInfo,
-) -> spdx3.Agent:
-    """Build the ``createdBy`` Agent.
+) -> list[spdx3.Agent]:
+    """Build the ``createdBy`` Agents, one per named creator.
 
-    A named creator becomes whichever Agent subclass ``creator_type``
+    Each named creator becomes whichever Agent subclass its ``type``
     selects -- ``Person`` (default), ``Organization``, ``SoftwareAgent``, or
     the generic ``Agent`` -- see :data:`CREATOR_TYPES`. With no named
-    creator, the automated ``SoftwareAgent`` ``"Pitloom"`` stands in --
+    creators, the automated ``SoftwareAgent`` ``"Pitloom"`` stands in --
     Pitloom running on its own -- which satisfies ``createdBy``'s required
     Agent without asserting a human did the work.
 
     Raises:
-        ValueError: If ``creator_type`` is set but not one of
+        ValueError: If a creator's ``type`` is set but not one of
             :data:`CREATOR_TYPES`.
     """
-    if not creation_metadata.creator_name:
-        return spdx3.SoftwareAgent(
-            spdxId=generate_spdx_id(
-                "SoftwareAgent", doc_name=doc_name, doc_uuid=doc_uuid
-            ),
-            name="Pitloom",
-            creationInfo=spdx_ci,
-        )
-
-    creator_type = (creation_metadata.creator_type or "person").strip().lower()
-    agent_cls = CREATOR_TYPES.get(creator_type)
-    if agent_cls is None:
-        valid = ", ".join(sorted(CREATOR_TYPES))
-        raise ValueError(
-            f"Invalid creator_type {creation_metadata.creator_type!r}; "
-            f"must be one of: {valid}."
-        )
-    agent = agent_cls(
-        spdxId=generate_spdx_id(
-            agent_cls.__name__, doc_name=doc_name, doc_uuid=doc_uuid
-        ),
-        name=creation_metadata.creator_name,
-        creationInfo=spdx_ci,
-    )
-    if creation_metadata.creator_email:
-        agent.externalIdentifier = [
-            spdx3.ExternalIdentifier(
-                externalIdentifierType=spdx3.ExternalIdentifierType.email,
-                identifier=creation_metadata.creator_email,
+    if not creation_metadata.creators:
+        return [
+            spdx3.SoftwareAgent(
+                spdxId=generate_spdx_id(
+                    "SoftwareAgent", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
+                name="Pitloom",
+                creationInfo=spdx_ci,
             )
         ]
-    return agent
+
+    agents: list[spdx3.Agent] = []
+    for creator in creation_metadata.creators:
+        creator_type = (creator.type or "person").strip().lower()
+        agent_cls = CREATOR_TYPES.get(creator_type)
+        if agent_cls is None:
+            valid = ", ".join(sorted(CREATOR_TYPES))
+            raise ValueError(
+                f"Invalid creator type {creator.type!r}; must be one of: {valid}."
+            )
+        agent = agent_cls(
+            spdxId=generate_spdx_id(
+                agent_cls.__name__, doc_name=doc_name, doc_uuid=doc_uuid
+            ),
+            name=creator.name,
+            creationInfo=spdx_ci,
+        )
+        if creator.email:
+            agent.externalIdentifier = [
+                spdx3.ExternalIdentifier(
+                    externalIdentifierType=spdx3.ExternalIdentifierType.email,
+                    identifier=creator.email,
+                )
+            ]
+        agents.append(agent)
+    return agents
 
 
-def build_tool(
+def build_tools(
     creation_metadata: CreationMetadata,
     doc_name: str,
     doc_uuid: str,
     spdx_ci: spdx3.CreationInfo,
-) -> spdx3.Tool | None:
-    """Build the ``createdUsing`` Tool, or ``None`` when suppressed.
+) -> list[spdx3.Tool]:
+    """Build the ``createdUsing`` Tools.
 
-    ``Tool.summary`` carries Pitloom's version, but only for the default
-    ``"Pitloom"`` tool name (see :func:`_tool_summary`).
+    ``tools is None`` yields the default single ``Tool`` ``"Pitloom"``;
+    ``tools == []`` suppresses ``createdUsing`` entirely; otherwise one
+    ``Tool`` per :class:`~pitloom.core.creation.ToolInfo`.  ``Tool.summary``
+    carries Pitloom's version, but only for a tool literally named
+    ``"Pitloom"`` (see :func:`_tool_summary`).
     """
-    if not creation_metadata.creation_tool:
-        return None
-    tool = spdx3.Tool(
-        spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
-        name=creation_metadata.creation_tool,
-        creationInfo=spdx_ci,
+    tool_infos = (
+        [ToolInfo(name="Pitloom")]
+        if creation_metadata.tools is None
+        else creation_metadata.tools
     )
-    summary = _tool_summary(creation_metadata.creation_tool)
-    if summary:
-        tool.summary = summary
-    return tool
+    tools: list[spdx3.Tool] = []
+    for tool_info in tool_infos:
+        tool = spdx3.Tool(
+            spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
+            name=tool_info.name,
+            creationInfo=spdx_ci,
+        )
+        summary = _tool_summary(tool_info.name)
+        if summary:
+            tool.summary = summary
+        tools.append(tool)
+    return tools
 
 
 def build_creation_info(
@@ -152,13 +174,13 @@ def build_creation_info(
     doc_uuid: str,
     *,
     default_comment: str | None = None,
-) -> tuple[spdx3.CreationInfo, spdx3.Agent, spdx3.Tool | None]:
-    """Assemble a ``CreationInfo`` plus its creator Agent and Tool.
+) -> tuple[spdx3.CreationInfo, list[spdx3.Agent], list[spdx3.Tool]]:
+    """Assemble a ``CreationInfo`` plus its creator Agents and Tools.
 
     ``created`` comes from ``creation_metadata.creation_datetime`` (normalised
     to SPDX DateTime) or the current UTC time.  ``comment`` uses
     ``creation_metadata.creation_comment`` if set, else *default_comment*.
-    The creator Agent goes in ``createdBy`` and the Tool (when present) in
+    The creator Agents go in ``createdBy`` and the Tools (when present) in
     ``createdUsing``.
     """
     created = (
@@ -176,20 +198,20 @@ def build_creation_info(
     if comment:
         spdx_ci.comment = comment
 
-    creator = build_creator_agent(creation_metadata, doc_name, doc_uuid, spdx_ci)
-    tool = build_tool(creation_metadata, doc_name, doc_uuid, spdx_ci)
+    agents = build_creator_agents(creation_metadata, doc_name, doc_uuid, spdx_ci)
+    tools = build_tools(creation_metadata, doc_name, doc_uuid, spdx_ci)
 
-    spdx_ci.createdBy = [require_spdx_id(creator)]
-    if tool is not None:
-        spdx_ci.createdUsing = [require_spdx_id(tool)]
-    return spdx_ci, creator, tool
+    spdx_ci.createdBy = [require_spdx_id(agent) for agent in agents]
+    if tools:
+        spdx_ci.createdUsing = [require_spdx_id(tool) for tool in tools]
+    return spdx_ci, agents, tools
 
 
 __all__ = [
     "parse_iso_datetime",
     "to_spdx3_datetime",
     "spdx3_utc_now",
-    "build_creator_agent",
-    "build_tool",
+    "build_creator_agents",
+    "build_tools",
     "build_creation_info",
 ]
