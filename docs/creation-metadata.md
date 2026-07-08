@@ -52,6 +52,11 @@ explicit `creation_metadata=CreationMetadata(...)` to that call.
 | `created` (1) | *When* | `--creation-datetime` if set, else the current UTC time. |
 | `comment` (0-1) | *How* it was invoked | A short static note per channel (`Generated via Pitloom CLI`, `... Hatchling build hook`, `... loom SDK`), or your `--creation-comment`. |
 
+> Note: The `≥1`/`0+` cardinalities above are what SPDX 3 *allows* -- not
+something Pitloom currently exercises.
+> Each SPDX 3's `CreationInfo` record Pitloom writes holds exactly one creator
+> Agent and at most one Tool.
+
 Pitloom's design distinguishes *who acted* from *what tool was used* --
 naming a creator never means naming Pitloom, and Pitloom itself is always
 recorded as the tool, never as the creator. In SPDX 3 terms this is the
