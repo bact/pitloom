@@ -9,7 +9,7 @@ abstract: Automated transparency, woven from the ground up. SBOM generation for 
 repository-code: "https://github.com/bact/pitloom"
 type: software
 doi: 10.5281/zenodo.19243681
-version: 0.9.0
+version: 0.10.0
 license-url: "https://spdx.org/licenses/Apache-2.0"
 keywords:
   - sbom
@@ -24,4 +24,4 @@ keywords:
   - ai sbom
   - transparency
   - software supply chain security
-date-released: 2026-07-06
+date-released: 2026-07-08

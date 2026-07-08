@@ -37,7 +37,8 @@ def generate_sbom(
         output_path: If given, the JSON-LD output is also written to this path.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
             When ``None`` a default :class:`~pitloom.core.creation.CreationMetadata`
-            is used (creator ``"Pitloom"``, current UTC time).
+            is used -- no named creator (the assembler emits the ``SoftwareAgent``
+            ``"Pitloom"`` in ``createdBy``), current UTC time.
         pretty: If ``True``, indent the JSON output with 2 spaces.
             If ``False``, produce compact output (no extra whitespace).
             If ``None`` (default), read the setting from ``[tool.pitloom] pretty``
@@ -101,7 +102,9 @@ def generate_ai_model_sbom(
         model_path: Path to the AI model file (GGUF, ONNX, Safetensors, etc.).
         output_path: If given, the JSON-LD output is also written to this path.
         creation_metadata: Creator and timestamp metadata.  Defaults to a
-            ``CreationMetadata`` with creator ``"Pitloom"`` and current UTC time.
+            ``CreationMetadata`` with no named creator (the assembler emits
+            the ``SoftwareAgent`` ``"Pitloom"`` in ``createdBy``) and current
+            UTC time.
         pretty: Indent JSON output with 2 spaces when ``True``.
         describe_relationship: Add human-readable text to SPDX relationships.
 
@@ -145,7 +148,9 @@ def generate_huggingface_sbom(
             or bare model ID (e.g. ``Qwen/Qwen3-235B-A22B``).
         output_path: If given, the JSON-LD output is also written to this path.
         creation_metadata: Creator and timestamp metadata.  Defaults to a
-            ``CreationMetadata`` with creator ``"Pitloom"`` and current UTC time.
+            ``CreationMetadata`` with no named creator (the assembler emits
+            the ``SoftwareAgent`` ``"Pitloom"`` in ``createdBy``) and current
+            UTC time.
         pretty: Indent JSON output with 2 spaces when ``True``.
         describe_relationship: Add human-readable text to SPDX relationships.
 
