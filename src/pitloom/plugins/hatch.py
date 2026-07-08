@@ -16,6 +16,7 @@ from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.plugin import hookimpl
 
+from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
@@ -33,13 +34,18 @@ _SPDX3_JSON_EXT = ".spdx3.json"
 def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
     """Build creation metadata from ``[tool.pitloom.creation]``.
 
-    Unset fields fall through to :class:`CreationMetadata`'s own defaults
-    (``creator_name``/``creation_tool`` -> ``"Pitloom"``), matching the CLI.
+    Unset fields fall through to :class:`CreationMetadata`'s own defaults --
+    no named creator (the assembler emits the ``SoftwareAgent`` "Pitloom")
+    and ``creation_tool`` -> ``"Pitloom"`` -- matching the CLI.
     """
+    comment = pitloom_config.creation_comment
     kwargs: dict[str, Any] = {
-        "creation_comment": pitloom_config.creation_comment
-        or "Generated via Pitloom Hatchling build hook (PEP 770)",
-        "build_datetime": datetime.now(timezone.utc).isoformat(),
+        "creation_comment": (
+            comment
+            if comment is not None
+            else "Generated via Pitloom Hatchling build hook (PEP 770)"
+        ),
+        "build_datetime": to_spdx3_datetime(datetime.now(timezone.utc)).isoformat(),
     }
     if pitloom_config.creation_creator_name:
         kwargs["creator_name"] = pitloom_config.creation_creator_name

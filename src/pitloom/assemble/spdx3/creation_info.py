@@ -166,7 +166,11 @@ def build_creation_info(
     )
     spdx_ci = spdx3.CreationInfo(specVersion="3.0.1", created=created)
 
-    comment = creation.creation_comment or default_comment
+    comment = (
+        creation.creation_comment
+        if creation.creation_comment is not None
+        else default_comment
+    )
     if comment:
         spdx_ci.comment = comment
 
