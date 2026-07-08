@@ -62,9 +62,10 @@ CREATOR_TYPES: dict[str, type[spdx3.Agent]] = {
     "software-agent": spdx3.SoftwareAgent,
     "agent": spdx3.Agent,
 }
-assert set(CREATOR_TYPES) == VALID_CREATOR_TYPES, (
-    "CREATOR_TYPES keys must match pitloom.core.creation.VALID_CREATOR_TYPES"
-)
+if set(CREATOR_TYPES) != VALID_CREATOR_TYPES:
+    raise RuntimeError(
+        "CREATOR_TYPES keys must match pitloom.core.creation.VALID_CREATOR_TYPES"
+    )
 
 
 def _tool_summary(tool_name: str) -> str | None:
