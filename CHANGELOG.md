@@ -68,7 +68,9 @@ and this project adheres to
     alongside the main one ([#91])
 - The sentimentdemo example pipeline pins stable ids in a new stage 0;
   all four fragments describe a single unified model element ([#91])
+- Upgraded `safetensors` dependency requirement to `0.8.0` ([#87])
 
+[#87]: https://github.com/bact/pitloom/issues/87
 [#91]: https://github.com/bact/pitloom/pull/91
 
 ## [0.10.0] - 2026-07-09
