@@ -325,9 +325,8 @@ no-creation-tool = false
 
 def test_extract_pitloom_no_creation_tool_string_raises() -> None:
     """``no-creation-tool = "false"`` (a quoted string, not a TOML boolean)
-    must raise rather than being silently treated as truthy -- a bare
-    Python ``if x:`` check would otherwise treat the non-empty string
-    ``"false"`` as enabled, suppressing tools opposite to the user's intent."""
+    raises -- the non-empty string ``"false"`` is truthy in Python, so
+    accepting it would suppress tools opposite to the user's intent."""
     pyproject_content = """
 [project]
 name = "test-package"

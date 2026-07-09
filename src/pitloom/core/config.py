@@ -213,10 +213,10 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     Raises:
         ValueError: If ``[tool.pitloom]`` or ``[tool.pitloom.creation]``
             still has old single-valued ``creator-name``/``creator-email``/
-            ``creator-type``/``creation-tool`` keys -- these moved to the
-            array-of-tables form -- or if ``no-creation-tool`` is present
-            but not a boolean (e.g. the string ``"false"``, which Python
-            truthiness would otherwise silently treat as enabled).
+            ``creator-type``/``creation-tool`` keys -- these belong under
+            the array-of-tables form -- or if ``no-creation-tool`` is
+            present but not a boolean (e.g. the string ``"false"``, which
+            is truthy in Python).
     """
     pitloom_data = data.get("tool", {}).get("pitloom", {})
     creation_data = pitloom_data.get("creation", {})

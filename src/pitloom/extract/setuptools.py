@@ -160,8 +160,10 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     if cfg_metadata is not None:
         return cfg_metadata, cfg_config
 
-    # Only setup.py succeeded
-    assert py_metadata is not None
+    # Only setup.py succeeded -- the branches above already ruled out
+    # "both None" and "cfg_metadata set", so py_metadata must be set here.
+    if py_metadata is None:
+        raise RuntimeError("unreachable: py_metadata must be set here")
     return py_metadata, PitloomConfig()
 
 

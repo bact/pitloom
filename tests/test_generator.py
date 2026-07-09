@@ -771,6 +771,29 @@ def test_generate_sbom_uses_preparsed_metadata_without_reparsing() -> None:
         assert main_package["software_packageVersion"] == "9.9.9"
 
 
+def test_generate_sbom_partial_preparsed_args_reparses_both() -> None:
+    """project_metadata and pitloom_config must be given together.
+
+    Passing only one is treated as if neither were given: both are read
+    fresh from project_dir, and the one caller-supplied value is ignored."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(
+            '[project]\nname = "real-package"\nversion = "1.0.0"\n'
+        )
+        fake_metadata = ProjectMetadata(name="should-be-discarded")
+
+        sbom_json = generate_sbom(
+            tmppath, project_metadata=fake_metadata, pitloom_config=None
+        )
+        graph = json.loads(sbom_json)["@graph"]
+
+        packages = [e for e in graph if e.get("type") == "software_Package"]
+        names = [p["name"] for p in packages]
+        assert "real-package" in names
+        assert "should-be-discarded" not in names
+
+
 def test_assembler_ai_model_with_inputs_outputs() -> None:
     """Test that AI model metadata with inputs/outputs is serialized into SPDX 3."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
