@@ -61,6 +61,16 @@ dependencies = [
 pitloom = "pitloom.plugins.hatch"
 
 [project.optional-dependencies]
+ai = [
+    "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
+    "fickling>=0.1.10",
+    "gguf>=0.10.0",
+    "h5py>=3.0.0",
+    "huggingface_hub>=1.14.0",
+    "numpy>=1.24.0",
+    "onnx>=1.14.1",
+    "safetensors[numpy]>=0.7.0",
+]
 aimodel = [
     "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
     "fickling>=0.1.10",
