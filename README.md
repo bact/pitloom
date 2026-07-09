@@ -32,15 +32,13 @@ pip install pitloom
 loom .            # SBOM for the Python project in the current dir
 ```
 
-### Optional model format support
+### Optional features
 
-Install extras to enable metadata extraction from model files, either all
-at once or one format at a time:
+Install extras to enable metadata extraction from AI model files or from
+Hugging Face Hub:
 
 ```bash
-pip install -e ".[aimodel]"       # all supported local AI model formats
-pip install -e ".[huggingface]"   # Hugging Face Hub model metadata
-pip install -e ".[gguf]"          # or a single format: fasttext/gguf/onnx/safetensors
+pip install -e ".[ai]"       # all supported AI model formats
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
