@@ -99,7 +99,7 @@ hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.10.0"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.11.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -269,7 +269,7 @@ Add SBOM generation to any repository's CI with a single step, for any
 Python build backend, not just Hatchling:
 
 ```yaml
-- uses: bact/pitloom@v0.10.0
+- uses: bact/pitloom@v0.11.0
 ```
 
 See [working-docs/implementation/github-action.md](working-docs/implementation/github-action.md)
