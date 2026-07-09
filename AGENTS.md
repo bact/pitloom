@@ -31,6 +31,10 @@ Unix philosophy. Consistent, predictable, parseable.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
 - JSON/CSV/file output supported as options.
 
+## Code style
+
+- Code comments must concise and about current implementation. Do not discuss previous iterations.
+
 ## Python
 
 - Min version: Python 3.10. No syntax/features unavailable before 3.10 unless via `__future__`.
