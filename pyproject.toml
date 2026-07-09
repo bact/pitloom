@@ -50,11 +50,11 @@ classifiers = [
 ]
 dependencies = [
     "hatchling>=1.28.0",
-    "licenseid>=0.2.3",
-    "pyproject-metadata>=0.11.0",
+    "licenseid>=0.3.0",
+    "pyproject-metadata>=0.12.1",
     "rfc8785>=0.1.4",
     "spdx-python-model>=0.0.6",
-    "tomli>=2.0.0; python_version<'3.11'",
+    "tomli>=2.4.0; python_version<'3.11'",
 ]
 
 [project.entry-points."hatch"]
@@ -63,33 +63,33 @@ pitloom = "pitloom.plugins.hatch"
 [project.optional-dependencies]
 ai = [
     "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
-    "fickling>=0.1.10",
-    "gguf>=0.10.0",
-    "h5py>=3.0.0",
-    "huggingface_hub>=1.14.0",
-    "numpy>=1.24.0",
-    "onnx>=1.14.1",
-    "safetensors[numpy]>=0.7.0",
+    "fickling>=0.1.12",
+    "gguf>=0.19.0",
+    "h5py>=3.16.0",
+    "huggingface_hub>=1.22.0",
+    "numpy>=1.26.4",
+    "onnx>=1.22.0",
+    "safetensors[numpy]>=0.8.0",
 ]
 aimodel = [
     "fasttext>=0.9.3",           # or fasttext-community>=0.11.7
-    "fickling>=0.1.10",
-    "gguf>=0.10.0",
-    "h5py>=3.0.0",
-    "numpy>=1.24.0",
-    "onnx>=1.14.1",
-    "safetensors[numpy]>=0.7.0",
+    "fickling>=0.1.12",
+    "gguf>=0.19.0",
+    "h5py>=3.16.0",
+    "numpy>=1.26.4",
+    "onnx>=1.22.0",
+    "safetensors[numpy]>=0.8.0",
 ]
-huggingface = ["huggingface_hub>=1.14.0"]
+huggingface = ["huggingface_hub>=1.22.0"]
 
 fasttext = ["fasttext>=0.9.3"]                # or fasttext-community>=0.11.7
-gguf = ["gguf>=0.10.0"]
-hdf5 = ["h5py>=3.0.0"]
-huggingface_hub = ["huggingface_hub>=1.14.0"]
-numpy = ["numpy>=1.24.0"]
-onnx = ["onnx>=1.14.1"]
-pytorch = ["fickling>=0.1.10"]
-safetensors = ["safetensors[numpy]>=0.7.0"]
+gguf = ["gguf>=0.19.0"]
+hdf5 = ["h5py>=3.16.0"]
+huggingface_hub = ["huggingface_hub>=1.22.0"]
+numpy = ["numpy>=1.26.4"]
+onnx = ["onnx>=1.22.0"]
+pytorch = ["fickling>=0.1.12"]
+safetensors = ["safetensors[numpy]>=0.8.0"]
 
 [project.scripts]
 loom = "pitloom.__main__:main"    # default command-line entry point
@@ -105,9 +105,9 @@ documentation = "https://github.com/bact/pitloom#readme"
 issues = "https://github.com/bact/pitloom/issues"
 
 [dependency-groups]
-lint = ["flake8>=7.3.0", "pylint>=4.0.5", "ruff>=0.15.7"]
-test = ["pytest>=9.0.2", "pytest-cov>=6.1.0", "stav>=0.4.1"]
-typecheck = ["mypy>=1.19.1", "pyrefly>=1.0.0", "pyright>=1.1.409"]
+lint = ["flake8>=7.3.0", "pylint>=4.0.6", "ruff>=0.15.20"]
+test = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "stav>=0.4.1"]
+typecheck = ["mypy>=1.20.2", "pyrefly>=1.1.1", "pyright>=1.1.411"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },

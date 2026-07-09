@@ -12,6 +12,8 @@ SPDX-License-Identifier: CC0-1.0
 ![GitHub License](https://img.shields.io/github/license/bact/pitloom)
 [![DOI](https://img.shields.io/badge/doi-10.5281%2Fzenodo.19246283-blue)](https://doi.org/10.5281/zenodo.19246283)
 
+![The Pippin Pitloom](mascot.png)
+
 **Pitloom** automates the generation of SPDX 3-compliant SBOMs for AI models
 and Python projects, documenting the composition and provenance of software
 systems. It reads metadata directly from Python packages and AI models

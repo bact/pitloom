@@ -1,3 +1,4 @@
 title: Pitloom
 description: An SBOM generator for AI models and Python projects
 theme: jekyll-theme-minimal
+logo: /mascot.png
