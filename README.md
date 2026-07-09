@@ -48,8 +48,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 | Surface | Reach for this when... |
 | :--- | :--- |
 | [Command line](#command-line) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target, or any shell script. |
-| [Python API](#python-api) | You are calling Pitloom from Python code you control. |
 | [Hatchling build hook](#hatchling-build-hook) | You build wheels with Hatchling and want an SBOM embedded automatically. |
+| [Python API](#python-api) | You are calling Pitloom from Python code you control. |
 | [Python tracking decorator](#python-tracking-decorator) | You are training/fine-tuning a model and want to capture provenance as you go, as an SPDX fragment. |
 | [GitHub Action](#use-pitloom-as-a-github-action) | Your project isn't Hatchling-based, or you just want CI to produce an SBOM artifact with one `uses:` line. |
 | [Agent Skill](#use-pitloom-as-an-ai-agent-skill) | You want an AI coding agent to generate (and optionally enrich) an SBOM on request. |
