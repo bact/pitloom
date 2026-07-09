@@ -8,8 +8,8 @@ authors:
 abstract: Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support.
 repository-code: "https://github.com/bact/pitloom"
 type: software
-doi: 10.5281/zenodo.19243681
-version: 0.10.0
+doi: 10.5281/zenodo.19246283
+version: 0.11.0
 license-url: "https://spdx.org/licenses/Apache-2.0"
 keywords:
   - sbom

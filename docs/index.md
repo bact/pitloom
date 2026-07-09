@@ -57,7 +57,7 @@ loom -m Qwen/Qwen3-235B-A22B   # bare model ID also works
 ### GitHub Action
 
 ```yaml
-- uses: bact/pitloom@v0.10.0
+- uses: bact/pitloom@v0.11.0
 ```
 
 ### Python build hook
@@ -66,7 +66,7 @@ Create SBOM during Hatchling build:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.10.0"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.11.0"]
 build-backend = "hatchling.build"
 ```
 
