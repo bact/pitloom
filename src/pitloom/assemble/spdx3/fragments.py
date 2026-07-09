@@ -85,7 +85,8 @@ _KEYED_DICT_PROPS = frozenset({"ai_hyperparameter", "ai_metric"})
 def _class_properties(obj: spdx3.SHACLObject) -> Iterable[str]:
     """Return the declared Python property names on *obj*'s class."""
     # _OBJ_PY_PROPS is not part of the public stub -- see module note above.
-    keys: Iterable[str] = type(obj)._OBJ_PY_PROPS.keys()  # type: ignore[attr-defined] # pylint: disable=protected-access
+    # pylint: disable=protected-access
+    keys: Iterable[str] = type(obj)._OBJ_PY_PROPS.keys()  # type: ignore[attr-defined]
     return keys
 
 
@@ -99,7 +100,8 @@ def _stable_key(obj: spdx3.SHACLObject) -> tuple[str, str]:
     ``_OBJ_PY_PROPS`` above) is spdx-python-model internal API: it is the
     ``spdxId`` for Elements and the blank-node label otherwise.
     """
-    obj_id: str = obj._id or ""  # type: ignore[attr-defined] # pylint: disable=protected-access
+    # pylint: disable=protected-access
+    obj_id: str = obj._id or ""  # type: ignore[attr-defined]
     return (type(obj).__name__, obj_id)
 
 
