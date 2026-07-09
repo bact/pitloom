@@ -60,7 +60,14 @@ loom -m Qwen/Qwen3-235B-A22B   # bare model ID also works
 - uses: bact/pitloom@v0.11.0
 ```
 
-### Python build hook
+This creates a standalone SBOM file on the runner.
+It can be used for compliance logs, CI/CD audits, and release assets.
+
+> Note: Running the GitHub Action alone does not embed the SBOM
+> inside your distributed Python wheel
+> (use the Hatchling build hook for PEP 770 wheel embedding).
+
+### Hatchling build hook
 
 Create SBOM during Hatchling build:
 
@@ -72,6 +79,8 @@ build-backend = "hatchling.build"
 [tool.hatch.build.hooks.pitloom]
 enabled = true
 ```
+
+This embeds an SBOM into the distributed Python wheel.
 
 ### Python API
 
