@@ -19,6 +19,7 @@ from pitloom.extract._huggingface import read_huggingface
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
+from pitloom.ids import IdRegistry, resolve_registry
 
 
 def generate_sbom(
@@ -30,6 +31,7 @@ def generate_sbom(
     describe_relationship: bool | None = None,
     project_metadata: ProjectMetadata | None = None,
     pitloom_config: PitloomConfig | None = None,
+    registry: str | Path | IdRegistry | None = None,
 ) -> str:
     """Generate an SPDX 3 SBOM for a Python project.
 
@@ -56,6 +58,11 @@ def generate_sbom(
             the wheel file scan.
         pitloom_config: Pre-parsed ``[tool.pitloom]`` settings, paired with
             *project_metadata* (see above).
+        registry: A :class:`~pitloom.ids.IdRegistry`, a path to a registry
+            JSON file, or ``None`` (default) to resolve one from
+            ``[tool.pitloom.ids] file`` / auto-discovery -- see
+            :func:`~pitloom.ids.resolve_registry`. Consulted so that wheel
+            files reuse ids shared with ``pitloom.loom`` fragments.
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
@@ -82,12 +89,20 @@ def generate_sbom(
 
     ai_models = scan_project_for_ai_models(project_dir, project_files)
 
+    resolved_registry = (
+        registry
+        if isinstance(registry, IdRegistry)
+        else IdRegistry.load(project_dir / registry)
+        if registry is not None
+        else resolve_registry(project_dir, pitloom_config.ids_file)
+    )
+
     doc = DocumentModel(
         project=project_metadata,
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
     )
-    exporter = build(doc, merkle_root=merkle_root)
+    exporter = build(doc, merkle_root=merkle_root, registry=resolved_registry)
     merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
     sbom_json = exporter.to_json(
@@ -107,6 +122,7 @@ def generate_ai_model_sbom(
     creation_metadata: CreationMetadata | None = None,
     pretty: bool = False,
     describe_relationship: bool = False,
+    registry: str | Path | IdRegistry | None = None,
 ) -> str:
     """Generate a standalone SPDX 3 SBOM for a single AI model file.
 
@@ -122,6 +138,14 @@ def generate_ai_model_sbom(
             UTC time.
         pretty: Indent JSON output with 2 spaces when ``True``.
         describe_relationship: Add human-readable text to SPDX relationships.
+        registry: A :class:`~pitloom.ids.IdRegistry`, a path to a registry
+            JSON file, or ``None`` (default) to auto-discover
+            ``loom-ids.json`` from the current working directory. The
+            model's file stem (e.g. ``"sentimentdemo"`` for
+            ``models/sentimentdemo.bin``) is looked up as an ``ai_AIPackage``
+            entity; a match reuses that registered ``spdxId`` so this SBOM's
+            model and a ``pitloom.loom`` fragment's model can be unified at
+            merge time.
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
@@ -131,7 +155,21 @@ def generate_ai_model_sbom(
         ValueError: If the model format is unsupported or cannot be parsed.
     """
     model = read_ai_model(model_path)
-    exporter = build_model(model, creation_metadata or CreationMetadata())
+    resolved_registry = (
+        registry
+        if isinstance(registry, IdRegistry)
+        else IdRegistry.load(Path(registry))
+        if registry is not None
+        else IdRegistry.find()
+    )
+    entity_spdx_id = (
+        resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
+        if resolved_registry is not None
+        else None
+    )
+    exporter = build_model(
+        model, creation_metadata or CreationMetadata(), entity_spdx_id=entity_spdx_id
+    )
 
     sbom_json = exporter.to_json(
         pretty=pretty,

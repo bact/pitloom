@@ -29,6 +29,7 @@ from pitloom.core.creation import (
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
 from pitloom.extract.project import read_project
+from pitloom.ids import DEFAULT_REGISTRY_FILENAME, IdRegistry
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
@@ -282,6 +283,22 @@ def _build_parser() -> argparse.ArgumentParser:
             "Add descriptive text to relationships to ease human reading. "
             "Overrides 'describe-relationship' in pyproject.toml. "
             "Default is False (machine-optimized format, no extra text in SBOM)."
+        ),
+    )
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help=(
+            "Path to a Loom ID registry, a stable file/entity id registry "
+            "(see 'pitloom ids'). "
+            "Elements looked up in the registry reuse its spdxId instead of "
+            "minting a fresh one, so this SBOM can be unified with "
+            "'pitloom.loom' fragments at merge time. Default: auto-discover "
+            "loom-ids.json (project mode: from [tool.pitloom.ids] file or "
+            "by walking up from the project directory; model mode: from the "
+            "current working directory)."
         ),
     )
     return parser
@@ -646,9 +663,18 @@ def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
 def main() -> int:
     """Main entry point for the Pitloom CLI.
 
+    Dispatches ``pitloom ids ...`` to the id-registry sub-CLI (see
+    :func:`_run_ids_cli`) before touching the main SBOM-generation parser --
+    ``ids`` is a subcommand, not a project directory, and intercepting it
+    here keeps the main parser (positional ``project_dir`` / ``-m``) exactly
+    as it was, with no argparse subparsers to reconcile against it.
+
     Returns:
         int: Exit code (0 for success, 1 for error)
     """
+    if len(sys.argv) > 1 and sys.argv[1] == "ids":
+        return _run_ids_cli(sys.argv[2:])
+
     parser = _build_parser()
     args = parser.parse_args()
 
@@ -663,6 +689,199 @@ def main() -> int:
         return 1
 
     return _run_project_mode(args)
+
+
+# ---------------------------------------------------------------------------
+# `pitloom ids` -- Loom ID registry management
+# ---------------------------------------------------------------------------
+
+#: Conventional source/data directory names consulted by `pitloom ids
+#: generate` when no PATH arguments are given.
+_DEFAULT_IDS_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
+
+
+def _build_ids_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for ``pitloom ids <command> ...``."""
+    parser = argparse.ArgumentParser(
+        prog="pitloom ids",
+        description=(
+            "Manage the Loom ID registry, a stable file/entity -> SPDX ID "
+            "registry consulted by 'pitloom.loom', the Hatchling build hook, "
+            "and the CLI."
+        ),
+    )
+    subparsers = parser.add_subparsers(dest="ids_command", required=True)
+
+    generate_parser = subparsers.add_parser(
+        "generate",
+        help="Index files (and detected AI models) under PATHs into the registry.",
+    )
+    generate_parser.add_argument(
+        "paths",
+        nargs="*",
+        type=Path,
+        default=None,
+        help=(
+            "Files or directories to index, relative to --project-dir. "
+            f"Default: whichever of {', '.join(_DEFAULT_IDS_GENERATE_DIR_NAMES)} "
+            "exist under the project directory."
+        ),
+    )
+    generate_parser.add_argument(
+        "-o",
+        "--registry",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help=(
+            "Registry file to update, relative to --project-dir "
+            f"(default: {DEFAULT_REGISTRY_FILENAME}). "
+            "Regeneration is stable: an unchanged file keeps its id; a "
+            "changed file gets a fresh one; existing entries not covered by "
+            "PATHs are left untouched."
+        ),
+    )
+    generate_parser.add_argument(
+        "--project-dir",
+        type=Path,
+        default=None,
+        help="Project root PATHs are resolved against (default: cwd).",
+    )
+    generate_parser.add_argument(
+        "--entity",
+        action="append",
+        default=None,
+        metavar="NAME[:TYPE]",
+        help=(
+            "Register a named entity (default TYPE: ai_AIPackage) so that "
+            "loom.set_model()/`loom -m` can reuse its id even before the "
+            "model file exists on disk. May be given multiple times."
+        ),
+    )
+
+    import_parser = subparsers.add_parser(
+        "import", help="Harvest ids from an existing SPDX 3 JSON-LD SBOM."
+    )
+    import_parser.add_argument(
+        "sbom", type=Path, help="Path to the SBOM file to import."
+    )
+    import_parser.add_argument(
+        "-o",
+        "--registry",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help=(
+            "Registry file to update "
+            f"(default: {DEFAULT_REGISTRY_FILENAME} in the current directory)."
+        ),
+    )
+
+    return parser
+
+
+def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
+    """Default PATHs for ``pitloom ids generate``: conventional source/data
+    directories, filtered to those that exist under *project_dir*."""
+    return [
+        project_dir / name
+        for name in _DEFAULT_IDS_GENERATE_DIR_NAMES
+        if (project_dir / name).is_dir()
+    ]
+
+
+def _load_or_create_registry(
+    registry_path: Path, default_name: str
+) -> IdRegistry | None:
+    """Load *registry_path* if it exists, else create a fresh registry ready
+    to be saved there. Returns ``None`` (after printing an error) if an
+    existing file fails to load."""
+    if registry_path.exists():
+        try:
+            return IdRegistry.load(registry_path)
+        except (ValueError, OSError) as exc:
+            print(f"Error loading registry {registry_path}: {exc}", file=sys.stderr)
+            return None
+    return IdRegistry.new(default_name, path=registry_path)
+
+
+def _run_ids_generate(args: argparse.Namespace) -> int:
+    """Run ``pitloom ids generate``."""
+    project_dir: Path = (args.project_dir or Path.cwd()).resolve()
+    registry_path = (
+        (project_dir / args.registry).resolve()
+        if args.registry
+        else (project_dir / DEFAULT_REGISTRY_FILENAME)
+    )
+
+    registry = _load_or_create_registry(registry_path, project_dir.name)
+    if registry is None:
+        return 1
+
+    paths: list[Path] = args.paths or _default_ids_generate_paths(project_dir)
+    if not paths:
+        print(
+            f"Error: no source/data directories found under {project_dir}; "
+            "pass explicit PATH argument(s).",
+            file=sys.stderr,
+        )
+        return 1
+
+    registry.generate(paths, project_dir)
+    for entity_spec in args.entity or []:
+        name, _, type_name = entity_spec.partition(":")
+        registry.register_entity(name, type_name or "ai_AIPackage")
+    registry.save(registry_path)
+    print(
+        f"pitloom ids: wrote {len(registry.files)} file(s) and "
+        f"{len(registry.entities)} entit(y/ies) to {registry_path}"
+    )
+    return 0
+
+
+def _run_ids_import(args: argparse.Namespace) -> int:
+    """Run ``pitloom ids import``."""
+    sbom_path: Path = args.sbom.resolve()
+    if not sbom_path.exists():
+        print(f"Error: SBOM file not found: {sbom_path}", file=sys.stderr)
+        return 1
+
+    registry_path = (
+        args.registry.resolve()
+        if args.registry
+        else Path.cwd() / DEFAULT_REGISTRY_FILENAME
+    )
+    registry = _load_or_create_registry(registry_path, sbom_path.stem)
+    if registry is None:
+        return 1
+
+    try:
+        registry.import_sbom(sbom_path)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        print(f"Error importing SBOM {sbom_path}: {exc}", file=sys.stderr)
+        return 1
+
+    registry.save(registry_path)
+    print(
+        f"pitloom ids: imported into {registry_path} "
+        f"({len(registry.files)} file(s), {len(registry.entities)} entit(y/ies))"
+    )
+    return 0
+
+
+def _run_ids_cli(argv: list[str]) -> int:
+    """Parse and dispatch ``pitloom ids <command> ...`` arguments."""
+    parser = _build_ids_parser()
+    args = parser.parse_args(argv)
+    if args.ids_command == "generate":
+        return _run_ids_generate(args)
+    if args.ids_command == "import":
+        return _run_ids_import(args)
+    parser.error(f"Unknown ids command: {args.ids_command}")  # pragma: no cover
+    # parser.error() always raises SystemExit (argparse's `required=True` on
+    # the subparsers already makes this line unreachable in practice) --
+    # kept only so every code path has an explicit `return int`.
+    return 1  # type: ignore[unreachable] # pragma: no cover
 
 
 def _run_model_mode(args: argparse.Namespace) -> int:
@@ -703,6 +922,7 @@ def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:
             creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
             describe_relationship=effective_describe,
+            registry=args.registry,
         )
         return 0
 
@@ -792,6 +1012,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             describe_relationship=effective_describe_relationship,
             project_metadata=project_metadata,
             pitloom_config=pitloom_config,
+            registry=args.registry,
         )
         return 0
 

@@ -4,7 +4,7 @@
 """Stage 2: Model training.
 
 Trains a tiny fastText supervised classifier on ``data/processed/train.txt``
-and saves the resulting model to ``models/sentiment.bin``.
+and saves the resulting model to ``models/sentimentdemo.bin``.
 
 The training run is wrapped in a :func:`pitloom.loom.run` context
 manager that captures the model name, model type (a STAV / DPV IRI),
@@ -25,7 +25,7 @@ from pitloom import loom
 ROOT = Path(__file__).resolve().parents[2]
 TRAIN_FILE = ROOT / "data" / "processed" / "train.txt"
 MODEL_DIR = ROOT / "models"
-MODEL_PATH = MODEL_DIR / "sentiment.bin"
+MODEL_PATH = MODEL_DIR / "sentimentdemo.bin"
 FRAGMENT_PATH = ROOT / "fragments" / "02_train.spdx3.json"
 
 HYPERPARAMS: dict[str, str | int | float] = {

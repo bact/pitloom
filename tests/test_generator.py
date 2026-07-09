@@ -24,6 +24,7 @@ from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.ids import IdRegistry
 
 
 def test_generate_sbom_basic() -> None:
@@ -846,6 +847,146 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
         if r.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
     ]
     assert not license_rels
+
+
+def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime() -> None:
+    """The ``hasDataFile`` relationship from a usage file (e.g. predict.py,
+    which loads the model at inference time) to the model file must be a
+    ``LifecycleScopedRelationship`` with ``scope: runtime`` -- contrast with
+    ``pitloom.loom``'s ``generates`` edges, which are scoped ``build``."""
+    project = ProjectMetadata(
+        name="ai-project",
+        version="0.1.0",
+        files=[
+            ProjectFile(
+                physical_path="src/pkg/model.bin",
+                distribution_path="pkg/model.bin",
+                digest_sha256="a" * 64,
+            ),
+            ProjectFile(
+                physical_path="src/pkg/predict.py",
+                distribution_path="pkg/predict.py",
+                digest_sha256="b" * 64,
+            ),
+        ],
+    )
+    ai_model = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            file_name="model.bin",
+            file_path_relative="pkg/model.bin",
+            model_format=AiModelFormat.PYTORCH_PT2,
+        ),
+        name="usage-model",
+        usage_files=["pkg/predict.py"],
+    )
+    doc = DocumentModel(
+        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
+    )
+
+    exporter = build(doc)
+    data = json.loads(exporter.to_json(pretty=True))
+    graph = data["@graph"]
+
+    has_data_file = [
+        e
+        for e in graph
+        if e.get("type") == "LifecycleScopedRelationship"
+        and e.get("relationshipType") == "hasDataFile"
+    ]
+    assert len(has_data_file) == 1
+    assert has_data_file[0]["scope"] == "runtime"
+
+    # Plain "Relationship"-typed elements must not include a hasDataFile
+    # edge -- it was reclassified, not duplicated.
+    assert not any(
+        e.get("type") == "Relationship" and e.get("relationshipType") == "hasDataFile"
+        for e in graph
+    )
+
+
+def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
+    """A scan-discovered AI model must reuse a registry entity's spdxId when
+    its physical path (project-root-relative, e.g. "src/pkg/model.bin") is
+    registered -- the same string a pitloom.loom fragment's
+    run.set_model(model_file_path, ...) call would have used, so the two
+    become the same element once merged instead of yielding a second,
+    duplicate ai_AIPackage."""
+    project = ProjectMetadata(name="ai-project", version="0.1.0")
+    ai_model = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            file_name="model.bin",
+            physical_path="src/sentimentdemo/model.bin",
+            model_format=AiModelFormat.FASTTEXT,
+        ),
+    )
+    doc = DocumentModel(
+        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
+    )
+
+    registry = IdRegistry.new("ai-project")
+    registered_id = registry.register_entity(
+        "src/sentimentdemo/model.bin", "ai_AIPackage"
+    )
+
+    exporter = build(doc, registry=registry)
+    data = json.loads(exporter.to_json(pretty=True))
+    graph = data["@graph"]
+
+    ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
+    assert len(ai_pkgs) == 1
+    assert ai_pkgs[0]["spdxId"] == registered_id
+
+
+def test_assembler_ai_model_reuses_registry_entity_by_file_stem() -> None:
+    """Falls back to the model file's stem (mirroring the lookup
+    generate_ai_model_sbom performs for loom -m/--registry) when no
+    physical_path or name match is registered."""
+    project = ProjectMetadata(name="ai-project", version="0.1.0")
+    ai_model = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            file_name="model.bin",
+            model_format=AiModelFormat.FASTTEXT,
+        ),
+    )
+    doc = DocumentModel(
+        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
+    )
+
+    registry = IdRegistry.new("ai-project")
+    registered_id = registry.register_entity("model", "ai_AIPackage")
+
+    exporter = build(doc, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
+    assert len(ai_pkgs) == 1
+    assert ai_pkgs[0]["spdxId"] == registered_id
+
+
+def test_assembler_ai_model_no_registry_match_mints_fresh_id() -> None:
+    """No matching registry entity -> unchanged behaviour: a fresh id is
+    minted, and it does not collide with an unrelated registered entity."""
+    project = ProjectMetadata(name="ai-project", version="0.1.0")
+    ai_model = AiModelMetadata(
+        format_info=AiModelFormatInfo(
+            file_name="model.bin",
+            physical_path="src/sentimentdemo/model.bin",
+            model_format=AiModelFormat.FASTTEXT,
+        ),
+    )
+    doc = DocumentModel(
+        project=project, creation_metadata=CreationMetadata(), ai_models=[ai_model]
+    )
+
+    registry = IdRegistry.new("ai-project")
+    unrelated_id = registry.register_entity("some-other-model", "ai_AIPackage")
+
+    exporter = build(doc, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
+    assert len(ai_pkgs) == 1
+    assert ai_pkgs[0]["spdxId"] != unrelated_id
 
 
 # ---------------------------------------------------------------------------

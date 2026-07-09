@@ -54,7 +54,9 @@ pretty = true
         describe_relationship: bool | None = None,
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (project_metadata, pitloom_config)
         captured["project_dir"] = project_dir
         captured["output_path"] = output_path
@@ -107,7 +109,9 @@ creation-datetime = "2026-04-01T00:00:00Z"
         describe_relationship: bool | None = None,
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (
             project_dir,
             output_path,
@@ -177,7 +181,9 @@ creation-datetime = "2030-01-02T03:04:05Z"
         describe_relationship: bool | None = None,
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (
             project_dir,
             output_path,
@@ -241,7 +247,9 @@ version = "0.1.0"
         describe_relationship: bool | None = None,
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (
             project_dir,
             output_path,
@@ -329,7 +337,9 @@ def test_model_mode_no_project_dir_required(
         creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (creation_metadata, pretty, describe_relationship)
         captured["model_path"] = model_path
         captured["output_path"] = output_path
@@ -355,7 +365,9 @@ def test_model_mode_explicit_output_path(
         creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (model_path, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
@@ -380,7 +392,9 @@ def test_model_mode_default_output_path_uses_stem(
         creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (model_path, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
@@ -406,7 +420,9 @@ def test_model_mode_passes_pretty_flag(
         creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (model_path, output_path, creation_metadata, describe_relationship)
         captured["pretty"] = pretty
         return "{}"
@@ -429,7 +445,9 @@ def test_model_mode_passes_creation_info(
         creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (model_path, output_path, pretty, describe_relationship)
         captured["creation_metadata"] = creation_metadata
         return "{}"
@@ -751,7 +769,9 @@ def test_model_mode_verbose_shows_model_path(
         creation_metadata: object | None = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        registry: object | None = None,
     ) -> str:
+        _ = registry
         _ = (model_path, output_path, creation_metadata, pretty, describe_relationship)
         return "{}"
 

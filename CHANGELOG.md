@@ -18,6 +18,59 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.9.0...v0.10.0>
 
+## [Unreleased]
+
+### Added
+
+- Loom ID registry:
+  - a stable file/entity -> SPDX ID registry (`loom-ids.json`)
+  - `pitloom ids generate` pins ids (with SHA-256 hashes) for files under
+    chosen paths and for named entities (`--entity`)
+  - `pitloom ids import` harvests ids from an existing SPDX 3 SBOM
+  - `pitloom.loom`, the `loom -m` extractor, the Hatchling build hook, and
+    `generate_sbom()` all consult the registry, so the same dataset, script,
+    or model carries the same `spdxId` everywhere ([#91])
+- `loom.run` now records the generating script as a `software_File` (with a
+  SHA-256 hash) and emits file-level `generates` relationships: the training
+  script generates the model, a preprocessing script generates its output
+  datasets. Datasets registered via `add_*_dataset()` gain `verifiedUsing`
+  SHA-256 hashes when they exist on disk ([#91])
+- `set_model()` gains a `generated` keyword to override the default
+  heuristic (a run that declares training datasets gets the script ->
+  model `generates` edge; an evaluation-only run does not) ([#91])
+- The Hatchling build hook's `builtTime` now honours `SOURCE_DATE_EPOCH`
+  (reproducible-builds standard) or a pinned `[tool.pitloom.creation]`
+  `creation-datetime`, so rebuilding unchanged sources can produce
+  byte-identical SBOMs; falls back to the current UTC time ([#91])
+- `add_output_dataset()` gains an `input_datasets` keyword naming exactly
+  which `add_input_dataset()` calls it derives from, so one accumulating
+  `loom.run` can cover multiple independent preprocessing stages (e.g.
+  train/valid/test splits) without their `hasInput` lineage cross-linking
+  to each other's raw sources. Omitted (the default), it keeps the
+  previous behaviour of deriving from every input declared in the run
+  ([#91])
+
+### Changed
+
+- `generates` relationships (training script -> model, proprocessing script ->
+  output datasets) and `hasDataFile` relationship (inference script -> model)
+  are now `LifecycleScopedRelationship`, scoped `build` and `runtime`
+  respectively ([#91])
+- `merge_fragments()` now *unifies* fragments instead of concatenating them:
+  - elements sharing a registry-issued `spdxId`, or provably identical
+    content (SHA-256), or structurally identical `Agent`/`Tool` copies are
+    collapsed into one element
+  - fragment `SpdxDocument`/`software_Sbom` envelopes are dropped
+  - duplicate relationships are removed
+  - `profileConformance` gains `ai`/`dataset` when fragments contribute those
+    profiles
+  - a second `software_Sbom` rooted at the merged `ai_AIPackage` is added
+    alongside the main one ([#91])
+- The sentimentdemo example pipeline pins stable ids in a new stage 0;
+  all four fragments describe a single unified model element ([#91])
+
+[#91]: https://github.com/bact/pitloom/pull/91
+
 ## [0.10.0] - 2026-07-09
 
 ### Changed

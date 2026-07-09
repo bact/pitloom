@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,10 +26,32 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
+from pitloom.ids import resolve_registry
 
 log = logging.getLogger(__name__)
 
 _SPDX3_JSON_EXT = ".spdx3.json"
+
+
+def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
+    """Resolve the ``builtTime`` stamped on the main package.
+
+    Priority: the standard reproducible-builds ``SOURCE_DATE_EPOCH``
+    environment variable, then a pinned ``[tool.pitloom.creation]``
+    ``creation-datetime``, then the current UTC time.  With either of the
+    first two, repeated builds of unchanged sources produce byte-identical
+    SBOMs (and therefore byte-identical wheels).
+    """
+    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if source_date_epoch:
+        try:
+            stamp = datetime.fromtimestamp(int(source_date_epoch), tz=timezone.utc)
+            return to_spdx3_datetime(stamp).isoformat()
+        except (ValueError, OverflowError, OSError) as exc:
+            log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
+    if pitloom_config.creation_datetime:
+        return pitloom_config.creation_datetime
+    return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
 
 
 def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
@@ -49,7 +72,7 @@ def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
             else "Generated via Pitloom Hatchling build hook (PEP 770)"
         ),
         creation_datetime=pitloom_config.creation_datetime,
-        build_datetime=to_spdx3_datetime(datetime.now(timezone.utc)).isoformat(),
+        build_datetime=_resolve_build_datetime(pitloom_config),
     )
 
 
@@ -175,8 +198,9 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         document, merkle_root = _build_document_model(
             project_dir, self.metadata, pitloom_config
         )
+        registry = resolve_registry(project_dir, pitloom_config.ids_file)
 
-        exporter = assemble_spdx3(document, merkle_root=merkle_root)
+        exporter = assemble_spdx3(document, merkle_root=merkle_root, registry=registry)
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
         # Wheels (and sdists) must always contain a compact, RFC 8785 (JCS)

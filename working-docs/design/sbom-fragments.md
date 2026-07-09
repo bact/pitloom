@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-07-08
+Last-Modified: 2026-07-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,8 +132,22 @@ to declare:
 
 ### 2. Fragment assembly: no conflict resolution or deduplication
 
-`merge_fragments` iterates fragment object sets and calls `exporter.object_set.add()`
-for each object. This approach:
+> **Status (2026-07): largely implemented.** `merge_fragments`
+> (`src/pitloom/assemble/spdx3/fragments.py`) now unifies elements across
+> fragments and the main document by (in priority order) shared `spdxId`,
+> SHA-256 content equality (`verifiedUsing`), and structural equality
+> modulo id for `Agent`/`Tool` -- never by name alone. Fragment
+> `SpdxDocument`/`software_Sbom` envelopes are dropped, references
+> remapped, duplicate relationships removed, `profileConformance` updated,
+> and a second `software_Sbom` rooted at the merged `ai_AIPackage` added.
+> Cross-fragment id stability comes from the `loom-ids.json` registry
+> (`src/pitloom/ids.py`, `pitloom ids generate|import`), consulted by
+> `pitloom.loom`, the build hook, and the CLI. `SpdxDocument.imports`
+> and pre-ingestion validation remain open.
+
+The original gap description below is kept for context.
+`merge_fragments` iterated fragment object sets and called
+`exporter.object_set.add()` for each object. That approach:
 
 - Does not detect or resolve duplicate `spdxId` values across fragments.
 - Does not deduplicate semantically equivalent elements (same package, same

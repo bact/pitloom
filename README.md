@@ -91,6 +91,109 @@ loom -m Qwen/Qwen3-235B-A22B   # bare model ID also works
 
 `loom -h` shows the full option list.
 
+### Hatchling build hook
+
+Pitloom can embed an SBOM automatically into every wheel you build, at
+`.dist-info/sboms/sbom.spdx3.json`, per
+[PEP 770](https://peps.python.org/pep-0770/) (wheels only). Add `pitloom`
+as a build requirement (Hatchling **1.28.0+** required) and register the
+hook:
+
+```toml
+[build-system]
+requires = ["hatchling>=1.28.0", "pitloom>=0.10.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.pitloom]
+enabled = true    # set to false to skip SBOM generation
+```
+
+That's all -- `hatch build`/`python -m build` now embeds the SBOM, always
+as compact canonical JSON. Basename and fragments are configured under
+`[tool.pitloom]`; creator/tool metadata uses the same
+`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
+`[tool.pitloom.creation]` tables the CLI reads (see
+[Creation metadata](#creation-metadata) above):
+
+```toml
+[tool.pitloom]
+sbom-basename = "sbom"   # -> "sbom.spdx3.json"
+
+[tool.pitloom.fragments]
+files = ["fragments/model.json"]   # merge externally tracked fragments
+```
+
+### Python API
+
+The SBOM generator can be used programmatically:
+
+```python
+from pathlib import Path
+from pitloom.core.creation import CreationMetadata, Creator
+from pitloom.assemble import generate_sbom
+
+generate_sbom(
+    project_dir=Path("/path/to/project"),
+    output_path=Path("sbom.spdx3.json"),
+    creation_metadata=CreationMetadata(creators=[Creator(name="Your Name")]),
+)
+```
+
+`pitloom.assemble` also exposes `generate_ai_model_sbom()` (a local model
+file) and `generate_huggingface_sbom()` (a Hub model ID or URL), with the
+same `output_path`/`creation_metadata`/`pretty` keywords.
+
+### Python tracking decorator
+
+Developers can annotate scripts or Jupyter notebooks to generate external
+SBOM fragments that Pitloom will merge during the build process, as a
+function decorator or a context manager:
+
+```python
+from pitloom import loom
+
+@loom.run(output_file="fragments/sentiment_model.json")
+def train_model():
+    loom.set_model("sentiment-clf")
+    loom.add_dataset("imdb-reviews", dataset_type="text")
+    # ... training logic ...
+```
+
+`loom.run` accepts the same [creation metadata](#creation-metadata) as the
+CLI and build hook, via `creation_metadata=CreationMetadata(...)`. With
+none given, the fragment records the unattended-run default (Pitloom
+itself as both creator and tool).
+
+The run also records *which script produced what*: the calling script
+becomes a `software_File` (with a SHA-256 hash) with `generates`
+relationships to the model it trained and/or the output datasets it wrote.
+Datasets that exist on disk get `verifiedUsing` SHA-256 hashes. These
+`generates` edges are scoped `build` (`LifecycleScopedRelationship`) --
+they describe a build-time step, not something that runs in the shipped
+artifact. Contrast with the `hasDataFile` relationship Pitloom emits when it
+detects a script *using* a model file at runtime (e.g. a `predict.py` that
+loads it) -- that one is scoped `runtime`.
+
+A single run can cover more than one independent preprocessing stage --
+e.g. producing train/valid/test splits from separate raw sources in one
+`loom.run` block -- without their `hasInput` lineage bleeding into each
+other. Pass `input_datasets=` on `add_output_dataset()` to name exactly
+which `add_input_dataset()` calls a given output derives from:
+
+```python
+with loom.run("fragments/preprocess.json") as run:
+    for split in ("train", "valid", "test"):
+        sources = [f"rawdata/{split}/{label}.txt" for label in labels]
+        for source in sources:
+            run.add_input_dataset(source, dataset_type="text")
+        run.add_output_dataset(
+            f"data/{split}.txt", dataset_type="text", input_datasets=sources
+        )
+```
+
+Omit `input_datasets` (the default) when a run has exactly one output
+batch -- it then derives from every input the run declared, as before.
+
 ### Creation metadata
 
 These flags apply to project, AI model, and Hugging Face SBOM generation
@@ -135,78 +238,32 @@ See [Creation metadata](docs/creation-metadata.md) for what these fields
 record and why -- the who/what/when/how model behind every element Pitloom
 emits.
 
-### Python API
+### Loom IDs across fragments (`pitloom ids`)
 
-The SBOM generator can be used programmatically:
+Fragments are written by independent runs, so the same dataset or model
+would normally get a different `spdxId` in each -- leaving the merged SBOM
+as disconnected islands. The Loom ID registry (`loom-ids.json`) fixes that:
 
-```python
-from pathlib import Path
-from pitloom.core.creation import CreationMetadata, Creator
-from pitloom.assemble import generate_sbom
-
-generate_sbom(
-    project_dir=Path("/path/to/project"),
-    output_path=Path("sbom.spdx3.json"),
-    creation_metadata=CreationMetadata(creators=[Creator(name="Your Name")]),
-)
+```console
+pitloom ids generate data src --entity my-model   # pin ids before running
+pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
-`pitloom.assemble` also exposes `generate_ai_model_sbom()` (a local model
-file) and `generate_huggingface_sbom()` (a Hub model ID or URL), with the
-same `output_path`/`creation_metadata`/`pretty` keywords.
+`pitloom.loom`, `loom -m`, the build hook, and `generate_sbom()` all
+auto-discover the registry (or take it from `[tool.pitloom.ids] file`),
+so the same file/entity carries the same id everywhere. Regeneration is
+stable: an unchanged file keeps its id; changed content gets a fresh one
+(different bytes are different provenance).
 
-### Hatchling build hook
-
-Pitloom can embed an SBOM automatically into every wheel you build, at
-`.dist-info/sboms/sbom.spdx3.json`, per
-[PEP 770](https://peps.python.org/pep-0770/) (wheels only). Add `pitloom`
-as a build requirement (Hatchling **1.28.0+** required) and register the
-hook:
-
-```toml
-[build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.10.0"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.hooks.pitloom]
-enabled = true    # set to false to skip SBOM generation
-```
-
-That's all -- `hatch build`/`python -m build` now embeds the SBOM, always
-as compact canonical JSON. Basename and fragments are configured under
-`[tool.pitloom]`; creator/tool metadata uses the same
-`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
-`[tool.pitloom.creation]` tables the CLI reads (see
-[Creation metadata](#creation-metadata) above):
-
-```toml
-[tool.pitloom]
-sbom-basename = "sbom"   # -> "sbom.spdx3.json"
-
-[tool.pitloom.fragments]
-files = ["fragments/model.json"]   # merge externally tracked fragments
-```
-
-### Python tracking decorator
-
-Developers can annotate scripts or Jupyter notebooks to generate external
-SBOM fragments that Pitloom will merge during the build process, as a
-function decorator or a context manager:
-
-```python
-from pitloom import loom
-
-@loom.run(output_file="fragments/sentiment_model.json")
-def train_model():
-    loom.set_model("sentiment-clf")
-    loom.add_dataset("imdb-reviews", dataset_type="text")
-    # ... training logic ...
-```
-
-`loom.run` accepts the same [creation metadata](#creation-metadata) as the
-CLI and build hook, via `creation_metadata=CreationMetadata(...)`. With
-none given, the fragment records the unattended-run default (Pitloom
-itself as both creator and tool).
+At build time `merge_fragments` unifies fragment elements -- by shared
+`spdxId`, by identical SHA-256 content, or (for the per-fragment "Pitloom"
+`Agent`/`Tool` copies) by structural equality; **never by name alone**.
+Fragment envelopes are dropped, duplicate relationships removed, the
+document's `profileConformance` gains `ai`/`dataset` as appropriate, and a
+second `software_Sbom` rooted at the merged `ai_AIPackage` is added, so the
+wheel ships one connected AI-pipeline graph: the packaged training script
+`generates` the model, which was `trainedOn` datasets that trace back
+via `hasInput` to the raw data.
 
 ### Use Pitloom as a GitHub Action
 
