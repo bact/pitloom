@@ -68,6 +68,9 @@ Create SBOM during Hatchling build:
 [build-system]
 requires = ["hatchling>=1.28.0", "pitloom>=0.11.0"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.pitloom]
+enabled = true
 ```
 
 ### Python API
