@@ -20,7 +20,7 @@ from stav.vocab import spdx as stav_spdx
 from pitloom import loom
 
 ROOT = Path(__file__).resolve().parents[2]
-MODEL_PATH = ROOT / "models" / "sentiment.bin"
+MODEL_PATH = ROOT / "models" / "sentimentdemo.bin"
 TEST_FILE = ROOT / "data" / "processed" / "test.txt"
 FRAGMENT_PATH = ROOT / "fragments" / "03_evaluate.spdx3.json"
 

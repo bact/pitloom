@@ -25,6 +25,7 @@ from pitloom.core.models import (
     generate_spdx_id,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.ids import IdRegistry
 
 
 def _build_creation_bundle(
@@ -103,8 +104,20 @@ def _add_package_files(
     spdx_ci: spdx3.CreationInfo,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
+    registry: IdRegistry | None = None,
 ) -> dict[str, str]:
-    """Add package files and directory containment relationships."""
+    """Add package files and directory containment relationships.
+
+    When *registry* is given, each wheel file's id is looked up by its
+    physical (project-root-relative) path and content hash
+    (:meth:`~pitloom.ids.IdRegistry.lookup_file`); a match reuses the
+    registered ``spdxId`` instead of minting a fresh one, so this element and
+    the ``software_File`` a ``pitloom.loom`` fragment emits for the same
+    script become literally the same element once merged (see
+    :func:`pitloom.assemble.spdx3.fragments.merge_fragments`). A miss (not
+    registered, or a stale/mismatched hash) falls back to the existing
+    deterministic minting -- unchanged behaviour when no registry applies.
+    """
     metadata = doc.project
     file_spdx_ids: dict[str, str] = {}
     dir_spdx_ids: dict[str, str] = {}
@@ -146,8 +159,14 @@ def _add_package_files(
                 )
             )
 
+        registered_id = (
+            registry.lookup_file(package_file.physical_path, package_file.digest_sha256)
+            if registry is not None
+            else None
+        )
         package_entry = spdx3.software_File(
-            spdxId=generate_spdx_id("File", doc_name=metadata.name, doc_uuid=doc_uuid),
+            spdxId=registered_id
+            or generate_spdx_id("File", doc_name=metadata.name, doc_uuid=doc_uuid),
             name=package_file.distribution_path,
             creationInfo=spdx_ci,
         )
@@ -181,7 +200,12 @@ def _add_package_files(
     return file_spdx_ids
 
 
-def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExporter:
+def build(
+    doc: DocumentModel,
+    merkle_root: str | None = None,
+    *,
+    registry: IdRegistry | None = None,
+) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
     Args:
@@ -190,6 +214,15 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
         merkle_root: Optional hex-encoded SHA-256 Merkle root of the wheel
             source files (see :func:`~pitloom.core.models.compute_wheel_merkle_root`).
             When provided, any change to the packaged source causes a new document UUID.
+        registry: Optional stable file id registry (see
+            :mod:`pitloom.ids`). When given, wheel files reuse the
+            registered ``spdxId`` for their physical path/content hash
+            instead of a freshly minted one -- see :func:`_add_package_files`.
+            Also consulted for any scan-discovered AI model (see
+            :func:`~pitloom.assemble.spdx3.ai.add_ai_models`), so a model
+            file packaged into the wheel reuses the id a ``pitloom.loom``
+            fragment already registered for it instead of minting a second,
+            duplicate ``ai_AIPackage``.
 
     Returns:
         A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`
@@ -271,7 +304,9 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
     )
 
     # --- Files ---
-    file_spdx_ids = _add_package_files(doc, main_package, spdx_ci, doc_uuid, exporter)
+    file_spdx_ids = _add_package_files(
+        doc, main_package, spdx_ci, doc_uuid, exporter, registry
+    )
 
     # --- AI models (and their associated datasets) ---
     if doc.ai_models:
@@ -294,6 +329,7 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
             exporter=exporter,
+            registry=registry,
         )
 
     return exporter
@@ -302,6 +338,8 @@ def build(doc: DocumentModel, merkle_root: str | None = None) -> Spdx3JsonExport
 def build_model(
     model: AiModelMetadata,
     creation_metadata: CreationMetadata,
+    *,
+    entity_spdx_id: str | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone SPDX 3 SBOM for a single AI model file.
 
@@ -312,6 +350,12 @@ def build_model(
     Args:
         model: Extracted AI model metadata.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
+        entity_spdx_id: When given, overrides the ``ai_AIPackage``'s minted
+            ``spdxId`` with this one -- used by ``pitloom -m ... --registry``
+            so the resulting element shares its id with any
+            ``pitloom.loom`` fragment that registered the same entity name
+            (see :meth:`pitloom.ids.IdRegistry.lookup_entity`), letting the
+            two be unified by :func:`~pitloom.assemble.spdx3.fragments.merge_fragments`.
 
     Returns:
         A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`.
@@ -336,6 +380,8 @@ def build_model(
         exporter.object_set.add(tool)
 
     ai_pkg = _build_ai_package(model, spdx_ci, doc_name, doc_uuid)
+    if entity_spdx_id is not None:
+        ai_pkg.spdxId = entity_spdx_id
     exporter.add_package(ai_pkg)
 
     if model.license:

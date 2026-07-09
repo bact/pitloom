@@ -68,6 +68,11 @@ class PitloomConfig:
         creation_datetime: Optional creation timestamp override from
             ``[tool.pitloom.creation]``.
         creation_comment: Optional comment mapped to SPDX ``CreationInfo.comment``.
+        ids_file: Path to the Loom ID registry, from
+            ``[tool.pitloom.ids] file``, relative to the project directory.
+            ``None`` (default) means auto-discover ``loom-ids.json`` by
+            walking up from the project directory -- see
+            :meth:`pitloom.ids.IdRegistry.find`.
     """
 
     fragments: list[str] = field(default_factory=list)
@@ -78,6 +83,7 @@ class PitloomConfig:
     tools: list[Tool] | None = None
     creation_datetime: str | None = None
     creation_comment: str | None = None
+    ids_file: str | None = None
 
 
 def _check_moved_creation_keys(
@@ -244,6 +250,13 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     fragments = (
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
     )
+    raw_ids = pitloom_data.get("ids", {})
+    ids_file = raw_ids.get("file") if isinstance(raw_ids, dict) else None
+    if ids_file is not None and not isinstance(ids_file, str):
+        raise ValueError(
+            "[tool.pitloom.ids] 'file' must be a string, got "
+            f"{type(ids_file).__name__}: {ids_file!r}"
+        )
     pretty = bool(pitloom_data.get("pretty", False))
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
@@ -283,6 +296,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         tools=tools,
         creation_datetime=creation_datetime,
         creation_comment=creation_comment,
+        ids_file=ids_file,
     )
 
 

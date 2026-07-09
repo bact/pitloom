@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -16,9 +17,50 @@ from pitloom.assemble.spdx3.deps import build_license_elements
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.ids import IdRegistry
 
 # Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
 _SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}
+
+
+def _lookup_ai_model_entity(
+    ai_model: AiModelMetadata, registry: IdRegistry | None
+) -> str | None:
+    """Resolve a registered ``ai_AIPackage`` id for a scan-discovered model.
+
+    Tries, in order, every name a producer might plausibly have registered
+    this model under:
+
+    1. ``ai_model.name``, when the extractor set one.
+    2. ``format_info.physical_path`` -- the project-root-relative path (e.g.
+       ``"src/pkg/model.bin"``), i.e. the exact string a
+       ``pitloom.loom`` fragment's ``run.set_model(model_file_path, ...)``
+       call would have used as both the model's name and the registry
+       lookup key when invoked with that same path.
+    3. The file stem of ``format_info.file_name`` (e.g. ``"model"`` for
+       ``"model.bin"``) -- mirrors the lookup
+       :func:`pitloom.assemble.generate_ai_model_sbom` performs for
+       ``loom -m``/``--registry``.
+
+    Returns ``None`` (mint a fresh id, unchanged behaviour) when no registry
+    is given or none of the candidates are registered.
+    """
+    if registry is None:
+        return None
+
+    candidates: list[str] = []
+    if ai_model.name:
+        candidates.append(ai_model.name)
+    if ai_model.format_info.physical_path:
+        candidates.append(ai_model.format_info.physical_path)
+    if ai_model.format_info.file_name:
+        candidates.append(Path(ai_model.format_info.file_name).stem)
+
+    for candidate in candidates:
+        registered_id = registry.lookup_entity(candidate, "ai_AIPackage")
+        if registered_id is not None:
+            return registered_id
+    return None
 
 
 def _build_ai_package(
@@ -26,6 +68,7 @@ def _build_ai_package(
     creation_info: spdx3.CreationInfo,
     doc_name: str,
     doc_uuid: str,
+    entity_spdx_id: str | None = None,
 ) -> spdx3.ai_AIPackage:
     """Build an ``ai_AIPackage`` SPDX 3 element from an :class:`AiModelMetadata`.
 
@@ -63,13 +106,20 @@ def _build_ai_package(
         creation_info: The shared CreationInfo node.
         doc_name: The parent document/package name (for deterministic spdxId).
         doc_uuid: The document UUID (for deterministic spdxId).
+        entity_spdx_id: When given, overrides the freshly minted ``spdxId``
+            with this one -- used when a stable file/entity id registry
+            already has an id for this model (see
+            :func:`_lookup_ai_model_entity`), so this element and one built
+            from an independently generated ``pitloom.loom`` fragment become
+            literally the same element once merged.
 
     Returns:
         A populated :class:`spdx3.ai_AIPackage` instance.
     """
     pkg_name = ai_model.name or str(ai_model.format_info.model_format)
     ai_pkg = spdx3.ai_AIPackage(
-        spdxId=generate_spdx_id(
+        spdxId=entity_spdx_id
+        or generate_spdx_id(
             f"AIPackage-{pkg_name}", doc_name=doc_name, doc_uuid=doc_uuid
         ),
         name=pkg_name,
@@ -163,6 +213,7 @@ def add_ai_models(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
+    registry: IdRegistry | None = None,
 ) -> None:
     """Build ``ai_AIPackage`` and ``contains`` relationship elements for each
     AI model and add them to the exporter.
@@ -193,9 +244,19 @@ def add_ai_models(
         doc_name: Document name (project name) for SPDX ID generation.
         doc_uuid: Document-scoped UUID used in SPDX ID generation.
         exporter: Receives the new package and relationship elements.
+        registry: Optional stable file/entity id registry (see
+            :mod:`pitloom.ids`). When given, each model is looked up via
+            :func:`_lookup_ai_model_entity` (by name, physical path, then
+            file stem); a match reuses that registered ``spdxId`` instead of
+            minting a fresh one -- unifying a scan-discovered model (e.g. the
+            wheel's own packaged model file) with the ``ai_AIPackage`` a
+            ``pitloom.loom`` fragment already registered for the same model.
     """
     for ai_model in ai_models:
-        ai_pkg = _build_ai_package(ai_model, creation_info, doc_name, doc_uuid)
+        entity_spdx_id = _lookup_ai_model_entity(ai_model, registry)
+        ai_pkg = _build_ai_package(
+            ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
+        )
         exporter.add_package(ai_pkg)
 
         if ai_model.datasets:
@@ -259,7 +320,12 @@ def add_ai_models(
             for usage_path in ai_model.usage_files:
                 usage_file_id = file_spdx_ids.get(usage_path)
                 if usage_file_id:
-                    rel_usage = spdx3.Relationship(
+                    # Scoped `runtime`: the usage file (e.g. predict.py) loads
+                    # the model as part of the shipped artifact's execution --
+                    # contrast with the `generates` relationships loom.run
+                    # emits for a build-time training/preprocessing script,
+                    # which are scoped `build` (see pitloom.loom).
+                    rel_usage = spdx3.LifecycleScopedRelationship(
                         spdxId=generate_spdx_id(
                             "Relationship",
                             doc_name=doc_name,
@@ -268,6 +334,7 @@ def add_ai_models(
                         from_=usage_file_id,
                         to=[model_file_id],
                         relationshipType=spdx3.RelationshipType.hasDataFile,
+                        scope=spdx3.LifecycleScopeType.runtime,
                         creationInfo=creation_info,
                     )
                     exporter.add_relationship(rel_usage)

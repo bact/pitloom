@@ -62,6 +62,7 @@ def scan_project_for_ai_models(
                 meta = read_ai_model(phys_path)
                 meta.format_info.file_name = phys_path.name
                 meta.format_info.file_path_relative = pf.distribution_path
+                meta.format_info.physical_path = pf.physical_path
                 ai_models.append(meta)
                 log.debug(
                     "Discovered AI model: %s (format: %s)", pf.distribution_path, fmt

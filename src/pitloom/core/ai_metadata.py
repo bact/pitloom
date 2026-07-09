@@ -84,6 +84,15 @@ class AiModelFormatInfo:
     # Canonical distribution path of the file inside the project
     file_path_relative: str | None = None
 
+    # Project-root-relative filesystem path (e.g. "src/pkg/model.bin"), as
+    # opposed to file_path_relative's wheel-distribution path. Set by
+    # pitloom.extract.scanner.scan_project_for_ai_models so the assembler can
+    # look this exact string up in the id registry -- the same string a
+    # pitloom.loom fragment's run.set_model(model_file_path, ...) call would
+    # have registered it under -- letting the scan-discovered AIPackage reuse
+    # that id instead of minting a new one.
+    physical_path: str | None = None
+
     # Format enum value (e.g. AiModelFormat.GGUF)
     model_format: AiModelFormat = AiModelFormat.UNKNOWN
 
