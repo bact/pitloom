@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.core.creation import Creator, ToolInfo
+from pitloom.core.creation import Creator, Tool
 from pitloom.extract.pyproject import read_pyproject
 
 
@@ -240,7 +240,7 @@ creation-comment = "Created from config"
             Creator(name="Config Creator", email="config@example.com")
         ]
         assert config.creation_datetime == "2026-01-01T00:00:00+00:00"
-        assert config.tools == [ToolInfo(name="Config Tool")]
+        assert config.tools == [Tool(name="Config Tool")]
         assert config.creation_comment == "Created from config"
 
 
@@ -278,7 +278,7 @@ name = "MyWrapper"
             Creator(name="Acme Corp", type="organization"),
             Creator(name="Alice", email="alice@example.com"),
         ]
-        assert config.tools == [ToolInfo(name="Pitloom"), ToolInfo(name="MyWrapper")]
+        assert config.tools == [Tool(name="Pitloom"), Tool(name="MyWrapper")]
 
 
 def test_extract_pitloom_no_creation_tool_suppresses_tools() -> None:
@@ -467,7 +467,7 @@ name = "MyWrapper"
 
         _, config = read_pyproject(pyproject_path)
 
-        assert config.tools == [ToolInfo(name="MyWrapper")]
+        assert config.tools == [Tool(name="MyWrapper")]
 
 
 def test_extract_pitloom_creation_tool_missing_name_raises() -> None:
@@ -695,16 +695,16 @@ def test_creator_whitespace_name_raises() -> None:
         Creator(name="   ")
 
 
-def test_tool_info_empty_name_raises() -> None:
-    """``ToolInfo(name="")`` raises ValueError eagerly at construction."""
-    with pytest.raises(ValueError, match="ToolInfo name must be non-empty"):
-        ToolInfo(name="")
+def test_tool_empty_name_raises() -> None:
+    """``Tool(name="")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="Tool name must be non-empty"):
+        Tool(name="")
 
 
-def test_tool_info_whitespace_name_raises() -> None:
-    """``ToolInfo(name="   ")`` raises ValueError eagerly at construction."""
-    with pytest.raises(ValueError, match="ToolInfo name must be non-empty"):
-        ToolInfo(name="   ")
+def test_tool_whitespace_name_raises() -> None:
+    """``Tool(name="   ")`` raises ValueError eagerly at construction."""
+    with pytest.raises(ValueError, match="Tool name must be non-empty"):
+        Tool(name="   ")
 
 
 def test_extract_metadata_canonicalises_dependency_names() -> None:

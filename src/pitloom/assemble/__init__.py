@@ -10,30 +10,34 @@ from pathlib import Path
 
 from pitloom.assemble.spdx3.document import build, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
+from pitloom.core.project import ProjectMetadata
 from pitloom.extract._huggingface import read_huggingface
 from pitloom.extract.ai_model import read_ai_model
-from pitloom.extract.pyproject import read_pyproject
+from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
 
 
 def generate_sbom(
     project_dir: Path,
+    *,
     output_path: Path | None = None,
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
     describe_relationship: bool | None = None,
+    project_metadata: ProjectMetadata | None = None,
+    pitloom_config: PitloomConfig | None = None,
 ) -> str:
     """Generate an SPDX 3 SBOM for a Python project.
 
     Args:
-        project_dir: Path to the project directory.  Must contain a
-            ``pyproject.toml``.  Supports PEP 621 ``[project]``,
-            Poetry ``[tool.poetry]`` (used as fallback when ``[project]`` is
-            absent), and projects that declare both (``[project]`` wins
-            field-by-field).
+        project_dir: Path to the project directory.  Supports PEP 621
+            ``[project]`` and Poetry ``[tool.poetry]`` in ``pyproject.toml``
+            (``[project]`` wins field-by-field when both are present), or
+            ``setup.cfg``/``setup.py`` when no ``pyproject.toml`` exists.
         output_path: If given, the JSON-LD output is also written to this path.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
             When ``None`` a default :class:`~pitloom.core.creation.CreationMetadata`
@@ -43,16 +47,27 @@ def generate_sbom(
             If ``False``, produce compact output (no extra whitespace).
             If ``None`` (default), read the setting from ``[tool.pitloom] pretty``
             in ``pyproject.toml`` (which itself defaults to ``False``).
+        project_metadata: Pre-parsed project metadata, e.g. already loaded by
+            a caller such as the CLI. When ``None`` (default), parsed from
+            *project_dir* via :func:`~pitloom.extract.project.read_project`.
+            Must be supplied together with *pitloom_config* -- if only one
+            of the two is given, both are re-derived from *project_dir*
+            instead. Mutated in place: its ``.files`` attribute is set from
+            the wheel file scan.
+        pitloom_config: Pre-parsed ``[tool.pitloom]`` settings, paired with
+            *project_metadata* (see above).
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
 
     Raises:
-        FileNotFoundError: If ``pyproject.toml`` is not found in ``project_dir``.
+        FileNotFoundError: If none of ``pyproject.toml``, ``setup.cfg``, or
+            ``setup.py`` is found in ``project_dir`` (only checked when
+            *metadata*/*pitloom_config* are not supplied).
         ValueError: If required project metadata (e.g., ``name``) is missing.
     """
-    pyproject_path = project_dir / "pyproject.toml"
-    metadata, pitloom_config = read_pyproject(pyproject_path)
+    if project_metadata is None or pitloom_config is None:
+        project_metadata, pitloom_config, _ = read_project(project_dir)
     effective_pretty: bool = pitloom_config.pretty if pretty is None else pretty
     effective_describe: bool = bool(
         pitloom_config.describe_relationship
@@ -63,12 +78,12 @@ def generate_sbom(
     # Compute Merkle root via hatchling's own file discovery so the UUID
     # matches the build-hook path exactly (same WheelBuilder, same file set).
     merkle_root, project_files = get_wheel_files(project_dir)
-    metadata.files = project_files
+    project_metadata.files = project_files
 
     ai_models = scan_project_for_ai_models(project_dir, project_files)
 
     doc = DocumentModel(
-        project=metadata,
+        project=project_metadata,
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
     )

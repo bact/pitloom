@@ -52,7 +52,10 @@ pretty = true
         creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
+        project_metadata: object | None = None,
+        pitloom_config: object | None = None,
     ) -> str:
+        _ = (project_metadata, pitloom_config)
         captured["project_dir"] = project_dir
         captured["output_path"] = output_path
         captured["creation_metadata"] = creation_metadata
@@ -102,8 +105,17 @@ creation-datetime = "2026-04-01T00:00:00Z"
         creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
+        project_metadata: object | None = None,
+        pitloom_config: object | None = None,
     ) -> str:
-        _ = (project_dir, output_path, pretty, describe_relationship)
+        _ = (
+            project_dir,
+            output_path,
+            pretty,
+            describe_relationship,
+            project_metadata,
+            pitloom_config,
+        )
         captured["creation_metadata"] = creation_metadata
         return "{}"
 
@@ -163,8 +175,16 @@ creation-datetime = "2030-01-02T03:04:05Z"
         creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
+        project_metadata: object | None = None,
+        pitloom_config: object | None = None,
     ) -> str:
-        _ = (project_dir, output_path, describe_relationship)
+        _ = (
+            project_dir,
+            output_path,
+            describe_relationship,
+            project_metadata,
+            pitloom_config,
+        )
         captured["creation_metadata"] = creation_metadata
         captured["pretty"] = pretty
         return "{}"
@@ -219,8 +239,18 @@ version = "0.1.0"
         creation_metadata: object | None = None,
         pretty: bool | None = None,
         describe_relationship: bool | None = None,
+        project_metadata: object | None = None,
+        pitloom_config: object | None = None,
     ) -> str:
-        _ = (project_dir, output_path, creation_metadata, pretty, describe_relationship)
+        _ = (
+            project_dir,
+            output_path,
+            creation_metadata,
+            pretty,
+            describe_relationship,
+            project_metadata,
+            pitloom_config,
+        )
         return "{}"
 
     monkeypatch.chdir(current_dir)
@@ -248,10 +278,9 @@ def test_project_mode_malformed_pitloom_config_surfaces_error(
     ``creator-name`` directly under ``[tool.pitloom]`` is the old/invalid
     single-valued form (creators now live under
     ``[[tool.pitloom.creator]]``), so ``read_pyproject`` raises ``ValueError``.
-    Before the fix, ``_load_project_config`` and ``_resolve_output_path``
-    each caught and silently discarded that error, so the CLI would still
-    exit 0 and generate an SBOM with default creators and a generic output
-    filename. It must now propagate: exit code 1, no SBOM written.
+    ``_run_project_mode`` reads the project once via ``read_project()``; that
+    error must propagate rather than being silently discarded: exit code 1,
+    no SBOM written.
     """
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
@@ -282,38 +311,6 @@ creator-name = 123
     assert "Error generating SBOM" in captured.err
     assert not (project_dir / "x.spdx3.json").exists()
     assert not (tmp_path / "sbom.spdx3.json").exists()
-
-
-def test_resolve_output_path_malformed_pyproject_raises(tmp_path: Path) -> None:
-    """_resolve_output_path() reads pyproject.toml directly (via
-    read_pyproject()) and must propagate a malformed [tool.pitloom]
-    ValueError rather than silently falling back to a default output path.
-
-    This is a narrower, direct-call complement to
-    test_project_mode_malformed_pitloom_config_surfaces_error above: that
-    end-to-end test never actually exercises this propagation path inside
-    _resolve_output_path(), because _load_project_config() -- called first
-    in _run_project_mode() -- raises on the same malformed config and
-    short-circuits before _resolve_output_path() is ever reached.
-    """
-    project_dir = tmp_path / "proj"
-    project_dir.mkdir()
-    (project_dir / "pyproject.toml").write_text(
-        """
-[project]
-name = "x"
-
-[tool.pitloom]
-creator-name = 123
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError):
-        __main__._resolve_output_path(  # pylint: disable=protected-access
-            None, project_dir
-        )
 
 
 # ---------------------------------------------------------------------------

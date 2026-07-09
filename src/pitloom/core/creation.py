@@ -55,7 +55,7 @@ class Creator:
 
 
 @dataclass
-class ToolInfo:
+class Tool:
     """A single creation tool, mapping onto an SPDX 3 Tool.
 
     Attributes:
@@ -70,7 +70,7 @@ class ToolInfo:
 
     def __post_init__(self) -> None:
         if not self.name or not self.name.strip():
-            raise ValueError(f"ToolInfo name must be non-empty, got {self.name!r}.")
+            raise ValueError(f"Tool name must be non-empty, got {self.name!r}.")
 
 
 @dataclass
@@ -115,10 +115,10 @@ class CreationMetadata:
     """
 
     creators: list[Creator] = field(default_factory=list)
-    tools: list[ToolInfo] | None = None
+    tools: list[Tool] | None = None
     creation_datetime: str | None = None
     creation_comment: str | None = None
     build_datetime: str | None = None
 
 
-__all__ = ["VALID_CREATOR_TYPES", "CreationMetadata", "Creator", "ToolInfo"]
+__all__ = ["VALID_CREATOR_TYPES", "CreationMetadata", "Creator", "Tool"]

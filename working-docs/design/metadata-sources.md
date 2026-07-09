@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-07-08
+Last-Modified: 2026-07-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -190,7 +190,7 @@ handling.
 
 ## Recommended metadata source priority for pitloom
 
-Recommended long-term priority order for `_load_project_metadata()` is:
+Recommended long-term priority order for project metadata resolution is:
 
 ```text
 1. PEP 517 prepare_metadata_for_build_wheel   [opt-in; future]
@@ -208,6 +208,13 @@ Recommended long-term priority order for `_load_project_metadata()` is:
 5. setup.py setup() literal arguments         [implemented]
    └─ read_setup_py() (AST) -> ProjectMetadata
 ```
+
+Tiers 3-5 are implemented as a single existence-based priority (not a
+field-level merge across tiers) in
+`pitloom.extract.project.read_project()`, used by both the CLI and
+`generate_sbom()`'s default parsing path. Tiers 1-2 remain future work --
+see `working-docs/implementation/setuptools-support.md` for the current
+conflict-resolution behaviour and its known limitations.
 
 Sources 3–5 are combined via `merge_metadata(primary, secondary)` so gaps at
 one level are filled by the next without overwriting already-resolved fields.

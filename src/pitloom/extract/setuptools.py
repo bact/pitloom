@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
-from pitloom.core.creation import Creator, ToolInfo
+from pitloom.core.creation import Creator, Tool
 from pitloom.core.project import ProjectMetadata
 
 if sys.version_info >= (3, 11):
@@ -732,7 +732,7 @@ def _read_pitloom_config_from_cfg(
         else []
     )
     creation_tool_name = _pick_str("creation-tool", "creation_tool", "tool")
-    tools = [ToolInfo(name=creation_tool_name)] if creation_tool_name else None
+    tools = [Tool(name=creation_tool_name)] if creation_tool_name else None
 
     no_creation_tool_str = (
         (_pick_str("no-creation-tool", "no_creation_tool") or "").strip().lower()
