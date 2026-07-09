@@ -33,7 +33,7 @@ Unix philosophy. Consistent, predictable, parseable.
 
 ## Code style
 
-- Code comments must concise and about current implementation. Do not discuss previous iterations.
+- Code comments must direct, concise and about current implementation. Do not discuss history. Legimate current behavior vs alternative design is ok.
 
 ## Python
 
