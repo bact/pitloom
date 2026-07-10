@@ -143,7 +143,8 @@ same `output_path`/`creation_metadata`/`pretty` keywords.
 
 Developers can annotate scripts or Jupyter notebooks to generate external
 SBOM fragments that Pitloom will merge during the build process, as a
-function decorator or a context manager:
+function decorator or a context manager. Use `set_model` when generating
+a new model, and `use_model` when consuming one for inference or evaluation:
 
 ```python
 from pitloom import loom
@@ -153,6 +154,12 @@ def train_model():
     loom.set_model("sentiment-clf")
     loom.add_dataset("imdb-reviews", dataset_type="text")
     # ... training logic ...
+
+@loom.run(output_file="fragments/sentiment_eval.json")
+def evaluate_model():
+    loom.use_model("sentiment-clf")
+    loom.add_dataset("imdb-test-set", dataset_type="text")
+    # ... evaluation logic ...
 ```
 
 See [Python tracking decorator advanced usage](#python-tracking-decorator-advanced-usage)
