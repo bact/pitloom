@@ -1,4 +1,4 @@
-# Pitloom - An SBOM generator for AI models and Python projects
+# Pitloom - SBOM generator for AI models and Python projects
 
 [![PyPI - Version](https://img.shields.io/pypi/v/pitloom)](https://pypi.org/project/pitloom/)
 ![GitHub License](https://img.shields.io/github/license/bact/pitloom)
