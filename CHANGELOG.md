@@ -18,6 +18,15 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.10.0...v0.11.0>
 
+## [0.12.0] - 2026-07-10
+
+### Added
+
+- `use_model` method to `loom.run` to record relationship between an inference
+  code and an AI model ([#95])
+
+[#95]: https://github.com/bact/pitloom/pull/95
+
 ## [0.11.0] - 2026-07-09
 
 ### Added
@@ -313,6 +322,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.12.0]: https://github.com/bact/pitloom/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/bact/pitloom/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/bact/pitloom/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/bact/pitloom/compare/v0.8.0...v0.9.0

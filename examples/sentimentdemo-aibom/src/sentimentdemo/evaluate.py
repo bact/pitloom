@@ -35,7 +35,7 @@ def evaluate() -> tuple[int, float, float]:
         A 3-tuple of (n_samples, precision_at_1, recall_at_1).
     """
     with loom.run(FRAGMENT_PATH, pretty=True):
-        loom.set_model(
+        loom.use_model(
             name="sentimentdemo",
             model_type=str(stav_dpv.ai.AITechnique.SupervisedLearning),
         )
