@@ -12,6 +12,12 @@ packages and AI models (GGUF, ONNX, PyTorch, Safetensors), producing
 standardized SPDX 3 JSON artifacts -- as a CLI, a library, or a native
 Hatchling build hook.
 
+When used with Hatchling, it embeds the generated SBOM directly into
+the Python distribution package (wheel) `.dist-info/sboms` --
+follows [PEP 770].
+
+[PEP 770]: https://peps.python.org/pep-0770/
+
 ![The Pippin Pitloom](./docs/mascot.png)
 
 ## Contents
