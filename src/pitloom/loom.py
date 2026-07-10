@@ -137,12 +137,19 @@ def _hash_and_registry_lookup(
     registered_id: str | None = None
     if registry is not None:
         registered_id = registry.lookup_file(name, sha256)
-        if registered_id is None and name in registry.files:
-            log.warning(
-                "loom: registry entry for %r exists but its SHA-256 no "
-                "longer matches; minting a new spdxId (content changed).",
-                name,
-            )
+        if registered_id is None:
+            if name in registry.files:
+                log.warning(
+                    "loom: registry entry for %r exists but its SHA-256 no "
+                    "longer matches; minting a new spdxId (content changed).",
+                    name,
+                )
+            else:
+                log.warning(
+                    "loom: file %r not found in registry; minting a new spdxId "
+                    "(untracked file).",
+                    name,
+                )
     return hash_element, registered_id
 
 
@@ -218,11 +225,22 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
                 the inference explicitly.
         """
         caller_info = _get_caller_info()
-        registered_id = (
-            self.registry.lookup_entity(name, "ai_AIPackage")
-            if self.registry is not None
-            else None
-        )
+        registered_id = None
+        if self.registry is not None:
+            registered_id = self.registry.lookup_entity(name, "ai_AIPackage")
+            if registered_id is None:
+                if name in self.registry.entities:
+                    log.warning(
+                        "loom: registry entry for entity %r exists but under a "
+                        "different type; minting a new spdxId.",
+                        name,
+                    )
+                else:
+                    log.warning(
+                        "loom: entity %r not found in registry; minting a new spdxId "
+                        "(untracked entity).",
+                        name,
+                    )
         self.model = spdx3.ai_AIPackage(
             spdxId=registered_id or generate_spdx_id("AIPackage", name, self.doc_uuid),
             name=name,
@@ -238,6 +256,24 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
                 for k, v in hyperparameters.items()
             ]
         self.exporter.add_package(self.model)
+
+    def use_model(
+        self,
+        name: str,
+        model_type: str | None = None,
+        hyperparameters: dict[str, str] | None = None,
+    ) -> None:
+        """Define the primary AI model being consumed/loaded by the current run.
+
+        This explicitly records the model as a runtime dependency (creates a
+        ``hasDataFile`` relationship) rather than a generated artifact.
+        """
+        self.set_model(
+            name,
+            model_type=model_type,
+            hyperparameters=hyperparameters,
+            generated=False,
+        )
 
     def set_model_hyperparameters(self, hyperparameters: dict[str, str]) -> None:
         """Update the active model with hyperparameters captured after training.
@@ -457,7 +493,7 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
 
         output_targets = sorted(require_spdx_id(ds) for ds, _ in self.output_datasets)
 
-        if not generates_model and not output_targets:
+        if self.model is None and not output_targets:
             return
 
         script_file = self._build_script_file(script_path)
@@ -482,6 +518,21 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
                     to=[require_spdx_id(self.model)],
                     relationshipType=spdx3.RelationshipType.generates,
                     scope=spdx3.LifecycleScopeType.build,
+                    creationInfo=self.creation_info,
+                )
+            )
+        elif self.model is not None and not generates_model:
+            self.exporter.add_relationship(
+                spdx3.LifecycleScopedRelationship(
+                    spdxId=generate_spdx_id(
+                        "Relationship",
+                        f"{script_path}-hasDataFile-{self.model.name}",
+                        self.doc_uuid,
+                    ),
+                    from_=script_id,
+                    to=[require_spdx_id(self.model)],
+                    relationshipType=spdx3.RelationshipType.hasDataFile,
+                    scope=spdx3.LifecycleScopeType.runtime,
                     creationInfo=self.creation_info,
                 )
             )
@@ -641,6 +692,24 @@ def set_model(
         model_type=model_type,
         hyperparameters=hyperparameters,
         generated=generated,
+    )
+
+
+def use_model(
+    name: str,
+    model_type: str | None = None,
+    hyperparameters: dict[str, str] | None = None,
+) -> None:
+    """Explicitly declare an AI model consumed by the current run (for inference)."""
+    if _active_run is None:
+        raise RuntimeError(
+            "No active loom.run() found. Please use `loom.use_model()` inside a "
+            "`with pitloom.loom.run():` block or decorated function."
+        )
+    _active_run.use_model(
+        name,
+        model_type=model_type,
+        hyperparameters=hyperparameters,
     )
 
 

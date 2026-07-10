@@ -686,10 +686,10 @@ def test_loom_training_run_emits_script_file_and_generates_edge() -> None:
         assert generates[0]["to"] == [model["spdxId"]]
 
 
-def test_loom_testedon_only_run_has_no_generates_edge_or_script_file() -> None:
+def test_loom_testedon_only_run_emits_hasdatafile_edge() -> None:
     """An evaluation-only run (model + validation dataset, no training
-    dataset) gets no generates edge -- and therefore no orphan script File
-    either."""
+    dataset) gets no generates edge, but DOES get a hasDataFile edge and
+    a script File."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with loom.run(output_file):
@@ -697,9 +697,10 @@ def test_loom_testedon_only_run_has_no_generates_edge_or_script_file() -> None:
             loom.add_validation_dataset(_EXISTING_FILE)
 
         graph = json.loads(output_file.read_text())["@graph"]
-        assert not [e for e in graph if e["type"] == "software_File"]
+        assert [e for e in graph if e["type"] == "software_File"]
         rels = _relationships(graph)
         assert not [r for r in rels if r.get("relationshipType") == "generates"]
+        assert [r for r in rels if r.get("relationshipType") == "hasDataFile"]
 
 
 def test_loom_generated_true_override_forces_edge() -> None:
@@ -717,9 +718,9 @@ def test_loom_generated_true_override_forces_edge() -> None:
         assert [e for e in graph if e["type"] == "software_File"]
 
 
-def test_loom_generated_false_override_suppresses_edge() -> None:
+def test_loom_generated_false_override_emits_hasdatafile_edge() -> None:
     """generated=False suppresses the generates edge even with a training
-    dataset declared."""
+    dataset declared, but emits hasDataFile."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with loom.run(output_file):
@@ -729,7 +730,24 @@ def test_loom_generated_false_override_suppresses_edge() -> None:
         graph = json.loads(output_file.read_text())["@graph"]
         rels = _relationships(graph)
         assert not [r for r in rels if r.get("relationshipType") == "generates"]
-        assert not [e for e in graph if e["type"] == "software_File"]
+        assert [r for r in rels if r.get("relationshipType") == "hasDataFile"]
+        assert [e for e in graph if e["type"] == "software_File"]
+
+
+def test_loom_use_model_emits_hasdatafile_edge() -> None:
+    """use_model is an explicit shortcut for set_model(generated=False),
+    emitting hasDataFile even if a training dataset is accidentally declared."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "frag.json"
+        with loom.run(output_file):
+            loom.use_model("test-model")
+            loom.add_dataset(_EXISTING_FILE)
+
+        graph = json.loads(output_file.read_text())["@graph"]
+        rels = _relationships(graph)
+        assert not [r for r in rels if r.get("relationshipType") == "generates"]
+        assert [r for r in rels if r.get("relationshipType") == "hasDataFile"]
+        assert [e for e in graph if e["type"] == "software_File"]
 
 
 def test_loom_output_dataset_only_run_gets_generates_edge_to_outputs() -> None:

@@ -17,9 +17,9 @@ Hatchling build hook.
 ## Contents
 
 - [Quick start](#quick-start)
-- [Ways to use Pitloom](#ways-to-use-pitloom)
 - [Usage](#usage)
 - [Example](#example)
+- [Detailed features](#detailed-features)
 - [Metadata provenance](#metadata-provenance)
 - [References](#references)
 - [License](#license)
@@ -43,7 +43,7 @@ pip install -e ".[ai]"       # all supported AI model formats
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 
-## Ways to use Pitloom
+## Usage
 
 | Surface | Reach for this when... |
 | :--- | :--- |
@@ -54,8 +54,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 | [GitHub Action](#use-pitloom-as-a-github-action) | Your project isn't Hatchling-based, or you just want CI to produce an SBOM artifact with one `uses:` line. |
 | [Agent Skill](#use-pitloom-as-an-ai-agent-skill) | You want an AI coding agent to generate (and optionally enrich) an SBOM on request. |
 | [Claude Code plugin](#use-pitloom-as-a-claude-code-plugin) | You use Claude Code and want the Skills installable with one command. |
-
-## Usage
 
 ### Command line
 
@@ -72,7 +70,7 @@ local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`), Keras,
 HDF5, NumPy, fastText:
 
 ```bash
-loom -m path/to/model.safetensors -o my-model.spdx3.json
+loom -m path/to/model.safetensors -o model.spdx3.json
 loom -m path/to/model.gguf --pretty
 ```
 
@@ -111,7 +109,7 @@ as compact canonical JSON. Basename and fragments are configured under
 `[tool.pitloom]`; creator/tool metadata uses the same
 `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
 `[tool.pitloom.creation]` tables the CLI reads (see
-[Creation metadata](#creation-metadata) above):
+[Creation metadata](#creation-metadata) below):
 
 ```toml
 [tool.pitloom]
@@ -157,40 +155,65 @@ def train_model():
     # ... training logic ...
 ```
 
-`loom.run` accepts the same [creation metadata](#creation-metadata) as the
-CLI and build hook, via `creation_metadata=CreationMetadata(...)`. With
-none given, the fragment records the unattended-run default (Pitloom
-itself as both creator and tool).
+See [Python tracking decorator advanced usage](#python-tracking-decorator-advanced-usage)
+below for more details.
 
-The run also records *which script produced what*: the calling script
-becomes a `software_File` (with a SHA-256 hash) with `generates`
-relationships to the model it trained and/or the output datasets it wrote.
-Datasets that exist on disk get `verifiedUsing` SHA-256 hashes. These
-`generates` edges are scoped `build` (`LifecycleScopedRelationship`) --
-they describe a build-time step, not something that runs in the shipped
-artifact. Contrast with the `hasDataFile` relationship Pitloom emits when it
-detects a script *using* a model file at runtime (e.g. a `predict.py` that
-loads it) -- that one is scoped `runtime`.
+### Use Pitloom as a GitHub Action
 
-A single run can cover more than one independent preprocessing stage --
-e.g. producing train/valid/test splits from separate raw sources in one
-`loom.run` block -- without their `hasInput` lineage bleeding into each
-other. Pass `input_datasets=` on `add_output_dataset()` to name exactly
-which `add_input_dataset()` calls a given output derives from:
+Add SBOM generation to any repository's CI with a single step, for any
+Python build backend, not just Hatchling:
 
-```python
-with loom.run("fragments/preprocess.json") as run:
-    for split in ("train", "valid", "test"):
-        sources = [f"rawdata/{split}/{label}.txt" for label in labels]
-        for source in sources:
-            run.add_input_dataset(source, dataset_type="text")
-        run.add_output_dataset(
-            f"data/{split}.txt", dataset_type="text", input_datasets=sources
-        )
+```yaml
+- uses: bact/pitloom@v0.12.0
 ```
 
-Omit `input_datasets` (the default) when a run has exactly one output
-batch -- it then derives from every input the run declared, as before.
+See [working-docs/implementation/github-action.md](working-docs/implementation/github-action.md)
+for inputs, outputs, and more recipes.
+
+### Use Pitloom as an AI-agent skill
+
+`skills/sbom/` and `skills/enrich/` are ready-to-install
+[Agent Skills](https://www.anthropic.com/) for Claude Code and the Claude
+Agent SDK: `sbom` generates an SBOM on request; `enrich` augments an
+existing one with detail read from a README or model card, via Pitloom's
+fragment system.
+
+```bash
+mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install
+cp -r /path/to/pitloom/skills/sbom /path/to/pitloom/skills/enrich ~/.claude/skills/
+```
+
+See [working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
+for full install instructions.
+
+### Use Pitloom as a Claude Code plugin
+
+The Skills above are also installable as a plugin, self-hosted from this
+repository:
+
+```text
+/plugin marketplace add bact/pitloom
+/plugin install pitloom@pitloom
+```
+
+Once installed: `/pitloom:sbom`, `/pitloom:enrich` (or just ask in plain
+language). See
+[working-docs/implementation/claude-code-plugin.md](working-docs/implementation/claude-code-plugin.md)
+for what the plugin bundles.
+
+## Example
+
+```bash
+git clone https://github.com/bact/sentimentdemo.git
+loom sentimentdemo
+```
+
+The generated SBOM includes project metadata, dependencies with version
+constraints, SPDX relationships, creator/creation info, and per-field
+metadata provenance. See a more complete example in the
+[examples/](./examples/) directory.
+
+## Detailed features
 
 ### Creation metadata
 
@@ -243,7 +266,7 @@ would normally get a different `spdxId` in each -- leaving the merged SBOM
 as disconnected islands. The Loom ID registry (`loom-ids.json`) fixes that:
 
 ```console
-pitloom ids generate data src --entity my-model   # pin ids before running
+pitloom ids generate data src --entity model      # pin ids before running
 pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
@@ -263,60 +286,42 @@ wheel ships one connected AI-pipeline graph: the packaged training script
 `generates` the model, which was `trainedOn` datasets that trace back
 via `hasInput` to the raw data.
 
-### Use Pitloom as a GitHub Action
+### Python tracking decorator advanced usage
 
-Add SBOM generation to any repository's CI with a single step, for any
-Python build backend, not just Hatchling:
+`loom.run` accepts the same [creation metadata](#creation-metadata) as the
+CLI and build hook, via `creation_metadata=CreationMetadata(...)`. With
+none given, the fragment records the unattended-run default (Pitloom
+itself as both creator and tool).
 
-```yaml
-- uses: bact/pitloom@v0.11.0
+The run also records *which script produced what*: the calling script
+becomes a `software_File` (with a SHA-256 hash) with `generates`
+relationships to the model it trained and/or the output datasets it wrote.
+Datasets that exist on disk get `verifiedUsing` SHA-256 hashes. These
+`generates` edges are scoped `build` (`LifecycleScopedRelationship`) --
+they describe a build-time step, not something that runs in the shipped
+artifact. Contrast with the `hasDataFile` relationship Pitloom emits when it
+detects a script *using* a model file at runtime (e.g. a `predict.py` that
+loads it) -- that one is scoped `runtime`.
+
+A single run can cover more than one independent preprocessing stage --
+e.g. producing train/valid/test splits from separate raw sources in one
+`loom.run` block -- without their `hasInput` lineage bleeding into each
+other. Pass `input_datasets=` on `add_output_dataset()` to name exactly
+which `add_input_dataset()` calls a given output derives from:
+
+```python
+with loom.run("fragments/preprocess.json") as run:
+    for split in ("train", "valid", "test"):
+        sources = [f"rawdata/{split}/{label}.txt" for label in labels]
+        for source in sources:
+            run.add_input_dataset(source, dataset_type="text")
+        run.add_output_dataset(
+            f"data/{split}.txt", dataset_type="text", input_datasets=sources
+        )
 ```
 
-See [working-docs/implementation/github-action.md](working-docs/implementation/github-action.md)
-for inputs, outputs, and more recipes.
-
-### Use Pitloom as an AI-agent skill
-
-`skills/sbom/` and `skills/enrich/` are ready-to-install
-[Agent Skills](https://www.anthropic.com/) for Claude Code and the Claude
-Agent SDK: `sbom` generates an SBOM on request; `enrich` augments an
-existing one with detail read from a README or model card, via Pitloom's
-fragment system.
-
-```bash
-mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install
-cp -r /path/to/pitloom/skills/sbom /path/to/pitloom/skills/enrich ~/.claude/skills/
-```
-
-See [working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
-for full install instructions.
-
-### Use Pitloom as a Claude Code plugin
-
-The Skills above are also installable as a plugin, self-hosted from this
-repository:
-
-```text
-/plugin marketplace add bact/pitloom
-/plugin install pitloom@pitloom
-```
-
-Once installed: `/pitloom:sbom`, `/pitloom:enrich` (or just ask in plain
-language). See
-[working-docs/implementation/claude-code-plugin.md](working-docs/implementation/claude-code-plugin.md)
-for what the plugin bundles.
-
-## Example
-
-```bash
-git clone https://github.com/bact/sentimentdemo.git
-loom sentimentdemo
-```
-
-The generated SBOM includes project metadata, dependencies with version
-constraints, SPDX relationships, creator/creation info, and per-field
-metadata provenance. See a more complete example in the
-[examples/](./examples/) directory.
+Omit `input_datasets` (the default) when a run has exactly one output
+batch -- it then derives from every input the run declared, as before.
 
 ## Metadata provenance
 
@@ -331,7 +336,8 @@ and a worked example.
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf)
 - [PEP 770 – SBOM metadata in Python packages](https://peps.python.org/pep-0770/)
 - [Design document](working-docs/design/architecture-overview.md)
-- Bennet et al., [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom), The Linux Foundation, 2024.
+- Bennet et al., [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom),
+  The Linux Foundation, 2024.
 
 ## License
 
