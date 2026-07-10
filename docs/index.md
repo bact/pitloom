@@ -18,6 +18,12 @@ systems. It reads metadata directly from Python packages and AI models
 (GGUF, ONNX, PyTorch, Safetensors) and offers native Hatchling integration
 so SBOMs can be generated automatically as part of a build.
 
+When used with Hatchling, it embeds the generated SBOM directly into
+the Python distribution package (wheel) `.dist-info/sboms` --
+follows [PEP 770].
+
+[PEP 770]: https://peps.python.org/pep-0770/
+
 ## Install
 
 ```bash
@@ -99,10 +105,19 @@ from pitloom import loom
 
 @loom.run(output_file="fragments/train.json")
 def train_model():
-    loom.set_model("model-name")
-    loom.add_dataset("dataset-name", dataset_type="text")
+    loom.set_model("model-name")                             # <-- (A)
+    loom.add_dataset("dataset-name", dataset_type="text")    # <-- (B)
     # ... training logic ...
+
+@loom.run(output_file="fragments/eval.json")
+def evaluate_model():
+    loom.use_model("model-name")                             # <-- (C)
+    loom.add_dataset("dataset-name", dataset_type="text")    # <-- (B)
+    # ... evaluation logic ...
 ```
+
+- (A) and (C) set relationship between the code and the model
+- (B) sets relationship between the code and the dataset
 
 ## Learn more
 
