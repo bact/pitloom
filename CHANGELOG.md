@@ -23,7 +23,9 @@ and this project adheres to
 ### Added
 
 - `use_model` method to `loom.run` to record relationship between an inference
-  code and an AI model.
+  code and an AI model ([#95])
+
+[#95]: https://github.com/bact/pitloom/pull/95
 
 ## [0.11.0] - 2026-07-09
 
