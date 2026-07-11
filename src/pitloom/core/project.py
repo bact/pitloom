@@ -25,6 +25,26 @@ class ProjectFile:
 
 
 @dataclass
+class PhantomDependency:
+    """A bundled binary dependency not tracked by normal package metadata.
+
+    Examples include bundled shared libraries (.so, .dll, .dylib) inside wheels
+    and pre-compiled extension modules (.pyd) that link to external C/C++ libraries.
+
+    Attributes:
+        name: Name of the binary dependency (e.g., 'libz', 'openssl').
+        file_path: Canonical path to the binary inside the distribution/wheel.
+        digest_sha256: Hex-encoded SHA-256 digest of the binary file contents.
+        version: Inferred version of the binary, if any.
+    """
+
+    name: str
+    file_path: str
+    digest_sha256: str | None = None
+    version: str | None = None
+
+
+@dataclass
 class ProjectMetadata:
     """Format-neutral representation of project metadata with provenance tracking.
 

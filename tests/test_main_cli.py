@@ -69,7 +69,7 @@ pretty = true
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", str(project_dir), "-o", str(output_path)],
+        ["loom", "source", str(project_dir), "-o", str(output_path)],
     )
 
     exit_code = __main__.main()
@@ -124,7 +124,7 @@ creation-datetime = "2026-04-01T00:00:00Z"
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir)])
 
     exit_code = __main__.main()
 
@@ -197,7 +197,7 @@ creation-datetime = "2030-01-02T03:04:05Z"
 
     monkeypatch.chdir(current_dir)
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(target_dir)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(target_dir)])
 
     exit_code = __main__.main()
 
@@ -263,7 +263,7 @@ version = "0.1.0"
 
     monkeypatch.chdir(current_dir)
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(target_dir), "-v"])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(target_dir), "-v"])
 
     exit_code = __main__.main()
     captured = capsys.readouterr()
@@ -310,7 +310,7 @@ creator-name = 123
         )
 
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir)])
 
     exit_code = __main__.main()
     captured = capsys.readouterr()
@@ -346,7 +346,7 @@ def test_model_mode_no_project_dir_required(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     assert captured["model_path"] == SAFETENSORS_FIXTURE.resolve()
@@ -374,7 +374,7 @@ def test_model_mode_explicit_output_path(
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
     monkeypatch.setattr(
-        sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "-o", str(explicit_out)]
+        sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-o", str(explicit_out)]
     )
 
     assert __main__.main() == 0
@@ -400,7 +400,7 @@ def test_model_mode_default_output_path_uses_stem(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     out = captured["output_path"]
@@ -428,7 +428,7 @@ def test_model_mode_passes_pretty_flag(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "--pretty"])
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "--pretty"])
 
     assert __main__.main() == 0
     assert captured["pretty"] is True
@@ -456,7 +456,7 @@ def test_model_mode_passes_creation_info(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
+        ["loom", "model", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
     )
 
     assert __main__.main() == 0
@@ -470,7 +470,7 @@ def test_model_mode_nonexistent_file_returns_error(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
-        sys, "argv", ["loom", "-m", str(tmp_path / "no-such-model.safetensors")]
+        sys, "argv", ["loom", "model", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
 
@@ -486,7 +486,7 @@ def test_project_mode_default_creation_comment(
         '[project]\nname = "cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
     )
     out = tmp_path / "cli-app.spdx3.json"
-    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir), "-o", str(out)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir), "-o", str(out)])
 
     assert __main__.main() == 0
 
@@ -512,6 +512,7 @@ def test_project_mode_creator_type_organization(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -555,6 +556,7 @@ def test_project_mode_creator_type_software_agent_and_agent(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -590,6 +592,7 @@ def test_project_mode_multiple_interleaved_creators(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -635,6 +638,7 @@ def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -682,7 +686,7 @@ def test_creator_type_invalid_choice_rejected_by_argparse(
         "argv",
         [
             "loom",
-            ".",
+            "source", ".",
             "--creator-name",
             "Bot",
             "--creator-type",
@@ -699,7 +703,7 @@ def test_creator_type_before_creator_name_errors(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--creator-type before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-type", "organization"])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", ".", "--creator-type", "organization"])
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-type must come after a --creator-name" in capsys.readouterr().err
@@ -710,7 +714,7 @@ def test_creator_email_before_creator_name_errors(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--creator-email before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-email", "a@example.com"])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", ".", "--creator-email", "a@example.com"])
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
@@ -733,6 +737,7 @@ def test_project_mode_repeated_creation_tool(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -755,8 +760,10 @@ def test_no_args_returns_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["loom"])
-    assert __main__.main() == 1
-    assert "project_dir" in capsys.readouterr().err
+    with pytest.raises(SystemExit) as excinfo:
+        __main__.main()
+    assert excinfo.value.code == 2
+    assert "the following arguments are required: command" in capsys.readouterr().err
 
 
 def test_model_mode_verbose_shows_model_path(
@@ -776,7 +783,7 @@ def test_model_mode_verbose_shows_model_path(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "-v"])
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-v"])
 
     assert __main__.main() == 0
     out = capsys.readouterr().out
@@ -797,7 +804,7 @@ def test_model_mode_safetensors_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -817,7 +824,7 @@ def test_model_mode_onnx_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -837,7 +844,7 @@ def test_model_mode_safetensors_no_software_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -856,7 +863,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -895,7 +902,7 @@ def test_hf_url_routes_to_huggingface_sbom(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "model", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -919,7 +926,7 @@ def test_hf_model_id_routes_to_huggingface_sbom(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", "Qwen/Qwen3-235B-A22B"])
+    monkeypatch.setattr(sys, "argv", ["loom", "model", "Qwen/Qwen3-235B-A22B"])
 
     assert __main__.main() == 0
     assert captured["model_source"] == "Qwen/Qwen3-235B-A22B"
@@ -945,7 +952,7 @@ def test_hf_mode_default_output_uses_model_name(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "model", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -979,7 +986,7 @@ def test_hf_mode_explicit_output_path(
         "argv",
         [
             "loom",
-            "-m",
+            "model",
             "mistralai/Mistral-7B-v0.1",
             "-o",
             str(explicit_out),
@@ -1012,7 +1019,7 @@ def test_hf_mode_passes_creation_info(
         "argv",
         [
             "loom",
-            "-m",
+            "model",
             "Qwen/Qwen3-235B-A22B",
             "--creator-name",
             "Researcher",
@@ -1045,7 +1052,7 @@ def test_hf_mode_passes_pretty_flag(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "mistralai/Mistral-7B-v0.1", "--pretty"],
+        ["loom", "model", "mistralai/Mistral-7B-v0.1", "--pretty"],
     )
 
     assert __main__.main() == 0
@@ -1076,7 +1083,7 @@ def test_hf_mode_verbose_shows_model_id(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
+        ["loom", "model", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
     )
 
     assert __main__.main() == 0
@@ -1106,9 +1113,9 @@ def test_hf_url_with_tree_path_resolves_correctly(
         sys,
         "argv",
         [
-            "loom",
-            "-m",
-            "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
+                "loom",
+                "model",
+                "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
         ],
     )
 

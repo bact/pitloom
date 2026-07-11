@@ -49,8 +49,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "auditwheel>=6.1.0; sys_platform == 'linux'",
     "hatchling>=1.28.0",
     "licenseid>=0.3.0",
+    "pipdeptree>=2.21.0",
     "pyproject-metadata>=0.12.1",
     "rfc8785>=0.1.4",
     "spdx-python-model>=0.0.6",

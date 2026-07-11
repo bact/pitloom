@@ -24,6 +24,7 @@ from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
+from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.ids import resolve_registry
@@ -94,10 +95,12 @@ def _build_document_model(
     merkle_root, project_files = get_wheel_files(project_dir)
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
+    phantom_deps = find_phantom_dependencies(project_files)
     document = DocumentModel(
         project=metadata,
         creation_metadata=creation_metadata,
         ai_models=ai_models,
+        phantom_dependencies=phantom_deps,
     )
     return document, merkle_root
 

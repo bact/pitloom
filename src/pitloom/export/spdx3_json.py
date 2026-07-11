@@ -44,7 +44,7 @@ def require_spdx_id(element: spdx3.Element) -> str:
     """
     if element.spdxId is None:
         raise ValueError(f"{element!r} has no spdxId assigned")
-    return element.spdxId
+    return str(element.spdxId)
 
 
 def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:

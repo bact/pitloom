@@ -37,6 +37,9 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - `setuptools.py` -- reads `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
+   - `wheel.py` -- reads metadata from built `.whl` files (Analyzed SBOM) and computes file-level SHA-256 hashes
+   - `env.py` -- delegates to `pipdeptree` to extract a complete dependency graph of the active installed environment (Deployed SBOM)
+   - `binary.py` -- heuristic scanner that detects bundled third-party binary libraries (e.g. `.so`, `.dylib`) within wheel files (phantom dependencies)
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
@@ -48,9 +51,11 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
 4. **SBOM generator** (`src/pitloom/assemble/`)
-   - `generate_sbom()` orchestrates the full pipeline
+   - `generate_sbom()` orchestrates the full pipeline for source code (Source SBOM)
+   - `generate_analyzed_sbom()` orchestrates the pipeline for built wheels (Analyzed SBOM), utilizing `wheel.py` and `binary.py` to identify phantom dependencies
+   - `generate_deployed_sbom()` orchestrates the pipeline for active environments (Deployed SBOM), mapping the tree using `env.py`
    - Builds `DocumentModel` from extracted metadata
-   - Passes `DocumentModel` to `build()` assembler in `assemble/spdx3/`
+   - Passes `DocumentModel` to assembly functions (`build()`, `build_deployed()`) in `assemble/spdx3/`
    - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
@@ -66,7 +71,8 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[tool.pitloom.creation]` -- the same settings the CLI uses
 
 6. **Command-line interface** (`src/pitloom/__main__.py`)
-   - User-friendly argparse-based CLI
+   - User-friendly argparse-based CLI with lifecycle-centric subcommands (`source`, `analyze`, `deployed`, `model`, `ids`)
+   - Subcommands map to CISA SBOM types (e.g. `source` -> Source SBOM, `analyze` -> Analyzed SBOM, `deployed` -> Deployed SBOM)
    - Default output filename derived from project metadata (`{name}-{version}.spdx3.json`)
      or `[tool.pitloom] sbom-basename` when set
    - Creator information options
