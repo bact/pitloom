@@ -6,16 +6,20 @@
 
 *Automated transparency, woven from the ground up.*
 
-**Pitloom** automates the generation of SPDX 3-compliant SBOMs for AI
-models and Python projects. It reads metadata directly from Python
+**Pitloom** automates the generation of [SPDX 3]-compliant SBOMs for
+AI models and Python projects. It reads metadata directly from Python
 packages and AI models (GGUF, ONNX, PyTorch, Safetensors), producing
 standardized SPDX 3 JSON artifacts -- as a CLI, a library, or a native
 Hatchling build hook.
 
-When used with Hatchling, it embeds the generated SBOM directly into
-the Python distribution package (wheel) `.dist-info/sboms` --
-follows [PEP 770].
+When used with Hatchling, Pitloom automatically embeds the generated
+SBOM directly into the resulting Python distribution (wheel).
+The file is placed in the `{name}-{version}.dist-info/sboms` directory,
+ensuring compliance with the PyPA
+[Package Installation Metadata][dist-info] specification ([PEP 770]).
 
+[SPDX 3]: https://spdx.github.io/spdx-spec/
+[dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
 [PEP 770]: https://peps.python.org/pep-0770/
 
 ![The Pippin Pitloom](./docs/mascot.png)
