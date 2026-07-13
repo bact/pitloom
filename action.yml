@@ -21,7 +21,7 @@ inputs:
   model:
     description: >-
       Path to a local AI model file, or a Hugging Face URL / model ID.
-      When set, runs model mode ("loom -m <model>") instead of project mode.
+      When set, runs analyze mode ("loom analyze <model>") instead of project mode.
     required: false
     default: ""
   output:

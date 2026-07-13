@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.__main__ import _run_ids_cli
+from pitloom.__main__ import _build_parser, _run_ids_cli
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import (
     DEFAULT_REGISTRY_FILENAME,
@@ -421,8 +421,10 @@ def test_ids_generate_cli_entity_flag(
     (tmp_path / "data" / "raw.txt").write_text("raw\n")
     monkeypatch.chdir(tmp_path)
 
-    exit_code = _run_ids_cli(
+    parser = _build_parser()
+    args = parser.parse_args(
         [
+            "ids",
             "generate",
             "data",
             "--entity",
@@ -431,6 +433,7 @@ def test_ids_generate_cli_entity_flag(
             "other:dataset_DatasetPackage",
         ]
     )
+    exit_code = _run_ids_cli(args)
     assert exit_code == 0
 
     registry = IdRegistry.load(tmp_path / "loom-ids.json")

@@ -346,7 +346,7 @@ def test_model_mode_no_project_dir_required(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     assert captured["model_path"] == SAFETENSORS_FIXTURE.resolve()
@@ -374,7 +374,7 @@ def test_model_mode_explicit_output_path(
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
     monkeypatch.setattr(
-        sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-o", str(explicit_out)]
+        sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(explicit_out)]
     )
 
     assert __main__.main() == 0
@@ -400,7 +400,7 @@ def test_model_mode_default_output_path_uses_stem(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     out = captured["output_path"]
@@ -428,7 +428,7 @@ def test_model_mode_passes_pretty_flag(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "--pretty"])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "--pretty"])
 
     assert __main__.main() == 0
     assert captured["pretty"] is True
@@ -456,7 +456,7 @@ def test_model_mode_passes_creation_info(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
+        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
     )
 
     assert __main__.main() == 0
@@ -470,7 +470,7 @@ def test_model_mode_nonexistent_file_returns_error(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
-        sys, "argv", ["loom", "model", str(tmp_path / "no-such-model.safetensors")]
+        sys, "argv", ["loom", "analyze", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
 
@@ -783,7 +783,7 @@ def test_model_mode_verbose_shows_model_path(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-v"])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "-v"])
 
     assert __main__.main() == 0
     out = capsys.readouterr().out
@@ -804,7 +804,7 @@ def test_model_mode_safetensors_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -824,7 +824,7 @@ def test_model_mode_onnx_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -844,7 +844,7 @@ def test_model_mode_safetensors_no_software_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -863,7 +863,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -902,7 +902,7 @@ def test_hf_url_routes_to_huggingface_sbom(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "analyze", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -926,7 +926,7 @@ def test_hf_model_id_routes_to_huggingface_sbom(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "model", "Qwen/Qwen3-235B-A22B"])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", "Qwen/Qwen3-235B-A22B"])
 
     assert __main__.main() == 0
     assert captured["model_source"] == "Qwen/Qwen3-235B-A22B"
@@ -952,7 +952,7 @@ def test_hf_mode_default_output_uses_model_name(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "analyze", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -986,7 +986,7 @@ def test_hf_mode_explicit_output_path(
         "argv",
         [
             "loom",
-            "model",
+            "analyze",
             "mistralai/Mistral-7B-v0.1",
             "-o",
             str(explicit_out),
@@ -1019,7 +1019,7 @@ def test_hf_mode_passes_creation_info(
         "argv",
         [
             "loom",
-            "model",
+            "analyze",
             "Qwen/Qwen3-235B-A22B",
             "--creator-name",
             "Researcher",
@@ -1052,7 +1052,7 @@ def test_hf_mode_passes_pretty_flag(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", "mistralai/Mistral-7B-v0.1", "--pretty"],
+        ["loom", "analyze", "mistralai/Mistral-7B-v0.1", "--pretty"],
     )
 
     assert __main__.main() == 0
@@ -1083,7 +1083,7 @@ def test_hf_mode_verbose_shows_model_id(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "model", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
+        ["loom", "analyze", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
     )
 
     assert __main__.main() == 0
@@ -1114,7 +1114,7 @@ def test_hf_url_with_tree_path_resolves_correctly(
         "argv",
         [
                 "loom",
-                "model",
+                "analyze",
                 "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
         ],
     )

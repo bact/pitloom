@@ -40,24 +40,24 @@ pip install pitloom[ai]
 
 ### Command line
 
-Create SBOM for the Python project in the current directory:
+Create a Source SBOM for the Python project in the current directory:
 
 ```shell
-loom .
+loom source .
 ```
 
-Create SBOM of a local AI model:
+Create an Analyzed SBOM of a local AI model:
 
 ```shell
-loom -m path/to/model.safetensors -o model.spdx3.json
-loom -m path/to/model.gguf --pretty
+loom analyze path/to/model.safetensors -o model.spdx3.json
+loom analyze path/to/model.gguf --pretty
 ```
 
-Create SBOM of an AI model on Hugging Face Hub:
+Create an Analyzed SBOM of an AI model on Hugging Face Hub:
 
 ```shell
-loom -m https://huggingface.co/mistralai/Mistral-7B-v0.1
-loom -m Qwen/Qwen3-235B-A22B   # bare model ID also works
+loom analyze https://huggingface.co/mistralai/Mistral-7B-v0.1
+loom analyze Qwen/Qwen3-235B-A22B   # bare model ID also works
 ```
 
 ### GitHub Action

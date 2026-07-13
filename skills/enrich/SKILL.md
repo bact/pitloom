@@ -72,7 +72,7 @@ Steps:
    files = ["fragments/agent-enrichment.spdx3.json"]
    ```
 
-6. Re-run `loom <path>` (generate again) so the merged, enriched SBOM is
+6. Re-run `loom source <path>` or `loom analyze <path>` (generate again) so the merged, enriched SBOM is
    written.
 7. **Post-merge check (mandatory):** validate the merged output is still
    a conformant SPDX 3 JSON document -- a syntactically valid fragment can

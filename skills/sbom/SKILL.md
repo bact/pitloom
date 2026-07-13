@@ -50,8 +50,8 @@ loom <project-or-model-path>
 ## Project SBOMs (Python packages)
 
 ```bash
-loom .                              # scan the current directory
-loom /path/to/project -o sbom.spdx3.json
+loom source .                              # scan the current directory
+loom source /path/to/project -o sbom.spdx3.json
 ```
 
 Requires a `pyproject.toml` (PEP 621 `[project]` or Poetry
@@ -63,11 +63,11 @@ Pass `-m` with a local model file or a Hugging Face URL/model ID -- no
 project directory required:
 
 ```bash
-loom -m model.safetensors
-loom -m model.onnx
-loom -m model.gguf
-loom -m mistralai/Mistral-7B-v0.1                # bare Hugging Face model ID
-loom -m https://huggingface.co/Qwen/Qwen3-235B-A22B
+loom analyze model.safetensors
+loom analyze model.onnx
+loom analyze model.gguf
+loom analyze mistralai/Mistral-7B-v0.1                # bare Hugging Face model ID
+loom analyze https://huggingface.co/Qwen/Qwen3-235B-A22B
 ```
 
 Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),

@@ -124,10 +124,10 @@ worked fragment example.
 
 ```bash
 # sbom, project mode:
-loom . -o /tmp/sbom.spdx3.json
+loom source . -o /tmp/sbom.spdx3.json
 
 # sbom, model mode (adjust the path to a real model file):
-loom -m tests/fixtures/aimodels/onnx/squeezenet1.1-7.onnx -o /tmp/model.spdx3.json
+loom analyze tests/fixtures/aimodels/onnx/squeezenet1.1-7.onnx -o /tmp/model.spdx3.json
 
 # Both should exit 0 and produce a file containing an "@graph" array.
 ```

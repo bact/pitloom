@@ -331,7 +331,7 @@ class IdRegistry:
         ``entities`` entry keyed by the file's stem -- e.g.
         ``models/sentimentdemo.bin`` registers an ``ai_AIPackage`` entity
         named ``"sentimentdemo"`` -- so a later ``loom.set_model()`` or
-        ``loom -m ... --registry`` invocation can look it up by name and
+        ``loom model ... --registry`` invocation can look it up by name and
         share its ``spdxId`` rather than minting an unrelated one.
 
         Args:

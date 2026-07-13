@@ -304,34 +304,22 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze_parser = subparsers.add_parser(
         "analyze",
         parents=[parent_parser],
-        help="Generate an Analyzed SBOM from a built wheel.",
+        help="Generate an Analyzed SBOM from a built wheel, an AI model file, or a Hugging Face repository.",
     )
     analyze_parser.add_argument(
-        "wheel_path",
-        type=Path,
-        help="Path to the .whl file to analyze.",
+        "target",
+        type=str,
+        help=(
+            "Path to the .whl file, a local AI model file, or a Hugging Face URL / model ID. "
+            "Local AI formats: GGUF, ONNX, Safetensors, PyTorch, Keras, HDF5, NumPy, fastText. "
+            "Hugging Face: full URL or bare model ID."
+        ),
     )
 
     subparsers.add_parser(
         "deployed",
         parents=[parent_parser],
         help="Generate a Deployed SBOM for the currently installed environment.",
-    )
-
-    model_parser = subparsers.add_parser(
-        "model",
-        parents=[parent_parser],
-        help="Generate an Analyzed SBOM for an AI model file or Hugging Face repository.",
-    )
-    model_parser.add_argument(
-        "aimodel",
-        type=str,
-        metavar="MODEL_FILE_OR_HF_URL",
-        help=(
-            "Path to a local AI model file, or a Hugging Face URL / model ID. "
-            "Local formats: GGUF, ONNX, Safetensors, PyTorch, Keras, HDF5, NumPy, fastText. "
-            "Hugging Face: full URL or bare model ID."
-        ),
     )
 
     _add_ids_subparser(subparsers)
@@ -706,8 +694,6 @@ def main() -> int:
 
     if args.command == "ids":
         return _run_ids_cli(args)
-    if args.command == "model":
-        return _run_model_mode(args)
     if args.command == "source":
         return _run_project_mode(args)
     if args.command == "analyze":
@@ -756,11 +742,24 @@ def _run_deployed_mode(args: argparse.Namespace) -> int:
 
 
 def _run_analyze_mode(args: argparse.Namespace) -> int:
+    """Generate an Analyzed SBOM from a built wheel, an AI model, or HF repository."""
+    target: str = args.target
+
+    if target.endswith(".whl"):
+        return _run_wheel_analyze_mode(args, target)
+    
+    if is_huggingface_source(target):
+        return _run_hf_model_mode(args, target)
+    
+    return _run_local_model_mode(args, target)
+
+
+def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
     """Generate an Analyzed SBOM from a built wheel."""
     from pitloom.assemble import generate_analyzed_sbom
 
     try:
-        wheel_path: Path = args.wheel_path.resolve()
+        wheel_path: Path = Path(target).resolve()
         if not wheel_path.exists():
             print(f"Error: Wheel file not found: {wheel_path}", file=sys.stderr)
             return 1
@@ -865,7 +864,7 @@ def _add_ids_subparser(subparsers: Any) -> None:
         metavar="NAME[:TYPE]",
         help=(
             "Register a named entity (default TYPE: ai_AIPackage) so that "
-            "loom.set_model()/`loom -m` can reuse its id even before the "
+            "loom.set_model()/`loom model` can reuse its id even before the "
             "model file exists on disk. May be given multiple times."
         ),
     )
@@ -987,12 +986,7 @@ def _run_ids_cli(args: argparse.Namespace) -> int:
     return 1  # pragma: no cover
 
 
-def _run_model_mode(args: argparse.Namespace) -> int:
-    """Generate a standalone SBOM - dispatches to HF or local-file mode."""
-    source: str = args.aimodel
-    if is_huggingface_source(source):
-        return _run_hf_model_mode(args, source)
-    return _run_local_model_mode(args, source)
+
 
 
 def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:

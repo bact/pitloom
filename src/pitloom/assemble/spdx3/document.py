@@ -368,7 +368,7 @@ def build_model(
         model: Extracted AI model metadata.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
         entity_spdx_id: When given, overrides the ``ai_AIPackage``'s minted
-            ``spdxId`` with this one -- used by ``pitloom -m ... --registry``
+            ``spdxId`` with this one -- used by ``pitloom model ... --registry``
             so the resulting element shares its id with any
             ``pitloom.loom`` fragment that registered the same entity name
             (see :meth:`pitloom.ids.IdRegistry.lookup_entity`), letting the
