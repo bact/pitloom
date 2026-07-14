@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 import subprocess
-
 from typing import Any
+
 from pitloom.core.project import ProjectMetadata
 
 

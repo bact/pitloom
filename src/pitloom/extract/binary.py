@@ -104,22 +104,21 @@ def extract_phantom_dependencies(wheel_path: Path | str) -> list[PhantomDependen
 
                 digest = hasher.hexdigest()
 
-                # Derive a plausible name and version from the filename
-                # e.g., libz-1.2.11.so -> name: libz, version: 1.2.11
-                # This is just a simple heuristic.
+                # Derive a plausible name from the filename, e.g.
+                # libz-1.2.11.so -> name: libz. pathlib.Path.stem only
+                # strips the last extension, so a multi-dot name like
+                # libz.so.1.2 won't fully reduce to "libz" -- acceptable
+                # for a heuristic.
                 name = Path(info.filename).stem
-
-                # Remove common suffixes like .so, .dylib, .dll that might still be in stem
-                # if there are multiple dots (e.g. libz.so.1.2)
-                # Actually, pathlib.Path.stem only removes the last extension.
-                # It's better to just use the stem directly.
 
                 phantom_deps.append(
                     PhantomDependency(
                         name=name,
                         file_path=info.filename,
                         digest_sha256=digest,
-                        version=None, # Extracting reliable version from filename is tricky; leave None for now
+                        # Reliably parsing a version out of the filename is
+                        # unreliable across ecosystems; leave unset for now.
+                        version=None,
                     )
                 )
 

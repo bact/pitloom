@@ -7,8 +7,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-from pitloom.assemble.spdx3.document import build, build_model
+from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
@@ -17,8 +18,11 @@ from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._huggingface import read_huggingface
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.extract.binary import find_phantom_dependencies
+from pitloom.extract.env import read_environment
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
+from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 
 
@@ -250,19 +254,16 @@ def generate_analyzed_sbom(
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
     """
-    from pitloom.extract.binary import find_phantom_dependencies
-    from pitloom.extract.wheel import read_wheel
-
     project_metadata, project_files = read_wheel(wheel_path)
 
     # We could theoretically compute a Merkle root for the wheel,
     # but the wheel file itself is the artifact.
     merkle_root = None
 
-    # For analyzed SBOMs from wheels, we don't have the source directory to scan for AI models
-    # in the same way, but we could scan the wheel contents.
-    # We will pass an empty list of AI models for now unless we implement AI model scanning from wheels.
-    from typing import Any
+    # For analyzed SBOMs from wheels, we don't have the source directory to
+    # scan for AI models in the same way, but we could scan the wheel
+    # contents. Passing an empty list until wheel-content AI model scanning
+    # is implemented.
     ai_models: list[Any] = []
 
     phantom_deps = find_phantom_dependencies(project_files)
@@ -317,9 +318,6 @@ def generate_deployed_sbom(
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
     """
-    from pitloom.assemble.spdx3.document import build_deployed
-    from pitloom.extract.env import read_environment
-
     project_metadata, env_tree = read_environment()
 
     # We don't have a project_dir, so we use the current directory as a fallback.

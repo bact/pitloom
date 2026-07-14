@@ -326,7 +326,8 @@ def add_phantom_dependencies(
     Args:
         phantom_deps: List of PhantomDependency objects discovered in the distribution.
         main_package_spdx_id: SPDX ID of the parent package for relationships.
-        file_spdx_ids: Mapping of file paths to their SPDX IDs to link packages to files.
+        file_spdx_ids: Mapping of file paths to their SPDX IDs, to link
+            packages to files.
         creation_info: Shared CreationInfo for all new elements.
         doc_name: Document name (project name) for SPDX ID generation.
         doc_uuid: Document-scoped UUID used in SPDX ID generation.
@@ -344,14 +345,18 @@ def add_phantom_dependencies(
             dep_package.software_packageVersion = "unknown"
 
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-        dep_package.comment = "Metadata provenance: Phantom dependency bundled in distribution artifact"
+        dep_package.comment = (
+            "Metadata provenance: Phantom dependency bundled in distribution artifact"
+        )
 
         # We don't have download URLs or licenses for these easily, so they are minimal
         exporter.add_package(dep_package)
 
         # The main package depends on this phantom package
         dep_rel = spdx3.Relationship(
-            spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
+            spdxId=generate_spdx_id(
+                "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
+            ),
             from_=main_package_spdx_id,
             to=[require_spdx_id(dep_package)],
             relationshipType=spdx3.RelationshipType.dependsOn,
@@ -363,7 +368,9 @@ def add_phantom_dependencies(
         file_spdx_id = file_spdx_ids.get(dep.file_path)
         if file_spdx_id:
             file_rel = spdx3.Relationship(
-                spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
+                spdxId=generate_spdx_id(
+                    "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
                 from_=require_spdx_id(dep_package),
                 to=[file_spdx_id],
                 relationshipType=spdx3.RelationshipType.contains,

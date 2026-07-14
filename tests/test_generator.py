@@ -15,7 +15,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import generate_sbom
-from pitloom.assemble.spdx3.document import build, build_model
+from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator, Tool
@@ -987,6 +987,60 @@ def test_assembler_ai_model_no_registry_match_mints_fresh_id() -> None:
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 1
     assert ai_pkgs[0]["spdxId"] != unrelated_id
+
+
+def test_build_deployed_reuses_registry_entity_by_name() -> None:
+    """A Deployed SBOM's installed packages must reuse a registered
+    ``software_Package`` entity's spdxId (looked up by package name), so
+    the same package referenced elsewhere (e.g. a Source or Analyzed SBOM)
+    unifies with it once merged, instead of always minting a fresh id."""
+    project = ProjectMetadata(name="deployed-environment", version="0.0.0")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    env_tree = [
+        {
+            "package": {
+                "key": "requests",
+                "package_name": "requests",
+                "installed_version": "2.31.0",
+            }
+        }
+    ]
+
+    registry = IdRegistry.new("deployed-environment")
+    registered_id = registry.register_entity("requests", "software_Package")
+
+    exporter = build_deployed(doc, env_tree, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    requests_pkg = next(p for p in packages if p["name"] == "requests")
+    assert requests_pkg["spdxId"] == registered_id
+
+
+def test_build_deployed_no_registry_match_mints_fresh_id() -> None:
+    """No matching registry entity -> unchanged behaviour: a fresh id is
+    minted for the installed package."""
+    project = ProjectMetadata(name="deployed-environment", version="0.0.0")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    env_tree = [
+        {
+            "package": {
+                "key": "requests",
+                "package_name": "requests",
+                "installed_version": "2.31.0",
+            }
+        }
+    ]
+
+    registry = IdRegistry.new("deployed-environment")
+    unrelated_id = registry.register_entity("some-other-package", "software_Package")
+
+    exporter = build_deployed(doc, env_tree, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    requests_pkg = next(p for p in packages if p["name"] == "requests")
+    assert requests_pkg["spdxId"] != unrelated_id
 
 
 # ---------------------------------------------------------------------------

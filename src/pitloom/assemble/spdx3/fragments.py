@@ -72,20 +72,23 @@ _KEYED_DICT_PROPS = frozenset({"ai_hyperparameter", "ai_metric"})
 
 
 # ---------------------------------------------------------------------------
-# spdx-python-model internals -- single access point
+# spdx-python-model property enumeration -- single access point
 # ---------------------------------------------------------------------------
 #
-# `SHACLObject._OBJ_PY_PROPS` (a dict of Python-attribute-name -> ClassProp
-# descriptor) is not part of spdx-python-model's public API.  Every place in
-# this module that needs to walk "all declared properties of an arbitrary
-# element generically" (reference remapping, property merging, structural
-# equality) goes through this one helper, so an upstream rename or
-# restructuring surfaces as a single, loud failure here rather than silent
-# breakage scattered through the merge logic.
+# Every place in this module that needs to walk "all declared properties of
+# an arbitrary element generically" (reference remapping, property merging,
+# structural equality) goes through this one helper, so an upstream change
+# to ``property_keys()``'s shape surfaces as a single, loud failure here
+# rather than silent breakage scattered through the merge logic.
 def _class_properties(obj: spdx3.SHACLObject) -> Iterable[str]:
-    """Return the declared Python property names on *obj*'s class."""
-    # The spdx-python-model public API for enumerating properties.
-    return [k[0] for k in obj.property_keys()]
+    """Return the declared Python property names on *obj*'s class.
+
+    ``property_keys()`` yields ``(python_name, iri, compact_name)`` triples;
+    ``python_name`` is typed ``Optional[str]`` upstream for properties with
+    no Python-attribute alias, though every property pitloom's model
+    actually declares has one -- filter defensively rather than assume it.
+    """
+    return [k[0] for k in obj.property_keys() if k[0] is not None]
 
 
 def _stable_key(obj: spdx3.SHACLObject) -> tuple[Any, ...]:

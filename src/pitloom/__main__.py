@@ -16,6 +16,8 @@ from typing import Any
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_ai_model_sbom,
+    generate_analyzed_sbom,
+    generate_deployed_sbom,
     generate_huggingface_sbom,
     generate_sbom,
 )
@@ -304,15 +306,19 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze_parser = subparsers.add_parser(
         "analyze",
         parents=[parent_parser],
-        help="Generate an Analyzed SBOM from a built wheel, an AI model file, or a Hugging Face repository.",
+        help=(
+            "Generate an Analyzed SBOM from a built wheel, an AI model "
+            "file, or a Hugging Face repository."
+        ),
     )
     analyze_parser.add_argument(
         "target",
         type=str,
         help=(
-            "Path to the .whl file, a local AI model file, or a Hugging Face URL / model ID. "
-            "Local AI formats: GGUF, ONNX, Safetensors, PyTorch, Keras, HDF5, NumPy, fastText. "
-            "Hugging Face: full URL or bare model ID."
+            "Path to the .whl file, a local AI model file, or a Hugging "
+            "Face URL / model ID. Local AI formats: GGUF, ONNX, "
+            "Safetensors, PyTorch, Keras, HDF5, NumPy, fastText. Hugging "
+            "Face: full URL or bare model ID."
         ),
     )
 
@@ -706,8 +712,6 @@ def main() -> int:
 
 def _run_deployed_mode(args: argparse.Namespace) -> int:
     """Generate a Deployed SBOM from the current environment."""
-    from pitloom.assemble import generate_deployed_sbom
-
     try:
         pitloom_config = PitloomConfig()
         creation = _resolve_creation_metadata(args, pitloom_config)
@@ -747,17 +751,15 @@ def _run_analyze_mode(args: argparse.Namespace) -> int:
 
     if target.endswith(".whl"):
         return _run_wheel_analyze_mode(args, target)
-    
+
     if is_huggingface_source(target):
         return _run_hf_model_mode(args, target)
-    
+
     return _run_local_model_mode(args, target)
 
 
 def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
     """Generate an Analyzed SBOM from a built wheel."""
-    from pitloom.assemble import generate_analyzed_sbom
-
     try:
         wheel_path: Path = Path(target).resolve()
         if not wheel_path.exists():
@@ -984,9 +986,6 @@ def _run_ids_cli(args: argparse.Namespace) -> int:
     if args.ids_command == "import":
         return _run_ids_import(args)
     return 1  # pragma: no cover
-
-
-
 
 
 def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:

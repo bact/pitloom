@@ -64,5 +64,5 @@ files = [
     "fragments/01_preprocess.spdx3.json",  # produced by `python -m sentimentdemo.preprocess`
     "fragments/02_train.spdx3.json",       # produced by `python -m sentimentdemo.train`
     "fragments/03_evaluate.spdx3.json",    # produced by `python -m sentimentdemo.evaluate`
-    "fragments/04_model_file.spdx3.json",  # produced by `loom -m models/sentimentdemo.bin`
+    "fragments/04_model_file.spdx3.json",  # produced by `loom analyze models/sentimentdemo.bin`
 ]

@@ -14,6 +14,7 @@ from pathlib import Path
 from pitloom.core.project import ProjectFile, ProjectMetadata
 
 
+# pylint: disable=too-many-locals
 def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract project metadata and file records from a built wheel.
 
@@ -55,7 +56,9 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
 
             project_files.append(
                 ProjectFile(
-                    physical_path=info.filename, # Using archive-relative path for physical path
+                    # No filesystem path outside the archive; use the
+                    # archive-relative path for both fields.
+                    physical_path=info.filename,
                     distribution_path=info.filename,
                     digest_sha256=hasher.hexdigest(),
                 )

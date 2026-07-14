@@ -486,7 +486,9 @@ def test_project_mode_default_creation_comment(
         '[project]\nname = "cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
     )
     out = tmp_path / "cli-app.spdx3.json"
-    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir), "-o", str(out)])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "source", str(project_dir), "-o", str(out)]
+    )
 
     assert __main__.main() == 0
 
@@ -686,7 +688,8 @@ def test_creator_type_invalid_choice_rejected_by_argparse(
         "argv",
         [
             "loom",
-            "source", ".",
+            "source",
+            ".",
             "--creator-name",
             "Bot",
             "--creator-type",
@@ -703,7 +706,9 @@ def test_creator_type_before_creator_name_errors(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--creator-type before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(sys, "argv", ["loom", "source", ".", "--creator-type", "organization"])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "source", ".", "--creator-type", "organization"]
+    )
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-type must come after a --creator-name" in capsys.readouterr().err
@@ -714,7 +719,9 @@ def test_creator_email_before_creator_name_errors(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--creator-email before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(sys, "argv", ["loom", "source", ".", "--creator-email", "a@example.com"])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "source", ".", "--creator-email", "a@example.com"]
+    )
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
@@ -1113,9 +1120,9 @@ def test_hf_url_with_tree_path_resolves_correctly(
         sys,
         "argv",
         [
-                "loom",
-                "analyze",
-                "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
+            "loom",
+            "analyze",
+            "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
         ],
     )
 

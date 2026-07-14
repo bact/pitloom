@@ -363,19 +363,24 @@ class IdRegistry:
     def import_sbom(self, sbom_path: Path) -> None:
         """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
 
-        ``software_File`` and ``dataset_DatasetPackage`` elements with a
-        ``name`` and a SHA-256 ``verifiedUsing`` hash populate ``files``
-        (keyed by ``name`` -- for pitloom-generated SBOMs this is a
-        project-root-relative path).  ``ai_AIPackage`` elements populate
-        ``entities`` (keyed by ``name``).  When this registry is still empty
-        and the SBOM has a main ``SpdxDocument``, its namespace is adopted
-        as this registry's namespace so subsequently minted ids read as part
-        of the same document family as the imported ones.
+        Every element in the graph with both a ``name`` and a ``spdxId`` is
+        importable -- generically, not via a hardcoded type allowlist,
+        since any element (``software_Package``, ``ai_AIPackage``,
+        ``dataset_DatasetPackage``, ``software_File``, or a type pitloom
+        does not otherwise model) can carry a stable id worth reusing. An
+        element that also carries a SHA-256 ``verifiedUsing`` hash
+        populates ``files`` (keyed by ``name`` -- for pitloom-generated
+        SBOMs this is a project-root-relative path); everything else
+        populates ``entities`` (keyed by ``name``, typed by the element's
+        actual SPDX 3 compact type, e.g. ``"software_Package"``).  When
+        this registry is still empty and the SBOM has a main
+        ``SpdxDocument``, its namespace is adopted as this registry's
+        namespace so subsequently minted ids read as part of the same
+        document family as the imported ones.
 
-        Elements missing the fields needed to key or verify them (no
-        ``name``, or no SHA-256 hash for a file/dataset) are skipped with a
-        debug log rather than an error -- a foreign or hand-written SBOM may
-        have gaps.
+        Elements missing the fields needed to key them (no ``name`` or no
+        ``spdxId``) are skipped with a debug log rather than an error -- a
+        foreign or hand-written SBOM may have gaps.
         """
         object_set = spdx3.SHACLObjectSet()
         with open(sbom_path, "rb") as f:
@@ -431,21 +436,25 @@ class IdRegistry:
 
 def _import_sbom_element(registry: IdRegistry, obj: Any) -> None:
     """Harvest a single deserialized SBOM element into *registry*, when it
-    is one of the types :meth:`IdRegistry.import_sbom` knows how to key
-    (``software_File``, ``dataset_DatasetPackage``, ``ai_AIPackage``)."""
+    carries both a ``name`` and a ``spdxId`` -- any SPDX 3 Element
+    qualifies, not just a fixed set of types pitloom happens to name
+    explicitly elsewhere (see :meth:`IdRegistry.import_sbom`)."""
     name = getattr(obj, "name", None)
     spdx_id = getattr(obj, "spdxId", None)
     if not name or not spdx_id:
         return
 
-    if isinstance(obj, (spdx3.software_File, spdx3.dataset_DatasetPackage)):
-        sha256 = _sha256_from_verified_using(obj)
-        if sha256 is None:
-            log.debug("Import: skipping %r (no SHA-256 verifiedUsing hash)", name)
-            return
+    sha256 = _sha256_from_verified_using(obj)
+    if sha256 is not None:
         registry.files[name] = FileEntry(spdx_id=spdx_id, sha256=sha256)
-    elif isinstance(obj, spdx3.ai_AIPackage):
-        registry.entities[name] = EntityEntry(type="ai_AIPackage", spdx_id=spdx_id)
+        return
+
+    get_compact_type = getattr(obj, "get_compact_type", None)
+    compact_type = get_compact_type() if get_compact_type is not None else None
+    if not compact_type:
+        log.debug("Import: skipping %r (no SPDX 3 compact type)", name)
+        return
+    registry.entities[name] = EntityEntry(type=compact_type, spdx_id=spdx_id)
 
 
 def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:

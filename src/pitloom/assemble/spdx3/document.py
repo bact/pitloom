@@ -16,6 +16,7 @@ from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import (
+    _enrich_from_installed,
     add_dependencies,
     add_phantom_dependencies,
     build_license_elements,
@@ -455,6 +456,7 @@ def build_model(
     return exporter
 
 
+# pylint: disable=too-many-locals
 def build_deployed(
     doc: DocumentModel,
     env_tree: list[dict[str, Any]],
@@ -466,13 +468,23 @@ def build_deployed(
     Args:
         doc: Format-neutral document model with environment metadata.
         env_tree: Flat JSON list of packages and dependencies from pipdeptree.
-        registry: Optional stable file id registry.
+        registry: Optional stable file id registry. Each installed
+            package's id is looked up by name
+            (:meth:`~pitloom.ids.IdRegistry.lookup_entity`, type
+            ``"software_Package"``); a match reuses the registered
+            ``spdxId`` instead of minting a fresh one, so this element can
+            be unified with the same package referenced elsewhere (e.g. a
+            Source or Analyzed SBOM) once merged. A miss falls back to the
+            existing deterministic minting. A package gets a registry
+            entry either via an explicit ``pitloom ids generate --entity
+            <name>:software_Package``, or in bulk via ``pitloom ids
+            import <existing-sbom>`` (:meth:`~pitloom.ids.IdRegistry.import_sbom`
+            harvests every named element generically, not just files and
+            AI models).
 
     Returns:
         A populated Spdx3JsonExporter.
     """
-    from pitloom.assemble.spdx3.deps import _enrich_from_installed
-
     metadata = doc.project
     exporter = Spdx3JsonExporter()
     doc_uuid = compute_doc_uuid(
@@ -507,21 +519,31 @@ def build_deployed(
 
         dep_version = pkg_info.get("installed_version", "unknown")
 
+        registered_id = (
+            registry.lookup_entity(dep_name, "software_Package")
+            if registry is not None
+            else None
+        )
         dep_package = spdx3.software_Package(
-            spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
+            spdxId=registered_id
+            or generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
             name=dep_name,
             creationInfo=spdx_ci,
         )
         dep_package.software_packageVersion = dep_version
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-        dep_package.comment = "Metadata provenance: Source: pipdeptree (deployed environment)"
+        dep_package.comment = (
+            "Metadata provenance: Source: pipdeptree (deployed environment)"
+        )
 
         _enrich_from_installed(
             dep_name, dep_package, spdx_ci, metadata.name, doc_uuid, exporter
         )
 
         exporter.add_package(dep_package)
-        package_spdx_ids[pkg_info.get("key", dep_name.lower())] = require_spdx_id(dep_package)
+        package_spdx_ids[pkg_info.get("key", dep_name.lower())] = require_spdx_id(
+            dep_package
+        )
 
     # Second pass: Create relationships
     dep_keys_with_parents = set()
@@ -574,7 +596,9 @@ def build_deployed(
     sbom.software_sbomType = [spdx3.software_SbomType.deployed]
 
     spdx_doc = spdx3.SpdxDocument(
-        spdxId=generate_spdx_id("SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid),
+        spdxId=generate_spdx_id(
+            "SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid
+        ),
         creationInfo=spdx_ci,
         rootElement=[sbom.spdxId],
     )

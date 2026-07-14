@@ -301,12 +301,18 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
             spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=script_hash)
         ],
     )
-    # A file without any hash: must be skipped on import.
+    # A file without any hash: no content to gate on, so it must fall back
+    # to a name-keyed entity rather than being dropped.
     hashless = spdx3.software_File(
         spdxId=f"{namespace}#File-9", name="src/pkg/nohash.py", creationInfo=ci
     )
     model = spdx3.ai_AIPackage(
         spdxId=f"{namespace}#AIPackage-1", name="sentimentdemo", creationInfo=ci
+    )
+    # A dependency package -- not one of the three types the old hardcoded
+    # allowlist handled, but it has a name and spdxId like anything else.
+    dep_package = spdx3.software_Package(
+        spdxId=f"{namespace}#Package-2", name="requests", creationInfo=ci
     )
     sbom = spdx3.software_Sbom(
         spdxId=f"{namespace}#Sbom-1", creationInfo=ci, rootElement=[model.spdxId]
@@ -322,6 +328,7 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
     exporter.add_file(script)
     exporter.add_file(hashless)
     exporter.add_package(model)
+    exporter.add_package(dep_package)
     exporter.add_sbom(sbom)
     exporter.add_document(doc)
     path.write_text(exporter.to_json(), encoding="utf-8")
@@ -332,7 +339,10 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
         "dataset_hash": file_hash,
         "script_id": f"{namespace}#File-3",
         "script_hash": script_hash,
+        "hashless_id": f"{namespace}#File-9",
         "model_id": f"{namespace}#AIPackage-1",
+        "dep_package_id": f"{namespace}#Package-2",
+        "agent_id": f"{namespace}#SoftwareAgent-1",
     }
 
 
@@ -350,11 +360,35 @@ def test_import_sbom_harvests_files_and_entities(tmp_path: Path) -> None:
     assert registry.files["src/pkg/train.py"] == FileEntry(
         spdx_id=ids["script_id"], sha256=ids["script_hash"]
     )
-    # hashless file skipped
-    assert "src/pkg/nohash.py" not in registry.files
     # AIPackage harvested into entities
     assert registry.entities["sentimentdemo"] == EntityEntry(
         type="ai_AIPackage", spdx_id=ids["model_id"]
+    )
+
+
+def test_import_sbom_harvests_any_named_element_as_entity(tmp_path: Path) -> None:
+    """Not just the historically-special-cased File/Dataset/AIPackage types
+    -- any element with a name and spdxId is importable, typed by its own
+    SPDX 3 compact type. A hash-less File also falls back here instead of
+    being dropped entirely."""
+    sbom_path = tmp_path / "sample.spdx3.json"
+    ids = _write_sample_sbom(sbom_path)
+
+    registry = IdRegistry.new("proj")
+    registry.import_sbom(sbom_path)
+
+    # A software_Package (not one of the old three hardcoded types).
+    assert registry.entities["requests"] == EntityEntry(
+        type="software_Package", spdx_id=ids["dep_package_id"]
+    )
+    # A hash-less software_File: not dropped, keyed as an entity instead.
+    assert "src/pkg/nohash.py" not in registry.files
+    assert registry.entities["src/pkg/nohash.py"] == EntityEntry(
+        type="software_File", spdx_id=ids["hashless_id"]
+    )
+    # Even a creator Agent, typed by its own compact type.
+    assert registry.entities["Pitloom"] == EntityEntry(
+        type="SoftwareAgent", spdx_id=ids["agent_id"]
     )
 
 

@@ -123,9 +123,9 @@ runs:
 
         declare -a loom_args
         if [ -n "${PL_MODEL}" ]; then
-          loom_args+=("-m" "${PL_MODEL}")
+          loom_args+=("analyze" "${PL_MODEL}")
         else
-          loom_args+=("${PL_PROJECT_PATH}")
+          loom_args+=("source" "${PL_PROJECT_PATH}")
         fi
         loom_args+=("-o" "${PL_OUTPUT}")
         if [ "${PL_PRETTY}" = "true" ]; then
