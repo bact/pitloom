@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-08
+Last-Modified: 2026-07-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,6 +37,9 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - `setuptools.py` -- reads `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
+   - `wheel.py` -- reads metadata from built `.whl` files (Analyzed SBOM) and computes file-level SHA-256 hashes
+   - `env.py` -- delegates to `pipdeptree` to extract a complete dependency graph of the active installed environment (Deployed SBOM)
+   - `binary.py` -- heuristic scanner that detects bundled third-party binary libraries (e.g. `.so`, `.dylib`) within wheel files (phantom dependencies)
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
@@ -48,9 +51,11 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
 4. **SBOM generator** (`src/pitloom/assemble/`)
-   - `generate_sbom()` orchestrates the full pipeline
+   - `generate_sbom()` orchestrates the full pipeline for source code (Source SBOM)
+   - `generate_analyzed_sbom()` orchestrates the pipeline for built wheels (Analyzed SBOM), utilizing `wheel.py` and `binary.py` to identify phantom dependencies
+   - `generate_deployed_sbom()` orchestrates the pipeline for active environments (Deployed SBOM), mapping the tree using `env.py`
    - Builds `DocumentModel` from extracted metadata
-   - Passes `DocumentModel` to `build()` assembler in `assemble/spdx3/`
+   - Passes `DocumentModel` to assembly functions (`build()`, `build_deployed()`) in `assemble/spdx3/`
    - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
@@ -66,7 +71,8 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[tool.pitloom.creation]` -- the same settings the CLI uses
 
 6. **Command-line interface** (`src/pitloom/__main__.py`)
-   - User-friendly argparse-based CLI
+   - User-friendly argparse-based CLI with lifecycle-centric subcommands (`source`, `analyze`, `deployed`, `model`, `ids`)
+   - Subcommands map to CISA SBOM types (e.g. `source` -> Source SBOM, `analyze` -> Analyzed SBOM, `deployed` -> Deployed SBOM)
    - Default output filename derived from project metadata (`{name}-{version}.spdx3.json`)
      or `[tool.pitloom] sbom-basename` when set
    - Creator information options
@@ -227,16 +233,20 @@ pitloom/
 │       │   ├── _pytorch.py         # PyTorch classic (.pt, .pth)
 │       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
 │       │   ├── _safetensors.py     # Safetensors (.safetensors)
+│       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection in a wheel
 │       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
+│       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree via pipdeptree
 │       │   ├── poetry.py           # [tool.poetry] extractor; Poetry -> PEP 440 conversion
 │       │   ├── pyproject.py        # pyproject.toml extractor ([project] + [tool.poetry] merge)
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
-│       │   └── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
+│       │   ├── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
+│       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── plugins/             # Build-system integrations
 │       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
 │       ├── __about__.py         # Package version (__version__)
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point (loom / python -m pitloom)
+│       ├── ids.py               # Loom ID registry (loom-ids.json); stable cross-fragment SPDX ids
 │       ├── loom.py              # ML tracking SDK (Run context manager / decorator)
 │       └── py.typed             # PEP 561 marker
 ├── tests/

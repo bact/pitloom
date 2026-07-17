@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import PhantomDependency, ProjectMetadata
 
 
 @dataclass
@@ -33,8 +33,11 @@ class DocumentModel:
         project: Python project metadata from ``pyproject.toml``.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
         ai_models: AI model metadata, one entry per model file processed.
+        phantom_dependencies: Bundled binary dependencies discovered inside
+            distribution archives.
     """
 
     project: ProjectMetadata
     creation_metadata: CreationMetadata = field(default_factory=CreationMetadata)
     ai_models: list[AiModelMetadata] = field(default_factory=list)
+    phantom_dependencies: list[PhantomDependency] = field(default_factory=list)

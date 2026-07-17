@@ -16,6 +16,8 @@ from typing import Any
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_ai_model_sbom,
+    generate_analyzed_sbom,
+    generate_deployed_sbom,
     generate_huggingface_sbom,
     generate_sbom,
 )
@@ -143,53 +145,15 @@ class _CreatorEmailAction(argparse.Action):
         )
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    """Create and configure the CLI argument parser."""
-    parser = argparse.ArgumentParser(
-        description="Pitloom - Generate SPDX 3 SBOM for Python projects",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "-V",
-        "--version",
-        action="version",
-        version=f"Pitloom {__version__}",
-    )
+def _build_parent_parser() -> argparse.ArgumentParser:
+    """Build a parent parser containing common options."""
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Print verbose output including Pitloom version, paths, "
         "and effective options.",
-    )
-    parser.add_argument(
-        "project_dir",
-        type=Path,
-        nargs="?",
-        default=None,
-        help=(
-            "Path to the project directory "
-            "(containing pyproject.toml, setup.cfg, or setup.py). "
-            "Required unless -m/--aimodel is used."
-        ),
-    )
-    parser.add_argument(
-        "-m",
-        "--aimodel",
-        dest="aimodel",
-        type=str,
-        default=None,
-        metavar="MODEL_FILE_OR_HF_URL",
-        help=(
-            "Path to a local AI model file, or a Hugging Face URL / model ID. "
-            "Generate a standalone SBOM for the model as an AIPackage, "
-            "without requiring a project directory. "
-            "Local formats: GGUF, ONNX, Safetensors, PyTorch, "
-            "Keras, HDF5, NumPy, fastText. "
-            "Hugging Face: full URL "
-            "(e.g. https://huggingface.co/mistralai/Mistral-7B-v0.1) "
-            "or bare model ID (e.g. Qwen/Qwen3-235B-A22B)."
-        ),
     )
     parser.add_argument(
         "-o",
@@ -301,6 +265,71 @@ def _build_parser() -> argparse.ArgumentParser:
             "current working directory)."
         ),
     )
+    return parser
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Create and configure the CLI argument parser."""
+    parent_parser = _build_parent_parser()
+
+    parser = argparse.ArgumentParser(
+        prog="loom",
+        description="Pitloom - Generate SPDX 3 SBOM for Python projects",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"Pitloom {__version__}",
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    source_parser = subparsers.add_parser(
+        "source",
+        parents=[parent_parser],
+        help="Generate a Source SBOM from unbuilt source code.",
+    )
+    source_parser.add_argument(
+        "project_dir",
+        type=Path,
+        nargs="?",
+        default=Path.cwd(),
+        help=(
+            "Path to the project directory "
+            "(containing pyproject.toml, setup.cfg, or setup.py). "
+            "Default is the current directory."
+        ),
+    )
+
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        parents=[parent_parser],
+        help=(
+            "Generate an Analyzed SBOM from a built wheel, an AI model "
+            "file, or a Hugging Face repository."
+        ),
+    )
+    analyze_parser.add_argument(
+        "target",
+        type=str,
+        help=(
+            "Path to the .whl file, a local AI model file, or a Hugging "
+            "Face URL / model ID. Local AI formats: GGUF, ONNX, "
+            "Safetensors, PyTorch, Keras, HDF5, NumPy, fastText. Hugging "
+            "Face: full URL or bare model ID."
+        ),
+    )
+
+    subparsers.add_parser(
+        "deployed",
+        parents=[parent_parser],
+        help="Generate a Deployed SBOM for the currently installed environment.",
+    )
+
+    _add_ids_subparser(subparsers)
+
     return parser
 
 
@@ -663,32 +692,114 @@ def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
 def main() -> int:
     """Main entry point for the Pitloom CLI.
 
-    Dispatches ``pitloom ids ...`` to the id-registry sub-CLI (see
-    :func:`_run_ids_cli`) before touching the main SBOM-generation parser --
-    ``ids`` is a subcommand, not a project directory, and intercepting it
-    here keeps the main parser (positional ``project_dir`` / ``-m``) exactly
-    as it was, with no argparse subparsers to reconcile against it.
-
     Returns:
         int: Exit code (0 for success, 1 for error)
     """
-    if len(sys.argv) > 1 and sys.argv[1] == "ids":
-        return _run_ids_cli(sys.argv[2:])
-
     parser = _build_parser()
     args = parser.parse_args()
 
-    if args.aimodel is not None:
-        return _run_model_mode(args)
+    if args.command == "ids":
+        return _run_ids_cli(args)
+    if args.command == "source":
+        return _run_project_mode(args)
+    if args.command == "analyze":
+        return _run_analyze_mode(args)
+    if args.command == "deployed":
+        return _run_deployed_mode(args)
 
-    if args.project_dir is None:
-        print(
-            "Error: project_dir is required unless -m/--aimodel is used.",
-            file=sys.stderr,
+    return 1
+
+
+def _run_deployed_mode(args: argparse.Namespace) -> int:
+    """Generate a Deployed SBOM from the current environment."""
+    try:
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+        effective_describe = (
+            bool(args.describe_relationship)
+            if args.describe_relationship is not None
+            else False
         )
+
+        output_path = args.output
+        if output_path is None:
+            output_path = Path.cwd() / f"deployed-environment{_SPDX3_JSON_EXT}"
+
+        if args.verbose:
+            print(f"Pitloom version : {__version__}")
+            print(f"Output path     : {output_path}")
+
+        generate_deployed_sbom(
+            output_path=output_path,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe,
+            registry=args.registry,
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating Deployed SBOM: {e}", file=sys.stderr)
+        traceback.print_exc()
         return 1
 
-    return _run_project_mode(args)
+
+def _run_analyze_mode(args: argparse.Namespace) -> int:
+    """Generate an Analyzed SBOM from a built wheel, an AI model, or HF repository."""
+    target: str = args.target
+
+    if target.endswith(".whl"):
+        return _run_wheel_analyze_mode(args, target)
+
+    if is_huggingface_source(target):
+        return _run_hf_model_mode(args, target)
+
+    return _run_local_model_mode(args, target)
+
+
+def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
+    """Generate an Analyzed SBOM from a built wheel."""
+    try:
+        wheel_path: Path = Path(target).resolve()
+        if not wheel_path.exists():
+            print(f"Error: Wheel file not found: {wheel_path}", file=sys.stderr)
+            return 1
+
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+        effective_describe = (
+            bool(args.describe_relationship)
+            if args.describe_relationship is not None
+            else False
+        )
+
+        # No project metadata is available to auto-name the output from,
+        # so an explicit --output or a wheel-stem-derived fallback is used.
+        output_path = args.output
+        if output_path is None:
+            output_path = Path.cwd() / f"{wheel_path.stem}{_SPDX3_JSON_EXT}"
+
+        if args.verbose:
+            print(f"Pitloom version : {__version__}")
+            print(f"Wheel file      : {wheel_path}")
+            print(f"Output path     : {output_path}")
+
+        generate_analyzed_sbom(
+            wheel_path,
+            output_path=output_path,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe,
+            registry=args.registry,
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating Analyzed SBOM: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return 1
 
 
 # ---------------------------------------------------------------------------
@@ -700,19 +811,20 @@ def main() -> int:
 _DEFAULT_IDS_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
 
 
-def _build_ids_parser() -> argparse.ArgumentParser:
-    """Build the argument parser for ``pitloom ids <command> ...``."""
-    parser = argparse.ArgumentParser(
-        prog="pitloom ids",
+def _add_ids_subparser(subparsers: Any) -> None:
+    """Add the ``ids`` subcommand to the main parser."""
+    ids_parser = subparsers.add_parser(
+        "ids",
+        help="Manage the Loom ID registry.",
         description=(
             "Manage the Loom ID registry, a stable file/entity -> SPDX ID "
             "registry consulted by 'pitloom.loom', the Hatchling build hook, "
             "and the CLI."
         ),
     )
-    subparsers = parser.add_subparsers(dest="ids_command", required=True)
+    ids_subparsers = ids_parser.add_subparsers(dest="ids_command", required=True)
 
-    generate_parser = subparsers.add_parser(
+    generate_parser = ids_subparsers.add_parser(
         "generate",
         help="Index files (and detected AI models) under PATHs into the registry.",
     )
@@ -754,12 +866,12 @@ def _build_ids_parser() -> argparse.ArgumentParser:
         metavar="NAME[:TYPE]",
         help=(
             "Register a named entity (default TYPE: ai_AIPackage) so that "
-            "loom.set_model()/`loom -m` can reuse its id even before the "
+            "loom.set_model()/`loom model` can reuse its id even before the "
             "model file exists on disk. May be given multiple times."
         ),
     )
 
-    import_parser = subparsers.add_parser(
+    import_parser = ids_subparsers.add_parser(
         "import", help="Harvest ids from an existing SPDX 3 JSON-LD SBOM."
     )
     import_parser.add_argument(
@@ -776,8 +888,6 @@ def _build_ids_parser() -> argparse.ArgumentParser:
             f"(default: {DEFAULT_REGISTRY_FILENAME} in the current directory)."
         ),
     )
-
-    return parser
 
 
 def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
@@ -869,27 +979,13 @@ def _run_ids_import(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run_ids_cli(argv: list[str]) -> int:
-    """Parse and dispatch ``pitloom ids <command> ...`` arguments."""
-    parser = _build_ids_parser()
-    args = parser.parse_args(argv)
+def _run_ids_cli(args: argparse.Namespace) -> int:
+    """Dispatch ``pitloom ids <command> ...`` arguments."""
     if args.ids_command == "generate":
         return _run_ids_generate(args)
     if args.ids_command == "import":
         return _run_ids_import(args)
-    parser.error(f"Unknown ids command: {args.ids_command}")  # pragma: no cover
-    # parser.error() always raises SystemExit (argparse's `required=True` on
-    # the subparsers already makes this line unreachable in practice) --
-    # kept only so every code path has an explicit `return int`.
-    return 1  # type: ignore[unreachable] # pragma: no cover
-
-
-def _run_model_mode(args: argparse.Namespace) -> int:
-    """Generate a standalone SBOM - dispatches to HF or local-file mode."""
-    source: str = args.aimodel
-    if is_huggingface_source(source):
-        return _run_hf_model_mode(args, source)
-    return _run_local_model_mode(args, source)
+    return 1  # pragma: no cover
 
 
 def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:

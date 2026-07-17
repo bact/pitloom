@@ -14,33 +14,33 @@ adapted with minimal edits.
 ## Project SBOM, ephemeral run
 
 ```bash
-uvx pitloom . -o sbom.spdx3.json --pretty
+uvx pitloom source . -o sbom.spdx3.json --pretty
 ```
 
 ## Project SBOM, already-installed Pitloom
 
 ```bash
 pip install pitloom
-loom /path/to/project -o sbom.spdx3.json
+loom source /path/to/project -o sbom.spdx3.json
 ```
 
 ## AI model SBOM, local file
 
 ```bash
-uvx --from 'pitloom[aimodel]' pitloom -m model.safetensors -o model.spdx3.json
+uvx --from 'pitloom[aimodel]' pitloom analyze model.safetensors -o model.spdx3.json
 ```
 
 ## AI model SBOM, Hugging Face Hub model
 
 ```bash
-uvx --from 'pitloom[huggingface]' pitloom -m mistralai/Mistral-7B-v0.1 \
+uvx --from 'pitloom[huggingface]' pitloom analyze mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
 ```
 
 ## Project SBOM, multiple creators
 
 ```bash
-loom . --creator-name "Acme Corp" --creator-type organization \
+loom source . --creator-name "Acme Corp" --creator-type organization \
        --creator-name "Alice" --creator-email alice@example.com \
        -o sbom.spdx3.json
 ```

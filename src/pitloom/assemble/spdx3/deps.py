@@ -13,6 +13,7 @@ from importlib.metadata import version as get_package_version
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
+from pitloom.core.project import PhantomDependency
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
@@ -219,16 +220,12 @@ def build_license_elements(
         to=[license_spdx_id],
     )
 
-    # The license identified by the SPDX data creator.
-    # This can be more complicated.
-    # For example, if there are mulitple declared licenses,
-    # or if there is no declared licenes but a license
-    # can be concluded from other evidence.
-    # See https://spdx.github.io/spdx-spec/v3.0/model/Licensing/Licensing/
-    # Sort this out in future versions.
-    # Eventually we may need to create the relationships separately,
-    # as hasDeclaredLicense and hasConcludedLicense can be different and
-    # the value of having this helper function will be less clear.
+    # The license identified by the SPDX data creator. Currently set equal to
+    # the declared license; hasDeclaredLicense and hasConcludedLicense are
+    # distinct in the SPDX 3 model (e.g. multiple declared licenses, or a
+    # concluded license inferred from evidence other than the declaration --
+    # see https://spdx.github.io/spdx-spec/v3.0/model/Licensing/Licensing/),
+    # but pitloom does not yet perform that inference.
     rel_has_concluded_license = spdx3.Relationship(
         spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
         creationInfo=creation_info,
@@ -309,3 +306,70 @@ def add_dependencies(
         )
         dep_rel.comment = f"Metadata provenance: dependencies: {dep_provenance}"
         exporter.add_relationship(dep_rel)
+
+
+def add_phantom_dependencies(
+    phantom_deps: list[PhantomDependency],
+    main_package_spdx_id: str,
+    file_spdx_ids: dict[str, str],
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> None:
+    """Build SPDX elements for bundled phantom binary dependencies.
+
+    Args:
+        phantom_deps: List of PhantomDependency objects discovered in the distribution.
+        main_package_spdx_id: SPDX ID of the parent package for relationships.
+        file_spdx_ids: Mapping of file paths to their SPDX IDs, to link
+            packages to files.
+        creation_info: Shared CreationInfo for all new elements.
+        doc_name: Document name (project name) for SPDX ID generation.
+        doc_uuid: Document-scoped UUID used in SPDX ID generation.
+        exporter: Receives the new package and relationship elements.
+    """
+    for dep in phantom_deps:
+        dep_package = spdx3.software_Package(
+            spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
+            name=dep.name,
+            creationInfo=creation_info,
+        )
+        if dep.version:
+            dep_package.software_packageVersion = dep.version
+        else:
+            dep_package.software_packageVersion = "unknown"
+
+        dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
+        dep_package.comment = (
+            "Metadata provenance: Phantom dependency bundled in distribution artifact"
+        )
+
+        # Download URL and license are not derivable from a bundled binary alone.
+        exporter.add_package(dep_package)
+
+        # The main package depends on this phantom package.
+        dep_rel = spdx3.Relationship(
+            spdxId=generate_spdx_id(
+                "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
+            ),
+            from_=main_package_spdx_id,
+            to=[require_spdx_id(dep_package)],
+            relationshipType=spdx3.RelationshipType.dependsOn,
+            creationInfo=creation_info,
+        )
+        exporter.add_relationship(dep_rel)
+
+        # Link the phantom package to the physical file if it was registered
+        file_spdx_id = file_spdx_ids.get(dep.file_path)
+        if file_spdx_id:
+            file_rel = spdx3.Relationship(
+                spdxId=generate_spdx_id(
+                    "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
+                from_=require_spdx_id(dep_package),
+                to=[file_spdx_id],
+                relationshipType=spdx3.RelationshipType.contains,
+                creationInfo=creation_info,
+            )
+            exporter.add_relationship(file_rel)

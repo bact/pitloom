@@ -88,7 +88,7 @@ files = ["fragments/agent-enrichment.spdx3.json"]
 ## 4. Re-generate the SBOM
 
 ```bash
-loom . -o sbom.spdx3.json --pretty
+loom source . -o sbom.spdx3.json --pretty
 ```
 
 The merged output now contains the `dataset_DatasetPackage` element from

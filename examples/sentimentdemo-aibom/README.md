@@ -218,7 +218,7 @@ python -m sentimentdemo.evaluate
 
 ## Stage 4 - Direct AI model extraction (Pitloom CLI)
 
-**Tool:** `loom -m` (Pitloom CLI)
+**Tool:** `loom analyze` (Pitloom CLI)
 **Output fragment:** `fragments/04_model_file.spdx3.json`
 
 Stages 1-3 record information that the *training code* knows. But the
@@ -228,7 +228,7 @@ labels, file hash, and so on. Pitloom reads those straight out of the
 binary:
 
 ```bash
-loom -m models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty
+loom analyze models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty
 ```
 
 This is **independent of the training script** - you can run it against
@@ -312,7 +312,7 @@ different sources:
 | Raw + processed datasets, with `hasInput` lineage | Preprocess script | `@loom.run` decorator + STAV IRIs | 1 |
 | AI model, hyperparameters, `trainedOn` relationship | Training script | `loom.run` context manager + STAV IRIs | 2 |
 | Validation set, `testedOn` relationship | Eval script | `loom.run` context manager + STAV IRIs | 3 |
-| Architecture, file hash, vocab/dim/labels | Model file (`sentimentdemo.bin`) | `loom -m` CLI extractor | 4 |
+| Architecture, file hash, vocab/dim/labels | Model file (`sentimentdemo.bin`) | `loom analyze` CLI extractor | 4 |
 
 You can inspect the final SBOM with:
 

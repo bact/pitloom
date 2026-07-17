@@ -72,25 +72,26 @@ _KEYED_DICT_PROPS = frozenset({"ai_hyperparameter", "ai_metric"})
 
 
 # ---------------------------------------------------------------------------
-# spdx-python-model internals -- single access point
+# spdx-python-model property enumeration -- single access point
 # ---------------------------------------------------------------------------
 #
-# `SHACLObject._OBJ_PY_PROPS` (a dict of Python-attribute-name -> ClassProp
-# descriptor) is not part of spdx-python-model's public API.  Every place in
-# this module that needs to walk "all declared properties of an arbitrary
-# element generically" (reference remapping, property merging, structural
-# equality) goes through this one helper, so an upstream rename or
-# restructuring surfaces as a single, loud failure here rather than silent
-# breakage scattered through the merge logic.
+# Every place in this module that needs to walk "all declared properties of
+# an arbitrary element generically" (reference remapping, property merging,
+# structural equality) goes through this one helper, so an upstream change
+# to ``property_keys()``'s shape surfaces as a single, loud failure here
+# rather than silent breakage scattered through the merge logic.
 def _class_properties(obj: spdx3.SHACLObject) -> Iterable[str]:
-    """Return the declared Python property names on *obj*'s class."""
-    # _OBJ_PY_PROPS is not part of the public stub -- see module note above.
-    # pylint: disable=protected-access
-    keys: Iterable[str] = type(obj)._OBJ_PY_PROPS.keys()  # type: ignore[attr-defined]
-    return keys
+    """Return the declared Python property names on *obj*'s class.
+
+    ``property_keys()`` yields ``(python_name, iri, compact_name)`` triples;
+    ``python_name`` is typed ``Optional[str]`` upstream for properties with
+    no Python-attribute alias, though every property pitloom's model
+    actually declares has one -- filter defensively rather than assume it.
+    """
+    return [k[0] for k in obj.property_keys() if k[0] is not None]
 
 
-def _stable_key(obj: spdx3.SHACLObject) -> tuple[str, str]:
+def _stable_key(obj: spdx3.SHACLObject) -> tuple[Any, ...]:
     """Deterministic sort key for iterating a ``SHACLObjectSet``.
 
     ``SHACLObjectSet.objects`` is a plain :class:`set`, so its iteration
@@ -101,8 +102,8 @@ def _stable_key(obj: spdx3.SHACLObject) -> tuple[str, str]:
     ``spdxId`` for Elements and the blank-node label otherwise.
     """
     # pylint: disable=protected-access
-    obj_id: str = obj._id or ""  # type: ignore[attr-defined]
-    return (type(obj).__name__, obj_id)
+    obj_id: str = getattr(obj, "_id", None) or ""
+    return (type(obj).__name__, obj_id, _signature(obj))
 
 
 def _as_element(obj: spdx3.SHACLObject) -> spdx3.Element:
@@ -138,11 +139,15 @@ def _sha256_hash(obj: spdx3.Element) -> str | None:
 def _normalize_value(value: Any) -> Any:
     """Return a comparable, hashable-shaped representation of a property
     value for structural-equality comparison (see :func:`_signature`)."""
+    if value is None:
+        return (0, None)
     if isinstance(value, spdx3.SHACLObject):
-        return _signature(value)
+        return (1, _signature(value))
     if isinstance(value, spdx3.ListProxy):
-        return tuple(_normalize_value(v) for v in value)
-    return value
+        return (2, tuple(_normalize_value(v) for v in value))
+    if isinstance(value, (list, tuple)):
+        return (2, tuple(_normalize_value(v) for v in value))
+    return (3, type(value).__name__, value)
 
 
 def _signature(obj: spdx3.SHACLObject) -> tuple[Any, ...]:
@@ -470,7 +475,7 @@ def _endpoint_id(value: str | spdx3.Element | None) -> str | None:
     -- e.g. an endpoint outside the merged fragments)."""
     if value is None or isinstance(value, str):
         return value
-    return value.spdxId
+    return str(value.spdxId) if value.spdxId else None
 
 
 def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
@@ -491,7 +496,7 @@ def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
             seen.add(key)
 
     for dup in duplicates:
-        exporter.object_set.remove(dup)
+        exporter.object_set.objects.remove(dup)
 
 
 def _find_main_document(object_set: spdx3.SHACLObjectSet) -> spdx3.SpdxDocument | None:

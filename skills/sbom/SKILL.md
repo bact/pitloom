@@ -32,26 +32,29 @@ See `references/examples.md` for copy-paste recipes.
 Prefer an ephemeral run so the user's environment is not polluted:
 
 ```bash
-uvx pitloom <project-or-model-path>       # uv's ephemeral runner
+uvx pitloom source <project-path>       # uv's ephemeral runner
 # or
-pipx run pitloom <project-or-model-path>  # pipx's ephemeral runner
+pipx run pitloom source <project-path>  # pipx's ephemeral runner
 ```
 
 Fall back to a normal install only if neither `uv` nor `pipx` is available:
 
 ```bash
 pip install pitloom
-loom <project-or-model-path>
+loom source <project-path>
 ```
 
 `loom` and `pitloom` are two names for the same console-script entry point;
 `uvx`/`pipx run` resolve `pitloom <args>` to that entry point automatically.
+Every invocation needs a subcommand -- `source` (a Python project) or
+`analyze` (a built wheel, an AI model file, or a Hugging Face repo); see
+below.
 
 ## Project SBOMs (Python packages)
 
 ```bash
-loom .                              # scan the current directory
-loom /path/to/project -o sbom.spdx3.json
+loom source .                              # scan the current directory
+loom source /path/to/project -o sbom.spdx3.json
 ```
 
 Requires a `pyproject.toml` (PEP 621 `[project]` or Poetry
@@ -59,15 +62,15 @@ Requires a `pyproject.toml` (PEP 621 `[project]` or Poetry
 
 ## AI model SBOMs (AIBOMs)
 
-Pass `-m` with a local model file or a Hugging Face URL/model ID -- no
-project directory required:
+Use `loom analyze` with a local model file or a Hugging Face URL/model ID --
+no project directory required:
 
 ```bash
-loom -m model.safetensors
-loom -m model.onnx
-loom -m model.gguf
-loom -m mistralai/Mistral-7B-v0.1                # bare Hugging Face model ID
-loom -m https://huggingface.co/Qwen/Qwen3-235B-A22B
+loom analyze model.safetensors
+loom analyze model.onnx
+loom analyze model.gguf
+loom analyze mistralai/Mistral-7B-v0.1                # bare Hugging Face model ID
+loom analyze https://huggingface.co/Qwen/Qwen3-235B-A22B
 ```
 
 Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
@@ -93,13 +96,14 @@ pitloom`).
 ## What Pitloom produces
 
 - An **SPDX 3 JSON** (JSON-LD) document (`@context` + `@graph`), by default
-  named `<name>-<version>.spdx3.json` (project mode) or
-  `<stem>.spdx3.json` (model mode).
-- Project mode includes: the main package, its dependencies, per-file
+  named `<name>-<version>.spdx3.json` (`source`) or `<stem>.spdx3.json`
+  (`analyze`, model target).
+- `source` includes: the main package, its dependencies, per-file
   SHA-256 hashes (Merkle root over the wheel's file set), and a
   `pkg:pypi/<name>@<version>` PURL for the main package.
-- Model mode includes: an `ai_AIPackage` element with whatever metadata the
-  model format embeds (architecture, hyperparameters, framework, etc.).
+- `analyze` (model target) includes: an `ai_AIPackage` element with
+  whatever metadata the model format embeds (architecture,
+  hyperparameters, framework, etc.).
 - If the target project registers Pitloom's Hatchling build hook
   (`[tool.hatch.build.hooks.pitloom]`), building a wheel
   (`python -m build` / `hatch build`) also embeds an SBOM at

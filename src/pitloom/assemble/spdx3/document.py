@@ -8,13 +8,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
-from pitloom.assemble.spdx3.deps import add_dependencies, build_license_elements
+from pitloom.assemble.spdx3.deps import (
+    _enrich_from_installed,
+    add_dependencies,
+    add_phantom_dependencies,
+    build_license_elements,
+)
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
@@ -308,6 +314,18 @@ def build(
         doc, main_package, spdx_ci, doc_uuid, exporter, registry
     )
 
+    # --- Phantom Dependencies ---
+    if doc.phantom_dependencies:
+        add_phantom_dependencies(
+            phantom_deps=doc.phantom_dependencies,
+            main_package_spdx_id=require_spdx_id(main_package),
+            file_spdx_ids=file_spdx_ids,
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+        )
+
     # --- AI models (and their associated datasets) ---
     if doc.ai_models:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.ai)
@@ -351,7 +369,7 @@ def build_model(
         model: Extracted AI model metadata.
         creation_metadata: Creator and timestamp metadata for the SBOM document.
         entity_spdx_id: When given, overrides the ``ai_AIPackage``'s minted
-            ``spdxId`` with this one -- used by ``pitloom -m ... --registry``
+            ``spdxId`` with this one -- used by ``pitloom model ... --registry``
             so the resulting element shares its id with any
             ``pitloom.loom`` fragment that registered the same entity name
             (see :meth:`pitloom.ids.IdRegistry.lookup_entity`), letting the
@@ -431,6 +449,168 @@ def build_model(
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
     if model.datasets:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.dataset)
+
+    exporter.add_document(spdx_doc)
+    exporter.add_sbom(sbom)
+
+    return exporter
+
+
+# pylint: disable=too-many-locals
+def build_deployed(
+    doc: DocumentModel,
+    env_tree: list[dict[str, Any]],
+    *,
+    registry: IdRegistry | None = None,
+) -> Spdx3JsonExporter:
+    """Assemble SPDX 3 elements for a deployed environment.
+
+    Args:
+        doc: Format-neutral document model with environment metadata.
+        env_tree: Flat JSON list of packages and dependencies from pipdeptree.
+        registry: Optional stable file id registry. Each installed
+            package's id is looked up by name
+            (:meth:`~pitloom.ids.IdRegistry.lookup_entity`, type
+            ``"software_Package"``); a match reuses the registered
+            ``spdxId`` instead of minting a fresh one, so this element can
+            be unified with the same package referenced elsewhere (e.g. a
+            Source or Analyzed SBOM) once merged. A miss falls back to the
+            existing deterministic minting. A package gets a registry
+            entry either via an explicit ``pitloom ids generate --entity
+            <name>:software_Package``, or in bulk via ``pitloom ids
+            import <existing-sbom>`` (:meth:`~pitloom.ids.IdRegistry.import_sbom`
+            harvests every named element generically, not just files and
+            AI models).
+
+    Returns:
+        A populated Spdx3JsonExporter.
+    """
+    metadata = doc.project
+    exporter = Spdx3JsonExporter()
+    doc_uuid = compute_doc_uuid(
+        name=metadata.name,
+        version=metadata.version or "unknown",
+        dependencies=[],
+        merkle_root=None,
+    )
+    _clear_doc_counters(doc_uuid)
+
+    # --- Creation info ---
+    spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
+    exporter.add_creation_info(spdx_ci)
+    for agent in agents:
+        exporter.add_agent(agent)
+    for tool in tools:
+        exporter.object_set.add(tool)
+
+    # --- Synthetic Main package representing the environment ---
+    main_package = _build_main_package(doc, spdx_ci, agents, doc_uuid)
+    exporter.add_package(main_package)
+
+    # --- Packages and Relationships ---
+    package_spdx_ids: dict[str, str] = {}
+
+    # First pass: Create all packages
+    for node in env_tree:
+        pkg_info = node.get("package", {})
+        dep_name = pkg_info.get("package_name")
+        if not dep_name:
+            continue
+
+        dep_version = pkg_info.get("installed_version", "unknown")
+
+        registered_id = (
+            registry.lookup_entity(dep_name, "software_Package")
+            if registry is not None
+            else None
+        )
+        dep_package = spdx3.software_Package(
+            spdxId=registered_id
+            or generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
+            name=dep_name,
+            creationInfo=spdx_ci,
+        )
+        dep_package.software_packageVersion = dep_version
+        dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
+        dep_package.comment = (
+            "Metadata provenance: Source: pipdeptree (deployed environment)"
+        )
+
+        _enrich_from_installed(
+            dep_name, dep_package, spdx_ci, metadata.name, doc_uuid, exporter
+        )
+
+        exporter.add_package(dep_package)
+        package_spdx_ids[pkg_info.get("key", dep_name.lower())] = require_spdx_id(
+            dep_package
+        )
+
+    # Second pass: Create relationships
+    dep_keys_with_parents = set()
+    for node in env_tree:
+        parent_key = node.get("package", {}).get("key")
+        parent_spdx_id = package_spdx_ids.get(parent_key)
+        if not parent_spdx_id:
+            continue
+
+        for dep in node.get("dependencies", []):
+            child_key = dep.get("key")
+            dep_keys_with_parents.add(child_key)
+            child_spdx_id = package_spdx_ids.get(child_key)
+            if child_spdx_id:
+                dep_rel = spdx3.Relationship(
+                    spdxId=generate_spdx_id(
+                        "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
+                    ),
+                    from_=parent_spdx_id,
+                    to=[child_spdx_id],
+                    relationshipType=spdx3.RelationshipType.dependsOn,
+                    creationInfo=spdx_ci,
+                )
+                dep_rel.comment = "Metadata provenance: Source: pipdeptree"
+                exporter.add_relationship(dep_rel)
+
+    # Third pass: Link top-level packages to the environment root
+    for node in env_tree:
+        pkg_key = node.get("package", {}).get("key")
+        if pkg_key not in dep_keys_with_parents:
+            child_spdx_id = package_spdx_ids.get(pkg_key)
+            if child_spdx_id:
+                dep_rel = spdx3.Relationship(
+                    spdxId=generate_spdx_id(
+                        "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
+                    ),
+                    from_=require_spdx_id(main_package),
+                    to=[child_spdx_id],
+                    relationshipType=spdx3.RelationshipType.dependsOn,
+                    creationInfo=spdx_ci,
+                )
+                exporter.add_relationship(dep_rel)
+
+    # --- SBOM and document envelope ---
+    sbom = spdx3.software_Sbom(
+        spdxId=generate_spdx_id("Sbom", doc_name=metadata.name, doc_uuid=doc_uuid),
+        creationInfo=spdx_ci,
+        rootElement=[main_package.spdxId],
+    )
+    sbom.software_sbomType = [spdx3.software_SbomType.deployed]
+
+    spdx_doc = spdx3.SpdxDocument(
+        spdxId=generate_spdx_id(
+            "SpdxDocument", doc_name=metadata.name, doc_uuid=doc_uuid
+        ),
+        creationInfo=spdx_ci,
+        rootElement=[sbom.spdxId],
+    )
+    spdx_doc.profileConformance = [
+        spdx3.ProfileIdentifierType.core,
+        spdx3.ProfileIdentifierType.software,
+    ]
+    if exporter.find_license("dummy") is not None or any(
+        isinstance(obj, spdx3.simplelicensing_SimpleLicensingText)
+        for obj in exporter.object_set.objects
+    ):
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
 
     exporter.add_document(spdx_doc)
     exporter.add_sbom(sbom)

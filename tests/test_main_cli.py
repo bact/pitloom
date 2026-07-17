@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
 
 from pitloom import __main__
 from pitloom.core.creation import CreationMetadata
+from pitloom.ids import IdRegistry
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -69,7 +71,7 @@ pretty = true
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", str(project_dir), "-o", str(output_path)],
+        ["loom", "source", str(project_dir), "-o", str(output_path)],
     )
 
     exit_code = __main__.main()
@@ -124,7 +126,7 @@ creation-datetime = "2026-04-01T00:00:00Z"
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir)])
 
     exit_code = __main__.main()
 
@@ -197,7 +199,7 @@ creation-datetime = "2030-01-02T03:04:05Z"
 
     monkeypatch.chdir(current_dir)
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(target_dir)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(target_dir)])
 
     exit_code = __main__.main()
 
@@ -263,7 +265,7 @@ version = "0.1.0"
 
     monkeypatch.chdir(current_dir)
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(target_dir), "-v"])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(target_dir), "-v"])
 
     exit_code = __main__.main()
     captured = capsys.readouterr()
@@ -310,7 +312,7 @@ creator-name = 123
         )
 
     monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir)])
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir)])
 
     exit_code = __main__.main()
     captured = capsys.readouterr()
@@ -346,7 +348,7 @@ def test_model_mode_no_project_dir_required(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     assert captured["model_path"] == SAFETENSORS_FIXTURE.resolve()
@@ -374,7 +376,7 @@ def test_model_mode_explicit_output_path(
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
     monkeypatch.setattr(
-        sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "-o", str(explicit_out)]
+        sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(explicit_out)]
     )
 
     assert __main__.main() == 0
@@ -400,7 +402,7 @@ def test_model_mode_default_output_path_uses_stem(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     out = captured["output_path"]
@@ -428,7 +430,7 @@ def test_model_mode_passes_pretty_flag(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "--pretty"])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "--pretty"])
 
     assert __main__.main() == 0
     assert captured["pretty"] is True
@@ -456,7 +458,7 @@ def test_model_mode_passes_creation_info(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
+        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
     )
 
     assert __main__.main() == 0
@@ -470,7 +472,7 @@ def test_model_mode_nonexistent_file_returns_error(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
-        sys, "argv", ["loom", "-m", str(tmp_path / "no-such-model.safetensors")]
+        sys, "argv", ["loom", "analyze", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
 
@@ -486,7 +488,9 @@ def test_project_mode_default_creation_comment(
         '[project]\nname = "cli-app"\nversion = "0.1.0"\n', encoding="utf-8"
     )
     out = tmp_path / "cli-app.spdx3.json"
-    monkeypatch.setattr(sys, "argv", ["loom", str(project_dir), "-o", str(out)])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "source", str(project_dir), "-o", str(out)]
+    )
 
     assert __main__.main() == 0
 
@@ -512,6 +516,7 @@ def test_project_mode_creator_type_organization(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -555,6 +560,7 @@ def test_project_mode_creator_type_software_agent_and_agent(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -590,6 +596,7 @@ def test_project_mode_multiple_interleaved_creators(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -635,6 +642,7 @@ def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -682,6 +690,7 @@ def test_creator_type_invalid_choice_rejected_by_argparse(
         "argv",
         [
             "loom",
+            "source",
             ".",
             "--creator-name",
             "Bot",
@@ -699,7 +708,9 @@ def test_creator_type_before_creator_name_errors(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--creator-type before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-type", "organization"])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "source", ".", "--creator-type", "organization"]
+    )
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-type must come after a --creator-name" in capsys.readouterr().err
@@ -710,7 +721,9 @@ def test_creator_email_before_creator_name_errors(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """--creator-email before any --creator-name is a clear argparse error."""
-    monkeypatch.setattr(sys, "argv", ["loom", ".", "--creator-email", "a@example.com"])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "source", ".", "--creator-email", "a@example.com"]
+    )
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
@@ -733,6 +746,7 @@ def test_project_mode_repeated_creation_tool(
         "argv",
         [
             "loom",
+            "source",
             str(project_dir),
             "-o",
             str(out),
@@ -755,8 +769,10 @@ def test_no_args_returns_error(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(sys, "argv", ["loom"])
-    assert __main__.main() == 1
-    assert "project_dir" in capsys.readouterr().err
+    with pytest.raises(SystemExit) as excinfo:
+        __main__.main()
+    assert excinfo.value.code == 2
+    assert "the following arguments are required: command" in capsys.readouterr().err
 
 
 def test_model_mode_verbose_shows_model_path(
@@ -776,7 +792,7 @@ def test_model_mode_verbose_shows_model_path(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", str(ONNX_FIXTURE), "-v"])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "-v"])
 
     assert __main__.main() == 0
     out = capsys.readouterr().out
@@ -797,7 +813,7 @@ def test_model_mode_safetensors_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -817,7 +833,7 @@ def test_model_mode_onnx_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -837,7 +853,7 @@ def test_model_mode_safetensors_no_software_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -856,7 +872,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -895,7 +911,7 @@ def test_hf_url_routes_to_huggingface_sbom(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "analyze", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -919,7 +935,7 @@ def test_hf_model_id_routes_to_huggingface_sbom(
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "-m", "Qwen/Qwen3-235B-A22B"])
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", "Qwen/Qwen3-235B-A22B"])
 
     assert __main__.main() == 0
     assert captured["model_source"] == "Qwen/Qwen3-235B-A22B"
@@ -945,7 +961,7 @@ def test_hf_mode_default_output_uses_model_name(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "analyze", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -979,7 +995,7 @@ def test_hf_mode_explicit_output_path(
         "argv",
         [
             "loom",
-            "-m",
+            "analyze",
             "mistralai/Mistral-7B-v0.1",
             "-o",
             str(explicit_out),
@@ -1012,7 +1028,7 @@ def test_hf_mode_passes_creation_info(
         "argv",
         [
             "loom",
-            "-m",
+            "analyze",
             "Qwen/Qwen3-235B-A22B",
             "--creator-name",
             "Researcher",
@@ -1045,7 +1061,7 @@ def test_hf_mode_passes_pretty_flag(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "mistralai/Mistral-7B-v0.1", "--pretty"],
+        ["loom", "analyze", "mistralai/Mistral-7B-v0.1", "--pretty"],
     )
 
     assert __main__.main() == 0
@@ -1076,7 +1092,7 @@ def test_hf_mode_verbose_shows_model_id(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "-m", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
+        ["loom", "analyze", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
     )
 
     assert __main__.main() == 0
@@ -1107,7 +1123,7 @@ def test_hf_url_with_tree_path_resolves_correctly(
         "argv",
         [
             "loom",
-            "-m",
+            "analyze",
             "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
         ],
     )
@@ -1115,3 +1131,124 @@ def test_hf_url_with_tree_path_resolves_correctly(
     assert __main__.main() == 0
     # Tree path stripped - only owner/name retained
     assert captured["model_source"] == "mistralai/Mistral-7B-v0.1"
+
+
+# ---------------------------------------------------------------------------
+# `loom analyze <wheel>` / `loom deployed` / `loom ids` dispatch
+# ---------------------------------------------------------------------------
+
+
+def _make_wheel(tmp_path: Path, name: str, version: str) -> Path:
+    """Build a minimal .whl containing just a METADATA file."""
+    wheel_path = tmp_path / f"{name}-{version}-py3-none-any.whl"
+    metadata_body = f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr(f"{name}-{version}.dist-info/METADATA", metadata_body)
+    return wheel_path
+
+
+def test_analyze_wheel_dispatches_to_wheel_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`loom analyze foo.whl` must dispatch to generate_analyzed_sbom(),
+    not the AI-model or Hugging Face paths."""
+    monkeypatch.chdir(tmp_path)
+    wheel_path = _make_wheel(tmp_path, "pkg", "1.0.0")
+    captured: dict[str, object] = {}
+
+    def _fake_generate_analyzed_sbom(
+        wheel_path_arg: Path,
+        output_path: object = None,
+        creation_metadata: object = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+        registry: object = None,
+    ) -> str:
+        _ = (creation_metadata, pretty, describe_relationship, registry)
+        captured["wheel_path"] = wheel_path_arg
+        captured["output_path"] = output_path
+        return "{}"
+
+    monkeypatch.setattr(
+        __main__, "generate_analyzed_sbom", _fake_generate_analyzed_sbom
+    )
+    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(wheel_path)])
+
+    assert __main__.main() == 0
+    assert captured["wheel_path"] == wheel_path.resolve()
+
+
+def test_deployed_dispatches_to_generate_deployed_sbom(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`loom deployed` must dispatch to generate_deployed_sbom()."""
+    monkeypatch.chdir(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate_deployed_sbom(
+        output_path: object = None,
+        creation_metadata: object = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+        registry: object = None,
+    ) -> str:
+        _ = (creation_metadata, pretty, describe_relationship, registry)
+        captured["output_path"] = output_path
+        return "{}"
+
+    monkeypatch.setattr(
+        __main__, "generate_deployed_sbom", _fake_generate_deployed_sbom
+    )
+    monkeypatch.setattr(sys, "argv", ["loom", "deployed"])
+
+    assert __main__.main() == 0
+    assert captured["output_path"] == tmp_path / "deployed-environment.spdx3.json"
+
+
+def test_ids_generate_cli_end_to_end(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`loom ids generate` smoke test through main(): real filesystem, no
+    monkeypatching of IdRegistry itself since it is fast and local."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "mod.py").write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", "ids", "generate"])
+
+    assert __main__.main() == 0
+
+    registry_path = tmp_path / "loom-ids.json"
+    assert registry_path.exists()
+    registry = IdRegistry.load(registry_path)
+    assert "src/mod.py" in registry.files
+
+
+def test_ids_import_cli_end_to_end(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`loom ids import` smoke test through main(): harvests ids from a real
+    SBOM produced by `loom source`."""
+    pyproject_content = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "importable-pkg"
+version = "1.0.0"
+"""
+    (tmp_path / "pyproject.toml").write_text(pyproject_content, encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    sbom_path = tmp_path / "importable-pkg-1.0.0.spdx3.json"
+    monkeypatch.setattr(sys, "argv", ["loom", "source", str(tmp_path)])
+    assert __main__.main() == 0
+    assert sbom_path.exists()
+
+    monkeypatch.setattr(sys, "argv", ["loom", "ids", "import", str(sbom_path)])
+    assert __main__.main() == 0
+
+    registry_path = tmp_path / "loom-ids.json"
+    assert registry_path.exists()
+    registry = IdRegistry.load(registry_path)
+    assert "importable-pkg" in registry.entities

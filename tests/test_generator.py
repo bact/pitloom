@@ -5,23 +5,30 @@
 """Integration tests for SBOM generation."""
 
 import json
+import subprocess
 import tempfile
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom.assemble import generate_sbom
-from pitloom.assemble.spdx3.document import build, build_model
+from pitloom.assemble import (
+    generate_analyzed_sbom,
+    generate_deployed_sbom,
+    generate_sbom,
+)
+from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.core.project import PhantomDependency, ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.ids import IdRegistry
@@ -939,7 +946,7 @@ def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
 
 def test_assembler_ai_model_reuses_registry_entity_by_file_stem() -> None:
     """Falls back to the model file's stem (mirroring the lookup
-    generate_ai_model_sbom performs for loom -m/--registry) when no
+    generate_ai_model_sbom performs for loom model/--registry) when no
     physical_path or name match is registered."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
@@ -987,6 +994,201 @@ def test_assembler_ai_model_no_registry_match_mints_fresh_id() -> None:
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 1
     assert ai_pkgs[0]["spdxId"] != unrelated_id
+
+
+def test_build_deployed_reuses_registry_entity_by_name() -> None:
+    """A Deployed SBOM's installed packages must reuse a registered
+    ``software_Package`` entity's spdxId (looked up by package name), so
+    the same package referenced elsewhere (e.g. a Source or Analyzed SBOM)
+    unifies with it once merged, instead of always minting a fresh id."""
+    project = ProjectMetadata(name="deployed-environment", version="0.0.0")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    env_tree = [
+        {
+            "package": {
+                "key": "requests",
+                "package_name": "requests",
+                "installed_version": "2.31.0",
+            }
+        }
+    ]
+
+    registry = IdRegistry.new("deployed-environment")
+    registered_id = registry.register_entity("requests", "software_Package")
+
+    exporter = build_deployed(doc, env_tree, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    requests_pkg = next(p for p in packages if p["name"] == "requests")
+    assert requests_pkg["spdxId"] == registered_id
+
+
+def test_build_deployed_no_registry_match_mints_fresh_id() -> None:
+    """No matching registry entity -> unchanged behaviour: a fresh id is
+    minted for the installed package."""
+    project = ProjectMetadata(name="deployed-environment", version="0.0.0")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    env_tree = [
+        {
+            "package": {
+                "key": "requests",
+                "package_name": "requests",
+                "installed_version": "2.31.0",
+            }
+        }
+    ]
+
+    registry = IdRegistry.new("deployed-environment")
+    unrelated_id = registry.register_entity("some-other-package", "software_Package")
+
+    exporter = build_deployed(doc, env_tree, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    requests_pkg = next(p for p in packages if p["name"] == "requests")
+    assert requests_pkg["spdxId"] != unrelated_id
+
+
+# ---------------------------------------------------------------------------
+# Phantom dependency tests (add_phantom_dependencies via build())
+# ---------------------------------------------------------------------------
+
+
+def test_phantom_dependency_creates_package_and_dependency_relationship() -> None:
+    """A phantom dependency produces a software_Package (name/version) and a
+    dependsOn Relationship from the main package to it."""
+    project = ProjectMetadata(name="main-project", version="1.0.0")
+    doc = DocumentModel(
+        project=project,
+        creation_metadata=CreationMetadata(),
+        phantom_dependencies=[
+            PhantomDependency(
+                name="libfoo",
+                file_path="pkg.libs/libfoo.so",
+                digest_sha256="c" * 64,
+                version="1.2.3",
+            )
+        ],
+    )
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    phantom_pkg = next(p for p in packages if p["name"] == "libfoo")
+    assert phantom_pkg["software_packageVersion"] == "1.2.3"
+
+    main_package = next(p for p in packages if p["name"] == "main-project")
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    depends_on = [
+        r
+        for r in relationships
+        if r["relationshipType"] == "dependsOn"
+        and r["from"] == main_package["spdxId"]
+        and phantom_pkg["spdxId"] in r["to"]
+    ]
+    assert len(depends_on) == 1
+
+
+def test_phantom_dependency_without_version_is_unknown() -> None:
+    """A phantom dependency with no inferred version gets 'unknown'."""
+    project = ProjectMetadata(name="main-project", version="1.0.0")
+    doc = DocumentModel(
+        project=project,
+        creation_metadata=CreationMetadata(),
+        phantom_dependencies=[
+            PhantomDependency(
+                name="libbar",
+                file_path="pkg.libs/libbar.so",
+                digest_sha256="d" * 64,
+                version=None,
+            )
+        ],
+    )
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    phantom_pkg = next(p for p in packages if p["name"] == "libbar")
+    assert phantom_pkg["software_packageVersion"] == "unknown"
+
+
+def test_phantom_dependency_links_to_matching_file() -> None:
+    """When a phantom dependency's file_path matches a registered project
+    file, a 'contains' Relationship links the phantom package to that file."""
+    files = [
+        ProjectFile(
+            physical_path="src/pkg.libs/libfoo.so",
+            distribution_path="pkg.libs/libfoo.so",
+            digest_sha256="c" * 64,
+        ),
+    ]
+    project = ProjectMetadata(name="main-project", version="1.0.0", files=files)
+    doc = DocumentModel(
+        project=project,
+        creation_metadata=CreationMetadata(),
+        phantom_dependencies=[
+            PhantomDependency(
+                name="libfoo",
+                file_path="pkg.libs/libfoo.so",
+                digest_sha256="c" * 64,
+                version=None,
+            )
+        ],
+    )
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    phantom_pkg = next(p for p in packages if p["name"] == "libfoo")
+    files_elems = [e for e in graph if e.get("type") == "software_File"]
+    file_elem = next(f for f in files_elems if f["name"] == "pkg.libs/libfoo.so")
+
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    contains = [
+        r
+        for r in relationships
+        if r["relationshipType"] == "contains"
+        and r["from"] == phantom_pkg["spdxId"]
+        and file_elem["spdxId"] in r["to"]
+    ]
+    assert len(contains) == 1
+
+
+def test_phantom_dependency_no_matching_file_no_link() -> None:
+    """When a phantom dependency's file_path has no matching registered
+    project file, no 'contains' relationship is created and building does
+    not crash."""
+    project = ProjectMetadata(name="main-project", version="1.0.0")
+    doc = DocumentModel(
+        project=project,
+        creation_metadata=CreationMetadata(),
+        phantom_dependencies=[
+            PhantomDependency(
+                name="libfoo",
+                file_path="pkg.libs/libfoo.so",
+                digest_sha256="c" * 64,
+                version=None,
+            )
+        ],
+    )
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    phantom_pkg = next(p for p in packages if p["name"] == "libfoo")
+
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    contains_from_phantom = [
+        r
+        for r in relationships
+        if r["relationshipType"] == "contains" and r["from"] == phantom_pkg["spdxId"]
+    ]
+    assert contains_from_phantom == []
 
 
 # ---------------------------------------------------------------------------
@@ -1251,3 +1453,70 @@ def test_fixture_license_export(fixture_path: Path) -> None:
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 1
     _check_license_relationships(graph, ai_pkgs[0]["spdxId"], meta.license)
+
+
+# ---------------------------------------------------------------------------
+# assemble-layer wiring: generate_analyzed_sbom() / generate_deployed_sbom()
+# ---------------------------------------------------------------------------
+
+
+def _make_wheel(tmp_path: Path, name: str, version: str) -> Path:
+    """Build a minimal .whl with just a METADATA file."""
+    wheel_path = tmp_path / f"{name}-{version}-py3-none-any.whl"
+    metadata_body = f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr(f"{name}-{version}.dist-info/METADATA", metadata_body)
+        zf.writestr(f"{name}/__init__.py", "")
+    return wheel_path
+
+
+def test_generate_analyzed_sbom_from_wheel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """generate_analyzed_sbom() wires read_wheel()'s extracted metadata into
+    a valid SPDX 3 JSON-LD document with the expected package name/version."""
+    monkeypatch.chdir(tmp_path)
+    wheel_path = _make_wheel(tmp_path, "analyzed-pkg", "2.3.4")
+
+    sbom_json = generate_analyzed_sbom(wheel_path)
+    data = json.loads(sbom_json)
+
+    assert "@graph" in data
+    graph = data["@graph"]
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    main_package = next(p for p in packages if p["name"] == "analyzed-pkg")
+    assert main_package["software_packageVersion"] == "2.3.4"
+
+
+def test_generate_deployed_sbom_mocked_pipdeptree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """generate_deployed_sbom() wires read_environment()'s pipdeptree tree
+    into a valid SPDX 3 JSON-LD document containing the installed package."""
+    monkeypatch.chdir(tmp_path)
+    tree = [
+        {
+            "package": {
+                "key": "requests",
+                "package_name": "requests",
+                "installed_version": "2.31.0",
+            }
+        }
+    ]
+    fake_result = subprocess.CompletedProcess(
+        args=["pipdeptree", "--json-tree", "--all"],
+        returncode=0,
+        stdout=json.dumps(tree),
+        stderr="",
+    )
+
+    with patch("subprocess.run", return_value=fake_result):
+        sbom_json = generate_deployed_sbom()
+
+    data = json.loads(sbom_json)
+
+    assert "@graph" in data
+    graph = data["@graph"]
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    requests_pkg = next(p for p in packages if p["name"] == "requests")
+    assert requests_pkg["software_packageVersion"] == "2.31.0"

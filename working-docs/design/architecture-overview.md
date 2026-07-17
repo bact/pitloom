@@ -215,6 +215,8 @@ standards, and the roadmap for new integrations.
 | :---- | :---- | :---- |
 | `pyproject.toml` | `pitloom.extract.pyproject` | Package identity, version, license, dependencies, authors |
 | `setup.cfg` / `setup.py` | `pitloom.extract.setuptools` | Package identity, version, license, dependencies, authors |
+| Python environment | `pitloom.extract.env` | Deployed environment dependency graph |
+| Built wheel (`.whl`) | `pitloom.extract.wheel` / `binary` | Analyzed wheel metadata, files, and phantom dependencies |
 | AI model files (GGUF, ONNX, SafeTensors, etc.) | `pitloom.extract.ai_model` | Model architecture, format, hyperparameters, framework |
 | Dataset files (Croissant JSON-LD) | `pitloom.extract.dataset` | Dataset identity, schema, license, provenance |
 | MLflow tracking server | `pitloom.extract.mlflow` [planned] | Training run tags, params, metrics, dataset inputs |

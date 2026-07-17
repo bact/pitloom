@@ -7,8 +7,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-from pitloom.assemble.spdx3.document import build, build_model
+from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
@@ -17,8 +18,11 @@ from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._huggingface import read_huggingface
 from pitloom.extract.ai_model import read_ai_model
+from pitloom.extract.binary import find_phantom_dependencies
+from pitloom.extract.env import read_environment
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
+from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 
 
@@ -228,4 +232,125 @@ def generate_huggingface_sbom(
     return sbom_json
 
 
-__all__ = ["generate_ai_model_sbom", "generate_huggingface_sbom", "generate_sbom"]
+def generate_analyzed_sbom(
+    wheel_path: Path,
+    *,
+    output_path: Path | None = None,
+    creation_metadata: CreationMetadata | None = None,
+    pretty: bool = False,
+    describe_relationship: bool = False,
+    registry: str | Path | IdRegistry | None = None,
+) -> str:
+    """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
+
+    Args:
+        wheel_path: Path to the .whl file.
+        output_path: If given, the JSON-LD output is also written to this path.
+        creation_metadata: Creator and timestamp metadata for the SBOM document.
+        pretty: Indent JSON output with 2 spaces when True.
+        describe_relationship: Add human-readable text to SPDX relationships.
+        registry: A stable file/entity id registry (see IdRegistry).
+
+    Returns:
+        JSON-LD string of the generated SPDX 3 SBOM.
+    """
+    project_metadata, project_files = read_wheel(wheel_path)
+
+    # The wheel file itself is the artifact identity here; no separate
+    # source-tree Merkle root applies.
+    merkle_root = None
+
+    # AI model detection scans a source directory tree; wheel contents are
+    # not scanned for models, so this is always empty for an Analyzed SBOM.
+    ai_models: list[Any] = []
+
+    phantom_deps = find_phantom_dependencies(project_files)
+
+    # No project_dir is available to walk up from for loom-ids.json
+    # auto-discovery, so the current directory is used as the search root.
+    cwd = Path.cwd()
+    resolved_registry = (
+        registry
+        if isinstance(registry, IdRegistry)
+        else IdRegistry.load(cwd / registry)
+        if registry is not None
+        else resolve_registry(cwd, None)
+    )
+
+    doc = DocumentModel(
+        project=project_metadata,
+        creation_metadata=creation_metadata or CreationMetadata(),
+        ai_models=ai_models,
+        phantom_dependencies=phantom_deps,
+    )
+    exporter = build(doc, merkle_root=merkle_root, registry=resolved_registry)
+
+    sbom_json = exporter.to_json(
+        pretty=pretty,
+        describe_relationship=describe_relationship,
+    )
+
+    if output_path is not None:
+        output_path.write_text(sbom_json, encoding="utf-8")
+
+    return sbom_json
+
+
+def generate_deployed_sbom(
+    *,
+    output_path: Path | None = None,
+    creation_metadata: CreationMetadata | None = None,
+    pretty: bool = False,
+    describe_relationship: bool = False,
+    registry: str | Path | IdRegistry | None = None,
+) -> str:
+    """Generate a Deployed SPDX 3 SBOM for the current Python environment.
+
+    Args:
+        output_path: If given, the JSON-LD output is also written to this path.
+        creation_metadata: Creator and timestamp metadata for the SBOM document.
+        pretty: Indent JSON output with 2 spaces when True.
+        describe_relationship: Add human-readable text to SPDX relationships.
+        registry: A stable file/entity id registry (see IdRegistry).
+
+    Returns:
+        JSON-LD string of the generated SPDX 3 SBOM.
+    """
+    project_metadata, env_tree = read_environment()
+
+    # No project_dir applies to a deployed-environment scan, so the current
+    # directory is used as the loom-ids.json search root.
+    cwd = Path.cwd()
+    resolved_registry = (
+        registry
+        if isinstance(registry, IdRegistry)
+        else IdRegistry.load(cwd / registry)
+        if registry is not None
+        else resolve_registry(cwd, None)
+    )
+
+    doc = DocumentModel(
+        project=project_metadata,
+        creation_metadata=creation_metadata or CreationMetadata(),
+        ai_models=[],
+    )
+    exporter = build_deployed(doc, env_tree=env_tree, registry=resolved_registry)
+
+    sbom_json = exporter.to_json(
+        pretty=pretty,
+        describe_relationship=describe_relationship,
+    )
+
+    if output_path is not None:
+        output_path.write_text(sbom_json, encoding="utf-8")
+
+    return sbom_json
+
+
+__all__ = [
+    "generate_ai_model_sbom",
+    "generate_analyzed_sbom",
+    "generate_deployed_sbom",
+    "generate_huggingface_sbom",
+    "generate_sbom",
+]

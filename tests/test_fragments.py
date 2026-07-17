@@ -830,7 +830,7 @@ def test_duplicate_relationships_deduplicated(
 
 def test_fragment_envelope_is_dropped(tmp_path: Path) -> None:
     """A fragment carrying its own SpdxDocument/software_Sbom envelope (e.g.
-    from `loom -m`) must not add a second envelope to the merged SBOM."""
+    from `loom model`) must not add a second envelope to the merged SBOM."""
     namespace = "https://spdx.org/spdxdocs/envelope-test"
     envelope_fragment = {
         "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
