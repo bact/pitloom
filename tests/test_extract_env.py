@@ -6,12 +6,15 @@
 
 import json
 import subprocess
+from collections.abc import Sequence
 from unittest.mock import patch
 
 from pitloom.extract.env import read_environment
 
 
-def _fake_pipdeptree_result(tree: list) -> subprocess.CompletedProcess:
+def _fake_pipdeptree_result(
+    tree: Sequence[object],
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(
         args=["pipdeptree", "--json-tree", "--all"],
         returncode=0,

@@ -65,4 +65,4 @@ def test_read_wheel_no_metadata_file_has_no_provenance(tmp_path: Path) -> None:
     metadata, _ = read_wheel(wheel_path)
 
     assert metadata.name == "unknown"
-    assert metadata.provenance == {}
+    assert not metadata.provenance
