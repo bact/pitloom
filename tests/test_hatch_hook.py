@@ -614,6 +614,53 @@ def test_hook_with_sampleproject_fixture() -> None:
     hook.finalize("standard", build_data, "")
 
 
+def test_hook_bundled_binary_produces_phantom_dependency() -> None:
+    """A wheel containing an auditwheel-style bundled .so (under a
+    <package>.libs/ directory) must produce a phantom-dependency
+    software_Package in the SBOM graph, via find_phantom_dependencies()
+    wired into _build_document_model()."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            "[tool.hatch.build.targets.wheel]\npackages = "
+            '["testpkg", "testpkg.libs"]\n',
+        )
+        (tmp_path / "testpkg").mkdir()
+        (tmp_path / "testpkg" / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "testpkg.libs").mkdir()
+        (tmp_path / "testpkg.libs" / "libfoo-abc123.so").write_bytes(
+            b"\x7fELF fake binary content"
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        graph = data["@graph"]
+
+        packages = [e for e in graph if e.get("type") == "software_Package"]
+        phantom_pkg = next(p for p in packages if p["name"] == "libfoo-abc123")
+        assert phantom_pkg["comment"].startswith(
+            "Metadata provenance: Phantom dependency"
+        )
+
+        main_package = next(p for p in packages if p["name"] == "testpkg")
+        relationships = [e for e in graph if e.get("type") == "Relationship"]
+        depends_on = [
+            r
+            for r in relationships
+            if r["relationshipType"] == "dependsOn"
+            and r["from"] == main_package["spdxId"]
+            and phantom_pkg["spdxId"] in r["to"]
+        ]
+        assert len(depends_on) == 1
+
+        hook.finalize("standard", build_data, "")
+
+
 # ---------------------------------------------------------------------------
 # metadata_from_hatchling -- field mapping (lightweight fake objects)
 # ---------------------------------------------------------------------------

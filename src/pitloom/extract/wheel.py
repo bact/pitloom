@@ -28,14 +28,8 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
     wheel_path_obj = Path(wheel_path)
     metadata = ProjectMetadata(name="unknown")
     project_files: list[ProjectFile] = []
-
-    provenance = {
-        "name": f"Source: wheel METADATA | File: {wheel_path_obj.name}",
-        "version": f"Source: wheel METADATA | File: {wheel_path_obj.name}",
-        "dependencies": f"Source: wheel METADATA | File: {wheel_path_obj.name}",
-        "license": f"Source: wheel METADATA | File: {wheel_path_obj.name}",
-    }
-    metadata.provenance = provenance
+    provenance: dict[str, str] = {}
+    source = f"Source: wheel METADATA | File: {wheel_path_obj.name}"
 
     with zipfile.ZipFile(wheel_path_obj, "r") as zf:
         metadata_content = None
@@ -45,7 +39,7 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
             if info.is_dir():
                 continue
 
-            # Keep an eye out for the METADATA file
+            # Identify the METADATA file among the wheel's contents.
             if info.filename.endswith(".dist-info/METADATA"):
                 metadata_content = zf.read(info).decode("utf-8", errors="replace")
 
@@ -70,8 +64,10 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
 
             if msg.get("Name"):
                 metadata.name = msg["Name"]
+                provenance["name"] = source
             if msg.get("Version"):
                 metadata.version = msg["Version"]
+                provenance["version"] = source
             if msg.get("Summary"):
                 metadata.description = msg["Summary"]
             if msg.get("Requires-Python"):
@@ -81,14 +77,17 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
             license_expr = msg.get("License-Expression")
             if license_expr:
                 metadata.license_name = license_expr
+                provenance["license"] = source
             elif msg.get("License"):
                 metadata.license_name = msg["License"]
+                provenance["license"] = source
 
             # Dependencies
             reqs = msg.get_all("Requires-Dist")
             if reqs:
-                # We simply keep the raw PEP 508 strings
+                # Kept as raw PEP 508 strings, unparsed.
                 metadata.dependencies = reqs
+                provenance["dependencies"] = source
 
             # Authors/Emails
             authors = []
@@ -116,5 +115,6 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
                     urls[label.strip()] = url.strip()
             metadata.urls = urls
 
+    metadata.provenance = provenance
     metadata.files = project_files
     return metadata, project_files

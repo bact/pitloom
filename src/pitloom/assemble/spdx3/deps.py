@@ -220,16 +220,12 @@ def build_license_elements(
         to=[license_spdx_id],
     )
 
-    # The license identified by the SPDX data creator.
-    # This can be more complicated.
-    # For example, if there are mulitple declared licenses,
-    # or if there is no declared licenes but a license
-    # can be concluded from other evidence.
-    # See https://spdx.github.io/spdx-spec/v3.0/model/Licensing/Licensing/
-    # Sort this out in future versions.
-    # Eventually we may need to create the relationships separately,
-    # as hasDeclaredLicense and hasConcludedLicense can be different and
-    # the value of having this helper function will be less clear.
+    # The license identified by the SPDX data creator. Currently set equal to
+    # the declared license; hasDeclaredLicense and hasConcludedLicense are
+    # distinct in the SPDX 3 model (e.g. multiple declared licenses, or a
+    # concluded license inferred from evidence other than the declaration --
+    # see https://spdx.github.io/spdx-spec/v3.0/model/Licensing/Licensing/),
+    # but pitloom does not yet perform that inference.
     rel_has_concluded_license = spdx3.Relationship(
         spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
         creationInfo=creation_info,
@@ -349,10 +345,10 @@ def add_phantom_dependencies(
             "Metadata provenance: Phantom dependency bundled in distribution artifact"
         )
 
-        # We don't have download URLs or licenses for these easily, so they are minimal
+        # Download URL and license are not derivable from a bundled binary alone.
         exporter.add_package(dep_package)
 
-        # The main package depends on this phantom package
+        # The main package depends on this phantom package.
         dep_rel = spdx3.Relationship(
             spdxId=generate_spdx_id(
                 "Relationship", doc_name=doc_name, doc_uuid=doc_uuid

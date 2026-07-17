@@ -256,20 +256,18 @@ def generate_analyzed_sbom(
     """
     project_metadata, project_files = read_wheel(wheel_path)
 
-    # We could theoretically compute a Merkle root for the wheel,
-    # but the wheel file itself is the artifact.
+    # The wheel file itself is the artifact identity here; no separate
+    # source-tree Merkle root applies.
     merkle_root = None
 
-    # For analyzed SBOMs from wheels, we don't have the source directory to
-    # scan for AI models in the same way, but we could scan the wheel
-    # contents. Passing an empty list until wheel-content AI model scanning
-    # is implemented.
+    # AI model detection scans a source directory tree; wheel contents are
+    # not scanned for models, so this is always empty for an Analyzed SBOM.
     ai_models: list[Any] = []
 
     phantom_deps = find_phantom_dependencies(project_files)
 
-    # We don't have a project_dir, so we can't easily auto-discover loom-ids.json
-    # by walking up. We'll use the current directory as a fallback.
+    # No project_dir is available to walk up from for loom-ids.json
+    # auto-discovery, so the current directory is used as the search root.
     cwd = Path.cwd()
     resolved_registry = (
         registry
@@ -320,7 +318,8 @@ def generate_deployed_sbom(
     """
     project_metadata, env_tree = read_environment()
 
-    # We don't have a project_dir, so we use the current directory as a fallback.
+    # No project_dir applies to a deployed-environment scan, so the current
+    # directory is used as the loom-ids.json search root.
     cwd = Path.cwd()
     resolved_registry = (
         registry

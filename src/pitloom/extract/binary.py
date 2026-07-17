@@ -23,11 +23,10 @@ def _is_phantom_binary(filename: str) -> bool:
     path = Path(filename)
     name = path.name
 
-    # Pre-compiled binaries usually have these extensions
+    # Pre-compiled binaries usually have these extensions.
     if not name.endswith((".so", ".dylib", ".dll")):
-        # On Windows, pyd files are extension modules. We exclude them here
-        # unless we specifically want to track them.
-        # Usually, bundled dependencies are .dll.
+        # .pyd (Windows extension modules) is deliberately excluded here;
+        # bundled third-party binaries on Windows are .dll.
         return False
 
     # Exclude typical Python extension modules (e.g. built by setuptools/hatch)
@@ -116,8 +115,8 @@ def extract_phantom_dependencies(wheel_path: Path | str) -> list[PhantomDependen
                         name=name,
                         file_path=info.filename,
                         digest_sha256=digest,
-                        # Reliably parsing a version out of the filename is
-                        # unreliable across ecosystems; leave unset for now.
+                        # A version is not reliably parseable from the
+                        # filename across ecosystems, so it is left unset.
                         version=None,
                     )
                 )

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-07-11
+Last-Modified: 2026-07-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -66,8 +66,8 @@ If we stick to `from`, the targets should describe the *inputs* rather than the 
 
 ## Conclusion
 
-Consolidating the commands is a solid architectural direction for future-proofing the CLI against bloat.
+Neither alternative above was adopted. The shipped CLI (see `src/pitloom/__main__.py`) uses a third scheme: flat, top-level subcommands named directly after the CISA lifecycle stage, with no `from`/`generate` verb prefix -- `loom source`, `loom analyze`, `loom deployed`, plus `loom ids` for registry management.
 
-However, if we adopt `loom from <target>`, we should ensure the `<target>` grammatically describes the input (e.g., `wheel`, `env`, `source`). If we want the target to describe the CISA lifecycle stage (Source, Analyzed, Deployed), a verb like `loom generate <stage>` (e.g., `loom generate analyzed`) provides a more natural sentence structure.
+This avoids the verbosity cost identified as the main con of both `loom from <target>` and `loom generate <stage>` (an extra word on every invocation), while still giving each lifecycle stage its own namespace for stage-specific arguments and flags. In practice this matters because the stages don't share a uniform positional argument: `loom source` takes a `project_dir`, `loom analyze` takes a `target` that dispatches internally to wheel, local-model, or Hugging Face handling depending on its form, and `loom deployed` takes no positional argument at all (it always inspects the current environment). A shared parent verb (`from`/`generate`) would not have simplified this dispatch, since the stage-specific behavior still lives one level below regardless of the prefix.
 
-*Recommendation*: Wait until a need for top-level non-generation commands (like `verify` or `merge`) arises before introducing the extra level of nesting, as flat CLI structures are often preferred by users for rapid usage. If consolidation is pursued, `loom generate <lifecycle_stage>` or `loom from <input_source>` are the two most linguistically consistent paths.
+If `loom` later grows non-generation top-level commands (e.g. `verify`, `merge`), the flat namespace may need revisiting, but no such need has arisen yet.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-08
+Last-Modified: 2026-07-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -233,16 +233,20 @@ pitloom/
 │       │   ├── _pytorch.py         # PyTorch classic (.pt, .pth)
 │       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
 │       │   ├── _safetensors.py     # Safetensors (.safetensors)
+│       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection in a wheel
 │       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
+│       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree via pipdeptree
 │       │   ├── poetry.py           # [tool.poetry] extractor; Poetry -> PEP 440 conversion
 │       │   ├── pyproject.py        # pyproject.toml extractor ([project] + [tool.poetry] merge)
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
-│       │   └── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
+│       │   ├── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
+│       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── plugins/             # Build-system integrations
 │       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
 │       ├── __about__.py         # Package version (__version__)
 │       ├── __init__.py
 │       ├── __main__.py          # CLI entry point (loom / python -m pitloom)
+│       ├── ids.py               # Loom ID registry (loom-ids.json); stable cross-fragment SPDX ids
 │       ├── loom.py              # ML tracking SDK (Run context manager / decorator)
 │       └── py.typed             # PEP 561 marker
 ├── tests/

@@ -34,12 +34,14 @@ def read_environment() -> tuple[ProjectMetadata, list[dict[str, Any]]]:
     metadata = ProjectMetadata(name="deployed-environment", version="0.0.0")
     metadata.description = "Deployed Python environment"
 
+    # name/version are Pitloom's own placeholder for this synthetic root,
+    # not values pipdeptree reported -- only the dependency tree is.
     provenance = {
-        "name": "Source: pipdeptree",
-        "version": "Source: pipdeptree",
+        "name": "Source: Pitloom generator | Method: synthetic environment root",
+        "version": "Source: Pitloom generator | Method: synthetic environment root",
         "dependencies": "Source: pipdeptree",
     }
     metadata.provenance = provenance
 
-    # We will let the specific assembler handle the tree structure.
+    # The assembler consumes the raw pipdeptree tree structure directly.
     return metadata, tree

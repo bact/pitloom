@@ -775,8 +775,8 @@ def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
             else False
         )
 
-        # We don't have project metadata here yet to auto-name,
-        # so we'll just use a fallback or the explicit output
+        # No project metadata is available to auto-name the output from,
+        # so an explicit --output or a wheel-stem-derived fallback is used.
         output_path = args.output
         if output_path is None:
             output_path = Path.cwd() / f"{wheel_path.stem}{_SPDX3_JSON_EXT}"

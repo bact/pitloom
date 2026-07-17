@@ -150,6 +150,27 @@ def test_lookup_file_requires_path_and_hash_match(tmp_path: Path) -> None:
     assert registry.lookup_file("data/other.txt", good_hash) is None
 
 
+def test_file_entry_normalises_hash_case() -> None:
+    """An upper-case sha256 (e.g. from a hand-edited loom-ids.json or an
+    imported foreign SBOM) still matches the lower-case hex
+    ``hashlib``/``_sha256_file`` always produces, so unchanged content
+    isn't mistaken for changed content on the next scan."""
+    registry = IdRegistry(
+        namespace="https://spdx.org/spdxdocs/x-1",
+        files={
+            "data/x.txt": FileEntry(
+                spdx_id="https://spdx.org/spdxdocs/x-1#File-1",
+                sha256=_sha256(b"hello\n").upper(),
+            )
+        },
+    )
+    assert registry.files["data/x.txt"].sha256 == _sha256(b"hello\n")
+    assert (
+        registry.lookup_file("data/x.txt", _sha256(b"hello\n"))
+        == "https://spdx.org/spdxdocs/x-1#File-1"
+    )
+
+
 def test_lookup_entity_requires_type_match() -> None:
     registry = IdRegistry(
         namespace="https://spdx.org/spdxdocs/x-1",

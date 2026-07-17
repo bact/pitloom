@@ -78,10 +78,19 @@ _REGISTRY_VERSION = 1
 
 @dataclass
 class FileEntry:
-    """A single registered file: its stable ``spdxId`` and content hash."""
+    """A single registered file: its stable ``spdxId`` and content hash.
+
+    ``sha256`` is normalised to lower-case in ``__post_init__``, so a
+    registry entry loaded from a hand-edited ``loom-ids.json`` or imported
+    from a foreign SBOM (either may use upper-case hex) still compares
+    equal to the lower-case hex :func:`_sha256_file` always produces.
+    """
 
     spdx_id: str
     sha256: str
+
+    def __post_init__(self) -> None:
+        self.sha256 = self.sha256.lower()
 
 
 @dataclass
