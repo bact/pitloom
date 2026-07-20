@@ -40,6 +40,19 @@ _MOVED_CREATION_KEYS_LIST_VALID: frozenset[str] = frozenset(
     {"creation-tool", "creation_tool"}
 )
 
+#: Valid ``[tool.pitloom.provenance] format`` values -- see
+#: :mod:`pitloom.assemble.spdx3.provenance`. Kept here as a plain literal
+#: set (not imported from the assemble layer) because ``core`` must not
+#: import from ``assemble``; an unknown *schema* id (as opposed to
+#: *format*) is instead caught at build time by
+#: :func:`~pitloom.assemble.spdx3.provenance.resolve_encoder`, which is the
+#: single source of truth for registered schema ids.
+_VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
+
+#: Default ``[tool.pitloom.provenance] schema`` -- must match
+#: ``pitloom.assemble.spdx3.provenance.DEFAULT_SCHEMA_ID``.
+_DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
+
 
 @dataclass
 class PitloomConfig:
@@ -74,6 +87,17 @@ class PitloomConfig:
             ``None`` (default) means auto-discover ``loom-ids.json`` by
             walking up from the project directory -- see
             :meth:`pitloom.ids.IdRegistry.find`.
+        provenance_format: How to record metadata provenance, from
+            ``[tool.pitloom.provenance] format``. One of ``"annotation"``
+            (SPDX Core/Annotation elements only), ``"comment"`` (legacy
+            ``Element.comment`` strings only), or ``"both"`` (default).
+        provenance_schema: Which statement schema encodes provenance
+            Annotations, from ``[tool.pitloom.provenance] schema``.
+            Defaults to Pitloom's own ``"pitloom/1"`` schema; see
+            :mod:`pitloom.assemble.spdx3.provenance`. An unknown id is not
+            rejected here (``core`` must not import the assemble layer's
+            encoder registry) -- it is caught with a clear error the first
+            time an SBOM is generated.
     """
 
     fragments: list[str] = field(default_factory=list)
@@ -85,6 +109,8 @@ class PitloomConfig:
     creation_datetime: str | None = None
     creation_comment: str | None = None
     ids_file: str | None = None
+    provenance_format: str = "both"
+    provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
 
 
 def _check_moved_creation_keys(
@@ -209,6 +235,43 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[Tool] | None:
     return tools
 
 
+def _read_provenance_settings(pitloom_data: dict[str, Any]) -> tuple[str, str]:
+    """Read ``[tool.pitloom.provenance]`` and return ``(format, schema)``.
+
+    Raises:
+        ValueError: If ``provenance`` is present but not a table, or if
+            ``format``/``schema`` are present but not strings, or if
+            ``format`` is not one of :data:`_VALID_PROVENANCE_FORMATS`.
+    """
+    raw = pitloom_data.get("provenance", {})
+    if not isinstance(raw, dict):
+        raise ValueError(
+            "[tool.pitloom.provenance] must be a table, got "
+            f"{type(raw).__name__}: {raw!r}"
+        )
+
+    fmt = raw.get("format", "both")
+    if not isinstance(fmt, str):
+        raise ValueError(
+            "[tool.pitloom.provenance] 'format' must be a string, got "
+            f"{type(fmt).__name__}: {fmt!r}"
+        )
+    if fmt not in _VALID_PROVENANCE_FORMATS:
+        valid = ", ".join(sorted(_VALID_PROVENANCE_FORMATS))
+        raise ValueError(
+            f"[tool.pitloom.provenance] 'format' must be one of {valid}, got {fmt!r}"
+        )
+
+    schema = raw.get("schema", _DEFAULT_PROVENANCE_SCHEMA)
+    if not isinstance(schema, str):
+        raise ValueError(
+            "[tool.pitloom.provenance] 'schema' must be a string, got "
+            f"{type(schema).__name__}: {schema!r}"
+        )
+
+    return fmt, schema
+
+
 def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
@@ -258,6 +321,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
             "[tool.pitloom.ids] 'file' must be a string, got "
             f"{type(ids_file).__name__}: {ids_file!r}"
         )
+    provenance_format, provenance_schema = _read_provenance_settings(pitloom_data)
     pretty = bool(pitloom_data.get("pretty", False))
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
@@ -298,6 +362,8 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         creation_datetime=creation_datetime,
         creation_comment=creation_comment,
         ids_file=ids_file,
+        provenance_format=provenance_format,
+        provenance_schema=provenance_schema,
     )
 
 

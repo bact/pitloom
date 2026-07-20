@@ -645,7 +645,7 @@ def test_hook_bundled_binary_produces_phantom_dependency() -> None:
         packages = [e for e in graph if e.get("type") == "software_Package"]
         phantom_pkg = next(p for p in packages if p["name"] == "libfoo-abc123")
         assert phantom_pkg["comment"].startswith(
-            "Metadata provenance: Phantom dependency"
+            "Metadata provenance: package: Phantom dependency"
         )
 
         main_package = next(p for p in packages if p["name"] == "testpkg")
@@ -658,6 +658,43 @@ def test_hook_bundled_binary_produces_phantom_dependency() -> None:
             and phantom_pkg["spdxId"] in r["to"]
         ]
         assert len(depends_on) == 1
+
+        hook.finalize("standard", build_data, "")
+
+
+def test_hook_honours_provenance_format_annotation() -> None:
+    """The build hook must thread [tool.pitloom.provenance] format/schema
+    through to the assembler -- with format = "annotation", the staged SBOM
+    carries provenance as Core Annotation elements and the main package's
+    comment is not set from provenance."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            '[tool.pitloom.provenance]\nformat = "annotation"\n',
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        graph = data["@graph"]
+
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e.get("name") == "testpkg"
+        )
+        assert "comment" not in main_package or main_package["comment"] is None
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        main_annotations = [
+            a for a in annotations if a.get("subject") == main_package["spdxId"]
+        ]
+        assert len(main_annotations) == 1
+        assert main_annotations[0]["contentType"] == "application/json"
 
         hook.finalize("standard", build_data, "")
 

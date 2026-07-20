@@ -217,3 +217,45 @@ authors = [
         # Check that copyright provenance is tracked
         assert "copyright_text" in metadata.provenance
         assert "inferred_from_authors" in metadata.provenance["copyright_text"]
+
+
+def test_provenance_emitted_as_annotation_in_sbom_output() -> None:
+    """The default provenance_format ("both") records provenance as a Core
+    Annotation in addition to the legacy comment (see test_annotation_provenance.py
+    and working-docs/implementation/annotation-provenance.md)."""
+    pyproject_content = """
+[project]
+name = "test-pkg"
+version = "1.0.0"
+description = "A test package"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        sbom_data = json.loads(sbom_json)
+        graph = sbom_data["@graph"]
+
+        main_package = next(
+            elem
+            for elem in graph
+            if elem["type"] == "software_Package" and elem["name"] == "test-pkg"
+        )
+
+        annotations = [
+            elem
+            for elem in graph
+            if elem["type"] == "Annotation"
+            and elem.get("subject") == main_package["spdxId"]
+        ]
+        assert len(annotations) == 1
+        assert annotations[0]["annotationType"] == "other"
+        assert annotations[0]["contentType"] == "application/json"
+        statement = json.loads(annotations[0]["statement"])
+        assert statement["fields"]["name"]["source"] == "pyproject.toml"
+
+        # "both" (the default) still writes the legacy comment too.
+        assert "Metadata provenance:" in main_package["comment"]

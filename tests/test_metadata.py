@@ -245,6 +245,86 @@ creation-comment = "Created from config"
         assert config.creation_comment == "Created from config"
 
 
+def test_extract_pitloom_provenance_settings_default() -> None:
+    """Absent ``[tool.pitloom.provenance]`` defaults to format='both' and
+    schema='pitloom/1' (see pitloom.assemble.spdx3.provenance.DEFAULT_SCHEMA_ID)."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.provenance_format == "both"
+        assert config.provenance_schema == "pitloom/1"
+
+
+def test_extract_pitloom_provenance_settings_explicit() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+format = "annotation"
+schema = "custom/1"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.provenance_format == "annotation"
+        assert config.provenance_schema == "custom/1"
+
+
+def test_extract_pitloom_provenance_format_invalid_value_raises() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+format = "not-a-real-format"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="format"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_provenance_not_a_table_raises() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom]
+provenance = "annotation"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="provenance"):
+            read_pyproject(pyproject_path)
+
+
 def test_extract_pitloom_multiple_creators_and_tools() -> None:
     """Multiple ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``
     tables are all read, in order."""

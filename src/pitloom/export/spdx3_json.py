@@ -291,6 +291,14 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(relationship)
 
+    def add_annotation(self, annotation: spdx3.Annotation) -> None:
+        """Add a provenance (or other) annotation to the document.
+
+        Args:
+            annotation: The Annotation object
+        """
+        self.object_set.add(annotation)
+
     def add_sbom(self, sbom: spdx3.software_Sbom) -> None:
         """Add an SBOM to the document.
 

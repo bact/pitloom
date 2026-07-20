@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -86,7 +87,10 @@ def _build_dataset_package(
 
     **Provenance**
 
-    - ``provenance`` -> ``comment``
+    - ``provenance`` is emitted separately by :func:`add_datasets_for_model`
+      via :func:`~pitloom.assemble.spdx3.provenance.emit_provenance` (Core
+      Annotation and/or legacy ``comment``, per config) once this package
+      has been added to the exporter.
 
     Args:
         meta: Extracted dataset metadata.
@@ -157,13 +161,6 @@ def _build_dataset_package(
         )
         dataset_pkg.externalRef = [ext_ref]
 
-    # comment: provenance
-    if meta.provenance:
-        prov_str = "; ".join(
-            f"{field_name}: {src}" for field_name, src in meta.provenance.items()
-        )
-        dataset_pkg.comment = f"Metadata provenance: {prov_str}"
-
     return dataset_pkg
 
 
@@ -174,6 +171,8 @@ def add_datasets_for_model(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
+    provenance_format: str = "both",
+    encoder: ProvenanceEncoder | None = None,
 ) -> None:
     """Build ``dataset_DatasetPackage`` and relationship elements for each
     dataset reference and add them to the exporter.
@@ -200,12 +199,26 @@ def add_datasets_for_model(
         doc_name: Document name (project name) for SPDX ID generation.
         doc_uuid: Document-scoped UUID used in SPDX ID generation.
         exporter: Receives the new dataset package and relationship elements.
+        provenance_format: How to record metadata provenance -- see
+            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
+        encoder: Provenance statement encoder; defaults to the registered
+            default schema.
     """
     for dataset_ref in datasets:
         meta = dataset_ref.metadata
         dataset_pkg = _build_dataset_package(meta, creation_info, doc_name, doc_uuid)
         # dataset_DatasetPackage is not a software_Package so add via object_set.
         exporter.object_set.add(dataset_pkg)
+        emit_provenance(
+            subject=dataset_pkg,
+            provenance=meta.provenance,
+            creation_info=creation_info,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_format=provenance_format,
+            encoder=encoder,
+        )
 
         rel_type, fallback_comment = _role_to_rel(dataset_ref.role)
         rel = spdx3.Relationship(
