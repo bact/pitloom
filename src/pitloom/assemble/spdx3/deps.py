@@ -81,6 +81,7 @@ def _enrich_from_installed(
     exporter: Spdx3JsonExporter,
     provenance_format: str = "both",
     encoder: ProvenanceEncoder | None = None,
+    provenance_detail: str = "minimal",
 ) -> None:
     """Populate optional fields on a dependency package from installed metadata.
 
@@ -160,6 +161,7 @@ def _enrich_from_installed(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
         exporter.add_relationship(rel_declared)
 
@@ -174,6 +176,7 @@ def build_license_elements(
     exporter: Spdx3JsonExporter,
     provenance_format: str = "both",
     encoder: ProvenanceEncoder | None = None,
+    provenance_detail: str = "minimal",
 ) -> tuple[spdx3.Relationship, spdx3.Relationship]:
     """Get or create a SimpleLicensingText element and build its
     hasDeclaredLicense / hasConcludedLicense relationships for a given package.
@@ -225,6 +228,7 @@ def build_license_elements(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
         license_spdx_id = require_spdx_id(license_text)
 
@@ -264,6 +268,7 @@ def add_dependencies(
     exporter: Spdx3JsonExporter,
     provenance_format: str = "both",
     encoder: ProvenanceEncoder | None = None,
+    provenance_detail: str = "minimal",
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for each
     declared dependency and add them to the exporter.
@@ -292,6 +297,8 @@ def add_dependencies(
             :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
         encoder: Provenance statement encoder; defaults to the registered
             default schema.
+        provenance_detail: ``"minimal"`` (default) keeps only high-signal
+            field sources; ``"full"`` records every field.
     """
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
@@ -321,6 +328,7 @@ def add_dependencies(
             exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
         exporter.add_package(dep_package)
@@ -333,6 +341,7 @@ def add_dependencies(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
         dep_rel = spdx3.Relationship(
@@ -344,17 +353,11 @@ def add_dependencies(
             relationshipType=spdx3.RelationshipType.dependsOn,
             creationInfo=creation_info,
         )
+        # No provenance Annotation on the dependsOn relationship itself: the
+        # relationship *is* the native record of the dependency, and the
+        # extraction-source already lives on the dependency package above.
+        # Annotating the edge too would just shadow the native construct.
         exporter.add_relationship(dep_rel)
-        emit_provenance(
-            subject=dep_rel,
-            provenance={"dependencies": dep_provenance},
-            creation_info=creation_info,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_format=provenance_format,
-            encoder=encoder,
-        )
 
 
 def add_phantom_dependencies(
@@ -367,6 +370,7 @@ def add_phantom_dependencies(
     exporter: Spdx3JsonExporter,
     provenance_format: str = "both",
     encoder: ProvenanceEncoder | None = None,
+    provenance_detail: str = "minimal",
 ) -> None:
     """Build SPDX elements for bundled phantom binary dependencies.
 
@@ -383,6 +387,8 @@ def add_phantom_dependencies(
             :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
         encoder: Provenance statement encoder; defaults to the registered
             default schema.
+        provenance_detail: ``"minimal"`` (default) keeps only high-signal
+            field sources; ``"full"`` records every field.
     """
     for dep in phantom_deps:
         dep_package = spdx3.software_Package(
@@ -410,6 +416,7 @@ def add_phantom_dependencies(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
         # The main package depends on this phantom package.

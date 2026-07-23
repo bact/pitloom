@@ -173,6 +173,7 @@ def add_datasets_for_model(
     exporter: Spdx3JsonExporter,
     provenance_format: str = "both",
     encoder: ProvenanceEncoder | None = None,
+    provenance_detail: str = "minimal",
 ) -> None:
     """Build ``dataset_DatasetPackage`` and relationship elements for each
     dataset reference and add them to the exporter.
@@ -203,6 +204,8 @@ def add_datasets_for_model(
             :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
         encoder: Provenance statement encoder; defaults to the registered
             default schema.
+        provenance_detail: ``"minimal"`` (default) keeps only high-signal
+            field sources; ``"full"`` records every field.
     """
     for dataset_ref in datasets:
         meta = dataset_ref.metadata
@@ -218,6 +221,7 @@ def add_datasets_for_model(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
         rel_type, fallback_comment = _role_to_rel(dataset_ref.role)

@@ -12,6 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import (
+    record_dict_field_provenance,
+    sanitize_provenance_text,
+)
 
 log = logging.getLogger(__name__)
 
@@ -82,10 +86,6 @@ def _extract_fasttext_args(
     if loss_name:
         properties["lossName"] = loss_name
 
-    if hyperparameters:
-        properties["__hyperparameters_provenance__"] = f"{source} | Fields: args.*"
-    if type_of_model:
-        properties["__type_of_model_provenance__"] = f"{source} | Field: args.model"
     return hyperparameters, properties, type_of_model
 
 
@@ -138,7 +138,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     """
     model = _load_fasttext_model(model_path)
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     # Since fastText is a text classification and word embedding library,
     # we will assume the domains.
     domain: list[str] = ["text classification", "natural language processing"]
@@ -149,15 +149,20 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     properties, outputs = _extract_fasttext_outputs(model)
     properties.update(args_properties)
 
-    hyperparameters_provenance = properties.pop("__hyperparameters_provenance__", None)
-    type_of_model_provenance = properties.pop("__type_of_model_provenance__", None)
-    if hyperparameters_provenance is not None:
-        provenance["hyperparameters"] = hyperparameters_provenance
-    if type_of_model_provenance is not None:
-        provenance["type_of_model"] = type_of_model_provenance
+    # Exact per-key provenance: each hyperparameter maps to its own fastText
+    # ``args.<name>`` (the dict key is the arg name here).
+    record_dict_field_provenance(
+        provenance, "hyperparameters", hyperparameters, source, location_prefix="args."
+    )
+    if type_of_model:
+        provenance["type_of_model"] = f"{source} | Field: args.model"
 
-    if properties:
-        provenance["properties"] = f"{source} | Fields: args.loss, labels"
+    # Per-property exact provenance (distinct origins: args.loss vs the model's
+    # own label list), rather than one shared note.
+    if "lossName" in properties:
+        provenance["properties.lossName"] = f"{source} | Field: args.loss"
+    if "labels" in properties:
+        provenance["properties.labels"] = f"{source} | Field: labels"
 
     if outputs:
         provenance["outputs"] = f"{source} | Field: labels (supervised class count)"

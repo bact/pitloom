@@ -263,6 +263,8 @@ version = "1.0.0"
 
         assert config.provenance_format == "both"
         assert config.provenance_schema == "pitloom/1"
+        assert config.provenance_detail == "minimal"
+        assert config.provenance_preserve_source_metadata == "auto"
 
 
 def test_extract_pitloom_provenance_settings_explicit() -> None:
@@ -274,6 +276,8 @@ version = "1.0.0"
 [tool.pitloom.provenance]
 format = "annotation"
 schema = "custom/1"
+detail = "full"
+preserve-source-metadata = "always"
 """
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -285,6 +289,46 @@ schema = "custom/1"
 
         assert config.provenance_format == "annotation"
         assert config.provenance_schema == "custom/1"
+        assert config.provenance_detail == "full"
+        assert config.provenance_preserve_source_metadata == "always"
+
+
+def test_extract_pitloom_provenance_detail_invalid_value_raises() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+detail = "verbose"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="detail"):
+            read_pyproject(pyproject_path)
+
+
+def test_extract_pitloom_provenance_preserve_invalid_value_raises() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+preserve-source-metadata = "sometimes"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="preserve-source-metadata"):
+            read_pyproject(pyproject_path)
 
 
 def test_extract_pitloom_provenance_format_invalid_value_raises() -> None:

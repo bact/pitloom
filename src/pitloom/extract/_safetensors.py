@@ -11,6 +11,10 @@ import logging
 from pathlib import Path
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import (
+    record_dict_field_provenance,
+    sanitize_provenance_text,
+)
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +67,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
             f"Failed to read Safetensors file {model_path}: {exc}"
         ) from exc
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     provenance: dict[str, str] = {}
 
     # Some Safetensors files record the originating framework under "format"
@@ -109,10 +113,12 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
     if quantization:
         provenance["quantization"] = f"{source} | Field: __metadata__"
 
-    # Remaining metadata as properties
+    # Remaining metadata as properties. Exact per-key provenance: each entry
+    # is traceable to its own ``__metadata__`` key.
     properties = dict(raw_metadata.items())
-    if properties:
-        provenance["properties"] = f"{source} | Field: __metadata__"
+    record_dict_field_provenance(
+        provenance, "properties", properties, source, location_prefix="__metadata__."
+    )
 
     # Tensor key listing as a lightweight inventory (names only, no data loaded)
     inputs = [{"name": k} for k in tensor_keys]
@@ -131,6 +137,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         architecture=architecture,
         quantization=quantization,
         properties=properties,
+        raw_metadata=dict(raw_metadata),
         inputs=inputs,
         provenance=provenance,
     )

@@ -89,13 +89,16 @@ path = "src/mypackage/__about__.py"
 
 
 def test_provenance_in_sbom_output() -> None:
-    """Test that provenance appears in the generated SBOM."""
+    """In the default minimal mode, provenance appears for high-signal fields
+    (e.g. the inferred copyright) but NOT for trivially-native ones (name,
+    which is already ``Element.name`` read verbatim from pyproject.toml)."""
     pyproject_content = """
 [project]
 name = "test-pkg"
 version = "1.0.0"
 description = "A test package"
 dependencies = ["requests>=2.28.0"]
+authors = [{name = "Jane Doe"}]
 """
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -109,27 +112,24 @@ dependencies = ["requests>=2.28.0"]
         )
         sbom_data = json.loads(sbom_json)
 
-        # Find the main package
-        packages = [
+        main_package = next(
             elem
             for elem in sbom_data["@graph"]
             if elem["type"] == "software_Package" and elem["name"] == "test-pkg"
-        ]
-        assert len(packages) == 1
-
-        main_package = packages[0]
-        assert "comment" in main_package
+        )
         comment = main_package["comment"]
 
-        # Check that provenance information is in the comment
+        # High-signal (inferred) copyright provenance is kept ...
         assert "Metadata provenance:" in comment
-        assert "name:" in comment
-        assert "pyproject.toml" in comment
-        assert "project.name" in comment
+        assert "copyright_text:" in comment
+        assert "inferred_from_authors" in comment
+        # ... but the trivial name/version field-source is dropped in minimal.
+        assert "project.name" not in comment
 
 
 def test_provenance_in_dependency_packages() -> None:
-    """Test that provenance is tracked for dependency packages."""
+    """Dependency packages keep the high-signal declared constraint (which has
+    no native SPDX home), not the trivial 'dependencies came from pyproject'."""
     pyproject_content = """
 [project]
 name = "main-pkg"
@@ -145,7 +145,6 @@ dependencies = ["numpy==1.24.0", "pandas>=1.5.0"]
         sbom_json = generate_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
-        # Find dependency packages
         dep_packages = [
             elem
             for elem in sbom_data["@graph"]
@@ -154,15 +153,16 @@ dependencies = ["numpy==1.24.0", "pandas>=1.5.0"]
         ]
         assert len(dep_packages) == 2
 
-        # Check that all dependency packages have provenance comments
         for dep_pkg in dep_packages:
             assert "comment" in dep_pkg
             assert "Metadata provenance:" in dep_pkg["comment"]
-            assert "dependencies:" in dep_pkg["comment"]
+            assert "declared_constraint:" in dep_pkg["comment"]
 
 
-def test_provenance_in_relationships() -> None:
-    """Test that provenance is tracked in relationships."""
+def test_provenance_not_recorded_on_relationships() -> None:
+    """Dependency ``dependsOn`` relationships carry no provenance Annotation or
+    comment: the relationship is itself the native record, so annotating the
+    edge would just shadow native SPDX."""
     pyproject_content = """
 [project]
 name = "main-pkg"
@@ -176,20 +176,16 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path.write_text(pyproject_content)
 
         sbom_json = generate_sbom(tmppath)
-        sbom_data = json.loads(sbom_json)
+        graph = json.loads(sbom_json)["@graph"]
 
-        # Find relationships
-        relationships = [
-            elem for elem in sbom_data["@graph"] if elem["type"] == "Relationship"
-        ]
+        relationships = [e for e in graph if e["type"] == "Relationship"]
         assert len(relationships) > 0
-
-        # Check that relationships have provenance comments
         for rel in relationships:
-            if rel["relationshipType"] == "dependsOn":
-                assert "comment" in rel
-                assert "Metadata provenance:" in rel["comment"]
-                assert "dependencies:" in rel["comment"]
+            assert "Metadata provenance" not in (rel.get("comment") or "")
+
+        rel_ids = {r["spdxId"] for r in relationships}
+        annotations = [e for e in graph if e["type"] == "Annotation"]
+        assert not any(a.get("subject") in rel_ids for a in annotations)
 
 
 def test_provenance_with_authors() -> None:
@@ -220,14 +216,15 @@ authors = [
 
 
 def test_provenance_emitted_as_annotation_in_sbom_output() -> None:
-    """The default provenance_format ("both") records provenance as a Core
-    Annotation in addition to the legacy comment (see test_annotation_provenance.py
-    and working-docs/implementation/annotation-provenance.md)."""
+    """The default provenance_format ("both") records high-signal provenance as
+    a Core Annotation in addition to the legacy comment (see
+    test_annotation_provenance.py and the implementation design doc)."""
     pyproject_content = """
 [project]
 name = "test-pkg"
 version = "1.0.0"
 description = "A test package"
+authors = [{name = "Jane Doe"}]
 """
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -255,7 +252,11 @@ description = "A test package"
         assert annotations[0]["annotationType"] == "other"
         assert annotations[0]["contentType"] == "application/json"
         statement = json.loads(annotations[0]["statement"])
-        assert statement["fields"]["name"]["source"] == "pyproject.toml"
+        # Only the high-signal (inferred) field is present in minimal mode.
+        assert set(statement["fields"]) == {"copyright_text"}
+        assert (
+            statement["fields"]["copyright_text"]["method"] == "inferred_from_authors"
+        )
 
         # "both" (the default) still writes the legacy comment too.
         assert "Metadata provenance:" in main_package["comment"]

@@ -12,6 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import (
+    record_dict_field_provenance,
+    sanitize_provenance_text,
+)
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +81,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
         log.debug("Failed to load ONNX model from %s: %s", model_path, exc)
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
@@ -126,10 +130,9 @@ def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
     for prop in model.metadata_props:
         properties[prop.key] = prop.value
 
-    if properties:
-        provenance["properties"] = (
-            f"{source} | Fields: metadata_props, opset_import, domain"
-        )
+    # Exact per-key provenance: each property is traceable to its own origin
+    # key (a ``metadata_props`` entry, an ``opset.<domain>``, or ``domain``).
+    record_dict_field_provenance(provenance, "properties", properties, source)
 
     # Input tensor specifications
     inputs = _onnx_tensor_specs(model.graph.input)

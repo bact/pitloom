@@ -13,7 +13,11 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.ai import _build_ai_package, add_ai_models
+from pitloom.assemble.spdx3.ai import (
+    _build_ai_package,
+    _emit_source_metadata,
+    add_ai_models,
+)
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import (
@@ -206,6 +210,8 @@ def build(
     registry: IdRegistry | None = None,
     provenance_format: str = "both",
     provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
+    provenance_preserve_source_metadata: str = "auto",
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
@@ -231,6 +237,12 @@ def build(
         provenance_schema: Schema id for the provenance Annotation statement,
             resolved via :func:`~pitloom.assemble.spdx3.provenance.resolve_encoder`.
             Defaults to Pitloom's own ``"pitloom/1"`` schema.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
+        provenance_preserve_source_metadata: Whether to embed each AI model's
+            verbatim original metadata (P1) -- ``"auto"`` (default),
+            ``"always"``, or ``"never"``. See
+            :func:`~pitloom.assemble.spdx3.ai._should_preserve_metadata`.
 
     Returns:
         A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`
@@ -292,6 +304,7 @@ def build(
         exporter=exporter,
         provenance_format=provenance_format,
         encoder=encoder,
+        provenance_detail=provenance_detail,
     )
 
     # --- License ---
@@ -308,6 +321,7 @@ def build(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
         exporter.add_relationship(rel_declared)
         exporter.add_relationship(rel_concluded)
@@ -324,6 +338,7 @@ def build(
         exporter=exporter,
         provenance_format=provenance_format,
         encoder=encoder,
+        provenance_detail=provenance_detail,
     )
 
     # --- Files ---
@@ -343,6 +358,7 @@ def build(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
     # --- AI models (and their associated datasets) ---
@@ -369,6 +385,8 @@ def build(
             registry=registry,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
+            preserve_source_metadata=provenance_preserve_source_metadata,
         )
 
     return exporter
@@ -381,6 +399,8 @@ def build_model(
     entity_spdx_id: str | None = None,
     provenance_format: str = "both",
     provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
+    provenance_preserve_source_metadata: str = "auto",
 ) -> Spdx3JsonExporter:
     """Assemble a standalone SPDX 3 SBOM for a single AI model file.
 
@@ -401,6 +421,12 @@ def build_model(
             :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
         provenance_schema: Schema id for the provenance Annotation statement;
             defaults to Pitloom's own ``"pitloom/1"`` schema.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
+        provenance_preserve_source_metadata: Whether to embed each AI model's
+            verbatim original metadata (P1) -- ``"auto"`` (default),
+            ``"always"``, or ``"never"``. See
+            :func:`~pitloom.assemble.spdx3.ai._should_preserve_metadata`.
 
     Returns:
         A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`.
@@ -438,6 +464,19 @@ def build_model(
         exporter=exporter,
         provenance_format=provenance_format,
         encoder=encoder,
+        provenance_detail=provenance_detail,
+    )
+    # Standalone model SBOM: the model is the root artifact, not bundled in a
+    # wheel, so the file set is empty and "auto" preserves its raw metadata.
+    _emit_source_metadata(
+        model,
+        ai_pkg,
+        {},
+        provenance_preserve_source_metadata,
+        spdx_ci,
+        doc_name,
+        doc_uuid,
+        exporter,
     )
 
     if model.license:
@@ -454,6 +493,7 @@ def build_model(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
         exporter.add_relationship(rel_declared)
         exporter.add_relationship(rel_concluded)
@@ -468,6 +508,7 @@ def build_model(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
     sbom = spdx3.software_Sbom(
@@ -506,6 +547,7 @@ def build_deployed(
     registry: IdRegistry | None = None,
     provenance_format: str = "both",
     provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements for a deployed environment.
 
@@ -529,6 +571,8 @@ def build_deployed(
             :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
         provenance_schema: Schema id for the provenance Annotation statement;
             defaults to Pitloom's own ``"pitloom/1"`` schema.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
 
     Returns:
         A populated Spdx3JsonExporter.
@@ -564,6 +608,7 @@ def build_deployed(
         exporter=exporter,
         provenance_format=provenance_format,
         encoder=encoder,
+        provenance_detail=provenance_detail,
     )
 
     # --- Packages and Relationships ---
@@ -601,6 +646,7 @@ def build_deployed(
             exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
 
         exporter.add_package(dep_package)
@@ -613,6 +659,7 @@ def build_deployed(
             exporter=exporter,
             provenance_format=provenance_format,
             encoder=encoder,
+            provenance_detail=provenance_detail,
         )
         package_spdx_ids[pkg_info.get("key", dep_name.lower())] = require_spdx_id(
             dep_package
@@ -640,17 +687,10 @@ def build_deployed(
                     relationshipType=spdx3.RelationshipType.dependsOn,
                     creationInfo=spdx_ci,
                 )
+                # No provenance Annotation on the dependsOn edge: the
+                # relationship is itself the native record (extraction-source
+                # is on the packages). Annotating it would shadow native.
                 exporter.add_relationship(dep_rel)
-                emit_provenance(
-                    subject=dep_rel,
-                    provenance={"dependencies": "Source: pipdeptree"},
-                    creation_info=spdx_ci,
-                    doc_name=metadata.name,
-                    doc_uuid=doc_uuid,
-                    exporter=exporter,
-                    provenance_format=provenance_format,
-                    encoder=encoder,
-                )
 
     # Third pass: Link top-level packages to the environment root
     for node in env_tree:

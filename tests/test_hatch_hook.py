@@ -666,12 +666,28 @@ def test_hook_honours_provenance_format_annotation() -> None:
     """The build hook must thread [tool.pitloom.provenance] format/schema
     through to the assembler -- with format = "annotation", the staged SBOM
     carries provenance as Core Annotation elements and the main package's
-    comment is not set from provenance."""
+    comment is not set from provenance. The ``authors`` entry gives a
+    high-signal (inferred copyright) field under the default minimal detail --
+    trivial name/version reads from the build backend are dropped."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        write_pyproject_with_pitloom_config(
+        write_pyproject(
             tmp_path,
-            '[tool.pitloom.provenance]\nformat = "annotation"\n',
+            """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpkg"
+version = "0.1.0"
+description = "Test package."
+requires-python = ">=3.10"
+authors = [{name = "Jane Doe"}]
+
+[tool.pitloom.provenance]
+format = "annotation"
+""",
         )
 
         hook = make_hook(tmp, {})
@@ -695,6 +711,9 @@ def test_hook_honours_provenance_format_annotation() -> None:
         ]
         assert len(main_annotations) == 1
         assert main_annotations[0]["contentType"] == "application/json"
+        statement = json.loads(main_annotations[0]["statement"])
+        # Minimal keeps the inferred copyright, drops trivial name/version.
+        assert set(statement["fields"]) == {"copyright_text"}
 
         hook.finalize("standard", build_data, "")
 

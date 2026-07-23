@@ -16,6 +16,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import sanitize_provenance_text
 
 log = logging.getLogger(__name__)
 
@@ -148,6 +149,7 @@ def _read_pt2_extra_files(
     author = _read_text("extra/author")
     if author:
         properties["author"] = author
+        provenance["properties.author"] = f"{source} | Field: extra/author"
 
     tags_raw = _read_text("extra/tags")
     if tags_raw:
@@ -160,9 +162,7 @@ def _read_pt2_extra_files(
         except Exception as exc:  # pylint: disable=broad-exception-caught
             log.debug("Failed to parse PT2 extra/tags as JSON: %s", exc)
             properties["tags"] = tags_raw
-
-    if "author" in properties or "tags" in properties:
-        provenance["properties.extra"] = f"{source} | Field: extra/*"
+        provenance["properties.tags"] = f"{source} | Field: extra/tags"
 
     return name, description, version, license_expr
 
@@ -262,7 +262,9 @@ def _read_pt2_zip(
     properties["archive_contents"] = ", ".join(file_list[:20])
     if len(file_list) > 20:
         properties["archive_contents"] += f", ... ({len(file_list)} total)"
-    provenance["properties"] = f"{source} | Field: ZIP archive structure"
+    provenance["properties.archive_contents"] = (
+        f"{source} | Field: ZIP archive structure"
+    )
 
     prefix = _detect_root_prefix(file_list)
 
@@ -364,7 +366,7 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     """
     import zipfile  # pylint: disable=import-outside-toplevel
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
 
     try:
         is_zip = zipfile.is_zipfile(str(model_path))

@@ -204,9 +204,9 @@ def test_fasttext_basic_extraction(tmp_path: Path) -> None:
     assert meta.hyperparameters["lr"] == 0.025
     assert meta.hyperparameters["epoch"] == 10
     assert meta.properties["lossName"] == "ns"
-    assert "hyperparameters" in meta.provenance
+    assert any(k.startswith("hyperparameters.") for k in meta.provenance)
     assert "type_of_model" in meta.provenance
-    assert "properties" in meta.provenance
+    assert any(k.startswith("properties.") for k in meta.provenance)
 
 
 def test_fasttext_all_hyperparameters(tmp_path: Path) -> None:
@@ -372,7 +372,9 @@ def test_sentiment_demo_hyperparameters(
     assert hp["neg"] == 5
     assert hp["bucket"] == 33502
     assert hp["ws"] == 5
-    assert "hyperparameters" in sentiment_demo_metadata.provenance
+    assert any(
+        k.startswith("hyperparameters.") for k in sentiment_demo_metadata.provenance
+    )
 
 
 def test_sentiment_demo_loss(sentiment_demo_metadata: AiModelMetadata) -> None:
@@ -447,7 +449,7 @@ def test_lid_176_hyperparameters(lid_176_metadata: AiModelMetadata) -> None:
     assert hp["neg"] == 5
     assert hp["bucket"] == 2000000
     assert hp["ws"] == 5
-    assert "hyperparameters" in lid_176_metadata.provenance
+    assert any(k.startswith("hyperparameters.") for k in lid_176_metadata.provenance)
 
 
 def test_lid_176_loss(lid_176_metadata: AiModelMetadata) -> None:

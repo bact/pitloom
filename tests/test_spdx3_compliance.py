@@ -663,11 +663,14 @@ dependencies = ["requests>=2.28.0"]
 
 def test_spdx3_provenance_format_annotation_omits_comment() -> None:
     """With provenance_format='annotation', provenance moves entirely into
-    Annotations -- the main package's comment is not set from provenance."""
+    Annotations -- the main package's comment is not set from provenance.
+    Uses an ``authors`` entry so a high-signal (inferred copyright) field
+    exists under the default minimal detail."""
     pyproject_content = """
 [project]
 name = "test-annotation-only"
 version = "1.0.0"
+authors = [{name = "Jane Doe"}]
 """
 
     with tempfile.TemporaryDirectory() as tmpdir:

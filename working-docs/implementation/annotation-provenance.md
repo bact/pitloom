@@ -9,7 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 # Implementation plan: metadata provenance via SPDX 3 Core/Annotation
 
 **Status:** implemented (2026-07-20, uncommitted on branch `provenance-annotation`) --
-see §9 for what shipped vs. deferred.
+see §9 for what shipped vs. deferred, and **§10 for the 2026-07-20 boundary
+refinement** (non-native / high-signal only, config-gated) plus the Phase 2
+native-backfill checklist.
 **Planned with:** Opus 4.8. **Implemented by:** Sonnet 5.
 **Related design docs:** [`working-docs/design/metadata-provenance.md`](../design/metadata-provenance.md),
 [`working-docs/design/model-metadata-extraction.md`](../design/model-metadata-extraction.md).
@@ -576,9 +578,12 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 ### Deliberately out of scope (not attempted)
 
-- CLI flags (`--provenance-format` / `--provenance-schema`) mirroring
+- CLI flags (`--provenance-format` / `--provenance-schema` / `--provenance-detail`
+  / `--provenance-preserve-source-metadata`) mirroring
   `--describe-relationship`'s per-command precedence/diagnostics table in
-  `__main__.py`. Not required by these acceptance criteria; the
+  `__main__.py`. None of the four `[tool.pitloom.provenance]` keys has a CLI
+  flag; all are reachable only via `pyproject.toml` or explicit keyword
+  arguments to the library API. Not required by these acceptance criteria; the
   `pyproject.toml` config path is fully wired end to end (CLI, Hatchling
   build hook, and library API all honor `[tool.pitloom.provenance]` or
   explicit keyword arguments).
@@ -592,3 +597,174 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 - §8 follow-ups (external schema encoders, per-field granular annotations,
   moving `known_biases` out of `comment`, flipping the default format) —
   unchanged, still future work.
+
+---
+
+## 10. Boundary refinement (2026-07-20): non-native, high-signal only
+
+The first cut emitted a field-source Annotation for *every* field on *every*
+element, much of it shadowing what SPDX already stores natively (a `name`
+annotation on an element whose `name` is the native `Element.name`). This
+refinement limits Annotations to what SPDX 3 **cannot** record natively, and
+adds two new Annotation roles. Config-gated so an exhaustive audit is still
+available.
+
+### Boundary principle (native-first)
+
+1. Never put a value in an Annotation that has a native SPDX home; the
+   Annotation only describes *how the value came to be*.
+2. Never annotate a native relationship redundantly — the `dependsOn` edge is
+   itself the record. (Removed the two relationship annotations in
+   `deps.py add_dependencies` and `document.py build_deployed`.)
+3. Field-level Annotations only when they add signal the native value can't
+   convey (minimal mode). `full` mode keeps all field sources.
+4. Process-level facts with no native anchor (fragment unification; enrichment
+   override) are the highest-value Annotation content.
+
+### High-signal test (`provenance.py _is_high_signal`)
+
+A parsed field entry is dropped in minimal mode **only** when it was read
+verbatim from a transparent, re-readable manifest
+(`_TRANSPARENT_SOURCES` = pyproject.toml / hatchling build backend / setup.cfg
+/ setup.py / wheel metadata / Hugging Face Hub) with no extraction `method`.
+Everything else is kept: any recorded `method` (inferred/detected/dynamic/
+caller/directive/inference), a non-manifest source (a pipdeptree scan, a
+binary artifact's internal key, a synthesized phantom package), or the raw
+PEP 508 `declared_constraint`.
+
+### Config (`[tool.pitloom.provenance]`)
+
+- `detail = "minimal" | "full"` — default `"minimal"`.
+- `preserve-source-metadata = "auto" | "always" | "never"` — default
+  `"auto"` (preserve an AI model's verbatim metadata only when the artifact is
+  not shipped in the distribution and can't be re-extracted).
+
+Both parsed/validated in `core/config.py` (`_read_provenance_settings`),
+threaded through `build`/`build_model` and the `generate_*` / hatch-hook
+entry points exactly as `provenance_format`/`schema` already were.
+
+### Use-case catalog (why the Annotation earns its place)
+
+- **Generation** — G1 inferred/detected/AI-generated qualifier (necessary:
+  `licenseid_detection`, `inferred_from_authors` have no native assertedness
+  marker); G2 multi-source license disagreement (necessary on conflict);
+  G3 declared constraint vs resolved version (useful — SPDX keeps only the
+  resolved version); G4 sub-file location in opaque AI formats (useful).
+- **Aggregation** — A1 unification rationale (necessary): `_merge_fragment_set`
+  records `(survivor, criterion, dropped_id, fragment)` for a **SHA-256
+  content-equality** match — a genuinely distinct id folded into the
+  survivor, which SPDX cannot express — and emits a `provenance/unification/1`
+  Annotation on the survivor. A same-id registry match carries no such fact
+  (nothing distinct was folded) and is not annotated; its fragment origin is
+  Phase-2 `SpdxDocument.imports` territory (see N1 below).
+- **Enrichment** — E1 override lineage, E2 AI-inferred-vs-extracted marker
+  (both necessary; design-only — the `enrich/` subpackage is unbuilt).
+- **Preservation** — P1 verbatim original AI-model metadata
+  (`provenance/artifact-metadata/1`), config-gated, complements the lossy
+  native mapping when the artifact isn't shipped. `raw_metadata` captured
+  verbatim by the safetensors & GGUF extractors; HF/others fall back to the
+  retained `properties`/`extra_data`.
+
+  **Known limitation (unbounded statement size):** the P1 blob embeds
+  `raw_metadata` verbatim with no size cap. Pitloom's own GGUF/safetensors
+  test fixtures are small ("vocab-only" stubs, ~4 KB statements), but a
+  production LLM's GGUF kv-store can carry a 32K–128K-entry tokenizer vocab
+  (plus parallel `scores`/`token_type` arrays) in the same field, which would
+  inflate a single `Annotation.statement` into the multi-megabyte range.
+  SPDX 3.0.1's `statement` is a plain `xsd:string` with no spec-mandated
+  limit, so this isn't a compliance violation, just a real scale gap not
+  exercised by the current test suite. No truncation heuristic is applied
+  here deliberately — silently cutting array data would make "verbatim
+  preservation" dishonest about what was actually preserved, which defeats
+  P1's purpose more than the size cost does. For large models, set
+  `preserve-source-metadata = "never"` (or leave the default `"auto"`, which
+  already skips preservation for any model that *is* shipped and thus
+  re-extractable). A future fix, if needed, should truncate with an explicit,
+  visible marker (e.g. `"_truncated": true`) rather than cutting silently.
+
+### Phase 2 (documented; built after this Annotation work): native-first backfill
+
+Several facts still live only in an Annotation/comment but have a real SPDX
+home Pitloom does not yet populate. Build the native construct, then **trim
+the corresponding Annotation to the residual**. Track here so it is not
+forgotten:
+
+- [ ] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
+  source fragment). Residual in Annotation: the unification *criterion* only.
+- [ ] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
+  (author-stated) / `hasConcludedLicense` (Pitloom-detected). Today they are
+  mirrored (`deps.py`, "no inference yet"). Residual: the detection evidence.
+- [ ] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment run.
+  Residual: which field + before/after value + inferred marker (E1/E2).
+- [ ] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
+  `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
+  `extra_data`/provenance). Residual: none once mapped.
+- [ ] **N5 — Base-model lineage** (HF `base_model`) → a `Relationship` if a
+  suitable `relationshipType` exists, else `ExternalRef`. Residual: the raw
+  relation string if no native type fits.
+- [ ] **N6 — Dataset `creator`** → `Agent` + attribution relationship on the
+  dataset package (extracted but not wired). Residual: none once mapped.
+
+Every use case splits into a **native part** (Phase 2) and an **Annotation
+part** (this phase); e.g. G2 license = N2 relationships + Annotation evidence,
+A1 unification = N1 `imports` + Annotation criterion.
+
+---
+
+## 11. Security/robustness hardening (2026-07-21)
+
+Agent-driven adversarial review of the provenance-string construction and
+JSON-serialization paths (`record_dict_field_provenance`, `_sanitize_for_json`)
+found and fixed two real gaps:
+
+- **Provenance-string delimiter injection.** Both a dict key from an
+  untrusted binary artifact (a GGUF kv key, a safetensors `__metadata__`
+  key, ...) *and* the model's filename (`f"Source: {model_path.name}"`,
+  built independently in all nine AI-model extractors) flow unescaped into a
+  `"Source: X | Field: Y"` provenance string. A crafted value containing
+  `"| Source: pyproject.toml"` would inject a fake segment that
+  `parse_provenance_value` re-parses as if the field came from a transparent
+  manifest -- misattributing the source and, in the default minimal-detail
+  mode, silently dropping the entry entirely. Fixed with a shared
+  `sanitize_provenance_text()` (`_extract_utils.py`) that escapes `|`,
+  applied both inside `record_dict_field_provenance` (the key) and at every
+  `source = f"Source: {model_path.name}"` construction site (the filename) --
+  the first fix (key-only) was caught as incomplete by a follow-up
+  adversarial audit before this file was updated.
+  **Scope boundary, not fixed:** `_croissant.py`/`pyproject.py`/
+  `setuptools.py`/`_license.py` build `"Source: {path}"` strings with the
+  identical unescaped pattern, but never call `record_dict_field_provenance`
+  and were outside the audited AI-extractor scope; their inputs (project-local
+  paths, PEP 621 field values) are a different, generally lower trust
+  boundary than an arbitrary downloaded binary model file. Worth revisiting
+  with the same `sanitize_provenance_text()` if that trust assumption changes.
+- **Non-deterministic/invalid JSON in the P1 preservation blob.**
+  `json.dumps`'s `default=` hook is never called for a `float`, so a
+  malformed model's NaN/Infinity metadata value round-tripped into the
+  non-standard `NaN`/`Infinity` JSON tokens (RFC 8259 forbids them); a `set`
+  value fell back to `str()`, whose iteration order is
+  `PYTHONHASHSEED`-dependent. Fixed with `_sanitize_for_json()`, a recursive
+  pre-pass that converts NaN/±Infinity to string tokens and orders set
+  elements by their *canonical JSON form* rather than Python's native `<` --
+  ordering by `<` was tried first and rejected: `sorted()` can silently
+  succeed without raising `TypeError` for types whose `<` isn't a total order
+  (e.g. `frozenset`, where `<` means "is a proper subset of"), so a
+  set-of-frozensets stayed input-order-dependent even after the first
+  attempt.
+  **Known-dormant, not fixed:** extractors are expected to normalize
+  numpy/library-native scalars (via `.tolist()`/`.item()`) before they reach
+  `raw_metadata` -- confirmed true of every current extractor against real
+  fixtures -- so `_sanitize_for_json` doesn't special-case numpy types. A
+  future extractor that skips that normalization would silently mis-serialize
+  (e.g. a `numpy.int64` becoming a JSON string via the generic `default=str`
+  fallback); noted in the function's docstring as an assumption, not guarded
+  against, since guarding it well requires a numpy dependency this module
+  doesn't otherwise need.
+
+Also documented (§10, Preservation bullet): the P1 blob has no size cap, so a
+production-scale model's large arrays (e.g. a 32K+ entry GGUF vocab table)
+could produce a multi-megabyte `Annotation.statement`. Not a spec violation
+(`statement` is unbounded `xsd:string`), not exercised by the small test
+fixtures, and deliberately not truncated (silently cutting array data would
+make "verbatim preservation" dishonest) -- `preserve-source-metadata = "never"`
+is the escape hatch for large models today.

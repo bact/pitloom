@@ -39,9 +39,21 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3.provenance import build_unification_annotation
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 log = logging.getLogger(__name__)
+
+#: A recorded fragment-unification event: survivor id -> criterion ->
+#: ``{"unified": set of dropped distinct ids, "fragments": set of origin paths}``.
+#: Only *content-hash* (SHA-256) unifications are recorded -- those fold a
+#: genuinely *distinct* id into the survivor ("these two different ids are the
+#: same bytes"), which SPDX cannot express and which the merge would otherwise
+#: discard. A same-id registry match (dropped id == survivor id) carries no such
+#: fact -- its only content is the fragment origin, which belongs to the Phase-2
+#: ``SpdxDocument.imports`` native anchor, not here. Agent/Tool structural dedup
+#: (every fragment mints its own "Pitloom") is likewise excluded.
+_UnificationEvents = dict[str, dict[str, dict[str, set[str]]]]
 
 # A fragment's own SpdxDocument/Bom (software_Sbom is a Bom subclass) is
 # always dropped -- the merged output has exactly one of each, owned by the
@@ -420,9 +432,33 @@ class _MergeIndex:
         self._index(obj)
 
 
-def _merge_fragment_set(fragment_set: spdx3.SHACLObjectSet, index: _MergeIndex) -> None:
+def _record_unification(
+    events: _UnificationEvents,
+    survivor_id: str,
+    criterion: str,
+    dropped_id: str,
+    fragment_file: str,
+) -> None:
+    """Note that the distinct *dropped_id* (from *fragment_file*) was unified
+    into *survivor_id* under *criterion* -- provenance the merge would otherwise
+    discard (A1). Only called for a genuinely distinct id (see
+    :func:`_merge_fragment_set`)."""
+    rec = events.setdefault(survivor_id, {}).setdefault(
+        criterion, {"unified": set(), "fragments": set()}
+    )
+    rec["unified"].add(dropped_id)
+    rec["fragments"].add(fragment_file)
+
+
+def _merge_fragment_set(
+    fragment_set: spdx3.SHACLObjectSet,
+    index: _MergeIndex,
+    fragment_file: str,
+    events: _UnificationEvents,
+) -> None:
     """Unify and add every top-level element of *fragment_set* into *index*'s
-    exporter, per the module-level unification policy."""
+    exporter, per the module-level unification policy. Records content-element
+    unifications into *events* (see :func:`_record_unification`)."""
     # Iterate `.objects` (top-level graph entries only), not `.foreach()`
     # (which also yields inline blank-node children like DictionaryEntry --
     # those are never independently registered and are carried along
@@ -437,6 +473,10 @@ def _merge_fragment_set(fragment_set: spdx3.SHACLObjectSet, index: _MergeIndex) 
         spdx_id = getattr(obj, "spdxId", None)
         by_id = index.find_by_id(spdx_id) if spdx_id else None
         if by_id is not None:
+            # Same-id (registry) match: the fragment reused an existing id, so
+            # nothing distinct is folded. Its only fact is the fragment origin,
+            # which is Phase-2 SpdxDocument.imports territory -- not annotated
+            # here (see _UnificationEvents). Properties are still merged.
             _merge_properties(_as_element(by_id), _as_element(obj))
             remap[obj] = require_spdx_id(_as_element(by_id))
             continue
@@ -445,12 +485,19 @@ def _merge_fragment_set(fragment_set: spdx3.SHACLObjectSet, index: _MergeIndex) 
             element = _as_element(obj)
             by_hash = index.find_by_hash(element)
             if by_hash is not None:
+                survivor = require_spdx_id(by_hash)
                 _merge_properties(by_hash, element)
-                remap[obj] = require_spdx_id(by_hash)
+                remap[obj] = survivor
+                _record_unification(
+                    events, survivor, "sha256", require_spdx_id(element), fragment_file
+                )
                 continue
             _warn_if_same_name_different_hash(element, index.exporter.object_set)
 
         if isinstance(obj, _STRUCTURAL_TYPES):
+            # Agent/Tool structural dedup (every fragment mints its own
+            # "Pitloom" identity) is internal bookkeeping, not an artifact
+            # identity fact -- unified silently, not annotated.
             structural_dup = index.find_structural_duplicate(obj)
             if structural_dup is not None:
                 remap[obj] = require_spdx_id(_as_element(structural_dup))
@@ -535,6 +582,40 @@ def _mint_extra_id(namespace: str, prefix: str, existing_ids: set[str]) -> str:
         n += 1
 
 
+def _emit_unification_annotations(
+    events: _UnificationEvents,
+    main_doc: spdx3.SpdxDocument,
+    exporter: Spdx3JsonExporter,
+) -> None:
+    """Emit one ``unification`` Annotation per (survivor, criterion) recorded in
+    *events* (A1). Ids are minted in the main document's namespace -- fragment
+    merge runs after ``build`` and has no doc UUID of its own. Deterministic:
+    survivors and criteria are iterated in sorted order and id/fragment lists
+    are sorted inside :func:`build_unification_annotation`."""
+    if not events:
+        return
+    namespace = main_doc.spdxId
+    creation_info = main_doc.creationInfo
+    if namespace is None or not isinstance(creation_info, spdx3.CreationInfo):
+        return
+    existing_ids = set(exporter.object_set.obj_by_id.keys())
+    for survivor_id in sorted(events):
+        for criterion in sorted(events[survivor_id]):
+            rec = events[survivor_id][criterion]
+            ann_id = _mint_extra_id(namespace, "Annotation-unification", existing_ids)
+            existing_ids.add(ann_id)
+            exporter.add_annotation(
+                build_unification_annotation(
+                    subject_spdx_id=survivor_id,
+                    criterion=criterion,
+                    unified_ids=list(rec["unified"]),
+                    fragments=list(rec["fragments"]),
+                    creation_info=creation_info,
+                    annotation_spdx_id=ann_id,
+                )
+            )
+
+
 def _add_model_sbom(main_doc: spdx3.SpdxDocument, exporter: Spdx3JsonExporter) -> None:
     """Add a second ``software_Sbom`` rooted at the merged ``ai_AIPackage``,
     when fragments contributed one -- "SBOM A describes the wheel, SBOM B
@@ -602,6 +683,7 @@ def merge_fragments(
         exporter: The exporter whose object set receives the merged elements.
     """
     index = _MergeIndex(exporter)
+    events: _UnificationEvents = {}
 
     for fragment_file in fragment_files:
         fragment_path = project_dir / fragment_file
@@ -616,11 +698,12 @@ def merge_fragments(
             log.warning("Failed to ingest SBOM fragment %s: %s", fragment_path, exc)
             continue
 
-        _merge_fragment_set(fragment_set, index)
+        _merge_fragment_set(fragment_set, index, fragment_file, events)
 
     _dedupe_relationships(exporter)
 
     main_doc = _find_main_document(exporter.object_set)
     if main_doc is not None:
         _update_profile_conformance(main_doc, exporter)
+        _emit_unification_annotations(events, main_doc, exporter)
         _add_model_sbom(main_doc, exporter)

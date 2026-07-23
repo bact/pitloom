@@ -55,12 +55,30 @@ statement. The statement schema is pluggable -- `"pitloom/1"` (shown above)
 is the default; see the implementation plan for how an external AI-model
 provenance schema could be adopted later without changing call sites.
 
+**Native-first boundary (2026-07).** An Annotation must never restate a value
+that SPDX already stores natively (the license lives in `hasDeclaredLicense`,
+the version in `software_packageVersion`, a dependency edge in `dependsOn`);
+it only records *how the value came to be*. In the default `detail = "minimal"`
+mode a field-source Annotation is emitted **only** when it adds something the
+native value cannot convey -- the value was inferred/detected (not read
+verbatim), came from a specific sub-file region of an opaque binary format, or
+is the raw dependency constraint. Trivial "read from `pyproject.toml`" sources
+are dropped (available under `detail = "full"`). Two process-level roles have
+no native home at all and are always recorded: **fragment-unification**
+rationale (which criterion merged two elements) and **artifact-metadata
+preservation** (an AI model's verbatim original metadata, config-gated to when
+the model is not shipped and can't be re-extracted). See §10 of the
+implementation plan for the use-case catalog and the Phase 2 native-backfill
+checklist.
+
 Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
 
 ```toml
 [tool.pitloom.provenance]
-format = "both"       # "annotation" | "comment" | "both" (default)
-schema = "pitloom/1"  # statement schema id
+format = "both"                    # "annotation" | "comment" | "both" (default)
+schema = "pitloom/1"               # statement schema id
+detail = "minimal"                 # "minimal" (default) | "full"
+preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
 ```
 
 ### 2. Comment attribute in SPDX elements (legacy / back-compat)

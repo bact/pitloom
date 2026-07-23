@@ -53,6 +53,18 @@ _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", 
 #: ``pitloom.assemble.spdx3.provenance.DEFAULT_SCHEMA_ID``.
 _DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 
+#: Valid ``[tool.pitloom.provenance] detail`` values. ``minimal`` (default)
+#: emits a field-source Annotation only when the source adds signal the native
+#: SPDX value cannot convey (inference/detection/sub-file location/declared
+#: constraint); ``full`` emits the per-field source map for every field.
+_VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
+
+#: Valid ``[tool.pitloom.provenance] preserve-source-metadata`` values.
+#: ``auto`` (default) embeds an artifact's verbatim original metadata blob only
+#: when the artifact is not shipped with the distribution (and thus cannot be
+#: re-extracted later); ``always``/``never`` are explicit overrides.
+_VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = frozenset({"auto", "always", "never"})
+
 
 @dataclass
 class PitloomConfig:
@@ -98,6 +110,20 @@ class PitloomConfig:
             rejected here (``core`` must not import the assemble layer's
             encoder registry) -- it is caught with a clear error the first
             time an SBOM is generated.
+        provenance_detail: How much per-field provenance to record, from
+            ``[tool.pitloom.provenance] detail``. ``"minimal"`` (default)
+            emits a field-source Annotation only when the source adds signal
+            the native SPDX value cannot convey (a value that was inferred/
+            detected rather than read verbatim, a sub-file extraction location,
+            a declared constraint differing from the resolved value);
+            ``"full"`` emits the per-field source map for every field, for an
+            exhaustive extraction audit.
+        provenance_preserve_source_metadata: Whether to embed an artifact's
+            verbatim original metadata (e.g. an AI model's own header), from
+            ``[tool.pitloom.provenance] preserve-source-metadata``. ``"auto"``
+            (default) preserves it only when the artifact is not shipped with
+            the distribution and thus cannot be re-extracted later;
+            ``"always"``/``"never"`` are explicit overrides.
     """
 
     fragments: list[str] = field(default_factory=list)
@@ -111,6 +137,8 @@ class PitloomConfig:
     ids_file: str | None = None
     provenance_format: str = "both"
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
+    provenance_detail: str = "minimal"
+    provenance_preserve_source_metadata: str = "auto"
 
 
 def _check_moved_creation_keys(
@@ -235,13 +263,34 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[Tool] | None:
     return tools
 
 
-def _read_provenance_settings(pitloom_data: dict[str, Any]) -> tuple[str, str]:
-    """Read ``[tool.pitloom.provenance]`` and return ``(format, schema)``.
+def _provenance_str(raw: dict[str, Any], keys: tuple[str, ...], default: str) -> str:
+    """Return the first present ``[tool.pitloom.provenance]`` key as a string.
+
+    Accepts both hyphen and underscore spellings (``keys`` in preference
+    order). Raises ``ValueError`` if a present value is not a string.
+    """
+    for key in keys:
+        if key in raw:
+            value = raw[key]
+            if not isinstance(value, str):
+                raise ValueError(
+                    f"[tool.pitloom.provenance] {key!r} must be a string, got "
+                    f"{type(value).__name__}: {value!r}"
+                )
+            return value
+    return default
+
+
+def _read_provenance_settings(
+    pitloom_data: dict[str, Any],
+) -> tuple[str, str, str, str]:
+    """Read ``[tool.pitloom.provenance]`` and return
+    ``(format, schema, detail, preserve_source_metadata)``.
 
     Raises:
-        ValueError: If ``provenance`` is present but not a table, or if
-            ``format``/``schema`` are present but not strings, or if
-            ``format`` is not one of :data:`_VALID_PROVENANCE_FORMATS`.
+        ValueError: If ``provenance`` is present but not a table, if any value
+            is present but not a string, or if ``format``/``detail``/
+            ``preserve-source-metadata`` is not one of its allowed values.
     """
     raw = pitloom_data.get("provenance", {})
     if not isinstance(raw, dict):
@@ -250,26 +299,33 @@ def _read_provenance_settings(pitloom_data: dict[str, Any]) -> tuple[str, str]:
             f"{type(raw).__name__}: {raw!r}"
         )
 
-    fmt = raw.get("format", "both")
-    if not isinstance(fmt, str):
-        raise ValueError(
-            "[tool.pitloom.provenance] 'format' must be a string, got "
-            f"{type(fmt).__name__}: {fmt!r}"
-        )
+    fmt = _provenance_str(raw, ("format",), "both")
     if fmt not in _VALID_PROVENANCE_FORMATS:
         valid = ", ".join(sorted(_VALID_PROVENANCE_FORMATS))
         raise ValueError(
             f"[tool.pitloom.provenance] 'format' must be one of {valid}, got {fmt!r}"
         )
 
-    schema = raw.get("schema", _DEFAULT_PROVENANCE_SCHEMA)
-    if not isinstance(schema, str):
+    schema = _provenance_str(raw, ("schema",), _DEFAULT_PROVENANCE_SCHEMA)
+
+    detail = _provenance_str(raw, ("detail",), "minimal")
+    if detail not in _VALID_PROVENANCE_DETAIL:
+        valid = ", ".join(sorted(_VALID_PROVENANCE_DETAIL))
         raise ValueError(
-            "[tool.pitloom.provenance] 'schema' must be a string, got "
-            f"{type(schema).__name__}: {schema!r}"
+            f"[tool.pitloom.provenance] 'detail' must be one of {valid}, got {detail!r}"
         )
 
-    return fmt, schema
+    preserve = _provenance_str(
+        raw, ("preserve-source-metadata", "preserve_source_metadata"), "auto"
+    )
+    if preserve not in _VALID_PRESERVE_SOURCE_METADATA:
+        valid = ", ".join(sorted(_VALID_PRESERVE_SOURCE_METADATA))
+        raise ValueError(
+            "[tool.pitloom.provenance] 'preserve-source-metadata' must be one of "
+            f"{valid}, got {preserve!r}"
+        )
+
+    return fmt, schema, detail, preserve
 
 
 def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
@@ -321,7 +377,12 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
             "[tool.pitloom.ids] 'file' must be a string, got "
             f"{type(ids_file).__name__}: {ids_file!r}"
         )
-    provenance_format, provenance_schema = _read_provenance_settings(pitloom_data)
+    (
+        provenance_format,
+        provenance_schema,
+        provenance_detail,
+        provenance_preserve,
+    ) = _read_provenance_settings(pitloom_data)
     pretty = bool(pitloom_data.get("pretty", False))
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
@@ -364,6 +425,8 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         ids_file=ids_file,
         provenance_format=provenance_format,
         provenance_schema=provenance_schema,
+        provenance_detail=provenance_detail,
+        provenance_preserve_source_metadata=provenance_preserve,
     )
 
 

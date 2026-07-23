@@ -186,6 +186,16 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     # Format-specific key/value metadata (e.g. GGUF general.*, ONNX metadata_props)
     properties: dict[str, str] = field(default_factory=dict)
 
+    # Complete, verbatim original metadata map in the model's own key
+    # vocabulary and value types (e.g. the full GGUF kv-store or safetensors
+    # ``__metadata__``), for lossless preservation (P1) when the model is not
+    # shipped with the distribution and cannot be re-extracted later. Optional:
+    # extractors populate it where a clean complete map is available; when
+    # empty the assembler falls back to ``properties``. Distinct from
+    # ``properties`` (a stringified, curated subset) -- this keeps native
+    # value types (ints/lists) intact.
+    raw_metadata: dict[str, Any] = field(default_factory=dict)
+
     # Input and output tensor specifications
     inputs: list[dict[str, Any]] = field(default_factory=list)
     outputs: list[dict[str, Any]] = field(default_factory=list)

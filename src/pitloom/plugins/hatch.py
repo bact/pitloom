@@ -210,6 +210,10 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             registry=registry,
             provenance_format=pitloom_config.provenance_format,
             provenance_schema=pitloom_config.provenance_schema,
+            provenance_detail=pitloom_config.provenance_detail,
+            provenance_preserve_source_metadata=(
+                pitloom_config.provenance_preserve_source_metadata
+            ),
         )
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
 

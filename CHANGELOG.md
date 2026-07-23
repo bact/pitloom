@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-07-09
+Last-Modified: 2026-07-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,6 +17,36 @@ and this project adheres to
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.10.0...v0.11.0>
+
+## [Unreleased]
+
+### Added
+
+- Record metadata provenance as SPDX 3 Core `Annotation` elements alongside
+  the `comment` form, controlled by `[tool.pitloom.provenance] format`.
+- `[tool.pitloom.provenance] detail` (`minimal` default / `full`) to limit
+  provenance Annotations to fields SPDX can't otherwise express.
+- Fragment-unification provenance: record why two elements were merged as a
+  `provenance/unification/1` Annotation on the survivor.
+- Artifact-metadata preservation (`[tool.pitloom.provenance]
+  preserve-source-metadata`, `auto` default) to embed an AI model's verbatim
+  original metadata when it isn't shipped with the distribution.
+
+### Changed
+
+- Provenance is no longer duplicated onto `dependsOn` relationships.
+- Dict-valued AI-model metadata (`properties`, `hyperparameters`) now records
+  exact per-key provenance instead of one shared note per dict.
+
+### Security
+
+- Sanitize untrusted text (an AI model's filename, and any binary-format
+  metadata key) before it's embedded in a provenance string, so a crafted
+  value can no longer inject a fake `Source:`/`Field:` segment and
+  misattribute or silently suppress provenance.
+- Preserved AI-model metadata (P1) is normalized before JSON serialization so
+  NaN/Infinity float values and non-deterministic `set` ordering can no
+  longer produce invalid or non-reproducible SBOM output.
 
 ## [0.12.0] - 2026-07-10
 
