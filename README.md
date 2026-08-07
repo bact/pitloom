@@ -171,11 +171,13 @@ a new model, and `use_model` when consuming one for inference or evaluation:
 ```python
 from pitloom import loom
 
+
 @loom.run(output_file="fragments/sentiment_model.json")
 def train_model():
     loom.set_model("sentiment-clf")
     loom.add_dataset("imdb-reviews", dataset_type="text")
     # ... training logic ...
+
 
 @loom.run(output_file="fragments/sentiment_eval.json")
 def evaluate_model():

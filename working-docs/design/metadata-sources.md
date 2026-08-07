@@ -145,15 +145,15 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+
 def prepare_metadata_via_pep517(project_dir: Path) -> Path | None:
     """Call prepare_metadata_for_build_wheel and return the .dist-info path."""
     with tempfile.TemporaryDirectory() as tmp:
         result = subprocess.run(
             [
-                sys.executable, "-c",
-                "import build.env, sys; "
-                "from build._builder import _BuildBackend; "
-                "..."
+                sys.executable,
+                "-c",
+                "import build.env, sys; from build._builder import _BuildBackend; ...",
             ],
             cwd=str(project_dir),
             capture_output=True,

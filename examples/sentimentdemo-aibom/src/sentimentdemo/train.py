@@ -17,8 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import fasttext
-from stav.vocab import dpv as stav_dpv
-from stav.vocab import spdx as stav_spdx
+from stav.vocab.dpv import ai as stav_dpv_ai
+from stav.vocab.spdx import dataset as stav_spdx_dataset
 
 from pitloom import loom
 
@@ -52,13 +52,13 @@ def train() -> Path:
         # can resolve it to the formal "SupervisedLearning" concept unambiguously.
         loom.set_model(
             name="sentimentdemo",
-            model_type=str(stav_dpv.ai.AITechnique.SupervisedLearning),
+            model_type=str(stav_dpv_ai.AITechnique.SupervisedLearning),
             hyperparameters={k: str(v) for k, v in HYPERPARAMS.items()},
         )
         # Creates a ``trainedOn`` SPDX relationship from the model to this dataset.
         loom.add_dataset(
             "data/processed/train.txt",
-            dataset_type=stav_spdx.dataset.DatasetType.text.name,
+            dataset_type=stav_spdx_dataset.DatasetType.text.name,
         )
 
         model = fasttext.train_supervised(input=str(TRAIN_FILE), **HYPERPARAMS)

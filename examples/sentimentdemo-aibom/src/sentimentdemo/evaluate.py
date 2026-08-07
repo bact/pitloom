@@ -14,8 +14,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import fasttext
-from stav.vocab import dpv as stav_dpv
-from stav.vocab import spdx as stav_spdx
+from stav.vocab.dpv import ai as stav_dpv_ai
+from stav.vocab.spdx import dataset as stav_spdx_dataset
 
 from pitloom import loom
 
@@ -37,12 +37,12 @@ def evaluate() -> tuple[int, float, float]:
     with loom.run(FRAGMENT_PATH, pretty=True):
         loom.use_model(
             name="sentimentdemo",
-            model_type=str(stav_dpv.ai.AITechnique.SupervisedLearning),
+            model_type=str(stav_dpv_ai.AITechnique.SupervisedLearning),
         )
         # Creates a ``testedOn`` SPDX relationship from the model to this dataset.
         loom.add_validation_dataset(
             "data/processed/test.txt",
-            dataset_type=stav_spdx.dataset.DatasetType.text.name,
+            dataset_type=stav_spdx_dataset.DatasetType.text.name,
         )
 
         model = fasttext.load_model(str(MODEL_PATH))

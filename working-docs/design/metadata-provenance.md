@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-07-08
+Last-Modified: 2026-07-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,12 +21,72 @@ information in the SBOM comes from. This is essential for:
 - **Trust**: Building confidence in automated SBOM generation
 - **Compliance**: Meeting requirements for supply chain security
 
+> **Status (2026-07):** Provenance is now recorded as SPDX 3 Core
+> `Annotation` elements -- systematic and machine-readable -- with the
+> original `comment`-based format kept for back-compat. See
+> [`working-docs/implementation/annotation-provenance.md`](../implementation/annotation-provenance.md)
+> for the full design and implementation plan; this document summarizes the
+> resulting behavior.
+
 ## Provenance tracking implementation
 
-### 1. Comment attribute in SPDX elements
+### 1. Core/Annotation elements (primary mechanism)
 
-SPDX 3 defines a `comment` attribute for all Element classes. Pitloom uses
-this attribute to record metadata provenance information.
+Each element with tracked provenance gets one `Annotation` (per
+[`pitloom.assemble.spdx3.provenance`](../../src/pitloom/assemble/spdx3/provenance.py)):
+`annotationType = "other"` (the SPDX 3.0.1 enum has no dedicated provenance
+value), `subject` pointing at the element's `spdxId`, and a JSON `statement`
+(`contentType = "application/json"`) keyed by field name:
+
+```json
+{
+  "type": "Annotation",
+  "spdxId": "https://spdx.org/spdxdocs/mypackage-.../#Annotation-1",
+  "annotationType": "other",
+  "contentType": "application/json",
+  "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
+  "statement": "{\"schema\":\"https://pitloom.dev/provenance/1\",\"fields\":{\"version\":{\"source\":\"src/mypackage/__about__.py\",\"method\":\"dynamic_extraction\"}}}"
+}
+```
+
+The *who/when* (which tool/agent extracted the data, and at what time) is
+carried by the Annotation's own `creationInfo`, not duplicated in the
+statement. The statement schema is pluggable -- `"pitloom/1"` (shown above)
+is the default; see the implementation plan for how an external AI-model
+provenance schema could be adopted later without changing call sites.
+
+**Native-first boundary (2026-07).** An Annotation must never restate a value
+that SPDX already stores natively (the license lives in `hasDeclaredLicense`,
+the version in `software_packageVersion`, a dependency edge in `dependsOn`);
+it only records *how the value came to be*. In the default `detail = "minimal"`
+mode a field-source Annotation is emitted **only** when it adds something the
+native value cannot convey -- the value was inferred/detected (not read
+verbatim), came from a specific sub-file region of an opaque binary format, or
+is the raw dependency constraint. Trivial "read from `pyproject.toml`" sources
+are dropped (available under `detail = "full"`). Two process-level roles have
+no native home at all and are always recorded: **fragment-unification**
+rationale (which criterion merged two elements) and **artifact-metadata
+preservation** (an AI model's verbatim original metadata, config-gated to when
+the model is not shipped and can't be re-extracted). See §10 of the
+implementation plan for the use-case catalog and the Phase 2 native-backfill
+checklist.
+
+Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
+
+```toml
+[tool.pitloom.provenance]
+format = "both"                    # "annotation" | "comment" | "both" (default)
+schema = "pitloom/1"               # statement schema id
+detail = "minimal"                 # "minimal" (default) | "full"
+preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
+```
+
+### 2. Comment attribute in SPDX elements (legacy / back-compat)
+
+SPDX 3 defines a `comment` attribute for all Element classes. Before
+Annotation support, and still today when `format` includes `"comment"`
+(the default `"both"` does), Pitloom also writes a human-readable summary
+into this attribute:
 
 ```python
 class SoftwarePackage:
@@ -39,9 +99,11 @@ class SoftwarePackage:
         self.comment = comment
 ```
 
-### 2. Provenance format pattern
+### 3. Provenance format pattern
 
-Pitloom uses a consistent, machine-parsable format for provenance information:
+Both the comment text and each Annotation field's source string share one
+consistent, machine-parsable pattern
+(parsed by `pitloom.assemble.spdx3.provenance.parse_provenance_value`):
 
 **Format**: `Source: [location] | Field: [field_name]` or
            `Source: [location] | Method: [method_name]`
@@ -54,7 +116,7 @@ Pitloom uses a consistent, machine-parsable format for provenance information:
 - Tracking SDK:
   `Source: src/eval.py | Method: inspect_caller (tool: pitloom.loom, function: evaluate)`
 
-### 3. Tracked metadata fields
+### 4. Tracked metadata fields
 
 Pitloom tracks provenance for the following metadata fields:
 
@@ -141,6 +203,10 @@ Per SPDX 3:
 
 ## Use cases
 
+The examples below show the legacy `comment` form, since it reads well
+inline; with the default `format = "both"`, the same information is *also*
+present as an Annotation (§1 above) alongside every `comment` shown here.
+
 ### Example 1: Understanding version extraction
 
 **Question**: "Why does the SBOM say version 1.2.3?"
@@ -189,29 +255,30 @@ The copyright was inferred by Pitloom from the authors listed in `pyproject.toml
 
 ## Machine-readable format
 
-The provenance format is designed to be both human-readable and machine-parsable.
-
-**Parsing example**:
+The Annotation `statement` (JSON, per field) is the primary machine-readable
+form -- parse it with a standard JSON decoder, no bespoke parsing needed.
+The `comment` string (kept for `format = "comment"`/`"both"`) uses the
+`"Source: X | Field: Y"` pattern above; Pitloom's own parser for that pattern
+is `pitloom.assemble.spdx3.provenance.parse_provenance_value`, reproduced here
+for reference:
 
 ```python
-def parse_provenance(comment: str) -> dict[str, dict[str, str]]:
-    """Parse provenance comment into structured data."""
-    if not comment.startswith("Metadata provenance:"):
-        return {}
-    
-    provenance = {}
-    content = comment.replace("Metadata provenance: ", "")
-    
-    for item in content.split("; "):
-        if ": " in item:
-            field, source_info = item.split(": ", 1)
-            parts = source_info.split(" | ")
-            provenance[field] = {
-                "source": parts[0].replace("Source: ", ""),
-                "detail": parts[1] if len(parts) > 1 else ""
-            }
-    
-    return provenance
+def parse_provenance_value(value: str) -> dict[str, str]:
+    """Parse "Source: X | Field: Y" into a structured dict."""
+    parsed: dict[str, str] = {}
+    notes: list[str] = []
+    for raw in value.split("|"):
+        segment = raw.strip()
+        if not segment:
+            continue
+        key, sep, val = segment.partition(":")
+        if sep:
+            parsed[key.strip().lower()] = val.strip()
+        else:
+            notes.append(segment)
+    if notes:
+        parsed.setdefault("note", " | ".join(notes))
+    return parsed
 ```
 
 ## Best practices
@@ -234,5 +301,7 @@ def parse_provenance(comment: str) -> dict[str, dict[str, str]]:
 
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf)
 - [SPDX 3.0 Model](https://spdx.org/rdf/3.0/spdx-model.ttl)
+- [Core/Annotation class](https://spdx.github.io/spdx-spec/v3.0.1/model/Core/Classes/Annotation/)
 - [PEP 621 - Project metadata](https://peps.python.org/pep-0621/)
 - [Hatchling build backend](https://hatch.pypa.io/latest/config/build/)
+- [Implementation plan: metadata provenance via SPDX 3 Core/Annotation](../implementation/annotation-provenance.md)

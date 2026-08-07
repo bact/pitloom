@@ -113,7 +113,7 @@ def test_format_unknown_no_extensions_or_magic() -> None:
 
 
 def test_format_extensions_are_lowercase_with_dot() -> None:
-    for fmt in AiModelFormat:
+    for fmt in AiModelFormat.__members__.values():
         for ext in fmt.extensions:
             assert ext.startswith("."), f"{ext!r} missing leading dot"
             assert ext == ext.lower(), f"{ext!r} is not lowercase"
@@ -121,7 +121,7 @@ def test_format_extensions_are_lowercase_with_dot() -> None:
 
 def test_format_no_duplicate_extensions() -> None:
     seen: dict[str, AiModelFormat] = {}
-    for fmt in AiModelFormat:
+    for fmt in AiModelFormat.__members__.values():
         for ext in fmt.extensions:
             assert ext not in seen, f"{ext!r} registered for both {seen[ext]} and {fmt}"
             seen[ext] = fmt
@@ -147,7 +147,9 @@ def test_format_str_returns_value_consistently() -> None:
 
 def test_format_info_is_frozen() -> None:
     info = next(i for i in REGISTRY if i.format == AiModelFormat.GGUF)
+    # pyrefly: ignore[no-matching-overload]
     with pytest.raises((AttributeError, TypeError)):
+        # pyrefly: ignore[read-only]
         info.reader = None  # type: ignore[misc]
 
 
@@ -171,7 +173,9 @@ def test_format_info_is_format_info_type() -> None:
 
 def test_registry_covers_all_non_unknown_formats() -> None:
     registry_formats = {info.format for info in REGISTRY}
-    all_formats = {f for f in AiModelFormat if f != AiModelFormat.UNKNOWN}
+    all_formats = {
+        f for f in AiModelFormat.__members__.values() if f != AiModelFormat.UNKNOWN
+    }
     assert registry_formats == all_formats
 
 

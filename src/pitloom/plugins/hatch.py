@@ -204,7 +204,17 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         )
         registry = resolve_registry(project_dir, pitloom_config.ids_file)
 
-        exporter = assemble_spdx3(document, merkle_root=merkle_root, registry=registry)
+        exporter = assemble_spdx3(
+            document,
+            merkle_root=merkle_root,
+            registry=registry,
+            provenance_format=pitloom_config.provenance_format,
+            provenance_schema=pitloom_config.provenance_schema,
+            provenance_detail=pitloom_config.provenance_detail,
+            provenance_preserve_source_metadata=(
+                pitloom_config.provenance_preserve_source_metadata
+            ),
+        )
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
         # Wheels (and sdists) must always contain a compact, RFC 8785 (JCS)

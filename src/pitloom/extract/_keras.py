@@ -32,6 +32,10 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import (
+    record_dict_field_provenance,
+    sanitize_provenance_text,
+)
 
 log = logging.getLogger(__name__)
 
@@ -81,8 +85,14 @@ def _parse_model_config(
                 continue
             if isinstance(val, (int, float, bool, str)):
                 hyperparameters[key] = val
-        if hyperparameters:
-            provenance["hyperparameters"] = f"{source} | Field: config.config.*"
+        # Exact per-key provenance: each hyperparameter under ``config.config.``.
+        record_dict_field_provenance(
+            provenance,
+            "hyperparameters",
+            hyperparameters,
+            source,
+            location_prefix="config.config.",
+        )
 
     # Input shape from top-level build_config.
     build_config = config_data.get("build_config", {})
@@ -119,7 +129,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
     Raises:
         ValueError: If the file is not a valid ``.keras`` archive.
     """
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     # .keras is always Keras v3 native format
     format_version = "v3"
     framework = "keras"
@@ -146,7 +156,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
                 date_saved = meta.get("date_saved") or None
                 if date_saved:
                     properties["date_saved"] = date_saved
-                    provenance["properties"] = (
+                    provenance["properties.date_saved"] = (
                         f"{source} | Field: metadata.json date_saved"
                     )
 

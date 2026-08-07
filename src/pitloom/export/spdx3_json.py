@@ -193,19 +193,21 @@ def _annotate_relationships(graph: list[dict[str, Any]]) -> None:
             if isinstance(name, str):
                 id_to_name[spdx_id] = name
 
-    for el in graph:
-        if "relationshipType" not in el:
+    for node in graph:
+        if not isinstance(node, dict):
+            continue  # type: ignore[unreachable]
+        rel_type = node.get("relationshipType")
+        if not rel_type:
             continue
-        rel_type = el.get("relationshipType")
-        from_id = el.get("from")
-        to_ids = el.get("to")
+        from_id = node.get("from")
+        to_ids = node.get("to")
         if rel_type and from_id and to_ids and isinstance(to_ids, list):
             from_name = id_to_name.get(from_id, from_id.rsplit("#", maxsplit=1)[-1])
             to_names = [
                 id_to_name.get(str(tid)) or str(tid).rsplit("#", maxsplit=1)[-1]
                 for tid in to_ids
             ]
-            el["description"] = f"{from_name} {rel_type}: {', '.join(to_names)}"
+            node["description"] = f"{from_name} {rel_type}: {', '.join(to_names)}"
 
 
 class Spdx3JsonExporter:
@@ -290,6 +292,14 @@ class Spdx3JsonExporter:
             relationship: The Relationship object
         """
         self.object_set.add(relationship)
+
+    def add_annotation(self, annotation: spdx3.Annotation) -> None:
+        """Add a provenance (or other) annotation to the document.
+
+        Args:
+            annotation: The Annotation object
+        """
+        self.object_set.add(annotation)
 
     def add_sbom(self, sbom: spdx3.software_Sbom) -> None:
         """Add an SBOM to the document.

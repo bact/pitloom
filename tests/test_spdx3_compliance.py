@@ -5,6 +5,7 @@
 
 """Tests for SPDX 3 compliance validation."""
 
+import dataclasses
 import json
 import re
 import tempfile
@@ -20,6 +21,7 @@ from pitloom.export.spdx3_json import (
     _deduplicate_named_elements,
     _graph_sort_key,
 )
+from pitloom.extract.project import read_project
 
 _VALID_RELATIONSHIP_TYPES: frozenset[str] = frozenset(
     iri.split("/")[-1] for iri in spdx3.RelationshipType.NAMED_INDIVIDUALS.values()
@@ -618,3 +620,86 @@ def test_graph_sort_key_priority_order() -> None:
     assert sorted_types[2] == "Bom"
     assert sorted_types[3] == "software_Sbom"
     assert sorted_types[4] == "software_Package"
+
+
+_CONTENT_TYPE_RE = re.compile(r"^[^/]+/[^/]+$")
+
+
+def test_spdx3_provenance_annotations_are_compliant() -> None:
+    """Every emitted provenance Annotation satisfies the Core/Annotation
+    shape: required subject/annotationType, a resolvable subject spdxId, and
+    a contentType matching the spec's ``^[^/]+/[^/]+$`` pattern."""
+    pyproject_content = """
+[project]
+name = "test-annotation-compliance"
+version = "1.0.0"
+description = "Testing Annotation compliance"
+dependencies = ["requests>=2.28.0"]
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        sbom_json = generate_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        all_ids = {e["spdxId"] for e in graph if isinstance(e.get("spdxId"), str)}
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        assert len(annotations) > 0, "expected at least one provenance Annotation"
+
+        for ann in annotations:
+            assert ann.get("spdxId")
+            assert ann.get("annotationType") == "other"
+            assert ann.get("subject") in all_ids
+            content_type = ann.get("contentType")
+            assert content_type is not None
+            assert _CONTENT_TYPE_RE.match(content_type)
+            # statement must be valid JSON carrying the pitloom/1 schema marker.
+            statement = json.loads(ann["statement"])
+            assert statement["schema"] == "https://pitloom.dev/provenance/1"
+
+
+def test_spdx3_provenance_format_annotation_omits_comment() -> None:
+    """With provenance_format='annotation', provenance moves entirely into
+    Annotations -- the main package's comment is not set from provenance.
+    Uses an ``authors`` entry so a high-signal (inferred copyright) field
+    exists under the default minimal detail."""
+    pyproject_content = """
+[project]
+name = "test-annotation-only"
+version = "1.0.0"
+authors = [{name = "Jane Doe"}]
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        project_metadata, pitloom_config, _ = read_project(tmppath)
+        pitloom_config = dataclasses.replace(
+            pitloom_config, provenance_format="annotation"
+        )
+        sbom_json = generate_sbom(
+            tmppath,
+            project_metadata=project_metadata,
+            pitloom_config=pitloom_config,
+        )
+        graph = json.loads(sbom_json)["@graph"]
+
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package"
+            and e.get("name") == "test-annotation-only"
+        )
+        assert "comment" not in main_package or main_package["comment"] is None
+        annotations = [
+            e
+            for e in graph
+            if e.get("type") == "Annotation"
+            and e.get("subject") == main_package["spdxId"]
+        ]
+        assert len(annotations) == 1

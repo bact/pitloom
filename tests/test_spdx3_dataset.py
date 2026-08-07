@@ -244,11 +244,15 @@ def test_build_dataset_package_no_croissant_url_no_external_ref() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _build_dataset_package -- provenance comment
+# _build_dataset_package -- provenance
 # ---------------------------------------------------------------------------
 
 
-def test_build_dataset_package_provenance_in_comment() -> None:
+def test_build_dataset_package_leaves_provenance_to_caller() -> None:
+    """``_build_dataset_package`` itself sets no comment -- provenance is
+    emitted separately by :func:`add_datasets_for_model` via
+    :func:`~pitloom.assemble.spdx3.provenance.emit_provenance` (see
+    :func:`test_add_datasets_provenance_annotation_and_comment`)."""
     _clear_doc_counters(_DOC_UUID)
     pkg = _build_dataset_package(
         _make_meta(provenance={"name": "Source: test.json | Field: name"}),
@@ -256,9 +260,40 @@ def test_build_dataset_package_provenance_in_comment() -> None:
         _DOC_NAME,
         _DOC_UUID,
     )
-    assert pkg.comment is not None
-    assert "Metadata provenance" in pkg.comment
-    assert "name" in pkg.comment
+    assert pkg.comment is None
+
+
+def test_add_datasets_provenance_annotation_and_comment() -> None:
+    """``add_datasets_for_model`` records the dataset's provenance as both a
+    Core Annotation and (default ``"both"`` format) the legacy comment."""
+    _clear_doc_counters(_DOC_UUID)
+    exporter = _make_exporter()
+    ci = _make_ci()
+    ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
+
+    datasets = [
+        DatasetReference(
+            role="trainedOn",
+            metadata=_make_meta(provenance={"name": "Source: test.json | Field: name"}),
+        )
+    ]
+    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+
+    data = json.loads(exporter.to_json())
+    graph = data["@graph"]
+    dataset_pkg = next(e for e in graph if e.get("type") == "dataset_DatasetPackage")
+    assert "Metadata provenance" in dataset_pkg["comment"]
+    assert "name" in dataset_pkg["comment"]
+
+    annotations = [e for e in graph if e.get("type") == "Annotation"]
+    dataset_annotations = [
+        a for a in annotations if a.get("subject") == dataset_pkg["spdxId"]
+    ]
+    assert len(dataset_annotations) == 1
+    assert dataset_annotations[0]["contentType"] == "application/json"
+    statement = json.loads(dataset_annotations[0]["statement"])
+    assert statement["schema"] == "https://pitloom.dev/provenance/1"
+    assert statement["fields"]["name"]["source"] == "test.json"
 
 
 # ---------------------------------------------------------------------------

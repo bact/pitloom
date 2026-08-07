@@ -55,6 +55,10 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import (
+    record_dict_field_provenance,
+    sanitize_provenance_text,
+)
 
 log = logging.getLogger(__name__)
 
@@ -182,11 +186,14 @@ def _parse_model_config(
                 if isinstance(val, (int, float, bool, str)):
                     hyperparameters[key] = val
 
-            if hyperparameters:
-                provenance["hyperparameters"] = (
-                    f"{source} | Field: model_config.config.*"
-                    " (scalar entries, excluding name and layers)"
-                )
+            # Exact per-key provenance under ``model_config.config.``.
+            record_dict_field_provenance(
+                provenance,
+                "hyperparameters",
+                hyperparameters,
+                source,
+                location_prefix="model_config.config.",
+            )
 
         # Top-level build_config -- fallback if layers didn't give a shape.
         if not inputs:
@@ -302,7 +309,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to read HDF5 file {model_path}: {exc}") from exc
 
     with hf:
-        source = f"Source: {model_path.name}"
+        source = f"Source: {sanitize_provenance_text(model_path.name)}"
         format_version: str | None = None
         framework: str | None = None
         framework_version: str | None = None

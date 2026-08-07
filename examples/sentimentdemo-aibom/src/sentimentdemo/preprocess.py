@@ -24,7 +24,7 @@ import random
 import re
 from pathlib import Path
 
-from stav.vocab import spdx as stav_spdx
+from stav.vocab.spdx import dataset as stav_spdx_dataset
 
 from pitloom import loom
 
@@ -68,11 +68,11 @@ def preprocess() -> tuple[Path, Path]:
     """
     loom.add_input_dataset(
         "data/raw/pos.txt",
-        dataset_type=stav_spdx.dataset.DatasetType.text.name,
+        dataset_type=stav_spdx_dataset.DatasetType.text.name,
     )
     loom.add_input_dataset(
         "data/raw/neg.txt",
-        dataset_type=stav_spdx.dataset.DatasetType.text.name,
+        dataset_type=stav_spdx_dataset.DatasetType.text.name,
     )
 
     pos = _read_labelled(RAW_DIR / "pos.txt", "pos")
@@ -92,12 +92,12 @@ def preprocess() -> tuple[Path, Path]:
     # dataset declared above (emitted by loom.Run.finalize).
     loom.add_output_dataset(
         "data/processed/train.txt",
-        dataset_type=stav_spdx.dataset.DatasetType.text.name,
+        dataset_type=stav_spdx_dataset.DatasetType.text.name,
         data_preprocessing=PREPROCESSING_STEPS,
     )
     loom.add_output_dataset(
         "data/processed/test.txt",
-        dataset_type=stav_spdx.dataset.DatasetType.text.name,
+        dataset_type=stav_spdx_dataset.DatasetType.text.name,
         data_preprocessing=PREPROCESSING_STEPS,
     )
 

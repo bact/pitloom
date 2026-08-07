@@ -12,6 +12,7 @@ from typing import Any
 
 from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.assemble.spdx3.provenance import DEFAULT_SCHEMA_ID
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
@@ -107,7 +108,17 @@ def generate_sbom(
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
     )
-    exporter = build(doc, merkle_root=merkle_root, registry=resolved_registry)
+    exporter = build(
+        doc,
+        merkle_root=merkle_root,
+        registry=resolved_registry,
+        provenance_format=pitloom_config.provenance_format,
+        provenance_schema=pitloom_config.provenance_schema,
+        provenance_detail=pitloom_config.provenance_detail,
+        provenance_preserve_source_metadata=(
+            pitloom_config.provenance_preserve_source_metadata
+        ),
+    )
     merge_fragments(project_dir, pitloom_config.fragments, exporter)
 
     sbom_json = exporter.to_json(
@@ -121,6 +132,7 @@ def generate_sbom(
     return sbom_json
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def generate_ai_model_sbom(
     model_path: Path,
     output_path: Path | None = None,
@@ -128,6 +140,10 @@ def generate_ai_model_sbom(
     pretty: bool = False,
     describe_relationship: bool = False,
     registry: str | Path | IdRegistry | None = None,
+    provenance_format: str = "both",
+    provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
+    provenance_preserve_source_metadata: str = "auto",
 ) -> str:
     """Generate a standalone SPDX 3 SBOM for a single AI model file.
 
@@ -151,6 +167,11 @@ def generate_ai_model_sbom(
             entity; a match reuses that registered ``spdxId`` so this SBOM's
             model and a ``pitloom.loom`` fragment's model can be unified at
             merge time.
+        provenance_format: How to record metadata provenance -- see
+            :mod:`pitloom.assemble.spdx3.provenance`.
+        provenance_schema: Schema id for the provenance Annotation statement.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
@@ -173,7 +194,13 @@ def generate_ai_model_sbom(
         else None
     )
     exporter = build_model(
-        model, creation_metadata or CreationMetadata(), entity_spdx_id=entity_spdx_id
+        model,
+        creation_metadata or CreationMetadata(),
+        entity_spdx_id=entity_spdx_id,
+        provenance_format=provenance_format,
+        provenance_schema=provenance_schema,
+        provenance_detail=provenance_detail,
+        provenance_preserve_source_metadata=provenance_preserve_source_metadata,
     )
 
     sbom_json = exporter.to_json(
@@ -187,12 +214,17 @@ def generate_ai_model_sbom(
     return sbom_json
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def generate_huggingface_sbom(
     model_source: str,
     output_path: Path | None = None,
     creation_metadata: CreationMetadata | None = None,
     pretty: bool = False,
     describe_relationship: bool = False,
+    provenance_format: str = "both",
+    provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
+    provenance_preserve_source_metadata: str = "auto",
 ) -> str:
     """Generate a standalone SPDX 3 SBOM for a Hugging Face model repository.
 
@@ -211,6 +243,11 @@ def generate_huggingface_sbom(
             UTC time.
         pretty: Indent JSON output with 2 spaces when ``True``.
         describe_relationship: Add human-readable text to SPDX relationships.
+        provenance_format: How to record metadata provenance -- see
+            :mod:`pitloom.assemble.spdx3.provenance`.
+        provenance_schema: Schema id for the provenance Annotation statement.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
@@ -220,7 +257,14 @@ def generate_huggingface_sbom(
         ValueError: If *model_source* is not a valid Hugging Face URL or model ID.
     """
     model = read_huggingface(model_source)
-    exporter = build_model(model, creation_metadata or CreationMetadata())
+    exporter = build_model(
+        model,
+        creation_metadata or CreationMetadata(),
+        provenance_format=provenance_format,
+        provenance_schema=provenance_schema,
+        provenance_detail=provenance_detail,
+        provenance_preserve_source_metadata=provenance_preserve_source_metadata,
+    )
 
     sbom_json = exporter.to_json(
         pretty=pretty,
@@ -233,6 +277,7 @@ def generate_huggingface_sbom(
     return sbom_json
 
 
+# pylint: disable=too-many-arguments
 def generate_analyzed_sbom(
     wheel_path: Path,
     *,
@@ -241,6 +286,10 @@ def generate_analyzed_sbom(
     pretty: bool = False,
     describe_relationship: bool = False,
     registry: str | Path | IdRegistry | None = None,
+    provenance_format: str = "both",
+    provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
+    provenance_preserve_source_metadata: str = "auto",
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
 
@@ -251,6 +300,11 @@ def generate_analyzed_sbom(
         pretty: Indent JSON output with 2 spaces when True.
         describe_relationship: Add human-readable text to SPDX relationships.
         registry: A stable file/entity id registry (see IdRegistry).
+        provenance_format: How to record metadata provenance -- see
+            :mod:`pitloom.assemble.spdx3.provenance`.
+        provenance_schema: Schema id for the provenance Annotation statement.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
@@ -284,7 +338,15 @@ def generate_analyzed_sbom(
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
     )
-    exporter = build(doc, merkle_root=merkle_root, registry=resolved_registry)
+    exporter = build(
+        doc,
+        merkle_root=merkle_root,
+        registry=resolved_registry,
+        provenance_format=provenance_format,
+        provenance_schema=provenance_schema,
+        provenance_detail=provenance_detail,
+        provenance_preserve_source_metadata=provenance_preserve_source_metadata,
+    )
 
     sbom_json = exporter.to_json(
         pretty=pretty,
@@ -304,6 +366,9 @@ def generate_deployed_sbom(
     pretty: bool = False,
     describe_relationship: bool = False,
     registry: str | Path | IdRegistry | None = None,
+    provenance_format: str = "both",
+    provenance_schema: str = DEFAULT_SCHEMA_ID,
+    provenance_detail: str = "minimal",
 ) -> str:
     """Generate a Deployed SPDX 3 SBOM for the current Python environment.
 
@@ -313,6 +378,11 @@ def generate_deployed_sbom(
         pretty: Indent JSON output with 2 spaces when True.
         describe_relationship: Add human-readable text to SPDX relationships.
         registry: A stable file/entity id registry (see IdRegistry).
+        provenance_format: How to record metadata provenance -- see
+            :mod:`pitloom.assemble.spdx3.provenance`.
+        provenance_schema: Schema id for the provenance Annotation statement.
+        provenance_detail: ``"minimal"`` (default) records only high-signal
+            field sources; ``"full"`` records every field's source.
 
     Returns:
         JSON-LD string of the generated SPDX 3 SBOM.
@@ -335,7 +405,14 @@ def generate_deployed_sbom(
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=[],
     )
-    exporter = build_deployed(doc, env_tree=env_tree, registry=resolved_registry)
+    exporter = build_deployed(
+        doc,
+        env_tree=env_tree,
+        registry=resolved_registry,
+        provenance_format=provenance_format,
+        provenance_schema=provenance_schema,
+        provenance_detail=provenance_detail,
+    )
 
     sbom_json = exporter.to_json(
         pretty=pretty,

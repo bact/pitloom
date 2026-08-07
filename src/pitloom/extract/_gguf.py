@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import (
+    record_dict_field_provenance,
+    sanitize_provenance_text,
+)
 
 log = logging.getLogger(__name__)
 
@@ -111,7 +115,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         log.debug("Failed to open GGUF file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     framework = "llama.cpp"
 
     # Read GGUF format version from the binary header (uint32 at byte offset 4).
@@ -191,11 +195,10 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         else:
             properties[key] = str(value)
 
-    if hyperparameters:
-        provenance["hyperparameters"] = f"{source} | Fields: architecture-specific keys"
-
-    if properties:
-        provenance["properties"] = f"{source} | Fields: general.* and other GGUF keys"
+    # Exact per-key provenance: each hyperparameter/property is traceable to
+    # its own GGUF kv key (the dict key *is* the kv key here).
+    record_dict_field_provenance(provenance, "hyperparameters", hyperparameters, source)
+    record_dict_field_provenance(provenance, "properties", properties, source)
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
@@ -211,5 +214,6 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         quantization=quantization,
         hyperparameters=hyperparameters,
         properties=properties,
+        raw_metadata=dict(fields),
         provenance=provenance,
     )

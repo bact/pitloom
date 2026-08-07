@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import sanitize_provenance_text
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             "Install it with: pip install numpy"
         ) from exc
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     framework = "numpy"
     format_version: str | None = None
     properties: dict[str, str] = {}
@@ -112,8 +113,8 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             provenance["format_version"] = (
                 f"{source} | Field: .npy format header version (bytes 6-7)"
             )
-            provenance["properties"] = (
-                f"{source} | Field: .npy format header version (bytes 6-7)"
+            provenance["properties.header_encoding"] = (
+                f"{source} | Field: .npy header encoding (from format version)"
             )
             # mmap_mode='r' reads shape/dtype from header without loading
             # the full tensor data into memory.
@@ -133,7 +134,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
                         }
                     )
             if inputs:
-                provenance["inputs"] = f"{source} | Fields: array names, shapes, dtypes"
+                provenance["inputs"] = f"{source} | Field: array names, shapes, dtypes"
     except Exception as exc:  # pylint: disable=broad-exception-caught
         log.debug("Failed to read NumPy file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc

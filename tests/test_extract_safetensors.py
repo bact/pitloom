@@ -194,7 +194,7 @@ def test_marian_tensor_names(marian_metadata: AiModelMetadata) -> None:
 
 def test_marian_provenance(marian_metadata: AiModelMetadata) -> None:
     assert "inputs" in marian_metadata.provenance
-    assert "properties" in marian_metadata.provenance
+    assert any(k.startswith("properties.") for k in marian_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +248,7 @@ def test_phi_tensor_names(phi_metadata: AiModelMetadata) -> None:
 
 def test_phi_provenance(phi_metadata: AiModelMetadata) -> None:
     assert "inputs" in phi_metadata.provenance
-    assert "properties" in phi_metadata.provenance
+    assert any(k.startswith("properties.") for k in phi_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +302,7 @@ def test_speech2text_tensor_names(speech2text_metadata: AiModelMetadata) -> None
 
 def test_speech2text_provenance(speech2text_metadata: AiModelMetadata) -> None:
     assert "inputs" in speech2text_metadata.provenance
-    assert "properties" in speech2text_metadata.provenance
+    assert any(k.startswith("properties.") for k in speech2text_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +355,7 @@ def test_vits_tensor_names(vits_metadata: AiModelMetadata) -> None:
 
 def test_vits_provenance(vits_metadata: AiModelMetadata) -> None:
     assert "inputs" in vits_metadata.provenance
-    assert "properties" in vits_metadata.provenance
+    assert any(k.startswith("properties.") for k in vits_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -404,4 +404,4 @@ def test_whisper_st_tensor_names(whisper_st_metadata: AiModelMetadata) -> None:
 
 def test_whisper_st_provenance(whisper_st_metadata: AiModelMetadata) -> None:
     assert "inputs" in whisper_st_metadata.provenance
-    assert "properties" in whisper_st_metadata.provenance
+    assert any(k.startswith("properties.") for k in whisper_st_metadata.provenance)

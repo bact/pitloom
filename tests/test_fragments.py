@@ -896,3 +896,91 @@ def test_fragment_envelope_is_dropped(tmp_path: Path) -> None:
     sboms = _by_type(graph, "software_Sbom")
     assert len(sboms) == 2
     assert any(s["rootElement"] == [ai_pkgs[0]["spdxId"]] for s in sboms)
+
+
+# ---------------------------------------------------------------------------
+# Unification provenance Annotations (A1)
+# ---------------------------------------------------------------------------
+
+
+def test_unification_annotation_records_sha256_merge() -> None:
+    """When a fragment element unifies with a base element by SHA-256 content
+    equality, the merge records a Core Annotation on the survivor naming the
+    criterion, the dropped id, and the origin fragment -- provenance the merge
+    would otherwise silently discard."""
+    # pylint: disable=import-outside-toplevel
+    import hashlib
+
+    # pylint: disable=import-outside-toplevel
+    from pitloom.assemble.spdx3.document import build
+
+    # pylint: disable=import-outside-toplevel
+    from pitloom.core.document import DocumentModel
+
+    # pylint: disable=import-outside-toplevel
+    from pitloom.core.project import (
+        ProjectFile,
+        ProjectMetadata,
+    )
+
+    model_bytes = b"MODELDATA" * 100
+    sha = hashlib.sha256(model_bytes).hexdigest()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        project_file = ProjectFile(
+            physical_path="pkg/model.bin",
+            distribution_path="pkg/model.bin",
+            digest_sha256=sha,
+        )
+        doc = DocumentModel(
+            project=ProjectMetadata(name="demo", version="1.0.0", files=[project_file]),
+            creation_metadata=CreationMetadata(
+                creation_datetime="2026-01-01T00:00:00+00:00"
+            ),
+        )
+        exporter = build(doc)
+
+        fragment = {
+            "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+            "@graph": [
+                {
+                    "type": "CreationInfo",
+                    "@id": "_:ci",
+                    "specVersion": "3.0.1",
+                    "created": "2026-01-01T00:00:00Z",
+                    "createdBy": ["urn:agent"],
+                },
+                {
+                    "type": "Agent",
+                    "spdxId": "urn:agent",
+                    "name": "x",
+                    "creationInfo": "_:ci",
+                },
+                {
+                    "type": "software_File",
+                    "spdxId": "https://frag/doc#File-99",
+                    "name": "model.bin",
+                    "creationInfo": "_:ci",
+                    "verifiedUsing": [
+                        {"type": "Hash", "algorithm": "sha256", "hashValue": sha}
+                    ],
+                },
+            ],
+        }
+        (tmp_path / "frag.spdx3.json").write_text(json.dumps(fragment))
+
+        merge_fragments(tmp_path, ["frag.spdx3.json"], exporter)
+        graph = json.loads(exporter.to_json())["@graph"]
+
+        unification = [
+            a
+            for a in graph
+            if a.get("type") == "Annotation"
+            and "provenance/unification/1" in a.get("statement", "")
+        ]
+        assert len(unification) == 1
+        statement = json.loads(unification[0]["statement"])
+        assert statement["criterion"] == "sha256"
+        assert statement["unified"] == ["https://frag/doc#File-99"]
+        assert statement["fragments"] == ["frag.spdx3.json"]

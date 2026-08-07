@@ -128,6 +128,7 @@ dynamically from training loops into your main SBOM seamlessly:
 ```python
 from pitloom import loom
 
+
 @loom.run("fragments/model.json")
 def run():
     loom.set_model("my-classifier")

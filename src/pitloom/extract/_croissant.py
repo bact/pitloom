@@ -210,7 +210,7 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     dataset_types = _infer_dataset_types(data)
     if dataset_types:
         provenance["dataset_types"] = (
-            f"Source: {src_label} | Fields: cr:recordSet / sc:dataType"
+            f"Source: {src_label} | Field: cr:recordSet, sc:dataType"
         )
 
     dataset_size = 0  # To implement

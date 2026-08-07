@@ -17,10 +17,17 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
 from pitloom.assemble.spdx3.creation_info import build_creation_info
+from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.ids import IdRegistry
+
+#: loom.py is a standalone SDK invoked from ad hoc scripts/notebooks, not
+#: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
+#: provenance is always recorded both ways (Annotation + legacy comment)
+#: rather than threading a format setting through the whole SDK surface.
+_LOOM_PROVENANCE_FORMAT = "both"
 
 log = logging.getLogger(__name__)
 
@@ -246,7 +253,6 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
             spdxId=registered_id or generate_spdx_id("AIPackage", name, self.doc_uuid),
             name=name,
             creationInfo=self.creation_info,
-            comment=f"Metadata provenance: package: {caller_info}",
         )
         self._model_generated = generated
         if model_type is not None:
@@ -257,6 +263,15 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
                 for k, v in hyperparameters.items()
             ]
         self.exporter.add_package(self.model)
+        emit_provenance(
+            subject=self.model,
+            provenance={"package": caller_info},
+            creation_info=self.creation_info,
+            doc_name=name,
+            doc_uuid=self.doc_uuid,
+            exporter=self.exporter,
+            provenance_format=_LOOM_PROVENANCE_FORMAT,
+        )
 
     def use_model(
         self,
@@ -304,7 +319,15 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
             or generate_spdx_id("DatasetPackage", name, self.doc_uuid),
             name=name,
             creationInfo=self.creation_info,
-            comment=f"Metadata provenance: package: {caller_info}",
+        )
+        emit_provenance(
+            subject=dataset_pkg,
+            provenance={"package": caller_info},
+            creation_info=self.creation_info,
+            doc_name=name,
+            doc_uuid=self.doc_uuid,
+            exporter=self.exporter,
+            provenance_format=_LOOM_PROVENANCE_FORMAT,
         )
         if hash_element is not None:
             dataset_pkg.verifiedUsing = [hash_element]

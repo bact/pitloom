@@ -66,3 +66,6 @@ files = [
     "fragments/03_evaluate.spdx3.json",    # produced by `python -m sentimentdemo.evaluate`
     "fragments/04_model_file.spdx3.json",  # produced by `loom analyze models/sentimentdemo.bin`
 ]
+
+[tool.pyrefly]
+search-path = ["src", "../../src"]

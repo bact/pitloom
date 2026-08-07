@@ -62,6 +62,7 @@ from pitloom.core.ai_metadata import (
     AiModelUsage,
 )
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
+from pitloom.extract._extract_utils import record_dict_field_provenance
 
 log = logging.getLogger(__name__)
 
@@ -524,10 +525,11 @@ def _parse_config_data(
             val = generation_config.get(key)
             if val is not None:
                 hyperparameters[f"generation.{key}"] = val
-    if hyperparameters:
-        provenance["hyperparameters"] = (
-            "Source: Hugging Face Hub | Field: config.json / generation_config.json"
-        )
+    # Exact per-key provenance: each hyperparameter is traceable to its own
+    # config.json key (``generation.*`` keys come from generation_config.json).
+    record_dict_field_provenance(
+        provenance, "hyperparameters", hyperparameters, "Source: Hugging Face Hub"
+    )
     return type_of_model, architecture, hyperparameters
 
 

@@ -81,7 +81,7 @@ def test_gguf_basic_extraction(tmp_path: Path) -> None:
     assert meta.hyperparameters["llama.block_count"] == 32
     # Non-hyperparam key goes to properties
     assert "tokenizer.ggml.model" in meta.properties
-    assert "hyperparameters" in meta.provenance
+    assert any(k.startswith("hyperparameters.") for k in meta.provenance)
     assert "architecture" in meta.provenance
 
 
@@ -200,8 +200,10 @@ def test_vocab_bert_bge_properties(vocab_bert_bge_metadata: AiModelMetadata) -> 
 
 
 def test_vocab_bert_bge_provenance(vocab_bert_bge_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in vocab_bert_bge_metadata.provenance
-    assert "properties" in vocab_bert_bge_metadata.provenance
+    assert any(
+        k.startswith("hyperparameters.") for k in vocab_bert_bge_metadata.provenance
+    )
+    assert any(k.startswith("properties.") for k in vocab_bert_bge_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -258,8 +260,8 @@ def test_vocab_phi3_tokenizer(vocab_phi3_metadata: AiModelMetadata) -> None:
 
 
 def test_vocab_phi3_provenance(vocab_phi3_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in vocab_phi3_metadata.provenance
-    assert "properties" in vocab_phi3_metadata.provenance
+    assert any(k.startswith("hyperparameters.") for k in vocab_phi3_metadata.provenance)
+    assert any(k.startswith("properties.") for k in vocab_phi3_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -319,8 +321,8 @@ def test_mmproj_properties(mmproj_metadata: AiModelMetadata) -> None:
 
 
 def test_mmproj_provenance(mmproj_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in mmproj_metadata.provenance
-    assert "properties" in mmproj_metadata.provenance
+    assert any(k.startswith("hyperparameters.") for k in mmproj_metadata.provenance)
+    assert any(k.startswith("properties.") for k in mmproj_metadata.provenance)
 
 
 # ---------------------------------------------------------------------------
@@ -387,5 +389,7 @@ def test_gguf_integration_properties(stories260k_metadata: AiModelMetadata) -> N
 
 
 def test_gguf_integration_provenance(stories260k_metadata: AiModelMetadata) -> None:
-    assert "hyperparameters" in stories260k_metadata.provenance
-    assert "properties" in stories260k_metadata.provenance
+    assert any(
+        k.startswith("hyperparameters.") for k in stories260k_metadata.provenance
+    )
+    assert any(k.startswith("properties.") for k in stories260k_metadata.provenance)

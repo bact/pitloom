@@ -18,6 +18,7 @@ from typing import Any
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.extract._extract_utils import sanitize_provenance_text
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +86,9 @@ def _read_pytorch_zip(
     properties["archive_contents"] = ", ".join(shown)
     if len(file_list) > 20:
         properties["archive_contents"] += f", ... ({len(file_list)} total)"
-    provenance["properties"] = f"{source} | Field: ZIP archive structure"
+    provenance["properties.archive_contents"] = (
+        f"{source} | Field: ZIP archive structure"
+    )
 
     # Inspect archive/data.pkl safely via fickling.
     pkl_entry = next(
@@ -136,7 +139,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     """
     import zipfile  # pylint: disable=import-outside-toplevel
 
-    source = f"Source: {model_path.name}"
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
     framework = "pytorch"
     type_of_model: str | None = None
     properties: dict[str, str] = {}
@@ -150,7 +153,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     if not is_zip:
         # Old-style raw pickle -- use fickling for safe, non-executing inspection.
         properties["format_detail"] = "raw pickle"
-        provenance["properties"] = f"{source} | raw pickle format"
+        provenance["properties.format_detail"] = f"{source} | Field: raw pickle format"
         try:
             with model_path.open("rb") as fh:
                 pkl_data = fh.read()
