@@ -147,8 +147,10 @@ def test_format_str_returns_value_consistently() -> None:
 
 def test_format_info_is_frozen() -> None:
     info = next(i for i in REGISTRY if i.format == AiModelFormat.GGUF)
-    with pytest.raises((AttributeError, TypeError)):  # pyrefly: ignore[no-matching-overload]
-        info.reader = None  # type: ignore[misc]  # pyrefly: ignore[read-only]
+    # pyrefly: ignore[no-matching-overload]
+    with pytest.raises((AttributeError, TypeError)):
+        # pyrefly: ignore[read-only]
+        info.reader = None  # type: ignore[misc]
 
 
 def test_format_info_has_only_format_and_reader() -> None:
