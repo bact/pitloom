@@ -126,6 +126,7 @@ def filter_high_signal(provenance: dict[str, str]) -> dict[str, str]:
     }
 
 
+# pylint: disable=too-few-public-methods
 class ProvenanceEncoder(Protocol):
     """Turns Pitloom's ``field -> source string`` map into an SPDX statement."""
 
@@ -137,9 +138,8 @@ class ProvenanceEncoder(Protocol):
 
     def encode(self, provenance: dict[str, str]) -> str:
         """Return the serialized ``Annotation.statement`` body."""
-        ...
 
-
+# pylint: disable=too-few-public-methods
 class PitloomV1Encoder:
     """Pitloom's own simple JSON schema (the default)."""
 
@@ -220,6 +220,7 @@ def build_provenance_annotation(
     )
 
 
+# pylint: disable=too-many-return-statements
 def _sanitize_for_json(obj: object) -> object:
     """Recursively normalize preserved raw metadata into deterministic,
     RFC 8259-valid JSON-safe values before serialization.
@@ -376,6 +377,7 @@ def build_provenance_comment(provenance: dict[str, str]) -> str | None:
     )
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def emit_provenance(
     subject: spdx3.Element,
     provenance: dict[str, str],

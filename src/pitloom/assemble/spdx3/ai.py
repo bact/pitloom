@@ -277,6 +277,7 @@ def _build_ai_package(
     return ai_pkg
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 def add_ai_models(
     ai_models: list[AiModelMetadata],
     main_package_spdx_id: str,

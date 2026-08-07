@@ -67,6 +67,7 @@ _VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = frozenset({"auto", "always", "
 
 
 @dataclass
+# pylint: disable=too-many-instance-attributes
 class PitloomConfig:
     """Settings from the ``[tool.pitloom]`` section of ``pyproject.toml``.
 

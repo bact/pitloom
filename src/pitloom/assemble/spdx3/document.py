@@ -203,6 +203,7 @@ def _add_package_files(
     return file_spdx_ids
 
 
+# pylint: disable=too-many-locals
 def build(
     doc: DocumentModel,
     merkle_root: str | None = None,
@@ -392,6 +393,7 @@ def build(
     return exporter
 
 
+# pylint: disable=too-many-locals
 def build_model(
     model: AiModelMetadata,
     creation_metadata: CreationMetadata,

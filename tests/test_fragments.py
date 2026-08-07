@@ -908,11 +908,18 @@ def test_unification_annotation_records_sha256_merge() -> None:
     equality, the merge records a Core Annotation on the survivor naming the
     criterion, the dropped id, and the origin fragment -- provenance the merge
     would otherwise silently discard."""
+    # pylint: disable=import-outside-toplevel
     import hashlib
 
+    # pylint: disable=import-outside-toplevel
     from pitloom.assemble.spdx3.document import build
+    # pylint: disable=import-outside-toplevel
     from pitloom.core.document import DocumentModel
-    from pitloom.core.project import ProjectFile, ProjectMetadata
+    # pylint: disable=import-outside-toplevel
+    from pitloom.core.project import (
+        ProjectFile,
+        ProjectMetadata,
+    )
 
     model_bytes = b"MODELDATA" * 100
     sha = hashlib.sha256(model_bytes).hexdigest()

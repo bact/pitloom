@@ -132,6 +132,7 @@ def generate_sbom(
     return sbom_json
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def generate_ai_model_sbom(
     model_path: Path,
     output_path: Path | None = None,
@@ -213,6 +214,7 @@ def generate_ai_model_sbom(
     return sbom_json
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def generate_huggingface_sbom(
     model_source: str,
     output_path: Path | None = None,
@@ -275,6 +277,7 @@ def generate_huggingface_sbom(
     return sbom_json
 
 
+# pylint: disable=too-many-arguments
 def generate_analyzed_sbom(
     wheel_path: Path,
     *,

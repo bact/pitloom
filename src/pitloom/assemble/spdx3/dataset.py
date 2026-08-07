@@ -164,6 +164,7 @@ def _build_dataset_package(
     return dataset_pkg
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_datasets_for_model(
     ai_package_spdx_id: str,
     datasets: list[DatasetReference],

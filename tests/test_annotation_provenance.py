@@ -81,7 +81,7 @@ def test_parse_provenance_value_note_only() -> None:
 
 
 def test_parse_provenance_value_empty_string() -> None:
-    assert parse_provenance_value("") == {}
+    assert not parse_provenance_value("")
 
 
 def test_parse_provenance_value_unknown_key_passthrough() -> None:
@@ -181,6 +181,7 @@ def test_build_provenance_annotation_fields() -> None:
     assert ann.subject == "urn:example#Package-1"
     assert ann.spdxId is not None
     assert ann.creationInfo is ci
+    assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["fields"]["name"]["source"] == "pyproject.toml"
 
@@ -190,6 +191,7 @@ def test_build_provenance_annotation_uses_given_encoder() -> None:
     the seam a future external schema (e.g. PROV-O) plugs into without any
     change to build_provenance_annotation or its callers."""
 
+    # pylint: disable=too-few-public-methods
     class _StubEncoder:
         schema_id = "stub/1"
         content_type = "text/plain"
@@ -410,7 +412,7 @@ def test_emit_provenance_appends_to_existing_comment() -> None:
         provenance_detail="full",
     )
 
-    assert pkg.comment is not None
+    assert pkg.comment
     assert pkg.comment.startswith("Known biases: overrepresents English text\n")
     assert "Metadata provenance" in pkg.comment
 
@@ -423,6 +425,7 @@ def test_emit_provenance_appends_to_existing_comment() -> None:
 
 
 def test_swapping_encoder_changes_output_without_changing_wiring() -> None:
+    # pylint: disable=too-few-public-methods
     class _FutureSchemaEncoder:
         schema_id = "future-schema/1"
         content_type = "application/ld+json"
@@ -520,7 +523,9 @@ def test_emit_provenance_minimal_filters_trivial_fields() -> None:
         subject=pkg,
         provenance={
             "name": "Source: pyproject.toml | Field: project.name",
-            "copyright_text": "Source: Pitloom generator | Method: inferred_from_authors",
+            "copyright_text": (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            ),
         },
         creation_info=ci,
         doc_name=_DOC_NAME,
@@ -533,6 +538,7 @@ def test_emit_provenance_minimal_filters_trivial_fields() -> None:
         o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)
     ]
     assert len(annotations) == 1
+    assert annotations[0].statement is not None
     statement = json.loads(annotations[0].statement)
     assert set(statement["fields"]) == {"copyright_text"}
 
@@ -579,6 +585,7 @@ def test_emit_provenance_full_keeps_all_fields() -> None:
     annotations = [
         o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)
     ]
+    assert annotations[0].statement is not None
     statement = json.loads(annotations[0].statement)
     assert set(statement["fields"]) == {"name", "version"}
 
@@ -601,6 +608,7 @@ def test_build_unification_annotation_shape_and_determinism() -> None:
     assert ann.spdxId == "urn:doc#Annotation-unification-1"
     assert ann.contentType == "application/json"
     assert ann.annotationType == spdx3.AnnotationType.other
+    assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["schema"] == UNIFICATION_SCHEMA_URL
     assert statement["event"] == "unification"
@@ -627,6 +635,7 @@ def test_build_source_metadata_annotation_embeds_verbatim() -> None:
         doc_uuid=_DOC_UUID,
     )
     assert ann is not None
+    assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["schema"] == ARTIFACT_METADATA_SCHEMA_URL
     assert statement["format"] == "gguf"
@@ -662,6 +671,7 @@ def test_build_source_metadata_annotation_nan_and_infinity_are_valid_json() -> N
         _DOC_UUID,
     )
     assert ann is not None
+    assert ann.statement is not None
     assert "NaN" not in ann.statement.replace('"NaN"', "")
     assert "Infinity" not in ann.statement.replace('"Infinity"', "").replace(
         '"-Infinity"', ""
@@ -689,6 +699,7 @@ def test_build_source_metadata_annotation_set_is_deterministic() -> None:
         _DOC_UUID,
     )
     assert ann is not None
+    assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["metadata"]["tags"] == ["alpha", "gamma", "zebra"]
 
@@ -700,6 +711,7 @@ def test_sanitize_for_json_orders_unsortable_elements_deterministically() -> Non
     on the input set's own iteration order, which is itself
     ``PYTHONHASHSEED``-dependent. Ordering by canonical JSON form instead of
     Python's native `<` must stay stable regardless of insertion order."""
+    # pylint: disable=import-outside-toplevel
     from pitloom.assemble.spdx3.provenance import _sanitize_for_json
 
     set_a = {frozenset({1, 2}), frozenset({3, 4}), frozenset({5})}

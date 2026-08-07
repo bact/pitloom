@@ -23,8 +23,12 @@ def test_record_dict_field_provenance_per_key() -> None:
         "Source: model.gguf",
     )
     assert provenance == {
-        "hyperparameters.bert.block_count": "Source: model.gguf | Field: bert.block_count",
-        "hyperparameters.bert.head_count": "Source: model.gguf | Field: bert.head_count",
+        "hyperparameters.bert.block_count": (
+            "Source: model.gguf | Field: bert.block_count"
+        ),
+        "hyperparameters.bert.head_count": (
+            "Source: model.gguf | Field: bert.head_count"
+        ),
     }
 
 
@@ -48,7 +52,7 @@ def test_record_dict_field_provenance_location_prefix() -> None:
 def test_record_dict_field_provenance_empty_keys_is_noop() -> None:
     provenance: dict[str, str] = {}
     record_dict_field_provenance(provenance, "properties", [], "Source: x")
-    assert provenance == {}
+    assert not provenance
 
 
 def test_record_dict_field_provenance_sanitizes_pipe_in_key() -> None:
@@ -59,6 +63,7 @@ def test_record_dict_field_provenance_sanitizes_pipe_in_key() -> None:
     :func:`~pitloom.assemble.spdx3.provenance.parse_provenance_value`,
     misattributing the provenance to a transparent manifest and causing it to
     be silently dropped in minimal detail mode."""
+    # pylint: disable=import-outside-toplevel
     from pitloom.assemble.spdx3.provenance import (
         filter_high_signal,
         parse_provenance_value,

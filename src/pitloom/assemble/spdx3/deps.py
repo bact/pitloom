@@ -72,6 +72,7 @@ def _parse_project_urls(pkg_meta: PackageMetadata) -> dict[str, str]:
     return result
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _enrich_from_installed(
     dep_name: str,
     dep_package: spdx3.software_Package,
@@ -166,6 +167,7 @@ def _enrich_from_installed(
         exporter.add_relationship(rel_declared)
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def build_license_elements(
     license_id: str,
     package_spdx_id: str,
@@ -258,6 +260,7 @@ def build_license_elements(
     return rel_has_declared_license, rel_has_concluded_license
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_dependencies(
     dependencies: list[str],
     dep_provenance: str,
@@ -360,6 +363,7 @@ def add_dependencies(
         exporter.add_relationship(dep_rel)
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_phantom_dependencies(
     phantom_deps: list[PhantomDependency],
     main_package_spdx_id: str,
