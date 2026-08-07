@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 # Extensions that might genuinely be AI models.
 _ALLOWED_EXTS = {".zip", ".bin"}
-for _fmt in AiModelFormat:
+for _fmt in AiModelFormat.__members__.values():
     # mypy may complain if not checking hasattr, but extensions is defined.
     for _ext in _fmt.extensions:
         _ALLOWED_EXTS.add(_ext.lower())

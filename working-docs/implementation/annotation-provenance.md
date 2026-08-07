@@ -188,8 +188,8 @@ active one is chosen by config (decision §3.7). Interface:
 
 ```python
 class ProvenanceEncoder(Protocol):
-    schema_id: str            # e.g. "pitloom/1"; the self-describing URL form
-    content_type: str         # MIME for the Annotation.contentType
+    schema_id: str  # e.g. "pitloom/1"; the self-describing URL form
+    content_type: str  # MIME for the Annotation.contentType
 
     def encode(self, provenance: dict[str, str]) -> str:
         """Return the serialized Annotation.statement body."""
@@ -310,8 +310,8 @@ def parse_provenance_value(value: str) -> dict[str, str]:
 class ProvenanceEncoder(Protocol):
     """Turns Pitloom's ``field -> source string`` map into an SPDX statement."""
 
-    schema_id: str        # short id used in config, e.g. "pitloom/1"
-    content_type: str     # value for Annotation.contentType
+    schema_id: str  # short id used in config, e.g. "pitloom/1"
+    content_type: str  # value for Annotation.contentType
 
     def encode(self, provenance: dict[str, str]) -> str:
         """Return the serialized ``Annotation.statement`` body."""
@@ -327,8 +327,7 @@ class PitloomV1Encoder:
 
     def encode(self, provenance: dict[str, str]) -> str:
         fields = {
-            field: parse_provenance_value(src)
-            for field, src in provenance.items()
+            field: parse_provenance_value(src) for field, src in provenance.items()
         }
         envelope = {"schema": self.schema_url, "fields": fields}
         # sort_keys keeps output byte-stable for reproducible builds.
@@ -351,9 +350,7 @@ def resolve_encoder(schema_id: str | None = None) -> ProvenanceEncoder:
         return _ENCODERS[key]
     except KeyError:
         known = ", ".join(sorted(_ENCODERS))
-        raise ValueError(
-            f"Unknown provenance schema {key!r}; known: {known}"
-        ) from None
+        raise ValueError(f"Unknown provenance schema {key!r}; known: {known}") from None
 
 
 def build_provenance_annotation(
@@ -415,8 +412,16 @@ Thread both to the assemble layer. Helper:
 
 ```python
 def emit_provenance(
-    subject_spdx_id, provenance, creation_info, doc_name, doc_uuid,
-    exporter, fmt, encoder, *, comment_target=None,
+    subject_spdx_id,
+    provenance,
+    creation_info,
+    doc_name,
+    doc_uuid,
+    exporter,
+    fmt,
+    encoder,
+    *,
+    comment_target=None,
 ):
     """Write provenance as annotation, comment, or both per config.
 

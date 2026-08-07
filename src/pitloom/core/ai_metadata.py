@@ -44,8 +44,8 @@ class AiModelFormat(str, Enum):
         magic: bytes | None = None,
     ) -> AiModelFormat:
         obj = str.__new__(cls, value)
-        obj._value_ = value
-        return obj
+        obj._value_ = value  # pyrefly: ignore[missing-attribute]
+        return obj  # pyrefly: ignore[bad-return]
 
     def __init__(
         self,

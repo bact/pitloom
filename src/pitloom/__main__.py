@@ -117,13 +117,16 @@ class _CreatorTypeAction(argparse.Action):
         option_string: str | None = None,
     ) -> None:
         creators: list[Creator] | None = getattr(namespace, self.dest)
-        if not creators:
+        if creators is None or len(creators) == 0:
             parser.error(f"{option_string} must come after a --creator-name")
+            return  # type: ignore[unreachable]
         # Reconstruct rather than mutate in-place so this routes through
         # Creator.__post_init__ normalisation/validation (defense in depth,
         # in case `choices=` on this argument is ever loosened).
         creators[-1] = Creator(
-            name=creators[-1].name, type=values, email=creators[-1].email
+            name=creators[-1].name,
+            type=values,
+            email=creators[-1].email,
         )
 
 
@@ -138,11 +141,14 @@ class _CreatorEmailAction(argparse.Action):
         option_string: str | None = None,
     ) -> None:
         creators: list[Creator] | None = getattr(namespace, self.dest)
-        if not creators:
+        if creators is None or len(creators) == 0:
             parser.error(f"{option_string} must come after a --creator-name")
+            return  # type: ignore[unreachable]
         # Reconstruct rather than mutate in-place, see _CreatorTypeAction.
         creators[-1] = Creator(
-            name=creators[-1].name, type=creators[-1].type, email=values
+            name=creators[-1].name,
+            type=creators[-1].type,
+            email=values,
         )
 
 

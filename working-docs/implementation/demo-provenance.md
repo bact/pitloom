@@ -80,16 +80,16 @@ Open `demo-sbom.spdx3.json` and look for the main package:
 ```python
 import json
 
-with open('demo-sbom.spdx3.json', 'r') as f:
+with open("demo-sbom.spdx3.json", "r") as f:
     sbom = json.load(f)
 
 # Find main package
-for elem in sbom['@graph']:
-    if elem['type'] == 'software_Package' and elem['name'] == 'demopackage':
-        if 'comment' in elem:
+for elem in sbom["@graph"]:
+    if elem["type"] == "software_Package" and elem["name"] == "demopackage":
+        if "comment" in elem:
             print("Provenance information:")
-            comment = elem['comment'].replace('Metadata provenance: ', '')
-            for item in comment.split('; '):
+            comment = elem["comment"].replace("Metadata provenance: ", "")
+            for item in comment.split("; "):
                 print(f"  • {item}")
 ```
 
@@ -204,13 +204,13 @@ Here's a Python function to parse provenance comments:
 ```python
 def parse_provenance(comment: str) -> dict[str, dict[str, str]]:
     """Parse provenance comment into structured data.
-    
+
     Args:
         comment: The comment string from SPDX element
-        
+
     Returns:
         dict: Structured provenance data
-        
+
     Example:
         >>> comment = "Metadata provenance: name: Source: pyproject.toml | Field: project.name"
         >>> parse_provenance(comment)
@@ -218,34 +218,35 @@ def parse_provenance(comment: str) -> dict[str, dict[str, str]]:
     """
     if not comment.startswith("Metadata provenance:"):
         return {}
-    
+
     provenance = {}
     content = comment.replace("Metadata provenance: ", "")
-    
+
     for item in content.split("; "):
         if ": " in item:
             field, source_info = item.split(": ", 1)
             parts = source_info.split(" | ")
             provenance[field] = {
                 "source": parts[0].replace("Source: ", ""),
-                "detail": parts[1] if len(parts) > 1 else ""
+                "detail": parts[1] if len(parts) > 1 else "",
             }
-    
+
     return provenance
+
 
 # Usage example
 import json
 
-with open('demo-sbom.spdx3.json', 'r') as f:
+with open("demo-sbom.spdx3.json", "r") as f:
     sbom = json.load(f)
 
-for elem in sbom['@graph']:
-    if elem['type'] == 'software_Package' and 'comment' in elem:
-        provenance = parse_provenance(elem['comment'])
+for elem in sbom["@graph"]:
+    if elem["type"] == "software_Package" and "comment" in elem:
+        provenance = parse_provenance(elem["comment"])
         print(f"Package: {elem['name']}")
         for field, info in provenance.items():
             print(f"  {field}: {info['source']}")
-            if info['detail']:
+            if info["detail"]:
                 print(f"    ({info['detail']})")
 ```
 

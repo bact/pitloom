@@ -1453,6 +1453,7 @@ def test_fixture_license_export(fixture_path: Path) -> None:
 
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 1
+    assert meta.license is not None  # type: ignore[comparison-overlap]
     _check_license_relationships(graph, ai_pkgs[0]["spdxId"], meta.license)
 
 

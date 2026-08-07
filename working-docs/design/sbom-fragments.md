@@ -258,6 +258,7 @@ class FragmentConfig:
             fragment's root element and the project's main package element.
             E.g., "trainedOn", "usedBy", "contains", "dependsOn".
     """
+
     path: str
     role: str = "software"
     description: str | None = None
@@ -311,7 +312,7 @@ A backward-compatible loader will accept both the old `list[str]` form
 ```python
 def merge_fragments(
     project_dir: Path,
-    fragments: list[FragmentConfig],   # replaces list[str]
+    fragments: list[FragmentConfig],  # replaces list[str]
     exporter: Spdx3JsonExporter,
     main_package_spdx_id: str,
     spdx_document: spdx3.SpdxDocument,

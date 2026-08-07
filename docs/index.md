@@ -103,16 +103,18 @@ generate_sbom(project_path)
 ```python
 from pitloom import loom
 
+
 @loom.run(output_file="fragments/train.json")
 def train_model():
-    loom.set_model("model-name")                             # <-- (A)
-    loom.add_dataset("dataset-name", dataset_type="text")    # <-- (B)
+    loom.set_model("model-name")  # <-- (A)
+    loom.add_dataset("dataset-name", dataset_type="text")  # <-- (B)
     # ... training logic ...
+
 
 @loom.run(output_file="fragments/eval.json")
 def evaluate_model():
-    loom.use_model("model-name")                             # <-- (C)
-    loom.add_dataset("dataset-name", dataset_type="text")    # <-- (B)
+    loom.use_model("model-name")  # <-- (C)
+    loom.add_dataset("dataset-name", dataset_type="text")  # <-- (B)
     # ... evaluation logic ...
 ```
 

@@ -5,6 +5,7 @@
 
 """Tests for SPDX 3 compliance validation."""
 
+import dataclasses
 import json
 import re
 import tempfile
@@ -14,7 +15,6 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_sbom
-from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import (
     _deduplicate_creation_infos,
@@ -679,8 +679,8 @@ authors = [{name = "Jane Doe"}]
         pyproject_path.write_text(pyproject_content)
 
         project_metadata, pitloom_config, _ = read_project(tmppath)
-        pitloom_config = PitloomConfig(
-            **{**pitloom_config.__dict__, "provenance_format": "annotation"}
+        pitloom_config = dataclasses.replace(
+            pitloom_config, provenance_format="annotation"
         )
         sbom_json = generate_sbom(
             tmppath,

@@ -100,9 +100,9 @@ setup(
 
 ```python
 setup(
-    version=get_version(),     # ✗ function call
-    name=PKG_NAME,             # ✗ variable
-    install_requires=REQS,     # ✗ variable
+    version=get_version(),  # ✗ function call
+    name=PKG_NAME,  # ✗ variable
+    install_requires=REQS,  # ✗ variable
 )
 ```
 

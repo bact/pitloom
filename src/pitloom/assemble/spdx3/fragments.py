@@ -128,7 +128,7 @@ def _as_element(obj: spdx3.SHACLObject) -> spdx3.Element:
     resolves elements this module itself registered) -- to be an
     ``Element``, never a blank node. ``isinstance`` against a *variable*
     tuple of types doesn't let mypy narrow, so this cast documents and
-    centralizes that invariant instead of scattering ``# type: ignore``.
+    centralizes that invariant instead of scattering ``# pyrefly: ignore``.
     """
     return cast(spdx3.Element, obj)
 
@@ -204,7 +204,7 @@ def _remap_object_refs(
                 if isinstance(item, spdx3.SHACLObject):
                     replacement = remap.get(item)
                     if replacement is not None:
-                        value[i] = replacement
+                        cast(list[Any], value)[i] = replacement
 
 
 # ---------------------------------------------------------------------------

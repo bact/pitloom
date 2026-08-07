@@ -97,7 +97,7 @@ _SNIFF_BYTES: int = 9
 
 # Derived lookups - built from AiModelFormat enum members and REGISTRY.
 _EXTENSION_TO_FORMAT: dict[str, AiModelFormat] = {
-    ext: fmt for fmt in AiModelFormat for ext in fmt.extensions
+    ext: fmt for fmt in AiModelFormat.__members__.values() for ext in fmt.extensions
 }
 _READERS: dict[AiModelFormat, Callable[[Path], AiModelMetadata]] = {
     info.format: info.reader for info in REGISTRY if info.reader is not None
@@ -116,7 +116,7 @@ def _match_magic(header: bytes) -> AiModelFormat:
     Returns:
         Detected :class:`AiModelFormat`, or :attr:`AiModelFormat.UNKNOWN`.
     """
-    for fmt in AiModelFormat:
+    for fmt in AiModelFormat.__members__.values():
         if fmt.magic is not None:
             n = len(fmt.magic)
             if len(header) >= n and header[:n] == fmt.magic:

@@ -241,9 +241,7 @@ class MlflowExtractor:
         spdx_fields = _map_tags(tags)
 
         # All params become hyperparameters
-        hyperparameters = [
-            {"name": k, "value": str(v)} for k, v in params.items()
-        ]
+        hyperparameters = [{"name": k, "value": str(v)} for k, v in params.items()]
 
         # Build provenance string
         provenance_parts: list[str] = [
@@ -315,9 +313,7 @@ def _resolve_stav_constants() -> dict[str, str]:
             "type_of_model": getattr(stav, "MODEL_TYPE", None),
             "information_about_training": getattr(stav, "INFO_TRAINING", None),
             "supplied_by": getattr(stav, "AI_PROVIDER", None),
-            "energy_consumption": getattr(
-                stav, "ENERGY_CONSUMPTION_TRAINING", None
-            ),
+            "energy_consumption": getattr(stav, "ENERGY_CONSUMPTION_TRAINING", None),
             "sensitive_personal_information": getattr(
                 stav, "USE_SENSITIVE_PERSONAL_INFO", None
             ),
@@ -361,6 +357,7 @@ def _map_tags(tags: dict[str, str]) -> dict[str, Any]:
 # ------------------------------------------------------------------
 # SPDX fragment builder
 # ------------------------------------------------------------------
+
 
 def _build_spdx_fragment(metadata: MlflowRunMetadata) -> str:
     """Serialize MlflowRunMetadata to an SPDX 3 JSON-LD fragment string."""
@@ -431,6 +428,7 @@ def _build_spdx_fragment(metadata: MlflowRunMetadata) -> str:
 # Public API
 # ------------------------------------------------------------------
 
+
 def extract_from_mlflow_run(
     run_id: str,
     output_file: str | Path | None = None,
@@ -472,6 +470,7 @@ def extract_from_mlflow_run(
 
 ```python
 # In src/pitloom/loom.py
+
 
 def from_mlflow_run(
     run_id: str,
