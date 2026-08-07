@@ -47,7 +47,7 @@ ARTIFACT_METADATA_SCHEMA_URL = "https://pitloom.dev/provenance/artifact-metadata
 #: is already the native SPDX field and the source is trivially re-derivable by
 #: the consumer. Anything else -- an inference, a scan (pipdeptree), a binary
 #: artifact's internal key, a synthesized package -- is kept.
-_TRANSPARENT_SOURCES: frozenset[str] = frozenset(
+TRANSPARENT_SOURCES: frozenset[str] = frozenset(
     {
         "pyproject.toml",
         "hatchling build backend",  # same pyproject.toml data via the build hook
@@ -93,7 +93,7 @@ def _is_high_signal(entry: dict[str, str]) -> bool:
     the native SPDX value (the "minimal" detail boundary).
 
     Low-signal (dropped) only when the value was read *verbatim* from a
-    transparent, re-readable manifest (:data:`_TRANSPARENT_SOURCES`) with no
+    transparent, re-readable manifest (:data:`TRANSPARENT_SOURCES`) with no
     extraction ``method`` -- e.g. ``name`` from ``project.name``, whose value
     is already the native ``Element.name`` and whose source the consumer can
     trivially re-read. Everything else is high-signal and kept:
@@ -108,7 +108,9 @@ def _is_high_signal(entry: dict[str, str]) -> bool:
     if entry.get("method"):
         return True
     source = entry.get("source", "").strip().lower()
-    return source not in _TRANSPARENT_SOURCES
+    if " (" in source:
+        source = source.split(" (", 1)[0].strip()
+    return not source or source not in TRANSPARENT_SOURCES
 
 
 def filter_high_signal(provenance: dict[str, str]) -> dict[str, str]:

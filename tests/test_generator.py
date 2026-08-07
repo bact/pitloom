@@ -1235,7 +1235,7 @@ _AI_LICENSE_CASES: list[tuple[str, str, str]] = [
 def _check_license_relationships(
     graph: list[dict[str, Any]], ai_pkg_id: str, license_id: str
 ) -> None:
-    """Assert hasDeclaredLicense and hasConcludedLicense relationships exist."""
+    """Assert hasDeclaredLicense or hasConcludedLicense relationship exists."""
     rels = [e for e in graph if e.get("type") == "Relationship"]
     declared = [
         r
@@ -1249,10 +1249,14 @@ def _check_license_relationships(
         if r.get("relationshipType") == "hasConcludedLicense"
         and r.get("from") == ai_pkg_id
     ]
-    assert len(declared) == 1, "expected one hasDeclaredLicense relationship"
-    assert len(concluded) == 1, "expected one hasConcludedLicense relationship"
 
-    license_spdx_id = declared[0]["to"][0]
+    assert len(declared) + len(concluded) == 1, (
+        f"expected exactly one license relationship, got {len(declared)} declared "
+        f"and {len(concluded)} concluded"
+    )
+
+    license_rel = declared[0] if declared else concluded[0]
+    license_spdx_id = license_rel["to"][0]
     license_elems = [
         e
         for e in graph

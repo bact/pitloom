@@ -324,8 +324,10 @@ def build(
             encoder=encoder,
             provenance_detail=provenance_detail,
         )
-        exporter.add_relationship(rel_declared)
-        exporter.add_relationship(rel_concluded)
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
 
     # --- Dependencies ---
@@ -497,8 +499,10 @@ def build_model(
             encoder=encoder,
             provenance_detail=provenance_detail,
         )
-        exporter.add_relationship(rel_declared)
-        exporter.add_relationship(rel_concluded)
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
 
     if model.datasets:
         add_datasets_for_model(
