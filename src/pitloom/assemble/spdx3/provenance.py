@@ -138,7 +138,7 @@ class ProvenanceEncoder(Protocol):
 
     def encode(self, provenance: dict[str, str]) -> str:
         """Return the serialized ``Annotation.statement`` body."""
-        ...
+        raise NotImplementedError
 
 
 # pylint: disable=too-few-public-methods
