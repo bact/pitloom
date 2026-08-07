@@ -397,8 +397,10 @@ def add_ai_models(
                 encoder=encoder,
                 provenance_detail=provenance_detail,
             )
-            exporter.add_relationship(rel_declared)
-            exporter.add_relationship(rel_concluded)
+            if rel_declared:
+                exporter.add_relationship(rel_declared)
+            if rel_concluded:
+                exporter.add_relationship(rel_concluded)
 
         rel = spdx3.Relationship(
             spdxId=generate_spdx_id(

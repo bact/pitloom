@@ -13,7 +13,12 @@ from importlib.metadata import version as get_package_version
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
+from pitloom.assemble.spdx3.provenance import (
+    TRANSPARENT_SOURCES,
+    ProvenanceEncoder,
+    emit_provenance,
+    parse_provenance_value,
+)
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -164,7 +169,23 @@ def _enrich_from_installed(
             encoder=encoder,
             provenance_detail=provenance_detail,
         )
-        exporter.add_relationship(rel_declared)
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+
+
+def _is_license_concluded(parsed_prov: dict[str, str]) -> bool:
+    """Determine if a license is concluded rather than declared.
+
+    A license is concluded if we used a heuristic/detection method,
+    or if the source is not a transparent manifest (e.g. it was extracted
+    from a LICENSE file directly).
+    """
+    if parsed_prov.get("method"):
+        return True
+    source = parsed_prov.get("source", "").strip().lower()
+    if " (" in source:
+        source = source.split(" (", 1)[0].strip()
+    return not source or source not in TRANSPARENT_SOURCES
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -179,7 +200,7 @@ def build_license_elements(
     provenance_format: str = "both",
     encoder: ProvenanceEncoder | None = None,
     provenance_detail: str = "minimal",
-) -> tuple[spdx3.Relationship, spdx3.Relationship]:
+) -> tuple[spdx3.Relationship | None, spdx3.Relationship | None]:
     """Get or create a SimpleLicensingText element and build its
     hasDeclaredLicense / hasConcludedLicense relationships for a given package.
 
@@ -234,28 +255,38 @@ def build_license_elements(
         )
         license_spdx_id = require_spdx_id(license_text)
 
-    # The license actually found in the Software Artifact.
-    rel_has_declared_license = spdx3.Relationship(
-        spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
-        from_=package_spdx_id,
-        relationshipType=spdx3.RelationshipType.hasDeclaredLicense,
-        to=[license_spdx_id],
-    )
+    parsed_prov = parse_provenance_value(license_provenance)
+    is_concluded = _is_license_concluded(parsed_prov)
 
-    # The license identified by the SPDX data creator. Currently set equal to
-    # the declared license; hasDeclaredLicense and hasConcludedLicense are
-    # distinct in the SPDX 3 model (e.g. multiple declared licenses, or a
-    # concluded license inferred from evidence other than the declaration --
-    # see https://spdx.github.io/spdx-spec/v3.0/model/Licensing/Licensing/),
-    # but pitloom does not yet perform that inference.
-    rel_has_concluded_license = spdx3.Relationship(
-        spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
-        from_=package_spdx_id,
-        relationshipType=spdx3.RelationshipType.hasConcludedLicense,
-        to=[license_spdx_id],
-    )
+    rel_has_declared_license: spdx3.Relationship | None = None
+    rel_has_concluded_license: spdx3.Relationship | None = None
+
+    if is_concluded:
+        # The license identified by the SPDX data creator.
+        rel_has_concluded_license = spdx3.Relationship(
+            spdxId=generate_spdx_id(
+                "Relationship",
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+            ),
+            creationInfo=creation_info,
+            from_=package_spdx_id,
+            relationshipType=spdx3.RelationshipType.hasConcludedLicense,
+            to=[license_spdx_id],
+        )
+    else:
+        # The license asserted by the author in the Software Artifact.
+        rel_has_declared_license = spdx3.Relationship(
+            spdxId=generate_spdx_id(
+                "Relationship",
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+            ),
+            creationInfo=creation_info,
+            from_=package_spdx_id,
+            relationshipType=spdx3.RelationshipType.hasDeclaredLicense,
+            to=[license_spdx_id],
+        )
 
     return rel_has_declared_license, rel_has_concluded_license
 
