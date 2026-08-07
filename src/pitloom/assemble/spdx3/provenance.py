@@ -139,6 +139,7 @@ class ProvenanceEncoder(Protocol):
     def encode(self, provenance: dict[str, str]) -> str:
         """Return the serialized ``Annotation.statement`` body."""
 
+
 # pylint: disable=too-few-public-methods
 class PitloomV1Encoder:
     """Pitloom's own simple JSON schema (the default)."""

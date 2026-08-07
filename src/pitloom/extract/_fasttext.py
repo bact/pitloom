@@ -60,7 +60,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
 
 
 def _extract_fasttext_args(
-    model: Any
+    model: Any,
 ) -> tuple[dict[str, Any], dict[str, str], str | None]:
     """Read optional training arguments exposed by the fastText binding."""
     hyperparameters: dict[str, Any] = {}
@@ -143,9 +143,7 @@ def read_fasttext(model_path: Path) -> AiModelMetadata:
     # we will assume the domains.
     domain: list[str] = ["text classification", "natural language processing"]
     provenance: dict[str, str] = {}
-    hyperparameters, args_properties, type_of_model = _extract_fasttext_args(
-        model
-    )
+    hyperparameters, args_properties, type_of_model = _extract_fasttext_args(model)
     properties, outputs = _extract_fasttext_outputs(model)
     properties.update(args_properties)
 
