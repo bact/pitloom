@@ -9,8 +9,12 @@
 ## Checklist
 
 - [ ] Tests pass (`pytest`)
-- [ ] Code formatted (`ruff format`) and lint passes (`ruff check src/ tests/`,
-      `pylint src/ tests`, `mypy src/ tests/`)
+- [ ] Code formatted (`ruff format`) and lint passes
+      (`ruff check src/ tests/`,
+      `pylint src/ tests`,
+      `mypy examples/ src/ tests/`,
+      `pyright examples/ src/ tests/`,
+      `pyrefly check examples/ src/ tests/`)
 - [ ] `CHANGELOG.md` updated (if user-facing)
 - [ ] Docs updated (`README.md` / `working-docs/` / `docs/`, if applicable)
 - [ ] Commits are signed off (`git commit -s`) -- see
