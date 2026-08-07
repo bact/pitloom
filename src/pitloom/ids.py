@@ -462,6 +462,9 @@ def _import_sbom_element(registry: IdRegistry, obj: Any) -> None:
     get_compact_type = getattr(obj, "get_compact_type", None)
     compact_type = get_compact_type() if get_compact_type is not None else None
     if not compact_type:
+        compact_type = type(obj).__name__
+    
+    if not compact_type or compact_type == "object":
         log.debug("Import: skipping %r (no SPDX 3 compact type)", name)
         return
     registry.entities[name] = EntityEntry(type=compact_type, spdx_id=spdx_id)
