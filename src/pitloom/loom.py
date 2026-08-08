@@ -21,6 +21,7 @@ from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.ids import IdRegistry
 
 #: loom.py is a standalone SDK invoked from ad hoc scripts/notebooks, not
@@ -98,6 +99,25 @@ def _get_caller_script_path() -> str | None:
 def _default_run_comment() -> str:
     """Default CreationInfo.comment for a fragment: source and tool version."""
     return f"Generated via Pitloom loom SDK v{__version__} (script/notebook capture)"
+
+
+def _record_hyperparameter_provenance(
+    provenance: dict[str, str], hyperparameters: dict[str, str], caller_info: str
+) -> None:
+    """Record exact per-key provenance for *hyperparameters*, same as the
+    extractors' dict-valued fields (``properties``, ``hyperparameters``) --
+    not one shared note for the whole dict.
+
+    Unlike :func:`~pitloom.extract._extract_utils.record_dict_field_provenance`,
+    *caller_info* is not sanitized here: it is Pitloom's own compound
+    ``"Source: ... | Method: ..."`` string, not untrusted artifact text, and
+    sanitizing it would mangle its own intentional ``|`` separator. Only the
+    hyperparameter key -- which does come from the caller's own dict -- is
+    sanitized before interpolation.
+    """
+    for key, _value in hyperparameters.items():
+        safe_key = sanitize_provenance_text(str(key))
+        provenance[f"hyperparameters.{key}"] = f"{caller_info} | Field: {safe_key}"
 
 
 def _resolve_registry(
@@ -257,15 +277,17 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
         self._model_generated = generated
         if model_type is not None:
             self.model.ai_typeOfModel = [model_type]
+        provenance: dict[str, str] = {"package": caller_info}
         if hyperparameters is not None:
             self.model.ai_hyperparameter = [
                 spdx3.DictionaryEntry(key=k, value=v)
                 for k, v in hyperparameters.items()
             ]
+            _record_hyperparameter_provenance(provenance, hyperparameters, caller_info)
         self.exporter.add_package(self.model)
         emit_provenance(
             subject=self.model,
-            provenance={"package": caller_info},
+            provenance=provenance,
             creation_info=self.creation_info,
             doc_name=name,
             doc_uuid=self.doc_uuid,
@@ -304,6 +326,19 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
         self.model.ai_hyperparameter = [
             spdx3.DictionaryEntry(key=k, value=v) for k, v in hyperparameters.items()
         ]
+        provenance: dict[str, str] = {}
+        _record_hyperparameter_provenance(
+            provenance, hyperparameters, _get_caller_info()
+        )
+        emit_provenance(
+            subject=self.model,
+            provenance=provenance,
+            creation_info=self.creation_info,
+            doc_name=self.model.name or "model",
+            doc_uuid=self.doc_uuid,
+            exporter=self.exporter,
+            provenance_format=_LOOM_PROVENANCE_FORMAT,
+        )
 
     def _build_dataset_package(
         self, name: str, dataset_type: str

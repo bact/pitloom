@@ -29,19 +29,25 @@ Phase 2 native-first backfill is **largely complete and merged**:
 - ✅ **N5 — Base-Model Lineage (`descendantOf` Relationship)**: PR [#109](https://github.com/bact/pitloom/pull/109) merged to `main`.
 - 🛑 **N3 — Enrichment `CreationInfo`**: Blocked (waiting for `enrich/` subpackage).
 - ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
+- ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: fixed, see "Release readiness" below -- **not yet committed** as of this writing.
 
-## Release readiness (assessed 2026-08-08)
+## Release readiness (assessed 2026-08-08, updated same day after a
+second pass)
 
 Everything since v0.12.0 (the last tagged release, 2026-07-10) --
-Annotation-based provenance (Phase 1, PR #102) plus the five Phase 2
-native-first backfills and the integration test above -- is **ready to
-release**. Verified directly:
+Annotation-based provenance (Phase 1, PR #102), the five Phase 2
+native-first backfills, the integration test, PR #96's CLI restructuring
+(`loom source`/`analyze`/`deployed`/`ids`, merged just before the
+provenance work), and the `pitloom.loom` hyperparameter-provenance fix
+below -- is **ready to release**. Verified directly:
 
-- `python3 -m pytest tests/ -q` -- 1536 passed, 24 skipped, 0 failed.
+- `python3 -m pytest tests/ -q` -- 1537 passed, 24 skipped, 0 failed.
 - `mypy src/pitloom` and `ruff check src/pitloom tests` -- clean.
 - CI on `main` at `9c0d663` (PR #112 merge) -- all green: Unit tests,
   Type checking, Lint and format, Code coverage, Hatch integration,
-  Action self-test, Build wheels + validate SBOM.
+  Action self-test, Build wheels + validate SBOM. (Re-verified locally
+  after the second-pass fixes below; not yet re-pushed to CI -- see
+  "not yet done" note at the end of this section.)
 - All four usage surfaces checked end-to-end, not just read: CLI
   (`__main__.py` delegates to `pyproject.toml`-sourced `PitloomConfig`;
   no direct `--provenance-*` flags, by design -- CLI flags for this were
@@ -55,31 +61,63 @@ release**. Verified directly:
   by generating a fragment via `loom.run()`/`set_model()`/`add_dataset()`
   and confirming Annotation elements with the correct `pitloom/1`
   statement actually appear in the output JSON -- not just a code read).
-- No correctness bugs found in this pass -- only stale documentation
-  (fixed, see below) and one non-blocking depth gap (also below).
 
-**Docs fixed in this pass** (were stale, now corrected -- see each
-file's diff for detail): `docs/metadata-provenance.md` (the published
-GitHub Pages doc still described the pre-Annotation `comment`-only
-mechanism with no mention of `[tool.pitloom.provenance]` at all -- this
-was the most significant gap, since it's user-facing); `README.md`
-"Metadata provenance" section (same overstatement); `CHANGELOG.md` (the
-top-of-file "Commit history" compare link was one release behind,
-`v0.10.0...v0.11.0` instead of `v0.11.0...v0.12.0`);
-`working-docs/design/sbom-fragments.md` (still listed
-`SpdxDocument.imports` population as an unbuilt Phase 4 item after N1
-shipped it); `working-docs/design/metadata-provenance.md` and
-`working-docs/implementation/annotation-provenance.md` (status headers
-said "uncommitted on branch `provenance-annotation`", predating the
-PR #102 merge); `working-docs/implementation/demo-provenance.md` (a
-historical walkthrough written for the old always-on comment behavior,
-now flagged with a banner rather than rewritten, since it's an internal,
-low-traffic doc); `skills/sbom/SKILL.md` (didn't mention the
-`[tool.pitloom.provenance]` config surface at all -- added a short
-section).
+### Second pass: PR #96 CLI-consistency sweep, and the hyperparameter-provenance fix
 
-**Not fixed, flagged only (out of scope for this pass, not correctness
-bugs):**
+PR [#96](https://github.com/bact/pitloom/pull/96) ("Add CISA-lifecycle
+SBOM generation") restructured the CLI from a flat
+`pitloom <project_dir>` / `-m/--aimodel` form into
+`pitloom source|analyze|deployed|ids` subcommands. It landed *after*
+v0.12.0 (same as all the provenance work), and already updated most
+CLI-consuming docs/skills as part of the PR itself. A dedicated sweep
+for anything it missed found and fixed:
+
+- `working-docs/design/hatchling-build-hook.md` -- referenced the old
+  `loom generate` command name (never existed post-#96; should be
+  `loom source`).
+- `skills/sbom/SKILL.md` / `skills/sbom/references/examples.md` -- had
+  no mention of the `deployed` subcommand (SBOM of the current
+  installed environment) at all, and `analyze` accepting a `.whl` file
+  wasn't called out either. Added a "Deployed SBOMs" section and
+  example.
+- `docs/index.md` (published) -- same `deployed` gap; added the example
+  alongside the existing `source`/`analyze` ones.
+- `tests/test_main_cli.py` -- three section-header comments still said
+  `# -m / --aimodel: ...` above tests that actually exercise `analyze`
+  (the tests themselves were correct, only the comments were stale).
+
+Checked and found **not** affected: the Claude plugin
+(`.claude-plugin/plugin.json`/`marketplace.json` and
+`working-docs/implementation/claude-code-plugin.md` don't hardcode any
+CLI invocation -- they only reference the Skills, which were the actual
+thing needing the check), `skills/enrich/SKILL.md` (already uses
+`loom source`/`loom analyze` correctly), `action.yml` and
+`AGENTS.md` (no stale subcommand references), README.md (already
+accurate for `source`/`analyze`/`deployed`/`ids`).
+
+**Fixed (was flagged as a release blocker):** `pitloom.loom`
+hyperparameter provenance depth. `set_model(hyperparameters=...)` and
+the post-hoc `set_model_hyperparameters()` now record exact per-key
+provenance (`hyperparameters.<key>`), the same shape the AI-model
+extractors produce via `record_dict_field_provenance`, instead of
+`set_model()`'s one generic `"package"` note (hyperparameters
+unattributed) and `set_model_hyperparameters()` emitting no provenance
+at all. Implementation note for whoever touches this next: **don't**
+reuse `record_dict_field_provenance` directly here -- it sanitizes its
+whole `source` argument (replacing `|` with `/`), which is correct for
+extractors (their `source` is always a bare `"Source: X"` string) but
+wrong for `loom.py`'s `_get_caller_info()`, which returns an
+already-structured `"Source: X | Method: Y"` compound string; running
+that through the sanitizer mangles the legitimate internal `|` and
+folds the `Method:` segment into `source` when re-parsed. Fixed with a
+small local `_record_hyperparameter_provenance()` helper in `loom.py`
+that only sanitizes the hyperparameter *key*, not the caller-info
+string. Covered by `test_loom_model_hyperparameters` (updated) and the
+new `test_loom_set_model_hyperparameters_have_per_key_provenance` in
+`tests/test_loom.py`. Verified live (not just via the test suite) by
+generating a fragment and inspecting the emitted Annotation JSON.
+
+**Not fixed, flagged only (out of scope, not correctness bugs):**
 
 - `working-docs/implementation/summary.md` (the "canonical project
   structure" doc) is stale independent of this feature -- its directory
@@ -91,26 +129,20 @@ bugs):**
 - `examples/sentimentdemo-aibom/` generated fixtures were not
   regenerated against current output (deliberate, carried over from
   Phase 1) -- cosmetic only, not exercised by CI.
-- **`pitloom.loom` hyperparameter provenance depth**: `set_model()`'s
-  `hyperparameters=` argument and the standalone
-  `set_model_hyperparameters()` don't get per-key provenance the way the
-  AI-model extractors do via `record_dict_field_provenance`
-  (`_extract_utils.py`) -- `set_model()` only records one generic
-  `"package"` provenance entry (the caller's source location), and
-  `set_model_hyperparameters()` (post-hoc update) emits no provenance at
-  all for that call. The hyperparameter *values* themselves are correct
-  in `ai_hyperparameter` either way -- this is a provenance-richness gap
-  in one SDK path, not a data-correctness issue. Worth a small follow-up
-  PR (mirror `record_dict_field_provenance` in `loom.py`'s
-  `set_model`/`set_model_hyperparameters`) but does not block a release.
 
-**Recommendation:** cut the release. Given the existing version history
-(0.5.0 through 0.12.0, each a minor bump for additive features) and that
-everything here is additive/backward-compatible -- `comment` output is
-preserved by default, `Annotation` and the five new native constructs
-are pure additions, no field or CLI flag was removed -- a minor version
-bump (e.g. `v0.13.0`) fits the project's own pattern. That said, the
-version number and release timing are the maintainer's call, not this
+**Not yet done:** the fixes in this section (loom.py + the doc sweep)
+are committed to the working tree but, as of this update, not yet
+pushed/PR'd/merged -- confirm with the user before assuming they're on
+`main`.
+
+**Recommendation:** cut the release once the fixes above are merged.
+Given the existing version history (0.5.0 through 0.12.0, each a minor
+bump for additive features) and that everything here is
+additive/backward-compatible -- `comment` output is preserved by
+default, `Annotation` and the five new native constructs are pure
+additions, no field or CLI flag was removed -- a minor version bump
+(e.g. `v0.13.0`) fits the project's own pattern. That said, the version
+number and release timing are the maintainer's call, not this
 assessment's.
 
 ## Principle (carried over from Phase 1)
@@ -188,17 +220,22 @@ when N3 lands, to keep all six in one place.
 
 ## Suggested first action for the picking-up session
 
-1. Confirm `main` has PRs #105, #106, #107, #108, #109, #112 merged, and
+1. Check `git status`/`git log` in the working tree first -- as of this
+   writing the loom.py hyperparameter-provenance fix and the PR #96
+   CLI-consistency doc sweep (see "Release readiness" above) are made
+   but **not yet committed**. Don't assume they're on `main`; don't
+   discard them.
+2. Confirm `main` has PRs #105, #106, #107, #108, #109, #112 merged, and
    check whether a release has been cut since this doc was written (see
    "Release readiness" above -- as of 2026-08-08 the answer was "ready,
-   not yet cut").
-2. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
+   pending the uncommitted fixes above").
+3. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
    status either way before doing anything else.
-3. If still blocked, N3 stays deferred -- ask the user what's next
-   (cutting the release, the loom.py hyperparameter-provenance follow-up
-   noted above, or something else) rather than assuming.
-4. Re-read `annotation-provenance.md` §10 in full before starting, since
-   this handover only summarizes it.
+4. If still blocked, N3 stays deferred -- ask the user what's next
+   (committing/PR'ing the pending fixes, cutting the release, or
+   something else) rather than assuming.
+5. Re-read `annotation-provenance.md` §10 in full before starting on any
+   N-item work, since this handover only summarizes it.
 
 ## Prompt to start a new session on this handover
 
@@ -210,15 +247,18 @@ N1-N6 rationale) if you need background on any item.
 
 N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107), plus
 the combined integration test (PR #112). As of 2026-08-08 the codebase
-was assessed as release-ready (see "Release readiness" section: all
-tests/mypy/ruff/CI green, all usage surfaces -- CLI, Python API,
-Hatchling build hook, pitloom.loom SDK -- verified consistent, stale
-docs fixed). N3 (enrichment CreationInfo) remains blocked on the
-enrich/ subpackage not existing yet -- check if it has landed since.
+was assessed as release-ready, and a second pass fixed the pitloom.loom
+hyperparameter-provenance gap and a handful of stale CLI-related docs
+left over from PR #96's CLI restructuring -- see "Release readiness" for
+full detail. IMPORTANT: those second-pass fixes were, as of this
+writing, uncommitted in the working tree -- run `git status` first and
+do not assume they're on `main`. N3 (enrichment CreationInfo) remains
+blocked on the enrich/ subpackage not existing yet -- check if it has
+landed since.
 
-Check whether a release has been cut since this doc was written (compare
-the latest git tag to `main`). If not, ask the user whether to proceed
-with cutting one before doing anything else -- don't start new feature
-work (N3, the loom.py hyperparameter-provenance follow-up, or otherwise)
-without checking first, since release timing is the maintainer's call.
+First: check git status and report what's committed vs pending. Then
+check whether a release has been cut since this doc was written (compare
+the latest git tag to `main`). Ask the user how to proceed with the
+pending fixes and the release before doing anything else -- don't start
+new feature work (N3 or otherwise) without checking first.
 ```

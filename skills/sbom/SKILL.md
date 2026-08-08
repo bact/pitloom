@@ -76,7 +76,19 @@ loom analyze https://huggingface.co/Qwen/Qwen3-235B-A22B
 Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
 Keras, HDF5, NumPy, fastText. Hugging Face Hub models need
 `pip install pitloom[huggingface]` (or `uvx --from 'pitloom[huggingface]'
-pitloom`).
+pitloom`). `analyze` also accepts a built `.whl` file (an Analyzed SBOM
+from the wheel's own metadata and file list).
+
+## Deployed SBOMs (installed environment)
+
+```bash
+loom deployed -o env.spdx3.json
+```
+
+No positional argument -- it always inspects the *current* Python
+environment (via `pipdeptree`) rather than a project directory or file.
+Use this when the request is about "what's installed" / "what's in this
+venv", not about a specific project's source or a specific model file.
 
 ## Useful flags (both modes)
 

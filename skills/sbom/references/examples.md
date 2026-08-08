@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,6 +35,12 @@ uvx --from 'pitloom[aimodel]' pitloom analyze model.safetensors -o model.spdx3.j
 ```bash
 uvx --from 'pitloom[huggingface]' pitloom analyze mistralai/Mistral-7B-v0.1 \
   -o mistral.spdx3.json --pretty
+```
+
+## Deployed SBOM, currently installed environment
+
+```bash
+loom deployed -o env.spdx3.json
 ```
 
 ## Project SBOM, multiple creators

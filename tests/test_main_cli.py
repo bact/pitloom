@@ -325,7 +325,7 @@ creator-name = 123
 
 
 # ---------------------------------------------------------------------------
-# -m / --aimodel: model-mode tests
+# analyze: model-mode tests
 # ---------------------------------------------------------------------------
 
 
@@ -802,7 +802,7 @@ def test_model_mode_verbose_shows_model_path(
 
 
 # ---------------------------------------------------------------------------
-# -m / --aimodel: integration tests with real model fixtures
+# analyze: integration tests with real model fixtures
 # ---------------------------------------------------------------------------
 
 
@@ -888,7 +888,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
 
 
 # ---------------------------------------------------------------------------
-# -m / --aimodel: Hugging Face URL / model-ID mode tests (mocked)
+# analyze: Hugging Face URL / model-ID mode tests (mocked)
 # ---------------------------------------------------------------------------
 
 
