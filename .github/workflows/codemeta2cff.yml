@@ -42,7 +42,7 @@ jobs:
         uses: dieghernan/cff-validator@d8f85828214016ce6976e740b6e0504c0fdc4dbb  #v5
 
       - name: Commit and push updated CITATION.cff
-        uses: EndBug/add-and-commit@0a145b91207725ab63102736ff2ddcf18f90cdb5  #v10.0.0
+        uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321  #v10.0.0
         with:
           message: "Update CITATION.cff from codemeta.json"
           add: "CITATION.cff"
