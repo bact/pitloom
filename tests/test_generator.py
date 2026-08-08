@@ -27,6 +27,7 @@ from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator, Tool
+from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import PhantomDependency, ProjectFile, ProjectMetadata
@@ -1435,6 +1436,42 @@ def test_build_model_external_identifiers() -> None:
     ]
     assert len(url_refs) == 1
     assert url_refs[0].get("comment") == "Model page URL"
+
+
+def test_build_model_with_dataset_creator() -> None:
+    """build_model() for a model linked to a dataset with creator metadata
+    must emit an Agent element and a publishedBy Relationship (N6).
+    """
+    ds_meta = DatasetMetadata(name="squad", creator="Stanford NLP")
+    ds_ref = DatasetReference(role="trainedOn", metadata=ds_meta)
+    model = AiModelMetadata(
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.SAFETENSORS),
+        name="test-ds-creator",
+        datasets=[ds_ref],
+    )
+
+    exporter = build_model(model, CreationMetadata())
+    data = json.loads(exporter.to_json(pretty=True))
+    graph = data["@graph"]
+
+    agents = [e for e in graph if e.get("type") == "Agent"]
+    creator_agents = [a for a in agents if a.get("name") == "Stanford NLP"]
+    assert len(creator_agents) == 1
+    agent_spdx_id = creator_agents[0]["spdxId"]
+
+    ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+    assert len(ds_pkgs) == 1
+    ds_pkg_id = ds_pkgs[0]["spdxId"]
+
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    pub_rels = [
+        r
+        for r in rels
+        if r.get("relationshipType") == "publishedBy"
+        and r.get("from") == ds_pkg_id
+        and agent_spdx_id in r.get("to", [])
+    ]
+    assert len(pub_rels) == 1
 
 
 # ---------------------------------------------------------------------------
