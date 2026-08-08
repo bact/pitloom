@@ -203,7 +203,7 @@ def _add_base_model_lineage(
     ai_model: AiModelMetadata,
     ctx: _LineageContext,
 ) -> None:
-    """Add native Relationship (descendantOf) linking ai_pkg to its base model (N5)."""
+    """Add native descendantOf Relationship linking ai_pkg to its base model."""
     base_model_id = ai_model.base_model or ai_model.extra_data.get("hf.base_model")
     if not base_model_id:
         return

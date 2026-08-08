@@ -598,7 +598,7 @@ def _add_fragment_imports(
     fragment_imports: list[spdx3.ExternalMap],
 ) -> None:
     """Populate ``main_doc.import_`` with ``ExternalMap`` entries for merged
-    fragment documents (N1)."""
+    fragment documents."""
     if not fragment_imports:
         return
     existing_imports = list(main_doc.import_ or [])
