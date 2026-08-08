@@ -29,7 +29,7 @@ Phase 2 native-first backfill is **largely complete and merged**:
 - ✅ **N5 — Base-Model Lineage (`descendantOf` Relationship)**: PR [#109](https://github.com/bact/pitloom/pull/109) merged to `main`.
 - 🛑 **N3 — Enrichment `CreationInfo`**: Blocked (waiting for `enrich/` subpackage).
 - ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
-- ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: fixed, see "Release readiness" below -- **not yet committed** as of this writing.
+- ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
 
 ## Release readiness (assessed 2026-08-08, updated same day after a
 second pass)
@@ -43,11 +43,8 @@ below -- is **ready to release**. Verified directly:
 
 - `python3 -m pytest tests/ -q` -- 1537 passed, 24 skipped, 0 failed.
 - `mypy src/pitloom` and `ruff check src/pitloom tests` -- clean.
-- CI on `main` at `9c0d663` (PR #112 merge) -- all green: Unit tests,
-  Type checking, Lint and format, Code coverage, Hatch integration,
-  Action self-test, Build wheels + validate SBOM. (Re-verified locally
-  after the second-pass fixes below; not yet re-pushed to CI -- see
-  "not yet done" note at the end of this section.)
+- CI on `main` at `510701c` (PR #113 merge) -- green, including the
+  second-pass fixes below.
 - All four usage surfaces checked end-to-end, not just read: CLI
   (`__main__.py` delegates to `pyproject.toml`-sourced `PitloomConfig`;
   no direct `--provenance-*` flags, by design -- CLI flags for this were
@@ -117,32 +114,33 @@ new `test_loom_set_model_hyperparameters_have_per_key_provenance` in
 `tests/test_loom.py`. Verified live (not just via the test suite) by
 generating a fragment and inspecting the emitted Annotation JSON.
 
+Also fixed in the same pass: `working-docs/implementation/summary.md`
+(the "canonical project structure" doc) -- its directory tree predated
+the `provenance.py` module entirely and showed a `docs/design/` +
+`docs/implementation/` layout that no longer matches the current
+`docs/` (flat, published) + `working-docs/design/` +
+`working-docs/implementation/` split; also fixed its stale CLI
+subcommand list and `comment`-only provenance description, and flagged
+its "Validation with sentimentdemo" section as a historical snapshot
+(pre-#96 CLI syntax, stale element counts).
+
 **Not fixed, flagged only (out of scope, not correctness bugs):**
 
-- `working-docs/implementation/summary.md` (the "canonical project
-  structure" doc) is stale independent of this feature -- its directory
-  tree predates the `provenance.py` module entirely and shows a
-  `docs/design/` + `docs/implementation/` layout that doesn't match the
-  current `docs/` (flat, published) + `working-docs/design/` +
-  `working-docs/implementation/` split. Pre-existing drift, not
-  introduced by this work; a full rewrite is out of scope here.
 - `examples/sentimentdemo-aibom/` generated fixtures were not
   regenerated against current output (deliberate, carried over from
   Phase 1) -- cosmetic only, not exercised by CI.
 
-**Not yet done:** the fixes in this section (loom.py + the doc sweep)
-are committed to the working tree but, as of this update, not yet
-pushed/PR'd/merged -- confirm with the user before assuming they're on
-`main`.
+**Merged:** all of the above landed in PR
+[#113](https://github.com/bact/pitloom/pull/113), merged to `main` at
+`510701c`.
 
-**Recommendation:** cut the release once the fixes above are merged.
-Given the existing version history (0.5.0 through 0.12.0, each a minor
-bump for additive features) and that everything here is
-additive/backward-compatible -- `comment` output is preserved by
-default, `Annotation` and the five new native constructs are pure
-additions, no field or CLI flag was removed -- a minor version bump
-(e.g. `v0.13.0`) fits the project's own pattern. That said, the version
-number and release timing are the maintainer's call, not this
+**Recommendation:** cut the release. Given the existing version history
+(0.5.0 through 0.12.0, each a minor bump for additive features) and that
+everything here is additive/backward-compatible -- `comment` output is
+preserved by default, `Annotation` and the five new native constructs
+are pure additions, no field or CLI flag was removed -- a minor version
+bump (e.g. `v0.13.0`) fits the project's own pattern. That said, the
+version number and release timing are the maintainer's call, not this
 assessment's.
 
 ## Principle (carried over from Phase 1)
@@ -220,21 +218,15 @@ when N3 lands, to keep all six in one place.
 
 ## Suggested first action for the picking-up session
 
-1. Check `git status`/`git log` in the working tree first -- as of this
-   writing the loom.py hyperparameter-provenance fix and the PR #96
-   CLI-consistency doc sweep (see "Release readiness" above) are made
-   but **not yet committed**. Don't assume they're on `main`; don't
-   discard them.
-2. Confirm `main` has PRs #105, #106, #107, #108, #109, #112 merged, and
-   check whether a release has been cut since this doc was written (see
-   "Release readiness" above -- as of 2026-08-08 the answer was "ready,
-   pending the uncommitted fixes above").
-3. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
+1. Confirm `main` has PRs #105, #106, #107, #108, #109, #112, #113
+   merged, and check whether a release has been cut since this doc was
+   written (see "Release readiness" above -- as of 2026-08-08 the answer
+   was "ready, not yet cut").
+2. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
    status either way before doing anything else.
-4. If still blocked, N3 stays deferred -- ask the user what's next
-   (committing/PR'ing the pending fixes, cutting the release, or
-   something else) rather than assuming.
-5. Re-read `annotation-provenance.md` §10 in full before starting on any
+3. If still blocked, N3 stays deferred -- ask the user what's next
+   (cutting the release, or something else) rather than assuming.
+4. Re-read `annotation-provenance.md` §10 in full before starting on any
    N-item work, since this handover only summarizes it.
 
 ## Prompt to start a new session on this handover
@@ -246,19 +238,17 @@ for the complete original design (boundary principle, use-case catalog,
 N1-N6 rationale) if you need background on any item.
 
 N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107), plus
-the combined integration test (PR #112). As of 2026-08-08 the codebase
-was assessed as release-ready, and a second pass fixed the pitloom.loom
-hyperparameter-provenance gap and a handful of stale CLI-related docs
-left over from PR #96's CLI restructuring -- see "Release readiness" for
-full detail. IMPORTANT: those second-pass fixes were, as of this
-writing, uncommitted in the working tree -- run `git status` first and
-do not assume they're on `main`. N3 (enrichment CreationInfo) remains
-blocked on the enrich/ subpackage not existing yet -- check if it has
-landed since.
+the combined integration test (PR #112) and a second pass (PR #113) that
+fixed the pitloom.loom hyperparameter-provenance gap and a handful of
+stale CLI-related docs left over from PR #96's CLI restructuring -- see
+"Release readiness" for full detail. As of 2026-08-08 the codebase is
+release-ready and nothing is pending in the working tree. N3 (enrichment
+CreationInfo) remains blocked on the enrich/ subpackage not existing yet
+-- check if it has landed since.
 
-First: check git status and report what's committed vs pending. Then
-check whether a release has been cut since this doc was written (compare
-the latest git tag to `main`). Ask the user how to proceed with the
-pending fixes and the release before doing anything else -- don't start
-new feature work (N3 or otherwise) without checking first.
+First: check whether a release has been cut since this doc was written
+(compare the latest git tag to `main`). If not, ask the user whether to
+proceed with cutting one before doing anything else -- don't start new
+feature work (N3 or otherwise) without checking first, since release
+timing is the maintainer's call.
 ```
