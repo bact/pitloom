@@ -39,7 +39,7 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.export.spdx3_json import Spdx3JsonExporter
@@ -401,7 +401,7 @@ class TestMultipleFragmentsMerge:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end via generate_sbom -- fragment elements survive full pipeline
+# End-to-end via generate_project_sbom -- fragment elements survive full pipeline
 # ---------------------------------------------------------------------------
 
 
@@ -426,8 +426,8 @@ files = [
 """
 
 
-def test_generate_sbom_includes_ai_model_fragment_elements() -> None:
-    """Full generate_sbom pipeline must include elements from listed fragments."""
+def test_generate_project_sbom_includes_ai_model_fragment_elements() -> None:
+    """Full pipeline must include elements from listed fragments."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
 
@@ -438,7 +438,7 @@ def test_generate_sbom_includes_ai_model_fragment_elements() -> None:
         for name in (_AI_MODEL_FRAGMENT, _TRAINING_RUN_FRAGMENT):
             shutil.copy(_FRAGMENTS_DIR / name, tmppath / name)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(creators=[Creator(name="Test")]),
         )
@@ -473,8 +473,8 @@ def test_generate_sbom_includes_ai_model_fragment_elements() -> None:
         assert m.get("val_accuracy") == "0.9876"
 
 
-def test_generate_sbom_includes_dataset_fragment_elements() -> None:
-    """dataset_DatasetPackage from fragment must appear in generate_sbom output."""
+def test_generate_project_sbom_includes_dataset_fragment_elements() -> None:
+    """dataset_DatasetPackage from fragment must appear in output."""
     pyproject = """\
 [build-system]
 requires = ["hatchling"]
@@ -495,7 +495,7 @@ files = ["dataset-fragment.spdx3.json"]
         (tmppath / "pyproject.toml").write_text(pyproject)
         shutil.copy(_FRAGMENTS_DIR / _DATASET_FRAGMENT, tmppath / _DATASET_FRAGMENT)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(creators=[Creator(name="Test")]),
         )
@@ -606,7 +606,7 @@ def _run_unify_pipeline(tmppath: Path) -> None:
 
 
 class TestRegistryUnification:
-    """The full workflow: `ids generate` -> loom runs -> generate_sbom."""
+    """The full workflow: `ids generate` -> loom runs -> generate_project_sbom."""
 
     @pytest.fixture()
     def merged(
@@ -616,7 +616,7 @@ class TestRegistryUnification:
         monkeypatch.chdir(tmp_path)
         _run_unify_pipeline(tmp_path)
 
-        sbom_json = generate_sbom(tmp_path, creation_metadata=_fixed_creation())
+        sbom_json = generate_project_sbom(tmp_path, creation_metadata=_fixed_creation())
         graph = json.loads(sbom_json).get("@graph", [])
         index = {e["spdxId"]: e for e in graph if "spdxId" in e}
         registry = IdRegistry.load(tmp_path / "loom-ids.json")
@@ -735,8 +735,8 @@ class TestRegistryUnification:
         monkeypatch.chdir(tmp_path)
         _run_unify_pipeline(tmp_path)
         creation = _fixed_creation()
-        first = generate_sbom(tmp_path, creation_metadata=creation)
-        second = generate_sbom(tmp_path, creation_metadata=creation)
+        first = generate_project_sbom(tmp_path, creation_metadata=creation)
+        second = generate_project_sbom(tmp_path, creation_metadata=creation)
         assert first == second
 
 
@@ -882,7 +882,7 @@ def test_fragment_envelope_is_dropped(tmp_path: Path) -> None:
         json.dumps(envelope_fragment)
     )
 
-    sbom_json = generate_sbom(
+    sbom_json = generate_project_sbom(
         tmp_path, creation_metadata=CreationMetadata(creators=[Creator(name="Test")])
     )
     graph = json.loads(sbom_json).get("@graph", [])

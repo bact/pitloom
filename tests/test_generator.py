@@ -19,9 +19,10 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
-    generate_analyzed_sbom,
-    generate_deployed_sbom,
-    generate_sbom,
+    generate,
+    generate_env_sbom,
+    generate_project_sbom,
+    generate_wheel_sbom,
 )
 from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -36,7 +37,7 @@ from pitloom.extract.ai_model import read_ai_model
 from pitloom.ids import IdRegistry
 
 
-def test_generate_sbom_basic() -> None:
+def test_generate_project_sbom_basic() -> None:
     """Test basic SBOM generation from a simple project."""
     pyproject_content = """
 [build-system]
@@ -59,7 +60,7 @@ Source = "https://github.com/test/test-package"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(
                 creators=[Creator(name="Test Creator", email="test@example.com")],
@@ -95,7 +96,7 @@ Source = "https://github.com/test/test-package"
         assert len(dep_packages) >= 2
 
 
-def test_generate_sbom_basic_main_package_purl() -> None:
+def test_generate_project_sbom_basic_main_package_purl() -> None:
     """The main package must carry a pkg:pypi PURL when a real version is known."""
     pyproject_content = """
 [build-system]
@@ -112,7 +113,7 @@ description = "A test package"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph = json.loads(sbom_json)["@graph"]
 
         packages = [e for e in graph if e.get("type") == "software_Package"]
@@ -182,7 +183,7 @@ def test_build_package_files_have_sha256_verified_using() -> None:
         assert hash_obj["hashValue"] == pf.digest_sha256
 
 
-def test_generate_sbom_to_output_path() -> None:
+def test_generate_project_sbom_to_output_path() -> None:
     """Test SBOM generation written to an output file."""
     pyproject_content = """
 [build-system]
@@ -201,7 +202,7 @@ description = "A simple application"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         assert output_path.exists()
 
@@ -211,7 +212,7 @@ description = "A simple application"
         assert "@graph" in sbom_data
 
 
-def test_generate_sbom_creation_comment_and_no_tool() -> None:
+def test_generate_project_sbom_creation_comment_and_no_tool() -> None:
     """Creation comment must map to CreationInfo.comment and tool is optional."""
     pyproject_content = """
 [build-system]
@@ -228,7 +229,7 @@ version = "0.1.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(
                 creators=[Creator(name="Test Creator")],
@@ -248,7 +249,7 @@ version = "0.1.0"
         assert not tool_elements
 
 
-def test_generate_sbom_tool_summary_default_and_no_comment() -> None:
+def test_generate_project_sbom_tool_summary_default_and_no_comment() -> None:
     """Default creation_tool gets a Pitloom-versioned summary; no comment by default."""
     pyproject_content = """
 [build-system]
@@ -265,7 +266,7 @@ version = "0.1.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
         graph = sbom_data["@graph"]
 
@@ -279,7 +280,7 @@ version = "0.1.0"
         assert tool_elements[0]["summary"] == f"Pitloom {__version__}"
 
 
-def test_generate_sbom_tool_summary_omitted_for_custom_tool_name() -> None:
+def test_generate_project_sbom_tool_summary_omitted_for_custom_tool_name() -> None:
     """A user-supplied tool name gets no Pitloom-version summary."""
     pyproject_content = """
 [build-system]
@@ -296,7 +297,7 @@ version = "0.1.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(tools=[Tool("MyWrapper")]),
         )
@@ -317,7 +318,7 @@ def _creation_agents(graph: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [by_id[ref] for ref in creation_infos[0]["createdBy"]]
 
 
-def test_generate_sbom_default_creator_is_software_agent() -> None:
+def test_generate_project_sbom_default_creator_is_software_agent() -> None:
     """With no named creator, createdBy is the SoftwareAgent "Pitloom", not a
     Person, and the package asserts no suppliedBy."""
     pyproject_content = """
@@ -329,7 +330,7 @@ version = "0.1.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        graph = json.loads(generate_sbom(tmppath))["@graph"]
+        graph = json.loads(generate_project_sbom(tmppath))["@graph"]
 
         agents = _creation_agents(graph)
         assert [a["type"] for a in agents] == ["SoftwareAgent"]
@@ -340,7 +341,7 @@ version = "0.1.0"
         assert packages and all("suppliedBy" not in p for p in packages)
 
 
-def test_generate_sbom_named_creator_is_person_with_supplied_by() -> None:
+def test_generate_project_sbom_named_creator_is_person_with_supplied_by() -> None:
     """A named creator becomes a Person in createdBy and the main package's
     suppliedBy."""
     pyproject_content = """
@@ -353,7 +354,7 @@ version = "0.1.0"
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
         graph = json.loads(
-            generate_sbom(
+            generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(
                     creators=[Creator(name="Alice", email="alice@example.com")]
@@ -373,7 +374,7 @@ version = "0.1.0"
         assert main_pkg["suppliedBy"] == agents[0]["spdxId"]
 
 
-def test_generate_sbom_organization_creator() -> None:
+def test_generate_project_sbom_organization_creator() -> None:
     """type='organization' makes the named creator an Organization."""
     pyproject_content = """
 [project]
@@ -385,7 +386,7 @@ version = "0.1.0"
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
         graph = json.loads(
-            generate_sbom(
+            generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(
                     creators=[Creator(name="Acme Corp", type="organization")]
@@ -407,7 +408,7 @@ version = "0.1.0"
         ("agent", "Agent"),
     ],
 )
-def test_generate_sbom_all_valid_creator_types(
+def test_generate_project_sbom_all_valid_creator_types(
     creator_type: str, expected_element_type: str
 ) -> None:
     """Every SPDX 3 Agent subclass is a valid createdBy type: Person,
@@ -422,7 +423,7 @@ version = "0.1.0"
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
         graph = json.loads(
-            generate_sbom(
+            generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(
                     creators=[Creator(name="Bot", type=creator_type)]
@@ -435,7 +436,7 @@ version = "0.1.0"
         assert agents[0]["name"] == "Bot"
 
 
-def test_generate_sbom_invalid_creator_type_raises() -> None:
+def test_generate_project_sbom_invalid_creator_type_raises() -> None:
     """An unrecognised creator type raises ValueError naming the valid set,
     rather than silently falling back to Person."""
     pyproject_content = """
@@ -448,7 +449,7 @@ version = "0.1.0"
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
         with pytest.raises(ValueError, match="Invalid creator type"):
-            generate_sbom(
+            generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(
                     creators=[Creator(name="Bot", type="robot")]
@@ -456,7 +457,7 @@ version = "0.1.0"
             )
 
 
-def test_generate_sbom_creation_datetime_normalized_on_export() -> None:
+def test_generate_project_sbom_creation_datetime_normalized_on_export() -> None:
     """Full ISO creation_datetime must be normalised only at SPDX export time."""
     pyproject_content = """
 [build-system]
@@ -473,7 +474,7 @@ version = "0.1.0"
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(
                 creators=[Creator(name="Test Creator")],
@@ -488,7 +489,7 @@ version = "0.1.0"
         assert creation_infos[0]["created"] == "2026-01-01T10:04:56Z"
 
 
-def test_generate_sbom_multiple_creators_and_supplied_by_first() -> None:
+def test_generate_project_sbom_multiple_creators_and_supplied_by_first() -> None:
     """Multiple creators each become their own Agent in createdBy, of the
     correct subclass; suppliedBy on the main package is the *first* named
     creator."""
@@ -502,7 +503,7 @@ version = "0.1.0"
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
         graph = json.loads(
-            generate_sbom(
+            generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(
                     creators=[
@@ -526,7 +527,7 @@ version = "0.1.0"
         assert main_pkg["suppliedBy"] == agents[0]["spdxId"]
 
 
-def test_generate_sbom_multiple_creators_same_type_distinct_agents() -> None:
+def test_generate_project_sbom_multiple_creators_same_type_distinct_agents() -> None:
     """Two creators of the *same* type each become their own Agent, with
     distinct spdxIds, and both are present in createdBy -- same-type
     creators must not collapse into a single Agent."""
@@ -540,7 +541,7 @@ version = "0.1.0"
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
         graph = json.loads(
-            generate_sbom(
+            generate_project_sbom(
                 tmppath,
                 creation_metadata=CreationMetadata(
                     creators=[
@@ -564,7 +565,7 @@ version = "0.1.0"
         }
 
 
-def test_generate_sbom_multiple_tools() -> None:
+def test_generate_project_sbom_multiple_tools() -> None:
     """Multiple tools each become their own Tool in createdUsing."""
     pyproject_content = """
 [project]
@@ -575,7 +576,7 @@ version = "0.1.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(
                 tools=[Tool("Pitloom"), Tool("MyWrapper")]
@@ -593,7 +594,7 @@ version = "0.1.0"
         assert "summary" not in tools[1]
 
 
-def test_generate_sbom_sentimentdemo_structure() -> None:
+def test_generate_project_sbom_sentimentdemo_structure() -> None:
     """Test SBOM generation with sentimentdemo-like structure."""
     pyproject_content = """
 [build-system]
@@ -632,7 +633,7 @@ Source = "https://github.com/bact/sentimentdemo"
         about_path = src_dir / "__about__.py"
         about_path.write_text(about_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         # Verify structure
@@ -654,7 +655,7 @@ Source = "https://github.com/bact/sentimentdemo"
         assert len(relationships) >= 3  # At least 3 dependencies
 
 
-def test_generate_sbom_with_fragments() -> None:
+def test_generate_project_sbom_with_fragments() -> None:
     """Test SBOM generation with external generic SBOM fragments."""
     pyproject_content = """
 [build-system]
@@ -718,7 +719,7 @@ files = ["fragment1.json", "fragment2.json"]
         exporter2.add_package(dataset_pkg)
         (tmppath / "fragment2.json").write_text(exporter2.to_json())
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         # Validate that elements from fragments are included in the graph
@@ -737,11 +738,11 @@ files = ["fragment1.json", "fragment2.json"]
         assert dataset_packages[0]["name"] == "cool-dataset"
 
 
-def test_generate_sbom_setup_cfg_only_project() -> None:
-    """generate_sbom() must support projects with no pyproject.toml at all,
+def test_generate_project_sbom_setup_cfg_only_project() -> None:
+    """generate_project_sbom() must support projects with no pyproject.toml at all,
     falling back to setup.cfg via the shared read_project() helper.
 
-    Regression test: generate_sbom() previously hardcoded a pyproject.toml
+    Regression test: generate_project_sbom() previously hardcoded a pyproject.toml
     read with no setup.cfg/setup.py fallback, so a setup.cfg-only project
     raised FileNotFoundError.
     """
@@ -751,7 +752,7 @@ def test_generate_sbom_setup_cfg_only_project() -> None:
             "[metadata]\nname = setup-cfg-only-package\nversion = 1.2.3\n"
         )
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph = json.loads(sbom_json)["@graph"]
 
         packages = [e for e in graph if e.get("type") == "software_Package"]
@@ -761,17 +762,17 @@ def test_generate_sbom_setup_cfg_only_project() -> None:
         assert main_package["software_packageVersion"] == "1.2.3"
 
 
-def test_generate_sbom_uses_preparsed_metadata_without_reparsing() -> None:
-    """When metadata/pitloom_config are given, generate_sbom() must not
+def test_generate_project_sbom_uses_preparsed_metadata_without_reparsing() -> None:
+    """When metadata/pitloom_config are given, generate_project_sbom() must not
     re-parse project_dir via read_project()."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         # No pyproject.toml, setup.cfg, or setup.py -- read_project() would
-        # raise FileNotFoundError if generate_sbom() called it.
+        # raise FileNotFoundError if generate_project_sbom() called it.
         metadata = ProjectMetadata(name="preparsed-package", version="9.9.9")
         pitloom_config = PitloomConfig()
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath, project_metadata=metadata, pitloom_config=pitloom_config
         )
         graph = json.loads(sbom_json)["@graph"]
@@ -781,7 +782,7 @@ def test_generate_sbom_uses_preparsed_metadata_without_reparsing() -> None:
         assert main_package["software_packageVersion"] == "9.9.9"
 
 
-def test_generate_sbom_partial_preparsed_args_reparses_both() -> None:
+def test_generate_project_sbom_partial_preparsed_args_reparses_both() -> None:
     """project_metadata and pitloom_config must be given together.
 
     Passing only one is treated as if neither were given: both are read
@@ -793,7 +794,7 @@ def test_generate_sbom_partial_preparsed_args_reparses_both() -> None:
         )
         fake_metadata = ProjectMetadata(name="should-be-discarded")
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath, project_metadata=fake_metadata, pitloom_config=None
         )
         graph = json.loads(sbom_json)["@graph"]
@@ -948,7 +949,7 @@ def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
 
 def test_assembler_ai_model_reuses_registry_entity_by_file_stem() -> None:
     """Falls back to the model file's stem (mirroring the lookup
-    generate_ai_model_sbom performs for loom model/--registry) when no
+    generate_model_sbom performs for loom model/--registry) when no
     physical_path or name match is registered."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
@@ -1552,7 +1553,7 @@ def test_fixture_license_export(fixture_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# assemble-layer wiring: generate_analyzed_sbom() / generate_deployed_sbom()
+# assemble-layer wiring: generate_wheel_sbom() / generate_env_sbom()
 # ---------------------------------------------------------------------------
 
 
@@ -1566,15 +1567,15 @@ def _make_wheel(tmp_path: Path, name: str, version: str) -> Path:
     return wheel_path
 
 
-def test_generate_analyzed_sbom_from_wheel(
+def test_generate_wheel_sbom_from_wheel(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """generate_analyzed_sbom() wires read_wheel()'s extracted metadata into
+    """generate_wheel_sbom() wires read_wheel()'s extracted metadata into
     a valid SPDX 3 JSON-LD document with the expected package name/version."""
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_wheel(tmp_path, "analyzed-pkg", "2.3.4")
 
-    sbom_json = generate_analyzed_sbom(wheel_path)
+    sbom_json = generate_wheel_sbom(wheel_path)
     data = json.loads(sbom_json)
 
     assert "@graph" in data
@@ -1584,10 +1585,10 @@ def test_generate_analyzed_sbom_from_wheel(
     assert main_package["software_packageVersion"] == "2.3.4"
 
 
-def test_generate_deployed_sbom_mocked_pipdeptree(
+def test_generate_env_sbom_mocked_pipdeptree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """generate_deployed_sbom() wires read_environment()'s pipdeptree tree
+    """generate_env_sbom() wires read_environment()'s pipdeptree tree
     into a valid SPDX 3 JSON-LD document containing the installed package."""
     monkeypatch.chdir(tmp_path)
     tree = [
@@ -1607,7 +1608,7 @@ def test_generate_deployed_sbom_mocked_pipdeptree(
     )
 
     with patch("subprocess.run", return_value=fake_result):
-        sbom_json = generate_deployed_sbom()
+        sbom_json = generate_env_sbom()
 
     data = json.loads(sbom_json)
 
@@ -1616,6 +1617,24 @@ def test_generate_deployed_sbom_mocked_pipdeptree(
     packages = [e for e in graph if e.get("type") == "software_Package"]
     requests_pkg = next(p for p in packages if p["name"] == "requests")
     assert requests_pkg["software_packageVersion"] == "2.31.0"
+
+
+def test_generate_smart_entrypoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """generate() smart entrypoint auto-detects targets correctly."""
+    monkeypatch.chdir(tmp_path)
+    pyproject = '[project]\nname = "smart-pkg"\nversion = "0.1.0"\n'
+    (tmp_path / "pyproject.toml").write_text(pyproject)
+
+    # 1. Directory target
+    proj_json = generate(tmp_path)
+    assert "smart-pkg" in proj_json
+
+    # 2. Wheel target
+    wheel_path = _make_wheel(tmp_path, "smart-wheel", "1.0.0")
+    wheel_json = generate(wheel_path)
+    assert "smart-wheel" in wheel_json
 
 
 def test_build_model_base_model_lineage() -> None:

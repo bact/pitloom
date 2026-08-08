@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-05
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -124,10 +124,10 @@ worked fragment example.
 
 ```bash
 # sbom, project mode:
-loom source . -o /tmp/sbom.spdx3.json
+loom project . -o /tmp/sbom.spdx3.json
 
 # sbom, model mode (adjust the path to a real model file):
-loom analyze tests/fixtures/aimodels/onnx/squeezenet1.1-7.onnx -o /tmp/model.spdx3.json
+loom model tests/fixtures/aimodels/onnx/squeezenet1.1-7.onnx -o /tmp/model.spdx3.json
 
 # Both should exit 0 and produce a file containing an "@graph" array.
 ```

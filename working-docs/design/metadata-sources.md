@@ -212,7 +212,7 @@ Recommended long-term priority order for project metadata resolution is:
 Tiers 3-5 are implemented as a single existence-based priority (not a
 field-level merge across tiers) in
 `pitloom.extract.project.read_project()`, used by both the CLI and
-`generate_sbom()`'s default parsing path. Tiers 1-2 remain future work --
+`generate_project_sbom()`'s default parsing path. Tiers 1-2 remain future work --
 see `working-docs/implementation/setuptools-support.md` for the current
 conflict-resolution behaviour and its known limitations.
 

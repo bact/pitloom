@@ -25,6 +25,7 @@ from typing import Any, Protocol
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.models import generate_spdx_id
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 #: Segment-key normalization for the ``"Key: value | Key: value"`` strings
@@ -389,9 +390,9 @@ def emit_provenance(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
 ) -> None:
     """Write provenance for *subject* as an Annotation, a ``.comment``, or both.
 
@@ -403,22 +404,18 @@ def emit_provenance(
         doc_name: Document name (project name) for SPDX ID generation.
         doc_uuid: Document-scoped UUID used in SPDX ID generation.
         exporter: Receives the new Annotation element, when built.
-        provenance_format: ``"annotation"``, ``"comment"``, or ``"both"``
-            (default).
+        provenance_config: ProvenanceConfig instance (defaults to default
+            ProvenanceConfig()).
         encoder: Encoder used for the annotation path; defaults to the
             registered default schema.
-        provenance_detail: ``"minimal"`` (default, matching the system/config
-            default) first filters to high-signal fields only
-            (:func:`filter_high_signal`) so trivial "came from pyproject.toml"
-            noise is dropped; ``"full"`` records every field's source. Applies
-            to both the comment and annotation paths.
 
     Raises:
         ValueError: If *provenance_format* or *provenance_detail* is not a valid
-            value. Rejected rather than silently falling through -- an unknown
-            *provenance_format* would fire neither branch (provenance lost), and
-            an unknown *provenance_detail* would silently behave as ``"full"``.
+            value. Rejected rather than silently falling through.
     """
+    config = provenance_config or ProvenanceConfig()
+    provenance_format = config.format
+    provenance_detail = config.detail
     if provenance_format not in VALID_PROVENANCE_FORMATS:
         valid = ", ".join(sorted(VALID_PROVENANCE_FORMATS))
         raise ValueError(

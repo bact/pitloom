@@ -163,7 +163,7 @@ instructions and a worked fragment example.
    (e.g., `enrich/readme.py`, `enrich/openssf.py`, `enrich/huggingface.py`).
 2. Each enricher accepts an `AiModelMetadata` and updates it in-place, following
    the same in-place mutation pattern used by the model extractors.
-3. The `generate_sbom()` orchestrator reads the `[tool.pitloom.enrich]` config
+3. The `generate_project_sbom()` orchestrator reads the `[tool.pitloom.enrich]` config
    and dispatches to the enabled enrichers after extraction but before assembly.
 4. Provenance is recorded for each enriched field (source, field path)
    using the existing `AiModelMetadata.provenance` dict.

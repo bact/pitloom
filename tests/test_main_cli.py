@@ -49,7 +49,7 @@ pretty = true
     output_path = project_dir / "out.spdx3.json"
     captured: dict[str, object] = {}
 
-    def _fake_generate_sbom(
+    def _fake_generate_project_sbom(
         project_dir: Path,
         output_path: Path | None = None,
         creation_metadata: object | None = None,
@@ -68,11 +68,11 @@ pretty = true
         captured["describe_relationship"] = describe_relationship
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "source", str(project_dir), "-o", str(output_path)],
+        ["loom", "project", str(project_dir), "-o", str(output_path)],
     )
 
     exit_code = __main__.main()
@@ -104,7 +104,7 @@ creation-datetime = "2026-04-01T00:00:00Z"
 
     captured: dict[str, object] = {}
 
-    def _fake_generate_sbom(
+    def _fake_generate_project_sbom(
         project_dir: Path,
         output_path: Path | None = None,
         creation_metadata: object | None = None,
@@ -126,8 +126,8 @@ creation-datetime = "2026-04-01T00:00:00Z"
         captured["creation_metadata"] = creation_metadata
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir)])
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(project_dir)])
 
     exit_code = __main__.main()
 
@@ -176,7 +176,7 @@ creation-datetime = "2030-01-02T03:04:05Z"
 
     captured: dict[str, object] = {}
 
-    def _fake_generate_sbom(
+    def _fake_generate_project_sbom(
         project_dir: Path,
         output_path: Path | None = None,
         creation_metadata: object | None = None,
@@ -199,8 +199,8 @@ creation-datetime = "2030-01-02T03:04:05Z"
         return "{}"
 
     monkeypatch.chdir(current_dir)
-    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "source", str(target_dir)])
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(target_dir)])
 
     exit_code = __main__.main()
 
@@ -242,7 +242,7 @@ version = "0.1.0"
         encoding="utf-8",
     )
 
-    def _fake_generate_sbom(
+    def _fake_generate_project_sbom(
         project_dir: Path,
         output_path: Path | None = None,
         creation_metadata: object | None = None,
@@ -265,8 +265,8 @@ version = "0.1.0"
         return "{}"
 
     monkeypatch.chdir(current_dir)
-    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "source", str(target_dir), "-v"])
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(target_dir), "-v"])
 
     exit_code = __main__.main()
     captured = capsys.readouterr()
@@ -307,13 +307,13 @@ creator-name = 123
         encoding="utf-8",
     )
 
-    def _fake_generate_sbom(*args: object, **kwargs: object) -> str:
+    def _fake_generate_project_sbom(*args: object, **kwargs: object) -> str:
         raise AssertionError(
-            "generate_sbom must not run when [tool.pitloom] config is malformed"
+            "generate_project_sbom must not run when [tool.pitloom] config is malformed"
         )
 
-    monkeypatch.setattr(__main__, "generate_sbom", _fake_generate_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "source", str(project_dir)])
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(project_dir)])
 
     exit_code = __main__.main()
     captured = capsys.readouterr()
@@ -341,15 +341,16 @@ def test_model_mode_no_project_dir_required(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (creation_metadata, pretty, describe_relationship)
         captured["model_path"] = model_path
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     assert captured["model_path"] == SAFETENSORS_FIXTURE.resolve()
@@ -369,15 +370,16 @@ def test_model_mode_explicit_output_path(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (model_path, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
     monkeypatch.setattr(
-        sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(explicit_out)]
+        sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-o", str(explicit_out)]
     )
 
     assert __main__.main() == 0
@@ -396,14 +398,15 @@ def test_model_mode_default_output_path_uses_stem(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (model_path, creation_metadata, pretty, describe_relationship)
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(SAFETENSORS_FIXTURE)])
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
 
     assert __main__.main() == 0
     out = captured["output_path"]
@@ -424,14 +427,15 @@ def test_model_mode_passes_pretty_flag(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (model_path, output_path, creation_metadata, describe_relationship)
         captured["pretty"] = pretty
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "--pretty"])
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "--pretty"])
 
     assert __main__.main() == 0
     assert captured["pretty"] is True
@@ -449,17 +453,18 @@ def test_model_mode_passes_creation_info(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (model_path, output_path, pretty, describe_relationship)
         captured["creation_metadata"] = creation_metadata
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
+        ["loom", "model", str(SAFETENSORS_FIXTURE), "--creator-name", "TestBot"],
     )
 
     assert __main__.main() == 0
@@ -473,7 +478,7 @@ def test_model_mode_nonexistent_file_returns_error(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
-        sys, "argv", ["loom", "analyze", str(tmp_path / "no-such-model.safetensors")]
+        sys, "argv", ["loom", "model", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
 
@@ -490,7 +495,7 @@ def test_project_mode_default_creation_comment(
     )
     out = tmp_path / "cli-app.spdx3.json"
     monkeypatch.setattr(
-        sys, "argv", ["loom", "source", str(project_dir), "-o", str(out)]
+        sys, "argv", ["loom", "project", str(project_dir), "-o", str(out)]
     )
 
     assert __main__.main() == 0
@@ -517,7 +522,7 @@ def test_project_mode_creator_type_organization(
         "argv",
         [
             "loom",
-            "source",
+            "project",
             str(project_dir),
             "-o",
             str(out),
@@ -561,7 +566,7 @@ def test_project_mode_creator_type_software_agent_and_agent(
         "argv",
         [
             "loom",
-            "source",
+            "project",
             str(project_dir),
             "-o",
             str(out),
@@ -597,7 +602,7 @@ def test_project_mode_multiple_interleaved_creators(
         "argv",
         [
             "loom",
-            "source",
+            "project",
             str(project_dir),
             "-o",
             str(out),
@@ -643,7 +648,7 @@ def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
         "argv",
         [
             "loom",
-            "source",
+            "project",
             str(project_dir),
             "-o",
             str(out),
@@ -691,7 +696,7 @@ def test_creator_type_invalid_choice_rejected_by_argparse(
         "argv",
         [
             "loom",
-            "source",
+            "project",
             ".",
             "--creator-name",
             "Bot",
@@ -710,7 +715,7 @@ def test_creator_type_before_creator_name_errors(
 ) -> None:
     """--creator-type before any --creator-name is a clear argparse error."""
     monkeypatch.setattr(
-        sys, "argv", ["loom", "source", ".", "--creator-type", "organization"]
+        sys, "argv", ["loom", "project", ".", "--creator-type", "organization"]
     )
     with pytest.raises(SystemExit):
         __main__.main()
@@ -723,7 +728,7 @@ def test_creator_email_before_creator_name_errors(
 ) -> None:
     """--creator-email before any --creator-name is a clear argparse error."""
     monkeypatch.setattr(
-        sys, "argv", ["loom", "source", ".", "--creator-email", "a@example.com"]
+        sys, "argv", ["loom", "project", ".", "--creator-email", "a@example.com"]
     )
     with pytest.raises(SystemExit):
         __main__.main()
@@ -747,7 +752,7 @@ def test_project_mode_repeated_creation_tool(
         "argv",
         [
             "loom",
-            "source",
+            "project",
             str(project_dir),
             "-o",
             str(out),
@@ -787,13 +792,14 @@ def test_model_mode_verbose_shows_model_path(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (model_path, output_path, creation_metadata, pretty, describe_relationship)
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_ai_model_sbom", _fake_generate_model_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(ONNX_FIXTURE), "-v"])
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(ONNX_FIXTURE), "-v"])
 
     assert __main__.main() == 0
     out = capsys.readouterr().out
@@ -814,7 +820,7 @@ def test_model_mode_safetensors_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -834,7 +840,7 @@ def test_model_mode_onnx_produces_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -854,7 +860,7 @@ def test_model_mode_safetensors_no_software_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", str(SAFETENSORS_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(SAFETENSORS_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -873,7 +879,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", str(ONNX_FIXTURE), "-o", str(out)],
+        ["loom", "model", str(ONNX_FIXTURE), "-o", str(out)],
     )
 
     assert __main__.main() == 0
@@ -903,16 +909,17 @@ def test_hf_url_routes_to_huggingface_sbom(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (output_path, creation_metadata, pretty, describe_relationship)
+        _ = (output_path, creation_metadata, pretty, describe_relationship, kwargs)
         captured["model_source"] = model_source
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "model", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -930,13 +937,14 @@ def test_hf_model_id_routes_to_huggingface_sbom(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (output_path, creation_metadata, pretty, describe_relationship)
+        _ = (output_path, creation_metadata, pretty, describe_relationship, kwargs)
         captured["model_source"] = model_source
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
-    monkeypatch.setattr(sys, "argv", ["loom", "analyze", "Qwen/Qwen3-235B-A22B"])
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", "Qwen/Qwen3-235B-A22B"])
 
     assert __main__.main() == 0
     assert captured["model_source"] == "Qwen/Qwen3-235B-A22B"
@@ -953,16 +961,17 @@ def test_hf_mode_default_output_uses_model_name(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (model_source, creation_metadata, pretty, describe_relationship)
+        _ = (model_source, creation_metadata, pretty, describe_relationship, kwargs)
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
+        ["loom", "model", "https://huggingface.co/mistralai/Mistral-7B-v0.1"],
     )
 
     assert __main__.main() == 0
@@ -985,18 +994,19 @@ def test_hf_mode_explicit_output_path(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (model_source, creation_metadata, pretty, describe_relationship)
+        _ = (model_source, creation_metadata, pretty, describe_relationship, kwargs)
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "loom",
-            "analyze",
+            "model",
             "mistralai/Mistral-7B-v0.1",
             "-o",
             str(explicit_out),
@@ -1018,18 +1028,19 @@ def test_hf_mode_passes_creation_info(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (model_source, output_path, pretty, describe_relationship)
+        _ = (model_source, output_path, pretty, describe_relationship, kwargs)
         captured["creation_metadata"] = creation_metadata
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "loom",
-            "analyze",
+            "model",
             "Qwen/Qwen3-235B-A22B",
             "--creator-name",
             "Researcher",
@@ -1053,16 +1064,23 @@ def test_hf_mode_passes_pretty_flag(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (model_source, output_path, creation_metadata, describe_relationship)
+        _ = (
+            model_source,
+            output_path,
+            creation_metadata,
+            describe_relationship,
+            kwargs,
+        )
         captured["pretty"] = pretty
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", "mistralai/Mistral-7B-v0.1", "--pretty"],
+        ["loom", "model", "mistralai/Mistral-7B-v0.1", "--pretty"],
     )
 
     assert __main__.main() == 0
@@ -1079,6 +1097,7 @@ def test_hf_mode_verbose_shows_model_id(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
         _ = (
             model_source,
@@ -1086,14 +1105,15 @@ def test_hf_mode_verbose_shows_model_id(
             creation_metadata,
             pretty,
             describe_relationship,
+            kwargs,
         )
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "analyze", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
+        ["loom", "model", "https://huggingface.co/Qwen/Qwen3-235B-A22B", "-v"],
     )
 
     assert __main__.main() == 0
@@ -1113,18 +1133,19 @@ def test_hf_url_with_tree_path_resolves_correctly(
         creation_metadata: object = None,
         pretty: bool = False,
         describe_relationship: bool = False,
+        **kwargs: object,
     ) -> str:
-        _ = (output_path, creation_metadata, pretty, describe_relationship)
+        _ = (output_path, creation_metadata, pretty, describe_relationship, kwargs)
         captured["model_source"] = model_source
         return "{}"
 
-    monkeypatch.setattr(__main__, "generate_huggingface_sbom", _fake_generate_hf_sbom)
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_hf_sbom)
     monkeypatch.setattr(
         sys,
         "argv",
         [
             "loom",
-            "analyze",
+            "model",
             "https://huggingface.co/mistralai/Mistral-7B-v0.1/tree/main",
         ],
     )
@@ -1135,7 +1156,7 @@ def test_hf_url_with_tree_path_resolves_correctly(
 
 
 # ---------------------------------------------------------------------------
-# `loom analyze <wheel>` / `loom deployed` / `loom ids` dispatch
+# `loom wheel` / `loom env` / `loom ids` dispatch
 # ---------------------------------------------------------------------------
 
 
@@ -1151,7 +1172,7 @@ def _make_wheel(tmp_path: Path, name: str, version: str) -> Path:
 def test_analyze_wheel_dispatches_to_wheel_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom analyze foo.whl` must dispatch to generate_analyzed_sbom(),
+    """`loom wheel foo.whl` must dispatch to generate_wheel_sbom(),
     not the AI-model or Hugging Face paths."""
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_wheel(tmp_path, "pkg", "1.0.0")
@@ -1170,23 +1191,21 @@ def test_analyze_wheel_dispatches_to_wheel_path(
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(
-        __main__, "generate_analyzed_sbom", _fake_generate_analyzed_sbom
-    )
-    monkeypatch.setattr(sys, "argv", ["loom", "analyze", str(wheel_path)])
+    monkeypatch.setattr(__main__, "generate_wheel_sbom", _fake_generate_analyzed_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(wheel_path)])
 
     assert __main__.main() == 0
     assert captured["wheel_path"] == wheel_path.resolve()
 
 
-def test_deployed_dispatches_to_generate_deployed_sbom(
+def test_deployed_dispatches_to_generate_env_sbom(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom deployed` must dispatch to generate_deployed_sbom()."""
+    """`loom env` must dispatch to generate_env_sbom()."""
     monkeypatch.chdir(tmp_path)
     captured: dict[str, object] = {}
 
-    def _fake_generate_deployed_sbom(
+    def _fake_generate_env_sbom(
         output_path: object = None,
         creation_metadata: object = None,
         pretty: bool = False,
@@ -1197,10 +1216,8 @@ def test_deployed_dispatches_to_generate_deployed_sbom(
         captured["output_path"] = output_path
         return "{}"
 
-    monkeypatch.setattr(
-        __main__, "generate_deployed_sbom", _fake_generate_deployed_sbom
-    )
-    monkeypatch.setattr(sys, "argv", ["loom", "deployed"])
+    monkeypatch.setattr(__main__, "generate_env_sbom", _fake_generate_env_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "env"])
 
     assert __main__.main() == 0
     assert captured["output_path"] == tmp_path / "deployed-environment.spdx3.json"
@@ -1228,7 +1245,7 @@ def test_ids_import_cli_end_to_end(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """`loom ids import` smoke test through main(): harvests ids from a real
-    SBOM produced by `loom source`."""
+    SBOM produced by `loom project`."""
     pyproject_content = """\
 [build-system]
 requires = ["hatchling"]
@@ -1242,7 +1259,7 @@ version = "1.0.0"
     monkeypatch.chdir(tmp_path)
 
     sbom_path = tmp_path / "importable-pkg-1.0.0.spdx3.json"
-    monkeypatch.setattr(sys, "argv", ["loom", "source", str(tmp_path)])
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(tmp_path)])
     assert __main__.main() == 0
     assert sbom_path.exists()
 

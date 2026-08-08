@@ -139,7 +139,7 @@ jobs:
           SBOM_NAME="${WHEEL_NAME}.spdx3.json"
 
           # Generate SBOM
-          loom source . -o "dist/${SBOM_NAME}" --creator-name "Pitloom CI" --creator-email "ci@example.com"
+          loom project . -o "dist/${SBOM_NAME}" --creator-name "Pitloom CI" --creator-email "ci@example.com"
 
           echo "sbom_name=${SBOM_NAME}" >> "$GITHUB_OUTPUT"
           echo "sbom_path=dist/${SBOM_NAME}" >> "$GITHUB_OUTPUT"

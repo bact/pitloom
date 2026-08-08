@@ -31,6 +31,7 @@ from pitloom.assemble.spdx3.provenance import (
     resolve_encoder,
 )
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 _DOC_NAME = "testproject"
@@ -266,7 +267,7 @@ def test_emit_provenance_unknown_format_raises() -> None:
             doc_name=_DOC_NAME,
             doc_uuid=_DOC_UUID,
             exporter=exporter,
-            provenance_format="bogus-value",
+            provenance_config=ProvenanceConfig(format="bogus-value"),
         )
     # Nothing partially applied.
     assert pkg.comment is None
@@ -289,7 +290,7 @@ def test_emit_provenance_unknown_detail_raises() -> None:
             doc_name=_DOC_NAME,
             doc_uuid=_DOC_UUID,
             exporter=exporter,
-            provenance_detail="verbose",
+            provenance_config=ProvenanceConfig(detail="verbose"),
         )
     assert pkg.comment is None
     assert not any(isinstance(o, spdx3.Annotation) for o in exporter.object_set.objects)
@@ -308,8 +309,7 @@ def test_emit_provenance_both_sets_comment_and_annotation() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="both",
-        provenance_detail="full",
+        provenance_config=ProvenanceConfig(format="both", detail="full"),
     )
 
     assert pkg.comment is not None
@@ -334,8 +334,7 @@ def test_emit_provenance_annotation_only_leaves_comment_unset() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="annotation",
-        provenance_detail="full",
+        provenance_config=ProvenanceConfig(format="annotation", detail="full"),
     )
 
     assert pkg.comment is None
@@ -358,8 +357,7 @@ def test_emit_provenance_comment_only_creates_no_annotation() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="comment",
-        provenance_detail="full",
+        provenance_config=ProvenanceConfig(format="comment", detail="full"),
     )
 
     assert pkg.comment is not None
@@ -382,7 +380,7 @@ def test_emit_provenance_empty_provenance_is_a_noop() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="both",
+        provenance_config=ProvenanceConfig(format="both"),
     )
 
     assert pkg.comment is None
@@ -408,13 +406,12 @@ def test_emit_provenance_appends_to_existing_comment() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="comment",
-        provenance_detail="full",
+        provenance_config=ProvenanceConfig(format="comment", detail="full"),
     )
 
     assert pkg.comment
     assert pkg.comment.startswith("Known biases: overrepresents English text\n")
-    assert "Metadata provenance" in pkg.comment
+    assert "Metadata provenance: name: " in pkg.comment
 
 
 # ---------------------------------------------------------------------------
@@ -531,8 +528,7 @@ def test_emit_provenance_minimal_filters_trivial_fields() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="annotation",
-        provenance_detail="minimal",
+        provenance_config=ProvenanceConfig(format="annotation", detail="minimal"),
     )
     annotations = [
         o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)
@@ -556,8 +552,7 @@ def test_emit_provenance_minimal_all_trivial_emits_nothing() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="both",
-        provenance_detail="minimal",
+        provenance_config=ProvenanceConfig(format="both", detail="minimal"),
     )
     assert pkg.comment is None
     assert not any(isinstance(o, spdx3.Annotation) for o in exporter.object_set.objects)
@@ -579,8 +574,7 @@ def test_emit_provenance_full_keeps_all_fields() -> None:
         doc_name=_DOC_NAME,
         doc_uuid=_DOC_UUID,
         exporter=exporter,
-        provenance_format="annotation",
-        provenance_detail="full",
+        provenance_config=ProvenanceConfig(format="annotation", detail="full"),
     )
     annotations = [
         o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)

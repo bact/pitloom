@@ -15,7 +15,9 @@ This document details the architectural evolution of Pitloom's CLI subcommands, 
 ## 1. Background & Evolution
 
 ### Initial State (v0.12.0+)
+
 The CLI initially exposed subcommands named directly after CISA SBOM lifecycle stages:
+
 - `loom source [project_dir]` (Source SBOM)
 - `loom analyze <target>` (Analyzed SBOM — handles `.whl`, local model binaries, and Hugging Face URLs)
 - `loom deployed` (Deployed SBOM — active environment)
@@ -65,53 +67,70 @@ The key resolution is to separate the **User Interface (UX)** from the **Emitted
 ### Subcommand Specification
 
 #### 1. Smart Entrypoint: `loom generate [TARGET]`
+
 Auto-detects the target type and dispatches to the corresponding target command:
+
 ```bash
 loom generate .                          # Project directory -> Source SBOM
 loom generate mypkg-1.0.0.tar.gz         # Sdist archive     -> Source SBOM
 loom generate dist/pkg-1.0-py3-none.whl  # Wheel file        -> Analyzed SBOM
 loom generate models/model.gguf          # Model file        -> AI Model SBOM
 loom generate mistralai/Mistral-7B      # HF Model ID       -> Remote AI Model SBOM
-loom generate --env                      # Active venv       -> Deployed SBOM
+loom generate env                      # Active venv       -> Deployed SBOM
 ```
 
 #### 2. Project Source & Sdist: `loom project [PATH]`
+
 Scans unbuilt source directories OR archived source distributions (`.tar.gz` / `.zip` sdists):
+
 ```bash
 loom project .                           # Unpacked project root
 loom project /path/to/project
 loom project dist/mypkg-1.0.0.tar.gz     # Native sdist support (no manual extraction required)
 ```
+
 - **CISA SBOM Type**: `Source` (`software_sbomType = [source]`)
 
 #### 3. Built Wheel: `loom wheel <WHEEL_FILE>`
+
 Inspects built Python `.whl` archives:
+
 ```bash
 loom wheel dist/mypkg-1.0.0-py3-none-any.whl -o sbom.spdx3.json
 ```
+
 - **CISA SBOM Type**: `Analyzed` (`software_sbomType = [analyzed]`)
 
 #### 4. AI Model Asset: `loom model <FILE_OR_URL> [--offline]`
+
 Inspects local model weight files (`.gguf`, `.safetensors`, `.onnx`, `.pt`, etc.) or Hugging Face Hub repositories:
+
 ```bash
 loom model models/sentiment.gguf
 loom model mistralai/Mistral-7B-v0.1
 loom model models/sentiment.gguf --offline    # Guarantees zero network calls in sandboxed runners
 ```
+
 - **CISA SBOM Type**: `Analyzed` (`software_sbomType = [analyzed]`, `ai_AIPackage`)
 
 #### 5. Deployed Environment: `loom env`
+
 Inspects active Python environment (`site-packages` via `pipdeptree`):
+
 ```bash
 loom env -o env.spdx3.json
 ```
+
 - **CISA SBOM Type**: `Deployed` (`software_sbomType = [deployed]`)
 
 #### 6. Fragment Merging: `loom merge <FRAGMENTS_DIR>`
+
 Stitches dynamic `@loom.run` runtime execution fragments into a static parent SBOM:
+
 ```bash
 loom merge .spdx3-fragments/ -o combined.spdx3.json
 ```
+
 - **CISA SBOM Type**: `Runtime` (`software_sbomType = [runtime]`)
 
 ---

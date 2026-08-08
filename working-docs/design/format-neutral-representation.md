@@ -67,7 +67,7 @@ Serializers pick the fields they understand and ignore the rest.
 | **Extractors** | Read data sources; populate metadata objects | `ProjectMetadata`, `AiModelMetadata` |
 | **Core model** | Format-neutral assembled document | `DocumentModel`, `PitloomConfig`, `CreationMetadata` |
 | **Assemblers** | Translate `DocumentModel` -> format-specific objects | `Spdx3JsonExporter`, future exporters |
-| **Orchestrator** | Build `DocumentModel`, call assembler, merge fragments | `generate_sbom()` |
+| **Orchestrator** | Build `DocumentModel`, call assembler, merge fragments | `generate_project_sbom()` / `generate()` |
 
 ## Data classes in ``pitloom.core``
 

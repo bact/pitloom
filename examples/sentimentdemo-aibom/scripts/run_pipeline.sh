@@ -7,7 +7,7 @@
 #
 # Stage 0 (and the registry refreshes after stages 1 and 2) maintain
 # loom-ids.json: a stable file/entity -> SPDX ID registry. Every stage --
-# the loom runs, the `loom analyze` extractor, and the Hatchling build hook --
+# the loom runs, the `loom model` extractor, and the Hatchling build hook --
 # consults it, so the same dataset, script, or model carries the same spdxId
 # in every fragment, and the merge step can join the fragments into one
 # connected AI-pipeline graph.
@@ -52,9 +52,9 @@ python -m sentimentdemo.evaluate
 
 echo
 echo "================================================================"
-echo "Stage 4/5  -  Direct AI model extraction (loom analyze)"
+echo "Stage 4/5  -  Direct AI model extraction (loom model)"
 echo "================================================================"
-loom analyze models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty
+loom model models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty
 
 echo
 echo "================================================================"

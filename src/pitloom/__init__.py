@@ -3,8 +3,22 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Pitloom: Creating SBOM during the build process."""
+"""Pitloom: Creating SPDX 3 SBOMs for Python projects and AI models."""
 
 from pitloom.__about__ import __version__
+from pitloom.assemble import (
+    generate,
+    generate_env_sbom,
+    generate_model_sbom,
+    generate_project_sbom,
+    generate_wheel_sbom,
+)
 
-__all__ = ["__version__"]
+__all__ = [
+    "__version__",
+    "generate",
+    "generate_env_sbom",
+    "generate_model_sbom",
+    "generate_project_sbom",
+    "generate_wheel_sbom",
+]
