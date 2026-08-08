@@ -164,6 +164,35 @@ def _build_dataset_package(
     return dataset_pkg
 
 
+def _add_dataset_creator_agent(
+    dataset_pkg_spdx_id: str,
+    creator_name: str,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> None:
+    """Create an Agent element for a dataset's creator and wire a publishedBy
+    relationship linking the dataset to the Agent.
+    """
+    creator_agent = spdx3.Agent(
+        spdxId=generate_spdx_id(
+            f"Agent-{creator_name}", doc_name=doc_name, doc_uuid=doc_uuid
+        ),
+        name=creator_name,
+        creationInfo=creation_info,
+    )
+    exporter.add_agent(creator_agent)
+    rel_creator = spdx3.Relationship(
+        spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
+        creationInfo=creation_info,
+        from_=dataset_pkg_spdx_id,
+        relationshipType=spdx3.RelationshipType.publishedBy,
+        to=[require_spdx_id(creator_agent)],
+    )
+    exporter.add_relationship(rel_creator)
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_datasets_for_model(
     ai_package_spdx_id: str,
@@ -224,6 +253,16 @@ def add_datasets_for_model(
             encoder=encoder,
             provenance_detail=provenance_detail,
         )
+
+        if meta.creator:
+            _add_dataset_creator_agent(
+                dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
+                creator_name=meta.creator,
+                creation_info=creation_info,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                exporter=exporter,
+            )
 
         rel_type, fallback_comment = _role_to_rel(dataset_ref.role)
         rel = spdx3.Relationship(
