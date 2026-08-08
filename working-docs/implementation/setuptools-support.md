@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-07-09
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,7 @@ initial setuptools support added in the `setuptools-support` branch.
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/setuptools.py` | New extraction module |
-| `src/pitloom/extract/project.py` | Shared resolver (`read_project()`) used by both the CLI and `generate_sbom()` |
+| `src/pitloom/extract/project.py` | Shared resolver (`read_project()`) used by both the CLI and `generate_project_sbom()` |
 | `src/pitloom/__main__.py` | CLI updated to accept projects without `pyproject.toml` |
 | `tests/test_setuptools.py` | 53 new unit and integration tests |
 | `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
@@ -131,7 +131,7 @@ overriding secondary on key conflicts.
 Multiple metadata sources may coexist in a single project (common during
 migration to pyproject.toml).  Resolution happens in `read_project()` in
 `src/pitloom/extract/project.py`, the single entry point used by both the
-CLI and `generate_sbom()`'s default parsing path:
+CLI and `generate_project_sbom()`'s default parsing path:
 
 1. If `pyproject.toml` exists at all (existence check only -- regardless of
    whether it has a `[project]` section), it is the sole metadata source,

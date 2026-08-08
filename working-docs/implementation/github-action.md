@@ -34,7 +34,7 @@ jobs:
           output: "sbom.spdx3.json"
 ```
 
-This installs Pitloom, runs `loom source . -o sbom.spdx3.json`, and uploads the
+This installs Pitloom, runs `loom project . -o sbom.spdx3.json`, and uploads the
 result as a workflow artefact named `sbom` (all defaults; see below to
 change any of it).
 
@@ -43,7 +43,7 @@ change any of it).
 | Input | Default | Purpose |
 | :--- | :--- | :--- |
 | `project-path` | `.` | Directory to scan. Ignored when `model` is set. |
-| `model` | `""` | Local model file path or Hugging Face URL/ID -- runs analyze mode (`loom analyze ...`) instead of project mode. |
+| `model` | `""` | Local model file path or Hugging Face URL/ID -- runs model mode (`loom model ...`) instead of project mode. |
 | `output` | `sbom.spdx3.json` | SBOM output path. |
 | `extras` | `""` | Comma-separated pip extras, e.g. `aimodel,huggingface`. |
 | `pretty` | `false` | Pretty-print the SBOM JSON. |

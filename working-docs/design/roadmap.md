@@ -29,7 +29,7 @@ SPDX-License-Identifier: CC0-1.0
     `merge_metadata()`, `detect_build_backend()`
     in `src/pitloom/extract/setuptools.py`
   - Conflict resolution: `pyproject.toml` > `setup.cfg` > `setup.py`
-  - CLI and `generate_sbom()` work without `pyproject.toml`
+  - CLI and `generate_project_sbom()` work without `pyproject.toml`
   - `[tool:pitloom]` config section in `setup.cfg`
 - [x] Poetry support -- initial implementation
   - `read_poetry()`, `extract_poetry_metadata()`

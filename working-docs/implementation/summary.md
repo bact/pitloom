@@ -56,12 +56,13 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
 4. **SBOM generator** (`src/pitloom/assemble/`)
-   - `generate_sbom()` orchestrates the full pipeline for source code
-     (Source SBOM)
-   - `generate_analyzed_sbom()` orchestrates the pipeline for built wheels
-     (Analyzed SBOM), utilizing `wheel.py` and `binary.py` to identify phantom
-      dependencies
-   - `generate_deployed_sbom()` orchestrates the pipeline for active
+   - `generate_project_sbom()` / `generate()` orchestrates the full pipeline
+     for source code (Source SBOM)
+   - `generate_wheel_sbom()` and `generate_model_sbom()` orchestrate the
+     pipeline for built wheels and AI models
+     (Analyzed SBOM), utilizing `wheel.py`, `ai.py`, and `binary.py`
+     to identify phantom dependencies
+   - `generate_env_sbom()` orchestrates the pipeline for active
      environments (Deployed SBOM), mapping the tree using `env.py`
    - Builds `DocumentModel` from extracted metadata
    - Passes `DocumentModel` to assembly functions
@@ -82,19 +83,24 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
      `[tool.pitloom.creation]` -- the same settings the CLI uses
 
- 6. **Command-line interface & API redesign** (`src/pitloom/__main__.py`, `src/pitloom/assemble/`)
+6. **Command-line interface & API redesign** (`src/pitloom/__main__.py`,
+  `src/pitloom/assemble/`)
    - User-friendly argparse-based CLI with input-centric subcommands
      (`project`, `wheel`, `model`, `env`, `merge`, `ids`) and a smart
      entrypoint `loom generate [TARGET]`
    - Emitted SBOM data model strictly complies with CISA 6 SBOM Types
      (Source, Build, Analyzed, Deployed, Runtime per CISA April 2023 guide)
      and SPDX 3.0.1
-   - `loom project` scans unbuilt source directories or `.tar.gz`/`.zip` sdist archives (Source SBOM)
+   - `loom project` scans unbuilt source directories or `.tar.gz`/`.zip` sdist
+     archives (Source SBOM)
    - `loom wheel` scans built `.whl` archives (Analyzed SBOM)
-   - `loom model` scans local model files or Hugging Face repositories with explicit `--offline` support (Analyzed AIBOM)
+   - `loom model` scans local model files or Hugging Face repositories with
+     explicit `--offline` support (Analyzed AIBOM)
    - `loom env` scans the active installed environment (Deployed SBOM)
    - `loom merge` stitches dynamic execution fragments (Runtime SBOM)
-   - Python API harmonized 1:1 (`pitloom.generate()`, `generate_project_sbom()`, `generate_wheel_sbom()`, `generate_model_sbom()`, `generate_env_sbom()`)
+   - Python API harmonized 1:1 (`pitloom.generate()`,
+     `generate_project_sbom()`, `generate_wheel_sbom()`,
+     `generate_model_sbom()`, `generate_env_sbom()`)
    - See [working-docs/design/cisa-sbom-lifecycle.md](../design/cisa-sbom-lifecycle.md)
    - Default output filename derived from project metadata
      (`{name}-{version}.spdx3.json`)
@@ -167,10 +173,12 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 ## Validation with sentimentdemo
 
 > **Historical snapshot, early prototype.** The invocation and element
-> counts below predate the `source`/`analyze`/`deployed`/`ids` CLI
-> subcommands (PR #96) and provenance-as-Annotation (see
+> counts below predate the input-centric CLI subcommands
+> (`project`/`wheel`/`model`/`env`/`generate`/`ids`) and
+> provenance-as-Annotation (see
 > [annotation-provenance.md](annotation-provenance.md)) -- a current run
-> uses `loom source <path>`, not the bare positional form shown here, and
+> uses `loom project <path>` (or `loom generate <path>`), not the bare
+> un-namespaced form shown here, and
 > emits additional `Annotation` elements for provenance. Kept as a record
 > of the initial validation, not a spec for current output shape; see
 > [examples/sentimentdemo-aibom/](../../examples/sentimentdemo-aibom/) for
@@ -179,7 +187,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 Successfully generated SPDX 3 SBOM for the reference repository:
 
 ```text
-$ loom /tmp/sentimentdemo -o sbom.spdx3.json
+$ loom project /tmp/sentimentdemo -o sbom.spdx3.json
 Generating SBOM for project in: /tmp/sentimentdemo
 SBOM written to: sbom.spdx3.json
 ```

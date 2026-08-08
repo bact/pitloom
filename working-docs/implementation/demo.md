@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -87,7 +87,7 @@ The reference SBOM at
 ### 1. Working CLI tool
 
 ```bash
-loom source /path/to/project -o sbom.spdx3.json
+loom project /path/to/project -o sbom.spdx3.json
 ```
 
 ### 2. Dynamic version extraction
@@ -164,13 +164,13 @@ pip install -e ".[dev]"
 
 ```bash
 # Basic usage
-loom source /path/to/project
+loom project /path/to/project
 
 # With custom output
-loom source /path/to/project -o custom-sbom.spdx3.json
+loom project /path/to/project -o custom-sbom.spdx3.json
 
 # With creator info
-loom source /path/to/project --creator-name "Your Name" --creator-email "your@example.com"
+loom project /path/to/project --creator-name "Your Name" --creator-email "your@example.com"
 ```
 
 ### Run tests

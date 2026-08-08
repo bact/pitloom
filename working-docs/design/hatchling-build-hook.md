@@ -81,7 +81,7 @@ The build hook maps this object into Pitloom's format-neutral
 project_dir)` -- **not** via `pitloom.extract.pyproject.read_pyproject()`,
 which re-parses `pyproject.toml` from scratch and cannot see dynamic values
 resolved by Hatchling plugins. `read_pyproject()` remains the metadata source
-for the standalone CLI (`pitloom`/`loom source`), which has no build
+for the standalone CLI (`pitloom`/`loom project`), which has no build
 backend to consult; both paths converge on the same
 `pitloom.assemble.spdx3.document.build()` assembly layer, so the emitted SBOM
 shape is identical either way. `read_pitloom_config()`

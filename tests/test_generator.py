@@ -949,7 +949,7 @@ def test_assembler_ai_model_reuses_registry_entity_by_physical_path() -> None:
 
 def test_assembler_ai_model_reuses_registry_entity_by_file_stem() -> None:
     """Falls back to the model file's stem (mirroring the lookup
-    generate_ai_model_sbom performs for loom model/--registry) when no
+    generate_model_sbom performs for loom model/--registry) when no
     physical_path or name match is registered."""
     project = ProjectMetadata(name="ai-project", version="0.1.0")
     ai_model = AiModelMetadata(
@@ -1553,7 +1553,7 @@ def test_fixture_license_export(fixture_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# assemble-layer wiring: generate_analyzed_sbom() / generate_deployed_sbom()
+# assemble-layer wiring: generate_wheel_sbom() / generate_env_sbom()
 # ---------------------------------------------------------------------------
 
 

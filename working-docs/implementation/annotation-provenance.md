@@ -568,7 +568,7 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
   ([`tests/test_spdx3_compliance.py::test_spdx3_provenance_annotations_are_compliant`](../../tests/test_spdx3_compliance.py)).
 - [x] Output is byte-stable across two generations (determinism preserved) —
   verified cross-process with a fixed `creation_datetime`, both for
-  `generate_sbom()` and the `pitloom.loom` SDK path.
+  `generate_project_sbom()` and the `pitloom.loom` SDK path.
 - [x] Existing `test_provenance.py` extraction assertions still pass.
 - [x] A second (stub) encoder can be registered without editing call sites —
   demonstrated by

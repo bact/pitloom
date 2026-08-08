@@ -118,7 +118,7 @@ def _lookup_ai_model_entity(
        lookup key when invoked with that same path.
     3. The file stem of ``format_info.file_name`` (e.g. ``"model"`` for
        ``"model.bin"``) -- mirrors the lookup
-       :func:`pitloom.assemble.generate_ai_model_sbom` performs for
+       :func:`~pitloom.assemble.generate_model_sbom` performs for
        ``loom model``/``--registry``.
 
     Returns ``None`` (mint a fresh id, unchanged behaviour) when no registry
