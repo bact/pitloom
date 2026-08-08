@@ -11,6 +11,12 @@ SPDX-License-Identifier: CC0-1.0
 > **What this is**: Handover note for Phase 2 native-first backfill work following Phase 1 (provenance-as-Annotation).
 >
 > **Goal**: move six facts (N1-N6) that previously lived only in a free-text comment or Annotation into their proper native SPDX 3 constructs (`hasConcludedLicense`, `ExternalIdentifier`, `imports`, relationships, etc.), then trim each corresponding Annotation down to just the residual that still has no native home.
+>
+> **Full design record**: [`annotation-provenance-full-plan.md`](annotation-provenance-full-plan.md)
+> has the entire original Phase 1 plan (boundary principle, use-case catalog
+> G1-G4/A1/A2/E1/E2/P1, the N1-N6 table with rationale, config/schema design)
+> archived in-repo. This handover is a status/next-steps summary; read the
+> full plan if you need the *why* behind any N-item or Annotation shape.
 
 ## Status
 
@@ -30,81 +36,64 @@ Annotation content to the residual** (the part that still has no native
 home — usually the *evidence* or *criterion* behind a value, not the
 value itself).
 
-## Work items, in recommended order
+## Remaining work: N3 — enrichment `CreationInfo`
 
-### 1. N2 — declared vs. concluded license (highest value, do first)
+**Blocked** on the `enrich/` subpackage, which does not exist yet (see
+`sbom-enrichment.md:145-169`). This is the only unimplemented N-item.
+Do not start N3 itself until `enrich/` exists — instead:
 
-- **Where**: `src/pitloom/assemble/spdx3/deps.py:246-252` — concluded
-  license is currently just mirrored from declared, comment says "no
-  inference yet."
-- **Build**: make `hasConcludedLicense` genuinely distinct from
-  `hasDeclaredLicense` when Pitloom detects a license itself (from a
-  `LICENSE` file, `licenseid` heuristic) rather than reading an
-  author-asserted `project.license` field in `pyproject.toml`.
-- **Trim**: once concluded license is native and distinct, the Annotation
-  should keep only the *evidence* (which file/heuristic fired) — this is
-  the G1/G2 use cases in the catalog, already implemented as Annotation
-  content; just confirm it survives once N2 is native and doesn't
-  duplicate the now-distinct concluded value.
-- **Tests to touch**: `tests/test_spdx3_compliance.py`,
-  `tests/test_provenance.py`, `tests/test_annotation_provenance.py`.
+1. **Check whether `enrich/` has landed.** Search for a
+   `src/pitloom/enrich/` (or similarly named) subpackage and any related
+   PRs/branches. If it still doesn't exist, N3 stays blocked — report
+   that back rather than building enrichment machinery as a side effect
+   of this task.
+2. **If `enrich/` exists**, build a second `CreationInfo` attached to
+   elements an enrichment run touches: `createdBy` = the enricher
+   agent, `createdUsing` = the enricher tool, `created` = enrichment
+   timestamp. Follow the pattern already centralized in
+   `src/pitloom/assemble/spdx3/creation_info.py:build_creation_info()` —
+   don't hand-roll a second construction path.
+3. **Annotation residual (E1/E2)**: once the native `CreationInfo` exists,
+   the Annotation on an enriched element should carry only what
+   `CreationInfo` can't: which field changed, its before/after value, and
+   the inferred-vs-extracted marker (`Source: AI agent | Method:
+   inference`, today only in `skills/enrich/SKILL.md`'s free-text
+   convention). This is speced as design-only in
+   `annotation-provenance.md` (E1/E2) — implement it as part of N3, not
+   separately.
+4. Mirror the N1/N2/N4/N5/N6 PRs' shape: one focused PR, tests in
+   `tests/test_annotation_provenance.py` plus wherever enrichment gets
+   its own test file, docs update in `annotation-provenance.md` (flip N3
+   from "not yet built" to done, same as the other five rows).
 
-### 2. N4 — ExternalIdentifier for DOI / arXiv
+## Integration test — recommended, not yet done
 
-- **Where**: `src/pitloom/extract/_huggingface.py:710-764` — DOI/arXiv/
-  repo/model-card URLs currently land only in `extra_data`/provenance.
-- **Build**: on the `ai_AIPackage`, add native `ExternalIdentifier` (type
-  `doi`) and `ExternalRef` entries for arXiv/repo/model-card URLs — see
-  `ai.py:124-357` for where the package is assembled.
-- **Trim**: none needed once mapped — this field is fully native, no
-  Annotation residual (per the plan's Phase 2 table).
-- Lowest-ambiguity item, good if you want a quick isolated win.
+N1, N2, N4, N5, N6 each landed as separate PRs, each presumably tested in
+isolation (unit/compliance tests scoped to that one native construct).
+What's missing: a single **end-to-end test that exercises all five
+together** on one representative input (e.g. an AI-model package with a
+detected license, a DOI-bearing HF model, a base-model relation, a
+dataset with a creator, assembled from ≥2 fragments so unification also
+fires) and asserts on the *whole* generated SBOM:
 
-### 3. N6 — dataset `creator`
+- All five native constructs appear correctly on the same document at
+  once (no interaction bugs — e.g. does adding `ExternalIdentifier` (N4)
+  change spdxId minting in a way that breaks fragment unification (N1)?).
+- Each Annotation is trimmed to its residual and does **not** duplicate
+  a value now covered natively (the core regression risk: an old
+  Annotation shape lingering after its native counterpart landed).
+- Determinism holds across the combined output — `sort_keys=True` and
+  sorted collections were verified per-feature in Phase 1, but a
+  multi-feature SBOM has more interleaving to get wrong; run generation
+  twice and diff for byte-identical output.
+- `pyspdxtools`/whatever SPDX 3 validator the repo already uses (see
+  `tests/test_spdx3_compliance.py`) accepts the combined document.
 
-- **Where**: extracted already in `src/pitloom/extract/_croissant.py:208`
-  but never wired onto `dataset_DatasetPackage`.
-- **Build**: `Agent` + a creation/attribution relationship on the dataset
-  package, in `src/pitloom/assemble/spdx3/dataset.py:104-235`.
-- **Trim**: none needed once mapped (fully native).
-- Small, isolated, good second quick win.
-
-### 4. N1 — fragment origin (`SpdxDocument.imports` + `ExternalMap`)
-
-- **Where**: `src/pitloom/assemble/spdx3/fragments.py:461-464` —
-  `_merge_fragment_set` discards fragment origin at merge time; `imports`
-  is flagged unbuilt in `sbom-fragments.md:146,698-701`.
-- **Build**: one `ExternalMap` per source fragment document, referenced
-  via `SpdxDocument.imports`, so a merged element's origin fragment is
-  recoverable natively.
-- **Trim**: the unification *criterion* (registry-id/sha256/structural)
-  stays in the A1 Annotation — `imports` can say *which* fragment, not
-  *why* two elements were unified. Don't remove the A1 Annotation; just
-  confirm N1 doesn't duplicate it.
-- Bigger than N2/N4/N6 — touches the merge loop
-  (`merge_fragments`, ~`fragments.py:575-607`) and document-level
-  structure. Do after the smaller wins land and CI is stable.
-
-### 5. N3 — enrichment `CreationInfo` (blocked)
-
-- **Blocked** on the `enrich/` subpackage, which is not yet built (see
-  `sbom-enrichment.md:145-169`). Skip until that subpackage exists.
-- When unblocked: a second `CreationInfo` (createdBy = enricher agent,
-  createdUsing = enricher tool, created = enrichment time) attached to
-  enriched elements. Annotation residual is E1/E2 (before/after value +
-  inferred-marker), already speced in `annotation-provenance.md` as
-  design-only.
-
-### 6. N5 — base-model lineage
-
-- **Where**: HF `base_model` / `base_model_relation`, currently in
-  `extra_data` only.
-- **Build**: check whether an existing SPDX 3 `RelationshipType` fits a
-  "derived from base model" edge; if yes, add a `Relationship` to the
-  base-model element; if no clean fit, fall back to `ExternalRef` with
-  the raw relation string kept as Annotation residual.
-- Do last — needs a spec-fit judgment call before implementation, not
-  just wiring.
+Suggested location: a new `tests/test_phase2_integration.py`, or extend
+`tests/test_spdx3_compliance.py` if that's already the repo's home for
+whole-document assertions. This can be built once N3 lands (to cover all
+six), or sooner covering the five that are already done — the user
+should decide which.
 
 ## Workflow notes carried from Phase 1
 
@@ -128,12 +117,27 @@ value itself).
 
 ## Suggested first action for the picking-up session
 
-1. Confirm `main` is at or past `404c03c` and branch `provenance-annotation`
-   is gone (already merged/deleted).
-2. Create a new branch (e.g. `phase2-native-backfill` or one per N-item —
-   ask the user which granularity they want for PRs).
-3. Start with N2 (license) per the order above, or ask the user to
-   confirm/reorder — the order here is a recommendation, not a fixed
-   sequence the user has approved.
+1. Confirm `main` has PRs #105, #106, #107, #108, #109 merged.
+2. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
+   status either way before doing anything else.
+3. If still blocked, ask the user whether to prioritize the integration
+   test (covering the five done items) or wait on N3.
 4. Re-read `annotation-provenance.md` §10 in full before starting, since
    this handover only summarizes it.
+
+## Prompt to start a new session on this handover
+
+```
+Read working-docs/implementation/phase2-native-backfill-handover.md in
+full, then working-docs/implementation/annotation-provenance-full-plan.md
+for the complete original design (boundary principle, use-case catalog,
+N1-N6 rationale) if you need background on any item.
+
+N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107).
+N3 (enrichment CreationInfo) is blocked on the enrich/ subpackage not
+existing yet — check if it has landed since this doc was written. Also
+evaluate whether to build the integration test described in the
+"Integration test" section now (covering the five merged items) versus
+waiting for N3. Report status and recommended next step before making
+any code changes.
+```
