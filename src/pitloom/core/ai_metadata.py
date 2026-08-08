@@ -173,6 +173,12 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     arxiv_ids: list[str] = field(default_factory=list)
     url: str | None = None
 
+    # Base model lineage (parent model ID and relation type e.g. "finetune",
+    # "quantized")
+    # Maps to SPDX 3: Relationship (descendantOf)
+    base_model: str | None = None
+    base_model_relation: str | None = None
+
     # General model metadata
     domain: list[str] = field(default_factory=list)
 

@@ -1615,3 +1615,39 @@ def test_generate_deployed_sbom_mocked_pipdeptree(
     packages = [e for e in graph if e.get("type") == "software_Package"]
     requests_pkg = next(p for p in packages if p["name"] == "requests")
     assert requests_pkg["software_packageVersion"] == "2.31.0"
+
+
+def test_build_model_base_model_lineage() -> None:
+    """build_model() must emit a stub base model ai_AIPackage and a descendantOf
+    Relationship when base_model and base_model_relation are present (N5).
+    """
+    meta = AiModelMetadata(
+        name="my-finetuned-model",
+        base_model="Qwen/Qwen2.5-Math-1.5B",
+        base_model_relation="finetune",
+    )
+    exporter = build_model(meta, CreationMetadata())
+    graph = json.loads(exporter.to_json(pretty=True)).get("@graph", [])
+
+    ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
+    assert len(ai_pkgs) == 2
+    derived_pkg = next(p for p in ai_pkgs if p["name"] == "my-finetuned-model")
+    base_pkg = next(p for p in ai_pkgs if p["name"] == "Qwen2.5-Math-1.5B")
+
+    ext_refs = base_pkg.get("externalRef", [])
+    assert any(
+        r.get("externalRefType") == "altWebPage"
+        and "https://huggingface.co/Qwen/Qwen2.5-Math-1.5B" in r.get("locator", [])
+        for r in ext_refs
+    )
+
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    lineage_rels = [
+        r
+        for r in rels
+        if r.get("relationshipType") == "descendantOf"
+        and r.get("from") == derived_pkg["spdxId"]
+        and base_pkg["spdxId"] in r.get("to", [])
+    ]
+    assert len(lineage_rels) == 1
+    assert lineage_rels[0].get("comment") == "base_model_relation:finetune"
