@@ -30,11 +30,13 @@ import json
 import logging
 import shutil
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
 from pitloom.assemble import generate_sbom
@@ -984,3 +986,78 @@ def test_unification_annotation_records_sha256_merge() -> None:
         assert statement["criterion"] == "sha256"
         assert statement["unified"] == ["https://frag/doc#File-99"]
         assert statement["fragments"] == ["frag.spdx3.json"]
+
+
+def test_merge_fragments_populates_spdx_document_imports(tmp_path: Path) -> None:
+    """merge_fragments() must populate main_doc.import_ with ExternalMap
+    entries naming each merged fragment's SpdxDocument spdxId and location hint (N1).
+    """
+    frag_namespace = "https://spdx.org/spdxdocs/fragment-import-test"
+    envelope_fragment = {
+        "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+        "@graph": [
+            {
+                "type": "CreationInfo",
+                "@id": "_:creationinfo0",
+                "specVersion": "3.0.1",
+                "created": "2026-01-01T00:00:00Z",
+                "createdBy": [f"{frag_namespace}#Agent-1"],
+            },
+            {
+                "type": "SoftwareAgent",
+                "spdxId": f"{frag_namespace}#Agent-1",
+                "creationInfo": "_:creationinfo0",
+                "name": "Pitloom",
+            },
+            {
+                "type": "SpdxDocument",
+                "spdxId": frag_namespace,
+                "creationInfo": "_:creationinfo0",
+                "rootElement": [f"{frag_namespace}#Sbom-1"],
+            },
+            {
+                "type": "software_Sbom",
+                "spdxId": f"{frag_namespace}#Sbom-1",
+                "creationInfo": "_:creationinfo0",
+                "rootElement": [f"{frag_namespace}#AIPackage-1"],
+            },
+            {
+                "type": "ai_AIPackage",
+                "spdxId": f"{frag_namespace}#AIPackage-1",
+                "creationInfo": "_:creationinfo0",
+                "name": "imported-model",
+            },
+        ],
+    }
+    frag_path = tmp_path / "frag-import.spdx3.json"
+    frag_path.write_text(json.dumps(envelope_fragment))
+
+    ci = spdx3.CreationInfo(
+        _id="_:ci",
+        specVersion="3.0.1",
+        created=datetime.now(timezone.utc),
+        createdBy=["https://spdx.org/agent1"],
+    )
+    main_doc = spdx3.SpdxDocument(
+        spdxId="https://spdx.org/spdxdocs/main-doc",
+        name="main-doc",
+        creationInfo=ci,
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_document(main_doc)
+
+    merge_fragments(tmp_path, ["frag-import.spdx3.json"], exporter)
+
+    graph = json.loads(exporter.to_json(pretty=True)).get("@graph", [])
+    docs = [e for e in graph if e.get("type") == "SpdxDocument"]
+    assert len(docs) == 1
+    doc = docs[0]
+
+    imports = doc.get("import", [])
+    frag_imports = [
+        m
+        for m in imports
+        if m.get("type") == "ExternalMap" and m.get("externalSpdxId") == frag_namespace
+    ]
+    assert len(frag_imports) == 1
+    assert frag_imports[0].get("locationHint") == "frag-import.spdx3.json"

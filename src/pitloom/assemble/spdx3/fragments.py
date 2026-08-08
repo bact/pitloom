@@ -582,6 +582,40 @@ def _mint_extra_id(namespace: str, prefix: str, existing_ids: set[str]) -> str:
         n += 1
 
 
+def _find_fragment_document_id(fragment_set: spdx3.SHACLObjectSet) -> str | None:
+    """Return the ``spdxId`` of the ``SpdxDocument`` envelope in *fragment_set*,
+    if present."""
+    for obj in fragment_set.objects:
+        if isinstance(obj, spdx3.SpdxDocument):
+            spdx_id = getattr(obj, "spdxId", None)
+            if spdx_id:
+                return str(spdx_id)
+    return None
+
+
+def _add_fragment_imports(
+    main_doc: spdx3.SpdxDocument,
+    fragment_imports: list[spdx3.ExternalMap],
+) -> None:
+    """Populate ``main_doc.import_`` with ``ExternalMap`` entries for merged
+    fragment documents (N1)."""
+    if not fragment_imports:
+        return
+    existing_imports = list(main_doc.import_ or [])
+    existing_ids: set[str] = set()
+    for item in existing_imports:
+        if isinstance(item, spdx3.ExternalMap) and item.externalSpdxId:
+            existing_ids.add(item.externalSpdxId)
+        elif isinstance(item, str):
+            existing_ids.add(item)
+
+    for ext_map in fragment_imports:
+        if ext_map.externalSpdxId and ext_map.externalSpdxId not in existing_ids:
+            existing_imports.append(ext_map)
+            existing_ids.add(ext_map.externalSpdxId)
+    main_doc.import_ = existing_imports
+
+
 def _emit_unification_annotations(
     events: _UnificationEvents,
     main_doc: spdx3.SpdxDocument,
@@ -684,6 +718,8 @@ def merge_fragments(
     """
     index = _MergeIndex(exporter)
     events: _UnificationEvents = {}
+    fragment_imports: list[spdx3.ExternalMap] = []
+    seen_import_ids: set[str] = set()
 
     for fragment_file in fragment_files:
         fragment_path = project_dir / fragment_file
@@ -698,6 +734,16 @@ def merge_fragments(
             log.warning("Failed to ingest SBOM fragment %s: %s", fragment_path, exc)
             continue
 
+        frag_doc_id = _find_fragment_document_id(fragment_set)
+        if frag_doc_id and frag_doc_id not in seen_import_ids:
+            seen_import_ids.add(frag_doc_id)
+            fragment_imports.append(
+                spdx3.ExternalMap(
+                    externalSpdxId=frag_doc_id,
+                    locationHint=fragment_file,
+                )
+            )
+
         _merge_fragment_set(fragment_set, index, fragment_file, events)
 
     _dedupe_relationships(exporter)
@@ -705,5 +751,6 @@ def merge_fragments(
     main_doc = _find_main_document(exporter.object_set)
     if main_doc is not None:
         _update_profile_conformance(main_doc, exporter)
+        _add_fragment_imports(main_doc, fragment_imports)
         _emit_unification_annotations(events, main_doc, exporter)
         _add_model_sbom(main_doc, exporter)
