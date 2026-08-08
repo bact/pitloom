@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-08
+Last-Modified: 2026-07-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,14 +24,14 @@ SPDX-License-Identifier: CC0-1.0
 - [x] ML tracking SDK (`pitloom.loom` -- context manager / decorator)
 - [x] Metadata provenance tracking (per-field source attribution)
 - [x] CLI (`loom`) with verbose mode and creator info options
-- [x] Setuptools support (N5) -- initial implementation
+- [x] Setuptools support -- initial implementation
   - `read_setup_cfg()`, `read_setup_py()`, `read_setuptools()`,
     `merge_metadata()`, `detect_build_backend()`
     in `src/pitloom/extract/setuptools.py`
   - Conflict resolution: `pyproject.toml` > `setup.cfg` > `setup.py`
   - CLI and `generate_sbom()` work without `pyproject.toml`
   - `[tool:pitloom]` config section in `setup.cfg`
-- [x] Poetry support (N6) -- initial implementation
+- [x] Poetry support -- initial implementation
   - `read_poetry()`, `extract_poetry_metadata()`
     in `src/pitloom/extract/poetry.py`
   - Reads `[tool.poetry]` and `[tool.poetry.dependencies]`
@@ -39,7 +39,7 @@ SPDX-License-Identifier: CC0-1.0
   - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440
   - `read_pyproject()` falls back to `[tool.poetry]` when `[project]` is absent;
     merges both sections when both are present (`[project]` wins field-by-field)
-- [x] **Multiple creators / tools per `CreationInfo` record (N1)** -- `Creator` /
+- [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator` /
   `Tool` dataclasses replace the old scalar `creator_name`/
   `creation_tool` fields; `CreationMetadata.creators: list[Creator]` and
   `.tools: list[Tool] | None` allow ≥1 Agents in `createdBy` and 0+
@@ -60,19 +60,19 @@ tracking SDK) all assume the consumer already has Pitloom installed or
 wired into a build backend. These two extend reach beyond that. See
 [adoption-surfaces.md](adoption-surfaces.md) for the full picture.
 
-- [x] **GitHub Action (N2)** (composite `action.yml`) -- generate an SBOM in CI
+- [x] **GitHub Action** (composite `action.yml`) -- generate an SBOM in CI
   with a single `uses:` line, for any Python project regardless of build
   backend. Dogfooded on Pitloom itself in
   `.github/workflows/action-selftest.yml`.
   See [github-action.md](../implementation/github-action.md).
-- [x] **AI-agent Skills (N3)** (`skills/sbom/`, `skills/enrich/`) -- lets
+- [x] **AI-agent Skills** (`skills/sbom/`, `skills/enrich/`) -- lets
   Claude Code, the Claude Agent SDK, or similar runtimes generate an SBOM
   on request, and optionally enrich it (README/model-card inference
   contributed back as a provenance-marked fragment). Independently
   triggerable by natural language or explicit invocation.
   See [agent-skill.md](../implementation/agent-skill.md) and
   [sbom-enrichment.md](sbom-enrichment.md).
-- [x] **Claude Code plugin (N4)** (`.claude-plugin/`) -- bundles both Skills
+- [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles both Skills
   under the `pitloom` plugin namespace so they install with
   `/plugin install` directly from this repository, with namespaced
   explicit invocation (`/pitloom:sbom`, `/pitloom:enrich`). See
