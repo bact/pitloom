@@ -57,7 +57,7 @@ loom generate mypackage-1.0.0.tar.gz         # sdist archive     -> Source SBOM
 loom generate dist/pkg-1.0-py3-none-any.whl  # wheel package     -> Analyzed SBOM
 loom generate models/model.gguf              # local model file  -> AI Model SBOM
 loom generate mistralai/Mistral-7B-v0.1     # Hugging Face URL  -> AI Model SBOM
-loom generate --env                          # installed venv    -> Deployed SBOM
+loom generate env                          # installed venv    -> Deployed SBOM
 ```
 
 ## Explicit Target Subcommands

@@ -72,7 +72,7 @@ loom generate mypkg-1.0.0.tar.gz         # Sdist archive     -> Source SBOM
 loom generate dist/pkg-1.0-py3-none.whl  # Wheel file        -> Analyzed SBOM
 loom generate models/model.gguf          # Model file        -> AI Model SBOM
 loom generate mistralai/Mistral-7B      # HF Model ID       -> Remote AI Model SBOM
-loom generate --env                      # Active venv       -> Deployed SBOM
+loom generate env                      # Active venv       -> Deployed SBOM
 ```
 
 #### 2. Project Source & Sdist: `loom project [PATH]`

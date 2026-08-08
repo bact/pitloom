@@ -23,8 +23,8 @@
       "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-2"
     },
     "models/sentimentdemo.bin": {
-      "sha256": "837a8cd1e2dc33601914883b465a4d05ba17ec0e1f1b92646ad0118508aa8242",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-10"
+      "sha256": "4ff7609605a1bb039cfc1e3bd78fcd21b3eefb2d11bc7b1be146a94d92b504bf",
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-14"
     },
     "src/sentimentdemo/__about__.py": {
       "sha256": "c9443361942b2ea8cab27cc0727a39a0d496cf0da53aa969313e80c50d566676",
@@ -35,16 +35,16 @@
       "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-4"
     },
     "src/sentimentdemo/evaluate.py": {
-      "sha256": "902613b7836383fdeaf790d65f4675a35d708341fd279564c6fde703e991ce8b",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-5"
+      "sha256": "e27b8ae8923f122e7e435eeadb7b6e4d95359940c0ff6f5d213c0ea9e573b547",
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-11"
     },
     "src/sentimentdemo/preprocess.py": {
-      "sha256": "1f75778ac88a38c85632fa8543b215509bd8d468c3d1de5b0dad812b1f68800e",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-6"
+      "sha256": "cdd28f12bbd72434538786fcb07dae0bfed894119d4ff413b736ed133800db7e",
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-12"
     },
     "src/sentimentdemo/train.py": {
-      "sha256": "dfcadbebe221612701c85cdeb837ef0cc1c221bd663f0926896034121d9baf6b",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-7"
+      "sha256": "91f1b7df7d4a00939d898b860dc94f56a5062d110611c7cfc2172e923a88deb8",
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-13"
     }
   },
   "namespace": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac",

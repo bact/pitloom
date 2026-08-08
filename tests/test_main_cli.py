@@ -1156,7 +1156,7 @@ def test_hf_url_with_tree_path_resolves_correctly(
 
 
 # ---------------------------------------------------------------------------
-# `loom analyze <wheel>` / `loom deployed` / `loom ids` dispatch
+# `loom wheel` / `loom env` / `loom ids` dispatch
 # ---------------------------------------------------------------------------
 
 
@@ -1172,7 +1172,7 @@ def _make_wheel(tmp_path: Path, name: str, version: str) -> Path:
 def test_analyze_wheel_dispatches_to_wheel_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom analyze foo.whl` must dispatch to generate_analyzed_sbom(),
+    """`loom wheel foo.whl` must dispatch to generate_wheel_sbom(),
     not the AI-model or Hugging Face paths."""
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_wheel(tmp_path, "pkg", "1.0.0")
@@ -1201,7 +1201,7 @@ def test_analyze_wheel_dispatches_to_wheel_path(
 def test_deployed_dispatches_to_generate_env_sbom(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom deployed` must dispatch to generate_env_sbom()."""
+    """`loom env` must dispatch to generate_env_sbom()."""
     monkeypatch.chdir(tmp_path)
     captured: dict[str, object] = {}
 
@@ -1245,7 +1245,7 @@ def test_ids_import_cli_end_to_end(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """`loom ids import` smoke test through main(): harvests ids from a real
-    SBOM produced by `loom source`."""
+    SBOM produced by `loom project`."""
     pyproject_content = """\
 [build-system]
 requires = ["hatchling"]

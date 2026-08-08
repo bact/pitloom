@@ -74,7 +74,8 @@ loom project .
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
-Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled binaries as phantom dependencies):
+Generate an **Analyzed SBOM** from a pre-built wheel
+(extracting bundled binaries as phantom dependencies):
 
 ```bash
 loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
@@ -86,10 +87,11 @@ Generate a **Deployed SBOM** reflecting the exact installed environment graph:
 loom env -o env.spdx3.json
 ```
 
-Generate an **Analyzed SBOM** for a single AI model file, without a Python project
-directory (output written to the current working directory). Supported
-local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`), Keras,
-HDF5, NumPy, fastText:
+Generate an **Analyzed SBOM** for a single AI model file,
+without a Python project directory
+(output written to the current working directory).
+Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
+Keras, HDF5, NumPy, fastText:
 
 ```bash
 loom model path/to/model.safetensors -o model.spdx3.json
@@ -110,9 +112,9 @@ loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 Or use the smart unified entrypoint:
 
 ```bash
-loom generate .                              # project directory -> Source SBOM
-loom generate path/to/model.safetensors       # AI model asset   -> Analyzed SBOM
-loom generate --env                          # installed venv    -> Deployed SBOM
+loom generate .                           # project directory -> Source SBOM
+loom generate path/to/model.safetensors   # AI model asset   -> Analyzed SBOM
+loom generate env                         # installed venv    -> Deployed SBOM
 ```
 
 `loom -h` shows the full option list.
@@ -127,7 +129,7 @@ hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.11.0"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.12.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -151,7 +153,8 @@ files = ["fragments/model.json"]   # merge externally tracked fragments
 
 ### Python API
 
-The SBOM generator can be used programmatically via the smart `generate()` entrypoint or target-specific functions:
+The SBOM generator can be used programmatically
+via the smart `generate()` entry point or target-specific functions:
 
 ```python
 from pathlib import Path
@@ -172,7 +175,8 @@ generate_project_sbom(
 )
 ```
 
-`pitloom.assemble` also exposes `generate_wheel_sbom()`, `generate_model_sbom()`, and `generate_env_sbom()`.
+`pitloom.assemble` also exposes `generate_wheel_sbom()`,
+`generate_model_sbom()`, and `generate_env_sbom()`.
 
 ### Python tracking decorator
 
