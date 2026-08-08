@@ -234,7 +234,8 @@ def test_loom_model_hyperparameters() -> None:
         ):
             assert fields[key]["location"] == location
             assert fields[key]["method"] == (
-                "inspect_caller (tool: pitloom.loom, function: test_loom_model_hyperparameters)"
+                "inspect_caller (tool: pitloom.loom, "
+                "function: test_loom_model_hyperparameters)"
             )
 
 
