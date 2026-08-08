@@ -8,10 +8,14 @@ SPDX-License-Identifier: CC0-1.0
 
 # Implementation plan: metadata provenance via SPDX 3 Core/Annotation
 
-**Status:** implemented (2026-07-20, uncommitted on branch `provenance-annotation`) --
-see §9 for what shipped vs. deferred, and **§10 for the 2026-07-20 boundary
+**Status:** implemented and merged
+(PR [#102](https://github.com/bact/pitloom/pull/102)) --
+see §9 for what shipped vs. deferred, and **§10 for the boundary
 refinement** (non-native / high-signal only, config-gated) plus the Phase 2
-native-backfill checklist.
+native-backfill checklist (5 of 6 items shipped as of 2026-08-08; N3 still
+blocked -- see
+[`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md)
+for current status).
 **Planned with:** Opus 4.8. **Implemented by:** Sonnet 5.
 **Related design docs:** [`working-docs/design/metadata-provenance.md`](../design/metadata-provenance.md),
 [`working-docs/design/model-metadata-extraction.md`](../design/model-metadata-extraction.md).
@@ -28,7 +32,7 @@ Today Pitloom records *metadata provenance* (where each SBOM field was
 collected/extracted from) by flattening a per-field `dict[str, str]` into the
 SPDX `comment` attribute as a string like:
 
-```
+```text
 Metadata provenance: name: Source: pyproject.toml | Field: project.name; license: Source: Hugging Face Hub | Field: model card
 ```
 
@@ -40,6 +44,7 @@ systematically and machine-readably, including for **AI model** provenance.
 Keep a human-readable path for back-compat during migration.
 
 Spec references:
+
 - Annotation class: <https://spdx.github.io/spdx-spec/v3.0.1/model/Core/Classes/Annotation/>
 - Model TTL: <https://spdx.org/rdf/3.0/spdx-model.ttl>
 
@@ -58,6 +63,7 @@ keyed by SBOM field name, value already semi-structured as pipe-delimited
 - `DatasetMetadata.provenance` — [`src/pitloom/core/dataset_metadata.py:89`](../../src/pitloom/core/dataset_metadata.py)
 
 Example values produced by extractors:
+
 - `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/pyproject.py:81`](../../src/pitloom/extract/pyproject.py)
 - `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface.py:453`](../../src/pitloom/extract/_huggingface.py)
 - `f"{source} | Field: extra/name"` — [`src/pitloom/extract/_pytorch_pt2.py:132`](../../src/pitloom/extract/_pytorch_pt2.py)
@@ -110,6 +116,7 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
 
 From prior work (SBOM unification): output must be byte-stable for
 reproducible builds.
+
 - Emit annotations in a **deterministic order** (sort subjects before
   emitting, so the `Annotation-N` counter is stable).
 - JSON statement must use `sort_keys=True`.
@@ -236,6 +243,7 @@ implementation + registry entry (+ possibly a mapping from Pitloom's internal
 ### 5.1 Parser: provenance string → structured dict
 
 Segment key normalization mapping (case-insensitive):
+
 - `Source` → `source`
 - `Field` → `location`
 - `Method` → `method`
@@ -397,6 +405,7 @@ building the final `SpdxDocument` / `software_Sbom`.
 
 Add to config model ([`src/pitloom/core/config.py`](../../src/pitloom/core/config.py))
 under `[tool.pitloom.provenance]`:
+
 - `format` enum, default `"both"` (`"annotation" | "comment" | "both"`),
   validated eagerly at config-load time (`ValueError` on an unknown value).
 - `schema` string, default `"pitloom/1"` — resolved via `resolve_encoder`
@@ -712,6 +721,13 @@ forgotten:
 Every use case splits into a **native part** (Phase 2) and an **Annotation
 part** (this phase); e.g. G2 license = N2 relationships + Annotation evidence,
 A1 unification = N1 `imports` + Annotation criterion.
+
+An end-to-end integration test exercising N1/N2/N4/N5/N6 together on one
+representative model -- all five native constructs present at once, no
+Annotation duplicating a now-native value, byte-identical output across two
+runs, and round-trip through `spdx-python-model` -- shipped in
+[`tests/test_provenance_integration.py`](../../tests/test_provenance_integration.py)
+(PR [#112](https://github.com/bact/pitloom/pull/112)).
 
 ---
 

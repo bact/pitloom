@@ -14,7 +14,7 @@ license: Apache-2.0
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-07-08 -->
+<!-- Last-Modified: 2026-08-08 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -92,6 +92,18 @@ pitloom`).
   --creator-name Alice`). Without a named creator, Pitloom records itself
   as an unattended `software-agent` creator. Pitloom is recorded as the
   generating tool by default too (suppress with `--no-creation-tool`).
+
+## Metadata provenance
+
+Pitloom records where each metadata field came from as SPDX 3 Core
+`Annotation` elements (plus a legacy `comment` form), controlled by
+`[tool.pitloom.provenance]` in `pyproject.toml` -- `format` (`annotation`
+/ `comment` / `both`, default `both`), `detail` (`minimal` default /
+`full`), and `preserve-source-metadata` for embedding an AI model's
+verbatim original metadata when it isn't shipped with the distribution.
+No CLI flags for this -- it's `pyproject.toml`-only. Mention it if the
+user asks how to audit or configure provenance; don't assume they need
+it otherwise.
 
 ## What Pitloom produces
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-07-20
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,12 +21,19 @@ information in the SBOM comes from. This is essential for:
 - **Trust**: Building confidence in automated SBOM generation
 - **Compliance**: Meeting requirements for supply chain security
 
-> **Status (2026-07):** Provenance is now recorded as SPDX 3 Core
+> **Status (2026-08):** Provenance is now recorded as SPDX 3 Core
 > `Annotation` elements -- systematic and machine-readable -- with the
-> original `comment`-based format kept for back-compat. See
+> original `comment`-based format kept for back-compat. The native-first
+> backfill (Phase 2) has also landed for five of six items -- declared vs.
+> concluded license, external identifiers (DOI/arXiv/URL), base-model
+> lineage, dataset creator, and fragment-origin `imports` are now emitted
+> as native SPDX constructs with no provenance residual for the value
+> itself; only enrichment `CreationInfo` (N3) remains, blocked on the
+> unbuilt `enrich/` subpackage. See
 > [`working-docs/implementation/annotation-provenance.md`](../implementation/annotation-provenance.md)
-> for the full design and implementation plan; this document summarizes the
-> resulting behavior.
+> §10 for the full design and the Phase 2 checklist, and
+> [`working-docs/implementation/phase2-native-backfill-handover.md`](../implementation/phase2-native-backfill-handover.md)
+> for current status.
 
 ## Provenance tracking implementation
 

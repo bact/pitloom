@@ -356,9 +356,10 @@ batch -- it then derives from every input the run declared, as before.
 
 ## Metadata provenance
 
-Pitloom tracks the source of each metadata field in the SBOM using the
-SPDX 3 `comment` attribute, so questions like "why does the SBOM say the
-concluded license is MIT?" have a traceable answer. See
+Pitloom tracks the source of each metadata field in the SBOM as SPDX 3
+Core `Annotation` elements (plus a legacy `comment` form kept for
+back-compat), so questions like "why does the SBOM say the concluded
+license is MIT?" have a traceable answer. See
 [Metadata provenance](docs/metadata-provenance.md) for the full explainer
 and a worked example.
 

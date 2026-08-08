@@ -21,12 +21,97 @@ SPDX-License-Identifier: CC0-1.0
 ## Status
 
 Phase 2 native-first backfill is **largely complete and merged**:
+
 - ✅ **N2 — Declared vs. Concluded License**: PR [#105](https://github.com/bact/pitloom/pull/105) merged to `main`.
 - ✅ **N4 — ExternalIdentifier & ExternalRef (DOI / arXiv / URLs)**: PR [#106](https://github.com/bact/pitloom/pull/106) merged to `main`.
 - ✅ **N6 — Dataset Creator Agent & publishedBy Relationship**: PR [#107](https://github.com/bact/pitloom/pull/107) merged to `main`.
 - ✅ **N1 — Fragment Origin (`SpdxDocument.imports` + `ExternalMap`)**: PR [#108](https://github.com/bact/pitloom/pull/108) merged to `main`.
 - ✅ **N5 — Base-Model Lineage (`descendantOf` Relationship)**: PR [#109](https://github.com/bact/pitloom/pull/109) merged to `main`.
 - 🛑 **N3 — Enrichment `CreationInfo`**: Blocked (waiting for `enrich/` subpackage).
+- ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
+
+## Release readiness (assessed 2026-08-08)
+
+Everything since v0.12.0 (the last tagged release, 2026-07-10) --
+Annotation-based provenance (Phase 1, PR #102) plus the five Phase 2
+native-first backfills and the integration test above -- is **ready to
+release**. Verified directly:
+
+- `python3 -m pytest tests/ -q` -- 1536 passed, 24 skipped, 0 failed.
+- `mypy src/pitloom` and `ruff check src/pitloom tests` -- clean.
+- CI on `main` at `9c0d663` (PR #112 merge) -- all green: Unit tests,
+  Type checking, Lint and format, Code coverage, Hatch integration,
+  Action self-test, Build wheels + validate SBOM.
+- All four usage surfaces checked end-to-end, not just read: CLI
+  (`__main__.py` delegates to `pyproject.toml`-sourced `PitloomConfig`;
+  no direct `--provenance-*` flags, by design -- CLI flags for this were
+  deliberately out of scope in Phase 1), Python API
+  (`generate_sbom`/`generate_ai_model_sbom`/`generate_huggingface_sbom`/
+  `generate_analyzed_sbom`/`generate_deployed_sbom` in `assemble/__init__.py`
+  all correctly default and thread `provenance_format`/`_schema`/`_detail`/
+  `_preserve_source_metadata`), the Hatchling build hook
+  (`plugins/hatch.py` threads the same four settings from
+  `read_pitloom_config()`), and the `pitloom.loom` SDK (manually verified
+  by generating a fragment via `loom.run()`/`set_model()`/`add_dataset()`
+  and confirming Annotation elements with the correct `pitloom/1`
+  statement actually appear in the output JSON -- not just a code read).
+- No correctness bugs found in this pass -- only stale documentation
+  (fixed, see below) and one non-blocking depth gap (also below).
+
+**Docs fixed in this pass** (were stale, now corrected -- see each
+file's diff for detail): `docs/metadata-provenance.md` (the published
+GitHub Pages doc still described the pre-Annotation `comment`-only
+mechanism with no mention of `[tool.pitloom.provenance]` at all -- this
+was the most significant gap, since it's user-facing); `README.md`
+"Metadata provenance" section (same overstatement); `CHANGELOG.md` (the
+top-of-file "Commit history" compare link was one release behind,
+`v0.10.0...v0.11.0` instead of `v0.11.0...v0.12.0`);
+`working-docs/design/sbom-fragments.md` (still listed
+`SpdxDocument.imports` population as an unbuilt Phase 4 item after N1
+shipped it); `working-docs/design/metadata-provenance.md` and
+`working-docs/implementation/annotation-provenance.md` (status headers
+said "uncommitted on branch `provenance-annotation`", predating the
+PR #102 merge); `working-docs/implementation/demo-provenance.md` (a
+historical walkthrough written for the old always-on comment behavior,
+now flagged with a banner rather than rewritten, since it's an internal,
+low-traffic doc); `skills/sbom/SKILL.md` (didn't mention the
+`[tool.pitloom.provenance]` config surface at all -- added a short
+section).
+
+**Not fixed, flagged only (out of scope for this pass, not correctness
+bugs):**
+
+- `working-docs/implementation/summary.md` (the "canonical project
+  structure" doc) is stale independent of this feature -- its directory
+  tree predates the `provenance.py` module entirely and shows a
+  `docs/design/` + `docs/implementation/` layout that doesn't match the
+  current `docs/` (flat, published) + `working-docs/design/` +
+  `working-docs/implementation/` split. Pre-existing drift, not
+  introduced by this work; a full rewrite is out of scope here.
+- `examples/sentimentdemo-aibom/` generated fixtures were not
+  regenerated against current output (deliberate, carried over from
+  Phase 1) -- cosmetic only, not exercised by CI.
+- **`pitloom.loom` hyperparameter provenance depth**: `set_model()`'s
+  `hyperparameters=` argument and the standalone
+  `set_model_hyperparameters()` don't get per-key provenance the way the
+  AI-model extractors do via `record_dict_field_provenance`
+  (`_extract_utils.py`) -- `set_model()` only records one generic
+  `"package"` provenance entry (the caller's source location), and
+  `set_model_hyperparameters()` (post-hoc update) emits no provenance at
+  all for that call. The hyperparameter *values* themselves are correct
+  in `ai_hyperparameter` either way -- this is a provenance-richness gap
+  in one SDK path, not a data-correctness issue. Worth a small follow-up
+  PR (mirror `record_dict_field_provenance` in `loom.py`'s
+  `set_model`/`set_model_hyperparameters`) but does not block a release.
+
+**Recommendation:** cut the release. Given the existing version history
+(0.5.0 through 0.12.0, each a minor bump for additive features) and that
+everything here is additive/backward-compatible -- `comment` output is
+preserved by default, `Annotation` and the five new native constructs
+are pure additions, no field or CLI flag was removed -- a minor version
+bump (e.g. `v0.13.0`) fits the project's own pattern. That said, the
+version number and release timing are the maintainer's call, not this
+assessment's.
 
 ## Principle (carried over from Phase 1)
 
@@ -66,34 +151,20 @@ Do not start N3 itself until `enrich/` exists — instead:
    its own test file, docs update in `annotation-provenance.md` (flip N3
    from "not yet built" to done, same as the other five rows).
 
-## Integration test — recommended, not yet done
+## Integration test — done
 
-N1, N2, N4, N5, N6 each landed as separate PRs, each presumably tested in
-isolation (unit/compliance tests scoped to that one native construct).
-What's missing: a single **end-to-end test that exercises all five
-together** on one representative input (e.g. an AI-model package with a
-detected license, a DOI-bearing HF model, a base-model relation, a
-dataset with a creator, assembled from ≥2 fragments so unification also
-fires) and asserts on the *whole* generated SBOM:
-
-- All five native constructs appear correctly on the same document at
-  once (no interaction bugs — e.g. does adding `ExternalIdentifier` (N4)
-  change spdxId minting in a way that breaks fragment unification (N1)?).
-- Each Annotation is trimmed to its residual and does **not** duplicate
-  a value now covered natively (the core regression risk: an old
-  Annotation shape lingering after its native counterpart landed).
-- Determinism holds across the combined output — `sort_keys=True` and
-  sorted collections were verified per-feature in Phase 1, but a
-  multi-feature SBOM has more interleaving to get wrong; run generation
-  twice and diff for byte-identical output.
-- `pyspdxtools`/whatever SPDX 3 validator the repo already uses (see
-  `tests/test_spdx3_compliance.py`) accepts the combined document.
-
-Suggested location: a new `tests/test_phase2_integration.py`, or extend
-`tests/test_spdx3_compliance.py` if that's already the repo's home for
-whole-document assertions. This can be built once N3 lands (to cover all
-six), or sooner covering the five that are already done — the user
-should decide which.
+Landed in [`tests/test_provenance_integration.py`](../../tests/test_provenance_integration.py)
+(PR [#112](https://github.com/bact/pitloom/pull/112)), exercising N1, N2,
+N4, N5, N6 together on one representative model. Confirms: all five
+native constructs present on the same document at once; no Annotation
+duplicates a value now covered natively; two generation runs with
+identical inputs produce byte-identical JSON; the combined document
+round-trips through `spdx-python-model` deserialization without loss.
+`test_fragment_origin_round_trips_when_merged` covers N1's `ExternalMap`
+shape directly (the real merge path is separately covered by
+`test_merge_fragments_populates_spdx_document_imports` in
+`tests/test_fragments.py`). Extend this file rather than adding a new one
+when N3 lands, to keep all six in one place.
 
 ## Workflow notes carried from Phase 1
 
@@ -117,11 +188,15 @@ should decide which.
 
 ## Suggested first action for the picking-up session
 
-1. Confirm `main` has PRs #105, #106, #107, #108, #109 merged.
+1. Confirm `main` has PRs #105, #106, #107, #108, #109, #112 merged, and
+   check whether a release has been cut since this doc was written (see
+   "Release readiness" above -- as of 2026-08-08 the answer was "ready,
+   not yet cut").
 2. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
    status either way before doing anything else.
-3. If still blocked, ask the user whether to prioritize the integration
-   test (covering the five done items) or wait on N3.
+3. If still blocked, N3 stays deferred -- ask the user what's next
+   (cutting the release, the loom.py hyperparameter-provenance follow-up
+   noted above, or something else) rather than assuming.
 4. Re-read `annotation-provenance.md` §10 in full before starting, since
    this handover only summarizes it.
 
@@ -133,11 +208,17 @@ full, then working-docs/implementation/annotation-provenance-full-plan.md
 for the complete original design (boundary principle, use-case catalog,
 N1-N6 rationale) if you need background on any item.
 
-N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107).
-N3 (enrichment CreationInfo) is blocked on the enrich/ subpackage not
-existing yet — check if it has landed since this doc was written. Also
-evaluate whether to build the integration test described in the
-"Integration test" section now (covering the five merged items) versus
-waiting for N3. Report status and recommended next step before making
-any code changes.
+N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107), plus
+the combined integration test (PR #112). As of 2026-08-08 the codebase
+was assessed as release-ready (see "Release readiness" section: all
+tests/mypy/ruff/CI green, all usage surfaces -- CLI, Python API,
+Hatchling build hook, pitloom.loom SDK -- verified consistent, stale
+docs fixed). N3 (enrichment CreationInfo) remains blocked on the
+enrich/ subpackage not existing yet -- check if it has landed since.
+
+Check whether a release has been cut since this doc was written (compare
+the latest git tag to `main`). If not, ask the user whether to proceed
+with cutting one before doing anything else -- don't start new feature
+work (N3, the loom.py hyperparameter-provenance follow-up, or otherwise)
+without checking first, since release timing is the maintainer's call.
 ```

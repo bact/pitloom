@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-07-09
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -697,17 +697,21 @@ all earlier items; each can be delivered independently.
 
 ### Phase 4: Compliance and interoperability
 
-1. **`SpdxDocument.imports` population** -- add `ExternalMap` entries for
-   each merged fragment in the assembler.
-2. **CycloneDX BOM-Link emission** -- when the CycloneDX assembler is
+1. **CycloneDX BOM-Link emission** -- when the CycloneDX assembler is
    implemented, emit `bom-link` references for fragments instead of
    inlining all elements.
-3. **`fragment validate` CLI command** -- wraps `spdx3-validate`; clear
+2. **`fragment validate` CLI command** -- wraps `spdx3-validate`; clear
    error messages with line numbers.
-4. **Fragment completeness declaration** -- add a `completeness` field to
+3. **Fragment completeness declaration** -- add a `completeness` field to
    `FragmentConfig` (values: `complete`, `incomplete`, `unknown`) that
    maps to CycloneDX `compositions` and is emitted as an SPDX `Annotation`
    on the fragment's `software_Sbom` element.
+
+> `SpdxDocument.imports` population (`ExternalMap` entries for each merged
+> fragment) shipped in
+> [#108](https://github.com/bact/pitloom/pull/108) --
+> see `_add_fragment_imports()` in
+> [`fragments.py`](../../src/pitloom/assemble/spdx3/fragments.py).
 
 ---
 

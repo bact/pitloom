@@ -1,12 +1,27 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-04-13
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
 # Metadata provenance demonstration
+
+> **Historical, pre-Annotation.** This walkthrough predates the SPDX 3
+> Core `Annotation` provenance mechanism (see
+> [`annotation-provenance.md`](annotation-provenance.md) and
+> [`../design/metadata-provenance.md`](../design/metadata-provenance.md)
+> for the current design). The `comment` output shown below is still
+> produced (`[tool.pitloom.provenance] format = "both"`, the default), but
+> only under `detail = "full"` -- the current default, `detail =
+> "minimal"`, drops trivial single-source fields like `name`,
+> `description`, `urls`, `dependencies`, and `authors` from both the
+> `comment` and the Annotation, keeping only fields that add signal beyond
+> the native value (e.g. `version`'s dynamic-extraction method,
+> `copyright_text`'s inference). Treat the JSON below as illustrative of
+> the provenance *format*, not of what a default-configuration run emits
+> today.
 
 This document demonstrates the metadata provenance tracking feature in Pitloom.
 
