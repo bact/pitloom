@@ -17,6 +17,7 @@ from typing import Any
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.plugin import hookimpl
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
@@ -207,13 +208,9 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         exporter = assemble_spdx3(
             document,
             merkle_root=merkle_root,
+            sbom_type=spdx3.software_SbomType.build,
             registry=registry,
-            provenance_format=pitloom_config.provenance_format,
-            provenance_schema=pitloom_config.provenance_schema,
-            provenance_detail=pitloom_config.provenance_detail,
-            provenance_preserve_source_metadata=(
-                pitloom_config.provenance_preserve_source_metadata
-            ),
+            provenance=pitloom_config.provenance,
         )
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
 

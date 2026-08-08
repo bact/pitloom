@@ -22,6 +22,7 @@ from pitloom.assemble import (
     generate_model_sbom,
     generate_project_sbom,
     generate_wheel_sbom,
+    merge_fragments,
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import (
@@ -31,6 +32,7 @@ from pitloom.core.creation import (
     Tool,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
 from pitloom.extract.project import read_project
 from pitloom.ids import DEFAULT_REGISTRY_FILENAME, IdRegistry
@@ -877,7 +879,7 @@ def _run_env_mode(args: argparse.Namespace) -> int:
 
 
 def _run_merge_mode(args: argparse.Namespace) -> int:
-    """Merge dynamic execution fragments."""
+    """Merge dynamic execution fragments into a combined SBOM."""
     try:
         fragments_dir: Path = args.fragments_dir.resolve()
         if not fragments_dir.exists():
@@ -887,8 +889,32 @@ def _run_merge_mode(args: argparse.Namespace) -> int:
             )
             return 1
 
+        fragment_files = [
+            f.relative_to(fragments_dir).as_posix()
+            for f in sorted(fragments_dir.glob("*.json"))
+            if f.is_file()
+        ]
+        if not fragment_files:
+            print(
+                f"Error: No JSON fragment files found in {fragments_dir}",
+                file=sys.stderr,
+            )
+            return 1
+
+        exporter = Spdx3JsonExporter()
+        merge_fragments(fragments_dir, fragment_files, exporter)
+
+        sbom_json = exporter.to_json(pretty=bool(args.pretty))
         output_path: Path = args.output
-        print(f"Merged fragments from {fragments_dir} into {output_path}")
+        if str(output_path) == "-":
+            sys.stdout.write(sbom_json)
+            if not sbom_json.endswith("\n"):
+                sys.stdout.write("\n")
+        else:
+            output_path.write_text(sbom_json, encoding="utf-8")
+            print(
+                f"pitloom: merged {len(fragment_files)} fragment(s) into {output_path}"
+            )
         return 0
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error merging fragments: {e}", file=sys.stderr)

@@ -4,3 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Core SPDX models and data structures."""
+
+from pitloom.core.provenance import ProvenanceConfig
+
+__all__ = ["ProvenanceConfig"]

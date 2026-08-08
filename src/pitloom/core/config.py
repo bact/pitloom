@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.creation import Creator, Tool
+from pitloom.core.provenance import ProvenanceConfig
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -140,6 +141,16 @@ class PitloomConfig:
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
     provenance_detail: str = "minimal"
     provenance_preserve_source_metadata: str = "auto"
+
+    @property
+    def provenance(self) -> ProvenanceConfig:
+        """Return ProvenanceConfig constructed from current config settings."""
+        return ProvenanceConfig(
+            format=self.provenance_format,
+            schema=self.provenance_schema,
+            detail=self.provenance_detail,
+            preserve_source_metadata=self.provenance_preserve_source_metadata,
+        )
 
 
 def _check_moved_creation_keys(

@@ -21,6 +21,7 @@ from pitloom.assemble.spdx3.provenance import (
 )
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.core.project import PhantomDependency
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
@@ -85,35 +86,11 @@ def _enrich_from_installed(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
 ) -> None:
-    """Populate optional fields on a dependency package from installed metadata.
-
-    Uses ``importlib.metadata`` to read the package's core metadata from the
-    build environment and fills in:
-
-    - ``description`` (from ``Summary``)
-    - ``software_homePage`` (from ``Home-page`` or a ``Project-URL`` with a
-      homepage label)
-    - ``software_downloadLocation`` (from ``Download-URL`` or a ``Project-URL``
-      with a download label)
-    - ``software_packageUrl`` (PyPI PURL constructed from name and version)
-    - ``hasDeclaredLicense`` relationship (from ``License-Expression`` or
-      ``License`` core metadata field)
-
-    Fields are only set when a non-empty, non-``UNKNOWN`` value is available.
-    Does nothing if the package is not found in the build environment.
-
-    Args:
-        dep_name: Bare package name (e.g. ``"requests"``).
-        dep_package: The ``software_Package`` element to enrich.
-        creation_info: Shared ``CreationInfo`` for any new SPDX elements.
-        doc_name: Document name (project name) for SPDX ID generation.
-        doc_uuid: Document UUID for SPDX ID generation.
-        exporter: Receives any new license and relationship elements.
-    """
+    """Populate optional fields on a dependency package from installed metadata."""
     try:
         pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
@@ -148,8 +125,6 @@ def _enrich_from_installed(
         dep_package.software_downloadLocation = download_url
 
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>)
-    # The package was resolved from the build environment, so it is pip-installable.
-    # See ECMA-427 https://tc54.org/purl/
     version = dep_package.software_packageVersion
     if version and version != "unknown":
         dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
@@ -165,9 +140,8 @@ def _enrich_from_installed(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=provenance_config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
         if rel_declared:
             exporter.add_relationship(rel_declared)
@@ -197,34 +171,12 @@ def build_license_elements(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
 ) -> tuple[spdx3.Relationship | None, spdx3.Relationship | None]:
-    """Get or create a SimpleLicensingText element and build its
-    hasDeclaredLicense / hasConcludedLicense relationships for a given package.
-
-    If a ``SimpleLicensingText`` with the same ``simplelicensing_licenseText``
-    was already added to *exporter*, it is reused.  Otherwise a new element is
-    created and registered.  Either way, two fresh ``Relationship`` elements
-    are returned -- the caller is responsible for adding them to the exporter.
-
-    Args:
-        license_id: SPDX license identifier string (e.g. ``"Apache-2.0"``).
-        package_spdx_id: SPDX ID of the package the license applies to
-                         (the "from" in each relationship).
-        license_provenance: Human-readable provenance note for the comment field
-            of a newly created SimpleLicensingText element.
-        creation_info: Shared CreationInfo for all new elements.
-        doc_name: Document name (project name) used in SPDX ID generation.
-        doc_uuid: Document UUID used in SPDX ID generation.
-        exporter: Used to look up and register the SimpleLicensingText element.
-
-    Returns:
-        A 2-tuple of ``(hasDeclaredLicense Relationship,
-        hasConcludedLicense Relationship)``.
-    """
-    # Reuse an existing SimpleLicensingText if one with the same text exists.
+    """Get or create a SimpleLicensingText element and build its declared/concluded
+    license relationships."""
     existing_spdx_id = exporter.find_license(license_id)
     if existing_spdx_id:
         license_spdx_id = existing_spdx_id
@@ -249,9 +201,8 @@ def build_license_elements(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=provenance_config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
         license_spdx_id = require_spdx_id(license_text)
 
@@ -262,7 +213,6 @@ def build_license_elements(
     rel_has_concluded_license: spdx3.Relationship | None = None
 
     if is_concluded:
-        # The license identified by the SPDX data creator.
         rel_has_concluded_license = spdx3.Relationship(
             spdxId=generate_spdx_id(
                 "Relationship",
@@ -275,7 +225,6 @@ def build_license_elements(
             to=[license_spdx_id],
         )
     else:
-        # The license asserted by the author in the Software Artifact.
         rel_has_declared_license = spdx3.Relationship(
             spdxId=generate_spdx_id(
                 "Relationship",
@@ -300,40 +249,12 @@ def add_dependencies(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for each
-    declared dependency and add them to the exporter.
-
-    For each entry in ``dependencies``:
-    - The package name is parsed from the PEP 508 specifier.
-    - The installed version is resolved via ``importlib.metadata`` when
-      available, providing build-time accuracy beyond the declared constraint.
-    - Additional fields (description, homePage, downloadLocation, packageUrl,
-      hasDeclaredLicense) are populated from the installed package metadata
-      when available.
-    - A ``dependsOn`` relationship links the main package to the dependency.
-    - Provenance is recorded as a Core ``Annotation`` and/or legacy
-      ``comment``, per *provenance_format*.
-
-    Args:
-        dependencies: List of PEP 508 dependency specifier strings.
-        dep_provenance: Provenance string for the dependencies field
-            (e.g. ``"Source: pyproject.toml | Field: project.dependencies"``).
-        main_package_spdx_id: SPDX ID of the parent package for relationships.
-        creation_info: Shared ``CreationInfo`` for all new elements.
-        doc_name: Document name (project name) for SPDX ID generation.
-        doc_uuid: Document-scoped UUID used in SPDX ID generation.
-        exporter: Receives the new package and relationship elements.
-        provenance_format: How to record metadata provenance -- see
-            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
-        encoder: Provenance statement encoder; defaults to the registered
-            default schema.
-        provenance_detail: ``"minimal"`` (default) keeps only high-signal
-            field sources; ``"full"`` records every field.
-    """
+    declared dependency."""
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
         dep_version, version_note = _resolve_version(dep_name, dep)
@@ -360,9 +281,8 @@ def add_dependencies(
             doc_name,
             doc_uuid,
             exporter,
-            provenance_format=provenance_format,
+            provenance_config=provenance_config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
 
         exporter.add_package(dep_package)
@@ -373,9 +293,8 @@ def add_dependencies(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=provenance_config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
 
         dep_rel = spdx3.Relationship(
@@ -387,10 +306,6 @@ def add_dependencies(
             relationshipType=spdx3.RelationshipType.dependsOn,
             creationInfo=creation_info,
         )
-        # No provenance Annotation on the dependsOn relationship itself: the
-        # relationship *is* the native record of the dependency, and the
-        # extraction-source already lives on the dependency package above.
-        # Annotating the edge too would just shadow the native construct.
         exporter.add_relationship(dep_rel)
 
 
@@ -403,28 +318,11 @@ def add_phantom_dependencies(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
 ) -> None:
-    """Build SPDX elements for bundled phantom binary dependencies.
-
-    Args:
-        phantom_deps: List of PhantomDependency objects discovered in the distribution.
-        main_package_spdx_id: SPDX ID of the parent package for relationships.
-        file_spdx_ids: Mapping of file paths to their SPDX IDs, to link
-            packages to files.
-        creation_info: Shared CreationInfo for all new elements.
-        doc_name: Document name (project name) for SPDX ID generation.
-        doc_uuid: Document-scoped UUID used in SPDX ID generation.
-        exporter: Receives the new package and relationship elements.
-        provenance_format: How to record metadata provenance -- see
-            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
-        encoder: Provenance statement encoder; defaults to the registered
-            default schema.
-        provenance_detail: ``"minimal"`` (default) keeps only high-signal
-            field sources; ``"full"`` records every field.
-    """
+    """Build SPDX elements for bundled phantom binary dependencies."""
     for dep in phantom_deps:
         dep_package = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
@@ -438,7 +336,6 @@ def add_phantom_dependencies(
 
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
 
-        # Download URL and license are not derivable from a bundled binary alone.
         exporter.add_package(dep_package)
         emit_provenance(
             subject=dep_package,
@@ -449,9 +346,8 @@ def add_phantom_dependencies(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=provenance_config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
 
         # The main package depends on this phantom package.

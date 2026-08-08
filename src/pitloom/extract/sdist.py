@@ -3,7 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Extractor for Python source distributions (sdists: .tar.gz, .zip)."""
+"""Tests for sdist archive metadata extraction."""
+
+# pylint: disable=redefined-outer-name
 
 from __future__ import annotations
 
@@ -22,28 +24,31 @@ else:
     import tomli as tomllib
 
 
-def _parse_pkg_info(metadata_content: str, source_label: str) -> ProjectMetadata:
-    """Parse a PKG-INFO file content into ProjectMetadata."""
-    msg = email.message_from_string(metadata_content)
-    metadata = ProjectMetadata(name=msg.get("Name", "unknown"))
+def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
+    """Parse Metadata-Version 2.x PKG-INFO content into ProjectMetadata."""
+    msg = email.message_from_string(pkg_info_text)
+    name = msg.get("Name", "unknown")
+    version = msg.get("Version")
+    summary = msg.get("Summary")
+    license_name = msg.get("License")
+    requires_python = msg.get("Requires-Python")
 
-    fields: dict[str, str] = {
-        "Version": "version",
-        "Summary": "description",
-        "Author": "author",
-        "Author-email": "author_email",
-        "License": "license",
-    }
-    for header, attr in fields.items():
-        value = msg.get(header)
-        if value and value != "UNKNOWN":
-            setattr(metadata, attr, value)
-            metadata.provenance[attr] = source_label
-
-    keywords = msg.get("Keywords")
-    if keywords and keywords != "UNKNOWN":
-        metadata.keywords = [kw.strip() for kw in keywords.split(",") if kw.strip()]
-        metadata.provenance["keywords"] = source_label
+    metadata = ProjectMetadata(
+        name=name,
+        version=version,
+        description=summary,
+        license_name=license_name,
+        requires_python=requires_python,
+    )
+    metadata.provenance["name"] = source_label
+    if version:
+        metadata.provenance["version"] = source_label
+    if summary:
+        metadata.provenance["description"] = source_label
+    if license_name:
+        metadata.provenance["license"] = source_label
+    if requires_python:
+        metadata.provenance["requires_python"] = source_label
 
     project_urls = msg.get_all("Project-URL") or []
     if project_urls:
@@ -63,58 +68,55 @@ def _parse_pkg_info(metadata_content: str, source_label: str) -> ProjectMetadata
 
     requires_dist = msg.get_all("Requires-Dist") or []
     if requires_dist:
-        metadata.dependencies = list(requires_dist)
+        metadata.dependencies = [r.strip() for r in requires_dist]
         metadata.provenance["dependencies"] = source_label
 
     return metadata
 
 
 def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile]]:
-    """Extract metadata and files from a tar-based sdist (.tar.gz, .tgz, etc.)."""
+    """Extract metadata and files from a tar-based sdist (.tar.gz, .tgz)."""
     metadata = ProjectMetadata(name="unknown")
     project_files: list[ProjectFile] = []
+    pkg_info_content: str | None = None
+    pyproject_content: bytes | None = None
     source_label = f"Source: sdist PKG-INFO | File: {sdist_path.name}"
 
     with tarfile.open(sdist_path, "r:*") as tf:
-        pkg_info_content: str | None = None
-        pyproject_content: bytes | None = None
-
         for member in tf.getmembers():
             if not member.isfile():
                 continue
 
-            # Read file content for PKG-INFO / pyproject.toml
+            extracted = tf.extractfile(member)
+            if extracted is None:
+                continue
+
+            with extracted:
+                content = extracted.read()
+
+            parts = Path(member.name).parts
             basename = Path(member.name).name
-            if basename == "PKG-INFO" and pkg_info_content is None:
-                extracted = tf.extractfile(member)
-                if extracted is not None:
-                    pkg_info_content = extracted.read().decode(
-                        "utf-8", errors="replace"
-                    )
-            elif basename == "pyproject.toml" and pyproject_content is None:
-                extracted = tf.extractfile(member)
-                if extracted is not None:
-                    pyproject_content = extracted.read()
+            if basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2:
+                pkg_info_content = content.decode("utf-8", errors="replace")
+            elif (
+                basename == "pyproject.toml"
+                and pyproject_content is None
+                and len(parts) == 2
+            ):
+                pyproject_content = content
 
-            # Hash file content
-            extracted_file = tf.extractfile(member)
-            hasher = hashlib.sha256()
-            if extracted_file is not None:
-                while chunk := extracted_file.read(8192):
-                    hasher.update(chunk)
-
+            digest = hashlib.sha256(content).hexdigest()
             project_files.append(
                 ProjectFile(
                     physical_path=member.name,
                     distribution_path=member.name,
-                    digest_sha256=hasher.hexdigest(),
+                    digest_sha256=digest,
                 )
             )
 
         if pkg_info_content is not None:
             metadata = _parse_pkg_info(pkg_info_content, source_label)
         elif pyproject_content is not None:
-            # Fallback to parsing pyproject.toml if PKG-INFO is missing
             try:
                 data = tomllib.loads(
                     pyproject_content.decode("utf-8", errors="replace")
@@ -137,31 +139,34 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
     metadata = ProjectMetadata(name="unknown")
     project_files: list[ProjectFile] = []
     source_label = f"Source: sdist PKG-INFO | File: {sdist_path.name}"
+    pkg_info_content: str | None = None
+    pyproject_content: bytes | None = None
 
     with zipfile.ZipFile(sdist_path, "r") as zf:
-        pkg_info_content: str | None = None
-        pyproject_content: bytes | None = None
-
         for info in zf.infolist():
             if info.is_dir():
                 continue
 
-            basename = Path(info.filename).name
-            if basename == "PKG-INFO" and pkg_info_content is None:
-                pkg_info_content = zf.read(info).decode("utf-8", errors="replace")
-            elif basename == "pyproject.toml" and pyproject_content is None:
-                pyproject_content = zf.read(info)
-
-            hasher = hashlib.sha256()
             with zf.open(info) as f:
-                while chunk := f.read(8192):
-                    hasher.update(chunk)
+                content = f.read()
 
+            parts = Path(info.filename).parts
+            basename = Path(info.filename).name
+            if basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2:
+                pkg_info_content = content.decode("utf-8", errors="replace")
+            elif (
+                basename == "pyproject.toml"
+                and pyproject_content is None
+                and len(parts) == 2
+            ):
+                pyproject_content = content
+
+            digest = hashlib.sha256(content).hexdigest()
             project_files.append(
                 ProjectFile(
                     physical_path=info.filename,
                     distribution_path=info.filename,
-                    digest_sha256=hasher.hexdigest(),
+                    digest_sha256=digest,
                 )
             )
 
@@ -185,20 +190,19 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
     return metadata, project_files
 
 
-def read_sdist(sdist_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFile]]:
-    """Extract project metadata and file records from a source distribution archive.
+def read_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile]]:
+    """Read metadata and files from an sdist archive (.tar.gz, .tgz, .zip).
 
     Args:
-        sdist_path: Path to a .tar.gz, .tgz, .tar.bz2, .tar.xz, or .zip sdist file.
+        sdist_path: Path to the sdist archive.
 
     Returns:
-        A tuple of (ProjectMetadata, list of ProjectFile).
+        Tuple of (ProjectMetadata, list of ProjectFile).
     """
-    path = Path(sdist_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Source distribution archive not found: {path}")
+    if not sdist_path.exists():
+        raise FileNotFoundError(f"Sdist archive not found: {sdist_path}")
 
-    filename_lower = path.name.lower()
+    filename_lower = sdist_path.name.lower()
     if filename_lower.endswith(".zip"):
-        return _read_zip_sdist(path)
-    return _read_tar_sdist(path)
+        return _read_zip_sdist(sdist_path)
+    return _read_tar_sdist(sdist_path)

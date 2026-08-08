@@ -20,6 +20,7 @@ from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import generate_spdx_id
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.ids import IdRegistry
@@ -28,7 +29,7 @@ from pitloom.ids import IdRegistry
 #: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
 #: provenance is always recorded both ways (Annotation + legacy comment)
 #: rather than threading a format setting through the whole SDK surface.
-_LOOM_PROVENANCE_FORMAT = "both"
+_LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
 
 log = logging.getLogger(__name__)
 
@@ -292,7 +293,7 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
             doc_name=name,
             doc_uuid=self.doc_uuid,
             exporter=self.exporter,
-            provenance_format=_LOOM_PROVENANCE_FORMAT,
+            provenance_config=_LOOM_PROVENANCE_CONFIG,
         )
 
     def use_model(
@@ -337,7 +338,7 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
             doc_name=self.model.name or "model",
             doc_uuid=self.doc_uuid,
             exporter=self.exporter,
-            provenance_format=_LOOM_PROVENANCE_FORMAT,
+            provenance_config=_LOOM_PROVENANCE_CONFIG,
         )
 
     def _build_dataset_package(
@@ -362,7 +363,7 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
             doc_name=name,
             doc_uuid=self.doc_uuid,
             exporter=self.exporter,
-            provenance_format=_LOOM_PROVENANCE_FORMAT,
+            provenance_config=_LOOM_PROVENANCE_CONFIG,
         )
         if hash_element is not None:
             dataset_pkg.verifiedUsing = [hash_element]

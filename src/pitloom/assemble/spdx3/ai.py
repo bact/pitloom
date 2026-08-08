@@ -23,6 +23,7 @@ from pitloom.assemble.spdx3.provenance import (
 )
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.models import generate_spdx_id
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.ids import IdRegistry
 
@@ -418,59 +419,14 @@ def add_ai_models(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     registry: IdRegistry | None = None,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
-    preserve_source_metadata: str = "auto",
 ) -> None:
     """Build ``ai_AIPackage`` and ``contains`` relationship elements for each
-    AI model and add them to the exporter.
-
-    For each entry in ``ai_models``:
-
-    - An ``ai_AIPackage`` element is built from the extracted metadata.
-    - A ``contains`` relationship links the main Python package to the AI model.
-    - ``type_of_model`` and ``architecture`` are both stored in
-      ``ai_typeOfModel``.
-    - ``quantization`` and hyperparameters are stored as ``ai_hyperparameter``
-      DictionaryEntry list (quantization first).
-    - ``domain`` + ``usage.domains`` -> ``ai_domain`` (merged, de-duplicated).
-    - ``usage.limitations`` -> ``ai_limitation`` (joined string).
-    - ``usage.safety_risk_assessment`` -> ``ai_safetyRiskAssessment`` enum.
-    - ``usage.intended_use`` / ``usage.unintended_use`` -> merged into
-      ``ai_informationAboutApplication`` JSON alongside I/O specs.
-    - ``usage.known_biases`` -> SPDX ``comment``; ``provenance`` -> a Core
-      ``Annotation`` and/or legacy ``comment``, per *provenance_format*.
-
-    The caller is responsible for appending
-    ``ProfileIdentifierType.ai`` to the document's ``profileConformance``
-    when at least one AI model is present.
-
-    Args:
-        ai_models: List of extracted :class:`~pitloom.core.ai_metadata.AiModelMetadata`.
-        main_package_spdx_id: SPDX ID of the parent Python package.
-        creation_info: Shared ``CreationInfo`` for all new elements.
-        doc_name: Document name (project name) for SPDX ID generation.
-        doc_uuid: Document-scoped UUID used in SPDX ID generation.
-        exporter: Receives the new package and relationship elements.
-        registry: Optional stable file/entity id registry (see
-            :mod:`pitloom.ids`). When given, each model is looked up via
-            :func:`_lookup_ai_model_entity` (by name, physical path, then
-            file stem); a match reuses that registered ``spdxId`` instead of
-            minting a fresh one -- unifying a scan-discovered model (e.g. the
-            wheel's own packaged model file) with the ``ai_AIPackage`` a
-            ``pitloom.loom`` fragment already registered for the same model.
-        provenance_format: How to record metadata provenance -- see
-            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
-        encoder: Provenance statement encoder; defaults to the registered
-            default schema.
-        provenance_detail: ``"minimal"`` (default) keeps only high-signal
-            field sources; ``"full"`` records every field.
-        preserve_source_metadata: Whether to embed each model's verbatim
-            original metadata blob (P1) -- ``"auto"`` (default) only when the
-            model file is not shipped in the distribution, else ``"always"``/
-            ``"never"``. See :func:`_should_preserve_metadata`.
-    """
+    AI model."""
+    config = provenance_config or ProvenanceConfig()
+    preserve_source_metadata = config.preserve_source_metadata
     lineage_ctx = _LineageContext(
         creation_info=creation_info,
         doc_name=doc_name,
@@ -491,9 +447,8 @@ def add_ai_models(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
         _emit_source_metadata(
             ai_model,
@@ -514,9 +469,8 @@ def add_ai_models(
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
                 exporter=exporter,
-                provenance_format=provenance_format,
+                provenance_config=config,
                 encoder=encoder,
-                provenance_detail=provenance_detail,
             )
 
         if ai_model.license:
@@ -531,9 +485,8 @@ def add_ai_models(
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
                 exporter=exporter,
-                provenance_format=provenance_format,
+                provenance_config=config,
                 encoder=encoder,
-                provenance_detail=provenance_detail,
             )
             if rel_declared:
                 exporter.add_relationship(rel_declared)

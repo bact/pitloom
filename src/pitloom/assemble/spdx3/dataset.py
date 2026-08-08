@@ -12,6 +12,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.models import generate_spdx_id
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 # Mapping from DatasetReference.role strings to SPDX 3.0.1 RelationshipType.
@@ -201,46 +202,15 @@ def add_datasets_for_model(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    provenance_format: str = "both",
+    *,
+    provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-    provenance_detail: str = "minimal",
 ) -> None:
     """Build ``dataset_DatasetPackage`` and relationship elements for each
-    dataset reference and add them to the exporter.
-
-    For each entry in ``datasets``:
-
-    - A ``dataset_DatasetPackage`` element is built from the extracted metadata.
-    - A relationship element links the AI package (``from_``) to the dataset
-      (``to``), using the role to select the relationship type.
-    - Roles ``"trainedOn"`` and ``"testedOn"`` map to the corresponding SPDX 3.0.1
-      relationship types directly.
-    - Other roles (``"finetunedOn"``, ``"validatedOn"``, ``"pretrainedOn"``)
-      use ``RelationshipType.other`` with an explanatory comment.
-
-    The caller is responsible for appending ``ProfileIdentifierType.dataset``
-    to the document's ``profileConformance`` when at least one dataset is present.
-
-    Args:
-        ai_package_spdx_id: SPDX ID of the ``ai_AIPackage`` element that this
-            dataset is associated with.
-        datasets: List of :class:`~pitloom.core.dataset_metadata.DatasetReference`
-            objects, each carrying a role and extracted metadata.
-        creation_info: Shared ``CreationInfo`` for all new elements.
-        doc_name: Document name (project name) for SPDX ID generation.
-        doc_uuid: Document-scoped UUID used in SPDX ID generation.
-        exporter: Receives the new dataset package and relationship elements.
-        provenance_format: How to record metadata provenance -- see
-            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
-        encoder: Provenance statement encoder; defaults to the registered
-            default schema.
-        provenance_detail: ``"minimal"`` (default) keeps only high-signal
-            field sources; ``"full"`` records every field.
-    """
+    dataset reference."""
     for dataset_ref in datasets:
         meta = dataset_ref.metadata
         dataset_pkg = _build_dataset_package(meta, creation_info, doc_name, doc_uuid)
-        # dataset_DatasetPackage is not a software_Package so add via object_set.
         exporter.object_set.add(dataset_pkg)
         emit_provenance(
             subject=dataset_pkg,
@@ -249,9 +219,8 @@ def add_datasets_for_model(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=provenance_config,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
 
         if meta.creator:

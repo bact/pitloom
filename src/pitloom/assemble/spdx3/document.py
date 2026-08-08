@@ -29,7 +29,6 @@ from pitloom.assemble.spdx3.deps import (
     build_license_elements,
 )
 from pitloom.assemble.spdx3.provenance import (
-    DEFAULT_SCHEMA_ID,
     ProvenanceEncoder,
     emit_provenance,
     resolve_encoder,
@@ -43,6 +42,7 @@ from pitloom.core.models import (
     compute_doc_uuid,
     generate_spdx_id,
 )
+from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.ids import IdRegistry
 
@@ -210,49 +210,14 @@ def build(
     doc: DocumentModel,
     merkle_root: str | None = None,
     *,
+    sbom_type: Any = spdx3.software_SbomType.source,
     registry: IdRegistry | None = None,
-    provenance_format: str = "both",
-    provenance_schema: str = DEFAULT_SCHEMA_ID,
-    provenance_detail: str = "minimal",
-    provenance_preserve_source_metadata: str = "auto",
+    provenance: ProvenanceConfig | None = None,
 ) -> Spdx3JsonExporter:
-    """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
-
-    Args:
-        doc: Format-neutral document model with project metadata, creation
-            metadata, and any AI model metadata.
-        merkle_root: Optional hex-encoded SHA-256 Merkle root of the wheel
-            source files (see :func:`~pitloom.core.models.compute_wheel_merkle_root`).
-            When provided, any change to the packaged source causes a new document UUID.
-        registry: Optional stable file id registry (see
-            :mod:`pitloom.ids`). When given, wheel files reuse the
-            registered ``spdxId`` for their physical path/content hash
-            instead of a freshly minted one -- see :func:`_add_package_files`.
-            Also consulted for any scan-discovered AI model (see
-            :func:`~pitloom.assemble.spdx3.ai.add_ai_models`), so a model
-            file packaged into the wheel reuses the id a ``pitloom.loom``
-            fragment already registered for it instead of minting a second,
-            duplicate ``ai_AIPackage``.
-        provenance_format: How to record metadata provenance -- ``"annotation"``
-            (SPDX Core/Annotation elements only), ``"comment"`` (legacy
-            ``Element.comment`` strings only), or ``"both"`` (default). See
-            :mod:`pitloom.assemble.spdx3.provenance`.
-        provenance_schema: Schema id for the provenance Annotation statement,
-            resolved via :func:`~pitloom.assemble.spdx3.provenance.resolve_encoder`.
-            Defaults to Pitloom's own ``"pitloom/1"`` schema.
-        provenance_detail: ``"minimal"`` (default) records only high-signal
-            field sources; ``"full"`` records every field's source.
-        provenance_preserve_source_metadata: Whether to embed each AI model's
-            verbatim original metadata (P1) -- ``"auto"`` (default),
-            ``"always"``, or ``"never"``. See
-            :func:`~pitloom.assemble.spdx3.ai._should_preserve_metadata`.
-
-    Returns:
-        A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`
-        containing all SPDX 3 elements for the project and its dependencies.
-    """
+    """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`."""
     metadata = doc.project
-    encoder: ProvenanceEncoder = resolve_encoder(provenance_schema)
+    prov_cfg = provenance or ProvenanceConfig()
+    encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
 
     exporter = Spdx3JsonExporter()
     doc_uuid = compute_doc_uuid(
@@ -281,7 +246,7 @@ def build(
         creationInfo=spdx_ci,
         rootElement=[main_package.spdxId],
     )
-    sbom.software_sbomType = [spdx3.software_SbomType.build]
+    sbom.software_sbomType = [sbom_type]
 
     spdx_doc = spdx3.SpdxDocument(
         spdxId=generate_spdx_id(
@@ -305,9 +270,8 @@ def build(
         doc_name=metadata.name,
         doc_uuid=doc_uuid,
         exporter=exporter,
-        provenance_format=provenance_format,
+        provenance_config=prov_cfg,
         encoder=encoder,
-        provenance_detail=provenance_detail,
     )
 
     # --- License ---
@@ -322,9 +286,8 @@ def build(
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=prov_cfg,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
         if rel_declared:
             exporter.add_relationship(rel_declared)
@@ -341,9 +304,8 @@ def build(
         doc_name=metadata.name,
         doc_uuid=doc_uuid,
         exporter=exporter,
-        provenance_format=provenance_format,
+        provenance_config=prov_cfg,
         encoder=encoder,
-        provenance_detail=provenance_detail,
     )
 
     # --- Files ---
@@ -361,9 +323,8 @@ def build(
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=prov_cfg,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
 
     # --- AI models (and their associated datasets) ---
@@ -388,57 +349,25 @@ def build(
             doc_uuid=doc_uuid,
             exporter=exporter,
             registry=registry,
-            provenance_format=provenance_format,
+            provenance_config=prov_cfg,
             encoder=encoder,
-            provenance_detail=provenance_detail,
-            preserve_source_metadata=provenance_preserve_source_metadata,
         )
 
     return exporter
 
 
-# pylint: disable=too-many-locals
+# # pylint: disable=too-many-locals
 def build_model(
     model: AiModelMetadata,
     creation_metadata: CreationMetadata,
     *,
     entity_spdx_id: str | None = None,
-    provenance_format: str = "both",
-    provenance_schema: str = DEFAULT_SCHEMA_ID,
-    provenance_detail: str = "minimal",
-    provenance_preserve_source_metadata: str = "auto",
+    provenance: ProvenanceConfig | None = None,
 ) -> Spdx3JsonExporter:
-    """Assemble a standalone SPDX 3 SBOM for a single AI model file.
-
-    Produces a minimal document containing only the ``ai_AIPackage`` element
-    derived from *model*.  There is no parent Python package -- the AI package
-    is itself the root element of the ``software_Sbom``.
-
-    Args:
-        model: Extracted AI model metadata.
-        creation_metadata: Creator and timestamp metadata for the SBOM document.
-        entity_spdx_id: When given, overrides the ``ai_AIPackage``'s minted
-            ``spdxId`` with this one -- used by ``pitloom model ... --registry``
-            so the resulting element shares its id with any
-            ``pitloom.loom`` fragment that registered the same entity name
-            (see :meth:`pitloom.ids.IdRegistry.lookup_entity`), letting the
-            two be unified by :func:`~pitloom.assemble.spdx3.fragments.merge_fragments`.
-        provenance_format: How to record metadata provenance -- see
-            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
-        provenance_schema: Schema id for the provenance Annotation statement;
-            defaults to Pitloom's own ``"pitloom/1"`` schema.
-        provenance_detail: ``"minimal"`` (default) records only high-signal
-            field sources; ``"full"`` records every field's source.
-        provenance_preserve_source_metadata: Whether to embed each AI model's
-            verbatim original metadata (P1) -- ``"auto"`` (default),
-            ``"always"``, or ``"never"``. See
-            :func:`~pitloom.assemble.spdx3.ai._should_preserve_metadata`.
-
-    Returns:
-        A populated :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`.
-    """
+    """Assemble a standalone SPDX 3 SBOM for a single AI model file."""
     doc_name: str = model.name or model.format_info.file_name or "model"
-    encoder: ProvenanceEncoder = resolve_encoder(provenance_schema)
+    prov_cfg = provenance or ProvenanceConfig()
+    encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
 
     exporter = Spdx3JsonExporter()
     doc_uuid = compute_doc_uuid(
@@ -475,43 +404,19 @@ def build_model(
         doc_name=doc_name,
         doc_uuid=doc_uuid,
         exporter=exporter,
-        provenance_format=provenance_format,
+        provenance_config=prov_cfg,
         encoder=encoder,
-        provenance_detail=provenance_detail,
     )
-    # Standalone model SBOM: the model is the root artifact, not bundled in a
-    # wheel, so the file set is empty and "auto" preserves its raw metadata.
     _emit_source_metadata(
         model,
         ai_pkg,
         {},
-        provenance_preserve_source_metadata,
+        prov_cfg.preserve_source_metadata,
         spdx_ci,
         doc_name,
         doc_uuid,
         exporter,
     )
-
-    if model.license:
-        rel_declared, rel_concluded = build_license_elements(
-            license_id=model.license,
-            package_spdx_id=require_spdx_id(ai_pkg),
-            license_provenance=model.provenance.get(
-                "license",
-                "Source: model file / Hugging Face Hub",
-            ),
-            creation_info=spdx_ci,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_format=provenance_format,
-            encoder=encoder,
-            provenance_detail=provenance_detail,
-        )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
-        if rel_concluded:
-            exporter.add_relationship(rel_concluded)
 
     if model.datasets:
         add_datasets_for_model(
@@ -521,17 +426,35 @@ def build_model(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=prov_cfg,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
+
+    if model.license:
+        rel_declared, rel_concluded = build_license_elements(
+            license_id=model.license,
+            package_spdx_id=require_spdx_id(ai_pkg),
+            license_provenance=model.provenance.get(
+                "license", "Source: AI model metadata"
+            ),
+            creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=prov_cfg,
+            encoder=encoder,
+        )
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
 
     sbom = spdx3.software_Sbom(
         spdxId=generate_spdx_id("Sbom", doc_name=doc_name, doc_uuid=doc_uuid),
         creationInfo=spdx_ci,
         rootElement=[ai_pkg.spdxId],
     )
-    sbom.software_sbomType = [spdx3.software_SbomType.build]
+    sbom.software_sbomType = [spdx3.software_SbomType.analyzed]
 
     spdx_doc = spdx3.SpdxDocument(
         spdxId=generate_spdx_id("SpdxDocument", doc_name=doc_name, doc_uuid=doc_uuid),
@@ -560,40 +483,12 @@ def build_deployed(
     env_tree: list[dict[str, Any]],
     *,
     registry: IdRegistry | None = None,
-    provenance_format: str = "both",
-    provenance_schema: str = DEFAULT_SCHEMA_ID,
-    provenance_detail: str = "minimal",
+    provenance: ProvenanceConfig | None = None,
 ) -> Spdx3JsonExporter:
-    """Assemble SPDX 3 elements for a deployed environment.
-
-    Args:
-        doc: Format-neutral document model with environment metadata.
-        env_tree: Flat JSON list of packages and dependencies from pipdeptree.
-        registry: Optional stable file id registry. Each installed
-            package's id is looked up by name
-            (:meth:`~pitloom.ids.IdRegistry.lookup_entity`, type
-            ``"software_Package"``); a match reuses the registered
-            ``spdxId`` instead of minting a fresh one, so this element can
-            be unified with the same package referenced elsewhere (e.g. a
-            Source or Analyzed SBOM) once merged. A miss falls back to the
-            existing deterministic minting. A package gets a registry
-            entry either via an explicit ``pitloom ids generate --entity
-            <name>:software_Package``, or in bulk via ``pitloom ids
-            import <existing-sbom>`` (:meth:`~pitloom.ids.IdRegistry.import_sbom`
-            harvests every named element generically, not just files and
-            AI models).
-        provenance_format: How to record metadata provenance -- see
-            :func:`~pitloom.assemble.spdx3.provenance.emit_provenance`.
-        provenance_schema: Schema id for the provenance Annotation statement;
-            defaults to Pitloom's own ``"pitloom/1"`` schema.
-        provenance_detail: ``"minimal"`` (default) records only high-signal
-            field sources; ``"full"`` records every field's source.
-
-    Returns:
-        A populated Spdx3JsonExporter.
-    """
+    """Assemble SPDX 3 elements for a deployed environment."""
     metadata = doc.project
-    encoder: ProvenanceEncoder = resolve_encoder(provenance_schema)
+    prov_cfg = provenance or ProvenanceConfig()
+    encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
     exporter = Spdx3JsonExporter()
     doc_uuid = compute_doc_uuid(
         name=metadata.name,
@@ -621,31 +516,30 @@ def build_deployed(
         doc_name=metadata.name,
         doc_uuid=doc_uuid,
         exporter=exporter,
-        provenance_format=provenance_format,
+        provenance_config=prov_cfg,
         encoder=encoder,
-        provenance_detail=provenance_detail,
     )
 
-    # --- Packages and Relationships ---
+    # --- First pass: Create software_Package elements ---
     package_spdx_ids: dict[str, str] = {}
-
-    # First pass: Create all packages
     for node in env_tree:
         pkg_info = node.get("package", {})
-        dep_name = pkg_info.get("package_name")
-        if not dep_name:
-            continue
-
+        dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
         dep_version = pkg_info.get("installed_version", "unknown")
 
-        registered_id = (
-            registry.lookup_entity(dep_name, "software_Package")
+        lookup_key = pkg_info.get("key", dep_name.lower())
+        spdx_id = (
+            registry.lookup_entity(lookup_key, "software_Package")
             if registry is not None
             else None
         )
+        if spdx_id is None:
+            spdx_id = generate_spdx_id(
+                "Package", doc_name=metadata.name, doc_uuid=doc_uuid
+            )
+
         dep_package = spdx3.software_Package(
-            spdxId=registered_id
-            or generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
+            spdxId=spdx_id,
             name=dep_name,
             creationInfo=spdx_ci,
         )
@@ -659,9 +553,8 @@ def build_deployed(
             metadata.name,
             doc_uuid,
             exporter,
-            provenance_format=provenance_format,
+            provenance_config=prov_cfg,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
 
         exporter.add_package(dep_package)
@@ -672,9 +565,8 @@ def build_deployed(
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            provenance_format=provenance_format,
+            provenance_config=prov_cfg,
             encoder=encoder,
-            provenance_detail=provenance_detail,
         )
         package_spdx_ids[pkg_info.get("key", dep_name.lower())] = require_spdx_id(
             dep_package
