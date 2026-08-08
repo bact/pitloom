@@ -17,7 +17,7 @@
 ### Metadata sources
 
 - The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` (Hatchling's own resolved `hatchling.metadata.core.ProjectMetadata`), via `pitloom.extract.hatchling.metadata_from_hatchling()`, so dynamic version/dependency/license sources resolved by Hatchling plugins are reflected correctly.
-- The CLI (`pitloom.__main__`) and `pitloom.assemble.generate_sbom()`'s default parsing path both resolve metadata/config from the project directory via the shared `pitloom.extract.project.read_project()` helper (`pyproject.toml` -> `setup.cfg`/`setup.py` -> error), so each parses its inputs once. The CLI passes its already-parsed `project_metadata`/`pitloom_config` into `generate_sbom()` so it never re-parses.
+- The CLI (`pitloom.__main__`) and `pitloom.assemble.generate_project_sbom()`'s default parsing path both resolve metadata/config from the project directory via the shared `pitloom.extract.project.read_project()` helper (`pyproject.toml` -> `setup.cfg`/`setup.py` -> error), so each parses its inputs once. The CLI passes its already-parsed `project_metadata`/`pitloom_config` into `generate_project_sbom()` so it never re-parses.
 - Both paths converge on the same `pitloom.assemble.spdx3.document.build()` assembly layer, so the emitted SBOM shape (file hashes, PURLs, licensing, etc.) is identical regardless of metadata source.
 
 ## CLI output

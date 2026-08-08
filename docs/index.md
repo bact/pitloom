@@ -43,27 +43,33 @@ pip install pitloom[ai]
 Create a Source SBOM for the Python project in the current directory:
 
 ```shell
-loom source .
+loom project .
 ```
 
 Create an Analyzed SBOM of a local AI model:
 
 ```shell
-loom analyze path/to/model.safetensors -o model.spdx3.json
-loom analyze path/to/model.gguf --pretty
+loom model path/to/model.safetensors -o model.spdx3.json
+loom model path/to/model.gguf --pretty
 ```
 
 Create an Analyzed SBOM of an AI model on Hugging Face Hub:
 
 ```shell
-loom analyze https://huggingface.co/mistralai/Mistral-7B-v0.1
-loom analyze Qwen/Qwen3-235B-A22B   # bare model ID also works
+loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
+loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 ```
 
 Create a Deployed SBOM of the currently installed environment:
 
 ```shell
-loom deployed -o env.spdx3.json
+loom env -o env.spdx3.json
+```
+
+Or use the unified auto-detection entrypoint:
+
+```shell
+loom generate .
 ```
 
 ### GitHub Action
@@ -98,10 +104,10 @@ This embeds an SBOM into the distributed Python wheel.
 
 ```python
 from pathlib import Path
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate
 
 project_path = Path("/path/to/project")
-generate_sbom(project_path)
+generate(project_path)
 ```
 
 ### Python tracking decorator

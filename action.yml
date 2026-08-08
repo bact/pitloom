@@ -21,7 +21,7 @@ inputs:
   model:
     description: >-
       Path to a local AI model file, or a Hugging Face URL / model ID.
-      When set, runs analyze mode ("loom analyze <model>") instead of project mode.
+      When set, runs model mode ("loom model <model>") instead of project mode.
     required: false
     default: ""
   output:
@@ -123,9 +123,9 @@ runs:
 
         declare -a loom_args
         if [ -n "${PL_MODEL}" ]; then
-          loom_args+=("analyze" "${PL_MODEL}")
+          loom_args+=("model" "${PL_MODEL}")
         else
-          loom_args+=("source" "${PL_PROJECT_PATH}")
+          loom_args+=("project" "${PL_PROJECT_PATH}")
         fi
         loom_args+=("-o" "${PL_OUTPUT}")
         if [ "${PL_PRETTY}" = "true" ]; then

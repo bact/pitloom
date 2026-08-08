@@ -39,7 +39,7 @@ ensuring compliance with the PyPA
 
 ```bash
 pip install pitloom
-loom source .     # SBOM for the Python project in the current dir
+loom project .     # SBOM for the Python project in the current dir
 ```
 
 ### Optional features
@@ -70,20 +70,20 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 Generate a **Source SBOM** for a Python project in the current directory:
 
 ```bash
-loom source .
-loom source /path/to/project -o sbom.spdx3.json
+loom project .
+loom project /path/to/project -o sbom.spdx3.json
 ```
 
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled binaries as phantom dependencies):
 
 ```bash
-loom analyze path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
+loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
 ```
 
 Generate a **Deployed SBOM** reflecting the exact installed environment graph:
 
 ```bash
-loom deployed -o env.spdx3.json
+loom env -o env.spdx3.json
 ```
 
 Generate an **Analyzed SBOM** for a single AI model file, without a Python project
@@ -92,8 +92,8 @@ local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`), Keras,
 HDF5, NumPy, fastText:
 
 ```bash
-loom analyze path/to/model.safetensors -o model.spdx3.json
-loom analyze path/to/model.gguf --pretty
+loom model path/to/model.safetensors -o model.spdx3.json
+loom model path/to/model.gguf --pretty
 ```
 
 Or pass a Hugging Face Hub URL or model ID directly -- no local file
@@ -103,8 +103,16 @@ required. Pitloom fetches metadata from the Hub (model card, `config.json`,
 (`pip install pitloom[huggingface]`):
 
 ```bash
-loom analyze https://huggingface.co/mistralai/Mistral-7B-v0.1
-loom analyze Qwen/Qwen3-235B-A22B   # bare model ID also works
+loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
+loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
+```
+
+Or use the smart unified entrypoint:
+
+```bash
+loom generate .                              # project directory -> Source SBOM
+loom generate path/to/model.safetensors       # AI model asset   -> Analyzed SBOM
+loom generate --env                          # installed venv    -> Deployed SBOM
 ```
 
 `loom -h` shows the full option list.
@@ -143,23 +151,28 @@ files = ["fragments/model.json"]   # merge externally tracked fragments
 
 ### Python API
 
-The SBOM generator can be used programmatically:
+The SBOM generator can be used programmatically via the smart `generate()` entrypoint or target-specific functions:
 
 ```python
 from pathlib import Path
 from pitloom.core.creation import CreationMetadata, Creator
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate, generate_project_sbom
 
-generate_sbom(
-    project_dir=Path("/path/to/project"),
+# Smart auto-detection entrypoint
+generate(
+    target=Path("/path/to/project"),
     output_path=Path("sbom.spdx3.json"),
     creation_metadata=CreationMetadata(creators=[Creator(name="Your Name")]),
 )
+
+# Or target-specific generator
+generate_project_sbom(
+    project_target=Path("/path/to/project"),
+    output_path=Path("sbom.spdx3.json"),
+)
 ```
 
-`pitloom.assemble` also exposes `generate_ai_model_sbom()` (a local model
-file) and `generate_huggingface_sbom()` (a Hub model ID or URL), with the
-same `output_path`/`creation_metadata`/`pretty` keywords.
+`pitloom.assemble` also exposes `generate_wheel_sbom()`, `generate_model_sbom()`, and `generate_env_sbom()`.
 
 ### Python tracking decorator
 
@@ -236,7 +249,7 @@ for what the plugin bundles.
 
 ```bash
 git clone https://github.com/bact/sentimentdemo.git
-loom source sentimentdemo
+loom project sentimentdemo
 ```
 
 The generated SBOM includes project metadata, dependencies with version
@@ -258,10 +271,10 @@ it (default `"Pitloom"`, also repeatable; `--no-creation-tool` to omit);
 ISO 8601 timestamp:
 
 ```bash
-loom source . --creator-name "Alice" --creator-email "alice@example.com"
-loom source . --creator-name "Acme Corp" --creator-type organization
-loom source . --creator-name "Acme Corp" --creator-type organization --creator-name Alice
-loom source . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
+loom project . --creator-name "Alice" --creator-email "alice@example.com"
+loom project . --creator-name "Acme Corp" --creator-type organization
+loom project . --creator-name "Acme Corp" --creator-type organization --creator-name Alice
+loom project . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
 ```
 
 The same fields can be set in `pyproject.toml` under
@@ -301,7 +314,7 @@ pitloom ids generate data src --entity model      # pin ids before running
 pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
-`pitloom.loom`, `loom analyze` (when pointed at a model), the build hook, and `generate_sbom()` all
+`pitloom.loom`, `loom model`, the build hook, and `generate()` all
 auto-discover the registry (or take it from `[tool.pitloom.ids] file`),
 so the same file/entity carries the same id everywhere. Regeneration is
 stable: an unchanged file keeps its id; changed content gets a fresh one

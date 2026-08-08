@@ -505,7 +505,7 @@ def resolve_registry(project_dir: Path, ids_file: str | None) -> IdRegistry | No
     """Resolve the registry a project build should consult.
 
     Shared by the Hatchling build hook and the CLI project-assembly path
-    (see :func:`pitloom.assemble.generate_sbom`) so both use the exact same
+    (see :func:`~pitloom.assemble.generate_project_sbom`) so both use the exact same
     resolution rule as ``pitloom.loom``: an explicit ``[tool.pitloom.ids]
     file`` (``ids_file``) is loaded relative to *project_dir*; otherwise
     ``loom-ids.json`` is auto-discovered by walking up from
