@@ -1385,6 +1385,58 @@ def test_build_model_without_license() -> None:
     assert "simpleLicensing" not in spdx_docs[0]["profileConformance"]
 
 
+def test_build_model_external_identifiers() -> None:
+    """build_model() must emit ExternalIdentifier for DOI and ExternalRef for
+    arXiv paper IDs and model page URLs (N4).
+    """
+    model = AiModelMetadata(
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.SAFETENSORS),
+        name="test-external-ids",
+        doi="10.1234/test.doi",
+        arxiv_ids=["2301.12345"],
+        url="https://huggingface.co/org/test-external-ids",
+    )
+
+    exporter = build_model(model, CreationMetadata())
+    data = json.loads(exporter.to_json(pretty=True))
+    graph = data["@graph"]
+
+    ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
+    assert len(ai_pkgs) == 1
+    ai_pkg = ai_pkgs[0]
+
+    # Verify DOI externalIdentifier
+    ext_ids = ai_pkg.get("externalIdentifier", [])
+    doi_ids = [
+        i
+        for i in ext_ids
+        if i.get("externalIdentifierType") == "other"
+        and i.get("identifier") == "10.1234/test.doi"
+    ]
+    assert len(doi_ids) == 1
+    assert doi_ids[0].get("comment") == "DOI"
+
+    # Verify arXiv and URL externalRef entries
+    ext_refs = ai_pkg.get("externalRef", [])
+    arxiv_refs = [
+        r
+        for r in ext_refs
+        if r.get("externalRefType") == "documentation"
+        and "https://arxiv.org/abs/2301.12345" in r.get("locator", [])
+    ]
+    assert len(arxiv_refs) == 1
+    assert arxiv_refs[0].get("comment") == "arXiv:2301.12345"
+
+    url_refs = [
+        r
+        for r in ext_refs
+        if r.get("externalRefType") == "altWebPage"
+        and "https://huggingface.co/org/test-external-ids" in r.get("locator", [])
+    ]
+    assert len(url_refs) == 1
+    assert url_refs[0].get("comment") == "Model page URL"
+
+
 # ---------------------------------------------------------------------------
 # Fixture-based end-to-end license export tests
 # ---------------------------------------------------------------------------

@@ -167,6 +167,12 @@ class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
     version: str | None = None
     license: str | None = None  # SPDX license expression if available
 
+    # External identifiers and references (DOI, arXiv, repository / model-card URL)
+    # Maps to SPDX 3: externalIdentifier / externalRef
+    doi: str | None = None
+    arxiv_ids: list[str] = field(default_factory=list)
+    url: str | None = None
+
     # General model metadata
     domain: list[str] = field(default_factory=list)
 
