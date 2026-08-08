@@ -81,6 +81,64 @@ pretty = true
     assert captured["pretty"] is True
 
 
+def test_generate_mode_honours_project_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """``loom generate`` must honour [tool.pitloom] settings from the target project."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        """
+[project]
+name = "demo"
+version = "1.0.0"
+
+[tool.pitloom]
+pretty = true
+describe-relationship = true
+creation-datetime = "2026-04-01T00:00:00Z"
+creation-comment = "configured in pyproject"
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    captured: dict[str, object] = {}
+
+    def _fake_generate(
+        target: object,
+        *,
+        output_path: object = None,
+        creation_metadata: object = None,
+        pretty: object = None,
+        describe_relationship: object = None,
+        registry: object = None,
+        **kwargs: object,
+    ) -> str:
+        _ = (registry, kwargs)
+        captured["target"] = target
+        captured["output_path"] = output_path
+        captured["creation_metadata"] = creation_metadata
+        captured["pretty"] = pretty
+        captured["describe_relationship"] = describe_relationship
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate", _fake_generate)
+    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir)])
+
+    exit_code = __main__.main()
+
+    assert exit_code == 0
+    assert captured["target"] == str(project_dir)
+    assert captured["pretty"] is True
+    assert captured["describe_relationship"] is True
+    assert isinstance(captured["creation_metadata"], CreationMetadata)
+    creation = captured["creation_metadata"]
+    assert creation.creation_datetime == "2026-04-01T00:00:00Z"
+    assert creation.creation_comment == "configured in pyproject"
+
+
 def test_main_uses_legacy_creation_datetime_from_pyproject(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
