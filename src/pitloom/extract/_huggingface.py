@@ -849,6 +849,8 @@ def read_huggingface(source: str) -> AiModelMetadata:
         doi=tag_data.doi_val,
         arxiv_ids=tag_data.arxiv_ids,
         url=hf_url,
+        base_model=base_model_id,
+        base_model_relation=tag_data.base_model_relation,
         type_of_model=type_of_model,
         architecture=architecture,
         hyperparameters=hyperparameters,

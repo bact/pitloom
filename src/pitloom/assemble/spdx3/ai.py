@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -186,6 +187,86 @@ def _add_external_identifiers_and_refs(
                 comment="Model page URL",
             )
         )
+
+
+@dataclass(frozen=True)
+class _LineageContext:
+    creation_info: spdx3.CreationInfo
+    doc_name: str
+    doc_uuid: str
+    exporter: Spdx3JsonExporter
+    cache: dict[str, str] = field(default_factory=dict)
+
+
+def _add_base_model_lineage(
+    ai_pkg: spdx3.ai_AIPackage,
+    ai_model: AiModelMetadata,
+    ctx: _LineageContext,
+) -> None:
+    """Add native Relationship (descendantOf) linking ai_pkg to its base model (N5)."""
+    base_model_id = ai_model.base_model or ai_model.extra_data.get("hf.base_model")
+    if not base_model_id:
+        return
+
+    base_model_str = str(base_model_id)
+    base_spdx_id = ctx.cache.get(base_model_str)
+    if base_spdx_id is None:
+        pkg_name = (
+            base_model_str.rsplit("/", maxsplit=1)[-1]
+            if "/" in base_model_str
+            else base_model_str
+        )
+        existing_spdx_id = None
+        for obj in ctx.exporter.object_set.objects:
+            if isinstance(obj, spdx3.ai_AIPackage) and obj.name in (
+                base_model_str,
+                pkg_name,
+            ):
+                existing_spdx_id = require_spdx_id(obj)
+                break
+
+        if existing_spdx_id:
+            base_spdx_id = existing_spdx_id
+        else:
+            base_spdx_id = generate_spdx_id(
+                f"AIPackage-{pkg_name}", doc_name=ctx.doc_name, doc_uuid=ctx.doc_uuid
+            )
+            base_pkg = spdx3.ai_AIPackage(
+                spdxId=base_spdx_id,
+                name=pkg_name,
+                creationInfo=ctx.creation_info,
+            )
+            url = (
+                base_model_str
+                if base_model_str.startswith(("http://", "https://"))
+                else f"https://huggingface.co/{base_model_str}"
+            )
+            base_pkg.externalRef.append(
+                spdx3.ExternalRef(
+                    externalRefType=spdx3.ExternalRefType.altWebPage,
+                    locator=[url],
+                    comment="Base model repository",
+                )
+            )
+            ctx.exporter.add_package(base_pkg)
+        ctx.cache[base_model_str] = base_spdx_id
+
+    rel_relation = ai_model.base_model_relation or ai_model.extra_data.get(
+        "hf.base_model_relation"
+    )
+    comment = f"base_model_relation:{rel_relation}" if rel_relation else None
+
+    rel = spdx3.Relationship(
+        spdxId=generate_spdx_id(
+            "Relationship-lineage", doc_name=ctx.doc_name, doc_uuid=ctx.doc_uuid
+        ),
+        from_=require_spdx_id(ai_pkg),
+        relationshipType=spdx3.RelationshipType.descendantOf,
+        to=[base_spdx_id],
+        creationInfo=ctx.creation_info,
+        comment=comment,
+    )
+    ctx.exporter.add_relationship(rel)
 
 
 def _build_ai_package(
@@ -390,12 +471,19 @@ def add_ai_models(
             model file is not shipped in the distribution, else ``"always"``/
             ``"never"``. See :func:`_should_preserve_metadata`.
     """
+    lineage_ctx = _LineageContext(
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+    )
     for ai_model in ai_models:
         entity_spdx_id = _lookup_ai_model_entity(ai_model, registry)
         ai_pkg = _build_ai_package(
             ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
         )
         exporter.add_package(ai_pkg)
+        _add_base_model_lineage(ai_pkg, ai_model, lineage_ctx)
         emit_provenance(
             subject=ai_pkg,
             provenance=ai_model.provenance,

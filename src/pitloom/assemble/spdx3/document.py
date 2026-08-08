@@ -14,8 +14,10 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import (
+    _add_base_model_lineage,
     _build_ai_package,
     _emit_source_metadata,
+    _LineageContext,
     add_ai_models,
 )
 from pitloom.assemble.spdx3.creation_info import build_creation_info
@@ -459,6 +461,13 @@ def build_model(
     if entity_spdx_id is not None:
         ai_pkg.spdxId = entity_spdx_id
     exporter.add_package(ai_pkg)
+    lineage_ctx = _LineageContext(
+        creation_info=spdx_ci,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+    )
+    _add_base_model_lineage(ai_pkg, model, lineage_ctx)
     emit_provenance(
         subject=ai_pkg,
         provenance=model.provenance,
