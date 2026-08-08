@@ -82,15 +82,20 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` /
      `[tool.pitloom.creation]` -- the same settings the CLI uses
 
-6. **Command-line interface** (`src/pitloom/__main__.py`)
-   - User-friendly argparse-based CLI with lifecycle-centric subcommands
-     (`source`, `analyze`, `deployed`, `ids`)
-   - Subcommands map to CISA SBOM types
-     (`source` -> Source SBOM, `analyze` -> Analyzed SBOM --
-     dispatches internally to a built `.whl`, a local AI model file,
-     or a Hugging Face repository depending on the target's form --
-     `deployed` -> Deployed SBOM of the currently installed environment);
-     `ids` manages the Loom ID registry
+ 6. **Command-line interface & API redesign** (`src/pitloom/__main__.py`, `src/pitloom/assemble/`)
+   - User-friendly argparse-based CLI with input-centric subcommands
+     (`project`, `wheel`, `model`, `env`, `merge`, `ids`) and a smart
+     entrypoint `loom generate [TARGET]`
+   - Emitted SBOM data model strictly complies with CISA 6 SBOM Types
+     (Source, Build, Analyzed, Deployed, Runtime per CISA April 2023 guide)
+     and SPDX 3.0.1
+   - `loom project` scans unbuilt source directories or `.tar.gz`/`.zip` sdist archives (Source SBOM)
+   - `loom wheel` scans built `.whl` archives (Analyzed SBOM)
+   - `loom model` scans local model files or Hugging Face repositories with explicit `--offline` support (Analyzed AIBOM)
+   - `loom env` scans the active installed environment (Deployed SBOM)
+   - `loom merge` stitches dynamic execution fragments (Runtime SBOM)
+   - Python API harmonized 1:1 (`pitloom.generate()`, `generate_project_sbom()`, `generate_wheel_sbom()`, `generate_model_sbom()`, `generate_env_sbom()`)
+   - See [working-docs/design/cisa-sbom-lifecycle.md](../design/cisa-sbom-lifecycle.md)
    - Default output filename derived from project metadata
      (`{name}-{version}.spdx3.json`)
      or `[tool.pitloom] sbom-basename` when set

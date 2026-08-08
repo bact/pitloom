@@ -1,73 +1,129 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-07-17
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# CLI UX Analysis: Consolidating Generation Subcommands
+# CLI UX Analysis: Consolidating Generation Subcommands & Input-Centric Redesign
 
-This document analyzes the proposal to consolidate all lifecycle-centric SBOM generation subcommands under a single `from` (or similar) parent subcommand.
+This document details the architectural evolution of Pitloom's CLI subcommands, from stage-centric names (`source`, `analyze`, `deployed`) to an **Input-Centric Surface** with CISA SBOM Types compliance.
 
-## Current State
+---
 
-Currently, the CLI exposes generation modes directly at the top level, aligned loosely with CISA SBOM types:
+## 1. Background & Evolution
 
-* `loom source .` (Source SBOM)
-* `loom analyze my_wheel.whl` (Analyzed SBOM)
-* `loom deployed` (Deployed SBOM)
-* `loom model model.bin` (AI Analyzed SBOM)
-* `loom ids ...` (Registry management)
+### Initial State (v0.12.0+)
+The CLI initially exposed subcommands named directly after CISA SBOM lifecycle stages:
+- `loom source [project_dir]` (Source SBOM)
+- `loom analyze <target>` (Analyzed SBOM — handles `.whl`, local model binaries, and Hugging Face URLs)
+- `loom deployed` (Deployed SBOM — active environment)
+- `loom ids ...` (Registry management)
 
-## Proposed State
+---
 
-The proposal suggests consolidating the generation commands:
+## 2. Architectural Critique of Stage-Centric Subcommands
 
-* `loom from source`
-* `loom from deployed`
-* `loom from analyze`
-* `loom from build`
+An architectural review post-v0.12.0 identified key friction points with stage-centric CLI subcommands:
 
-## Analysis of the `loom from` Approach
+1. **Mental Model Mismatch**: Developers think in terms of concrete **input targets** (`pyproject.toml`, `.whl`, `venv`, `.gguf` file, HF URL), not CISA procurement taxonomy (*"Analyzed"* vs *"Source"*).
+2. **Subcommand Overloading in `loom analyze`**: `loom analyze` mixed three distinct operations:
+   - Local `.whl` ZIP extraction (package binary analysis).
+   - Local `.gguf`/`.safetensors`/`.onnx` magic-byte file header scans (AI model asset analysis).
+   - Remote Hugging Face URL/ID HTTP network queries (external web metadata fetching).
+3. **Hidden Network Side-Effects**: Running `loom analyze mistralai/Mistral-7B` triggered external HTTP network calls, while `loom analyze model.gguf` was offline local inspection. In sandboxed CI/CD or agent runners, hidden network calls cause unexpected failures.
+4. **Grammatical Inconsistency**: `source` (noun), `analyze` (imperative verb), `deployed` (adjective/past participle).
 
-### Pros
+---
 
-1. **Namespace Cleanliness**: It keeps the root namespace clean. If `loom` ever gains other top-level features (e.g., `loom verify`, `loom diff`, `loom merge`), pushing all generation into `from` prevents subcommand clutter.
-2. **Mental Model Alignment**: It explicitly communicates to the user that they are generating an artifact *originating from* a specific state or lifecycle stage.
+## 3. Decoupling User UX from Internal CISA Data Model
 
-### Cons
+The key resolution is to separate the **User Interface (UX)** from the **Emitted Data Model**:
 
-1. **Verbosity**: It requires typing an extra word for every generation command (e.g., `loom source` is faster to type than `loom from source`).
-2. **Grammar and Semantics**:
-    * "from" usually denotes an *input source* (e.g., "from a wheel", "from an environment").
-    * "source", "deployed", and "build" can function as nouns describing the input origin, but "analyze" is an action (verb) or a state (analyzed).
-    * Saying `loom from analyze` reads slightly awkwardly compared to `loom from analyzed` or `loom from wheel`.
+- **Emitted SPDX 3 Data Model (100% Strict CISA Compliance)**:
+  The generated SPDX 3 JSON-LD SBOM strictly sets `software_sbomType` (`source`, `build`, `analyzed`, `deployed`, `runtime`), `CreationInfo`, `build_datetime`, and element provenance per the official [CISA Types of Software Bill of Materials (SBOM) Documents (April 2023)](https://www.cisa.gov/sites/default/files/2023-04/sbom-types-document-508c.pdf).
+- **User Interface (Input-Centric Surface)**:
+  Subcommands are named after clear input targets (`project`, `wheel`, `model`, `env`, `merge`), while Pitloom automatically maps those inputs to the appropriate CISA SBOM Type in the underlying assembly layer.
 
-### Alternative: Action-Centric (`loom generate`)
+---
 
-Instead of `from`, using an action verb like `generate` might map more cleanly to CISA SBOM types:
+## 4. Input-Centric CLI Architecture
 
-* `loom generate source`
-* `loom generate analyzed`
-* `loom generate deployed`
-* `loom generate build`
+```
+                       +----------------------------------+
+                       |    loom generate [TARGET]        |  <-- Smart Auto-Detect Entrypoint
+                       +----------------------------------+
+                                        |
+       +-------------------+------------+------------+-------------------+
+       |                   |                         |                   |
+[ loom project ]     [ loom wheel ]            [ loom model ]      [ loom env ]
+ (Source / Sdist)     (Built .whl)              (GGUF/Safetensors   (Installed venv)
+                                                 HF URLs --offline)
+```
 
-This aligns perfectly with the language: "Generate a Source SBOM", "Generate an Analyzed SBOM".
+### Subcommand Specification
 
-### Alternative: Input-Centric (`loom from`)
+#### 1. Smart Entrypoint: `loom generate [TARGET]`
+Auto-detects the target type and dispatches to the corresponding target command:
+```bash
+loom generate .                          # Project directory -> Source SBOM
+loom generate mypkg-1.0.0.tar.gz         # Sdist archive     -> Source SBOM
+loom generate dist/pkg-1.0-py3-none.whl  # Wheel file        -> Analyzed SBOM
+loom generate models/model.gguf          # Model file        -> AI Model SBOM
+loom generate mistralai/Mistral-7B      # HF Model ID       -> Remote AI Model SBOM
+loom generate --env                      # Active venv       -> Deployed SBOM
+```
 
-If we stick to `from`, the targets should describe the *inputs* rather than the output types:
+#### 2. Project Source & Sdist: `loom project [PATH]`
+Scans unbuilt source directories OR archived source distributions (`.tar.gz` / `.zip` sdists):
+```bash
+loom project .                           # Unpacked project root
+loom project /path/to/project
+loom project dist/mypkg-1.0.0.tar.gz     # Native sdist support (no manual extraction required)
+```
+- **CISA SBOM Type**: `Source` (`software_sbomType = [source]`)
 
-* `loom from source` (Input: source tree)
-* `loom from wheel` (Input: built artifact / Maps to Analyzed)
-* `loom from env` (Input: Python environment / Maps to Deployed)
-* `loom from model` (Input: AI model)
+#### 3. Built Wheel: `loom wheel <WHEEL_FILE>`
+Inspects built Python `.whl` archives:
+```bash
+loom wheel dist/mypkg-1.0.0-py3-none-any.whl -o sbom.spdx3.json
+```
+- **CISA SBOM Type**: `Analyzed` (`software_sbomType = [analyzed]`)
 
-## Conclusion
+#### 4. AI Model Asset: `loom model <FILE_OR_URL> [--offline]`
+Inspects local model weight files (`.gguf`, `.safetensors`, `.onnx`, `.pt`, etc.) or Hugging Face Hub repositories:
+```bash
+loom model models/sentiment.gguf
+loom model mistralai/Mistral-7B-v0.1
+loom model models/sentiment.gguf --offline    # Guarantees zero network calls in sandboxed runners
+```
+- **CISA SBOM Type**: `Analyzed` (`software_sbomType = [analyzed]`, `ai_AIPackage`)
 
-Neither alternative above was adopted. The shipped CLI (see `src/pitloom/__main__.py`) uses a third scheme: flat, top-level subcommands named directly after the CISA lifecycle stage, with no `from`/`generate` verb prefix -- `loom source`, `loom analyze`, `loom deployed`, plus `loom ids` for registry management.
+#### 5. Deployed Environment: `loom env`
+Inspects active Python environment (`site-packages` via `pipdeptree`):
+```bash
+loom env -o env.spdx3.json
+```
+- **CISA SBOM Type**: `Deployed` (`software_sbomType = [deployed]`)
 
-This avoids the verbosity cost identified as the main con of both `loom from <target>` and `loom generate <stage>` (an extra word on every invocation), while still giving each lifecycle stage its own namespace for stage-specific arguments and flags. In practice this matters because the stages don't share a uniform positional argument: `loom source` takes a `project_dir`, `loom analyze` takes a `target` that dispatches internally to wheel, local-model, or Hugging Face handling depending on its form, and `loom deployed` takes no positional argument at all (it always inspects the current environment). A shared parent verb (`from`/`generate`) would not have simplified this dispatch, since the stage-specific behavior still lives one level below regardless of the prefix.
+#### 6. Fragment Merging: `loom merge <FRAGMENTS_DIR>`
+Stitches dynamic `@loom.run` runtime execution fragments into a static parent SBOM:
+```bash
+loom merge .spdx3-fragments/ -o combined.spdx3.json
+```
+- **CISA SBOM Type**: `Runtime` (`software_sbomType = [runtime]`)
 
-If `loom` later grows non-generation top-level commands (e.g. `verify`, `merge`), the flat namespace may need revisiting, but no such need has arisen yet.
+---
+
+## 5. Input Target to CISA SBOM Type Mapping
+
+| Subcommand | Input Target | Network | CISA SBOM Type | SPDX 3 `software_sbomType` |
+| :--- | :--- | :--- | :--- | :--- |
+| `loom project` | Directory or `.tar.gz`/`.zip` sdist | Offline | **Source** | `[source]` |
+| `loom wheel` | Built `.whl` archive | Offline | **Analyzed** | `[analyzed]` |
+| `loom model` | Local `.gguf`/`.safetensors`/`.onnx` file | Offline | **Analyzed** | `[analyzed]` |
+| `loom model` | Hugging Face URL / Model ID | Online (unless `--offline`) | **Analyzed** | `[analyzed]` |
+| `loom env` | Python `venv` / `site-packages` | Offline | **Deployed** | `[deployed]` |
+| `loom merge` | Dynamic execution `.spdx3.json` fragments | Offline | **Runtime** | `[runtime]` |
+| *Hatchling Hook* | `hatch build` wheel output | Offline | **Build** | `[build]` |
