@@ -180,7 +180,9 @@ def test_loom_validation_dataset() -> None:
 
 
 def test_loom_model_hyperparameters() -> None:
-    """Test set_model_hyperparameters records key-value pairs on the model."""
+    """Test set_model_hyperparameters records key-value pairs on the model,
+    each with its own per-key provenance Annotation entry (not one shared
+    note for the whole dict)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "test_fragment_hparams.json"
 
@@ -198,12 +200,80 @@ def test_loom_model_hyperparameters() -> None:
         graph = data["@graph"]
         models = [e for e in graph if e["type"] == "ai_AIPackage"]
         assert len(models) == 1
+        model_id = models[0]["spdxId"]
         hparams = models[0].get("ai_hyperparameter", [])
         assert len(hparams) == 3
         hparam_dict = {h["key"]: h["value"] for h in hparams}
         assert hparam_dict["lr"] == "0.1"
         assert hparam_dict["epoch"] == "5"
         assert hparam_dict["dim"] == "100"
+
+        annotations = [
+            e
+            for e in graph
+            if e["type"] == "Annotation" and e.get("subject") == model_id
+        ]
+        # One Annotation from set_model() (package note), one from the
+        # post-hoc set_model_hyperparameters() update.
+        assert len(annotations) == 2
+        hparam_annotation = next(
+            a
+            for a in annotations
+            if "hyperparameters.lr" in json.loads(a["statement"])["fields"]
+        )
+        fields = json.loads(hparam_annotation["statement"])["fields"]
+        assert set(fields) == {
+            "hyperparameters.lr",
+            "hyperparameters.epoch",
+            "hyperparameters.dim",
+        }
+        for key, location in (
+            ("hyperparameters.lr", "lr"),
+            ("hyperparameters.epoch", "epoch"),
+            ("hyperparameters.dim", "dim"),
+        ):
+            assert fields[key]["location"] == location
+            assert fields[key]["method"] == (
+                "inspect_caller (tool: pitloom.loom, "
+                "function: test_loom_model_hyperparameters)"
+            )
+
+
+def test_loom_set_model_hyperparameters_have_per_key_provenance() -> None:
+    """set_model(hyperparameters=...) at creation time also gets per-key
+    provenance, alongside the model's own package-source note."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "test_fragment_hparams_creation.json"
+
+        with loom.run(output_file) as run:
+            run.set_model(
+                "test-model-hparams-creation",
+                hyperparameters={"lr": "0.05", "batch_size": "32"},
+            )
+            run.add_dataset("train.txt")
+
+        with open(output_file, encoding="utf-8") as f:
+            data = json.load(f)
+
+        graph = data["@graph"]
+        models = [e for e in graph if e["type"] == "ai_AIPackage"]
+        assert len(models) == 1
+        model_id = models[0]["spdxId"]
+
+        annotations = [
+            e
+            for e in graph
+            if e["type"] == "Annotation" and e.get("subject") == model_id
+        ]
+        assert len(annotations) == 1
+        fields = json.loads(annotations[0]["statement"])["fields"]
+        assert set(fields) == {
+            "package",
+            "hyperparameters.lr",
+            "hyperparameters.batch_size",
+        }
+        assert fields["hyperparameters.lr"]["location"] == "lr"
+        assert fields["hyperparameters.batch_size"]["location"] == "batch_size"
 
 
 def test_loom_model_type() -> None:

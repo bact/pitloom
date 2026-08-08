@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-07-09
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,6 +58,12 @@ Create an Analyzed SBOM of an AI model on Hugging Face Hub:
 ```shell
 loom analyze https://huggingface.co/mistralai/Mistral-7B-v0.1
 loom analyze Qwen/Qwen3-235B-A22B   # bare model ID also works
+```
+
+Create a Deployed SBOM of the currently installed environment:
+
+```shell
+loom deployed -o env.spdx3.json
 ```
 
 ### GitHub Action

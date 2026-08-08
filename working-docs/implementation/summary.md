@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-17
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,8 +22,9 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 1. **SPDX 3.0 data models** (`spdx-python-model`)
    - Fully migrated to the official `spdx-python-model` library
    - Proper JSON-LD serialization and validation
-   - Deterministic UUIDv5 SPDX document IDs (`compute_doc_uuid`) keyed on project
-     name, version, normalized dependencies, and SHA-256 Merkle root of wheel files
+   - Deterministic UUIDv5 SPDX document IDs (`compute_doc_uuid`) keyed on
+     project name, version, normalized dependencies,
+     and SHA-256 Merkle root of wheel files
    - Per-element sequential IDs (`generate_spdx_id`) reproducible across builds
 
 2. **Metadata extraction** (`src/pitloom/extract/`)
@@ -34,12 +35,16 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[tool.poetry.dependencies]`; converts Poetry version specifiers
      (`^`, `~`, bare versions) to PEP 440; `[tool.poetry.group.*]` dev/deploy
      dependency groups are intentionally excluded from the SBOM
-   - `setuptools.py` -- reads `setup.cfg` and `setup.py` for setuptools projects;
+   - `setuptools.py` --
+     reads `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
-   - `wheel.py` -- reads metadata from built `.whl` files (Analyzed SBOM) and computes file-level SHA-256 hashes
-   - `env.py` -- delegates to `pipdeptree` to extract a complete dependency graph of the active installed environment (Deployed SBOM)
-   - `binary.py` -- heuristic scanner that detects bundled third-party binary libraries (e.g. `.so`, `.dylib`) within wheel files (phantom dependencies)
+   - `wheel.py` -- reads metadata from built `.whl` files (Analyzed SBOM) and
+     computes file-level SHA-256 hashes
+   - `env.py` -- delegates to `pipdeptree` to extract a complete dependency
+     graph of the active installed environment (Deployed SBOM)
+   - `binary.py` -- heuristic scanner that detects bundled third-party binary
+     libraries (e.g. `.so`, `.dylib`) within wheel files (phantom dependencies)
    - Extracts project metadata (name, version, description, authors, URLs)
    - Handles dynamic versions from `__about__.py`
    - Parses dependency specifications with version constraints
@@ -51,19 +56,26 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Graceful component ingestion via `spdx3.JSONLDDeserializer`
 
 4. **SBOM generator** (`src/pitloom/assemble/`)
-   - `generate_sbom()` orchestrates the full pipeline for source code (Source SBOM)
-   - `generate_analyzed_sbom()` orchestrates the pipeline for built wheels (Analyzed SBOM), utilizing `wheel.py` and `binary.py` to identify phantom dependencies
-   - `generate_deployed_sbom()` orchestrates the pipeline for active environments (Deployed SBOM), mapping the tree using `env.py`
+   - `generate_sbom()` orchestrates the full pipeline for source code
+     (Source SBOM)
+   - `generate_analyzed_sbom()` orchestrates the pipeline for built wheels
+     (Analyzed SBOM), utilizing `wheel.py` and `binary.py` to identify phantom
+      dependencies
+   - `generate_deployed_sbom()` orchestrates the pipeline for active
+     environments (Deployed SBOM), mapping the tree using `env.py`
    - Builds `DocumentModel` from extracted metadata
-   - Passes `DocumentModel` to assembly functions (`build()`, `build_deployed()`) in `assemble/spdx3/`
+   - Passes `DocumentModel` to assembly functions
+     (`build()`, `build_deployed()`) in `assemble/spdx3/`
    - Merges pre-generated SBOM fragments
    - Generates copyright information from metadata
 
 5. **Hatchling build hook** (`src/pitloom/plugins/hatch.py`)
-   - `PitloomBuildHook` registered via pluggy entry point (`[project.entry-points."hatch"]`)
+   - `PitloomBuildHook` registered via pluggy entry point
+     (`[project.entry-points."hatch"]`)
    - Generates SBOM in `initialize()`, stages to a `TemporaryDirectory`
-   - Appends staged path to `build_data["sbom_files"]` -- Hatchling 1.28.0+ places
-     it at `.dist-info/sboms/<filename>` (PEP 770) natively
+   - Appends staged path to `build_data["sbom_files"]` --
+     Hatchling 1.28.0+ places it at `.dist-info/sboms/<filename>`
+     (PEP 770) natively
    - `finalize()` cleans up the staging directory
    - Config: `[tool.hatch.build.hooks.pitloom] enabled` only; basename,
      fragments, and creator/tool metadata come from `[tool.pitloom]` /
@@ -71,25 +83,38 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[tool.pitloom.creation]` -- the same settings the CLI uses
 
 6. **Command-line interface** (`src/pitloom/__main__.py`)
-   - User-friendly argparse-based CLI with lifecycle-centric subcommands (`source`, `analyze`, `deployed`, `model`, `ids`)
-   - Subcommands map to CISA SBOM types (e.g. `source` -> Source SBOM, `analyze` -> Analyzed SBOM, `deployed` -> Deployed SBOM)
-   - Default output filename derived from project metadata (`{name}-{version}.spdx3.json`)
+   - User-friendly argparse-based CLI with lifecycle-centric subcommands
+     (`source`, `analyze`, `deployed`, `ids`)
+   - Subcommands map to CISA SBOM types
+     (`source` -> Source SBOM, `analyze` -> Analyzed SBOM --
+     dispatches internally to a built `.whl`, a local AI model file,
+     or a Hugging Face repository depending on the target's form --
+     `deployed` -> Deployed SBOM of the currently installed environment);
+     `ids` manages the Loom ID registry
+   - Default output filename derived from project metadata
+     (`{name}-{version}.spdx3.json`)
      or `[tool.pitloom] sbom-basename` when set
    - Creator information options
    - Clear error messages
 
-7. **Metadata provenance tracking** (`src/pitloom/extract/pyproject.py`,
-   `src/pitloom/loom.py`)
+7. **Metadata provenance tracking**
+   (`src/pitloom/assemble/spdx3/provenance.py`,
+   `src/pitloom/extract/pyproject.py`, `src/pitloom/loom.py`)
    - Tracks source of each metadata field
    - Records extraction method (static, dynamic, or inferred)
    - Supports dynamic introspection via `loom.py` inspection
-   - Uses SPDX 3 comment attribute
+   - Recorded as SPDX 3 Core `Annotation` elements
+     (structured, machine-readable JSON),
+     with the original SPDX 3 `comment` attribute kept for back-compat,
+     controlled by `[tool.pitloom.provenance]`
    - See [working-docs/design/metadata-provenance.md](../design/metadata-provenance.md)
+     and [annotation-provenance.md](annotation-provenance.md)
 
 8. **ML tracking SDK** (`src/pitloom/loom.py`)
    - Dual-syntax ContextDecorator (`@loom.run` and `with loom.run`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
-   - Seamlessly ingested into project SBOMs using `[tool.pitloom.fragments]` config
+   - Seamlessly ingested into project SBOMs using
+     `[tool.pitloom.fragments]` config
 
 ### ✅ Testing (comprehensive coverage - all passing)
 
@@ -121,17 +146,30 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 ### ✅ Documentation
 
 1. **README.md**: Complete usage guide with examples
-2. **working-docs/implementation/demo.md**: Prototype capabilities and validation
+2. **working-docs/implementation/demo.md**:
+   Prototype capabilities and validation
 3. **working-docs/implementation/demo-provenance.md**: Provenance tracking demo
-4. **working-docs/design/format-neutral-representation.md**: Multi-format support plan
-5. **working-docs/design/metadata-provenance.md**: Provenance tracking specification
-6. **working-docs/design/metadata-sources.md**: Metadata sources research and
-   integration plan
-7. **working-docs/implementation/setuptools-support.md**: Setuptools extractor
-   design and limitations
+4. **working-docs/design/format-neutral-representation.md**:
+   Multi-format support plan
+5. **working-docs/design/metadata-provenance.md**:
+   Provenance tracking specification
+6. **working-docs/design/metadata-sources.md**:
+   Metadata sources research and integration plan
+7. **working-docs/implementation/setuptools-support.md**:
+   Setuptools extractor design and limitations
 8. **Inline documentation**: Comprehensive docstrings
 
 ## Validation with sentimentdemo
+
+> **Historical snapshot, early prototype.** The invocation and element
+> counts below predate the `source`/`analyze`/`deployed`/`ids` CLI
+> subcommands (PR #96) and provenance-as-Annotation (see
+> [annotation-provenance.md](annotation-provenance.md)) -- a current run
+> uses `loom source <path>`, not the bare positional form shown here, and
+> emits additional `Annotation` elements for provenance. Kept as a record
+> of the initial validation, not a spec for current output shape; see
+> [examples/sentimentdemo-aibom/](../../examples/sentimentdemo-aibom/) for
+> a current, fuller worked example (AI pipeline, fragments, dataset).
 
 Successfully generated SPDX 3 SBOM for the reference repository:
 
@@ -175,12 +213,23 @@ SBOM written to: sbom.spdx3.json
 ### 1. Clean architecture
 
 > This tree is the canonical reference; README.md and design docs point here.
+> `docs/` is the published GitHub Pages site (flat, user-facing);
+> `working-docs/design/` and `working-docs/implementation/` are the
+> internal design/progress docs, including this file.
 
 ```text
 pitloom/
-├── docs/
+├── docs/                           # Published site (flat; docs/_config.yml)
+│   ├── creation-metadata.md
+│   ├── index.md
+│   ├── metadata-provenance.md
+│   ├── mascot.png
+│   └── resources.md
+├── working-docs/
 │   ├── design/
+│   │   ├── adoption-surfaces.md
 │   │   ├── architecture-overview.md
+│   │   ├── cli-ux.md
 │   │   ├── format-neutral-representation.md
 │   │   ├── hatchling-build-hook.md
 │   │   ├── metadata-provenance.md
@@ -188,28 +237,44 @@ pitloom/
 │   │   ├── mlflow-extractor.md
 │   │   ├── model-metadata-extraction.md
 │   │   ├── protobom-evaluation.md
-│   │   ├── roadmap.md             # Canonical roadmap
+│   │   ├── roadmap.md              # Canonical roadmap
 │   │   ├── sbom-enrichment.md
 │   │   └── sbom-fragments.md
-│   ├── implementation/
-│   │   ├── demo.md
-│   │   ├── demo-provenance.md
-│   │   ├── setuptools-support.md  # Setuptools extractor design and limitations
-│   │   └── summary.md             # this file; canonical project structure
-│   ├── mascot.png
-│   └── resources.md
+│   └── implementation/
+│       ├── agent-skill.md
+│       ├── annotation-provenance.md  # Provenance-as-Annotation design + status
+│       ├── annotation-provenance-full-plan.md
+│       ├── claude-code-plugin.md
+│       ├── demo.md
+│       ├── demo-provenance.md      # Historical; predates Annotation provenance
+│       ├── github-action.md
+│       ├── license-pipeline.md
+│       ├── phase2-native-backfill-handover.md
+│       ├── poetry-support.md
+│       ├── setuptools-support.md   # Setuptools extractor design and limitations
+│       └── summary.md              # this file; canonical project structure
+├── skills/                         # Claude Code Skills (also bundled by .claude-plugin/)
+│   ├── sbom/                       # Generate an SBOM/AIBOM
+│   └── enrich/                     # Enrich an existing SBOM with agent-inferred facts
+├── .claude-plugin/
+│   ├── plugin.json                 # Plugin manifest
+│   └── marketplace.json            # Self-hosted marketplace entry
+├── examples/
+│   └── sentimentdemo-aibom/        # Worked AI-pipeline SBOM example
 ├── src/
 │   └── pitloom/
-│       ├── assemble/            # Layers 2+3 -- build DocumentModel + map to spec
-│       │   ├── spdx3/           # SPDX 3 specific (future: spdx23, cyclonedx)
-│       │   │   ├── ai.py        # AI model element assembly
-│       │   │   ├── dataset.py   # Dataset element assembly
-│       │   │   ├── deps.py      # Dependency element assembly
-│       │   │   ├── document.py  # build(DocumentModel) -> Spdx3JsonExporter
-│       │   │   ├── fragments.py # Fragment merging
+│       ├── assemble/               # Layers 2+3 -- build DocumentModel + map to spec
+│       │   ├── spdx3/              # SPDX 3 specific (future: spdx23, cyclonedx)
+│       │   │   ├── ai.py           # AI model element assembly
+│       │   │   ├── creation_info.py # Shared CreationInfo construction
+│       │   │   ├── dataset.py      # Dataset element assembly
+│       │   │   ├── deps.py         # Dependency + license element assembly
+│       │   │   ├── document.py     # build(DocumentModel) -> Spdx3JsonExporter
+│       │   │   ├── fragments.py    # Fragment merging + unification provenance
+│       │   │   ├── provenance.py   # Provenance Annotation builders/emitter
 │       │   │   └── __init__.py
-│       │   └── __init__.py      # generate_sbom() orchestrator + backend routing
-│       ├── core/                # Format-neutral data models (no SBOM lib deps)
+│       │   └── __init__.py         # generate_*_sbom() orchestrators + backend routing
+│       ├── core/                   # Format-neutral data models (no SBOM lib deps)
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
 │       │   ├── config.py           # PitloomConfig ([tool.pitloom] settings)
 │       │   ├── creation.py         # CreationMetadata (creator / timestamp)
@@ -217,17 +282,19 @@ pitloom/
 │       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation
 │       │   └── project.py          # ProjectMetadata, ProjectFile
-│       ├── export/              # Layer 4 -- serialise to physical format
-│       │   └── spdx3_json.py    # SPDX 3 JSON-LD serialiser
-│       ├── extract/             # Layer 1 -- read from sources
+│       ├── export/                 # Layer 4 -- serialise to physical format
+│       │   └── spdx3_json.py       # SPDX 3 JSON-LD serialiser
+│       ├── extract/                # Layer 1 -- read from sources
 │       │   ├── ai_model.py         # AI model dispatcher + format detection
 │       │   ├── _croissant.py       # Croissant metadata parser
 │       │   ├── _croissant_keys.py  # Croissant JSON-LD key constants
-│       │   ├── _extract_utils.py   # Shared extraction utilities
+│       │   ├── _extract_utils.py   # Shared extraction utilities (incl. provenance sanitization)
 │       │   ├── _fasttext.py        # fastText (.ftz, .bin)
 │       │   ├── _gguf.py            # GGUF (.gguf)
 │       │   ├── _hdf5.py            # HDF5 / Keras v1–v2 (.h5, .hdf5)
+│       │   ├── _huggingface.py     # Hugging Face Hub model extraction
 │       │   ├── _keras.py           # Keras v3 (.keras)
+│       │   ├── _license.py         # License file/id detection
 │       │   ├── _numpy.py           # NumPy (.npy, .npz)
 │       │   ├── _onnx.py            # ONNX (.onnx)
 │       │   ├── _pytorch.py         # PyTorch classic (.pt, .pth)
@@ -236,71 +303,34 @@ pitloom/
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection in a wheel
 │       │   ├── dataset.py          # Dataset metadata extraction (Croissant)
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree via pipdeptree
+│       │   ├── hatchling.py        # Metadata from Hatchling's own resolved ProjectMetadata (build hook path)
 │       │   ├── poetry.py           # [tool.poetry] extractor; Poetry -> PEP 440 conversion
+│       │   ├── project.py          # pyproject.toml/setup.cfg/setup.py -> (ProjectMetadata, PitloomConfig) dispatcher
 │       │   ├── pyproject.py        # pyproject.toml extractor ([project] + [tool.poetry] merge)
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
 │       │   ├── setuptools.py       # setup.cfg + setup.py extractor; backend detection; merge
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
-│       ├── plugins/             # Build-system integrations
-│       │   └── hatch.py         # Hatchling BuildHookInterface (PEP 770)
-│       ├── __about__.py         # Package version (__version__)
+│       ├── plugins/                # Build-system integrations
+│       │   └── hatch.py            # Hatchling BuildHookInterface (PEP 770)
+│       ├── __about__.py            # Package version (__version__)
 │       ├── __init__.py
-│       ├── __main__.py          # CLI entry point (loom / python -m pitloom)
-│       ├── ids.py               # Loom ID registry (loom-ids.json); stable cross-fragment SPDX ids
-│       ├── loom.py              # ML tracking SDK (Run context manager / decorator)
-│       └── py.typed             # PEP 561 marker
+│       ├── __main__.py             # CLI entry point (loom / python -m pitloom): source|analyze|deployed|ids
+│       ├── ids.py                  # Loom ID registry (loom-ids.json); stable cross-fragment SPDX ids
+│       ├── loom.py                 # ML tracking SDK (Run context manager / decorator)
+│       └── py.typed                # PEP 561 marker
 ├── tests/
-│   ├── fixtures/
-│   │   ├── croissant/           # Croissant dataset metadata fixtures
-│   │   ├── fasttext/            # fastText model fixtures
-│   │   ├── fragments/           # Pre-generated SPDX 3 fragment fixtures
-│   │   ├── gguf/                # GGUF model fixtures
-│   │   ├── hdf5/                # HDF5 / Keras model fixtures
-│   │   ├── keras/               # Keras v3 model fixtures
-│   │   ├── numpy/               # NumPy array fixtures
-│   │   ├── onnx/                # ONNX model fixtures
-│   │   ├── pytorch/             # PyTorch classic model fixtures
-│   │   ├── pytorch_pt2/         # PyTorch PT2 / ExecuTorch fixtures
-│   │   ├── safetensors/         # Safetensors model fixtures
-│   │   ├── sampleproject-hatchling/   # Minimal Hatchling wheel-build fixture
-│   │   ├── sampleproject-poetry/      # Real-world Poetry fixture (mistral-inference)
-│   │   ├── sampleproject-setuptools/  # Minimal setuptools metadata fixture
-│   │   ├── sentimentdemo-handcrafted.spdx3.json
-│   │   └── README.md
+│   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── conftest.py
-│   ├── test_dataset_metadata.py
-│   ├── test_extract_ai_model.py
-│   ├── test_extract_croissant.py
-│   ├── test_extract_fasttext.py
-│   ├── test_extract_gguf.py
-│   ├── test_extract_hdf5.py
-│   ├── test_extract_keras.py
-│   ├── test_extract_numpy.py
-│   ├── test_extract_onnx.py
-│   ├── test_extract_pytorch.py
-│   ├── test_extract_pytorch_pt2.py
-│   ├── test_extract_safetensors.py
-│   ├── test_fragments.py
-│   ├── test_generator.py
-│   ├── test_hatch_hook.py
-│   ├── test_jcs.py
-│   ├── test_loom.py
-│   ├── test_main_cli.py
-│   ├── test_metadata.py
-│   ├── test_models.py
-│   ├── test_provenance.py
-│   ├── test_poetry.py
-│   ├── test_setuptools.py
-│   ├── test_spdx3_compliance.py
-│   ├── test_spdx3_dataset.py
-│   └── test_wheel_integration.py
+│   ├── test_annotation_provenance.py  # Provenance Annotation builders/emitter
+│   ├── test_provenance_integration.py # N1/N2/N4/N5/N6 native-construct integration
+│   └── test_*.py                   # One file per extractor/assembler/CLI surface
 ├── AGENTS.md
 ├── CHANGELOG.md
 ├── CITATION.cff
 ├── LICENSE
 ├── README.md
 ├── codemeta.json
-└── pyproject.toml               # Project config and Hatchling build settings
+└── pyproject.toml                  # Project config and Hatchling build settings
 ```
 
 ### 2. Extensible design
