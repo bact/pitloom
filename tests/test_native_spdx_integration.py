@@ -239,18 +239,16 @@ def test_fragment_origin_round_trips_when_merged() -> None:
     object_set = spdx3.SHACLObjectSet()
     spdx3.JSONLDDeserializer().read(
         io.BytesIO(
-            json.dumps(
-                {"@context": spdx_doc.get("@context"), "@graph": graph}
-            ).encode("utf-8")
+            json.dumps({"@context": spdx_doc.get("@context"), "@graph": graph}).encode(
+                "utf-8"
+            )
         ),
         object_set,
     )
     docs = [o for o in object_set.objects if isinstance(o, spdx3.SpdxDocument)]
     assert len(docs) == 1
     imports = list(docs[0].import_ or [])
-    assert any(
-        getattr(item, "externalSpdxId", None) == fragment_ns for item in imports
-    )
+    assert any(getattr(item, "externalSpdxId", None) == fragment_ns for item in imports)
 
 
 def test_provenance_annotations_do_not_duplicate_native_values() -> None:
