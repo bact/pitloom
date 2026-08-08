@@ -10,8 +10,8 @@ SPDX-License-Identifier: CC0-1.0
 
 **Status:** implemented (2026-07-20, uncommitted on branch `provenance-annotation`) --
 see §9 for what shipped vs. deferred, and **§10 for the 2026-07-20 boundary
-refinement** (non-native / high-signal only, config-gated) plus the Phase 2
-native-backfill checklist.
+refinement** (non-native / high-signal only, config-gated) plus the native SPDX
+backfill checklist.
 **Planned with:** Opus 4.8. **Implemented by:** Sonnet 5.
 **Related design docs:** [`working-docs/design/metadata-provenance.md`](../design/metadata-provenance.md),
 [`working-docs/design/model-metadata-extraction.md`](../design/model-metadata-extraction.md).
@@ -661,7 +661,7 @@ entry points exactly as `provenance_format`/`schema` already were.
   survivor, which SPDX cannot express — and emits a `provenance/unification/1`
   Annotation on the survivor. A same-id registry match carries no such fact
   (nothing distinct was folded) and is not annotated; its fragment origin is
-  Phase-2 `SpdxDocument.imports` territory (see N1 below).
+  native SPDX `SpdxDocument.imports` territory (see fragment origin below).
 - **Enrichment** — E1 override lineage, E2 AI-inferred-vs-extracted marker
   (both necessary; design-only — the `enrich/` subpackage is unbuilt).
 - **Preservation** — P1 verbatim original AI-model metadata
@@ -687,31 +687,31 @@ entry points exactly as `provenance_format`/`schema` already were.
   re-extractable). A future fix, if needed, should truncate with an explicit,
   visible marker (e.g. `"_truncated": true`) rather than cutting silently.
 
-### Phase 2 (documented; built after this Annotation work): native-first backfill
+### native SPDX backfill (documented; built after this Annotation work): native-first backfill
 
 Several facts still live only in an Annotation/comment but have a real SPDX
 home Pitloom does not yet populate. Build the native construct, then **trim
 the corresponding Annotation to the residual**. Track here so it is not
 forgotten:
 
-- [x] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
+- [x] **fragment origin — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
   source fragment). Residual in Annotation: the unification *criterion* only. (PR [#108](https://github.com/bact/pitloom/pull/108))
-- [x] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
+- [x] **declared vs. concluded license — Declared vs. concluded license** → distinct `hasDeclaredLicense`
   (author-stated) / `hasConcludedLicense` (Pitloom-detected). Today they are
   mirrored (`deps.py`, "no inference yet"). Residual: the detection evidence. (PR [#105](https://github.com/bact/pitloom/pull/105))
-- [ ] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment run.
+- [ ] **enrichment CreationInfo — Who/when enriched** → a second `CreationInfo` per enrichment run.
   Residual: which field + before/after value + inferred marker (E1/E2). (Blocked on `enrich/` subpackage)
-- [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
+- [x] **external identifiers — External identifiers** (DOI, arXiv, repo / model-card URL) →
   `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
   `extra_data`/provenance). Residual: none once mapped. (PR [#106](https://github.com/bact/pitloom/pull/106))
-- [x] **N5 — Base-model lineage** (HF `base_model`) → `descendantOf`
+- [x] **base-model lineage — Base-model lineage** (HF `base_model`) → `descendantOf`
   `Relationship`. Residual: raw relation subtype in comment. (PR [#109](https://github.com/bact/pitloom/pull/109))
-- [x] **N6 — Dataset `creator`** → `Agent` + `publishedBy` relationship on the
+- [x] **dataset creator attribution — Dataset `creator`** → `Agent` + `publishedBy` relationship on the
   dataset package (extracted but not wired). Residual: none once mapped. (PR [#107](https://github.com/bact/pitloom/pull/107))
 
-Every use case splits into a **native part** (Phase 2) and an **Annotation
-part** (this phase); e.g. G2 license = N2 relationships + Annotation evidence,
-A1 unification = N1 `imports` + Annotation criterion.
+Every use case splits into a **native part** (native SPDX backfill) and an **Annotation
+part** (the Annotation role); e.g. G2 license = declared vs. concluded license relationships + Annotation evidence,
+A1 unification = fragment origin `imports` + Annotation criterion.
 
 ---
 

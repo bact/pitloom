@@ -1,5 +1,6 @@
 ---
 Created: 2026-08-08
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,9 +11,9 @@ SPDX-License-Identifier: CC0-1.0
 > Archived copy of the plan originally approved via Claude Code plan mode
 > (source: `~/.claude/plans/annotation-statement-should-not-stateful-narwhal.md`,
 > a path outside this repo and not guaranteed to exist in a future
-> session). Saved here so the full Phase 1 design record travels with the
-> repo. Phase 1 (this plan) is **complete and merged** — see
-> [`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md)
+> session). Saved here so the full provenance Annotation work design record travels with the
+> repo. provenance Annotation work (this plan) is **complete and merged** — see
+> [`native-spdx-backfill-handover.md`](native-spdx-backfill-handover.md)
 > for current status and what to do next. This file is historical
 > reference, not a live task list.
 
@@ -53,8 +54,8 @@ squarely inside the boundary principle.
 Symmetrically, several facts currently living only in a comment/Annotation actually **do**
 have a native SPDX home that Pitloom does not yet populate (declared-vs-concluded license,
 fragment `imports`, external identifiers, enrichment `CreationInfo`). Moving those to
-native constructs is a **documented Phase 2** (built after this Annotation work — see the
-"Phase 2" section) so we don't forget them and can see, per use case, which half is native
+native constructs is a **documented native SPDX backfill** (built after this Annotation work — see the
+"native SPDX backfill" section) so we don't forget them and can see, per use case, which half is native
 and which half is genuinely Annotation-only.
 
 ## Boundary principle (native-first)
@@ -80,15 +81,15 @@ and which half is genuinely Annotation-only.
 | license *value* | Yes (`hasDeclaredLicense` + `SimpleLicensingText`) | never the value; only "detected vs declared" (G1) |
 | dependency edge | Yes (`dependsOn`) | never on the edge; see G3 on the package |
 | hashes / files / relationships / PURL / ExternalRef | Yes | never |
-| **inferred / detected / AI-generated** qualifier | Partly — see N2 | **G1 — necessary** (assertedness beyond N2) |
-| **declared vs. concluded license** (author-stated vs Pitloom-detected) | **Yes, native, but NOT built** — `hasDeclaredLicense` / `hasConcludedLicense` are currently mirrored (`deps.py:246-252`, "no inference yet") | **Phase 2 → N2**; Annotation keeps only the evidence/why |
-| **multi-source disagreement / which source won** | Partly (license → N2) | **G2 — necessary on conflict** |
+| **inferred / detected / AI-generated** qualifier | Partly — see declared vs. concluded license | **G1 — necessary** (assertedness beyond declared vs. concluded license) |
+| **declared vs. concluded license** (author-stated vs Pitloom-detected) | **Yes, native, but NOT built** — `hasDeclaredLicense` / `hasConcludedLicense` are currently mirrored (`deps.py:246-252`, "no inference yet") | **native SPDX backfill → declared vs. concluded license**; Annotation keeps only the evidence/why |
+| **multi-source disagreement / which source won** | Partly (license → declared vs. concluded license) | **G2 — necessary on conflict** |
 | **declared constraint vs resolved version** | **No** (`software_packageVersion` holds only the resolved value) | **G3 — useful** |
 | **sub-file extraction location** (safetensors `__metadata__`, GGUF kv, pt2 `extra/*`) | **No** | **G4 — useful** |
-| **DOI / arXiv / repo & model-card URLs** (from HF `extra_data`) | **Yes, native, but NOT built** — `ExternalIdentifier` (doi) / `ExternalRef` | **Phase 2 → N4**; today only in provenance/`extra_data` |
-| **element came from fragment document F** | **Yes, native, but NOT built** — `SpdxDocument.imports` + `ExternalMap` (doc-level; flagged unbuilt in `sbom-fragments.md:146,698-701`) | **Phase 2 → N1**; Annotation keeps the *criterion* |
+| **DOI / arXiv / repo & model-card URLs** (from HF `extra_data`) | **Yes, native, but NOT built** — `ExternalIdentifier` (doi) / `ExternalRef` | **native SPDX backfill → external identifiers**; today only in provenance/`extra_data` |
+| **element came from fragment document F** | **Yes, native, but NOT built** — `SpdxDocument.imports` + `ExternalMap` (doc-level; flagged unbuilt in `sbom-fragments.md:146,698-701`) | **native SPDX backfill → fragment origin**; Annotation keeps the *criterion* |
 | **why two fragments were unified** (criterion: registry-id / sha256 / structural) | **No** (merged-away ids vanish; `imports` can't say *why*) | **A1 — necessary** |
-| **who/when enriched** | **Yes, native, but NOT built** — a second `CreationInfo` per enrichment run | **Phase 2 → N3**; Annotation keeps which-field + before/after |
+| **who/when enriched** | **Yes, native, but NOT built** — a second `CreationInfo` per enrichment run | **native SPDX backfill → enrichment CreationInfo**; Annotation keeps which-field + before/after |
 | **field overridden A→B by enrichment source Y** | **No** (`CreationInfo` is element-level, no before/after) | **E1/E2 — necessary (design only now)** |
 | **verbatim original artifact metadata blob** (GGUF kv-store, safetensors `__metadata__`, HF `config.json` + model card) | **No** (native mapping is a lossy subset; `ExternalRef` is only a *pointer* that can dangle) | **P1 — useful; necessary when the artifact is not shipped** |
 
@@ -195,31 +196,32 @@ relevant subset is still emitted as SPDX classes/properties/relationships — ra
   `extra_data` maps in `_gguf.py`, `_safetensors.py`, `_huggingface.py` — see step below on retaining
   the *complete* raw map.
 
-## Phase 2 (documented now, built after the Annotation work): native-first backfill
+## native SPDX backfill (documented now, built after the Annotation work): native-first backfill
 
 Several facts above have a real SPDX 3 home that Pitloom does not yet populate — it records
 them only in a comment/Annotation, or mirrors/normalizes them away. The native-first principle
 says the *fact/value* belongs in the native construct; the Annotation should then shrink to only
-the non-native residual. Building these is deferred to a next phase, but documenting the target
+the non-native residual. Building these is deferred to later implementation, but documenting the target
 now keeps the two halves coherent and prevents the Annotation from ossifying as the permanent home
 for things that ought to be native. **For each item: build the native construct, then trim the
 corresponding Annotation content.**
 
 | # | Fact | Native construct to build | Currently | Residual left to Annotation |
 | --- | --- | --- | --- | --- |
-| **N1** | Element originates from fragment document F | `SpdxDocument.imports` + `ExternalMap` (one per source fragment) | Fragment origin discarded at merge (`fragments.py:461-464`); `imports` unbuilt (`sbom-fragments.md:146,698-701`) | Unification *criterion* only (registry-id/sha256/structural) — A1 |
-| **N2** | Declared vs. concluded license | Distinct `hasDeclaredLicense` (author-stated) and `hasConcludedLicense` (Pitloom-detected from LICENSE/licenseid evidence) | Concluded is set equal to declared, "no inference yet" (`deps.py:246-252`) | The *evidence* (which file/heuristic) behind the concluded license — G1/G2 |
-| **N3** | Who/when enriched | A second `CreationInfo` (createdBy = enricher agent, createdUsing = enricher tool, created = enrichment time) attached to enriched elements | Enrichers mutate in-place under the original `CreationInfo`; agent path only tags a comment | Which field + before/after value + inferred-marker — E1/E2 |
-| **N4** | External identifiers (DOI, arXiv, repo URL, model-card URL) | `ExternalIdentifier` (type `doi`, …) / `ExternalRef` on the AI package | Captured into `extra_data`/provenance only (`_huggingface.py:710-764`) | none once mapped (fully native) |
-| **N5** | Base-model lineage (HF `base_model` / `base_model_relation`) | A `Relationship` to a base-model element if a suitable `relationshipType` exists, else `ExternalRef` | In `extra_data` only | none once mapped, or the raw relation string if no native type fits |
-| **N6** | Dataset `creator` | `Agent` + a creation/attribution relationship on the dataset package | Extracted (`_croissant.py:208`) but not wired onto the `dataset_DatasetPackage` | none once mapped |
+| **fragment origin** | Element originates from fragment document F | `SpdxDocument.imports` + `ExternalMap` (one per source fragment) | Fragment origin discarded at merge (`fragments.py:461-464`); `imports` unbuilt (`sbom-fragments.md:146,698-701`) | Unification *criterion* only (registry-id/sha256/structural) — A1 |
+| **declared vs. concluded license** | Declared vs. concluded license | Distinct `hasDeclaredLicense` (author-stated) and `hasConcludedLicense` (Pitloom-detected from LICENSE/licenseid evidence) | Concluded is set equal to declared, "no inference yet" (`deps.py:246-252`) | The *evidence* (which file/heuristic) behind the concluded license — G1/G2 |
+| **enrichment CreationInfo** | Who/when enriched | A second `CreationInfo` (createdBy = enricher agent, createdUsing = enricher tool, created = enrichment time) attached to enriched elements | Enrichers mutate in-place under the original `CreationInfo`; agent path only tags a comment | Which field + before/after value + inferred-marker — E1/E2 |
+| **external identifiers** | External identifiers (DOI, arXiv, repo URL, model-card URL) | `ExternalIdentifier` (type `doi`, …) / `ExternalRef` on the AI package | Captured into `extra_data`/provenance only (`_huggingface.py:710-764`) | none once mapped (fully native) |
+| **base-model lineage** | Base-model lineage (HF `base_model` / `base_model_relation`) | A `Relationship` to a base-model element if a suitable `relationshipType` exists, else `ExternalRef` | In `extra_data` only | none once mapped, or the raw relation string if no native type fits |
+| **dataset creator attribution** | Dataset `creator` | `Agent` + a creation/attribution relationship on the dataset package | Extracted (`_croissant.py:208`) but not wired onto the `dataset_DatasetPackage` | none once mapped |
 
-Relationship to Phase 1 (this plan): every use case splits into a **native part** (Phase 2 above)
-and an **Annotation part** (this plan). E.g. G2 license = N2 native relationships + Annotation
-evidence; A1 unification = N1 native `imports` + Annotation criterion; E1/E2 enrichment = N3 native
-`CreationInfo` + Annotation before/after. Phase 1 deliberately does **not** pre-empt these — where a
-native home is coming in Phase 2, the Phase-1 Annotation still carries the whole fact for now and is
-trimmed to the residual when N-x lands. Track each N-item as a checklist in
+Relationship to provenance Annotation work (this plan): every use case splits into a **native part** (native SPDX backfill above)
+and an **Annotation part** (this plan). E.g. G2 license = declared vs. concluded license native relationships + Annotation
+evidence; A1 unification = fragment origin native `imports` + Annotation criterion; E1/E2 enrichment = enrichment CreationInfo native
+`CreationInfo` + Annotation before/after. provenance Annotation work deliberately does **not** pre-empt these — where a
+native home is coming in native SPDX backfill, the Annotation work still carries
+the whole fact for now and is trimmed to the residual when the corresponding
+construct lands. Track each native construct as a checklist in
 `working-docs/implementation/annotation-provenance.md` so the trim is not forgotten.
 
 ## Design changes
@@ -319,7 +321,7 @@ the fragment-merge caveat: a fragment can only *fill* an empty scalar today (can
 conflict, `fragments.py`), so structured override needs the enricher to run in-process (the designed
 `enrich/` subpackage) rather than via fragment. No code now.
 
-## Files to modify (Phase 1 — historical, already applied)
+## Files to modify (provenance Annotation work — historical, already applied)
 
 - `src/pitloom/assemble/spdx3/provenance.py` — `_is_high_signal`, minimal-mode filter in the
   `pitloom/1` encoder, new `build_unification_annotation`, `build_source_metadata_annotation`,
@@ -335,7 +337,7 @@ conflict, `fragments.py`), so structured override needs the enricher to run in-p
   `plugins/hatch.py`, `loom.py` — thread `provenance_detail` (+ preserve flag where AI models flow);
   drop the two relationship annotations.
 - Docs: `working-docs/implementation/annotation-provenance.md` (boundary + use cases + `detail` +
-  the **Phase 2 native-backfill checklist N1–N6** with per-item "trim the Annotation to residual"
+  the **native SPDX backfill checklist** with per-item "trim the Annotation to residual"
   notes), `working-docs/design/metadata-provenance.md` (native-first principle), `CHANGELOG.md`.
 - Tests: extend `tests/test_annotation_provenance.py` (high-signal filter, minimal vs full,
   unification + preservation annotation shapes + determinism); update `tests/test_provenance.py`,
@@ -343,7 +345,7 @@ conflict, `fragments.py`), so structured override needs the enricher to run in-p
   `tests/test_fragments.py` case asserting a unification annotation on a hash-merged survivor; add an
   AI-model case asserting P1 `auto` embeds the raw blob for a URL/HF model but not a bundled one.
 
-## Verification (Phase 1 — historical)
+## Verification (provenance Annotation work — historical)
 
 - `python3 -m pytest tests/ -q` (pyenv `pitloom310`); mypy + ruff clean.
 - Generate an SBOM at default `detail="minimal"`: assert annotations exist ONLY for inferred/detected
@@ -361,8 +363,8 @@ conflict, `fragments.py`), so structured override needs the enricher to run in-p
 
 ## Outcome
 
-Phase 1 shipped as PR [#102](https://github.com/bact/pitloom/pull/102), merged to `main`.
-Phase 2 (the N1-N6 table above) is tracked separately — see
-[`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md) for
-current status (N1, N2, N4, N5, N6 merged via PRs #108, #105, #106, #109, #107;
-N3 blocked on `enrich/` subpackage) and next steps.
+provenance Annotation work shipped as PR [#102](https://github.com/bact/pitloom/pull/102), merged to `main`.
+native SPDX backfill (the six native constructs table above) is tracked separately — see
+[`native-spdx-backfill-handover.md`](native-spdx-backfill-handover.md) for
+current status (fragment origin, license conclusion, external identifiers, base-model lineage, and dataset creator attribution merged via PRs #108, #105, #106, #109, #107;
+enrichment CreationInfo blocked on `enrich/` subpackage) and next steps.

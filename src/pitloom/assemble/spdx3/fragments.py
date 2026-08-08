@@ -50,7 +50,7 @@ log = logging.getLogger(__name__)
 #: genuinely *distinct* id into the survivor ("these two different ids are the
 #: same bytes"), which SPDX cannot express and which the merge would otherwise
 #: discard. A same-id registry match (dropped id == survivor id) carries no such
-#: fact -- its only content is the fragment origin, which belongs to the Phase-2
+#: fact -- its only content is the fragment origin, which belongs to the native
 #: ``SpdxDocument.imports`` native anchor, not here. Agent/Tool structural dedup
 #: (every fragment mints its own "Pitloom") is likewise excluded.
 _UnificationEvents = dict[str, dict[str, dict[str, set[str]]]]
@@ -475,7 +475,7 @@ def _merge_fragment_set(
         if by_id is not None:
             # Same-id (registry) match: the fragment reused an existing id, so
             # nothing distinct is folded. Its only fact is the fragment origin,
-            # which is Phase-2 SpdxDocument.imports territory -- not annotated
+            # which is SpdxDocument.imports territory -- not annotated
             # here (see _UnificationEvents). Properties are still merged.
             _merge_properties(_as_element(by_id), _as_element(obj))
             remap[obj] = require_spdx_id(_as_element(by_id))
@@ -598,7 +598,7 @@ def _add_fragment_imports(
     fragment_imports: list[spdx3.ExternalMap],
 ) -> None:
     """Populate ``main_doc.import_`` with ``ExternalMap`` entries for merged
-    fragment documents (N1)."""
+    fragment documents."""
     if not fragment_imports:
         return
     existing_imports = list(main_doc.import_ or [])

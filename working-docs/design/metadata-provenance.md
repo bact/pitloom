@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-07-20
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -68,7 +68,7 @@ no native home at all and are always recorded: **fragment-unification**
 rationale (which criterion merged two elements) and **artifact-metadata
 preservation** (an AI model's verbatim original metadata, config-gated to when
 the model is not shipped and can't be re-extracted). See §10 of the
-implementation plan for the use-case catalog and the Phase 2 native-backfill
+implementation plan for the use-case catalog and the native SPDX backfill
 checklist.
 
 Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:

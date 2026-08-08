@@ -22,7 +22,7 @@ and this project adheres to
 
 ### Added
 
-- Native-first provenance backfills (Phase 2):
+- Native-first provenance backfills (native SPDX backfill):
   - `hasConcludedLicense` vs. `hasDeclaredLicense` separation
     for detected vs. author-asserted licenses.
   - Native `ExternalIdentifier` (DOI) and `ExternalRef`

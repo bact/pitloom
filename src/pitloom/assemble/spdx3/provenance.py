@@ -304,7 +304,7 @@ def build_unification_annotation(
     the survivor *subject_spdx_id* (A1).
 
     SPDX has no native home for this: the merged-away ids vanish from the graph
-    and ``SpdxDocument.imports`` (a Phase-2 native anchor, see the design doc)
+    and ``SpdxDocument.imports`` (a native anchor, see the design doc)
     can only say an element came from a fragment, not the matching *criterion*.
 
     Args:

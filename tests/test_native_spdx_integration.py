@@ -3,12 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Phase 2 end-to-end integration test for native SPDX 3 constructs.
+"""End-to-end integration test for native SPDX 3 constructs.
 
-Exercises N1 (fragment origin / ExternalMap), N2 (declared vs. concluded
-license), N4 (ExternalIdentifier & ExternalRef), N5 (descendantOf base-model
-lineage), and N6 (dataset creator Agent + publishedBy) together on a single
-representative input.  Verifies that:
+Exercises fragment origin / ExternalMap, declared vs. concluded license,
+ExternalIdentifier & ExternalRef, descendantOf base-model lineage, and dataset
+creator Agent + publishedBy together on a single representative input.
+Verifies that:
 
 - all five native constructs appear correctly on the same document;
 - provenance Annotations are trimmed to residual signal and do not duplicate
@@ -33,7 +33,7 @@ from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 
 
 def _build_integrated_model() -> AiModelMetadata:
-    """Return an AI model metadata object that triggers N2/N4/N5/N6."""
+    """Return metadata exercising native license, identifier, lineage, and creator data."""
     ds_meta = DatasetMetadata(
         name="ai-training-data",
         creator="Example Research Group",
@@ -42,19 +42,19 @@ def _build_integrated_model() -> AiModelMetadata:
     )
     return AiModelMetadata(
         format_info=AiModelFormatInfo(model_format=AiModelFormat.SAFETENSORS),
-        name="phase2-integrated-model",
+        name="native-spdx-integrated-model",
         version="1.0.0",
         license="mit",
-        # N4
+        # External identifiers
         doi="10.1234/example.doi",
         arxiv_ids=["2301.12345"],
-        url="https://huggingface.co/example/phase2-integrated-model",
-        # N5
+        url="https://huggingface.co/example/native-spdx-integrated-model",
+        # Base-model lineage
         base_model="openai-community/gpt2",
         base_model_relation="finetune",
-        # N6
+        # Dataset creator attribution
         datasets=[DatasetReference(role="trainedOn", metadata=ds_meta)],
-        # N2: make license concluded by using a non-transparent source/method.
+        # Make the license concluded by using a non-transparent source/method.
         provenance={
             "license": (
                 "Source: model card scan | Field: cardData.license | "
@@ -73,7 +73,7 @@ def _load_graph(model: AiModelMetadata) -> tuple[list[dict[str, Any]], str]:
 
 
 def test_all_native_construct_types_present() -> None:
-    """N1-N6 native constructs all appear on the same document."""
+    """All native constructs appear on the same document."""
     graph, _ = _load_graph(_build_integrated_model())
     types = {e.get("type") for e in graph}
 
@@ -84,13 +84,15 @@ def test_all_native_construct_types_present() -> None:
     assert "simplelicensing_SimpleLicensingText" in types
 
 
-def test_n2_declared_vs_concluded_license_present() -> None:
-    """N2: license produces a hasConcludedLicense relationship because the
+def test_declared_vs_concluded_license_present() -> None:
+    """A license produces a hasConcludedLicense relationship because the
     provenance carries a detection method."""
     graph, _ = _load_graph(_build_integrated_model())
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 2, "expected derived + base model packages"
-    derived_pkg = next(p for p in ai_pkgs if p["name"] == "phase2-integrated-model")
+    derived_pkg = next(
+        p for p in ai_pkgs if p["name"] == "native-spdx-integrated-model"
+    )
 
     rels = [e for e in graph if e.get("type") == "Relationship"]
     concluded = [
@@ -115,14 +117,14 @@ def test_n2_declared_vs_concluded_license_present() -> None:
     assert "simpleLicensing" in spdx_doc["profileConformance"]
 
 
-def test_n4_external_identifiers_and_refs_present() -> None:
-    """N4: DOI ExternalIdentifier and arXiv/URL ExternalRefs are present."""
+def test_external_identifiers_and_refs_present() -> None:
+    """DOI ExternalIdentifier and arXiv/URL ExternalRefs are present."""
     graph, _ = _load_graph(_build_integrated_model())
     derived_pkg = next(
         e
         for e in graph
         if e.get("type") == "ai_AIPackage"
-        and e.get("name") == "phase2-integrated-model"
+        and e.get("name") == "native-spdx-integrated-model"
     )
 
     ext_ids = derived_pkg.get("externalIdentifier", [])
@@ -149,20 +151,22 @@ def test_n4_external_identifiers_and_refs_present() -> None:
         r
         for r in ext_refs
         if r.get("externalRefType") == "altWebPage"
-        and "https://huggingface.co/example/phase2-integrated-model"
+        and "https://huggingface.co/example/native-spdx-integrated-model"
         in r.get("locator", [])
         and r.get("comment") == "Model page URL"
     ]
     assert len(url_refs) == 1, "expected one model-page ExternalRef"
 
 
-def test_n5_base_model_lineage_present() -> None:
-    """N5: base model stub and descendantOf relationship are present."""
+def test_base_model_lineage_present() -> None:
+    """A base-model stub and descendantOf relationship are present."""
     graph, _ = _load_graph(_build_integrated_model())
     ai_pkgs = [e for e in graph if e.get("type") == "ai_AIPackage"]
     assert len(ai_pkgs) == 2
 
-    derived_pkg = next(p for p in ai_pkgs if p["name"] == "phase2-integrated-model")
+    derived_pkg = next(
+        p for p in ai_pkgs if p["name"] == "native-spdx-integrated-model"
+    )
     base_pkg = next(p for p in ai_pkgs if p["name"] == "gpt2")
 
     base_refs = [
@@ -185,8 +189,8 @@ def test_n5_base_model_lineage_present() -> None:
     assert len(lineage_rels) == 1, "expected one descendantOf relationship"
 
 
-def test_n6_dataset_creator_agent_and_published_by_present() -> None:
-    """N6: dataset creator Agent and publishedBy relationship are present."""
+def test_dataset_creator_agent_and_published_by_present() -> None:
+    """A dataset creator Agent and publishedBy relationship are present."""
     graph, _ = _load_graph(_build_integrated_model())
 
     agents = [e for e in graph if e.get("type") == "Agent"]
@@ -209,8 +213,8 @@ def test_n6_dataset_creator_agent_and_published_by_present() -> None:
     assert len(published_by) == 1, "expected one publishedBy relationship"
 
 
-def test_n1_fragment_origin_round_trips_when_merged() -> None:
-    """N1: a fragment-origin ExternalMap can be added and round-tripped.
+def test_fragment_origin_round_trips_when_merged() -> None:
+    """A fragment-origin ExternalMap can be added and round-tripped.
 
     The standalone build_model path does not perform fragment merging, so we
     add an ExternalMap directly to the SpdxDocument and verify the document
@@ -308,7 +312,7 @@ def test_combined_document_round_trips_through_spdx_model() -> None:
 
 
 def test_fragment_fixture_files_available() -> None:
-    """The pre-existing fragment fixtures used by N1 integration tests exist."""
+    """The pre-existing fragment fixtures used by integration tests exist."""
     fragment_dir = Path(__file__).parent / "fixtures" / "fragments"
     for name in (
         "ai-model-fragment.spdx3.json",
