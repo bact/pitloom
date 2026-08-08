@@ -1,5 +1,6 @@
 ---
 Created: 2026-08-08
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -7,34 +8,19 @@ SPDX-License-Identifier: CC0-1.0
 
 # Handover: Phase 2 native-first backfill
 
-> **What this is**: Handover note for a fresh session/agent with no prior
-> context, to continue Pitloom SBOM generator work after Phase 1
-> (provenance-as-Annotation) merged.
+> **What this is**: Handover note for Phase 2 native-first backfill work following Phase 1 (provenance-as-Annotation).
 >
-> **Goal**: move six facts (N1-N6) that currently live only in a
-> free-text comment or Annotation into their proper native SPDX 3
-> constructs (`hasConcludedLicense`, `ExternalIdentifier`, `imports`,
-> relationships, etc.), then trim each corresponding Annotation down to
-> just the residual that still has no native home (e.g. *why*/*evidence*
-> behind a value, not the value itself). This is Phase 2 of the
-> native-first provenance work — read the "Status" and "Principle"
-> sections below before starting.
+> **Goal**: move six facts (N1-N6) that previously lived only in a free-text comment or Annotation into their proper native SPDX 3 constructs (`hasConcludedLicense`, `ExternalIdentifier`, `imports`, relationships, etc.), then trim each corresponding Annotation down to just the residual that still has no native home.
 
 ## Status
 
-Phase 1 (SPDX 3 Core/Annotation provenance) is **done and merged**: PR
-[#102](https://github.com/bact/pitloom/pull/102) merged to `main` at
-commit `404c03c`, all CI green. Branch `provenance-annotation` is merged,
-no longer needed.
-
-This document hands off **Phase 2**: the native-first backfill work that
-Phase 1 deliberately deferred and documented but did not build. Read
-[`annotation-provenance.md`](annotation-provenance.md) §10 (use-case
-catalog, table with N1-N6) and
-[`metadata-provenance.md`](../design/metadata-provenance.md) (native-first
-boundary principle) first — they explain *why* each item below has a
-native SPDX home that isn't populated yet, and what Annotation content
-should shrink to once it is.
+Phase 2 native-first backfill is **largely complete and merged**:
+- ✅ **N2 — Declared vs. Concluded License**: PR [#105](https://github.com/bact/pitloom/pull/105) merged to `main`.
+- ✅ **N4 — ExternalIdentifier & ExternalRef (DOI / arXiv / URLs)**: PR [#106](https://github.com/bact/pitloom/pull/106) merged to `main`.
+- ✅ **N6 — Dataset Creator Agent & publishedBy Relationship**: PR [#107](https://github.com/bact/pitloom/pull/107) merged to `main`.
+- ✅ **N1 — Fragment Origin (`SpdxDocument.imports` + `ExternalMap`)**: PR [#108](https://github.com/bact/pitloom/pull/108) merged to `main`.
+- ✅ **N5 — Base-Model Lineage (`descendantOf` Relationship)**: PR [#109](https://github.com/bact/pitloom/pull/109) merged to `main`.
+- 🛑 **N3 — Enrichment `CreationInfo`**: Blocked (waiting for `enrich/` subpackage).
 
 ## Principle (carried over from Phase 1)
 

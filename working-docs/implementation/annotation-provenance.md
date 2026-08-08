@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-07-20
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -694,21 +694,20 @@ home Pitloom does not yet populate. Build the native construct, then **trim
 the corresponding Annotation to the residual**. Track here so it is not
 forgotten:
 
-- [ ] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
-  source fragment). Residual in Annotation: the unification *criterion* only.
-- [ ] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
+- [x] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
+  source fragment). Residual in Annotation: the unification *criterion* only. (PR [#108](https://github.com/bact/pitloom/pull/108))
+- [x] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
   (author-stated) / `hasConcludedLicense` (Pitloom-detected). Today they are
-  mirrored (`deps.py`, "no inference yet"). Residual: the detection evidence.
+  mirrored (`deps.py`, "no inference yet"). Residual: the detection evidence. (PR [#105](https://github.com/bact/pitloom/pull/105))
 - [ ] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment run.
-  Residual: which field + before/after value + inferred marker (E1/E2).
-- [ ] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
+  Residual: which field + before/after value + inferred marker (E1/E2). (Blocked on `enrich/` subpackage)
+- [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
   `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
-  `extra_data`/provenance). Residual: none once mapped.
-- [ ] **N5 — Base-model lineage** (HF `base_model`) → a `Relationship` if a
-  suitable `relationshipType` exists, else `ExternalRef`. Residual: the raw
-  relation string if no native type fits.
-- [ ] **N6 — Dataset `creator`** → `Agent` + attribution relationship on the
-  dataset package (extracted but not wired). Residual: none once mapped.
+  `extra_data`/provenance). Residual: none once mapped. (PR [#106](https://github.com/bact/pitloom/pull/106))
+- [x] **N5 — Base-model lineage** (HF `base_model`) → `descendantOf`
+  `Relationship`. Residual: raw relation subtype in comment. (PR [#109](https://github.com/bact/pitloom/pull/109))
+- [x] **N6 — Dataset `creator`** → `Agent` + `publishedBy` relationship on the
+  dataset package (extracted but not wired). Residual: none once mapped. (PR [#107](https://github.com/bact/pitloom/pull/107))
 
 Every use case splits into a **native part** (Phase 2) and an **Annotation
 part** (this phase); e.g. G2 license = N2 relationships + Annotation evidence,
