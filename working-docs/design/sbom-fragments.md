@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-07-09
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -663,7 +663,7 @@ AIDOC assemblers reference the same fragment metadata without reading
 The work is ordered by user-impact priority. No item depends on completing
 all earlier items; each can be delivered independently.
 
-### Phase 1: Structural improvements (high impact, low effort)
+### Structural improvements (high impact, low effort)
 
 1. **`FragmentConfig` data class** -- replace `list[str]` in `PitloomConfig`.
    Loader remains backward-compatible with plain strings.
@@ -674,7 +674,7 @@ all earlier items; each can be delivered independently.
 4. **SHA-256 verification in merge** -- add `fragment sign` CLI command +
    hash check on merge.
 
-### Phase 2: SDK improvements (notebook and ML workflow ergonomics)
+### SDK improvements (notebook and ML workflow ergonomics)
 
 1. **`log_param`, `log_metric`, `log_tag` on `_ActiveRun`** -- expands the
    existing `Run` API without breaking changes.
