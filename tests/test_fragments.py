@@ -990,7 +990,8 @@ def test_unification_annotation_records_sha256_merge() -> None:
 
 def test_merge_fragments_populates_spdx_document_imports(tmp_path: Path) -> None:
     """merge_fragments() must populate main_doc.import_ with ExternalMap
-    entries naming each merged fragment's SpdxDocument spdxId and location hint (fragment origin).
+    entries naming each merged fragment's SpdxDocument spdxId and location hint
+    (fragment origin).
     """
     frag_namespace = "https://spdx.org/spdxdocs/fragment-import-test"
     envelope_fragment = {

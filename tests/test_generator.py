@@ -1440,7 +1440,8 @@ def test_build_model_external_identifiers() -> None:
 
 def test_build_model_with_dataset_creator() -> None:
     """build_model() for a model linked to a dataset with creator metadata
-    must emit an Agent element and a publishedBy Relationship (dataset creator attribution).
+    must emit an Agent element and a publishedBy Relationship
+    (dataset creator attribution).
     """
     ds_meta = DatasetMetadata(name="squad", creator="Stanford NLP")
     ds_ref = DatasetReference(role="trainedOn", metadata=ds_meta)
@@ -1619,7 +1620,8 @@ def test_generate_deployed_sbom_mocked_pipdeptree(
 
 def test_build_model_base_model_lineage() -> None:
     """build_model() must emit a stub base model ai_AIPackage and a descendantOf
-    Relationship when base_model and base_model_relation are present (base-model lineage).
+    Relationship when base_model and base_model_relation are present
+    (base-model lineage).
     """
     meta = AiModelMetadata(
         name="my-finetuned-model",

@@ -33,7 +33,9 @@ from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 
 
 def _build_integrated_model() -> AiModelMetadata:
-    """Return metadata exercising native license, identifier, lineage, and creator data."""
+    """Return metadata exercising native license, identifier, lineage, and
+    creator data.
+    """
     ds_meta = DatasetMetadata(
         name="ai-training-data",
         creator="Example Research Group",
