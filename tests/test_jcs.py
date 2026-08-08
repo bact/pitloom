@@ -26,7 +26,7 @@ from typing import Any
 
 import rfc8785
 
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
 
 # Fixed creation timestamp so every test call with the same pyproject produces
@@ -44,11 +44,11 @@ dependencies = ["requests>=2.28.0"]
 
 
 def _sbom_compact(tmppath: Path) -> str:
-    return generate_sbom(tmppath, creation_metadata=_FIXED_CI)
+    return generate_project_sbom(tmppath, creation_metadata=_FIXED_CI)
 
 
 def _sbom_pretty(tmppath: Path) -> str:
-    return generate_sbom(tmppath, creation_metadata=_FIXED_CI, pretty=True)
+    return generate_project_sbom(tmppath, creation_metadata=_FIXED_CI, pretty=True)
 
 
 # ---------------------------------------------------------------------------

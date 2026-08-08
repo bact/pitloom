@@ -9,7 +9,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.extract.pyproject import read_pyproject
 
@@ -106,7 +106,7 @@ authors = [{name = "Jane Doe"}]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             creation_metadata=CreationMetadata(creators=[Creator(name="Test")]),
         )
@@ -142,7 +142,7 @@ dependencies = ["numpy==1.24.0", "pandas>=1.5.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
         dep_packages = [
@@ -175,7 +175,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph = json.loads(sbom_json)["@graph"]
 
         relationships = [e for e in graph if e["type"] == "Relationship"]
@@ -232,7 +232,7 @@ authors = [{name = "Jane Doe"}]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
         graph = sbom_data["@graph"]
 

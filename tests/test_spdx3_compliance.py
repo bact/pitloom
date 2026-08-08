@@ -14,7 +14,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble import generate_sbom
+from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import (
     _deduplicate_creation_infos,
@@ -48,7 +48,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         # Load and validate structure
         sbom_data = json.loads(output_path.read_text())
@@ -132,7 +132,7 @@ description = "Test for required elements"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -169,7 +169,7 @@ version = "1.0.0"
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -206,7 +206,7 @@ dependencies = ["numpy==1.24.0"]
         pyproject_path.write_text(pyproject_content)
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         sbom_data = json.loads(output_path.read_text())
         graph = sbom_data["@graph"]
@@ -262,7 +262,7 @@ packages = ["src/hash_test_package"]
         (pkg_dir / "__init__.py").write_text("", encoding="utf-8")
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         graph = json.loads(output_path.read_text())["@graph"]
         file_elements = [e for e in graph if e.get("type") == "software_File"]
@@ -304,7 +304,7 @@ version = "3.1.4"
         )
 
         output_path = tmppath / "sbom.spdx3.json"
-        generate_sbom(tmppath, output_path=output_path)
+        generate_project_sbom(tmppath, output_path=output_path)
 
         graph = json.loads(output_path.read_text())["@graph"]
         packages = [e for e in graph if e.get("type") == "software_Package"]
@@ -352,7 +352,7 @@ version = "1.0.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph: list[dict[str, Any]] = json.loads(sbom_json)["@graph"]
 
         id_to_type = _build_spdx_id_type_map(graph)
@@ -390,7 +390,7 @@ version = "1.0.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph: list[dict[str, Any]] = json.loads(sbom_json)["@graph"]
 
         id_to_type = _build_spdx_id_type_map(graph)
@@ -420,7 +420,7 @@ version = "1.0.0"
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph: list[dict[str, Any]] = json.loads(sbom_json)["@graph"]
 
         element_types = {e["type"] for e in graph}
@@ -462,8 +462,8 @@ dependencies = ["requests>=2.28.0"]
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(pyproject_content)
 
-        sbom_json_1 = generate_sbom(tmppath, creation_metadata=fixed_ci)
-        sbom_json_2 = generate_sbom(tmppath, creation_metadata=fixed_ci)
+        sbom_json_1 = generate_project_sbom(tmppath, creation_metadata=fixed_ci)
+        sbom_json_2 = generate_project_sbom(tmppath, creation_metadata=fixed_ci)
 
         # Determinism: two calls with identical inputs must produce identical output
         assert sbom_json_1 == sbom_json_2, (
@@ -642,7 +642,7 @@ dependencies = ["requests>=2.28.0"]
         pyproject_path = tmppath / "pyproject.toml"
         pyproject_path.write_text(pyproject_content)
 
-        sbom_json = generate_sbom(tmppath)
+        sbom_json = generate_project_sbom(tmppath)
         graph = json.loads(sbom_json)["@graph"]
 
         all_ids = {e["spdxId"] for e in graph if isinstance(e.get("spdxId"), str)}
@@ -682,7 +682,7 @@ authors = [{name = "Jane Doe"}]
         pitloom_config = dataclasses.replace(
             pitloom_config, provenance_format="annotation"
         )
-        sbom_json = generate_sbom(
+        sbom_json = generate_project_sbom(
             tmppath,
             project_metadata=project_metadata,
             pitloom_config=pitloom_config,

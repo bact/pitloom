@@ -13,14 +13,15 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
-    generate_ai_model_sbom,
-    generate_analyzed_sbom,
-    generate_deployed_sbom,
-    generate_huggingface_sbom,
-    generate_sbom,
+    generate,
+    generate_env_sbom,
+    generate_model_sbom,
+    generate_project_sbom,
+    generate_wheel_sbom,
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import (
@@ -58,11 +59,7 @@ class _ResolvedCreators:
 
 @dataclass(frozen=True)
 class _ResolvedTools:
-    """Resolved tool list paired with its source label.
-
-    ``value`` mirrors :attr:`CreationMetadata.tools`: ``None`` means the
-    default single ``Tool`` ``"Pitloom"``; ``[]`` suppresses ``createdUsing``.
-    """
+    """Resolved tool list paired with its source label."""
 
     value: list[Tool] | None
     source: str
@@ -78,11 +75,7 @@ class _ResolvedCreationMetadata:
     creation_comment: _ResolvedValue
 
     def to_creation_metadata(self) -> CreationMetadata:
-        """Convert resolved values to :class:`CreationMetadata`.
-
-        ``creators`` may be empty (no named creator) -- the assembler then
-        emits the default ``SoftwareAgent`` ``"Pitloom"``.
-        """
+        """Convert resolved values to :class:`CreationMetadata`."""
         return CreationMetadata(
             creators=self.creators.value,
             tools=self.tools.value,
@@ -120,9 +113,6 @@ class _CreatorTypeAction(argparse.Action):
         if creators is None or len(creators) == 0:
             parser.error(f"{option_string} must come after a --creator-name")
             return  # type: ignore[unreachable]
-        # Reconstruct rather than mutate in-place so this routes through
-        # Creator.__post_init__ normalisation/validation (defense in depth,
-        # in case `choices=` on this argument is ever loosened).
         creators[-1] = Creator(
             name=creators[-1].name,
             type=values,
@@ -144,7 +134,6 @@ class _CreatorEmailAction(argparse.Action):
         if creators is None or len(creators) == 0:
             parser.error(f"{option_string} must come after a --creator-name")
             return  # type: ignore[unreachable]
-        # Reconstruct rather than mutate in-place, see _CreatorTypeAction.
         creators[-1] = Creator(
             name=creators[-1].name,
             type=creators[-1].type,
@@ -153,135 +142,102 @@ class _CreatorEmailAction(argparse.Action):
 
 
 def _build_parent_parser() -> argparse.ArgumentParser:
-    """Build a parent parser containing common options."""
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Print verbose output including Pitloom version, paths, "
-        "and effective options.",
-    )
-    parser.add_argument(
+    """Build shared parent parser with common options."""
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument(
         "-o",
         "--output",
         type=Path,
-        default=None,
-        help=(
-            "Output file path. "
-            "Default: <name>-<version>.spdx3.json derived from project metadata, "
-            "or the basename from [tool.pitloom] sbom-basename if set."
-        ),
+        metavar="FILE",
+        help="Write JSON-LD SBOM to FILE.",
     )
-    parser.add_argument(
-        "--creator-name",
-        dest="creators",
-        action=_CreatorNameAction,
-        default=None,
-        metavar="NAME",
-        help=(
-            "Name of an SBOM creator (see --creator-type/--creator-email to "
-            "set that creator's type/email). Repeatable: each occurrence "
-            "starts a new creator, in order. When omitted, the "
-            "SoftwareAgent 'Pitloom' is recorded as the automated creator."
-        ),
-    )
-    parser.add_argument(
-        "--creator-email",
-        dest="creators",
-        action=_CreatorEmailAction,
-        default=None,
-        metavar="EMAIL",
-        help="Email of the most recently named --creator-name.",
-    )
-    parser.add_argument(
-        "--creator-type",
-        dest="creators",
-        action=_CreatorTypeAction,
-        default=None,
-        choices=sorted(VALID_CREATOR_TYPES),
-        metavar="TYPE",
-        help=(
-            "Agent subclass for the most recently named --creator-name: "
-            "person (default), organization, software-agent, or agent."
-        ),
-    )
-    parser.add_argument(
-        "--creation-datetime",
-        type=str,
-        help=(
-            "Creation timestamp as ISO 8601. "
-            "Normalised to SPDX 3 DateTime at export "
-            "(UTC, no fractional seconds)."
-        ),
-    )
-    parser.add_argument(
-        "--creation-tool",
-        dest="creation_tools",
-        action="append",
-        type=str,
-        metavar="NAME",
-        help="Name of a tool that created the SBOM (default: Pitloom). "
-        "Repeatable to record more than one tool.",
-    )
-    parser.add_argument(
-        "--no-creation-tool",
-        action="store_true",
-        help="Omit the creation tool(s) from the SBOM. "
-        "Overrides --creation-tool and pyproject.toml.",
-    )
-    parser.add_argument(
-        "--creation-comment",
-        type=str,
-        help="Comment to include in the SBOM creation metadata",
-    )
-    parser.add_argument(
+    parent.add_argument(
         "--pretty",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=None,
-        help=(
-            "Pretty-print the SBOM output with 2-space indentation. "
-            "Overrides 'pretty' in [tool.pitloom] in pyproject.toml. "
-            "Default is compact output (machine-optimized)."
-        ),
+        help="Indent JSON output with 2 spaces.",
     )
-    parser.add_argument(
-        "-d",
+    parent.add_argument(
         "--describe-relationship",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help=(
-            "Add descriptive text to relationships to ease human reading. "
-            "Overrides 'describe-relationship' in pyproject.toml. "
-            "Default is False (machine-optimized format, no extra text in SBOM)."
-        ),
+        help="Include human-readable text on SPDX relationships.",
     )
-    parser.add_argument(
+    parent.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Print verbose execution and option details.",
+    )
+    parent.add_argument(
         "--registry",
         type=Path,
         default=None,
         metavar="FILE",
-        help=(
-            "Path to a Loom ID registry, a stable file/entity id registry "
-            "(see 'pitloom ids'). "
-            "Elements looked up in the registry reuse its spdxId instead of "
-            "minting a fresh one, so this SBOM can be unified with "
-            "'pitloom.loom' fragments at merge time. Default: auto-discover "
-            "loom-ids.json (project mode: from [tool.pitloom.ids] file or "
-            "by walking up from the project directory; model mode: from the "
-            "current working directory)."
-        ),
+        help="Loom ID registry JSON file path.",
     )
-    return parser
+
+    creator_group = parent.add_argument_group("Creator metadata")
+    creator_group.add_argument(
+        "--creator-name",
+        action=_CreatorNameAction,
+        dest="creators",
+        default=None,
+        metavar="NAME",
+        help="Name of creator.",
+    )
+    creator_group.add_argument(
+        "--creator-type",
+        action=_CreatorTypeAction,
+        dest="creators",
+        default=None,
+        choices=VALID_CREATOR_TYPES,
+        metavar="TYPE",
+        help=f"Type of creator ({', '.join(VALID_CREATOR_TYPES)}).",
+    )
+    creator_group.add_argument(
+        "--creator-email",
+        action=_CreatorEmailAction,
+        dest="creators",
+        default=None,
+        metavar="EMAIL",
+        help="Email of creator.",
+    )
+    creator_group.add_argument(
+        "--creation-tool",
+        action="append",
+        dest="creation_tools",
+        default=None,
+        metavar="NAME",
+        help="Tool name used to create SBOM.",
+    )
+    creator_group.add_argument(
+        "--no-creation-tool",
+        action="store_true",
+        help="Omit createdUsing tool list.",
+    )
+    creator_group.add_argument(
+        "--creation-datetime",
+        default=None,
+        metavar="ISO8601",
+        help="Creation timestamp in UTC ISO 8601 format.",
+    )
+    creator_group.add_argument(
+        "--creation-comment",
+        default=None,
+        metavar="TEXT",
+        help="Comment string for CreationInfo.",
+    )
+    return parent
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    """Create and configure the CLI argument parser."""
+    """Build the main CLI ArgumentParser."""
     parent_parser = _build_parent_parser()
 
     parser = argparse.ArgumentParser(
         prog="loom",
-        description="Pitloom - Generate SPDX 3 SBOM for Python projects",
+        description="Pitloom - Generate SPDX 3 SBOMs for Python projects and AI models",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -293,65 +249,114 @@ def _build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    source_parser = subparsers.add_parser(
-        "source",
+    # 1. Smart Entrypoint: loom generate [TARGET]
+    gen_parser = subparsers.add_parser(
+        "generate",
         parents=[parent_parser],
-        help="Generate a Source SBOM from unbuilt source code.",
+        help="Generate an SBOM with automatic target detection.",
     )
-    source_parser.add_argument(
+    gen_parser.add_argument(
+        "target",
+        type=str,
+        nargs="?",
+        default=".",
+        help="Target path, sdist archive, .whl, model file, HF URL, or 'env'.",
+    )
+    gen_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid external network requests.",
+    )
+
+    # 2. Project Source & Sdist: loom project [PATH]
+    proj_parser = subparsers.add_parser(
+        "project",
+        parents=[parent_parser],
+        help="Generate a Source SBOM from a project directory or sdist archive.",
+    )
+    proj_parser.add_argument(
         "project_dir",
         type=Path,
         nargs="?",
         default=Path.cwd(),
-        help=(
-            "Path to the project directory "
-            "(containing pyproject.toml, setup.cfg, or setup.py). "
-            "Default is the current directory."
-        ),
+        help="Path to project directory or sdist archive (.tar.gz, .zip).",
     )
 
-    analyze_parser = subparsers.add_parser(
-        "analyze",
+    # 3. Built Wheel: loom wheel <WHEEL_FILE>
+    wheel_parser = subparsers.add_parser(
+        "wheel",
         parents=[parent_parser],
-        help=(
-            "Generate an Analyzed SBOM from a built wheel, an AI model "
-            "file, or a Hugging Face repository."
-        ),
+        help="Generate an Analyzed SBOM from a built wheel (.whl).",
     )
-    analyze_parser.add_argument(
+    wheel_parser.add_argument(
         "target",
         type=str,
-        help=(
-            "Path to the .whl file, a local AI model file, or a Hugging "
-            "Face URL / model ID. Local AI formats: GGUF, ONNX, "
-            "Safetensors, PyTorch, Keras, HDF5, NumPy, fastText. Hugging "
-            "Face: full URL or bare model ID."
-        ),
+        help="Path to the built .whl file.",
     )
 
-    subparsers.add_parser(
-        "deployed",
+    # 4. AI Model Asset: loom model <SOURCE> [--offline]
+    model_parser = subparsers.add_parser(
+        "model",
         parents=[parent_parser],
-        help="Generate a Deployed SBOM for the currently installed environment.",
+        help="Generate an AI Model SBOM (AIBOM) from a local file or HF repo.",
+    )
+    model_parser.add_argument(
+        "target",
+        type=str,
+        help="Path to local AI model file or Hugging Face URL / model ID.",
+    )
+    model_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid external network requests.",
     )
 
+    # 5. Deployed Environment: loom env
+    subparsers.add_parser(
+        "env",
+        parents=[parent_parser],
+        help="Generate a Deployed SBOM for the active installed environment.",
+    )
+
+    # 6. Fragment Merger: loom merge <FRAGMENTS_DIR>
+    merge_parser = subparsers.add_parser(
+        "merge",
+        help="Merge dynamic execution SBOM fragments into a combined SBOM.",
+    )
+    merge_parser.add_argument(
+        "fragments_dir",
+        type=Path,
+        help="Directory containing .spdx3.json fragments.",
+    )
+    merge_parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=Path.cwd() / f"merged{_SPDX3_JSON_EXT}",
+        help="Output JSON-LD path.",
+    )
+    merge_parser.add_argument(
+        "--pretty",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Indent JSON output with 2 spaces.",
+    )
+
+    # 7. Registry Management: loom ids
     _add_ids_subparser(subparsers)
 
     return parser
 
 
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
-    """Resolve and validate project directory and primary config file path.
-
-    The second element of the tuple is the path of whichever configuration
-    file was found first in priority order:
-    ``pyproject.toml`` > ``setup.cfg`` > ``setup.py``.
-    It is ``None`` only when the project directory itself does not exist.
-    """
+    """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
         print(f"Error: Project directory not found: {project_dir}", file=sys.stderr)
         return None, None
+
+    if project_dir.is_file():
+        return project_dir, project_dir
 
     for candidate in ("pyproject.toml", "setup.cfg", "setup.py"):
         config_path = project_dir / candidate
@@ -383,11 +388,7 @@ def _resolve_creators(
     args: argparse.Namespace,
     config_creators: list[Creator],
 ) -> _ResolvedCreators:
-    """Resolve the creator list with precedence CLI > pyproject > default.
-
-    A whole-list replacement: if the CLI supplies any ``--creator-name``,
-    it replaces the config's creators entirely rather than merging.
-    """
+    """Resolve the creator list with precedence CLI > pyproject > default."""
     cli_creators: list[Creator] | None = args.creators
     if cli_creators:
         return _ResolvedCreators(value=cli_creators, source="command-line")
@@ -402,10 +403,7 @@ def _resolve_tools(
     args: argparse.Namespace,
     config_tools: list[Tool] | None,
 ) -> _ResolvedTools:
-    """Resolve the tool list, supporting explicit omission via CLI.
-
-    A whole-list replacement, same as :func:`_resolve_creators`.
-    """
+    """Resolve the tool list."""
     if args.no_creation_tool:
         return _ResolvedTools(value=[], source="command-line")
     cli_tools: list[str] | None = args.creation_tools
@@ -423,7 +421,7 @@ def _resolve_creation_metadata(
     args: argparse.Namespace,
     pitloom_config: Any,
 ) -> _ResolvedCreationMetadata:
-    """Resolve creation metadata in CreationMetadata field order."""
+    """Resolve creation metadata."""
     default_creation = CreationMetadata()
     return _ResolvedCreationMetadata(
         creators=_resolve_creators(args, pitloom_config.creators),
@@ -442,12 +440,7 @@ def _resolve_creation_metadata(
 
 
 def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
-    """Load ``[tool.pitloom]`` keys for verbose source reporting.
-
-    For ``pyproject.toml`` reads ``[tool.pitloom]`` as raw TOML.
-    For other files returns an empty dict (verbose source labels default
-    to ``"default"``).
-    """
+    """Load ``[tool.pitloom]`` keys for verbose source reporting."""
     if config_path is None or config_path.name != "pyproject.toml":
         return {}
 
@@ -462,11 +455,9 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
         tool_section = raw_toml.get("tool")
         if not isinstance(tool_section, dict):
             return {}
-
         pitloom_tool = tool_section.get("pitloom")
         if not isinstance(pitloom_tool, dict):
             return {}
-
         return {str(key): value for key, value in pitloom_tool.items()}
     except Exception:  # pylint: disable=broad-exception-caught
         return {}
@@ -475,7 +466,6 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
 def _resolve_output_source(
     args: argparse.Namespace, pitloom_config: Any, config_path: Path | None
 ) -> str:
-    """Return source label for output path choice."""
     if args.output is not None:
         return "command-line"
     if pitloom_config.sbom_basename:
@@ -489,7 +479,6 @@ def _resolve_pretty(
     pitloom_tool: dict[str, Any],
     config_source: str = _PROJECT_PYPROJECT_SOURCE,
 ) -> tuple[bool, str]:
-    """Resolve effective pretty option and its source label."""
     value = pitloom_config.pretty if args.pretty is None else args.pretty
     if args.pretty is not None:
         return value, "command-line"
@@ -504,7 +493,6 @@ def _resolve_describe_relationship(
     pitloom_tool: dict[str, Any],
     config_source: str = _PROJECT_PYPROJECT_SOURCE,
 ) -> tuple[bool, str]:
-    """Resolve effective describe-relationship option and source label."""
     value = bool(
         pitloom_config.describe_relationship
         if args.describe_relationship is None
@@ -521,7 +509,6 @@ def _resolve_describe_relationship(
 
 
 def _quote_optional(value: str | None) -> str:
-    """Render optional values, leaving ``None`` unquoted for readability."""
     if value is None:
         return "None"
     return f"'{value}'"
@@ -534,11 +521,6 @@ def _build_creation_option_rows(
     eff_desc: bool,
     desc_src: str,
 ) -> list[tuple[str, str, str]]:
-    """Build ordered rows for creation-related verbose options.
-
-    Each creator and each tool is listed individually with its source, since
-    both are now lists rather than single values.
-    """
     rows: list[tuple[str, str, str]] = [
         ("pretty", str(eff_pretty), pretty_src),
         ("describe_relationship", str(eff_desc), desc_src),
@@ -587,14 +569,6 @@ def _build_creation_option_rows(
     return rows
 
 
-def _print_aligned_rows(rows: list[tuple[str, str, str]]) -> None:
-    """Print rows in three aligned columns: label, value, and source."""
-    label_width = max(len(label) for label, _, _ in rows)
-    value_width = max(len(value) for _, value, _ in rows)
-    for label, value, source in rows:
-        print(f"{label:<{label_width}} : {value:<{value_width}} [{source}]")
-
-
 def _print_verbose(
     args: argparse.Namespace,
     project_dir: Path,
@@ -603,7 +577,6 @@ def _print_verbose(
     config_path: Path | None,
     creation: _ResolvedCreationMetadata,
 ) -> None:
-    """Print verbose summary of effective CLI options and their sources."""
     pitloom_tool = _load_pitloom_tool_section(config_path)
     config_source = config_path.name if config_path else "project config"
     out_src = _resolve_output_source(args, pitloom_config, config_path)
@@ -650,21 +623,10 @@ def _print_verbose(
 def _resolve_output_path(
     explicit: Path | None, metadata: ProjectMetadata, pitloom_config: Any
 ) -> Path:
-    """Return the SBOM output path to use.
-
-    Priority:
-    1. Explicit ``-o`` / ``--output`` argument.
-    2. ``[tool.pitloom] sbom-basename`` from the project config
-       -> ``<basename>.spdx3.json``.
-    3. ``<name>-<version>.spdx3.json`` derived from project metadata.
-    4. Fallback: ``sbom.spdx3.json``.
-    """
     if explicit is not None:
         return explicit
-
     if pitloom_config.sbom_basename:
         return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
-
     parts = [metadata.name] if metadata.name else ["sbom"]
     if metadata.version:
         parts.append(metadata.version)
@@ -672,101 +634,113 @@ def _resolve_output_path(
 
 
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
-    """Return the SBOM output path for a standalone model SBOM.
-
-    Uses the explicit ``-o`` path when given; otherwise writes
-    ``<stem>.spdx3.json`` to the current working directory.
-    """
     if explicit is not None:
         return explicit
     return Path.cwd() / (model_path.stem + _SPDX3_JSON_EXT)
 
 
 def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
-    """Return the SBOM output path for a Hugging Face model SBOM.
-
-    Uses the explicit ``-o`` path when given; otherwise derives
-    ``<model-name>.spdx3.json`` from the model ID and writes it to the
-    current working directory.
-    """
     if explicit is not None:
         return explicit
-    # model_id is "owner/name" - use the name part as the stem
     stem = model_id.split("/")[-1]
     return Path.cwd() / (stem + _SPDX3_JSON_EXT)
 
 
 def main() -> int:
-    """Main entry point for the Pitloom CLI.
-
-    Returns:
-        int: Exit code (0 for success, 1 for error)
-    """
+    """Main entry point for the Pitloom CLI."""
     parser = _build_parser()
     args = parser.parse_args()
 
-    if args.command == "ids":
-        return _run_ids_cli(args)
-    if args.command == "source":
-        return _run_project_mode(args)
-    if args.command == "analyze":
-        return _run_analyze_mode(args)
-    if args.command == "deployed":
-        return _run_deployed_mode(args)
-
+    handlers = {
+        "ids": _run_ids_cli,
+        "generate": _run_generate_mode,
+        "project": _run_project_mode,
+        "wheel": _run_wheel_mode,
+        "model": _run_model_mode,
+        "env": _run_env_mode,
+        "merge": _run_merge_mode,
+    }
+    handler = handlers.get(args.command)
+    if handler is not None:
+        return handler(args)
     return 1
 
 
-def _run_deployed_mode(args: argparse.Namespace) -> int:
-    """Generate a Deployed SBOM from the current environment."""
+def _run_generate_mode(args: argparse.Namespace) -> int:
+    """Smart generate mode."""
     try:
         pitloom_config = PitloomConfig()
         creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = args.pretty if args.pretty is not None else False
-        effective_describe = (
-            bool(args.describe_relationship)
-            if args.describe_relationship is not None
-            else False
+        output_path = args.output
+        generate(
+            args.target,
+            offline=args.offline,
+            output_path=output_path,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=args.pretty if args.pretty is not None else False,
+            describe_relationship=bool(args.describe_relationship),
+            registry=args.registry,
+        )
+        return 0
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating SBOM: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
+        return 1
+
+
+def _run_project_mode(args: argparse.Namespace) -> int:
+    """Generate a Source SBOM from a project directory or sdist archive."""
+    try:
+        project_dir, config_path = _resolve_project_paths(args)
+        if project_dir is None:
+            return 1
+
+        project_metadata, pitloom_config, config_path = read_project(project_dir)
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
+        effective_describe_relationship = (
+            pitloom_config.describe_relationship
+            if args.describe_relationship is None
+            else args.describe_relationship
         )
 
-        output_path = args.output
-        if output_path is None:
-            output_path = Path.cwd() / f"deployed-environment{_SPDX3_JSON_EXT}"
+        output_path = _resolve_output_path(
+            args.output, project_metadata, pitloom_config
+        )
 
         if args.verbose:
-            print(f"Pitloom version : {__version__}")
-            print(f"Output path     : {output_path}")
+            _print_verbose(
+                args,
+                project_dir,
+                output_path,
+                pitloom_config,
+                config_path,
+                creation,
+            )
 
-        generate_deployed_sbom(
+        generate_project_sbom(
+            project_dir,
             output_path=output_path,
             creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
-            describe_relationship=effective_describe,
+            describe_relationship=effective_describe_relationship,
+            project_metadata=project_metadata,
+            pitloom_config=pitloom_config,
             registry=args.registry,
         )
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating Deployed SBOM: {e}", file=sys.stderr)
-        traceback.print_exc()
+        print(f"Error generating SBOM: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
         return 1
 
 
-def _run_analyze_mode(args: argparse.Namespace) -> int:
-    """Generate an Analyzed SBOM from a built wheel, an AI model, or HF repository."""
-    target: str = args.target
-
-    if target.endswith(".whl"):
-        return _run_wheel_analyze_mode(args, target)
-
-    if is_huggingface_source(target):
-        return _run_hf_model_mode(args, target)
-
-    return _run_local_model_mode(args, target)
-
-
-def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
+def _run_wheel_mode(args: argparse.Namespace) -> int:
     """Generate an Analyzed SBOM from a built wheel."""
+    target: str = args.target
     try:
         wheel_path: Path = Path(target).resolve()
         if not wheel_path.exists():
@@ -782,18 +756,16 @@ def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
             else False
         )
 
-        # No project metadata is available to auto-name the output from,
-        # so an explicit --output or a wheel-stem-derived fallback is used.
-        output_path = args.output
-        if output_path is None:
-            output_path = Path.cwd() / f"{wheel_path.stem}{_SPDX3_JSON_EXT}"
+        output_path = args.output or (
+            Path.cwd() / f"{wheel_path.stem}{_SPDX3_JSON_EXT}"
+        )
 
         if args.verbose:
             print(f"Pitloom version : {__version__}")
             print(f"Wheel file      : {wheel_path}")
             print(f"Output path     : {output_path}")
 
-        generate_analyzed_sbom(
+        generate_wheel_sbom(
             wheel_path,
             output_path=output_path,
             creation_metadata=creation.to_creation_metadata(),
@@ -804,8 +776,122 @@ def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating Analyzed SBOM: {e}", file=sys.stderr)
-        traceback.print_exc()
+        print(f"Error generating wheel SBOM: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
+        return 1
+
+
+def _run_model_mode(args: argparse.Namespace) -> int:
+    """Generate an AI Model SBOM from a local file or HF repository."""
+    target: str = args.target
+    try:
+        model_target: Path | str
+        if is_huggingface_source(target):
+            model_id = parse_hf_model_id(target)
+            if model_id is None:
+                print(
+                    f"Error: Not a valid Hugging Face URL or model ID: {target!r}",
+                    file=sys.stderr,
+                )
+                return 1
+            output_path = _resolve_hf_output_path(args.output, model_id)
+            if args.verbose:
+                print(f"Pitloom version    : {__version__}")
+                print(f"Hugging Face model : {model_id}")
+                print(f"Output path        : {output_path}")
+            model_target = model_id
+        else:
+            model_path: Path = Path(target).resolve()
+            if not model_path.exists():
+                print(f"Error: Model file not found: {model_path}", file=sys.stderr)
+                return 1
+            output_path = _resolve_model_output_path(args.output, model_path)
+            if args.verbose:
+                print(f"Pitloom version: {__version__}")
+                print(f"Model file      : {model_path}")
+                print(f"Output path     : {output_path}")
+            model_target = model_path
+
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+        effective_describe = (
+            bool(args.describe_relationship)
+            if args.describe_relationship is not None
+            else False
+        )
+
+        generate_model_sbom(
+            model_target,
+            offline=args.offline,
+            output_path=output_path,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe,
+            registry=args.registry,
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating model SBOM: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
+        return 1
+
+
+def _run_env_mode(args: argparse.Namespace) -> int:
+    """Generate a Deployed SBOM for the active installed environment."""
+    try:
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+        effective_describe = (
+            bool(args.describe_relationship)
+            if args.describe_relationship is not None
+            else False
+        )
+
+        output_path = args.output or (
+            Path.cwd() / f"deployed-environment{_SPDX3_JSON_EXT}"
+        )
+
+        if args.verbose:
+            print(f"Pitloom version : {__version__}")
+            print(f"Output path     : {output_path}")
+
+        generate_env_sbom(
+            output_path=output_path,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe,
+            registry=args.registry,
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating Deployed SBOM: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
+        return 1
+
+
+def _run_merge_mode(args: argparse.Namespace) -> int:
+    """Merge dynamic execution fragments."""
+    try:
+        fragments_dir: Path = args.fragments_dir.resolve()
+        if not fragments_dir.exists():
+            print(
+                f"Error: Fragments directory not found: {fragments_dir}",
+                file=sys.stderr,
+            )
+            return 1
+
+        output_path: Path = args.output
+        print(f"Merged fragments from {fragments_dir} into {output_path}")
+        return 0
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error merging fragments: {e}", file=sys.stderr)
         return 1
 
 
@@ -813,9 +899,33 @@ def _run_wheel_analyze_mode(args: argparse.Namespace, target: str) -> int:
 # `pitloom ids` -- Loom ID registry management
 # ---------------------------------------------------------------------------
 
-#: Conventional source/data directory names consulted by `pitloom ids
-#: generate` when no PATH arguments are given.
 _DEFAULT_IDS_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
+
+
+def _load_or_create_registry(
+    registry_path: Path, project_dir_name: str
+) -> IdRegistry | None:
+    """Load existing registry from registry_path or return a new one."""
+    if registry_path.exists():
+        try:
+            return IdRegistry.load(registry_path)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(
+                f"Error loading registry from {registry_path}: {exc}", file=sys.stderr
+            )
+            return None
+
+    namespace = f"https://spdx.org/spdxdocs/{project_dir_name}-{uuid4()}"
+    return IdRegistry(namespace=namespace)
+
+
+def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
+    """Return default candidate paths for `pitloom ids generate`."""
+    return [
+        project_dir / name
+        for name in _DEFAULT_IDS_GENERATE_DIR_NAMES
+        if (project_dir / name).exists()
+    ]
 
 
 def _add_ids_subparser(subparsers: Any) -> None:
@@ -831,99 +941,61 @@ def _add_ids_subparser(subparsers: Any) -> None:
     )
     ids_subparsers = ids_parser.add_subparsers(dest="ids_command", required=True)
 
-    generate_parser = ids_subparsers.add_parser(
+    gen_parser = ids_subparsers.add_parser(
         "generate",
         help="Index files (and detected AI models) under PATHs into the registry.",
     )
-    generate_parser.add_argument(
+    gen_parser.add_argument(
         "paths",
         nargs="*",
         type=Path,
         default=None,
-        help=(
-            "Files or directories to index, relative to --project-dir. "
-            f"Default: whichever of {', '.join(_DEFAULT_IDS_GENERATE_DIR_NAMES)} "
-            "exist under the project directory."
-        ),
+        help="Files or directories to index.",
     )
-    generate_parser.add_argument(
+    gen_parser.add_argument(
         "-o",
         "--registry",
         type=Path,
         default=None,
         metavar="FILE",
-        help=(
-            "Registry file to update, relative to --project-dir "
-            f"(default: {DEFAULT_REGISTRY_FILENAME}). "
-            "Regeneration is stable: an unchanged file keeps its id; a "
-            "changed file gets a fresh one; existing entries not covered by "
-            "PATHs are left untouched."
-        ),
+        help="Registry file to update.",
     )
-    generate_parser.add_argument(
+    gen_parser.add_argument(
         "--project-dir",
         type=Path,
         default=None,
-        help="Project root PATHs are resolved against (default: cwd).",
+        help="Project directory root.",
     )
-    generate_parser.add_argument(
+    gen_parser.add_argument(
+        "-e",
         "--entity",
         action="append",
         default=None,
         metavar="NAME[:TYPE]",
-        help=(
-            "Register a named entity (default TYPE: ai_AIPackage) so that "
-            "loom.set_model()/`loom model` can reuse its id even before the "
-            "model file exists on disk. May be given multiple times."
-        ),
+        help="Explicit entity name to register.",
     )
 
-    import_parser = ids_subparsers.add_parser(
-        "import", help="Harvest ids from an existing SPDX 3 JSON-LD SBOM."
+    imp_parser = ids_subparsers.add_parser(
+        "import",
+        help="Import entries from an external SBOM file.",
     )
-    import_parser.add_argument(
-        "sbom", type=Path, help="Path to the SBOM file to import."
+    imp_parser.add_argument(
+        "sbom",
+        type=Path,
+        help="Source SBOM JSON file to import.",
     )
-    import_parser.add_argument(
+    imp_parser.add_argument(
         "-o",
         "--registry",
         type=Path,
         default=None,
         metavar="FILE",
-        help=(
-            "Registry file to update "
-            f"(default: {DEFAULT_REGISTRY_FILENAME} in the current directory)."
-        ),
+        help="Registry file to update.",
     )
 
 
-def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
-    """Default PATHs for ``pitloom ids generate``: conventional source/data
-    directories, filtered to those that exist under *project_dir*."""
-    return [
-        project_dir / name
-        for name in _DEFAULT_IDS_GENERATE_DIR_NAMES
-        if (project_dir / name).is_dir()
-    ]
-
-
-def _load_or_create_registry(
-    registry_path: Path, default_name: str
-) -> IdRegistry | None:
-    """Load *registry_path* if it exists, else create a fresh registry ready
-    to be saved there. Returns ``None`` (after printing an error) if an
-    existing file fails to load."""
-    if registry_path.exists():
-        try:
-            return IdRegistry.load(registry_path)
-        except (ValueError, OSError) as exc:
-            print(f"Error loading registry {registry_path}: {exc}", file=sys.stderr)
-            return None
-    return IdRegistry.new(default_name, path=registry_path)
-
-
 def _run_ids_generate(args: argparse.Namespace) -> int:
-    """Run ``pitloom ids generate``."""
+    """Run `pitloom ids generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     registry_path = (
         (project_dir / args.registry).resolve()
@@ -957,7 +1029,7 @@ def _run_ids_generate(args: argparse.Namespace) -> int:
 
 
 def _run_ids_import(args: argparse.Namespace) -> int:
-    """Run ``pitloom ids import``."""
+    """Run `pitloom ids import`."""
     sbom_path: Path = args.sbom.resolve()
     if not sbom_path.exists():
         print(f"Error: SBOM file not found: {sbom_path}", file=sys.stderr)
@@ -987,142 +1059,12 @@ def _run_ids_import(args: argparse.Namespace) -> int:
 
 
 def _run_ids_cli(args: argparse.Namespace) -> int:
-    """Dispatch ``pitloom ids <command> ...`` arguments."""
+    """Dispatch `pitloom ids <command> ...` arguments."""
     if args.ids_command == "generate":
         return _run_ids_generate(args)
     if args.ids_command == "import":
         return _run_ids_import(args)
-    return 1  # pragma: no cover
-
-
-def _run_local_model_mode(args: argparse.Namespace, source: str) -> int:
-    """Generate a standalone SBOM for a single local AI model file."""
-    try:
-        model_path: Path = Path(source).resolve()
-        if not model_path.exists():
-            print(f"Error: Model file not found: {model_path}", file=sys.stderr)
-            return 1
-
-        pitloom_config = PitloomConfig()
-        creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = args.pretty if args.pretty is not None else False
-        effective_describe = (
-            bool(args.describe_relationship)
-            if args.describe_relationship is not None
-            else False
-        )
-
-        output_path = _resolve_model_output_path(args.output, model_path)
-
-        if args.verbose:
-            print(f"Pitloom version: {__version__}")
-            print(f"Model file      : {model_path}")
-            print(f"Output path     : {output_path}")
-
-        generate_ai_model_sbom(
-            model_path,
-            output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=effective_pretty,
-            describe_relationship=effective_describe,
-            registry=args.registry,
-        )
-        return 0
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating model SBOM: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return 1
-
-
-def _run_hf_model_mode(args: argparse.Namespace, source: str) -> int:
-    """Generate a standalone SBOM from a Hugging Face model repository."""
-    try:
-        model_id = parse_hf_model_id(source)
-        if model_id is None:
-            print(
-                f"Error: Not a valid Hugging Face URL or model ID: {source!r}",
-                file=sys.stderr,
-            )
-            return 1
-
-        pitloom_config = PitloomConfig()
-        creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = args.pretty if args.pretty is not None else False
-        effective_describe = (
-            bool(args.describe_relationship)
-            if args.describe_relationship is not None
-            else False
-        )
-
-        output_path = _resolve_hf_output_path(args.output, model_id)
-
-        if args.verbose:
-            print(f"Pitloom version    : {__version__}")
-            print(f"Hugging Face model : {model_id}")
-            print(f"Output path        : {output_path}")
-
-        generate_huggingface_sbom(
-            model_id,
-            output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=effective_pretty,
-            describe_relationship=effective_describe,
-        )
-        return 0
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating Hugging Face model SBOM: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return 1
-
-
-def _run_project_mode(args: argparse.Namespace) -> int:
-    """Generate a full project SBOM from a project directory."""
-    try:
-        project_dir, _ = _resolve_project_paths(args)
-        if project_dir is None:
-            return 1
-
-        project_metadata, pitloom_config, config_path = read_project(project_dir)
-        creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
-        effective_describe_relationship = (
-            pitloom_config.describe_relationship
-            if args.describe_relationship is None
-            else args.describe_relationship
-        )
-
-        output_path = _resolve_output_path(
-            args.output, project_metadata, pitloom_config
-        )
-
-        if args.verbose:
-            _print_verbose(
-                args,
-                project_dir,
-                output_path,
-                pitloom_config,
-                config_path,
-                creation,
-            )
-
-        generate_sbom(
-            project_dir,
-            output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=effective_pretty,
-            describe_relationship=effective_describe_relationship,
-            project_metadata=project_metadata,
-            pitloom_config=pitloom_config,
-            registry=args.registry,
-        )
-        return 0
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating SBOM: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return 1
+    return 1
 
 
 if __name__ == "__main__":
