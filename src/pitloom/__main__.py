@@ -699,16 +699,17 @@ def main() -> int:
 def _run_generate_mode(args: argparse.Namespace) -> int:
     """Smart generate mode."""
     try:
-        pitloom_config = PitloomConfig()
-        creation = _resolve_creation_metadata(args, pitloom_config)
+        creation_metadata, pretty, describe_relationship = (
+            _resolve_generate_mode_settings(args)
+        )
         output_path = args.output
         generate(
             args.target,
             offline=args.offline,
             output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=args.pretty if args.pretty is not None else False,
-            describe_relationship=bool(args.describe_relationship),
+            creation_metadata=creation_metadata,
+            pretty=pretty,
+            describe_relationship=describe_relationship,
             registry=args.registry,
         )
         return 0
