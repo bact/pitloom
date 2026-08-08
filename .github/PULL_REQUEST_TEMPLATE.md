@@ -9,7 +9,8 @@
 ## Checklist
 
 - [ ] Tests pass (`pytest`)
-- [ ] Code formatted (`ruff format`) and lint passes
+- [ ] Code formatted (`ruff format`)
+- [ ] Lints pass
       (`ruff check src/ tests/`,
       `pylint src/ tests`,
       `mypy examples/ src/ tests/`,
