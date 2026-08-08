@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-07-21
+Last-Modified: 2026-08-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,6 +22,11 @@ and this project adheres to
 
 ### Added
 
+- Native-first provenance backfills (Phase 2):
+  - `hasConcludedLicense` vs. `hasDeclaredLicense` separation for detected vs. author-asserted licenses.
+  - Native `ExternalIdentifier` (DOI) and `ExternalRef` (arXiv paper IDs, model page URLs) on `ai_AIPackage`.
+  - Native `Agent` and `publishedBy` relationship for dataset creators on `dataset_DatasetPackage`.
+  - Fragment document origin traceability: populate `SpdxDocument.import_` with `ExternalMap` entries for merged fragments.
 - Record metadata provenance as SPDX 3 Core `Annotation` elements alongside
   the `comment` form, controlled by `[tool.pitloom.provenance] format`.
 - `[tool.pitloom.provenance] detail` (`minimal` default / `full`) to limit
@@ -34,6 +39,7 @@ and this project adheres to
 
 ### Changed
 
+- Concluded licenses are no longer unconditionally mirrored from declared licenses when Pitloom detects a license itself.
 - Provenance is no longer duplicated onto `dependsOn` relationships.
 - Dict-valued AI-model metadata (`properties`, `hyperparameters`) now records
   exact per-key provenance instead of one shared note per dict.
