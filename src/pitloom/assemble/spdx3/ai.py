@@ -269,6 +269,46 @@ def _build_ai_package(
     if io_parts:
         ai_pkg.ai_informationAboutApplication = json.dumps(io_parts, ensure_ascii=False)
 
+    # ExternalIdentifier: DOI (uses type 'other' with comment 'DOI' in SPDX 3.0.1;
+    # 'doi' enum member is introduced in SPDX 3.1-dev).
+    doi = ai_model.doi or ai_model.extra_data.get("hf.doi")
+    if doi:
+        ai_pkg.externalIdentifier.append(
+            spdx3.ExternalIdentifier(
+                externalIdentifierType=spdx3.ExternalIdentifierType.other,
+                identifier=str(doi),
+                comment="DOI",
+            )
+        )
+
+    # ExternalRef: arXiv papers
+    arxiv_ids = ai_model.arxiv_ids or ai_model.extra_lists.get("hf.arxiv") or []
+    for arxiv_id in arxiv_ids:
+        arxiv_str = str(arxiv_id)
+        loc = (
+            arxiv_str
+            if arxiv_str.startswith(("http://", "https://"))
+            else f"https://arxiv.org/abs/{arxiv_str}"
+        )
+        ai_pkg.externalRef.append(
+            spdx3.ExternalRef(
+                externalRefType=spdx3.ExternalRefType.documentation,
+                locator=[loc],
+                comment=f"arXiv:{arxiv_str}",
+            )
+        )
+
+    # ExternalRef: Model page / repository URL
+    url = ai_model.url or ai_model.extra_data.get("hf.url")
+    if url:
+        ai_pkg.externalRef.append(
+            spdx3.ExternalRef(
+                externalRefType=spdx3.ExternalRefType.altWebPage,
+                locator=[str(url)],
+                comment="Model page URL",
+            )
+        )
+
     # comment: known_biases. Provenance is emitted separately by the caller
     # (see the docstring's Provenance section above).
     if ai_model.usage.known_biases:
