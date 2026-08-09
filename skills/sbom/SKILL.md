@@ -12,6 +12,7 @@ description: >-
   "document this model's provenance", and similar requests for a supply-chain
   transparency artefact.
 license: Apache-2.0
+argument-hint: "[target]"
 ---
 
 <!-- Created: 2026-07-05 -->
@@ -25,6 +26,13 @@ license: Apache-2.0
 Pitloom is a command-line tool that generates SPDX 3 JSON SBOMs for
 Python projects, sdist archives, wheels, AI/ML model files, and Python
 environments. This skill drives Pitloom's existing CLI (`loom` / `pitloom`).
+
+Triggers automatically on natural-language requests (see the trigger
+phrasings above), or invoke it explicitly with `/sbom [target]`
+(`/pitloom:sbom [target]` when installed via the Claude Code plugin).
+`target` is optional -- a project directory, an sdist/wheel path, a local
+model file, or a Hugging Face model ID; omit it to default to the current
+directory.
 
 See `references/examples.md` for copy-paste recipes.
 

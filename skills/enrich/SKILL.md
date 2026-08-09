@@ -11,10 +11,11 @@ description: >-
   README/model card". Requires a Pitloom-generated SBOM to already exist --
   generate one first with the `sbom` skill if it does not.
 license: Apache-2.0
+argument-hint: "[sbom-file]"
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-07-08 -->
+<!-- Last-Modified: 2026-08-09 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -28,6 +29,13 @@ plausible license or a dependency's purpose, or work out
 explicitly. Do this only **after** a base SBOM exists (use the `sbom`
 skill first if it does not), and only when it adds real information -- do
 not fabricate detail for its own sake.
+
+Triggers automatically on natural-language requests (see the trigger
+phrasings above), or invoke it explicitly with `/enrich [sbom-file]`
+(`/pitloom:enrich [sbom-file]` when installed via the Claude Code
+plugin). `sbom-file` is optional -- point it at a specific
+already-generated SBOM when a project has more than one; omit it to let
+the agent find the one to enrich.
 
 See `references/examples.md` for a full worked example.
 

@@ -45,9 +45,25 @@ and this project adheres to
 - Artifact-metadata preservation (`[tool.pitloom.provenance]
   preserve-source-metadata`, `auto` default) to embed an AI model's verbatim
   original metadata when it isn't shipped with the distribution.
+- `docs/ai-skills-and-plugin.md`: a dedicated website page walking through
+  installing and using the `sbom`/`enrich` Agent Skills and the Claude Code
+  plugin, for both SBOM generation and enrichment.
+- `version`, `$schema`, `category`, and `keywords` metadata on the Claude
+  Code plugin manifest (`.claude-plugin/plugin.json`), and `argument-hint`
+  on both Skills' front matter (`skills/sbom/SKILL.md`,
+  `skills/enrich/SKILL.md`), for better discoverability and clearer
+  slash-command ergonomics.
 
 ### Changed
 
+- README.md's "Agent Skill" and "Claude Code plugin" sections now show
+  explicit slash-command usage for both generation and enrichment, and
+  link to the new dedicated docs page.
+- `.claude-plugin/marketplace.json`'s plugin entry no longer duplicates
+  `plugin.json`'s `description`/`author`/`homepage`/`repository`/
+  `license`/`keywords`/`version` -- Claude Code already resolves those
+  from `plugin.json` at install time, so keeping two copies in sync
+  bought nothing.
 - Concluded licenses are no longer unconditionally mirrored
   from declared licenses when Pitloom detects a license itself.
 - Provenance is no longer duplicated onto `dependsOn` relationships.
