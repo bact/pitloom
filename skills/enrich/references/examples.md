@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,6 +76,21 @@ python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
   fragments/agent-enrichment.spdx3.json
 ```
 
+For a stronger check, run the fragment through the same SPDX 3 JSON-LD
+deserializer `merge_fragments()` itself uses. This catches the same
+broken-JSON-LD cases `merge_fragments()` swallows as a warning, plus
+SPDX-shape problems (e.g. an unknown property or type) that plain
+JSON-syntax validity would miss:
+
+```bash
+python3 -c "
+import sys
+from spdx_python_model.bindings import v3_0_1 as spdx3
+with open(sys.argv[1], 'rb') as f:
+    spdx3.JSONLDDeserializer().read(f, spdx3.SHACLObjectSet())
+" fragments/agent-enrichment.spdx3.json
+```
+
 ## 3. Register the fragment
 
 In the project's `pyproject.toml`:
@@ -123,3 +138,6 @@ extraction.
   and the `[tool.pitloom.enrich]` enable/disable model.
 - `working-docs/design/sbom-fragments.md` -- fragment system design and
   vocabulary.
+- `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
+  and JSON Schema links, plus the `spdx3-validate` validator used in the
+  post-merge check above.

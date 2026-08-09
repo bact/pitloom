@@ -1,10 +1,13 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
+
+<!-- markdownlint-disable-next-line MD041 -->
+{% include nav.html %}
 
 # Pitloom
 
@@ -133,8 +136,27 @@ def evaluate_model():
 - (A) and (C) set relationship between the code and the model
 - (B) sets relationship between the code and the dataset
 
+### AI Skills and the Claude Code plugin
+
+Pitloom ships two Anthropic Agent Skills (`sbom`, `enrich`), also
+installable as a self-hosted Claude Code plugin:
+
+```text
+/plugin marketplace add bact/pitloom
+/plugin install pitloom@pitloom
+```
+
+Once installed, ask in plain language ("generate an SBOM for this
+project") or invoke explicitly: `/pitloom:sbom [target]`,
+`/pitloom:enrich [sbom-file]`. See
+[AI Skills and the Claude Code plugin](ai-skills-and-plugin.md) for
+install options, usage for both generation and enrichment, and
+verification steps.
+
 ## Learn more
 
+- [AI Skills and the Claude Code plugin](ai-skills-and-plugin.md) --
+  installing and using Pitloom as an Agent Skill or a Claude Code plugin.
 - [Creation metadata](creation-metadata.md) -- who/what/when/how every
   Pitloom-generated element records about its own creation.
 - [Metadata provenance](metadata-provenance.md) -- how Pitloom tracks the

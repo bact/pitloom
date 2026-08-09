@@ -1,6 +1,8 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "pitloom",
   "displayName": "Pitloom",
+  "version": "0.12.0",
   "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom.",
   "author": {
     "name": "Arthit Suriyawongkul",

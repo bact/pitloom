@@ -11,10 +11,11 @@ description: >-
   README/model card". Requires a Pitloom-generated SBOM to already exist --
   generate one first with the `sbom` skill if it does not.
 license: Apache-2.0
+argument-hint: "[sbom-file]"
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-07-08 -->
+<!-- Last-Modified: 2026-08-09 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -28,6 +29,13 @@ plausible license or a dependency's purpose, or work out
 explicitly. Do this only **after** a base SBOM exists (use the `sbom`
 skill first if it does not), and only when it adds real information -- do
 not fabricate detail for its own sake.
+
+Triggers automatically on natural-language requests (see the trigger
+phrasings above), or invoke it explicitly with `/enrich [sbom-file]`
+(`/pitloom:enrich [sbom-file]` when installed via the Claude Code
+plugin). `sbom-file` is optional -- point it at a specific
+already-generated SBOM when a project has more than one; omit it to let
+the agent find the one to enrich.
 
 See `references/examples.md` for a full worked example.
 
@@ -65,6 +73,21 @@ Steps:
      fragments/agent-enrichment.spdx3.json
    ```
 
+   For a stronger check, run the fragment through the same SPDX 3
+   JSON-LD deserializer `merge_fragments()` itself uses -- this catches
+   the same broken-JSON-LD cases `merge_fragments()` swallows as a
+   warning, plus SPDX-shape problems (e.g. an unknown property or type)
+   that plain JSON-syntax validity would miss:
+
+   ```bash
+   python3 -c "
+   import sys
+   from spdx_python_model.bindings import v3_0_1 as spdx3
+   with open(sys.argv[1], 'rb') as f:
+       spdx3.JSONLDDeserializer().read(f, spdx3.SHACLObjectSet())
+   " fragments/agent-enrichment.spdx3.json
+   ```
+
 5. Register the fragment so Pitloom merges it on the next run:
 
    ```toml
@@ -90,3 +113,10 @@ Steps:
 For the full enrichment data-source table, the `[tool.pitloom.enrich]`
 enable/disable model, and the dataset-relationship field map, see
 `working-docs/design/sbom-enrichment.md` in the Pitloom repository.
+
+## See also
+
+- `references/examples.md` -- full worked example.
+- `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
+  and JSON Schema links, plus the `spdx3-validate` validator used in the
+  post-merge check above.

@@ -12,6 +12,7 @@ description: >-
   "document this model's provenance", and similar requests for a supply-chain
   transparency artefact.
 license: Apache-2.0
+argument-hint: "[target]"
 ---
 
 <!-- Created: 2026-07-05 -->
@@ -25,6 +26,13 @@ license: Apache-2.0
 Pitloom is a command-line tool that generates SPDX 3 JSON SBOMs for
 Python projects, sdist archives, wheels, AI/ML model files, and Python
 environments. This skill drives Pitloom's existing CLI (`loom` / `pitloom`).
+
+Triggers automatically on natural-language requests (see the trigger
+phrasings above), or invoke it explicitly with `/sbom [target]`
+(`/pitloom:sbom [target]` when installed via the Claude Code plugin).
+`target` is optional -- a project directory, an sdist/wheel path, a local
+model file, or a Hugging Face model ID; omit it to default to the current
+directory.
 
 See `references/examples.md` for copy-paste recipes.
 
@@ -96,3 +104,17 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
 - `--offline` -- enforce offline execution for `loom model` / `loom generate`.
 - `-v` / `--verbose` -- print effective options and where each came from.
 - `--creator-name NAME`, `--creator-email EMAIL` -- name who created the SBOM.
+
+## Verify the result
+
+A quick `@graph`-presence sanity check is enough for most runs, but for a
+schema/shape-level conformance check, run `spdx3-validate` on the output
+too -- see `references/examples.md` for both commands.
+
+## See also
+
+- `references/examples.md` -- copy-paste recipes for every target type.
+- `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
+  JSON-LD, and JSON Schema links (including the per-minor-version URL
+  pattern) for looking up the exact schema/spec a generated SBOM should
+  conform to, and the `spdx3-validate` validator used to check it.

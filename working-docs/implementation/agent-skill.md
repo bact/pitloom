@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,10 +32,12 @@ skills/
       `- examples.md            A full worked fragment example.
 ```
 
-Each `SKILL.md`'s YAML front matter declares a `name` (`sbom`, `enrich`)
-and a `description` written as an explicit trigger sentence -- the string
-an agent runtime matches against a user's request to decide whether to
-load that skill. They are independent and independently triggerable:
+Each `SKILL.md`'s YAML front matter declares a `name` (`sbom`, `enrich`),
+a `description` written as an explicit trigger sentence -- the string an
+agent runtime matches against a user's request to decide whether to load
+that skill -- and an `argument-hint` (`[target]`, `[sbom-file]`) shown by
+Claude Code's command palette when invoking the skill explicitly (e.g.
+`/sbom <target>`). They are independent and independently triggerable:
 `sbom` always runs first (there is nothing to enrich yet otherwise);
 `enrich` is optional and only fires when asked for, or when a user
 explicitly wants to add detail Pitloom's static extraction cannot see.

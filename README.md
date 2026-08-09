@@ -67,6 +67,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 | [Agent Skill](#use-pitloom-as-an-ai-agent-skill) | You want an AI coding agent to generate (and optionally enrich) an SBOM on request. |
 | [Claude Code plugin](#use-pitloom-as-a-claude-code-plugin) | You use Claude Code and want the Skills installable with one command. |
 
+See [docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) for a
+dedicated walkthrough of the Agent Skills and the Claude Code plugin.
+
 ### Command line
 
 Generate a **Source SBOM** for a Python project in the current directory:
@@ -233,7 +236,20 @@ mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install
 cp -r /path/to/pitloom/skills/sbom /path/to/pitloom/skills/enrich ~/.claude/skills/
 ```
 
-See [working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
+Once installed, either ask in plain language ("generate an SBOM for this
+project", "enrich this SBOM with the dataset it was trained on") or
+invoke a skill explicitly with `/sbom [target]` / `/enrich [sbom-file]`.
+Generate first, enrich second -- `enrich` needs a Pitloom-generated SBOM
+to already exist:
+
+```text
+/sbom .                          # or /sbom models/my-model.safetensors
+/enrich sbom.spdx3.json
+```
+
+See [docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) for a
+walkthrough of both skills, or
+[working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
 for full install instructions.
 
 ### Use Pitloom as a Claude Code plugin
@@ -246,8 +262,11 @@ repository:
 /plugin install pitloom@pitloom
 ```
 
-Once installed: `/pitloom:sbom`, `/pitloom:enrich` (or just ask in plain
-language). See
+Once installed, both Skills are namespaced under the plugin: `/pitloom:sbom
+[target]` and `/pitloom:enrich [sbom-file]` (or just ask in plain
+language -- natural-language triggering works the same as standalone
+Skills). See
+[docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) or
 [working-docs/implementation/claude-code-plugin.md](working-docs/implementation/claude-code-plugin.md)
 for what the plugin bundles.
 
