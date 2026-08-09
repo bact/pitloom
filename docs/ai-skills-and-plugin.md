@@ -6,6 +6,9 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
+<!-- markdownlint-disable-next-line MD041 -->
+{% include nav.html %}
+
 # AI Skills and the Claude Code plugin
 
 Pitloom ships two Anthropic [Agent Skills][agent-skills] --
