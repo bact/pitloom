@@ -11,22 +11,23 @@ build-backend = "hatchling.build"
 [project]
 name = "pitloom"
 dynamic = ["version"]
-description = "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support."
+description = "Generate SPDX 3 SBOMs for Python projects and AI models with Pitloom."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 keywords = [
     "sbom",
-    "bom",
-    "spdx",
     "software bill of materials",
     "hatchling",
-    "supply chain",
+    "spdx",
     "aibom",
-    "build",
-    "provenance",
-    "transparency",
+    "metadata",
+    "gguf",
+    "onnx",
+    "safetensors",
     "ai sbom",
+    "transparency",
+    "software supply chain security",
 ]
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [

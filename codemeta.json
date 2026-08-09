@@ -20,7 +20,7 @@
     "dateCreated": "2026-03-27",
     "dateModified": "2026-07-10",
     "datePublished": "2026-07-10",
-    "description": "Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support.",
+    "description": "Generate SPDX 3 SBOMs for Python projects and AI models with Pitloom.",
     "developmentStatus": "active",
     "downloadUrl": "https://github.com/bact/pitloom/releases",
     "identifier": "10.5281/zenodo.19246283",
@@ -53,7 +53,7 @@
             "givenName": "Arthit"
         }
     ],
-    "name": "Pitloom - An SBOM generator for AI models and Python projects",
+    "name": "Pitloom - SBOM generator for AI models and Python projects",
     "programmingLanguage": "Python 3",
     "readme": "https://github.com/bact/pitloom/blob/main/README.md",
     "url": "https://github.com/bact/pitloom",

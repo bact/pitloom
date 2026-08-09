@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: Pitloom - An SBOM generator for AI models and Python projects
+title: Pitloom - SBOM generator for AI models and Python projects
 authors:
   - family-names: Suriyawongkul
     given-names: Arthit
     orcid: https://orcid.org/0000-0002-9698-1899
-abstract: Automated transparency, woven from the ground up. SBOM generation for Python & AI projects. Extract metadata from GGUF, ONNX, PyTorch, and Safetensors models with native Hatchling build-hook support.
+abstract: Generate SPDX 3 SBOMs for Python projects and AI models with Pitloom.
 repository-code: "https://github.com/bact/pitloom"
 type: software
 doi: 10.5281/zenodo.19246283
