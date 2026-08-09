@@ -74,8 +74,3 @@ This transparency is crucial for:
   extracted facts from inferred/detected ones
 - **Machine consumption**: Automated tools can parse provenance
 - **Human review**: Manual inspection of data sources
-
-For the full design -- the native-first boundary principle, the use-case
-catalog, and artifact-metadata preservation for AI models -- see
-[`working-docs/design/metadata-provenance.md`](https://github.com/bact/pitloom/blob/main/working-docs/design/metadata-provenance.md)
-in the Pitloom repository.

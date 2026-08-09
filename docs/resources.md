@@ -14,31 +14,22 @@ SPDX-License-Identifier: CC0-1.0
 ## SPDX resources
 
 - SPDX project: <https://spdx.dev/>
-- Versioned-URL pattern: for any SPDX 3 minor version `X`, the spec,
-  ontology, JSON-LD, and JSON Schema files live at predictable paths --
-  `https://spdx.github.io/spdx-spec/v3.X/` (spec site),
-  `https://spdx.org/rdf/3.X/spdx-model.ttl` (ontology),
-  `https://spdx.org/rdf/3.X/spdx-json-serialize-annotations.ttl`
-  (JSON-LD serialization annotations),
-  `https://spdx.org/rdf/3.X/spdx-context.jsonld` (JSON-LD context), and
-  `https://spdx.org/schema/3.X/spdx-json-schema.json` (JSON Schema).
-  A version still under development uses a `-dev` spec-site suffix (e.g.
-  `v3.1-dev`) until it's finalized; the `rdf`/`schema` data file paths
-  stay unsuffixed regardless.
 - SPDX 3.0 spec: <https://spdx.github.io/spdx-spec/v3.0/>
   - Model: <https://spdx.org/rdf/3.0/spdx-model.ttl>
   - JSON Schema: <https://spdx.org/schema/3.0/spdx-json-schema.json>
   - JSON-LD context: <https://spdx.org/rdf/3.0/spdx-context.jsonld>
   - JSON-LD serialization annotation: <https://spdx.org/rdf/3.0/spdx-json-serialize-annotations.ttl>
-- SPDX 3.1 spec (dev): <https://spdx.github.io/spdx-spec/v3.1-dev/>
+- SPDX 3.1 spec (under development): <https://spdx.github.io/spdx-spec/v3.1-dev/>
   - Terms: <https://spdx.github.io/spdx-spec/v3.1-dev/terms-and-definitions/>
   - Model: <https://spdx.org/rdf/3.1/spdx-model.ttl>
   - JSON Schema: <https://spdx.org/schema/3.1/spdx-json-schema.json>
   - JSON-LD context: <https://spdx.org/rdf/3.1/spdx-context.jsonld>
   - JSON-LD serialization annotation: <https://spdx.org/rdf/3.1/spdx-json-serialize-annotations.ttl>
 - SPDX 3 JSON validation guide: <https://github.com/spdx/spdx-3-model/blob/develop/serialization/jsonld/validation.md>
-- SPDX 3 model format and style guide: <https://github.com/spdx/spdx-3-model/blob/develop/docs/format.md>
 - SPDX 3 model Python binding: <https://github.com/spdx/spdx-python-model>
+- SPDX 3 model format and style guide (useful when reading model source files
+  from spdx-3-model repo):
+  <https://github.com/spdx/spdx-3-model/blob/develop/docs/format.md>
 - SPDX examples: <https://github.com/spdx/spdx-examples>
 - SBOM example using SPDX 3.0 AI and Dataset profiles: <https://github.com/bact/sentimentdemo>
 - NTIA Conformance Checker test corpus: <https://github.com/spdx/ntia-conformance-checker/tree/main/tests>
@@ -54,9 +45,9 @@ SPDX-License-Identifier: CC0-1.0
 - OpenChain SBOM Document Quality Guide Compliance Management Guide for
   the Supply Chain version 1.0.0:
   <https://docs.google.com/document/d/1iuXX8j10N70dfce1-CZFWhW6S2jEqc--flcCgXMMdjg/edit?usp=sharing>
-- 2025 Minimum Elements for a Software Bill of Materials (SBOM) (draft):
-  <https://www.cisa.gov/resources-tools/resources/2025-minimum-elements-software-bill-materials-sbom>
-  <https://www.cisa.gov/sites/default/files/2025-08/2025_CISA_SBOM_Minimum_Elements.pdf>
+- 2026 Minimum Elements for a Software Bill of Materials (SBOM):
+  <https://www.cisa.gov/resources-tools/resources/2026-minimum-elements-software-bill-materials-sbom>
+  <https://www.cisa.gov/sites/default/files/2026-07/2026_cisa_sbom_minimum_elements_508c.pdf>
 - BSI TR-03183-2: Cyber Resilience Requirements for Manufacturers and
   Products - Part 2: Software Bill of Materials (SBOM) Version 2.1.0
   <https://www.bsi.bund.de/SharedDocs/Downloads/EN/BSI/Publications/TechGuidelines/TR03183/BSI-TR-03183-2_v2_1_0.pdf?__blob=publicationFile&v=5>
