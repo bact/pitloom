@@ -14,6 +14,17 @@ SPDX-License-Identifier: CC0-1.0
 ## SPDX resources
 
 - SPDX project: <https://spdx.dev/>
+- Versioned-URL pattern: for any SPDX 3 minor version `X`, the spec,
+  ontology, JSON-LD, and JSON Schema files live at predictable paths --
+  `https://spdx.github.io/spdx-spec/v3.X/` (spec site),
+  `https://spdx.org/rdf/3.X/spdx-model.ttl` (ontology),
+  `https://spdx.org/rdf/3.X/spdx-json-serialize-annotations.ttl`
+  (JSON-LD serialization annotations),
+  `https://spdx.org/rdf/3.X/spdx-context.jsonld` (JSON-LD context), and
+  `https://spdx.org/schema/3.X/spdx-json-schema.json` (JSON Schema).
+  A version still under development uses a `-dev` spec-site suffix (e.g.
+  `v3.1-dev`) until it's finalized; the `rdf`/`schema` data file paths
+  stay unsuffixed regardless.
 - SPDX 3.0 spec: <https://spdx.github.io/spdx-spec/v3.0/>
   - Model: <https://spdx.org/rdf/3.0/spdx-model.ttl>
   - JSON Schema: <https://spdx.org/schema/3.0/spdx-json-schema.json>
