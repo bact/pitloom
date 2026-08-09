@@ -113,7 +113,7 @@ issues = "https://github.com/bact/pitloom/issues"
 [dependency-groups]
 lint = ["bandit>=1.9.4", "flake8>=7.3.0", "pylint>=4.0.6", "ruff>=0.16.2"]
 test = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "stav>=0.4.1"]
-typecheck = ["mypy>=1.20.2", "pyrefly>=1.2.0", "pyright>=1.1.411"]
+typecheck = ["mypy>=2.3.0", "pyrefly>=1.2.0", "pyright>=1.1.411"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
