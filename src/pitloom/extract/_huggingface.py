@@ -243,6 +243,13 @@ def _safe_load_json(
     model_id: str, filename: str, revision: str | None = None
 ) -> dict[str, Any] | None:
     """Download *filename* from *model_id* and return parsed JSON, or ``None``."""
+    if revision is None:
+        log.warning(
+            "Downloading %s for %s without a pinned revision; "
+            "supply hub_info['sha'] to ensure reproducibility.",
+            filename,
+            model_id,
+        )
     try:
         # pylint: disable=import-outside-toplevel
         from huggingface_hub import hf_hub_download
@@ -341,6 +348,12 @@ def _detect_license_from_hf_files(
     default threshold, or ``(None, None)`` otherwise.  Requires the
     ``licenseid`` package and its database (``licenseid update``).
     """
+    if revision is None:
+        log.warning(
+            "Scanning license files for %s without a pinned revision; "
+            "supply hub_info['sha'] to ensure reproducibility.",
+            model_id,
+        )
     # pylint: disable=import-outside-toplevel
     from pathlib import Path as _Path
 
