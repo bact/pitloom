@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-09
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -50,6 +50,7 @@ and this project adheres to
 - Provenance is no longer duplicated onto `dependsOn` relationships.
 - Dict-valued AI-model metadata (`properties`, `hyperparameters`) now records
   exact per-key provenance instead of one shared note per dict.
+- Raised the minimum `mypy` version to 2.3.0.
 
 ### Security
 
