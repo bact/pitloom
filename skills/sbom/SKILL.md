@@ -15,7 +15,7 @@ license: Apache-2.0
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-08-08 -->
+<!-- Last-Modified: 2026-08-09 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -34,7 +34,11 @@ Prefer an ephemeral run so the user's environment is not polluted:
 
 ```bash
 uvx pitloom generate <target>       # Smart auto-detection entrypoint
-# or
+```
+
+or
+
+```bash
 pipx run pitloom generate <target>  # pipx's ephemeral runner
 ```
 
@@ -56,8 +60,8 @@ loom generate .                              # project directory -> Source SBOM
 loom generate mypackage-1.0.0.tar.gz         # sdist archive     -> Source SBOM
 loom generate dist/pkg-1.0-py3-none-any.whl  # wheel package     -> Analyzed SBOM
 loom generate models/model.gguf              # local model file  -> AI Model SBOM
-loom generate mistralai/Mistral-7B-v0.1     # Hugging Face URL  -> AI Model SBOM
-loom generate env                          # installed venv    -> Deployed SBOM
+loom generate mistralai/Mistral-7B-v0.1      # Hugging Face URL  -> AI Model SBOM
+loom generate env                            # installed venv    -> Deployed SBOM
 ```
 
 ## Explicit Target Subcommands
