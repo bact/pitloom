@@ -11,23 +11,26 @@ build-backend = "hatchling.build"
 [project]
 name = "pitloom"
 dynamic = ["version"]
-description = "Generate SPDX 3 SBOMs for Python projects and AI models with Pitloom."
+description = "Generate SPDX 3 SBOMs for Python projects and AI models with native Hatchling build-hook support."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 keywords = [
     "sbom",
-    "software bill of materials",
-    "hatchling",
+    "software-bill-of-materials",
     "spdx",
+    "supply-chain-security",
+    "hatchling",
+    "bom",
     "aibom",
+    "provenance",
+    "transparency",
     "metadata",
     "gguf",
     "onnx",
     "safetensors",
-    "ai sbom",
-    "transparency",
-    "software supply chain security",
+    "ai-sbom",
+    "software-supply-chain-security",
 ]
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [

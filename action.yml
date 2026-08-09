@@ -4,7 +4,7 @@
 
 name: "Pitloom - SBOM generator for AI models and Python projects"
 description: >-
-  Generate SPDX 3 SBOMs for Python projects and AI models with Pitloom.
+  Generate SPDX 3 SBOMs for Python projects and AI models using Pitloom.
 author: "Arthit Suriyawongkul"
 
 branding:
