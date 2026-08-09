@@ -98,3 +98,10 @@ Steps:
 For the full enrichment data-source table, the `[tool.pitloom.enrich]`
 enable/disable model, and the dataset-relationship field map, see
 `working-docs/design/sbom-enrichment.md` in the Pitloom repository.
+
+## See also
+
+- `references/examples.md` -- full worked example.
+- `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
+  and JSON Schema links, plus the `spdx3-validate` validator used in the
+  post-merge check above.

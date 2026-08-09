@@ -104,3 +104,17 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
 - `--offline` -- enforce offline execution for `loom model` / `loom generate`.
 - `-v` / `--verbose` -- print effective options and where each came from.
 - `--creator-name NAME`, `--creator-email EMAIL` -- name who created the SBOM.
+
+## Verify the result
+
+A quick `@graph`-presence sanity check is enough for most runs, but for a
+schema/shape-level conformance check, run `spdx3-validate` on the output
+too -- see `references/examples.md` for both commands.
+
+## See also
+
+- `references/examples.md` -- copy-paste recipes for every target type.
+- `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
+  JSON-LD, and JSON Schema links (including the per-minor-version URL
+  pattern) for looking up the exact schema/spec a generated SBOM should
+  conform to, and the `spdx3-validate` validator used to check it.
