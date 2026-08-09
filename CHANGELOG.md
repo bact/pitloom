@@ -22,6 +22,9 @@ and this project adheres to
 
 ### Added
 
+- OpenSSF Scorecard GitHub Actions workflow, scheduled weekly and on pushes
+  to `main`, publishing results and a README badge alongside the existing
+  OpenSSF Best Practices badge.
 - Native-first provenance backfills (Phase 2):
   - `hasConcludedLicense` vs. `hasDeclaredLicense` separation
     for detected vs. author-asserted licenses.
