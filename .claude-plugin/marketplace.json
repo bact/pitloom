@@ -4,12 +4,12 @@
     "name": "Arthit Suriyawongkul",
     "email": "suriyawa@tcd.ie"
   },
-  "description": "Generate and enrich SBOMs/AIBOMs using Pitloom, for Claude Code.",
+  "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom.",
   "plugins": [
     {
       "name": "pitloom",
       "source": "./",
-      "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs using Pitloom."
+      "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom."
     }
   ]
 }
