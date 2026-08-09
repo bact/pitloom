@@ -9,5 +9,5 @@
   "homepage": "https://github.com/bact/pitloom",
   "repository": "https://github.com/bact/pitloom",
   "license": "Apache-2.0",
-  "keywords": ["sbom", "spdx", "supply-chain", "aibom", "provenance"]
+  "keywords": ["sbom", "spdx", "supply-chain-security", "bom", "aibom", "provenance", "transparency", "metadata", "gguf", "onnx", "safetensors", "ai-sbom", "software-supply-chain-security"]
 }
