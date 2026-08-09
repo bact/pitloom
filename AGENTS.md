@@ -80,10 +80,13 @@ Run and fix all errors before committing:
 
 ```shell
 ruff check --fix
-mypy
 pylint
-flake8
+mypy
+pyright
+pyrefly check
+bandit -r
 ruff format
+flake8
 ```
 
 - Return statements ≤ 6; refactor if exceeded.
