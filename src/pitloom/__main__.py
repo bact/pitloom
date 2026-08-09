@@ -441,6 +441,34 @@ def _resolve_creation_metadata(
     )
 
 
+def _resolve_generate_mode_settings(
+    args: argparse.Namespace,
+) -> tuple[CreationMetadata, bool | None, bool | None]:
+    """Resolve settings for ``loom generate`` using project config when available."""
+    pitloom_config = PitloomConfig()
+    target_value = str(args.target).strip()
+    if target_value:
+        target_path = Path(target_value)
+        if target_path.exists():
+            try:
+                _, pitloom_config, _ = read_project(target_path)
+            except FileNotFoundError:
+                pitloom_config = PitloomConfig()
+
+    creation = _resolve_creation_metadata(args, pitloom_config)
+    effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
+    effective_describe_relationship = (
+        pitloom_config.describe_relationship
+        if args.describe_relationship is None
+        else args.describe_relationship
+    )
+    return (
+        creation.to_creation_metadata(),
+        effective_pretty,
+        effective_describe_relationship,
+    )
+
+
 def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
     """Load ``[tool.pitloom]`` keys for verbose source reporting."""
     if config_path is None or config_path.name != "pyproject.toml":
@@ -671,16 +699,17 @@ def main() -> int:
 def _run_generate_mode(args: argparse.Namespace) -> int:
     """Smart generate mode."""
     try:
-        pitloom_config = PitloomConfig()
-        creation = _resolve_creation_metadata(args, pitloom_config)
+        creation_metadata, pretty, describe_relationship = (
+            _resolve_generate_mode_settings(args)
+        )
         output_path = args.output
         generate(
             args.target,
             offline=args.offline,
             output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=args.pretty if args.pretty is not None else False,
-            describe_relationship=bool(args.describe_relationship),
+            creation_metadata=creation_metadata,
+            pretty=pretty,
+            describe_relationship=describe_relationship,
             registry=args.registry,
         )
         return 0

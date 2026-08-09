@@ -2,9 +2,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Pitloom - SPDX 3 SBOM Generator"
+name: "Pitloom - SBOM generator for AI models and Python projects"
 description: >-
-  Generate an SPDX 3 SBOM for a Python project or AI model file using Pitloom.
+  Generate SPDX 3 SBOMs for Python projects and AI models using Pitloom.
 author: "Arthit Suriyawongkul"
 
 branding:
