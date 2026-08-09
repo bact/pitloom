@@ -485,6 +485,9 @@ def _resolve_license(
     ``"other"``), so it can be preserved in ``extra_data["hf.license_raw"]``.
     """
     card_data: dict[str, Any] = hf_data.get("card_data") or {}
+    hub_info: dict[str, Any] = hf_data.get("hub_info") or {}
+    raw_revision = hub_info.get("sha")
+    revision = str(raw_revision) if raw_revision else None
     raw_license = card_data.get("license")
     raw_license_str: str | None = str(raw_license) if raw_license else None
 
@@ -883,6 +886,3 @@ def read_huggingface(source: str) -> AiModelMetadata:
 
 
 __all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
-    hub_info: dict[str, Any] = hf_data.get("hub_info") or {}
-    raw_revision = hub_info.get("sha")
-    revision = str(raw_revision) if raw_revision else None

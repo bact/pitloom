@@ -197,8 +197,11 @@ def _patch_hf_calls(  # pylint: disable=dangerous-default-value
 ) -> Any:
     """Return a context manager that patches all HF I/O helpers."""
 
-    def _json_side_effect(model_id: str, filename: str) -> dict[str, Any] | None:
+    def _json_side_effect(
+        model_id: str, filename: str, revision: str | None = None
+    ) -> dict[str, Any] | None:
         _ = model_id
+        _ = revision
         if filename == "config.json":
             return config
         if filename == "tokenizer_config.json":
@@ -1024,7 +1027,7 @@ def test_kimi_vague_license_triggers_file_detection() -> None:
             "pitloom.extract._huggingface._detect_license_from_hf_files", detected_mock
         ):
             meta = read_huggingface("moonshotai/Kimi-K2.6")
-    detected_mock.assert_called_once_with("moonshotai/Kimi-K2.6")
+    detected_mock.assert_called_once_with("moonshotai/Kimi-K2.6", revision=None)
     assert meta.license == "MIT"
     assert meta.extra_data.get("hf.license_raw") == "other"
 
