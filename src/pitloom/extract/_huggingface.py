@@ -239,13 +239,19 @@ def is_huggingface_source(source: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _safe_load_json(model_id: str, filename: str) -> dict[str, Any] | None:
+def _safe_load_json(
+    model_id: str, filename: str, revision: str | None = None
+) -> dict[str, Any] | None:
     """Download *filename* from *model_id* and return parsed JSON, or ``None``."""
     try:
         # pylint: disable=import-outside-toplevel
         from huggingface_hub import hf_hub_download
 
-        local_path = hf_hub_download(repo_id=model_id, filename=filename)
+        local_path = hf_hub_download(
+            repo_id=model_id,
+            filename=filename,
+            revision=revision,
+        )
         with open(local_path, encoding="utf-8") as fh:
             return json.load(fh)  # type: ignore[no-any-return]
     except Exception as exc:  # pylint: disable=broad-exception-caught
@@ -324,6 +330,7 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
 
 def _detect_license_from_hf_files(
     model_id: str,
+    revision: str | None = None,
 ) -> tuple[str | None, str | None]:
     """Try to detect an SPDX license ID from license files in a HF repository.
 
@@ -344,7 +351,11 @@ def _detect_license_from_hf_files(
             # pylint: disable=import-outside-toplevel
             from huggingface_hub import hf_hub_download
 
-            local_path = hf_hub_download(repo_id=model_id, filename=filename)
+            local_path = hf_hub_download(
+                repo_id=model_id,
+                filename=filename,
+                revision=revision,
+            )
             text = (
                 _Path(local_path).read_text(encoding="utf-8", errors="replace").strip()
             )
@@ -427,13 +438,20 @@ class _InfoTagData(NamedTuple):
 def _fetch_all_hf_data(model_id: str) -> dict[str, Any]:
     """Fetch all remote HF data sources and return them as a single dict."""
     card_text, card_data = _load_model_card(model_id)
+    hub_info = _load_model_info(model_id)
+    raw_revision = hub_info.get("sha")
+    revision = str(raw_revision) if raw_revision else None
     return {
-        "config": _safe_load_json(model_id, "config.json"),
-        "tokenizer_config": _safe_load_json(model_id, "tokenizer_config.json"),
-        "generation_config": _safe_load_json(model_id, "generation_config.json"),
+        "config": _safe_load_json(model_id, "config.json", revision=revision),
+        "tokenizer_config": _safe_load_json(
+            model_id, "tokenizer_config.json", revision=revision
+        ),
+        "generation_config": _safe_load_json(
+            model_id, "generation_config.json", revision=revision
+        ),
         "card_text": card_text,
         "card_data": card_data,
-        "hub_info": _load_model_info(model_id),
+        "hub_info": hub_info,
     }
 
 
@@ -481,7 +499,9 @@ def _resolve_license(
         if raw_license_str and raw_license_str.lower() in _VAGUE_LICENSE_VALUES
         else None
     )
-    detected_id, detected_src = _detect_license_from_hf_files(model_id)
+    detected_id, detected_src = _detect_license_from_hf_files(
+        model_id, revision=revision
+    )
     if detected_id:
         provenance["license"] = detected_src or (
             "Source: Hugging Face Hub | Method: licenseid_detection"
@@ -863,3 +883,6 @@ def read_huggingface(source: str) -> AiModelMetadata:
 
 
 __all__ = ["is_huggingface_source", "parse_hf_model_id", "read_huggingface"]
+    hub_info: dict[str, Any] = hf_data.get("hub_info") or {}
+    raw_revision = hub_info.get("sha")
+    revision = str(raw_revision) if raw_revision else None

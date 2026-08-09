@@ -8,7 +8,8 @@
 from __future__ import annotations
 
 import json
-import subprocess
+import subprocess  # nosec B404
+import sys
 from typing import Any
 
 from pitloom.core.project import ProjectMetadata
@@ -22,11 +23,11 @@ def read_environment() -> tuple[ProjectMetadata, list[dict[str, Any]]]:
     """
     try:
         result = subprocess.run(
-            ["pipdeptree", "--json-tree", "--all"],
+            [sys.executable, "-m", "pipdeptree", "--json-tree", "--all"],
             capture_output=True,
             text=True,
             check=True,
-        )
+        )  # nosec B603
         tree = json.loads(result.stdout)
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         raise RuntimeError(f"Failed to run pipdeptree: {e}") from e
