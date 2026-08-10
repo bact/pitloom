@@ -6,7 +6,7 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Security Policy
+# Security policy
 
 Only the latest release on [PyPI](https://pypi.org/project/pitloom/) is
 supported (Pitloom is pre-1.0).
