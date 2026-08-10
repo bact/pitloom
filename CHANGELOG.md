@@ -17,9 +17,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0-rc1>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0>
 
-## [0.13.0-rc1] - 2026-08-10
+## [0.13.0] - 2026-08-11
 
 This release introduces a redesigned CLI and API—a breaking change requiring
 updates to existing code and scripts. It also adds AI-model metadata enrichment
@@ -415,7 +415,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
-[0.13.0-rc1]: https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0-rc1
+[0.13.0]: https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/bact/pitloom/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/bact/pitloom/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/bact/pitloom/compare/v0.9.0...v0.10.0
