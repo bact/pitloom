@@ -17,6 +17,7 @@ This document records the architectural review and design decisions regarding Pi
 ## 1. Specification Reference & Governance Context
 
 Pitloom's lifecycle data model is aligned with official CISA guidance:
+
 - **CISA Specification**: [Types of Software Bill of Materials (SBOM) Documents (April 2023)](https://www.cisa.gov/sites/default/files/2023-04/sbom-types-document-508c.pdf)
 - **SPDX 3 Specification**: [SPDX 3.0.1 Model Standard](https://spdx.github.io/spdx-spec/v3.0.1/)
 - **PEP Specification**: [PEP 770 — Embedding SPDX SBOMs in Python Packages](https://peps.python.org/pep-0770/)
@@ -27,7 +28,7 @@ Pitloom's lifecycle data model is aligned with official CISA guidance:
 
 The CISA framework defines 6 distinct SBOM Document Types across the software lifecycle. Pitloom implements 5 automated generator modes (Design SBOMs are manual specifications outside generator scope):
 
-```
+```text
 +-----------------------------------------------------------------------------------+
 |                            CISA SBOM LIFECYCLE TYPES                              |
 +-----------+------------+------------+------------------+-------------+------------+
@@ -41,8 +42,8 @@ The CISA framework defines 6 distinct SBOM Document Types across the software li
 | **1. Design** | Intended/planned architecture & dependencies before coding. | N/A (Spec phase) | *Out of scope for generator* | N/A |
 | **2. Source** | Created directly from uncompiled source code files & repository metadata. | Repository root or `.tar.gz`/`.zip` sdist | `loom project [PATH]`<br>`generate_project_sbom()` | `[source]` |
 | **3. Build** | Created during build execution; captures build tools, compiler, exact resolved wheel output. | Hatchling build hook | `pitloom.plugins.hatch`<br>(PEP 770 `.dist-info/sboms`) | `[build]` |
-| **4. Analyzed**| Created by analyzing built release artifacts (wheels, model binaries) post-build. | Built `.whl` wheel archive,<br>Local model file (`.gguf`, `.safetensors`, `.onnx`),<br>Hugging Face model URL/repo ID | `loom wheel <WHEEL>`<br>`generate_wheel_sbom()`<br><br>`loom model <MODEL>`<br>`generate_model_sbom()` | `[analyzed]` |
-| **5. Deployed**| Created by inspecting software installed in an operational environment. | Python virtualenv (`site-packages`) | `loom env`<br>`generate_env_sbom()` | `[deployed]` |
+| **4. Analyzed** | Created by analyzing built release artifacts (wheels, model binaries) post-build. | Built `.whl` wheel archive,<br>Local model file (`.gguf`, `.safetensors`, `.onnx`),<br>Hugging Face model URL/repo ID | `loom wheel <WHEEL>`<br>`generate_wheel_sbom()`<br><br>`loom model <MODEL>`<br>`generate_model_sbom()` | `[analyzed]` |
+| **5. Deployed** | Created by inspecting software installed in an operational environment. | Python virtualenv (`site-packages`) | `loom env`<br>`generate_env_sbom()` | `[deployed]` |
 | **6. Runtime** | Created by monitoring dynamic software execution & loaded modules at runtime. | Python pipeline scripts | `@loom.run` decorators & `merge_fragments()` | `[runtime]` |
 
 ---
@@ -50,12 +51,15 @@ The CISA framework defines 6 distinct SBOM Document Types across the software li
 ## 3. Core Architectural Decision: Decoupled Input-Centric Interface
 
 ### The Impedance Mismatch
+
 An architectural review revealed that forcing CISA regulatory terms (`source`, `analyze`, `deployed`) directly as CLI subcommands and API functions creates cognitive friction:
+
 1. **Mental Model Mismatch**: Developers think in concrete **input targets** (`pyproject.toml`, `.whl`, `venv`, `.gguf`, HF URL), not abstract procurement stages (*"CISA Stage 4 Analyzed Scanning"*).
 2. **Subcommand Overloading in `loom analyze`**: `loom analyze` mixed local `.whl` ZIP extraction, local model binary header scans, and remote Hugging Face HTTP network requests.
 3. **Hidden Network Side-Effects**: Running `loom analyze mistralai/Mistral-7B` triggered external network calls under a generic verb, threatening sandboxed CI/CD and LLM agent safety.
 
 ### The Resolution
+
 Separate **Internal Data Model Compliance** from **External User Interface Ergonomics**:
 
 - **Internal Data Model (100% CISA/SPDX 3 Compliant)**: Emitted JSON-LD graph strictly populates `software_sbomType`, `CreationInfo`, `build_datetime`, and element provenance nodes.
@@ -66,6 +70,7 @@ Separate **Internal Data Model Compliance** from **External User Interface Ergon
 ## 4. Subcommand & API Specification
 
 ### CLI Surface (`src/pitloom/__main__.py`)
+
 - **`loom generate [TARGET]`**: Smart entrypoint with automatic target detection.
 - **`loom project [PATH]`**: Generates a CISA Source SBOM from a project directory OR an `.sdist` archive (`.tar.gz` / `.zip`).
 - **`loom wheel <WHEEL_FILE>`**: Generates a CISA Analyzed SBOM from a built `.whl` file.
@@ -74,6 +79,7 @@ Separate **Internal Data Model Compliance** from **External User Interface Ergon
 - **`loom merge <FRAGMENTS_DIR>`**: Stitches CISA Runtime SBOM fragments generated by `@loom.run`.
 
 ### Python API (`src/pitloom/assemble/__init__.py`)
+
 ```python
 import pitloom
 

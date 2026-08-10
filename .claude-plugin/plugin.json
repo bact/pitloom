@@ -1,6 +1,6 @@
 {
   "name": "pitloom",
-  "version": "0.12.0",
+  "version": "0.13.0-rc1",
   "description": "Generate, enrich, and validate SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom.",
   "author": {
     "name": "Arthit Suriyawongkul",

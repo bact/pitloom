@@ -162,7 +162,7 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
 
 
 # Matches the package name at the start of a dependency specifier,
-# e.g. "hatchling" in "hatchling>=1.28.0" or "Foo_Bar" in "Foo_Bar[extra]~=1.0".
+# e.g. "hatchling" in "hatchling>=1.31.0" or "Foo_Bar" in "Foo_Bar[extra]~=1.0".
 _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?")
 
 

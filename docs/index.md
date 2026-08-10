@@ -80,7 +80,7 @@ loom generate .
 ### GitHub Action
 
 ```yaml
-- uses: bact/pitloom@v0.12.0
+- uses: bact/pitloom@v0.13.0
 ```
 
 This creates a standalone SBOM file on the runner.
@@ -96,7 +96,7 @@ Create SBOM during Hatchling build:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.12.0"]
+requires = ["hatchling>=1.31.0", "pitloom>=0.13.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]

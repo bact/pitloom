@@ -14,7 +14,7 @@ This document details the architectural evolution of Pitloom's CLI subcommands, 
 
 ## 1. Background & Evolution
 
-### Initial State (v0.12.0+)
+### Initial State (post-v0.12.0 and pre-v0.13.0)
 
 The CLI initially exposed subcommands named directly after CISA SBOM lifecycle stages:
 

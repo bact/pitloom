@@ -262,7 +262,7 @@ in `pyproject.toml`:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom"]
+requires = ["hatchling>=1.31.0", "pitloom"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
