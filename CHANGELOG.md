@@ -49,6 +49,9 @@ and this project adheres to
   (`[tool.pitloom.provenance] preserve-source-metadata`, `auto` default)
   to embed an AI model's verbatim original metadata
   when it isn't shipped with the distribution. ([#102])
+- `pitloom.loom`'s `set_model(hyperparameters=...)` and
+  `set_model_hyperparameters()` now record exact per-key provenance for
+  each hyperparameter, matching the AI-model extractors. ([#113])
 
 ### Changed
 
@@ -56,13 +59,21 @@ and this project adheres to
   exact per-key provenance instead of one shared note per dict. ([#102])
 - Raised the minimum `mypy` version to 2.3.0. ([#118])
 
+### Fixed
+
+- `loom generate` (the smart auto-detect entrypoint) now honours the
+  target project's `[tool.pitloom]` config -- including
+  `[tool.pitloom.provenance]` -- instead of silently using defaults. ([#116])
+
 ### Security
 
 - Sanitize untrusted text (an AI model's filename, and any binary-format
   metadata key) before it's embedded in a provenance string, so a crafted
   value can no longer inject a fake `Source:`/`Field:` segment and
   misattribute or silently suppress provenance. ([#102])
-- Ensures Hugging Face `hf_hub_download()` calls are revision-pinned ([#117])
+- Ensures Hugging Face `hf_hub_download()` calls are revision-pinned, and
+  hardens environment command invocation in the Deployed SBOM path
+  against Bandit-flagged risks. ([#117])
 
 [#96]: https://github.com/bact/pitloom/pull/96
 [#102]: https://github.com/bact/pitloom/pull/102
@@ -71,7 +82,9 @@ and this project adheres to
 [#107]: https://github.com/bact/pitloom/pull/107
 [#108]: https://github.com/bact/pitloom/pull/108
 [#109]: https://github.com/bact/pitloom/pull/109
+[#113]: https://github.com/bact/pitloom/pull/113
 [#114]: https://github.com/bact/pitloom/pull/114
+[#116]: https://github.com/bact/pitloom/pull/116
 [#117]: https://github.com/bact/pitloom/pull/117
 [#118]: https://github.com/bact/pitloom/pull/118
 

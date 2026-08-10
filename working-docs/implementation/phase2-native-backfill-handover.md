@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,99 +30,84 @@ Phase 2 native-first backfill is **largely complete and merged**:
 - 🛑 **N3 — Enrichment `CreationInfo`**: Blocked (waiting for `enrich/` subpackage).
 - ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
 - ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
+- ✅ **CLI/API redesign (`generate`/`project`/`wheel`/`model`/`env`/`merge`/`ids`, sdist support)**: PR [#114](https://github.com/bact/pitloom/pull/114), merged to `main`; see "2026-08-10 recheck" below -- supersedes the PR #96 vocabulary this handover previously documented.
+- ✅ **`loom generate` project-config precedence fix**: PR [#116](https://github.com/bact/pitloom/pull/116) merged to `main`.
 
-## Release readiness (assessed 2026-08-08, updated same day after a
-second pass)
+## Release readiness (last rechecked 2026-08-10)
 
-Everything since v0.12.0 (the last tagged release, 2026-07-10) --
-Annotation-based provenance (Phase 1, PR #102), the five Phase 2
-native-first backfills, the integration test, PR #96's CLI restructuring
-(`loom source`/`analyze`/`deployed`/`ids`, merged just before the
-provenance work), and the `pitloom.loom` hyperparameter-provenance fix
-below -- is **ready to release**. Verified directly:
+Everything since v0.12.0 (the last tagged release, 2026-07-10) is
+**ready to release**. Re-verified directly on `main` at `dae8d37`:
 
-- `python3 -m pytest tests/ -q` -- 1537 passed, 24 skipped, 0 failed.
+- `python3 -m pytest tests/ -q` -- 1543 passed, 24 skipped, 0 failed.
 - `mypy src/pitloom` and `ruff check src/pitloom tests` -- clean.
-- CI on `main` at `510701c` (PR #113 merge) -- green, including the
-  second-pass fixes below.
-- All four usage surfaces checked end-to-end, not just read: CLI
-  (`__main__.py` delegates to `pyproject.toml`-sourced `PitloomConfig`;
-  no direct `--provenance-*` flags, by design -- CLI flags for this were
-  deliberately out of scope in Phase 1), Python API
-  (`generate_sbom`/`generate_ai_model_sbom`/`generate_huggingface_sbom`/
-  `generate_analyzed_sbom`/`generate_deployed_sbom` in `assemble/__init__.py`
-  all correctly default and thread `provenance_format`/`_schema`/`_detail`/
-  `_preserve_source_metadata`), the Hatchling build hook
-  (`plugins/hatch.py` threads the same four settings from
-  `read_pitloom_config()`), and the `pitloom.loom` SDK (manually verified
-  by generating a fragment via `loom.run()`/`set_model()`/`add_dataset()`
-  and confirming Annotation elements with the correct `pitloom/1`
-  statement actually appear in the output JSON -- not just a code read).
+- `gh run list --branch main` -- all CI checks green (Unit tests, Type
+  checking, Lint and format, Hatch integration, Action self-test, Build
+  wheels + validate SBOM, OpenSSF Scorecard).
+- `tests/test_provenance_integration.py`, `test_annotation_provenance.py`,
+  `test_fragments.py` -- all still pass; the N1-N6 machinery survived
+  the CLI/API redesign below intact.
 
-### Second pass: PR #96 CLI-consistency sweep, and the hyperparameter-provenance fix
+### 2026-08-10 recheck: what changed since PR #113, and why it matters
 
-PR [#96](https://github.com/bact/pitloom/pull/96) ("Add CISA-lifecycle
-SBOM generation") restructured the CLI from a flat
-`pitloom <project_dir>` / `-m/--aimodel` form into
-`pitloom source|analyze|deployed|ids` subcommands. It landed *after*
-v0.12.0 (same as all the provenance work), and already updated most
-CLI-consuming docs/skills as part of the PR itself. A dedicated sweep
-for anything it missed found and fixed:
+A **second CLI/API redesign landed in PR
+[#114](https://github.com/bact/pitloom/pull/114)** ("cli-redesign"),
+one day after #113 -- this supersedes the PR #96 CLI vocabulary this
+handover previously documented. Don't trust any earlier mention of
+`loom source`/`analyze`/`deployed` in this repo's history as current;
+see [`cli-ux.md`](../design/cli-ux.md) and
+[`cisa-sbom-lifecycle.md`](../design/cisa-sbom-lifecycle.md) for the
+full rationale. As of now:
 
-- `working-docs/design/hatchling-build-hook.md` -- referenced the old
-  `loom generate` command name (never existed post-#96; should be
-  `loom source`).
-- `skills/sbom/SKILL.md` / `skills/sbom/references/examples.md` -- had
-  no mention of the `deployed` subcommand (SBOM of the current
-  installed environment) at all, and `analyze` accepting a `.whl` file
-  wasn't called out either. Added a "Deployed SBOMs" section and
-  example.
-- `docs/index.md` (published) -- same `deployed` gap; added the example
-  alongside the existing `source`/`analyze` ones.
-- `tests/test_main_cli.py` -- three section-header comments still said
-  `# -m / --aimodel: ...` above tests that actually exercise `analyze`
-  (the tests themselves were correct, only the comments were stale).
+- **CLI subcommands**: `loom generate [target]` (smart auto-detect),
+  `loom project [path]` (was `source`), `loom wheel <file>` and
+  `loom model <target>` (`analyze` split in two, since it mixed local
+  file inspection with Hugging Face network calls under one verb --
+  `--offline` now exists on both `generate` and `model`), `loom env`
+  (was `deployed`), `loom merge <fragments_dir>` (new -- CLI-exposed
+  fragment merging), `loom ids ...` (unchanged).
+- **Native sdist support** (`.tar.gz`/`.zip`) for `loom project` and
+  `loom generate`, feeding a Source SBOM without needing a checked-out
+  directory.
+- **Python API renamed and reshaped**: `generate_sbom` ->
+  `generate_project_sbom`, `generate_analyzed_sbom` split into
+  `generate_wheel_sbom` / `generate_model_sbom` (`generate_model_sbom`
+  also absorbs what `generate_huggingface_sbom` used to do -- that
+  function no longer exists), `generate_deployed_sbom` ->
+  `generate_env_sbom`. **No backward-compat aliases** -- this is a hard
+  breaking change for any external code calling the old names. The four
+  loose `provenance_format`/`_schema`/`_detail`/`_preserve_source_metadata`
+  keyword arguments were also collapsed into a single
+  `provenance: pitloom.core.provenance.ProvenanceConfig | None` parameter
+  (same effective settings, new shape). `[tool.pitloom.provenance]`
+  TOML keys themselves (`format`/`schema`/`detail`/`preserve-source-metadata`)
+  are unchanged.
+- **Follow-up bugfix, PR [#116](https://github.com/bact/pitloom/pull/116)**
+  (merged the next day): `loom generate` initially *always* used
+  `PitloomConfig()` defaults and never read the target's
+  `pyproject.toml` -- meaning `[tool.pitloom.provenance]`, creator
+  config, `pretty`, `describe-relationship` were all silently ignored
+  when using the smart entrypoint on a project. Fixed to call
+  `read_project()` on the target when it's an existing path, matching
+  `loom project`'s precedence. Covered by 58 new lines in
+  `tests/test_main_cli.py`.
+- **Also merged in this window**: #115/#117 (Bandit hardening --
+  pinned `hf_hub_download()` revisions, hardened env-command
+  invocation), #118 (mypy >= 2.3.0), #119 (OpenSSF Scorecard CI),
+  #120 (README/website updates).
 
-Checked and found **not** affected: the Claude Code plugin
-(`.claude-plugin/plugin.json`/`marketplace.json` and
-`working-docs/implementation/claude-code-plugin.md` don't hardcode any
-CLI invocation -- they only reference the Skills, which were the actual
-thing needing the check), `skills/enrich/SKILL.md` (already uses
-`loom source`/`loom analyze` correctly), `action.yml` and
-`AGENTS.md` (no stale subcommand references), README.md (already
-accurate for `source`/`analyze`/`deployed`/`ids`).
+**Doc/skill currency, re-checked against the new CLI vocabulary**:
+README.md, `docs/index.md`, `skills/sbom/SKILL.md` and its
+`references/examples.md`, `skills/enrich/*` are **already correct** --
+they use `project`/`wheel`/`model`/`env`/`generate`/`merge` throughout,
+not the stale `source`/`analyze`/`deployed` this handover previously
+recorded. This was done as part of #114/#116/#120, not by this recheck.
+`working-docs/design/cli-ux.md` and `cisa-sbom-lifecycle.md` correctly
+describe the new design (their mentions of `source`/`analyze`/`deployed`
+are explicitly framed as historical background, not current state).
 
-**Fixed (was flagged as a release blocker):** `pitloom.loom`
-hyperparameter provenance depth. `set_model(hyperparameters=...)` and
-the post-hoc `set_model_hyperparameters()` now record exact per-key
-provenance (`hyperparameters.<key>`), the same shape the AI-model
-extractors produce via `record_dict_field_provenance`, instead of
-`set_model()`'s one generic `"package"` note (hyperparameters
-unattributed) and `set_model_hyperparameters()` emitting no provenance
-at all. Implementation note for whoever touches this next: **don't**
-reuse `record_dict_field_provenance` directly here -- it sanitizes its
-whole `source` argument (replacing `|` with `/`), which is correct for
-extractors (their `source` is always a bare `"Source: X"` string) but
-wrong for `loom.py`'s `_get_caller_info()`, which returns an
-already-structured `"Source: X | Method: Y"` compound string; running
-that through the sanitizer mangles the legitimate internal `|` and
-folds the `Method:` segment into `source` when re-parsed. Fixed with a
-small local `_record_hyperparameter_provenance()` helper in `loom.py`
-that only sanitizes the hyperparameter *key*, not the caller-info
-string. Covered by `test_loom_model_hyperparameters` (updated) and the
-new `test_loom_set_model_hyperparameters_have_per_key_provenance` in
-`tests/test_loom.py`. Verified live (not just via the test suite) by
-generating a fragment and inspecting the emitted Annotation JSON.
-
-Also fixed in the same pass: `working-docs/implementation/summary.md`
-(the "canonical project structure" doc) -- its directory tree predated
-the `provenance.py` module entirely and showed a `docs/design/` +
-`docs/implementation/` layout that no longer matches the current
-`docs/` (flat, published) + `working-docs/design/` +
-`working-docs/implementation/` split; also fixed its stale CLI
-subcommand list and `comment`-only provenance description, and flagged
-its "Validation with sentimentdemo" section as a historical snapshot
-(pre-#96 CLI syntax, stale element counts).
+**CHANGELOG.md** was missing entries for #113 (loom hyperparameter
+provenance) and #116 (the `loom generate` config-precedence fix) --
+added in this recheck.
 
 **Not fixed, flagged only (out of scope, not correctness bugs):**
 
@@ -130,18 +115,18 @@ its "Validation with sentimentdemo" section as a historical snapshot
   regenerated against current output (deliberate, carried over from
   Phase 1) -- cosmetic only, not exercised by CI.
 
-**Merged:** all of the above landed in PR
-[#113](https://github.com/bact/pitloom/pull/113), merged to `main` at
-`510701c`.
-
 **Recommendation:** cut the release. Given the existing version history
-(0.5.0 through 0.12.0, each a minor bump for additive features) and that
-everything here is additive/backward-compatible -- `comment` output is
-preserved by default, `Annotation` and the five new native constructs
-are pure additions, no field or CLI flag was removed -- a minor version
-bump (e.g. `v0.13.0`) fits the project's own pattern. That said, the
-version number and release timing are the maintainer's call, not this
-assessment's.
+(0.5.0 through 0.12.0, each a minor bump for additive features), most of
+this window is additive/backward-compatible at the *output* level
+(`comment` preserved by default, `Annotation` and the five native
+constructs are pure additions) -- **except** the Python API rename in
+#114, which has no back-compat shim and is a real breaking change for
+any external caller of the old `generate_*_sbom` names or the old
+`provenance_*` keyword arguments. Whether that alone pushes this past a
+minor bump into `v1.0.0` (or is accepted as pre-1.0 API churn under
+`0.x`, where SemVer allows breaking minor bumps) is the maintainer's
+call, not this assessment's -- flagging it explicitly since it changes
+the previous "safe minor bump" recommendation.
 
 ## Principle (carried over from Phase 1)
 
@@ -218,15 +203,20 @@ when N3 lands, to keep all six in one place.
 
 ## Suggested first action for the picking-up session
 
-1. Confirm `main` has PRs #105, #106, #107, #108, #109, #112, #113
-   merged, and check whether a release has been cut since this doc was
-   written (see "Release readiness" above -- as of 2026-08-08 the answer
-   was "ready, not yet cut").
-2. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
+1. **Check git log since this doc's Last-Modified date** (`git log
+   --oneline <date>..HEAD`) before trusting anything in this file about
+   current CLI/API shape or PR status -- this handover has already been
+   caught out of date twice by fast-moving CLI redesigns (#96, then
+   #114 a day after #113). Don't assume; verify.
+2. Confirm `main` has PRs #105, #106, #107, #108, #109, #112, #113,
+   #114, #116 merged, and check whether a release has been cut since
+   this doc was written (see "Release readiness" above -- as of
+   2026-08-10 the answer was "ready, not yet cut").
+3. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
    status either way before doing anything else.
-3. If still blocked, N3 stays deferred -- ask the user what's next
+4. If still blocked, N3 stays deferred -- ask the user what's next
    (cutting the release, or something else) rather than assuming.
-4. Re-read `annotation-provenance.md` §10 in full before starting on any
+5. Re-read `annotation-provenance.md` §10 in full before starting on any
    N-item work, since this handover only summarizes it.
 
 ## Prompt to start a new session on this handover
@@ -237,18 +227,20 @@ full, then working-docs/implementation/annotation-provenance-full-plan.md
 for the complete original design (boundary principle, use-case catalog,
 N1-N6 rationale) if you need background on any item.
 
-N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107), plus
-the combined integration test (PR #112) and a second pass (PR #113) that
-fixed the pitloom.loom hyperparameter-provenance gap and a handful of
-stale CLI-related docs left over from PR #96's CLI restructuring -- see
-"Release readiness" for full detail. As of 2026-08-08 the codebase is
-release-ready and nothing is pending in the working tree. N3 (enrichment
-CreationInfo) remains blocked on the enrich/ subpackage not existing yet
--- check if it has landed since.
+N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107), the
+combined integration test (PR #112), and two follow-up passes (#113,
+#116) fixed real gaps. IMPORTANT: PR #114 redesigned the CLI/API again
+one day after #113 -- run `git log --oneline <this doc's Last-Modified
+date>..HEAD` FIRST and don't trust this file's account of "current" CLI
+subcommands or Python API names without checking git history yourself,
+since this doc has gone stale on exactly that point before. As of
+2026-08-10 the codebase is release-ready. N3 (enrichment CreationInfo)
+remains blocked on the enrich/ subpackage not existing yet -- check if
+it has landed since.
 
-First: check whether a release has been cut since this doc was written
-(compare the latest git tag to `main`). If not, ask the user whether to
-proceed with cutting one before doing anything else -- don't start new
-feature work (N3 or otherwise) without checking first, since release
-timing is the maintainer's call.
+Check whether a release has been cut since this doc was written (compare
+the latest git tag to `main`). If not, ask the user whether to proceed
+with cutting one before doing anything else -- don't start new feature
+work (N3 or otherwise) without checking first, since release timing is
+the maintainer's call.
 ```
