@@ -129,7 +129,8 @@ class PitloomConfig:
             ``"always"``/``"never"`` are explicit overrides.
         enrich_local: Whether to run local, no-network AI-model enrichment
             (README/model-card YAML frontmatter), from
-            ``[tool.pitloom.enrich] local``. Defaults to ``True``.
+            ``[tool.pitloom.enrich] local``. Defaults to ``False`` --
+            enrichment is opt-in until more sources ship.
     """
 
     fragments: list[str] = field(default_factory=list)
@@ -145,7 +146,7 @@ class PitloomConfig:
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
     provenance_detail: str = "minimal"
     provenance_preserve_source_metadata: str = "auto"
-    enrich_local: bool = True
+    enrich_local: bool = False
 
     @property
     def provenance(self) -> ProvenanceConfig:
@@ -378,7 +379,7 @@ def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
         raise ValueError(
             f"[tool.pitloom.enrich] must be a table, got {type(raw).__name__}: {raw!r}"
         )
-    local = raw.get("local", True)
+    local = raw.get("local", False)
     if not isinstance(local, bool):
         raise ValueError(
             f"[tool.pitloom.enrich] 'local' must be a boolean, got "

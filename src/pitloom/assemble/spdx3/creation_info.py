@@ -18,9 +18,11 @@ from datetime import datetime, timezone
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
+from pitloom.assemble.spdx3.provenance import EnrichedFieldEntry
 from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, Tool
 from pitloom.core.models import generate_spdx_id
-from pitloom.export.spdx3_json import require_spdx_id
+from pitloom.enrich.base import EnrichmentResult
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 
 def parse_iso_datetime(value: str) -> datetime:
@@ -245,6 +247,51 @@ def build_enrichment_creation_info(
     return ci, tool
 
 
+def build_enrichment_elements(
+    enrichment_results: list[EnrichmentResult],
+    spdx_ci: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> tuple[dict[str, spdx3.CreationInfo], list[EnrichedFieldEntry]]:
+    """Build N3 CreationInfo(s)/Tool(s) for each non-empty enrichment result.
+
+    Returns a dataset-name -> CreationInfo override map (for datasets the
+    enrichment run newly created) and the flat list of changed-field entries
+    that feeds the E1/E2 Annotation. Shared by every assembly path that
+    attaches enrichment evidence to a subject element (single-model SBOMs,
+    project-level SBOMs, standalone enrichment fragments) so they all
+    produce identical N3/E1/E2 shapes for the same enrichment run.
+    """
+    dataset_creation_info: dict[str, spdx3.CreationInfo] = {}
+    enrichment_changes: list[EnrichedFieldEntry] = []
+    for result in enrichment_results:
+        if not result.fields:
+            continue
+        enrich_ci, enrich_tool = build_enrichment_creation_info(
+            tool_name=f"pitloom.enrich.{result.source_name}",
+            main_creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+        )
+        exporter.add_creation_info(enrich_ci)
+        exporter.object_set.add(enrich_tool)
+        for enriched_field in result.fields:
+            enrichment_changes.append(
+                EnrichedFieldEntry(
+                    field=enriched_field.field,
+                    before=enriched_field.before,
+                    after=enriched_field.after,
+                    role=enriched_field.role,
+                    source=enriched_field.source,
+                )
+            )
+            if enriched_field.field.startswith("datasets:"):
+                dataset_name = enriched_field.field.removeprefix("datasets:")
+                dataset_creation_info[dataset_name] = enrich_ci
+    return dataset_creation_info, enrichment_changes
+
+
 __all__ = [
     "parse_iso_datetime",
     "to_spdx3_datetime",
@@ -253,4 +300,5 @@ __all__ = [
     "build_tools",
     "build_creation_info",
     "build_enrichment_creation_info",
+    "build_enrichment_elements",
 ]

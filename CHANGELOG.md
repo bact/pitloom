@@ -56,23 +56,12 @@ and this project adheres to
 - Declared-vs-detected license conflict detection: the project directory
   (`CITATION.cff`, `codemeta.json`, `LICENSE` files) is now independently
   scanned even when a license is already declared, and both sides are
-  compared after SPDX-expression normalization (new
-  [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license)
-  dependency), so casing or equivalent-but-differently-written expressions
-  aren't misreported as conflicts. Works uniformly across all project
-  extraction paths (CLI/library, Hatchling build hook, poetry-only,
-  setuptools-only), via one shared resolver every path calls. On a genuine
-  disagreement, both `hasDeclaredLicense` and `hasConcludedLicense` are
-  recorded alongside a new `provenance/conflict/1` Annotation; the
-  mechanism is generic across fields, not license-specific. ([#121])
-- AI-model metadata enrichment: a new `enrich/` subpackage fills license
-  and dataset gaps from a local `README.md`/`MODEL_CARD.md`'s YAML
-  frontmatter (not prose), gated by `[tool.pitloom.enrich] local`
-  (default on). Elements an enrichment run creates get their own
-  `CreationInfo` (distinct `createdUsing` Tool, same document `Agent`),
-  and every changed field is recorded on a new `provenance/enrichment/1`
-  Annotation, reusing the same `role` vocabulary as license-conflict
-  detection above.
+  compared after license expression normalization.
+  On a genuine disagreement, both `hasDeclaredLicense` and
+  `hasConcludedLicense` are recorded alongside a new `provenance/conflict/1`
+  Annotation. ([#121])
+- AI-model metadata enrichment is available from every usage surface
+  (CLI, API, Hatchling hook, GitHub Action), opt-in via config. ([#124])
 
 ### Changed
 
@@ -110,6 +99,7 @@ and this project adheres to
 [#118]: https://github.com/bact/pitloom/pull/118
 [#121]: https://github.com/bact/pitloom/pull/121
 [#123]: https://github.com/bact/pitloom/pull/123
+[#124]: https://github.com/bact/pitloom/pull/124
 
 ## [0.12.0] - 2026-07-10
 

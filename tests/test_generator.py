@@ -19,6 +19,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
+    enrich_model,
     generate,
     generate_env_sbom,
     generate_model_sbom,
@@ -26,6 +27,7 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.assemble.spdx3.document import build, build_deployed, build_model
+from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata, Creator, Tool
@@ -1497,6 +1499,7 @@ def test_generate_model_sbom_readme_enrichment_end_to_end() -> None:
         (tmppath / "README.md").write_text(
             "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
         )
+        (tmppath / "pyproject.toml").write_text("[tool.pitloom.enrich]\nlocal = true\n")
 
         sbom_json = generate_model_sbom(model_path)
 
@@ -1568,9 +1571,28 @@ def test_generate_model_sbom_no_readme_no_enrichment_artifacts() -> None:
         )
 
 
+def test_generate_model_sbom_default_off_even_with_readme() -> None:
+    """No `[tool.pitloom.enrich]` config at all: enrichment stays off by
+    default, even when an adjacent README has frontmatter to gap-fill from
+    -- `local` must be explicitly opted into, it's not implicit."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
+
+        sbom_json = generate_model_sbom(model_path)
+
+        graph = json.loads(sbom_json)["@graph"]
+        assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+
+
 def test_generate_model_sbom_enrich_local_false_disables_readme_enrichment() -> None:
     """`[tool.pitloom.enrich] local = false` in a pyproject.toml next to
-    the model file turns off README enrichment entirely."""
+    the model file turns off README enrichment explicitly (same outcome as
+    the default, but exercised independently in case the default changes
+    again)."""
     fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
@@ -1585,6 +1607,307 @@ def test_generate_model_sbom_enrich_local_false_disables_readme_enrichment() -> 
 
         graph = json.loads(sbom_json)["@graph"]
         assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+
+
+# ---------------------------------------------------------------------------
+# enrich_model() -- standalone enrichment fragment
+# ---------------------------------------------------------------------------
+
+
+def test_enrich_model_writes_bare_graph_fragment() -> None:
+    """enrich_model() must always run enrichment regardless of
+    [tool.pitloom.enrich] (calling it is itself the opt-in), and its output
+    must be a bare @graph fragment -- no SpdxDocument/software_Sbom/
+    ai_AIPackage wrapper -- containing only what the enrichment run added."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text(
+            "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+        )
+
+        fragment_json = enrich_model(model_path)
+        fragment = json.loads(fragment_json)
+
+        assert set(fragment.keys()) == {"@context", "@graph"}
+        types = {e.get("type") for e in fragment["@graph"]}
+        assert "SpdxDocument" not in types
+        assert "software_Sbom" not in types
+        assert "ai_AIPackage" not in types
+
+        ds_pkgs = [
+            e for e in fragment["@graph"] if e.get("type") == "dataset_DatasetPackage"
+        ]
+        assert len(ds_pkgs) == 1
+        assert ds_pkgs[0]["name"] == "tiny-imagenet"
+
+        annotations = [e for e in fragment["@graph"] if e.get("type") == "Annotation"]
+        enrichment_anns = [
+            a
+            for a in annotations
+            if a.get("statement")
+            and json.loads(a["statement"]).get("kind") == "enrichment"
+        ]
+        assert len(enrichment_anns) == 1
+        changed_fields = {
+            c["field"] for c in json.loads(enrichment_anns[0]["statement"])["changes"]
+        }
+        assert changed_fields == {"license", "datasets:tiny-imagenet"}
+
+
+def test_enrich_model_no_readme_produces_empty_fragment() -> None:
+    """No adjacent README: enrich_model() must not raise -- it writes a
+    valid fragment with no enrichment content."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+
+        fragment = json.loads(enrich_model(model_path))
+
+        assert not [
+            e for e in fragment["@graph"] if e.get("type") == "dataset_DatasetPackage"
+        ]
+        assert not [e for e in fragment["@graph"] if e.get("type") == "Annotation"]
+
+
+def test_enrich_model_rejects_huggingface_source() -> None:
+    """A Hugging Face source has no local enrichment to run -- HF model
+    cards are already parsed natively -- so enrich_model() must reject it
+    with a clear error rather than silently doing nothing."""
+    with pytest.raises(ValueError, match="Hugging Face"):
+        enrich_model("org/model-id")
+
+
+def test_enrich_model_and_generate_model_sbom_reference_matching_ai_package_id() -> (
+    None
+):
+    """Design invariant: a fragment from enrich_model() run against a local
+    file must reference the exact same ai_AIPackage spdxId that
+    generate_model_sbom(enrich=True) on the same file would assign -- both
+    go through the same identity computation (_ai_model_identity), so the
+    fragment's Annotation subject resolves to the base doc's real AI
+    package once merged. The fragment's own newly-minted elements
+    (CreationInfo, Tool, Annotation, DatasetPackage) deliberately live in a
+    separate id namespace from the base doc -- see build_enrichment_fragment's
+    docstring -- so only the referenced ai_AIPackage id is expected to
+    match, not the fragment's full id set."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text(
+            "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+        )
+
+        fragment = json.loads(enrich_model(model_path))
+        full_doc = json.loads(generate_model_sbom(model_path, enrich=True))
+
+        full_ai_pkg = next(
+            e for e in full_doc["@graph"] if e.get("type") == "ai_AIPackage"
+        )
+        enrichment_ann = next(
+            e
+            for e in fragment["@graph"]
+            if e.get("type") == "Annotation"
+            and json.loads(e.get("statement", "{}")).get("kind") == "enrichment"
+        )
+        assert enrichment_ann["subject"] == full_ai_pkg["spdxId"]
+
+
+# ---------------------------------------------------------------------------
+# Roundtrip equivalence: one-shot enrich vs. two-step enrich-then-merge
+# ---------------------------------------------------------------------------
+
+
+def test_enrich_then_merge_matches_one_shot_enrich() -> None:
+    """generate_model_sbom(enrich=True) in one shot must produce the same
+    enrichment evidence as: generate a base SBOM with enrich=False, run
+    enrich_model() separately, then merge_fragments() the two -- the
+    design invariant behind exposing enrichment as its own CLI/API surface
+    (see the plan's Surface 2(d))."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text(
+            "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+        )
+
+        # One-shot.
+        one_shot = json.loads(generate_model_sbom(model_path, enrich=True))
+        one_shot_ds = {
+            e["name"]
+            for e in one_shot["@graph"]
+            if e.get("type") == "dataset_DatasetPackage"
+        }
+        one_shot_ann_fields = {
+            c["field"]
+            for e in one_shot["@graph"]
+            if e.get("type") == "Annotation" and e.get("statement")
+            for c in json.loads(e["statement"]).get("changes", [])
+            if json.loads(e["statement"]).get("kind") == "enrichment"
+        }
+
+        # Two-step: base without enrichment, then a separate fragment, merged.
+        base_json = generate_model_sbom(model_path, enrich=False)
+        fragment_json = enrich_model(model_path)
+        fragment_path = tmppath / "enrichment.spdx3.json"
+        fragment_path.write_text(fragment_json)
+
+        exporter = Spdx3JsonExporter()
+        # Re-deserialize the base doc into the exporter's object set, then merge.
+        with tempfile.NamedTemporaryFile(
+            suffix=".spdx3.json", mode="w", delete=False, dir=tmpdir
+        ) as base_file:
+            base_file.write(base_json)
+            base_file_path = Path(base_file.name)
+        with base_file_path.open("rb") as f:
+            spdx3.JSONLDDeserializer().read(f, exporter.object_set)
+
+        merge_fragments(tmppath, [fragment_path.name], exporter)
+        merged = json.loads(exporter.to_json())
+
+        merged_ds = {
+            e["name"]
+            for e in merged["@graph"]
+            if e.get("type") == "dataset_DatasetPackage"
+        }
+        merged_ann_fields = {
+            c["field"]
+            for e in merged["@graph"]
+            if e.get("type") == "Annotation" and e.get("statement")
+            for c in json.loads(e["statement"]).get("changes", [])
+            if json.loads(e["statement"]).get("kind") == "enrichment"
+        }
+
+        assert merged_ds == one_shot_ds == {"tiny-imagenet"}
+        assert (
+            merged_ann_fields
+            == one_shot_ann_fields
+            == {
+                "license",
+                "datasets:tiny-imagenet",
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
+# generate_project_sbom() enrichment end-to-end (project-level N3 / E1 / E2)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_project_sbom_enrichment_end_to_end() -> None:
+    """A discovered AI model with an adjacent README.md gap-fillable via
+    YAML frontmatter, plus [tool.pitloom.enrich] local = true, must produce
+    the same enrichment artifacts at the project level that
+    generate_model_sbom's single-model path already produces -- closing
+    the gap where loom project/loom generate never ran enrichment at all."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pkg_dir = tmppath / "src" / "smoke_project"
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "__init__.py").write_text("")
+        fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+        (pkg_dir / "model.safetensors").write_bytes(fixture.read_bytes())
+        (pkg_dir / "README.md").write_text(
+            "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+        )
+        (tmppath / "pyproject.toml").write_text(
+            "[build-system]\n"
+            'requires = ["hatchling"]\n'
+            'build-backend = "hatchling.build"\n\n'
+            "[project]\n"
+            'name = "smoke-project"\n'
+            'version = "0.1.0"\n\n'
+            "[tool.hatch.build.targets.wheel]\n"
+            'packages = ["src/smoke_project"]\n\n'
+            "[tool.pitloom.enrich]\n"
+            "local = true\n"
+        )
+
+        sbom_json = generate_project_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        assert [e for e in graph if e.get("type") == "ai_AIPackage"]
+        ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+        assert len(ds_pkgs) == 1
+        assert ds_pkgs[0]["name"] == "tiny-imagenet"
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        enrichment_anns = [
+            a
+            for a in annotations
+            if a.get("statement")
+            and json.loads(a["statement"]).get("kind") == "enrichment"
+        ]
+        assert len(enrichment_anns) == 1
+
+
+def test_generate_project_sbom_no_enrichment_by_default() -> None:
+    """Same fixture as above but with no [tool.pitloom.enrich] config:
+    project-level enrichment must stay off by default, same as every
+    other surface."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pkg_dir = tmppath / "src" / "smoke_project"
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "__init__.py").write_text("")
+        fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+        (pkg_dir / "model.safetensors").write_bytes(fixture.read_bytes())
+        (pkg_dir / "README.md").write_text(
+            "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+        )
+        (tmppath / "pyproject.toml").write_text(
+            "[build-system]\n"
+            'requires = ["hatchling"]\n'
+            'build-backend = "hatchling.build"\n\n'
+            "[project]\n"
+            'name = "smoke-project"\n'
+            'version = "0.1.0"\n\n'
+            "[tool.hatch.build.targets.wheel]\n"
+            'packages = ["src/smoke_project"]\n'
+        )
+
+        sbom_json = generate_project_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+
+
+def test_generate_project_sbom_enrich_true_overrides_config() -> None:
+    """enrich=True passed to generate_project_sbom() must turn on
+    enrichment even with no [tool.pitloom.enrich] config present."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pkg_dir = tmppath / "src" / "smoke_project"
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "__init__.py").write_text("")
+        fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+        (pkg_dir / "model.safetensors").write_bytes(fixture.read_bytes())
+        (pkg_dir / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
+        (tmppath / "pyproject.toml").write_text(
+            "[build-system]\n"
+            'requires = ["hatchling"]\n'
+            'build-backend = "hatchling.build"\n\n'
+            "[project]\n"
+            'name = "smoke-project"\n'
+            'version = "0.1.0"\n\n'
+            "[tool.hatch.build.targets.wheel]\n"
+            'packages = ["src/smoke_project"]\n'
+        )
+
+        sbom_json = generate_project_sbom(tmppath, enrich=True)
+        graph = json.loads(sbom_json)["@graph"]
+
+        ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+        assert len(ds_pkgs) == 1
+        assert ds_pkgs[0]["name"] == "tiny-imagenet"
 
 
 # ---------------------------------------------------------------------------

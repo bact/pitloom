@@ -26,6 +26,8 @@ from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
+from pitloom.enrich import run_enrichers_for_models
+from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
@@ -83,7 +85,7 @@ def _build_document_model(
     project_dir: Path,
     hatch_metadata: Any,
     pitloom_config: PitloomConfig,
-) -> tuple[DocumentModel, str | None]:
+) -> tuple[DocumentModel, str | None, list[list[EnrichmentResult]]]:
     """Load project metadata and assemble the format-neutral document.
 
     Project metadata (name, version, dependencies, license, urls, authors)
@@ -91,6 +93,15 @@ def _build_document_model(
     re-parsing ``pyproject.toml`` -- so dynamic fields (e.g. a ``hatch-vcs``
     version, or dependencies added by ``hatch-requirements-txt``) are
     correctly reflected in the SBOM.
+
+    Also runs enrichment for each discovered AI model, gated by the
+    project's own ``[tool.pitloom.enrich]`` (no separate hook-level key,
+    same "one config surface" rule ``_validate_config`` already enforces
+    for creator/tool/fragment settings) -- uses the same
+    ``run_enrichers_for_models()`` helper ``generate_project_sbom()``
+    (``src/pitloom/assemble/__init__.py``) does, so the build hook
+    produces the same N3/E1/E2 artifacts ``loom project`` would for the
+    same project.
     """
     metadata = metadata_from_hatchling(hatch_metadata, project_dir)
     creation_metadata = _build_creation_metadata(pitloom_config)
@@ -98,13 +109,16 @@ def _build_document_model(
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
     phantom_deps = find_phantom_dependencies(project_files)
+    enrichment_results_by_model = run_enrichers_for_models(
+        ai_models, pitloom_config.enrich, project_dir
+    )
     document = DocumentModel(
         project=metadata,
         creation_metadata=creation_metadata,
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,
     )
-    return document, merkle_root
+    return document, merkle_root, enrichment_results_by_model
 
 
 def _stage_sbom_file(
@@ -200,7 +214,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         sbom_basename = pitloom_config.sbom_basename or "sbom"
         sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
 
-        document, merkle_root = _build_document_model(
+        document, merkle_root, enrichment_results_by_model = _build_document_model(
             project_dir, self.metadata, pitloom_config
         )
         registry = resolve_registry(project_dir, pitloom_config.ids_file)
@@ -211,6 +225,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             sbom_type=spdx3.software_SbomType.build,
             registry=registry,
             provenance=pitloom_config.provenance,
+            enrichment_results_by_model=enrichment_results_by_model,
         )
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
 

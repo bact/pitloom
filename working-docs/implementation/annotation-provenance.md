@@ -1028,6 +1028,20 @@ forgotten:
   source, `enrich/readme.py`: local `README.md`/`MODEL_CARD.md` YAML
   frontmatter only (not prose) -- see `sbom-enrichment.md` for the
   broader enrichment design and which sources remain unbuilt.
+  Extended (next round) from single-model-only to project-level: every AI
+  model `generate_project_sbom()`/the Hatchling build hook discovers now
+  gets the same per-model N3 CreationInfo + E1/E2 Annotation, closing a
+  gap where project-level generation silently ran zero enrichment even
+  with `[tool.pitloom.enrich] local = true` set (`add_ai_models()` in
+  [`ai.py`](../../src/pitloom/assemble/spdx3/ai.py) gained an
+  `enrichment_results_by_model` param, mirroring `build_model()`'s
+  single-model block). Also gained a standalone-fragment path
+  (`build_enrichment_fragment()`, for `loom enrich`/`enrich_model()`) --
+  its newly-minted elements deliberately live under their own `doc_uuid`,
+  distinct from the referenced base document's, so `generate_spdx_id`'s
+  purely-sequential per-prefix counters can't accidentally collide with
+  an unrelated element in the base document once merged (see that
+  function's docstring for why).
 - [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
   `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
   `extra_data`/provenance). Residual: none once mapped. (PR [#106](https://github.com/bact/pitloom/pull/106))

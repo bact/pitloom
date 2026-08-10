@@ -54,4 +54,27 @@ def run_enrichers(
     return results
 
 
-__all__ = ["run_enrichers"]
+def run_enrichers_for_models(
+    ai_models: list[AiModelMetadata], config: EnrichConfig, project_dir: Path
+) -> list[list[EnrichmentResult]]:
+    """Run :func:`run_enrichers` once per model in *ai_models*.
+
+    Each model's own directory (own directory only, no ancestor walk-up,
+    same rule the single-model path uses) is resolved from
+    ``format_info.physical_path`` relative to *project_dir*. Returns one
+    ``list[EnrichmentResult]`` per model, same order as *ai_models* --
+    shared by every project-level caller (``generate_project_sbom()``, the
+    Hatchling build hook) so the "which directory does this model's
+    enrichment look in" logic exists in exactly one place.
+    """
+    return [
+        run_enrichers(
+            ai_model,
+            config,
+            project_dir / Path(ai_model.format_info.physical_path or "").parent,
+        )
+        for ai_model in ai_models
+    ]
+
+
+__all__ = ["run_enrichers", "run_enrichers_for_models"]

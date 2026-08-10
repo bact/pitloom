@@ -141,13 +141,22 @@ wired into a build backend. These two extend reach beyond that. See
   extras, development dependencies.
 - [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
   -- MVP shipped: local README/model-card **YAML frontmatter** parsing
-  (`enrich/readme.py`, license + dataset gaps only, not prose), dispatched
-  from `generate_model_sbom()`, gated by `[tool.pitloom.enrich] local`
-  (default on). Not to be confused with the agent-facing `sbom-enrich`
+  (`enrich/readme.py`, license + dataset gaps only, not prose), gated by
+  `[tool.pitloom.enrich] local` (**default off** -- opt-in until more
+  sources ship). Not to be confused with the agent-facing `sbom-enrich`
   *Skill* above -- this is code-level, deterministic, non-agent. Also
   what [annotation-provenance.md](../implementation/annotation-provenance.md)'s
   N3 ("who/when enriched") needed to exist first -- now shipped too, see
   its own entry there.
+  Exposed as a first-class capability across every generation surface,
+  not just `generate_model_sbom()`: a standalone `loom enrich`
+  CLI/`enrich_model()` API (writes a mergeable fragment, no full SBOM),
+  `--enrich`/`--no-enrich` on `loom model`/`loom project`/`loom generate`,
+  project-level enrichment for every AI model `loom project`/`loom
+  generate` discovers (previously silently skipped), automatic
+  inheritance in the Hatchling build hook, and a `enrich` input on the
+  GitHub Action. See [sbom-enrichment.md](sbom-enrichment.md)'s
+  "Surfaces" section.
   Still not started: OpenSSF Scorecard (public API), Hugging Face Hub and
   PyPI metadata (user opt-in), per-source enable/disable via additional
   `[tool.pitloom.enrich]` keys added when each lands.

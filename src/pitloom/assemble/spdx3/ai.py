@@ -14,16 +14,19 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3.creation_info import build_enrichment_elements
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import build_license_elements
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
+    build_enrichment_annotation,
     build_source_metadata_annotation,
     emit_provenance,
 )
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.ids import IdRegistry
 
@@ -422,9 +425,19 @@ def add_ai_models(
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
 ) -> None:
     """Build ``ai_AIPackage`` and ``contains`` relationship elements for each
-    AI model."""
+    AI model.
+
+    ``enrichment_results_by_model``, when given, is one entry per
+    ``ai_models`` element, same order -- the ``list[EnrichmentResult]``
+    :func:`~pitloom.enrich.run_enrichers` produced for that model (empty
+    list if enrichment didn't run or found nothing). Each entry drives that
+    model's own N3 CreationInfo(s) and E1/E2 "enrichment" Annotation, same
+    as :func:`~pitloom.assemble.spdx3.document.build_model` does for the
+    single-model case.
+    """
     config = provenance_config or ProvenanceConfig()
     preserve_source_metadata = config.preserve_source_metadata
     lineage_ctx = _LineageContext(
@@ -433,7 +446,12 @@ def add_ai_models(
         doc_uuid=doc_uuid,
         exporter=exporter,
     )
-    for ai_model in ai_models:
+    for index, ai_model in enumerate(ai_models):
+        model_enrichment_results = (
+            enrichment_results_by_model[index]
+            if enrichment_results_by_model and index < len(enrichment_results_by_model)
+            else []
+        )
         entity_spdx_id = _lookup_ai_model_entity(ai_model, registry)
         ai_pkg = _build_ai_package(
             ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
@@ -461,6 +479,12 @@ def add_ai_models(
             exporter,
         )
 
+        # N3 / E1 / E2: same per-element enrichment evidence as
+        # build_model()'s single-model path, scoped to this model only.
+        dataset_creation_info, enrichment_changes = build_enrichment_elements(
+            model_enrichment_results, creation_info, doc_name, doc_uuid, exporter
+        )
+
         if ai_model.datasets:
             add_datasets_for_model(
                 ai_package_spdx_id=require_spdx_id(ai_pkg),
@@ -471,6 +495,19 @@ def add_ai_models(
                 exporter=exporter,
                 provenance_config=config,
                 encoder=encoder,
+                dataset_creation_info=dataset_creation_info,
+            )
+
+        if enrichment_changes:
+            exporter.add_annotation(
+                build_enrichment_annotation(
+                    subject_spdx_id=require_spdx_id(ai_pkg),
+                    changes=enrichment_changes,
+                    creation_info=creation_info,
+                    annotation_spdx_id=generate_spdx_id(
+                        "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
+                    ),
+                )
             )
 
         if ai_model.license:

@@ -82,11 +82,18 @@ such as OpenSSF Scorecard and package registries.
 
 | Source | What it provides | Network required | Default | Status |
 | :----- | :--------------- | :--------------- | :------ | :----- |
-| Repository README / model card | License, dataset references (YAML frontmatter only -- not prose; see below) | No (local file) | Enabled | **Shipped** (`enrich/readme.py`) |
+| Repository README / model card | License, dataset references (YAML frontmatter only -- not prose; see below) | No (local file) | **Disabled** (opt-in) | **Shipped** (`enrich/readme.py`) |
 | Hugging Face Hub metadata | Architecture, tags, license, dataset links, paper references | Yes | User opt-in | Not started |
-| OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | Enabled (low cost, public API) | Not started |
-| Parlay package enrichment | Package ecosystem metadata (description, homepage, license) | Yes | Enabled | Not started |
+| OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | User opt-in | Not started |
+| Parlay package enrichment | Package ecosystem metadata (description, homepage, license) | Yes | User opt-in | Not started |
 | PyPI / conda metadata | Version history, maintainers, download stats | Yes | User opt-in | Not started |
+
+Every source defaults **off**, including the local, no-network README
+pass -- enrichment as a whole is still immature (one source, frontmatter
+only), so nothing runs unless explicitly turned on, project-wide via
+config or per-run via a flag/parameter. (OpenSSF Scorecard/Parlay were
+originally sketched as "enabled by default, low cost" before this
+decision; that default no longer applies once any of them actually ship.)
 
 ### Enable/disable per source
 
@@ -97,13 +104,36 @@ Pitloom allows users to enable or disable each source independently in
 
 ```toml
 [tool.pitloom.enrich]
-local = true          # README / model card -- always safe, on by default (shipped)
+local = false          # README / model card -- off by default, opt in explicitly
 ```
 
 Only `local` exists today -- `openssf_scorecard`/`huggingface`/`pypi` keys
 are added when their enrichers actually land, not pre-declared ahead of
 them (same discipline `[tool.pitloom.provenance]`'s keys followed:
 one key per shipped capability, not a speculative full set up front).
+
+### Surfaces (shipped)
+
+The mechanical enrichment engine (`run_enrichers()`) is exposed the same
+way across every generation path -- no surface has its own bespoke
+on/off model:
+
+| Surface | How to opt in |
+| :------ | :------------ |
+| CLI -- `loom model`/`loom project`/`loom generate` | `--enrich` (or `--no-enrich` to force off despite config) |
+| CLI -- standalone `loom enrich <model-file>` | Always runs -- invoking the command is itself the opt-in; writes a standalone fragment (no `SpdxDocument`/`software_Sbom`/`ai_AIPackage`) for merging into a base SBOM via `[tool.pitloom.fragments]` |
+| Python API -- `generate_model_sbom()`/`generate_project_sbom()`/`generate()` | `enrich=True`/`enrich=False` keyword (`None` defers to config) |
+| Python API -- `enrich_model()` | Same as `loom enrich`: always runs, returns the fragment JSON string |
+| Hatchling build hook | Inherits the project's `[tool.pitloom.enrich]` automatically -- no separate hook-level key, per the same "one config surface" rule the hook already enforces for creator/tool/fragment settings |
+| GitHub Action | `enrich: "true"`/`"false"` input, mapped to `--enrich`/`--no-enrich`; empty (default) defers to config |
+
+**Design invariant:** `loom generate --enrich <target>` and (`loom
+generate --no-enrich <target>` + `loom enrich <target>` + `loom merge`)
+produce equivalent enrichment evidence -- both paths share the same
+deterministic identity computation for the referenced `ai_AIPackage`
+(`_ai_model_identity()` in `document.py`), so a standalone fragment always
+merges cleanly into a base document generated separately. Verified by
+`tests/test_generator.py::test_enrich_then_merge_matches_one_shot_enrich`.
 
 ## AI-agent enrichment (skill / plugin)
 
@@ -118,7 +148,13 @@ relationship implied by a paragraph rather than a machine-readable field.
 This is documented and enabled today via the `skills/sbom-enrich/` Skill
 (see [adoption-surfaces.md](adoption-surfaces.md) and
 [agent-skill.md](../implementation/agent-skill.md) for the surfaces this
-builds on); it does not require new code inside Pitloom core.
+builds on); it does not require new code inside Pitloom core. The Skill
+runs the deterministic `loom enrich` pass first (see "Surfaces" above),
+then only proposes prose-derived fields for gaps that pass left
+untouched -- default precedence is deterministic-wins, with an explicit
+override path (recording both values and a reason) when the agent has
+clear contradicting evidence from prose. See `skills/sbom-enrich/SKILL.md`
+for the full sequencing.
 
 | Source | What it provides | Network required | Default |
 | :----- | :--------------- | :--------------- | :------ |
@@ -177,16 +213,27 @@ with the `skills/sbom-validate/` Skill.
    listing exactly which fields it changed -- the return value, not a
    post-hoc diff, is what feeds N3's `CreationInfo` and the E1/E2
    Annotation (see `annotation-provenance.md`'s N3 row).
-3. `generate_model_sbom()` (`src/pitloom/assemble/__init__.py`) --
-   not `generate_project_sbom()` as originally sketched here, since
-   enrichment targets `AiModelMetadata` specifically -- reads
-   `[tool.pitloom.enrich]` from a `pyproject.toml` in the model file's
-   own directory (no ancestor walk-up) and calls `run_enrichers()` after
-   `read_ai_model()`, before `build_model()`. Only wired for the local
-   file path; a Hugging Face Hub source already gets model-card
-   frontmatter natively via `_load_model_card()` in `_huggingface.py`,
-   so `readme.py` never runs there.
-4. Provenance: scalar fields (e.g. `license`) also get an entry in the
+3. Wired at both the single-model and project levels. `generate_model_sbom()`
+   (`src/pitloom/assemble/__init__.py`) reads `[tool.pitloom.enrich]` from
+   a `pyproject.toml` in the model file's own directory (no ancestor
+   walk-up) and calls `run_enrichers()` after `read_ai_model()`, before
+   `build_model()`. Project-level callers -- `generate_project_sbom()` and
+   the Hatchling build hook's `_build_document_model()`
+   (`plugins/hatch.py`) -- both call the same
+   `run_enrichers_for_models()` (`enrich/__init__.py`), which resolves
+   each discovered AI model's own directory from
+   `AiModelFormatInfo.physical_path` and returns a parallel
+   `list[list[EnrichmentResult]]` passed through to `build()` ->
+   `add_ai_models()`; this is the one place "which directory does this
+   model's enrichment look in" is decided, shared rather than
+   reimplemented per caller. Only the local-file path runs `readme.py` --
+   a Hugging Face Hub source already gets model-card frontmatter natively
+   via `_load_model_card()` in `_huggingface.py`.
+4. `enrich_model()` (same file) is the standalone-fragment counterpart:
+   runs the same `run_enrichers()` call but skips full document assembly,
+   producing just the new elements via `build_enrichment_fragment()`
+   (`assemble/spdx3/document.py`) -- see "Surfaces" above.
+5. Provenance: scalar fields (e.g. `license`) also get an entry in the
    existing `AiModelMetadata.provenance` dict, same as extractors; every
    changed field additionally becomes one entry in the `EnrichmentResult`
    that N3/E1/E2 consume, which a plain provenance-dict entry alone

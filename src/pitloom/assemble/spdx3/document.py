@@ -22,7 +22,7 @@ from pitloom.assemble.spdx3.ai import (
 )
 from pitloom.assemble.spdx3.creation_info import (
     build_creation_info,
-    build_enrichment_creation_info,
+    build_enrichment_elements,
 )
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import (
@@ -32,7 +32,6 @@ from pitloom.assemble.spdx3.deps import (
     build_license_elements,
 )
 from pitloom.assemble.spdx3.provenance import (
-    EnrichedFieldEntry,
     ProvenanceEncoder,
     build_enrichment_annotation,
     emit_provenance,
@@ -219,8 +218,14 @@ def build(
     sbom_type: Any = spdx3.software_SbomType.source,
     registry: IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
+    enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
 ) -> Spdx3JsonExporter:
-    """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`."""
+    """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
+
+    ``enrichment_results_by_model``, when given, is one
+    ``list[EnrichmentResult]`` per ``doc.ai_models`` element, same order --
+    see :func:`~pitloom.assemble.spdx3.ai.add_ai_models`.
+    """
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
@@ -363,6 +368,137 @@ def build(
             registry=registry,
             provenance_config=prov_cfg,
             encoder=encoder,
+            enrichment_results_by_model=enrichment_results_by_model,
+        )
+
+    return exporter
+
+
+def _ai_model_identity(model: AiModelMetadata) -> tuple[str, str, str]:
+    """Compute ``(doc_name, doc_uuid, ai_package_spdx_id)`` for a model file.
+
+    Deterministic from the model's own name/version/format -- identical to
+    whatever :func:`build_model` computes for the same model, and to what
+    :func:`~pitloom.assemble.spdx3.ai._build_ai_package` assigns as the
+    ``ai_AIPackage`` spdxId. Shared so a standalone enrichment fragment
+    (:func:`build_enrichment_fragment`) always references the exact same
+    subject id a full model SBOM would, letting the two merge cleanly.
+
+    Clears this ``doc_uuid``'s id counters immediately before minting
+    ``ai_package_spdx_id`` -- ``generate_spdx_id``'s per-prefix counters
+    are a process-wide side effect, so without this, a second call for the
+    same model in the same process (e.g. an ``enrich_model()`` call
+    followed by a ``generate_model_sbom()`` call, or simply two
+    ``enrich_model()`` calls in a row) would silently mint a *different*,
+    stale-incremented id instead of the deterministic first one. Callers
+    that build a full document (:func:`build_model`) already re-clear
+    right after calling this, so this is a safe no-op for them; callers
+    that only need the identity tuple (:func:`build_enrichment_fragment`)
+    depend on this clear to get the correct, reproducible id.
+    """
+    doc_name = model.name or model.format_info.file_name or "model"
+    doc_uuid = compute_doc_uuid(
+        name=doc_name,
+        version=model.version or "unknown",
+        dependencies=[],
+        merkle_root=None,
+    )
+    _clear_doc_counters(doc_uuid)
+    pkg_name = model.name or str(model.format_info.model_format)
+    ai_package_spdx_id = generate_spdx_id(
+        f"AIPackage-{pkg_name}", doc_name=doc_name, doc_uuid=doc_uuid
+    )
+    return doc_name, doc_uuid, ai_package_spdx_id
+
+
+def build_enrichment_fragment(
+    model: AiModelMetadata,
+    enrichment_results: list[EnrichmentResult],
+    creation_metadata: CreationMetadata | None = None,
+) -> Spdx3JsonExporter:
+    """Assemble a standalone enrichment-only SPDX 3 fragment.
+
+    Contains only what an enrichment run adds -- N3 CreationInfo(s)/Tool(s),
+    any newly-created dataset elements, and the E1/E2 "enrichment" Annotation
+    -- against the exact ``ai_AIPackage`` spdxId :func:`build_model` would
+    assign for the same model (see :func:`_ai_model_identity`). No
+    ``ai_AIPackage``, ``software_Sbom``, or ``SpdxDocument`` element is
+    included: this is a bare ``@graph`` fragment meant for
+    ``merge_fragments()``, matching the wrapper-free shape
+    ``working-docs/design/sbom-fragments.md`` documents and
+    :mod:`pitloom.loom` already produces.
+
+    Every element this function mints (CreationInfo(s), Tool(s), Agent(s),
+    any new dataset package, the Annotation) is built under its own
+    ``doc_uuid``, deliberately distinct from the base document's --
+    ``generate_spdx_id``'s per-prefix counters are purely
+    sequential-by-call-order within a single build, so reusing the base
+    document's ``doc_uuid`` here would risk an accidental id collision
+    with an unrelated base-document element once merged (e.g. this
+    fragment's lone "enrichment" Annotation landing on ``Annotation-1``
+    while the base document's own first annotation is something else
+    entirely) -- ``merge_fragments()`` would then treat them as "the same
+    element, conflicting content" and silently drop one, exactly the
+    failure this separate namespace avoids. ``ai_package_spdx_id`` is the
+    one exception: it is a *reference* to an element that already lives in
+    the base document's namespace (content-keyed on the model's own name,
+    not sequential), so only it keeps using the base identity.
+    ``merge_fragments()`` unifies ``Agent``/``Tool`` elements by structural
+    equality (same name/type) when spdxIds don't match, so this fragment's
+    own freshly-minted "Pitloom" Agent still collapses into the base
+    document's real one after merge -- N3's "same createdBy identity"
+    requirement (see :func:`build_enrichment_creation_info`) holds even
+    though the ids themselves differ pre-merge.
+    """
+    doc_name, _base_doc_uuid, ai_package_spdx_id = _ai_model_identity(model)
+    doc_uuid = compute_doc_uuid(
+        name=f"{doc_name}-enrichment",
+        version=model.version or "unknown",
+        dependencies=[],
+        merkle_root=None,
+    )
+    _clear_doc_counters(doc_uuid)
+
+    exporter = Spdx3JsonExporter()
+    spdx_ci, agents, tools = build_creation_info(
+        creation_metadata or CreationMetadata(), doc_name, doc_uuid
+    )
+    exporter.add_creation_info(spdx_ci)
+    for agent in agents:
+        exporter.add_agent(agent)
+    for tool in tools:
+        exporter.object_set.add(tool)
+
+    dataset_creation_info, enrichment_changes = build_enrichment_elements(
+        enrichment_results, spdx_ci, doc_name, doc_uuid, exporter
+    )
+
+    new_datasets = [
+        dataset_ref
+        for dataset_ref in model.datasets
+        if dataset_ref.metadata.name in dataset_creation_info
+    ]
+    if new_datasets:
+        add_datasets_for_model(
+            ai_package_spdx_id=ai_package_spdx_id,
+            datasets=new_datasets,
+            creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            dataset_creation_info=dataset_creation_info,
+        )
+
+    if enrichment_changes:
+        exporter.add_annotation(
+            build_enrichment_annotation(
+                subject_spdx_id=ai_package_spdx_id,
+                changes=enrichment_changes,
+                creation_info=spdx_ci,
+                annotation_spdx_id=generate_spdx_id(
+                    "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
+            )
         )
 
     return exporter
@@ -378,17 +514,11 @@ def build_model(
     enrichment_results: list[EnrichmentResult] | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone SPDX 3 SBOM for a single AI model file."""
-    doc_name: str = model.name or model.format_info.file_name or "model"
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
 
     exporter = Spdx3JsonExporter()
-    doc_uuid = compute_doc_uuid(
-        name=doc_name,
-        version=model.version or "unknown",
-        dependencies=[],
-        merkle_root=None,
-    )
+    doc_name, doc_uuid, _ = _ai_model_identity(model)
     _clear_doc_counters(doc_uuid)
 
     spdx_ci, agents, tools = build_creation_info(creation_metadata, doc_name, doc_uuid)
@@ -437,32 +567,9 @@ def build_model(
     # in a single "enrichment" Annotation on the AI package (E1/E2). See
     # build_enrichment_creation_info()'s docstring for why N3 only covers
     # new elements, not in-place field fills.
-    dataset_creation_info: dict[str, spdx3.CreationInfo] = {}
-    enrichment_changes: list[EnrichedFieldEntry] = []
-    for result in enrichment_results or []:
-        if not result.fields:
-            continue
-        enrich_ci, enrich_tool = build_enrichment_creation_info(
-            tool_name=f"pitloom.enrich.{result.source_name}",
-            main_creation_info=spdx_ci,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-        )
-        exporter.add_creation_info(enrich_ci)
-        exporter.object_set.add(enrich_tool)
-        for enriched_field in result.fields:
-            enrichment_changes.append(
-                EnrichedFieldEntry(
-                    field=enriched_field.field,
-                    before=enriched_field.before,
-                    after=enriched_field.after,
-                    role=enriched_field.role,
-                    source=enriched_field.source,
-                )
-            )
-            if enriched_field.field.startswith("datasets:"):
-                dataset_name = enriched_field.field.removeprefix("datasets:")
-                dataset_creation_info[dataset_name] = enrich_ci
+    dataset_creation_info, enrichment_changes = build_enrichment_elements(
+        enrichment_results or [], spdx_ci, doc_name, doc_uuid, exporter
+    )
 
     if model.datasets:
         add_datasets_for_model(

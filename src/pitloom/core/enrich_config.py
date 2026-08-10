@@ -16,12 +16,13 @@ class EnrichConfig:
 
     Attributes:
         local: Whether to run local, no-network enrichment (README/model-card
-            YAML frontmatter). On by default -- always-safe per
-            ``working-docs/design/sbom-enrichment.md``'s source table.
+            YAML frontmatter). Off by default -- enrichment is still
+            immature (single source, frontmatter-only); opt in explicitly
+            until more sources land.
 
     New sources (``openssf_scorecard``, ``huggingface``, ``pypi``, ...) each
     get their own field here when they're actually built -- not
     pre-declared ahead of the enricher that would use them.
     """
 
-    local: bool = True
+    local: bool = False
