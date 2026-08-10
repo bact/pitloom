@@ -1,12 +1,13 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "pitloom",
   "owner": {
     "name": "Arthit Suriyawongkul",
     "email": "suriyawa@tcd.ie",
     "url": "https://github.com/bact/pitloom"
   },
-  "description": "Generate and enrich SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom.",
+  "metadata": {
+    "description": "Generate, enrich, and validate SPDX 3 SBOMs/AIBOMs for Python projects and AI models using Pitloom."
+  },
   "plugins": [
     {
       "name": "pitloom",

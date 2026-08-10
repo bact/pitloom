@@ -1,12 +1,12 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-09
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom's `sbom` skill: copy-paste recipes
+# Pitloom's `sbom-generate` skill: copy-paste recipes
 
 Companion to `../SKILL.md`. These recipes are meant to be run as-is or
 adapted with minimal edits.
@@ -72,16 +72,12 @@ print(f"Valid SPDX 3 graph with {len(d[\"@graph\"])} nodes")
 
 For a schema/shape-level conformance check -- catches a missing required
 property or wrong relationship type that the sanity check above cannot --
-run `spdx3-validate` too:
-
-```bash
-pip install spdx3-validate  # if not already installed
-spdx3-validate --json sbom.spdx3.json
-```
+use the `sbom-validate` skill on `sbom.spdx3.json`.
 
 ## See also
 
 - `../SKILL.md` -- operating instructions for this skill.
+- The sibling `sbom-validate` skill -- schema/shape-level conformance
+  check beyond the `@graph` sanity check above.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
-  and JSON Schema links, plus the `spdx3-validate` validator, for deeper
-  conformance checks beyond the `@graph` sanity check above.
+  and JSON Schema links.

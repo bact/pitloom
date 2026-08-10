@@ -1,12 +1,12 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-09
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Pitloom enrich skill: copy-paste recipe
+# Pitloom sbom-enrich skill: copy-paste recipe
 
 Companion to `../SKILL.md`. This recipe is meant to be run as-is or
 adapted with minimal edits.
@@ -112,15 +112,9 @@ inferred element's provenance clearly marked in its `comment`.
 
 ## 5. Post-merge check (mandatory)
 
-Validate the merged output is still a conformant SPDX 3.0.1 document --
-this catches SPDX-shape/SHACL problems (e.g. a missing required property
-or the wrong relationship type) that plain JSON-syntax validity would
-miss:
-
-```bash
-pip install spdx3-validate  # if not already installed
-spdx3-validate --json sbom.spdx3.json
-```
+Use the `sbom-validate` skill on `sbom.spdx3.json` -- this catches
+SPDX-shape/SHACL problems (e.g. a missing required property or the wrong
+relationship type) that plain JSON-syntax validity would miss.
 
 ## 6. Report back to the user
 
@@ -133,11 +127,13 @@ extraction.
 ## See also
 
 - `../SKILL.md` -- operating instructions for this skill.
-- The sibling `sbom` skill -- generates the base SBOM this recipe enriches.
+- The sibling `sbom-generate` skill -- generates the base SBOM this
+  recipe enriches.
+- The sibling `sbom-validate` skill -- used for the mandatory post-merge
+  check above.
 - `working-docs/design/sbom-enrichment.md` -- enrichment data-source table
   and the `[tool.pitloom.enrich]` enable/disable model.
 - `working-docs/design/sbom-fragments.md` -- fragment system design and
   vocabulary.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
-  and JSON Schema links, plus the `spdx3-validate` validator used in the
-  post-merge check above.
+  and JSON Schema links.

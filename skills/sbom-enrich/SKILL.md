@@ -1,5 +1,5 @@
 ---
-name: enrich
+name: sbom-enrich
 description: >-
   Use this skill when asked to enrich, augment, or add inferred detail to
   a Pitloom-generated SBOM or AIBOM -- for example inferring an unstated
@@ -9,13 +9,13 @@ description: >-
   "enrich this SBOM", "add more detail to the SBOM", "infer the dataset
   used to train this model", "fill in missing SBOM information from the
   README/model card". Requires a Pitloom-generated SBOM to already exist --
-  generate one first with the `sbom` skill if it does not.
+  generate one first with the `sbom-generate` skill if it does not.
 license: Apache-2.0
 argument-hint: "[sbom-file]"
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-08-09 -->
+<!-- Last-Modified: 2026-08-10 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -26,13 +26,13 @@ Static extraction cannot read prose. An agent can go further than Pitloom
 alone: read the project's README or the model's model card, infer a
 plausible license or a dependency's purpose, or work out
 `trainedOn`/`testedOn` dataset relationships that no file format encodes
-explicitly. Do this only **after** a base SBOM exists (use the `sbom`
-skill first if it does not), and only when it adds real information -- do
-not fabricate detail for its own sake.
+explicitly. Do this only **after** a base SBOM exists (use the
+`sbom-generate` skill first if it does not), and only when it adds real
+information -- do not fabricate detail for its own sake.
 
 Triggers automatically on natural-language requests (see the trigger
-phrasings above), or invoke it explicitly with `/enrich [sbom-file]`
-(`/pitloom:enrich [sbom-file]` when installed via the Claude Code
+phrasings above), or invoke it explicitly with `/sbom-enrich [sbom-file]`
+(`/pitloom:sbom-enrich [sbom-file]` when installed via the Claude Code
 plugin). `sbom-file` is optional -- point it at a specific
 already-generated SBOM when a project has more than one; omit it to let
 the agent find the one to enrich.
@@ -67,8 +67,8 @@ Source: AI agent | Method: inference
 
 Steps:
 
-1. Generate a base SBOM first, if not already done (use the `sbom`
-   skill).
+1. Generate a base SBOM first, if not already done (use the
+   `sbom-generate` skill).
 2. Read the project's `README.md` / model card and any other local docs.
 3. Draft a fragment (`*.spdx3.json`) containing only the elements or
    relationships you can infer (e.g. a `dataset_DatasetPackage` plus a
@@ -108,15 +108,10 @@ Steps:
 
 6. Re-run `loom project <path>` or `loom generate <path>` (generate again) so
    the merged, enriched SBOM is written.
-7. **Post-merge check (mandatory):** validate the merged output is still
-   a conformant SPDX 3 JSON document -- a syntactically valid fragment can
-   still be missing a required property or use the wrong relationship
-   type, which only shape/SHACL validation catches:
-
-   ```bash
-   pip install spdx3-validate  # if not already installed
-   spdx3-validate --json <merged-sbom-file>
-   ```
+7. **Post-merge check (mandatory):** use the `sbom-validate` skill on
+   `<merged-sbom-file>` -- a syntactically valid fragment can still be
+   missing a required property or use the wrong relationship type, which
+   only shape/SHACL validation catches.
 
 8. Tell the user what was inferred and why, so they can review it -- this
    is provenance-tracked, agent-derived data, not ground truth.
@@ -128,6 +123,7 @@ enable/disable model, and the dataset-relationship field map, see
 ## See also
 
 - `references/examples.md` -- full worked example.
+- The sibling `sbom-validate` skill -- used for the mandatory post-merge
+  check above.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
-  and JSON Schema links, plus the `spdx3-validate` validator used in the
-  post-merge check above.
+  and JSON Schema links.

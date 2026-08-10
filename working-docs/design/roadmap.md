@@ -65,17 +65,19 @@ wired into a build backend. These two extend reach beyond that. See
   backend. Dogfooded on Pitloom itself in
   `.github/workflows/action-selftest.yml`.
   See [github-action.md](../implementation/github-action.md).
-- [x] **AI-agent Skills** (`skills/sbom/`, `skills/enrich/`) -- lets
-  Claude Code, the Claude Agent SDK, or similar runtimes generate an SBOM
-  on request, and optionally enrich it (README/model-card inference
-  contributed back as a provenance-marked fragment). Independently
-  triggerable by natural language or explicit invocation.
+- [x] **AI-agent Skills** (`skills/sbom-generate/`, `skills/sbom-enrich/`,
+  `skills/sbom-validate/`) -- lets Claude Code, the Claude Agent SDK, or
+  similar runtimes generate an SBOM on request, optionally enrich it
+  (README/model-card inference contributed back as a provenance-marked
+  fragment), and validate any SPDX 3 document's schema/shape conformance.
+  Independently triggerable by natural language or explicit invocation.
   See [agent-skill.md](../implementation/agent-skill.md) and
   [sbom-enrichment.md](sbom-enrichment.md).
-- [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles both Skills
-  under the `pitloom` plugin namespace so they install with
+- [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles all three
+  Skills under the `pitloom` plugin namespace so they install with
   `/plugin install` directly from this repository, with namespaced
-  explicit invocation (`/pitloom:sbom`, `/pitloom:enrich`). See
+  explicit invocation (`/pitloom:sbom-generate`, `/pitloom:sbom-enrich`,
+  `/pitloom:sbom-validate`). See
   [claude-code-plugin.md](../implementation/claude-code-plugin.md).
 - [ ] **Docker container action** (future) -- a `Dockerfile` +
   `action.yml` `using: docker` variant of the GitHub Action for hermetic

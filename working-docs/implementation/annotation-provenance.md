@@ -876,7 +876,7 @@ any of these):
   self-reported* identity: `"Source: <agent name> (<vendor>) | Method:
   inference | Date: <ISO 8601 date>"`, e.g. `"Source: Claude Code
   (Anthropic) | Method: inference | Date: 2026-08-10"`. Pitloom cannot
-  verify this at merge time — same trust model the `enrich` skill's
+  verify this at merge time — same trust model the `sbom-enrich` skill's
   existing generic `"Source: AI agent | Method: inference"` marker
   already has, just more specific when the agent knows its own identity.
 
