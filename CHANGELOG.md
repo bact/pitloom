@@ -23,46 +23,46 @@ and this project adheres to
 
 ### Added
 
+- Initial support of SKILL.md and Claude Code plugin ([#96])
 - Redesign CLI and Python API around input artifacts
   (project, wheel, model, env, generate) while maintaining CISA SBOM Types
-  compliance in output graph [#114] [#96]
-- Initial support of SKILL.md and Claude Code plugin [#96]
-- Native .tar.gz and .zip sdist metadata extraction support [#114]
+  compliance in output graph ([#96], [#114])
+- Native .tar.gz and .zip sdist metadata extraction support ([#114])
 - Native-first provenance:
   - `hasConcludedLicense` vs. `hasDeclaredLicense` separation
-    for Pitloom-detected vs. SBOM author-asserted licenses. [#105]
+    for Pitloom-detected vs. SBOM author-asserted licenses. ([#105])
   - `ExternalIdentifier` (DOI) and `ExternalRef`
-    (arXiv paper IDs, model page URLs) on `ai_AIPackage`. [#106]
+    (arXiv paper IDs, model page URLs) on `ai_AIPackage`. ([#106])
   - `Agent` and `publishedBy` relationship for dataset creators
-    on `dataset_DatasetPackage`. [#107]
+    on `dataset_DatasetPackage`. ([#107])
   - Fragment document origin traceability: populate `SpdxDocument.import_`
-    with `ExternalMap` entries for merged fragments. [#108]
+    with `ExternalMap` entries for merged fragments. ([#108])
   - `descendantOf` `Relationship` and stub `ai_AIPackage`
-    for AI base-model lineage. [#109]
+    for AI base-model lineage. ([#109])
 - Record metadata provenance as SPDX 3 Core `Annotation` elements alongside
-  the `comment` form, controlled by `[tool.pitloom.provenance] format`. [#102]
+  the `comment` form, controlled by `[tool.pitloom.provenance] format`. ([#102])
 - `[tool.pitloom.provenance] detail` (`minimal` default / `full`) to limit
   provenance Annotations to fields SPDX can't otherwise express.
 - Fragment-unification provenance: record why two elements were merged as a
-  `provenance/unification/1` Annotation on the survivor. [#102]
+  `provenance/unification/1` Annotation on the survivor. ([#102])
 - Artifact-metadata preservation
   (`[tool.pitloom.provenance] preserve-source-metadata`, `auto` default)
   to embed an AI model's verbatim original metadata
-  when it isn't shipped with the distribution. [#102]
+  when it isn't shipped with the distribution. ([#102])
 
 ### Changed
 
 - Dict-valued AI-model metadata (`properties`, `hyperparameters`) now records
-  exact per-key provenance instead of one shared note per dict. [#102]
-- Raised the minimum `mypy` version to 2.3.0. [#118]
+  exact per-key provenance instead of one shared note per dict. ([#102])
+- Raised the minimum `mypy` version to 2.3.0. ([#118])
 
 ### Security
 
 - Sanitize untrusted text (an AI model's filename, and any binary-format
   metadata key) before it's embedded in a provenance string, so a crafted
   value can no longer inject a fake `Source:`/`Field:` segment and
-  misattribute or silently suppress provenance. [#102]
-- Ensures Hugging Face `hf_hub_download()` calls are revision-pinned [#117]
+  misattribute or silently suppress provenance. ([#102])
+- Ensures Hugging Face `hf_hub_download()` calls are revision-pinned ([#117])
 
 [#96]: https://github.com/bact/pitloom/pull/96
 [#102]: https://github.com/bact/pitloom/pull/102
