@@ -46,6 +46,10 @@ ARTIFACT_METADATA_SCHEMA_URL = "https://pitloom.dev/provenance/artifact-metadata
 #: Statement-schema URL for a multi-source field-value disagreement (G2).
 CONFLICT_SCHEMA_URL = "https://pitloom.dev/provenance/conflict/1"
 
+#: Statement-schema URL for an enrichment run's field changes (E1/E2, N3's
+#: Annotation residual).
+ENRICHMENT_SCHEMA_URL = "https://pitloom.dev/provenance/enrichment/1"
+
 #: Transparent, re-readable manifest sources. A field read verbatim from one of
 #: these (no extraction ``method``) is *low* signal in minimal mode: its value
 #: is already the native SPDX field and the source is trivially re-derivable by
@@ -400,6 +404,56 @@ def build_conflict_annotation(
         "kind": "conflict",
         "field": field,
         "candidates": candidates,
+    }
+    return _build_json_annotation(
+        subject_spdx_id, statement, creation_info, annotation_spdx_id
+    )
+
+
+class EnrichedFieldEntry(TypedDict):
+    """One field an enrichment run changed on a single element (E1/E2).
+
+    Mirrors :class:`ConflictCandidate`'s ``role``/``source`` shape exactly
+    -- same vocabulary, same provenance-string convention -- since both
+    describe "who/how a value came to be" for the same kind of consumer.
+    ``before``/``after`` use ``None`` for a newly-created element (nothing
+    to compare against) rather than omitting the key, so every entry has
+    the same shape.
+    """
+
+    field: str
+    before: Any
+    after: Any
+    role: str
+    source: str
+
+
+def build_enrichment_annotation(
+    subject_spdx_id: str,
+    changes: list[EnrichedFieldEntry],
+    creation_info: spdx3.CreationInfo,
+    annotation_spdx_id: str,
+) -> spdx3.Annotation:
+    """Return an Annotation recording what an enrichment run changed on
+    *subject_spdx_id* (E1 override lineage / E2 inferred-vs-not marker).
+
+    N3 (a second ``CreationInfo`` on elements an enrichment run *creates*,
+    see :func:`~pitloom.assemble.spdx3.creation_info.build_enrichment_creation_info`)
+    only covers new elements -- it can't represent a field merely
+    *filled in place* on an already-existing element, since SPDX's
+    ``Element.creationInfo`` is singular per element. This Annotation is
+    where that case's evidence lives instead: which field changed, its
+    before/after value, and the role (``"declared"``/``"detected"``/
+    ``"externalReported"``/``"inferred"`` -- G2's exact vocabulary,
+    reused rather than inventing a separate one for enrichment).
+
+    Only call this when *changes* is non-empty; a no-op enrichment run has
+    nothing extrinsic to assert.
+    """
+    statement = {
+        "schema": ENRICHMENT_SCHEMA_URL,
+        "kind": "enrichment",
+        "changes": changes,
     }
     return _build_json_annotation(
         subject_spdx_id, statement, creation_info, annotation_spdx_id

@@ -14,12 +14,15 @@ from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom.assemble.spdx3.document import build, build_deployed, build_model
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.config import PitloomConfig
+from pitloom.core.config import PitloomConfig, read_pitloom_config
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
+from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.enrich import run_enrichers
+from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.binary import find_phantom_dependencies
@@ -187,6 +190,7 @@ def generate_model_sbom(
     )
     source_str = str(source)
     is_hf = is_huggingface_source(source_str)
+    enrichment_results: list[EnrichmentResult] = []
 
     if is_hf:
         if offline:
@@ -212,11 +216,19 @@ def generate_model_sbom(
             else None
         )
 
+        model_dir = model_path.parent
+        try:
+            enrich_config = read_pitloom_config(model_dir / "pyproject.toml").enrich
+        except FileNotFoundError:
+            enrich_config = EnrichConfig()
+        enrichment_results = run_enrichers(model, enrich_config, model_dir)
+
     exporter = build_model(
         model,
         creation_metadata or CreationMetadata(),
         entity_spdx_id=entity_spdx_id,
         provenance=provenance,
+        enrichment_results=enrichment_results,
     )
 
     sbom_json = exporter.to_json(

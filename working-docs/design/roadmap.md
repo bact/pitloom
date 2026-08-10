@@ -139,17 +139,18 @@ wired into a build backend. These two extend reach beyond that. See
   and conflict detection shipped, see Completed above).
 - [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
   extras, development dependencies.
-- [ ] **SBOM enrichment from external sources** (the `enrich/` subpackage --
-  not started; `find src/pitloom -iname "*enrich*"` currently returns
-  nothing) -- README / model card parsing (local, no network), OpenSSF
-  Scorecard (public API), Hugging Face Hub and PyPI metadata (user
-  opt-in), per-source enable/disable via `[tool.pitloom.enrich]`. Not to
-  be confused with the agent-facing `sbom-enrich` *Skill* above (already
-  shipped) -- this is the code-level enrichers that skill's design
-  anticipates sitting alongside. Also what
-  [annotation-provenance.md](../implementation/annotation-provenance.md)'s
-  N3 ("who/when enriched") is blocked on -- there's nothing yet to attach
-  a per-enrichment-run `CreationInfo` to.
+- [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
+  -- MVP shipped: local README/model-card **YAML frontmatter** parsing
+  (`enrich/readme.py`, license + dataset gaps only, not prose), dispatched
+  from `generate_model_sbom()`, gated by `[tool.pitloom.enrich] local`
+  (default on). Not to be confused with the agent-facing `sbom-enrich`
+  *Skill* above -- this is code-level, deterministic, non-agent. Also
+  what [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+  N3 ("who/when enriched") needed to exist first -- now shipped too, see
+  its own entry there.
+  Still not started: OpenSSF Scorecard (public API), Hugging Face Hub and
+  PyPI metadata (user opt-in), per-source enable/disable via additional
+  `[tool.pitloom.enrich]` keys added when each lands.
   See [sbom-enrichment.md](sbom-enrichment.md).
 
 ## Medium-term

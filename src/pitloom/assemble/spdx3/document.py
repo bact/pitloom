@@ -20,7 +20,10 @@ from pitloom.assemble.spdx3.ai import (
     _LineageContext,
     add_ai_models,
 )
-from pitloom.assemble.spdx3.creation_info import build_creation_info
+from pitloom.assemble.spdx3.creation_info import (
+    build_creation_info,
+    build_enrichment_creation_info,
+)
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import (
     _enrich_from_installed,
@@ -29,7 +32,9 @@ from pitloom.assemble.spdx3.deps import (
     build_license_elements,
 )
 from pitloom.assemble.spdx3.provenance import (
+    EnrichedFieldEntry,
     ProvenanceEncoder,
+    build_enrichment_annotation,
     emit_provenance,
     resolve_encoder,
 )
@@ -43,6 +48,7 @@ from pitloom.core.models import (
     generate_spdx_id,
 )
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.ids import IdRegistry
 
@@ -362,13 +368,14 @@ def build(
     return exporter
 
 
-# # pylint: disable=too-many-locals
+# pylint: disable=too-many-locals
 def build_model(
     model: AiModelMetadata,
     creation_metadata: CreationMetadata,
     *,
     entity_spdx_id: str | None = None,
     provenance: ProvenanceConfig | None = None,
+    enrichment_results: list[EnrichmentResult] | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone SPDX 3 SBOM for a single AI model file."""
     doc_name: str = model.name or model.format_info.file_name or "model"
@@ -424,6 +431,39 @@ def build_model(
         exporter,
     )
 
+    # N3 / E1 / E2: an enrichment run's newly-created dataset elements get
+    # their own CreationInfo (N3); every changed field -- new datasets and
+    # fields filled in place on the AI package itself -- becomes one entry
+    # in a single "enrichment" Annotation on the AI package (E1/E2). See
+    # build_enrichment_creation_info()'s docstring for why N3 only covers
+    # new elements, not in-place field fills.
+    dataset_creation_info: dict[str, spdx3.CreationInfo] = {}
+    enrichment_changes: list[EnrichedFieldEntry] = []
+    for result in enrichment_results or []:
+        if not result.fields:
+            continue
+        enrich_ci, enrich_tool = build_enrichment_creation_info(
+            tool_name=f"pitloom.enrich.{result.source_name}",
+            main_creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+        )
+        exporter.add_creation_info(enrich_ci)
+        exporter.object_set.add(enrich_tool)
+        for enriched_field in result.fields:
+            enrichment_changes.append(
+                EnrichedFieldEntry(
+                    field=enriched_field.field,
+                    before=enriched_field.before,
+                    after=enriched_field.after,
+                    role=enriched_field.role,
+                    source=enriched_field.source,
+                )
+            )
+            if enriched_field.field.startswith("datasets:"):
+                dataset_name = enriched_field.field.removeprefix("datasets:")
+                dataset_creation_info[dataset_name] = enrich_ci
+
     if model.datasets:
         add_datasets_for_model(
             ai_package_spdx_id=require_spdx_id(ai_pkg),
@@ -434,6 +474,19 @@ def build_model(
             exporter=exporter,
             provenance_config=prov_cfg,
             encoder=encoder,
+            dataset_creation_info=dataset_creation_info,
+        )
+
+    if enrichment_changes:
+        exporter.add_annotation(
+            build_enrichment_annotation(
+                subject_spdx_id=require_spdx_id(ai_pkg),
+                changes=enrichment_changes,
+                creation_info=spdx_ci,
+                annotation_spdx_id=generate_spdx_id(
+                    "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
+            )
         )
 
     if model.license:

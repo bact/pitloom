@@ -210,6 +210,41 @@ def build_creation_info(
     return spdx_ci, agents, tools
 
 
+def build_enrichment_creation_info(
+    tool_name: str,
+    main_creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+) -> tuple[spdx3.CreationInfo, spdx3.Tool]:
+    """Build a second ``CreationInfo`` for elements an enrichment run
+    created (N3).
+
+    ``createdBy`` is deliberately the *same* Agent(s) already used by
+    ``main_creation_info`` -- reused directly, not re-minted via
+    :func:`build_creator_agents` -- so enrichment doesn't invent a
+    fictitious second "Pitloom" identity alongside the one the rest of
+    the document already uses. ``createdUsing`` is a fresh ``Tool`` named
+    after the enricher (e.g. ``"pitloom.enrich.readme"``), and ``created``
+    is the enrichment run's own timestamp (now), distinct from the main
+    document's creation time.
+
+    SPDX 3.0.1 has no native ``Tool.version`` (added in 3.1-dev); version
+    info goes in ``Tool.summary`` instead, same workaround
+    :func:`_tool_summary` uses for the main "Pitloom" tool -- set directly
+    here rather than widening that helper's tool-name-scoped contract.
+    """
+    ci = spdx3.CreationInfo(specVersion="3.0.1", created=spdx3_utc_now())
+    tool = spdx3.Tool(
+        spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
+        name=tool_name,
+        creationInfo=ci,
+        summary=f"Pitloom {__version__}",
+    )
+    ci.createdBy = main_creation_info.createdBy
+    ci.createdUsing = [require_spdx_id(tool)]
+    return ci, tool
+
+
 __all__ = [
     "parse_iso_datetime",
     "to_spdx3_datetime",
@@ -217,4 +252,5 @@ __all__ = [
     "build_creator_agents",
     "build_tools",
     "build_creation_info",
+    "build_enrichment_creation_info",
 ]

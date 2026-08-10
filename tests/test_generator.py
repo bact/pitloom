@@ -21,6 +21,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate,
     generate_env_sbom,
+    generate_model_sbom,
     generate_project_sbom,
     generate_wheel_sbom,
 )
@@ -1474,6 +1475,116 @@ def test_build_model_with_dataset_creator() -> None:
         and agent_spdx_id in r.get("to", [])
     ]
     assert len(pub_rels) == 1
+
+
+# ---------------------------------------------------------------------------
+# generate_model_sbom() enrichment end-to-end (N3 / E1 / E2)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_model_sbom_readme_enrichment_end_to_end() -> None:
+    """A local model file with an adjacent README.md whose YAML frontmatter
+    names a dataset absent from the model's own metadata: the enrichment
+    run must add a new dataset_DatasetPackage + trainedOn relationship
+    with a *distinct* CreationInfo (different createdUsing Tool) from the
+    AI package's own, plus an "enrichment"-kind Annotation on the AI
+    package recording the change."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text(
+            "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+        )
+
+        sbom_json = generate_model_sbom(model_path)
+
+        graph = json.loads(sbom_json)["@graph"]
+        ai_pkg = next(e for e in graph if e.get("type") == "ai_AIPackage")
+        ai_creation_info = ai_pkg["creationInfo"]
+
+        ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+        assert len(ds_pkgs) == 1
+        assert ds_pkgs[0]["name"] == "tiny-imagenet"
+        dataset_creation_info = ds_pkgs[0]["creationInfo"]
+        assert dataset_creation_info != ai_creation_info
+
+        rels = [e for e in graph if e.get("type") == "Relationship"]
+        trained_on = [
+            r
+            for r in rels
+            if r.get("relationshipType") == "trainedOn"
+            and r.get("from") == ai_pkg["spdxId"]
+            and ds_pkgs[0]["spdxId"] in r.get("to", [])
+        ]
+        assert len(trained_on) == 1
+        assert trained_on[0]["creationInfo"] == dataset_creation_info
+
+        tools = {e["spdxId"]: e for e in graph if e.get("type") == "Tool"}
+        creation_infos = {e["@id"]: e for e in graph if e.get("type") == "CreationInfo"}
+        ai_tool_id = creation_infos[ai_creation_info]["createdUsing"][0]
+        dataset_tool_id = creation_infos[dataset_creation_info]["createdUsing"][0]
+        assert tools[ai_tool_id]["name"] == "Pitloom"
+        assert tools[dataset_tool_id]["name"] == "pitloom.enrich.readme"
+        # Same createdBy Agent on both -- enrichment doesn't invent a second
+        # "Pitloom" identity, only a distinct createdUsing Tool + timestamp.
+        assert (
+            creation_infos[ai_creation_info]["createdBy"]
+            == creation_infos[dataset_creation_info]["createdBy"]
+        )
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        enrichment_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == ai_pkg["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "enrichment"
+        ]
+        assert len(enrichment_anns) == 1
+        statement = json.loads(enrichment_anns[0]["statement"])
+        changed_fields = {c["field"] for c in statement["changes"]}
+        assert changed_fields == {"license", "datasets:tiny-imagenet"}
+        assert all(c["role"] == "detected" for c in statement["changes"])
+
+
+def test_generate_model_sbom_no_readme_no_enrichment_artifacts() -> None:
+    """No adjacent README: generation succeeds with zero enrichment
+    side-effects -- no extra CreationInfo, no enrichment Annotation."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+
+        sbom_json = generate_model_sbom(model_path)
+
+        graph = json.loads(sbom_json)["@graph"]
+        assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+        assert not any(
+            json.loads(e["statement"]).get("kind") == "enrichment"
+            for e in graph
+            if e.get("type") == "Annotation"
+        )
+
+
+def test_generate_model_sbom_enrich_local_false_disables_readme_enrichment() -> None:
+    """`[tool.pitloom.enrich] local = false` in a pyproject.toml next to
+    the model file turns off README enrichment entirely."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
+        (tmppath / "pyproject.toml").write_text(
+            "[tool.pitloom.enrich]\nlocal = false\n"
+        )
+
+        sbom_json = generate_model_sbom(model_path)
+
+        graph = json.loads(sbom_json)["@graph"]
+        assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,15 @@ SPDX-License-Identifier: CC0-1.0
 
 # Handover: Phase 2 native-first backfill
 
+> **Phase 2 is complete**: all six N-items (N1-N6) are `[x]` as of this
+> edit (N3 was the last, see the Status list below). This file's stated
+> purpose -- tracking the N1-N6 backfill -- is done; kept here as
+> historical reference (same archival framing as
+> [`annotation-provenance-full-plan.md`](annotation-provenance-full-plan.md)
+> uses for Phase 1) rather than deleted, since it documents *why* each
+> N-item's scope landed where it did (especially N3's new-elements-only
+> limit). Not a live task list going forward.
+
 > **What this is**: Handover note for Phase 2 native-first backfill work following Phase 1 (provenance-as-Annotation).
 >
 > **Goal**: move six facts (N1-N6) that previously lived only in a free-text comment or Annotation into their proper native SPDX 3 constructs (`hasConcludedLicense`, `ExternalIdentifier`, `imports`, relationships, etc.), then trim each corresponding Annotation down to just the residual that still has no native home.
@@ -27,7 +36,16 @@ Phase 2 native-first backfill is **largely complete and merged**:
 - ✅ **N6 — Dataset Creator Agent & publishedBy Relationship**: PR [#107](https://github.com/bact/pitloom/pull/107) merged to `main`.
 - ✅ **N1 — Fragment Origin (`SpdxDocument.imports` + `ExternalMap`)**: PR [#108](https://github.com/bact/pitloom/pull/108) merged to `main`.
 - ✅ **N5 — Base-Model Lineage (`descendantOf` Relationship)**: PR [#109](https://github.com/bact/pitloom/pull/109) merged to `main`.
-- 🛑 **N3 — Enrichment `CreationInfo`**: Blocked (waiting for `enrich/` subpackage).
+- ✅ **N3 — Enrichment `CreationInfo`**: `enrich/` subpackage MVP (local
+  README/model-card YAML frontmatter, `enrich/readme.py`) plus N3 itself
+  (`build_enrichment_creation_info()` in `creation_info.py`, scoped to
+  *new* elements an enrichment run creates -- see its own docstring for
+  why in-place field fills on existing elements can't get a second
+  `CreationInfo`) and the E1/E2 Annotation
+  (`build_enrichment_annotation()` in `provenance.py`,
+  `provenance/enrichment/1` schema) all landed together. Not yet in a
+  merged PR as of this doc's last edit -- verify with `git log`/`gh pr
+  list` before trusting this line.
 - ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
 - ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
 - ✅ **CLI/API redesign (`generate`/`project`/`wheel`/`model`/`env`/`merge`/`ids`, sdist support)**: PR [#114](https://github.com/bact/pitloom/pull/114), merged to `main`; see "2026-08-10 recheck" below -- supersedes the PR #96 vocabulary this handover previously documented.
@@ -160,7 +178,7 @@ Annotation content to the residual** (the part that still has no native
 home — usually the *evidence* or *criterion* behind a value, not the
 value itself).
 
-## Remaining work: N3 — enrichment `CreationInfo`
+## N3 — enrichment `CreationInfo` (done -- historical record of the plan that was followed)
 
 **Blocked** on the `enrich/` subpackage, which does not exist yet (see
 `sbom-enrichment.md:145-169`). This is the only unimplemented N-item.

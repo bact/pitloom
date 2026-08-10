@@ -65,6 +65,14 @@ and this project adheres to
   disagreement, both `hasDeclaredLicense` and `hasConcludedLicense` are
   recorded alongside a new `provenance/conflict/1` Annotation; the
   mechanism is generic across fields, not license-specific. ([#121])
+- AI-model metadata enrichment: a new `enrich/` subpackage fills license
+  and dataset gaps from a local `README.md`/`MODEL_CARD.md`'s YAML
+  frontmatter (not prose), gated by `[tool.pitloom.enrich] local`
+  (default on). Elements an enrichment run creates get their own
+  `CreationInfo` (distinct `createdUsing` Tool, same document `Agent`),
+  and every changed field is recorded on a new `provenance/enrichment/1`
+  Annotation, reusing the same `role` vocabulary as license-conflict
+  detection above.
 
 ### Changed
 

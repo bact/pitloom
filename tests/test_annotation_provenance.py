@@ -19,11 +19,14 @@ from pitloom.assemble.spdx3.provenance import (
     ARTIFACT_METADATA_SCHEMA_URL,
     CONFLICT_SCHEMA_URL,
     DEFAULT_SCHEMA_ID,
+    ENRICHMENT_SCHEMA_URL,
     UNIFICATION_SCHEMA_URL,
     ConflictCandidate,
+    EnrichedFieldEntry,
     PitloomV1Encoder,
     ProvenanceEncoder,
     build_conflict_annotation,
+    build_enrichment_annotation,
     build_provenance_annotation,
     build_provenance_comment,
     build_source_metadata_annotation,
@@ -688,6 +691,79 @@ def test_build_conflict_annotation_generic_field_not_license_specific() -> None:
     assert statement["field"] == "version"
     # "ref" is optional per candidate -- absent here, not required.
     assert "ref" not in statement["candidates"][0]
+
+
+# ---------------------------------------------------------------------------
+# build_enrichment_annotation (E1/E2, N3's Annotation residual)
+# ---------------------------------------------------------------------------
+
+
+def test_build_enrichment_annotation_shape_and_determinism() -> None:
+    ci = _make_ci()
+    changes: list[EnrichedFieldEntry] = [
+        {
+            "field": "license",
+            "before": None,
+            "after": "MIT",
+            "role": "detected",
+            "source": "Source: README.md | Method: yaml_frontmatter",
+        },
+        {
+            "field": "datasets:tiny-imagenet",
+            "before": None,
+            "after": "tiny-imagenet",
+            "role": "detected",
+            "source": "Source: README.md | Method: yaml_frontmatter",
+        },
+    ]
+    ann = build_enrichment_annotation(
+        subject_spdx_id="urn:doc#AIPackage-1",
+        changes=changes,
+        creation_info=ci,
+        annotation_spdx_id="urn:doc#Annotation-enrichment-1",
+    )
+    assert ann.spdxId == "urn:doc#Annotation-enrichment-1"
+    assert ann.contentType == "application/json"
+    assert ann.annotationType == spdx3.AnnotationType.other
+    assert ann.subject == "urn:doc#AIPackage-1"
+    assert ann.statement is not None
+    statement = json.loads(ann.statement)
+    assert statement["schema"] == ENRICHMENT_SCHEMA_URL
+    assert statement["kind"] == "enrichment"
+    assert statement["changes"] == changes
+
+    # Byte-stable across two builds with the same input.
+    ann2 = build_enrichment_annotation(
+        subject_spdx_id="urn:doc#AIPackage-1",
+        changes=changes,
+        creation_info=ci,
+        annotation_spdx_id="urn:doc#Annotation-enrichment-1",
+    )
+    assert ann.statement == ann2.statement
+
+
+def test_build_enrichment_annotation_reuses_g2_role_vocabulary() -> None:
+    """E2 deliberately reuses G2's exact role vocabulary rather than
+    inventing a separate one -- see annotation-provenance.md."""
+    ci = _make_ci()
+    changes: list[EnrichedFieldEntry] = [
+        {
+            "field": "description",
+            "before": "old",
+            "after": "new",
+            "role": "inferred",
+            "source": "Source: Claude Code (Anthropic) | Method: inference",
+        }
+    ]
+    ann = build_enrichment_annotation(
+        subject_spdx_id="urn:doc#AIPackage-1",
+        changes=changes,
+        creation_info=ci,
+        annotation_spdx_id="urn:doc#Annotation-enrichment-2",
+    )
+    assert ann.statement is not None
+    statement = json.loads(ann.statement)
+    assert statement["changes"][0]["role"] == "inferred"
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.creation import Creator, Tool
+from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.provenance import ProvenanceConfig
 
 if sys.version_info >= (3, 11):
@@ -126,6 +127,9 @@ class PitloomConfig:
             (default) preserves it only when the artifact is not shipped with
             the distribution and thus cannot be re-extracted later;
             ``"always"``/``"never"`` are explicit overrides.
+        enrich_local: Whether to run local, no-network AI-model enrichment
+            (README/model-card YAML frontmatter), from
+            ``[tool.pitloom.enrich] local``. Defaults to ``True``.
     """
 
     fragments: list[str] = field(default_factory=list)
@@ -141,6 +145,7 @@ class PitloomConfig:
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
     provenance_detail: str = "minimal"
     provenance_preserve_source_metadata: str = "auto"
+    enrich_local: bool = True
 
     @property
     def provenance(self) -> ProvenanceConfig:
@@ -151,6 +156,11 @@ class PitloomConfig:
             detail=self.provenance_detail,
             preserve_source_metadata=self.provenance_preserve_source_metadata,
         )
+
+    @property
+    def enrich(self) -> EnrichConfig:
+        """Return EnrichConfig constructed from current config settings."""
+        return EnrichConfig(local=self.enrich_local)
 
 
 def _check_moved_creation_keys(
@@ -340,6 +350,43 @@ def _read_provenance_settings(
     return fmt, schema, detail, preserve
 
 
+def _read_ids_file(pitloom_data: dict[str, Any]) -> str | None:
+    """Read ``[tool.pitloom.ids] file``.
+
+    Raises:
+        ValueError: If ``file`` is present but not a string.
+    """
+    raw_ids = pitloom_data.get("ids", {})
+    ids_file = raw_ids.get("file") if isinstance(raw_ids, dict) else None
+    if ids_file is not None and not isinstance(ids_file, str):
+        raise ValueError(
+            "[tool.pitloom.ids] 'file' must be a string, got "
+            f"{type(ids_file).__name__}: {ids_file!r}"
+        )
+    return ids_file
+
+
+def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
+    """Read ``[tool.pitloom.enrich]`` and return ``local``.
+
+    Raises:
+        ValueError: If ``enrich`` is present but not a table, or if
+            ``local`` is present but not a boolean.
+    """
+    raw = pitloom_data.get("enrich", {})
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"[tool.pitloom.enrich] must be a table, got {type(raw).__name__}: {raw!r}"
+        )
+    local = raw.get("local", True)
+    if not isinstance(local, bool):
+        raise ValueError(
+            f"[tool.pitloom.enrich] 'local' must be a boolean, got "
+            f"{type(local).__name__}: {local!r}"
+        )
+    return local
+
+
 def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
@@ -382,19 +429,14 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     fragments = (
         [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
     )
-    raw_ids = pitloom_data.get("ids", {})
-    ids_file = raw_ids.get("file") if isinstance(raw_ids, dict) else None
-    if ids_file is not None and not isinstance(ids_file, str):
-        raise ValueError(
-            "[tool.pitloom.ids] 'file' must be a string, got "
-            f"{type(ids_file).__name__}: {ids_file!r}"
-        )
+    ids_file = _read_ids_file(pitloom_data)
     (
         provenance_format,
         provenance_schema,
         provenance_detail,
         provenance_preserve,
     ) = _read_provenance_settings(pitloom_data)
+    enrich_local = _read_enrich_settings(pitloom_data)
     pretty = bool(pitloom_data.get("pretty", False))
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
@@ -439,6 +481,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_schema=provenance_schema,
         provenance_detail=provenance_detail,
         provenance_preserve_source_metadata=provenance_preserve,
+        enrich_local=enrich_local,
     )
 
 

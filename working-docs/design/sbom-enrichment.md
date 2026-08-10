@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-07-05
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,31 +80,30 @@ such as OpenSSF Scorecard and package registries.
 
 ### Enrichment data sources
 
-| Source | What it provides | Network required | Default |
-| :----- | :--------------- | :--------------- | :------ |
-| Repository README / model card | Task description, intended use, dataset references, license notes | No (local file) | Enabled |
-| Hugging Face Hub metadata | Architecture, tags, license, dataset links, paper references | Yes | User opt-in |
-| OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | Enabled (low cost, public API) |
-| Parlay package enrichment | Package ecosystem metadata (description, homepage, license) | Yes | Enabled |
-| PyPI / conda metadata | Version history, maintainers, download stats | Yes | User opt-in |
+| Source | What it provides | Network required | Default | Status |
+| :----- | :--------------- | :--------------- | :------ | :----- |
+| Repository README / model card | License, dataset references (YAML frontmatter only -- not prose; see below) | No (local file) | Enabled | **Shipped** (`enrich/readme.py`) |
+| Hugging Face Hub metadata | Architecture, tags, license, dataset links, paper references | Yes | User opt-in | Not started |
+| OpenSSF Scorecard | Supply chain security posture of the upstream project | Yes | Enabled (low cost, public API) | Not started |
+| Parlay package enrichment | Package ecosystem metadata (description, homepage, license) | Yes | Enabled | Not started |
+| PyPI / conda metadata | Version history, maintainers, download stats | Yes | User opt-in | Not started |
 
 ### Enable/disable per source
 
 Because some enrichment functions require a network connection or may raise
 licensing questions (e.g., pulling data from a hub that has terms of use),
-Pitloom should allow users to enable or disable each source independently in
+Pitloom allows users to enable or disable each source independently in
 `pyproject.toml`:
 
 ```toml
 [tool.pitloom.enrich]
-local = true          # README / model card -- always safe, on by default
-openssf_scorecard = true   # public API, no auth required
-huggingface = false   # opt-in: requires network, data under HF ToS
-pypi = false          # opt-in: requires network
+local = true          # README / model card -- always safe, on by default (shipped)
 ```
 
-OpenSSF Scorecard should be enabled by default as it is a public API with
-no authentication requirement and provides immediate supply chain security value.
+Only `local` exists today -- `openssf_scorecard`/`huggingface`/`pypi` keys
+are added when their enrichers actually land, not pre-declared ahead of
+them (same discipline `[tool.pitloom.provenance]`'s keys followed:
+one key per shipped capability, not a speculative full set up front).
 
 ## AI-agent enrichment (skill / plugin)
 
@@ -163,16 +162,35 @@ See `skills/sbom-enrich/SKILL.md` and
 instructions and a worked fragment example. Validate the merged result
 with the `skills/sbom-validate/` Skill.
 
-### Enricher implementation approach
+### Enricher implementation approach (shipped, MVP scope)
 
-1. Add an `enrich/` subpackage to `pitloom` with one module per data source
-   (e.g., `enrich/readme.py`, `enrich/openssf.py`, `enrich/huggingface.py`).
-2. Each enricher accepts an `AiModelMetadata` and updates it in-place, following
-   the same in-place mutation pattern used by the model extractors.
-3. The `generate_project_sbom()` orchestrator reads the `[tool.pitloom.enrich]` config
-   and dispatches to the enabled enrichers after extraction but before assembly.
-4. Provenance is recorded for each enriched field (source, field path)
-   using the existing `AiModelMetadata.provenance` dict.
+1. `src/pitloom/enrich/` subpackage, one module per data source. Shipped:
+   `enrich/readme.py` (local YAML frontmatter). Not yet built:
+   `enrich/openssf.py`, `enrich/huggingface.py`, `enrich/pypi.py` -- the
+   framework (`enrich/base.py`'s `Enricher` protocol,
+   `enrich/__init__.py`'s `run_enrichers()` dispatcher) supports them
+   without further framework changes: implement `Enricher`, add one
+   `EnrichConfig` field, one line in the dispatcher's fixed order.
+2. Each enricher's `enrich(model, *, model_dir)` mutates the
+   `AiModelMetadata` in place (same convention every extractor already
+   follows) **and** returns an `EnrichmentResult` (`enrich/base.py`)
+   listing exactly which fields it changed -- the return value, not a
+   post-hoc diff, is what feeds N3's `CreationInfo` and the E1/E2
+   Annotation (see `annotation-provenance.md`'s N3 row).
+3. `generate_model_sbom()` (`src/pitloom/assemble/__init__.py`) --
+   not `generate_project_sbom()` as originally sketched here, since
+   enrichment targets `AiModelMetadata` specifically -- reads
+   `[tool.pitloom.enrich]` from a `pyproject.toml` in the model file's
+   own directory (no ancestor walk-up) and calls `run_enrichers()` after
+   `read_ai_model()`, before `build_model()`. Only wired for the local
+   file path; a Hugging Face Hub source already gets model-card
+   frontmatter natively via `_load_model_card()` in `_huggingface.py`,
+   so `readme.py` never runs there.
+4. Provenance: scalar fields (e.g. `license`) also get an entry in the
+   existing `AiModelMetadata.provenance` dict, same as extractors; every
+   changed field additionally becomes one entry in the `EnrichmentResult`
+   that N3/E1/E2 consume, which a plain provenance-dict entry alone
+   couldn't drive (no before/after value, no per-element grouping).
 
 ## AI SBOM field mapping: `pitloom:ai` namespace (CycloneDX)
 

@@ -12,8 +12,7 @@ SPDX-License-Identifier: CC0-1.0
 (PR [#102](https://github.com/bact/pitloom/pull/102)) --
 see §9 for what shipped vs. deferred, and **§10 for the boundary
 refinement** (non-native / high-signal only, config-gated) plus the Phase 2
-native-backfill checklist (5 of 6 items shipped as of 2026-08-08; N3 still
-blocked -- see
+native-backfill checklist (6 of 6 items shipped as of 2026-08-10 -- see
 [`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md)
 for current status).
 **Planned with:** Opus 4.8. **Implemented by:** Sonnet 5.
@@ -737,11 +736,15 @@ constraint).
   (comparing this SBOM to a previous one), not something expressible within
   one SBOM generation.
 - **Enrichment** — E1 override lineage, E2 AI-inferred-vs-non-inferred
-  marker (both necessary; design-only — the `enrich/` subpackage is
-  unbuilt). E2's "non-inferred" pole is any of G2's `declared`/`detected`/
-  `externalReported` roles below — same vocabulary, reused rather than a
-  separate "extracted" word (which would have collided with `extract/`,
-  Pitloom's own name for the whole read-a-value pipeline stage).
+  marker (both necessary; **implemented**, see the N3 row below for the
+  `build_enrichment_annotation()` mechanism). E2's "non-inferred" pole is
+  any of G2's `declared`/`detected`/`externalReported` roles below — same
+  vocabulary, reused rather than a separate "extracted" word (which would
+  have collided with `extract/`, Pitloom's own name for the whole
+  read-a-value pipeline stage). The `enrich/` subpackage itself so far has
+  one source (`enrich/readme.py`, local frontmatter, always `"detected"`)
+  -- `"inferred"` is exercised by the AI-agent `sbom-enrich` Skill's
+  fragment path, not yet by in-process code.
 - **Preservation** — P1 verbatim original AI-model metadata
   (`provenance/artifact-metadata/1`), config-gated, complements the lossy
   native mapping when the artifact isn't shipped. `raw_metadata` captured
@@ -1004,8 +1007,27 @@ forgotten:
   poetry-only, setuptools-only) — dependency and AI-model license paths
   remain single-value/mirrored, no local second source to detect from.
   Residual: the detection evidence.
-- [ ] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment run.
-  Residual: which field + before/after value + inferred marker (E1/E2). (Blocked on `enrich/` subpackage)
+- [x] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment
+  run. Shipped scoped to *new elements* an enrichment run creates (e.g. a
+  `dataset_DatasetPackage` the README enricher adds) -- SPDX's
+  `Element.creationInfo` is singular per element, so it can't represent a
+  single *existing* element's field being filled in-place at a different
+  time by a different tool; that case has no native home and stays
+  Annotation-only. `createdBy` reuses the document's existing "Pitloom"
+  Agent (no fictitious second identity); `createdUsing` is a `Tool` named
+  after the enricher (e.g. `"pitloom.enrich.readme"`). See
+  `build_enrichment_creation_info()` in
+  [`creation_info.py`](../../src/pitloom/assemble/spdx3/creation_info.py).
+  Residual (every field an enrichment run changed, new element or
+  in-place fill alike): which field + before/after value + role, via the
+  new `provenance/enrichment/1` Annotation schema (E1/E2) --
+  `build_enrichment_annotation()` in
+  [`provenance.py`](../../src/pitloom/assemble/spdx3/provenance.py),
+  reusing G2's exact `role` vocabulary rather than a separate one.
+  Wired from the MVP `enrich/` subpackage's first (and so far only)
+  source, `enrich/readme.py`: local `README.md`/`MODEL_CARD.md` YAML
+  frontmatter only (not prose) -- see `sbom-enrichment.md` for the
+  broader enrichment design and which sources remain unbuilt.
 - [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
   `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
   `extra_data`/provenance). Residual: none once mapped. (PR [#106](https://github.com/bact/pitloom/pull/106))
