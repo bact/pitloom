@@ -110,6 +110,18 @@ path calls, described in
 closes that specific gap, but doesn't stop the *next* new field or feature
 from repeating the pattern on some other surface.
 
+It repeated almost immediately: the enrichment MVP shipped wired into
+`generate_model_sbom()` only (the CLI's single-model path); project-level
+generation (`generate_project_sbom()`, and therefore the Hatchling build
+hook, which calls `build()` directly rather than going through
+`generate_project_sbom()`) silently ran zero enrichment even with
+`[tool.pitloom.enrich] local = true` set, discovered only when writing
+this round's Hatchling hook test and getting an empty `dataset_DatasetPackage`
+list where one was expected (see [sbom-enrichment.md](sbom-enrichment.md)'s
+"Surfaces" section for the fix). Two occurrences of the same failure mode
+in two consecutive rounds is exactly the pattern issue #122 exists to
+address.
+
 [Issue #122](https://github.com/bact/pitloom/issues/122) proposes
 assigning a **product owner** to each usage surface (CLI, Python API,
 Python decorator/`pitloom.loom`, Hatchling build hook, AI-agent Skills,

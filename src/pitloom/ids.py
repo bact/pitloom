@@ -292,6 +292,13 @@ class IdRegistry:
         unchanged; a changed hash mints a fresh id and replaces the entry
         (the content is different provenance truth, so the old id must not
         keep being handed out for it -- the change is logged).
+
+        By design, not a gap: the registry stores only *current* identity,
+        one hash/id per path -- the superseded hash and old spdxId are not
+        retained anywhere after this call (only the transient log line
+        above). A registry with identity history is a different, larger
+        feature (versioned entries, "supersedes" links) that hasn't been
+        designed; this method intentionally does not attempt it.
         """
         existing = self.files.get(path)
         if existing is not None and existing.sha256 == sha256:

@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
+    enrich_model,
     generate,
     generate_env_sbom,
     generate_model_sbom,
@@ -166,6 +167,16 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         help="Include human-readable text on SPDX relationships.",
     )
     parent.add_argument(
+        "--enrich",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Run local README/model-card enrichment for discovered AI "
+            "models. Defers to [tool.pitloom.enrich] (off by default) "
+            "when omitted."
+        ),
+    )
+    parent.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -311,6 +322,35 @@ def _build_parser() -> argparse.ArgumentParser:
         "--offline",
         action="store_true",
         help="Forbid external network requests.",
+    )
+
+    # 4b. Enrichment only: loom enrich <SOURCE>
+    enrich_parser = subparsers.add_parser(
+        "enrich",
+        parents=[parent_parser],
+        help=(
+            "Run enrichment only for a local AI model file; write a "
+            "standalone fragment for merging into a base SBOM."
+        ),
+    )
+    enrich_parser.add_argument(
+        "target",
+        type=str,
+        help="Path to a local AI model file.",
+    )
+    enrich_parser.add_argument(
+        "--project-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Project root the model belongs to, when the fragment will "
+            "merge into a 'loom project'/'loom generate <dir>'-generated "
+            "base document rather than a 'loom model'-generated one. "
+            "Required for a correct merge in that case -- project-level "
+            "and single-model documents assign the model's ai_AIPackage "
+            "a different id."
+        ),
     )
 
     # 5. Deployed Environment: loom env
@@ -687,6 +727,7 @@ def main() -> int:
         "project": _run_project_mode,
         "wheel": _run_wheel_mode,
         "model": _run_model_mode,
+        "enrich": _run_enrich_mode,
         "env": _run_env_mode,
         "merge": _run_merge_mode,
     }
@@ -711,6 +752,7 @@ def _run_generate_mode(args: argparse.Namespace) -> int:
             pretty=pretty,
             describe_relationship=describe_relationship,
             registry=args.registry,
+            enrich=args.enrich,
         )
         return 0
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -759,6 +801,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             project_metadata=project_metadata,
             pitloom_config=pitloom_config,
             registry=args.registry,
+            enrich=args.enrich,
         )
         return 0
 
@@ -861,11 +904,59 @@ def _run_model_mode(args: argparse.Namespace) -> int:
             pretty=effective_pretty,
             describe_relationship=effective_describe,
             registry=args.registry,
+            enrich=args.enrich,
         )
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error generating model SBOM: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
+        return 1
+
+
+def _run_enrich_mode(args: argparse.Namespace) -> int:
+    """Run enrichment only for a local AI model file; write a fragment."""
+    target: str = args.target
+    try:
+        model_path: Path = Path(target).resolve()
+        if not model_path.exists():
+            print(f"Error: Model file not found: {model_path}", file=sys.stderr)
+            return 1
+
+        pitloom_config = PitloomConfig()
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = args.pretty if args.pretty is not None else False
+
+        output_path = args.output or (
+            Path.cwd() / f"{model_path.stem}.enrich{_SPDX3_JSON_EXT}"
+        )
+
+        if args.verbose:
+            print(f"Pitloom version: {__version__}")
+            print(f"Model file      : {model_path}")
+            print(f"Output path     : {output_path}")
+            if args.project_dir:
+                print(f"Project dir     : {args.project_dir}")
+
+        enrich_model(
+            model_path,
+            output_path=output_path,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            enrich=args.enrich,
+            project_target=args.project_dir,
+            registry=args.registry,
+        )
+        print(f"Enrichment fragment written to: {output_path}")
+        print(
+            "Register it under [tool.pitloom.fragments] and re-run "
+            "'loom project'/'loom generate' to merge it into a base SBOM."
+        )
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error generating enrichment fragment: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1

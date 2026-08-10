@@ -722,6 +722,28 @@ all earlier items; each can be delivered independently.
 > [#108](https://github.com/bact/pitloom/pull/108) --
 > see `_add_fragment_imports()` in
 > [`fragments.py`](../../src/pitloom/assemble/spdx3/fragments.py).
+> This is **document-level** traceability (which fragment *files*
+> contributed) -- it does not address **element-level** traceability
+> (found by independent aggregation review, not yet fixed): when two
+> elements from different fragments are unified into one survivor,
+> nothing in the output records *which criterion* matched (same
+> `spdxId` vs. SHA-256 content hash vs. structural Agent/Tool equality
+> -- see `_merge_fragment_set()`'s priority order) or *which fragments*
+> the survivor's properties were folded in from; a scalar conflict is
+> resolved silently in favor of the canonical value, with only a
+> `log.warning` (never written to the SBOM) recording what was dropped.
+> Not planned to change without a native SPDX home for this fact (SPDX
+> 3 has no "this property came from source X, that one from source Y"
+> construct at the field level) -- would need a custom Annotation
+> similar to E1/E2's, which hasn't been designed. Separately,
+> `_deduplicate_creation_infos()` (`export/spdx3_json.py`) collapses
+> `CreationInfo` nodes by content fingerprint (`specVersion`, `created`,
+> `createdBy`, `createdUsing`, `comment` -- excluding the id), which is
+> by design for the common "same generation event, minted twice" case,
+> but as a side effect two genuinely *distinct* generation events that
+> happen to share an identical timestamp/creator/tool/comment would also
+> collapse into one -- a low-probability, currently-unencountered edge
+> case, documented here so it isn't mistaken for new behavior later.
 
 ---
 

@@ -205,17 +205,35 @@ def add_datasets_for_model(
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    dataset_creation_info: dict[str, spdx3.CreationInfo] | None = None,
 ) -> None:
     """Build ``dataset_DatasetPackage`` and relationship elements for each
-    dataset reference."""
+    dataset reference.
+
+    Args:
+        dataset_creation_info: Optional override map, dataset name ->
+            ``CreationInfo``, for datasets that came from an enrichment run
+            rather than the model's own extraction (N3) -- see
+            ``creation_info.build_enrichment_creation_info()``. A name not
+            in the map (or when the map itself is ``None``) falls back to
+            the shared *creation_info* param, unchanged behavior for every
+            existing call site.
+    """
     for dataset_ref in datasets:
         meta = dataset_ref.metadata
-        dataset_pkg = _build_dataset_package(meta, creation_info, doc_name, doc_uuid)
+        element_creation_info = (
+            dataset_creation_info.get(meta.name, creation_info)
+            if dataset_creation_info
+            else creation_info
+        )
+        dataset_pkg = _build_dataset_package(
+            meta, element_creation_info, doc_name, doc_uuid
+        )
         exporter.object_set.add(dataset_pkg)
         emit_provenance(
             subject=dataset_pkg,
             provenance=meta.provenance,
-            creation_info=creation_info,
+            creation_info=element_creation_info,
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             exporter=exporter,
@@ -227,7 +245,7 @@ def add_datasets_for_model(
             _add_dataset_creator_agent(
                 dataset_pkg_spdx_id=require_spdx_id(dataset_pkg),
                 creator_name=meta.creator,
-                creation_info=creation_info,
+                creation_info=element_creation_info,
                 doc_name=doc_name,
                 doc_uuid=doc_uuid,
                 exporter=exporter,
@@ -238,7 +256,7 @@ def add_datasets_for_model(
             spdxId=generate_spdx_id(
                 "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
             ),
-            creationInfo=creation_info,
+            creationInfo=element_creation_info,
             from_=ai_package_spdx_id,
             to=[require_spdx_id(dataset_pkg)],
             relationshipType=rel_type,

@@ -38,6 +38,13 @@ inputs:
     description: "Pretty-print the SBOM output with 2-space indentation."
     required: false
     default: "false"
+  enrich:
+    description: >-
+      Run local README/model-card enrichment ("true"/"false"). Empty
+      (default) defers to the project's [tool.pitloom.enrich] config,
+      which is off by default.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
@@ -117,6 +124,7 @@ runs:
         PL_MODEL: ${{ inputs.model }}
         PL_OUTPUT: ${{ inputs.output }}
         PL_PRETTY: ${{ inputs.pretty }}
+        PL_ENRICH: ${{ inputs.enrich }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -130,6 +138,11 @@ runs:
         loom_args+=("-o" "${PL_OUTPUT}")
         if [ "${PL_PRETTY}" = "true" ]; then
           loom_args+=("--pretty")
+        fi
+        if [ "${PL_ENRICH}" = "true" ]; then
+          loom_args+=("--enrich")
+        elif [ "${PL_ENRICH}" = "false" ]; then
+          loom_args+=("--no-enrich")
         fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

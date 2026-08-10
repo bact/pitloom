@@ -58,8 +58,9 @@ pretty = true
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (project_metadata, pitloom_config)
         captured["project_dir"] = project_dir
         captured["output_path"] = output_path
@@ -171,8 +172,9 @@ creation-datetime = "2026-04-01T00:00:00Z"
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (
             project_dir,
             output_path,
@@ -243,8 +245,9 @@ creation-datetime = "2030-01-02T03:04:05Z"
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (
             project_dir,
             output_path,
@@ -309,8 +312,9 @@ version = "0.1.0"
         project_metadata: object | None = None,
         pitloom_config: object | None = None,
         registry: object | None = None,
+        **kwargs: object,
     ) -> str:
-        _ = registry
+        _ = (registry, kwargs)
         _ = (
             project_dir,
             output_path,
@@ -471,6 +475,81 @@ def test_model_mode_default_output_path_uses_stem(
     assert isinstance(out, Path)
     assert out.name == "whisper-tiny-random.spdx3.json"
     assert out.parent == Path.cwd()
+
+
+def test_model_mode_default_enrich_is_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No --enrich/--no-enrich flag passed: args.enrich must reach
+    generate_model_sbom() as None, deferring to [tool.pitloom.enrich]
+    (off by default) rather than forcing either state."""
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_metadata: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+        registry: object | None = None,
+        **kwargs: object,
+    ) -> str:
+        _ = (
+            registry,
+            model_path,
+            output_path,
+            creation_metadata,
+            pretty,
+            describe_relationship,
+        )
+        captured["enrich"] = kwargs.get("enrich")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE)])
+
+    assert __main__.main() == 0
+    assert captured["enrich"] is None
+
+
+@pytest.mark.parametrize(
+    ("flag", "expected"),
+    [("--enrich", True), ("--no-enrich", False)],
+)
+def test_model_mode_enrich_flag_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+    flag: str,
+    expected: bool,
+) -> None:
+    """--enrich/--no-enrich must override generate_model_sbom()'s enrich
+    param explicitly, not just be silently dropped."""
+    captured: dict[str, object] = {}
+
+    def _fake_generate_model_sbom(
+        model_path: Path,
+        output_path: Path | None = None,
+        creation_metadata: object | None = None,
+        pretty: bool = False,
+        describe_relationship: bool = False,
+        registry: object | None = None,
+        **kwargs: object,
+    ) -> str:
+        _ = (
+            registry,
+            model_path,
+            output_path,
+            creation_metadata,
+            pretty,
+            describe_relationship,
+        )
+        captured["enrich"] = kwargs.get("enrich")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_model_sbom", _fake_generate_model_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "model", str(SAFETENSORS_FIXTURE), flag])
+
+    assert __main__.main() == 0
+    assert captured["enrich"] is expected
 
 
 def test_model_mode_passes_pretty_flag(
@@ -949,6 +1028,125 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
     ai_pkg = next((n for n in graph if n.get("type") == "ai_AIPackage"), None)
     assert ai_pkg is not None
     assert ai_pkg["spdxId"] in sbom.get("rootElement", [])
+
+
+# ---------------------------------------------------------------------------
+# enrich: standalone enrichment fragment mode tests
+# ---------------------------------------------------------------------------
+
+
+def test_enrich_mode_writes_fragment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """`loom enrich <model>` must write a bare-@graph fragment containing
+    the enrichment findings -- it always runs enrichment regardless of
+    [tool.pitloom.enrich] (calling it is itself the opt-in)."""
+    model_path = tmp_path / "model.safetensors"
+    model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+    (tmp_path / "README.md").write_text(
+        "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+    )
+    out = tmp_path / "model.enrich.spdx3.json"
+
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "enrich", str(model_path), "-o", str(out)]
+    )
+
+    assert __main__.main() == 0
+    assert out.exists()
+
+    doc = json.loads(out.read_text())
+    assert set(doc.keys()) == {"@context", "@graph"}
+    types = {node.get("type") for node in doc["@graph"]}
+    assert "SpdxDocument" not in types
+    assert "ai_AIPackage" not in types
+    ds_pkgs = [n for n in doc["@graph"] if n.get("type") == "dataset_DatasetPackage"]
+    assert len(ds_pkgs) == 1
+    assert ds_pkgs[0]["name"] == "tiny-imagenet"
+
+
+def test_enrich_mode_default_output_path_uses_stem(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    model_path = tmp_path / "mymodel.safetensors"
+    model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", "enrich", str(model_path)])
+
+    assert __main__.main() == 0
+    assert (tmp_path / "mymodel.enrich.spdx3.json").exists()
+
+
+def test_enrich_mode_missing_model_file_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "enrich", str(tmp_path / "no-such-model.safetensors")]
+    )
+    assert __main__.main() == 1
+
+
+def test_enrich_mode_no_enrich_flag_suppresses(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """`loom enrich --no-enrich` must write an empty (but valid) fragment
+    rather than silently ignoring the flag -- calling `loom enrich` is
+    normally itself the opt-in, but --no-enrich is the documented escape
+    hatch for scripting symmetry with the other subcommands' flag."""
+    model_path = tmp_path / "model.safetensors"
+    model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+    (tmp_path / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
+    out = tmp_path / "model.enrich.spdx3.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "enrich", str(model_path), "--no-enrich", "-o", str(out)],
+    )
+
+    assert __main__.main() == 0
+    doc = json.loads(out.read_text())
+    assert not [n for n in doc["@graph"] if n.get("type") == "dataset_DatasetPackage"]
+
+
+def test_enrich_mode_project_dir_flag_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--project-dir must reach enrich_model()'s project_target parameter
+    so the fragment references the project-level ai_AIPackage id, not the
+    single-model one -- the fix for the project-level merge bug."""
+    captured: dict[str, object] = {}
+
+    def _fake_enrich_model(
+        source: Path,
+        output_path: Path | None = None,
+        creation_metadata: object | None = None,
+        pretty: bool | None = None,
+        **kwargs: object,
+    ) -> str:
+        _ = (source, output_path, creation_metadata, pretty)
+        captured["project_target"] = kwargs.get("project_target")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "enrich_model", _fake_enrich_model)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "enrich",
+            str(SAFETENSORS_FIXTURE),
+            "--project-dir",
+            "/tmp/some-project",
+        ],
+    )
+
+    assert __main__.main() == 0
+    assert captured["project_target"] == Path("/tmp/some-project")
 
 
 # ---------------------------------------------------------------------------

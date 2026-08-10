@@ -22,13 +22,15 @@ argument-hint: "[sbom-file]"
 
 # Enrich a Pitloom-generated SBOM
 
-Static extraction cannot read prose. An agent can go further than Pitloom
-alone: read the project's README or the model's model card, infer a
-plausible license or a dependency's purpose, or work out
-`trainedOn`/`testedOn` dataset relationships that no file format encodes
-explicitly. Do this only **after** a base SBOM exists (use the
-`sbom-generate` skill first if it does not), and only when it adds real
-information -- do not fabricate detail for its own sake.
+Two enrichment sources feed the same SBOM. `loom enrich` is Pitloom's own
+**deterministic** mechanical enrichment (parses only YAML frontmatter in a
+README/model card -- no reasoning, no network by default) -- always run it
+first, it is fast and free. An agent goes further: it can read **prose**,
+infer a plausible license from ambiguous wording, classify a dependency's
+purpose, or work out `trainedOn`/`testedOn` dataset relationships that no
+structured field encodes. Do this only **after** a base SBOM exists (use
+the `sbom-generate` skill first if it does not), and only when it adds
+real information -- do not fabricate detail for its own sake.
 
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-enrich [sbom-file]`
@@ -69,12 +71,53 @@ Steps:
 
 1. Generate a base SBOM first, if not already done (use the
    `sbom-generate` skill).
-2. Read the project's `README.md` / model card and any other local docs.
-3. Draft a fragment (`*.spdx3.json`) containing only the elements or
-   relationships you can infer (e.g. a `dataset_DatasetPackage` plus a
-   `trainedOn` relationship, or a `comment` refining a license guess).
-   Mark every inferred value with the provenance string above.
-4. **Pre-merge check (mandatory):** validate the drafted fragment is
+2. **Run the deterministic pass first:** `loom enrich <model-file>` for
+   each local AI model file in scope. This parses only YAML frontmatter
+   (no prose, no reasoning) and writes a standalone fragment -- fast,
+   free, and always safe to run before anything else. Inspect the printed
+   output path and read the fragment to see exactly which fields
+   (`license`, `datasets:...`) it filled.
+
+   **If the base SBOM is project-level** (came from `sbom-generate`
+   running `loom project <dir>`/`loom generate <dir>`, not a bare
+   `loom model <file>`), add `--project-dir <dir>` (the same directory
+   passed to `loom project`) to this `loom enrich` call. Project-level
+   and single-model SBOMs assign a model's `ai_AIPackage` a *different*
+   id; omitting `--project-dir` in the project-level case produces a
+   fragment that references an id absent from the base SBOM, so the
+   dataset relationship and enrichment evidence silently fail to attach
+   once merged -- no error, just missing data in the output. When
+   `--registry <file>` was used for the base SBOM, pass the same
+   `--registry` here too.
+3. Read the project's `README.md` / model card **prose** and any other
+   local docs. Only propose fields for gaps step 2 left untouched --
+   `loom enrich` already found everything it could from frontmatter, so
+   do not re-derive or restate those same fields.
+4. Draft your own fragment (`*.spdx3.json`) containing only the elements
+   or relationships you infer from prose (e.g. a `dataset_DatasetPackage`
+   plus a `trainedOn` relationship, or a `comment` refining a license
+   guess). Mark every inferred value with the provenance string above.
+
+   **Default precedence: the deterministic result wins.** If step 2
+   already set a field, do not silently re-propose a different value for
+   it in your own fragment -- that produces two conflicting relationships
+   on the same subject with no way for a reviewer to tell which one is
+   current.
+
+   **Override path**, when you disagree: you may override a
+   deterministic value only when prose gives clear contradicting evidence
+   (e.g. the frontmatter `license:` looks stale against what the README
+   body actually says). When you do, record *both* values and your
+   reasoning in the fragment entry's provenance comment:
+
+   ```text
+   Source: <your agent name> (<vendor>) | Method: inference | Overrides: <deterministic value> | Reason: <why>
+   ```
+
+   and say so explicitly in your final report (step 9) -- an override
+   must never be silent.
+5. **Pre-merge check (mandatory):** validate each drafted fragment (the
+   deterministic one from step 2 and your own from step 4) is
    syntactically valid JSON before registering it -- a fragment with
    broken JSON is silently dropped by `merge_fragments()`'s catch-and-warn
    behaviour, so catch it now rather than after a wasted `loom` run:
@@ -99,22 +142,27 @@ Steps:
    " fragments/agent-enrichment.spdx3.json
    ```
 
-5. Register the fragment so Pitloom merges it on the next run:
+6. Register **both** fragments so Pitloom merges them on the next run:
 
    ```toml
    [tool.pitloom.fragments]
-   files = ["fragments/agent-enrichment.spdx3.json"]
+   files = [
+     "model.enrich.spdx3.json",
+     "fragments/agent-enrichment.spdx3.json",
+   ]
    ```
 
-6. Re-run `loom project <path>` or `loom generate <path>` (generate again) so
+7. Re-run `loom project <path>` or `loom generate <path>` (generate again) so
    the merged, enriched SBOM is written.
-7. **Post-merge check (mandatory):** use the `sbom-validate` skill on
+8. **Post-merge check (mandatory):** use the `sbom-validate` skill on
    `<merged-sbom-file>` -- a syntactically valid fragment can still be
    missing a required property or use the wrong relationship type, which
    only shape/SHACL validation catches.
 
-8. Tell the user what was inferred and why, so they can review it -- this
-   is provenance-tracked, agent-derived data, not ground truth.
+9. Tell the user what was found deterministically (step 2) versus
+   inferred from prose (step 4), and call out any override from step 4
+   explicitly -- this is provenance-tracked, agent-derived data, not
+   ground truth.
 
 For the full enrichment data-source table, the `[tool.pitloom.enrich]`
 enable/disable model, and the dataset-relationship field map, see

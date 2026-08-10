@@ -351,6 +351,34 @@ format = "not-a-real-format"
             read_pyproject(pyproject_path)
 
 
+def test_extract_pitloom_provenance_case_sensitive_values_rejected() -> None:
+    """Validation is intentionally exact-case-only, not case-insensitive --
+    "Both"/"ANNOTATION"/"Full" are rejected the same as any other unknown
+    value, not silently normalized. Documents that case-sensitivity is a
+    deliberate choice, not an oversight."""
+    for key, value in (
+        ("format", "Both"),
+        ("format", "ANNOTATION"),
+        ("detail", "Full"),
+        ("preserve-source-metadata", "Always"),
+    ):
+        pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+{key} = "{value}"
+"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+            pyproject_path = tmppath / "pyproject.toml"
+            pyproject_path.write_text(pyproject_content)
+
+            with pytest.raises(ValueError, match=key):
+                read_pyproject(pyproject_path)
+
+
 def test_extract_pitloom_provenance_not_a_table_raises() -> None:
     pyproject_content = """
 [project]

@@ -7,10 +7,14 @@
 
 Exercises fragment origin / ExternalMap, declared vs. concluded license,
 ExternalIdentifier & ExternalRef, descendantOf base-model lineage, and dataset
-creator Agent + publishedBy together on a single representative input.
-Verifies that:
+creator Agent + publishedBy together on a single representative input (N1,
+N2, N4, N5, N6). N3 (a second CreationInfo for an enrichment-created
+element) is exercised separately in
+``test_enrichment_creation_info_and_annotation_present`` below, since it
+needs its own enrichment-run input rather than fitting the shared
+``_build_integrated_model()`` fixture. Verifies that:
 
-- all five native constructs appear correctly on the same document;
+- all native constructs appear correctly on the same document;
 - provenance Annotations are trimmed to residual signal and do not duplicate
   values now covered natively;
 - output is byte-identical across two generation runs with identical inputs;
@@ -213,6 +217,67 @@ def test_dataset_creator_agent_and_published_by_present() -> None:
         and agent_id in r.get("to", [])
     ]
     assert len(published_by) == 1, "expected one publishedBy relationship"
+
+
+def test_enrichment_creation_info_and_annotation_present() -> None:
+    """N3 (a second CreationInfo for an enrichment-created element) and
+    E1/E2 (an "enrichment"-kind Annotation on the AI package) appear
+    together, alongside the AI package's own native CreationInfo -- the
+    sixth and final Phase-2 native construct, landing after the other
+    five above. Uses the real ReadmeEnricher (not a hand-built
+    EnrichmentResult) so this exercises the actual enrichment code path,
+    matching the rest of this file's "real extraction/assembly, not
+    mocks" style.
+    """
+    # pylint: disable=import-outside-toplevel
+    import tempfile
+
+    from pitloom.enrich.readme import ReadmeEnricher
+
+    model = AiModelMetadata(
+        format_info=AiModelFormatInfo(model_format=AiModelFormat.SAFETENSORS),
+        name="enrichment-integrated-model",
+        version="1.0.0",
+    )
+    with tempfile.TemporaryDirectory() as d:
+        model_dir = Path(d)
+        (model_dir / "README.md").write_text(
+            "---\nlicense: mit\ndatasets:\n  - enrichment-integration-dataset\n---\n"
+        )
+        result = ReadmeEnricher().enrich(model, model_dir=model_dir)
+
+    exporter = build_model(model, CreationMetadata(), enrichment_results=[result])
+    graph = json.loads(exporter.to_json(pretty=True))["@graph"]
+
+    ai_pkg = next(e for e in graph if e.get("type") == "ai_AIPackage")
+    ds_pkg = next(e for e in graph if e.get("type") == "dataset_DatasetPackage")
+    assert ds_pkg["name"] == "enrichment-integration-dataset"
+    assert ds_pkg["creationInfo"] != ai_pkg["creationInfo"]
+
+    creation_infos = {e["@id"]: e for e in graph if e.get("type") == "CreationInfo"}
+    tools = {e["spdxId"]: e for e in graph if e.get("type") == "Tool"}
+    dataset_tool_id = creation_infos[ds_pkg["creationInfo"]]["createdUsing"][0]
+    assert tools[dataset_tool_id]["name"] == "pitloom.enrich.readme"
+    # Same createdBy Agent as the main document -- no fictitious second
+    # "Pitloom" identity, only a distinct createdUsing Tool + timestamp.
+    assert (
+        creation_infos[ai_pkg["creationInfo"]]["createdBy"]
+        == creation_infos[ds_pkg["creationInfo"]]["createdBy"]
+    )
+
+    annotations = [e for e in graph if e.get("type") == "Annotation"]
+    enrichment_anns = [
+        a
+        for a in annotations
+        if a.get("subject") == ai_pkg["spdxId"]
+        and json.loads(a["statement"]).get("kind") == "enrichment"
+    ]
+    assert len(enrichment_anns) == 1
+    changes = json.loads(enrichment_anns[0]["statement"])["changes"]
+    assert {c["field"] for c in changes} == {
+        "license",
+        "datasets:enrichment-integration-dataset",
+    }
 
 
 def test_fragment_origin_round_trips_when_merged() -> None:

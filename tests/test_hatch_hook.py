@@ -663,6 +663,97 @@ def test_hook_bundled_binary_produces_phantom_dependency() -> None:
         hook.finalize("standard", build_data, "")
 
 
+def test_hook_enrichment_produces_dataset_and_annotation() -> None:
+    """A discovered AI model file with an adjacent README.md whose YAML
+    frontmatter has a dataset gap, plus [tool.pitloom.enrich] local = true,
+    must produce the same enrichment artifacts (dataset_DatasetPackage,
+    "enrichment"-kind Annotation) the build hook already produces via
+    build() -- confirming the hook auto-inherits project-level enrichment
+    with no new hook-specific config key."""
+    fixture_model = (
+        Path(__file__).parent
+        / "fixtures"
+        / "aimodels"
+        / "safetensors"
+        / "phi-tiny-random.safetensors"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path,
+            '[tool.hatch.build.targets.wheel]\npackages = ["testpkg"]\n'
+            "\n[tool.pitloom.enrich]\nlocal = true\n",
+        )
+        (tmp_path / "testpkg").mkdir()
+        (tmp_path / "testpkg" / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "testpkg" / "model.safetensors").write_bytes(
+            fixture_model.read_bytes()
+        )
+        (tmp_path / "testpkg" / "README.md").write_text(
+            "---\ndatasets:\n  - tiny-imagenet\n---\n", encoding="utf-8"
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        graph = data["@graph"]
+
+        ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+        assert len(ds_pkgs) == 1
+        assert ds_pkgs[0]["name"] == "tiny-imagenet"
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        enrichment_anns = [
+            a
+            for a in annotations
+            if a.get("statement")
+            and json.loads(a["statement"]).get("kind") == "enrichment"
+        ]
+        assert len(enrichment_anns) == 1
+
+        hook.finalize("standard", build_data, "")
+
+
+def test_hook_no_enrichment_by_default() -> None:
+    """Same fixture as above but with no [tool.pitloom.enrich] config at
+    all: enrichment must stay off by default, same as every other surface."""
+    fixture_model = (
+        Path(__file__).parent
+        / "fixtures"
+        / "aimodels"
+        / "safetensors"
+        / "phi-tiny-random.safetensors"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject_with_pitloom_config(
+            tmp_path, '[tool.hatch.build.targets.wheel]\npackages = ["testpkg"]\n'
+        )
+        (tmp_path / "testpkg").mkdir()
+        (tmp_path / "testpkg" / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "testpkg" / "model.safetensors").write_bytes(
+            fixture_model.read_bytes()
+        )
+        (tmp_path / "testpkg" / "README.md").write_text(
+            "---\ndatasets:\n  - tiny-imagenet\n---\n", encoding="utf-8"
+        )
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is not None
+        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
+        graph = data["@graph"]
+
+        assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+
+        hook.finalize("standard", build_data, "")
+
+
 def test_hook_honours_provenance_format_annotation() -> None:
     """The build hook must thread [tool.pitloom.provenance] format/schema
     through to the assembler -- with format = "annotation", the staged SBOM

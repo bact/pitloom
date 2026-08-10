@@ -18,9 +18,11 @@ from datetime import datetime, timezone
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
+from pitloom.assemble.spdx3.provenance import EnrichedFieldEntry
 from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, Tool
 from pitloom.core.models import generate_spdx_id
-from pitloom.export.spdx3_json import require_spdx_id
+from pitloom.enrich.base import EnrichmentResult
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 
 def parse_iso_datetime(value: str) -> datetime:
@@ -210,6 +212,106 @@ def build_creation_info(
     return spdx_ci, agents, tools
 
 
+def build_enrichment_creation_info(
+    tool_name: str,
+    main_creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+) -> tuple[spdx3.CreationInfo, spdx3.Tool]:
+    """Build a second ``CreationInfo`` for elements an enrichment run
+    created (N3).
+
+    ``createdBy`` is deliberately the *same* Agent(s) already used by
+    ``main_creation_info`` -- reused directly, not re-minted via
+    :func:`build_creator_agents` -- so enrichment doesn't invent a
+    fictitious second "Pitloom" identity alongside the one the rest of
+    the document already uses. ``createdUsing`` is a fresh ``Tool`` named
+    after the enricher (e.g. ``"pitloom.enrich.readme"``), and ``created``
+    is the enrichment run's own timestamp (now), distinct from the main
+    document's creation time.
+
+    SPDX 3.0.1 has no native ``Tool.version`` (added in 3.1-dev); version
+    info goes in ``Tool.summary`` instead, same workaround
+    :func:`_tool_summary` uses for the main "Pitloom" tool -- set directly
+    here rather than widening that helper's tool-name-scoped contract.
+    """
+    ci = spdx3.CreationInfo(specVersion="3.0.1", created=spdx3_utc_now())
+    tool = spdx3.Tool(
+        spdxId=generate_spdx_id("Tool", doc_name=doc_name, doc_uuid=doc_uuid),
+        name=tool_name,
+        creationInfo=ci,
+        summary=f"Pitloom {__version__}",
+    )
+    ci.createdBy = main_creation_info.createdBy
+    ci.createdUsing = [require_spdx_id(tool)]
+    return ci, tool
+
+
+def build_enrichment_elements(
+    enrichment_results: list[EnrichmentResult],
+    spdx_ci: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> tuple[
+    dict[str, spdx3.CreationInfo],
+    list[tuple[spdx3.CreationInfo, list[EnrichedFieldEntry]]],
+]:
+    """Build N3 CreationInfo(s)/Tool(s) for each non-empty enrichment result.
+
+    Returns a dataset-name -> CreationInfo override map (for datasets the
+    enrichment run newly created) and a list of ``(enrichment CreationInfo,
+    changed-field entries)`` pairs, one per non-empty *enrichment_results*
+    entry -- i.e. one group per enrichment *source*. Shared by every
+    assembly path that attaches enrichment evidence to a subject element
+    (single-model SBOMs, project-level SBOMs, standalone enrichment
+    fragments) so they all produce identical N3/E1/E2 shapes for the same
+    enrichment run.
+
+    Grouping by source (rather than flattening every source's fields into
+    one list) matters because the caller builds one E1/E2 Annotation per
+    group, using *that* group's own enrichment ``CreationInfo`` -- the
+    ``created`` timestamp and ``createdUsing`` Tool for *when this
+    enrichment ran and by which source*, a fact this function already
+    computes for N3 but that would otherwise go unrecorded: SPDX's
+    ``Element.creationInfo`` is singular per element, so an existing
+    element's field-fill has no native home (see
+    :func:`build_enrichment_creation_info`'s docstring) -- the Annotation
+    is the *only* place that fact can live, so it must actually carry it
+    rather than defaulting to the document's generic ``creationInfo``
+    (who/when the whole document was assembled, a different fact).
+    """
+    dataset_creation_info: dict[str, spdx3.CreationInfo] = {}
+    annotation_groups: list[tuple[spdx3.CreationInfo, list[EnrichedFieldEntry]]] = []
+    for result in enrichment_results:
+        if not result.fields:
+            continue
+        enrich_ci, enrich_tool = build_enrichment_creation_info(
+            tool_name=f"pitloom.enrich.{result.source_name}",
+            main_creation_info=spdx_ci,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+        )
+        exporter.add_creation_info(enrich_ci)
+        exporter.object_set.add(enrich_tool)
+        changes: list[EnrichedFieldEntry] = []
+        for enriched_field in result.fields:
+            changes.append(
+                EnrichedFieldEntry(
+                    field=enriched_field.field,
+                    before=enriched_field.before,
+                    after=enriched_field.after,
+                    role=enriched_field.role,
+                    source=enriched_field.source,
+                )
+            )
+            if enriched_field.field.startswith("datasets:"):
+                dataset_name = enriched_field.field.removeprefix("datasets:")
+                dataset_creation_info[dataset_name] = enrich_ci
+        annotation_groups.append((enrich_ci, changes))
+    return dataset_creation_info, annotation_groups
+
+
 __all__ = [
     "parse_iso_datetime",
     "to_spdx3_datetime",
@@ -217,4 +319,6 @@ __all__ = [
     "build_creator_agents",
     "build_tools",
     "build_creation_info",
+    "build_enrichment_creation_info",
+    "build_enrichment_elements",
 ]

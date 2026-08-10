@@ -12,12 +12,43 @@ Companion to `../SKILL.md`. This recipe is meant to be run as-is or
 adapted with minimal edits.
 
 The scenario: Pitloom's static extraction produced `sbom.spdx3.json` for a
-project whose README states the model was trained on the "tiny-imagenet"
-dataset and evaluated on "imagenet-val" -- information no model file format
-encodes, so Pitloom's own extractors cannot see it. An agent reads the
-README and contributes that relationship back as a fragment.
+project whose `model.safetensors` has an adjacent `README.md` with YAML
+frontmatter (`license: apache-2.0`) plus prose stating the model was also
+evaluated on "imagenet-val" -- a relationship only the prose states, not
+the frontmatter. Two enrichment passes run in sequence: the deterministic
+`loom enrich` command picks up the frontmatter `license`, then an agent
+reads the prose for the `imagenet-val` relationship the frontmatter never
+mentioned.
 
-## 1. Draft a minimal fragment
+## 1. Run the deterministic pass
+
+```bash
+loom enrich model.safetensors --project-dir . -o model.enrich.spdx3.json
+```
+
+`--project-dir .` matters here: `sbom.spdx3.json` is a **project-level**
+SBOM (from `loom project .`, step 5 below), and a project-level document
+assigns this model's `ai_AIPackage` a different id than a standalone
+`loom model model.safetensors` run would. Without `--project-dir`, the
+fragment would reference an id absent from `sbom.spdx3.json` and the
+merge in step 5 would silently produce no visible change -- omit
+`--project-dir` only when merging into a `loom model`-generated base
+document instead.
+
+This parses only `README.md`'s YAML frontmatter (`license: apache-2.0`)
+and writes a standalone fragment -- no prose reading, no reasoning, no
+network. Read it to see what it filled, so step 2 below doesn't
+re-propose the same field:
+
+```bash
+python3 -c "import json; print(json.load(open('model.enrich.spdx3.json'))['@graph'])"
+```
+
+## 2. Draft a fragment for what prose adds
+
+The frontmatter enrichment already covered `license`; it never runs on
+prose, so the "evaluated on imagenet-val" relationship stated in the
+README body is still an agent-only finding.
 
 `fragments/agent-enrichment.spdx3.json`:
 
@@ -42,17 +73,37 @@ README and contributes that relationship back as a fragment.
     },
     {
       "creationInfo": "_:creationinfo-agent",
-      "comment": "Source: AI agent | Method: inference -- name and role inferred from README.md \"Training data\" section.",
+      "comment": "Source: AI agent | Method: inference -- name and role inferred from README.md's prose \"Evaluation\" section, not its YAML frontmatter (loom enrich already covered the frontmatter-only fields).",
       "dataset_datasetAvailability": "directDownload",
       "dataset_datasetType": ["image"],
-      "description": "Training dataset referenced in the project README.",
-      "name": "tiny-imagenet",
-      "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/DatasetPackage/tiny-imagenet-01",
+      "description": "Evaluation dataset referenced in the project README's prose.",
+      "name": "imagenet-val",
+      "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/DatasetPackage/imagenet-val-01",
       "type": "dataset_DatasetPackage"
     }
   ]
 }
 ```
+
+### Override example
+
+If instead the README's prose contradicted the frontmatter -- say
+`license: apache-2.0` in frontmatter, but the body text says "note: as of
+v2 this model is actually MIT-licensed, the header above is stale" -- the
+agent's fragment entry would override, recording both values and why
+rather than silently replacing the deterministic result:
+
+```json
+{
+  "creationInfo": "_:creationinfo-agent",
+  "comment": "Source: AI agent | Method: inference | Overrides: apache-2.0 (from loom enrich's frontmatter parse) | Reason: README body states license changed to MIT as of v2, frontmatter header is stale.",
+  "simplelicensing_licenseExpression": "MIT"
+}
+```
+
+The final report to the user (step 7 below) must call this override out
+by name -- never let a silent override look identical to an ordinary
+gap-fill.
 
 Notes:
 
@@ -64,12 +115,13 @@ Notes:
 - IDs (`spdxId`) must be unique; namespacing them under a distinct path
   (e.g. `.../pitloom-agent/...`) avoids collisions with the main SBOM.
 
-## 2. Pre-merge check (mandatory)
+## 3. Pre-merge check (mandatory)
 
-Validate the drafted fragment is syntactically valid JSON before
-registering it -- `merge_fragments()` silently drops (and only logs a
-warning for) a fragment it cannot parse, so catch a malformed fragment now
-rather than after a wasted `loom` run:
+Validate both fragments -- `model.enrich.spdx3.json` from step 1 and
+`fragments/agent-enrichment.spdx3.json` from step 2 -- are syntactically
+valid JSON before registering them -- `merge_fragments()` silently drops
+(and only logs a warning for) a fragment it cannot parse, so catch a
+malformed fragment now rather than after a wasted `loom` run:
 
 ```bash
 python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
@@ -91,36 +143,43 @@ with open(sys.argv[1], 'rb') as f:
 " fragments/agent-enrichment.spdx3.json
 ```
 
-## 3. Register the fragment
+## 4. Register both fragments
 
 In the project's `pyproject.toml`:
 
 ```toml
 [tool.pitloom.fragments]
-files = ["fragments/agent-enrichment.spdx3.json"]
+files = [
+  "model.enrich.spdx3.json",
+  "fragments/agent-enrichment.spdx3.json",
+]
 ```
 
-## 4. Re-generate the SBOM
+## 5. Re-generate the SBOM
 
 ```bash
 loom project . -o sbom.spdx3.json --pretty
 ```
 
-The merged output now contains the `dataset_DatasetPackage` element from
-the fragment alongside everything Pitloom extracted directly, with the
-inferred element's provenance clearly marked in its `comment`.
+The merged output now contains both the deterministic `license` fill and
+the `dataset_DatasetPackage` element the agent inferred, alongside
+everything Pitloom extracted directly -- each with its own provenance
+clearly marked (the deterministic one via its N3 CreationInfo, the
+agent-inferred one via its `comment`).
 
-## 5. Post-merge check (mandatory)
+## 6. Post-merge check (mandatory)
 
 Use the `sbom-validate` skill on `sbom.spdx3.json` -- this catches
 SPDX-shape/SHACL problems (e.g. a missing required property or the wrong
 relationship type) that plain JSON-syntax validity would miss.
 
-## 6. Report back to the user
+## 7. Report back to the user
 
-Summarise what was inferred and from where (e.g. "Added a
-`tiny-imagenet` dataset reference based on the README's 'Training data'
-section; please review before treating this as authoritative"). Never
+Summarise what came from which pass (e.g. "`loom enrich` filled `license`
+from the README's frontmatter; separately, I added an `imagenet-val`
+dataset reference based on the README's prose 'Evaluation' section --
+please review before treating this as authoritative"). If any value was
+overridden (see the override example above), name it explicitly. Never
 present agent-inferred fragment content as if it were Pitloom's own
 extraction.
 

@@ -53,15 +53,16 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "auditwheel>=6.1.0; sys_platform == 'linux'",
-    "hatchling>=1.28.0",
-    "licenseid>=0.3.0",
-    "pipdeptree>=2.21.0",
+    "auditwheel>=6.7.0; sys_platform == 'linux'",
+    "hatchling>=1.31.0",
+    "licenseid>=0.3.3",
+    "pipdeptree>=4.2.0",
     "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
+    "pyyaml>=6.0.3,<7",
     "rfc8785>=0.1.4",
     "spdx-python-model>=0.0.6",
-    "tomli>=2.4.0; python_version<'3.11'",
+    "tomli>=2.4.1; python_version<'3.11'",
 ]
 
 [project.entry-points."hatch"]
@@ -190,6 +191,10 @@ module = "h5py.*"
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 module = "py_spdx_license.*"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = "yaml.*"
 
 # safetensors safe_open and sys.modules typing changed across library versions.
 # These modules carry type: ignore comments that may be needed on older versions
