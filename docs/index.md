@@ -171,3 +171,10 @@ verification steps.
 
 See the [project README](https://github.com/bact/pitloom#readme) for
 installation, quick start, and full usage instructions.
+
+## Security
+
+For supported versions and vulnerability reporting guidelines,
+please read our [Security policy][security].
+
+[security]: https://github.com/bact/pitloom/security/policy
