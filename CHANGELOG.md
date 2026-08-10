@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-09
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,7 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -22,61 +23,57 @@ and this project adheres to
 
 ### Added
 
-- Native-first provenance backfills (Phase 2):
+- Redesign CLI and Python API around input artifacts
+  (project, wheel, model, env, generate) while maintaining CISA SBOM Types
+  compliance in output graph [#114] [#96]
+- Initial support of SKILL.md and Claude Code plugin [#96]
+- Native .tar.gz and .zip sdist metadata extraction support [#114]
+- Native-first provenance:
   - `hasConcludedLicense` vs. `hasDeclaredLicense` separation
-    for detected vs. author-asserted licenses.
-  - Native `ExternalIdentifier` (DOI) and `ExternalRef`
-    (arXiv paper IDs, model page URLs) on `ai_AIPackage`.
-  - Native `Agent` and `publishedBy` relationship for dataset creators
-    on `dataset_DatasetPackage`.
+    for Pitloom-detected vs. SBOM author-asserted licenses. [#105]
+  - `ExternalIdentifier` (DOI) and `ExternalRef`
+    (arXiv paper IDs, model page URLs) on `ai_AIPackage`. [#106]
+  - `Agent` and `publishedBy` relationship for dataset creators
+    on `dataset_DatasetPackage`. [#107]
   - Fragment document origin traceability: populate `SpdxDocument.import_`
-    with `ExternalMap` entries for merged fragments.
-  - Native `descendantOf` `Relationship` and stub `ai_AIPackage`
-    for AI base-model lineage.
+    with `ExternalMap` entries for merged fragments. [#108]
+  - `descendantOf` `Relationship` and stub `ai_AIPackage`
+    for AI base-model lineage. [#109]
 - Record metadata provenance as SPDX 3 Core `Annotation` elements alongside
-  the `comment` form, controlled by `[tool.pitloom.provenance] format`.
+  the `comment` form, controlled by `[tool.pitloom.provenance] format`. [#102]
 - `[tool.pitloom.provenance] detail` (`minimal` default / `full`) to limit
   provenance Annotations to fields SPDX can't otherwise express.
 - Fragment-unification provenance: record why two elements were merged as a
-  `provenance/unification/1` Annotation on the survivor.
-- Artifact-metadata preservation (`[tool.pitloom.provenance]
-  preserve-source-metadata`, `auto` default) to embed an AI model's verbatim
-  original metadata when it isn't shipped with the distribution.
-- `docs/ai-skills-and-plugin.md`: a dedicated website page walking through
-  installing and using the `sbom`/`enrich` Agent Skills and the Claude Code
-  plugin, for both SBOM generation and enrichment.
-- `version`, `$schema`, `category`, and `keywords` metadata on the Claude
-  Code plugin manifest (`.claude-plugin/plugin.json`), and `argument-hint`
-  on both Skills' front matter (`skills/sbom/SKILL.md`,
-  `skills/enrich/SKILL.md`), for better discoverability and clearer
-  slash-command ergonomics.
+  `provenance/unification/1` Annotation on the survivor. [#102]
+- Artifact-metadata preservation
+  (`[tool.pitloom.provenance] preserve-source-metadata`, `auto` default)
+  to embed an AI model's verbatim original metadata
+  when it isn't shipped with the distribution. [#102]
 
 ### Changed
 
-- README.md's "Agent Skill" and "Claude Code plugin" sections now show
-  explicit slash-command usage for both generation and enrichment, and
-  link to the new dedicated docs page.
-- `.claude-plugin/marketplace.json`'s plugin entry no longer duplicates
-  `plugin.json`'s `description`/`author`/`homepage`/`repository`/
-  `license`/`keywords`/`version` -- Claude Code already resolves those
-  from `plugin.json` at install time, so keeping two copies in sync
-  bought nothing.
-- Concluded licenses are no longer unconditionally mirrored
-  from declared licenses when Pitloom detects a license itself.
-- Provenance is no longer duplicated onto `dependsOn` relationships.
 - Dict-valued AI-model metadata (`properties`, `hyperparameters`) now records
-  exact per-key provenance instead of one shared note per dict.
-- Raised the minimum `mypy` version to 2.3.0.
+  exact per-key provenance instead of one shared note per dict. [#102]
+- Raised the minimum `mypy` version to 2.3.0. [#118]
 
 ### Security
 
 - Sanitize untrusted text (an AI model's filename, and any binary-format
   metadata key) before it's embedded in a provenance string, so a crafted
   value can no longer inject a fake `Source:`/`Field:` segment and
-  misattribute or silently suppress provenance.
-- Preserved AI-model metadata (P1) is normalized before JSON serialization so
-  NaN/Infinity float values and non-deterministic `set` ordering can no
-  longer produce invalid or non-reproducible SBOM output.
+  misattribute or silently suppress provenance. [#102]
+- Ensures Hugging Face `hf_hub_download()` calls are revision-pinned [#117]
+
+[#96]: https://github.com/bact/pitloom/pull/96
+[#102]: https://github.com/bact/pitloom/pull/102
+[#105]: https://github.com/bact/pitloom/pull/105
+[#106]: https://github.com/bact/pitloom/pull/106
+[#107]: https://github.com/bact/pitloom/pull/107
+[#108]: https://github.com/bact/pitloom/pull/108
+[#109]: https://github.com/bact/pitloom/pull/109
+[#114]: https://github.com/bact/pitloom/pull/114
+[#117]: https://github.com/bact/pitloom/pull/117
+[#118]: https://github.com/bact/pitloom/pull/118
 
 ## [0.12.0] - 2026-07-10
 

@@ -83,7 +83,7 @@ for anything it missed found and fixed:
   `# -m / --aimodel: ...` above tests that actually exercise `analyze`
   (the tests themselves were correct, only the comments were stale).
 
-Checked and found **not** affected: the Claude plugin
+Checked and found **not** affected: the Claude Code plugin
 (`.claude-plugin/plugin.json`/`marketplace.json` and
 `working-docs/implementation/claude-code-plugin.md` don't hardcode any
 CLI invocation -- they only reference the Skills, which were the actual
