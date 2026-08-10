@@ -101,20 +101,40 @@ every field's source regardless.
 
 ## How a license source is chosen
 
-Pitloom checks these in order and uses the first hit:
+For the project's own declared license (`project.license` in
+`pyproject.toml`), Pitloom also independently checks the project
+directory for a `LICENSE`/`LICENSE.*` file (or `CITATION.cff`/
+`codemeta.json`), matched against known SPDX licenses via `licenseid`
+(`method: licenseid_detection`) -- a second opinion, checked regardless
+of whether a declared value was already found.
 
-1. `project.license` in `pyproject.toml` (a literal SPDX expression, or a
-   `{file = "..."}`/`{text = "..."}` table).
-2. If that's absent or not directly usable, a `LICENSE`/`LICENSE.*` file
-   in the project directory, matched against known SPDX licenses via
-   `licenseid` (`method: licenseid_detection`).
+- If only one of the two exists, only that one is recorded, as
+  `hasDeclaredLicense` or `hasConcludedLicense` respectively.
+- If both exist and **agree**, both `hasDeclaredLicense` and
+  `hasConcludedLicense` are recorded, pointing at the same license.
+- If both exist and **disagree**, both are still recorded -- pointing at
+  two different licenses -- and Pitloom adds a `conflict` Annotation
+  (`field: "license"`) on the package listing both candidates and where
+  each came from, so the disagreement is visible rather than one value
+  silently overriding the other:
 
-**Current limitation:** if both a declared value (step 1) and a detected
-`LICENSE` file (step 2) are present *and disagree*, Pitloom does not
-flag the conflict -- the declared value silently wins, and there is no
-provenance marker recording that a detected alternative existed. This is
-a known, documented gap (tracked as "G2" in the design docs), not yet
-implemented.
+  ```json
+  {
+    "schema": "https://pitloom.dev/provenance/conflict/1",
+    "kind": "conflict",
+    "field": "license",
+    "candidates": [
+      {"value": "MIT", "role": "declared", "source": "Source: pyproject.toml | Field: project.license"},
+      {"value": "Apache-2.0", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0"}
+    ]
+  }
+  ```
+
+  `role` says *whose* determination each candidate is: `declared` is the
+  project's own stated claim; `detected` is Pitloom's own algorithmic
+  match. (Two further roles, `externalReported` and `inferred`, are
+  reserved for future candidate sources -- a linked GitHub/Hugging Face
+  Hub API, or an AI agent's inference -- not built yet.)
 
 For the full design rationale, current implementation status, and code
 citations behind both sections above, see

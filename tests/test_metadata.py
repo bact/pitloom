@@ -7,6 +7,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -863,3 +864,96 @@ dependencies = ["typing_extensions>=4.0", "zope.interface>=5.0"]
             "typing-extensions>=4.0",
             "zope-interface>=5.0",
         ]
+
+
+# ---------------------------------------------------------------------------
+# license_concluded (G2: declared-vs-detected disagreement)
+# ---------------------------------------------------------------------------
+
+
+def _write_pyproject(tmppath: Path, license_line: str = 'license = "MIT"\n') -> Path:
+    pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+{license_line}"""
+    pyproject_path = tmppath / "pyproject.toml"
+    pyproject_path.write_text(pyproject_content)
+    return pyproject_path
+
+
+def test_license_concluded_populated_on_conflict() -> None:
+    """A declared MIT license and an independently-detected Apache-2.0
+    LICENSE file both surface -- declared value untouched, concluded value
+    is the independent detection, disagreement visible to the caller."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = _write_pyproject(tmppath)
+        (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            metadata, _ = read_pyproject(pyproject_path)
+
+        assert metadata.license_name == "MIT"
+        assert metadata.license_concluded == "Apache-2.0"
+        assert metadata.provenance["license"] == (
+            "Source: pyproject.toml | Field: project.license"
+        )
+        concluded_prov = metadata.provenance["license_concluded"]
+        assert "LICENSE" in concluded_prov
+        assert "Method: licenseid_detection" in concluded_prov
+        assert "Tool: licenseid==" in concluded_prov
+
+
+def test_license_concluded_matches_declared_no_conflict() -> None:
+    """Declared and independently-detected agree -- concluded is still
+    populated (needed to build the second native relationship), just equal."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = _write_pyproject(tmppath)
+        (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            metadata, _ = read_pyproject(pyproject_path)
+
+        assert metadata.license_name == "MIT"
+        assert metadata.license_concluded == "MIT"
+
+
+def test_license_concluded_none_when_no_license_file() -> None:
+    """Declared value present, nothing in the directory to independently
+    detect from -- concluded stays unset, single-relationship path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = _write_pyproject(tmppath)
+
+        metadata, _ = read_pyproject(pyproject_path)
+
+        assert metadata.license_name == "MIT"
+        assert metadata.license_concluded is None
+        assert "license_concluded" not in metadata.provenance
+
+
+def test_license_concluded_none_when_nothing_declared() -> None:
+    """No project.license field at all -- G2's independent-scan gate never
+    fires (license_name itself already comes from pure detection in this
+    case, existing pre-G2 behavior, unaffected)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = _write_pyproject(tmppath, license_line="")
+        (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            metadata, _ = read_pyproject(pyproject_path)
+
+        assert metadata.license_name == "MIT"
+        assert metadata.license_concluded is None

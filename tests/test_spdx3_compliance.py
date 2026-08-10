@@ -658,7 +658,7 @@ dependencies = ["requests>=2.28.0"]
             assert _CONTENT_TYPE_RE.match(content_type)
             # statement must be valid JSON carrying the pitloom/1 schema marker.
             statement = json.loads(ann["statement"])
-            assert statement["schema"] == "https://pitloom.dev/provenance/1"
+            assert statement["schema"] == "https://pitloom.dev/provenance/fields/1"
 
 
 def test_spdx3_provenance_format_annotation_omits_comment() -> None:

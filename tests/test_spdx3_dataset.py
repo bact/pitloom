@@ -292,7 +292,7 @@ def test_add_datasets_provenance_annotation_and_comment() -> None:
     assert len(dataset_annotations) == 1
     assert dataset_annotations[0]["contentType"] == "application/json"
     statement = json.loads(dataset_annotations[0]["statement"])
-    assert statement["schema"] == "https://pitloom.dev/provenance/1"
+    assert statement["schema"] == "https://pitloom.dev/provenance/fields/1"
     assert statement["fields"]["name"]["source"] == "test.json"
 
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 import base64
 import json
 import math
-from typing import Any, Protocol
+from typing import Any, Protocol, TypedDict
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -42,6 +42,9 @@ UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
 
 #: Statement-schema URL for a preserved verbatim artifact-metadata blob (P1).
 ARTIFACT_METADATA_SCHEMA_URL = "https://pitloom.dev/provenance/artifact-metadata/1"
+
+#: Statement-schema URL for a multi-source field-value disagreement (G2).
+CONFLICT_SCHEMA_URL = "https://pitloom.dev/provenance/conflict/1"
 
 #: Transparent, re-readable manifest sources. A field read verbatim from one of
 #: these (no extraction ``method``) is *low* signal in minimal mode: its value
@@ -149,14 +152,14 @@ class PitloomV1Encoder:
     """Pitloom's own simple JSON schema (the default)."""
 
     schema_id = "pitloom/1"
-    schema_url = "https://pitloom.dev/provenance/1"
+    schema_url = "https://pitloom.dev/provenance/fields/1"
     content_type = "application/json"
 
     def encode(self, provenance: dict[str, str]) -> str:
         fields = {
             field: parse_provenance_value(src) for field, src in provenance.items()
         }
-        envelope = {"schema": self.schema_url, "fields": fields}
+        envelope = {"schema": self.schema_url, "kind": "fields", "fields": fields}
         # sort_keys keeps output byte-stable for reproducible builds.
         return json.dumps(envelope, ensure_ascii=False, sort_keys=True)
 
@@ -321,10 +324,82 @@ def build_unification_annotation(
     """
     statement = {
         "schema": UNIFICATION_SCHEMA_URL,
-        "event": "unification",
+        "kind": "unification",
         "criterion": criterion,
         "unified": sorted(unified_ids),
         "fragments": sorted(fragments),
+    }
+    return _build_json_annotation(
+        subject_spdx_id, statement, creation_info, annotation_spdx_id
+    )
+
+
+class _ConflictCandidateRequired(TypedDict):
+    value: str
+    role: str
+    source: str
+
+
+class ConflictCandidate(_ConflictCandidateRequired, total=False):
+    """One source's reported value for a field under dispute (G2).
+
+    ``role`` is an epistemic-process label -- *whose* determination this is,
+    not which native SPDX slot it maps to (that mapping is a separate,
+    per-field, per-caller decision -- see :func:`build_conflict_annotation`):
+
+    * ``"declared"`` -- the subject's own stated claim, however observed
+      (read locally, or relayed unedited by a third party).
+    * ``"detected"`` -- Pitloom's own deterministic algorithm's
+      determination, whatever the input's origin.
+    * ``"externalReported"`` -- some other party's own determination or
+      opinion, relayed without Pitloom re-deriving it -- and not the
+      subject's own claim either.
+    * ``"inferred"`` -- an AI agent's non-deterministic reasoning/judgment.
+
+    ``source`` follows the existing ``"Key: Value | Key: Value"`` provenance
+    string convention (:func:`parse_provenance_value`). ``ref`` is the
+    spdxId of a native element this candidate maps to, when one exists (e.g.
+    the license text element for a ``"declared"``/``"detected"`` license
+    candidate) -- omitted when the candidate has no native counterpart.
+    """
+
+    ref: str
+
+
+def build_conflict_annotation(
+    subject_spdx_id: str,
+    field: str,
+    candidates: list[ConflictCandidate],
+    creation_info: spdx3.CreationInfo,
+    annotation_spdx_id: str,
+) -> spdx3.Annotation:
+    """Return an Annotation recording that multiple sources disagree on
+    *field*'s value for *subject_spdx_id* (G2).
+
+    Generic across fields -- license is the first field this fires for, but
+    the mechanism (several sources reporting different values for the same
+    field) applies to any field; a future field just supplies its own
+    *candidates*. SPDX has no native home for the *disagreement itself*: even
+    when individual candidate values do have a native slot (a license's
+    ``hasDeclaredLicense``/``hasConcludedLicense``), SPDX only ever has two
+    such slots, so a 3rd+ candidate -- and the fact that any of them
+    conflict -- has nowhere native to go regardless of field.
+
+    Only call this when candidates actually disagree; full agreement across
+    all known candidates has nothing extrinsic to assert.
+
+    Args:
+        subject_spdx_id: The element the disputed field belongs to (e.g. the
+            package, for license).
+        field: The field name in dispute (``"license"`` today).
+        candidates: Every known source's reported value, non-empty.
+        annotation_spdx_id: The Annotation's own id.
+    """
+    statement = {
+        "schema": CONFLICT_SCHEMA_URL,
+        "kind": "conflict",
+        "field": field,
+        "candidates": candidates,
     }
     return _build_json_annotation(
         subject_spdx_id, statement, creation_info, annotation_spdx_id
@@ -359,6 +434,7 @@ def build_source_metadata_annotation(
         return None
     statement = {
         "schema": ARTIFACT_METADATA_SCHEMA_URL,
+        "kind": "artifact-metadata",
         "format": source_format,
         "metadata": metadata,
     }

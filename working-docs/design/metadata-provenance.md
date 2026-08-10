@@ -29,10 +29,10 @@ information in the SBOM comes from. This is essential for:
 > lineage, dataset creator, and fragment-origin `imports` are now emitted
 > as native SPDX constructs with no provenance residual for the value
 > itself; only enrichment `CreationInfo` (N3) remains, blocked on the
-> unbuilt `enrich/` subpackage. Two Phase-1 use cases are also still
-> design-only, not five-of-six-implies-nearly-done: G2 (multi-source
-> license disagreement detection) and A2 (superseded identity across
-> builds). See
+> unbuilt `enrich/` subpackage. G2 (multi-source disagreement detection)
+> is now implemented for license, and generalized to any field for when
+> future candidate sources land. A2 (superseded identity across builds)
+> remains design-only. See
 > [`working-docs/implementation/annotation-provenance.md`](../implementation/annotation-provenance.md)
 > §10 for the full design, current status, and code citations for all
 > pending items, and

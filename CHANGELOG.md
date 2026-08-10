@@ -52,6 +52,13 @@ and this project adheres to
 - `pitloom.loom`'s `set_model(hyperparameters=...)` and
   `set_model_hyperparameters()` now record exact per-key provenance for
   each hyperparameter, matching the AI-model extractors. ([#113])
+- Declared-vs-detected license conflict detection: the project's own
+  directory is now independently scanned for a `LICENSE` file even when
+  `project.license` already declares a value, so both can be compared.
+  When they disagree, both `hasDeclaredLicense` and `hasConcludedLicense`
+  are recorded (pointing at the two different licenses) alongside a new
+  `provenance/conflict/1` Annotation naming both candidates and their
+  source. Generic across fields, not license-specific, for future reuse.
 
 ### Changed
 

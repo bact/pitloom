@@ -146,12 +146,17 @@ third-party fragment producers (see
    fragment into the final SBOM.
 
 Every inferred field carries a provenance marker in its `comment` --
-`Source: AI agent | Method: inference` -- reusing the same provenance
-convention documented in [metadata-provenance.md](metadata-provenance.md),
-so agent-derived content is always distinguishable from Pitloom's own
-extraction and from other configured enrichment sources. This keeps the
-result auditable: a reviewer can grep for `AI agent` in the SBOM to see
-exactly what was inferred rather than extracted.
+`Source: <agent name> (<vendor>) | Method: inference | Date: <ISO 8601
+date>` when the agent knows its own identity, else the generic `Source:
+AI agent | Method: inference` -- reusing the same `role: "inferred"`
+provenance convention documented in
+[metadata-provenance.md](metadata-provenance.md) and in
+[annotation-provenance.md](../implementation/annotation-provenance.md)'s
+G2 role vocabulary, so agent-derived content is always distinguishable
+from Pitloom's own extraction and from other configured enrichment
+sources. This keeps the result auditable: a reviewer can grep for `AI
+agent` or `Method: inference` in the SBOM to see exactly what was
+inferred rather than extracted.
 
 See `skills/enrich/SKILL.md` and
 `skills/enrich/references/examples.md` for the full agent-facing

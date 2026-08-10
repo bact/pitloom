@@ -19,11 +19,18 @@ from __future__ import annotations
 import json
 import logging
 import re
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
 
 _logger = logging.getLogger(__name__)
+
+try:
+    _LICENSEID_VERSION: str | None = _pkg_version("licenseid")
+except PackageNotFoundError:
+    _LICENSEID_VERSION = None
 
 # Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
 _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
@@ -235,6 +242,41 @@ def collect_license_candidates(project_dir: Path) -> list[tuple[str, str]]:
     return candidates
 
 
+def _with_tool_tag(provenance: str) -> str:
+    """Append the ``licenseid`` library version to a detection provenance string.
+
+    A ``licenseid_detection`` result is only as reproducible as the license
+    database of the library version that produced it -- record which one ran,
+    so a ``detected``-role G2 candidate's evidence stays auditable across
+    library upgrades. Falls back to the bare string when the installed
+    version can't be resolved (e.g. an unusual/editable install).
+    """
+    if _LICENSEID_VERSION is None:
+        return provenance
+    return f"{provenance} | Tool: licenseid=={_LICENSEID_VERSION}"
+
+
+def detect_independent_license(project_dir: Path) -> tuple[str | None, str | None]:
+    """Detect a license purely from project-directory files (``CITATION.cff``,
+    ``codemeta.json``, license files), ignoring any already-declared value.
+
+    Used to independently corroborate or conflict-check a declared license
+    (G2) -- unlike :func:`detect_license_for_project`, this never considers a
+    caller-supplied hint, so its result is a genuine second opinion.
+
+    Returns ``(None, None)`` when nothing in *project_dir* yields a license.
+    """
+    for value, source in collect_license_candidates(project_dir):
+        if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
+            value
+        ):
+            return value, source
+        detected = detect_license_from_text(value)
+        if detected:
+            return detected, _with_tool_tag(f"{source} | Method: licenseid_detection")
+    return None, None
+
+
 def detect_license_for_project(
     project_dir: Path,
     license_hint: str | None = None,
@@ -247,8 +289,7 @@ def detect_license_for_project(
        (caller should set provenance from the original metadata field).
     2. *license_hint* is a compound SPDX License Expression -> returned unchanged.
     3. *license_hint* is license text -> run :func:`detect_license_from_text`.
-    4. Search ``CITATION.cff``, ``codemeta.json``, and license files in
-       *project_dir*.
+    4. :func:`detect_independent_license` over *project_dir*.
 
     Returns ``(None, None)`` when no license can be determined.
     """
@@ -262,17 +303,11 @@ def detect_license_for_project(
         # Hint is likely license text -- try detection first
         detected = detect_license_from_text(hint)
         if detected:
-            return detected, "Method: licenseid_detection"
+            return detected, _with_tool_tag("Method: licenseid_detection")
 
-    # Search project directory sources
-    for value, source in collect_license_candidates(project_dir):
-        if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
-            value
-        ):
-            return value, source
-        detected = detect_license_from_text(value)
-        if detected:
-            return detected, f"{source} | Method: licenseid_detection"
+    directory_id, directory_prov = detect_independent_license(project_dir)
+    if directory_id:
+        return directory_id, directory_prov
 
     # Fall back to the raw hint (non-standard string) rather than returning None
     if license_hint and license_hint.strip():

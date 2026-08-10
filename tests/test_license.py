@@ -19,6 +19,7 @@ from pitloom.extract._license import (
     _read_license_from_codemeta_json,
     canonicalize_license_id,
     collect_license_candidates,
+    detect_independent_license,
     detect_license_for_project,
     detect_license_from_text,
     find_license_files,
@@ -439,3 +440,74 @@ def test_detect_project_from_license_file_integration() -> None:
             f"Expected SPDX License ID, got: {result_id!r}"
         )
         assert prov is not None and "LICENSE" in prov and "licenseid_detection" in prov
+
+
+# ---------------------------------------------------------------------------
+# detect_independent_license (G2)
+# ---------------------------------------------------------------------------
+
+
+def test_detect_independent_license_ignores_hint_entirely() -> None:
+    """Unlike detect_license_for_project, there is no hint parameter at all --
+    only the project directory is ever consulted."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        (p / "LICENSE").write_text(_MIT_TEXT)
+        result_id, prov = detect_independent_license(p)
+    if result_id is not None:
+        assert _looks_like_spdx_license_id(result_id)
+        assert prov is not None and "LICENSE" in prov
+
+
+def test_detect_independent_license_no_sources_returns_none() -> None:
+    with tempfile.TemporaryDirectory() as d:
+        result_id, prov = detect_independent_license(Path(d))
+    assert result_id is None
+    assert prov is None
+
+
+def test_detect_independent_license_bare_id_no_detection_method() -> None:
+    """A bare SPDX id found via CITATION.cff needs no licenseid detection --
+    no Tool: tag on a value that was just read, not determined."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        (p / "codemeta.json").write_text('{"license": "MIT"}')
+        result_id, prov = detect_independent_license(p)
+    assert result_id == "MIT"
+    assert prov == "Source: codemeta.json | Field: license"
+    assert "Tool:" not in prov
+
+
+def test_detect_independent_license_tags_licenseid_tool_version() -> None:
+    """A licenseid_detection result carries the library version it ran under
+    (G2's detected-role source-recording enhancement) -- reproducible against
+    the exact detector version, not just "licenseid was involved somewhere"."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        (p / "LICENSE").write_text(_MIT_TEXT)
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            result_id, prov = detect_independent_license(p)
+    assert result_id == "MIT"
+    assert prov is not None
+    assert "Method: licenseid_detection" in prov
+    assert "| Tool: licenseid==" in prov
+
+
+def test_detect_license_for_project_delegates_directory_scan() -> None:
+    """detect_license_for_project's own directory-search fallback now goes
+    through detect_independent_license -- same result, same Tool: tagging,
+    confirming the extraction didn't change external behavior."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        (p / "LICENSE").write_text(_MIT_TEXT)
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            via_project, prov_project = detect_license_for_project(p)
+            via_independent, prov_independent = detect_independent_license(p)
+    assert via_project == via_independent == "MIT"
+    assert prov_project == prov_independent

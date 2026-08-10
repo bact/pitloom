@@ -70,6 +70,7 @@ class ProjectMetadata:
     readme: str | None = None
     requires_python: str | None = None
     license_name: str | None = None
+    license_concluded: str | None = None
     keywords: list[str] = field(default_factory=list)
     authors: list[dict[str, str]] = field(default_factory=list)
     urls: dict[str, str] = field(default_factory=dict)
