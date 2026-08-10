@@ -74,3 +74,49 @@ This transparency is crucial for:
   extracted facts from inferred/detected ones
 - **Machine consumption**: Automated tools can parse provenance
 - **Human review**: Manual inspection of data sources
+
+## What the `method` values mean
+
+The `method` field in a provenance entry says *how* Pitloom arrived at a
+value, not just where it read it from. Values in use today:
+
+| `method` | Meaning |
+| --- | --- |
+| `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
+| `licenseid_detection` | License text matched against a known SPDX license using the [`licenseid`](https://pypi.org/project/licenseid/) library -- detected, not author-declared. |
+| `inferred_from_authors` | Derived from the `authors` list (e.g. a copyright statement), not read verbatim from any single field. |
+| `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
+| `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
+| `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
+| `synthetic` | The element itself was synthesized by Pitloom (e.g. a placeholder), not extracted from any source file. |
+
+A field with **no** `method` -- just a `source` -- was read verbatim from
+the named file with no interpretation involved (e.g. `project.name` from
+`pyproject.toml`). In `detail = "minimal"` (the default), these
+no-`method` entries are dropped entirely when the source is a
+well-known, re-readable manifest (`pyproject.toml`, `setup.cfg`/`setup.py`,
+wheel metadata, the Hugging Face Hub API) -- they add no signal beyond
+what's already implied by the native field. Set `detail = "full"` to see
+every field's source regardless.
+
+## How a license source is chosen
+
+Pitloom checks these in order and uses the first hit:
+
+1. `project.license` in `pyproject.toml` (a literal SPDX expression, or a
+   `{file = "..."}`/`{text = "..."}` table).
+2. If that's absent or not directly usable, a `LICENSE`/`LICENSE.*` file
+   in the project directory, matched against known SPDX licenses via
+   `licenseid` (`method: licenseid_detection`).
+
+**Current limitation:** if both a declared value (step 1) and a detected
+`LICENSE` file (step 2) are present *and disagree*, Pitloom does not
+flag the conflict -- the declared value silently wins, and there is no
+provenance marker recording that a detected alternative existed. This is
+a known, documented gap (tracked as "G2" in the design docs), not yet
+implemented.
+
+For the full design rationale, current implementation status, and code
+citations behind both sections above, see
+[`annotation-provenance.md`](https://github.com/bact/pitloom/blob/main/working-docs/implementation/annotation-provenance.md)
+in the Pitloom repository.

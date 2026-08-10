@@ -623,6 +623,38 @@ refinement limits Annotations to what SPDX 3 **cannot** record natively, and
 adds two new Annotation roles. Config-gated so an exhaustive audit is still
 available.
 
+### Extrinsic-assertion test (2026-08-10, supersedes "high-signal" as the stated rationale)
+
+Annotation serves exactly one purpose in Pitloom: **provenance** — an
+extrinsic assertion Pitloom (or an agent) makes *about* an element from
+outside, never a restatement of the element's own intrinsic data. SPDX 3's
+own `Annotation` definition backs this: an assertion in relation to an
+element, explicitly *not part of the element's own definition*.
+
+A second, rejected use would be treating Annotation as an extension slot
+for intrinsic properties SPDX has no native field for (e.g. a dataset's
+image count — SPDX 3.0.1/3.1 only has byte size). That is out of scope
+here: if SPDX is missing a real field, the fix is a spec change or a
+documented lossy fallback (`description`/`summary`), not an Annotation.
+Annotation cannot fix a native-model gap because doing so would make it
+represent an intrinsic characteristic, which contradicts its own
+definition.
+
+**The test:** does the Annotation's *role* stay extrinsic — an assertion
+about the element from outside — even when its *payload* looks
+data-shaped? Role, not payload shape, decides. Most entries pass trivially
+(a `{source, method}` string is obviously an outside assertion). One
+existing case is genuinely borderline and its justification is written
+out explicitly at its definition below rather than left implicit: **P1**
+(artifact-metadata preservation) embeds a verbatim metadata blob, which
+looks intrinsic — see the P1 bullet under "Use-case catalog" for why it
+still passes.
+
+**Burden of proof:** any new Annotation use that looks even slightly
+data-shaped must carry this same kind of explicit written justification
+at its point of use. Silence is not an acceptable state for a borderline
+case.
+
 ### Boundary principle (native-first)
 
 1. Never put a value in an Annotation that has a native SPDX home; the
@@ -659,25 +691,51 @@ entry points exactly as `provenance_format`/`schema` already were.
 
 ### Use-case catalog (why the Annotation earns its place)
 
-- **Generation** — G1 inferred/detected/AI-generated qualifier (necessary:
-  `licenseid_detection`, `inferred_from_authors` have no native assertedness
-  marker); G2 multi-source license disagreement (necessary on conflict);
-  G3 declared constraint vs resolved version (useful — SPDX keeps only the
-  resolved version); G4 sub-file location in opaque AI formats (useful).
-- **Aggregation** — A1 unification rationale (necessary): `_merge_fragment_set`
-  records `(survivor, criterion, dropped_id, fragment)` for a **SHA-256
-  content-equality** match — a genuinely distinct id folded into the
-  survivor, which SPDX cannot express — and emits a `provenance/unification/1`
-  Annotation on the survivor. A same-id registry match carries no such fact
-  (nothing distinct was folded) and is not annotated; its fragment origin is
-  Phase-2 `SpdxDocument.imports` territory (see N1 below).
+- **Generation** — G1 inferred/detected/AI-generated qualifier (necessary,
+  **implemented**: `licenseid_detection`, `inferred_from_authors` have no
+  native assertedness marker); G2 multi-source license disagreement
+  (necessary on conflict, **not implemented — design only**: license source
+  is picked by fixed priority in
+  [`pyproject.py`](../../src/pitloom/extract/pyproject.py) `_resolve_license_hint`
+  — `project.license` text/file wins if present, else fall back to
+  `detect_license_for_project`'s `licenseid` match — and
+  [`deps.py`](../../src/pitloom/assemble/spdx3/deps.py) `_is_license_concluded`
+  only classifies that single winning value as declared-vs-concluded by its
+  recorded `method`; nothing ever compares a declared value against a
+  detected one or flags disagreement between them); G3 declared constraint
+  vs resolved version (useful, **implemented** — SPDX keeps only the
+  resolved version); G4 sub-file location in opaque AI formats (useful,
+  **implemented**).
+- **Aggregation** — A1 unification rationale (necessary, **implemented**):
+  `_merge_fragment_set` records `(survivor, criterion, dropped_id, fragment)`
+  for a **SHA-256 content-equality** match — a genuinely distinct id folded
+  into the survivor, which SPDX cannot express — and emits a
+  `provenance/unification/1` Annotation on the survivor. A same-id registry
+  match carries no such fact (nothing distinct was folded) and is not
+  annotated; its fragment origin is Phase-2 `SpdxDocument.imports` territory
+  (see N1 below). A2 superseded identity across builds (useful,
+  **not implemented — design only**): when file content changes,
+  [`ids.py`](../../src/pitloom/ids.py) `register_file` mints a fresh
+  `spdxId` and the old one is simply discarded — no supersedes/replaces
+  record survives anywhere. Lower priority than A1: it's a cross-build fact
+  (comparing this SBOM to a previous one), not something expressible within
+  one SBOM generation.
 - **Enrichment** — E1 override lineage, E2 AI-inferred-vs-extracted marker
   (both necessary; design-only — the `enrich/` subpackage is unbuilt).
 - **Preservation** — P1 verbatim original AI-model metadata
   (`provenance/artifact-metadata/1`), config-gated, complements the lossy
   native mapping when the artifact isn't shipped. `raw_metadata` captured
   verbatim by the safetensors & GGUF extractors; HF/others fall back to the
-  retained `properties`/`extra_data`.
+  retained `properties`/`extra_data`. **Extrinsic-assertion justification**
+  (this is the one borderline case per the test above): the blob payload
+  looks intrinsic, but P1's role stays extrinsic — it is Pitloom witnessing
+  and recording "here is what the source artifact's own header said at
+  generation time," not Pitloom declaring a new native characteristic of
+  the model. It exists precisely because the artifact won't travel with the
+  SBOM and can't be re-read later to re-derive this; a shipped, re-extractable
+  artifact gets no P1 blob at all (`preserve-source-metadata = "auto"`),
+  which is itself evidence the role is "preserve what would otherwise be
+  lost," not "hold a property."
 
   **Known limitation (unbounded statement size):** the P1 blob embeds
   `raw_metadata` verbatim with no size cap. Pitloom's own GGUF/safetensors
