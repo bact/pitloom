@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,6 +52,26 @@ SPDX-License-Identifier: CC0-1.0
   `suppliedBy` on the main package -- single-valued in SPDX 3 -- is set to
   the first named creator. See
   [creation-metadata.md](../../docs/creation-metadata.md).
+- [x] **SPDX license expression normalization and declared-vs-detected
+  conflict detection (G2)** -- compound SPDX license expressions
+  (`"MIT AND MIT"`, `"(MIT AND Apache-2.0) OR BSD-3-Clause"`) are parsed,
+  deduped, and canonically reordered via
+  [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) (not
+  the `license-expression` library originally envisioned here), so a
+  casing difference or an equivalent-but-differently-written expression
+  is never misreported as a conflict. The project directory
+  (`CITATION.cff`, `codemeta.json`, `LICENSE` files) is independently
+  scanned even when a license is already declared, uniformly across all
+  four project-metadata extraction paths (CLI/library, Hatchling build
+  hook, poetry-only, setuptools-only). On genuine disagreement, both
+  `hasDeclaredLicense` and `hasConcludedLicense` are recorded alongside a
+  generic `provenance/conflict/1` Annotation (reusable for any field, not
+  license-specific). See
+  [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+  G2 section. ([PR #121](https://github.com/bact/pitloom/pull/121))
+  Remaining, narrower scope than "PEP 639 compliance" originally implied:
+  `[project.license-files]` (the glob-list field for bundling multiple
+  license files) is not specifically parsed.
 
 ## Adoption surfaces
 
@@ -113,15 +133,23 @@ wired into a build backend. These two extend reach beyond that. See
 
 ### Metadata quality
 
-- [ ] **License expression support** -- PEP 639 compliance, SPDX license
-  expression parsing via `license-expression` library, license relationship
-  modeling.
+- [ ] **`[project.license-files]` support** -- PEP 639's glob-list field
+  for bundling multiple license files (narrower remainder of the old
+  "License expression support" item -- expression parsing/normalization
+  and conflict detection shipped, see Completed above).
 - [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
   extras, development dependencies.
-- [ ] **SBOM enrichment from external sources** -- README / model card parsing
-  (local, no network), OpenSSF Scorecard (public API), Hugging Face Hub and
-  PyPI metadata (user opt-in), per-source enable/disable via
-  `[tool.pitloom.enrich]`.
+- [ ] **SBOM enrichment from external sources** (the `enrich/` subpackage --
+  not started; `find src/pitloom -iname "*enrich*"` currently returns
+  nothing) -- README / model card parsing (local, no network), OpenSSF
+  Scorecard (public API), Hugging Face Hub and PyPI metadata (user
+  opt-in), per-source enable/disable via `[tool.pitloom.enrich]`. Not to
+  be confused with the agent-facing `sbom-enrich` *Skill* above (already
+  shipped) -- this is the code-level enrichers that skill's design
+  anticipates sitting alongside. Also what
+  [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+  N3 ("who/when enriched") is blocked on -- there's nothing yet to attach
+  a per-enrichment-run `CreationInfo` to.
   See [sbom-enrichment.md](sbom-enrichment.md).
 
 ## Medium-term
