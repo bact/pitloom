@@ -797,9 +797,19 @@ URL `https://pitloom.dev/provenance/conflict/1`, envelope:
 }
 ```
 
-Only emitted when candidates actually disagree (normalized); full
-agreement emits no Annotation — both native relationships still get
-built, just pointing at the same license element, and there's nothing
+Only emitted when candidates actually disagree after normalization
+(`_license.py` `normalize_license_expression`, built on the
+[`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) parser —
+a plain `.strip()` comparison alone would false-positive not just on
+casing differences (declared `"mit"` vs. detected `"MIT"`) but on
+equivalent-yet-differently-spelled compound expressions too (`"MIT AND
+MIT"` vs. `"MIT"`; `"MIT OR Apache-2.0"` vs. `"Apache-2.0 OR MIT"`) — so
+both candidate values are parsed, deduplicated, and canonically reordered
+before both the comparison and the license-element lookup/creation. A
+value that fails to parse as a valid SPDX expression at all falls back to
+`canonicalize_license_id`'s bare-id casing lookup, then to the raw string
+unchanged. Full agreement emits no Annotation — both native relationships
+still get built, just pointing at the same license element, and there's nothing
 extrinsic left to assert.
 
 **`role` vocabulary** — an epistemic-process label (*whose* determination
@@ -810,14 +820,23 @@ method category):
 
 - `declared` — the subject's own stated claim, however observed (read
   locally, or relayed unedited by a third party).
-- `detected` — Pitloom's own deterministic algorithm's determination,
-  whatever the input's origin (locality of the *input* never matters;
-  locality of the *determination* does — Pitloom fetching a remote file
-  and running its own `licenseid` match on it is still `detected`). Not
-  named "extracted": `extract/` is already Pitloom's own name for the
-  whole read-a-value pipeline stage, and `declared` is also extracted in
-  that sense — "extracted" would have collided with `declared` instead
-  of contrasting with it.
+- `detected` — Pitloom's own independent-verification *procedure*'s
+  determination, whatever the input's origin (locality of the *input*
+  never matters; locality of the *determination* does — Pitloom fetching a
+  remote file and running its own `licenseid` match on it is still
+  `detected`). "Procedure," not "algorithm ran": the license implementation
+  (`detect_independent_license`) is a multi-step search — `CITATION.cff`,
+  then `codemeta.json`, then license files, applying `licenseid` text
+  matching only where a value isn't already a bare SPDX id — and a step
+  that resolves via a direct bare-id read still counts as `detected`,
+  because it was Pitloom's own independently-consulted secondary source,
+  not a re-read of the subject's primary declared field. What decides the
+  role is *whose search procedure* produced the value, not whether every
+  individual step needed fuzzy text matching. Not named "extracted":
+  `extract/` is already Pitloom's own name for the whole read-a-value
+  pipeline stage, and `declared` is also extracted in that sense —
+  "extracted" would have collided with `declared` instead of contrasting
+  with it.
 - `externalReported` — some *other* party's own determination or opinion,
   relayed without Pitloom re-deriving it, and not the subject's own claim
   either (a paper's interpretation, an unrelated org's assessment, or
@@ -892,8 +911,41 @@ with; now the independent scan always runs alongside it.
 `concluded_license_provenance` params (`None` default — the three other
 call sites, dependency and AI-model licenses, are unaffected, since
 neither has a local second source to detect from today): when given, both
+candidates are run through `normalize_license_expression` before both the
+comparison and the license-element lookup/creation, then both
 `hasDeclaredLicense` and `hasConcludedLicense` are always built, and a G2
 conflict Annotation is added on disagreement.
+
+`normalize_license_expression` (also in `_license.py`) is the new,
+stronger canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
+is normalized first — but only when the operator stands alone as its own
+whitespace/paren-delimited token, never when it's hyphen-glued into an
+identifier (`GPL-2.0-or-later`, a custom `LicenseRef-my-or-license`) —
+then the result is parsed and canonically sorted via `py-spdx-license`
+(a new base dependency). This both canonicalizes bare-id casing (same as
+`canonicalize_license_id`, which it falls back to on a parse failure) and
+dedupes/reorders compound expressions, which `canonicalize_license_id`
+alone never handled.
+
+**Real-world validation.** This is not a hypothetical gap:
+[Trivy discussion #10139](https://github.com/aquasecurity/trivy/discussions/10139)
+reports scanning the same package and getting the same license expression
+back with and without a redundant outer paren
+(`GPL-3.0-or-later WITH GCC-exception-3.1` vs.
+`(GPL-3.0-or-later WITH GCC-exception-3.1)`), breaking policy rules that
+compare against one fixed string. Checked `normalize_license_expression`
+against all four of that report's example pairs — every pair normalizes
+to an identical string. Separately verified the harder case, where a
+paren is *not* redundant: for mixed `AND`/`OR` expressions,
+`MIT AND Apache-2.0 OR BSD-3-Clause` (no parens, relies on `AND` binding
+tighter than `OR` per the SPDX spec) and
+`(MIT AND Apache-2.0) OR BSD-3-Clause` (explicit parens matching that
+same default precedence) both normalize to `Apache-2.0 AND MIT OR
+BSD-3-Clause`, while `MIT AND (Apache-2.0 OR BSD-3-Clause)` (parens
+*overriding* default precedence, semantically different) correctly stays
+distinct and keeps its now-necessary paren. So the normalization strips
+parens exactly when they're redundant and keeps them exactly when they're
+load-bearing — not a blanket strip-all-parens heuristic.
 
 **Future candidate sources (not built — `enrich/`-territory network or
 agent work, cross-referenced to

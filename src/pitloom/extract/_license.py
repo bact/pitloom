@@ -24,6 +24,8 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
+from py_spdx_license import ParseError as SpdxExpressionParseError
+from py_spdx_license import parse as parse_spdx_expression
 
 _logger = logging.getLogger(__name__)
 
@@ -31,6 +33,22 @@ try:
     _LICENSEID_VERSION: str | None = _pkg_version("licenseid")
 except PackageNotFoundError:
     _LICENSEID_VERSION = None
+
+try:
+    _PY_SPDX_LICENSE_VERSION: str | None = _pkg_version("py-spdx-license")
+except PackageNotFoundError:
+    _PY_SPDX_LICENSE_VERSION = None
+
+#: Matches AND/OR/WITH/NOT only when they stand alone as their own token
+#: (whitespace/paren-delimited on both sides) -- exactly what SPDX expression
+#: syntax requires of a real operator. Deliberately *not* a plain ``\b`` word
+#: boundary: ``\b`` also fires at hyphens, which would mangle a hyphen-glued
+#: identifier that merely contains "and"/"or"/"with" as a substring (a real
+#: SPDX id like ``GPL-2.0-or-later``, or a custom ``LicenseRef-my-or-license``)
+#: into wrongly-cased ``-OR-``.
+_SPDX_OPERATOR_CASING_RE = re.compile(
+    r"(?<![\w-])(and|or|with|not)(?![\w-])", re.IGNORECASE
+)
 
 # Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
 _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
@@ -116,6 +134,44 @@ def canonicalize_license_id(raw: str) -> str:
     except Exception as exc:  # pylint: disable=broad-exception-caught
         _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)
     return raw
+
+
+def normalize_license_expression(raw: str) -> str:
+    """Return *raw* normalized to a canonical SPDX license expression, or
+    *raw* unchanged when it can't be parsed as one.
+
+    Handles what :func:`canonicalize_license_id` cannot: a *compound*
+    expression (``"MIT AND MIT"``, ``"Apache-2.0 OR MIT"``) is deduplicated
+    and canonically reordered via ``py_spdx_license`` -- so two candidates
+    that are semantically the same license, just spelled differently, are
+    recognized as equal rather than misreported as a G2 conflict
+    (``"MIT AND MIT"`` and ``"MIT OR Apache-2.0"``/``"Apache-2.0 OR MIT"``
+    both normalize to the same string regardless of input ordering). A bare
+    id is also canonicalized to its recognized SPDX casing as a side effect
+    of parsing (``"mit"`` -> ``"MIT"``), same as :func:`canonicalize_license_id`.
+
+    Before parsing, ``AND``/``OR``/``WITH``/``NOT`` are case-normalized to
+    uppercase when they appear as their own whitespace/paren-delimited token
+    (SPDX expression syntax is operator-case-strict; a lowercase ``"mit and
+    mit"`` would otherwise fail to parse at all) -- but *only* when
+    isolated like that, so a hyphen-glued identifier that merely contains
+    "and"/"or"/"with" as a substring (``"GPL-2.0-or-later"``, a custom
+    ``"LicenseRef-my-or-license"``) is never touched.
+
+    Falls back to :func:`canonicalize_license_id` when the (operator-cased)
+    string can't be parsed as a valid SPDX expression at all -- e.g. genuinely
+    malformed syntax (unbalanced parens, a missing operand) -- so a simple
+    bare id still gets at least casing normalization even in that case.
+    """
+    operator_cased = _SPDX_OPERATOR_CASING_RE.sub(
+        lambda m: m.group(1).upper(), raw.strip()
+    )
+    try:
+        node = parse_spdx_expression(operator_cased, allow_unknown=True)
+        return str(node.sort().to_string())
+    except SpdxExpressionParseError as exc:
+        _logger.debug("Failed to parse SPDX expression %r: %s", raw, exc)
+    return canonicalize_license_id(raw)
 
 
 def find_license_files(project_dir: Path) -> list[Path]:

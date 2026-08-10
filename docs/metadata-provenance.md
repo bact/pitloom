@@ -103,10 +103,18 @@ every field's source regardless.
 
 For the project's own declared license (`project.license` in
 `pyproject.toml`), Pitloom also independently checks the project
-directory for a `LICENSE`/`LICENSE.*` file (or `CITATION.cff`/
-`codemeta.json`), matched against known SPDX licenses via `licenseid`
-(`method: licenseid_detection`) -- a second opinion, checked regardless
-of whether a declared value was already found.
+directory for a second opinion -- `CITATION.cff`, then `codemeta.json`,
+then a `LICENSE`/`LICENSE.*` file -- checked regardless of whether a
+declared value was already found. A `CITATION.cff`/`codemeta.json` value
+that's already a bare SPDX id is used as-is; anything else (typically a
+`LICENSE` file's full text) is matched against known SPDX licenses via
+`licenseid` (`method: licenseid_detection`). Either way counts as
+Pitloom's own independent-detection procedure. Both sides are normalized
+before comparison -- not just casing (a declared `"mit"` and a detected
+`"MIT"` are recognized as the same license), but also equivalent compound
+expressions written differently (`"MIT AND MIT"` and plain `"MIT"`;
+`"MIT OR Apache-2.0"` and `"Apache-2.0 OR MIT"` all normalize to the same
+value) -- so none of these are misreported as a conflict.
 
 - If only one of the two exists, only that one is recorded, as
   `hasDeclaredLicense` or `hasConcludedLicense` respectively.
@@ -131,8 +139,9 @@ of whether a declared value was already found.
   ```
 
   `role` says *whose* determination each candidate is: `declared` is the
-  project's own stated claim; `detected` is Pitloom's own algorithmic
-  match. (Two further roles, `externalReported` and `inferred`, are
+  project's own stated claim; `detected` is Pitloom's own independent
+  directory-search procedure's result. (Two further roles,
+  `externalReported` and `inferred`, are
   reserved for future candidate sources -- a linked GitHub/Hugging Face
   Hub API, or an AI agent's inference -- not built yet.)
 

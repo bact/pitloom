@@ -632,7 +632,9 @@ def test_build_conflict_annotation_shape_and_determinism() -> None:
         {
             "value": "Apache-2.0",
             "role": "detected",
-            "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0",
+            "source": (
+                "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0"
+            ),
             "ref": "urn:doc#License-2",
         },
     ]
@@ -681,6 +683,7 @@ def test_build_conflict_annotation_generic_field_not_license_specific() -> None:
         creation_info=ci,
         annotation_spdx_id="urn:doc#Annotation-conflict-2",
     )
+    assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["field"] == "version"
     # "ref" is optional per candidate -- absent here, not required.

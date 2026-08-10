@@ -46,6 +46,7 @@ class PhantomDependency:
 
 
 @dataclass
+# pylint: disable-next=too-many-instance-attributes
 class ProjectMetadata:
     """Format-neutral representation of project metadata with provenance tracking.
 

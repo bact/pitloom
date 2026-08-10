@@ -1786,6 +1786,56 @@ license = "MIT"
         assert len(concluded) == 1
         assert declared[0]["to"][0] == concluded[0]["to"][0]
 
+
+def test_generate_project_sbom_license_case_only_difference_not_a_conflict() -> None:
+    """Regression: a declared `license = "mit"` (valid but non-canonically
+    cased -- kept verbatim since Pitloom never rewrites a bare SPDX id) and
+    an independently-detected canonical "MIT" from the LICENSE file must be
+    recognized as the *same* license, not flagged as G2 conflict. Before the
+    canonicalization fix, this produced a spurious conflict Annotation and
+    two separate license elements for what is one license."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "mit"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        declared, concluded = _license_relationships(graph, main_package["spdxId"])
+        assert len(declared) == 1
+        assert len(concluded) == 1
+        assert declared[0]["to"][0] == concluded[0]["to"][0]
+
+        license_elems = [
+            e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
+        ]
+        assert len(license_elems) == 1
+        assert license_elems[0]["simplelicensing_licenseText"] == "MIT"
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert conflict_anns == []
+
         annotations = [e for e in graph if e.get("type") == "Annotation"]
         conflict_anns = [
             a
