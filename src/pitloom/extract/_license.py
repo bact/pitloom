@@ -174,6 +174,26 @@ def normalize_license_expression(raw: str) -> str:
     return canonicalize_license_id(raw)
 
 
+def tag_license_normalization(provenance: str, raw: str, normalized: str) -> str:
+    """Append a note to *provenance* when :func:`normalize_license_expression`
+    actually changed *raw* to *normalized* (e.g. ``"mit"`` -> ``"MIT"``,
+    ``"MIT AND MIT"`` -> ``"MIT"``), recording the ``py-spdx-license``
+    version that did it.
+
+    A no-op (returns *provenance* unchanged) when *raw* and *normalized*
+    already match -- nothing to flag. Mirrors :func:`_with_tool_tag`'s
+    pattern for ``licenseid``, so a G2 candidate whose declared-side value
+    was rewritten before comparison stays auditable against the exact
+    normalizer version that rewrote it, not just "some normalization ran".
+    """
+    if raw.strip() == normalized:
+        return provenance
+    note = f"{provenance} | Normalized-From: {raw.strip()}"
+    if _PY_SPDX_LICENSE_VERSION is None:
+        return note
+    return f"{note} | Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"
+
+
 def find_license_files(project_dir: Path) -> list[Path]:
     """Return existing license files in *project_dir* in priority order.
 
@@ -331,6 +351,39 @@ def detect_independent_license(project_dir: Path) -> tuple[str | None, str | Non
         if detected:
             return detected, _with_tool_tag(f"{source} | Method: licenseid_detection")
     return None, None
+
+
+def resolve_license_concluded(
+    has_declared_license: bool, project_dir: Path
+) -> tuple[str | None, str | None]:
+    """Return ``(concluded_id, concluded_provenance)`` -- G2's independent
+    second opinion -- or ``(None, None)`` when there's no declared value to
+    compare it against.
+
+    **Every extractor that resolves a project's own declared license must
+    call this alongside its own declared-value resolution.** This is the
+    single, canonical G2 entry point precisely so a *new* extraction path
+    can't silently omit conflict detection the way the Hatchling build-hook
+    path (:func:`~pitloom.extract.hatchling.metadata_from_hatchling`)
+    originally did -- it called :func:`detect_license_for_project` directly
+    and never ran the independent directory scan at all, so G2 only ever
+    fired via the CLI's :func:`~pitloom.extract.pyproject.read_pyproject`.
+    If you're adding a new project-metadata extractor, call this too; see
+    ``tests/test_hatch_hook.py``'s
+    ``test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict``
+    for the cross-path regression test this class of gap needs.
+
+    Args:
+        has_declared_license: Whether the caller's own metadata source
+            already resolved *some* declared value (however obtained --
+            a bare id, a license file reference, license text). When
+            ``False``, there's nothing to compare a second opinion against,
+            so no scan is performed.
+        project_dir: Project root directory to independently scan.
+    """
+    if not has_declared_license:
+        return None, None
+    return detect_independent_license(project_dir)
 
 
 def detect_license_for_project(

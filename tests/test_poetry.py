@@ -7,6 +7,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -204,7 +205,8 @@ def test_extract_basic_fields() -> None:
             }
         }
     }
-    metadata = extract_poetry_metadata(data)
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
     assert metadata.name == "my-pkg"
     assert metadata.version == "1.2.3"
     assert metadata.description == "A test package"
@@ -229,7 +231,8 @@ def test_extract_dependencies() -> None:
             }
         }
     }
-    metadata = extract_poetry_metadata(data)
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
     assert metadata.requires_python == ">=3.10,<4.0.0"
     assert any("requests" in d for d in metadata.dependencies)
     assert any("numpy" in d for d in metadata.dependencies)
@@ -238,7 +241,8 @@ def test_extract_dependencies() -> None:
 
 def test_extract_readme_string() -> None:
     data = {"tool": {"poetry": {"name": "pkg", "readme": "README.md"}}}
-    metadata = extract_poetry_metadata(data)
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
     assert metadata.readme == "README.md"
 
 
@@ -246,19 +250,20 @@ def test_extract_readme_list() -> None:
     data = {
         "tool": {"poetry": {"name": "pkg", "readme": ["README.md", "CHANGELOG.md"]}}
     }
-    metadata = extract_poetry_metadata(data)
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
     assert metadata.readme == "README.md"
 
 
 def test_extract_missing_section_raises() -> None:
     with pytest.raises(ValueError, match=r"\[tool\.poetry\]"):
-        extract_poetry_metadata({})
+        extract_poetry_metadata({}, Path("."))
 
 
 def test_extract_missing_name_raises() -> None:
     data = {"tool": {"poetry": {"version": "1.0"}}}
     with pytest.raises(ValueError, match="name is required"):
-        extract_poetry_metadata(data)
+        extract_poetry_metadata(data, Path("."))
 
 
 def test_extract_provenance_sources() -> None:
@@ -272,7 +277,8 @@ def test_extract_provenance_sources() -> None:
             }
         }
     }
-    metadata = extract_poetry_metadata(data)
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
     assert "tool.poetry.name" in metadata.provenance.get("name", "")
     assert "tool.poetry.version" in metadata.provenance.get("version", "")
     assert "tool.poetry.description" in metadata.provenance.get("description", "")
@@ -514,3 +520,92 @@ def test_fixture_read_pyproject_falls_back_to_poetry() -> None:
     metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.name == "mistral_inference"
     assert metadata.version == "1.6.0"
+
+
+# ---------------------------------------------------------------------------
+# G2: license fallback detection / conflict (poetry-only path)
+#
+# Regression coverage for the poetry-only extraction path, which previously
+# had zero license detection capability beyond reading the declared
+# [tool.poetry] license field verbatim -- no fallback directory detection,
+# no independent second-opinion scan. See resolve_license_concluded()'s
+# docstring in _license.py for why every extractor must call it.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_poetry_metadata_license_fallback_detection() -> None:
+    """No [tool.poetry] license declared: falls back to directory
+    detection, same baseline every other extractor has."""
+    data = {"tool": {"poetry": {"name": "pkg", "version": "1.0.0"}}}
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+        metadata = extract_poetry_metadata(data, tmp_path)
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded is None
+    assert "LICENSE" in (metadata.provenance.get("license") or "")
+
+
+def test_extract_poetry_metadata_license_conflict() -> None:
+    """Declared MIT + independently-detected Apache-2.0: G2 populates
+    license_concluded with the detected value (and its own provenance),
+    distinct from the declared license_name."""
+    data = {"tool": {"poetry": {"name": "pkg", "version": "1.0.0", "license": "MIT"}}}
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            metadata = extract_poetry_metadata(data, tmp_path)
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded == "Apache-2.0"
+    assert "LICENSE" in (metadata.provenance.get("license_concluded") or "")
+
+
+def test_read_poetry_matches_read_pyproject_fallback_for_license_conflict() -> None:
+    """``read_poetry()`` (direct poetry-only entry point) and
+    ``read_pyproject()``'s own fallback-to-``[tool.poetry]`` branch (no
+    ``[project]`` section) must agree on G2 for the same project --
+    cross-path regression guard for the same "different extractor path,
+    same bug class" gap ``resolve_license_concluded()``'s docstring warns
+    about, applied to the poetry paths rather than Hatchling."""
+    content = """
+[tool.poetry]
+name = "poetry-pkg"
+version = "1.0.0"
+license = "MIT"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(content)
+        (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            direct_meta, _ = read_poetry(tmp_path / "pyproject.toml")
+            fallback_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
+
+    assert direct_meta.license_name == "MIT"
+    assert fallback_meta.license_name == "MIT"
+    assert direct_meta.license_concluded == "Apache-2.0"
+    assert fallback_meta.license_concluded == direct_meta.license_concluded
+
+
+def test_extract_poetry_metadata_license_agrees() -> None:
+    """Declared and independently-detected license agree: license_concluded
+    is still populated (equal to the declared value) -- G2 records both
+    sides regardless of agreement, only the Annotation is conflict-gated."""
+    data = {"tool": {"poetry": {"name": "pkg", "version": "1.0.0", "license": "MIT"}}}
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            metadata = extract_poetry_metadata(data, tmp_path)
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded == "MIT"

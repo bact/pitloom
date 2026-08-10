@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom.extract._license import (
+    _PY_SPDX_LICENSE_VERSION,
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
     _read_license_from_citation_cff,
@@ -24,6 +25,7 @@ from pitloom.extract._license import (
     detect_license_from_text,
     find_license_files,
     normalize_license_expression,
+    tag_license_normalization,
 )
 
 # ---------------------------------------------------------------------------
@@ -649,3 +651,46 @@ def test_normalize_license_expression_keeps_precedence_significant_parens() -> N
     # Parens overriding default precedence are a different expression --
     # must not collapse to the same normalized string as the other two.
     assert significant_parens != no_parens
+
+
+# ---------------------------------------------------------------------------
+# tag_license_normalization
+# ---------------------------------------------------------------------------
+
+
+def test_tag_license_normalization_noop_when_unchanged() -> None:
+    """No normalization happened (raw already canonical): provenance is
+    returned unchanged, nothing to flag."""
+    prov = "Source: pyproject.toml | Field: project.license"
+    assert tag_license_normalization(prov, "MIT", "MIT") == prov
+
+
+def test_tag_license_normalization_flags_casing_change() -> None:
+    """A casing-only rewrite ("mit" -> "MIT") is flagged with the raw value
+    and, when the library is installed, the py-spdx-license version that
+    did the rewrite -- wiring the previously-dead _PY_SPDX_LICENSE_VERSION
+    into actual output."""
+    prov = "Source: pyproject.toml | Field: project.license"
+    tagged = tag_license_normalization(prov, "mit", "MIT")
+    assert tagged.startswith(prov)
+    assert "Normalized-From: mit" in tagged
+    if _PY_SPDX_LICENSE_VERSION is not None:
+        assert f"Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}" in tagged
+
+
+def test_tag_license_normalization_flags_compound_dedup() -> None:
+    """A compound-expression dedup ("MIT AND MIT" -> "MIT") is flagged the
+    same way as a bare casing change -- any value rewrite counts."""
+    prov = "Source: LICENSE | Method: licenseid_detection"
+    tagged = tag_license_normalization(prov, "MIT AND MIT", "MIT")
+    assert "Normalized-From: MIT AND MIT" in tagged
+
+
+def test_tag_license_normalization_strips_raw_whitespace() -> None:
+    """*raw* is compared and recorded stripped, matching how callers pass
+    already-``.strip()``-able values (e.g. ``license_id.strip()`` at the
+    deps.py call site)."""
+    prov = "Source: pyproject.toml | Field: project.license"
+    assert tag_license_normalization(prov, "MIT", "MIT") == prov
+    tagged = tag_license_normalization(prov, "  mit  ", "MIT")
+    assert "Normalized-From: mit" in tagged

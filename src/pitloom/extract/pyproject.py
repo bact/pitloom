@@ -20,12 +20,12 @@ from pyproject_metadata import StandardMetadata
 
 from pitloom.core.config import PitloomConfig, _read_pitloom_config
 from pitloom.core.models import normalize_dependency_specifier
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
-    detect_independent_license,
     detect_license_for_project,
+    resolve_license_concluded,
 )
 from pitloom.extract.poetry import extract_poetry_metadata
 
@@ -73,7 +73,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
 
     if not project_data or not name:
         # No [project] section (or no name) -- try [tool.poetry] as primary source.
-        poetry_meta = _try_read_poetry(data)
+        poetry_meta = _try_read_poetry(data, pyproject_path.parent)
         if poetry_meta is not None:
             return poetry_meta, pitloom_config
         license_name, license_prov = detect_license_for_project(pyproject_path.parent)
@@ -117,17 +117,15 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
 
     license_name, license_prov = _extract_and_detect_license(std, pyproject_path.parent)
 
-    # G2: when project.license declares a value, independently scan the
-    # project directory (ignoring that declared value) for a second opinion
-    # to compare it against -- without this, a declared value that already
-    # looks like a valid SPDX id short-circuits before the LICENSE file is
-    # ever read, so there would be nothing to disagree with.
-    license_concluded: str | None = None
-    license_concluded_prov: str | None = None
-    if std.license:
-        license_concluded, license_concluded_prov = detect_independent_license(
-            pyproject_path.parent
-        )
+    # G2: independently scan the project directory for a second opinion to
+    # compare the declared value against, via the shared resolver every
+    # project-metadata extractor must call (see its docstring) -- without
+    # this, a declared value that already looks like a valid SPDX id would
+    # short-circuit before the LICENSE file is ever read, so there would be
+    # nothing to disagree with.
+    license_concluded, license_concluded_prov = resolve_license_concluded(
+        bool(std.license), pyproject_path.parent
+    )
 
     provenance = _build_provenance(
         data.get("project", {}), version_source, license_prov
@@ -151,9 +149,9 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     )
 
     # Fill any remaining gaps from [tool.poetry] (project fields win).
-    poetry_meta = _try_read_poetry(data)
+    poetry_meta = _try_read_poetry(data, pyproject_path.parent)
     if poetry_meta is not None:
-        metadata = _merge_with_poetry(metadata, poetry_meta)
+        metadata = merge_project_metadata(metadata, poetry_meta)
 
     return metadata, pitloom_config
 
@@ -381,45 +379,12 @@ def _read_version_from_file(file_path: Path) -> str | None:
 
 def _try_read_poetry(
     data: dict[str, Any],
+    project_dir: Path,
 ) -> ProjectMetadata | None:
     """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``."""
     if not data.get("tool", {}).get("poetry"):
         return None
     try:
-        return extract_poetry_metadata(data)
+        return extract_poetry_metadata(data, project_dir)
     except (ValueError, KeyError):
         return None
-
-
-def _merge_with_poetry(
-    primary: ProjectMetadata,
-    secondary: ProjectMetadata,
-) -> ProjectMetadata:
-    """Return *primary* with empty/falsy fields filled from *secondary*.
-
-    ``primary`` is always the ``[project]`` metadata; ``secondary`` is the
-    ``[tool.poetry]`` metadata.  Provenance entries are merged with primary
-    entries winning on key conflicts.
-    """
-
-    def _pick(p: Any, s: Any) -> Any:
-        return p if p else s
-
-    return ProjectMetadata(
-        name=primary.name,
-        version=_pick(primary.version, secondary.version),
-        description=_pick(primary.description, secondary.description),
-        readme=_pick(primary.readme, secondary.readme),
-        requires_python=_pick(primary.requires_python, secondary.requires_python),
-        license_name=_pick(primary.license_name, secondary.license_name),
-        # license_concluded is independent-directory detection, computed only
-        # for [project]-section metadata (primary) -- [tool.poetry] never
-        # sets it, so just carry primary's value through unchanged.
-        license_concluded=primary.license_concluded,
-        keywords=_pick(primary.keywords, secondary.keywords),
-        authors=_pick(primary.authors, secondary.authors),
-        urls=_pick(primary.urls, secondary.urls),
-        dependencies=_pick(primary.dependencies, secondary.dependencies),
-        provenance={**secondary.provenance, **primary.provenance},
-        files=_pick(primary.files, secondary.files),
-    )

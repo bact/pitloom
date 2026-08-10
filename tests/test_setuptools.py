@@ -8,14 +8,13 @@
 import logging
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from pitloom.core.creation import Creator
-from pitloom.core.project import ProjectMetadata
 from pitloom.extract.setuptools import (
     detect_build_backend,
-    merge_metadata,
     read_setup_cfg,
     read_setup_py,
     read_setuptools,
@@ -621,87 +620,85 @@ def test_read_setuptools_no_name_falls_through_to_setup_py() -> None:
 
 
 # ---------------------------------------------------------------------------
-# merge_metadata
+# G2: license fallback detection / conflict (setuptools-only path)
+#
+# Regression coverage for the setuptools-only extraction path, which
+# previously only ever read the declared license verbatim -- no fallback
+# directory detection, no independent second-opinion scan. See
+# resolve_license_concluded()'s docstring in _license.py for why every
+# extractor must call it, and _resolve_setuptools_license() for why this
+# runs once at the read_setuptools() dispatcher level rather than per-file.
 # ---------------------------------------------------------------------------
 
 
-def test_merge_metadata_primary_wins() -> None:
-    """Primary field values are never overwritten by secondary."""
-    primary = ProjectMetadata(
-        name="primary-pkg",
-        version="2.0",
-        description="Primary description",
+def test_read_setuptools_license_fallback_detection_cfg_only() -> None:
+    """No license declared in setup.cfg: falls back to directory detection,
+    same baseline every other extractor has."""
+    cfg = "[metadata]\nname = pkg\nversion = 1.0\n"
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "setup.cfg").write_text(cfg)
+        (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+        metadata, _ = read_setuptools(tmp_path)
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded is None
+
+
+def test_read_setuptools_license_conflict_cfg_only() -> None:
+    """Declared MIT in setup.cfg + independently-detected Apache-2.0:
+    license_concluded is populated with the detected value."""
+    cfg = "[metadata]\nname = pkg\nversion = 1.0\nlicense = MIT\n"
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "setup.cfg").write_text(cfg)
+        (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            metadata, _ = read_setuptools(tmp_path)
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded == "Apache-2.0"
+    assert "LICENSE" in (metadata.provenance.get("license_concluded") or "")
+
+
+def test_read_setuptools_license_conflict_py_only() -> None:
+    """Same conflict scenario, declared via setup.py alone (no setup.cfg)."""
+    py = (
+        "from setuptools import setup\n"
+        "setup(name='pkg', version='1.0', license='MIT')\n"
     )
-    secondary = ProjectMetadata(
-        name="secondary-pkg",
-        version="1.0",
-        description="Secondary description",
-        license_name="MIT",
-    )
-    merged = merge_metadata(primary, secondary)
-
-    assert merged.name == "primary-pkg"
-    assert merged.version == "2.0"
-    assert merged.description == "Primary description"
-    # Gap filled from secondary
-    assert merged.license_name == "MIT"
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "setup.py").write_text(py)
+        (tmp_path / "LICENSE").write_text("Apache License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            metadata, _ = read_setuptools(tmp_path)
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded == "Apache-2.0"
 
 
-def test_merge_metadata_secondary_fills_gaps() -> None:
-    """Secondary fills all None or empty fields left by primary."""
-    primary = ProjectMetadata(name="pkg", version="1.0")
-    secondary = ProjectMetadata(
-        name="secondary",
-        version="0.1",
-        description="From secondary",
-        requires_python=">=3.9",
-        keywords=["x", "y"],
-        authors=[{"name": "Author"}],
-        dependencies=["dep>=1.0"],
-        urls={"Homepage": "https://example.com"},
-    )
-    merged = merge_metadata(primary, secondary)
-
-    assert merged.name == "pkg"
-    assert merged.version == "1.0"
-    assert merged.description == "From secondary"
-    assert merged.requires_python == ">=3.9"
-    assert merged.keywords == ["x", "y"]
-    assert merged.authors == [{"name": "Author"}]
-    assert "dep>=1.0" in merged.dependencies
-    assert merged.urls == {"Homepage": "https://example.com"}
-
-
-def test_merge_metadata_provenance_merged() -> None:
-    """Provenance dicts are merged with primary entries winning on conflict."""
-    primary = ProjectMetadata(
-        name="pkg",
-        version="1.0",
-        provenance={
-            "name": "Source: pyproject.toml",
-            "version": "Source: pyproject.toml",
-        },
-    )
-    secondary = ProjectMetadata(
-        name="pkg2",
-        version="0.1",
-        description="desc",
-        provenance={"name": "Source: setup.cfg", "description": "Source: setup.cfg"},
-    )
-    merged = merge_metadata(primary, secondary)
-
-    # Primary wins on conflict
-    assert merged.provenance["name"] == "Source: pyproject.toml"
-    # Secondary fills missing keys
-    assert merged.provenance["description"] == "Source: setup.cfg"
-
-
-def test_merge_metadata_empty_lists_filled_from_secondary() -> None:
-    """Empty lists in primary are treated as gaps and filled from secondary."""
-    primary = ProjectMetadata(name="pkg", version="1.0", keywords=[])
-    secondary = ProjectMetadata(name="s", version="0", keywords=["a", "b"])
-    merged = merge_metadata(primary, secondary)
-    assert merged.keywords == ["a", "b"]
+def test_read_setuptools_license_resolution_runs_once_when_both_files_present() -> None:
+    """When both setup.cfg and setup.py exist, license resolution (fallback
+    detection / G2) runs once at the read_setuptools() dispatcher level, not
+    once per file -- avoids a redundant duplicate directory scan."""
+    cfg = "[metadata]\nname = cfg-pkg\nversion = 1.0\nlicense = MIT\n"
+    py = "from setuptools import setup\nsetup(name='py-pkg', version='2.0')\n"
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "setup.cfg").write_text(cfg)
+        (tmp_path / "setup.py").write_text(py)
+        (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ) as mock_detect:
+            metadata, _ = read_setuptools(tmp_path)
+    assert metadata.license_concluded == "MIT"
+    assert mock_detect.call_count == 1
 
 
 # ---------------------------------------------------------------------------

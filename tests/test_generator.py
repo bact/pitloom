@@ -1755,6 +1755,54 @@ license = "MIT"
         assert roles == {"declared", "detected"}
 
 
+def test_generate_project_sbom_license_conflict_flags_declared_normalization() -> None:
+    """Declared "mit" (valid but non-canonically cased) + a genuinely
+    conflicting detected Apache-2.0: the conflict Annotation's declared
+    candidate ``source`` is flagged with the raw value normalize_license_
+    expression() rewrote it from, plus the py-spdx-license version that did
+    it -- wiring the previously-dead _PY_SPDX_LICENSE_VERSION into actual
+    output (not just the case-only-agreement path, which never reaches the
+    conflict branch at all)."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "mit"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == main_package["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert len(conflict_anns) == 1
+        statement = json.loads(conflict_anns[0]["statement"])
+        declared_candidate = next(
+            c for c in statement["candidates"] if c["role"] == "declared"
+        )
+        assert declared_candidate["value"] == "MIT"
+        assert "Normalized-From: mit" in declared_candidate["source"]
+        assert "Normalizer: py-spdx-license==" in declared_candidate["source"]
+
+
 def test_generate_project_sbom_license_agrees_no_conflict_annotation() -> None:
     """Declared and independently-detected license agree: both relationships
     still emitted, pointing at the *same* element, but no conflict Annotation."""

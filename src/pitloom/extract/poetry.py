@@ -64,6 +64,10 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig, _read_pitloom_config
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._license import (
+    detect_license_for_project,
+    resolve_license_concluded,
+)
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -94,13 +98,14 @@ def read_poetry(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     with open(pyproject_path, "rb") as f:
         data: dict[str, Any] = tomllib.load(f)
 
-    metadata = extract_poetry_metadata(data)
+    metadata = extract_poetry_metadata(data, pyproject_path.parent)
     pitloom_config = _read_pitloom_config(data)
     return metadata, pitloom_config
 
 
 def extract_poetry_metadata(
     data: dict[str, Any],
+    project_dir: Path,
 ) -> ProjectMetadata:
     """Extract :class:`~pitloom.core.project.ProjectMetadata` from pre-loaded data.
 
@@ -111,6 +116,11 @@ def extract_poetry_metadata(
 
     Args:
         data: Full parsed ``pyproject.toml`` dict.
+        project_dir: Project root directory -- used for the same license
+            fallback-detection and G2 independent-scan every other project
+            extractor performs; see
+            :func:`~pitloom.extract._license.resolve_license_concluded`'s
+            docstring for why every extractor must call it.
 
     Returns:
         A populated :class:`~pitloom.core.project.ProjectMetadata`.
@@ -129,33 +139,19 @@ def extract_poetry_metadata(
     version = (poetry.get("version") or "").strip() or None
     description = (poetry.get("description") or "").strip() or None
 
-    readme_raw = poetry.get("readme")
-    if isinstance(readme_raw, list):
-        readme: str | None = readme_raw[0].strip() if readme_raw else None
-    elif isinstance(readme_raw, str):
-        readme = readme_raw.strip() or None
-    else:
-        readme = None
+    readme = _parse_poetry_readme(poetry.get("readme"))
 
-    license_name = (poetry.get("license") or "").strip() or None
+    license_name, license_concluded, license_prov = _resolve_poetry_license(
+        poetry, project_dir
+    )
 
     raw_keywords = poetry.get("keywords", [])
     keywords: list[str] = raw_keywords if isinstance(raw_keywords, list) else []
 
     authors = _parse_poetry_authors(poetry.get("authors", []))
+    urls = _parse_poetry_urls(poetry)
 
-    urls: dict[str, str] = {}
-    for toml_key, label in (
-        ("homepage", "Homepage"),
-        ("repository", "Repository"),
-        ("documentation", "Documentation"),
-    ):
-        val = poetry.get(toml_key)
-        if isinstance(val, str) and val.strip():
-            urls[label] = val.strip()
-
-    deps_raw: dict[str, Any] = poetry.get("dependencies", {})
-    dependencies, requires_python = _parse_poetry_deps(deps_raw)
+    dependencies, requires_python = _parse_poetry_deps(poetry.get("dependencies", {}))
 
     prov: dict[str, str] = {
         "name": "Source: pyproject.toml | Field: tool.poetry.name",
@@ -166,8 +162,7 @@ def extract_poetry_metadata(
         prov["description"] = "Source: pyproject.toml | Field: tool.poetry.description"
     if readme:
         prov["readme"] = "Source: pyproject.toml | Field: tool.poetry.readme"
-    if license_name:
-        prov["license"] = "Source: pyproject.toml | Field: tool.poetry.license"
+    prov.update(license_prov)
     if authors:
         prov["authors"] = "Source: pyproject.toml | Field: tool.poetry.authors"
         prov["copyright_text"] = (
@@ -196,6 +191,7 @@ def extract_poetry_metadata(
         readme=readme,
         requires_python=requires_python,
         license_name=license_name,
+        license_concluded=license_concluded,
         keywords=keywords,
         authors=authors,
         urls=urls,
@@ -207,6 +203,65 @@ def extract_poetry_metadata(
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+
+def _parse_poetry_readme(readme_raw: Any) -> str | None:
+    """Normalize ``[tool.poetry].readme``, which may be a bare string or a
+    list of strings (multiple readme files -- only the first is used)."""
+    if isinstance(readme_raw, list):
+        return readme_raw[0].strip() if readme_raw else None
+    if isinstance(readme_raw, str):
+        return readme_raw.strip() or None
+    return None
+
+
+def _parse_poetry_urls(poetry: dict[str, Any]) -> dict[str, str]:
+    """Collect ``homepage``/``repository``/``documentation`` into a URL dict."""
+    urls: dict[str, str] = {}
+    for toml_key, label in (
+        ("homepage", "Homepage"),
+        ("repository", "Repository"),
+        ("documentation", "Documentation"),
+    ):
+        val = poetry.get(toml_key)
+        if isinstance(val, str) and val.strip():
+            urls[label] = val.strip()
+    return urls
+
+
+def _resolve_poetry_license(
+    poetry: dict[str, Any], project_dir: Path
+) -> tuple[str | None, str | None, dict[str, str]]:
+    """Resolve ``[tool.poetry]``'s declared license, falling back to
+    directory detection when absent, plus G2's independent second opinion.
+
+    Returns ``(license_name, license_concluded, license_prov)`` -- pulled
+    out of :func:`extract_poetry_metadata` so its own local-variable count
+    stays under pylint's ``too-many-locals`` threshold; ``license_prov`` is
+    ready to merge into the caller's provenance dict directly.
+    """
+    license_name = (poetry.get("license") or "").strip() or None
+    has_declared_license = bool(license_name)
+    license_prov_override: str | None = None
+    if not license_name:
+        # No [tool.poetry] license declared -- fall back to directory
+        # detection, same baseline every other extractor has.
+        license_name, license_prov_override = detect_license_for_project(project_dir)
+    # G2: independently scan for a second opinion when a license *was*
+    # declared, via the shared resolver every extractor must call.
+    license_concluded, license_concluded_prov = resolve_license_concluded(
+        has_declared_license, project_dir
+    )
+
+    license_prov: dict[str, str] = {}
+    if license_name:
+        license_prov["license"] = (
+            license_prov_override
+            or "Source: pyproject.toml | Field: tool.poetry.license"
+        )
+    if license_concluded and license_concluded_prov:
+        license_prov["license_concluded"] = license_concluded_prov
+    return license_name, license_concluded, license_prov
 
 
 def _parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:

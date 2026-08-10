@@ -23,9 +23,12 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.models import normalize_dependency_specifier
-from pitloom.core.project import ProjectMetadata
-from pitloom.extract._license import detect_license_for_project
-from pitloom.extract.pyproject import _merge_with_poetry, _try_read_poetry
+from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._license import (
+    detect_license_for_project,
+    resolve_license_concluded,
+)
+from pitloom.extract.pyproject import _try_read_poetry
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -51,7 +54,7 @@ def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
         return None
     with open(pyproject_path, "rb") as f:
         data: dict[str, Any] = tomllib.load(f)
-    return _try_read_poetry(data)
+    return _try_read_poetry(data, project_dir)
 
 
 def _authors_from_data(authors_data: dict[str, list[str]]) -> list[dict[str, str]]:
@@ -162,6 +165,16 @@ def metadata_from_hatchling(
     elif license_name:
         provenance["license"] = _field_provenance("license")
 
+    # G2: independently scan project_dir for a second opinion when a license
+    # was declared, exactly like read_pyproject() does for the CLI path --
+    # via the shared resolve_license_concluded() so this can't drift out of
+    # sync again (see its docstring for why this was previously missing here).
+    license_concluded, license_concluded_prov = resolve_license_concluded(
+        bool(license_hint), project_dir
+    )
+    if license_concluded and license_concluded_prov:
+        provenance["license_concluded"] = license_concluded_prov
+
     metadata = ProjectMetadata(
         name=core.raw_name,
         version=version,
@@ -169,6 +182,7 @@ def metadata_from_hatchling(
         readme=readme,
         requires_python=requires_python,
         license_name=license_name,
+        license_concluded=license_concluded,
         keywords=list(core.keywords or []),
         authors=authors,
         urls=urls,
@@ -180,7 +194,7 @@ def metadata_from_hatchling(
     # read_pyproject() does for the CLI path (project fields always win).
     poetry_meta = _poetry_fallback_metadata(project_dir)
     if poetry_meta is not None:
-        metadata = _merge_with_poetry(metadata, poetry_meta)
+        metadata = merge_project_metadata(metadata, poetry_meta)
 
     return metadata
 

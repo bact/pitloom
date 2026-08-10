@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -900,12 +900,40 @@ license (no 3rd/4th native slot exists).
 [`_license.py`](../../src/pitloom/extract/_license.py)
 `detect_independent_license` — independently scans the project directory
 (`CITATION.cff`, `codemeta.json`, license files), *ignoring* any declared
-value, so there's a genuine second opinion to compare against. Called
-from [`pyproject.py`](../../src/pitloom/extract/pyproject.py)'s
-`read_pyproject` whenever `project.license` is present — previously, a
-declared value that already looked like a valid SPDX id short-circuited
+value, so there's a genuine second opinion to compare against. Previously,
+a declared value that already looked like a valid SPDX id short-circuited
 before the `LICENSE` file was ever read, so there was nothing to disagree
 with; now the independent scan always runs alongside it.
+
+`resolve_license_concluded` (also in `_license.py`) is the single, shared
+G2 entry point every project-metadata extractor calls — not just
+`pyproject.py`'s `[project]` path. It exists because the four extraction
+paths (CLI's [`pyproject.py`](../../src/pitloom/extract/pyproject.py)
+`read_pyproject`, the [`hatchling.py`](../../src/pitloom/extract/hatchling.py)
+build-hook path, the poetry-only
+[`poetry.py`](../../src/pitloom/extract/poetry.py) `read_poetry`, and the
+setuptools-only [`setuptools.py`](../../src/pitloom/extract/setuptools.py)
+`read_setuptools`) were each written and evolving independently. G2 first
+shipped wired only into the CLI path; a later review found the Hatchling
+build hook called `detect_license_for_project` directly and never ran the
+independent scan at all, so G2 silently never fired for any Hatchling-built
+project. Rather than patch that one path, all four now call the same
+`resolve_license_concluded` (and, for the poetry-only and setuptools-only
+paths, the same directory-detection fallback when nothing is declared) so
+a future fifth extraction path can't reintroduce the same gap by omission.
+Cross-path regression tests
+(`test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict`
+in `tests/test_hatch_hook.py`,
+`test_read_poetry_matches_read_pyproject_fallback_for_license_conflict` in
+`tests/test_poetry.py`) assert the paths agree on the same project. The
+same review also found the Hatchling and CLI paths each hand-listed their
+own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
+`pyproject.py`, `merge_metadata` in `setuptools.py`); both were replaced
+by [`core/project.py`](../../src/pitloom/core/project.py)'s
+`merge_project_metadata`, which iterates `dataclasses.fields()` instead of
+naming every field by hand, so a newly added `ProjectMetadata` field
+merges automatically without a call site needing to be updated (see its
+own docstring for the field-drift history that motivated this).
 [`deps.py`](../../src/pitloom/assemble/spdx3/deps.py)
 `build_license_elements` gained `concluded_license_id`/
 `concluded_license_provenance` params (`None` default — the three other
@@ -970,10 +998,12 @@ forgotten:
   (author-stated) / `hasConcludedLicense` (Pitloom-detected). Originally
   shipped mirrored (single winning value classified as one or the other,
   "no inference yet") in PR [#105](https://github.com/bact/pitloom/pull/105);
-  the main project package path now populates both independently when a
-  second, directory-detected opinion exists (G2, above) — dependency and
-  AI-model license paths remain single-value/mirrored, no local second
-  source to detect from. Residual: the detection evidence.
+  the main project package now populates both independently when a second,
+  directory-detected opinion exists (G2, above), across all four
+  project-metadata extraction paths (CLI, Hatchling build hook,
+  poetry-only, setuptools-only) — dependency and AI-model license paths
+  remain single-value/mirrored, no local second source to detect from.
+  Residual: the detection evidence.
 - [ ] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment run.
   Residual: which field + before/after value + inferred marker (E1/E2). (Blocked on `enrich/` subpackage)
 - [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →

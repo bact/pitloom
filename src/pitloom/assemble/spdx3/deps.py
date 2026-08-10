@@ -25,7 +25,10 @@ from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.extract._license import normalize_license_expression
+from pitloom.extract._license import (
+    normalize_license_expression,
+    tag_license_normalization,
+)
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
 # avoid splitting on a prefix of a multi-character operator (e.g. "==" before "=").
@@ -301,9 +304,23 @@ def build_license_elements(
     canonical_declared_id = normalize_license_expression(license_id.strip())
     canonical_concluded_id = normalize_license_expression(concluded_license_id.strip())
 
+    # Flag when normalization actually rewrote a candidate's value (e.g. a
+    # casing fix or a dedup/reorder of a compound expression), and record
+    # the py-spdx-license version that did it -- so a G2 candidate's
+    # evidence stays auditable even when its stored value differs from what
+    # the source literally said. No-op when normalization was a pass-through.
+    declared_provenance = tag_license_normalization(
+        license_provenance, license_id, canonical_declared_id
+    )
+    concluded_provenance = tag_license_normalization(
+        concluded_license_provenance or license_provenance,
+        concluded_license_id,
+        canonical_concluded_id,
+    )
+
     declared_spdx_id = _get_or_create_license_element(
         canonical_declared_id,
-        license_provenance,
+        declared_provenance,
         creation_info,
         doc_name,
         doc_uuid,
@@ -313,7 +330,7 @@ def build_license_elements(
     )
     concluded_spdx_id = _get_or_create_license_element(
         canonical_concluded_id,
-        concluded_license_provenance or license_provenance,
+        concluded_provenance,
         creation_info,
         doc_name,
         doc_uuid,
@@ -344,13 +361,13 @@ def build_license_elements(
             {
                 "value": canonical_declared_id,
                 "role": "declared",
-                "source": license_provenance,
+                "source": declared_provenance,
                 "ref": declared_spdx_id,
             },
             {
                 "value": canonical_concluded_id,
                 "role": "detected",
-                "source": concluded_license_provenance or license_provenance,
+                "source": concluded_provenance,
                 "ref": concluded_spdx_id,
             },
         ]

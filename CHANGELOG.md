@@ -54,14 +54,16 @@ and this project adheres to
   each hyperparameter, matching the AI-model extractors. ([#113])
 - Declared-vs-detected license conflict detection: the project directory
   (`CITATION.cff`, `codemeta.json`, `LICENSE` files) is now independently
-  scanned even when `project.license` already declares a value, and both
-  sides are compared after SPDX-expression normalization (new
+  scanned even when a license is already declared, and both sides are
+  compared after SPDX-expression normalization (new
   [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license)
   dependency), so casing or equivalent-but-differently-written expressions
-  aren't misreported as conflicts. On a genuine disagreement, both
-  `hasDeclaredLicense` and `hasConcludedLicense` are recorded alongside a
-  new `provenance/conflict/1` Annotation; the mechanism is generic across
-  fields, not license-specific. ([#121])
+  aren't misreported as conflicts. Works uniformly across all project
+  extraction paths (CLI/library, Hatchling build hook, poetry-only,
+  setuptools-only), via one shared resolver every path calls. On a genuine
+  disagreement, both `hasDeclaredLicense` and `hasConcludedLicense` are
+  recorded alongside a new `provenance/conflict/1` Annotation; the
+  mechanism is generic across fields, not license-specific. ([#121])
 
 ### Changed
 

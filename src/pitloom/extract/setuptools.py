@@ -16,7 +16,7 @@ When multiple sources are present, fields are merged with this priority order
 
 1. ``pyproject.toml [project]`` -- handled upstream by
    :func:`~pitloom.extract.pyproject.read_pyproject`; merged via
-   :func:`merge_metadata` by the assembler.
+   :func:`~pitloom.core.project.merge_project_metadata` by the assembler.
 2. ``setup.cfg [metadata]`` / ``[options]``
 3. ``setup.py`` ``setup()`` keyword arguments (AST-extracted literals only)
 
@@ -50,7 +50,11 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import Creator, Tool
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._license import (
+    detect_license_for_project,
+    resolve_license_concluded,
+)
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -156,16 +160,46 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
         )
 
     if cfg_metadata is not None and py_metadata is not None:
-        return merge_metadata(cfg_metadata, py_metadata), cfg_config
+        metadata = merge_project_metadata(cfg_metadata, py_metadata)
+    elif cfg_metadata is not None:
+        metadata = cfg_metadata
+    else:
+        # Only setup.py succeeded -- the branches above already ruled out
+        # "both None" and "cfg_metadata set", so py_metadata must be set here.
+        if py_metadata is None:
+            raise RuntimeError("unreachable: py_metadata must be set here")
+        metadata = py_metadata
+        cfg_config = PitloomConfig()
 
-    if cfg_metadata is not None:
-        return cfg_metadata, cfg_config
+    metadata = _resolve_setuptools_license(metadata, project_dir)
+    return metadata, cfg_config
 
-    # Only setup.py succeeded -- the branches above already ruled out
-    # "both None" and "cfg_metadata set", so py_metadata must be set here.
-    if py_metadata is None:
-        raise RuntimeError("unreachable: py_metadata must be set here")
-    return py_metadata, PitloomConfig()
+
+def _resolve_setuptools_license(
+    metadata: ProjectMetadata, project_dir: Path
+) -> ProjectMetadata:
+    """Apply the same license resolution every project extractor uses,
+    to the merged setup.cfg/setup.py result: fall back to directory
+    detection when neither declared a license, and independently scan for
+    a second opinion (G2) when one did -- previously this path only ever
+    read the ``license =``/``license=`` field verbatim, with no fallback
+    detection and no G2 conflict check at all. See
+    :func:`~pitloom.extract._license.resolve_license_concluded`'s docstring
+    for why every extractor must call it.
+    """
+    if metadata.license_name:
+        concluded, concluded_prov = resolve_license_concluded(True, project_dir)
+        if concluded and concluded_prov:
+            metadata.license_concluded = concluded
+            metadata.provenance["license_concluded"] = concluded_prov
+        return metadata
+
+    detected, detected_prov = detect_license_for_project(project_dir)
+    if detected:
+        metadata.license_name = detected
+        if detected_prov:
+            metadata.provenance["license"] = detected_prov
+    return metadata
 
 
 # pylint: disable=too-many-locals
@@ -415,56 +449,6 @@ def read_setup_py(
         provenance=prov,
     )
     return project_metadata, PitloomConfig()
-
-
-def merge_metadata(
-    primary: ProjectMetadata,
-    secondary: ProjectMetadata,
-) -> ProjectMetadata:
-    """Merge two :class:`~pitloom.core.project.ProjectMetadata` objects.
-
-    The primary takes precedence field-by-field: for each attribute, the
-    primary value is used when non-empty/truthy; otherwise the secondary
-    value fills the gap.  The primary ``name`` is always kept.
-
-    Provenance entries from both sources are merged, with primary
-    provenance overriding secondary on key conflicts.
-
-    Typical usage::
-
-        # pyproject.toml wins; setup.cfg fills missing fields
-        merged = merge_metadata(pyproject_meta, setup_cfg_meta)
-
-        # setup.cfg wins over setup.py
-        merged = merge_metadata(cfg_meta, py_meta)
-
-    Args:
-        primary: Higher-priority metadata source.
-        secondary: Lower-priority metadata source used as fallback.
-
-    Returns:
-        A new :class:`~pitloom.core.project.ProjectMetadata` with merged fields.
-    """
-
-    def _pick(p: Any, s: Any) -> Any:
-        return p if p else s
-
-    merged_provenance = {**secondary.provenance, **primary.provenance}
-
-    return ProjectMetadata(
-        name=primary.name,
-        version=_pick(primary.version, secondary.version),
-        description=_pick(primary.description, secondary.description),
-        readme=_pick(primary.readme, secondary.readme),
-        requires_python=_pick(primary.requires_python, secondary.requires_python),
-        license_name=_pick(primary.license_name, secondary.license_name),
-        keywords=_pick(primary.keywords, secondary.keywords),
-        authors=_pick(primary.authors, secondary.authors),
-        urls=_pick(primary.urls, secondary.urls),
-        dependencies=_pick(primary.dependencies, secondary.dependencies),
-        provenance=merged_provenance,
-        files=_pick(primary.files, secondary.files),
-    )
 
 
 # ---------------------------------------------------------------------------
