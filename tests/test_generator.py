@@ -1672,3 +1672,279 @@ def test_build_model_base_model_lineage() -> None:
     ]
     assert len(lineage_rels) == 1
     assert lineage_rels[0].get("comment") == "base_model_relation:finetune"
+
+
+# ---------------------------------------------------------------------------
+# G2: declared-vs-detected license conflict, main project package
+# ---------------------------------------------------------------------------
+
+
+def _license_relationships(
+    graph: list[dict[str, Any]], subject_id: str
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    declared = [
+        r
+        for r in rels
+        if r.get("relationshipType") == "hasDeclaredLicense"
+        and r.get("from") == subject_id
+    ]
+    concluded = [
+        r
+        for r in rels
+        if r.get("relationshipType") == "hasConcludedLicense"
+        and r.get("from") == subject_id
+    ]
+    return declared, concluded
+
+
+def test_generate_project_sbom_license_conflict_end_to_end() -> None:
+    """Declared MIT + an independently-detected Apache-2.0 LICENSE file:
+    both hasDeclaredLicense and hasConcludedLicense are emitted (pointing at
+    two distinct license elements), plus one G2 conflict Annotation on the
+    main package."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "MIT"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        declared, concluded = _license_relationships(graph, main_package["spdxId"])
+        assert len(declared) == 1
+        assert len(concluded) == 1
+
+        license_elems = {
+            e["spdxId"]: e
+            for e in graph
+            if e.get("type") == "simplelicensing_SimpleLicensingText"
+        }
+        declared_license = license_elems[declared[0]["to"][0]]
+        concluded_license = license_elems[concluded[0]["to"][0]]
+        assert declared_license["simplelicensing_licenseText"] == "MIT"
+        assert concluded_license["simplelicensing_licenseText"] == "Apache-2.0"
+        assert declared_license["spdxId"] != concluded_license["spdxId"]
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == main_package["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert len(conflict_anns) == 1
+        statement = json.loads(conflict_anns[0]["statement"])
+        assert statement["field"] == "license"
+        roles = {c["role"] for c in statement["candidates"]}
+        assert roles == {"declared", "detected"}
+
+
+def test_generate_project_sbom_license_conflict_flags_declared_normalization() -> None:
+    """Declared "mit" (valid but non-canonically cased) + a genuinely
+    conflicting detected Apache-2.0: the conflict Annotation's declared
+    candidate ``source`` is flagged with the raw value normalize_license_
+    expression() rewrote it from, plus the py-spdx-license version that did
+    it -- wiring the previously-dead _PY_SPDX_LICENSE_VERSION into actual
+    output (not just the case-only-agreement path, which never reaches the
+    conflict branch at all)."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "mit"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == main_package["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert len(conflict_anns) == 1
+        statement = json.loads(conflict_anns[0]["statement"])
+        declared_candidate = next(
+            c for c in statement["candidates"] if c["role"] == "declared"
+        )
+        assert declared_candidate["value"] == "MIT"
+        assert "Normalized-From: mit" in declared_candidate["source"]
+        assert "Normalizer: py-spdx-license==" in declared_candidate["source"]
+
+
+def test_generate_project_sbom_license_agrees_no_conflict_annotation() -> None:
+    """Declared and independently-detected license agree: both relationships
+    still emitted, pointing at the *same* element, but no conflict Annotation."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "MIT"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        declared, concluded = _license_relationships(graph, main_package["spdxId"])
+        assert len(declared) == 1
+        assert len(concluded) == 1
+        assert declared[0]["to"][0] == concluded[0]["to"][0]
+
+
+def test_generate_project_sbom_license_case_only_difference_not_a_conflict() -> None:
+    """Regression: a declared `license = "mit"` (valid but non-canonically
+    cased -- kept verbatim since Pitloom never rewrites a bare SPDX id) and
+    an independently-detected canonical "MIT" from the LICENSE file must be
+    recognized as the *same* license, not flagged as G2 conflict. Before the
+    canonicalization fix, this produced a spurious conflict Annotation and
+    two separate license elements for what is one license."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "mit"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("MIT License\n\nPermission" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        declared, concluded = _license_relationships(graph, main_package["spdxId"])
+        assert len(declared) == 1
+        assert len(concluded) == 1
+        assert declared[0]["to"][0] == concluded[0]["to"][0]
+
+        license_elems = [
+            e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
+        ]
+        assert len(license_elems) == 1
+        assert license_elems[0]["simplelicensing_licenseText"] == "MIT"
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert conflict_anns == []
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert conflict_anns == []
+
+
+def test_generate_project_sbom_license_declared_only_no_license_file() -> None:
+    """Declared license, no LICENSE file in the project: unchanged
+    single-relationship behavior (regression check against pre-G2 output)."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "MIT"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json = generate_project_sbom(tmppath)
+
+        graph = json.loads(sbom_json)["@graph"]
+        main_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "test-package"
+        )
+        declared, concluded = _license_relationships(graph, main_package["spdxId"])
+        assert len(declared) == 1
+        assert len(concluded) == 0
+
+
+def test_generate_project_sbom_license_conflict_byte_identical_across_runs() -> None:
+    """Determinism: two independent generations from the same input produce
+    byte-identical output, including the new conflict Annotation."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+license = "MIT"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "LICENSE").write_text("Apache License\nVersion 2.0" + "x" * 200)
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            creation_metadata = CreationMetadata(
+                creation_datetime="2026-01-01T00:00:00Z"
+            )
+            sbom_json_1 = generate_project_sbom(
+                tmppath, creation_metadata=creation_metadata
+            )
+            sbom_json_2 = generate_project_sbom(
+                tmppath, creation_metadata=creation_metadata
+            )
+
+        assert sbom_json_1 == sbom_json_2

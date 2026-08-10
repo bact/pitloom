@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
 
@@ -46,6 +47,7 @@ class PhantomDependency:
 
 
 @dataclass
+# pylint: disable-next=too-many-instance-attributes
 class ProjectMetadata:
     """Format-neutral representation of project metadata with provenance tracking.
 
@@ -70,9 +72,47 @@ class ProjectMetadata:
     readme: str | None = None
     requires_python: str | None = None
     license_name: str | None = None
+    license_concluded: str | None = None
     keywords: list[str] = field(default_factory=list)
     authors: list[dict[str, str]] = field(default_factory=list)
     urls: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
     provenance: dict[str, str] = field(default_factory=dict)
     files: list[ProjectFile] = field(default_factory=list)
+
+
+def merge_project_metadata(
+    primary: ProjectMetadata, secondary: ProjectMetadata
+) -> ProjectMetadata:
+    """Merge two :class:`ProjectMetadata` instances, *primary* winning
+    field-by-field; *secondary* fills gaps where *primary*'s value is falsy.
+
+    Iterates :func:`dataclasses.fields` instead of hand-listing every field,
+    so a newly added :class:`ProjectMetadata` field (like ``license_concluded``,
+    added for G2) is merged automatically with the same default rule -- no
+    call site needs updating when the schema grows. This replaces two
+    previously-duplicated, independently-drifting implementations
+    (``pyproject.py``'s old ``_merge_with_poetry``, ``setuptools.py``'s old
+    ``merge_metadata``) that each hand-listed every field and had to be kept
+    in sync by hand; ``license_concluded`` was missing from one of them until
+    this fix, precisely because that discipline had already lapsed once.
+
+    Two fields are special-cased rather than "primary if truthy else
+    secondary":
+
+    - ``name`` -- always *primary*'s, even if empty (a project's own name is
+      never meaningfully "filled in" from a secondary/fallback source).
+    - ``provenance`` -- dict-merged, *primary*'s entries winning on key
+      conflict, rather than replaced wholesale.
+
+    Every other field: *primary*'s value when truthy, else *secondary*'s.
+    """
+    merged = dataclasses.replace(primary)
+    merged.provenance = {**secondary.provenance, **primary.provenance}
+    for f in dataclasses.fields(ProjectMetadata):
+        if f.name in ("name", "provenance"):
+            continue
+        primary_value = getattr(primary, f.name)
+        if not primary_value:
+            setattr(merged, f.name, getattr(secondary, f.name))
+    return merged

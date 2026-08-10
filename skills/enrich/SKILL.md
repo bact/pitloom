@@ -47,8 +47,19 @@ small, standalone SPDX 3 JSON file and let Pitloom merge it on the next
 generation run. See `references/examples.md` for a full worked example.
 
 Every inferred field's `comment` (or the fragment's
-`CreationInfo.comment`) must carry a provenance marker in this exact form,
-so it is never confused with authoritative, extracted metadata:
+`CreationInfo.comment`) must carry a provenance marker, so it is never
+confused with authoritative, extracted metadata. When you know your own
+agent name, vendor, and today's date, include them -- Pitloom cannot
+verify this, but it makes the record more useful to a reviewer than a
+generic placeholder:
+
+```text
+Source: <your agent name> (<vendor>) | Method: inference | Date: <ISO 8601 date>
+```
+
+For example: `Source: Claude Code (Anthropic) | Method: inference | Date:
+2026-08-10`. If you don't know your own name/vendor, fall back to the
+generic form rather than guessing:
 
 ```text
 Source: AI agent | Method: inference

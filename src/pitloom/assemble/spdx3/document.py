@@ -286,6 +286,12 @@ def build(
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
             exporter=exporter,
+            # G2: only the pyproject.toml [project]-path extractor populates
+            # license_concluded (independent directory scan) -- None here for
+            # any other backend, which keeps this the original single-value
+            # behavior unchanged.
+            concluded_license_id=metadata.license_concluded,
+            concluded_license_provenance=metadata.provenance.get("license_concluded"),
             provenance_config=prov_cfg,
             encoder=encoder,
         )

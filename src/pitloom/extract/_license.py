@@ -19,11 +19,36 @@ from __future__ import annotations
 import json
 import logging
 import re
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
+from py_spdx_license import ParseError as SpdxExpressionParseError
+from py_spdx_license import parse as parse_spdx_expression
 
 _logger = logging.getLogger(__name__)
+
+try:
+    _LICENSEID_VERSION: str | None = _pkg_version("licenseid")
+except PackageNotFoundError:
+    _LICENSEID_VERSION = None
+
+try:
+    _PY_SPDX_LICENSE_VERSION: str | None = _pkg_version("py-spdx-license")
+except PackageNotFoundError:
+    _PY_SPDX_LICENSE_VERSION = None
+
+#: Matches AND/OR/WITH/NOT only when they stand alone as their own token
+#: (whitespace/paren-delimited on both sides) -- exactly what SPDX expression
+#: syntax requires of a real operator. Deliberately *not* a plain ``\b`` word
+#: boundary: ``\b`` also fires at hyphens, which would mangle a hyphen-glued
+#: identifier that merely contains "and"/"or"/"with" as a substring (a real
+#: SPDX id like ``GPL-2.0-or-later``, or a custom ``LicenseRef-my-or-license``)
+#: into wrongly-cased ``-OR-``.
+_SPDX_OPERATOR_CASING_RE = re.compile(
+    r"(?<![\w-])(and|or|with|not)(?![\w-])", re.IGNORECASE
+)
 
 # Heuristic: single-token SPDX License IDs and expressions like "GPL-3.0-or-later"
 _SPDX_LICENSE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-+]*$")
@@ -109,6 +134,64 @@ def canonicalize_license_id(raw: str) -> str:
     except Exception as exc:  # pylint: disable=broad-exception-caught
         _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)
     return raw
+
+
+def normalize_license_expression(raw: str) -> str:
+    """Return *raw* normalized to a canonical SPDX license expression, or
+    *raw* unchanged when it can't be parsed as one.
+
+    Handles what :func:`canonicalize_license_id` cannot: a *compound*
+    expression (``"MIT AND MIT"``, ``"Apache-2.0 OR MIT"``) is deduplicated
+    and canonically reordered via ``py_spdx_license`` -- so two candidates
+    that are semantically the same license, just spelled differently, are
+    recognized as equal rather than misreported as a G2 conflict
+    (``"MIT AND MIT"`` and ``"MIT OR Apache-2.0"``/``"Apache-2.0 OR MIT"``
+    both normalize to the same string regardless of input ordering). A bare
+    id is also canonicalized to its recognized SPDX casing as a side effect
+    of parsing (``"mit"`` -> ``"MIT"``), same as :func:`canonicalize_license_id`.
+
+    Before parsing, ``AND``/``OR``/``WITH``/``NOT`` are case-normalized to
+    uppercase when they appear as their own whitespace/paren-delimited token
+    (SPDX expression syntax is operator-case-strict; a lowercase ``"mit and
+    mit"`` would otherwise fail to parse at all) -- but *only* when
+    isolated like that, so a hyphen-glued identifier that merely contains
+    "and"/"or"/"with" as a substring (``"GPL-2.0-or-later"``, a custom
+    ``"LicenseRef-my-or-license"``) is never touched.
+
+    Falls back to :func:`canonicalize_license_id` when the (operator-cased)
+    string can't be parsed as a valid SPDX expression at all -- e.g. genuinely
+    malformed syntax (unbalanced parens, a missing operand) -- so a simple
+    bare id still gets at least casing normalization even in that case.
+    """
+    operator_cased = _SPDX_OPERATOR_CASING_RE.sub(
+        lambda m: m.group(1).upper(), raw.strip()
+    )
+    try:
+        node = parse_spdx_expression(operator_cased, allow_unknown=True)
+        return str(node.sort().to_string())
+    except SpdxExpressionParseError as exc:
+        _logger.debug("Failed to parse SPDX expression %r: %s", raw, exc)
+    return canonicalize_license_id(raw)
+
+
+def tag_license_normalization(provenance: str, raw: str, normalized: str) -> str:
+    """Append a note to *provenance* when :func:`normalize_license_expression`
+    actually changed *raw* to *normalized* (e.g. ``"mit"`` -> ``"MIT"``,
+    ``"MIT AND MIT"`` -> ``"MIT"``), recording the ``py-spdx-license``
+    version that did it.
+
+    A no-op (returns *provenance* unchanged) when *raw* and *normalized*
+    already match -- nothing to flag. Mirrors :func:`_with_tool_tag`'s
+    pattern for ``licenseid``, so a G2 candidate whose declared-side value
+    was rewritten before comparison stays auditable against the exact
+    normalizer version that rewrote it, not just "some normalization ran".
+    """
+    if raw.strip() == normalized:
+        return provenance
+    note = f"{provenance} | Normalized-From: {raw.strip()}"
+    if _PY_SPDX_LICENSE_VERSION is None:
+        return note
+    return f"{note} | Normalizer: py-spdx-license=={_PY_SPDX_LICENSE_VERSION}"
 
 
 def find_license_files(project_dir: Path) -> list[Path]:
@@ -235,6 +318,74 @@ def collect_license_candidates(project_dir: Path) -> list[tuple[str, str]]:
     return candidates
 
 
+def _with_tool_tag(provenance: str) -> str:
+    """Append the ``licenseid`` library version to a detection provenance string.
+
+    A ``licenseid_detection`` result is only as reproducible as the license
+    database of the library version that produced it -- record which one ran,
+    so a ``detected``-role G2 candidate's evidence stays auditable across
+    library upgrades. Falls back to the bare string when the installed
+    version can't be resolved (e.g. an unusual/editable install).
+    """
+    if _LICENSEID_VERSION is None:
+        return provenance
+    return f"{provenance} | Tool: licenseid=={_LICENSEID_VERSION}"
+
+
+def detect_independent_license(project_dir: Path) -> tuple[str | None, str | None]:
+    """Detect a license purely from project-directory files (``CITATION.cff``,
+    ``codemeta.json``, license files), ignoring any already-declared value.
+
+    Used to independently corroborate or conflict-check a declared license
+    (G2) -- unlike :func:`detect_license_for_project`, this never considers a
+    caller-supplied hint, so its result is a genuine second opinion.
+
+    Returns ``(None, None)`` when nothing in *project_dir* yields a license.
+    """
+    for value, source in collect_license_candidates(project_dir):
+        if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
+            value
+        ):
+            return value, source
+        detected = detect_license_from_text(value)
+        if detected:
+            return detected, _with_tool_tag(f"{source} | Method: licenseid_detection")
+    return None, None
+
+
+def resolve_license_concluded(
+    has_declared_license: bool, project_dir: Path
+) -> tuple[str | None, str | None]:
+    """Return ``(concluded_id, concluded_provenance)`` -- G2's independent
+    second opinion -- or ``(None, None)`` when there's no declared value to
+    compare it against.
+
+    **Every extractor that resolves a project's own declared license must
+    call this alongside its own declared-value resolution.** This is the
+    single, canonical G2 entry point precisely so a *new* extraction path
+    can't silently omit conflict detection the way the Hatchling build-hook
+    path (:func:`~pitloom.extract.hatchling.metadata_from_hatchling`)
+    originally did -- it called :func:`detect_license_for_project` directly
+    and never ran the independent directory scan at all, so G2 only ever
+    fired via the CLI's :func:`~pitloom.extract.pyproject.read_pyproject`.
+    If you're adding a new project-metadata extractor, call this too; see
+    ``tests/test_hatch_hook.py``'s
+    ``test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict``
+    for the cross-path regression test this class of gap needs.
+
+    Args:
+        has_declared_license: Whether the caller's own metadata source
+            already resolved *some* declared value (however obtained --
+            a bare id, a license file reference, license text). When
+            ``False``, there's nothing to compare a second opinion against,
+            so no scan is performed.
+        project_dir: Project root directory to independently scan.
+    """
+    if not has_declared_license:
+        return None, None
+    return detect_independent_license(project_dir)
+
+
 def detect_license_for_project(
     project_dir: Path,
     license_hint: str | None = None,
@@ -247,8 +398,7 @@ def detect_license_for_project(
        (caller should set provenance from the original metadata field).
     2. *license_hint* is a compound SPDX License Expression -> returned unchanged.
     3. *license_hint* is license text -> run :func:`detect_license_from_text`.
-    4. Search ``CITATION.cff``, ``codemeta.json``, and license files in
-       *project_dir*.
+    4. :func:`detect_independent_license` over *project_dir*.
 
     Returns ``(None, None)`` when no license can be determined.
     """
@@ -262,17 +412,11 @@ def detect_license_for_project(
         # Hint is likely license text -- try detection first
         detected = detect_license_from_text(hint)
         if detected:
-            return detected, "Method: licenseid_detection"
+            return detected, _with_tool_tag("Method: licenseid_detection")
 
-    # Search project directory sources
-    for value, source in collect_license_candidates(project_dir):
-        if _looks_like_spdx_license_id(value) or _looks_like_spdx_license_expression(
-            value
-        ):
-            return value, source
-        detected = detect_license_from_text(value)
-        if detected:
-            return detected, f"{source} | Method: licenseid_detection"
+    directory_id, directory_prov = detect_independent_license(project_dir)
+    if directory_id:
+        return directory_id, directory_prov
 
     # Fall back to the raw hint (non-standard string) rather than returning None
     if license_hint and license_hint.strip():

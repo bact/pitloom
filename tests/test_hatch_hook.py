@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import rfc8785
@@ -860,6 +861,80 @@ def test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name() 
         ) == compute_doc_uuid(
             cli_meta.name, cli_meta.version or "x", cli_meta.dependencies
         )
+
+
+CONFLICT_PYPROJECT = """\
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpkg"
+version = "1.0.0"
+license = "MIT"
+"""
+
+
+def test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict() -> None:
+    """CLI and hook paths must agree on G2 when the declared license and an
+    independently-detected LICENSE file disagree.
+
+    Regression guard for the systemic gap ``resolve_license_concluded()``
+    exists to close: the Hatchling build-hook path
+    (:func:`~pitloom.extract.hatchling.metadata_from_hatchling`) originally
+    called :func:`~pitloom.extract._license.detect_license_for_project`
+    directly and never ran the independent directory scan at all, so G2
+    only ever fired via the CLI's
+    :func:`~pitloom.extract.pyproject.read_pyproject`. Both paths must now
+    resolve the same ``license_concluded`` value for the same project.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, CONFLICT_PYPROJECT)
+        (tmp_path / "LICENSE").write_text(
+            "Apache License\nVersion 2.0" + "x" * 200, encoding="utf-8"
+        )
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
+            hatch_pm = hatchling_metadata_core.ProjectMetadata(
+                str(tmp_path), PluginManager()
+            )
+            hook_meta = metadata_from_hatchling(hatch_pm, tmp_path)
+
+        assert cli_meta.license_name == "MIT"
+        assert hook_meta.license_name == "MIT"
+        assert cli_meta.license_concluded == "Apache-2.0"
+        assert hook_meta.license_concluded == cli_meta.license_concluded
+
+
+def test_metadata_from_hatchling_matches_read_pyproject_for_license_agreement() -> None:
+    """Same as above, but declared and detected agree: both paths must
+    still populate ``license_concluded`` (equal to the declared value),
+    not just leave it unset -- G2 records both sides regardless of
+    agreement."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path, CONFLICT_PYPROJECT)
+        (tmp_path / "LICENSE").write_text(
+            "MIT License\n\nPermission" + "x" * 200, encoding="utf-8"
+        )
+
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="MIT",
+        ):
+            cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
+            hatch_pm = hatchling_metadata_core.ProjectMetadata(
+                str(tmp_path), PluginManager()
+            )
+            hook_meta = metadata_from_hatchling(hatch_pm, tmp_path)
+
+        assert cli_meta.license_concluded == "MIT"
+        assert hook_meta.license_concluded == "MIT"
 
 
 def test_metadata_from_hatchling_maps_urls() -> None:

@@ -17,10 +17,13 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.provenance import (
     ARTIFACT_METADATA_SCHEMA_URL,
+    CONFLICT_SCHEMA_URL,
     DEFAULT_SCHEMA_ID,
     UNIFICATION_SCHEMA_URL,
+    ConflictCandidate,
     PitloomV1Encoder,
     ProvenanceEncoder,
+    build_conflict_annotation,
     build_provenance_annotation,
     build_provenance_comment,
     build_source_metadata_annotation,
@@ -110,7 +113,7 @@ def test_pitloom_v1_encoder_produces_valid_json_with_schema_marker() -> None:
     encoder = PitloomV1Encoder()
     body = encoder.encode({"name": "Source: pyproject.toml | Field: project.name"})
     parsed = json.loads(body)
-    assert parsed["schema"] == "https://pitloom.dev/provenance/1"
+    assert parsed["schema"] == "https://pitloom.dev/provenance/fields/1"
     assert parsed["fields"]["name"] == {
         "source": "pyproject.toml",
         "location": "project.name",
@@ -605,11 +608,86 @@ def test_build_unification_annotation_shape_and_determinism() -> None:
     assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["schema"] == UNIFICATION_SCHEMA_URL
-    assert statement["event"] == "unification"
+    assert statement["kind"] == "unification"
     assert statement["criterion"] == "sha256"
     # Lists are sorted for byte-stability.
     assert statement["unified"] == ["urn:doc#File-4", "urn:doc#File-9"]
     assert statement["fragments"] == ["a/frag.json", "b/frag.json"]
+
+
+# ---------------------------------------------------------------------------
+# build_conflict_annotation (G2)
+# ---------------------------------------------------------------------------
+
+
+def test_build_conflict_annotation_shape_and_determinism() -> None:
+    ci = _make_ci()
+    candidates: list[ConflictCandidate] = [
+        {
+            "value": "MIT",
+            "role": "declared",
+            "source": "Source: pyproject.toml | Field: project.license",
+            "ref": "urn:doc#License-1",
+        },
+        {
+            "value": "Apache-2.0",
+            "role": "detected",
+            "source": (
+                "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0"
+            ),
+            "ref": "urn:doc#License-2",
+        },
+    ]
+    ann = build_conflict_annotation(
+        subject_spdx_id="urn:doc#Package-1",
+        field="license",
+        candidates=candidates,
+        creation_info=ci,
+        annotation_spdx_id="urn:doc#Annotation-conflict-1",
+    )
+    assert ann.spdxId == "urn:doc#Annotation-conflict-1"
+    assert ann.contentType == "application/json"
+    assert ann.annotationType == spdx3.AnnotationType.other
+    assert ann.subject == "urn:doc#Package-1"
+    assert ann.statement is not None
+    statement = json.loads(ann.statement)
+    assert statement["schema"] == CONFLICT_SCHEMA_URL
+    assert statement["kind"] == "conflict"
+    assert statement["field"] == "license"
+    assert statement["candidates"] == candidates
+
+    # Byte-stable across two builds with the same input.
+    ann2 = build_conflict_annotation(
+        subject_spdx_id="urn:doc#Package-1",
+        field="license",
+        candidates=candidates,
+        creation_info=ci,
+        annotation_spdx_id="urn:doc#Annotation-conflict-1",
+    )
+    assert ann.statement == ann2.statement
+
+
+def test_build_conflict_annotation_generic_field_not_license_specific() -> None:
+    """The mechanism is field-agnostic -- license is only the first field
+    wired up to it, per the G2 design (any field's multi-source disagreement
+    can reuse the same schema)."""
+    ci = _make_ci()
+    candidates: list[ConflictCandidate] = [
+        {"value": "1.0.0", "role": "declared", "source": "Source: pyproject.toml"},
+        {"value": "1.0.1", "role": "detected", "source": "Source: build metadata"},
+    ]
+    ann = build_conflict_annotation(
+        subject_spdx_id="urn:doc#Package-1",
+        field="version",
+        candidates=candidates,
+        creation_info=ci,
+        annotation_spdx_id="urn:doc#Annotation-conflict-2",
+    )
+    assert ann.statement is not None
+    statement = json.loads(ann.statement)
+    assert statement["field"] == "version"
+    # "ref" is optional per candidate -- absent here, not required.
+    assert "ref" not in statement["candidates"][0]
 
 
 # ---------------------------------------------------------------------------
@@ -632,6 +710,7 @@ def test_build_source_metadata_annotation_embeds_verbatim() -> None:
     assert ann.statement is not None
     statement = json.loads(ann.statement)
     assert statement["schema"] == ARTIFACT_METADATA_SCHEMA_URL
+    assert statement["kind"] == "artifact-metadata"
     assert statement["format"] == "gguf"
     # native value types preserved; bytes base64-encoded.
     assert statement["metadata"]["block_count"] == 32

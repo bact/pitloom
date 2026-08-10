@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-05
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,18 @@ Hatchling build, a training script, a GitHub workflow, an AI coding agent --
 gets a thin, native-feeling entry point onto the same core engine. All
 surfaces below converge on the same `DocumentModel` -> assemble -> export
 pipeline, so the SBOM shape and guarantees (determinism, schema compliance,
-provenance tracking) are identical regardless of which surface produced it.
+provenance tracking) are meant to be identical regardless of which surface
+produced it.
+
+That convergence is a design intent, not an automatic guarantee: the
+project-metadata extraction step upstream of `DocumentModel` still has one
+implementation per surface family (`pyproject.py`'s `[project]` path for
+the CLI/library, `hatchling.py` for the build hook, `poetry.py` and
+`setuptools.py` for the poetry-only/setuptools-only fallback paths), and
+each has drifted out of sync with the others before -- see "Keeping
+surfaces consistent" below. Treat "identical regardless of surface" as
+the thing to keep re-verifying, not a property that, once true, stays
+true on its own.
 
 ## The surfaces
 
@@ -79,6 +90,35 @@ fragment, with every inferred field marked `Source: AI agent | Method:
 inference`, so the result stays transparent and auditable. See
 [sbom-enrichment.md](sbom-enrichment.md) for the full data-source model
 this builds on.
+
+## Keeping surfaces consistent: product owners (proposed, not yet implemented)
+
+Growing the number of surfaces (this doc currently lists seven) makes it
+progressively easier for a feature or bugfix to land correctly on one
+surface's underlying extraction path while silently missing another's --
+not because anyone decided to skip it, but because no single person is
+looking at all seven every time. The motivating instance: the G2
+declared-vs-concluded license conflict check shipped wired into the CLI's
+`pyproject.py` path, but the Hatchling build hook (`hatchling.py`) called
+the lower-level detection function directly and skipped the independent
+directory scan G2 depends on -- so every Hatchling-built project silently
+got zero G2 conflict detection until a later review caught it. The fix
+(`resolve_license_concluded` as one shared entry point every extraction
+path calls, described in
+[annotation-provenance.md](../implementation/annotation-provenance.md))
+closes that specific gap, but doesn't stop the *next* new field or feature
+from repeating the pattern on some other surface.
+
+[Issue #122](https://github.com/bact/pitloom/issues/122) proposes
+assigning a **product owner** to each usage surface (CLI, Python API,
+Python decorator/`pitloom.loom`, Hatchling build hook, AI-agent Skills,
+Claude Code plugin, GitHub Action) who reviews any feature or bugfix that
+touches their surface before it lands, against review instructions and
+acceptance criteria suited to that surface. This is documented here as
+the proposed answer to "how do we stop this class of gap from
+recurring" -- **not yet implemented**: no owners are assigned, and no
+review-instructions/acceptance-criteria set exists per surface yet. Track
+implementation on issue #122.
 
 ## What is intentionally not in scope yet
 

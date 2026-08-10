@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -689,23 +689,39 @@ Both parsed/validated in `core/config.py` (`_read_provenance_settings`),
 threaded through `build`/`build_model` and the `generate_*` / hatch-hook
 entry points exactly as `provenance_format`/`schema` already were.
 
+### Statement envelope convention (2026-08-10)
+
+Every Pitloom statement schema shares the same two leading keys, so a
+consumer can dispatch mechanically without pattern-matching prose:
+
+- `"schema"` — the full versioned URL (`https://pitloom.dev/provenance/
+  <kind>/<version>`, or `.../fields/<version>` for the default field-level
+  schema).
+- `"kind"` — a short string, always equal to the schema URL's own `<kind>`
+  path segment (`"fields"`, `"unification"`, `"artifact-metadata"`,
+  `"conflict"`).
+
+Compound JSON keys use `camelCase`, matching the surrounding SPDX 3
+JSON-LD style already used everywhere in the same document (`spdxId`,
+`creationInfo`, `annotationType`). None of the four current schemas ends
+up needing a compound key — G2's `candidates` list settled on flat,
+single-word fields (`value`/`role`/`source`/`ref`) once it moved to an
+open candidate-list design instead of fixed `declaredLicenseId`-style
+pairs — but the convention is stated explicitly so the next schema that
+*does* need one (E1/E2, whenever `enrich/` lands) doesn't have to
+re-derive it. Established retroactively across all four schemas this
+session (none had shipped in a release yet, so no compatibility
+constraint).
+
 ### Use-case catalog (why the Annotation earns its place)
 
 - **Generation** — G1 inferred/detected/AI-generated qualifier (necessary,
   **implemented**: `licenseid_detection`, `inferred_from_authors` have no
-  native assertedness marker); G2 multi-source license disagreement
-  (necessary on conflict, **not implemented — design only**: license source
-  is picked by fixed priority in
-  [`pyproject.py`](../../src/pitloom/extract/pyproject.py) `_resolve_license_hint`
-  — `project.license` text/file wins if present, else fall back to
-  `detect_license_for_project`'s `licenseid` match — and
-  [`deps.py`](../../src/pitloom/assemble/spdx3/deps.py) `_is_license_concluded`
-  only classifies that single winning value as declared-vs-concluded by its
-  recorded `method`; nothing ever compares a declared value against a
-  detected one or flags disagreement between them); G3 declared constraint
-  vs resolved version (useful, **implemented** — SPDX keeps only the
-  resolved version); G4 sub-file location in opaque AI formats (useful,
-  **implemented**).
+  native assertedness marker); **G2 multi-source disagreement** (necessary
+  on conflict, **implemented for license**, generalized beyond license — see
+  the dedicated subsection below); G3 declared constraint vs resolved
+  version (useful, **implemented** — SPDX keeps only the resolved version);
+  G4 sub-file location in opaque AI formats (useful, **implemented**).
 - **Aggregation** — A1 unification rationale (necessary, **implemented**):
   `_merge_fragment_set` records `(survivor, criterion, dropped_id, fragment)`
   for a **SHA-256 content-equality** match — a genuinely distinct id folded
@@ -720,8 +736,12 @@ entry points exactly as `provenance_format`/`schema` already were.
   record survives anywhere. Lower priority than A1: it's a cross-build fact
   (comparing this SBOM to a previous one), not something expressible within
   one SBOM generation.
-- **Enrichment** — E1 override lineage, E2 AI-inferred-vs-extracted marker
-  (both necessary; design-only — the `enrich/` subpackage is unbuilt).
+- **Enrichment** — E1 override lineage, E2 AI-inferred-vs-non-inferred
+  marker (both necessary; design-only — the `enrich/` subpackage is
+  unbuilt). E2's "non-inferred" pole is any of G2's `declared`/`detected`/
+  `externalReported` roles below — same vocabulary, reused rather than a
+  separate "extracted" word (which would have collided with `extract/`,
+  Pitloom's own name for the whole read-a-value pipeline stage).
 - **Preservation** — P1 verbatim original AI-model metadata
   (`provenance/artifact-metadata/1`), config-gated, complements the lossy
   native mapping when the artifact isn't shipped. `raw_metadata` captured
@@ -754,6 +774,217 @@ entry points exactly as `provenance_format`/`schema` already were.
   re-extractable). A future fix, if needed, should truncate with an explicit,
   visible marker (e.g. `"_truncated": true`) rather than cutting silently.
 
+### G2 — multi-source disagreement (2026-08-10, generalized, license implemented)
+
+License is the first field this fires for, but the *mechanism* — several
+sources reporting different values for the same field — applies to any
+field. Built as a generic schema from the start so a future field or
+candidate source never requires another schema redesign.
+
+**Where it lives.** [`provenance.py`](../../src/pitloom/assemble/spdx3/provenance.py)
+`ConflictCandidate` (a `TypedDict`) + `build_conflict_annotation`. Schema
+URL `https://pitloom.dev/provenance/conflict/1`, envelope:
+
+```json
+{
+  "schema": "https://pitloom.dev/provenance/conflict/1",
+  "kind": "conflict",
+  "field": "license",
+  "candidates": [
+    {"value": "MIT", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "ref": "<spdxId of hasDeclaredLicense target>"},
+    {"value": "Apache-2.0", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0", "ref": "<spdxId of hasConcludedLicense target>"}
+  ]
+}
+```
+
+Only emitted when candidates actually disagree after normalization
+(`_license.py` `normalize_license_expression`, built on the
+[`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) parser —
+a plain `.strip()` comparison alone would false-positive not just on
+casing differences (declared `"mit"` vs. detected `"MIT"`) but on
+equivalent-yet-differently-spelled compound expressions too (`"MIT AND
+MIT"` vs. `"MIT"`; `"MIT OR Apache-2.0"` vs. `"Apache-2.0 OR MIT"`) — so
+both candidate values are parsed, deduplicated, and canonically reordered
+before both the comparison and the license-element lookup/creation. A
+value that fails to parse as a valid SPDX expression at all falls back to
+`canonicalize_license_id`'s bare-id casing lookup, then to the raw string
+unchanged. Full agreement emits no Annotation — both native relationships
+still get built, just pointing at the same license element, and there's nothing
+extrinsic left to assert.
+
+**`role` vocabulary** — an epistemic-process label (*whose* determination
+this is), deliberately not "which native SPDX slot it maps to" (that
+would have overloaded SPDX's own `hasConcludedLicense` meaning, "the
+SBOM creator's final determination," a graph-placement outcome, not a
+method category):
+
+- `declared` — the subject's own stated claim, however observed (read
+  locally, or relayed unedited by a third party).
+- `detected` — Pitloom's own independent-verification *procedure*'s
+  determination, whatever the input's origin (locality of the *input*
+  never matters; locality of the *determination* does — Pitloom fetching a
+  remote file and running its own `licenseid` match on it is still
+  `detected`). "Procedure," not "algorithm ran": the license implementation
+  (`detect_independent_license`) is a multi-step search — `CITATION.cff`,
+  then `codemeta.json`, then license files, applying `licenseid` text
+  matching only where a value isn't already a bare SPDX id — and a step
+  that resolves via a direct bare-id read still counts as `detected`,
+  because it was Pitloom's own independently-consulted secondary source,
+  not a re-read of the subject's primary declared field. What decides the
+  role is *whose search procedure* produced the value, not whether every
+  individual step needed fuzzy text matching. Not named "extracted":
+  `extract/` is already Pitloom's own name for the whole read-a-value
+  pipeline stage, and `declared` is also extracted in that sense —
+  "extracted" would have collided with `declared` instead of contrasting
+  with it.
+- `externalReported` — some *other* party's own determination or opinion,
+  relayed without Pitloom re-deriving it, and not the subject's own claim
+  either (a paper's interpretation, an unrelated org's assessment, or
+  another system's own algorithmic conclusion — GitHub's own
+  license-detector badge is still GitHub's determination, not Pitloom's,
+  even though GitHub's detector is itself rule-based internally —
+  "rule-based" was never the right test, "whose algorithm" is). No native
+  slot exists for this role by nature, not because it lost a priority
+  race against a local `declared` candidate.
+- `inferred` — an AI agent's non-deterministic reasoning/judgment. Same
+  word E2 already reserves for this.
+
+**Decision rule:** ask "whose determination is this," never "was the
+data local or remote" and never "was a rule-based algorithm involved
+somewhere" (a third-party service's own rule-based detector is still
+`externalReported`, because the algorithm wasn't Pitloom's).
+
+**Source-recording convention, per role** — each role's `source` string
+records identity appropriate to *that* answerer, using the existing
+generic `"Key: Value | Key: Value"` parser (no parser change needed for
+any of these):
+
+- `declared` — unchanged: `"Source: <file> | Field: <field>"`.
+- `detected` — **implemented**: gains a `Tool:` segment with the
+  detection library's version (`importlib.metadata.version("licenseid")`),
+  e.g. `"Source: LICENSE | Method: licenseid_detection | Tool:
+  licenseid==0.3.0"` — a detection result is only as reproducible as the
+  library version that produced it.
+- `externalReported` (future convention, not built) — `"Source: <service
+  name> | Endpoint: <API path/version> | Retrieved: <ISO 8601 date>"`.
+  Fits API-style sources (HF Hub, GitHub API); a non-API external source
+  (a paper, a scraped webpage) will need its own, less endpoint-centric
+  shape, worked out when that source type is actually built.
+- `inferred` (future convention, not built) — the answerer isn't Pitloom
+  at all; inference happens in an agent process entirely outside
+  Pitloom's own Python code, so it has to be the *agent's own
+  self-reported* identity: `"Source: <agent name> (<vendor>) | Method:
+  inference | Date: <ISO 8601 date>"`, e.g. `"Source: Claude Code
+  (Anthropic) | Method: inference | Date: 2026-08-10"`. Pitloom cannot
+  verify this at merge time — same trust model the `enrich` skill's
+  existing generic `"Source: AI agent | Method: inference"` marker
+  already has, just more specific when the agent knows its own identity.
+
+**Role → native relationship mapping is today's default policy, not an
+inherent law.** For license: `declared` → `hasDeclaredLicense`,
+`detected` → `hasConcludedLicense` (the only place the word "concluded"
+appears — as SPDX's own relationship-type name, applied to the `detected`
+candidate). This is a policy choice made *because* Pitloom's detector has
+no confidence score today — its one output is the only candidate
+determination available to call "concluded," not because a detected
+value is inherently more trustworthy than a declared one. A bad/spurious
+detection can and does produce a wrong `hasConcludedLicense` — a
+pre-existing limitation of the single detector itself, not something G2
+introduces. Once multiple detectors or confidence scoring exist, this
+mapping is where a smarter policy would plug in (e.g. falling back to
+`declared` when `detected` confidence is low) — future work, not built.
+`externalReported` and `inferred` never map to a native relationship for
+license (no 3rd/4th native slot exists).
+
+**What's actually built (v1, license only).**
+[`_license.py`](../../src/pitloom/extract/_license.py)
+`detect_independent_license` — independently scans the project directory
+(`CITATION.cff`, `codemeta.json`, license files), *ignoring* any declared
+value, so there's a genuine second opinion to compare against. Previously,
+a declared value that already looked like a valid SPDX id short-circuited
+before the `LICENSE` file was ever read, so there was nothing to disagree
+with; now the independent scan always runs alongside it.
+
+`resolve_license_concluded` (also in `_license.py`) is the single, shared
+G2 entry point every project-metadata extractor calls — not just
+`pyproject.py`'s `[project]` path. It exists because the four extraction
+paths (CLI's [`pyproject.py`](../../src/pitloom/extract/pyproject.py)
+`read_pyproject`, the [`hatchling.py`](../../src/pitloom/extract/hatchling.py)
+build-hook path, the poetry-only
+[`poetry.py`](../../src/pitloom/extract/poetry.py) `read_poetry`, and the
+setuptools-only [`setuptools.py`](../../src/pitloom/extract/setuptools.py)
+`read_setuptools`) were each written and evolving independently. G2 first
+shipped wired only into the CLI path; a later review found the Hatchling
+build hook called `detect_license_for_project` directly and never ran the
+independent scan at all, so G2 silently never fired for any Hatchling-built
+project. Rather than patch that one path, all four now call the same
+`resolve_license_concluded` (and, for the poetry-only and setuptools-only
+paths, the same directory-detection fallback when nothing is declared) so
+a future fifth extraction path can't reintroduce the same gap by omission.
+Cross-path regression tests
+(`test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict`
+in `tests/test_hatch_hook.py`,
+`test_read_poetry_matches_read_pyproject_fallback_for_license_conflict` in
+`tests/test_poetry.py`) assert the paths agree on the same project. The
+same review also found the Hatchling and CLI paths each hand-listed their
+own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
+`pyproject.py`, `merge_metadata` in `setuptools.py`); both were replaced
+by [`core/project.py`](../../src/pitloom/core/project.py)'s
+`merge_project_metadata`, which iterates `dataclasses.fields()` instead of
+naming every field by hand, so a newly added `ProjectMetadata` field
+merges automatically without a call site needing to be updated (see its
+own docstring for the field-drift history that motivated this).
+[`deps.py`](../../src/pitloom/assemble/spdx3/deps.py)
+`build_license_elements` gained `concluded_license_id`/
+`concluded_license_provenance` params (`None` default — the three other
+call sites, dependency and AI-model licenses, are unaffected, since
+neither has a local second source to detect from today): when given, both
+candidates are run through `normalize_license_expression` before both the
+comparison and the license-element lookup/creation, then both
+`hasDeclaredLicense` and `hasConcludedLicense` are always built, and a G2
+conflict Annotation is added on disagreement.
+
+`normalize_license_expression` (also in `_license.py`) is the new,
+stronger canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
+is normalized first — but only when the operator stands alone as its own
+whitespace/paren-delimited token, never when it's hyphen-glued into an
+identifier (`GPL-2.0-or-later`, a custom `LicenseRef-my-or-license`) —
+then the result is parsed and canonically sorted via `py-spdx-license`
+(a new base dependency). This both canonicalizes bare-id casing (same as
+`canonicalize_license_id`, which it falls back to on a parse failure) and
+dedupes/reorders compound expressions, which `canonicalize_license_id`
+alone never handled.
+
+**Real-world validation.** This is not a hypothetical gap:
+[Trivy discussion #10139](https://github.com/aquasecurity/trivy/discussions/10139)
+reports scanning the same package and getting the same license expression
+back with and without a redundant outer paren
+(`GPL-3.0-or-later WITH GCC-exception-3.1` vs.
+`(GPL-3.0-or-later WITH GCC-exception-3.1)`), breaking policy rules that
+compare against one fixed string. Checked `normalize_license_expression`
+against all four of that report's example pairs — every pair normalizes
+to an identical string. Separately verified the harder case, where a
+paren is *not* redundant: for mixed `AND`/`OR` expressions,
+`MIT AND Apache-2.0 OR BSD-3-Clause` (no parens, relies on `AND` binding
+tighter than `OR` per the SPDX spec) and
+`(MIT AND Apache-2.0) OR BSD-3-Clause` (explicit parens matching that
+same default precedence) both normalize to `Apache-2.0 AND MIT OR
+BSD-3-Clause`, while `MIT AND (Apache-2.0 OR BSD-3-Clause)` (parens
+*overriding* default precedence, semantically different) correctly stays
+distinct and keeps its now-necessary paren. So the normalization strips
+parens exactly when they're redundant and keeps them exactly when they're
+load-bearing — not a blanket strip-all-parens heuristic.
+
+**Future candidate sources (not built — `enrich/`-territory network or
+agent work, cross-referenced to
+[`sbom-enrichment.md`](../design/sbom-enrichment.md)'s existing source
+table):** HF Hub API (`externalReported`), GitHub via `ExternalRef`
+(`detected` if Pitloom runs its own scan on the fetched file,
+`externalReported` if relaying GitHub's own license badge), a linked
+paper (`externalReported`), README/source-comment agent inference
+(`inferred`). The schema already has the `role` slots waiting for all of
+these — no further schema change needed when they land.
+
 ### Phase 2 (documented; built after this Annotation work): native-first backfill
 
 Several facts still live only in an Annotation/comment but have a real SPDX
@@ -764,8 +995,15 @@ forgotten:
 - [x] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
   source fragment). Residual in Annotation: the unification *criterion* only. (PR [#108](https://github.com/bact/pitloom/pull/108))
 - [x] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
-  (author-stated) / `hasConcludedLicense` (Pitloom-detected). Today they are
-  mirrored (`deps.py`, "no inference yet"). Residual: the detection evidence. (PR [#105](https://github.com/bact/pitloom/pull/105))
+  (author-stated) / `hasConcludedLicense` (Pitloom-detected). Originally
+  shipped mirrored (single winning value classified as one or the other,
+  "no inference yet") in PR [#105](https://github.com/bact/pitloom/pull/105);
+  the main project package now populates both independently when a second,
+  directory-detected opinion exists (G2, above), across all four
+  project-metadata extraction paths (CLI, Hatchling build hook,
+  poetry-only, setuptools-only) — dependency and AI-model license paths
+  remain single-value/mirrored, no local second source to detect from.
+  Residual: the detection evidence.
 - [ ] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment run.
   Residual: which field + before/after value + inferred marker (E1/E2). (Blocked on `enrich/` subpackage)
 - [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →

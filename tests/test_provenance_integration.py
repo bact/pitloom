@@ -268,7 +268,7 @@ def test_provenance_annotations_do_not_duplicate_native_values() -> None:
 
     # The license detection *method* is residual signal, but the license value
     # itself lives in the SimpleLicensingText element.
-    schema_url = "https://pitloom.dev/provenance/1"
+    schema_url = "https://pitloom.dev/provenance/fields/1"
     license_statements = [
         stmt
         for a in annotations

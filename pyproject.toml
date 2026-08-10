@@ -57,6 +57,7 @@ dependencies = [
     "hatchling>=1.28.0",
     "licenseid>=0.3.0",
     "pipdeptree>=2.21.0",
+    "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
     "rfc8785>=0.1.4",
     "spdx-python-model>=0.0.6",
@@ -185,6 +186,10 @@ module = "fickling.*"
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 module = "h5py.*"
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
+module = "py_spdx_license.*"
 
 # safetensors safe_open and sys.modules typing changed across library versions.
 # These modules carry type: ignore comments that may be needed on older versions
