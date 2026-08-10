@@ -154,7 +154,10 @@ jobs:
       - name: Install spdx3-validate
         if: steps.sbom.outcome == 'success'
         run: |
-          pip install spdx3-validate
+          # Pin to 0.0.5: 0.0.7 introduced rdflib JSON-LD parsing which
+          # fetches the remote @context URL at runtime, failing on GitHub
+          # Actions runners with "Connection reset by peer" from spdx.org.
+          pip install "spdx3-validate==0.0.5"
 
       - name: Validate SBOM with spdx3-validate
         id: validate
