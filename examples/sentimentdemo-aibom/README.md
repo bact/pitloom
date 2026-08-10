@@ -345,17 +345,29 @@ PY
 A successful run typically prints something like:
 
 ```text
-Total elements: 28
-  CreationInfo: 1
-  Person: 1
-  Relationship: 8
+Total elements: 55
+  Annotation: 14
+  CreationInfo: 4
+  LifecycleScopedRelationship: 3
+  Relationship: 13
+  SoftwareAgent: 1
   SpdxDocument: 1
   Tool: 1
-  ai_AIPackage: 2
-  dataset_DatasetPackage: 7
-  software_Package: 5
+  ai_AIPackage: 1
+  dataset_DatasetPackage: 4
+  simplelicensing_SimpleLicensingText: 2
+  software_File: 6
+  software_Package: 3
   software_Sbom: 2
 ```
+
+The 14 `Annotation` elements and 4 `CreationInfo` elements (vs. 1 apiece
+in earlier Pitloom versions) are metadata provenance -- where each field
+came from and, for enrichment runs, what changed and why. See
+[`working-docs/implementation/annotation-provenance.md`](../../working-docs/implementation/annotation-provenance.md)
+for the full design. Exact counts will drift release to release as more
+fields gain native SPDX 3 constructs or provenance coverage; treat this
+as illustrative, not a golden output.
 
 ---
 
