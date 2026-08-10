@@ -377,6 +377,18 @@ class ConflictCandidate(_ConflictCandidateRequired, total=False):
       opinion, relayed without Pitloom re-deriving it -- and not the
       subject's own claim either.
     * ``"inferred"`` -- an AI agent's non-deterministic reasoning/judgment.
+    * ``"sbomAuthorSupplied"`` -- asserted directly by the human operating
+      Pitloom (or an agent on their behalf), regardless of channel: typed
+      in answer to an agent's question in an interactive session, passed
+      as a CLI flag, or set in ``[tool.pitloom]`` config. Not
+      ``"declared"`` (that's the *artifact's* author/vendor, not the
+      SBOM's author); not ``"inferred"`` (nothing was derived -- the value
+      was simply relayed, and Pitloom can no more verify it than a
+      ``"declared"`` value). Only applies when the human states the fact
+      itself -- if they instead point at a source ("look at X", "read Y",
+      "infer it from Z"), the role is whichever of the other four
+      actually matches how the agent obtained the value once it looked
+      there; a pointer is never itself ``"sbomAuthorSupplied"``.
 
     ``source`` follows the existing ``"Key: Value | Key: Value"`` provenance
     string convention (:func:`parse_provenance_value`). ``ref`` is the
@@ -462,8 +474,9 @@ def build_enrichment_annotation(
     ``Element.creationInfo`` is singular per element. This Annotation is
     where that case's evidence lives instead: which field changed, its
     before/after value, and the role (``"declared"``/``"detected"``/
-    ``"externalReported"``/``"inferred"`` -- G2's exact vocabulary,
-    reused rather than inventing a separate one for enrichment).
+    ``"externalReported"``/``"inferred"``/``"sbomAuthorSupplied"`` -- G2's
+    exact vocabulary, reused rather than inventing a separate one for
+    enrichment).
 
     Only call this when *changes* is non-empty; a no-op enrichment run has
     nothing extrinsic to assert.

@@ -105,6 +105,30 @@ The final report to the user (step 7 below) must call this override out
 by name -- never let a silent override look identical to an ordinary
 gap-fill.
 
+### Interactive example: asking the SBOM author
+
+Say neither frontmatter nor prose says what the model was actually
+*trained* on -- only what it was evaluated on. In an interactive session,
+the agent asks the SBOM author directly, and marks the answer
+`sbomAuthorSupplied`, not `inference` -- the agent didn't derive this, it
+was told:
+
+```json
+{
+  "creationInfo": "_:creationinfo-agent",
+  "comment": "Source: SBOM author | Method: sbomAuthorSupplied | Date: 2026-08-10 -- SBOM author confirmed in the enrichment session that this model was fine-tuned on an internal, unpublished dataset not described in any project file.",
+  "dataset_datasetAvailability": "none",
+  "dataset_datasetType": ["other"],
+  "description": "Training dataset per the SBOM author, not documented in any project file.",
+  "name": "internal-finetune-set",
+  "spdxId": "https://spdx.org/spdxdocs/pitloom-agent/DatasetPackage/internal-finetune-set-01",
+  "type": "dataset_DatasetPackage"
+}
+```
+
+Skip this kind of question entirely in a non-interactive run -- there is
+no one to answer it.
+
 Notes:
 
 - `comment` on the inferred element carries the required provenance marker

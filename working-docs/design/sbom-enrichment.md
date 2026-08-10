@@ -257,6 +257,67 @@ See `skills/sbom-enrich/SKILL.md` and
 instructions and a worked fragment example. Validate the merged result
 with the `skills/sbom-validate/` Skill.
 
+### Interactive mode: asking the SBOM author
+
+When the Skill runs in an interactive session (a human present to answer),
+it can go beyond prose inference for gaps neither the deterministic pass
+nor prose resolves -- by asking. Some fields are things the person running
+the enrichment is plausibly positioned to know even though no file states
+them -- intended use, training-data provenance/consent, deployment
+restrictions. The agent may ask a targeted question for *specific*
+remaining gaps, not run an open-ended interview.
+
+**Decision rule for the role: is the answer the fact, or a pointer to the
+fact?**
+
+1. **The SBOM author states the fact itself** ("it's MIT", "yes, trained
+   on our internal support-ticket corpus"). Role is `sbomAuthorSupplied`,
+   not `inferred` -- the agent didn't derive it, it relayed what it was
+   told, and Pitloom can no more verify it than a `declared` value. See
+   [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+   role vocabulary for the full definition; the same role also covers a
+   value passed via CLI flag or `[tool.pitloom]` config, since both are
+   the SBOM author asserting a value directly, just through a different
+   channel than chat.
+2. **The SBOM author points at a source instead** ("look at
+   CONTRIBUTING.md", "read the internal wiki page", "try the HF model
+   card", "infer it from the changelog"). The role is *never*
+   `sbomAuthorSupplied` here -- the human didn't assert the fact, only
+   named where to look. The agent must actually go look, and the
+   resulting role is whichever mechanism it then used to get the value
+   out of that source: `declared` if reading a field the source states
+   about itself, `externalReported` if relaying another party's own claim
+   found there, `inferred` if the agent had to reason over prose to reach
+   it.
+
+**Consent gate for any source outside the target project** -- applies
+regardless of who initiated the lookup. Two ways this comes up:
+
+- The SBOM author points the agent at an outside source (case 2 above).
+- The agent notices something relevant **on its own initiative**, with no
+  prompting: already sitting in its context window, in another file it
+  has permission to read, or at a known remote location -- e.g. PyPI,
+  arXiv, Hugging Face Hub, GitHub, GitLab, Codeberg, or a URL already
+  visible in context. (Some of these overlap with data sources planned
+  as future *deterministic* enrichers -- see "Enricher implementation
+  approach" below; an agent-initiated lookup here is a distinct,
+  informal, interactive-session-only path, not a substitute for building
+  those.)
+
+Either way, the agent must never fold the finding into a fragment
+silently. It must name exactly what it found and where, and ask the SBOM
+author for permission to use it, before drafting anything -- an
+agent-initiated ask needs to be at least as explicit as one prompted by
+the user, since there was no request inviting the agent to go looking in
+the first place. The resulting role is still whichever of
+`declared`/`externalReported`/`inferred` matches how the value was
+obtained; the permission check is a consent gate, not a provenance role,
+and never makes the result `sbomAuthorSupplied`.
+
+In a non-interactive run (CI, batch, no human present to answer), skip
+both entirely -- do not block waiting for input; fall back to prose-only
+inference (or no enrichment) for anything these would have covered.
+
 ### Enricher implementation approach (shipped, MVP scope)
 
 1. `src/pitloom/enrich/` subpackage, one module per data source. Shipped:
