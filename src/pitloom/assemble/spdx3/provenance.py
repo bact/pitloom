@@ -171,6 +171,14 @@ class PitloomV1Encoder:
 #: Registry of available encoders, keyed by ``schema_id``. A future external
 #: schema (see working-docs/implementation/annotation-provenance.md §8)
 #: registers itself here alongside ``pitloom/1`` -- no call site changes.
+#: Known limitation, currently latent only: nothing writes into this dict
+#: after module load today (confirmed by independent review), so there is
+#: no reset-between-generations concern yet -- but if a future external
+#: schema plugin ever *does* register into it at runtime, this dict is
+#: process-lifetime, with no reset mechanism between separate SBOM
+#: generations in the same process (unlike ``_ID_COUNTERS``, which
+#: ``_clear_doc_counters()`` explicitly resets per generation). Add a
+#: reset path if/when a real runtime-registering plugin lands.
 _ENCODERS: dict[str, ProvenanceEncoder] = {
     PitloomV1Encoder.schema_id: PitloomV1Encoder(),
 }
@@ -222,14 +230,24 @@ def build_provenance_annotation(
 
     enc = encoder or resolve_encoder()
 
-    return spdx3.Annotation(
-        spdxId=generate_spdx_id("Annotation", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
-        annotationType=spdx3.AnnotationType.other,
-        contentType=enc.content_type,
-        subject=subject_spdx_id,
-        statement=enc.encode(provenance),
-    )
+    try:
+        return spdx3.Annotation(
+            spdxId=generate_spdx_id("Annotation", doc_name=doc_name, doc_uuid=doc_uuid),
+            creationInfo=creation_info,
+            annotationType=spdx3.AnnotationType.other,
+            contentType=enc.content_type,
+            subject=subject_spdx_id,
+            statement=enc.encode(provenance),
+        )
+    except ValueError as exc:
+        # The library validates contentType (must match ^[^/]+/[^/]+$) at
+        # construction time -- a pluggable encoder with a malformed
+        # content_type would otherwise surface as a bare library ValueError
+        # with no indication of which schema/encoder caused it.
+        raise ValueError(
+            f"Invalid Annotation for provenance schema {enc.schema_id!r} "
+            f"(content_type={enc.content_type!r}): {exc}"
+        ) from exc
 
 
 # pylint: disable=too-many-return-statements

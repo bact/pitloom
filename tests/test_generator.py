@@ -1548,7 +1548,53 @@ def test_generate_model_sbom_readme_enrichment_end_to_end() -> None:
         statement = json.loads(enrichment_anns[0]["statement"])
         changed_fields = {c["field"] for c in statement["changes"]}
         assert changed_fields == {"license", "datasets:tiny-imagenet"}
+
+        # The Annotation itself must carry the enrichment tool/timestamp
+        # (who/when this specific fact was asserted), not the main
+        # document's generic CreationInfo -- otherwise the *only* record
+        # of "which enricher filled the license field in place" (N3
+        # doesn't cover in-place field-fills, only new elements) is lost.
+        assert enrichment_anns[0]["creationInfo"] == dataset_creation_info
+        assert enrichment_anns[0]["creationInfo"] != ai_creation_info
         assert all(c["role"] == "detected" for c in statement["changes"])
+
+
+def test_generate_model_sbom_field_only_enrichment_has_own_creation_info() -> None:
+    """When enrichment fills only an existing element's field (no new
+    dataset element -- N3 doesn't apply, there's no dataset CreationInfo
+    to compare against), the E1/E2 Annotation must still carry its own
+    enrichment CreationInfo (the readme enricher's tool/timestamp), not
+    silently fall back to the AI package's main document CreationInfo --
+    the Annotation is the *only* place this in-place field-fill's
+    provenance can live."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+        (tmppath / "README.md").write_text("---\nlicense: apache-2.0\n---\n")
+        (tmppath / "pyproject.toml").write_text("[tool.pitloom.enrich]\nlocal = true\n")
+
+        graph = json.loads(generate_model_sbom(model_path))["@graph"]
+
+        ai_pkg = next(e for e in graph if e.get("type") == "ai_AIPackage")
+        assert not [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        enrichment_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == ai_pkg["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "enrichment"
+        ]
+        assert len(enrichment_anns) == 1
+
+        tools = {e["spdxId"]: e for e in graph if e.get("type") == "Tool"}
+        creation_infos = {e["@id"]: e for e in graph if e.get("type") == "CreationInfo"}
+        ann_ci_id = enrichment_anns[0]["creationInfo"]
+        assert ann_ci_id != ai_pkg["creationInfo"]
+        ann_tool_id = creation_infos[ann_ci_id]["createdUsing"][0]
+        assert tools[ann_tool_id]["name"] == "pitloom.enrich.readme"
 
 
 def test_generate_model_sbom_no_readme_no_enrichment_artifacts() -> None:
@@ -1717,6 +1763,170 @@ def test_enrich_model_and_generate_model_sbom_reference_matching_ai_package_id()
             and json.loads(e.get("statement", "{}")).get("kind") == "enrichment"
         )
         assert enrichment_ann["subject"] == full_ai_pkg["spdxId"]
+
+
+def _write_smoke_project(tmppath: Path, *, enrich_local: bool = False) -> Path:
+    """Write a minimal Hatchling project with one AI model + README under
+    ``src/smoke_project/`` at *tmppath*; returns the model file's path.
+    Shared by the project-target enrichment tests below."""
+    pkg_dir = tmppath / "src" / "smoke_project"
+    pkg_dir.mkdir(parents=True)
+    (pkg_dir / "__init__.py").write_text("")
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    model_path = pkg_dir / "model.safetensors"
+    model_path.write_bytes(fixture.read_bytes())
+    (pkg_dir / "README.md").write_text(
+        "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
+    )
+    enrich_toml = "[tool.pitloom.enrich]\nlocal = true\n" if enrich_local else ""
+    (tmppath / "pyproject.toml").write_text(
+        "[build-system]\n"
+        'requires = ["hatchling"]\n'
+        'build-backend = "hatchling.build"\n\n'
+        "[project]\n"
+        'name = "smoke-project"\n'
+        'version = "0.1.0"\n\n'
+        "[tool.hatch.build.targets.wheel]\n"
+        'packages = ["src/smoke_project"]\n\n' + enrich_toml
+    )
+    return model_path
+
+
+def test_enrich_model_project_target_matches_project_level_ai_package_id() -> None:
+    """A fragment from enrich_model(project_target=...) must reference the
+    same ai_AIPackage id generate_project_sbom() assigns for that model --
+    project-level and single-model identity schemes differ (project name/
+    version/dependencies/Merkle root vs. the model's own name/version), so
+    without project_target the fragment would reference a nonexistent id
+    once merged into a project-level base document (the bug this test
+    guards against)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = _write_smoke_project(tmppath)
+
+        fragment = json.loads(enrich_model(model_path, project_target=tmppath))
+        full_doc = json.loads(generate_project_sbom(tmppath, enrich=True))
+
+        full_ai_pkg = next(
+            e for e in full_doc["@graph"] if e.get("type") == "ai_AIPackage"
+        )
+        enrichment_ann = next(
+            e
+            for e in fragment["@graph"]
+            if e.get("type") == "Annotation"
+            and json.loads(e.get("statement", "{}")).get("kind") == "enrichment"
+        )
+        assert enrichment_ann["subject"] == full_ai_pkg["spdxId"]
+
+
+def test_enrich_model_without_project_target_mismatches_project_level_id() -> None:
+    """Negative-space guard: *without* project_target, the fragment's
+    referenced id must NOT match the project-level ai_AIPackage id -- if
+    this test starts failing (i.e. they start matching by coincidence),
+    the project_target parameter has become unnecessary and the "why" in
+    build_enrichment_fragment's docstring needs re-checking, not this
+    test silently loosened."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = _write_smoke_project(tmppath)
+
+        fragment = json.loads(enrich_model(model_path))
+        full_doc = json.loads(generate_project_sbom(tmppath, enrich=True))
+
+        full_ai_pkg = next(
+            e for e in full_doc["@graph"] if e.get("type") == "ai_AIPackage"
+        )
+        enrichment_ann = next(
+            e
+            for e in fragment["@graph"]
+            if e.get("type") == "Annotation"
+            and json.loads(e.get("statement", "{}")).get("kind") == "enrichment"
+        )
+        assert enrichment_ann["subject"] != full_ai_pkg["spdxId"]
+
+
+def test_enrich_model_project_target_merges_correctly_end_to_end() -> None:
+    """The actual regression test for the bug: a fragment generated with
+    project_target, registered under [tool.pitloom.fragments], and merged
+    via a real generate_project_sbom() re-run must produce a
+    dataset_DatasetPackage and enrichment Annotation genuinely attached to
+    the project's real ai_AIPackage -- not just matching id strings in
+    isolation (see the two tests above), but surviving an actual
+    merge_fragments() pass."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = _write_smoke_project(tmppath)
+
+        fragment_path = tmppath / "model.enrich.spdx3.json"
+        enrich_model(model_path, project_target=tmppath, output_path=fragment_path)
+        with (tmppath / "pyproject.toml").open("a") as f:
+            f.write('\n[tool.pitloom.fragments]\nfiles = ["model.enrich.spdx3.json"]\n')
+
+        merged = json.loads(generate_project_sbom(tmppath))
+        graph = merged["@graph"]
+
+        ai_pkg = next(e for e in graph if e.get("type") == "ai_AIPackage")
+        ds_pkgs = [e for e in graph if e.get("type") == "dataset_DatasetPackage"]
+        assert len(ds_pkgs) == 1
+        assert ds_pkgs[0]["name"] == "tiny-imagenet"
+
+        rels = [e for e in graph if e.get("type") == "Relationship"]
+        trained_on = [
+            r
+            for r in rels
+            if r.get("relationshipType") == "trainedOn"
+            and r.get("from") == ai_pkg["spdxId"]
+            and ds_pkgs[0]["spdxId"] in r.get("to", [])
+        ]
+        assert len(trained_on) == 1
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        enrichment_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == ai_pkg["spdxId"]
+            and json.loads(a.get("statement", "{}")).get("kind") == "enrichment"
+        ]
+        assert len(enrichment_anns) == 1
+
+
+def test_enrich_model_registry_pinned_id_matches_base_doc() -> None:
+    """A registry-pinned ai_AIPackage id must be referenced by the
+    fragment too, not the freshly computed one -- otherwise a project
+    using a stable registry (--registry) gets the same dangling-reference
+    bug as the project_target case, even for a single-model base doc."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(
+            (
+                _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+            ).read_bytes()
+        )
+        (tmppath / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
+
+        registry_path = tmppath / "loom-ids.json"
+        registry = IdRegistry.new("pinned-demo", path=registry_path)
+        pinned_id = registry.register_entity("model", "ai_AIPackage")
+        registry.save()
+
+        full_doc = json.loads(
+            generate_model_sbom(model_path, enrich=True, registry=registry_path)
+        )
+        fragment = json.loads(enrich_model(model_path, registry=registry_path))
+
+        full_ai_pkg = next(
+            e for e in full_doc["@graph"] if e.get("type") == "ai_AIPackage"
+        )
+        assert full_ai_pkg["spdxId"] == pinned_id
+
+        enrichment_ann = next(
+            e
+            for e in fragment["@graph"]
+            if e.get("type") == "Annotation"
+            and json.loads(e.get("statement", "{}")).get("kind") == "enrichment"
+        )
+        assert enrichment_ann["subject"] == pinned_id
 
 
 # ---------------------------------------------------------------------------

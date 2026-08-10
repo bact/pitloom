@@ -253,18 +253,36 @@ def build_enrichment_elements(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-) -> tuple[dict[str, spdx3.CreationInfo], list[EnrichedFieldEntry]]:
+) -> tuple[
+    dict[str, spdx3.CreationInfo],
+    list[tuple[spdx3.CreationInfo, list[EnrichedFieldEntry]]],
+]:
     """Build N3 CreationInfo(s)/Tool(s) for each non-empty enrichment result.
 
     Returns a dataset-name -> CreationInfo override map (for datasets the
-    enrichment run newly created) and the flat list of changed-field entries
-    that feeds the E1/E2 Annotation. Shared by every assembly path that
-    attaches enrichment evidence to a subject element (single-model SBOMs,
-    project-level SBOMs, standalone enrichment fragments) so they all
-    produce identical N3/E1/E2 shapes for the same enrichment run.
+    enrichment run newly created) and a list of ``(enrichment CreationInfo,
+    changed-field entries)`` pairs, one per non-empty *enrichment_results*
+    entry -- i.e. one group per enrichment *source*. Shared by every
+    assembly path that attaches enrichment evidence to a subject element
+    (single-model SBOMs, project-level SBOMs, standalone enrichment
+    fragments) so they all produce identical N3/E1/E2 shapes for the same
+    enrichment run.
+
+    Grouping by source (rather than flattening every source's fields into
+    one list) matters because the caller builds one E1/E2 Annotation per
+    group, using *that* group's own enrichment ``CreationInfo`` -- the
+    ``created`` timestamp and ``createdUsing`` Tool for *when this
+    enrichment ran and by which source*, a fact this function already
+    computes for N3 but that would otherwise go unrecorded: SPDX's
+    ``Element.creationInfo`` is singular per element, so an existing
+    element's field-fill has no native home (see
+    :func:`build_enrichment_creation_info`'s docstring) -- the Annotation
+    is the *only* place that fact can live, so it must actually carry it
+    rather than defaulting to the document's generic ``creationInfo``
+    (who/when the whole document was assembled, a different fact).
     """
     dataset_creation_info: dict[str, spdx3.CreationInfo] = {}
-    enrichment_changes: list[EnrichedFieldEntry] = []
+    annotation_groups: list[tuple[spdx3.CreationInfo, list[EnrichedFieldEntry]]] = []
     for result in enrichment_results:
         if not result.fields:
             continue
@@ -276,8 +294,9 @@ def build_enrichment_elements(
         )
         exporter.add_creation_info(enrich_ci)
         exporter.object_set.add(enrich_tool)
+        changes: list[EnrichedFieldEntry] = []
         for enriched_field in result.fields:
-            enrichment_changes.append(
+            changes.append(
                 EnrichedFieldEntry(
                     field=enriched_field.field,
                     before=enriched_field.before,
@@ -289,7 +308,8 @@ def build_enrichment_elements(
             if enriched_field.field.startswith("datasets:"):
                 dataset_name = enriched_field.field.removeprefix("datasets:")
                 dataset_creation_info[dataset_name] = enrich_ci
-    return dataset_creation_info, enrichment_changes
+        annotation_groups.append((enrich_ci, changes))
+    return dataset_creation_info, annotation_groups
 
 
 __all__ = [

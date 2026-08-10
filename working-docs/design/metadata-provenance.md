@@ -82,6 +82,21 @@ the model is not shipped and can't be re-extracted). See §10 of the
 implementation plan for the use-case catalog and the Phase 2 native-backfill
 checklist.
 
+**Known limitation, not yet fixed:** artifact-metadata preservation
+(`_source_metadata_blob()`/`_emit_source_metadata()` in
+`src/pitloom/assemble/spdx3/ai.py`) embeds an AI model's raw metadata
+**verbatim, with no size cap**, into a single `Annotation.statement`. For
+the small fixtures this repo tests against, that's a few KB at most; for
+a real production model with a large vocabulary (e.g. a GGUF LLM's
+32K–128K+ token list), the same field could inflate a single Annotation
+into the multi-megabyte range. SPDX 3.0.1's `statement` is plain
+`xsd:string` with no spec-mandated limit, so this isn't a spec
+violation, but it's an untested scalability gap for realistic models
+(found by independent review). Not fixed here: the right behavior (drop
+oversized fields entirely? truncate with a marker? move to an external
+reference?) is a design decision this doc doesn't take a position on
+yet, not a mechanical fix.
+
 Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
 
 ```toml

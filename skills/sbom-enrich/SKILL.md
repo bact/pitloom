@@ -77,6 +77,18 @@ Steps:
    free, and always safe to run before anything else. Inspect the printed
    output path and read the fragment to see exactly which fields
    (`license`, `datasets:...`) it filled.
+
+   **If the base SBOM is project-level** (came from `sbom-generate`
+   running `loom project <dir>`/`loom generate <dir>`, not a bare
+   `loom model <file>`), add `--project-dir <dir>` (the same directory
+   passed to `loom project`) to this `loom enrich` call. Project-level
+   and single-model SBOMs assign a model's `ai_AIPackage` a *different*
+   id; omitting `--project-dir` in the project-level case produces a
+   fragment that references an id absent from the base SBOM, so the
+   dataset relationship and enrichment evidence silently fail to attach
+   once merged -- no error, just missing data in the output. When
+   `--registry <file>` was used for the base SBOM, pass the same
+   `--registry` here too.
 3. Read the project's `README.md` / model card **prose** and any other
    local docs. Only propose fields for gaps step 2 left untouched --
    `loom enrich` already found everything it could from frontmatter, so

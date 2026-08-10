@@ -72,6 +72,10 @@ dedicated walkthrough of the Agent Skills and the Claude Code plugin.
 
 ### Command line
 
+`loom -h` shows the full option list.
+
+#### Generate an SBOM
+
 Generate a **Source SBOM** for a Python project in the current directory:
 
 ```bash
@@ -122,7 +126,26 @@ loom generate path/to/model.safetensors   # AI model asset   -> Analyzed SBOM
 loom generate env                         # installed venv    -> Deployed SBOM
 ```
 
-`loom -h` shows the full option list.
+#### Enrich an SBOM
+
+Fill AI-model metadata gaps (license, datasets) from a local
+`README.md`/`MODEL_CARD.md`'s YAML frontmatter -- off by default, opt in
+with `--enrich` on `loom model`/`loom project`/`loom generate`, or run it
+standalone to produce a mergeable fragment:
+
+```bash
+loom model path/to/model.safetensors --enrich -o model.spdx3.json
+
+# Standalone: writes a fragment, doesn't generate a full SBOM
+loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
+# When merging into a project-level (not single-model) base SBOM, add:
+loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
+```
+
+Register the fragment under `[tool.pitloom.fragments]` and re-run
+`loom project`/`loom generate` to merge it in. See
+[`sbom-enrichment.md`](working-docs/design/sbom-enrichment.md) for the
+full surface list (Python API, Hatchling hook, GitHub Action, Skill).
 
 ### Hatchling build hook
 

@@ -221,6 +221,35 @@ def test_build_provenance_annotation_uses_given_encoder() -> None:
     assert ann.statement == "license=y|name=x"
 
 
+def test_build_provenance_annotation_bad_content_type_names_schema() -> None:
+    """A pluggable encoder with a malformed content_type must raise a
+    ValueError naming the offending schema_id/content_type, not a bare
+    unattributed library error -- otherwise a future external-schema
+    plugin's mistake is nearly impossible to trace back to its source."""
+
+    # pylint: disable=too-few-public-methods
+    class _BadEncoder:
+        schema_id = "bad/1"
+        content_type = "not-a-mime-type"
+
+        def encode(self, provenance: dict[str, str]) -> str:
+            del provenance
+            return "{}"
+
+    _clear_doc_counters(_DOC_UUID)
+    ci = _make_ci()
+    with pytest.raises(ValueError, match="bad/1") as exc_info:
+        build_provenance_annotation(
+            subject_spdx_id="urn:example#Package-1",
+            provenance={"name": "x"},
+            creation_info=ci,
+            doc_name=_DOC_NAME,
+            doc_uuid=_DOC_UUID,
+            encoder=_BadEncoder(),
+        )
+    assert "not-a-mime-type" in str(exc_info.value)
+
+
 # ---------------------------------------------------------------------------
 # build_provenance_comment
 # ---------------------------------------------------------------------------
@@ -509,6 +538,11 @@ def test_filter_high_signal_keeps_nonmanifest_sources() -> None:
         "note": "Phantom dependency bundled in distribution artifact",
     }
     assert filter_high_signal(prov) == prov
+
+
+def test_filter_high_signal_empty_dict_returns_empty_dict() -> None:
+    """Boundary case: nothing to filter, nothing raises."""
+    assert filter_high_signal({}) == {}
 
 
 # ---------------------------------------------------------------------------

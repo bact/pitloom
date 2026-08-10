@@ -1042,6 +1042,17 @@ forgotten:
   purely-sequential per-prefix counters can't accidentally collide with
   an unrelated element in the base document once merged (see that
   function's docstring for why).
+  Fixed (found by independent review, same round): the E1/E2 Annotation
+  itself was using the *document's* generic `CreationInfo` instead of the
+  enrichment `CreationInfo` `build_enrichment_elements()` already builds
+  for N3 -- meaning an in-place field-fill's who/when fact (the one case
+  where the Annotation is the *only* place it can live, per the note
+  above) was silently lost, replaced by "whoever built the whole
+  document, whenever that was." `build_enrichment_elements()` now
+  returns one `(CreationInfo, changes)` group per enrichment source
+  rather than a single flattened changes list, and every call site
+  (`build_model()`, `build_enrichment_fragment()`, `add_ai_models()`)
+  builds one Annotation per group using that group's own `CreationInfo`.
 - [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
   `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
   `extra_data`/provenance). Residual: none once mapped. (PR [#106](https://github.com/bact/pitloom/pull/106))

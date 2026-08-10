@@ -1089,6 +1089,66 @@ def test_enrich_mode_missing_model_file_errors(
     assert __main__.main() == 1
 
 
+def test_enrich_mode_no_enrich_flag_suppresses(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """`loom enrich --no-enrich` must write an empty (but valid) fragment
+    rather than silently ignoring the flag -- calling `loom enrich` is
+    normally itself the opt-in, but --no-enrich is the documented escape
+    hatch for scripting symmetry with the other subcommands' flag."""
+    model_path = tmp_path / "model.safetensors"
+    model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+    (tmp_path / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
+    out = tmp_path / "model.enrich.spdx3.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "enrich", str(model_path), "--no-enrich", "-o", str(out)],
+    )
+
+    assert __main__.main() == 0
+    doc = json.loads(out.read_text())
+    assert not [n for n in doc["@graph"] if n.get("type") == "dataset_DatasetPackage"]
+
+
+def test_enrich_mode_project_dir_flag_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--project-dir must reach enrich_model()'s project_target parameter
+    so the fragment references the project-level ai_AIPackage id, not the
+    single-model one -- the fix for the project-level merge bug."""
+    captured: dict[str, object] = {}
+
+    def _fake_enrich_model(
+        source: Path,
+        output_path: Path | None = None,
+        creation_metadata: object | None = None,
+        pretty: bool | None = None,
+        **kwargs: object,
+    ) -> str:
+        _ = (source, output_path, creation_metadata, pretty)
+        captured["project_target"] = kwargs.get("project_target")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "enrich_model", _fake_enrich_model)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "enrich",
+            str(SAFETENSORS_FIXTURE),
+            "--project-dir",
+            "/tmp/some-project",
+        ],
+    )
+
+    assert __main__.main() == 0
+    assert captured["project_target"] == Path("/tmp/some-project")
+
+
 # ---------------------------------------------------------------------------
 # analyze: Hugging Face URL / model-ID mode tests (mocked)
 # ---------------------------------------------------------------------------

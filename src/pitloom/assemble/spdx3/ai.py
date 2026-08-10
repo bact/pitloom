@@ -63,6 +63,11 @@ def _source_metadata_blob(ai_model: AiModelMetadata) -> tuple[str, dict[str, Any
     (GGUF kv-store, safetensors ``__metadata__``); falls back to the retained
     ``properties`` + Hugging Face ``extra_data``/``extra_lists`` so a
     hub-sourced model still preserves what was collected.
+
+    Known limitation: no size cap. A model with a large embedded
+    vocabulary (e.g. a GGUF LLM's 32K+ token list) can produce a
+    multi-megabyte ``Annotation.statement`` once this blob is embedded --
+    see ``working-docs/design/metadata-provenance.md``'s P1 note.
     """
     fmt = str(ai_model.format_info.model_format)
     if ai_model.raw_metadata:
@@ -481,7 +486,7 @@ def add_ai_models(
 
         # N3 / E1 / E2: same per-element enrichment evidence as
         # build_model()'s single-model path, scoped to this model only.
-        dataset_creation_info, enrichment_changes = build_enrichment_elements(
+        dataset_creation_info, annotation_groups = build_enrichment_elements(
             model_enrichment_results, creation_info, doc_name, doc_uuid, exporter
         )
 
@@ -498,12 +503,12 @@ def add_ai_models(
                 dataset_creation_info=dataset_creation_info,
             )
 
-        if enrichment_changes:
+        for enrich_ci, changes in annotation_groups:
             exporter.add_annotation(
                 build_enrichment_annotation(
                     subject_spdx_id=require_spdx_id(ai_pkg),
-                    changes=enrichment_changes,
-                    creation_info=creation_info,
+                    changes=changes,
+                    creation_info=enrich_ci,
                     annotation_spdx_id=generate_spdx_id(
                         "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
                     ),

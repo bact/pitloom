@@ -23,8 +23,17 @@ mentioned.
 ## 1. Run the deterministic pass
 
 ```bash
-loom enrich model.safetensors -o model.enrich.spdx3.json
+loom enrich model.safetensors --project-dir . -o model.enrich.spdx3.json
 ```
+
+`--project-dir .` matters here: `sbom.spdx3.json` is a **project-level**
+SBOM (from `loom project .`, step 5 below), and a project-level document
+assigns this model's `ai_AIPackage` a different id than a standalone
+`loom model model.safetensors` run would. Without `--project-dir`, the
+fragment would reference an id absent from `sbom.spdx3.json` and the
+merge in step 5 would silently produce no visible change -- omit
+`--project-dir` only when merging into a `loom model`-generated base
+document instead.
 
 This parses only `README.md`'s YAML frontmatter (`license: apache-2.0`)
 and writes a standalone fragment -- no prose reading, no reasoning, no

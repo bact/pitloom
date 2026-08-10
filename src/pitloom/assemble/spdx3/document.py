@@ -374,20 +374,44 @@ def build(
     return exporter
 
 
-def _ai_model_identity(model: AiModelMetadata) -> tuple[str, str, str]:
+def _ai_model_identity(
+    model: AiModelMetadata,
+    *,
+    doc_identity: tuple[str, str] | None = None,
+    entity_spdx_id: str | None = None,
+) -> tuple[str, str, str]:
     """Compute ``(doc_name, doc_uuid, ai_package_spdx_id)`` for a model file.
 
-    Deterministic from the model's own name/version/format -- identical to
-    whatever :func:`build_model` computes for the same model, and to what
+    By default, deterministic from the model's own name/version/format --
+    identical to whatever :func:`build_model` computes for the same model
+    when it stands alone as a single-model document, and to what
     :func:`~pitloom.assemble.spdx3.ai._build_ai_package` assigns as the
-    ``ai_AIPackage`` spdxId. Shared so a standalone enrichment fragment
-    (:func:`build_enrichment_fragment`) always references the exact same
-    subject id a full model SBOM would, letting the two merge cleanly.
+    ``ai_AIPackage`` spdxId in that case. Shared so a standalone
+    enrichment fragment (:func:`build_enrichment_fragment`) always
+    references the exact same subject id a full model SBOM would, letting
+    the two merge cleanly.
 
-    Clears this ``doc_uuid``'s id counters immediately before minting
-    ``ai_package_spdx_id`` -- ``generate_spdx_id``'s per-prefix counters
-    are a process-wide side effect, so without this, a second call for the
-    same model in the same process (e.g. an ``enrich_model()`` call
+    ``doc_identity``, when given, overrides ``(doc_name, doc_uuid)`` --
+    e.g. a *project's* own identity (see
+    :func:`~pitloom.assemble.enrich_model`'s ``project_target``
+    parameter), for a model that will be embedded in a project-level
+    document (``generate_project_sbom()``/the Hatchling build hook) rather
+    than standing alone. The single-model and project-level identity
+    schemes are **not interchangeable** -- a project-level document's
+    ``doc_uuid`` is derived from the *project's* name/version/dependencies/
+    Merkle root, not the model's, so a fragment built with the wrong one
+    references an id that does not exist in the intended base document.
+
+    ``entity_spdx_id``, when given, overrides the computed
+    ``ai_package_spdx_id`` entirely -- e.g. one already resolved from an
+    :class:`~pitloom.ids.IdRegistry`, matching what the base document
+    (generated separately, with the same registry) will use.
+
+    Clears the resolved ``doc_uuid``'s id counters immediately before
+    minting ``ai_package_spdx_id`` (skipped when ``entity_spdx_id`` makes
+    that unnecessary) -- ``generate_spdx_id``'s per-prefix counters are a
+    process-wide side effect, so without this, a second call for the same
+    model/project in the same process (e.g. an ``enrich_model()`` call
     followed by a ``generate_model_sbom()`` call, or simply two
     ``enrich_model()`` calls in a row) would silently mint a *different*,
     stale-incremented id instead of the deterministic first one. Callers
@@ -396,13 +420,18 @@ def _ai_model_identity(model: AiModelMetadata) -> tuple[str, str, str]:
     that only need the identity tuple (:func:`build_enrichment_fragment`)
     depend on this clear to get the correct, reproducible id.
     """
-    doc_name = model.name or model.format_info.file_name or "model"
-    doc_uuid = compute_doc_uuid(
-        name=doc_name,
-        version=model.version or "unknown",
-        dependencies=[],
-        merkle_root=None,
-    )
+    if doc_identity is not None:
+        doc_name, doc_uuid = doc_identity
+    else:
+        doc_name = model.name or model.format_info.file_name or "model"
+        doc_uuid = compute_doc_uuid(
+            name=doc_name,
+            version=model.version or "unknown",
+            dependencies=[],
+            merkle_root=None,
+        )
+    if entity_spdx_id is not None:
+        return doc_name, doc_uuid, entity_spdx_id
     _clear_doc_counters(doc_uuid)
     pkg_name = model.name or str(model.format_info.model_format)
     ai_package_spdx_id = generate_spdx_id(
@@ -415,18 +444,33 @@ def build_enrichment_fragment(
     model: AiModelMetadata,
     enrichment_results: list[EnrichmentResult],
     creation_metadata: CreationMetadata | None = None,
+    *,
+    entity_spdx_id: str | None = None,
+    base_doc_identity: tuple[str, str] | None = None,
 ) -> Spdx3JsonExporter:
     """Assemble a standalone enrichment-only SPDX 3 fragment.
 
     Contains only what an enrichment run adds -- N3 CreationInfo(s)/Tool(s),
     any newly-created dataset elements, and the E1/E2 "enrichment" Annotation
-    -- against the exact ``ai_AIPackage`` spdxId :func:`build_model` would
-    assign for the same model (see :func:`_ai_model_identity`). No
+    -- against the exact ``ai_AIPackage`` spdxId the intended base document
+    would assign for the same model (see :func:`_ai_model_identity`). No
     ``ai_AIPackage``, ``software_Sbom``, or ``SpdxDocument`` element is
     included: this is a bare ``@graph`` fragment meant for
     ``merge_fragments()``, matching the wrapper-free shape
     ``working-docs/design/sbom-fragments.md`` documents and
     :mod:`pitloom.loom` already produces.
+
+    ``entity_spdx_id``/``base_doc_identity`` are forwarded to
+    :func:`_ai_model_identity` -- see that function's docstring for when
+    each applies. Without either, this defaults to the single-model
+    identity (correct when the fragment is meant to merge into a
+    ``build_model()``-produced base document, e.g. from ``loom model``);
+    pass ``base_doc_identity`` when the base document instead comes from
+    ``generate_project_sbom()``/the Hatchling build hook, since those use
+    a *different*, project-derived identity scheme for the same model's
+    ``ai_AIPackage`` -- referencing the wrong one produces a fragment
+    whose ``Annotation.subject``/dataset ``Relationship.from`` point at an
+    id that does not exist in the merged result.
 
     Every element this function mints (CreationInfo(s), Tool(s), Agent(s),
     any new dataset package, the Annotation) is built under its own
@@ -441,16 +485,17 @@ def build_enrichment_fragment(
     element, conflicting content" and silently drop one, exactly the
     failure this separate namespace avoids. ``ai_package_spdx_id`` is the
     one exception: it is a *reference* to an element that already lives in
-    the base document's namespace (content-keyed on the model's own name,
-    not sequential), so only it keeps using the base identity.
-    ``merge_fragments()`` unifies ``Agent``/``Tool`` elements by structural
-    equality (same name/type) when spdxIds don't match, so this fragment's
-    own freshly-minted "Pitloom" Agent still collapses into the base
-    document's real one after merge -- N3's "same createdBy identity"
+    the base document's namespace, so only it keeps using the base
+    identity. ``merge_fragments()`` unifies ``Agent``/``Tool`` elements by
+    structural equality (same name/type) when spdxIds don't match, so this
+    fragment's own freshly-minted "Pitloom" Agent still collapses into the
+    base document's real one after merge -- N3's "same createdBy identity"
     requirement (see :func:`build_enrichment_creation_info`) holds even
     though the ids themselves differ pre-merge.
     """
-    doc_name, _base_doc_uuid, ai_package_spdx_id = _ai_model_identity(model)
+    doc_name, _base_doc_uuid, ai_package_spdx_id = _ai_model_identity(
+        model, doc_identity=base_doc_identity, entity_spdx_id=entity_spdx_id
+    )
     doc_uuid = compute_doc_uuid(
         name=f"{doc_name}-enrichment",
         version=model.version or "unknown",
@@ -469,7 +514,7 @@ def build_enrichment_fragment(
     for tool in tools:
         exporter.object_set.add(tool)
 
-    dataset_creation_info, enrichment_changes = build_enrichment_elements(
+    dataset_creation_info, annotation_groups = build_enrichment_elements(
         enrichment_results, spdx_ci, doc_name, doc_uuid, exporter
     )
 
@@ -489,12 +534,12 @@ def build_enrichment_fragment(
             dataset_creation_info=dataset_creation_info,
         )
 
-    if enrichment_changes:
+    for enrich_ci, changes in annotation_groups:
         exporter.add_annotation(
             build_enrichment_annotation(
                 subject_spdx_id=ai_package_spdx_id,
-                changes=enrichment_changes,
-                creation_info=spdx_ci,
+                changes=changes,
+                creation_info=enrich_ci,
                 annotation_spdx_id=generate_spdx_id(
                     "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
                 ),
@@ -564,10 +609,14 @@ def build_model(
     # N3 / E1 / E2: an enrichment run's newly-created dataset elements get
     # their own CreationInfo (N3); every changed field -- new datasets and
     # fields filled in place on the AI package itself -- becomes one entry
-    # in a single "enrichment" Annotation on the AI package (E1/E2). See
-    # build_enrichment_creation_info()'s docstring for why N3 only covers
-    # new elements, not in-place field fills.
-    dataset_creation_info, enrichment_changes = build_enrichment_elements(
+    # in an "enrichment" Annotation on the AI package (E1/E2), one per
+    # source, each using that source's own CreationInfo (see
+    # build_enrichment_elements()'s docstring for why -- the Annotation is
+    # the only place an existing element's field-fill provenance can live,
+    # so it must carry the enrichment tool/timestamp, not the document's).
+    # See build_enrichment_creation_info()'s docstring for why N3 only
+    # covers new elements, not in-place field fills.
+    dataset_creation_info, annotation_groups = build_enrichment_elements(
         enrichment_results or [], spdx_ci, doc_name, doc_uuid, exporter
     )
 
@@ -584,12 +633,12 @@ def build_model(
             dataset_creation_info=dataset_creation_info,
         )
 
-    if enrichment_changes:
+    for enrich_ci, changes in annotation_groups:
         exporter.add_annotation(
             build_enrichment_annotation(
                 subject_spdx_id=require_spdx_id(ai_pkg),
-                changes=enrichment_changes,
-                creation_info=spdx_ci,
+                changes=changes,
+                creation_info=enrich_ci,
                 annotation_spdx_id=generate_spdx_id(
                     "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
                 ),

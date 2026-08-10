@@ -121,19 +121,78 @@ on/off model:
 | Surface | How to opt in |
 | :------ | :------------ |
 | CLI -- `loom model`/`loom project`/`loom generate` | `--enrich` (or `--no-enrich` to force off despite config) |
-| CLI -- standalone `loom enrich <model-file>` | Always runs -- invoking the command is itself the opt-in; writes a standalone fragment (no `SpdxDocument`/`software_Sbom`/`ai_AIPackage`) for merging into a base SBOM via `[tool.pitloom.fragments]` |
+| CLI -- standalone `loom enrich <model-file>` | Runs by default (invoking the command is itself the opt-in); `--no-enrich` writes an empty fragment instead. Writes a standalone fragment (no `SpdxDocument`/`software_Sbom`/`ai_AIPackage`) for merging into a base SBOM via `[tool.pitloom.fragments]` |
 | Python API -- `generate_model_sbom()`/`generate_project_sbom()`/`generate()` | `enrich=True`/`enrich=False` keyword (`None` defers to config) |
-| Python API -- `enrich_model()` | Same as `loom enrich`: always runs, returns the fragment JSON string |
+| Python API -- `enrich_model()` | Same as `loom enrich`: runs by default, `enrich=False` suppresses, returns the fragment JSON string |
 | Hatchling build hook | Inherits the project's `[tool.pitloom.enrich]` automatically -- no separate hook-level key, per the same "one config surface" rule the hook already enforces for creator/tool/fragment settings |
 | GitHub Action | `enrich: "true"`/`"false"` input, mapped to `--enrich`/`--no-enrich`; empty (default) defers to config |
 
 **Design invariant:** `loom generate --enrich <target>` and (`loom
 generate --no-enrich <target>` + `loom enrich <target>` + `loom merge`)
-produce equivalent enrichment evidence -- both paths share the same
-deterministic identity computation for the referenced `ai_AIPackage`
-(`_ai_model_identity()` in `document.py`), so a standalone fragment always
-merges cleanly into a base document generated separately. Verified by
-`tests/test_generator.py::test_enrich_then_merge_matches_one_shot_enrich`.
+produce equivalent enrichment evidence *for a single-model-file target*
+-- both paths share the same deterministic identity computation for the
+referenced `ai_AIPackage` (`_ai_model_identity()` in `document.py`).
+Verified by `tests/test_generator.py::test_enrich_then_merge_matches_one_shot_enrich`.
+
+**This does NOT hold for a project directory target without extra
+care.** `loom project <dir>`/`loom generate <dir>` assign a model's
+`ai_AIPackage` a *project*-derived id (from the project's own name/
+version/dependencies/Merkle root), not the model-only id `loom enrich`
+computes by default -- a genuinely different identity scheme, not just a
+different value. A fragment built with the wrong one references an id
+that doesn't exist in the merged result: its dataset relationship and
+enrichment Annotation become silently dangling references, with no
+warning from `merge_fragments()` (found during independent review; see
+git history for the fix). **Always pass `loom enrich --project-dir
+<dir>` (or `enrich_model(..., project_target=<dir>)`)** when the
+fragment is meant to merge into a project-level base document -- this
+resolves the project's own identity (see `_project_doc_identity()` in
+`assemble/__init__.py`) so the two agree. Covered by
+`tests/test_generator.py::test_enrich_model_project_target_merges_correctly_end_to_end`
+(the real regression test -- verifies attachment survives an actual
+merge, not just matching id strings) and
+`test_enrich_model_without_project_target_mismatches_project_level_id`
+(negative-space guard that omitting it really does mismatch).
+
+Similarly, a project using `--registry`/`IdRegistry` to pin a stable
+`ai_AIPackage` id needs `loom enrich --registry <file>` (or
+`enrich_model(..., registry=...)`) too, for the same reason.
+
+**Known limitation, not yet fixed:** two AI models in the same project
+that share an identical resolved identity -- no embedded `name` *and*
+the same detected format (e.g. two nameless `.safetensors` files) --
+get the same predicted `ai_AIPackage` id from independent `loom enrich`
+runs, because `generate_spdx_id()`'s per-prefix counter is
+order-of-calls-dependent within a single real build and a standalone
+one-model-at-a-time fragment can't know its position in that sequence.
+Give ambiguous models a `name` in their own metadata to disambiguate, or
+avoid enriching more than one such model independently until this is
+addressed.
+
+**Known limitation, by design, not planned to change:** two
+*independently-authored* fragments describing the same real-world
+dataset -- e.g. `loom enrich`'s deterministic fragment and the
+`sbom-enrich` Skill's own hand-drafted agent fragment (see below) both
+mentioning "tiny-imagenet" -- produce **two separate
+`dataset_DatasetPackage` elements** in the merged output, not one,
+unless they happen to share a `spdxId` or a SHA-256 `verifiedUsing`
+hash (neither does today -- a dataset reference has no local file to
+hash, and each fragment mints its own id in its own namespace).
+`merge_fragments()`'s unification policy deliberately never matches by
+`type` + `name` alone (see its module docstring in `fragments.py`) --
+adding a name-based special case just for datasets would undermine that
+policy's whole point (avoiding false-positive merges of genuinely
+different same-named things) for the sake of one workflow. Confirmed by
+direct repro (two fragments, one hand-authored matching the
+`sbom-enrich` Skill's own example shape, merged into a project-level
+base document -- two `dataset_DatasetPackage` nodes both named
+`tiny-imagenet` survive). The mitigation is process-level, not
+code-level: `skills/sbom-enrich/SKILL.md`'s step 3 already instructs the
+agent to run the deterministic pass first and only add fields for gaps
+it left untouched, precisely so the agent doesn't independently
+re-describe a dataset `loom enrich` already found. Followed correctly,
+this scenario doesn't arise; a code-level guard isn't planned given the
+conflict with the existing no-name-matching invariant.
 
 ## AI-agent enrichment (skill / plugin)
 

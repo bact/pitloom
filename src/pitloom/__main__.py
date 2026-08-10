@@ -338,6 +338,20 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         help="Path to a local AI model file.",
     )
+    enrich_parser.add_argument(
+        "--project-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Project root the model belongs to, when the fragment will "
+            "merge into a 'loom project'/'loom generate <dir>'-generated "
+            "base document rather than a 'loom model'-generated one. "
+            "Required for a correct merge in that case -- project-level "
+            "and single-model documents assign the model's ai_AIPackage "
+            "a different id."
+        ),
+    )
 
     # 5. Deployed Environment: loom env
     subparsers.add_parser(
@@ -922,12 +936,17 @@ def _run_enrich_mode(args: argparse.Namespace) -> int:
             print(f"Pitloom version: {__version__}")
             print(f"Model file      : {model_path}")
             print(f"Output path     : {output_path}")
+            if args.project_dir:
+                print(f"Project dir     : {args.project_dir}")
 
         enrich_model(
             model_path,
             output_path=output_path,
             creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
+            enrich=args.enrich,
+            project_target=args.project_dir,
+            registry=args.registry,
         )
         print(f"Enrichment fragment written to: {output_path}")
         print(
