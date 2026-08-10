@@ -146,6 +146,9 @@ Internal, AI-agent-facing design and implementation notes live under
 - [Adoption surfaces][surfaces-doc] — How Pitloom's surfaces (CLI, API,
   build hook, Action, Skills, plugin) fit together.
 - [Metadata provenance][provenance-doc] — Provenance tracking design.
+- [Release checklist][release-doc] — Maintainer-facing steps for cutting
+  a release, including verifying the wheel-embedded SBOM on the actual
+  PyPI-published artifact.
 - Browse the [design/](working-docs/design/) and
   [implementation/](working-docs/implementation/) directories for the full
   documentation set.
@@ -155,6 +158,7 @@ Internal, AI-agent-facing design and implementation notes live under
 [arch-doc]: working-docs/design/architecture-overview.md
 [surfaces-doc]: working-docs/design/adoption-surfaces.md
 [provenance-doc]: working-docs/design/metadata-provenance.md
+[release-doc]: working-docs/implementation/release-checklist.md
 
 ---
 

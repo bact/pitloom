@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-07-09
+Last-Modified: 2026-08-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,6 +18,80 @@ before this pass. This document records independent checks against
 **actual published releases** on PyPI -- the real, externally-built
 artifacts -- so the result is durable evidence, not just a one-off chat
 answer that disappears with the session that produced it.
+
+As of 2026-08-11 this check is part of the standard
+[release checklist](release-checklist.md) (step 3, post-publish
+verification) -- run it for every release, not just the ones below that
+happened to prompt a closer look.
+
+## Verification of v0.13.0-rc1 (2026-08-11)
+
+### Method
+
+1. Resolved the wheel URL via `https://pypi.org/pypi/pitloom/0.13.0rc1/json`
+   and downloaded it; verified its SHA-256
+   (`4fe6e7fe419d385f988a9a1129ece5a9723603554854b31920dcd6108a6574f7`)
+   against the digest PyPI's own API publishes for that file (exact match).
+2. Unzipped the wheel and inspected `pitloom-0.13.0rc1.dist-info/sboms/
+   sbom.spdx3.json` directly -- the actual bytes a consumer would get,
+   not a regenerated copy.
+
+### Findings
+
+- **Location (PEP 770).** File found at exactly
+  `pitloom-0.13.0rc1.dist-info/sboms/sbom.spdx3.json`, matching PEP 770
+  and Pitloom's `sbom-basename = "sbom"` config, same as prior releases.
+- **Fields.** `CreationInfo.specVersion` = `"3.0.1"`; `createdBy` is a
+  real `Person` (Arthit Suriyawongkul, with an `email` `ExternalIdentifier`)
+  rather than the default "Pitloom" `SoftwareAgent` seen in earlier
+  verifications -- confirms `[[tool.pitloom.creator]]` config is honored
+  on the actual PyPI-published build, not just in local tests. `Tool`
+  (`createdUsing`) reports `summary: "Pitloom 0.13.0-rc1"`, matching the
+  release version. The main `pitloom` `software_Package` carries
+  `software_packageVersion: "0.13.0rc1"`, `software_packageUrl:
+  "pkg:pypi/pitloom@0.13.0rc1"` (PURL), and both `hasDeclaredLicense` and
+  `hasConcludedLicense` relationships (Apache-2.0 from both `pyproject.toml`
+  and an independent `codemeta.json` scan -- they agree, so no
+  `provenance/conflict/1` Annotation fires, per that mechanism's own
+  "only when candidates disagree" rule).
+- **Element count and shape.** 176 total elements in `@graph`
+  (`Relationship: 79, software_File: 67, Annotation: 12,
+  software_Package: 11, simplelicensing_SimpleLicensingText: 2,
+  CreationInfo: 1, SpdxDocument: 1, software_Sbom: 1, Person: 1, Tool: 1`)
+  -- roughly 30% more elements than v0.11.0's 138, driven by the
+  provenance-as-Annotation work (PR #102) and native SPDX3 backfill
+  (N1-N6, PRs #105-#109) that landed between v0.11.0 and this release.
+  All 12 `Annotation` elements use the structured `provenance/fields/1`
+  schema (`kind: "fields"`), e.g. `copyright_text` (`method:
+  inferred_from_authors`) and `license_concluded` (`source:
+  codemeta.json`) on the main package.
+- **spdxId coverage.** Every `Element`-derived node has a non-null
+  `spdxId` except the single `CreationInfo` node, which is correctly
+  absent one -- `CreationInfo` is referenced by other elements'
+  `creationInfo` property (here via blank node `_:CreationInfo0`), not an
+  independently-addressed `Element` subtype under the SPDX 3 model, so
+  this is spec-correct, not a gap. (Earlier entries in this doc phrased
+  the check as "all elements have a spdxId" without this caveat --
+  worth keeping in mind for future verifications too.)
+- **File hashes.** 67 `software_File` elements; 59 carry a SHA-256
+  `verifiedUsing` hash and 8 don't -- the 8 are directory entries
+  (`pitloom`, `pitloom/core`, `pitloom/enrich`, etc.), which never carry
+  file hashes, same pattern as prior verifications. Verified two ways:
+  (a) recomputed each of the 59 file hashes from the actual extracted
+  bytes -- 0 mismatches; (b) cross-checked against the wheel's own
+  `RECORD` file (re-encoding `RECORD`'s urlsafe-base64 digests to hex) --
+  0 mismatches across all 59 shared entries. The only entries in `RECORD`
+  but not the SBOM are the `.dist-info/` metadata files themselves
+  (`METADATA`, `WHEEL`, `entry_points.txt`,
+  `licenses/LICENSE` -- note the `licenses/` subdirectory, a Wheel-spec
+  path change since v0.11.0's plain `LICENSE` -- and the SBOM file
+  itself) -- expected, same as prior verifications.
+- **Schema and SHACL conformance.** Ran `spdx3_validate` (`jsonschema` +
+  `pyshacl` + `rdflib`) directly against the real SPDX 3.0.1 JSON Schema
+  and SHACL model: schema validation and SHACL check both passed (exit
+  code 0), no errors reported.
+
+---
 
 ## Verification of v0.11.0 (2026-07-09)
 
@@ -145,4 +219,7 @@ answer that disappears with the session that produced it.
 The wheel-embedded SBOMs are valid per SPDX 3.0.1 (schema + SHACL), correctly
 located per PEP 770, and every field is present and correct in the actual
 published artifacts -- confirmed against the real files, not just against
-source or local test fixtures.
+source or local test fixtures. Holds across releases spanning significant
+internal redesigns (v0.9.0 through v0.13.0-rc1): the CLI/API rewrite, the
+provenance-as-Annotation system, and the native SPDX3 backfill all landed
+without breaking this guarantee.
