@@ -76,6 +76,9 @@ static extraction cannot:
 - Classify what a dependency is *for*, not just that it exists.
 - Derive `trainedOn` / `testedOn` dataset relationships from documentation
   that no model file format encodes explicitly.
+- In an interactive session, ask the SBOM author directly for gaps no
+  file answers (see [sbom-enrichment.md](sbom-enrichment.md)'s
+  "Interactive mode" section).
 
 Pitloom already has the machinery to accept this safely, without blurring
 the line between "extracted fact" and "AI guess":
@@ -87,10 +90,12 @@ the line between "extracted fact" and "AI guess":
   `merge_fragments()` (see [sbom-fragments.md](sbom-fragments.md)).
 
 The `sbom-enrich` skill's guidance has an agent contribute enrichment as a
-fragment, with every inferred field marked `Source: AI agent | Method:
-inference`, so the result stays transparent and auditable. See
-[sbom-enrichment.md](sbom-enrichment.md) for the full data-source model
-this builds on.
+fragment, with every field marked with the provenance role that matches
+how it was obtained -- `Source: AI agent | Method: inference` for a
+prose-derived guess, `Source: SBOM author | Method: sbomAuthorSupplied`
+for a fact the SBOM author stated directly -- so the result stays
+transparent and auditable. See [sbom-enrichment.md](sbom-enrichment.md)
+for the full data-source model this builds on.
 
 ## Keeping surfaces consistent: product owners (proposed, not yet implemented)
 

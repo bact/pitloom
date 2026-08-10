@@ -252,8 +252,9 @@ for inputs, outputs, and more recipes.
 are ready-to-install [Agent Skills](https://www.anthropic.com/) for
 Claude Code and the Claude Agent SDK: `sbom-generate` generates an SBOM
 on request; `sbom-enrich` augments an existing one with detail read from
-a README or model card, via Pitloom's fragment system; `sbom-validate`
-checks any SPDX 3 document's schema/shape conformance.
+a README or model card (or, interactively, asked directly of the SBOM
+author), via Pitloom's fragment system; `sbom-validate` checks any
+SPDX 3 document's schema/shape conformance.
 
 ```bash
 mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install

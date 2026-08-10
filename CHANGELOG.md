@@ -62,6 +62,9 @@ and this project adheres to
   Annotation. ([#121])
 - AI-model metadata enrichment is available from every usage surface
   (CLI, API, Hatchling hook, GitHub Action), opt-in via config. ([#124])
+- `sbom-enrich` Skill can ask the SBOM author for missing info in
+  interactive sessions, tracked with a new `sbomAuthorSupplied`
+  provenance role. ([#125])
 
 ### Changed
 
@@ -100,6 +103,7 @@ and this project adheres to
 [#121]: https://github.com/bact/pitloom/pull/121
 [#123]: https://github.com/bact/pitloom/pull/123
 [#124]: https://github.com/bact/pitloom/pull/124
+[#125]: https://github.com/bact/pitloom/pull/125
 
 ## [0.12.0] - 2026-07-10
 

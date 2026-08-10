@@ -128,11 +128,14 @@ None of the three skills contains Pitloom code of its own.
 2. **`sbom-enrich` -- optional, after a base SBOM exists.** Read the
    project's README or a model card, infer information static extraction
    cannot see (a license, a dependency's purpose, a
-   `trainedOn`/`testedOn` dataset relationship), and contribute it back
-   as a pitloom **fragment** -- a small standalone SPDX 3 JSON-LD file
-   merged in via `[tool.pitloom.fragments]`. Every inferred field is
-   provenance-marked `Source: AI agent | Method: inference`, so it is
-   never confused with Pitloom's own extraction.
+   `trainedOn`/`testedOn` dataset relationship) -- or, in an interactive
+   session, ask the SBOM author directly for gaps no file answers -- and
+   contribute it back as a pitloom **fragment** -- a small standalone
+   SPDX 3 JSON-LD file merged in via `[tool.pitloom.fragments]`. Every
+   field is provenance-marked with the role matching how it was obtained
+   (`Source: AI agent | Method: inference` for a prose-derived guess,
+   `Source: SBOM author | Method: sbomAuthorSupplied` for a fact stated
+   directly), so it is never confused with Pitloom's own extraction.
 3. **`sbom-validate`.** Run the third-party
    [`spdx3-validate`](https://github.com/JPEWdev/spdx3-validate) CLI
    against any SPDX 3 JSON document -- schema (JSON Schema) plus shape
