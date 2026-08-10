@@ -1,5 +1,5 @@
 ---
-name: sbom
+name: sbom-generate
 description: >-
   Use this skill whenever the user asks to generate an SBOM, an SPDX
   document, a software bill of materials, a dependency inventory, or an AI
@@ -16,7 +16,7 @@ argument-hint: "[target]"
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-08-09 -->
+<!-- Last-Modified: 2026-08-10 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -28,11 +28,11 @@ Python projects, sdist archives, wheels, AI/ML model files, and Python
 environments. This skill drives Pitloom's existing CLI (`loom` / `pitloom`).
 
 Triggers automatically on natural-language requests (see the trigger
-phrasings above), or invoke it explicitly with `/sbom [target]`
-(`/pitloom:sbom [target]` when installed via the Claude Code plugin).
-`target` is optional -- a project directory, an sdist/wheel path, a local
-model file, or a Hugging Face model ID; omit it to default to the current
-directory.
+phrasings above), or invoke it explicitly with `/sbom-generate [target]`
+(`/pitloom:sbom-generate [target]` when installed via the Claude Code
+plugin). `target` is optional -- a project directory, an sdist/wheel path,
+a local model file, or a Hugging Face model ID; omit it to default to the
+current directory.
 
 See `references/examples.md` for copy-paste recipes.
 
@@ -107,14 +107,16 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
 
 ## Verify the result
 
-A quick `@graph`-presence sanity check is enough for most runs, but for a
-schema/shape-level conformance check, run `spdx3-validate` on the output
-too -- see `references/examples.md` for both commands.
+A quick `@graph`-presence sanity check is enough for most runs (see
+`references/examples.md`), but for a schema/shape-level conformance
+check, use the `sbom-validate` skill on the output.
 
 ## See also
 
 - `references/examples.md` -- copy-paste recipes for every target type.
+- The sibling `sbom-validate` skill -- schema/shape-level conformance
+  check for any SBOM this skill produces.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
   JSON-LD, and JSON Schema links (including the per-minor-version URL
   pattern) for looking up the exact schema/spec a generated SBOM should
-  conform to, and the `spdx3-validate` validator used to check it.
+  conform to.

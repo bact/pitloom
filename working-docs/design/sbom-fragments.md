@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-10
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -281,7 +281,9 @@ A backward-compatible loader will accept both the old `list[str]` form
      log warning and skip.
    - If `sha256` is set, verify the file hash matches.
    - Parse the JSON-LD and validate it is a valid SPDX 3 document (using
-     `spdx3-validate` or the built-in `JSONLDDeserializer` + schema check).
+     `spdx3-validate`'s library API -- `spdx3_validate.validate()`,
+     available since `spdx3-validate` v0.0.7 -- or the built-in
+     `JSONLDDeserializer` + schema check).
    - Log a structured merge summary entry (path, element count, validation
      result).
 
@@ -605,7 +607,7 @@ pitloom fragment sign   fragments/model.spdx3.json   # compute SHA-256 + write t
 | Command | Purpose |
 | :---- | :---- |
 | `fragment init` | Generate a skeleton fragment JSON-LD for the given role. Prompts for name, version, author. |
-| `fragment validate` | Run `spdx3-validate` against a fragment file; report errors and warnings. |
+| `fragment validate` | Validate a fragment file via `spdx3-validate`'s library API (`spdx3_validate.validate()`); report errors and warnings. |
 | `fragment merge --dry-run` | Simulate the full build-time merge without writing wheel output. Print the merge report. |
 | `fragment list` | Read `pyproject.toml`, list each configured fragment with: path, role, exists?, last-modified, element count (if parseable), sha256 match. |
 | `fragment sign` | Compute SHA-256 of a fragment file and write it back to the matching entry in `[tool.pitloom.fragments]`. |
@@ -700,8 +702,16 @@ all earlier items; each can be delivered independently.
 1. **CycloneDX BOM-Link emission** -- when the CycloneDX assembler is
    implemented, emit `bom-link` references for fragments instead of
    inlining all elements.
-2. **`fragment validate` CLI command** -- wraps `spdx3-validate`; clear
-   error messages with line numbers.
+2. **`fragment validate` CLI command** -- calls `spdx3-validate`'s
+   library API (`spdx3_validate.validate()`, `spdx3-validate>=0.0.7`)
+   directly rather than shelling out to its CLI and parsing stdout --
+   simpler, testable without spawning a subprocess, and gives access to
+   the structured `ValidationResult`/`.errors` list instead of printed
+   text. This makes `spdx3-validate` an actual runtime dependency of
+   Pitloom (today it's only ever agent/user-installed separately, per
+   `skills/sbom-validate/`); add it as a base dependency, or gate it
+   behind an optional-dependency group if kept opt-in. Clear error
+   messages with line numbers.
 3. **Fragment completeness declaration** -- add a `completeness` field to
    `FragmentConfig` (values: `complete`, `incomplete`, `unknown`) that
    maps to CycloneDX `compositions` and is emitted as an SPDX `Annotation`
@@ -733,7 +743,7 @@ fragment work and should be monitored for alignment opportunities.
 | [MLProvLab](https://github.com/fusion-jena/MLProvCodeGen) | JupyterLab ML provenance extension; inspiration for `%%pitloom_record` magic |
 | [AIMMX](https://github.com/IBM/AIMMX) | AI model metadata extraction at repository level; comparable to Pitloom's AI extractor |
 | [Parlay](https://github.com/snyk/parlay) | SBOM enrichment from third-party sources; inspiration for Pitloom's enrichment layer |
-| [spdx3-validate](https://pypi.org/project/spdx3-validate/) | Used in `fragment validate` and pre-merge validation |
+| [spdx3-validate](https://pypi.org/project/spdx3-validate/) | Used in `fragment validate` and pre-merge validation, via its library API (`spdx3_validate.validate()`, added in v0.0.7) rather than shelling out to its CLI |
 | [STAV](https://github.com/bact/stav) | Shared vocabulary for AI SBOM tags; already used in MLflow extractor |
 
 ---

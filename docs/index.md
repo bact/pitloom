@@ -140,8 +140,9 @@ def evaluate_model():
 
 ### AI Skills and the Claude Code plugin
 
-Pitloom ships two Anthropic Agent Skills (`sbom`, `enrich`), also
-installable as a self-hosted Claude Code plugin:
+Pitloom ships three Anthropic Agent Skills (`sbom-generate`,
+`sbom-enrich`, `sbom-validate`), also installable as a self-hosted
+Claude Code plugin:
 
 ```text
 /plugin marketplace add bact/pitloom
@@ -149,10 +150,10 @@ installable as a self-hosted Claude Code plugin:
 ```
 
 Once installed, ask in plain language ("generate an SBOM for this
-project") or invoke explicitly: `/pitloom:sbom [target]`,
-`/pitloom:enrich [sbom-file]`. See
-[AI Skills and the Claude Code plugin](ai-skills-and-plugin.md) for
-install options, usage for both generation and enrichment, and
+project") or invoke explicitly: `/pitloom:sbom-generate [target]`,
+`/pitloom:sbom-enrich [sbom-file]`, `/pitloom:sbom-validate [sbom-file]`.
+See [AI Skills and the Claude Code plugin](ai-skills-and-plugin.md) for
+install options, usage for generation, enrichment, and validation, and
 verification steps.
 
 ## Learn more

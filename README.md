@@ -225,30 +225,35 @@ for inputs, outputs, and more recipes.
 
 ### Use Pitloom as an AI-agent skill
 
-`skills/sbom/` and `skills/enrich/` are ready-to-install
-[Agent Skills](https://www.anthropic.com/) for Claude Code and the Claude
-Agent SDK: `sbom` generates an SBOM on request; `enrich` augments an
-existing one with detail read from a README or model card, via Pitloom's
-fragment system.
+`skills/sbom-generate/`, `skills/sbom-enrich/`, and `skills/sbom-validate/`
+are ready-to-install [Agent Skills](https://www.anthropic.com/) for
+Claude Code and the Claude Agent SDK: `sbom-generate` generates an SBOM
+on request; `sbom-enrich` augments an existing one with detail read from
+a README or model card, via Pitloom's fragment system; `sbom-validate`
+checks any SPDX 3 document's schema/shape conformance.
 
 ```bash
 mkdir -p ~/.claude/skills   # or .claude/skills for a project-scoped install
-cp -r /path/to/pitloom/skills/sbom /path/to/pitloom/skills/enrich ~/.claude/skills/
+cp -r /path/to/pitloom/skills/sbom-generate \
+      /path/to/pitloom/skills/sbom-enrich \
+      /path/to/pitloom/skills/sbom-validate ~/.claude/skills/
 ```
 
 Once installed, either ask in plain language ("generate an SBOM for this
-project", "enrich this SBOM with the dataset it was trained on") or
-invoke a skill explicitly with `/sbom [target]` / `/enrich [sbom-file]`.
-Generate first, enrich second -- `enrich` needs a Pitloom-generated SBOM
-to already exist:
+project", "enrich this SBOM with the dataset it was trained on",
+"validate this SBOM") or invoke a skill explicitly with
+`/sbom-generate [target]` / `/sbom-enrich [sbom-file]` /
+`/sbom-validate [sbom-file]`. Generate first, enrich and validate
+second -- `sbom-enrich` needs a Pitloom-generated SBOM to already exist:
 
 ```text
-/sbom .                          # or /sbom models/my-model.safetensors
-/enrich sbom.spdx3.json
+/sbom-generate .                          # or /sbom-generate models/my-model.safetensors
+/sbom-enrich sbom.spdx3.json
+/sbom-validate sbom.spdx3.json
 ```
 
 See [docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) for a
-walkthrough of both skills, or
+walkthrough of all three skills, or
 [working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
 for full install instructions.
 
@@ -262,8 +267,9 @@ repository:
 /plugin install pitloom@pitloom
 ```
 
-Once installed, both Skills are namespaced under the plugin: `/pitloom:sbom
-[target]` and `/pitloom:enrich [sbom-file]` (or just ask in plain
+Once installed, all three Skills are namespaced under the plugin:
+`/pitloom:sbom-generate [target]`, `/pitloom:sbom-enrich [sbom-file]`,
+and `/pitloom:sbom-validate [sbom-file]` (or just ask in plain
 language -- natural-language triggering works the same as standalone
 Skills). See
 [docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) or

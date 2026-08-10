@@ -1,0 +1,89 @@
+---
+name: sbom-validate
+description: >-
+  Use this skill whenever an SPDX 3 JSON document (an SBOM/AIBOM, whether
+  Pitloom-generated or not) needs a schema/shape-level conformance check --
+  after generating or enriching a Pitloom SBOM, after hand-editing or
+  merging SPDX 3 JSON, or whenever asked to validate, check, or verify an
+  SPDX 3 document against the spec. Trigger phrasings include "validate
+  this SBOM", "is this SBOM valid", "check this SBOM's SPDX conformance",
+  "validate the merged output", "run spdx3-validate on this file". A quick
+  `@graph`-presence sanity check (see the sibling `sbom-generate`/
+  `sbom-enrich` skills) is not a substitute for this: it cannot catch a
+  missing required property or a wrong relationship type, which only
+  schema/SHACL validation catches.
+license: Apache-2.0
+argument-hint: "[sbom-file]"
+---
+
+<!-- Created: 2026-08-10 -->
+<!-- Last-Modified: 2026-08-10 -->
+<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
+<!-- SPDX-FileType: SOURCE -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
+# Validate an SPDX 3 document
+
+A syntactically valid JSON file (or a file that merely contains a
+`@graph` array) can still fail the SPDX 3 spec: a missing required
+property, a relationship pointing at the wrong type, an `spdxId` that
+doesn't match its own `ExternalMap` entry. This skill runs
+[`spdx3-validate`](https://github.com/JPEWdev/spdx3-validate) -- schema
+(JSON Schema) plus shape (SHACL) validation, with SPDX-3-aware handling of
+`ExternalMap`-declared IDs that plain `pyshacl`/`check-jsonschema` gets
+wrong.
+
+Works on any SPDX 3 JSON document, not just Pitloom's own output --
+useful for a hand-authored fragment, a merged SBOM, or a third-party SPDX
+3 file.
+
+Triggers automatically on natural-language requests (see the trigger
+phrasings above), or invoke it explicitly with `/sbom-validate
+[sbom-file]` (`/pitloom:sbom-validate [sbom-file]` when installed via the
+Claude Code plugin). `sbom-file` is optional -- point it at a specific
+file when a project has more than one SBOM; omit it to let the agent find
+the one to validate.
+
+See `references/examples.md` for copy-paste recipes.
+
+## Run the validator
+
+```bash
+pip install spdx3-validate  # if not already installed
+spdx3-validate --json <sbom-file>
+```
+
+Exit code `0` means valid; a non-zero exit code means at least one
+schema or SHACL error, printed to stdout with the failing JSON path.
+
+To validate several related documents (e.g. a base SBOM plus a fragment
+that references it via `ExternalMap`) and additionally check the *merged*
+graph, pass `--json` more than once:
+
+```bash
+spdx3-validate --json base.spdx3.json --json fragment.spdx3.json
+```
+
+Add `--no-merge` to skip the merged-graph check and validate each
+document only in isolation.
+
+## Report the result
+
+- **Valid:** say so plainly; no need to reproduce validator output for a
+  clean pass.
+- **Invalid:** show the validator's error output (it already includes the
+  failing JSON path and a description) and explain in plain language what
+  it means, rather than just pasting the raw error. Do not attempt to
+  auto-fix a hand-authored fragment's SPDX-shape errors without asking --
+  the fix usually requires understanding intent (which relationship type
+  was meant, which element a dangling reference should point to).
+
+## See also
+
+- `references/examples.md` -- copy-paste recipes, including multi-file
+  and merged-graph validation.
+- The sibling `sbom-generate` and `sbom-enrich` skills -- this skill is
+  their recommended post-generation/post-merge conformance check.
+- `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
+  JSON-LD, and JSON Schema links (including the per-minor-version URL
+  pattern), plus the `spdx3-validate` validator this skill wraps.

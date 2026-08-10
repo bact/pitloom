@@ -23,7 +23,8 @@ and this project adheres to
 
 ### Added
 
-- Initial support of SKILL.md and Claude Code plugin ([#96])
+- Initial support of SKILL.md and Claude Code plugin: `sbom-generate`,
+  `sbom-enrich`, and `sbom-validate` Skills ([#96])
 - Redesign CLI and Python API around input artifacts
   (project, wheel, model, env, generate) while maintaining CISA SBOM Types
   compliance in output graph ([#96], [#114])
