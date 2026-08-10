@@ -24,7 +24,7 @@ and this project adheres to
 ### Added
 
 - Initial support of SKILL.md and Claude Code plugin: `sbom-generate`,
-  `sbom-enrich`, and `sbom-validate` Skills ([#96])
+  `sbom-enrich`, and `sbom-validate` Skills ([#96], [#123])
 - Redesign CLI and Python API around input artifacts
   (project, wheel, model, env, generate) while maintaining CISA SBOM Types
   compliance in output graph ([#96], [#114])
@@ -101,6 +101,7 @@ and this project adheres to
 [#117]: https://github.com/bact/pitloom/pull/117
 [#118]: https://github.com/bact/pitloom/pull/118
 [#121]: https://github.com/bact/pitloom/pull/121
+[#123]: https://github.com/bact/pitloom/pull/123
 
 ## [0.12.0] - 2026-07-10
 
