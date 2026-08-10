@@ -851,6 +851,21 @@ method category):
   race against a local `declared` candidate.
 - `inferred` — an AI agent's non-deterministic reasoning/judgment. Same
   word E2 already reserves for this.
+- `sbomAuthorSupplied` — asserted directly by the human operating Pitloom
+  (or an agent on their behalf), through any channel: a CLI flag,
+  `[tool.pitloom]` config, or an answer typed in an interactive
+  `sbom-enrich` session. Not `declared` (that's the *artifact's*
+  author/vendor, not the SBOM's author); not `inferred` (nothing was
+  derived — the value was simply relayed, and Pitloom can no more verify
+  it than a `declared` value). Applies only when the human states the
+  fact itself, not when they merely point the agent at a source ("look at
+  X", "read Y", "infer it from Z") -- in that case the role is whichever
+  of `declared`/`externalReported`/`inferred` matches how the agent
+  actually obtained the value from that source once it looked, never
+  `sbomAuthorSupplied` (the human didn't assert the fact, only named
+  where to find it). Added for the `sbom-enrich` Skill's interactive mode
+  (see [sbom-enrichment.md](../design/sbom-enrichment.md)'s "Interactive
+  mode" section) — not yet exercised by any non-Skill code path.
 
 **Decision rule:** ask "whose determination is this," never "was the
 data local or remote" and never "was a rule-based algorithm involved
@@ -882,6 +897,9 @@ any of these):
   verify this at merge time — same trust model the `sbom-enrich` skill's
   existing generic `"Source: AI agent | Method: inference"` marker
   already has, just more specific when the agent knows its own identity.
+- `sbomAuthorSupplied` (future convention, not built) — `"Source: SBOM
+  author | Method: sbomAuthorSupplied | Date: <ISO 8601 date>"`; same
+  unverifiable trust model as `inferred`, just a different answerer.
 
 **Role → native relationship mapping is today's default policy, not an
 inherent law.** For license: `declared` → `hasDeclaredLicense`,
@@ -896,8 +914,8 @@ pre-existing limitation of the single detector itself, not something G2
 introduces. Once multiple detectors or confidence scoring exist, this
 mapping is where a smarter policy would plug in (e.g. falling back to
 `declared` when `detected` confidence is low) — future work, not built.
-`externalReported` and `inferred` never map to a native relationship for
-license (no 3rd/4th native slot exists).
+`externalReported`, `inferred`, and `sbomAuthorSupplied` never map to a
+native relationship for license (no 3rd/4th/5th native slot exists).
 
 **What's actually built (v1, license only).**
 [`_license.py`](../../src/pitloom/extract/_license.py)

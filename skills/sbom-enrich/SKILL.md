@@ -67,6 +67,14 @@ generic form rather than guessing:
 Source: AI agent | Method: inference
 ```
 
+**In an interactive session** (a human present to answer), a field the
+SBOM author directly tells you is not an inference -- mark it
+`sbomAuthorSupplied`, not `inference`:
+
+```text
+Source: SBOM author | Method: sbomAuthorSupplied | Date: <ISO 8601 date>
+```
+
 Steps:
 
 1. Generate a base SBOM first, if not already done (use the
@@ -93,7 +101,39 @@ Steps:
    local docs. Only propose fields for gaps step 2 left untouched --
    `loom enrich` already found everything it could from frontmatter, so
    do not re-derive or restate those same fields.
-4. Draft your own fragment (`*.spdx3.json`) containing only the elements
+4. **Interactive session only -- ask the SBOM author about remaining
+   gaps they're plausibly positioned to know:** intended use, training-data
+   provenance/consent, deployment restrictions -- not facts derivable from
+   files (those belong in steps 2-3, not here). Ask targeted questions for
+   *specific* remaining gaps only, not an open-ended interview. **Skip
+   this step entirely in a non-interactive run** (CI, batch, no human to
+   answer) -- do not block waiting for input.
+
+   **The answer decides the role -- is it the fact, or a pointer to the
+   fact?**
+   - The SBOM author states the fact itself ("it's MIT", "yes, trained on
+     our internal support-ticket corpus"): mark it `Source: SBOM author |
+     Method: sbomAuthorSupplied | Date: <ISO 8601 date>` -- never `Method:
+     inference`; you didn't derive it, you relayed what you were told.
+   - The SBOM author points at a source instead ("look at
+     CONTRIBUTING.md", "read the wiki page", "try the HF card", "infer it
+     from the changelog"): go look. The role is *never*
+     `sbomAuthorSupplied` here -- it's whichever of
+     `declared`/`externalReported`/`inferred` matches how you actually got
+     the value from that source once you looked (see the role vocabulary
+     in `working-docs/implementation/annotation-provenance.md`).
+5. **Before using any source outside this project** -- whether the SBOM
+   author pointed you at it (step 4) or you noticed it **on your own
+   initiative**: already in your context window, in another file you have
+   permission to read, or at a known remote location (e.g. PyPI, arXiv,
+   Hugging Face Hub, GitHub, GitLab, Codeberg, or a URL already visible in
+   context) -- stop and ask the SBOM author for permission first. Name
+   exactly what you found and where; an unprompted find needs an *at
+   least as* explicit ask as a prompted one, since nothing invited you to
+   go looking. Never fold such a finding into a fragment silently. That
+   permission check is a consent gate, not a provenance role -- it still
+   never makes the result `sbomAuthorSupplied`.
+6. Draft your own fragment (`*.spdx3.json`) containing only the elements
    or relationships you infer from prose (e.g. a `dataset_DatasetPackage`
    plus a `trainedOn` relationship, or a `comment` refining a license
    guess). Mark every inferred value with the provenance string above.
@@ -114,10 +154,10 @@ Steps:
    Source: <your agent name> (<vendor>) | Method: inference | Overrides: <deterministic value> | Reason: <why>
    ```
 
-   and say so explicitly in your final report (step 9) -- an override
+   and say so explicitly in your final report (step 11) -- an override
    must never be silent.
-5. **Pre-merge check (mandatory):** validate each drafted fragment (the
-   deterministic one from step 2 and your own from step 4) is
+7. **Pre-merge check (mandatory):** validate each drafted fragment (the
+   deterministic one from step 2 and your own from step 6) is
    syntactically valid JSON before registering it -- a fragment with
    broken JSON is silently dropped by `merge_fragments()`'s catch-and-warn
    behaviour, so catch it now rather than after a wasted `loom` run:
@@ -142,7 +182,7 @@ Steps:
    " fragments/agent-enrichment.spdx3.json
    ```
 
-6. Register **both** fragments so Pitloom merges them on the next run:
+8. Register **both** fragments so Pitloom merges them on the next run:
 
    ```toml
    [tool.pitloom.fragments]
@@ -152,17 +192,17 @@ Steps:
    ]
    ```
 
-7. Re-run `loom project <path>` or `loom generate <path>` (generate again) so
+9. Re-run `loom project <path>` or `loom generate <path>` (generate again) so
    the merged, enriched SBOM is written.
-8. **Post-merge check (mandatory):** use the `sbom-validate` skill on
+10. **Post-merge check (mandatory):** use the `sbom-validate` skill on
    `<merged-sbom-file>` -- a syntactically valid fragment can still be
    missing a required property or use the wrong relationship type, which
    only shape/SHACL validation catches.
 
-9. Tell the user what was found deterministically (step 2) versus
-   inferred from prose (step 4), and call out any override from step 4
-   explicitly -- this is provenance-tracked, agent-derived data, not
-   ground truth.
+11. Tell the user what was found deterministically (step 2), what was
+   inferred from prose (step 6), and what the SBOM author supplied
+   directly (step 4) -- and call out any override from step 6 explicitly
+   -- this is provenance-tracked, agent-relayed data, not ground truth.
 
 For the full enrichment data-source table, the `[tool.pitloom.enrich]`
 enable/disable model, and the dataset-relationship field map, see

@@ -22,8 +22,9 @@ self-hosted [Claude Code plugin][claude-code-plugins].
   AI/ML model file.
 - `sbom-enrich` -- reads a README or model card and contributes inferred
   detail (a license guess, a `trainedOn` dataset) back into an existing
-  SBOM as a provenance-marked fragment. Requires a base SBOM to already
-  exist; run `sbom-generate` first.
+  SBOM as a provenance-marked fragment; in an interactive session it can
+  also ask the SBOM author directly for gaps no file answers. Requires a
+  base SBOM to already exist; run `sbom-generate` first.
 - `sbom-validate` -- runs the third-party `spdx3-validate` CLI against
   any SPDX 3 JSON document (schema + SHACL), catching a missing required
   property or a wrong relationship type that a bare `@graph`-presence
