@@ -59,6 +59,7 @@ and this project adheres to
   are recorded (pointing at the two different licenses) alongside a new
   `provenance/conflict/1` Annotation naming both candidates and their
   source. Generic across fields, not license-specific, for future reuse.
+  ([#121])
 
 ### Changed
 
@@ -94,6 +95,7 @@ and this project adheres to
 [#116]: https://github.com/bact/pitloom/pull/116
 [#117]: https://github.com/bact/pitloom/pull/117
 [#118]: https://github.com/bact/pitloom/pull/118
+[#121]: https://github.com/bact/pitloom/pull/121
 
 ## [0.12.0] - 2026-07-10
 
