@@ -101,7 +101,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Python API harmonized 1:1 (`pitloom.generate()`,
      `generate_project_sbom()`, `generate_wheel_sbom()`,
      `generate_model_sbom()`, `generate_env_sbom()`)
-   - See [working-docs/design/cisa-sbom-lifecycle.md](../design/cisa-sbom-lifecycle.md)
+   - See [working-docs/design/cli-ux.md](../design/cli-ux.md)
    - Default output filename derived from project metadata
      (`{name}-{version}.spdx3.json`)
      or `[tool.pitloom] sbom-basename` when set

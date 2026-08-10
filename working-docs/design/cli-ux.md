@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,21 @@ SPDX-License-Identifier: CC0-1.0
 
 # CLI UX Analysis: Consolidating Generation Subcommands & Input-Centric Redesign
 
+> **Status:** Design Approved (2026-08-08) — Post-v0.12.0 Architectural
+> Decision. Merged 2026-08-11 from a separate `cisa-sbom-lifecycle.md`
+> draft of the same decision (Python API section and downstream-impact
+> notes below came from there) — kept as one file since the two had
+> near-total content overlap.
+
 This document details the architectural evolution of Pitloom's CLI subcommands, from stage-centric names (`source`, `analyze`, `deployed`) to an **Input-Centric Surface** with CISA SBOM Types compliance.
+
+## Specification reference & governance context
+
+Pitloom's lifecycle data model is aligned with official CISA guidance:
+
+- **CISA Specification**: [Types of Software Bill of Materials (SBOM) Documents (April 2023)](https://www.cisa.gov/sites/default/files/2023-04/sbom-types-document-508c.pdf)
+- **SPDX 3 Specification**: [SPDX 3.0.1 Model Standard](https://spdx.github.io/spdx-spec/v3.0.1/)
+- **PEP Specification**: [PEP 770 — Embedding SPDX SBOMs in Python Packages](https://peps.python.org/pep-0770/)
 
 ---
 
@@ -146,3 +160,26 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
 | `loom env` | Python `venv` / `site-packages` | Offline | **Deployed** | `[deployed]` |
 | `loom merge` | Dynamic execution `.spdx3.json` fragments | Offline | **Runtime** | `[runtime]` |
 | *Hatchling Hook* | `hatch build` wheel output | Offline | **Build** | `[build]` |
+
+## 6. Python API
+
+Harmonized 1:1 with the CLI subcommands (`src/pitloom/assemble/__init__.py`):
+
+```python
+import pitloom
+
+# 1. Smart Unified Entrypoint
+sbom_json = pitloom.generate(target=".")
+
+# 2. Harmonized Explicit API (1:1 with CLI subcommands)
+sbom_json = pitloom.generate_project_sbom(project_dir=Path("."))
+sbom_json = pitloom.generate_wheel_sbom(wheel_path=Path("dist/pkg.whl"))
+sbom_json = pitloom.generate_model_sbom(source="models/model.gguf", offline=True)
+sbom_json = pitloom.generate_env_sbom()
+```
+
+## 7. Downstream integration impact
+
+1. **`pitloom.loom` Decorators**: `@loom.run` context managers emit CISA **Runtime SBOM fragments** without corrupting static build metadata. `loom merge` allows command-line stitching.
+2. **`SKILL.md` Agent Recipes**: Simplifies LLM agent routing trees (`loom generate <target>` or explicit target commands).
+3. **Claude Code Plugin**: `loom model --offline` protects network-sandboxed Claude Code tool calls from unexpected external HTTP errors.

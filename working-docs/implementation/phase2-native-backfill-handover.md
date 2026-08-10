@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,14 +8,16 @@ SPDX-License-Identifier: CC0-1.0
 
 # Handover: Phase 2 native-first backfill
 
-> **Phase 2 is complete**: all six N-items (N1-N6) are `[x]` as of this
-> edit (N3 was the last, see the Status list below). This file's stated
-> purpose -- tracking the N1-N6 backfill -- is done; kept here as
+> **Phase 2 is complete**: all six N-items (N1-N6) are `[x]` (N3 was the
+> last, shipped in PR #124 -- see the Status list below). This file's
+> stated purpose -- tracking the N1-N6 backfill -- is done; kept here as
 > historical reference (same archival framing as
 > [`annotation-provenance-full-plan.md`](annotation-provenance-full-plan.md)
 > uses for Phase 1) rather than deleted, since it documents *why* each
 > N-item's scope landed where it did (especially N3's new-elements-only
-> limit). Not a live task list going forward.
+> limit). Not a live task list going forward -- the forward-looking
+> "what to do about N3" and "start a new session" sections that used to
+> follow are removed as of 2026-08-11 (N3 shipped, they were stale).
 
 > **What this is**: Handover note for Phase 2 native-first backfill work following Phase 1 (provenance-as-Annotation).
 >
@@ -43,9 +45,15 @@ Phase 2 native-first backfill is **largely complete and merged**:
   why in-place field fills on existing elements can't get a second
   `CreationInfo`) and the E1/E2 Annotation
   (`build_enrichment_annotation()` in `provenance.py`,
-  `provenance/enrichment/1` schema) all landed together. Not yet in a
-  merged PR as of this doc's last edit -- verify with `git log`/`gh pr
-  list` before trusting this line.
+  `provenance/enrichment/1` schema) all landed together in PR
+  [#124](https://github.com/bact/pitloom/pull/124), which also exposed
+  enrichment across every surface (CLI `loom enrich`, Python API,
+  Hatchling hook, GitHub Action, config opt-in). PR
+  [#125](https://github.com/bact/pitloom/pull/125) extended the
+  `sbom-enrich` Skill to ask the SBOM author directly in interactive
+  sessions, adding a fifth E1/E2 role (`sbomAuthorSupplied`) alongside
+  `declared`/`detected`/`externalReported`/`inferred` -- see
+  `annotation-provenance.md`'s role vocabulary.
 - ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
 - ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
 - ✅ **CLI/API redesign (`generate`/`project`/`wheel`/`model`/`env`/`merge`/`ids`, sdist support)**: PR [#114](https://github.com/bact/pitloom/pull/114), merged to `main`; see "2026-08-10 recheck" below -- supersedes the PR #96 vocabulary this handover previously documented.
@@ -91,9 +99,7 @@ A **second CLI/API redesign landed in PR
 one day after #113 -- this supersedes the PR #96 CLI vocabulary this
 handover previously documented. Don't trust any earlier mention of
 `loom source`/`analyze`/`deployed` in this repo's history as current;
-see [`cli-ux.md`](../design/cli-ux.md) and
-[`cisa-sbom-lifecycle.md`](../design/cisa-sbom-lifecycle.md) for the
-full rationale. As of now:
+see [`cli-ux.md`](../design/cli-ux.md) for the full rationale. As of now:
 
 - **CLI subcommands**: `loom generate [target]` (smart auto-detect),
   `loom project [path]` (was `source`), `loom wheel <file>` and
@@ -143,9 +149,11 @@ previously said `skills/sbom/` and `skills/enrich/*`, which no longer
 exist. New `skills/sbom-validate/` added in #123 has no CLI-vocabulary
 concern of its own since it wraps the third-party `spdx3-validate`
 CLI, not `loom`.)
-`working-docs/design/cli-ux.md` and `cisa-sbom-lifecycle.md` correctly
-describe the new design (their mentions of `source`/`analyze`/`deployed`
-are explicitly framed as historical background, not current state).
+`working-docs/design/cli-ux.md` correctly describes the new design (its
+mentions of `source`/`analyze`/`deployed` are explicitly framed as
+historical background, not current state; a separate
+`cisa-sbom-lifecycle.md` covering the same decision was merged into it
+2026-08-11).
 
 **CHANGELOG.md** was missing entries for #113 (loom hyperparameter
 provenance) and #116 (the `loom generate` config-precedence fix) --
@@ -178,51 +186,6 @@ Annotation content to the residual** (the part that still has no native
 home — usually the *evidence* or *criterion* behind a value, not the
 value itself).
 
-## N3 — enrichment `CreationInfo` (done -- historical record of the plan that was followed)
-
-**Blocked** on the `enrich/` subpackage, which does not exist yet (see
-`sbom-enrichment.md:145-169`). This is the only unimplemented N-item.
-Do not start N3 itself until `enrich/` exists — instead:
-
-1. **Check whether `enrich/` has landed.** Search for a
-   `src/pitloom/enrich/` (or similarly named) subpackage and any related
-   PRs/branches. If it still doesn't exist, N3 stays blocked — report
-   that back rather than building enrichment machinery as a side effect
-   of this task.
-2. **If `enrich/` exists**, build a second `CreationInfo` attached to
-   elements an enrichment run touches: `createdBy` = the enricher
-   agent, `createdUsing` = the enricher tool, `created` = enrichment
-   timestamp. Follow the pattern already centralized in
-   `src/pitloom/assemble/spdx3/creation_info.py:build_creation_info()` —
-   don't hand-roll a second construction path.
-3. **Annotation residual (E1/E2)**: once the native `CreationInfo` exists,
-   the Annotation on an enriched element should carry only what
-   `CreationInfo` can't: which field changed, its before/after value, and
-   the inferred-vs-extracted marker (`Source: AI agent | Method:
-   inference`, today only in `skills/enrich/SKILL.md`'s free-text
-   convention). This is speced as design-only in
-   `annotation-provenance.md` (E1/E2) — implement it as part of N3, not
-   separately.
-4. Mirror the N1/N2/N4/N5/N6 PRs' shape: one focused PR, tests in
-   `tests/test_annotation_provenance.py` plus wherever enrichment gets
-   its own test file, docs update in `annotation-provenance.md` (flip N3
-   from "not yet built" to done, same as the other five rows).
-
-**When this handover doc itself can close:** once `enrich/` (MVP -- doesn't
-need every enricher in `sbom-enrichment.md`'s table, just enough that an
-enrichment run exists to attach a `CreationInfo` to) and N3 both land, all
-six N-items are `[x]` and this doc's entire stated purpose -- tracking the
-Phase 2 N1-N6 backfill -- is done. At that point: flip N3 to ✅ in the
-Status list above, update `annotation-provenance.md`'s top-of-file status
-line (currently "5 of 6 items shipped ... N3 still blocked") to "6 of 6",
-extend the integration test per "Integration test -- done" below to cover
-N3 too, then either delete this file or add the same archival framing
-`annotation-provenance-full-plan.md` already uses ("historical reference,
-not a live task list") rather than deleting outright -- matches how Phase 1's
-equivalent handover-style content was retired. Don't close it early just
-because `enrich/` MVP lands without N3 itself being built -- the doc's
-job is the N-item backfill, not the enrich subpackage's existence.
-
 ## Integration test — done
 
 Landed in [`tests/test_provenance_integration.py`](../../tests/test_provenance_integration.py)
@@ -235,8 +198,9 @@ round-trips through `spdx-python-model` deserialization without loss.
 `test_fragment_origin_round_trips_when_merged` covers N1's `ExternalMap`
 shape directly (the real merge path is separately covered by
 `test_merge_fragments_populates_spdx_document_imports` in
-`tests/test_fragments.py`). Extend this file rather than adding a new one
-when N3 lands, to keep all six in one place.
+`tests/test_fragments.py`). Not extended to cover N3 -- enrichment's own
+coverage lives in `test_generator.py`/`test_main_cli.py`/
+`test_hatch_hook.py` instead (see PR #124).
 
 ## Workflow notes carried from Phase 1
 
@@ -257,55 +221,3 @@ when N3 lands, to keep all six in one place.
 - Comments in code: concise, describe *current* state only — don't
   narrate previous iterations or historical approaches in comments.
 - CHANGELOG `[Unreleased]` entries: keep additions concise.
-
-## Suggested first action for the picking-up session
-
-1. **Check git log since this doc's Last-Modified date** (`git log
-   --oneline <date>..HEAD`) before trusting anything in this file about
-   current CLI/API shape or PR status -- this handover has already been
-   caught out of date twice by fast-moving CLI redesigns (#96, then
-   #114 a day after #113). Don't assume; verify.
-2. Confirm `main` has PRs #105, #106, #107, #108, #109, #112, #113,
-   #114, #116, #121, #123 merged, and check whether a release has been
-   cut since this doc was written (see "Release readiness" above -- as
-   of 2026-08-10 the answer was "ready, not yet cut").
-3. Check whether `enrich/` subpackage exists yet (N3's blocker). Report
-   status either way before doing anything else.
-4. If still blocked, N3 stays deferred -- ask the user what's next
-   (cutting the release, or something else) rather than assuming.
-5. Re-read `annotation-provenance.md` §10 in full before starting on any
-   N-item work, since this handover only summarizes it.
-
-## Prompt to start a new session on this handover
-
-```
-Read working-docs/implementation/phase2-native-backfill-handover.md in
-full, then working-docs/implementation/annotation-provenance-full-plan.md
-for the complete original design (boundary principle, use-case catalog,
-N1-N6 rationale) if you need background on any item.
-
-N1, N2, N4, N5, N6 are merged (PRs #108, #105, #106, #109, #107), the
-combined integration test (PR #112), and two follow-up passes (#113,
-#116) fixed real gaps. G2 (the Annotation-evidence half of N2 -- generic
-multi-source conflict detection, license as its first field) landed
-separately in #121; the AI-agent Skills were renamed and gained a
-sbom-validate skill in #123, unrelated to N-item work but touching every
-skills/sbom/ and skills/enrich/ path this doc used to cite (now
-skills/sbom-generate/ and skills/sbom-enrich/). IMPORTANT: PR #114
-redesigned the CLI/API again one day after #113 -- run `git log --oneline
-<this doc's Last-Modified date>..HEAD` FIRST and don't trust this file's
-account of "current" CLI subcommands, Python API names, or skill paths
-without checking git history yourself, since this doc has gone stale on
-exactly that point before (twice, now three times counting the skill
-rename). As of 2026-08-10 the codebase is release-ready. N3 (enrichment
-CreationInfo) remains blocked on the enrich/ subpackage not existing yet
--- check if it has landed since. Once enrich/ (even an MVP) and N3 both
-land, this handover doc's job is done -- see "When this handover doc
-itself can close" under "Remaining work: N3" for what closing it means.
-
-Check whether a release has been cut since this doc was written (compare
-the latest git tag to `main`). If not, ask the user whether to proceed
-with cutting one before doing anything else -- don't start new feature
-work (N3 or otherwise) without checking first, since release timing is
-the maintainer's call.
-```
