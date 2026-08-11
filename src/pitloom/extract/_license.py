@@ -310,7 +310,7 @@ def collect_license_candidates(project_dir: Path) -> list[tuple[str, str]]:
         try:
             text = lf.read_text(encoding="utf-8", errors="replace")
             if text.strip():
-                rel = str(lf.relative_to(project_dir))
+                rel = lf.relative_to(project_dir).as_posix()
                 candidates.append((text, f"Source: {rel}"))
         except OSError:
             pass

@@ -510,7 +510,7 @@ def _resolve_cfg_version(
                 if module_file.exists():
                     version = _read_version_attr(module_file, attr_name)
                     if version:
-                        rel = module_file.relative_to(project_dir)
+                        rel = module_file.relative_to(project_dir).as_posix()
                         return version, f"Source: {rel} | Method: attr_directive"
 
     return None, None

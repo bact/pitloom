@@ -336,7 +336,7 @@ def _extract_dynamic_version(
             if version:
                 return (
                     version,
-                    f"Source: {p.relative_to(project_dir)}"
+                    f"Source: {p.relative_to(project_dir).as_posix()}"
                     " | Method: dynamic_extraction",
                 )
 
@@ -357,7 +357,7 @@ def _extract_dynamic_version(
             if version:
                 return (
                     version,
-                    f"Source: {p.relative_to(project_dir)}"
+                    f"Source: {p.relative_to(project_dir).as_posix()}"
                     " | Method: dynamic_extraction",
                 )
 
