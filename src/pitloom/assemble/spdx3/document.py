@@ -66,6 +66,7 @@ def _build_main_package(
     spdx_ci: spdx3.CreationInfo,
     agents: list[spdx3.Agent],
     doc_uuid: str,
+    merkle_root: str | None = None,
 ) -> spdx3.software_Package:
     """Create the SPDX package representing the Python project."""
     metadata = doc.project
@@ -106,6 +107,22 @@ def _build_main_package(
         main_package.software_packageUrl = build_pypi_purl(
             metadata.name, metadata.version
         )
+
+    # verifiedUsing -- the same Merkle root already folded into doc_uuid
+    # (see compute_doc_uuid), asserted here as the package's own integrity
+    # hash so NTIA/CISA "integrity hash" coverage extends to the main
+    # package itself, not just its individual files.
+    if merkle_root:
+        main_package.verifiedUsing = [
+            spdx3.Hash(
+                algorithm=spdx3.HashAlgorithm.sha256,
+                hashValue=merkle_root,
+                comment=(
+                    "SHA-256 Merkle root over all files included in the wheel, "
+                    "not a hash of a single artifact"
+                ),
+            )
+        ]
 
     return main_package
 
@@ -257,7 +274,7 @@ def build(
         exporter.object_set.add(tool)
 
     # --- Main package ---
-    main_package = _build_main_package(doc, spdx_ci, agents, doc_uuid)
+    main_package = _build_main_package(doc, spdx_ci, agents, doc_uuid, merkle_root)
 
     # --- SBOM and document envelope ---
     sbom = spdx3.software_Sbom(
