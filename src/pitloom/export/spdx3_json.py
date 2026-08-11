@@ -48,6 +48,22 @@ def require_spdx_id(element: spdx3.Element) -> str:
     return str(element.spdxId)
 
 
+def sha256_hash(hex_digest: str, *, comment: str | None = None) -> spdx3.Hash:
+    """Build a ``verifiedUsing`` SHA-256 ``Hash`` element for *hex_digest*.
+
+    Single source of truth for the ``algorithm=sha256`` convention used by
+    every ``verifiedUsing`` assertion pitloom emits (package files, dependency
+    packages, and the main package's own Merkle-root hash), so the convention
+    only needs fixing in one place.
+    """
+    hash_element = spdx3.Hash(
+        algorithm=spdx3.HashAlgorithm.sha256, hashValue=hex_digest
+    )
+    if comment:
+        hash_element.comment = comment
+    return hash_element
+
+
 def _graph_sort_key(element: dict[str, Any]) -> tuple[int, str, str]:
     """Return a deterministic sort key for a @graph element.
 

@@ -32,6 +32,20 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 _PITLOOM_PURL = build_pypi_purl("pitloom", __version__)
 
 
+def _pitloom_external_identifiers() -> list[spdx3.ExternalIdentifier]:
+    """Build the ``externalIdentifier`` list identifying a Tool as Pitloom
+    itself -- shared by :func:`build_tools` (the main "Pitloom" tool) and
+    :func:`build_enrichment_creation_info` (per-enrichment-source tools),
+    both of which represent Pitloom's own identity and must stay in sync.
+    """
+    return [
+        spdx3.ExternalIdentifier(
+            externalIdentifierType=spdx3.ExternalIdentifierType.packageUrl,
+            identifier=_PITLOOM_PURL,
+        )
+    ]
+
+
 def parse_iso_datetime(value: str) -> datetime:
     """Parse a full ISO 8601 datetime string.
 
@@ -177,12 +191,7 @@ def build_tools(
         if summary:
             tool.summary = summary
         if tool.name == "Pitloom":
-            tool.externalIdentifier = [
-                spdx3.ExternalIdentifier(
-                    externalIdentifierType=spdx3.ExternalIdentifierType.packageUrl,
-                    identifier=_PITLOOM_PURL,
-                )
-            ]
+            tool.externalIdentifier = _pitloom_external_identifiers()
         tools.append(tool)
     return tools
 
@@ -257,12 +266,7 @@ def build_enrichment_creation_info(
         name=tool_name,
         creationInfo=ci,
         summary=f"Pitloom {__version__}",
-        externalIdentifier=[
-            spdx3.ExternalIdentifier(
-                externalIdentifierType=spdx3.ExternalIdentifierType.packageUrl,
-                identifier=_PITLOOM_PURL,
-            )
-        ],
+        externalIdentifier=_pitloom_external_identifiers(),
     )
     ci.createdBy = main_creation_info.createdBy
     ci.createdUsing = [require_spdx_id(tool)]

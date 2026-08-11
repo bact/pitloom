@@ -461,15 +461,25 @@ def _import_sbom_element(registry: IdRegistry, obj: Any) -> None:
     if not name or not spdx_id:
         return
 
-    sha256 = _sha256_from_verified_using(obj)
-    if sha256 is not None:
-        registry.files[name] = FileEntry(spdx_id=spdx_id, sha256=sha256)
-        return
-
     get_compact_type = getattr(obj, "get_compact_type", None)
     compact_type = get_compact_type() if get_compact_type is not None else None
     if not compact_type:
         compact_type = type(obj).__name__
+
+    # A bare software_Package (the main project package, or a dependency
+    # package) can carry a verifiedUsing hash too (see document.py's
+    # _build_main_package, which sets one from the wheel's Merkle root) --
+    # that hash is content-integrity metadata about the whole package, not
+    # a file-path lookup key, so it must not land in registry.files keyed
+    # by the package's bare name. Subtypes like dataset_DatasetPackage are
+    # unaffected: get_compact_type() reports their own specific type name,
+    # never the literal "software_Package", so their hash still promotes
+    # them to registry.files as before.
+    if compact_type != "software_Package":
+        sha256 = _sha256_from_verified_using(obj)
+        if sha256 is not None:
+            registry.files[name] = FileEntry(spdx_id=spdx_id, sha256=sha256)
+            return
 
     if not compact_type or compact_type == "object":
         log.debug("Import: skipping %r (no SPDX 3 compact type)", name)

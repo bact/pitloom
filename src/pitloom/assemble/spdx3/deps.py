@@ -32,7 +32,7 @@ from pitloom.assemble.spdx3.provenance import (
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract._extract_utils import fetch_json
 from pitloom.extract._license import (
     normalize_license_expression,
@@ -621,9 +621,7 @@ def _enrich_from_pypi(
     if version is not None:
         digest = _extract_release_hash(release_info)
         if digest:
-            dep_package.verifiedUsing = [
-                spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=digest)
-            ]
+            dep_package.verifiedUsing = [sha256_hash(digest)]
             filled.add("hash")
 
     return filled
@@ -1115,11 +1113,7 @@ def add_phantom_dependencies(
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
         dep_package.software_copyrightText = "NOASSERTION"
         if dep.digest_sha256:
-            dep_package.verifiedUsing = [
-                spdx3.Hash(
-                    algorithm=spdx3.HashAlgorithm.sha256, hashValue=dep.digest_sha256
-                )
-            ]
+            dep_package.verifiedUsing = [sha256_hash(dep.digest_sha256)]
         _add_license_noassertion(
             dep_package,
             creation_info,
