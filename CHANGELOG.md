@@ -19,6 +19,26 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1>
 
+## [Unreleased]
+
+### Added
+
+- Package URL fallback (name-only) for unresolved versions ([#131])
+- Copyright extraction from installed License-File ([#131])
+- Supplier information from installed Author/Maintainer metadata ([#131])
+- PyPI API fallback for supplier/license/integrity-hash when local install
+  doesn't have them ([#131])
+- NOASSERTION fallback for copyright and license when genuinely nothing is
+  found anywhere ([#131])
+
+### Fixed
+
+- Dependency name and version parsing (multi-clause specifiers) ([#131])
+- Silently-discarded `hasConcludedLicense` relationship ([#131])
+- Dropping multi-address Maintainer-email fields ([#131])
+- Merkle root/`doc_uuid` platform-dependent on Windows (backslash
+  `distribution_path` from Hatchling's `os.path.join`) ([#131])
+
 ## [0.13.1] - 2026-08-11
 
 ### Changed
@@ -28,6 +48,7 @@ and this project adheres to
 
 [sbom-naming]: https://sbom-catalog.openssf.org/sbom-naming.html
 [#130]: https://github.com/bact/pitloom/pull/130
+[#131]: https://github.com/bact/pitloom/pull/131
 
 ## [0.13.0] - 2026-08-11
 

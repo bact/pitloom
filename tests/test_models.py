@@ -5,11 +5,18 @@
 
 """Tests for SPDX 3 core models."""
 
+from collections.abc import Callable, Iterator
+from pathlib import Path
+
+import pytest
+from hatchling.builders.wheel import WheelBuilder
+
 from pitloom.core.models import (
     _clear_doc_counters,
     _normalize_dep,
     compute_doc_uuid,
     generate_spdx_id,
+    get_wheel_files,
 )
 
 
@@ -94,3 +101,74 @@ def test_generate_spdx_id() -> None:
     doc_id = generate_spdx_id("SpdxDocument")
     assert doc_id.startswith("https://spdx.org/spdxdocs/pitloom-")
     assert "#" not in doc_id
+
+
+# pylint: disable-next=too-few-public-methods
+class _FakeIncludedFile:
+    """Minimal stand-in for ``hatchling.builders.plugin.interface.IncludedFile``."""
+
+    def __init__(self, path: str, distribution_path: str):
+        self.path = path
+        self.relative_path = distribution_path
+        self.distribution_path = distribution_path
+
+
+def test_get_wheel_files_normalizes_windows_style_distribution_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: Hatchling builds ``distribution_path`` with
+    ``os.path.join``, which uses backslashes on Windows -- unlike a
+    wheel's actual internal zip-entry paths, which the ZIP format itself
+    requires to be forward-slash-separated regardless of host OS. Left
+    un-normalized, the Merkle root (and the ``doc_uuid`` built from it)
+    would differ by build platform for byte-identical source content,
+    since both the sort key and the tree-combination input are exactly
+    this string.
+
+    Uses two files, ``pkg/zoo.py`` and ``pkg0/a.py``, deliberately chosen
+    so their relative sort order flips depending on the separator: ``/``
+    (0x2F) sorts before ``0`` (0x30), so ``pkg/zoo.py`` sorts first in
+    POSIX form -- but ``\\`` (0x5C) sorts *after* ``0``, so
+    ``pkg\\zoo.py`` would sort *second* in un-normalized Windows form.
+    With only one file (or a pair whose order doesn't happen to flip),
+    the Merkle root would trivially match either way and this test
+    wouldn't actually prove anything.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["hatchling"]\n'
+        'build-backend = "hatchling.build"\n\n'
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    pkg_dir = tmp_path / "pkg"
+    pkg_dir.mkdir()
+    zoo_file = pkg_dir / "zoo.py"
+    zoo_file.write_text("zoo = 1\n", encoding="utf-8")
+    pkg0_dir = tmp_path / "pkg0"
+    pkg0_dir.mkdir()
+    a_file = pkg0_dir / "a.py"
+    a_file.write_text("a = 1\n", encoding="utf-8")
+
+    def _make_fake_recurse(
+        sep: str,
+    ) -> Callable[[WheelBuilder], Iterator[_FakeIncludedFile]]:
+        def _fake_recurse(_self: WheelBuilder) -> Iterator[_FakeIncludedFile]:
+            yield _FakeIncludedFile(str(zoo_file), f"pkg{sep}zoo.py")
+            yield _FakeIncludedFile(str(a_file), f"pkg0{sep}a.py")
+
+        return _fake_recurse
+
+    monkeypatch.setattr(WheelBuilder, "recurse_included_files", _make_fake_recurse("/"))
+    posix_root, posix_files = get_wheel_files(tmp_path)
+
+    monkeypatch.setattr(
+        WheelBuilder, "recurse_included_files", _make_fake_recurse("\\")
+    )
+    windows_root, windows_files = get_wheel_files(tmp_path)
+
+    assert posix_root is not None
+    assert posix_root == windows_root, (
+        "Merkle root must not depend on the build platform's path separator"
+    )
+    assert [f.distribution_path for f in posix_files] == ["pkg/zoo.py", "pkg0/a.py"]
+    assert [f.distribution_path for f in windows_files] == ["pkg/zoo.py", "pkg0/a.py"]

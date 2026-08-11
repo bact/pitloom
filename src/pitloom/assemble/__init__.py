@@ -105,12 +105,18 @@ def generate_project_sbom(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
+    offline: bool | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
 
     ``enrich``: ``None`` (default) defers to ``[tool.pitloom.enrich]``
     (off by default); ``True``/``False`` overrides it for this run, applied
     to every AI model discovered in the project.
+
+    ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
+    (network attempted, best-effort, by default); ``True``/``False``
+    overrides it for this run -- see :func:`~pitloom.assemble.spdx3.
+    document.build`.
     """
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:
@@ -128,6 +134,7 @@ def generate_project_sbom(
         if enrich is not None
         else pitloom_config.enrich
     )
+    effective_offline: bool = pitloom_config.offline if offline is None else offline
 
     if target_path.is_file():
         merkle_root = None
@@ -170,6 +177,7 @@ def generate_project_sbom(
         registry=resolved_registry,
         provenance=effective_provenance,
         enrichment_results_by_model=enrichment_results_by_model,
+        offline=effective_offline,
     )
 
     if target_path.is_dir():
@@ -194,6 +202,7 @@ def generate_wheel_sbom(
     describe_relationship: bool | None = None,
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
+    offline: bool = False,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel."""
     effective_pretty = False if pretty is None else pretty
@@ -225,6 +234,7 @@ def generate_wheel_sbom(
         sbom_type=spdx3_bindings.software_SbomType.analyzed,
         registry=resolved_registry,
         provenance=provenance,
+        offline=offline,
     )
 
     sbom_json = exporter.to_json(
@@ -255,6 +265,15 @@ def generate_model_sbom(
     (off by default); ``True``/``False`` overrides it for this run. Has no
     effect on a Hugging Face source -- local enrichers never run there
     (HF model cards are already parsed natively).
+
+    ``offline``: for a Hugging Face *source*, a hard requirement -- raises
+    ``ValueError`` rather than fetching it, since there's no local
+    fallback for a remote-only source. For a local model file, a no-op --
+    there's no network path in that case either way. This is a narrower
+    contract than ``generate_project_sbom``/``generate_wheel_sbom``'s
+    ``offline`` (a soft, always-silent skip of a best-effort PyPI lookup
+    that local metadata can already partly cover); the two aren't
+    interchangeable despite sharing a name.
     """
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
@@ -430,6 +449,7 @@ def generate_env_sbom(
     describe_relationship: bool | None = None,
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
+    offline: bool = False,
 ) -> str:
     """Generate a Deployed SPDX 3 SBOM for the current installed environment."""
     effective_pretty = False if pretty is None else pretty
@@ -457,6 +477,7 @@ def generate_env_sbom(
         env_tree=env_tree,
         registry=resolved_registry,
         provenance=provenance,
+        offline=offline,
     )
 
     sbom_json = exporter.to_json(
@@ -496,6 +517,7 @@ def generate(
             describe_relationship=describe_relationship,
             registry=registry,
             provenance=provenance,
+            offline=offline,
         )
 
     if target_str.lower().endswith(".whl"):
@@ -507,6 +529,7 @@ def generate(
             describe_relationship=describe_relationship,
             registry=registry,
             provenance=provenance,
+            offline=offline,
         )
 
     if is_huggingface_source(target_str):
@@ -563,6 +586,7 @@ def generate(
         registry=registry,
         provenance=provenance,
         enrich=enrich,
+        offline=offline,
     )
 
 

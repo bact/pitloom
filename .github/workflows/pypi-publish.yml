@@ -30,7 +30,7 @@ jobs:
           pip install build
 
       - name: Install Pitloom from checkout
-        run: pip install -e .
+        run: pip install -e .[ai]
 
       - name: Build sdist and wheel
         run: |

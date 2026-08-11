@@ -241,6 +241,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             registry=registry,
             provenance=pitloom_config.provenance,
             enrichment_results_by_model=enrichment_results_by_model,
+            offline=pitloom_config.offline,
         )
         merge_fragments(project_dir, pitloom_config.fragments, exporter)
 

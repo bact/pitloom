@@ -658,6 +658,103 @@ Source = "https://github.com/bact/sentimentdemo"
         assert len(relationships) >= 3  # At least 3 dependencies
 
 
+def test_generate_project_sbom_dependency_names_with_markers_and_specifiers() -> None:
+    """Dependency names must be clean even with markers and multi-clause specifiers.
+
+    Regression guard: a naive operator-substring split on a fixed priority
+    order (``===``, ``~=``, ``!=``, ``==``, ``>=``, ``<=``, ``>``, ``<``)
+    mis-parses two real-world shapes -- an environment marker's own ``==``
+    comparison being matched before the specifier's real operator (e.g.
+    ``pkg>=1.0; sys_platform == 'linux'``), and a later clause's operator
+    appearing earlier in the string than an earlier clause's (e.g.
+    ``pkg>=0.1,<1``, which -- after ``packaging.Requirement`` reorders
+    clauses -- puts ``<1`` before ``>=0.1``). Both previously produced a
+    garbled package name (with leftover operators/markers) and no PURL.
+    """
+    pyproject_content = """
+[project]
+name = "markerdemo"
+version = "0.1.0"
+description = "Dependency-parsing regression fixture"
+dependencies = [
+    "auditwheel>=6.7.0; sys_platform == 'linux'",
+    "py-spdx-license>=0.0.1,<1",
+    "pyyaml>=6.0.3,<7",
+]
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        sbom_json = generate_project_sbom(tmppath)
+        sbom_data = json.loads(sbom_json)
+
+        graph = sbom_data["@graph"]
+        packages = {
+            p["name"]: p
+            for p in graph
+            if p["type"] == "software_Package" and p["name"] != "markerdemo"
+        }
+
+        assert set(packages) == {"auditwheel", "py-spdx-license", "pyyaml"}
+        for name, pkg in packages.items():
+            assert ";" not in name
+            assert not any(op in name for op in (">=", "<=", "==", "<", ">"))
+            version = pkg.get("software_packageVersion")
+            assert version is not None
+            assert ";" not in version and "'" not in version
+            # Every dependency gets a PURL, even with an unresolved version
+            # (e.g. an unpinned, platform-gated requirement not installed
+            # in the current environment) -- name-only is still a valid,
+            # matchable purl-spec identifier, preferable to none at all.
+            purl = pkg["software_packageUrl"]
+            expected = f"pkg:pypi/{name}" + (
+                "" if version == "unknown" else f"@{version}"
+            )
+            assert purl == expected
+
+
+def test_build_main_package_noassertion_license_when_undeclared() -> None:
+    """The main project package must assert ``hasDeclaredLicense:
+    NOASSERTION`` when no license is declared anywhere, rather than
+    silently having no license relationship at all -- same policy as
+    dependency packages (see add_dependencies)."""
+    project = ProjectMetadata(name="nolicenseproject", version="1.0.0")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc)
+    data = json.loads(exporter.to_json(pretty=True))
+    graph = data["@graph"]
+
+    main_pkg = next(
+        p
+        for p in graph
+        if p.get("type") == "software_Package" and p["name"] == "nolicenseproject"
+    )
+    licenses = [
+        e for e in graph if e.get("type") == "simplelicensing_SimpleLicensingText"
+    ]
+    noassertion = next(
+        lic
+        for lic in licenses
+        if lic.get("simplelicensing_licenseText") == "NOASSERTION"
+    )
+
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    license_rels = [
+        r
+        for r in rels
+        if r.get("from") == main_pkg["spdxId"]
+        and r.get("relationshipType") == "hasDeclaredLicense"
+    ]
+    assert len(license_rels) == 1
+    assert license_rels[0]["to"] == [noassertion["spdxId"]]
+
+    spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]
+    assert "simpleLicensing" in spdx_docs[0]["profileConformance"]
+
+
 def test_generate_project_sbom_with_fragments() -> None:
     """Test SBOM generation with external generic SBOM fragments."""
     pyproject_content = """
@@ -853,13 +950,17 @@ def test_assembler_ai_model_with_inputs_outputs() -> None:
     assert len(contains_rels) == 1
     assert any(pkg["spdxId"] in r["to"] for r in contains_rels)
 
-    # no license relationships when ai_model.license is not set
-    license_rels = [
+    # no license relationship *from the AI package* when ai_model.license is
+    # not set (the main project package gets its own NOASSERTION fallback
+    # when it has no declared license either -- see build()'s license block
+    # -- which is a separate, expected relationship, not this one).
+    ai_pkg_license_rels = [
         r
         for r in rels
         if r.get("relationshipType") in ("hasDeclaredLicense", "hasConcludedLicense")
+        and r.get("from") == pkg["spdxId"]
     ]
-    assert not license_rels
+    assert not ai_pkg_license_rels
 
 
 def test_assembler_usage_file_hasdatafile_is_lifecycle_scoped_runtime() -> None:
@@ -1095,6 +1196,31 @@ def test_phantom_dependency_creates_package_and_dependency_relationship() -> Non
         and phantom_pkg["spdxId"] in r["to"]
     ]
     assert len(depends_on) == 1
+
+    # Same completeness policy as regular dependencies (add_dependencies):
+    # NOASSERTION for copyright/license rather than a silently absent
+    # field, and the bundled binary's own hash -- already computed
+    # locally -- as its integrity hash.
+    assert phantom_pkg["software_copyrightText"] == "NOASSERTION"
+    assert phantom_pkg["verifiedUsing"] == [
+        {"type": "Hash", "algorithm": "sha256", "hashValue": "c" * 64}
+    ]
+    license_rels = [
+        r
+        for r in relationships
+        if r["relationshipType"] == "hasDeclaredLicense"
+        and r["from"] == phantom_pkg["spdxId"]
+    ]
+    assert len(license_rels) == 1
+    licenses = {
+        e["spdxId"]: e
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+    }
+    assert (
+        licenses[license_rels[0]["to"][0]]["simplelicensing_licenseText"]
+        == "NOASSERTION"
+    )
 
 
 def test_phantom_dependency_without_version_is_unknown() -> None:

@@ -54,8 +54,8 @@ def normalize_dependency_specifier(dep: str) -> str:
     return str(req)
 
 
-def build_pypi_purl(name: str, version: str) -> str:
-    """Return a canonical ``pkg:pypi/<name>@<version>`` Package URL.
+def build_pypi_purl(name: str, version: str | None) -> str:
+    """Return a canonical ``pkg:pypi/<name>[@<version>]`` Package URL.
 
     Uses :func:`packaging.utils.canonicalize_name` for PEP 503
     canonicalization (lowercase; runs of ``-``/``_``/``.`` collapsed to a
@@ -63,8 +63,16 @@ def build_pypi_purl(name: str, version: str) -> str:
     ``pkg:pypi/zope-interface@...`` rather than the non-canonical
     ``pkg:pypi/zope.interface@...`` that a naive ``.replace("_", "-")``
     would produce (dots are left untouched by that substitution alone).
+
+    *version* is optional -- the ``@<version>`` component is a purl-spec
+    qualifier, not a requirement. Omitting it (``version=None``) still
+    yields a valid, matchable identifier for a dependency whose exact
+    version can't be resolved (e.g. an unpinned, platform-gated requirement
+    that isn't installed in the current environment) -- preferable to
+    leaving the package with no identifier at all.
     """
-    return f"pkg:pypi/{canonicalize_name(name)}@{version}"
+    base = f"pkg:pypi/{canonicalize_name(name)}"
+    return f"{base}@{version}" if version else base
 
 
 def _clear_doc_counters(doc_uuid: str) -> None:
@@ -133,8 +141,20 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
         for included_file in builder.recurse_included_files():
             source = Path(included_file.path)
             if source.is_file():
+                # Hatchling builds distribution_path with os.path.join, so
+                # it carries backslashes on Windows -- unlike a wheel's
+                # actual internal zip-entry paths, which the ZIP format
+                # itself requires to be forward-slash-separated regardless
+                # of host OS. Left un-normalized, this file's distribution
+                # path (and thus this sort key, and thus the Merkle root
+                # and doc_uuid built from it) would differ by build
+                # platform for byte-identical source content. Normalizing
+                # here matches physical_path's own .as_posix() a few lines
+                # below, and is safe on every OS: pathlib accepts forward
+                # slashes on Windows too.
+                distribution_path = included_file.distribution_path.replace("\\", "/")
                 digest_bytes = hashlib.sha256(source.read_bytes()).digest()
-                file_entries.append((included_file.distribution_path, digest_bytes))
+                file_entries.append((distribution_path, digest_bytes))
                 try:
                     rel_path = source.relative_to(project_dir).as_posix()
                 except ValueError:
@@ -142,7 +162,7 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
                 project_files.append(
                     ProjectFile(
                         physical_path=rel_path,
-                        distribution_path=included_file.distribution_path,
+                        distribution_path=distribution_path,
                         digest_sha256=digest_bytes.hex(),
                     )
                 )
