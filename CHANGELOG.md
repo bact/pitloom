@@ -24,8 +24,10 @@ and this project adheres to
 ### Changed
 
 - Use default SBOM filename as suggested by [SBOM Everywhere][sbom-naming]
+  ([#130])
 
 [sbom-naming]: https://sbom-catalog.openssf.org/sbom-naming.html
+[#130]: https://github.com/bact/pitloom/pull/130
 
 ## [0.13.0] - 2026-08-11
 

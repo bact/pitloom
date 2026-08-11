@@ -31,7 +31,7 @@ Target placement for Pitloom output:
 ```text
 {name}-{version}.dist-info/
 └── sboms/
-    └── sbom.spdx3.json
+    └── {name}-{version}.spdx3.json
 ```
 
 ## Data sources from the build backend
@@ -152,7 +152,8 @@ files = []                  # List of pre-generated fragment paths to merge
 ```
 
 The full SBOM filename is derived by appending the format extension to the
-basename: `{sbom-basename}.spdx3.json` (e.g., `sbom.spdx3.json` by default).
+basename: `{sbom-basename}.spdx3.json` (e.g., `mypackage-1.0.0.spdx3.json`
+by default, from the resolved project name/version).
 
 Specifying fragments allows the hook to merge `pitloom.loom`-generated AI/ML
 fragments produced during training before the build:
@@ -169,9 +170,11 @@ files = [
 
 ### Inside the wheel (PEP 770)
 
-The default filename is `sbom.spdx3.json`. The user can override the base
-name via `sbom-basename`; the `.spdx3.json` extension is always appended by
-Pitloom to reflect the SPDX 3 JSON-LD format.
+The default filename is `{name}-{version}.spdx3.json`, derived from the
+resolved project name/version (e.g. `mypackage-1.0.0.spdx3.json`). The
+user can override the base name via `sbom-basename`; the `.spdx3.json`
+extension is always appended by Pitloom to reflect the SPDX 3 JSON-LD
+format.
 
 PEP 770 allows a wheel to contain multiple SBOM files (e.g., one per
 format), so the `sbom-basename` option is designed to be forward-compatible
@@ -289,7 +292,7 @@ Output:
   └── mypackage-1.0-py3-none-any.whl
           └── mypackage-1.0.dist-info/
                   └── sboms/
-                          └── sbom.spdx3.json
+                          └── mypackage-1.0.spdx3.json
 ```
 
 ## Source and test layout
