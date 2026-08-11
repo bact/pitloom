@@ -448,7 +448,7 @@ def test_model_mode_explicit_output_path(
     assert captured["output_path"] == explicit_out
 
 
-def test_model_mode_default_output_path_uses_stem(
+def test_model_mode_default_output_path_uses_full_filename(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -473,7 +473,7 @@ def test_model_mode_default_output_path_uses_stem(
     assert __main__.main() == 0
     out = captured["output_path"]
     assert isinstance(out, Path)
-    assert out.name == "whisper-tiny-random.spdx3.json"
+    assert out.name == "whisper-tiny-random.safetensors.spdx3.json"
     assert out.parent == Path.cwd()
 
 
@@ -1066,7 +1066,7 @@ def test_enrich_mode_writes_fragment(
     assert ds_pkgs[0]["name"] == "tiny-imagenet"
 
 
-def test_enrich_mode_default_output_path_uses_stem(
+def test_enrich_mode_default_output_path_uses_full_filename(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -1076,7 +1076,7 @@ def test_enrich_mode_default_output_path_uses_stem(
     monkeypatch.setattr(sys, "argv", ["loom", "enrich", str(model_path)])
 
     assert __main__.main() == 0
-    assert (tmp_path / "mymodel.enrich.spdx3.json").exists()
+    assert (tmp_path / "mymodel.safetensors.enrich.spdx3.json").exists()
 
 
 def test_enrich_mode_missing_model_file_errors(

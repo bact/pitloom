@@ -35,7 +35,7 @@ the release-cutting process itself, run once per version bump.
       <last-tag>..HEAD | grep "Merge pull request"` against the
       `[#NNN]:` link refs at the bottom of the file).
 - [ ] `python -m build --wheel` succeeds locally; the built wheel embeds
-      `<name>-<version>.dist-info/sboms/sbom.spdx3.json` (PEP 770).
+      `<name>-<version>.dist-info/sboms/<name>-<version>.spdx3.json` (PEP 770).
 
 ## 2. Tag and publish
 
@@ -51,7 +51,7 @@ wheel directly:
 - [ ] Resolve the wheel URL via `https://pypi.org/pypi/pitloom/<version>/json`
       and download it; verify its SHA-256 against the digest PyPI's own
       API publishes for that file.
-- [ ] Unzip it and inspect `pitloom-<version>.dist-info/sboms/sbom.spdx3.json`
+- [ ] Unzip it and inspect `pitloom-<version>.dist-info/sboms/pitloom-<version>.spdx3.json`
       directly -- the actual bytes a consumer gets, not a regenerated copy.
 - [ ] Confirm PEP 770 location, run schema + SHACL validation
       (`spdx3_validate` or the `sbom-validate` Skill), recompute every
