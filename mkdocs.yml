@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 site_name: Pitloom
-site_description: An SBOM generator for Python projects an AI models
+site_description: An SBOM generator for Python projects and AI models
 site_url: https://bact.github.io/pitloom/
 repo_url: https://github.com/bact/pitloom
 repo_name: bact/pitloom
