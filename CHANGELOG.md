@@ -26,7 +26,12 @@ and this project adheres to
 - Pitloom's own hash and Package URL with version number to the generated SBOM
   ([#132])
 
+### Fixed
+
+- Use POSIX path in provenance comment too ([#133])
+
 [#132]: https://github.com/bact/pitloom/pull/132
+[#133]: https://github.com/bact/pitloom/pull/133
 
 ## [0.13.2] - 2026-08-11
 
