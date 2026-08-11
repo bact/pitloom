@@ -299,7 +299,7 @@ Once installed, all three Skills are namespaced under the plugin:
 and `/pitloom:sbom-validate [sbom-file]` (or just ask in plain
 language -- natural-language triggering works the same as standalone
 Skills). See
-[docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) or
+[docs/claude-code-plugin.md](docs/claude-code-plugin.md) or
 [working-docs/implementation/claude-code-plugin.md](working-docs/implementation/claude-code-plugin.md)
 for what the plugin bundles.
 

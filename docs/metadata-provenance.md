@@ -153,3 +153,10 @@ For the full design rationale, current implementation status, and code
 citations behind both sections above, see
 [`annotation-provenance.md`](https://github.com/bact/pitloom/blob/main/working-docs/implementation/annotation-provenance.md)
 in the Pitloom repository.
+
+## See also
+
+`[tool.pitloom.provenance]` is read the same way regardless of entry
+point -- see [Command line](cli.md#configuration), [Hatchling build
+hook](hatchling-build-hook.md), and [Python API](python-api.md) for where
+to set it.

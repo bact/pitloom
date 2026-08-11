@@ -44,8 +44,11 @@ pip install pitloom[ai]
 from pathlib import Path
 from pitloom.assemble import generate
 
-generate(Path("/path/to/project"))
+generate(Path("/path/to/project"), output_path=Path("sbom.spdx3.json"))
 ```
+
+`generate()` always returns the SBOM as a JSON string; pass `output_path`
+to also write it to disk.
 
 ### Usage details
 

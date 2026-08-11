@@ -137,7 +137,7 @@ for multi-file and merged-graph recipes.
 
 [sbom-validate-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-validate/references/examples.md
 
-## Setting/config
+## Configuration
 
 Each Skill's `SKILL.md` front matter carries a `description` (drives
 natural-language auto-trigger matching) and an `argument-hint` (the

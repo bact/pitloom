@@ -44,28 +44,18 @@ pip install pitloom[ai]
 ## Pick your usage surface
 
 Pitloom generates the same kind of SBOM regardless of how you invoke it
-(so long it is generated from the same context) -- pick the page for how you
-actually want to run it. Each page has its own quick guide, install steps,
-usage details, config, and code examples.
+(so long as it's the same target) -- pick the page for how you actually
+want to run it. Each page has its own quick guide, install steps, usage
+details, config, and code examples.
 
 | Surface | Reach for this when... |
 | :--- | :--- |
-| [Command line](cli.md) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target, or any shell script. |
+| [Command line](cli.md) (`loom`) | You want a one-off SBOM from a terminal, a Makefile target, or any shell script. |
 | [Python API](python-api.md) | You are calling Pitloom from Python code you control, or want to track provenance during training/evaluation. |
-| [Hatchling build hook](hatchling-build-hook.md) | You build wheels with Hatchling and want an SBOM embedded automatically. |
+| [Hatchling build hook](hatchling-build-hook.md) | You build wheels with Hatchling and want an SBOM embedded automatically (PEP 770). |
 | [GitHub Action](github-action.md) | Your project isn't Hatchling-based, or you just want CI to produce an SBOM artifact with one `uses:` line. |
 | [Agent Skills](agent-skills.md) | You want an AI coding agent to generate (and optionally enrich or validate) an SBOM on request. |
 | [Claude Code plugin](claude-code-plugin.md) | You use Claude Code and want the Skills installable with one command. |
-
-## Quick guide
-
-```shell
-loom project .
-```
-
-Create a Source SBOM for the Python project in the current directory. See
-[Command line](cli.md) for every other target type (AI model, Hugging
-Face Hub model, installed environment, wheel).
 
 ## Reference docs
 

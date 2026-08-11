@@ -37,8 +37,8 @@ is the authoritative reference for the field-level detail below.
 A single Pitloom run -- one CLI invocation, one Hatchling build, one
 `pitloom.loom.run` -- produces one such record, shared by every element
 that run generated. When a composite SBOM merges pre-generated fragments
-(see the Hatchling build hook and Python tracking decorator sections of the
-[README](https://github.com/bact/pitloom#readme)) via
+(see the [Hatchling build hook](hatchling-build-hook.md) and [Python
+API](python-api.md#tracking-decorator) tracking decorator pages) via
 `[tool.pitloom.fragments]`, each fragment keeps the record from whichever
 run actually produced it. The result contains as many of these records as
 generation events contributed to it -- correct provenance to keep, since
@@ -96,7 +96,9 @@ support a single `creator-name`/`creator-email`/`creator-type` and a single
 `creation-tool`. Projects that need more than one creator or tool should use
 `pyproject.toml` or the library API.
 
-See the [README](https://github.com/bact/pitloom#readme) for the
-`--creator-*` / `--creation-*` CLI flags and the `[[tool.pitloom.creator]]` /
+See [Command line](cli.md#configuration) for the `--creator-*` /
+`--creation-*` CLI flags and the `[[tool.pitloom.creator]]` /
 `[[tool.pitloom.creation-tool]]` / `[tool.pitloom.creation]`
-`pyproject.toml` tables used to set these fields.
+`pyproject.toml` tables used to set these fields -- the [Hatchling build
+hook](hatchling-build-hook.md) and [Python API](python-api.md) read the
+same tables.

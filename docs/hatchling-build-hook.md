@@ -31,24 +31,18 @@ requires = ["hatchling>=1.29.0", "pitloom>=0.13.3"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
-enabled = true
 ```
 
-That's all -- `hatch build`/`python -m build` now embeds the SBOM.
+That's all -- `hatch build` and `python -m build` now embed the SBOM.
 
 ## Installation
 
 Add `pitloom` as a build requirement (Hatchling **1.29.0+** required) and
-register the hook in `pyproject.toml`:
-
-```toml
-[build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.13.3"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.hooks.pitloom]
-enabled = true    # set to false to skip SBOM generation
-```
+add the `[tool.hatch.build.hooks.pitloom]` table to `pyproject.toml`
+(as shown above) -- both parts are required. Listing `pitloom` under
+`[build-system] requires` alone does not activate the hook: Hatchling
+only runs hooks whose name appears under `[tool.hatch.build.hooks]`, so
+the table itself is what turns it on, even left empty.
 
 No separate `pip install` step is needed beyond that -- the build
 front-end (`pip`, `build`, `hatch`) installs `pitloom` as a build-time
@@ -64,10 +58,12 @@ Every `hatch build`/`python -m build` invocation now:
    decorator, or a hand-authored fragment).
 3. Embeds the result into the wheel's `.dist-info/sboms/` directory.
 
-Set `enabled = false` under `[tool.hatch.build.hooks.pitloom]` to skip
-generation for a particular build without removing the hook.
+The table's `enabled` key defaults to `true`, so an empty
+`[tool.hatch.build.hooks.pitloom]` is enough. Set `enabled = false`
+inside it to skip generation for a particular build without removing
+the table.
 
-## Setting/config
+## Configuration
 
 Basename and fragments are configured under `[tool.pitloom]`:
 

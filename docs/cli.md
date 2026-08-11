@@ -37,12 +37,6 @@ Install with AI model metadata extraction support:
 pip install pitloom[ai]
 ```
 
-Hugging Face Hub model lookups need one more extra:
-
-```bash
-pip install pitloom[huggingface]
-```
-
 ## Usage details
 
 ### Generate an SBOM
@@ -137,12 +131,12 @@ pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--pretty` -- indent the JSON for human reading (default: compact).
-- `--offline` -- enforce offline execution for `loom model` / `loom generate`.
+- `--offline` -- forbid network access (PyPI/Hugging Face lookups).
 - `-v` / `--verbose` -- print effective options and where each came from.
-- `--enrich` / `--no-enrich` -- opt in to (or force off) README/model-card
-  frontmatter enrichment as part of the same generate call.
 
-## Setting/config
+See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`.
+
+## Configuration
 
 ### Creator and creation metadata
 

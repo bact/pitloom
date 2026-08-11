@@ -65,7 +65,7 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
 
-## Setting/config
+## Configuration
 
 Inputs (all optional):
 
