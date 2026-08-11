@@ -209,7 +209,6 @@ module = "tests.test_extract_huggingface"
 
 [tool.pitloom]
 pretty = true
-sbom-basename = "sbom"
 
 [[tool.pitloom.creator]]
 name = "Arthit Suriyawongkul"

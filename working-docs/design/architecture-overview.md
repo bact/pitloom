@@ -238,8 +238,8 @@ See `working-docs/design/hatchling-build-hook.md`.
 
 #### 2. PEP 770 wheel embedding
 
-The SBOM is placed at `{name}-{version}.dist-info/sboms/sbom.spdx3.json`
-inside the wheel archive. Downstream tools (Trivy, Grype, pip-audit) can
+The SBOM is placed at `{name}-{version}.dist-info/sboms/{name}-{version}.spdx3.json`
+inside the wheel archive (default basename; overridable via `sbom-basename`). Downstream tools (Trivy, Grype, pip-audit) can
 discover and consume the SBOM without any separate distribution step.
 Implemented as part of the Hatchling build hook.
 
@@ -396,7 +396,7 @@ hatch build  /  python -m build
         ├── compute_wheel_merkle_root() (WheelBuilder file set -> deterministic UUID)
         ├── DocumentModel -> build(merkle_root) -> Spdx3JsonExporter
         ├── merge fragments/run.spdx3.json    (AI provenance)
-        └── -> .dist-info/sboms/sbom.spdx3.json  <- PEP 770
+        └── -> .dist-info/sboms/mypackage-1.0.spdx3.json  <- PEP 770
 
 Downstream consumption
 ───────────────────────

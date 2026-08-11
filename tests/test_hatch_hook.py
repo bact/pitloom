@@ -472,7 +472,7 @@ def test_hook_sbom_files_populated() -> None:
         assert len(build_data["sbom_files"]) == 1
         staged = Path(build_data["sbom_files"][0])
         assert staged.exists()
-        assert staged.name == "sbom.spdx3.json"
+        assert staged.name == "testpkg-0.1.0.spdx3.json"
 
         hook.finalize("standard", build_data, "")
 

@@ -706,7 +706,7 @@ def _resolve_output_path(
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
     if explicit is not None:
         return explicit
-    return Path.cwd() / (model_path.stem + _SPDX3_JSON_EXT)
+    return Path.cwd() / (model_path.name + _SPDX3_JSON_EXT)
 
 
 def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
@@ -831,7 +831,7 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         )
 
         output_path = args.output or (
-            Path.cwd() / f"{wheel_path.stem}{_SPDX3_JSON_EXT}"
+            Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}"
         )
 
         if args.verbose:
@@ -929,7 +929,7 @@ def _run_enrich_mode(args: argparse.Namespace) -> int:
         effective_pretty = args.pretty if args.pretty is not None else False
 
         output_path = args.output or (
-            Path.cwd() / f"{model_path.stem}.enrich{_SPDX3_JSON_EXT}"
+            Path.cwd() / f"{model_path.name}.enrich{_SPDX3_JSON_EXT}"
         )
 
         if args.verbose:

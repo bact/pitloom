@@ -37,7 +37,7 @@ of the final AI SBOM:
 Each stage writes a self-contained SPDX 3 JSON-LD **fragment**. The
 build hook then weaves all of them - plus dependency information taken
 straight from `pyproject.toml` - into a single composite SBOM that
-ships inside the wheel at `.dist-info/sboms/sentimentdemo.spdx3.json`
+ships inside the wheel at `.dist-info/sboms/sentimentdemo-0.1.0.spdx3.json`
 ([PEP 770](https://peps.python.org/pep-0770/)).
 
 ---
@@ -269,7 +269,7 @@ build-backend = "hatchling.build"
 enabled = true
 
 [tool.pitloom]
-sbom-basename = "sentimentdemo"
+pretty = true
 
 [tool.pitloom.fragments]
 files = [
@@ -293,7 +293,7 @@ fires automatically and does three things:
    is added to the wheel SBOM with its original `spdxId` preserved,
    so the lineage from stages 1-4 survives intact.
 3. **Embeds the composite SBOM** in the wheel at
-   `sentimentdemo-0.1.0.dist-info/sboms/sentimentdemo.spdx3.json`
+   `sentimentdemo-0.1.0.dist-info/sboms/sentimentdemo-0.1.0.spdx3.json`
    per [PEP 770](https://peps.python.org/pep-0770/).
 
 Build it:

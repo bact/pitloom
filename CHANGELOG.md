@@ -17,7 +17,15 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1>
+
+## [0.13.1] - 2026-08-11
+
+### Changed
+
+- Use default SBOM filename as suggested by [SBOM Everywhere][sbom-naming]
+
+[sbom-naming]: https://sbom-catalog.openssf.org/sbom-naming.html
 
 ## [0.13.0] - 2026-08-11
 
@@ -415,6 +423,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.13.1]: https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/bact/pitloom/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/bact/pitloom/compare/v0.10.0...v0.11.0

@@ -150,14 +150,16 @@ full surface list (Python API, Hatchling hook, GitHub Action, Skill).
 ### Hatchling build hook
 
 Pitloom can embed an SBOM automatically into every wheel you build, at
-`.dist-info/sboms/sbom.spdx3.json`, per
-[PEP 770](https://peps.python.org/pep-0770/) (wheels only). Add `pitloom`
-as a build requirement (Hatchling **1.28.0+** required) and register the
-hook:
+`.dist-info/sboms/<name>-<version>.spdx3.json` by default (e.g.
+`.dist-info/sboms/mypackage-1.0.0.spdx3.json`), per
+[PEP 770](https://peps.python.org/pep-0770/) (wheels only).
+
+Add `pitloom` as a build requirement (Hatchling **1.28.0+** required) and
+register the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.31.0", "pitloom>=0.13.0"]
+requires = ["hatchling>=1.28.0", "pitloom>=0.13.1"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -173,7 +175,7 @@ as compact canonical JSON. Basename and fragments are configured under
 
 ```toml
 [tool.pitloom]
-sbom-basename = "sbom"   # -> "sbom.spdx3.json"
+sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name>-<version>")
 
 [tool.pitloom.fragments]
 files = ["fragments/model.json"]   # merge externally tracked fragments
@@ -240,7 +242,7 @@ Add SBOM generation to any repository's CI with a single step, for any
 Python build backend, not just Hatchling:
 
 ```yaml
-- uses: bact/pitloom@v0.13.0
+- uses: bact/pitloom@v0.13.1
 ```
 
 See [working-docs/implementation/github-action.md](working-docs/implementation/github-action.md)

@@ -121,6 +121,19 @@ def _build_document_model(
     return document, merkle_root, enrichment_results_by_model
 
 
+def _default_sbom_basename(hatch_metadata: Any) -> str:
+    """Derive the default embedded-SBOM basename from package name/version.
+
+    The final wheel filename's platform/ABI/Python tags aren't resolved
+    yet at hook ``initialize()`` time, so this can't reproduce the exact
+    wheel filename -- only ``<name>-<version>``, matching what ``loom
+    project``'s own default (``_resolve_output_path``) uses.
+    """
+    name = hatch_metadata.core.raw_name
+    version = str(hatch_metadata.version) if hatch_metadata.version else None
+    return f"{name}-{version}" if version else name
+
+
 def _stage_sbom_file(
     sbom_json: str, sbom_filename: str
 ) -> tuple[tempfile.TemporaryDirectory[str], Path]:
@@ -211,7 +224,9 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         pitloom_config: PitloomConfig = read_pitloom_config(
             project_dir / "pyproject.toml"
         )
-        sbom_basename = pitloom_config.sbom_basename or "sbom"
+        sbom_basename = pitloom_config.sbom_basename or _default_sbom_basename(
+            self.metadata
+        )
         sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
 
         document, merkle_root, enrichment_results_by_model = _build_document_model(
