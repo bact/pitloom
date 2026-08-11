@@ -17,19 +17,21 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.13.1...v0.13.2>
 
-## [Unreleased]
+## [0.13.2] - 2026-08-11
+
+This release fixes bugs and offers few fallbacks to improve SBOM completeness.
 
 ### Added
 
-- Package URL fallback (name-only) for unresolved versions ([#131])
 - Copyright extraction from installed License-File ([#131])
 - Supplier information from installed Author/Maintainer metadata ([#131])
 - PyPI API fallback for supplier/license/integrity-hash when local install
   doesn't have them ([#131])
 - NOASSERTION fallback for copyright and license when genuinely nothing is
   found anywhere ([#131])
+- Package URL fallback (name-only) for unresolved versions ([#131])
 
 ### Fixed
 
@@ -446,6 +448,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.13.2]: https://github.com/bact/pitloom/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/bact/pitloom/compare/v0.11.0...v0.12.0
