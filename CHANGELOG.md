@@ -458,6 +458,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.13.3]: https://github.com/bact/pitloom/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/bact/pitloom/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0
