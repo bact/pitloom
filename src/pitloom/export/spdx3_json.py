@@ -217,6 +217,10 @@ class Spdx3JsonExporter:
         self.object_set = spdx3.SHACLObjectSet()
         # Maps simplelicensing_licenseText -> spdxId for deduplication.
         self._license_index: dict[str, str] = {}
+        # Maps an arbitrary caller-chosen key (e.g. "name|email") -> spdxId,
+        # for deduplicating Agents built from external metadata (e.g. two
+        # dependencies sharing the same author).
+        self._agent_index: dict[str, str] = {}
 
     def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.
@@ -234,14 +238,26 @@ class Spdx3JsonExporter:
         """
         self.object_set.add(person)
 
-    def add_agent(self, agent: spdx3.Agent) -> None:
+    def add_agent(self, agent: spdx3.Agent, *, key: str | None = None) -> None:
         """Add a creator Agent (Person, Organization, SoftwareAgent, or the
         generic Agent).
 
         Args:
-            agent: Any ``Agent`` subclass used in ``CreationInfo.createdBy``.
+            agent: Any ``Agent`` subclass used in ``CreationInfo.createdBy``
+                or elsewhere (e.g. a dependency's ``suppliedBy``).
+            key: Optional dedup key (e.g. ``"name|email"``). When given,
+                updates the internal agent index so a subsequent
+                :meth:`find_agent` call with the same key returns this
+                agent's spdxId instead of a caller minting a duplicate.
         """
         self.object_set.add(agent)
+        if key:
+            self._agent_index[key] = require_spdx_id(agent)
+
+    def find_agent(self, key: str) -> str | None:
+        """Return the spdxId of an existing Agent registered under *key* via
+        :meth:`add_agent`, or ``None`` if not yet added."""
+        return self._agent_index.get(key)
 
     def add_package(self, package: spdx3.software_Package) -> None:
         """Add a software package to the document.

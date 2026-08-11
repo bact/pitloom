@@ -131,6 +131,13 @@ class PitloomConfig:
             (README/model-card YAML frontmatter), from
             ``[tool.pitloom.enrich] local``. Defaults to ``False`` --
             enrichment is opt-in until more sources ship.
+        offline: Whether to skip the PyPI JSON API fallback used to fill
+            dependency-package supplier/license/integrity-hash gaps that
+            installed metadata didn't cover, from ``[tool.pitloom] offline``.
+            Defaults to ``False`` (network attempted, best-effort -- any
+            failure, including no network at all, silently falls back to
+            local-only data); set ``true`` for fully offline/hermetic/
+            air-gapped builds.
     """
 
     fragments: list[str] = field(default_factory=list)
@@ -147,6 +154,7 @@ class PitloomConfig:
     provenance_detail: str = "minimal"
     provenance_preserve_source_metadata: str = "auto"
     enrich_local: bool = False
+    offline: bool = False
 
     @property
     def provenance(self) -> ProvenanceConfig:
@@ -388,6 +396,65 @@ def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
     return local
 
 
+def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
+    """Read ``[tool.pitloom] offline``.
+
+    Raises:
+        ValueError: If ``offline`` is present but not a boolean.
+    """
+    offline = pitloom_data.get("offline", False)
+    if not isinstance(offline, bool):
+        raise ValueError(
+            f"[tool.pitloom] 'offline' must be a boolean, got "
+            f"{type(offline).__name__}: {offline!r}"
+        )
+    return offline
+
+
+def _read_fragments(pitloom_data: dict[str, Any]) -> list[str]:
+    """Read ``[tool.pitloom.fragments] files``."""
+    raw = pitloom_data.get("fragments", {}).get("files", [])
+    return [str(f) for f in raw] if isinstance(raw, list) else []
+
+
+def _apply_no_creation_tool(
+    creation_data: dict[str, Any], tools: list[Tool] | None
+) -> list[Tool] | None:
+    """Apply ``[tool.pitloom.creation] no-creation-tool`` -- clear *tools*
+    (from ``[[tool.pitloom.creation-tool]]``) when set, otherwise pass
+    *tools* through unchanged.
+
+    Raises:
+        ValueError: If ``no-creation-tool`` is present but not a boolean
+            (e.g. the string ``"false"``, which is truthy in Python).
+    """
+    no_creation_tool = creation_data.get("no-creation-tool")
+    if no_creation_tool is None:
+        no_creation_tool = creation_data.get("no_creation_tool")
+    if no_creation_tool is not None and not isinstance(no_creation_tool, bool):
+        raise ValueError(
+            "[tool.pitloom.creation] 'no-creation-tool' must be a boolean, "
+            f"got {type(no_creation_tool).__name__}: {no_creation_tool!r}"
+        )
+    return [] if no_creation_tool else tools
+
+
+def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
+    """Return the first string found by key, scanning *sources* in order.
+
+    Each source is checked fully (all its keys) before moving to the next,
+    so an explicit empty string in a higher-priority source is returned
+    as-is -- it does not fall through to a lower-priority source the way
+    ``a or b`` would.
+    """
+    for source, keys in sources:
+        for key in keys:
+            value = source.get(key)
+            if isinstance(value, str):
+                return value
+    return None
+
+
 def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
@@ -411,25 +478,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
 
     _check_moved_creation_keys(pitloom_data, creation_data)
 
-    def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
-        """Return the first string found by key, scanning *sources* in order.
-
-        Each source is checked fully (all its keys) before moving to the
-        next, so an explicit empty string in a higher-priority source is
-        returned as-is -- it does not fall through to a lower-priority
-        source the way ``a or b`` would.
-        """
-        for source, keys in sources:
-            for key in keys:
-                value = source.get(key)
-                if isinstance(value, str):
-                    return value
-        return None
-
-    raw_fragments = pitloom_data.get("fragments", {}).get("files", [])
-    fragments = (
-        [str(f) for f in raw_fragments] if isinstance(raw_fragments, list) else []
-    )
+    fragments = _read_fragments(pitloom_data)
     ids_file = _read_ids_file(pitloom_data)
     (
         provenance_format,
@@ -445,19 +494,10 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     if desc_rel is not None:
         desc_rel = bool(desc_rel)
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
+    offline = _read_offline_setting(pitloom_data)
 
     creators = _read_creators(pitloom_data)
-    tools = _read_tools(pitloom_data)
-    no_creation_tool = creation_data.get("no-creation-tool")
-    if no_creation_tool is None:
-        no_creation_tool = creation_data.get("no_creation_tool")
-    if no_creation_tool is not None and not isinstance(no_creation_tool, bool):
-        raise ValueError(
-            "[tool.pitloom.creation] 'no-creation-tool' must be a boolean, "
-            f"got {type(no_creation_tool).__name__}: {no_creation_tool!r}"
-        )
-    if no_creation_tool:
-        tools = []
+    tools = _apply_no_creation_tool(creation_data, _read_tools(pitloom_data))
 
     creation_datetime = _pick_str(
         (creation_data, ("creation-datetime", "creation_datetime", "datetime")),
@@ -483,6 +523,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_detail=provenance_detail,
         provenance_preserve_source_metadata=provenance_preserve,
         enrich_local=enrich_local,
+        offline=offline,
     )
 
 

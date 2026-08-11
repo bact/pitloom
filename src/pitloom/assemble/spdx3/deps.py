@@ -7,10 +7,18 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
+from email.utils import getaddresses
 from importlib.metadata import PackageMetadata, PackageNotFoundError
+from importlib.metadata import distribution as get_pkg_distribution
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
+from typing import Any
+from urllib.parse import quote as url_quote
 
+from packaging.requirements import InvalidRequirement, Requirement
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.provenance import (
@@ -25,6 +33,7 @@ from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._extract_utils import fetch_json
 from pitloom.extract._license import (
     normalize_license_expression,
     tag_license_normalization,
@@ -34,14 +43,52 @@ from pitloom.extract._license import (
 # avoid splitting on a prefix of a multi-character operator (e.g. "==" before "=").
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 
-# Well-known Project-URL labels that map to homePage / downloadLocation.
-# Matched case-insensitively against the label part of "Label, URL" entries.
-_HOMEPAGE_LABELS = frozenset(["homepage", "home page", "home"])
-_DOWNLOAD_LABELS = frozenset(["download"])
+# Well-known Project-URL labels that map to homePage / downloadLocation, in
+# priority order. Matched case-insensitively against the label part of
+# "Label, URL" entries. A tuple, not a set/frozenset: when a package
+# declares more than one matching label, iteration order decides which URL
+# wins, and a set's order is str-hash-dependent (PYTHONHASHSEED, randomized
+# per process by default) -- a plain tuple keeps that choice deterministic
+# across builds instead of varying by which process happened to generate
+# the SBOM.
+_HOMEPAGE_LABELS = ("homepage", "home page", "home")
+_DOWNLOAD_LABELS = ("download",)
+
+# A permissive (MIT/BSD-style) LICENSE file's copyright line, e.g.
+# "Copyright (c) 2021 Taneli Hukkinen" or "Copyright © 2019 Filipe Laíns".
+_COPYRIGHT_LINE_RE = re.compile(
+    r"^\s*Copyright\s+(?:\(c\)|©)?\s*\S.*$", re.IGNORECASE | re.MULTILINE
+)
+# Only the file's head is searched -- see _find_license_copyright.
+_COPYRIGHT_SEARCH_HEAD_CHARS = 500
+
+# Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
+# slow network doesn't meaningfully stall a build; see _fetch_pypi_release_info.
+_PYPI_TIMEOUT_SECONDS = 5.0
+
+# A `license` field this long is almost certainly a project pasting its
+# entire LICENSE file into PyPI's free-text `license` metadata (a known,
+# common anti-pattern) rather than a short identifier/expression -- treated
+# as absent rather than polluting the license/copyright fields with it.
+_PYPI_LICENSE_FIELD_MAX_LEN = 200
 
 
 def _parse_dep_name(dep: str) -> str:
-    """Return the bare package name from a PEP 508 dependency specifier."""
+    """Return the bare package name from a PEP 508 dependency specifier.
+
+    Parses *dep* as a :class:`packaging.requirements.Requirement` first, so
+    environment markers (``; sys_platform == '...'``) and multi-clause
+    specifier sets (``>=1,<2``) are handled correctly -- a naive
+    operator-substring split misidentifies the split point when a marker's
+    own ``==`` comparison is checked before the specifier's real operator,
+    or when a later clause's operator appears before an earlier one's in
+    the fixed *_VERSION_OPERATORS* priority order. Falls back to the naive
+    split only for specifiers ``Requirement`` itself can't parse.
+    """
+    try:
+        return Requirement(dep).name
+    except InvalidRequirement:
+        pass
     for op in _VERSION_OPERATORS:
         if op in dep:
             return dep.split(op)[0].strip()
@@ -52,8 +99,15 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
     """Return ``(version_string, resolved_from)`` for a dependency.
 
     Tries to read the installed version via ``importlib.metadata`` first.
-    Falls back to extracting the pinned version from an ``==`` constraint,
-    or ``"unknown"`` if neither is available.
+    Falls back to extracting a pinned version (PEP 440 ``==``/``===``) from
+    the specifier set via :class:`packaging.requirements.Requirement` (so a
+    marker's own ``==`` comparison, e.g. ``sys_platform == 'linux'``, is
+    never mistaken for a version pin). If *dep* isn't valid PEP 508 at all
+    (``Requirement`` raises), falls back further to a naive ``"==" in dep``
+    substring split -- a best-effort recovery for a malformed-but-pinned
+    string, matching what a plain PEP 508 parse failure used to still
+    recover before ``Requirement``-based parsing was introduced. Returns
+    ``"unknown"`` only when none of these find a pin.
 
     Returns:
         A tuple of the version string and an optional provenance note.
@@ -67,10 +121,256 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
     except PackageNotFoundError:
         pass
 
-    if "==" in dep:
-        return dep.split("==")[1].strip(), None
+    try:
+        pinned = [
+            spec.version
+            for spec in Requirement(dep).specifier
+            if spec.operator in ("==", "===")
+        ]
+    except InvalidRequirement:
+        if "==" in dep:
+            return dep.split("==")[1].strip(), None
+        return "unknown", None
+    if pinned:
+        return pinned[0], None
 
     return "unknown", None
+
+
+def _pick_supplier(name: str, email_raw: str) -> tuple[str | None, str | None] | None:
+    """Return ``(name, email)`` from one name/email metadata pair, or ``None``.
+
+    *email_raw* may carry an RFC 5322 ``"Name <email>"`` form (how PEP 621
+    ``[project.authors]`` round-trips through core metadata / PyPI's JSON
+    API), a bare address, or -- commonly for a maintainer field -- a
+    comma-separated list of several such entries; :func:`email.utils.
+    getaddresses` handles all three (unlike :func:`email.utils.parseaddr`,
+    which mis-parses a multi-entry list as one malformed address and
+    silently returns nothing). Only the first entry is used. *name* alone
+    (no email) is still a usable result.
+    """
+    name = name.strip()
+    email_raw = email_raw.strip()
+    if email_raw:
+        addresses = getaddresses([email_raw])
+        if addresses:
+            parsed_name, parsed_email = addresses[0]
+            resolved_name = parsed_name.strip() or name or None
+            resolved_email = parsed_email.strip() or None
+            if resolved_name or resolved_email:
+                return resolved_name, resolved_email
+    if name:
+        return name, None
+    return None
+
+
+def _resolve_supplier(pkg_meta: PackageMetadata) -> tuple[str | None, str | None]:
+    """Return ``(name, email)`` for a dependency's supplier from installed
+    metadata, or ``(None, None)``. Tries ``Author``/``Author-email`` first,
+    then falls back to ``Maintainer``/``Maintainer-email``."""
+    for name_field, email_field in (
+        ("Author", "Author-email"),
+        ("Maintainer", "Maintainer-email"),
+    ):
+        result = _pick_supplier(pkg_meta[name_field] or "", pkg_meta[email_field] or "")
+        if result:
+            return result
+    return None, None
+
+
+def _extract_pypi_supplier(info: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return ``(name, email)`` for a dependency's supplier from a PyPI JSON
+    API ``info`` object, or ``(None, None)``. Same author-then-maintainer
+    precedence as :func:`_resolve_supplier`."""
+    for name_key, email_key in (
+        ("author", "author_email"),
+        ("maintainer", "maintainer_email"),
+    ):
+        result = _pick_supplier(info.get(name_key) or "", info.get(email_key) or "")
+        if result:
+            return result
+    return None, None
+
+
+def _extract_pypi_license(info: dict[str, Any]) -> str | None:
+    """Return a license expression/identifier from a PyPI JSON API ``info``
+    object, or ``None``. Prefers PEP 639 ``license_expression``, then the
+    legacy free-text ``license`` field (skipped if implausibly long -- see
+    :data:`_PYPI_LICENSE_FIELD_MAX_LEN`), then an OSI/other ``License ::``
+    trove classifier.
+    """
+    license_expression = (info.get("license_expression") or "").strip()
+    if license_expression and license_expression.upper() != "UNKNOWN":
+        return license_expression
+
+    license_field = (info.get("license") or "").strip()
+    if (
+        license_field
+        and license_field.upper() != "UNKNOWN"
+        and len(license_field) <= _PYPI_LICENSE_FIELD_MAX_LEN
+    ):
+        return license_field
+
+    classifiers: list[str] = info.get("classifiers") or []
+    for classifier in classifiers:
+        if classifier.startswith("License ::"):
+            return classifier.rsplit("::", maxsplit=1)[-1].strip()
+    return None
+
+
+def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] | None:
+    """Best-effort fetch of PyPI JSON API release info for *name*, optionally
+    pinned to *version* (the unversioned endpoint returns the latest
+    release). Returns ``None`` on any failure -- no network, DNS blocked,
+    timeout, non-200, or a malformed response -- so this is always a
+    silent, non-blocking enrichment layer, never a hard requirement.
+
+    Delegates the actual fetch to :func:`~pitloom.extract._extract_utils.
+    fetch_json` (also used for Croissant metadata) rather than a second
+    urlopen/json.loads implementation, so the scheme-restriction and
+    HTTP-exception handling only need to be reviewed and gotten right once.
+    """
+    path = (
+        f"{url_quote(name)}/{url_quote(version)}/json"
+        if version
+        else f"{url_quote(name)}/json"
+    )
+    url = f"https://pypi.org/pypi/{path}"
+    try:
+        return fetch_json(url, timeout=_PYPI_TIMEOUT_SECONDS)
+    except ValueError:
+        return None
+
+
+def _extract_release_hash(release_info: dict[str, Any]) -> str | None:
+    """Return the hex SHA-256 digest of the release's wheel (preferred) or
+    sdist artifact from a PyPI JSON API response, or ``None``."""
+    urls = release_info.get("urls") or []
+    by_type = {u.get("packagetype"): u for u in urls if isinstance(u, dict)}
+    entry = by_type.get("bdist_wheel") or by_type.get("sdist")
+    if entry is None and urls:
+        entry = urls[0]
+    if entry is None:
+        return None
+    digest = (entry.get("digests") or {}).get("sha256")
+    return digest or None
+
+
+# Cap on concurrent PyPI JSON API requests, so a project with hundreds of
+# dependencies doesn't open hundreds of sockets at once.
+_PYPI_MAX_CONCURRENT_FETCHES = 8
+
+
+def _prefetch_pypi_release_infos(
+    name_versions: Iterable[tuple[str, str]],
+) -> dict[tuple[str, str | None], dict[str, Any] | None]:
+    """Concurrently fetch PyPI JSON API release info for each distinct
+    ``(name, version)`` pair, so N dependencies cost roughly one network
+    round-trip's worth of wall time instead of N sequential ones (each
+    with its own TCP+TLS handshake and up to a
+    :data:`_PYPI_TIMEOUT_SECONDS` timeout on failure).
+
+    ``version == "unknown"`` is normalized to ``None`` here, matching
+    :func:`_fetch_pypi_release_info`'s own "no pin -> latest release"
+    semantics -- so two dependencies that both have an unresolved version
+    share a single fetch instead of one per occurrence.
+    """
+    keys = {
+        (name, version if version != "unknown" else None)
+        for name, version in name_versions
+    }
+    if not keys:
+        return {}
+    results: dict[tuple[str, str | None], dict[str, Any] | None] = {}
+    with ThreadPoolExecutor(
+        max_workers=min(_PYPI_MAX_CONCURRENT_FETCHES, len(keys))
+    ) as pool:
+        futures = {
+            pool.submit(_fetch_pypi_release_info, name, version): (name, version)
+            for name, version in keys
+        }
+        for future, key in futures.items():
+            results[key] = future.result()
+    return results
+
+
+def _get_or_create_supplier_agent(
+    name: str | None,
+    email: str | None,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> str:
+    """Get or create a ``Person`` Agent for a dependency's supplier, deduped
+    by ``name``/``email`` so packages sharing an author reuse one Agent."""
+    key = f"{name or ''}|{email or ''}"
+    existing = exporter.find_agent(key)
+    if existing:
+        return existing
+
+    agent = spdx3.Person(
+        spdxId=generate_spdx_id("Person", doc_name=doc_name, doc_uuid=doc_uuid),
+        name=name or email,
+        creationInfo=creation_info,
+    )
+    if email:
+        agent.externalIdentifier = [
+            spdx3.ExternalIdentifier(
+                externalIdentifierType=spdx3.ExternalIdentifierType.email,
+                identifier=email,
+            )
+        ]
+    exporter.add_agent(agent, key=key)
+    return require_spdx_id(agent)
+
+
+def _find_license_copyright(dist_name: str, pkg_meta: PackageMetadata) -> str | None:
+    """Return a copyright statement from the dependency's installed
+    ``License-File``, or ``None`` if not found.
+
+    Only the first :data:`_COPYRIGHT_SEARCH_HEAD_CHARS` of the file are
+    searched: a permissive (MIT/BSD-style) license puts its copyright line
+    right at the top, while a copyleft/Apache-style license's boilerplate
+    body can contain the word "copyright" in an unrelated sentence deep in
+    the file (e.g. Apache-2.0 SS4's "You must retain... all copyright...
+    notices") -- restricting to the head avoids that false positive, at the
+    cost of correctly finding nothing for those license families (which
+    don't embed a per-project copyright line in ``LICENSE`` anyway; that
+    text lives in an optional, non-standardized ``NOTICE`` file instead).
+    """
+    license_files = pkg_meta.get_all("License-File") or []
+    if not license_files:
+        return None
+    try:
+        dist = get_pkg_distribution(dist_name)
+    except PackageNotFoundError:
+        return None
+
+    package_files = dist.files or []
+    for license_file in license_files:
+        for candidate in package_files:
+            if candidate.name != license_file:
+                continue
+            # License-File-declared files live under the package's own
+            # .dist-info directory (PEP 639, either directly or under its
+            # licenses/ subdirectory) -- restricting to that prevents a
+            # same-named LICENSE file elsewhere in the installed package
+            # tree (e.g. a vendored third-party library at
+            # mypkg/vendor/otherlib/LICENSE) from being matched instead of
+            # the real one, misattributing that library's copyright.
+            if not str(candidate).split("/", 1)[0].endswith(".dist-info"):
+                continue
+            try:
+                text = candidate.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            if not text:
+                continue
+            match = _COPYRIGHT_LINE_RE.search(text[:_COPYRIGHT_SEARCH_HEAD_CHARS])
+            if match:
+                return match.group(0).strip()
+    return None
 
 
 def _parse_project_urls(pkg_meta: PackageMetadata) -> dict[str, str]:
@@ -84,6 +384,76 @@ def _parse_project_urls(pkg_meta: PackageMetadata) -> dict[str, str]:
     return result
 
 
+def _resolve_metadata_url(
+    core_value: str, project_urls: dict[str, str], labels: tuple[str, ...]
+) -> str | None:
+    """Return *core_value* if set and not ``"UNKNOWN"``, else the first
+    *project_urls* entry matching one of *labels* (checked in order --
+    *labels* must be an ordered sequence, not a set, so which one wins
+    when several match is deterministic), else ``None``."""
+    value = core_value
+    if not value or value == "UNKNOWN":
+        for label in labels:
+            if label in project_urls:
+                value = project_urls[label]
+                break
+    return value if value and value != "UNKNOWN" else None
+
+
+def _apply_supplier(
+    name: str | None,
+    email: str | None,
+    dep_package: spdx3.software_Package,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> bool:
+    """Set ``suppliedBy`` to a (deduped) Agent built from *name*/*email*, if
+    either is given. Returns whether it was set."""
+    if not (name or email):
+        return False
+    dep_package.suppliedBy = _get_or_create_supplier_agent(
+        name, email, creation_info, doc_name, doc_uuid, exporter
+    )
+    return True
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def _apply_license(
+    license_id: str | None,
+    license_provenance: str,
+    dep_package: spdx3.software_Package,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> bool:
+    """Build and add whichever declared/concluded license relationship(s)
+    *license_id* resolves to (see :func:`build_license_elements`). Returns
+    whether anything was added."""
+    if not license_id or license_id == "UNKNOWN":
+        return False
+    rel_declared, rel_concluded = build_license_elements(
+        license_id=license_id,
+        package_spdx_id=require_spdx_id(dep_package),
+        license_provenance=license_provenance,
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+    for rel in (rel_declared, rel_concluded):
+        if rel:
+            exporter.add_relationship(rel)
+    return True
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def _enrich_from_installed(
     dep_name: str,
@@ -95,39 +465,37 @@ def _enrich_from_installed(
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
-) -> None:
-    """Populate optional fields on a dependency package from installed metadata."""
+) -> set[str]:
+    """Populate optional fields on a dependency package from installed metadata.
+
+    Returns which of ``{"supplier", "copyright", "license"}`` were actually
+    filled in, so :func:`add_dependencies` knows what still needs a PyPI
+    JSON API fallback or a ``NOASSERTION`` placeholder.
+    """
     try:
         pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
-        return
+        return set()
 
+    filled: set[str] = set()
     project_urls = _parse_project_urls(pkg_meta)
-    provenance_source = f"Source: installed metadata | Package: {dep_name}"
 
     # description
     summary = pkg_meta["Summary"] or ""
     if summary and summary != "UNKNOWN":
         dep_package.description = summary
 
-    # homePage -- core field first, then well-known Project-URL labels
-    home_page = pkg_meta["Home-page"] or ""
-    if not home_page or home_page == "UNKNOWN":
-        for label in _HOMEPAGE_LABELS:
-            if label in project_urls:
-                home_page = project_urls[label]
-                break
-    if home_page and home_page != "UNKNOWN":
+    # homePage / downloadLocation -- core field first, then well-known
+    # Project-URL labels
+    home_page = _resolve_metadata_url(
+        pkg_meta["Home-page"] or "", project_urls, _HOMEPAGE_LABELS
+    )
+    if home_page:
         dep_package.software_homePage = home_page
-
-    # downloadLocation -- core field first, then well-known Project-URL labels
-    download_url = pkg_meta["Download-URL"] or ""
-    if not download_url or download_url == "UNKNOWN":
-        for label in _DOWNLOAD_LABELS:
-            if label in project_urls:
-                download_url = project_urls[label]
-                break
-    if download_url and download_url != "UNKNOWN":
+    download_url = _resolve_metadata_url(
+        pkg_meta["Download-URL"] or "", project_urls, _DOWNLOAD_LABELS
+    )
+    if download_url:
         dep_package.software_downloadLocation = download_url
 
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>)
@@ -135,22 +503,170 @@ def _enrich_from_installed(
     if version and version != "unknown":
         dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
 
-    # hasDeclaredLicense -- prefer PEP 639 License-Expression over legacy License
+    # suppliedBy -- Person built from Author/Maintainer metadata, when known
+    supplier_name, supplier_email = _resolve_supplier(pkg_meta)
+    if _apply_supplier(
+        supplier_name,
+        supplier_email,
+        dep_package,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+    ):
+        filled.add("supplier")
+
+    # copyrightText -- first copyright line found in a declared License-File
+    copyright_text = _find_license_copyright(dep_name, pkg_meta)
+    if copyright_text:
+        dep_package.software_copyrightText = copyright_text
+        filled.add("copyright")
+
+    # hasDeclaredLicense / hasConcludedLicense -- prefer PEP 639
+    # License-Expression over legacy License. Single-candidate mode returns
+    # exactly one of the two relationships (never both) depending on whether
+    # `_is_license_concluded` treats "installed metadata" as transparent --
+    # it doesn't, so this is always the concluded slot in practice; see
+    # _apply_license for why both are checked.
     license_id = pkg_meta["License-Expression"] or pkg_meta["License"] or ""
-    if license_id and license_id != "UNKNOWN":
-        rel_declared, _ = build_license_elements(
-            license_id=license_id,
-            package_spdx_id=require_spdx_id(dep_package),
-            license_provenance=provenance_source,
-            creation_info=creation_info,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
+    if _apply_license(
+        license_id,
+        f"Source: installed metadata | Package: {dep_name}",
+        dep_package,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    ):
+        filled.add("license")
+
+    return filled
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def _enrich_from_pypi(
+    dep_name: str,
+    dep_version: str,
+    dep_package: spdx3.software_Package,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    already_filled: set[str],
+    release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
+    | None = None,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> set[str]:
+    """Best-effort PyPI JSON API fallback for whatever *already_filled*
+    doesn't already cover (supplier, license), plus the published
+    artifact's integrity hash -- never available from local install state
+    alone, since an installed package's unpacked files aren't the original
+    distributed wheel/sdist bytes. Silently does nothing if the network is
+    unavailable; see :func:`_fetch_pypi_release_info`.
+
+    *release_info_cache*, when given, must already contain an entry for
+    this dependency's ``(name, version)`` key -- see
+    :func:`_prefetch_pypi_release_infos`, which every current caller uses
+    to fetch all of a document's dependencies concurrently before this
+    function runs for any of them. Falls back to fetching individually
+    when omitted (e.g. a direct unit-test call).
+    """
+    version = dep_version if dep_version != "unknown" else None
+    release_info = (
+        release_info_cache.get((dep_name, version))
+        if release_info_cache is not None
+        else _fetch_pypi_release_info(dep_name, version)
+    )
+    if release_info is None:
+        return set()
+
+    filled: set[str] = set()
+    info = release_info.get("info") or {}
+
+    if "supplier" not in already_filled:
+        supplier_name, supplier_email = _extract_pypi_supplier(info)
+        if _apply_supplier(
+            supplier_name,
+            supplier_email,
+            dep_package,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+        ):
+            filled.add("supplier")
+
+    if "license" not in already_filled:
+        license_id = _extract_pypi_license(info)
+        if _apply_license(
+            license_id,
+            f"Source: PyPI JSON API | Package: {dep_name}",
+            dep_package,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
             provenance_config=provenance_config,
             encoder=encoder,
+        ):
+            filled.add("license")
+
+    # verifiedUsing -- the published artifact's real sha256, only when a
+    # definite version is known: an unpinned/unresolved dependency has no
+    # single "the" artifact to assert an integrity hash against.
+    if version is not None:
+        digest = _extract_release_hash(release_info)
+        if digest:
+            dep_package.verifiedUsing = [
+                spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=digest)
+            ]
+            filled.add("hash")
+
+    return filled
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def _add_license_noassertion(
+    dep_package: spdx3.software_Package,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> None:
+    """Assert ``hasDeclaredLicense: NOASSERTION`` for a package whose license
+    couldn't be determined locally or via PyPI -- an explicit "we checked
+    and don't know" is more useful to a consumer than a silently absent
+    field, and is the standard SPDX placeholder for exactly this case.
+    Deduped like any other license value, so every such package shares one
+    NOASSERTION element.
+    """
+    license_spdx_id = _get_or_create_license_element(
+        "NOASSERTION",
+        "Source: NOASSERTION (no license information found locally or via PyPI)",
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+    exporter.add_relationship(
+        _build_license_relationship(
+            require_spdx_id(dep_package),
+            license_spdx_id,
+            spdx3.RelationshipType.hasDeclaredLicense,
+            creation_info,
+            doc_name,
+            doc_uuid,
         )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
+    )
 
 
 def _is_license_concluded(parsed_prov: dict[str, str]) -> bool:
@@ -387,6 +903,81 @@ def build_license_elements(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
+def _finish_dependency_enrichment(
+    dep_name: str,
+    dep_version: str,
+    dep_package: spdx3.software_Package,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    offline: bool,
+    release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
+    | None = None,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> None:
+    """Apply the shared dependency-package completeness policy to an
+    already-created *dep_package*: PURL (name-only when *dep_version* is
+    unresolved), local-install enrichment, then -- unless *offline* -- a
+    PyPI JSON API fallback for whatever's still missing, then an explicit
+    ``NOASSERTION`` for copyright/license if neither source determined
+    them. Shared by :func:`add_dependencies` (``loom project``/``loom
+    wheel``/the Hatchling hook) and :func:`~pitloom.assemble.spdx3.
+    document.build_deployed` (``loom env``) so every dependency-package
+    path gets the same NTIA-completeness treatment instead of each one
+    needing this policy re-applied by hand.
+
+    *release_info_cache*: see :func:`_enrich_from_pypi` -- pass the result
+    of a prior :func:`_prefetch_pypi_release_infos` call covering this
+    dependency to avoid a per-dependency blocking network round-trip.
+    """
+    dep_package.software_packageUrl = build_pypi_purl(
+        dep_name, dep_version if dep_version != "unknown" else None
+    )
+
+    filled = _enrich_from_installed(
+        dep_name,
+        dep_package,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+
+    if not offline:
+        filled |= _enrich_from_pypi(
+            dep_name,
+            dep_version,
+            dep_package,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+            already_filled=filled,
+            release_info_cache=release_info_cache,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+
+    if "copyright" not in filled:
+        dep_package.software_copyrightText = "NOASSERTION"
+    if "license" not in filled:
+        _add_license_noassertion(
+            dep_package,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_dependencies(
     dependencies: list[str],
     dep_provenance: str,
@@ -396,15 +987,42 @@ def add_dependencies(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     *,
+    offline: bool = False,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for each
-    declared dependency."""
+    declared dependency.
+
+    Each dependency is enriched from installed metadata first (fast,
+    deterministic, no network), then -- unless *offline* -- from the PyPI
+    JSON API for whatever installed metadata didn't cover (supplier,
+    license, and the published artifact's integrity hash, which is never
+    available locally). A package whose license or copyright remains
+    unknown after both gets an explicit ``NOASSERTION`` rather than a
+    silently absent field.
+
+    The PyPI lookups for every dependency are fetched concurrently before
+    any ``software_Package``/``Relationship`` element is built -- element
+    construction itself (and the deterministic id-counters it uses) stays
+    single-threaded and in declaration order, only the network round-trips
+    overlap -- so N dependencies cost roughly one request's wall time
+    instead of N sequential ones.
+    """
+    resolved = []
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
         dep_version, version_note = _resolve_version(dep_name, dep)
+        resolved.append((dep, dep_name, dep_version, version_note))
+    release_info_cache = (
+        None
+        if offline
+        else _prefetch_pypi_release_infos(
+            (dep_name, dep_version) for _dep, dep_name, dep_version, _note in resolved
+        )
+    )
 
+    for dep, dep_name, dep_version, version_note in resolved:
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
             "declared_constraint": dep,
@@ -420,13 +1038,16 @@ def add_dependencies(
         dep_package.software_packageVersion = dep_version
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
 
-        _enrich_from_installed(
+        _finish_dependency_enrichment(
             dep_name,
+            dep_version,
             dep_package,
             creation_info,
             doc_name,
             doc_uuid,
             exporter,
+            offline=offline,
+            release_info_cache=release_info_cache,
             provenance_config=provenance_config,
             encoder=encoder,
         )
@@ -468,7 +1089,18 @@ def add_phantom_dependencies(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> None:
-    """Build SPDX elements for bundled phantom binary dependencies."""
+    """Build SPDX elements for bundled phantom binary dependencies.
+
+    Unlike :func:`add_dependencies`, there's no PyPI (or any registry)
+    lookup here -- a phantom dependency is a bundled shared library (e.g.
+    ``.so``/``.dll``/``.dylib``) discovered by binary inspection, not a
+    named package release, so there's no ecosystem identifier to query.
+    But the same "always assert something concrete" completeness policy
+    still applies: license/copyright get an explicit ``NOASSERTION``
+    rather than a silently absent field (see :func:`add_dependencies`),
+    and the bundled binary's own SHA-256 -- already computed locally with
+    no network needed -- becomes its ``verifiedUsing`` integrity hash.
+    """
     for dep in phantom_deps:
         dep_package = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
@@ -481,6 +1113,22 @@ def add_phantom_dependencies(
             dep_package.software_packageVersion = "unknown"
 
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
+        dep_package.software_copyrightText = "NOASSERTION"
+        if dep.digest_sha256:
+            dep_package.verifiedUsing = [
+                spdx3.Hash(
+                    algorithm=spdx3.HashAlgorithm.sha256, hashValue=dep.digest_sha256
+                )
+            ]
+        _add_license_noassertion(
+            dep_package,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
 
         exporter.add_package(dep_package)
         emit_provenance(

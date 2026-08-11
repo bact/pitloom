@@ -278,7 +278,13 @@ def _build_parser() -> argparse.ArgumentParser:
     gen_parser.add_argument(
         "--offline",
         action="store_true",
-        help="Forbid external network requests.",
+        help=(
+            "Forbid network access; effect depends on the resolved target -- "
+            "HF URL/ID: error, no fetch attempted (no local fallback exists). "
+            "project dir / .whl: skip PyPI lookup, no error (local metadata "
+            "already covers what it can). "
+            "local model file: no-op (no network path exists)."
+        ),
     )
 
     # 2. Project Source & Sdist: loom project [PATH]
@@ -294,6 +300,14 @@ def _build_parser() -> argparse.ArgumentParser:
         default=Path.cwd(),
         help="Path to project directory or sdist archive (.tar.gz, .zip).",
     )
+    proj_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help=(
+            "Forbid network access -- skip PyPI lookup, no error "
+            "(local metadata already covers what it can)."
+        ),
+    )
 
     # 3. Built Wheel: loom wheel <WHEEL_FILE>
     wheel_parser = subparsers.add_parser(
@@ -305,6 +319,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "target",
         type=str,
         help="Path to the built .whl file.",
+    )
+    wheel_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help=(
+            "Forbid network access -- skip PyPI lookup, no error "
+            "(local metadata already covers what it can)."
+        ),
     )
 
     # 4. AI Model Asset: loom model <SOURCE> [--offline]
@@ -321,7 +343,11 @@ def _build_parser() -> argparse.ArgumentParser:
     model_parser.add_argument(
         "--offline",
         action="store_true",
-        help="Forbid external network requests.",
+        help=(
+            "Forbid network access; effect depends on the resolved target -- "
+            "HF URL/ID: error, no fetch attempted (no local fallback exists). "
+            "local model file: no-op (no network path exists)."
+        ),
     )
 
     # 4b. Enrichment only: loom enrich <SOURCE>
@@ -354,10 +380,18 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     # 5. Deployed Environment: loom env
-    subparsers.add_parser(
+    env_parser = subparsers.add_parser(
         "env",
         parents=[parent_parser],
         help="Generate a Deployed SBOM for the active installed environment.",
+    )
+    env_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help=(
+            "Forbid network access -- skip PyPI lookup, no error "
+            "(local metadata already covers what it can)."
+        ),
     )
 
     # 6. Fragment Merger: loom merge <FRAGMENTS_DIR>
@@ -802,6 +836,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             pitloom_config=pitloom_config,
             registry=args.registry,
             enrich=args.enrich,
+            offline=args.offline or None,
         )
         return 0
 
@@ -846,6 +881,7 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             pretty=effective_pretty,
             describe_relationship=effective_describe,
             registry=args.registry,
+            offline=args.offline,
         )
         return 0
 
@@ -988,6 +1024,7 @@ def _run_env_mode(args: argparse.Namespace) -> int:
             pretty=effective_pretty,
             describe_relationship=effective_describe,
             registry=args.registry,
+            offline=args.offline,
         )
         return 0
 

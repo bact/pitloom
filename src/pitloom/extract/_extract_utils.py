@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.request
 from collections.abc import Iterable
@@ -103,12 +104,14 @@ def to_str_list(value: Any) -> list[str]:
     return [s] if s else []
 
 
-def fetch_json(source: str | Path) -> dict[str, Any]:
+def fetch_json(source: str | Path, *, timeout: float = 30) -> dict[str, Any]:
     """Load and parse JSON from an HTTP/HTTPS URL or a local ``Path``.
 
     Args:
         source: A URL string (``http://`` or ``https://``) or a
             :class:`~pathlib.Path` to a local file.
+        timeout: Socket timeout in seconds for a URL *source* (ignored for a
+            local file). Default matches the historical hardcoded value.
 
     Returns:
         Parsed JSON as a ``dict``.
@@ -119,11 +122,15 @@ def fetch_json(source: str | Path) -> dict[str, Any]:
     """
     try:
         if isinstance(source, str) and source.startswith(("http://", "https://")):
-            with urllib.request.urlopen(source, timeout=30) as resp:  # nosec B310
+            with urllib.request.urlopen(source, timeout=timeout) as resp:  # nosec B310
                 raw = resp.read()
         else:
             raw = Path(source).read_bytes()
-    except OSError as exc:
+    except (OSError, http.client.HTTPException) as exc:
+        # http.client.HTTPException (e.g. IncompleteRead on a connection that
+        # closes mid-response) is not an OSError subclass, so it needs its
+        # own arm here -- without it, a transient network glitch would raise
+        # out of what every caller treats as a "fetch failed" ValueError path.
         raise ValueError(f"Cannot read source {source!r}: {exc}") from exc
 
     try:

@@ -26,7 +26,9 @@ from pitloom.assemble.spdx3.creation_info import (
 )
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.deps import (
-    _enrich_from_installed,
+    _add_license_noassertion,
+    _finish_dependency_enrichment,
+    _prefetch_pypi_release_infos,
     add_dependencies,
     add_phantom_dependencies,
     build_license_elements,
@@ -219,12 +221,18 @@ def build(
     registry: IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
+    offline: bool = False,
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
     ``enrichment_results_by_model``, when given, is one
     ``list[EnrichmentResult]`` per ``doc.ai_models`` element, same order --
     see :func:`~pitloom.assemble.spdx3.ai.add_ai_models`.
+
+    ``offline``: when ``False`` (the default), each dependency package's
+    supplier/license/copyright gaps left by installed metadata are given a
+    best-effort PyPI JSON API lookup before falling back to ``NOASSERTION``
+    -- see :func:`~pitloom.assemble.spdx3.deps.add_dependencies`.
     """
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
@@ -310,7 +318,20 @@ def build(
             exporter.add_relationship(rel_declared)
         if rel_concluded:
             exporter.add_relationship(rel_concluded)
-        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+    else:
+        # No license declared anywhere pitloom looked -- assert that
+        # explicitly rather than silently omitting the field; see
+        # add_dependencies' identical NOASSERTION policy for dependencies.
+        _add_license_noassertion(
+            main_package,
+            spdx_ci,
+            metadata.name,
+            doc_uuid,
+            exporter,
+            provenance_config=prov_cfg,
+            encoder=encoder,
+        )
+    spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
 
     # --- Dependencies ---
     add_dependencies(
@@ -321,6 +342,7 @@ def build(
         doc_name=metadata.name,
         doc_uuid=doc_uuid,
         exporter=exporter,
+        offline=offline,
         provenance_config=prov_cfg,
         encoder=encoder,
     )
@@ -699,8 +721,15 @@ def build_deployed(
     *,
     registry: IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
+    offline: bool = False,
 ) -> Spdx3JsonExporter:
-    """Assemble SPDX 3 elements for a deployed environment."""
+    """Assemble SPDX 3 elements for a deployed environment.
+
+    ``offline``: forwarded to :func:`~pitloom.assemble.spdx3.deps.
+    _finish_dependency_enrichment` for each installed package -- see
+    :func:`~pitloom.assemble.spdx3.deps.add_dependencies` for what it
+    controls.
+    """
     metadata = doc.project
     prov_cfg = provenance or ProvenanceConfig()
     encoder: ProvenanceEncoder = resolve_encoder(prov_cfg.schema)
@@ -735,6 +764,23 @@ def build_deployed(
         encoder=encoder,
     )
 
+    # PyPI lookups for every installed package are fetched concurrently up
+    # front -- see add_dependencies' identical rationale -- rather than
+    # one-by-one inside the loop below, which would otherwise cost roughly
+    # one blocking network round-trip per package in the environment.
+    release_info_cache = (
+        None
+        if offline
+        else _prefetch_pypi_release_infos(
+            (
+                node.get("package", {}).get("package_name")
+                or node.get("package", {}).get("key", "unknown"),
+                node.get("package", {}).get("installed_version", "unknown"),
+            )
+            for node in env_tree
+        )
+    )
+
     # --- First pass: Create software_Package elements ---
     package_spdx_ids: dict[str, str] = {}
     for node in env_tree:
@@ -761,13 +807,16 @@ def build_deployed(
         dep_package.software_packageVersion = dep_version
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
 
-        _enrich_from_installed(
+        _finish_dependency_enrichment(
             dep_name,
+            dep_version,
             dep_package,
             spdx_ci,
             metadata.name,
             doc_uuid,
             exporter,
+            offline=offline,
+            release_info_cache=release_info_cache,
             provenance_config=prov_cfg,
             encoder=encoder,
         )

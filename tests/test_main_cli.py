@@ -1441,8 +1441,9 @@ def test_analyze_wheel_dispatches_to_wheel_path(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object = None,
+        offline: bool = False,
     ) -> str:
-        _ = (creation_metadata, pretty, describe_relationship, registry)
+        _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["wheel_path"] = wheel_path_arg
         captured["output_path"] = output_path
         return "{}"
@@ -1467,8 +1468,9 @@ def test_deployed_dispatches_to_generate_env_sbom(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object = None,
+        offline: bool = False,
     ) -> str:
-        _ = (creation_metadata, pretty, describe_relationship, registry)
+        _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["output_path"] = output_path
         return "{}"
 
