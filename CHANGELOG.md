@@ -17,7 +17,16 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.13.1...v0.13.2>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.13.2...v0.13.3>
+
+## [0.13.3] - 2026-08-11
+
+### Added
+
+- Pitloom's own hash and Package URL with version number to the generated SBOM
+  ([#132])
+
+[#132]: https://github.com/bact/pitloom/pull/132
 
 ## [0.13.2] - 2026-08-11
 
@@ -41,6 +50,8 @@ This release fixes bugs and offers few fallbacks to improve SBOM completeness.
 - Merkle root/`doc_uuid` platform-dependent on Windows (backslash
   `distribution_path` from Hatchling's `os.path.join`) ([#131])
 
+[#131]: https://github.com/bact/pitloom/pull/131
+
 ## [0.13.1] - 2026-08-11
 
 ### Changed
@@ -50,7 +61,6 @@ This release fixes bugs and offers few fallbacks to improve SBOM completeness.
 
 [sbom-naming]: https://sbom-catalog.openssf.org/sbom-naming.html
 [#130]: https://github.com/bact/pitloom/pull/130
-[#131]: https://github.com/bact/pitloom/pull/131
 
 ## [0.13.0] - 2026-08-11
 
@@ -448,6 +458,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.13.3]: https://github.com/bact/pitloom/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/bact/pitloom/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/bact/pitloom/compare/v0.12.0...v0.13.0

@@ -20,9 +20,30 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.__about__ import __version__
 from pitloom.assemble.spdx3.provenance import EnrichedFieldEntry
 from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, Tool
-from pitloom.core.models import generate_spdx_id
+from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+
+#: Pitloom's own PURL, stable/known ahead of time (no PyPI lookup needed --
+#: name and running version are always known locally). SPDX 3.0.1's ``Tool``
+#: class has no ``version`` property (added in 3.1-dev), so this is the
+#: verifiable stand-in CISA's "SBOM tool version" requirement needs; it goes
+#: alongside (not instead of) ``Tool.summary``'s free-text version string.
+_PITLOOM_PURL = build_pypi_purl("pitloom", __version__)
+
+
+def _pitloom_external_identifiers() -> list[spdx3.ExternalIdentifier]:
+    """Build the ``externalIdentifier`` list identifying a Tool as Pitloom
+    itself -- shared by :func:`build_tools` (the main "Pitloom" tool) and
+    :func:`build_enrichment_creation_info` (per-enrichment-source tools),
+    both of which represent Pitloom's own identity and must stay in sync.
+    """
+    return [
+        spdx3.ExternalIdentifier(
+            externalIdentifierType=spdx3.ExternalIdentifierType.packageUrl,
+            identifier=_PITLOOM_PURL,
+        )
+    ]
 
 
 def parse_iso_datetime(value: str) -> datetime:
@@ -169,6 +190,8 @@ def build_tools(
         summary = _tool_summary(tool.name)
         if summary:
             tool.summary = summary
+        if tool.name == "Pitloom":
+            tool.externalIdentifier = _pitloom_external_identifiers()
         tools.append(tool)
     return tools
 
@@ -233,7 +256,9 @@ def build_enrichment_creation_info(
     SPDX 3.0.1 has no native ``Tool.version`` (added in 3.1-dev); version
     info goes in ``Tool.summary`` instead, same workaround
     :func:`_tool_summary` uses for the main "Pitloom" tool -- set directly
-    here rather than widening that helper's tool-name-scoped contract.
+    here rather than widening that helper's tool-name-scoped contract. The
+    Pitloom PURL is also attached as ``externalIdentifier`` -- see
+    :data:`_PITLOOM_PURL`.
     """
     ci = spdx3.CreationInfo(specVersion="3.0.1", created=spdx3_utc_now())
     tool = spdx3.Tool(
@@ -241,6 +266,7 @@ def build_enrichment_creation_info(
         name=tool_name,
         creationInfo=ci,
         summary=f"Pitloom {__version__}",
+        externalIdentifier=_pitloom_external_identifiers(),
     )
     ci.createdBy = main_creation_info.createdBy
     ci.createdUsing = [require_spdx_id(tool)]
