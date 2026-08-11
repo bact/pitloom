@@ -21,10 +21,13 @@ and this project adheres to
 
 ## [0.13.3] - 2026-08-11
 
+A cleanup release.
+
 ### Added
 
 - Pitloom's own hash and Package URL with version number to the generated SBOM
   ([#132])
+- AI skills: Add more trigger words and known limitations ([#134])
 
 ### Fixed
 
@@ -32,6 +35,7 @@ and this project adheres to
 
 [#132]: https://github.com/bact/pitloom/pull/132
 [#133]: https://github.com/bact/pitloom/pull/133
+[#134]: https://github.com/bact/pitloom/pull/134
 
 ## [0.13.2] - 2026-08-11
 

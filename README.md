@@ -453,7 +453,7 @@ and a worked example.
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.13.2) [Computer software]. https://doi.org/10.5281/zenodo.19246283
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.13.3) [Computer software]. https://doi.org/10.5281/zenodo.19246283
 
 BibTeX:
 
@@ -464,7 +464,7 @@ BibTeX:
     month = aug,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.13.2},
+    version = {0.13.3},
     year = {2026}
 }
 ```

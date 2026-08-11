@@ -6,8 +6,10 @@ description: >-
   after generating or enriching a Pitloom SBOM, after hand-editing or
   merging SPDX 3 JSON, or whenever asked to validate, check, or verify an
   SPDX 3 document against the spec. Trigger phrasings include "validate
-  this SBOM", "is this SBOM valid", "check this SBOM's SPDX conformance",
-  "validate the merged output", "run spdx3-validate on this file". A quick
+  this SBOM", "validate this BOM", "is this SBOM valid", "is it a valid
+  SBOM", "check this SBOM", "check this SBOM's SPDX conformance", "verify
+  this SBOM", "is this SBOM in good shape", "validate the merged output",
+  "run spdx3-validate on this file". A quick
   `@graph`-presence sanity check (see the sibling `sbom-generate`/
   `sbom-enrich` skills) is not a substitute for this: it cannot catch a
   missing required property or a wrong relationship type, which only
@@ -17,7 +19,7 @@ argument-hint: "[sbom-file]"
 ---
 
 <!-- Created: 2026-08-10 -->
-<!-- Last-Modified: 2026-08-10 -->
+<!-- Last-Modified: 2026-08-11 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -36,6 +38,15 @@ wrong.
 Works on any SPDX 3 JSON document, not just Pitloom's own output --
 useful for a hand-authored fragment, a merged SBOM, or a third-party SPDX
 3 file.
+
+**"Valid" is not "complete."** This skill only checks that what's present
+conforms to the spec's shape -- it says nothing about whether the SBOM
+covers everything it should. A Pitloom-generated SBOM for a mixed-ecosystem
+project (Python plus a JS/Rust/Go/etc. component) will validate cleanly
+even though the non-Python dependencies are simply missing, not
+NOASSERTION-flagged -- see `sbom-generate`'s "Known limitations" section.
+When a user asks "is this SBOM valid?" meaning "is this SBOM complete?",
+answer both questions, not just the one this skill actually checks.
 
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-validate
