@@ -6,9 +6,6 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-<!-- markdownlint-disable-next-line MD041 -->
-{% include nav.html %}
-
 # Hatchling build hook
 
 Use this when you build wheels with [Hatchling][hatchling] and want an

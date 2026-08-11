@@ -115,8 +115,7 @@ def generate_project_sbom(
 
     ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
     (network attempted, best-effort, by default); ``True``/``False``
-    overrides it for this run -- see :func:`~pitloom.assemble.spdx3.
-    document.build`.
+    overrides it for this run -- see ``pitloom.assemble.spdx3.document.build``.
     """
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:

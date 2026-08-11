@@ -680,11 +680,11 @@ class Run(contextlib.ContextDecorator):
         output_file: Path to write the SBOM fragment to.
         pretty: Indent the JSON output with 2 spaces when ``True``.
         creation_metadata: Creator, tool, timestamp, and comment overrides for
-            the fragment's ``CreationInfo``. See :class:`CreationMetadata` for
+            the fragment's ``CreationInfo``. See ``CreationMetadata`` for
             all fields. When ``None`` (default), the comment defaults to an
             auto-generated note identifying the loom SDK and its version,
             and the creator defaults to the ``SoftwareAgent`` "Pitloom".
-        registry: A :class:`~pitloom.ids.IdRegistry`, a path to a registry
+        registry: A ``pitloom.ids.IdRegistry``, a path to a registry
             JSON file, or ``None`` (default) to auto-discover
             ``loom-ids.json`` by walking up from the current working
             directory. Consulted read-only: datasets, the model, and the
