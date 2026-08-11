@@ -75,7 +75,7 @@ ai = [
     "gguf>=0.19.0",
     "h5py>=3.16.0",
     "huggingface_hub>=1.22.0",
-    "numpy>=1.26.4",
+    "numpy>=2.2.6,<2.3",
     "onnx>=1.22.0",
     "safetensors[numpy]>=0.8.0",
 ]
@@ -84,7 +84,7 @@ aimodel = [
     "fickling>=0.1.12",
     "gguf>=0.19.0",
     "h5py>=3.16.0",
-    "numpy>=1.26.4",
+    "numpy>=2.2.6,<2.3",
     "onnx>=1.22.0",
     "safetensors[numpy]>=0.8.0",
 ]
@@ -94,7 +94,7 @@ fasttext = ["fasttext>=0.9.3"]                # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.19.0"]
 hdf5 = ["h5py>=3.16.0"]
 huggingface_hub = ["huggingface_hub>=1.22.0"]
-numpy = ["numpy>=1.26.4"]
+numpy = ["numpy>=2.2.6,<2.3"]
 onnx = ["onnx>=1.22.0"]
 pytorch = ["fickling>=0.1.12"]
 safetensors = ["safetensors[numpy]>=0.8.0"]
