@@ -6,16 +6,21 @@ description: >-
   license, classifying a dependency's purpose, or deriving
   trainedOn/testedOn dataset relationships from a README or model card
   that no file format encodes explicitly. Trigger phrasings include
-  "enrich this SBOM", "add more detail to the SBOM", "infer the dataset
-  used to train this model", "fill in missing SBOM information from the
-  README/model card". Requires a Pitloom-generated SBOM to already exist --
-  generate one first with the `sbom-generate` skill if it does not.
+  "enrich this SBOM", "enrich SBOM", "improve this SBOM", "add more detail
+  to the SBOM", "get more info into the SBOM", "fill in information to the
+  SBOM", "infer the dataset used to train this model", "fill in missing
+  SBOM information from the README/model card". Requires a
+  Pitloom-generated SBOM to already exist -- generate one first with the
+  `sbom-generate` skill if it does not (a request that asks for both in
+  one breath, e.g. "generate SBOM and enrich it" or "give me a complete
+  SBOM", is `sbom-generate`'s to trigger on -- see that skill's "Combine
+  with enrichment" section).
 license: Apache-2.0
 argument-hint: "[sbom-file]"
 ---
 
 <!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-08-10 -->
+<!-- Last-Modified: 2026-08-11 -->
 <!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
 <!-- SPDX-FileType: SOURCE -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
@@ -31,6 +36,14 @@ purpose, or work out `trainedOn`/`testedOn` dataset relationships that no
 structured field encodes. Do this only **after** a base SBOM exists (use
 the `sbom-generate` skill first if it does not), and only when it adds
 real information -- do not fabricate detail for its own sake.
+
+**Limitation inherited from the base SBOM:** enrichment can only add
+evidence to elements the base SBOM already contains. If the project mixes
+Python with another ecosystem (a JS frontend, a Rust extension, etc.), the
+non-Python dependencies never got an element in the first place -- there
+is nothing here to attach a fragment to, and no amount of reading prose
+will surface them. See `sbom-generate`'s "Known limitations" section; say
+so rather than implying enrichment closes that gap.
 
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-enrich [sbom-file]`
