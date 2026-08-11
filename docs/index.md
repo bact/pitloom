@@ -96,7 +96,7 @@ Create SBOM during Hatchling build:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.28.0", "pitloom>=0.13.3"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.13.3"]
 build-backend = "hatchling.build"
 ```
 
