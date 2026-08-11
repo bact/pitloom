@@ -21,6 +21,8 @@ on:
           - "3.1"
           - "auto"
 
+permissions: read-all
+
 env:
   # SPDX 3.0.1 URLs (default)
   SPDX_VERSION: ${{ github.event.inputs.spdx_version || '3.0.1' }}
@@ -57,10 +59,10 @@ jobs:
       fail-fast: true
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -366,7 +368,7 @@ jobs:
 
       - name: Upload wheel artifact
         if: steps.build.outcome == 'success'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: wheel-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.whl
@@ -374,7 +376,7 @@ jobs:
 
       - name: Upload SBOM artifact
         if: steps.validate.outcome == 'success'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: sbom-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.spdx3.json
