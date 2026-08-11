@@ -6,9 +6,6 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-<!-- markdownlint-disable-next-line MD041 -->
-{% include nav.html %}
-
 # Agent Skills
 
 Use this when you want an AI coding agent to generate (and optionally

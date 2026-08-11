@@ -6,8 +6,12 @@ name: Build wheels + validate SBOM
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - "docs/**"
   pull_request:
     branches: [main, develop]
+    paths-ignore:
+      - "docs/**"
   workflow_dispatch:
     inputs:
       spdx_version:

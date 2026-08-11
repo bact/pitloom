@@ -6,9 +6,6 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-<!-- markdownlint-disable-next-line MD041 -->
-{% include nav.html %}
-
 # Python API
 
 Use this when you're calling Pitloom from Python code you control --
@@ -23,6 +20,9 @@ Two different needs, two different entry points:
 - **[Tracking decorator](#tracking-decorator)** -- annotate a training or
   evaluation script with `@loom.run(...)` to emit a small SPDX fragment
   describing what that run produced, to be merged into the SBOM later.
+
+See the [API reference](api.md) for exact call signatures, parameter
+types, and defaults, generated from the docstrings.
 
 ## Installation
 

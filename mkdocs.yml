@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: CC0-1.0
+
+site_name: Pitloom
+site_description: An SBOM generator for Python projects and AI models
+site_url: https://bact.github.io/pitloom/
+repo_url: https://github.com/bact/pitloom
+repo_name: bact/pitloom
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2026-present Arthit Suriyawongkul
+
+docs_dir: docs
+watch:
+  - src/pitloom
+
+nav:
+  - Home: index.md
+  - Command line: cli.md
+  - Python API:
+      - Guide: python-api.md
+      - API reference: api.md
+  - Hatchling build hook: hatchling-build-hook.md
+  - GitHub Action: github-action.md
+  - Agent Skills: agent-skills.md
+  - Claude Code plugin: claude-code-plugin.md
+  - Reference:
+      - Creation metadata: creation-metadata.md
+      - Metadata provenance: metadata-provenance.md
+      - Resources: resources.md
+
+theme:
+  name: material
+  logo: mascot.png
+  favicon: mascot.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: true
+            show_signature_annotations: true
+            separate_signature: true
+            merge_init_into_class: true
+            show_bases: false
+            heading_level: 3
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bact/pitloom
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/pitloom/

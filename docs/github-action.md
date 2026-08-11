@@ -6,9 +6,6 @@ SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-<!-- markdownlint-disable-next-line MD041 -->
-{% include nav.html %}
-
 # GitHub Action
 
 Use this when your project isn't Hatchling-based, or you just want CI to
