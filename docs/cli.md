@@ -1,0 +1,205 @@
+---
+Created: 2026-08-11
+Last-Modified: 2026-08-11
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
+<!-- markdownlint-disable-next-line MD041 -->
+{% include nav.html %}
+
+# Command line
+
+Use this when you want a one-off SBOM from a terminal, a Makefile target,
+or any shell script. The console script is installed under two names,
+`loom` and `pitloom` -- pick whichever reads better; they run the same
+tool.
+
+## Quick guide
+
+```bash
+pip install pitloom
+loom project .     # SBOM for the Python project in the current dir
+```
+
+`loom -h` shows the full option list.
+
+## Installation
+
+```bash
+pip install pitloom
+```
+
+Install with AI model metadata extraction support:
+
+```bash
+pip install pitloom[ai]
+```
+
+Hugging Face Hub model lookups need one more extra:
+
+```bash
+pip install pitloom[huggingface]
+```
+
+## Usage details
+
+### Generate an SBOM
+
+Generate a **Source SBOM** for a Python project in the current directory:
+
+```bash
+loom project .
+loom project /path/to/project -o sbom.spdx3.json
+```
+
+Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
+binaries as phantom dependencies):
+
+```bash
+loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
+```
+
+Generate a **Deployed SBOM** reflecting the exact installed environment
+graph:
+
+```bash
+loom env -o env.spdx3.json
+```
+
+Generate an **Analyzed SBOM** for a single AI model file, without a Python
+project directory. Supported local formats: GGUF, ONNX, Safetensors,
+PyTorch (`.pt`/`.pth`), Keras, HDF5, NumPy, fastText:
+
+```bash
+loom model path/to/model.safetensors -o model.spdx3.json
+loom model path/to/model.gguf --pretty
+```
+
+Or pass a Hugging Face Hub URL or model ID directly -- no local file
+required (needs `pip install pitloom[huggingface]`):
+
+```bash
+loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
+loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
+```
+
+Or use the smart unified entrypoint, which auto-detects the target type:
+
+```bash
+loom generate .                           # project directory -> Source SBOM
+loom generate path/to/model.safetensors   # AI model asset    -> Analyzed SBOM
+loom generate env                         # installed venv    -> Deployed SBOM
+```
+
+### Enrich an SBOM
+
+Fill AI-model metadata gaps (license, datasets) from a local
+`README.md`/`MODEL_CARD.md`'s YAML frontmatter -- off by default, opt in
+with `--enrich` on `loom model`/`loom project`/`loom generate`, or run it
+standalone to produce a mergeable fragment:
+
+```bash
+loom model path/to/model.safetensors --enrich -o model.spdx3.json
+
+# Standalone: writes a fragment, doesn't generate a full SBOM
+loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
+# When merging into a project-level (not single-model) base SBOM, add:
+loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
+```
+
+Register the fragment under `[tool.pitloom.fragments]` and re-run
+`loom project`/`loom generate` to merge it in.
+
+For prose-reading enrichment (an AI agent reading the actual README text,
+not just its frontmatter), see the [Agent Skills](agent-skills.md) page
+instead -- the `sbom-enrich` skill.
+
+### Merge fragments
+
+```bash
+loom merge .spdx3-fragments/ -o combined.spdx3.json
+```
+
+### Pin ids across fragments
+
+Fragments are written by independent runs, so the same dataset or model
+would normally get a different `spdxId` in each run. Pin ids ahead of
+time, or reuse ids already present in an SBOM:
+
+```bash
+pitloom ids generate data src --entity model      # pin ids before running
+pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
+```
+
+## Useful flags
+
+- `-o FILE` / `--output FILE` -- explicit output path.
+- `--pretty` -- indent the JSON for human reading (default: compact).
+- `--offline` -- enforce offline execution for `loom model` / `loom generate`.
+- `-v` / `--verbose` -- print effective options and where each came from.
+- `--enrich` / `--no-enrich` -- opt in to (or force off) README/model-card
+  frontmatter enrichment as part of the same generate call.
+
+## Setting/config
+
+### Creator and creation metadata
+
+These flags apply to project, AI model, and Hugging Face SBOM generation
+alike. `--creator-name` is repeatable -- each occurrence starts a new
+creator, in order; `--creator-type` (`person` default, `organization`,
+`software-agent`, `agent`) and `--creator-email` set the type/email of the
+*most recently named* creator. `--creation-tool` records *what* produced
+it (default `"Pitloom"`, also repeatable; `--no-creation-tool` to omit);
+`--creation-comment`/`--creation-datetime` set free-text provenance and an
+ISO 8601 timestamp:
+
+```bash
+loom project . --creator-name "Alice" --creator-email "alice@example.com"
+loom project . --creator-name "Acme Corp" --creator-type organization
+loom project . --creation-datetime "2026-01-15T10:00:00Z" --creation-comment "CI run #123"
+```
+
+The same fields can be set in `pyproject.toml` under
+`[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]` (CLI flags
+take precedence, replacing the whole list rather than merging):
+
+```toml
+[[tool.pitloom.creator]]
+name = "Alice"
+email = "alice@example.com"
+type = "person"       # or "organization", "software-agent", "agent"
+
+[[tool.pitloom.creation-tool]]
+name = "MyCompany SBOM Wrapper"
+
+[tool.pitloom.creation]
+creation-datetime = "2026-01-15T10:00:00Z"
+creation-comment = "Generated in CI pipeline #123"
+```
+
+See [Creation metadata](creation-metadata.md) for what these fields record
+and why.
+
+### Metadata provenance
+
+Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
+
+```toml
+[tool.pitloom.provenance]
+format = "both"                    # "annotation" | "comment" | "both" (default)
+detail = "minimal"                 # "minimal" (default) | "full"
+preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
+```
+
+See [Metadata provenance](metadata-provenance.md) for what each setting
+does and worked examples.
+
+## See also
+
+- [Python API](python-api.md) -- calling Pitloom from Python code instead
+  of the shell.
+- [Hatchling build hook](hatchling-build-hook.md) -- generate the SBOM
+  automatically at build time instead of a manual CLI call.
+- [GitHub Action](github-action.md) -- run the CLI as a CI step.

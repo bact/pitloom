@@ -11,6 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 
 # Creation metadata
 
+> **Note:** This is reference documentation for auditing or debugging a
+> generated SBOM -- not needed to just generate one. The schema described
+> below is still in beta and can change without notice between releases.
+
 Every element Pitloom emits carries a record of *who* created it, *what*
 tool produced it, *when*, and (optionally) *how* it was invoked -- Pitloom's
 own creation-metadata model (`CreationMetadata`, see

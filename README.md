@@ -67,8 +67,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
 | [Agent Skill](#use-pitloom-as-an-ai-agent-skill) | You want an AI coding agent to generate (and optionally enrich) an SBOM on request. |
 | [Claude Code plugin](#use-pitloom-as-a-claude-code-plugin) | You use Claude Code and want the Skills installable with one command. |
 
-See [docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) for a
-dedicated walkthrough of the Agent Skills and the Claude Code plugin.
+See [docs/agent-skills.md](docs/agent-skills.md) and
+[docs/claude-code-plugin.md](docs/claude-code-plugin.md) for a dedicated
+walkthrough of the Agent Skills and the Claude Code plugin.
 
 ### Command line
 
@@ -278,8 +279,8 @@ second -- `sbom-enrich` needs a Pitloom-generated SBOM to already exist:
 /sbom-validate sbom.spdx3.json
 ```
 
-See [docs/ai-skills-and-plugin.md](docs/ai-skills-and-plugin.md) for a
-walkthrough of all three skills, or
+See [docs/agent-skills.md](docs/agent-skills.md) for a walkthrough of all
+three skills, or
 [working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
 for full install instructions.
 

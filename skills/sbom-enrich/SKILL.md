@@ -1,4 +1,10 @@
 ---
+# Created: 2026-07-05
+# Last-Modified: 2026-08-11
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 name: sbom-enrich
 description: >-
   Use this skill when asked to enrich, augment, or add inferred detail to
@@ -18,12 +24,6 @@ description: >-
 license: Apache-2.0
 argument-hint: "[sbom-file]"
 ---
-
-<!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-08-11 -->
-<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
-<!-- SPDX-FileType: SOURCE -->
-<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # Enrich a Pitloom-generated SBOM
 

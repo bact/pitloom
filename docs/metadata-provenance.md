@@ -11,6 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 
 # Metadata provenance
 
+> **Note:** This is reference documentation for auditing or debugging a
+> generated SBOM -- not needed to just generate one. The schema described
+> below is still in beta and can change without notice between releases.
+
 Pitloom tracks the source of each metadata field in the SBOM, so questions
 like "why does the SBOM say the concluded license is MIT?" or "where did
 the version number come from?" have a traceable answer.

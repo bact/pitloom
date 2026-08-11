@@ -41,133 +41,44 @@ Install with AI model metadata extraction support:
 pip install pitloom[ai]
 ```
 
-## Use
+## Pick your usage surface
 
-### Command line
+Pitloom generates the same kind of SBOM regardless of how you invoke it
+(so long it is generated from the same context) -- pick the page for how you
+actually want to run it. Each page has its own quick guide, install steps,
+usage details, config, and code examples.
 
-Create a Source SBOM for the Python project in the current directory:
+| Surface | Reach for this when... |
+| :--- | :--- |
+| [Command line](cli.md) (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target, or any shell script. |
+| [Python API](python-api.md) | You are calling Pitloom from Python code you control, or want to track provenance during training/evaluation. |
+| [Hatchling build hook](hatchling-build-hook.md) | You build wheels with Hatchling and want an SBOM embedded automatically. |
+| [GitHub Action](github-action.md) | Your project isn't Hatchling-based, or you just want CI to produce an SBOM artifact with one `uses:` line. |
+| [Agent Skills](agent-skills.md) | You want an AI coding agent to generate (and optionally enrich or validate) an SBOM on request. |
+| [Claude Code plugin](claude-code-plugin.md) | You use Claude Code and want the Skills installable with one command. |
+
+## Quick guide
 
 ```shell
 loom project .
 ```
 
-Create an Analyzed SBOM of a local AI model:
+Create a Source SBOM for the Python project in the current directory. See
+[Command line](cli.md) for every other target type (AI model, Hugging
+Face Hub model, installed environment, wheel).
 
-```shell
-loom model path/to/model.safetensors -o model.spdx3.json
-loom model path/to/model.gguf --pretty
-```
+## Reference docs
 
-Create an Analyzed SBOM of an AI model on Hugging Face Hub:
+Background reading -- useful for auditing or debugging a generated SBOM,
+not needed to just generate one:
 
-```shell
-loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
-loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
-```
-
-Create a Deployed SBOM of the currently installed environment:
-
-```shell
-loom env -o env.spdx3.json
-```
-
-Or use the unified auto-detection entrypoint:
-
-```shell
-loom generate .
-```
-
-### GitHub Action
-
-```yaml
-- uses: bact/pitloom@v0.13.3
-```
-
-This creates a standalone SBOM file on the runner.
-It can be used for compliance logs, CI/CD audits, and release assets.
-
-> Note: Running the GitHub Action alone does not embed the SBOM
-> inside your distributed Python wheel
-> (use the Hatchling build hook for PEP 770 wheel embedding).
-
-### Hatchling build hook
-
-Create SBOM during Hatchling build:
-
-```toml
-[build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.13.3"]
-build-backend = "hatchling.build"
-```
-
-This embeds an SBOM into the distributed Python wheel.
-
-### Python API
-
-```python
-from pathlib import Path
-from pitloom.assemble import generate
-
-project_path = Path("/path/to/project")
-generate(project_path)
-```
-
-### Python tracking decorator
-
-```python
-from pitloom import loom
-
-
-@loom.run(output_file="fragments/train.json")
-def train_model():
-    loom.set_model("model-name")  # <-- (A)
-    loom.add_dataset("dataset-name", dataset_type="text")  # <-- (B)
-    # ... training logic ...
-
-
-@loom.run(output_file="fragments/eval.json")
-def evaluate_model():
-    loom.use_model("model-name")  # <-- (C)
-    loom.add_dataset("dataset-name", dataset_type="text")  # <-- (B)
-    # ... evaluation logic ...
-```
-
-- (A) and (C) set relationship between the code and the model
-- (B) sets relationship between the code and the dataset
-
-### AI Skills and the Claude Code plugin
-
-Pitloom ships three Anthropic Agent Skills (`sbom-generate`,
-`sbom-enrich`, `sbom-validate`), also installable as a self-hosted
-Claude Code plugin:
-
-```text
-/plugin marketplace add bact/pitloom
-/plugin install pitloom@pitloom
-```
-
-Once installed, ask in plain language ("generate an SBOM for this
-project") or invoke explicitly: `/pitloom:sbom-generate [target]`,
-`/pitloom:sbom-enrich [sbom-file]`, `/pitloom:sbom-validate [sbom-file]`.
-See [AI Skills and the Claude Code plugin](ai-skills-and-plugin.md) for
-install options, usage for generation, enrichment, and validation, and
-verification steps.
-
-## Learn more
-
-- [AI Skills and the Claude Code plugin](ai-skills-and-plugin.md) --
-  installing and using Pitloom as an Agent Skill or a Claude Code plugin.
 - [Creation metadata](creation-metadata.md) -- who/what/when/how every
   Pitloom-generated element records about its own creation.
 - [Metadata provenance](metadata-provenance.md) -- how Pitloom tracks the
   source of each metadata field for auditability.
 - [Resources](resources.md) -- SBOM, AIBOM, SPDX, and related standards
   reading list.
-
-## Get started
-
-See the [project README](https://github.com/bact/pitloom#readme) for
-installation, quick start, and full usage instructions.
+- [Project README](https://github.com/bact/pitloom#readme) for more information.
 
 ## Security
 
@@ -175,3 +86,23 @@ For supported versions and vulnerability reporting guidelines,
 please read our [Security policy][security].
 
 [security]: https://github.com/bact/pitloom/security/policy
+
+## Citation
+
+If you use Pitloom in your academic work, please cite it as follows:
+
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.13.3) [Computer software]. https://doi.org/10.5281/zenodo.19246283
+
+BibTeX:
+
+```bibtex
+@software{Suriyawongkul_Pitloom_-_SBOM_2026,
+    author = {Suriyawongkul, Arthit},
+    doi = {10.5281/zenodo.19246283},
+    month = aug,
+    title = {{Pitloom - SBOM generator for AI models and Python projects}},
+    url = {https://github.com/bact/pitloom},
+    version = {0.13.3},
+    year = {2026}
+}
+```

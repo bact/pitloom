@@ -1,6 +1,6 @@
 ---
-Created: 2026-08-09
-Last-Modified: 2026-08-10
+Created: 2026-08-11
+Last-Modified: 2026-08-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,14 +9,20 @@ SPDX-License-Identifier: CC0-1.0
 <!-- markdownlint-disable-next-line MD041 -->
 {% include nav.html %}
 
-# AI Skills and the Claude Code plugin
+# Agent Skills
 
-Pitloom ships three [Agent Skills][agent-skills] -- `sbom-generate`,
-`sbom-enrich`, and `sbom-validate` -- and bundles all three as a
-self-hosted [Claude Code plugin][claude-code-plugins].
+Use this when you want an AI coding agent to generate (and optionally
+enrich or validate) an SBOM on request, in any agent runtime that reads
+[Agent Skills][agent-skills] from a filesystem directory -- Claude Code,
+the Claude Agent SDK, or a compatible runtime.
 
 [agent-skills]: https://www.anthropic.com/
-[claude-code-plugins]: https://code.claude.com/docs/en/plugins
+
+If you use Claude Code specifically and want one-command install instead
+of copying files, see the [Claude Code plugin](claude-code-plugin.md)
+page -- it installs the exact same three `SKILL.md` files described here.
+
+Pitloom ships three Skills:
 
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project, wheel, or
   AI/ML model file.
@@ -31,16 +37,17 @@ self-hosted [Claude Code plugin][claude-code-plugins].
   check cannot. Works on Pitloom's own output, a hand-authored fragment,
   or a third-party SPDX 3 file.
 
-## Choosing an install path
+## Quick guide
 
-| Path | Choose this when... |
-| :--- | :--- |
-| [Agent Skills](#install-as-agent-skills) | You use any agent runtime that reads Skills from a filesystem directory, and want any subset of the three Skills, standalone. |
-| [Claude Code plugin](#install-as-a-claude-code-plugin) | You use Claude Code and want one-command install (`/plugin install`) plus namespaced explicit invocation (`/pitloom:sbom-generate`, `/pitloom:sbom-enrich`, `/pitloom:sbom-validate`). |
+Ask in plain language, or invoke explicitly once installed:
 
-Both install the exact same `SKILL.md` files.
+```text
+/sbom-generate .
+/sbom-enrich sbom.spdx3.json
+/sbom-validate sbom.spdx3.json
+```
 
-### Install as Agent Skills
+## Installation
 
 Copy (or symlink) any of `skills/sbom-generate/`, `skills/sbom-enrich/`,
 and `skills/sbom-validate/` from a Pitloom checkout into a skills
@@ -62,25 +69,12 @@ cp -r /path/to/pitloom/skills/sbom-enrich ~/.claude/skills/
 cp -r /path/to/pitloom/skills/sbom-validate ~/.claude/skills/
 ```
 
-If a skill with the same name already exists at that path,
-rename the destination folder to avoid the collision.
+If a skill with the same name already exists at that path, rename the
+destination folder to avoid the collision.
 
-### Install as a Claude Code plugin
+## Usage details
 
-From a Claude Code session:
-
-```text
-/plugin marketplace add bact/pitloom
-/plugin install pitloom@pitloom
-```
-
-This registers Pitloom's repository as a marketplace named `pitloom` and
-installs the `pitloom` plugin from it -- all three Skills become
-available in every session immediately after.
-
-## Using the Skills
-
-Either surface triggers the same two ways:
+Skills trigger two ways:
 
 - **Natural language** -- ask in plain language, e.g. "generate an SBOM
   for this project", "enrich this SBOM with the dataset it was trained
@@ -88,10 +82,9 @@ Either surface triggers the same two ways:
   each `SKILL.md`'s `description` front matter and loads the matching
   Skill automatically.
 - **Explicit invocation** -- `/sbom-generate [target]`,
-  `/sbom-enrich [sbom-file]`, and `/sbom-validate [sbom-file]` standalone;
-  `/pitloom:sbom-generate [target]`, `/pitloom:sbom-enrich [sbom-file]`,
-  and `/pitloom:sbom-validate [sbom-file]` when installed as the plugin.
-  All arguments are optional.
+  `/sbom-enrich [sbom-file]`, and `/sbom-validate [sbom-file]`. All
+  arguments are optional (each defaults sensibly -- e.g. `sbom-generate`
+  defaults to the current directory).
 
 ### Generate an SBOM
 
@@ -102,9 +95,9 @@ Either surface triggers the same two ways:
 ```
 
 Under the hood this runs `loom generate <target>` (or the more specific
-`loom project` / `loom wheel` / `loom model`).
-
-See [`skills/sbom-generate/references/examples.md`][sbom-generate-examples]
+`loom project` / `loom wheel` / `loom model` -- see the [Command
+line](cli.md) page). See
+[`skills/sbom-generate/references/examples.md`][sbom-generate-examples]
 for the full recipe set.
 
 [sbom-generate-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/examples.md
@@ -144,9 +137,19 @@ for multi-file and merged-graph recipes.
 
 [sbom-validate-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-validate/references/examples.md
 
-## Verifying it works
+## Setting/config
 
-For the plugin specifically, `claude plugin validate .claude-plugin/plugin.json`
-and `claude plugin validate .claude-plugin/marketplace.json` check the
-manifests, and `claude plugin details pitloom` (after installing) lists
-all three Skills and an estimated token cost.
+Each Skill's `SKILL.md` front matter carries a `description` (drives
+natural-language auto-trigger matching) and an `argument-hint` (the
+placeholder shown for explicit invocation, e.g. `[target]` for
+`sbom-generate` versus `[sbom-file]` for `sbom-enrich`/`sbom-validate` --
+`sbom-generate` accepts a broader range of input types, while the other
+two always need an existing SBOM file path). Nothing else needs
+configuring to use the Skills as-is.
+
+## See also
+
+- [Claude Code plugin](claude-code-plugin.md) -- one-command install of
+  these same three Skills, namespaced under `/pitloom:...`.
+- [Command line](cli.md) -- the underlying `loom` commands these Skills
+  run.

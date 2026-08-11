@@ -1,4 +1,10 @@
 ---
+# Created: 2026-07-05
+# Last-Modified: 2026-08-11
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 name: sbom-generate
 description: >-
   Use this skill whenever the user asks to generate an SBOM, an SPDX
@@ -19,12 +25,6 @@ description: >-
 license: Apache-2.0
 argument-hint: "[target]"
 ---
-
-<!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-08-11 -->
-<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
-<!-- SPDX-FileType: SOURCE -->
-<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # Generate an SBOM with Pitloom
 

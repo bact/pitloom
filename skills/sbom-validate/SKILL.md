@@ -1,4 +1,10 @@
 ---
+# Created: 2026-08-10
+# Last-Modified: 2026-08-11
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 name: sbom-validate
 description: >-
   Use this skill whenever an SPDX 3 JSON document (an SBOM/AIBOM, whether
@@ -17,12 +23,6 @@ description: >-
 license: Apache-2.0
 argument-hint: "[sbom-file]"
 ---
-
-<!-- Created: 2026-08-10 -->
-<!-- Last-Modified: 2026-08-11 -->
-<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
-<!-- SPDX-FileType: SOURCE -->
-<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # Validate an SPDX 3 document
 
