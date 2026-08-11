@@ -137,6 +137,12 @@ Steps:
    or relationships you infer from prose (e.g. a `dataset_DatasetPackage`
    plus a `trainedOn` relationship, or a `comment` refining a license
    guess). Mark every inferred value with the provenance string above.
+   If any field or comment references a file path (e.g. citing where in
+   the repo you found the evidence), write it POSIX-style
+   (`docs/model-card.md`, not `docs\model-card.md`) regardless of what OS
+   you're running on -- Pitloom-generated SBOMs are byte-identical across
+   operating systems, and a backslash path in agent-authored content would
+   be the one thing that isn't.
 
    **Default precedence: the deterministic result wins.** If step 2
    already set a field, do not silently re-propose a different value for

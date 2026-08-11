@@ -41,7 +41,7 @@ def _get_caller_info() -> str:
             if frame_info.filename != __file__:
                 p = Path(frame_info.filename).absolute()
                 try:
-                    filename = str(p.relative_to(Path.cwd()))
+                    filename = p.relative_to(Path.cwd()).as_posix()
                 except ValueError:
                     filename = p.name
 
