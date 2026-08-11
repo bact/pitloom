@@ -18,14 +18,16 @@ on:
         required: false
         default: "Manual trigger"
 
+permissions: read-all
+
 jobs:
   generate-and-validate:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # EndBug/add-and-commit needs write to push CITATION.cff
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Generate CITATION.cff from codemeta.json
         uses: caltechlibrary/codemeta2cff@99ce10831c3037a067c3d9551d455638e0b438ac  #v0.3.3
