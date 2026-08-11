@@ -449,6 +449,26 @@ and a worked example.
   MIT); see [tests/fixtures/README.md](tests/fixtures/README.md). Source
   repository only -- not included in distribution packages.
 
+## Citation
+
+If you use this software, please cite it as follows:
+
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.13.2) [Computer software]. https://doi.org/10.5281/zenodo.19246283
+
+BibTeX:
+
+```bibtex
+@software{Suriyawongkul_Pitloom_-_SBOM_2026,
+    author = {Suriyawongkul, Arthit},
+    doi = {10.5281/zenodo.19246283},
+    month = aug,
+    title = {{Pitloom - SBOM generator for AI models and Python projects}},
+    url = {https://github.com/bact/pitloom},
+    version = {0.13.2},
+    year = {2026}
+}
+```
+
 ## Name
 
 A [pit loom](https://en.wikipedia.org/wiki/Loom#Treadle_loom)
