@@ -46,11 +46,11 @@ loom project .     # SBOM for the Python project in the current dir
 
 ### Optional features
 
-Install extras to enable metadata extraction from AI model files or from
-Hugging Face Hub:
+Install extras to enable more metadata extraction:
 
 ```bash
-pip install -e ".[ai]"       # all supported AI model formats
+pip install "pitloom[ai]"              # Get metadata from AI model file and Hugging Face Hub
+pip install "pitloom[content-type]"    # Get content type from Magika
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.

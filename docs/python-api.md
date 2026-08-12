@@ -33,7 +33,13 @@ pip install pitloom
 Install with AI model metadata extraction support:
 
 ```bash
-pip install pitloom[ai]
+pip install "pitloom[ai]"
+```
+
+Install with extra content type detection:
+
+```bash
+pip install "pitloom[content-type]"
 ```
 
 ## Generator functions
