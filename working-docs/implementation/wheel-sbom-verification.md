@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-06
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,6 +23,58 @@ As of 2026-08-11 this check is part of the standard
 [release checklist](release-checklist.md) (step 3, post-publish
 verification) -- run it for every release, not just the ones below that
 happened to prompt a closer look.
+
+## Verification of v0.13.3 (2026-08-11)
+
+The actual release cut from v0.13.0-rc1 below -- v0.13.0 final, then
+patches v0.13.1/.2/.3 landed a default-SBOM-filename change (PR #130,
+`sbom.spdx3.json` -> `<name>-<version>.spdx3.json`) and a
+missing-dependency-metadata fix (PR #131, per-dependency author
+`Person` + PURL). Re-verifying against this filename/content change, not just
+repeating the rc1 check.
+
+### Method
+
+Same as rc1 below, against `https://pypi.org/pypi/pitloom/0.13.3/json`.
+
+### Findings
+
+- **Location (PEP 770), filename changed.** File now at
+  `pitloom-0.13.3.dist-info/sboms/pitloom-0.13.3.spdx3.json` -- the
+  `<name>-<version>` filename (not the fixed `sbom.spdx3.json` seen in
+  every earlier verification in this doc) reflects PR #130's default
+  filename change. Still exactly where PEP 770 expects it.
+- **Element count.** 197 elements (`Relationship: 89, software_File: 67,
+  Annotation: 13, software_Package: 11, Person: 10,
+  simplelicensing_SimpleLicensingText: 3, CreationInfo: 1,
+  SpdxDocument: 1, software_Sbom: 1, Tool: 1`) -- up from rc1's 176,
+  driven by PR #131: all 10 non-main dependencies (`spdx-python-model`,
+  `tomli`, `auditwheel`, `hatchling`, `licenseid`, `pipdeptree`,
+  `py-spdx-license`, `pyproject-metadata`, `pyyaml`, `rfc8785`) now carry
+  their own author `Person` and PURL, where rc1 was missing this for
+  dependencies.
+- **spdxId coverage.** 0 non-`CreationInfo` elements missing a `spdxId`
+  (same spec-correct exception as rc1).
+- **License relationships.** 1 `hasDeclaredLicense` (the main `pitloom`
+  package only -- Pitloom only declares its own project's stated
+  license) + 11 `hasConcludedLicense` (main package plus all 10
+  dependencies, each independently detected). Main package's `comment`
+  still shows `license_concluded: Source: codemeta.json`.
+- **File hashes.** 67 `software_File` elements, 59 with a SHA-256
+  `verifiedUsing` hash (8 directory entries, same pattern as every prior
+  verification). Recomputed from actual extracted bytes: 0 mismatches.
+  Cross-checked against the wheel's own `RECORD`: 0 mismatches across all
+  59. Only `RECORD`-only entries are the `.dist-info/` metadata files
+  themselves, as expected.
+- **Wheel SHA-256 vs PyPI's published digest.** Exact match
+  (`67285cda8e27637badb3f1bbe6d59baee7b9d180fb3c0b7a57af77ea426fe19f`).
+- **Schema and SHACL conformance.** `spdx3_validate` -- both passed,
+  exit code 0.
+- **Creator identity and Tool version.** `createdBy` a real `Person`
+  (matches `[[tool.pitloom.creator]]` config, as in rc1); `Tool.summary`
+  = `"Pitloom 0.13.3"`, matching the release version.
+
+---
 
 ## Verification of v0.13.0-rc1 (2026-08-11)
 
@@ -220,6 +272,8 @@ The wheel-embedded SBOMs are valid per SPDX 3.0.1 (schema + SHACL), correctly
 located per PEP 770, and every field is present and correct in the actual
 published artifacts -- confirmed against the real files, not just against
 source or local test fixtures. Holds across releases spanning significant
-internal redesigns (v0.9.0 through v0.13.0-rc1): the CLI/API rewrite, the
-provenance-as-Annotation system, and the native SPDX3 backfill all landed
-without breaking this guarantee.
+internal redesigns (v0.9.0 through v0.13.3): the CLI/API rewrite, the
+provenance-as-Annotation system, the native SPDX3 backfill, and the
+default-SBOM-filename change (`sbom.spdx3.json` ->
+`<name>-<version>.spdx3.json`, PR #130) all landed without breaking this
+guarantee.
