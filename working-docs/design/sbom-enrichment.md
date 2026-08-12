@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -256,6 +256,26 @@ See `skills/sbom-enrich/SKILL.md` and
 `skills/sbom-enrich/references/examples.md` for the full agent-facing
 instructions and a worked fragment example. Validate the merged result
 with the `skills/sbom-validate/` Skill.
+
+### Standards-driven completion: minimum elements
+
+Alongside open-ended prose enrichment, `sbom-enrich` also has a
+**checklist-driven** entry point: "Complete a standard's minimum
+elements" in `skills/sbom-enrich/SKILL.md`, addressing
+[bact/pitloom#137](https://github.com/bact/pitloom/issues/137). Instead
+of opportunistically filling whatever gaps prose reveals, this mode runs
+a gap analysis against a named standard's required elements -- NTIA
+2021, CISA 2026 (the current baseline, supersedes NTIA 2021), or G7
+SBOM for AI 2026 (additive, for AI models/datasets) -- and only then
+falls back to the same resolution order (deterministic pass, prose,
+then interactive questions) for whatever the checklist says is still
+missing. It reuses every mechanism above unchanged: fragments,
+the five-role provenance vocabulary, and the `sbom-validate` post-merge
+check. The three checklists, each element mapped to the Pitloom/SPDX 3
+field that already carries it (verified against a real generated AI
+SBOM, not just source reading), plus a question bank for elements with
+no automatable source, live in
+`skills/sbom-enrich/references/minimum-elements.md`.
 
 ### Interactive mode: asking the SBOM author
 

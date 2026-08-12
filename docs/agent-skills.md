@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,8 +26,11 @@ Pitloom ships three Skills:
 - `sbom-enrich` -- reads a README or model card and contributes inferred
   detail (a license guess, a `trainedOn` dataset) back into an existing
   SBOM as a provenance-marked fragment; in an interactive session it can
-  also ask the SBOM author directly for gaps no file answers. Requires a
-  base SBOM to already exist; run `sbom-generate` first.
+  also ask the SBOM author directly for gaps no file answers. It also
+  has a standards-driven mode: run a gap analysis against a named
+  standard's minimum elements (NTIA 2021, CISA 2026, or G7 SBOM for AI
+  2026) and only ask about what's actually missing. Requires a base SBOM
+  to already exist; run `sbom-generate` first.
 - `sbom-validate` -- runs the third-party `spdx3-validate` CLI against
   any SPDX 3 JSON document (schema + SHACL), catching a missing required
   property or a wrong relationship type that a bare `@graph`-presence
@@ -118,6 +121,18 @@ full worked example, including the pre-merge and post-merge validation
 steps.
 
 [sbom-enrich-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/references/examples.md
+
+Ask instead for a named standard -- "make this SBOM meet NTIA
+standard", "is this SBOM CISA 2026 compliant", "make this AIBOM meet
+the G7 SBOM for AI minimum elements" -- and the same Skill runs a gap
+analysis against that standard's checklist first, resolving what it can
+itself before asking you about the rest one field at a time (you can
+stop at any point and it completes with whatever's gathered so far).
+See
+[`skills/sbom-enrich/references/minimum-elements.md`][sbom-enrich-minimum-elements]
+for the checklists and field mappings this draws on.
+
+[sbom-enrich-minimum-elements]: https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/references/minimum-elements.md
 
 ### Validate an SPDX 3 document
 

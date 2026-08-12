@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-11
+# Last-Modified: 2026-08-12
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -15,12 +15,23 @@ description: >-
   "enrich this SBOM", "enrich SBOM", "improve this SBOM", "add more detail
   to the SBOM", "get more info into the SBOM", "fill in information to the
   SBOM", "infer the dataset used to train this model", "fill in missing
-  SBOM information from the README/model card". Requires a
-  Pitloom-generated SBOM to already exist -- generate one first with the
-  `sbom-generate` skill if it does not (a request that asks for both in
-  one breath, e.g. "generate SBOM and enrich it" or "give me a complete
-  SBOM", is `sbom-generate`'s to trigger on -- see that skill's "Combine
-  with enrichment" section).
+  SBOM information from the README/model card". Also triggers for
+  completing an SBOM's minimum elements against a named standard -- NTIA
+  2021, CISA 2026, or G7 SBOM for AI 2026 -- via phrasings like "make
+  this SBOM meet NTIA standard", "is this SBOM CISA 2026 compliant",
+  "make the SBOM comply with CISA", "make this AIBOM meet the G7 SBOM
+  for AI minimum elements", "help filling minimum elements", "complete
+  the minimum elements", "SBOM minimum elements checklist", "what's
+  missing from this SBOM for CISA/NTIA compliance", or "check this SBOM
+  against NTIA/CISA minimum elements" -- see "Complete a standard's
+  minimum elements" below (distinct from the `sbom-validate` skill's
+  schema/SHACL-conformance triggers like "is this SBOM valid" -- same
+  surface words, different question). Requires a Pitloom-generated SBOM
+  to already exist -- generate one first with the `sbom-generate` skill
+  if it does not (a request that asks for both in one breath, e.g.
+  "generate SBOM and enrich it" or "give me a complete SBOM", is
+  `sbom-generate`'s to trigger on -- see that skill's "Combine with
+  enrichment" section).
 license: Apache-2.0
 argument-hint: "[sbom-file]"
 ---
@@ -227,9 +238,77 @@ For the full enrichment data-source table, the `[tool.pitloom.enrich]`
 enable/disable model, and the dataset-relationship field map, see
 `working-docs/design/sbom-enrichment.md` in the Pitloom repository.
 
+## Complete a standard's minimum elements
+
+A separate entry point into the same fragment/provenance/merge mechanism above,
+driven by a **checklist** (a named standard's required elements) instead of
+open-ended prose reading. Use this when the request names a standard or asks what's
+missing for compliance, rather than asking for enrichment in general.
+
+Steps below are lettered (a-g) to keep them visually distinct from the numbered
+steps 1-11 above, which they reference by number.
+
+a. **Identify the target standard(s).** NTIA 2021, CISA 2026 (the current baseline --
+   supersedes NTIA 2021), or G7 SBOM for AI 2026 (additive, only when the SBOM has an
+   `ai_AIPackage`). If the user doesn't name one, ask, or default to CISA 2026 (plus
+   G7 AI if applicable) since it's the current baseline. See
+   `references/minimum-elements.md` for the three checklists, each element mapped to
+   the Pitloom/SPDX 3 field that already carries it.
+b. **Gap analysis.** For each element in the chosen checklist(s), check the base SBOM
+   JSON-LD for the mapped field and report present / missing / `NOASSERTION`-or-empty.
+   Don't assume the reference file's "covered"/"conditional" calls still hold --
+   they were checked against one real generated SBOM, not guaranteed for every run.
+c. **Resolve each gap using the same precedence steps 2-5 above already establish**:
+   the deterministic `loom enrich` pass first, then README/model-card/other local
+   file prose, then (interactive sessions only, consent-gated per step 5 above)
+   anything found outside the project on the agent's own initiative. Only reach
+   step d below for what's still unresolved after this.
+d. **Interactive-only, one field at a time.** Ask the user for each remaining gap,
+   using `references/minimum-elements.md`'s question bank for phrasing and "where to
+   look" guidance. Apply the same role-decision rule as step 4 above (the user states
+   the fact directly -> `sbomAuthorSupplied`; the user points at a source -> go look,
+   role is `declared`/`externalReported`/`inferred` per how it was obtained). Skip
+   this step entirely in a non-interactive run, same as above.
+   - **Lead with effort-to-impact, not checklist order.** Before asking, rank the
+     remaining gaps: quick answers (a plain yes/no, a fact the user obviously already
+     knows) and answers that resolve multiple elements or multiple standards at once
+     go first (e.g. setting `[[tool.pitloom.creator]]` closes both `SBOM Author` and
+     `Component Producer` for the main package in one step -- see
+     `references/minimum-elements.md`'s NTIA "Supplier Name" row for why). Say up
+     front which few answers would close most of the remaining gap, so the user can
+     judge where their time actually pays off -- don't just work a flat list top to
+     bottom.
+   - **Exit path.** The user can stop the Q&A at any point ("stop", "that's enough",
+     "skip the rest", or equivalent). This is not a failure -- proceed straight to
+     step f (draft/validate/merge) with whatever was gathered, and list the
+     still-unresolved elements as open gaps in step g's final report rather than
+     blocking on them or insisting they be answered first.
+e. **Contradiction check.** Before drafting the fragment, compare each new answer
+   against the base SBOM's existing value for that field and against other answers
+   already collected this session -- if they conflict, surface both and ask the user
+   to confirm which stands, the same way step 6 above handles a prose-vs-frontmatter
+   conflict, generalized to interactively-collected answers too. Never silently pick
+   one.
+f. **Draft, validate, register, merge, validate** -- reuse steps 6-10 above verbatim.
+   No new mechanism: this workflow only changes *what* gets proposed and *how it's
+   selected*, not how it's recorded or merged.
+g. **Final report.** List which elements are now satisfied, which remain unknown by
+   explicit user choice (write `NOASSERTION`/"unknown" in the fragment, per CISA
+   2026's "Explicitly Identifying Unknown Information" practice, rather than silently
+   omitting the field), and which have no automatable path at all (SBOM Author
+   Signature, most G7 AI Security Properties/KPI elements, dataset statistical
+   properties) with a plain note that they need something outside this workflow.
+
+`references/minimum-elements.md` also lists a manual, optional cross-check
+(`ntia-conformance-checker`) for NTIA/CISA targets -- not a required step, and not
+wired into this skill.
+
 ## See also
 
 - `references/examples.md` -- full worked example.
+- `references/minimum-elements.md` -- the NTIA 2021 / CISA 2026 / G7 SBOM for
+  AI 2026 checklists, field mappings, and question bank used by "Complete a
+  standard's minimum elements" above.
 - The sibling `sbom-validate` skill -- used for the mandatory post-merge
   check above.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
