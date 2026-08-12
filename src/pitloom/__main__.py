@@ -172,19 +172,20 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Run local README/model-card enrichment for discovered AI "
-            "models. Defers to [tool.pitloom.enrich] (off by default) "
+            "models. Defers to [tool.pitloom] enrich (off by default) "
             "when omitted."
         ),
     )
     parent.add_argument(
-        "--file-headers",
+        "--extract-file-header",
         action=argparse.BooleanOptionalAction,
         default=None,
         help=(
             "Scan each source file's leading comment header for SPDX-File* "
             "tags (FileCopyrightText, FileContributor, FileType) and a "
             "per-file SPDX-License-Identifier. Defers to "
-            "[tool.pitloom.file-headers] (on by default) when omitted."
+            "[tool.pitloom] extract-file-header (on by default) when "
+            "omitted."
         ),
     )
     parent.add_argument(
@@ -193,9 +194,22 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Detect each file's real content type via magika/mimetypes, "
-            "independent of --file-headers. Defers to "
-            "[tool.pitloom.file-headers] detect-content-type (off by "
-            "default -- real per-file cost) when omitted."
+            "independent of --extract-file-header. Defers to "
+            "[tool.pitloom.content-type] enabled (off by default -- real "
+            "per-file cost) when omitted."
+        ),
+    )
+    parent.add_argument(
+        "--content-type-method",
+        choices=("auto", "magika", "extension"),
+        default=None,
+        help=(
+            "Which detector resolves --content-type's contentType values: "
+            "'auto' (try magika, fall back to a filename-extension guess), "
+            "'magika' (same, but error immediately if the magika package "
+            "isn't installed), or 'extension' (skip magika entirely, "
+            "stdlib-only). Defers to [tool.pitloom.content-type] method "
+            "('auto' by default) when omitted."
         ),
     )
     parent.add_argument(
@@ -809,8 +823,9 @@ def _run_generate_mode(args: argparse.Namespace) -> int:
             describe_relationship=describe_relationship,
             registry=args.registry,
             enrich=args.enrich,
-            file_headers=args.file_headers,
+            extract_file_header=args.extract_file_header,
             content_type=args.content_type,
+            content_type_method=args.content_type_method,
         )
         return 0
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -861,8 +876,9 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             registry=args.registry,
             enrich=args.enrich,
             offline=args.offline or None,
-            file_headers=args.file_headers,
+            extract_file_header=args.extract_file_header,
             content_type=args.content_type,
+            content_type_method=args.content_type_method,
         )
         return 0
 
@@ -1012,7 +1028,7 @@ def _run_enrich_mode(args: argparse.Namespace) -> int:
         )
         print(f"Enrichment fragment written to: {output_path}")
         print(
-            "Register it under [tool.pitloom.fragments] and re-run "
+            "Register it under [tool.pitloom.fragment] and re-run "
             "'loom project'/'loom generate' to merge it into a base SBOM."
         )
         return 0

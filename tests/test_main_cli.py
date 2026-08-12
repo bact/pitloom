@@ -481,7 +481,7 @@ def test_model_mode_default_enrich_is_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No --enrich/--no-enrich flag passed: args.enrich must reach
-    generate_model_sbom() as None, deferring to [tool.pitloom.enrich]
+    generate_model_sbom() as None, deferring to [tool.pitloom] enrich
     (off by default) rather than forcing either state."""
     captured: dict[str, object] = {}
 
@@ -571,31 +571,34 @@ def test_project_mode_default_file_headers_and_content_type_are_none(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """No --file-headers/--content-type flags: both must reach
-    generate_project_sbom() as None, deferring to [tool.pitloom.file-headers]
-    rather than forcing either state."""
+    """No --extract-file-header/--content-type/--content-type-method
+    flags: all three must reach generate_project_sbom() as None,
+    deferring to [tool.pitloom] extract-file-header /
+    [tool.pitloom.content-type] rather than forcing any state."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
     def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
         _ = project_dir
-        captured["file_headers"] = kwargs.get("file_headers")
+        captured["extract_file_header"] = kwargs.get("extract_file_header")
         captured["content_type"] = kwargs.get("content_type")
+        captured["content_type_method"] = kwargs.get("content_type_method")
         return "{}"
 
     monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
     monkeypatch.setattr(sys, "argv", ["loom", "project", str(project_dir)])
 
     assert __main__.main() == 0
-    assert captured["file_headers"] is None
+    assert captured["extract_file_header"] is None
     assert captured["content_type"] is None
+    assert captured["content_type_method"] is None
 
 
 @pytest.mark.parametrize(
     ("flag", "kwarg", "expected"),
     [
-        ("--file-headers", "file_headers", True),
-        ("--no-file-headers", "file_headers", False),
+        ("--extract-file-header", "extract_file_header", True),
+        ("--no-extract-file-header", "extract_file_header", False),
         ("--content-type", "content_type", True),
         ("--no-content-type", "content_type", False),
     ],
@@ -607,15 +610,16 @@ def test_project_mode_file_headers_content_type_flags_passed_through(
     kwarg: str,
     expected: bool,
 ) -> None:
-    """--file-headers/--no-file-headers and --content-type/--no-content-type
-    must each override generate_project_sbom()'s corresponding param
-    independently, not just be silently dropped."""
+    """--extract-file-header/--no-extract-file-header and
+    --content-type/--no-content-type must each override
+    generate_project_sbom()'s corresponding param independently, not
+    just be silently dropped."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
     def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
         _ = project_dir
-        captured["file_headers"] = kwargs.get("file_headers")
+        captured["extract_file_header"] = kwargs.get("extract_file_header")
         captured["content_type"] = kwargs.get("content_type")
         return "{}"
 
@@ -626,34 +630,64 @@ def test_project_mode_file_headers_content_type_flags_passed_through(
     assert captured[kwarg] is expected
 
 
+@pytest.mark.parametrize("method", ["auto", "magika", "extension"])
+def test_project_mode_content_type_method_flag_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    method: str,
+) -> None:
+    """--content-type-method must reach generate_project_sbom() verbatim,
+    for each of its three valid choices."""
+    project_dir = _make_simple_project(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
+        _ = project_dir
+        captured["content_type_method"] = kwargs.get("content_type_method")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "project", str(project_dir), "--content-type-method", method],
+    )
+
+    assert __main__.main() == 0
+    assert captured["content_type_method"] == method
+
+
 def test_generate_mode_default_file_headers_and_content_type_are_none(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """No --file-headers/--content-type flags: both must reach generate()
-    as None, deferring to [tool.pitloom.file-headers]."""
+    """No --extract-file-header/--content-type/--content-type-method
+    flags: all three must reach generate() as None, deferring to
+    [tool.pitloom] extract-file-header / [tool.pitloom.content-type]."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
     def _fake_generate(target: object, **kwargs: object) -> str:
         _ = target
-        captured["file_headers"] = kwargs.get("file_headers")
+        captured["extract_file_header"] = kwargs.get("extract_file_header")
         captured["content_type"] = kwargs.get("content_type")
+        captured["content_type_method"] = kwargs.get("content_type_method")
         return "{}"
 
     monkeypatch.setattr(__main__, "generate", _fake_generate)
     monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir)])
 
     assert __main__.main() == 0
-    assert captured["file_headers"] is None
+    assert captured["extract_file_header"] is None
     assert captured["content_type"] is None
+    assert captured["content_type_method"] is None
 
 
 @pytest.mark.parametrize(
     ("flag", "kwarg", "expected"),
     [
-        ("--file-headers", "file_headers", True),
-        ("--no-file-headers", "file_headers", False),
+        ("--extract-file-header", "extract_file_header", True),
+        ("--no-extract-file-header", "extract_file_header", False),
         ("--content-type", "content_type", True),
         ("--no-content-type", "content_type", False),
     ],
@@ -665,14 +699,15 @@ def test_generate_mode_file_headers_content_type_flags_passed_through(
     kwarg: str,
     expected: bool,
 ) -> None:
-    """--file-headers/--no-file-headers and --content-type/--no-content-type
-    must each override generate()'s corresponding param independently."""
+    """--extract-file-header/--no-extract-file-header and
+    --content-type/--no-content-type must each override generate()'s
+    corresponding param independently."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
     def _fake_generate(target: object, **kwargs: object) -> str:
         _ = target
-        captured["file_headers"] = kwargs.get("file_headers")
+        captured["extract_file_header"] = kwargs.get("extract_file_header")
         captured["content_type"] = kwargs.get("content_type")
         return "{}"
 
@@ -681,6 +716,30 @@ def test_generate_mode_file_headers_content_type_flags_passed_through(
 
     assert __main__.main() == 0
     assert captured[kwarg] is expected
+
+
+def test_generate_mode_content_type_method_flag_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """--content-type-method must reach generate() verbatim."""
+    project_dir = _make_simple_project(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate(target: object, **kwargs: object) -> str:
+        _ = target
+        captured["content_type_method"] = kwargs.get("content_type_method")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate", _fake_generate)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "generate", str(project_dir), "--content-type-method", "magika"],
+    )
+
+    assert __main__.main() == 0
+    assert captured["content_type_method"] == "magika"
 
 
 def test_model_mode_passes_pretty_flag(
@@ -1172,7 +1231,7 @@ def test_enrich_mode_writes_fragment(
 ) -> None:
     """`loom enrich <model>` must write a bare-@graph fragment containing
     the enrichment findings -- it always runs enrichment regardless of
-    [tool.pitloom.enrich] (calling it is itself the opt-in)."""
+    [tool.pitloom] enrich (calling it is itself the opt-in)."""
     model_path = tmp_path / "model.safetensors"
     model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
     (tmp_path / "README.md").write_text(

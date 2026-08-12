@@ -867,7 +867,7 @@ method category):
   (see [sbom-enrichment.md](../design/sbom-enrichment.md)'s "Interactive
   mode" section) — that case is still Skill-only (an agent hand-authoring
   a fragment), not exercised by Pitloom's own generation code. A second,
-  built case now is: a `[[tool.pitloom.file-headers.content-type-overrides]]`
+  built case now is: a `[[tool.pitloom.content-type.override]]`
   config match (the config author is asserting a file's `contentType`
   directly) — see [file-headers.md](../design/file-headers.md)'s
   "Content-type overrides" section and
@@ -1075,7 +1075,7 @@ forgotten:
   model `generate_project_sbom()`/the Hatchling build hook discovers now
   gets the same per-model N3 CreationInfo + E1/E2 Annotation, closing a
   gap where project-level generation silently ran zero enrichment even
-  with `[tool.pitloom.enrich] local = true` set (`add_ai_models()` in
+  with `[tool.pitloom] enrich = true` set (`add_ai_models()` in
   [`ai.py`](../../src/pitloom/assemble/spdx3/ai.py) gained an
   `enrichment_results_by_model` param, mirroring `build_model()`'s
   single-model block). Also gained a standalone-fragment path

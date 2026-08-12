@@ -268,7 +268,7 @@ def test_build_file_primary_purpose_and_content_type_independent() -> None:
             digest_sha256="a" * 64,
             file_type="DOCUMENTATION",
             content_type="text/markdown",
-            content_type_method="mimetype_extension_guess",
+            content_type_method="extension_guess",
         )
     ]
     graph = _build_graph_for_files(files)
@@ -283,14 +283,14 @@ def test_build_file_primary_purpose_and_content_type_independent() -> None:
     # declared: no Method segment recorded.
     assert "method" not in fields["file_type"]
     # detected: Method segment present, distinct field key from file_type.
-    assert fields["content_type"]["method"] == "mimetype_extension_guess"
+    assert fields["content_type"]["method"] == "extension_guess"
 
 
 def test_build_file_content_type_config_override_is_sbom_author_supplied() -> None:
-    """A [[tool.pitloom.file-headers.content-type-overrides]] match
+    """A [[tool.pitloom.content-type.override]] match
     (content_type_method="config_override") sets contentType natively,
     same as a detected value, but records role sbomAuthorSupplied in
-    provenance -- never magika_content_detection/mimetype_extension_guess,
+    provenance -- never magika_content_detection/extension_guess,
     since Pitloom didn't detect anything for this file."""
     files = [
         ProjectFile(
@@ -1047,7 +1047,7 @@ name = "fragment-app"
 version = "1.0.0"
 description = "App with fragments"
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = ["fragment1.json", "fragment2.json"]
 """
 
@@ -1905,7 +1905,7 @@ def test_generate_model_sbom_readme_enrichment_end_to_end() -> None:
         (tmppath / "README.md").write_text(
             "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
         )
-        (tmppath / "pyproject.toml").write_text("[tool.pitloom.enrich]\nlocal = true\n")
+        (tmppath / "pyproject.toml").write_text("[tool.pitloom]\nenrich = true\n")
 
         sbom_json = generate_model_sbom(model_path)
 
@@ -1979,7 +1979,7 @@ def test_generate_model_sbom_field_only_enrichment_has_own_creation_info() -> No
         model_path = tmppath / "model.safetensors"
         model_path.write_bytes(fixture.read_bytes())
         (tmppath / "README.md").write_text("---\nlicense: apache-2.0\n---\n")
-        (tmppath / "pyproject.toml").write_text("[tool.pitloom.enrich]\nlocal = true\n")
+        (tmppath / "pyproject.toml").write_text("[tool.pitloom]\nenrich = true\n")
 
         graph = json.loads(generate_model_sbom(model_path))["@graph"]
 
@@ -2024,9 +2024,9 @@ def test_generate_model_sbom_no_readme_no_enrichment_artifacts() -> None:
 
 
 def test_generate_model_sbom_default_off_even_with_readme() -> None:
-    """No `[tool.pitloom.enrich]` config at all: enrichment stays off by
+    """No `[tool.pitloom] enrich` config at all: enrichment stays off by
     default, even when an adjacent README has frontmatter to gap-fill from
-    -- `local` must be explicitly opted into, it's not implicit."""
+    -- `enrich` must be explicitly opted into, it's not implicit."""
     fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
@@ -2041,7 +2041,7 @@ def test_generate_model_sbom_default_off_even_with_readme() -> None:
 
 
 def test_generate_model_sbom_enrich_local_false_disables_readme_enrichment() -> None:
-    """`[tool.pitloom.enrich] local = false` in a pyproject.toml next to
+    """`[tool.pitloom] enrich = false` in a pyproject.toml next to
     the model file turns off README enrichment explicitly (same outcome as
     the default, but exercised independently in case the default changes
     again)."""
@@ -2051,9 +2051,7 @@ def test_generate_model_sbom_enrich_local_false_disables_readme_enrichment() -> 
         model_path = tmppath / "model.safetensors"
         model_path.write_bytes(fixture.read_bytes())
         (tmppath / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
-        (tmppath / "pyproject.toml").write_text(
-            "[tool.pitloom.enrich]\nlocal = false\n"
-        )
+        (tmppath / "pyproject.toml").write_text("[tool.pitloom]\nenrich = false\n")
 
         sbom_json = generate_model_sbom(model_path)
 
@@ -2068,7 +2066,7 @@ def test_generate_model_sbom_enrich_local_false_disables_readme_enrichment() -> 
 
 def test_enrich_model_writes_bare_graph_fragment() -> None:
     """enrich_model() must always run enrichment regardless of
-    [tool.pitloom.enrich] (calling it is itself the opt-in), and its output
+    [tool.pitloom] enrich (calling it is itself the opt-in), and its output
     must be a bare @graph fragment -- no SpdxDocument/software_Sbom/
     ai_AIPackage wrapper -- containing only what the enrichment run added."""
     fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
@@ -2184,7 +2182,7 @@ def _write_smoke_project(tmppath: Path, *, enrich_local: bool = False) -> Path:
     (pkg_dir / "README.md").write_text(
         "---\nlicense: apache-2.0\ndatasets:\n  - tiny-imagenet\n---\n"
     )
-    enrich_toml = "[tool.pitloom.enrich]\nlocal = true\n" if enrich_local else ""
+    enrich_toml = "[tool.pitloom]\nenrich = true\n" if enrich_local else ""
     (tmppath / "pyproject.toml").write_text(
         "[build-system]\n"
         'requires = ["hatchling"]\n'
@@ -2253,7 +2251,7 @@ def test_enrich_model_without_project_target_mismatches_project_level_id() -> No
 
 def test_enrich_model_project_target_merges_correctly_end_to_end() -> None:
     """The actual regression test for the bug: a fragment generated with
-    project_target, registered under [tool.pitloom.fragments], and merged
+    project_target, registered under [tool.pitloom.fragment], and merged
     via a real generate_project_sbom() re-run must produce a
     dataset_DatasetPackage and enrichment Annotation genuinely attached to
     the project's real ai_AIPackage -- not just matching id strings in
@@ -2266,7 +2264,7 @@ def test_enrich_model_project_target_merges_correctly_end_to_end() -> None:
         fragment_path = tmppath / "model.enrich.spdx3.json"
         enrich_model(model_path, project_target=tmppath, output_path=fragment_path)
         with (tmppath / "pyproject.toml").open("a") as f:
-            f.write('\n[tool.pitloom.fragments]\nfiles = ["model.enrich.spdx3.json"]\n')
+            f.write('\n[tool.pitloom.fragment]\nfiles = ["model.enrich.spdx3.json"]\n')
 
         merged = json.loads(generate_project_sbom(tmppath))
         graph = merged["@graph"]
@@ -2420,7 +2418,7 @@ def test_enrich_then_merge_matches_one_shot_enrich() -> None:
 
 def test_generate_project_sbom_enrichment_end_to_end() -> None:
     """A discovered AI model with an adjacent README.md gap-fillable via
-    YAML frontmatter, plus [tool.pitloom.enrich] local = true, must produce
+    YAML frontmatter, plus [tool.pitloom] enrich = true, must produce
     the same enrichment artifacts at the project level that
     generate_model_sbom's single-model path already produces -- closing
     the gap where loom project/loom generate never ran enrichment at all."""
@@ -2443,8 +2441,8 @@ def test_generate_project_sbom_enrichment_end_to_end() -> None:
             'version = "0.1.0"\n\n'
             "[tool.hatch.build.targets.wheel]\n"
             'packages = ["src/smoke_project"]\n\n'
-            "[tool.pitloom.enrich]\n"
-            "local = true\n"
+            "[tool.pitloom]\n"
+            "enrich = true\n"
         )
 
         sbom_json = generate_project_sbom(tmppath)
@@ -2466,7 +2464,7 @@ def test_generate_project_sbom_enrichment_end_to_end() -> None:
 
 
 def test_generate_project_sbom_no_enrichment_by_default() -> None:
-    """Same fixture as above but with no [tool.pitloom.enrich] config:
+    """Same fixture as above but with no [tool.pitloom] enrich config:
     project-level enrichment must stay off by default, same as every
     other surface."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -2498,7 +2496,7 @@ def test_generate_project_sbom_no_enrichment_by_default() -> None:
 
 def test_generate_project_sbom_enrich_true_overrides_config() -> None:
     """enrich=True passed to generate_project_sbom() must turn on
-    enrichment even with no [tool.pitloom.enrich] config present."""
+    enrichment even with no [tool.pitloom] enrich config present."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         pkg_dir = tmppath / "src" / "smoke_project"

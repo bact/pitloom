@@ -65,6 +65,8 @@ details, config, and code examples.
 Background reading -- useful for auditing or debugging a generated SBOM,
 not needed to just generate one:
 
+- [Configuration](configuration.md) -- every `[tool.pitloom]` setting,
+  its default, and how to reach it from each surface.
 - [Creation metadata](creation-metadata.md) -- who/what/when/how every
   Pitloom-generated element records about its own creation.
 - [Metadata provenance](metadata-provenance.md) -- how Pitloom tracks the

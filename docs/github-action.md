@@ -64,6 +64,9 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 
 ## Configuration
 
+See [Configuration](configuration.md) for the full `[tool.pitloom]`
+reference these inputs defer to.
+
 Inputs (all optional):
 
 | Input | Default | Meaning |
@@ -73,9 +76,10 @@ Inputs (all optional):
 | `output` | `sbom.spdx3.json` | SBOM output file path. |
 | `extras` | *(empty)* | Comma-separated pip extras to install alongside Pitloom, e.g. `ai` (all AI model formats, including Hugging Face Hub support). |
 | `pretty` | `false` | Pretty-print the SBOM output. |
-| `enrich` | *(empty)* | `true`/`false` to force README/model-card enrichment on or off; empty defers to the project's `[tool.pitloom.enrich]` config (off by default). |
-| `file-headers` | *(empty)* | `true`/`false` to force per-file SPDX header scanning on or off; empty defers to `[tool.pitloom.file-headers]` (on by default). |
-| `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.file-headers] detect-content-type` (off by default). |
+| `enrich` | *(empty)* | `true`/`false` to force README/model-card enrichment on or off; empty defers to the project's `[tool.pitloom] enrich` config (off by default). |
+| `extract-file-header` | *(empty)* | `true`/`false` to force per-file SPDX header scanning on or off; empty defers to `[tool.pitloom] extract-file-header` (on by default). |
+| `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.content-type] enabled` (off by default). |
+| `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
 | `args` | *(empty)* | Extra raw flags passed through to the `loom` command. |
 | `pitloom-version` | *(empty)* | Pitloom version/specifier to install, e.g. `0.13.4` or `>=0.13,<1.0`. Empty installs the latest release. |
 | `python-version` | `3.x` | Python version passed to `actions/setup-python`. |

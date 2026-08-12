@@ -112,7 +112,7 @@ for the full recipe set.
 The Skill reads the project's README or the model's model card, drafts a
 small standalone SPDX 3 JSON fragment for whatever it can infer (never
 hand-edits the generated SBOM), registers it under
-`[tool.pitloom.fragments]`, and re-runs Pitloom so the fragment is
+`[tool.pitloom.fragment]`, and re-runs Pitloom so the fragment is
 merged. Every inferred field is marked `Source: AI agent | Method:
 inference` in its `comment`, so it is never mistaken for Pitloom's own
 extraction. See

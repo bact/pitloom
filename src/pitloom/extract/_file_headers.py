@@ -18,15 +18,21 @@ supply already-read bytes:
   detection applied to bytes/filename, not a claim the file itself makes.
 - :func:`guess_content_type` detects a real IANA media type via ``magika``
   (optional dependency, ``pitloom[content-type]``) when installed, falling
-  back to stdlib ``mimetypes``. Independent of ``SPDX-FileType`` -- never
-  used to derive ``software_primaryPurpose`` (see
-  ``working-docs/design/file-headers.md`` for why the two are kept apart).
+  back to a stdlib ``mimetypes`` filename-extension guess. Independent of
+  ``SPDX-FileType`` -- never used to derive ``software_primaryPurpose``
+  (see ``working-docs/design/file-headers.md`` for why the two are kept
+  apart).
 - :func:`resolve_content_type_override` matches a file's distribution
   path against a project-configured
-  ``[[tool.pitloom.file-headers.content-type-overrides]]`` table,
-  pre-empting :func:`guess_content_type` for a match -- a deterministic,
+  ``[[tool.pitloom.content-type.override]]`` table, pre-empting
+  :func:`guess_content_type` for a match -- a deterministic,
   ``sbomAuthorSupplied`` alternative to detection for files the project
   author already knows the content type of.
+- :func:`require_magika_available` raises when ``magika`` isn't
+  installed -- called once, up front, when
+  ``[tool.pitloom.content-type] method = "magika"`` is explicitly
+  configured, so a misconfigured project fails immediately rather than
+  after silently degrading every file's ``contentType``.
 """
 
 from __future__ import annotations
@@ -39,7 +45,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
-from pitloom.core.file_headers_config import ContentTypeOverride
+from pitloom.core.content_type_config import ContentTypeOverride
 
 log = logging.getLogger(__name__)
 
@@ -199,32 +205,59 @@ def _get_magika() -> Any:
     return Magika()
 
 
-def guess_content_type(data: bytes, filename: str) -> tuple[str | None, str | None]:
+def require_magika_available() -> None:
+    """Raise ``RuntimeError`` when ``magika`` isn't importable.
+
+    Called once, up front (not per file), when
+    ``[tool.pitloom.content-type] method = "magika"`` is explicitly
+    configured -- the config author demanded ``magika`` specifically, so
+    silently degrading every file's ``contentType`` to the extension
+    guess (as ``"auto"`` would) would hide that the SBOM's content types
+    are lower-quality than requested.
+    """
+    if _get_magika() is None:
+        raise RuntimeError(
+            "content-type-method 'magika' requires the magika package "
+            "(pip install pitloom[content-type])"
+        )
+
+
+def guess_content_type(
+    data: bytes, filename: str, method: str = "auto"
+) -> tuple[str | None, str | None]:
     """Detect a real IANA media type for *data*, independent of any tag.
 
-    Tries ``magika`` (byte-content-based ML detection) first, falling back
-    to stdlib ``mimetypes`` (filename-extension-based) when ``magika``
-    isn't installed or its result is inconclusive. Returns
-    ``(mime_type, method)`` where ``method`` is ``"magika"`` or
-    ``"mimetype_extension_guess"``, or ``(None, None)`` when neither
-    resolves. This is Pitloom's own determination (SPDX role
-    ``detected``) -- never derived from, or used to derive,
+    *method* is ``"auto"`` (default), ``"magika"``, or ``"extension"``.
+    Unless *method* is ``"extension"``, tries ``magika`` (byte-content-based
+    ML detection) first, falling back to a stdlib ``mimetypes``
+    filename-extension guess when ``magika`` isn't installed or its
+    result is inconclusive -- ``"auto"`` and ``"magika"`` behave
+    identically here; the difference between them is enforced by
+    :func:`require_magika_available`, called separately, once, before
+    any file is scanned. ``"extension"`` skips ``magika`` entirely.
+    Returns ``(mime_type, method)`` where ``method`` is ``"magika"`` or
+    ``"extension_guess"``, or ``(None, None)`` when neither resolves.
+    This is Pitloom's own determination (SPDX role ``detected``) --
+    never derived from, or used to derive,
     ``SPDX-FileType``/``software_primaryPurpose``.
     """
-    magika_instance = _get_magika()
-    if magika_instance is not None:
-        try:
-            result = magika_instance.identify_bytes(data)
-            label: str = result.output.label
-            magika_mime_type: str = result.output.mime_type
-            if magika_mime_type and label not in _MAGIKA_INCONCLUSIVE_LABELS:
-                return magika_mime_type, "magika"
-        except Exception as exc:  # pylint: disable=broad-exception-caught
-            log.debug("magika content-type detection failed for %s: %s", filename, exc)
+    if method != "extension":
+        magika_instance = _get_magika()
+        if magika_instance is not None:
+            try:
+                result = magika_instance.identify_bytes(data)
+                label: str = result.output.label
+                magika_mime_type: str = result.output.mime_type
+                if magika_mime_type and label not in _MAGIKA_INCONCLUSIVE_LABELS:
+                    return magika_mime_type, "magika"
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                log.debug(
+                    "magika content-type detection failed for %s: %s", filename, exc
+                )
 
     guessed_mime_type, _encoding = mimetypes.guess_type(filename)
     if guessed_mime_type:
-        return guessed_mime_type, "mimetype_extension_guess"
+        return guessed_mime_type, "extension_guess"
     return None, None
 
 

@@ -125,7 +125,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Dual-syntax ContextDecorator (`@loom.run` and `with loom.run`)
    - Emits SPDX 3 SBOM fragments automatically during ML executions
    - Seamlessly ingested into project SBOMs using
-     `[tool.pitloom.fragments]` config
+     `[tool.pitloom.fragment]` config
 
 ### ✅ Testing (comprehensive coverage - all passing)
 

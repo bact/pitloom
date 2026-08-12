@@ -131,7 +131,7 @@ None of the three skills contains Pitloom code of its own.
    `trainedOn`/`testedOn` dataset relationship) -- or, in an interactive
    session, ask the SBOM author directly for gaps no file answers -- and
    contribute it back as a pitloom **fragment** -- a small standalone
-   SPDX 3 JSON-LD file merged in via `[tool.pitloom.fragments]`. Every
+   SPDX 3 JSON-LD file merged in via `[tool.pitloom.fragment]`. Every
    field is provenance-marked with the role matching how it was obtained
    (`Source: AI agent | Method: inference` for a prose-derived guess,
    `Source: SBOM author | Method: sbomAuthorSupplied` for a fact stated
@@ -167,7 +167,7 @@ spdx3-validate --json /tmp/sbom.spdx3.json
 
 For the `sbom-enrich` recipe, follow
 `skills/sbom-enrich/references/examples.md` end to end: write the
-fragment, add a `[tool.pitloom.fragments]` entry pointing at it, re-run
+fragment, add a `[tool.pitloom.fragment]` entry pointing at it, re-run
 `loom`, and confirm the inferred element appears in the output with its
 `Source: AI agent | Method: inference` provenance.
 

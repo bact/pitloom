@@ -215,7 +215,7 @@ Steps:
 8. Register **both** fragments so Pitloom merges them on the next run:
 
    ```toml
-   [tool.pitloom.fragments]
+   [tool.pitloom.fragment]
    files = [
      "model.enrich.spdx3.json",
      "fragments/agent-enrichment.spdx3.json",
@@ -234,7 +234,7 @@ Steps:
    directly (step 4) -- and call out any override from step 6 explicitly
    -- this is provenance-tracked, agent-relayed data, not ground truth.
 
-For the full enrichment data-source table, the `[tool.pitloom.enrich]`
+For the full enrichment data-source table, the `[tool.pitloom] enrich`
 enable/disable model, and the dataset-relationship field map, see
 `working-docs/design/sbom-enrichment.md` in the Pitloom repository.
 

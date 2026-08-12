@@ -418,7 +418,7 @@ description = "End-to-end fragment test app"
 [tool.pitloom]
 pretty = true
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
     "ai-model-fragment.spdx3.json",
     "training-run-fragment.spdx3.json",
@@ -487,7 +487,7 @@ version = "0.1.0"
 [tool.pitloom]
 pretty = true
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = ["dataset-fragment.spdx3.json"]
 """
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -550,7 +550,7 @@ description = "Fragment unification test app"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fragdemo"]
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
     "fragments/01_preprocess.spdx3.json",
     "fragments/02_train.spdx3.json",

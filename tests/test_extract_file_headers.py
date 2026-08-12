@@ -9,12 +9,13 @@ import sys
 
 import pytest
 
-from pitloom.core.file_headers_config import ContentTypeOverride
+from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.extract._file_headers import (
     FileHeaderMetadata,
     _get_magika,
     guess_content_type,
     parse_file_header,
+    require_magika_available,
     resolve_content_type_override,
 )
 
@@ -166,14 +167,14 @@ def test_guess_content_type_resolves_via_magika() -> None:
     assert "/" in mime_type
 
 
-def test_guess_content_type_falls_back_to_mimetypes_when_magika_unavailable(
+def test_guess_content_type_falls_back_to_extension_when_magika_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When magika isn't importable, mimetypes' extension-based guess is
-    used instead."""
+    """When magika isn't importable, the stdlib filename-extension guess
+    is used instead -- default method="auto"."""
     monkeypatch.setitem(sys.modules, "magika", None)
     mime_type, method = guess_content_type(b"whatever bytes", "example.py")
-    assert method == "mimetype_extension_guess"
+    assert method == "extension_guess"
     assert mime_type == "text/x-python"
 
 
@@ -184,6 +185,59 @@ def test_guess_content_type_returns_none_when_neither_resolves(
     monkeypatch.setitem(sys.modules, "magika", None)
     mime_type, method = guess_content_type(b"whatever bytes", "mystery.xyzzy123")
     assert (mime_type, method) == (None, None)
+
+
+def test_guess_content_type_method_extension_skips_magika_even_when_installed() -> None:
+    """method='extension' never attempts magika, even when it's importable."""
+    pytest.importorskip("magika")
+    data = b"import os\nprint(os.getcwd())\n" * 5
+    mime_type, method = guess_content_type(data, "example.py", method="extension")
+    assert method == "extension_guess"
+    assert mime_type == "text/x-python"
+
+
+def test_guess_content_type_method_magika_same_as_auto_when_available() -> None:
+    """method='magika' behaves identically to 'auto' on a per-file basis
+    when the package is installed -- the difference is enforced
+    separately, up front, by require_magika_available()."""
+    pytest.importorskip("magika")
+    data = b"import os\nprint(os.getcwd())\n" * 5
+    auto_result = guess_content_type(data, "example.py", method="auto")
+    magika_result = guess_content_type(data, "example.py", method="magika")
+    assert auto_result == magika_result == (auto_result[0], "magika")
+
+
+def test_guess_content_type_method_magika_falls_back_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """method='magika' still falls back to the extension guess per-file
+    when magika isn't importable -- require_magika_available() is the
+    thing that turns this into a hard error, not guess_content_type()
+    itself."""
+    monkeypatch.setitem(sys.modules, "magika", None)
+    mime_type, method = guess_content_type(
+        b"whatever bytes", "example.py", method="magika"
+    )
+    assert method == "extension_guess"
+    assert mime_type == "text/x-python"
+
+
+# ---------------------------------------------------------------------------
+# require_magika_available
+# ---------------------------------------------------------------------------
+
+
+def test_require_magika_available_no_op_when_installed() -> None:
+    pytest.importorskip("magika")
+    require_magika_available()  # must not raise
+
+
+def test_require_magika_available_raises_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "magika", None)
+    with pytest.raises(RuntimeError, match="content-type-method 'magika'"):
+        require_magika_available()
 
 
 # ---------------------------------------------------------------------------

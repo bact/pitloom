@@ -217,8 +217,8 @@ def _emit_file_header_metadata(
     if package_file.content_type:
         package_entry.contentType = package_file.content_type
         if package_file.content_type_method == "config_override":
-            # A [[tool.pitloom.file-headers.content-type-overrides]] match
-            # -- the config author asserted this value directly, Pitloom
+            # A [[tool.pitloom.content-type.override]] match -- the
+            # config author asserted this value directly, Pitloom
             # detected nothing, so role sbomAuthorSupplied rather than the
             # detected shape below (see working-docs/design/file-headers.md).
             method = "Method: sbomAuthorSupplied"
@@ -227,7 +227,7 @@ def _emit_file_header_metadata(
                 f"Method: magika_content_detection | Tool: magika=={_magika_version()}"
             )
         else:
-            method = "Method: mimetype_extension_guess"
+            method = "Method: extension_guess"
         field_provenance["content_type"] = f"Source: {file_path} | {method}"
 
     if package_file.file_contributors:

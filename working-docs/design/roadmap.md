@@ -142,7 +142,7 @@ wired into a build backend. These two extend reach beyond that. See
 - [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
   -- MVP shipped: local README/model-card **YAML frontmatter** parsing
   (`enrich/readme.py`, license + dataset gaps only, not prose), gated by
-  `[tool.pitloom.enrich] local` (**default off** -- opt-in until more
+  `[tool.pitloom] enrich` (**default off** -- opt-in until more
   sources ship). Not to be confused with the agent-facing `sbom-enrich`
   *Skill* above -- this is code-level, deterministic, non-agent. Also
   what [annotation-provenance.md](../implementation/annotation-provenance.md)'s
@@ -159,7 +159,9 @@ wired into a build backend. These two extend reach beyond that. See
   "Surfaces" section.
   Still not started: OpenSSF Scorecard (public API), Hugging Face Hub and
   PyPI metadata (user opt-in), per-source enable/disable via additional
-  `[tool.pitloom.enrich]` keys added when each lands.
+  `[tool.pitloom]` enrich-related keys added when each lands (`enrich`
+  itself is a flat bool now, not a table -- a per-source toggle scheme
+  will need its own naming, decided when the first extra source ships).
   See [sbom-enrichment.md](sbom-enrichment.md).
 
 ## Medium-term

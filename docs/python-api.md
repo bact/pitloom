@@ -169,7 +169,7 @@ Register the fragment file(s) so a later `generate()`/`loom
 project`/`loom generate` call merges them into the main SBOM:
 
 ```toml
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = ["fragments/train.json", "fragments/eval.json"]
 ```
 

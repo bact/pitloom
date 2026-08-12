@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class EnrichConfig:
-    """Configuration settings for ``[tool.pitloom.enrich]``.
+    """Configuration settings for ``[tool.pitloom] enrich``.
 
     Attributes:
         local: Whether to run local, no-network enrichment (README/model-card

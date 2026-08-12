@@ -103,14 +103,15 @@ Pitloom allows users to enable or disable each source independently in
 `pyproject.toml`:
 
 ```toml
-[tool.pitloom.enrich]
-local = false          # README / model card -- off by default, opt in explicitly
+[tool.pitloom]
+enrich = false          # README / model card -- off by default, opt in explicitly
 ```
 
-Only `local` exists today -- `openssf_scorecard`/`huggingface`/`pypi` keys
-are added when their enrichers actually land, not pre-declared ahead of
-them (same discipline `[tool.pitloom.provenance]`'s keys followed:
-one key per shipped capability, not a speculative full set up front).
+Only this one flat toggle exists today -- per-source enable/disable for
+`openssf_scorecard`/`huggingface`/`pypi` is added when their enrichers
+actually land, not pre-declared ahead of them (same discipline
+`[tool.pitloom.provenance]`'s keys followed: one key per shipped
+capability, not a speculative full set up front).
 
 ### Surfaces (shipped)
 
@@ -121,10 +122,10 @@ on/off model:
 | Surface | How to opt in |
 | :------ | :------------ |
 | CLI -- `loom model`/`loom project`/`loom generate` | `--enrich` (or `--no-enrich` to force off despite config) |
-| CLI -- standalone `loom enrich <model-file>` | Runs by default (invoking the command is itself the opt-in); `--no-enrich` writes an empty fragment instead. Writes a standalone fragment (no `SpdxDocument`/`software_Sbom`/`ai_AIPackage`) for merging into a base SBOM via `[tool.pitloom.fragments]` |
+| CLI -- standalone `loom enrich <model-file>` | Runs by default (invoking the command is itself the opt-in); `--no-enrich` writes an empty fragment instead. Writes a standalone fragment (no `SpdxDocument`/`software_Sbom`/`ai_AIPackage`) for merging into a base SBOM via `[tool.pitloom.fragment]` |
 | Python API -- `generate_model_sbom()`/`generate_project_sbom()`/`generate()` | `enrich=True`/`enrich=False` keyword (`None` defers to config) |
 | Python API -- `enrich_model()` | Same as `loom enrich`: runs by default, `enrich=False` suppresses, returns the fragment JSON string |
-| Hatchling build hook | Inherits the project's `[tool.pitloom.enrich]` automatically -- no separate hook-level key, per the same "one config surface" rule the hook already enforces for creator/tool/fragment settings |
+| Hatchling build hook | Inherits the project's `[tool.pitloom] enrich` automatically -- no separate hook-level key, per the same "one config surface" rule the hook already enforces for creator/tool/fragment settings |
 | GitHub Action | `enrich: "true"`/`"false"` input, mapped to `--enrich`/`--no-enrich`; empty (default) defers to config |
 
 **Design invariant:** `loom generate --enrich <target>` and (`loom
@@ -232,7 +233,7 @@ third-party fragment producers (see
 3. Register the fragment in `pyproject.toml`:
 
    ```toml
-   [tool.pitloom.fragments]
+   [tool.pitloom.fragment]
    files = ["fragments/agent-enrichment.spdx3.json"]
    ```
 
@@ -354,7 +355,7 @@ inference (or no enrichment) for anything these would have covered.
    post-hoc diff, is what feeds N3's `CreationInfo` and the E1/E2
    Annotation (see `annotation-provenance.md`'s N3 row).
 3. Wired at both the single-model and project levels. `generate_model_sbom()`
-   (`src/pitloom/assemble/__init__.py`) reads `[tool.pitloom.enrich]` from
+   (`src/pitloom/assemble/__init__.py`) reads `[tool.pitloom] enrich` from
    a `pyproject.toml` in the model file's own directory (no ancestor
    walk-up) and calls `run_enrichers()` after `read_ai_model()`, before
    `build_model()`. Project-level callers -- `generate_project_sbom()` and

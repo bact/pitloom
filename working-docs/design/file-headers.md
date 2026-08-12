@@ -99,51 +99,70 @@ MIME type like `"audio/mpeg"` is). Detection can simply fail (no
 extension match, inconclusive `magika` result) -- `contentType` is then
 left unset, same as any other absent field.
 
-## Config: two independently-gated toggles
+## Config: independently-gated toggles, in separate tables
 
-Header-tag parsing and content-type detection have genuinely different
-cost profiles, so they get two separate toggles with different
-defaults, not one bundled flag:
+Header-tag parsing and content-type detection are genuinely independent
+features -- a binary file with no text header at all (e.g. an AI model
+file) still gets a `contentType` when detection is on, regardless of
+whether header scanning ran -- so they live in separate config
+locations, not one bundled table. `extract-file-header` has exactly one
+setting, so it's a flat top-level key; content-type has more than one
+(whether detection runs, and which detector resolves it), so it keeps
+its own table -- the same "fold a single-key table, keep a multi-key one"
+rule applied across `[tool.pitloom]` generally (see
+[Configuration](../../docs/configuration.md) for the full reference):
 
 ```toml
-[tool.pitloom.file-headers]
-enabled = true              # tag/copyright/license/contributor/file_type extraction
-detect-content-type = false # magika/mimetypes contentType detection
+[tool.pitloom]
+extract-file-header = true   # tag/copyright/license/contributor/file_type extraction
+
+[tool.pitloom.content-type]
+enabled = false               # magika/extension-guess contentType detection
+method = "auto"                # "auto" | "magika" | "extension"
 ```
 
-- **`enabled` defaults on.** Header-tag parsing is pure regex over bytes
-  already read into memory for the SHA-256 hash -- no extra I/O, no
-  extra file open, negligible per-file cost, the same cost class as work
-  Pitloom already does unconditionally elsewhere (e.g. `_license.py`'s
-  LICENSE/CITATION.cff/codemeta.json scanning, which has no gate at
-  all).
-- **`detect-content-type` defaults off.** `magika` inference is a real,
-  measurable wall-clock cost -- Google's own figures put it around
-  5ms/file, which adds up fast across a large project's file count.
-  Same "opt-in until proven" treatment `[tool.pitloom.enrich]` already
-  has.
+- **`extract-file-header` defaults on.** Header-tag parsing is pure
+  regex over bytes already read into memory for the SHA-256 hash -- no
+  extra I/O, no extra file open, negligible per-file cost, the same cost
+  class as work Pitloom already does unconditionally elsewhere (e.g.
+  `_license.py`'s LICENSE/CITATION.cff/codemeta.json scanning, which has
+  no gate at all).
+- **`[tool.pitloom.content-type] enabled` defaults off.** `magika`
+  inference is a real, measurable wall-clock cost -- Google's own
+  figures put it around 5ms/file, which adds up fast across a large
+  project's file count. Same "opt-in until proven" treatment
+  `[tool.pitloom] enrich` already has.
+- **`method` defaults `"auto"`.** `"auto"` and `"magika"` behave
+  identically per file (try `magika`, fall back to a filename-extension
+  guess on an inconclusive result); the difference is that `"magika"`
+  raises a clear error up front, before any file is scanned, if the
+  `magika` package isn't installed at all -- you asked for it
+  explicitly, so silent full-degradation would hide that every
+  `contentType` in the SBOM is lower-quality than requested. `"extension"`
+  skips `magika` entirely, resolving purely from the filename.
 
 `magika` is an optional dependency, extras-gated:
-`pip install pitloom[content-type]`. Unavailable means silent fallback
-to `mimetypes`, never an error.
+`pip install pitloom[content-type]`. Unavailable with `method = "auto"`
+(the default) means silent fallback to the extension guess, never an
+error; unavailable with `method = "magika"` is a hard `RuntimeError`.
 
 ### Content-type overrides
 
-A third, config-only key pre-empts detection for specific files the
-project author already knows the content type of -- everything under
-`vendor/`, every `*.woff2` font, a generated `*.min.js` -- both to save
-the per-file detection cost and to get a deterministic value regardless
-of what `magika` would have guessed:
+A config-only table pre-empts detection for specific files the project
+author already knows the content type of -- everything under `vendor/`,
+every `*.woff2` font, a generated `*.min.js` -- both to save the
+per-file detection cost and to get a deterministic value regardless of
+what `magika` would have guessed:
 
 ```toml
-[tool.pitloom.file-headers]
-detect-content-type = true
+[tool.pitloom.content-type]
+enabled = true
 
-[[tool.pitloom.file-headers.content-type-overrides]]
+[[tool.pitloom.content-type.override]]
 pattern = "*.woff2"
 content-type = "font/woff2"
 
-[[tool.pitloom.file-headers.content-type-overrides]]
+[[tool.pitloom.content-type.override]]
 pattern = "vendor/*"
 content-type = "application/octet-stream"
 ```
@@ -159,15 +178,15 @@ children -- there is no `.gitignore`-style negation or
 directory-boundary distinction, since a value-mapping table doesn't need
 exclusion-set semantics. First match wins, in declaration order.
 
-**Overrides are a per-file refinement *within* the `detect-content-type`
-gate, not a bypass of it.** When `detect-content-type` is off, overrides
+**Overrides are a per-file refinement *within* the `[tool.pitloom.content-type]
+enabled` gate, not a bypass of it.** When `enabled` is off, overrides
 never fire -- no file gets a `contentType` at all, identical to today's
 behaviour whether or not any are configured. When it's on, each file is
 checked against the table first: a match sets `contentType` directly and
-`magika`/`mimetypes` never run for that file; a non-match still goes
-through the normal detection path exactly as before. So overrides only
-ever save cost/add determinism for the specific patterns configured --
-they never change whether the feature runs at all.
+detection never runs for that file; a non-match still goes through the
+normal detection path exactly as before. So overrides only ever save
+cost/add determinism for the specific patterns configured -- they never
+change whether the feature runs at all.
 
 Role is `sbomAuthorSupplied`, not `detected` -- the config author is
 asserting the value directly, Pitloom isn't deriving anything for a
@@ -178,7 +197,7 @@ match. Provenance: `Source: <file> | Method: sbomAuthorSupplied` (no
 isn't a good fit for a scalar flag) and no Python API parameter (a
 caller who wants this constructs their own `PitloomConfig`). No new
 GitHub Action input either -- the Action already inherits
-`[tool.pitloom.file-headers]` from the project's `pyproject.toml`.
+`[tool.pitloom.content-type]` from the project's `pyproject.toml`.
 
 **Known limitation:** the generated SBOM records that a file's
 `contentType` came from a config override (role `sbomAuthorSupplied`),
@@ -192,11 +211,11 @@ correctness gap.
 
 | Surface | How to opt in |
 | :------ | :------------ |
-| CLI -- `loom project`/`loom generate` | `--file-headers`/`--no-file-headers` and `--content-type`/`--no-content-type` (each defers to config when omitted) |
-| Python API -- `generate_project_sbom()`/`generate()` | `file_headers=True/False`, `content_type=True/False` keywords (`None` defers to config) |
-| Hatchling build hook | Inherits the project's `[tool.pitloom.file-headers]` automatically -- no separate hook-level key |
-| GitHub Action | `file-headers: "true"/"false"`, `content-type: "true"/"false"` inputs, mapped to the CLI flags; empty (default) defers to config |
-| Content-type overrides | Config-only (`[[tool.pitloom.file-headers.content-type-overrides]]`) -- no CLI flag, API parameter, or Action input; see above |
+| CLI -- `loom project`/`loom generate` | `--extract-file-header`/`--no-extract-file-header`, `--content-type`/`--no-content-type`, `--content-type-method {auto,magika,extension}` (each defers to config when omitted) |
+| Python API -- `generate_project_sbom()`/`generate()` | `extract_file_header=True/False`, `content_type=True/False`, `content_type_method="auto"/"magika"/"extension"` keywords (`None` defers to config) |
+| Hatchling build hook | Inherits the project's `[tool.pitloom]`/`[tool.pitloom.content-type]` automatically -- no separate hook-level key |
+| GitHub Action | `extract-file-header: "true"/"false"`, `content-type: "true"/"false"`, `content-type-method: "auto"/"magika"/"extension"` inputs, mapped to the CLI flags; empty (default) defers to config |
+| Content-type overrides | Config-only (`[[tool.pitloom.content-type.override]]`) -- no CLI flag, API parameter, or Action input; see above |
 
 ## Provenance: intrinsic vs. extrinsic
 
@@ -212,16 +231,16 @@ procedure examining bytes or a filename, not a claim the file's header
 makes -- role `detected`, using the established shape: `Source: <this
 file's own path> | Method: magika_content_detection | Tool:
 magika==<version>` when `magika` did the detection, or `Source: <this
-file's own path> | Method: mimetype_extension_guess` (no `Tool:`
-segment -- stdlib, not a separately-versioned dependency) when it fell
-back.
+file's own path> | Method: extension_guess` (no `Tool:` segment --
+stdlib, not a separately-versioned dependency) when it fell back.
 
 A file can carry both a `declared` `primaryPurpose` entry and a
 `detected` `contentType` entry at once (the README.md case) -- because
 who actually assessed the content type depends on gating, the
-provenance line differs between an `enabled`-only run (no `contentType`
-entry at all) and an `enabled` + `detect-content-type` run (a
-`detected`-role entry naming whichever tool actually resolved it).
+provenance line differs between an `extract-file-header`-only run (no
+`contentType` entry at all) and a run with
+`[tool.pitloom.content-type] enabled = true` too (a `detected`-role
+entry naming whichever tool actually resolved it).
 
 `File.summary` aggregates every fact with no dedicated native slot --
 `file_contributors` (every one, every time) and any not-independently-

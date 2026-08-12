@@ -19,7 +19,7 @@ from hatchling.metadata.utils import normalize_requirement
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
-from pitloom.core.file_headers_config import ContentTypeOverride
+from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
 
 if TYPE_CHECKING:
@@ -140,12 +140,13 @@ def _resolve_file_header_extras(
     filename: str,
     distribution_path: str,
     parse_header: Callable[[bytes], FileHeaderMetadata | None] | None,
-    detect_content: Callable[[bytes, str], tuple[str | None, str | None]] | None,
+    detect_content: Callable[[bytes, str, str], tuple[str | None, str | None]] | None,
     resolve_override: (
         Callable[[str, tuple[ContentTypeOverride, ...]], ContentTypeOverride | None]
         | None
     ),
     content_type_overrides: tuple[ContentTypeOverride, ...],
+    content_type_method: str,
 ) -> _FileHeaderExtras:
     """Resolve the optional per-file header/content-type fields for *raw_bytes*.
 
@@ -162,7 +163,7 @@ def _resolve_file_header_extras(
     """
     header = parse_header(raw_bytes) if parse_header else None
     content_type: str | None = None
-    content_type_method: str | None = None
+    resolved_method: str | None = None
     if detect_content:
         override = (
             resolve_override(distribution_path, content_type_overrides)
@@ -171,9 +172,11 @@ def _resolve_file_header_extras(
         )
         if override is not None:
             content_type = override.content_type
-            content_type_method = "config_override"
+            resolved_method = "config_override"
         else:
-            content_type, content_type_method = detect_content(raw_bytes, filename)
+            content_type, resolved_method = detect_content(
+                raw_bytes, filename, content_type_method
+            )
     return _FileHeaderExtras(
         copyright_text=header.copyright_text if header else None,
         copyright_source=header.copyright_source if header else None,
@@ -181,7 +184,7 @@ def _resolve_file_header_extras(
         file_type=header.file_type if header else None,
         spdx_license_identifier=(header.spdx_license_identifier if header else None),
         content_type=content_type,
-        content_type_method=content_type_method,
+        content_type_method=resolved_method,
     )
 
 
@@ -191,6 +194,7 @@ def get_wheel_files(
     *,
     scan_file_headers: bool = False,
     detect_content_type: bool = False,
+    content_type_method: str = "auto",
     content_type_overrides: tuple[ContentTypeOverride, ...] = (),
 ) -> tuple[str | None, list[ProjectFile]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
@@ -210,13 +214,19 @@ def get_wheel_files(
             reusing the bytes already read for hashing -- no second file
             read. Off by default at this function's own level; callers
             thread their own effective default (see
-            :class:`pitloom.core.file_headers_config.FileHeadersConfig`).
+            ``[tool.pitloom] extract-file-header``).
         detect_content_type: When ``True``, also detect each file's real
             content type (see
             :func:`pitloom.extract._file_headers.guess_content_type`) --
             independent of ``scan_file_headers``, gated by its own
             separate parameter since it has a real per-file cost
             ``scan_file_headers`` alone does not.
+        content_type_method: Which detector resolves ``contentType`` when
+            ``detect_content_type`` is on: ``"auto"`` (default), ``"magika"``
+            (raises ``RuntimeError`` up front, before scanning any file,
+            when the ``magika`` package isn't installed -- see
+            :func:`pitloom.extract._file_headers.require_magika_available`),
+            or ``"extension"`` (skip ``magika`` entirely).
         content_type_overrides: Glob-pattern -> MIME-type entries (see
             :func:`pitloom.extract._file_headers.resolve_content_type_override`)
             that pre-empt ``guess_content_type`` for a matching file.
@@ -244,6 +254,13 @@ def get_wheel_files(
         from pitloom.extract._file_headers import guess_content_type
 
         detect_content = guess_content_type
+
+        if content_type_method == "magika":
+            # Fail before scanning any file, not mid-scan -- the config
+            # author demanded magika specifically.
+            from pitloom.extract._file_headers import require_magika_available
+
+            require_magika_available()
 
         # Overrides are only ever consulted when detection itself is
         # already on -- a per-file refinement within that gate, not a
@@ -294,6 +311,7 @@ def get_wheel_files(
                     detect_content,
                     resolve_override,
                     content_type_overrides,
+                    content_type_method,
                 )
                 project_files.append(
                     ProjectFile(

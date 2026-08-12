@@ -151,7 +151,7 @@ def test_validate_config_invalid_raises(field: str, bad_value: Any, match: str) 
     ("key", "new_location"),
     [
         ("sbom-basename", r"\[tool\.pitloom\] sbom-basename"),
-        ("fragments", r"\[tool\.pitloom\.fragments\] files"),
+        ("fragments", r"\[tool\.pitloom\.fragment\] files"),
         ("creator-name", r"\[\[tool\.pitloom\.creator\]\]"),
         ("creator-email", r"\[\[tool\.pitloom\.creator\]\]"),
         ("creator-type", r"\[\[tool\.pitloom\.creator\]\]"),
@@ -526,7 +526,7 @@ def test_hook_with_pitloom_fragments() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
-            tmp_path, '[tool.pitloom.fragments]\nfiles = ["frag.json"]\n'
+            tmp_path, '[tool.pitloom.fragment]\nfiles = ["frag.json"]\n'
         )
 
         # Build a valid fragment via Spdx3JsonExporter
@@ -571,7 +571,7 @@ def test_hook_missing_fragment_logs_warning(
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
-            tmp_path, '[tool.pitloom.fragments]\nfiles = ["does_not_exist.json"]\n'
+            tmp_path, '[tool.pitloom.fragment]\nfiles = ["does_not_exist.json"]\n'
         )
 
         hook = make_hook(tmp, {})
@@ -669,7 +669,7 @@ def test_hook_bundled_binary_produces_phantom_dependency() -> None:
 
 def test_hook_enrichment_produces_dataset_and_annotation() -> None:
     """A discovered AI model file with an adjacent README.md whose YAML
-    frontmatter has a dataset gap, plus [tool.pitloom.enrich] local = true,
+    frontmatter has a dataset gap, plus [tool.pitloom] enrich = true,
     must produce the same enrichment artifacts (dataset_DatasetPackage,
     "enrichment"-kind Annotation) the build hook already produces via
     build() -- confirming the hook auto-inherits project-level enrichment
@@ -686,7 +686,7 @@ def test_hook_enrichment_produces_dataset_and_annotation() -> None:
         write_pyproject_with_pitloom_config(
             tmp_path,
             '[tool.hatch.build.targets.wheel]\npackages = ["testpkg"]\n'
-            "\n[tool.pitloom.enrich]\nlocal = true\n",
+            "\n[tool.pitloom]\nenrich = true\n",
         )
         (tmp_path / "testpkg").mkdir()
         (tmp_path / "testpkg" / "__init__.py").write_text("", encoding="utf-8")
@@ -722,7 +722,7 @@ def test_hook_enrichment_produces_dataset_and_annotation() -> None:
 
 
 def test_hook_no_enrichment_by_default() -> None:
-    """Same fixture as above but with no [tool.pitloom.enrich] config at
+    """Same fixture as above but with no [tool.pitloom] enrich config at
     all: enrichment must stay off by default, same as every other surface."""
     fixture_model = (
         Path(__file__).parent

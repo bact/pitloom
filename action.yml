@@ -41,23 +41,32 @@ inputs:
   enrich:
     description: >-
       Run local README/model-card enrichment ("true"/"false"). Empty
-      (default) defers to the project's [tool.pitloom.enrich] config,
+      (default) defers to the project's [tool.pitloom] enrich config,
       which is off by default.
     required: false
     default: ""
-  file-headers:
+  extract-file-header:
     description: >-
       Scan each source file's SPDX-File* header tags ("true"/"false").
-      Empty (default) defers to the project's [tool.pitloom.file-headers]
-      config, which is on by default.
+      Empty (default) defers to the project's [tool.pitloom]
+      extract-file-header config, which is on by default.
     required: false
     default: ""
   content-type:
     description: >-
       Detect each file's content type via magika/mimetypes ("true"/"false").
-      Empty (default) defers to [tool.pitloom.file-headers]
-      detect-content-type, which is off by default -- turn on deliberately,
-      not reflexively, given the per-file cost.
+      Empty (default) defers to [tool.pitloom.content-type] enabled,
+      which is off by default -- turn on deliberately, not reflexively,
+      given the per-file cost.
+    required: false
+    default: ""
+  content-type-method:
+    description: >-
+      Which detector resolves content-type's values: "auto" (try magika,
+      fall back to a filename-extension guess), "magika" (same, but error
+      immediately if the magika package isn't installed), or "extension"
+      (skip magika entirely, stdlib-only). Empty (default) defers to
+      [tool.pitloom.content-type] method, which is "auto" by default.
     required: false
     default: ""
   args:
@@ -140,8 +149,9 @@ runs:
         PL_OUTPUT: ${{ inputs.output }}
         PL_PRETTY: ${{ inputs.pretty }}
         PL_ENRICH: ${{ inputs.enrich }}
-        PL_FILE_HEADERS: ${{ inputs.file-headers }}
+        PL_EXTRACT_FILE_HEADER: ${{ inputs.extract-file-header }}
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
+        PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -161,15 +171,18 @@ runs:
         elif [ "${PL_ENRICH}" = "false" ]; then
           loom_args+=("--no-enrich")
         fi
-        if [ "${PL_FILE_HEADERS}" = "true" ]; then
-          loom_args+=("--file-headers")
-        elif [ "${PL_FILE_HEADERS}" = "false" ]; then
-          loom_args+=("--no-file-headers")
+        if [ "${PL_EXTRACT_FILE_HEADER}" = "true" ]; then
+          loom_args+=("--extract-file-header")
+        elif [ "${PL_EXTRACT_FILE_HEADER}" = "false" ]; then
+          loom_args+=("--no-extract-file-header")
         fi
         if [ "${PL_CONTENT_TYPE}" = "true" ]; then
           loom_args+=("--content-type")
         elif [ "${PL_CONTENT_TYPE}" = "false" ]; then
           loom_args+=("--no-content-type")
+        fi
+        if [ -n "${PL_CONTENT_TYPE_METHOD}" ]; then
+          loom_args+=("--content-type-method" "${PL_CONTENT_TYPE_METHOD}")
         fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

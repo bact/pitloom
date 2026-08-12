@@ -143,7 +143,7 @@ loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
 loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
 ```
 
-Register the fragment under `[tool.pitloom.fragments]` and re-run
+Register the fragment under `[tool.pitloom.fragment]` and re-run
 `loom project`/`loom generate` to merge it in. See
 [`sbom-enrichment.md`](working-docs/design/sbom-enrichment.md) for the
 full surface list (Python API, Hatchling hook, GitHub Action, Skill).
@@ -178,7 +178,7 @@ as compact canonical JSON. Basename and fragments are configured under
 [tool.pitloom]
 sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name>-<version>")
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = ["fragments/model.json"]   # merge externally tracked fragments
 ```
 
@@ -373,7 +373,7 @@ pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
 `pitloom.loom`, `loom model`, the build hook, and `generate()` all
-auto-discover the registry (or take it from `[tool.pitloom.ids] file`),
+auto-discover the registry (or take it from `[tool.pitloom] ids-file`),
 so the same file/entity carries the same id everywhere. Regeneration is
 stable: an unchanged file keeps its id; changed content gets a fresh one
 (different bytes are different provenance).
