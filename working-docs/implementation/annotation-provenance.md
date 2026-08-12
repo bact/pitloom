@@ -917,6 +917,18 @@ mapping is where a smarter policy would plug in (e.g. falling back to
 `externalReported`, `inferred`, and `sbomAuthorSupplied` never map to a
 native relationship for license (no 3rd/4th/5th native slot exists).
 
+**File-level exception:** a `software_File`'s own `SPDX-License-Identifier`
+header tag always maps to `hasDeclaredLicense`, never
+`hasConcludedLicense`, regardless of the general `declared`/`detected`
+split above. There is exactly one candidate at file granularity (the
+file's own header, if any) and its role is `declared` by construction —
+nothing to disambiguate, so the concluded-vs-declared classification
+heuristic used at project/dependency level doesn't apply. See
+`build_file_declared_license` in
+[`deps.py`](../../src/pitloom/assemble/spdx3/deps.py) and
+[file-headers.md](../design/file-headers.md) for the full per-file
+extraction design.
+
 **What's actually built (v1, license only).**
 [`_license.py`](../../src/pitloom/extract/_license.py)
 `detect_independent_license` — independently scans the project directory

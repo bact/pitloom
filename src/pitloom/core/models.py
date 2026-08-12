@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import operator
 import re
+from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING, TypedDict
 from uuid import UUID, uuid4, uuid5
 
 from hatchling.metadata.utils import normalize_requirement
@@ -18,6 +20,12 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from pitloom.core.project import ProjectFile
+
+if TYPE_CHECKING:
+    # Type-only: core/ must not import from extract/ at runtime (see
+    # get_wheel_files()'s own deferred imports below) -- this import is
+    # erased before execution, so it doesn't violate that layering.
+    from pitloom.extract._file_headers import FileHeaderMetadata
 
 # Fixed pitloom namespace UUID, stable across all versions.
 # Derived from: uuid5(NAMESPACE_URL, "https://github.com/bact/pitloom")
@@ -114,7 +122,53 @@ def _build_merkle_tree(leaf_hashes: list[bytes]) -> str:
     return nodes[0].hex()
 
 
-def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
+class _FileHeaderExtras(TypedDict):
+    """Keyword arguments for :class:`ProjectFile`'s header/content-type fields."""
+
+    copyright_text: str | None
+    copyright_source: str | None
+    file_contributors: list[str]
+    file_type: str | None
+    spdx_license_identifier: str | None
+    content_type: str | None
+    content_type_method: str | None
+
+
+def _resolve_file_header_extras(
+    raw_bytes: bytes,
+    filename: str,
+    parse_header: Callable[[bytes], FileHeaderMetadata | None] | None,
+    detect_content: Callable[[bytes, str], tuple[str | None, str | None]] | None,
+) -> _FileHeaderExtras:
+    """Resolve the optional per-file header/content-type fields for *raw_bytes*.
+
+    Returns :class:`ProjectFile` keyword arguments (empty/``None`` values
+    when the corresponding detector wasn't requested at all) -- factored
+    out of :func:`get_wheel_files` to keep its own body under the locals
+    budget, not for reuse elsewhere.
+    """
+    header = parse_header(raw_bytes) if parse_header else None
+    content_type: str | None = None
+    content_type_method: str | None = None
+    if detect_content:
+        content_type, content_type_method = detect_content(raw_bytes, filename)
+    return _FileHeaderExtras(
+        copyright_text=header.copyright_text if header else None,
+        copyright_source=header.copyright_source if header else None,
+        file_contributors=header.file_contributors if header else [],
+        file_type=header.file_type if header else None,
+        spdx_license_identifier=(header.spdx_license_identifier if header else None),
+        content_type=content_type,
+        content_type_method=content_type_method,
+    )
+
+
+def get_wheel_files(
+    project_dir: Path,
+    *,
+    scan_file_headers: bool = False,
+    detect_content_type: bool = False,
+) -> tuple[str | None, list[ProjectFile]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
     Uses hatchling's :class:`~hatchling.builders.wheel.WheelBuilder` to
@@ -126,6 +180,19 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
 
     Args:
         project_dir: Project root directory containing ``pyproject.toml``.
+        scan_file_headers: When ``True``, parse each file's leading comment
+            header for SPDX-File* tags (see
+            :func:`pitloom.extract._file_headers.parse_file_header`),
+            reusing the bytes already read for hashing -- no second file
+            read. Off by default at this function's own level; callers
+            thread their own effective default (see
+            :class:`pitloom.core.file_headers_config.FileHeadersConfig`).
+        detect_content_type: When ``True``, also detect each file's real
+            content type (see
+            :func:`pitloom.extract._file_headers.guess_content_type`) --
+            independent of ``scan_file_headers``, gated by its own
+            separate parameter since it has a real per-file cost
+            ``scan_file_headers`` alone does not.
 
     Returns:
         Tuple of (Hex-encoded Merkle root or None, List of ProjectFile objects).
@@ -133,6 +200,18 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
     # TODO: Update this when supporting setuptools or other build backends.
     # pylint: disable=import-outside-toplevel,cyclic-import
     from hatchling.builders.wheel import WheelBuilder  # runtime dep, local import
+
+    parse_header = None
+    if scan_file_headers:
+        from pitloom.extract._file_headers import parse_file_header
+
+        parse_header = parse_file_header
+
+    detect_content = None
+    if detect_content_type:
+        from pitloom.extract._file_headers import guess_content_type
+
+        detect_content = guess_content_type
 
     try:
         builder = WheelBuilder(str(project_dir))
@@ -153,17 +232,29 @@ def get_wheel_files(project_dir: Path) -> tuple[str | None, list[ProjectFile]]:
                 # below, and is safe on every OS: pathlib accepts forward
                 # slashes on Windows too.
                 distribution_path = included_file.distribution_path.replace("\\", "/")
-                digest_bytes = hashlib.sha256(source.read_bytes()).digest()
+                raw_bytes = source.read_bytes()
+                digest_bytes = hashlib.sha256(raw_bytes).digest()
                 file_entries.append((distribution_path, digest_bytes))
                 try:
                     rel_path = source.relative_to(project_dir).as_posix()
                 except ValueError:
                     rel_path = source.as_posix()
+
+                # This is the only point in the pipeline where the file's
+                # bytes are still in memory -- header parsing/content-type
+                # detection must happen here, not in the assembly layer,
+                # which only ever sees the resolved ProjectFile fields
+                # below (never the bytes themselves; holding every file's
+                # bytes across a large project would be a memory blow-up).
+                extras = _resolve_file_header_extras(
+                    raw_bytes, source.name, parse_header, detect_content
+                )
                 project_files.append(
                     ProjectFile(
                         physical_path=rel_path,
                         distribution_path=distribution_path,
                         digest_sha256=digest_bytes.hex(),
+                        **extras,
                     )
                 )
     except Exception:  # pylint: disable=broad-exception-caught

@@ -105,6 +105,8 @@ def generate_project_sbom(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
+    file_headers: bool | None = None,
+    content_type: bool | None = None,
     offline: bool | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
@@ -112,6 +114,14 @@ def generate_project_sbom(
     ``enrich``: ``None`` (default) defers to ``[tool.pitloom.enrich]``
     (off by default); ``True``/``False`` overrides it for this run, applied
     to every AI model discovered in the project.
+
+    ``file_headers``: ``None`` (default) defers to
+    ``[tool.pitloom.file-headers] enabled`` (on by default); ``True``/
+    ``False`` overrides it for this run. ``content_type``: ``None``
+    (default) defers to ``[tool.pitloom.file-headers] detect-content-type``
+    (off by default -- real per-file cost); independently overridable of
+    ``file_headers``. Both only apply to a directory target (an sdist
+    archive's ``project_files`` come from whatever extractor already ran).
 
     ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
     (network attempted, best-effort, by default); ``True``/``False``
@@ -133,6 +143,14 @@ def generate_project_sbom(
         if enrich is not None
         else pitloom_config.enrich
     )
+    effective_file_headers: bool = (
+        pitloom_config.file_headers.enabled if file_headers is None else file_headers
+    )
+    effective_content_type: bool = (
+        pitloom_config.file_headers.detect_content_type
+        if content_type is None
+        else content_type
+    )
     effective_offline: bool = pitloom_config.offline if offline is None else offline
 
     if target_path.is_file():
@@ -140,7 +158,11 @@ def generate_project_sbom(
         project_files = project_metadata.files
         search_root = target_path.parent
     else:
-        merkle_root, project_files = get_wheel_files(target_path)
+        merkle_root, project_files = get_wheel_files(
+            target_path,
+            scan_file_headers=effective_file_headers,
+            detect_content_type=effective_content_type,
+        )
         project_metadata.files = project_files
         search_root = target_path
 
@@ -500,11 +522,16 @@ def generate(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
+    file_headers: bool | None = None,
+    content_type: bool | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
     ``enrich`` is forwarded to ``generate_model_sbom``/``generate_project_sbom``
     only -- the environment and wheel targets have no enrichment to run.
+    ``file_headers``/``content_type`` are forwarded to
+    ``generate_project_sbom`` only (v1 scope -- see that function's
+    docstring); a no-op elsewhere.
     """
     target_str = str(target).strip()
 
@@ -585,6 +612,8 @@ def generate(
         registry=registry,
         provenance=provenance,
         enrich=enrich,
+        file_headers=file_headers,
+        content_type=content_type,
         offline=offline,
     )
 

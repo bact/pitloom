@@ -177,6 +177,28 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         ),
     )
     parent.add_argument(
+        "--file-headers",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Scan each source file's leading comment header for SPDX-File* "
+            "tags (FileCopyrightText, FileContributor, FileType) and a "
+            "per-file SPDX-License-Identifier. Defers to "
+            "[tool.pitloom.file-headers] (on by default) when omitted."
+        ),
+    )
+    parent.add_argument(
+        "--content-type",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Detect each file's real content type via magika/mimetypes, "
+            "independent of --file-headers. Defers to "
+            "[tool.pitloom.file-headers] detect-content-type (off by "
+            "default -- real per-file cost) when omitted."
+        ),
+    )
+    parent.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -787,6 +809,8 @@ def _run_generate_mode(args: argparse.Namespace) -> int:
             describe_relationship=describe_relationship,
             registry=args.registry,
             enrich=args.enrich,
+            file_headers=args.file_headers,
+            content_type=args.content_type,
         )
         return 0
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -837,6 +861,8 @@ def _run_project_mode(args: argparse.Namespace) -> int:
             registry=args.registry,
             enrich=args.enrich,
             offline=args.offline or None,
+            file_headers=args.file_headers,
+            content_type=args.content_type,
         )
         return 0
 

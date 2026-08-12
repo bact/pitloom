@@ -172,3 +172,151 @@ def test_get_wheel_files_normalizes_windows_style_distribution_path(
     )
     assert [f.distribution_path for f in posix_files] == ["pkg/zoo.py", "pkg0/a.py"]
     assert [f.distribution_path for f in windows_files] == ["pkg/zoo.py", "pkg0/a.py"]
+
+
+# ---------------------------------------------------------------------------
+# get_wheel_files: scan_file_headers / detect_content_type
+# ---------------------------------------------------------------------------
+
+
+def _make_header_project(tmp_path: Path) -> tuple[Path, Path]:
+    """Build a minimal project with one SPDX-tagged file and one plain file.
+
+    Returns (tagged_file, plain_file).
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["hatchling"]\n'
+        'build-backend = "hatchling.build"\n\n'
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    pkg_dir = tmp_path / "pkg"
+    pkg_dir.mkdir()
+    tagged_file = pkg_dir / "tagged.py"
+    tagged_file.write_text(
+        "# SPDX-FileCopyrightText: 2026 Test Author\n"
+        "# SPDX-License-Identifier: MIT\n"
+        "value = 1\n",
+        encoding="utf-8",
+    )
+    plain_file = pkg_dir / "plain.py"
+    plain_file.write_text("value = 2\n", encoding="utf-8")
+    return tagged_file, plain_file
+
+
+def _patch_recurse(
+    monkeypatch: pytest.MonkeyPatch, tagged_file: Path, plain_file: Path
+) -> None:
+    def _fake_recurse(_self: WheelBuilder) -> Iterator[_FakeIncludedFile]:
+        yield _FakeIncludedFile(str(tagged_file), "pkg/tagged.py")
+        yield _FakeIncludedFile(str(plain_file), "pkg/plain.py")
+
+    monkeypatch.setattr(WheelBuilder, "recurse_included_files", _fake_recurse)
+
+
+def test_get_wheel_files_scan_file_headers_disabled_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With both new params at their own default (False), no header
+    parsing or content-type detection happens -- new ProjectFile fields
+    stay empty even for a file that carries SPDX tags."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    calls: list[str] = []
+
+    def _spy_parse(data: bytes) -> None:
+        del data
+        calls.append("parse_file_header")
+
+    def _spy_guess(data: bytes, filename: str) -> tuple[None, None]:
+        del data, filename
+        calls.append("guess_content_type")
+        return None, None
+
+    monkeypatch.setattr("pitloom.extract._file_headers.parse_file_header", _spy_parse)
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    _root, files = get_wheel_files(tmp_path)
+
+    assert not calls
+    tagged = next(f for f in files if f.distribution_path == "pkg/tagged.py")
+    assert tagged.copyright_text is None
+    assert tagged.file_type is None
+    assert tagged.spdx_license_identifier is None
+    assert tagged.content_type is None
+    assert tagged.content_type_method is None
+
+
+def test_get_wheel_files_scan_file_headers_enabled_content_type_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """scan_file_headers=True, detect_content_type=False: tag fields are
+    populated for the tagged file; content_type stays empty and
+    guess_content_type is never called."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    content_type_calls: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str) -> tuple[None, None]:
+        del data
+        content_type_calls.append(filename)
+        return None, None
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    _root, files = get_wheel_files(tmp_path, scan_file_headers=True)
+
+    assert not content_type_calls
+    tagged = next(f for f in files if f.distribution_path == "pkg/tagged.py")
+    assert tagged.copyright_text == "2026 Test Author"
+    assert tagged.copyright_source == "spdx_tag"
+    assert tagged.spdx_license_identifier == "MIT"
+    assert tagged.content_type is None
+    plain = next(f for f in files if f.distribution_path == "pkg/plain.py")
+    assert plain.copyright_text is None
+
+
+def test_get_wheel_files_detect_content_type_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both params True: content_type is resolved for every file,
+    regardless of whether it has any header tag at all."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    _root, files = get_wheel_files(
+        tmp_path, scan_file_headers=True, detect_content_type=True
+    )
+
+    for project_file in files:
+        assert project_file.content_type is not None
+        assert project_file.content_type_method in (
+            "magika",
+            "mimetype_extension_guess",
+        )
+
+
+def test_get_wheel_files_merkle_root_identical_across_flag_combinations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Merkle root only ever consumes file-content hashes -- it must
+    be identical for the same files regardless of scan_file_headers/
+    detect_content_type, since neither flag changes what bytes are
+    hashed."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+    root_off, _ = get_wheel_files(tmp_path)
+
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+    root_headers, _ = get_wheel_files(tmp_path, scan_file_headers=True)
+
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+    root_both, _ = get_wheel_files(
+        tmp_path, scan_file_headers=True, detect_content_type=True
+    )
+
+    assert root_off is not None
+    assert root_off == root_headers == root_both

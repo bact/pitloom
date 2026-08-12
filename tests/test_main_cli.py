@@ -552,6 +552,137 @@ def test_model_mode_enrich_flag_passed_through(
     assert captured["enrich"] is expected
 
 
+def _make_simple_project(tmp_path: Path) -> Path:
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        """
+[project]
+name = "demo"
+version = "1.0.0"
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    return project_dir
+
+
+def test_project_mode_default_file_headers_and_content_type_are_none(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """No --file-headers/--content-type flags: both must reach
+    generate_project_sbom() as None, deferring to [tool.pitloom.file-headers]
+    rather than forcing either state."""
+    project_dir = _make_simple_project(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
+        _ = project_dir
+        captured["file_headers"] = kwargs.get("file_headers")
+        captured["content_type"] = kwargs.get("content_type")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(project_dir)])
+
+    assert __main__.main() == 0
+    assert captured["file_headers"] is None
+    assert captured["content_type"] is None
+
+
+@pytest.mark.parametrize(
+    ("flag", "kwarg", "expected"),
+    [
+        ("--file-headers", "file_headers", True),
+        ("--no-file-headers", "file_headers", False),
+        ("--content-type", "content_type", True),
+        ("--no-content-type", "content_type", False),
+    ],
+)
+def test_project_mode_file_headers_content_type_flags_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    flag: str,
+    kwarg: str,
+    expected: bool,
+) -> None:
+    """--file-headers/--no-file-headers and --content-type/--no-content-type
+    must each override generate_project_sbom()'s corresponding param
+    independently, not just be silently dropped."""
+    project_dir = _make_simple_project(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate_project_sbom(project_dir: Path, **kwargs: object) -> str:
+        _ = project_dir
+        captured["file_headers"] = kwargs.get("file_headers")
+        captured["content_type"] = kwargs.get("content_type")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate_project_sbom", _fake_generate_project_sbom)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(project_dir), flag])
+
+    assert __main__.main() == 0
+    assert captured[kwarg] is expected
+
+
+def test_generate_mode_default_file_headers_and_content_type_are_none(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """No --file-headers/--content-type flags: both must reach generate()
+    as None, deferring to [tool.pitloom.file-headers]."""
+    project_dir = _make_simple_project(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate(target: object, **kwargs: object) -> str:
+        _ = target
+        captured["file_headers"] = kwargs.get("file_headers")
+        captured["content_type"] = kwargs.get("content_type")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate", _fake_generate)
+    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir)])
+
+    assert __main__.main() == 0
+    assert captured["file_headers"] is None
+    assert captured["content_type"] is None
+
+
+@pytest.mark.parametrize(
+    ("flag", "kwarg", "expected"),
+    [
+        ("--file-headers", "file_headers", True),
+        ("--no-file-headers", "file_headers", False),
+        ("--content-type", "content_type", True),
+        ("--no-content-type", "content_type", False),
+    ],
+)
+def test_generate_mode_file_headers_content_type_flags_passed_through(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    flag: str,
+    kwarg: str,
+    expected: bool,
+) -> None:
+    """--file-headers/--no-file-headers and --content-type/--no-content-type
+    must each override generate()'s corresponding param independently."""
+    project_dir = _make_simple_project(tmp_path)
+    captured: dict[str, object] = {}
+
+    def _fake_generate(target: object, **kwargs: object) -> str:
+        _ = target
+        captured["file_headers"] = kwargs.get("file_headers")
+        captured["content_type"] = kwargs.get("content_type")
+        return "{}"
+
+    monkeypatch.setattr(__main__, "generate", _fake_generate)
+    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir), flag])
+
+    assert __main__.main() == 0
+    assert captured[kwarg] is expected
+
+
 def test_model_mode_passes_pretty_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -148,7 +148,11 @@ def _build_document_model(
     """
     metadata = metadata_from_hatchling(hatch_metadata, project_dir)
     creation_metadata = _build_creation_metadata(pitloom_config)
-    merkle_root, project_files = get_wheel_files(project_dir)
+    merkle_root, project_files = get_wheel_files(
+        project_dir,
+        scan_file_headers=pitloom_config.file_headers.enabled,
+        detect_content_type=pitloom_config.file_headers.detect_content_type,
+    )
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
     phantom_deps = find_phantom_dependencies(project_files)

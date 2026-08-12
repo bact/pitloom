@@ -901,6 +901,55 @@ def build_license_elements(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
+def build_file_declared_license(
+    license_id: str,
+    file_spdx_id: str,
+    license_provenance: str,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> spdx3.Relationship:
+    """Get-or-create a ``SimpleLicensingText`` element for *license_id* and
+    return a ``hasDeclaredLicense`` Relationship from *file_spdx_id* to it.
+
+    Unlike :func:`build_license_elements`, this never applies the
+    declared/concluded classification heuristic
+    (:func:`_is_license_concluded`): a file's own ``SPDX-License-Identifier``
+    tag is always its own ``declared`` claim by construction -- there is
+    exactly one candidate at file granularity, nothing to disambiguate
+    against. Calling :func:`build_license_elements` here would silently
+    misclassify it as ``hasConcludedLicense`` instead, since a file's own
+    path is never in :data:`~pitloom.assemble.spdx3.provenance.TRANSPARENT_SOURCES`.
+
+    Dedup is by license-id string via :func:`_get_or_create_license_element`
+    -- a file whose license matches the project's or another file's reuses
+    the same element.
+    """
+    license_spdx_id = _get_or_create_license_element(
+        license_id,
+        license_provenance,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+    return _build_license_relationship(
+        file_spdx_id,
+        license_spdx_id,
+        spdx3.RelationshipType.hasDeclaredLicense,
+        creation_info,
+        doc_name,
+        doc_uuid,
+    )
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _finish_dependency_enrichment(
     dep_name: str,
     dep_version: str,

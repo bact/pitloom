@@ -14,6 +14,7 @@ from typing import Any
 
 from pitloom.core.creation import Creator, Tool
 from pitloom.core.enrich_config import EnrichConfig
+from pitloom.core.file_headers_config import FileHeadersConfig
 from pitloom.core.provenance import ProvenanceConfig
 
 if sys.version_info >= (3, 11):
@@ -131,6 +132,13 @@ class PitloomConfig:
             (README/model-card YAML frontmatter), from
             ``[tool.pitloom.enrich] local``. Defaults to ``False`` --
             enrichment is opt-in until more sources ship.
+        file_headers_enabled: Whether to scan each file's own SPDX-File*
+            header tags, from ``[tool.pitloom.file-headers] enabled``.
+            Defaults to ``True`` -- see :class:`FileHeadersConfig`.
+        file_headers_detect_content_type: Whether to also detect each
+            file's content type via ``magika``/``mimetypes``, from
+            ``[tool.pitloom.file-headers] detect-content-type``. Defaults
+            to ``False`` -- see :class:`FileHeadersConfig`.
         offline: Whether to skip the PyPI JSON API fallback used to fill
             dependency-package supplier/license/integrity-hash gaps that
             installed metadata didn't cover, from ``[tool.pitloom] offline``.
@@ -154,6 +162,8 @@ class PitloomConfig:
     provenance_detail: str = "minimal"
     provenance_preserve_source_metadata: str = "auto"
     enrich_local: bool = False
+    file_headers_enabled: bool = True
+    file_headers_detect_content_type: bool = False
     offline: bool = False
 
     @property
@@ -164,6 +174,14 @@ class PitloomConfig:
             schema=self.provenance_schema,
             detail=self.provenance_detail,
             preserve_source_metadata=self.provenance_preserve_source_metadata,
+        )
+
+    @property
+    def file_headers(self) -> FileHeadersConfig:
+        """Return FileHeadersConfig constructed from current config settings."""
+        return FileHeadersConfig(
+            enabled=self.file_headers_enabled,
+            detect_content_type=self.file_headers_detect_content_type,
         )
 
     @property
@@ -396,6 +414,36 @@ def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
     return local
 
 
+def _read_file_headers_settings(pitloom_data: dict[str, Any]) -> tuple[bool, bool]:
+    """Read ``[tool.pitloom.file-headers]``, return ``(enabled, detect_content_type)``.
+
+    Raises:
+        ValueError: If ``file-headers`` is present but not a table, or if
+            ``enabled``/``detect-content-type`` is present but not a
+            boolean.
+    """
+    raw = pitloom_data.get("file-headers", {})
+    if not isinstance(raw, dict):
+        raise ValueError(
+            "[tool.pitloom.file-headers] must be a table, got "
+            f"{type(raw).__name__}: {raw!r}"
+        )
+    enabled = raw.get("enabled", True)
+    if not isinstance(enabled, bool):
+        raise ValueError(
+            f"[tool.pitloom.file-headers] 'enabled' must be a boolean, got "
+            f"{type(enabled).__name__}: {enabled!r}"
+        )
+    detect_content_type = raw.get("detect-content-type", False)
+    if not isinstance(detect_content_type, bool):
+        raise ValueError(
+            "[tool.pitloom.file-headers] 'detect-content-type' must be a "
+            f"boolean, got {type(detect_content_type).__name__}: "
+            f"{detect_content_type!r}"
+        )
+    return enabled, detect_content_type
+
+
 def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
     """Read ``[tool.pitloom] offline``.
 
@@ -487,6 +535,9 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_preserve,
     ) = _read_provenance_settings(pitloom_data)
     enrich_local = _read_enrich_settings(pitloom_data)
+    file_headers_enabled, file_headers_detect_content_type = (
+        _read_file_headers_settings(pitloom_data)
+    )
     pretty = bool(pitloom_data.get("pretty", False))
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
@@ -523,6 +574,8 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_detail=provenance_detail,
         provenance_preserve_source_metadata=provenance_preserve,
         enrich_local=enrich_local,
+        file_headers_enabled=file_headers_enabled,
+        file_headers_detect_content_type=file_headers_detect_content_type,
         offline=offline,
     )
 

@@ -24,10 +24,11 @@ only), as compact canonical JSON.
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.13.3"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.13.4"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
+# This can be empty
 ```
 
 That's all -- `hatch build` and `python -m build` now embed the SBOM.

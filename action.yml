@@ -45,13 +45,28 @@ inputs:
       which is off by default.
     required: false
     default: ""
+  file-headers:
+    description: >-
+      Scan each source file's SPDX-File* header tags ("true"/"false").
+      Empty (default) defers to the project's [tool.pitloom.file-headers]
+      config, which is on by default.
+    required: false
+    default: ""
+  content-type:
+    description: >-
+      Detect each file's content type via magika/mimetypes ("true"/"false").
+      Empty (default) defers to [tool.pitloom.file-headers]
+      detect-content-type, which is off by default -- turn on deliberately,
+      not reflexively, given the per-file cost.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.13.3" or
+      Pitloom version or version specifier to install, e.g. "0.13.4" or
       ">=0.13,<1.0". Empty installs the latest release from PyPI.
     required: false
     default: ""
@@ -103,7 +118,7 @@ runs:
           spec="${spec}[${PL_EXTRAS}]"
         fi
         if [ -n "${PL_VERSION}" ]; then
-          # pitloom-version accepts either a bare version ("0.13.3") or a
+          # pitloom-version accepts either a bare version ("0.13.4") or a
           # full specifier (">=0.13,<1.0"). A leading comparison operator
           # means it is already a specifier; only bare versions need "=="
           # inserted, otherwise "pitloom==>=0.13,<1.0" is invalid.
