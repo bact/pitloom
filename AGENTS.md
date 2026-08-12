@@ -29,11 +29,13 @@ Unix philosophy. Consistent, predictable, parseable.
 - Key-value: `KEY=VALUE` -- uppercase KEY, no spaces around `=`.
 - Errors: `ERROR: <short description>` to stderr.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
+- Messages get trimmed to essentials and share a literal, grep-able prefix.
 - JSON/CSV/file output supported as options.
 
 ## Code style
 
-- Code comments must direct, concise and about current implementation. Do not discuss history. Legimate current behavior vs alternative design is ok.
+- Code comments must direct, concise and about current implementation.
+  Do not discuss history. Legimate current behavior vs alternative design is ok.
 
 ## Python
 
