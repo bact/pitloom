@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,7 +15,7 @@ from typing import Any
 
 from pitloom.core.creation import Creator, Tool
 from pitloom.core.enrich_config import EnrichConfig
-from pitloom.core.file_headers_config import FileHeadersConfig
+from pitloom.core.file_headers_config import ContentTypeOverride, FileHeadersConfig
 from pitloom.core.provenance import ProvenanceConfig
 
 if sys.version_info >= (3, 11):
@@ -139,6 +140,10 @@ class PitloomConfig:
             file's content type via ``magika``/``mimetypes``, from
             ``[tool.pitloom.file-headers] detect-content-type``. Defaults
             to ``False`` -- see :class:`FileHeadersConfig`.
+        file_headers_content_type_overrides: Glob-pattern -> MIME-type
+            entries that pre-empt detection for matching files, from
+            ``[[tool.pitloom.file-headers.content-type-overrides]]``.
+            Empty by default -- see :class:`ContentTypeOverride`.
         offline: Whether to skip the PyPI JSON API fallback used to fill
             dependency-package supplier/license/integrity-hash gaps that
             installed metadata didn't cover, from ``[tool.pitloom] offline``.
@@ -164,6 +169,7 @@ class PitloomConfig:
     enrich_local: bool = False
     file_headers_enabled: bool = True
     file_headers_detect_content_type: bool = False
+    file_headers_content_type_overrides: tuple[ContentTypeOverride, ...] = ()
     offline: bool = False
 
     @property
@@ -182,6 +188,7 @@ class PitloomConfig:
         return FileHeadersConfig(
             enabled=self.file_headers_enabled,
             detect_content_type=self.file_headers_detect_content_type,
+            content_type_overrides=self.file_headers_content_type_overrides,
         )
 
     @property
@@ -414,13 +421,71 @@ def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
     return local
 
 
-def _read_file_headers_settings(pitloom_data: dict[str, Any]) -> tuple[bool, bool]:
-    """Read ``[tool.pitloom.file-headers]``, return ``(enabled, detect_content_type)``.
+#: A basic ``type/subtype`` shape check for a configured ``content-type``
+#: override value -- not full IANA media-type validation, just enough to
+#: catch an obvious typo in ``pyproject.toml`` early with a clear message
+#: rather than letting a malformed value surface later as an opaque SPDX
+#: schema-validation failure.
+_CONTENT_TYPE_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
+
+
+def _read_content_type_overrides(
+    raw: dict[str, Any],
+) -> tuple[ContentTypeOverride, ...]:
+    """Read ``[[tool.pitloom.file-headers.content-type-overrides]]`` from
+    the already-validated ``[tool.pitloom.file-headers]`` table *raw*.
 
     Raises:
-        ValueError: If ``file-headers`` is present but not a table, or if
+        ValueError: If ``content-type-overrides`` is present but not an
+            array of tables, or if an entry's ``pattern``/``content-type``
+            is missing or malformed.
+    """
+    raw_overrides = raw.get("content-type-overrides", [])
+    if not isinstance(raw_overrides, list):
+        raise ValueError(
+            "[tool.pitloom.file-headers] 'content-type-overrides' must be "
+            f"an array of tables, got {type(raw_overrides).__name__}: "
+            f"{raw_overrides!r}"
+        )
+    overrides: list[ContentTypeOverride] = []
+    for entry in raw_overrides:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                "[[tool.pitloom.file-headers.content-type-overrides]] "
+                f"entries must be tables, got {type(entry).__name__}: {entry!r}"
+            )
+        pattern = entry.get("pattern")
+        if not isinstance(pattern, str) or not pattern:
+            raise ValueError(
+                "[[tool.pitloom.file-headers.content-type-overrides]] "
+                f"'pattern' must be a non-empty string, got {pattern!r}"
+            )
+        content_type = entry.get("content-type")
+        if not isinstance(content_type, str) or not _CONTENT_TYPE_RE.match(
+            content_type
+        ):
+            raise ValueError(
+                "[[tool.pitloom.file-headers.content-type-overrides]] "
+                "'content-type' must be a MIME type in 'type/subtype' form "
+                f"(e.g. 'image/png'), got {content_type!r}"
+            )
+        overrides.append(
+            ContentTypeOverride(pattern=pattern, content_type=content_type)
+        )
+    return tuple(overrides)
+
+
+def _read_file_headers_settings(
+    pitloom_data: dict[str, Any],
+) -> tuple[bool, bool, tuple[ContentTypeOverride, ...]]:
+    """Read ``[tool.pitloom.file-headers]``, return
+    ``(enabled, detect_content_type, content_type_overrides)``.
+
+    Raises:
+        ValueError: If ``file-headers`` is present but not a table, if
             ``enabled``/``detect-content-type`` is present but not a
-            boolean.
+            boolean, or if ``content-type-overrides`` is malformed (see
+            :func:`_read_content_type_overrides`).
     """
     raw = pitloom_data.get("file-headers", {})
     if not isinstance(raw, dict):
@@ -441,7 +506,8 @@ def _read_file_headers_settings(pitloom_data: dict[str, Any]) -> tuple[bool, boo
             f"boolean, got {type(detect_content_type).__name__}: "
             f"{detect_content_type!r}"
         )
-    return enabled, detect_content_type
+    content_type_overrides = _read_content_type_overrides(raw)
+    return enabled, detect_content_type, content_type_overrides
 
 
 def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
@@ -503,6 +569,7 @@ def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
     return None
 
 
+# pylint: disable=too-many-locals
 def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
@@ -535,9 +602,11 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_preserve,
     ) = _read_provenance_settings(pitloom_data)
     enrich_local = _read_enrich_settings(pitloom_data)
-    file_headers_enabled, file_headers_detect_content_type = (
-        _read_file_headers_settings(pitloom_data)
-    )
+    (
+        file_headers_enabled,
+        file_headers_detect_content_type,
+        file_headers_content_type_overrides,
+    ) = _read_file_headers_settings(pitloom_data)
     pretty = bool(pitloom_data.get("pretty", False))
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
@@ -576,6 +645,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         enrich_local=enrich_local,
         file_headers_enabled=file_headers_enabled,
         file_headers_detect_content_type=file_headers_detect_content_type,
+        file_headers_content_type_overrides=file_headers_content_type_overrides,
         offline=offline,
     )
 

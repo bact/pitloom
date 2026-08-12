@@ -9,11 +9,13 @@ import sys
 
 import pytest
 
+from pitloom.core.file_headers_config import ContentTypeOverride
 from pitloom.extract._file_headers import (
     FileHeaderMetadata,
     _get_magika,
     guess_content_type,
     parse_file_header,
+    resolve_content_type_override,
 )
 
 
@@ -182,3 +184,60 @@ def test_guess_content_type_returns_none_when_neither_resolves(
     monkeypatch.setitem(sys.modules, "magika", None)
     mime_type, method = guess_content_type(b"whatever bytes", "mystery.xyzzy123")
     assert (mime_type, method) == (None, None)
+
+
+# ---------------------------------------------------------------------------
+# resolve_content_type_override
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_content_type_override_simple_extension_match() -> None:
+    """A bare '*.ext' pattern matches a file with that extension."""
+    overrides = (ContentTypeOverride(pattern="*.woff2", content_type="font/woff2"),)
+    result = resolve_content_type_override("assets/fonts/icons.woff2", overrides)
+    assert result == overrides[0]
+
+
+def test_resolve_content_type_override_directory_scoped_match_is_recursive() -> None:
+    """'*' matches '/' too, so 'vendor/*' matches nested paths, not just
+    direct children -- the intended "everything under this directory"
+    shortcut, not gitignore-style directory-boundary matching."""
+    overrides = (
+        ContentTypeOverride(
+            pattern="vendor/*", content_type="application/octet-stream"
+        ),
+    )
+    result = resolve_content_type_override("vendor/pkg/deep/lib.bin", overrides)
+    assert result == overrides[0]
+
+
+def test_resolve_content_type_override_first_match_wins() -> None:
+    """When multiple patterns match, the first one in configuration order wins."""
+    overrides = (
+        ContentTypeOverride(
+            pattern="vendor/*", content_type="application/octet-stream"
+        ),
+        ContentTypeOverride(pattern="*.bin", content_type="application/x-binary"),
+    )
+    result = resolve_content_type_override("vendor/lib.bin", overrides)
+    assert result is not None
+    assert result.content_type == "application/octet-stream"
+
+
+def test_resolve_content_type_override_no_match_returns_none() -> None:
+    """A file matching no configured pattern resolves to None."""
+    overrides = (ContentTypeOverride(pattern="*.woff2", content_type="font/woff2"),)
+    assert resolve_content_type_override("src/main.py", overrides) is None
+
+
+def test_resolve_content_type_override_empty_overrides_returns_none() -> None:
+    """No overrides configured at all: always None."""
+    assert resolve_content_type_override("src/main.py", ()) is None
+
+
+def test_resolve_content_type_override_is_case_sensitive() -> None:
+    """Matching uses fnmatch.fnmatchcase, not fnmatch.fnmatch -- the same
+    pattern must behave identically regardless of host-OS case-folding, so
+    a differently-cased path must not match."""
+    overrides = (ContentTypeOverride(pattern="*.PNG", content_type="image/png"),)
+    assert resolve_content_type_override("assets/logo.png", overrides) is None

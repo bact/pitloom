@@ -162,6 +162,7 @@ def generate_project_sbom(
             target_path,
             scan_file_headers=effective_file_headers,
             detect_content_type=effective_content_type,
+            content_type_overrides=pitloom_config.file_headers.content_type_overrides,
         )
         project_metadata.files = project_files
         search_root = target_path

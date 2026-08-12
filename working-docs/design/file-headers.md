@@ -127,6 +127,67 @@ detect-content-type = false # magika/mimetypes contentType detection
 `pip install pitloom[content-type]`. Unavailable means silent fallback
 to `mimetypes`, never an error.
 
+### Content-type overrides
+
+A third, config-only key pre-empts detection for specific files the
+project author already knows the content type of -- everything under
+`vendor/`, every `*.woff2` font, a generated `*.min.js` -- both to save
+the per-file detection cost and to get a deterministic value regardless
+of what `magika` would have guessed:
+
+```toml
+[tool.pitloom.file-headers]
+detect-content-type = true
+
+[[tool.pitloom.file-headers.content-type-overrides]]
+pattern = "*.woff2"
+content-type = "font/woff2"
+
+[[tool.pitloom.file-headers.content-type-overrides]]
+pattern = "vendor/*"
+content-type = "application/octet-stream"
+```
+
+Matching: `pattern` is a plain shell-glob, matched case-sensitively
+(`fnmatch.fnmatchcase`, not `fnmatch.fnmatch` -- the latter case-folds on
+Windows via `os.path.normcase`, which would make the same config behave
+differently across platforms) against each file's `distribution_path`
+(the canonical in-package path -- the same string that becomes the
+`software_File`'s own `name`). `*` matches any characters including
+`/`, so `vendor/*` matches everything under `vendor/`, not just direct
+children -- there is no `.gitignore`-style negation or
+directory-boundary distinction, since a value-mapping table doesn't need
+exclusion-set semantics. First match wins, in declaration order.
+
+**Overrides are a per-file refinement *within* the `detect-content-type`
+gate, not a bypass of it.** When `detect-content-type` is off, overrides
+never fire -- no file gets a `contentType` at all, identical to today's
+behaviour whether or not any are configured. When it's on, each file is
+checked against the table first: a match sets `contentType` directly and
+`magika`/`mimetypes` never run for that file; a non-match still goes
+through the normal detection path exactly as before. So overrides only
+ever save cost/add determinism for the specific patterns configured --
+they never change whether the feature runs at all.
+
+Role is `sbomAuthorSupplied`, not `detected` -- the config author is
+asserting the value directly, Pitloom isn't deriving anything for a
+match. Provenance: `Source: <file> | Method: sbomAuthorSupplied` (no
+`Tool:` segment -- there's no detector to attribute).
+
+**Config-only, deliberately.** No CLI flag (a glob -> MIME-type mapping
+isn't a good fit for a scalar flag) and no Python API parameter (a
+caller who wants this constructs their own `PitloomConfig`). No new
+GitHub Action input either -- the Action already inherits
+`[tool.pitloom.file-headers]` from the project's `pyproject.toml`.
+
+**Known limitation:** the generated SBOM records that a file's
+`contentType` came from a config override (role `sbomAuthorSupplied`),
+but not *which* pattern matched -- an auditor can tell a config assertion
+fired, but has to check `pyproject.toml` to see which rule. Not
+currently planned to change; adding a matched-pattern field would touch
+every layer of the pipeline for a debugging convenience, not a
+correctness gap.
+
 ### Surfaces
 
 | Surface | How to opt in |
@@ -135,6 +196,7 @@ to `mimetypes`, never an error.
 | Python API -- `generate_project_sbom()`/`generate()` | `file_headers=True/False`, `content_type=True/False` keywords (`None` defers to config) |
 | Hatchling build hook | Inherits the project's `[tool.pitloom.file-headers]` automatically -- no separate hook-level key |
 | GitHub Action | `file-headers: "true"/"false"`, `content-type: "true"/"false"` inputs, mapped to the CLI flags; empty (default) defers to config |
+| Content-type overrides | Config-only (`[[tool.pitloom.file-headers.content-type-overrides]]`) -- no CLI flag, API parameter, or Action input; see above |
 
 ## Provenance: intrinsic vs. extrinsic
 

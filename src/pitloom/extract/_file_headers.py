@@ -21,16 +21,25 @@ supply already-read bytes:
   back to stdlib ``mimetypes``. Independent of ``SPDX-FileType`` -- never
   used to derive ``software_primaryPurpose`` (see
   ``working-docs/design/file-headers.md`` for why the two are kept apart).
+- :func:`resolve_content_type_override` matches a file's distribution
+  path against a project-configured
+  ``[[tool.pitloom.file-headers.content-type-overrides]]`` table,
+  pre-empting :func:`guess_content_type` for a match -- a deterministic,
+  ``sbomAuthorSupplied`` alternative to detection for files the project
+  author already knows the content type of.
 """
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 import mimetypes
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
+
+from pitloom.core.file_headers_config import ContentTypeOverride
 
 log = logging.getLogger(__name__)
 
@@ -217,3 +226,29 @@ def guess_content_type(data: bytes, filename: str) -> tuple[str | None, str | No
     if guessed_mime_type:
         return guessed_mime_type, "mimetype_extension_guess"
     return None, None
+
+
+def resolve_content_type_override(
+    distribution_path: str, overrides: tuple[ContentTypeOverride, ...]
+) -> ContentTypeOverride | None:
+    """Return the first *overrides* entry whose ``pattern`` matches
+    *distribution_path*, or ``None`` when none do.
+
+    Patterns are plain shell-glob syntax matched via
+    :func:`fnmatch.fnmatchcase` -- always case-sensitive, unlike plain
+    :func:`fnmatch.fnmatch` (which case-normalizes via
+    ``os.path.normcase``, a no-op on POSIX but lowercasing on Windows) --
+    so the same pattern behaves identically on every platform regardless
+    of the host filesystem's own case-sensitivity. Matched against
+    *distribution_path*, the file's full POSIX-style canonical in-package
+    path (the same string that becomes the ``software_File``'s own
+    ``name`` in the generated SBOM). ``*`` matches any characters,
+    including ``/`` -- so ``vendor/*`` matches everything under
+    ``vendor/``, not just its direct children; there is no
+    ``.gitignore``-style negation or directory-boundary distinction.
+    First match wins, in configuration order.
+    """
+    for override in overrides:
+        if fnmatch.fnmatchcase(distribution_path, override.pattern):
+            return override
+    return None

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from hatchling.builders.wheel import WheelBuilder
 
+from pitloom.core.file_headers_config import ContentTypeOverride
 from pitloom.core.models import (
     _clear_doc_counters,
     _normalize_dep,
@@ -320,3 +321,57 @@ def test_get_wheel_files_merkle_root_identical_across_flag_combinations(
 
     assert root_off is not None
     assert root_off == root_headers == root_both
+
+
+def test_get_wheel_files_content_type_override_shortcuts_detection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With detect_content_type=True and a matching override, the matched
+    file's content_type comes from the override -- guess_content_type is
+    never called for it -- while a non-matching file in the same run
+    still goes through the normal detection path."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    guess_calls: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str) -> tuple[str, str]:
+        del data
+        guess_calls.append(filename)
+        return "text/x-python", "mimetype_extension_guess"
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    overrides = (
+        ContentTypeOverride(pattern="pkg/tagged.py", content_type="text/special"),
+    )
+    _root, files = get_wheel_files(
+        tmp_path, detect_content_type=True, content_type_overrides=overrides
+    )
+
+    assert guess_calls == ["plain.py"]
+    tagged = next(f for f in files if f.distribution_path == "pkg/tagged.py")
+    assert tagged.content_type == "text/special"
+    assert tagged.content_type_method == "config_override"
+    plain = next(f for f in files if f.distribution_path == "pkg/plain.py")
+    assert plain.content_type == "text/x-python"
+    assert plain.content_type_method == "mimetype_extension_guess"
+
+
+def test_get_wheel_files_content_type_override_inert_when_detection_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With detect_content_type=False, overrides never fire -- no file
+    gets a content_type at all, override configured or not, proving the
+    gate still governs the whole feature rather than being bypassed."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    overrides = (
+        ContentTypeOverride(pattern="pkg/tagged.py", content_type="text/special"),
+    )
+    _root, files = get_wheel_files(tmp_path, content_type_overrides=overrides)
+
+    for project_file in files:
+        assert project_file.content_type is None
+        assert project_file.content_type_method is None

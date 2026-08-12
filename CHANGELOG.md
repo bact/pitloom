@@ -28,10 +28,15 @@ and this project adheres to
 - Per-file content-type detection,
   with option to use Google's Magika library as detector ([#138])
 - Minimum elements-oriented SBOM enrichment ([#139])
+- Config-only, SBOM author-supplied deterministic content-type overrides
+  (`[[tool.pitloom.file-headers.content-type-overrides]]`): a glob
+  pattern -> MIME-type table that pre-empts auto-detection for matching files
+  ([#140])
 
 [#136]: https://github.com/bact/pitloom/pull/136
 [#138]: https://github.com/bact/pitloom/pull/138
 [#139]: https://github.com/bact/pitloom/pull/139
+[#140]: https://github.com/bact/pitloom/pull/140
 
 ## [0.13.3] - 2026-08-11
 

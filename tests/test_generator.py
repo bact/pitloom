@@ -286,6 +286,32 @@ def test_build_file_primary_purpose_and_content_type_independent() -> None:
     assert fields["content_type"]["method"] == "mimetype_extension_guess"
 
 
+def test_build_file_content_type_config_override_is_sbom_author_supplied() -> None:
+    """A [[tool.pitloom.file-headers.content-type-overrides]] match
+    (content_type_method="config_override") sets contentType natively,
+    same as a detected value, but records role sbomAuthorSupplied in
+    provenance -- never magika_content_detection/mimetype_extension_guess,
+    since Pitloom didn't detect anything for this file."""
+    files = [
+        ProjectFile(
+            physical_path="vendor/lib.bin",
+            distribution_path="vendor/lib.bin",
+            digest_sha256="a" * 64,
+            content_type="application/octet-stream",
+            content_type_method="config_override",
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "vendor/lib.bin")
+
+    assert file_elem["contentType"] == "application/octet-stream"
+
+    fields = _annotation_fields_for(graph, file_elem["spdxId"])
+    assert fields is not None
+    assert fields["content_type"]["method"] == "sbomAuthorSupplied"
+    assert "tool" not in fields["content_type"]
+
+
 def test_build_file_unmapped_file_type_goes_to_summary_not_content_type() -> None:
     """An unmapped SPDX-FileType (no SoftwarePurpose equivalent) with no
     content_type resolved: the raw tag value lands in File.summary, no

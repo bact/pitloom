@@ -152,6 +152,7 @@ def _build_document_model(
         project_dir,
         scan_file_headers=pitloom_config.file_headers.enabled,
         detect_content_type=pitloom_config.file_headers.detect_content_type,
+        content_type_overrides=pitloom_config.file_headers.content_type_overrides,
     )
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
