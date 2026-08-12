@@ -30,8 +30,8 @@ inputs:
     default: "sbom.spdx3.json"
   extras:
     description: >-
-      Comma-separated pip extras to install alongside Pitloom, e.g.
-      "aimodel,huggingface".
+      Comma-separated pip extras to install alongside Pitloom, e.g. "ai"
+      (all AI model formats, including Hugging Face Hub support).
     required: false
     default: ""
   pretty:
@@ -45,13 +45,28 @@ inputs:
       which is off by default.
     required: false
     default: ""
+  file-headers:
+    description: >-
+      Scan each source file's SPDX-File* header tags ("true"/"false").
+      Empty (default) defers to the project's [tool.pitloom.file-headers]
+      config, which is on by default.
+    required: false
+    default: ""
+  content-type:
+    description: >-
+      Detect each file's content type via magika/mimetypes ("true"/"false").
+      Empty (default) defers to [tool.pitloom.file-headers]
+      detect-content-type, which is off by default -- turn on deliberately,
+      not reflexively, given the per-file cost.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.13.3" or
+      Pitloom version or version specifier to install, e.g. "0.13.4" or
       ">=0.13,<1.0". Empty installs the latest release from PyPI.
     required: false
     default: ""
@@ -103,7 +118,7 @@ runs:
           spec="${spec}[${PL_EXTRAS}]"
         fi
         if [ -n "${PL_VERSION}" ]; then
-          # pitloom-version accepts either a bare version ("0.13.3") or a
+          # pitloom-version accepts either a bare version ("0.13.4") or a
           # full specifier (">=0.13,<1.0"). A leading comparison operator
           # means it is already a specifier; only bare versions need "=="
           # inserted, otherwise "pitloom==>=0.13,<1.0" is invalid.
@@ -125,6 +140,8 @@ runs:
         PL_OUTPUT: ${{ inputs.output }}
         PL_PRETTY: ${{ inputs.pretty }}
         PL_ENRICH: ${{ inputs.enrich }}
+        PL_FILE_HEADERS: ${{ inputs.file-headers }}
+        PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -143,6 +160,16 @@ runs:
           loom_args+=("--enrich")
         elif [ "${PL_ENRICH}" = "false" ]; then
           loom_args+=("--no-enrich")
+        fi
+        if [ "${PL_FILE_HEADERS}" = "true" ]; then
+          loom_args+=("--file-headers")
+        elif [ "${PL_FILE_HEADERS}" = "false" ]; then
+          loom_args+=("--no-file-headers")
+        fi
+        if [ "${PL_CONTENT_TYPE}" = "true" ]; then
+          loom_args+=("--content-type")
+        elif [ "${PL_CONTENT_TYPE}" = "false" ]; then
+          loom_args+=("--no-content-type")
         fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

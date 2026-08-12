@@ -19,11 +19,37 @@ class ProjectFile:
         physical_path: Absolute or relative path to the physical file on disk.
         distribution_path: Canonical path of the file inside the wheel/package.
         digest_sha256: Hex-encoded SHA-256 digest of the file contents.
+        copyright_text: The file's own declared copyright text, from an
+            ``SPDX-FileCopyrightText:`` tag or a bare ``Copyright (c) ...``
+            fallback line in its header. ``None`` when neither is present
+            or file-header scanning is off (see
+            ``pitloom.extract._file_headers.parse_file_header``).
+        copyright_source: ``"spdx_tag"`` or ``"bare_copyright_line"`` --
+            which form produced ``copyright_text``.
+        file_contributors: Every ``SPDX-FileContributor:`` value from the
+            file's header, in order. Empty when none are present.
+        file_type: The raw ``SPDX-FileType:`` tag value, untranslated.
+        spdx_license_identifier: The file's own ``SPDX-License-Identifier:``
+            expression, independent of the project's overall license.
+        content_type: A real IANA media type detected from the file's
+            content/filename (``magika`` or a ``mimetypes`` fallback),
+            independent of ``file_type`` -- see
+            ``pitloom.extract._file_headers.guess_content_type``. ``None``
+            when content-type detection is off or inconclusive.
+        content_type_method: ``"magika"`` or ``"mimetype_extension_guess"``
+            -- which tool resolved ``content_type``.
     """
 
     physical_path: str
     distribution_path: str
     digest_sha256: str
+    copyright_text: str | None = None
+    copyright_source: str | None = None
+    file_contributors: list[str] = field(default_factory=list)
+    file_type: str | None = None
+    spdx_license_identifier: str | None = None
+    content_type: str | None = None
+    content_type_method: str | None = None
 
 
 @dataclass

@@ -46,11 +46,11 @@ loom project .     # SBOM for the Python project in the current dir
 
 ### Optional features
 
-Install extras to enable metadata extraction from AI model files or from
-Hugging Face Hub:
+Install extras to enable more metadata extraction:
 
 ```bash
-pip install -e ".[ai]"       # all supported AI model formats
+pip install "pitloom[ai]"              # Get metadata from AI model file and Hugging Face Hub
+pip install "pitloom[content-type]"    # Get content type from Magika
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev install.
@@ -112,7 +112,7 @@ Or pass a Hugging Face Hub URL or model ID directly -- no local file
 required. Pitloom fetches metadata from the Hub (model card, `config.json`,
 `tokenizer_config.json`, `generation_config.json`) and produces an enriched
 `ai_AIPackage` SBOM. Requires `huggingface_hub`
-(`pip install pitloom[huggingface]`):
+(`pip install pitloom[huggingface_hub]`):
 
 ```bash
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
@@ -160,7 +160,7 @@ register the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.29.0", "pitloom>=0.13.3"]
+requires = ["hatchling>=1.29.0", "pitloom>=0.13.4"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -243,7 +243,7 @@ Add SBOM generation to any repository's CI with a single step, for any
 Python build backend, not just Hatchling:
 
 ```yaml
-- uses: bact/pitloom@v0.13.3
+- uses: bact/pitloom@v0.13.4
 ```
 
 See [working-docs/implementation/github-action.md](working-docs/implementation/github-action.md)
@@ -454,7 +454,7 @@ and a worked example.
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.13.3) [Computer software]. https://doi.org/10.5281/zenodo.19246283
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.13.4) [Computer software]. https://doi.org/10.5281/zenodo.19246283
 
 BibTeX:
 
@@ -465,7 +465,7 @@ BibTeX:
     month = aug,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.13.3},
+    version = {0.13.4},
     year = {2026}
 }
 ```

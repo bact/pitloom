@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.13.3
+      - uses: bact/pitloom@v0.13.4
         with:
           project-path: "."
           output: "sbom.spdx3.json"
@@ -45,7 +45,7 @@ change any of it).
 | `project-path` | `.` | Directory to scan. Ignored when `model` is set. |
 | `model` | `""` | Local model file path or Hugging Face URL/ID -- runs model mode (`loom model ...`) instead of project mode. |
 | `output` | `sbom.spdx3.json` | SBOM output path. |
-| `extras` | `""` | Comma-separated pip extras, e.g. `aimodel,huggingface`. |
+| `extras` | `""` | Comma-separated pip extras, e.g. `ai` (all AI model formats, including Hugging Face Hub support). |
 | `pretty` | `false` | Pretty-print the SBOM JSON. |
 | `args` | `""` | Extra raw flags passed through to `loom` (e.g. `-v --creator-name CI`). This is also how to record more than one creator or tool -- `--creator-name`/`--creation-tool` are repeatable CLI flags, and the Action has no dedicated multi-creator input; see the recipe below. |
 | `pitloom-version` | `""` | Version/specifier to install; empty installs latest from PyPI. |
@@ -63,10 +63,10 @@ change any of it).
 ## Recipe: AI model SBOM
 
 ```yaml
-- uses: bact/pitloom@v0.13.3
+- uses: bact/pitloom@v0.13.4
   with:
     model: "models/my-model.safetensors"
-    extras: "aimodel"
+    extras: "ai"
     output: "model.spdx3.json"
     pretty: "true"
 ```
@@ -79,7 +79,7 @@ Pass them through `args` (the Action itself has no dedicated multi-creator
 input):
 
 ```yaml
-- uses: bact/pitloom@v0.13.3
+- uses: bact/pitloom@v0.13.4
   with:
     project-path: "."
     output: "sbom.spdx3.json"
@@ -104,7 +104,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.13.3
+      - uses: bact/pitloom@v0.13.4
         id: pitloom
         with:
           project-path: "."
@@ -134,7 +134,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.13.3
+      - uses: bact/pitloom@v0.13.4
         with:
           project-path: "."
           python-version: ${{ matrix.python-version }}

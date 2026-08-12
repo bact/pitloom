@@ -186,6 +186,260 @@ def test_build_package_files_have_sha256_verified_using() -> None:
         assert hash_obj["hashValue"] == pf.digest_sha256
 
 
+def _build_graph_for_files(files: list[ProjectFile]) -> list[dict[str, object]]:
+    """Build a minimal document from *files* and return its ``@graph``."""
+    project = ProjectMetadata(name="file-headers-project", version="1.0.0", files=files)
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    exporter = build(doc)
+    graph: list[dict[str, object]] = json.loads(exporter.to_json())["@graph"]
+    return graph
+
+
+def _find_file_element(
+    graph: list[dict[str, object]], distribution_path: str
+) -> dict[str, object]:
+    return next(
+        e
+        for e in graph
+        if e.get("type") == "software_File" and e.get("name") == distribution_path
+    )
+
+
+def _annotation_fields_for(
+    graph: list[dict[str, object]], subject_spdx_id: object
+) -> dict[str, dict[str, str]] | None:
+    """Return the decoded ``fields`` map of the ``provenance/fields/1``
+    Annotation on *subject_spdx_id*, or ``None`` if there isn't one."""
+    for element in graph:
+        if element.get("type") != "Annotation":
+            continue
+        if element.get("subject") != subject_spdx_id:
+            continue
+        statement = json.loads(element["statement"])  # type: ignore[arg-type]
+        if statement.get("kind") == "fields":
+            return statement["fields"]  # type: ignore[no-any-return]
+    return None
+
+
+def test_build_file_native_copyright_and_declared_license() -> None:
+    """A file's own SPDX-FileCopyrightText/License-Identifier tags set
+    native fields directly; the license relationship is hasDeclaredLicense,
+    never hasConcludedLicense (a file's own tag always is its own claim,
+    nothing to classify against)."""
+    files = [
+        ProjectFile(
+            physical_path="src/pkg/tagged.py",
+            distribution_path="pkg/tagged.py",
+            digest_sha256="a" * 64,
+            copyright_text="2026 Test Author",
+            copyright_source="spdx_tag",
+            spdx_license_identifier="MIT",
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "pkg/tagged.py")
+
+    assert file_elem["software_copyrightText"] == "2026 Test Author"
+
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    license_rels = [r for r in relationships if r.get("from") == file_elem["spdxId"]]
+    assert [r["relationshipType"] for r in license_rels] == ["hasDeclaredLicense"]
+
+    license_targets = license_rels[0]["to"]
+    assert isinstance(license_targets, list)
+    license_target_id = license_targets[0]
+    license_elem = next(
+        e
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+        and e.get("spdxId") == license_target_id
+    )
+    assert license_elem["simplelicensing_licenseText"] == "MIT"
+
+
+def test_build_file_primary_purpose_and_content_type_independent() -> None:
+    """The README.md case: SPDX-FileType: DOCUMENTATION maps to
+    primaryPurpose, and an independently-resolved content_type sets
+    contentType -- both native, both set, neither gated on the other."""
+    files = [
+        ProjectFile(
+            physical_path="README.md",
+            distribution_path="README.md",
+            digest_sha256="a" * 64,
+            file_type="DOCUMENTATION",
+            content_type="text/markdown",
+            content_type_method="mimetype_extension_guess",
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "README.md")
+
+    assert file_elem["software_primaryPurpose"] == "documentation"
+    assert file_elem["contentType"] == "text/markdown"
+    assert "summary" not in file_elem
+
+    fields = _annotation_fields_for(graph, file_elem["spdxId"])
+    assert fields is not None
+    # declared: no Method segment recorded.
+    assert "method" not in fields["file_type"]
+    # detected: Method segment present, distinct field key from file_type.
+    assert fields["content_type"]["method"] == "mimetype_extension_guess"
+
+
+def test_build_file_unmapped_file_type_goes_to_summary_not_content_type() -> None:
+    """An unmapped SPDX-FileType (no SoftwarePurpose equivalent) with no
+    content_type resolved: the raw tag value lands in File.summary, no
+    primaryPurpose or contentType is set, no error."""
+    files = [
+        ProjectFile(
+            physical_path="logo.png",
+            distribution_path="logo.png",
+            digest_sha256="a" * 64,
+            file_type="IMAGE",
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "logo.png")
+
+    assert "software_primaryPurpose" not in file_elem
+    assert "contentType" not in file_elem
+    assert file_elem["summary"] == "FileType: IMAGE"
+
+    # An unmapped file_type still gets a provenance entry recording where
+    # the raw value came from, same as the mapped case -- summary-only
+    # placement isn't a reason to drop provenance.
+    fields = _annotation_fields_for(graph, file_elem["spdxId"])
+    assert fields is not None
+    assert fields["file_type"]["source"] == "logo.png"
+    assert fields["file_type"]["location"] == "SPDX-FileType"
+
+
+def test_build_file_primary_purpose_never_inferred_from_content_type() -> None:
+    """Regression guard: a resolved content_type must never backfill
+    primaryPurpose, even when file_type is absent entirely -- SoftwarePurpose
+    is about usage, not content, per the SPDX 3 spec."""
+    files = [
+        ProjectFile(
+            physical_path="photo.jpg",
+            distribution_path="photo.jpg",
+            digest_sha256="a" * 64,
+            content_type="image/jpeg",
+            content_type_method="magika",
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "photo.jpg")
+
+    assert file_elem["contentType"] == "image/jpeg"
+    assert "software_primaryPurpose" not in file_elem
+    assert "summary" not in file_elem  # no file_type tag at all -- nothing to record
+
+
+def test_build_file_contributors_only_in_summary_never_native() -> None:
+    """FileContributor values appear only in File.summary, sorted, never
+    natively -- the Annotation carries a plain source-tracking entry with
+    no value duplicated into it."""
+    files = [
+        ProjectFile(
+            physical_path="pkg/mod.py",
+            distribution_path="pkg/mod.py",
+            digest_sha256="a" * 64,
+            file_contributors=["Bob", "Alice"],
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "pkg/mod.py")
+
+    assert file_elem["summary"] == "Contributor: Alice; Contributor: Bob"
+
+    fields = _annotation_fields_for(graph, file_elem["spdxId"])
+    assert fields is not None
+    assert "Alice" not in fields["file_contributors"]["source"]
+    assert "Bob" not in fields["file_contributors"]["source"]
+
+
+def test_build_file_summary_combines_contributors_and_file_type_sorted() -> None:
+    """A file with both contributors and an unmapped file_type produces one
+    combined summary string, sorted by key then value ('Contributor'
+    entries before 'FileType', per the alphabetical-by-key rule)."""
+    files = [
+        ProjectFile(
+            physical_path="pkg/mixed.bin",
+            distribution_path="pkg/mixed.bin",
+            digest_sha256="a" * 64,
+            file_contributors=["Zoe", "Amy"],
+            file_type="BINARY",
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "pkg/mixed.bin")
+
+    assert file_elem["summary"] == (
+        "Contributor: Amy; Contributor: Zoe; FileType: BINARY"
+    )
+
+
+def test_build_file_no_header_data_emits_nothing_extra() -> None:
+    """A file with no header-derived data at all gets no summary, no
+    Annotation, no license relationship, and no native copyright/purpose/
+    contentType fields -- matches today's pre-feature output exactly."""
+    files = [
+        ProjectFile(
+            physical_path="pkg/plain.py",
+            distribution_path="pkg/plain.py",
+            digest_sha256="a" * 64,
+        )
+    ]
+    graph = _build_graph_for_files(files)
+    file_elem = _find_file_element(graph, "pkg/plain.py")
+
+    assert "summary" not in file_elem
+    assert "software_copyrightText" not in file_elem
+    assert "software_primaryPurpose" not in file_elem
+    assert "contentType" not in file_elem
+    assert _annotation_fields_for(graph, file_elem["spdxId"]) is None
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    assert not [r for r in relationships if r.get("from") == file_elem["spdxId"]]
+
+
+def test_build_file_shared_license_dedupes_to_one_element() -> None:
+    """Two files declaring the same SPDX-License-Identifier reuse one
+    SimpleLicensingText element, with two separate relationships."""
+    files = [
+        ProjectFile(
+            physical_path="pkg/a.py",
+            distribution_path="pkg/a.py",
+            digest_sha256="a" * 64,
+            spdx_license_identifier="Apache-2.0",
+        ),
+        ProjectFile(
+            physical_path="pkg/b.py",
+            distribution_path="pkg/b.py",
+            digest_sha256="b" * 64,
+            spdx_license_identifier="Apache-2.0",
+        ),
+    ]
+    graph = _build_graph_for_files(files)
+
+    license_elements = [
+        e
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+        and e.get("simplelicensing_licenseText") == "Apache-2.0"
+    ]
+    assert len(license_elements) == 1
+
+    license_spdx_id = license_elements[0]["spdxId"]
+    declared_rels = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship"
+        and e.get("relationshipType") == "hasDeclaredLicense"
+        and e.get("to") == [license_spdx_id]
+    ]
+    assert len(declared_rels) == 2
+
+
 def test_generate_project_sbom_to_output_path() -> None:
     """Test SBOM generation written to an output file."""
     pyproject_content = """

@@ -31,7 +31,13 @@ pip install pitloom
 Install with AI model metadata extraction support:
 
 ```bash
-pip install pitloom[ai]
+pip install "pitloom[ai]"
+```
+
+Install with extra content type detection:
+
+```bash
+pip install "pitloom[content-type]"
 ```
 
 ## Usage details
@@ -69,7 +75,7 @@ loom model path/to/model.gguf --pretty
 ```
 
 Or pass a Hugging Face Hub URL or model ID directly -- no local file
-required (needs `pip install pitloom[huggingface]`):
+required (needs `pip install pitloom[huggingface_hub]`):
 
 ```bash
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1
