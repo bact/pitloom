@@ -11,9 +11,19 @@ import pytest
 
 from pitloom.extract._file_headers import (
     FileHeaderMetadata,
+    _get_magika,
     guess_content_type,
     parse_file_header,
 )
+
+
+@pytest.fixture(autouse=True)
+def _clear_magika_cache() -> None:
+    """``_get_magika()`` caches its instance for process lifetime; clear it
+    around every test so ``monkeypatch.setitem(sys.modules, "magika",
+    None)`` in one test can't leak a stale cached instance into another."""
+    _get_magika.cache_clear()
+
 
 # ---------------------------------------------------------------------------
 # parse_file_header

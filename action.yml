@@ -30,8 +30,8 @@ inputs:
     default: "sbom.spdx3.json"
   extras:
     description: >-
-      Comma-separated pip extras to install alongside Pitloom, e.g.
-      "aimodel,huggingface".
+      Comma-separated pip extras to install alongside Pitloom, e.g. "ai"
+      (all AI model formats, including Hugging Face Hub support).
     required: false
     default: ""
   pretty:
@@ -140,6 +140,8 @@ runs:
         PL_OUTPUT: ${{ inputs.output }}
         PL_PRETTY: ${{ inputs.pretty }}
         PL_ENRICH: ${{ inputs.enrich }}
+        PL_FILE_HEADERS: ${{ inputs.file-headers }}
+        PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -158,6 +160,16 @@ runs:
           loom_args+=("--enrich")
         elif [ "${PL_ENRICH}" = "false" ]; then
           loom_args+=("--no-enrich")
+        fi
+        if [ "${PL_FILE_HEADERS}" = "true" ]; then
+          loom_args+=("--file-headers")
+        elif [ "${PL_FILE_HEADERS}" = "false" ]; then
+          loom_args+=("--no-file-headers")
+        fi
+        if [ "${PL_CONTENT_TYPE}" = "true" ]; then
+          loom_args+=("--content-type")
+        elif [ "${PL_CONTENT_TYPE}" = "false" ]; then
+          loom_args+=("--no-content-type")
         fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

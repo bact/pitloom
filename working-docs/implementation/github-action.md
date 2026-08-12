@@ -45,7 +45,7 @@ change any of it).
 | `project-path` | `.` | Directory to scan. Ignored when `model` is set. |
 | `model` | `""` | Local model file path or Hugging Face URL/ID -- runs model mode (`loom model ...`) instead of project mode. |
 | `output` | `sbom.spdx3.json` | SBOM output path. |
-| `extras` | `""` | Comma-separated pip extras, e.g. `aimodel,huggingface`. |
+| `extras` | `""` | Comma-separated pip extras, e.g. `ai` (all AI model formats, including Hugging Face Hub support). |
 | `pretty` | `false` | Pretty-print the SBOM JSON. |
 | `args` | `""` | Extra raw flags passed through to `loom` (e.g. `-v --creator-name CI`). This is also how to record more than one creator or tool -- `--creator-name`/`--creation-tool` are repeatable CLI flags, and the Action has no dedicated multi-creator input; see the recipe below. |
 | `pitloom-version` | `""` | Version/specifier to install; empty installs latest from PyPI. |
@@ -66,7 +66,7 @@ change any of it).
 - uses: bact/pitloom@v0.13.4
   with:
     model: "models/my-model.safetensors"
-    extras: "aimodel"
+    extras: "ai"
     output: "model.spdx3.json"
     pretty: "true"
 ```

@@ -75,7 +75,7 @@ loom model path/to/model.gguf --pretty
 ```
 
 Or pass a Hugging Face Hub URL or model ID directly -- no local file
-required (needs `pip install pitloom[huggingface]`):
+required (needs `pip install pitloom[huggingface_hub]`):
 
 ```bash
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1

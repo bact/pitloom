@@ -112,7 +112,7 @@ Or pass a Hugging Face Hub URL or model ID directly -- no local file
 required. Pitloom fetches metadata from the Hub (model card, `config.json`,
 `tokenizer_config.json`, `generation_config.json`) and produces an enriched
 `ai_AIPackage` SBOM. Requires `huggingface_hub`
-(`pip install pitloom[huggingface]`):
+(`pip install pitloom[huggingface_hub]`):
 
 ```bash
 loom model https://huggingface.co/mistralai/Mistral-7B-v0.1

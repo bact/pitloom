@@ -29,6 +29,8 @@ import logging
 import mimetypes
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -171,6 +173,23 @@ def parse_file_header(data: bytes) -> FileHeaderMetadata | None:
     )
 
 
+@lru_cache(maxsize=1)
+def _get_magika() -> Any:
+    """Build (and cache) a single ``Magika`` instance for process lifetime.
+
+    ``Magika()`` loads an ONNX inference session -- expensive enough that
+    re-creating it per file (once per call to :func:`guess_content_type`)
+    would multiply the ~5ms/file cost this feature is gated on. Returns
+    ``None`` when ``magika`` isn't installed, cached the same way so the
+    failed import isn't retried on every call either.
+    """
+    try:
+        from magika import Magika  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        return None
+    return Magika()
+
+
 def guess_content_type(data: bytes, filename: str) -> tuple[str | None, str | None]:
     """Detect a real IANA media type for *data*, independent of any tag.
 
@@ -183,18 +202,16 @@ def guess_content_type(data: bytes, filename: str) -> tuple[str | None, str | No
     ``detected``) -- never derived from, or used to derive,
     ``SPDX-FileType``/``software_primaryPurpose``.
     """
-    try:
-        from magika import Magika  # pylint: disable=import-outside-toplevel
-
-        result = Magika().identify_bytes(data)
-        label: str = result.output.label
-        magika_mime_type: str = result.output.mime_type
-        if magika_mime_type and label not in _MAGIKA_INCONCLUSIVE_LABELS:
-            return magika_mime_type, "magika"
-    except ImportError:
-        pass
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        log.debug("magika content-type detection failed for %s: %s", filename, exc)
+    magika_instance = _get_magika()
+    if magika_instance is not None:
+        try:
+            result = magika_instance.identify_bytes(data)
+            label: str = result.output.label
+            magika_mime_type: str = result.output.mime_type
+            if magika_mime_type and label not in _MAGIKA_INCONCLUSIVE_LABELS:
+                return magika_mime_type, "magika"
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            log.debug("magika content-type detection failed for %s: %s", filename, exc)
 
     guessed_mime_type, _encoding = mimetypes.guess_type(filename)
     if guessed_mime_type:

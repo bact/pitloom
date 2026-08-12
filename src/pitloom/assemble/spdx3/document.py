@@ -210,11 +210,9 @@ def _emit_file_header_metadata(
         purpose = _FILE_TYPE_TO_SOFTWARE_PURPOSE.get(package_file.file_type)
         if purpose:
             package_entry.software_primaryPurpose = purpose
-            field_provenance["file_type"] = (
-                f"Source: {file_path} | Field: SPDX-FileType"
-            )
         else:
             summary_entries.append(("FileType", package_file.file_type))
+        field_provenance["file_type"] = f"Source: {file_path} | Field: SPDX-FileType"
 
     if package_file.content_type:
         package_entry.contentType = package_file.content_type

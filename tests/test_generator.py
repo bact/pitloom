@@ -305,6 +305,14 @@ def test_build_file_unmapped_file_type_goes_to_summary_not_content_type() -> Non
     assert "contentType" not in file_elem
     assert file_elem["summary"] == "FileType: IMAGE"
 
+    # An unmapped file_type still gets a provenance entry recording where
+    # the raw value came from, same as the mapped case -- summary-only
+    # placement isn't a reason to drop provenance.
+    fields = _annotation_fields_for(graph, file_elem["spdxId"])
+    assert fields is not None
+    assert fields["file_type"]["source"] == "logo.png"
+    assert fields["file_type"]["location"] == "SPDX-FileType"
+
 
 def test_build_file_primary_purpose_never_inferred_from_content_type() -> None:
     """Regression guard: a resolved content_type must never backfill
