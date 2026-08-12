@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import tempfile
 import types
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -42,7 +44,9 @@ from pitloom.export.spdx3_json import (  # noqa: E402
 from pitloom.extract.hatchling import metadata_from_hatchling  # noqa: E402
 from pitloom.extract.pyproject import read_pyproject  # noqa: E402
 from pitloom.plugins.hatch import (  # noqa: E402
+    _HATCHLING_ERROR_PREFIX,
     PitloomBuildHook,
+    _check_hatchling_sbom_support,
     _validate_config,
 )
 
@@ -1271,6 +1275,108 @@ def test_hook_skips_non_wheel_target() -> None:
         assert hook._sbom_staging_path is None
         assert hook._staging_dir is None
         assert "sbom_files" not in build_data
+
+
+# ---------------------------------------------------------------------------
+# Hatchling version gate (build_data["sbom_files"] needs Hatchling >= 1.29.0)
+# ---------------------------------------------------------------------------
+
+
+def test_check_hatchling_sbom_support_passes_for_current_hatchling() -> None:
+    """The Hatchling installed in the test environment must satisfy the gate."""
+    _check_hatchling_sbom_support()  # must not raise
+
+
+@pytest.mark.parametrize("bad_version", ["1.28.0", "1.27.0", "1.0.0"])
+def test_check_hatchling_sbom_support_raises_below_minimum(bad_version: str) -> None:
+    """Hatchling older than the minimum must raise a clear ``RuntimeError``."""
+    with patch("pitloom.plugins.hatch._pkg_version", return_value=bad_version):
+        with pytest.raises(RuntimeError, match="too old for PEP 770 SBOM embedding"):
+            _check_hatchling_sbom_support()
+
+
+def test_check_hatchling_sbom_support_accepts_exact_minimum() -> None:
+    """Hatchling exactly at the minimum version must not raise."""
+    with patch("pitloom.plugins.hatch._pkg_version", return_value="1.29.0"):
+        _check_hatchling_sbom_support()
+
+
+def test_check_hatchling_sbom_support_accepts_dev_build_of_minimum() -> None:
+    """A pre-release/dev build of the minimum version already has the
+    ``build_data["sbom_files"]`` mechanism, so it must not be rejected for
+    sorting below the final release under plain PEP 440 ordering."""
+    with patch(
+        "pitloom.plugins.hatch._pkg_version",
+        return_value="1.29.0.dev0+gabcdef",
+    ):
+        _check_hatchling_sbom_support()
+
+
+def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:
+    """If Hatchling's version can't be determined, raise a clear
+    ``RuntimeError`` rather than letting a raw ``PackageNotFoundError``
+    escape (e.g. a vendored copy or zipapp bundle without dist-info)."""
+    with patch(
+        "pitloom.plugins.hatch._pkg_version",
+        side_effect=PackageNotFoundError("hatchling"),
+    ):
+        with pytest.raises(RuntimeError, match="version unknown"):
+            _check_hatchling_sbom_support()
+
+
+@pytest.mark.parametrize(
+    "bad_version_or_error",
+    ["1.27.0", PackageNotFoundError("hatchling")],
+)
+def test_check_hatchling_sbom_support_errors_share_filterable_prefix(
+    bad_version_or_error: str | PackageNotFoundError,
+) -> None:
+    """Every failure mode must share one prefix, so callers can grep/filter
+    for this whole family of error with a single, stable string."""
+    if isinstance(bad_version_or_error, Exception):
+        mock_patch = patch(
+            "pitloom.plugins.hatch._pkg_version", side_effect=bad_version_or_error
+        )
+    else:
+        mock_patch = patch(
+            "pitloom.plugins.hatch._pkg_version", return_value=bad_version_or_error
+        )
+    with mock_patch:
+        with pytest.raises(RuntimeError, match=re.escape(_HATCHLING_ERROR_PREFIX)):
+            _check_hatchling_sbom_support()
+
+
+def test_hook_initialize_raises_for_old_hatchling() -> None:
+    """initialize() must surface the version-gate error for a wheel target."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        with (
+            patch("pitloom.plugins.hatch._pkg_version", return_value="1.27.0"),
+            pytest.raises(RuntimeError, match="too old for PEP 770 SBOM embedding"),
+        ):
+            hook.initialize("standard", build_data)
+
+        assert hook._sbom_staging_path is None
+        assert hook._staging_dir is None
+
+
+def test_hook_skips_hatchling_check_for_non_wheel_target() -> None:
+    """The version gate only applies to wheel builds; sdist must not raise
+    even under an Hatchling older than the minimum."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {}, target_name="sdist")
+        build_data: dict[str, Any] = {}
+        with patch("pitloom.plugins.hatch._pkg_version", return_value="1.27.0"):
+            hook.initialize("standard", build_data)  # must not raise
+
+        assert hook._sbom_staging_path is None
 
 
 # ---------------------------------------------------------------------------

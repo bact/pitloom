@@ -11,12 +11,15 @@ import logging
 import os
 import tempfile
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from typing import Any
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.plugin import hookimpl
+from packaging.version import Version
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
@@ -36,6 +39,46 @@ from pitloom.ids import resolve_registry
 log = logging.getLogger(__name__)
 
 _SPDX3_JSON_EXT = ".spdx3.json"
+
+#: Hatchling only started reading build_data["sbom_files"] -- the mechanism
+#: this hook relies on to place a build-time-generated SBOM at
+#: .dist-info/sboms/ -- in this release (PEP 770). Older Hatchling accepts
+#: the mutated build_data silently and never embeds the file, so the wheel
+#: builds "successfully" with no SBOM and no warning; this must therefore be
+#: checked explicitly rather than left to fail silently.
+_MIN_HATCHLING_SBOM_VERSION = "1.29.0"
+
+#: Shared prefix for every _check_hatchling_sbom_support() error, so both
+#: failure modes are easy to grep/filter for as one family of error.
+_HATCHLING_ERROR_PREFIX = "Pitloom build hook: Hatchling"
+
+
+def _check_hatchling_sbom_support() -> None:
+    """Raise if the running Hatchling can't embed the SBOM via build_data.
+
+    Raises:
+        RuntimeError: If Hatchling's installed version can't be determined,
+            or predates :data:`_MIN_HATCHLING_SBOM_VERSION`.
+    """
+    try:
+        installed = Version(_pkg_version("hatchling"))
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            f"{_HATCHLING_ERROR_PREFIX} version unknown (no package metadata "
+            f"found); requires >= {_MIN_HATCHLING_SBOM_VERSION} for PEP 770 "
+            "SBOM embedding."
+        ) from exc
+
+    minimum = Version(_MIN_HATCHLING_SBOM_VERSION)
+    # Compare release segments only (ignoring pre/dev/post/local qualifiers)
+    # so a pre-release or dev build of the minimum version -- which already
+    # has the feature -- isn't rejected for sorting below the final release.
+    if installed.release < minimum.release:
+        raise RuntimeError(
+            f"{_HATCHLING_ERROR_PREFIX} {installed} too old for PEP 770 SBOM "
+            f"embedding (requires >= {_MIN_HATCHLING_SBOM_VERSION}); "
+            "upgrade Hatchling."
+        )
 
 
 def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
@@ -154,8 +197,10 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
     ``pyproject.toml`` and listing ``pitloom`` as a build dependency.
 
     The SBOM is written to ``.dist-info/sboms/<filename>`` inside the wheel,
-    conforming to PEP 770.  Hatchling 1.28.0+ handles the injection natively
-    via ``build_data["sbom_files"]``.
+    conforming to PEP 770.  Hatchling 1.29.0+ handles the injection natively
+    via ``build_data["sbom_files"]``; older Hatchling is rejected outright
+    (see :func:`_check_hatchling_sbom_support`) rather than silently
+    producing a wheel with no SBOM.
 
     ``[tool.hatch.build.hooks.pitloom]`` controls only whether the hook runs:
 
@@ -183,7 +228,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         """Generate the SBOM and register it for injection into the wheel.
 
         Called by Hatchling before packaging.  The staged SBOM path is
-        appended to ``build_data["sbom_files"]``, which Hatchling 1.28.0+
+        appended to ``build_data["sbom_files"]``, which Hatchling 1.29.0+
         places at ``.dist-info/sboms/<basename>`` inside the wheel
         (PEP 770).  The temporary staging directory is cleaned up in
         :meth:`finalize`.
@@ -200,6 +245,9 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
                 or is otherwise invalid.
             FileNotFoundError: If ``pyproject.toml`` is absent from the
                 project root.
+            RuntimeError: If the installed Hatchling's version can't be
+                determined, or predates 1.29.0 and can't embed the SBOM
+                (see :func:`_check_hatchling_sbom_support`).
         """
         log.debug("Pitloom build hook: build variant %r", version)
 
@@ -219,6 +267,8 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
                 self.target_name,
             )
             return
+
+        _check_hatchling_sbom_support()
 
         project_dir = Path(self.root)
         pitloom_config: PitloomConfig = read_pitloom_config(
@@ -256,7 +306,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
             sbom_json, sbom_filename
         )
 
-        # Hatchling 1.28.0+ places each path in sbom_files at
+        # Hatchling 1.29.0+ places each path in sbom_files at
         # .dist-info/sboms/<basename> inside the wheel (PEP 770).
         build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
 
