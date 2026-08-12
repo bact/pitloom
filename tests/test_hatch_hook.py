@@ -1333,12 +1333,15 @@ def test_check_hatchling_sbom_support_errors_share_filterable_prefix(
 ) -> None:
     """Every failure mode must share one prefix, so callers can grep/filter
     for this whole family of error with a single, stable string."""
-    patch_kwargs = (
-        {"side_effect": bad_version_or_error}
-        if isinstance(bad_version_or_error, Exception)
-        else {"return_value": bad_version_or_error}
-    )
-    with patch("pitloom.plugins.hatch._pkg_version", **patch_kwargs):
+    if isinstance(bad_version_or_error, Exception):
+        mock_patch = patch(
+            "pitloom.plugins.hatch._pkg_version", side_effect=bad_version_or_error
+        )
+    else:
+        mock_patch = patch(
+            "pitloom.plugins.hatch._pkg_version", return_value=bad_version_or_error
+        )
+    with mock_patch:
         with pytest.raises(RuntimeError, match=re.escape(_HATCHLING_ERROR_PREFIX)):
             _check_hatchling_sbom_support()
 
