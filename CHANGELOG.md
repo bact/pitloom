@@ -25,11 +25,13 @@ and this project adheres to
 
 - Raise RuntimeError if Hatchling version is lower than 1.29.0 ([#136])
 - Per-file metadata extraction from SPDX File Tags and header ([#138])
-- Per-file content-type detection, with option to use Google's Magika library
-  as detector ([#138])
+- Per-file content-type detection,
+  with option to use Google's Magika library as detector ([#138])
+- Minimum elements-oriented SBOM enrichment ([#139])
 
 [#136]: https://github.com/bact/pitloom/pull/136
 [#138]: https://github.com/bact/pitloom/pull/138
+[#139]: https://github.com/bact/pitloom/pull/139
 
 ## [0.13.3] - 2026-08-11
 
