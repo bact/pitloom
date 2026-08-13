@@ -35,6 +35,7 @@ _KEY_MAP = {
     "field": "location",
     "method": "method",
     "package": "package",
+    "role": "role",
 }
 
 #: Statement-schema URL for a fragment-unification process Annotation (A1).

@@ -335,7 +335,8 @@ def test_build_file_content_type_config_override_is_sbom_author_supplied() -> No
 
     fields = _annotation_fields_for(graph, file_elem["spdxId"])
     assert fields is not None
-    assert fields["content_type"]["method"] == "sbomAuthorSupplied"
+    assert fields["content_type"]["role"] == "sbomAuthorSupplied"
+    assert "method" not in fields["content_type"]
     assert "tool" not in fields["content_type"]
 
 

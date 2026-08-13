@@ -786,7 +786,7 @@ def test_build_enrichment_annotation_reuses_g2_role_vocabulary() -> None:
             "before": "old",
             "after": "new",
             "role": "inferred",
-            "source": "Source: Claude Code (Anthropic) | Method: inference",
+            "source": "Source: Claude Code (Anthropic) | Role: inferred",
         }
     ]
     ann = build_enrichment_annotation(

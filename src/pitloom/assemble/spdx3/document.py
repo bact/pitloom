@@ -232,14 +232,14 @@ def _emit_file_header_metadata(
             # config author asserted this value directly, Pitloom
             # detected nothing, so role sbomAuthorSupplied rather than the
             # detected shape below (see working-docs/design/file-headers.md).
-            method = "Method: sbomAuthorSupplied"
+            segment = "Role: sbomAuthorSupplied"
         elif package_file.content_type_method == "magika":
-            method = (
+            segment = (
                 f"Method: magika_content_detection | Tool: magika=={_magika_version()}"
             )
         else:
-            method = "Method: extension_guess"
-        field_provenance["content_type"] = f"Source: {file_path} | {method}"
+            segment = "Method: extension_guess"
+        field_provenance["content_type"] = f"Source: {file_path} | {segment}"
 
     if package_file.file_contributors:
         summary_entries.extend(

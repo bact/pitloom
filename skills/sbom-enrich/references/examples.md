@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,7 +73,7 @@ README body is still an agent-only finding.
     },
     {
       "creationInfo": "_:creationinfo-agent",
-      "comment": "Source: AI agent | Method: inference -- name and role inferred from README.md's prose \"Evaluation\" section, not its YAML frontmatter (loom enrich already covered the frontmatter-only fields).",
+      "comment": "Source: AI agent | Role: inferred -- name and role inferred from README.md's prose \"Evaluation\" section, not its YAML frontmatter (loom enrich already covered the frontmatter-only fields).",
       "dataset_datasetAvailability": "directDownload",
       "dataset_datasetType": ["image"],
       "description": "Evaluation dataset referenced in the project README's prose.",
@@ -96,7 +96,7 @@ rather than silently replacing the deterministic result:
 ```json
 {
   "creationInfo": "_:creationinfo-agent",
-  "comment": "Source: AI agent | Method: inference | Overrides: apache-2.0 (from loom enrich's frontmatter parse) | Reason: README body states license changed to MIT as of v2, frontmatter header is stale.",
+  "comment": "Source: AI agent | Role: inferred | Overrides: apache-2.0 (from loom enrich's frontmatter parse) | Reason: README body states license changed to MIT as of v2, frontmatter header is stale.",
   "simplelicensing_licenseExpression": "MIT"
 }
 ```
@@ -110,13 +110,13 @@ gap-fill.
 Say neither frontmatter nor prose says what the model was actually
 *trained* on -- only what it was evaluated on. In an interactive session,
 the agent asks the SBOM author directly, and marks the answer
-`sbomAuthorSupplied`, not `inference` -- the agent didn't derive this, it
+`sbomAuthorSupplied`, not `inferred` -- the agent didn't derive this, it
 was told:
 
 ```json
 {
   "creationInfo": "_:creationinfo-agent",
-  "comment": "Source: SBOM author | Method: sbomAuthorSupplied | Date: 2026-08-10 -- SBOM author confirmed in the enrichment session that this model was fine-tuned on an internal, unpublished dataset not described in any project file.",
+  "comment": "Source: SBOM author | Role: sbomAuthorSupplied | Date: 2026-08-10 -- SBOM author confirmed in the enrichment session that this model was fine-tuned on an internal, unpublished dataset not described in any project file.",
   "dataset_datasetAvailability": "none",
   "dataset_datasetType": ["other"],
   "description": "Training dataset per the SBOM author, not documented in any project file.",
@@ -132,7 +132,7 @@ no one to answer it.
 Notes:
 
 - `comment` on the inferred element carries the required provenance marker
-  `Source: AI agent | Method: inference`, plus a short note on how the
+  `Source: AI agent | Role: inferred`, plus a short note on how the
   value was derived.
 - Only include elements/fields the agent actually inferred -- do not
   restate what Pitloom already extracted.
