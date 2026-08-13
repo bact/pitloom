@@ -44,6 +44,18 @@ _MOVED_CREATION_KEYS_LIST_VALID: frozenset[str] = frozenset(
     {"creation-tool", "creation_tool"}
 )
 
+#: Old ``[tool.pitloom.*]`` sub-tables flattened/renamed directly under
+#: ``[tool.pitloom]`` -- see :func:`_check_moved_top_level_tables`.
+_FILE_HEADERS_MOVED_TO = (
+    "[tool.pitloom] extract-file-header and [tool.pitloom.content-type]"
+)
+_MOVED_TOP_LEVEL_TABLES: dict[str, str] = {
+    "ids": "[tool.pitloom] ids-file",
+    "fragments": "[tool.pitloom.fragment] (key: files)",
+    "file-headers": _FILE_HEADERS_MOVED_TO,
+    "file_headers": _FILE_HEADERS_MOVED_TO,
+}
+
 #: Valid ``[tool.pitloom.provenance] format`` values -- see
 #: :mod:`pitloom.assemble.spdx3.provenance`. Kept here as a plain literal
 #: set (not imported from the assemble layer) because ``core`` must not
@@ -70,8 +82,9 @@ _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
 _VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = frozenset({"auto", "always", "never"})
 
 #: Valid ``[tool.pitloom.content-type] method`` values -- see
-#: :class:`~pitloom.core.content_type_config.ContentTypeConfig`.
-_VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
+#: :class:`~pitloom.core.content_type_config.ContentTypeConfig`. Public
+#: so the CLI and Python API can validate against the same set.
+VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
 
 
 @dataclass
@@ -244,6 +257,84 @@ def _check_moved_creation_keys(
             )
 
 
+def _check_moved_top_level_tables(pitloom_data: dict[str, Any]) -> None:
+    """Raise a clear error if an old ``ids``/``fragments``/``file-headers``
+    table, or a table-shaped ``enrich``, is present directly under
+    ``[tool.pitloom]`` -- these settings live elsewhere now (see
+    :data:`_MOVED_TOP_LEVEL_TABLES`), the same pattern
+    :func:`_check_moved_creation_keys` uses for the creator/tool keys.
+    """
+    for key, moved_to in _MOVED_TOP_LEVEL_TABLES.items():
+        if key in pitloom_data:
+            raise ValueError(
+                f"[tool.pitloom.{key}] has moved to {moved_to}. "
+                "Update your pyproject.toml."
+            )
+    # enrich kept its name, only its shape changed (table -> flat bool).
+    enrich = pitloom_data.get("enrich")
+    if isinstance(enrich, dict):
+        raise ValueError(
+            "[tool.pitloom.enrich] has moved to [tool.pitloom] enrich "
+            "(a flat boolean, not a table). Update your pyproject.toml."
+        )
+
+
+def _read_bool_setting(
+    data: dict[str, Any],
+    key: str,
+    default: bool,
+    table_path: str = "[tool.pitloom]",
+) -> bool:
+    """Read a boolean *key* from *data* (a ``[table_path]`` mapping),
+    defaulting to *default* when absent.
+
+    Raises:
+        ValueError: If present but not a boolean.
+    """
+    value = data.get(key, default)
+    if not isinstance(value, bool):
+        raise ValueError(
+            f"{table_path} {key!r} must be a boolean, got "
+            f"{type(value).__name__}: {value!r}"
+        )
+    return value
+
+
+def _require_choice(
+    value: str, valid: frozenset[str], table_path: str, key: str
+) -> None:
+    """Raise ``ValueError`` unless *value* is one of *valid*."""
+    if value not in valid:
+        options = ", ".join(sorted(valid))
+        raise ValueError(
+            f"{table_path} {key!r} must be one of {options}, got {value!r}"
+        )
+
+
+def _read_array_of_tables(raw: Any, table_repr: str) -> list[dict[str, Any]]:
+    """Validate *raw* is a TOML array-of-tables and return its entries.
+
+    *table_repr* (e.g. ``"[[tool.pitloom.creator]]"``) names the expected
+    array-of-tables form in error messages -- shared shape-check factored
+    out of each ``_read_*`` function's own per-entry field validation.
+
+    Raises:
+        ValueError: If *raw* is not a list, or an entry is not a table.
+    """
+    if not isinstance(raw, list):
+        raise ValueError(
+            f"{table_repr} must be an array of tables, got "
+            f"{type(raw).__name__}: {raw!r}"
+        )
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError(
+                f"{table_repr} entry must be a table, got "
+                f"{type(entry).__name__}: {entry!r}"
+            )
+    return raw
+
+
 def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
     """Read ``[[tool.pitloom.creator]]`` array-of-tables into ``Creator`` objects.
 
@@ -257,18 +348,8 @@ def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
     raw = pitloom_data.get("creator")
     if raw is None:
         return []
-    if not isinstance(raw, list):
-        raise ValueError(
-            "[tool.pitloom.creator] must be an array of tables "
-            f"([[tool.pitloom.creator]]), got {type(raw).__name__}"
-        )
     creators: list[Creator] = []
-    for entry in raw:
-        if not isinstance(entry, dict):
-            raise ValueError(
-                "[[tool.pitloom.creator]] entry must be a table, got "
-                f"{type(entry).__name__}: {entry!r}"
-            )
+    for entry in _read_array_of_tables(raw, "[[tool.pitloom.creator]]"):
         name = entry.get("name")
         if not isinstance(name, str) or not name:
             raise ValueError(
@@ -309,18 +390,8 @@ def _read_tools(pitloom_data: dict[str, Any]) -> list[Tool] | None:
     raw = pitloom_data.get("creation-tool", pitloom_data.get("creation_tool"))
     if raw is None:
         return None
-    if not isinstance(raw, list):
-        raise ValueError(
-            "[tool.pitloom.creation-tool] must be an array of tables "
-            f"([[tool.pitloom.creation-tool]]), got {type(raw).__name__}"
-        )
     tools: list[Tool] = []
-    for entry in raw:
-        if not isinstance(entry, dict):
-            raise ValueError(
-                "[[tool.pitloom.creation-tool]] entry must be a table, got "
-                f"{type(entry).__name__}: {entry!r}"
-            )
+    for entry in _read_array_of_tables(raw, "[[tool.pitloom.creation-tool]]"):
         name = entry.get("name")
         if not isinstance(name, str) or not name:
             raise ValueError(
@@ -368,30 +439,26 @@ def _read_provenance_settings(
         )
 
     fmt = _provenance_str(raw, ("format",), "both")
-    if fmt not in _VALID_PROVENANCE_FORMATS:
-        valid = ", ".join(sorted(_VALID_PROVENANCE_FORMATS))
-        raise ValueError(
-            f"[tool.pitloom.provenance] 'format' must be one of {valid}, got {fmt!r}"
-        )
+    _require_choice(
+        fmt, _VALID_PROVENANCE_FORMATS, "[tool.pitloom.provenance]", "format"
+    )
 
     schema = _provenance_str(raw, ("schema",), _DEFAULT_PROVENANCE_SCHEMA)
 
     detail = _provenance_str(raw, ("detail",), "minimal")
-    if detail not in _VALID_PROVENANCE_DETAIL:
-        valid = ", ".join(sorted(_VALID_PROVENANCE_DETAIL))
-        raise ValueError(
-            f"[tool.pitloom.provenance] 'detail' must be one of {valid}, got {detail!r}"
-        )
+    _require_choice(
+        detail, _VALID_PROVENANCE_DETAIL, "[tool.pitloom.provenance]", "detail"
+    )
 
     preserve = _provenance_str(
         raw, ("preserve-source-metadata", "preserve_source_metadata"), "auto"
     )
-    if preserve not in _VALID_PRESERVE_SOURCE_METADATA:
-        valid = ", ".join(sorted(_VALID_PRESERVE_SOURCE_METADATA))
-        raise ValueError(
-            "[tool.pitloom.provenance] 'preserve-source-metadata' must be one of "
-            f"{valid}, got {preserve!r}"
-        )
+    _require_choice(
+        preserve,
+        _VALID_PRESERVE_SOURCE_METADATA,
+        "[tool.pitloom.provenance]",
+        "preserve-source-metadata",
+    )
 
     return fmt, schema, detail, preserve
 
@@ -417,13 +484,7 @@ def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
     Raises:
         ValueError: If present but not a boolean.
     """
-    enrich = pitloom_data.get("enrich", False)
-    if not isinstance(enrich, bool):
-        raise ValueError(
-            f"[tool.pitloom] 'enrich' must be a boolean, got "
-            f"{type(enrich).__name__}: {enrich!r}"
-        )
-    return enrich
+    return _read_bool_setting(pitloom_data, "enrich", False)
 
 
 #: A basic ``type/subtype`` shape check for a configured ``content-type``
@@ -446,19 +507,10 @@ def _read_content_type_overrides(
             missing or malformed.
     """
     raw_overrides = raw.get("override", [])
-    if not isinstance(raw_overrides, list):
-        raise ValueError(
-            "[tool.pitloom.content-type] 'override' must be "
-            f"an array of tables, got {type(raw_overrides).__name__}: "
-            f"{raw_overrides!r}"
-        )
     overrides: list[ContentTypeOverride] = []
-    for entry in raw_overrides:
-        if not isinstance(entry, dict):
-            raise ValueError(
-                "[[tool.pitloom.content-type.override]] "
-                f"entries must be tables, got {type(entry).__name__}: {entry!r}"
-            )
+    for entry in _read_array_of_tables(
+        raw_overrides, "[[tool.pitloom.content-type.override]]"
+    ):
         pattern = entry.get("pattern")
         if not isinstance(pattern, str) or not pattern:
             raise ValueError(
@@ -486,13 +538,7 @@ def _read_extract_file_header(pitloom_data: dict[str, Any]) -> bool:
     Raises:
         ValueError: If present but not a boolean.
     """
-    value = pitloom_data.get("extract-file-header", True)
-    if not isinstance(value, bool):
-        raise ValueError(
-            "[tool.pitloom] 'extract-file-header' must be a boolean, got "
-            f"{type(value).__name__}: {value!r}"
-        )
-    return value
+    return _read_bool_setting(pitloom_data, "extract-file-header", True)
 
 
 def _read_content_type_settings(
@@ -504,7 +550,7 @@ def _read_content_type_settings(
     Raises:
         ValueError: If ``content-type`` is present but not a table, if
             ``enabled`` is present but not a boolean, if ``method`` is
-            not one of ``_VALID_CONTENT_TYPE_METHODS``, or if ``override``
+            not one of ``VALID_CONTENT_TYPE_METHODS``, or if ``override``
             is malformed (see :func:`_read_content_type_overrides`).
     """
     raw = pitloom_data.get("content-type", {})
@@ -513,19 +559,13 @@ def _read_content_type_settings(
             "[tool.pitloom.content-type] must be a table, got "
             f"{type(raw).__name__}: {raw!r}"
         )
-    enabled = raw.get("enabled", False)
-    if not isinstance(enabled, bool):
-        raise ValueError(
-            f"[tool.pitloom.content-type] 'enabled' must be a boolean, got "
-            f"{type(enabled).__name__}: {enabled!r}"
-        )
+    enabled = _read_bool_setting(
+        raw, "enabled", False, table_path="[tool.pitloom.content-type]"
+    )
     method = raw.get("method", "auto")
-    if method not in _VALID_CONTENT_TYPE_METHODS:
-        valid = ", ".join(sorted(_VALID_CONTENT_TYPE_METHODS))
-        raise ValueError(
-            f"[tool.pitloom.content-type] 'method' must be one of {valid}, "
-            f"got {method!r}"
-        )
+    _require_choice(
+        method, VALID_CONTENT_TYPE_METHODS, "[tool.pitloom.content-type]", "method"
+    )
     overrides = _read_content_type_overrides(raw)
     return enabled, method, overrides
 
@@ -536,13 +576,7 @@ def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
     Raises:
         ValueError: If ``offline`` is present but not a boolean.
     """
-    offline = pitloom_data.get("offline", False)
-    if not isinstance(offline, bool):
-        raise ValueError(
-            f"[tool.pitloom] 'offline' must be a boolean, got "
-            f"{type(offline).__name__}: {offline!r}"
-        )
-    return offline
+    return _read_bool_setting(pitloom_data, "offline", False)
 
 
 def _read_fragments(pitloom_data: dict[str, Any]) -> list[str]:
@@ -604,7 +638,10 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
             ``creator-type``/``creation-tool`` keys -- these belong under
             the array-of-tables form -- or if ``no-creation-tool`` is
             present but not a boolean (e.g. the string ``"false"``, which
-            is truthy in Python).
+            is truthy in Python). Also raised if ``[tool.pitloom]`` still
+            has an old ``ids``/``fragments``/``file-headers`` table, or an
+            old table-shaped ``enrich`` -- see
+            :func:`_check_moved_top_level_tables`.
     """
     pitloom_data = data.get("tool", {}).get("pitloom", {})
     creation_data = pitloom_data.get("creation", {})
@@ -612,6 +649,7 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         creation_data = {}
 
     _check_moved_creation_keys(pitloom_data, creation_data)
+    _check_moved_top_level_tables(pitloom_data)
 
     fragments = _read_fragments(pitloom_data)
     ids_file = _read_ids_file(pitloom_data)
@@ -699,4 +737,4 @@ def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
     return _read_pitloom_config(data)
 
 
-__all__ = ["PitloomConfig", "read_pitloom_config"]
+__all__ = ["VALID_CONTENT_TYPE_METHODS", "PitloomConfig", "read_pitloom_config"]

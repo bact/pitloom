@@ -25,7 +25,7 @@ from pitloom.assemble import (
     generate_wheel_sbom,
     merge_fragments,
 )
-from pitloom.core.config import PitloomConfig
+from pitloom.core.config import VALID_CONTENT_TYPE_METHODS, PitloomConfig
 from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
     CreationMetadata,
@@ -201,7 +201,7 @@ def _build_parent_parser() -> argparse.ArgumentParser:
     )
     parent.add_argument(
         "--content-type-method",
-        choices=("auto", "magika", "extension"),
+        choices=VALID_CONTENT_TYPE_METHODS,
         default=None,
         help=(
             "Which detector resolves --content-type's contentType values: "

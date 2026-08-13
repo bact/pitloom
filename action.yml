@@ -54,7 +54,7 @@ inputs:
     default: ""
   content-type:
     description: >-
-      Detect each file's content type via magika/mimetypes ("true"/"false").
+      Detect each file's content type via magika/an extension guess ("true"/"false").
       Empty (default) defers to [tool.pitloom.content-type] enabled,
       which is off by default -- turn on deliberately, not reflexively,
       given the per-file cost.

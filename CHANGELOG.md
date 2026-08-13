@@ -24,40 +24,27 @@ and this project adheres to
 ### Added
 
 - Raise RuntimeError if Hatchling version is lower than 1.29.0 ([#136])
-- Per-file metadata extraction from SPDX File Tags and header ([#138])
-- Per-file content-type detection,
-  with option to use Google's Magika library as detector ([#138])
-- Minimum elements-oriented SBOM enrichment ([#139])
+- Per-file metadata extraction from SPDX File Tags and header, via
+  `[tool.pitloom] extract-file-header` (on by default) ([#138])
+- Per-file content-type detection, independent of header scanning, via
+  `[tool.pitloom.content-type] enabled` (off by default); `method`
+  chooses the detector (`"auto"`/`"magika"`/`"extension"`, matching
+  `--content-type-method` CLI flag / `content-type-method` Action
+  input), erroring immediately if `"magika"` is requested but the
+  package isn't installed ([#138], [#140])
 - Config-only, SBOM author-supplied deterministic content-type overrides
   (`[[tool.pitloom.content-type.override]]`): a glob pattern -> MIME-type
-  table that pre-empts auto-detection for matching files ([#140])
-- `[tool.pitloom.content-type] method` (`"auto"`/`"magika"`/`"extension"`)
-  and matching `--content-type-method` CLI flag / `content-type-method`
-  GitHub Action input: choose which detector resolves each file's
-  `contentType`, and get a clear error up front if `"magika"` is
-  requested but the package isn't installed ([#140])
+  table that pre-empts detection for matching files ([#140])
+- Minimum elements-oriented SBOM enrichment ([#139])
 - New [Configuration](docs/configuration.md) reference page: every
   `[tool.pitloom]` setting, its default, and its CLI/Action/API mapping
   in one place ([#140])
-
-### Changed
-
-- Config-only content-type detection is now fully independent of
-  per-file SPDX header scanning, including in `pyproject.toml` layout,
-  not just at runtime: `[tool.pitloom.file-headers] enabled` moved to
-  the flat `[tool.pitloom] extract-file-header` (CLI: `--file-headers`
-  -> `--extract-file-header`), and `detect-content-type`/
-  `content-type-overrides` moved out into their own
-  `[tool.pitloom.content-type]` table (`enabled`, `method`, and
-  `[[tool.pitloom.content-type.override]]`) ([#140])
-- `[tool.pitloom.ids] file` -> flat `[tool.pitloom] ids-file`;
-  `[tool.pitloom.enrich] local` -> flat `[tool.pitloom] enrich`;
-  `[tool.pitloom.fragments] files` -> `[tool.pitloom.fragment] files`
-  (singular, matching `[[tool.pitloom.creator]]`-style naming) --
-  single-key tables folded into descriptively-named flat keys, tables
-  with 2+ related keys kept as tables ([#140])
-- Renamed the `contentType`-detection-method attribution value
-  `"mimetype_extension_guess"` to `"extension_guess"` ([#140])
+- Every `[tool.pitloom]` setting is validated at config-read time,
+  including an old or misplaced key (e.g. an `ids`/`fragments`/
+  `file-headers` table directly under `[tool.pitloom]`), which raises a
+  clear error rather than being silently ignored; `content_type_method`
+  passed explicitly to the Python API is validated the same way as the
+  `pyproject.toml`/CLI paths ([#140])
 
 [#136]: https://github.com/bact/pitloom/pull/136
 [#138]: https://github.com/bact/pitloom/pull/138

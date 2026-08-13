@@ -26,7 +26,12 @@ from pitloom.assemble import (
     generate_project_sbom,
     generate_wheel_sbom,
 )
-from pitloom.assemble.spdx3.document import build, build_deployed, build_model
+from pitloom.assemble.spdx3.document import (
+    _magika_version,
+    build,
+    build_deployed,
+    build_model,
+)
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.config import PitloomConfig
@@ -122,6 +127,28 @@ description = "A test package"
         packages = [e for e in graph if e.get("type") == "software_Package"]
         main_package = next(p for p in packages if p["name"] == "test-package")
         assert main_package["software_packageUrl"] == "pkg:pypi/test-package@1.0.0"
+
+
+def test_generate_project_sbom_invalid_content_type_method_raises() -> None:
+    """An explicit content_type_method outside auto/magika/extension must
+    raise immediately, matching the TOML/CLI paths' own validation --
+    not silently fall through to guess_content_type's "auto" behavior."""
+    pyproject_content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test-package"
+version = "1.0.0"
+"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="content_type_method must be one of"):
+            generate_project_sbom(tmppath, content_type_method="mimetypes")
 
 
 def test_build_main_package_no_purl_without_real_version() -> None:
@@ -310,6 +337,29 @@ def test_build_file_content_type_config_override_is_sbom_author_supplied() -> No
     assert fields is not None
     assert fields["content_type"]["method"] == "sbomAuthorSupplied"
     assert "tool" not in fields["content_type"]
+
+
+def test_magika_version_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_magika_version() must only hit importlib.metadata once per process,
+    not once per magika-detected file -- real disk I/O otherwise repeated
+    for a value that can't change mid-process."""
+    _magika_version.cache_clear()
+    call_count = 0
+
+    def _fake_pkg_version(name: str) -> str:
+        nonlocal call_count
+        call_count += 1
+        return "1.2.3"
+
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.document._pkg_version", _fake_pkg_version
+    )
+
+    assert _magika_version() == "1.2.3"
+    assert _magika_version() == "1.2.3"
+    assert _magika_version() == "1.2.3"
+    assert call_count == 1
+    _magika_version.cache_clear()
 
 
 def test_build_file_unmapped_file_type_goes_to_summary_not_content_type() -> None:

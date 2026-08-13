@@ -141,10 +141,6 @@ def _resolve_file_header_extras(
     distribution_path: str,
     parse_header: Callable[[bytes], FileHeaderMetadata | None] | None,
     detect_content: Callable[[bytes, str, str], tuple[str | None, str | None]] | None,
-    resolve_override: (
-        Callable[[str, tuple[ContentTypeOverride, ...]], ContentTypeOverride | None]
-        | None
-    ),
     content_type_overrides: tuple[ContentTypeOverride, ...],
     content_type_method: str,
 ) -> _FileHeaderExtras:
@@ -155,21 +151,26 @@ def _resolve_file_header_extras(
     out of :func:`get_wheel_files` to keep its own body under the locals
     budget, not for reuse elsewhere.
 
-    *resolve_override* is only ever passed (non-``None``) when
-    *detect_content* is also requested -- overrides are a per-file
-    refinement within the ``detect_content_type`` gate, not a way to
-    bypass it (see :func:`get_wheel_files`). When it matches, it
-    pre-empts *detect_content* entirely for this file.
+    *content_type_overrides* is only ever consulted when *detect_content*
+    is also requested -- overrides are a per-file refinement within the
+    ``detect_content_type`` gate, not a way to bypass it (see
+    :func:`get_wheel_files`). When a pattern matches, it pre-empts
+    *detect_content* entirely for this file.
     """
     header = parse_header(raw_bytes) if parse_header else None
     content_type: str | None = None
     resolved_method: str | None = None
     if detect_content:
-        override = (
-            resolve_override(distribution_path, content_type_overrides)
-            if resolve_override
-            else None
-        )
+        override = None
+        if content_type_overrides:
+            # Deferred: core/ must not import from extract/ at runtime
+            # except behind a gate like this one (see get_wheel_files()).
+            # pylint: disable=import-outside-toplevel
+            from pitloom.extract._file_headers import resolve_content_type_override
+
+            override = resolve_content_type_override(
+                distribution_path, content_type_overrides
+            )
         if override is not None:
             content_type = override.content_type
             resolved_method = "config_override"
@@ -249,7 +250,6 @@ def get_wheel_files(
         parse_header = parse_file_header
 
     detect_content = None
-    resolve_override = None
     if detect_content_type:
         from pitloom.extract._file_headers import guess_content_type
 
@@ -261,14 +261,6 @@ def get_wheel_files(
             from pitloom.extract._file_headers import require_magika_available
 
             require_magika_available()
-
-        # Overrides are only ever consulted when detection itself is
-        # already on -- a per-file refinement within that gate, not a
-        # separate bypass of it (see this function's own docstring).
-        if content_type_overrides:
-            from pitloom.extract._file_headers import resolve_content_type_override
-
-            resolve_override = resolve_content_type_override
 
     try:
         builder = WheelBuilder(str(project_dir))
@@ -309,7 +301,6 @@ def get_wheel_files(
                     distribution_path,
                     parse_header,
                     detect_content,
-                    resolve_override,
                     content_type_overrides,
                     content_type_method,
                 )

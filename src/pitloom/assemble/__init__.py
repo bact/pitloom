@@ -20,7 +20,11 @@ from pitloom.assemble.spdx3.document import (
     build_model,
 )
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.config import PitloomConfig, read_pitloom_config
+from pitloom.core.config import (
+    VALID_CONTENT_TYPE_METHODS,
+    PitloomConfig,
+    read_pitloom_config,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.enrich_config import EnrichConfig
@@ -37,6 +41,20 @@ from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
+
+
+def _require_valid_content_type_method(value: str) -> None:
+    """Raise ``ValueError`` unless *value* is a valid content-type method.
+
+    The TOML path (``core/config.py``) and CLI (``choices=``) both already
+    validate against this same set; a direct Python API caller passing
+    ``content_type_method`` explicitly needs the same guard, or an invalid
+    value silently falls through to ``guess_content_type``'s ``"auto"``
+    behavior instead of failing loudly.
+    """
+    if value not in VALID_CONTENT_TYPE_METHODS:
+        valid = ", ".join(sorted(VALID_CONTENT_TYPE_METHODS))
+        raise ValueError(f"content_type_method must be one of {valid}, got {value!r}")
 
 
 def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
@@ -123,13 +141,19 @@ def generate_project_sbom(
     default -- real per-file cost); independently overridable of
     ``extract_file_header``. ``content_type_method``: ``None`` (default)
     defers to ``[tool.pitloom.content-type] method`` (``"auto"`` by
-    default); one of ``"auto"``/``"magika"``/``"extension"``. All apply
-    only to a directory target (an sdist archive's ``project_files`` come
-    from whatever extractor already ran).
+    default); one of ``"auto"``/``"magika"``/``"extension"`` -- an
+    explicit invalid value raises ``ValueError`` immediately, matching
+    the TOML/CLI paths' own validation. All apply only to a directory
+    target (an sdist archive's ``project_files`` come from whatever
+    extractor already ran).
 
     ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
     (network attempted, best-effort, by default); ``True``/``False``
     overrides it for this run -- see ``pitloom.assemble.spdx3.document.build``.
+
+    Raises:
+        ValueError: If ``content_type_method`` is explicitly passed and
+            isn't one of ``"auto"``/``"magika"``/``"extension"``.
     """
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:
@@ -160,6 +184,7 @@ def generate_project_sbom(
         if content_type_method is None
         else content_type_method
     )
+    _require_valid_content_type_method(effective_content_type_method)
     effective_offline: bool = pitloom_config.offline if offline is None else offline
 
     if target_path.is_file():

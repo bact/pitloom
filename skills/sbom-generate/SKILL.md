@@ -113,15 +113,18 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
   deterministic, local, frontmatter-only enrichment pass as part of the
   same generate call. See "Combine with enrichment" below for when to use
   this versus the fuller `sbom-enrich` skill.
-- `--file-headers` / `--no-file-headers` -- per-file SPDX header tag
-  scanning (copyright, contributor, license, file type). On by default;
-  cheap, no need to pass it explicitly.
+- `--extract-file-header` / `--no-extract-file-header` -- per-file SPDX
+  header tag scanning (copyright, contributor, license, file type). On by
+  default; cheap, no need to pass it explicitly.
 - `--content-type` / `--no-content-type` -- per-file content-type
-  detection via `magika`/`mimetypes`. Off by default and **opt-in only**
-  -- only add this flag when the user's request specifically implies
-  wanting per-file content-type/MIME data, not reflexively on every SBOM
-  request, since it costs real time per file (~5ms/file with `magika`)
-  across potentially thousands of files.
+  detection via `magika`/a filename-extension guess. Off by default and
+  **opt-in only** -- only add this flag when the user's request
+  specifically implies wanting per-file content-type/MIME data, not
+  reflexively on every SBOM request, since it costs real time per file
+  (~5ms/file with `magika`) across potentially thousands of files.
+- `--content-type-method {auto,magika,extension}` -- which detector
+  `--content-type` uses; defaults to `auto` (try `magika`, fall back to
+  the extension guess). Only needed to force a specific detector.
 
 ## Combine with enrichment
 

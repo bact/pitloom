@@ -9,11 +9,13 @@
 import pytest
 
 from pitloom.core.config import (
+    VALID_CONTENT_TYPE_METHODS,
     _read_content_type_settings,
     _read_enrich_settings,
     _read_extract_file_header,
     _read_fragments,
     _read_ids_file,
+    _read_pitloom_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
 
@@ -115,7 +117,7 @@ def test_read_content_type_settings_override_non_list_raises() -> None:
 
 def test_read_content_type_settings_override_entry_non_table_raises() -> None:
     pitloom_data = {"content-type": {"override": ["not-a-table"]}}
-    with pytest.raises(ValueError, match="entries must be tables"):
+    with pytest.raises(ValueError, match="entry must be a table"):
         _read_content_type_settings(pitloom_data)
 
 
@@ -201,3 +203,78 @@ def test_read_fragments_defaults_empty_when_absent() -> None:
 def test_read_fragments_reads_singular_table() -> None:
     pitloom_data = {"fragment": {"files": ["a.json", "b.json"]}}
     assert _read_fragments(pitloom_data) == ["a.json", "b.json"]
+
+
+# ---------------------------------------------------------------------------
+# Old-shaped keys raise instead of being silently ignored (moved-keys guard)
+# ---------------------------------------------------------------------------
+
+
+def test_old_ids_table_raises_instead_of_silently_ignored() -> None:
+    """A leftover [tool.pitloom.ids] table must error, not silently
+    revert ids-file to auto-discovery."""
+    data = {"tool": {"pitloom": {"ids": {"file": "custom-ids.json"}}}}
+    with pytest.raises(ValueError, match=r"\[tool\.pitloom\.ids\] has moved to"):
+        _read_pitloom_config(data)
+
+
+def test_old_fragments_table_raises_instead_of_silently_ignored() -> None:
+    """A leftover plural [tool.pitloom.fragments] table must error, not
+    silently drop every registered fragment from the SBOM."""
+    data = {"tool": {"pitloom": {"fragments": {"files": ["a.json"]}}}}
+    with pytest.raises(ValueError, match=r"\[tool\.pitloom\.fragments\] has moved to"):
+        _read_pitloom_config(data)
+
+
+def test_old_file_headers_table_raises_instead_of_silently_ignored() -> None:
+    """A leftover [tool.pitloom.file-headers] table must error, not
+    silently revert extract-file-header/content-type to their new
+    defaults (the opposite of the project's configured intent)."""
+    data = {
+        "tool": {
+            "pitloom": {"file-headers": {"enabled": False, "detect-content-type": True}}
+        }
+    }
+    with pytest.raises(
+        ValueError, match=r"\[tool\.pitloom\.file-headers\] has moved to"
+    ):
+        _read_pitloom_config(data)
+
+
+def test_old_enrich_table_raises_instead_of_silently_ignored() -> None:
+    """A leftover table-shaped [tool.pitloom.enrich] must error with a
+    clear message, not the generic 'must be a boolean, got dict' it would
+    otherwise surface."""
+    data = {"tool": {"pitloom": {"enrich": {"local": True}}}}
+    with pytest.raises(ValueError, match=r"\[tool\.pitloom\.enrich\] has moved to"):
+        _read_pitloom_config(data)
+
+
+def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
+    """The guard must not false-positive on the current, correct shape."""
+    data = {
+        "tool": {
+            "pitloom": {
+                "ids-file": "loom-ids.json",
+                "fragment": {"files": ["a.json"]},
+                "extract-file-header": False,
+                "enrich": True,
+                "content-type": {"enabled": True},
+            }
+        }
+    }
+    config = _read_pitloom_config(data)
+    assert config.ids_file == "loom-ids.json"
+    assert config.fragments == ["a.json"]
+    assert config.extract_file_header is False
+    assert config.enrich_local is True
+    assert config.content_type_enabled is True
+
+
+# ---------------------------------------------------------------------------
+# VALID_CONTENT_TYPE_METHODS export (shared by CLI/API, not just config.py)
+# ---------------------------------------------------------------------------
+
+
+def test_valid_content_type_methods_is_public() -> None:
+    assert VALID_CONTENT_TYPE_METHODS == frozenset({"auto", "magika", "extension"})
