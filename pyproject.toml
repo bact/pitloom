@@ -76,7 +76,7 @@ ai = [
     "h5py>=3.16.0",
     "huggingface_hub>=1.22.0",
     "numpy>=2.2.6,<2.3; python_version<'3.11'", # based on wheel availability
-    "numpy>=2.3.2; python_version>='3.11'",     # based on wheel availability
+    "numpy>=2.3.2,<3; python_version>='3.11'",  # based on wheel availability
     "onnx>=1.22.0",
     "safetensors[numpy]>=0.8.0",
 ]
@@ -88,7 +88,7 @@ hdf5 = ["h5py>=3.16.0"]
 huggingface_hub = ["huggingface_hub>=1.22.0"]
 numpy = [
     "numpy>=2.2.6,<2.3; python_version<'3.11'",
-    "numpy>=2.3.2; python_version>='3.11'",
+    "numpy>=2.3.2,<3; python_version>='3.11'",
 ]
 onnx = ["onnx>=1.22.0"]
 pytorch = ["fickling>=0.1.12"]

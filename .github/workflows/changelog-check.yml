@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Changelog entry required
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - "docs/**"
+      - "working-docs/**"
+      - ".github/**"
+      - "**/*.md"
+      - "LICENSE*"
+      - "CITATION.cff"
+      - "codemeta.json"
+      - ".gitignore"
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: CHANGELOG.md touched
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Require a CHANGELOG.md entry
+        # Reaching this step means paths-ignore let a non-exempt file
+        # (source, config, tests, ...) through -- CHANGELOG.md must be
+        # part of the same diff. paths-ignore itself already skips PRs
+        # that touch only docs/working-docs/.github/markdown/metadata
+        # files, so a pure CI or internal-notes change never gets here.
+        run: |
+          changed=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")
+          if echo "${changed}" | grep -qx "CHANGELOG.md"; then
+            echo "OK: CHANGELOG.md is part of this PR."
+          else
+            echo "ERROR: this PR changes non-exempt files but doesn't touch CHANGELOG.md." >&2
+            echo "Add an entry, or split out the CI-only/non-user-facing part into paths-ignore." >&2
+            exit 1
+          fi
