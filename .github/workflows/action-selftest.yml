@@ -10,14 +10,22 @@ name: Action self-test
 on:
   push:
     branches: [main, develop]
-    paths-ignore:
+    paths-ignore: &ignore-paths
       - "docs/**"
+      - "**/*.md"
+      - "LICENSE*"
+      - "CITATION.cff"
+      - "codemeta.json"
+      - ".gitignore"
   pull_request:
     branches: [main, develop]
-    paths-ignore:
-      - "docs/**"
+    paths-ignore: *ignore-paths
 
 permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   action-selftest:
@@ -35,11 +43,16 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install Pitloom from checkout
+        # Self-test runs project mode (no --model, no --content-type), so it
+        # never touches the ai/content-type extras' extraction code paths --
+        # a plain editable install is enough to dogfood the composite action.
         run: |
           python -m pip install --upgrade pip
-          pip install ".[ai,content-type]"
+          pip install -e .
           pip install spdx3-validate
 
       - name: Build licenseid database
