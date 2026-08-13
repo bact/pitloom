@@ -47,7 +47,7 @@ author-declared):
   "annotationType": "other",
   "contentType": "application/json",
   "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
-  "statement": "{\"schema\":\"https://pitloom.dev/provenance/1\",\"fields\":{\"license\":{\"source\":\"LICENSE\",\"method\":\"licenseid_detection\"}}}"
+  "statement": "{\"schema\":\"https://pitloom.dev/provenance/fields/1\",\"fields\":{\"license\":{\"source\":\"LICENSE\",\"method\":\"licenseid_detection\"}}}"
 }
 ```
 
