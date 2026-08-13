@@ -48,20 +48,17 @@ and this project adheres to
 
 ### Fixed
 
-- `[tool.pitloom] offline` is now honored by `loom generate`, `loom
-  wheel`, `loom model`, and `loom env` -- previously only `loom project`
-  deferred to it; the others silently ignored the config and always
-  attempted network access regardless of the setting
+- `[tool.pitloom] offline` is now honored by `loom generate`,
+  `loom wheel`, `loom model`, and `loom env` -- previously only `loom project`
+  deferred to it ([#142])
 - CLI errors and internal warnings share one grep-able prefix again:
-  `ERROR:`/`WARNING:` (uppercase). Previously only some error messages
-  used `ERROR:` -- others read `Error:`/`Error generating X:` -- and
-  internal `log.warning(...)` calls (invalid registry entries, fragment
-  merge issues, model-extraction fallbacks, etc.) had no prefix at all
+  `ERROR:`/`WARNING:` (uppercase) ([#142])
 
 [#136]: https://github.com/bact/pitloom/pull/136
 [#138]: https://github.com/bact/pitloom/pull/138
 [#139]: https://github.com/bact/pitloom/pull/139
 [#140]: https://github.com/bact/pitloom/pull/140
+[#142]: https://github.com/bact/pitloom/pull/142
 
 ## [0.13.3] - 2026-08-11
 
