@@ -20,6 +20,8 @@ The file is placed in the `{name}-{version}.dist-info/sboms` directory,
 ensuring compliance with the PyPA
 [Package Installation Metadata][dist-info] specification ([PEP 770]).
 
+See user manual at https://bact.github.io/pitloom/
+
 [SPDX 3]: https://spdx.github.io/spdx-spec/
 [dist-info]: https://packaging.python.org/en/latest/specifications/recording-installed-packages/#the-dist-info-directory
 [PEP 770]: https://peps.python.org/pep-0770/
