@@ -22,7 +22,7 @@ compliance logs, CI/CD audits, and release assets.
 ## Quick guide
 
 ```yaml
-- uses: bact/pitloom@v0.14.0
+- uses: bact/pitloom@v0.14.1
 ```
 
 ## Installation
@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: bact/pitloom@v0.14.0
+      - uses: bact/pitloom@v0.14.1
 ```
 
-Pin to a specific release tag (`@v0.14.0`) rather than a branch, the same
+Pin to a specific release tag (`@v0.14.1`) rather than a branch, the same
 as any third-party action.
 
 ## Usage details
@@ -48,7 +48,7 @@ writes `sbom.spdx3.json`. Point it at an AI model instead of a project
 directory with `model:`:
 
 ```yaml
-- uses: bact/pitloom@v0.14.0
+- uses: bact/pitloom@v0.14.1
   with:
     model: path/to/model.safetensors
 ```
@@ -57,7 +57,7 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 [creator/creation metadata](creation-metadata.md)):
 
 ```yaml
-- uses: bact/pitloom@v0.14.0
+- uses: bact/pitloom@v0.14.1
   with:
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
@@ -81,7 +81,7 @@ Inputs (all optional):
 | `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.content-type] enabled` (off by default). |
 | `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
 | `args` | *(empty)* | Extra raw flags passed through to the `loom` command. |
-| `pitloom-version` | *(empty)* | Pitloom version/specifier to install, e.g. `0.14.0` or `>=0.13,<1.0`. Empty installs the latest release. |
+| `pitloom-version` | *(empty)* | Pitloom version/specifier to install, e.g. `0.14.1` or `>=0.13,<1.0`. Empty installs the latest release. |
 | `python-version` | `3.x` | Python version passed to `actions/setup-python`. |
 | `install` | `true` | Set `false` to skip installing Python/Pitloom and assume `loom` is already on `PATH`. |
 | `upload-artifact` | `true` | Upload the generated SBOM via `actions/upload-artifact`. |
@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: bact/pitloom@v0.14.0
+      - uses: bact/pitloom@v0.14.1
         with:
           extras: ai
           pretty: "true"
