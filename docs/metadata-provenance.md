@@ -146,11 +146,6 @@ value) -- so none of these are misreported as a conflict.
   reserved for future candidate sources -- a linked GitHub/Hugging Face
   Hub API, or an AI agent's inference -- not built yet.)
 
-For the full design rationale, current implementation status, and code
-citations behind both sections above, see
-[`annotation-provenance.md`](https://github.com/bact/pitloom/blob/main/working-docs/implementation/annotation-provenance.md)
-in the Pitloom repository.
-
 ## See also
 
 `[tool.pitloom.provenance]` is read the same way regardless of entry

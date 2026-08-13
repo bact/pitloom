@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import traceback
 from dataclasses import dataclass
@@ -464,7 +465,7 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()
     if not project_dir.exists():
-        print(f"Error: Project directory not found: {project_dir}", file=sys.stderr)
+        print(f"ERROR: project directory not found: {project_dir}", file=sys.stderr)
         return None, None
 
     if project_dir.is_file():
@@ -476,7 +477,7 @@ def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path 
             return project_dir, config_path
 
     print(
-        f"Error: No project configuration found in {project_dir}. "
+        f"ERROR: no project configuration found in {project_dir}. "
         "Expected pyproject.toml, setup.cfg, or setup.py.",
         file=sys.stderr,
     )
@@ -786,8 +787,30 @@ def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
     return Path.cwd() / (stem + _SPDX3_JSON_EXT)
 
 
+def _configure_logging() -> None:
+    """Prefix internal ``log.warning(...)`` output with ``WARNING: ``.
+
+    Without this, Python's last-resort handler prints library warnings
+    (``pitloom.ids``, ``pitloom.loom``, etc.) to stderr with no prefix at
+    all, breaking the CLI's shared grep-able ``LEVEL: <description>``
+    convention (see ``ERROR:``, used by this module's own ``print()``
+    calls). Reconfigures on every call rather than guarding with a
+    "configured once" flag, so repeated ``main()`` calls in the same
+    process (e.g. across tests) don't stack duplicate handlers.
+    Propagation to the root logger is left untouched, so ``pytest``'s
+    ``caplog`` fixture still captures these records.
+    """
+    logger = logging.getLogger("pitloom")
+    logger.handlers.clear()
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.WARNING)
+    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    logger.addHandler(handler)
+
+
 def main() -> int:
     """Main entry point for the Pitloom CLI."""
+    _configure_logging()
     parser = _build_parser()
     args = parser.parse_args()
 
@@ -816,7 +839,7 @@ def _run_generate_mode(args: argparse.Namespace) -> int:
         output_path = args.output
         generate(
             args.target,
-            offline=args.offline,
+            offline=args.offline or None,
             output_path=output_path,
             creation_metadata=creation_metadata,
             pretty=pretty,
@@ -829,7 +852,7 @@ def _run_generate_mode(args: argparse.Namespace) -> int:
         )
         return 0
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating SBOM: {e}", file=sys.stderr)
+        print(f"ERROR: SBOM generation failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1
@@ -883,7 +906,7 @@ def _run_project_mode(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating SBOM: {e}", file=sys.stderr)
+        print(f"ERROR: SBOM generation failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1
@@ -895,7 +918,7 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
     try:
         wheel_path: Path = Path(target).resolve()
         if not wheel_path.exists():
-            print(f"Error: Wheel file not found: {wheel_path}", file=sys.stderr)
+            print(f"ERROR: wheel file not found: {wheel_path}", file=sys.stderr)
             return 1
 
         pitloom_config = PitloomConfig()
@@ -923,12 +946,12 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             pretty=effective_pretty,
             describe_relationship=effective_describe,
             registry=args.registry,
-            offline=args.offline,
+            offline=args.offline or None,
         )
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating wheel SBOM: {e}", file=sys.stderr)
+        print(f"ERROR: wheel SBOM generation failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1
@@ -943,7 +966,7 @@ def _run_model_mode(args: argparse.Namespace) -> int:
             model_id = parse_hf_model_id(target)
             if model_id is None:
                 print(
-                    f"Error: Not a valid Hugging Face URL or model ID: {target!r}",
+                    f"ERROR: not a valid Hugging Face URL or model ID: {target!r}",
                     file=sys.stderr,
                 )
                 return 1
@@ -956,7 +979,7 @@ def _run_model_mode(args: argparse.Namespace) -> int:
         else:
             model_path: Path = Path(target).resolve()
             if not model_path.exists():
-                print(f"Error: Model file not found: {model_path}", file=sys.stderr)
+                print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
                 return 1
             output_path = _resolve_model_output_path(args.output, model_path)
             if args.verbose:
@@ -976,7 +999,7 @@ def _run_model_mode(args: argparse.Namespace) -> int:
 
         generate_model_sbom(
             model_target,
-            offline=args.offline,
+            offline=args.offline or None,
             output_path=output_path,
             creation_metadata=creation.to_creation_metadata(),
             pretty=effective_pretty,
@@ -987,7 +1010,7 @@ def _run_model_mode(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating model SBOM: {e}", file=sys.stderr)
+        print(f"ERROR: model SBOM generation failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1
@@ -999,7 +1022,7 @@ def _run_enrich_mode(args: argparse.Namespace) -> int:
     try:
         model_path: Path = Path(target).resolve()
         if not model_path.exists():
-            print(f"Error: Model file not found: {model_path}", file=sys.stderr)
+            print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
             return 1
 
         pitloom_config = PitloomConfig()
@@ -1034,7 +1057,7 @@ def _run_enrich_mode(args: argparse.Namespace) -> int:
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating enrichment fragment: {e}", file=sys.stderr)
+        print(f"ERROR: enrichment fragment generation failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1
@@ -1066,12 +1089,12 @@ def _run_env_mode(args: argparse.Namespace) -> int:
             pretty=effective_pretty,
             describe_relationship=effective_describe,
             registry=args.registry,
-            offline=args.offline,
+            offline=args.offline or None,
         )
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error generating Deployed SBOM: {e}", file=sys.stderr)
+        print(f"ERROR: deployed SBOM generation failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1
@@ -1083,7 +1106,7 @@ def _run_merge_mode(args: argparse.Namespace) -> int:
         fragments_dir: Path = args.fragments_dir.resolve()
         if not fragments_dir.exists():
             print(
-                f"Error: Fragments directory not found: {fragments_dir}",
+                f"ERROR: fragments directory not found: {fragments_dir}",
                 file=sys.stderr,
             )
             return 1
@@ -1095,7 +1118,7 @@ def _run_merge_mode(args: argparse.Namespace) -> int:
         ]
         if not fragment_files:
             print(
-                f"Error: No JSON fragment files found in {fragments_dir}",
+                f"ERROR: no JSON fragment files found in {fragments_dir}",
                 file=sys.stderr,
             )
             return 1
@@ -1116,7 +1139,7 @@ def _run_merge_mode(args: argparse.Namespace) -> int:
             )
         return 0
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error merging fragments: {e}", file=sys.stderr)
+        print(f"ERROR: fragment merge failed: {e}", file=sys.stderr)
         return 1
 
 
@@ -1136,7 +1159,8 @@ def _load_or_create_registry(
             return IdRegistry.load(registry_path)
         except Exception as exc:  # pylint: disable=broad-exception-caught
             print(
-                f"Error loading registry from {registry_path}: {exc}", file=sys.stderr
+                f"ERROR: failed to load registry from {registry_path}: {exc}",
+                file=sys.stderr,
             )
             return None
 
@@ -1235,7 +1259,7 @@ def _run_ids_generate(args: argparse.Namespace) -> int:
     paths: list[Path] = args.paths or _default_ids_generate_paths(project_dir)
     if not paths:
         print(
-            f"Error: no source/data directories found under {project_dir}; "
+            f"ERROR: no source/data directories found under {project_dir}; "
             "pass explicit PATH argument(s).",
             file=sys.stderr,
         )
@@ -1257,7 +1281,7 @@ def _run_ids_import(args: argparse.Namespace) -> int:
     """Run `pitloom ids import`."""
     sbom_path: Path = args.sbom.resolve()
     if not sbom_path.exists():
-        print(f"Error: SBOM file not found: {sbom_path}", file=sys.stderr)
+        print(f"ERROR: SBOM file not found: {sbom_path}", file=sys.stderr)
         return 1
 
     registry_path = (
@@ -1272,7 +1296,7 @@ def _run_ids_import(args: argparse.Namespace) -> int:
     try:
         registry.import_sbom(sbom_path)
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        print(f"Error importing SBOM {sbom_path}: {exc}", file=sys.stderr)
+        print(f"ERROR: failed to import SBOM {sbom_path}: {exc}", file=sys.stderr)
         return 1
 
     registry.save(registry_path)

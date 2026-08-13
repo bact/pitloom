@@ -69,6 +69,19 @@ def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
         output_path.write_text(sbom_json, encoding="utf-8")
 
 
+def _resolve_local_offline_default(directory: Path) -> bool:
+    """Read ``[tool.pitloom] offline`` from *directory*'s own
+    ``pyproject.toml`` (no ancestor walk-up); falls back to ``False``
+    (network attempted) when no such file exists. Mirrors
+    :func:`_resolve_model_enrich_config`'s local, non-walking config
+    lookup, applied to ``offline`` instead of ``enrich``.
+    """
+    try:
+        return read_pitloom_config(directory / "pyproject.toml").offline
+    except FileNotFoundError:
+        return False
+
+
 def _resolve_model_enrich_config(model_dir: Path) -> EnrichConfig:
     """Read ``[tool.pitloom] enrich`` from a ``pyproject.toml`` in
     *model_dir* (the model file's own directory only, no ancestor
@@ -259,9 +272,15 @@ def generate_wheel_sbom(
     describe_relationship: bool | None = None,
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
-    offline: bool = False,
+    offline: bool | None = None,
 ) -> str:
-    """Generate an Analyzed SPDX 3 SBOM for a built Python wheel."""
+    """Generate an Analyzed SPDX 3 SBOM for a built Python wheel.
+
+    ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
+    in the current working directory's ``pyproject.toml`` if one exists
+    (network attempted, best-effort, otherwise); ``True``/``False``
+    overrides it for this run.
+    """
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
@@ -271,6 +290,9 @@ def generate_wheel_sbom(
     phantom_deps = find_phantom_dependencies(project_files)
 
     cwd = Path.cwd()
+    effective_offline = (
+        _resolve_local_offline_default(cwd) if offline is None else offline
+    )
     resolved_registry = (
         registry
         if isinstance(registry, IdRegistry)
@@ -291,7 +313,7 @@ def generate_wheel_sbom(
         sbom_type=spdx3_bindings.software_SbomType.analyzed,
         registry=resolved_registry,
         provenance=provenance,
-        offline=offline,
+        offline=effective_offline,
     )
 
     sbom_json = exporter.to_json(
@@ -307,7 +329,7 @@ def generate_wheel_sbom(
 def generate_model_sbom(
     source: Path | str,
     *,
-    offline: bool = False,
+    offline: bool | None = None,
     output_path: Path | None = None,
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
@@ -323,7 +345,10 @@ def generate_model_sbom(
     effect on a Hugging Face source -- local enrichers never run there
     (HF model cards are already parsed natively).
 
-    ``offline``: for a Hugging Face *source*, a hard requirement -- raises
+    ``offline``: for a Hugging Face *source*, a hard requirement -- ``None``
+    (default) defers to ``[tool.pitloom] offline`` in the current working
+    directory's ``pyproject.toml`` if one exists (network attempted,
+    best-effort, otherwise); ``True`` (explicit or via config) raises
     ``ValueError`` rather than fetching it, since there's no local
     fallback for a remote-only source. For a local model file, a no-op --
     there's no network path in that case either way. This is a narrower
@@ -341,7 +366,10 @@ def generate_model_sbom(
     enrichment_results: list[EnrichmentResult] = []
 
     if is_hf:
-        if offline:
+        effective_offline = (
+            _resolve_local_offline_default(Path.cwd()) if offline is None else offline
+        )
+        if effective_offline:
             raise ValueError(
                 "Offline mode enabled: cannot fetch remote Hugging Face source "
                 f"'{source_str}'"
@@ -506,9 +534,15 @@ def generate_env_sbom(
     describe_relationship: bool | None = None,
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
-    offline: bool = False,
+    offline: bool | None = None,
 ) -> str:
-    """Generate a Deployed SPDX 3 SBOM for the current installed environment."""
+    """Generate a Deployed SPDX 3 SBOM for the current installed environment.
+
+    ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
+    in the current working directory's ``pyproject.toml`` if one exists
+    (network attempted, best-effort, otherwise); ``True``/``False``
+    overrides it for this run.
+    """
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
@@ -516,6 +550,9 @@ def generate_env_sbom(
     project_metadata, env_tree = read_environment()
 
     cwd = Path.cwd()
+    effective_offline = (
+        _resolve_local_offline_default(cwd) if offline is None else offline
+    )
     resolved_registry = (
         registry
         if isinstance(registry, IdRegistry)
@@ -534,7 +571,7 @@ def generate_env_sbom(
         env_tree=env_tree,
         registry=resolved_registry,
         provenance=provenance,
-        offline=offline,
+        offline=effective_offline,
     )
 
     sbom_json = exporter.to_json(
@@ -550,7 +587,7 @@ def generate_env_sbom(
 def generate(
     target: Path | str = ".",
     *,
-    offline: bool = False,
+    offline: bool | None = None,
     output_path: Path | None = None,
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
@@ -569,6 +606,11 @@ def generate(
     ``extract_file_header``/``content_type``/``content_type_method`` are
     forwarded to ``generate_project_sbom`` only (v1 scope -- see that
     function's docstring); a no-op elsewhere.
+
+    ``offline``: forwarded as-is to whichever sub-generator the target
+    resolves to; ``None`` (default) defers to that sub-generator's own
+    ``[tool.pitloom] offline`` lookup -- see each one's docstring for the
+    exact directory it reads from.
     """
     target_str = str(target).strip()
 

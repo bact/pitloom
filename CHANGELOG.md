@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-12
+Last-Modified: 2026-08-13
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,9 +17,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.13.3...v0.13.4>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.13.3...v0.14.0>
 
-## [0.13.4] - 2026-08-12
+## [0.14.0] - 2026-08-13
 
 ### Added
 
@@ -45,6 +45,18 @@ and this project adheres to
   clear error rather than being silently ignored; `content_type_method`
   passed explicitly to the Python API is validated the same way as the
   `pyproject.toml`/CLI paths ([#140])
+
+### Fixed
+
+- `[tool.pitloom] offline` is now honored by `loom generate`, `loom
+  wheel`, `loom model`, and `loom env` -- previously only `loom project`
+  deferred to it; the others silently ignored the config and always
+  attempted network access regardless of the setting
+- CLI errors and internal warnings share one grep-able prefix again:
+  `ERROR:`/`WARNING:` (uppercase). Previously only some error messages
+  used `ERROR:` -- others read `Error:`/`Error generating X:` -- and
+  internal `log.warning(...)` calls (invalid registry entries, fragment
+  merge issues, model-extraction fallbacks, etc.) had no prefix at all
 
 [#136]: https://github.com/bact/pitloom/pull/136
 [#138]: https://github.com/bact/pitloom/pull/138
@@ -499,7 +511,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
-[0.13.4]: https://github.com/bact/pitloom/compare/v0.13.3...v0.13.4
+[0.14.0]: https://github.com/bact/pitloom/compare/v0.13.3...v0.14.0
 [0.13.3]: https://github.com/bact/pitloom/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/bact/pitloom/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/bact/pitloom/compare/v0.13.0...v0.13.1
