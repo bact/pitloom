@@ -19,6 +19,15 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.13.3...v0.14.0>
 
+## [Unreleased]
+
+### Fixed
+
+- `sbomAuthorSupplied` is now consistently a provenance `role`, not
+  conflated with `method` ([#143])
+
+[#143]: https://github.com/bact/pitloom/pull/143
+
 ## [0.14.0] - 2026-08-13
 
 ### Added
