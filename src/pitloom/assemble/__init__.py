@@ -20,7 +20,11 @@ from pitloom.assemble.spdx3.document import (
     build_model,
 )
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.config import PitloomConfig, read_pitloom_config
+from pitloom.core.config import (
+    VALID_CONTENT_TYPE_METHODS,
+    PitloomConfig,
+    read_pitloom_config,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.enrich_config import EnrichConfig
@@ -39,6 +43,20 @@ from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 
 
+def _require_valid_content_type_method(value: str) -> None:
+    """Raise ``ValueError`` unless *value* is a valid content-type method.
+
+    The TOML path (``core/config.py``) and CLI (``choices=``) both already
+    validate against this same set; a direct Python API caller passing
+    ``content_type_method`` explicitly needs the same guard, or an invalid
+    value silently falls through to ``guess_content_type``'s ``"auto"``
+    behavior instead of failing loudly.
+    """
+    if value not in VALID_CONTENT_TYPE_METHODS:
+        valid = ", ".join(sorted(VALID_CONTENT_TYPE_METHODS))
+        raise ValueError(f"content_type_method must be one of {valid}, got {value!r}")
+
+
 def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
     """Write SBOM output to file or stdout if output_path is '-'."""
     if output_path is None:
@@ -52,7 +70,7 @@ def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
 
 
 def _resolve_model_enrich_config(model_dir: Path) -> EnrichConfig:
-    """Read ``[tool.pitloom.enrich]`` from a ``pyproject.toml`` in
+    """Read ``[tool.pitloom] enrich`` from a ``pyproject.toml`` in
     *model_dir* (the model file's own directory only, no ancestor
     walk-up); falls back to :class:`EnrichConfig` defaults (enrichment
     off) when no such file exists. Shared by ``generate_model_sbom()``
@@ -105,27 +123,37 @@ def generate_project_sbom(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
-    file_headers: bool | None = None,
+    extract_file_header: bool | None = None,
     content_type: bool | None = None,
+    content_type_method: str | None = None,
     offline: bool | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
 
-    ``enrich``: ``None`` (default) defers to ``[tool.pitloom.enrich]``
+    ``enrich``: ``None`` (default) defers to ``[tool.pitloom] enrich``
     (off by default); ``True``/``False`` overrides it for this run, applied
     to every AI model discovered in the project.
 
-    ``file_headers``: ``None`` (default) defers to
-    ``[tool.pitloom.file-headers] enabled`` (on by default); ``True``/
+    ``extract_file_header``: ``None`` (default) defers to
+    ``[tool.pitloom] extract-file-header`` (on by default); ``True``/
     ``False`` overrides it for this run. ``content_type``: ``None``
-    (default) defers to ``[tool.pitloom.file-headers] detect-content-type``
-    (off by default -- real per-file cost); independently overridable of
-    ``file_headers``. Both only apply to a directory target (an sdist
-    archive's ``project_files`` come from whatever extractor already ran).
+    (default) defers to ``[tool.pitloom.content-type] enabled`` (off by
+    default -- real per-file cost); independently overridable of
+    ``extract_file_header``. ``content_type_method``: ``None`` (default)
+    defers to ``[tool.pitloom.content-type] method`` (``"auto"`` by
+    default); one of ``"auto"``/``"magika"``/``"extension"`` -- an
+    explicit invalid value raises ``ValueError`` immediately, matching
+    the TOML/CLI paths' own validation. All apply only to a directory
+    target (an sdist archive's ``project_files`` come from whatever
+    extractor already ran).
 
     ``offline``: ``None`` (default) defers to ``[tool.pitloom] offline``
     (network attempted, best-effort, by default); ``True``/``False``
     overrides it for this run -- see ``pitloom.assemble.spdx3.document.build``.
+
+    Raises:
+        ValueError: If ``content_type_method`` is explicitly passed and
+            isn't one of ``"auto"``/``"magika"``/``"extension"``.
     """
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:
@@ -143,14 +171,20 @@ def generate_project_sbom(
         if enrich is not None
         else pitloom_config.enrich
     )
-    effective_file_headers: bool = (
-        pitloom_config.file_headers.enabled if file_headers is None else file_headers
+    effective_extract_file_header: bool = (
+        pitloom_config.extract_file_header
+        if extract_file_header is None
+        else extract_file_header
     )
     effective_content_type: bool = (
-        pitloom_config.file_headers.detect_content_type
-        if content_type is None
-        else content_type
+        pitloom_config.content_type.enabled if content_type is None else content_type
     )
+    effective_content_type_method: str = (
+        pitloom_config.content_type.method
+        if content_type_method is None
+        else content_type_method
+    )
+    _require_valid_content_type_method(effective_content_type_method)
     effective_offline: bool = pitloom_config.offline if offline is None else offline
 
     if target_path.is_file():
@@ -160,8 +194,10 @@ def generate_project_sbom(
     else:
         merkle_root, project_files = get_wheel_files(
             target_path,
-            scan_file_headers=effective_file_headers,
+            scan_file_headers=effective_extract_file_header,
             detect_content_type=effective_content_type,
+            content_type_method=effective_content_type_method,
+            content_type_overrides=pitloom_config.content_type.overrides,
         )
         project_metadata.files = project_files
         search_root = target_path
@@ -282,7 +318,7 @@ def generate_model_sbom(
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository.
 
-    ``enrich``: ``None`` (default) defers to ``[tool.pitloom.enrich]``
+    ``enrich``: ``None`` (default) defers to ``[tool.pitloom] enrich``
     (off by default); ``True``/``False`` overrides it for this run. Has no
     effect on a Hugging Face source -- local enrichers never run there
     (HF model cards are already parsed natively).
@@ -367,7 +403,7 @@ def enrich_model(
     Unlike ``generate_model_sbom``/``generate_project_sbom``, calling this
     is itself the explicit opt-in: ``enrich=True`` (default, same as
     ``None``) always runs enrichment regardless of
-    ``[tool.pitloom.enrich] local`` (a per-source ``false`` would
+    ``[tool.pitloom] enrich`` (a per-source ``false`` would
     otherwise make this command silently write an empty fragment, which
     defeats the purpose of running it directly). Pass ``enrich=False`` to
     suppress it explicitly instead -- e.g. for scripting symmetry with the
@@ -403,7 +439,7 @@ def enrich_model(
     ``SpdxDocument``/``software_Sbom`` wrapper) containing just what the
     enrichment run found: N3 CreationInfo(s), any newly-created dataset
     elements, and the E1/E2 "enrichment" Annotation. Register the fragment
-    under ``[tool.pitloom.fragments]`` and re-run ``loom project``/
+    under ``[tool.pitloom.fragment]`` and re-run ``loom project``/
     ``loom generate`` to merge it into a base SBOM (see
     ``working-docs/design/sbom-fragments.md``).
 
@@ -522,16 +558,17 @@ def generate(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
-    file_headers: bool | None = None,
+    extract_file_header: bool | None = None,
     content_type: bool | None = None,
+    content_type_method: str | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
     ``enrich`` is forwarded to ``generate_model_sbom``/``generate_project_sbom``
     only -- the environment and wheel targets have no enrichment to run.
-    ``file_headers``/``content_type`` are forwarded to
-    ``generate_project_sbom`` only (v1 scope -- see that function's
-    docstring); a no-op elsewhere.
+    ``extract_file_header``/``content_type``/``content_type_method`` are
+    forwarded to ``generate_project_sbom`` only (v1 scope -- see that
+    function's docstring); a no-op elsewhere.
     """
     target_str = str(target).strip()
 
@@ -612,8 +649,9 @@ def generate(
         registry=registry,
         provenance=provenance,
         enrich=enrich,
-        file_headers=file_headers,
+        extract_file_header=extract_file_header,
         content_type=content_type,
+        content_type_method=content_type_method,
         offline=offline,
     )
 

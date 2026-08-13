@@ -36,7 +36,7 @@ A single Pitloom run -- one CLI invocation, one Hatchling build, one
 that run generated. When a composite SBOM merges pre-generated fragments
 (see the [Hatchling build hook](hatchling-build-hook.md) and [Python
 API](python-api.md#tracking-decorator) tracking decorator pages) via
-`[tool.pitloom.fragments]`, each fragment keeps the record from whichever
+`[tool.pitloom.fragment]`, each fragment keeps the record from whichever
 run actually produced it. The result contains as many of these records as
 generation events contributed to it -- correct provenance to keep, since
 each part genuinely was created separately, at a different time, possibly

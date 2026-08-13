@@ -202,7 +202,7 @@ human. `tools` (`createdUsing`) defaults to a single `Tool` "Pitloom"
 Elements created together in one generation event -- one CLI run, one
 Hatchling build, one `loom.run` -- share a single `CreationInfo` instance,
 referenced by a blank node identifier such as `_:CreationInfo0`. A composite
-SBOM assembled from merged fragments (`[tool.pitloom.fragments]`) is *not*
+SBOM assembled from merged fragments (`[tool.pitloom.fragment]`) is *not*
 limited to one: each fragment keeps the `CreationInfo` from whichever run
 actually produced it, so the final graph can contain several, one per
 generation event that contributed to it. Don't assume a single-`CreationInfo`

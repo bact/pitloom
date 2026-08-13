@@ -147,7 +147,7 @@ type = ""                   # person (default), organization, software-agent, ag
 [[tool.pitloom.creation-tool]]  # Repeatable; omit for the default "Pitloom" tool
 name = ""
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = []                  # List of pre-generated fragment paths to merge
 ```
 
@@ -159,7 +159,7 @@ Specifying fragments allows the hook to merge `pitloom.loom`-generated AI/ML
 fragments produced during training before the build:
 
 ```toml
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
     "fragments/train_run.spdx3.json",
     "fragments/eval_run.spdx3.json",
@@ -213,7 +213,7 @@ high level, `initialize()`:
    `scan_project_for_ai_models` for embedded AI/ML metadata.
 4. Assembles the SPDX 3 document via `assemble_spdx3` (the shared
    `pitloom.assemble.spdx3.document.build()` used by the CLI), then merges
-   `[tool.pitloom.fragments]`.
+   `[tool.pitloom.fragment]`.
 5. Serializes with `exporter.to_json(pretty=False)` -- **always** compact,
    RFC 8785 (JCS) canonical, regardless of any `[tool.pitloom] pretty = true`
    setting or CLI `--pretty` flag. Canonicalization is required by the SPDX
@@ -241,7 +241,7 @@ standalone -- includes:
 
 ## Fragment merging and `[tool.pitloom]` configuration
 
-Fragment paths listed under `[tool.pitloom.fragments] files` are passed
+Fragment paths listed under `[tool.pitloom.fragment] files` are passed
 directly to `merge_fragments()` -- the same call the CLI makes, on the same
 list. There is nothing hook-specific to merge in; a project's fragment list
 is the same whether it's assembled by `loom` on the command line or by the
@@ -363,7 +363,7 @@ dependencies = [
 | `test_hook_sbom_files_populated` | Asserts `build_data["sbom_files"]` is populated with the staged path after `initialize()`. |
 | `test_hook_sbom_files_custom_basename` | Asserts `[tool.pitloom] sbom-basename` is reflected in the filename in `sbom_files`. |
 | `test_hook_sbom_files_appended_to_existing` | Pre-populates `sbom_files`; asserts `initialize()` appends rather than replaces. |
-| `test_hook_with_pitloom_fragments` | Provides a valid fragment via `[tool.pitloom.fragments] files`; asserts its content is merged into the SBOM. |
+| `test_hook_with_pitloom_fragments` | Provides a valid fragment via `[tool.pitloom.fragment] files`; asserts its content is merged into the SBOM. |
 | `test_hook_missing_fragment_logs_warning` | Provides a non-existent path; asserts a warning is logged, not an exception. |
 | `test_hook_with_sampleproject_fixture` | Runs `initialize()` on the real `sampleproject-hatchling` fixture; asserts package name appears in SBOM. |
 | `test_metadata_from_hatchling_maps_*` | Unit tests for `metadata_from_hatchling`: version, dependencies, urls, authors, license (direct and fallback-detected). |

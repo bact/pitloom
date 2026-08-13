@@ -32,12 +32,16 @@ class ProjectFile:
         spdx_license_identifier: The file's own ``SPDX-License-Identifier:``
             expression, independent of the project's overall license.
         content_type: A real IANA media type detected from the file's
-            content/filename (``magika`` or a ``mimetypes`` fallback),
+            content/filename (``magika`` or a filename-extension
+            fallback), or asserted directly by a
+            ``[[tool.pitloom.content-type.override]]`` config match,
             independent of ``file_type`` -- see
-            ``pitloom.extract._file_headers.guess_content_type``. ``None``
-            when content-type detection is off or inconclusive.
-        content_type_method: ``"magika"`` or ``"mimetype_extension_guess"``
-            -- which tool resolved ``content_type``.
+            ``pitloom.extract._file_headers.guess_content_type``/
+            ``resolve_content_type_override``. ``None`` when
+            content-type detection is off or inconclusive.
+        content_type_method: ``"magika"``, ``"extension_guess"``, or
+            ``"config_override"`` -- which tool (or config match)
+            resolved ``content_type``.
     """
 
     physical_path: str

@@ -58,7 +58,7 @@ enabled = true
 [tool.pitloom]
 pretty = true
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
     "fragments/01_preprocess.spdx3.json",  # produced by `python -m sentimentdemo.preprocess`
     "fragments/02_train.spdx3.json",       # produced by `python -m sentimentdemo.train`

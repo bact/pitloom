@@ -86,7 +86,7 @@ the line between "extracted fact" and "AI guess":
 - **Per-field provenance** -- every SBOM field can carry a source
   attribution (see [metadata-provenance.md](metadata-provenance.md)).
 - **The fragment system** -- independently generated SPDX 3 JSON-LD files
-  are merged into the final SBOM via `[tool.pitloom.fragments]` and
+  are merged into the final SBOM via `[tool.pitloom.fragment]` and
   `merge_fragments()` (see [sbom-fragments.md](sbom-fragments.md)).
 
 The `sbom-enrich` skill's guidance has an agent contribute enrichment as a
@@ -120,7 +120,7 @@ It repeated almost immediately: the enrichment MVP shipped wired into
 generation (`generate_project_sbom()`, and therefore the Hatchling build
 hook, which calls `build()` directly rather than going through
 `generate_project_sbom()`) silently ran zero enrichment even with
-`[tool.pitloom.enrich] local = true` set, discovered only when writing
+`[tool.pitloom] enrich = true` set, discovered only when writing
 this round's Hatchling hook test and getting an empty `dataset_DatasetPackage`
 list where one was expected (see [sbom-enrichment.md](sbom-enrichment.md)'s
 "Surfaces" section for the fix). Two occurrences of the same failure mode

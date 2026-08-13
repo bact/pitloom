@@ -24,14 +24,32 @@ and this project adheres to
 ### Added
 
 - Raise RuntimeError if Hatchling version is lower than 1.29.0 ([#136])
-- Per-file metadata extraction from SPDX File Tags and header ([#138])
-- Per-file content-type detection,
-  with option to use Google's Magika library as detector ([#138])
+- Per-file metadata extraction from SPDX File Tags and header, via
+  `[tool.pitloom] extract-file-header` (on by default) ([#138])
+- Per-file content-type detection, independent of header scanning, via
+  `[tool.pitloom.content-type] enabled` (off by default); `method`
+  chooses the detector (`"auto"`/`"magika"`/`"extension"`, matching
+  `--content-type-method` CLI flag / `content-type-method` Action
+  input), erroring immediately if `"magika"` is requested but the
+  package isn't installed ([#138], [#140])
+- Config-only, SBOM author-supplied deterministic content-type overrides
+  (`[[tool.pitloom.content-type.override]]`): a glob pattern -> MIME-type
+  table that pre-empts detection for matching files ([#140])
 - Minimum elements-oriented SBOM enrichment ([#139])
+- New [Configuration](docs/configuration.md) reference page: every
+  `[tool.pitloom]` setting, its default, and its CLI/Action/API mapping
+  in one place ([#140])
+- Every `[tool.pitloom]` setting is validated at config-read time,
+  including an old or misplaced key (e.g. an `ids`/`fragments`/
+  `file-headers` table directly under `[tool.pitloom]`), which raises a
+  clear error rather than being silently ignored; `content_type_method`
+  passed explicitly to the Python API is validated the same way as the
+  `pyproject.toml`/CLI paths ([#140])
 
 [#136]: https://github.com/bact/pitloom/pull/136
 [#138]: https://github.com/bact/pitloom/pull/138
 [#139]: https://github.com/bact/pitloom/pull/139
+[#140]: https://github.com/bact/pitloom/pull/140
 
 ## [0.13.3] - 2026-08-11
 

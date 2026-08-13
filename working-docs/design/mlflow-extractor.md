@@ -552,7 +552,7 @@ with mlflow.start_run(run_name="bert-finetune-v3") as mlflow_run:
 ```
 
 The resulting fragment can then be listed under
-`[tool.pitloom.fragments] files` so it is merged into the wheel SBOM
+`[tool.pitloom.fragment] files` so it is merged into the wheel SBOM
 at build time.
 
 ## New files and changes

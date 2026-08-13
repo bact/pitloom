@@ -865,7 +865,14 @@ method category):
   `sbomAuthorSupplied` (the human didn't assert the fact, only named
   where to find it). Added for the `sbom-enrich` Skill's interactive mode
   (see [sbom-enrichment.md](../design/sbom-enrichment.md)'s "Interactive
-  mode" section) — not yet exercised by any non-Skill code path.
+  mode" section) — that case is still Skill-only (an agent hand-authoring
+  a fragment), not exercised by Pitloom's own generation code. A second,
+  built case now is: a `[[tool.pitloom.content-type.override]]`
+  config match (the config author is asserting a file's `contentType`
+  directly) — see [file-headers.md](../design/file-headers.md)'s
+  "Content-type overrides" section and
+  `_emit_file_header_metadata` in
+  [document.py](../../src/pitloom/assemble/spdx3/document.py).
 
 **Decision rule:** ask "whose determination is this," never "was the
 data local or remote" and never "was a rule-based algorithm involved
@@ -897,8 +904,14 @@ any of these):
   verify this at merge time — same trust model the `sbom-enrich` skill's
   existing generic `"Source: AI agent | Method: inference"` marker
   already has, just more specific when the agent knows its own identity.
-- `sbomAuthorSupplied` (future convention, not built) — `"Source: SBOM
-  author | Method: sbomAuthorSupplied | Date: <ISO 8601 date>"`; same
+- `sbomAuthorSupplied` — `"Source: SBOM author | Method:
+  sbomAuthorSupplied | Date: <ISO 8601 date>"` for the human-interactive
+  case (still a Skill-level convention, future — see above); **built**
+  for the content-type-override case, using the file itself as `Source:`
+  rather than `"SBOM author"` since there's a concrete subject to name:
+  `"Source: <file> | Method: sbomAuthorSupplied"` (no `Date:` segment —
+  unlike an interactive answer, there's no distinct point-in-time
+  assertion to record beyond the SBOM's own creation timestamp). Same
   unverifiable trust model as `inferred`, just a different answerer.
 
 **Role → native relationship mapping is today's default policy, not an
@@ -1062,7 +1075,7 @@ forgotten:
   model `generate_project_sbom()`/the Hatchling build hook discovers now
   gets the same per-model N3 CreationInfo + E1/E2 Annotation, closing a
   gap where project-level generation silently ran zero enrichment even
-  with `[tool.pitloom.enrich] local = true` set (`add_ai_models()` in
+  with `[tool.pitloom] enrich = true` set (`add_ai_models()` in
   [`ai.py`](../../src/pitloom/assemble/spdx3/ai.py) gained an
   `enrichment_results_by_model` param, mirroring `build_model()`'s
   single-model block). Also gained a standalone-fragment path

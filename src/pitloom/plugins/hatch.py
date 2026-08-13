@@ -138,7 +138,7 @@ def _build_document_model(
     correctly reflected in the SBOM.
 
     Also runs enrichment for each discovered AI model, gated by the
-    project's own ``[tool.pitloom.enrich]`` (no separate hook-level key,
+    project's own ``[tool.pitloom] enrich`` (no separate hook-level key,
     same "one config surface" rule ``_validate_config`` already enforces
     for creator/tool/fragment settings) -- uses the same
     ``run_enrichers_for_models()`` helper ``generate_project_sbom()``
@@ -150,8 +150,10 @@ def _build_document_model(
     creation_metadata = _build_creation_metadata(pitloom_config)
     merkle_root, project_files = get_wheel_files(
         project_dir,
-        scan_file_headers=pitloom_config.file_headers.enabled,
-        detect_content_type=pitloom_config.file_headers.detect_content_type,
+        scan_file_headers=pitloom_config.extract_file_header,
+        detect_content_type=pitloom_config.content_type.enabled,
+        content_type_method=pitloom_config.content_type.method,
+        content_type_overrides=pitloom_config.content_type.overrides,
     )
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
@@ -338,7 +340,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
 #: of truth shared with the CLI -- mapped to their new location.
 _MOVED_KEYS = {
     "sbom-basename": "[tool.pitloom] sbom-basename",
-    "fragments": "[tool.pitloom.fragments] files",
+    "fragments": "[tool.pitloom.fragment] files",
     "creator-name": "[[tool.pitloom.creator]] (key: name)",
     "creator-email": "[[tool.pitloom.creator]] (key: email)",
     "creator-type": "[[tool.pitloom.creator]] (key: type)",

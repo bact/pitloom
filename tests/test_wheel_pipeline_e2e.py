@@ -66,7 +66,7 @@ enabled = true
 [tool.pitloom]
 sbom-basename = "pipedemo"
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
     "fragments/01_preprocess.spdx3.json",
     "fragments/02_train.spdx3.json",

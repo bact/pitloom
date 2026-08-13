@@ -51,7 +51,7 @@ dependency automatically, the same way it installs Hatchling itself.
 Every `hatch build`/`python -m build` invocation now:
 
 1. Generates a Source SBOM for the project being built.
-2. Merges in any fragments registered under `[tool.pitloom.fragments]`
+2. Merges in any fragments registered under `[tool.pitloom.fragment]`
    (see the [Python API](python-api.md#tracking-decorator) tracking
    decorator, or a hand-authored fragment).
 3. Embeds the result into the wheel's `.dist-info/sboms/` directory.
@@ -69,7 +69,7 @@ Basename and fragments are configured under `[tool.pitloom]`:
 [tool.pitloom]
 sbom-basename = "custom-bom"       # -> "custom-bom.spdx3.json" (default: "<name>-<version>")
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = ["fragments/model.json"]   # merge externally tracked fragments
 ```
 

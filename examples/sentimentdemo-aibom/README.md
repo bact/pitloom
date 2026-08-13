@@ -271,7 +271,7 @@ enabled = true
 [tool.pitloom]
 pretty = true
 
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
     "fragments/01_preprocess.spdx3.json",
     "fragments/02_train.spdx3.json",
@@ -288,7 +288,7 @@ fires automatically and does three things:
    `[project.dependencies]` list. Each dependency becomes a
    `software_Package` element with a `dependsOn` relationship.
 2. **Merges every fragment** listed under
-   `[tool.pitloom.fragments].files`. Every element
+   `[tool.pitloom.fragment].files`. Every element
    inside each fragment - datasets, AI packages, relationships -
    is added to the wheel SBOM with its original `spdxId` preserved,
    so the lineage from stages 1-4 survives intact.

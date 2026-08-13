@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -148,12 +149,19 @@ _FILE_TYPE_TO_SOFTWARE_PURPOSE: dict[str, str] = {
 }
 
 
+@lru_cache(maxsize=1)
 def _magika_version() -> str:
     """Best-effort ``magika`` package version for the ``detected``-role
     provenance ``Tool:`` segment. Falls back to ``"unknown"`` if the
     version can't be resolved -- shouldn't happen in practice, since
     ``content_type_method == "magika"`` is only ever set after ``magika``
-    actually ran successfully earlier in this same process."""
+    actually ran successfully earlier in this same process.
+
+    Cached for process lifetime -- the installed version can't change
+    mid-process, and this is called once per file whose content type was
+    magika-detected, same rationale as ``_get_magika()`` in
+    :mod:`pitloom.extract._file_headers`.
+    """
     try:
         return _pkg_version("magika")
     except PackageNotFoundError:
@@ -178,8 +186,11 @@ def _emit_file_header_metadata(
     actual value set directly; the accompanying provenance Annotation
     records only *where* each came from -- role ``declared`` for
     everything read from the file's own header, ``detected`` for
-    ``content_type`` (Pitloom's own detection, not the file's claim) --
-    see ``working-docs/implementation/annotation-provenance.md``'s role
+    ``content_type`` resolved by Pitloom's own magika/extension-guess
+    detection, or ``sbomAuthorSupplied`` when it instead came from a
+    matching ``[[tool.pitloom.content-type.override]]`` entry (the config
+    author's own assertion, not something Pitloom detected) -- see
+    ``working-docs/implementation/annotation-provenance.md``'s role
     vocabulary. ``file_type``/``file_contributors`` values with no native
     SPDX 3 slot go into ``package_entry.summary`` instead, as one sorted
     ``"Key: value; Key: value"`` string -- never onto
@@ -216,11 +227,18 @@ def _emit_file_header_metadata(
 
     if package_file.content_type:
         package_entry.contentType = package_file.content_type
-        method = (
-            f"Method: magika_content_detection | Tool: magika=={_magika_version()}"
-            if package_file.content_type_method == "magika"
-            else "Method: mimetype_extension_guess"
-        )
+        if package_file.content_type_method == "config_override":
+            # A [[tool.pitloom.content-type.override]] match -- the
+            # config author asserted this value directly, Pitloom
+            # detected nothing, so role sbomAuthorSupplied rather than the
+            # detected shape below (see working-docs/design/file-headers.md).
+            method = "Method: sbomAuthorSupplied"
+        elif package_file.content_type_method == "magika":
+            method = (
+                f"Method: magika_content_detection | Tool: magika=={_magika_version()}"
+            )
+        else:
+            method = "Method: extension_guess"
         field_provenance["content_type"] = f"Source: {file_path} | {method}"
 
     if package_file.file_contributors:

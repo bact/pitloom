@@ -106,7 +106,7 @@ loom enrich path/to/model.safetensors -o model.enrich.spdx3.json
 loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
 ```
 
-Register the fragment under `[tool.pitloom.fragments]` and re-run
+Register the fragment under `[tool.pitloom.fragment]` and re-run
 `loom project`/`loom generate` to merge it in.
 
 For prose-reading enrichment (an AI agent reading the actual README text,
@@ -140,6 +140,10 @@ pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`.
 
 ## Configuration
+
+See [Configuration](configuration.md) for the full reference -- every
+`[tool.pitloom]` setting, its default, and its CLI/Action/API mapping.
+The sections below walk through the two settings with the most nuance.
 
 ### Creator and creation metadata
 

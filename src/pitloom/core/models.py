@@ -19,6 +19,7 @@ from hatchling.metadata.utils import normalize_requirement
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
+from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
 
 if TYPE_CHECKING:
@@ -137,8 +138,11 @@ class _FileHeaderExtras(TypedDict):
 def _resolve_file_header_extras(
     raw_bytes: bytes,
     filename: str,
+    distribution_path: str,
     parse_header: Callable[[bytes], FileHeaderMetadata | None] | None,
-    detect_content: Callable[[bytes, str], tuple[str | None, str | None]] | None,
+    detect_content: Callable[[bytes, str, str], tuple[str | None, str | None]] | None,
+    content_type_overrides: tuple[ContentTypeOverride, ...],
+    content_type_method: str,
 ) -> _FileHeaderExtras:
     """Resolve the optional per-file header/content-type fields for *raw_bytes*.
 
@@ -146,12 +150,34 @@ def _resolve_file_header_extras(
     when the corresponding detector wasn't requested at all) -- factored
     out of :func:`get_wheel_files` to keep its own body under the locals
     budget, not for reuse elsewhere.
+
+    *content_type_overrides* is only ever consulted when *detect_content*
+    is also requested -- overrides are a per-file refinement within the
+    ``detect_content_type`` gate, not a way to bypass it (see
+    :func:`get_wheel_files`). When a pattern matches, it pre-empts
+    *detect_content* entirely for this file.
     """
     header = parse_header(raw_bytes) if parse_header else None
     content_type: str | None = None
-    content_type_method: str | None = None
+    resolved_method: str | None = None
     if detect_content:
-        content_type, content_type_method = detect_content(raw_bytes, filename)
+        override = None
+        if content_type_overrides:
+            # Deferred: core/ must not import from extract/ at runtime
+            # except behind a gate like this one (see get_wheel_files()).
+            # pylint: disable=import-outside-toplevel
+            from pitloom.extract._file_headers import resolve_content_type_override
+
+            override = resolve_content_type_override(
+                distribution_path, content_type_overrides
+            )
+        if override is not None:
+            content_type = override.content_type
+            resolved_method = "config_override"
+        else:
+            content_type, resolved_method = detect_content(
+                raw_bytes, filename, content_type_method
+            )
     return _FileHeaderExtras(
         copyright_text=header.copyright_text if header else None,
         copyright_source=header.copyright_source if header else None,
@@ -159,15 +185,18 @@ def _resolve_file_header_extras(
         file_type=header.file_type if header else None,
         spdx_license_identifier=(header.spdx_license_identifier if header else None),
         content_type=content_type,
-        content_type_method=content_type_method,
+        content_type_method=resolved_method,
     )
 
 
+# pylint: disable=too-many-locals
 def get_wheel_files(
     project_dir: Path,
     *,
     scan_file_headers: bool = False,
     detect_content_type: bool = False,
+    content_type_method: str = "auto",
+    content_type_overrides: tuple[ContentTypeOverride, ...] = (),
 ) -> tuple[str | None, list[ProjectFile]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
@@ -186,13 +215,26 @@ def get_wheel_files(
             reusing the bytes already read for hashing -- no second file
             read. Off by default at this function's own level; callers
             thread their own effective default (see
-            :class:`pitloom.core.file_headers_config.FileHeadersConfig`).
+            ``[tool.pitloom] extract-file-header``).
         detect_content_type: When ``True``, also detect each file's real
             content type (see
             :func:`pitloom.extract._file_headers.guess_content_type`) --
             independent of ``scan_file_headers``, gated by its own
             separate parameter since it has a real per-file cost
             ``scan_file_headers`` alone does not.
+        content_type_method: Which detector resolves ``contentType`` when
+            ``detect_content_type`` is on: ``"auto"`` (default), ``"magika"``
+            (raises ``RuntimeError`` up front, before scanning any file,
+            when the ``magika`` package isn't installed -- see
+            :func:`pitloom.extract._file_headers.require_magika_available`),
+            or ``"extension"`` (skip ``magika`` entirely).
+        content_type_overrides: Glob-pattern -> MIME-type entries (see
+            :func:`pitloom.extract._file_headers.resolve_content_type_override`)
+            that pre-empt ``guess_content_type`` for a matching file.
+            Only takes effect when ``detect_content_type`` is also
+            ``True`` -- a per-file refinement within that gate, not a way
+            to bypass it; when ``detect_content_type`` is ``False``,
+            overrides never fire, same as today.
 
     Returns:
         Tuple of (Hex-encoded Merkle root or None, List of ProjectFile objects).
@@ -212,6 +254,13 @@ def get_wheel_files(
         from pitloom.extract._file_headers import guess_content_type
 
         detect_content = guess_content_type
+
+        if content_type_method == "magika":
+            # Fail before scanning any file, not mid-scan -- the config
+            # author demanded magika specifically.
+            from pitloom.extract._file_headers import require_magika_available
+
+            require_magika_available()
 
     try:
         builder = WheelBuilder(str(project_dir))
@@ -247,7 +296,13 @@ def get_wheel_files(
                 # below (never the bytes themselves; holding every file's
                 # bytes across a large project would be a memory blow-up).
                 extras = _resolve_file_header_extras(
-                    raw_bytes, source.name, parse_header, detect_content
+                    raw_bytes,
+                    source.name,
+                    distribution_path,
+                    parse_header,
+                    detect_content,
+                    content_type_overrides,
+                    content_type_method,
                 )
                 project_files.append(
                     ProjectFile(

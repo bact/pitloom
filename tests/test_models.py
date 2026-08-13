@@ -5,12 +5,14 @@
 
 """Tests for SPDX 3 core models."""
 
+import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 from hatchling.builders.wheel import WheelBuilder
 
+from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.models import (
     _clear_doc_counters,
     _normalize_dep,
@@ -18,6 +20,7 @@ from pitloom.core.models import (
     generate_spdx_id,
     get_wheel_files,
 )
+from pitloom.extract._file_headers import _get_magika
 
 
 def test_normalize_dep_pep503() -> None:
@@ -179,6 +182,16 @@ def test_get_wheel_files_normalizes_windows_style_distribution_path(
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _clear_magika_cache() -> None:
+    """``_get_magika()`` caches its instance for process lifetime; clear it
+    around every test in this module so a test that runs the real
+    ``guess_content_type()`` (caching a real instance when magika is
+    installed) can't leak that cache into a later test that monkeypatches
+    ``sys.modules["magika"] = None`` to simulate its absence."""
+    _get_magika.cache_clear()
+
+
 def _make_header_project(tmp_path: Path) -> tuple[Path, Path]:
     """Build a minimal project with one SPDX-tagged file and one plain file.
 
@@ -229,8 +242,8 @@ def test_get_wheel_files_scan_file_headers_disabled_by_default(
         del data
         calls.append("parse_file_header")
 
-    def _spy_guess(data: bytes, filename: str) -> tuple[None, None]:
-        del data, filename
+    def _spy_guess(data: bytes, filename: str, method: str) -> tuple[None, None]:
+        del data, filename, method
         calls.append("guess_content_type")
         return None, None
 
@@ -259,8 +272,8 @@ def test_get_wheel_files_scan_file_headers_enabled_content_type_disabled(
 
     content_type_calls: list[str] = []
 
-    def _spy_guess(data: bytes, filename: str) -> tuple[None, None]:
-        del data
+    def _spy_guess(data: bytes, filename: str, method: str) -> tuple[None, None]:
+        del data, method
         content_type_calls.append(filename)
         return None, None
 
@@ -294,7 +307,7 @@ def test_get_wheel_files_detect_content_type_enabled(
         assert project_file.content_type is not None
         assert project_file.content_type_method in (
             "magika",
-            "mimetype_extension_guess",
+            "extension_guess",
         )
 
 
@@ -320,3 +333,196 @@ def test_get_wheel_files_merkle_root_identical_across_flag_combinations(
 
     assert root_off is not None
     assert root_off == root_headers == root_both
+
+
+def test_get_wheel_files_content_type_override_shortcuts_detection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With detect_content_type=True and a matching override, the matched
+    file's content_type comes from the override -- guess_content_type is
+    never called for it -- while a non-matching file in the same run
+    still goes through the normal detection path."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    guess_calls: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str, method: str) -> tuple[str, str]:
+        del data, method
+        guess_calls.append(filename)
+        return "text/x-python", "extension_guess"
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    overrides = (
+        ContentTypeOverride(pattern="pkg/tagged.py", content_type="text/special"),
+    )
+    _root, files = get_wheel_files(
+        tmp_path, detect_content_type=True, content_type_overrides=overrides
+    )
+
+    assert guess_calls == ["plain.py"]
+    tagged = next(f for f in files if f.distribution_path == "pkg/tagged.py")
+    assert tagged.content_type == "text/special"
+    assert tagged.content_type_method == "config_override"
+    plain = next(f for f in files if f.distribution_path == "pkg/plain.py")
+    assert plain.content_type == "text/x-python"
+    assert plain.content_type_method == "extension_guess"
+
+
+def test_get_wheel_files_content_type_override_inert_when_detection_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With detect_content_type=False, overrides never fire -- no file
+    gets a content_type at all, override configured or not, proving the
+    gate still governs the whole feature rather than being bypassed."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    overrides = (
+        ContentTypeOverride(pattern="pkg/tagged.py", content_type="text/special"),
+    )
+    _root, files = get_wheel_files(tmp_path, content_type_overrides=overrides)
+
+    for project_file in files:
+        assert project_file.content_type is None
+        assert project_file.content_type_method is None
+
+
+# ---------------------------------------------------------------------------
+# get_wheel_files: content_type_method (the "two gates" combinatorial surface)
+# ---------------------------------------------------------------------------
+
+
+def test_get_wheel_files_content_type_method_defaults_to_auto(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No content_type_method passed: 'auto' reaches guess_content_type."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    seen_methods: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str, method: str) -> tuple[str, str]:
+        del data, filename
+        seen_methods.append(method)
+        return "text/x-python", "extension_guess"
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    get_wheel_files(tmp_path, detect_content_type=True)
+
+    assert seen_methods == ["auto", "auto"]
+
+
+@pytest.mark.parametrize("method", ["auto", "extension"])
+def test_get_wheel_files_content_type_method_plumbed_through(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, method: str
+) -> None:
+    """content_type_method is passed through to every guess_content_type
+    call verbatim (magika is covered separately below, since it also
+    triggers the upfront availability preflight)."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    seen_methods: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str, seen_method: str) -> tuple[str, str]:
+        del data, filename
+        seen_methods.append(seen_method)
+        return "text/x-python", "extension_guess"
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    get_wheel_files(tmp_path, detect_content_type=True, content_type_method=method)
+
+    assert seen_methods == [method, method]
+
+
+def test_get_wheel_files_content_type_method_magika_available_plumbed_through(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """content_type_method='magika' with magika importable: no error, and
+    'magika' reaches every guess_content_type call."""
+    pytest.importorskip("magika")
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    seen_methods: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str, method: str) -> tuple[str, str]:
+        del data, filename
+        seen_methods.append(method)
+        return "text/x-python", "magika"
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    get_wheel_files(tmp_path, detect_content_type=True, content_type_method="magika")
+
+    assert seen_methods == ["magika", "magika"]
+
+
+def test_get_wheel_files_content_type_method_magika_missing_raises_before_any_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """content_type_method='magika' with the package unavailable raises
+    RuntimeError up front -- before recursing into any file at all, not
+    partway through a scan."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+    monkeypatch.setitem(sys.modules, "magika", None)
+
+    recurse_calls: list[str] = []
+
+    def _spy_guess(data: bytes, filename: str, method: str) -> tuple[str, str]:
+        del data, method
+        recurse_calls.append(filename)
+        return "text/x-python", "extension_guess"
+
+    monkeypatch.setattr("pitloom.extract._file_headers.guess_content_type", _spy_guess)
+
+    with pytest.raises(RuntimeError, match="content-type-method 'magika'"):
+        get_wheel_files(
+            tmp_path, detect_content_type=True, content_type_method="magika"
+        )
+
+    assert not recurse_calls
+
+
+def test_get_wheel_files_content_type_method_magika_missing_inert_when_detection_off(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """content_type_method='magika' with the package unavailable does NOT
+    raise when detect_content_type=False -- the preflight check is itself
+    gated by detection being on, same as everything else content-type."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+    monkeypatch.setitem(sys.modules, "magika", None)
+
+    _root, files = get_wheel_files(tmp_path, content_type_method="magika")
+
+    for project_file in files:
+        assert project_file.content_type is None
+
+
+@pytest.mark.parametrize("scan_file_headers", [False, True])
+def test_get_wheel_files_content_type_independent_of_file_header_scanning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scan_file_headers: bool
+) -> None:
+    """A file with no SPDX header at all (the AI-model-binary case) still
+    gets a content_type when detection is on, regardless of whether
+    file-header scanning is on or off -- the two gates are independent."""
+    tagged_file, plain_file = _make_header_project(tmp_path)
+    _patch_recurse(monkeypatch, tagged_file, plain_file)
+
+    _root, files = get_wheel_files(
+        tmp_path,
+        scan_file_headers=scan_file_headers,
+        detect_content_type=True,
+        content_type_method="extension",
+    )
+
+    plain = next(f for f in files if f.distribution_path == "pkg/plain.py")
+    assert plain.copyright_text is None  # no header, regardless of the flag
+    assert plain.content_type == "text/x-python"
+    assert plain.content_type_method == "extension_guess"

@@ -172,7 +172,7 @@ with open(sys.argv[1], 'rb') as f:
 In the project's `pyproject.toml`:
 
 ```toml
-[tool.pitloom.fragments]
+[tool.pitloom.fragment]
 files = [
   "model.enrich.spdx3.json",
   "fragments/agent-enrichment.spdx3.json",
@@ -215,7 +215,7 @@ extraction.
 - The sibling `sbom-validate` skill -- used for the mandatory post-merge
   check above.
 - `working-docs/design/sbom-enrichment.md` -- enrichment data-source table
-  and the `[tool.pitloom.enrich]` enable/disable model.
+  and the `[tool.pitloom] enrich` enable/disable model.
 - `working-docs/design/sbom-fragments.md` -- fragment system design and
   vocabulary.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
