@@ -47,7 +47,7 @@ author-declared):
   "annotationType": "other",
   "contentType": "application/json",
   "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
-  "statement": "{\"schema\":\"https://pitloom.dev/provenance/1\",\"fields\":{\"license\":{\"source\":\"LICENSE\",\"method\":\"licenseid_detection\"}}}"
+  "statement": "{\"schema\":\"https://pitloom.dev/provenance/fields/1\",\"fields\":{\"license\":{\"source\":\"LICENSE\",\"method\":\"licenseid_detection\"}}}"
 }
 ```
 
@@ -145,11 +145,6 @@ value) -- so none of these are misreported as a conflict.
   `externalReported` and `inferred`, are
   reserved for future candidate sources -- a linked GitHub/Hugging Face
   Hub API, or an AI agent's inference -- not built yet.)
-
-For the full design rationale, current implementation status, and code
-citations behind both sections above, see
-[`annotation-provenance.md`](https://github.com/bact/pitloom/blob/main/working-docs/implementation/annotation-provenance.md)
-in the Pitloom repository.
 
 ## See also
 

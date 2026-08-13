@@ -7,6 +7,10 @@
 - Implementation docs and progress reports: `working-docs/implementation/`
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
+- `working-docs/` is internal notes only -- content can change without
+  notice. The user-facing website (`docs/`) must never link into it, in
+  any form (relative path, absolute GitHub URL, etc.). Reference a PR or
+  issue number instead if a public pointer is needed.
 
 ### SBOM output
 
@@ -28,6 +32,12 @@ Unix philosophy. Consistent, predictable, parseable.
 - Field separator: space or tab (consistent).
 - Key-value: `KEY=VALUE` -- uppercase KEY, no spaces around `=`.
 - Errors: `ERROR: <short description>` to stderr.
+- Warnings: `WARNING: <short description>` to stderr -- same rule, one
+  level down. Internal `logging.warning()` calls (library code under
+  `src/pitloom/`, not the CLI's own top-level `print()`s) get this
+  prefix automatically: the CLI entry point (`pitloom.__main__.main()`)
+  attaches a `%(levelname)s: %(message)s` formatter to the `pitloom`
+  logger, so don't hand-prefix individual `log.warning(...)` call sites.
 - Must work with `awk`, `wc`, `xargs`, similar Unix tools.
 - Messages get trimmed to essentials and share a literal, grep-able prefix.
 - JSON/CSV/file output supported as options.
@@ -131,25 +141,28 @@ SPDX-License-Identifier: CC0-1.0
 
 `SKILL.md` files are the exception: their YAML front matter is limited
 to the keys the Agent Skill spec recognises (`name`, `description`,
-`license`, ...); `Created` and `Last-Modified` are not among them, so
-they don't belong in that block. Their SPDX tags already live as HTML
-comments below the front matter instead -- add `Created`/`Last-Modified`
-there too, as two more HTML comments, ordered alphabetically same as the
-YAML case:
+`license`, ...), so `Created`/`Last-Modified`/SPDX tags can't be real
+front-matter keys there. Put them as `#` YAML comments at the top of the
+same front-matter block instead, ordered alphabetically same as the
+normal case, followed by a blank line before the real keys. (HTML
+comments were tried first, per the general Markdown convention below,
+but they render as visible literal text in the Claude Code UI, so `#`
+comments -- invisible in any YAML-aware renderer, and native YAML syntax
+-- are used instead.)
 
 ```markdown
 ---
+# Created: 2026-07-05
+# Last-Modified: 2026-07-06
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 name: enrich
 description: >-
   ...
 license: Apache-2.0
 ---
-
-<!-- Created: 2026-07-05 -->
-<!-- Last-Modified: 2026-07-06 -->
-<!-- SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul -->
-<!-- SPDX-FileType: SOURCE -->
-<!-- SPDX-License-Identifier: Apache-2.0 -->
 ```
 
 Set `Created` once, when the file is added. Bump `Last-Modified` to the
