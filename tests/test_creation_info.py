@@ -160,7 +160,7 @@ def test_build_tools_empty_list_suppresses_created_using() -> None:
         CreationMetadata(), _DOC_NAME, _DOC_UUID
     )
     tools = build_tools(CreationMetadata(tools=[]), _DOC_NAME, _DOC_UUID, spdx_ci)
-    assert tools == []
+    assert not tools
 
 
 def test_build_tools_custom_tool_no_pitloom_summary() -> None:
