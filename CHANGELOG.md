@@ -25,6 +25,10 @@ and this project adheres to
 
 - `sbomAuthorSupplied` is now consistently a provenance `role`, not
   conflated with `method` ([#143])
+- Crash generating an AI model's base-model lineage when `base_model` is
+  set but `base_model_relation` is not (e.g. a model card's frontmatter
+  has `base_model` but the Hugging Face Hub API never supplied a
+  computed relation tag)
 
 [#143]: https://github.com/bact/pitloom/pull/143
 
