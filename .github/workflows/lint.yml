@@ -6,14 +6,22 @@ name: Lint and format
 on:
   push:
     branches: [main, develop]
-    paths-ignore:
+    paths-ignore: &ignore-paths
       - "docs/**"
+      - "**/*.md"
+      - "LICENSE*"
+      - "CITATION.cff"
+      - "codemeta.json"
+      - ".gitignore"
   pull_request:
     branches: [main, develop]
-    paths-ignore:
-      - "docs/**"
+    paths-ignore: *ignore-paths
 
 permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ruff:
@@ -27,6 +35,8 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
