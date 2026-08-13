@@ -263,7 +263,6 @@ def _add_base_model_lineage(
     rel_relation = ai_model.base_model_relation or ai_model.extra_data.get(
         "hf.base_model_relation"
     )
-    comment = f"base_model_relation:{rel_relation}" if rel_relation else None
 
     rel = spdx3.Relationship(
         spdxId=generate_spdx_id(
@@ -273,8 +272,16 @@ def _add_base_model_lineage(
         relationshipType=spdx3.RelationshipType.descendantOf,
         to=[base_spdx_id],
         creationInfo=ctx.creation_info,
-        comment=comment,
     )
+    # comment is unset (not None) when there's no relation -- the
+    # underlying SPDX 3 binding rejects an explicit None for a string
+    # property, only accepting omission (see the direct unit tests in
+    # tests/test_assemble_ai.py that caught this: base_model is read from
+    # a model card's frontmatter, base_model_relation from a separate Hub
+    # API computed tag -- a model with the former but not the latter
+    # crashed SBOM generation entirely before this fix).
+    if rel_relation:
+        rel.comment = f"base_model_relation:{rel_relation}"
     ctx.exporter.add_relationship(rel)
 
 
