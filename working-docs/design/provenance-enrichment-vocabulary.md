@@ -34,6 +34,25 @@ factual correction was kept (it's a bug fix independent of whether the
 new vocabulary page ships) -- see the diff already in the working tree /
 current PR.
 
+**2026-08-13: the `sbomAuthorSupplied` method/role overload (Open
+question 3 below) is fixed, not just documented-around.** `role` is now
+a first-class key in the per-field provenance string format:
+`_KEY_MAP` in `src/pitloom/assemble/spdx3/provenance.py` gained
+`"role": "role"`; `document.py:235`'s content-type-override case now
+emits `Role: sbomAuthorSupplied` instead of `Method: sbomAuthorSupplied`
+(the encoder already passed through arbitrary parsed keys generically,
+so no other code changed). `tests/test_generator.py`'s
+`test_build_file_content_type_config_override_is_sbom_author_supplied`
+updated to match. While fixing this, found the **same pattern** in the
+`sbom-enrich` Skill's own conventions -- `Method: inference` /
+`Method: sbomAuthorSupplied` in `skills/sbom-enrich/SKILL.md` and
+`skills/sbom-enrich/references/examples.md` had independently reinvented
+a method-slot value (`inference`) for the same concept the epistemic
+`role` vocabulary already names `inferred`. Fixed there too: all
+instances changed to `Role: inferred` / `Role: sbomAuthorSupplied`,
+retiring `inference` as a method value entirely (nothing else emitted
+it). §1/§2 below and the drafted page content are updated to match.
+
 ## Open questions for whoever resumes this
 
 1. **File name/location**: drafted as `docs/vocabulary.md`, nav label
@@ -45,13 +64,12 @@ current PR.
    That's a bigger edit to review than the new page itself -- worth
    deciding whether to do the trim in the same PR as the new page, or in
    a follow-up once the new page has settled.
-3. **The `sbomAuthorSupplied` method/role overload** (see §1/§2 below) is
-   a real, pre-existing rough edge in the code, not just a docs gap --
-   the same string means two different things depending on whether it's
-   read from the `method` slot (content-type overrides) or the `role`
-   slot (epistemic provenance). Worth a separate decision on whether to
-   leave it as-is (and just document the overload clearly, as the draft
-   below does) or unify it in code.
+3. ~~**The `sbomAuthorSupplied` method/role overload**~~ -- **Resolved
+   2026-08-13**, see "Already applied" above. `role` is now a real key in
+   the fields-provenance format; `sbomAuthorSupplied` is a pure `role`
+   value in code and in the `sbom-enrich` Skill's own conventions, no
+   longer overloaded with `method`. §1/§2 below and the drafted page
+   content reflect the fix.
 4. **`docs/metadata-provenance.md`'s stale `synthetic` value**: code
    emits `synthetic environment root`, the doc says `synthetic`. Small,
    independent fix, not yet applied anywhere -- could be split out and
@@ -61,8 +79,10 @@ current PR.
    - `method` values are uniformly `snake_case`: `dynamic_extraction`,
      `licenseid_detection`, `inferred_from_authors`, `file_directive`,
      `attr_directive`, `inspect_caller`, `extension_guess`,
-     `magika_content_detection`, `yaml_frontmatter`, `inference` (plus
-     the two-word `synthetic environment root`).
+     `magika_content_detection`, `yaml_frontmatter` (plus the two-word
+     `synthetic environment root`). (`sbomAuthorSupplied` and
+     `inference` no longer belong on this list -- both retired as
+     `method` values 2026-08-13, see "Already applied" above.)
    - `role` values (both the epistemic vocabulary in §2 and the
      dataset-relationship vocabulary in §4) are a mix of plain lowercase
      words (`declared`, `detected`, `inferred`) and `camelCase`
@@ -100,23 +120,24 @@ keyed `method` in the JSON statement).
 | `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment | `src/pitloom/extract/env.py:42-43` |
 | `extension_guess` | File content-type resolved by filename-extension fallback (no `magika` / no confident result) | `src/pitloom/assemble/spdx3/document.py:241` |
 | `magika_content_detection` | File content-type resolved by the `magika` content-detection library; includes a `Tool: magika==<ver>` segment | `src/pitloom/assemble/spdx3/document.py:238` |
-| `sbomAuthorSupplied` | File content-type came from a `[[tool.pitloom.content-type.override]]` config match -- the config author asserted it directly | `src/pitloom/assemble/spdx3/document.py:235` |
 | `yaml_frontmatter` | Value read from a local README/model-card's YAML frontmatter block (the `enrich/readme.py` enricher) | `src/pitloom/enrich/readme.py:100` |
-| `inference` | Skill-authored: an AI agent's non-deterministic prose reading/reasoning. **Never emitted by Pitloom's Python code** -- a convention documented and used only in `skills/sbom-enrich/SKILL.md:83,91,99,140,184` and `skills/sbom-enrich/references/examples.md:76,99,135` | zero hits in `src/**/*.py` |
 
-**Corrections vs. `docs/metadata-provenance.md`'s current table:**
+**As of 2026-08-13, `sbomAuthorSupplied` and `inference` are no longer
+`method` values** -- both retired from this table; see the `role` table
+in §2 below instead. Before the fix, `document.py:235` emitted
+`Method: sbomAuthorSupplied` (a bug -- the surrounding docstring and
+comment already called it a role); the `sbom-enrich` Skill's own
+conventions independently used `Method: inference` for the exact concept
+the `role` vocabulary already names `inferred`. Both fixed together --
+see "Already applied" above.
+
+**Corrections vs. `docs/metadata-provenance.md`'s current table (still
+open, not yet applied to that file):**
 
 - The doc says `synthetic`; code emits `synthetic environment root`
   (§"Open questions" item 4 above).
-- Four real, code-emitted values are missing from the doc's table:
-  `extension_guess`, `magika_content_detection`, `sbomAuthorSupplied`
-  (as a method), `yaml_frontmatter`.
-- `sbomAuthorSupplied` is overloaded: defined as a **role** (see §2) in
-  `provenance.py`'s `ConflictCandidate` docstring, but the one place
-  it's actually wired in `src/` (`document.py:235`) uses it as a
-  **method** string instead, per
-  `working-docs/implementation/annotation-provenance.md:854-875`'s own
-  acknowledgment.
+- Three real, code-emitted values are missing from the doc's table:
+  `extension_guess`, `magika_content_detection`, `yaml_frontmatter`.
 - `Method: spdx-license-detector` appears once, only as an arbitrary
   example string in `tests/test_provenance_integration.py:67` -- not
   part of the controlled vocabulary, just test-fixture prose.
@@ -134,12 +155,13 @@ in `working-docs/implementation/annotation-provenance.md:818-931`.
 | `declared` | The subject's own stated claim, however observed | **Yes** -- `src/pitloom/assemble/spdx3/deps.py:877` |
 | `detected` | Pitloom's own independent-verification procedure's determination | **Yes** -- `deps.py:883`; `src/pitloom/enrich/readme.py:114`, `:138` |
 | `externalReported` | Some other party's own determination, relayed without Pitloom re-deriving it | **No** -- defined and documented (`provenance.py:376-379`) but zero `role="externalReported"` in `src/**/*.py` today |
-| `inferred` | An AI agent's non-deterministic reasoning/judgment | **No** in Pitloom's own code -- only exercised by the `sbom-enrich` Skill's hand-authored fragments |
-| `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement) | **No** as a `role=` value anywhere in `src/**/*.py`. Live today only as a `method` string (§1's overload note) |
+| `inferred` | An AI agent's non-deterministic reasoning/judgment | **No** in Pitloom's own code as a literal `role=` keyword argument -- but as of 2026-08-13 it's what the `sbom-enrich` Skill's hand-authored fragments literally write (`Role: inferred`, fixed from the old `Method: inference`) |
+| `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement) | **Yes**, as of 2026-08-13 -- `document.py:235` now emits `Role: sbomAuthorSupplied` (was `Method: sbomAuthorSupplied`); the `sbom-enrich` Skill's conventions fixed to match |
 
 `docs/metadata-provenance.md:142-147` (current, unreverted state) covers
 4 of the 5 roles and omits `sbomAuthorSupplied` from that section
-entirely.
+entirely -- still true, that file is untouched by the 2026-08-13 fix
+(the fix was in code + the Skill, not in this doc).
 
 Unrelated to this vocabulary: `tests/test_spdx3_dataset.py:360` uses
 `role="someNewRole"` to test the fallback-to-`other` behavior in
@@ -257,9 +279,9 @@ supersedes NTIA), `G7 SBOM for AI 2026` (additive, only when an
 | `working-docs/design/metadata-provenance.md` | Older/parallel version of `docs/metadata-provenance.md`'s content, same stale `.../provenance/1` schema URL |
 | `working-docs/design/sbom-enrichment.md` | Source of truth for the dataset-relationship role table (§4), enrichment data-source table, "five-role provenance vocabulary" cross-reference |
 | `working-docs/design/model-metadata-extraction.md` | No relevant content (checked, zero hits) |
-| `skills/sbom-enrich/SKILL.md` | Agent-facing use of `Method: inference` / `Method: sbomAuthorSupplied`, the role-decision rule, minimum-elements workflow |
+| `skills/sbom-enrich/SKILL.md` | Agent-facing use of `Role: inferred` / `Role: sbomAuthorSupplied` (fixed from `Method:` 2026-08-13), the role-decision rule, minimum-elements workflow |
 | `skills/sbom-enrich/references/minimum-elements.md` | The 3 standards' checklists + status-legend vocabulary (§5) |
-| `skills/sbom-enrich/references/examples.md` | Worked fragment examples with literal `Method: inference`/`Method: sbomAuthorSupplied` strings |
+| `skills/sbom-enrich/references/examples.md` | Worked fragment examples with literal `Role: inferred`/`Role: sbomAuthorSupplied` strings (fixed from `Method:` 2026-08-13) |
 | `skills/sbom-generate/SKILL.md:125` | `--content-type-method {auto,magika,extension}` -- same "different vocabulary" caveat as `docs/configuration.md` |
 | `skills/sbom-validate/SKILL.md` | No relevant content (checked) |
 
@@ -308,7 +330,6 @@ involved.
 | `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 | `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
 | `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
-| `sbomAuthorSupplied` | Per-file content type came from a `[[tool.pitloom.content-type.override]]` config match -- the config author asserted it directly. |
 
 `magika_content_detection` and `extension_guess` are **not** the same
 vocabulary as `[tool.pitloom.content-type] method` /
@@ -316,31 +337,24 @@ vocabulary as `[tool.pitloom.content-type] method` /
 detector; these two values are what the chosen detector *reports back*
 as provenance once it runs.
 
-`sbomAuthorSupplied` above is a `method` value, distinct from the `role`
-value of the same name below -- see the callout under Provenance role
-values.
-
-##### Skill-authored method: `inference`
-
-`inference` is a twelfth value, used only by the `sbom-enrich` Agent
-Skill for fragments an AI agent drafts from its own reading/reasoning
-(e.g. a README's prose, not its structured frontmatter). Pitloom's own
-Python code never emits it -- it's a documented convention for
-agent-authored provenance, not a deterministic-code output.
+`sbomAuthorSupplied` is **not** a `method` value -- it's a `role`; see
+below. (An earlier draft of this page had it in both tables, matching a
+code bug where it was wrongly emitted via the `method` slot; fixed
+2026-08-13, see the `role` table.)
 
 #### Provenance role values (epistemic)
 
-`role` on a provenance candidate (e.g. in a `conflict` Annotation, or an
-enrichment's `changes[]` entry) says *whose* determination a value is,
-independent of *how* it was obtained.
+`role` on a provenance candidate (e.g. in a `conflict` Annotation, an
+enrichment's `changes[]` entry, or a per-field provenance entry) says
+*whose* determination a value is, independent of *how* it was obtained.
 
 | `role` | Meaning | Status |
 | --- | --- | --- |
 | `declared` | The subject's own stated claim, however observed. | Implemented |
 | `detected` | Pitloom's own independent-verification procedure's result. | Implemented |
-| `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement). | Vocabulary defined; not yet wired through this field in Pitloom's own code (see the `method` callout above) |
+| `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement). | Implemented -- emitted for a per-file content type set via `[[tool.pitloom.content-type.override]]`, and by the `sbom-enrich` Skill's hand-authored fragments for a value the SBOM author stated directly in an interactive session. |
 | `externalReported` | Some other party's own determination, relayed without Pitloom re-deriving it (e.g. a future linked GitHub/Hugging Face Hub API). | Reserved for future use |
-| `inferred` | An AI agent's non-deterministic reasoning/judgment. | Reserved for future use; exercised today only by the `sbom-enrich` Skill's hand-authored fragments, not Pitloom's own code |
+| `inferred` | An AI agent's non-deterministic reasoning/judgment. | Not emitted by Pitloom's own deterministic code; emitted by the `sbom-enrich` Skill's hand-authored fragments for a value the agent derived itself, not stated by the SBOM author |
 
 #### Dataset relationship roles
 

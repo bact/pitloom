@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-12
+# Last-Modified: 2026-08-13
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -80,23 +80,23 @@ verify this, but it makes the record more useful to a reviewer than a
 generic placeholder:
 
 ```text
-Source: <your agent name> (<vendor>) | Method: inference | Date: <ISO 8601 date>
+Source: <your agent name> (<vendor>) | Role: inferred | Date: <ISO 8601 date>
 ```
 
-For example: `Source: Claude Code (Anthropic) | Method: inference | Date:
+For example: `Source: Claude Code (Anthropic) | Role: inferred | Date:
 2026-08-10`. If you don't know your own name/vendor, fall back to the
 generic form rather than guessing:
 
 ```text
-Source: AI agent | Method: inference
+Source: AI agent | Role: inferred
 ```
 
 **In an interactive session** (a human present to answer), a field the
 SBOM author directly tells you is not an inference -- mark it
-`sbomAuthorSupplied`, not `inference`:
+`sbomAuthorSupplied`, not `inferred`:
 
 ```text
-Source: SBOM author | Method: sbomAuthorSupplied | Date: <ISO 8601 date>
+Source: SBOM author | Role: sbomAuthorSupplied | Date: <ISO 8601 date>
 ```
 
 Steps:
@@ -137,8 +137,8 @@ Steps:
    fact?**
    - The SBOM author states the fact itself ("it's MIT", "yes, trained on
      our internal support-ticket corpus"): mark it `Source: SBOM author |
-     Method: sbomAuthorSupplied | Date: <ISO 8601 date>` -- never `Method:
-     inference`; you didn't derive it, you relayed what you were told.
+     Role: sbomAuthorSupplied | Date: <ISO 8601 date>` -- never `Role:
+     inferred`; you didn't derive it, you relayed what you were told.
    - The SBOM author points at a source instead ("look at
      CONTRIBUTING.md", "read the wiki page", "try the HF card", "infer it
      from the changelog"): go look. The role is *never*
@@ -181,7 +181,7 @@ Steps:
    reasoning in the fragment entry's provenance comment:
 
    ```text
-   Source: <your agent name> (<vendor>) | Method: inference | Overrides: <deterministic value> | Reason: <why>
+   Source: <your agent name> (<vendor>) | Role: inferred | Overrides: <deterministic value> | Reason: <why>
    ```
 
    and say so explicitly in your final report (step 11) -- an override
