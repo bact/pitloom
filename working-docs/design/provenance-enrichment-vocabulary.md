@@ -8,9 +8,8 @@ SPDX-License-Identifier: CC0-1.0
 
 # Draft: provenance and enrichment vocabulary reference page
 
-**Status:** draft, parked for later review. Not shipped in the v0.14.0
-release PR -- too much to review in one pass alongside that PR's other
-changes. This file exists so a human or an AI agent can pick the work
+**Status:** draft, parked for later review.
+This file exists so a human or an AI agent can pick the work
 back up later without re-deriving the research.
 
 **Origin:** user asked for a dedicated `docs/` (user-facing website) page
