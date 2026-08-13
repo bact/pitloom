@@ -28,9 +28,10 @@ and this project adheres to
 - Crash generating an AI model's base-model lineage when `base_model` is
   set but `base_model_relation` is not (e.g. a model card's frontmatter
   has `base_model` but the Hugging Face Hub API never supplied a
-  computed relation tag)
+  computed relation tag) ([#144])
 
 [#143]: https://github.com/bact/pitloom/pull/143
+[#144]: https://github.com/bact/pitloom/pull/144
 
 ## [0.14.0] - 2026-08-13
 
