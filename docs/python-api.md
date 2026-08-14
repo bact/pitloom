@@ -89,21 +89,26 @@ For programmatic PEP 770 post-build wheel injection:
 
 ```python
 from pathlib import Path
-from pitloom.assemble import embed_sbom_in_wheel, embed_wheel_sbom
+from pitloom.assemble import ConfigOverrides, embed_sbom_in_wheel, embed_wheel_sbom
 
 # 1. Generate and embed SBOM in one step
-modified_wheel, arcname, sbom_json = embed_wheel_sbom(
+modified_wheel, arcname, sbom_json, removed, floored = embed_wheel_sbom(
     wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
     project_dir=Path("."),
+    overrides=ConfigOverrides(offline=True),  # optional
 )
 
 # 2. Or embed arbitrary pre-generated SBOM content
-modified_wheel, arcname = embed_sbom_in_wheel(
+modified_wheel, arcname, removed, floored = embed_sbom_in_wheel(
     wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
     sbom_content=sbom_json_string,
     sbom_filename="custom.spdx3.json",  # optional
 )
 ```
+
+`removed` lists any prior Pitloom-embedded SBOM entries cleaned up as part
+of the embed; `floored` is `True` when the wheel's ZIP entry timestamp had
+to be floored to 1980-01-01 (see [Configuration](configuration.md#tool-pitloomcreation)).
 
 ### Config
 

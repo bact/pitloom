@@ -27,6 +27,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import (
+    ConfigOverrides,
     _apply_config_overrides,
     _build_sbom_standalone_wheel,
     _derive_wheel_sbom_filename,
@@ -678,12 +679,14 @@ def test_apply_config_overrides_full() -> None:
     )
     overridden = _apply_config_overrides(
         cfg,
-        provenance=prov,
-        enrich=True,
-        extract_file_header=False,
-        content_type=True,
-        content_type_method="extension",
-        offline=True,
+        ConfigOverrides(
+            provenance=prov,
+            enrich=True,
+            extract_file_header=False,
+            content_type=True,
+            content_type_method="extension",
+            offline=True,
+        ),
     )
     assert overridden.provenance_format == "fields"
     assert overridden.provenance_schema == "https://example.com/schema"
@@ -698,12 +701,7 @@ def test_apply_config_overrides_full() -> None:
     with pytest.raises(ValueError, match="content_type_method must be one of"):
         _apply_config_overrides(
             cfg,
-            provenance=None,
-            enrich=None,
-            extract_file_header=None,
-            content_type=None,
-            content_type_method="invalid_method",
-            offline=None,
+            ConfigOverrides(content_type_method="invalid_method"),
         )
 
 

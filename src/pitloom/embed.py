@@ -240,63 +240,95 @@ def embed_sbom_in_wheel(
     )
     if not sbom_bytes.strip():
         raise ValueError("SBOM content cannot be empty")
-    sbom_hash = _calculate_record_hash(sbom_bytes)
-    sbom_size = len(sbom_bytes)
 
     with zipfile.ZipFile(wheel_obj, "r") as original_zf:
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj)
-        target_name = (
-            sbom_filename
-            if sbom_filename is not None
-            else _derive_wheel_sbom_filename(original_zf, dist_info)
-        )
-        _validate_sbom_filename(target_name)
-        sbom_arcname = f"{dist_info}sboms/{target_name}"
-        record_arcname = f"{dist_info}RECORD"
-        sboms_prefix = f"{dist_info}sboms/"
-        stale_arcnames = frozenset(
-            name
-            for name in original_zf.namelist()
-            if name.startswith(sboms_prefix)
-            and name.endswith(_SPDX3_JSON_EXT)
-            and name != sbom_arcname
-            and _looks_like_pitloom_sbom(original_zf.read(name))
-        )
-
-        record_info = None
-        for info in original_zf.infolist():
-            if info.filename == record_arcname:
-                record_info = info
-                break
-
-        old_record_text = (
-            original_zf.read(record_arcname).decode("utf-8") if record_info else ""
-        )
-        new_record_text = _update_record_lines(
-            old_record_text,
-            sbom_arcname,
-            sbom_hash,
-            sbom_size,
-            dist_info,
-            stale_arcnames,
-        )
-        new_record_bytes = new_record_text.encode("utf-8")
-
-        timestamp, timestamp_floored = _resolve_zip_timestamp(
-            record_info.date_time if record_info else None
-        )
+        plan = _plan_embed(original_zf, dist_info, sbom_filename, sbom_bytes)
         _rewrite_wheel_archive(
             wheel_obj,
             original_zf,
-            sbom_arcname,
+            plan.sbom_arcname,
             sbom_bytes,
-            record_arcname,
-            new_record_bytes,
-            timestamp,
-            stale_arcnames,
+            plan.record_arcname,
+            plan.new_record_bytes,
+            plan.timestamp,
+            plan.stale_arcnames,
         )
 
-    return wheel_obj, sbom_arcname, tuple(sorted(stale_arcnames)), timestamp_floored
+    return (
+        wheel_obj,
+        plan.sbom_arcname,
+        tuple(sorted(plan.stale_arcnames)),
+        plan.timestamp_floored,
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class _EmbedPlan:
+    """Everything :func:`embed_sbom_in_wheel` needs to rewrite the archive."""
+
+    sbom_arcname: str
+    record_arcname: str
+    new_record_bytes: bytes
+    stale_arcnames: frozenset[str]
+    timestamp: tuple[int, int, int, int, int, int]
+    timestamp_floored: bool
+
+
+def _plan_embed(
+    original_zf: zipfile.ZipFile,
+    dist_info: str,
+    sbom_filename: str | None,
+    sbom_bytes: bytes,
+) -> _EmbedPlan:
+    """Resolve the target arcname, updated RECORD, and ZIP timestamp for an embed."""
+    target_name = (
+        sbom_filename
+        if sbom_filename is not None
+        else _derive_wheel_sbom_filename(original_zf, dist_info)
+    )
+    _validate_sbom_filename(target_name)
+    sbom_arcname = f"{dist_info}sboms/{target_name}"
+    record_arcname = f"{dist_info}RECORD"
+    sboms_prefix = f"{dist_info}sboms/"
+    stale_arcnames = frozenset(
+        name
+        for name in original_zf.namelist()
+        if name.startswith(sboms_prefix)
+        and name.endswith(_SPDX3_JSON_EXT)
+        and name != sbom_arcname
+        and _looks_like_pitloom_sbom(original_zf.read(name))
+    )
+
+    record_info = None
+    for info in original_zf.infolist():
+        if info.filename == record_arcname:
+            record_info = info
+            break
+
+    old_record_text = (
+        original_zf.read(record_arcname).decode("utf-8") if record_info else ""
+    )
+    new_record_text = _update_record_lines(
+        old_record_text,
+        sbom_arcname,
+        _calculate_record_hash(sbom_bytes),
+        len(sbom_bytes),
+        dist_info,
+        stale_arcnames,
+    )
+
+    timestamp, timestamp_floored = _resolve_zip_timestamp(
+        record_info.date_time if record_info else None
+    )
+    return _EmbedPlan(
+        sbom_arcname=sbom_arcname,
+        record_arcname=record_arcname,
+        new_record_bytes=new_record_text.encode("utf-8"),
+        stale_arcnames=stale_arcnames,
+        timestamp=timestamp,
+        timestamp_floored=timestamp_floored,
+    )
 
 
 _INVALID_FILENAME_CHARS = frozenset({"/", "\\", "\x00"})
@@ -432,7 +464,23 @@ def _build_sbom_from_project_and_wheel(
     return exporter.to_json(pretty=False)
 
 
-# pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
+@dataclasses.dataclass(frozen=True)
+class ConfigOverrides:
+    """Per-run overrides layered onto a project's ``[tool.pitloom]`` config.
+
+    Each field defaults to ``None`` (defer to the project's own config, or
+    its own built-in default when there is no project) -- see
+    :func:`_apply_config_overrides`.
+    """
+
+    provenance: ProvenanceConfig | None = None
+    enrich: bool | None = None
+    extract_file_header: bool | None = None
+    content_type: bool | None = None
+    content_type_method: str | None = None
+    offline: bool | None = None
+
+
 def embed_wheel_sbom(
     wheel_path: Path | str,
     *,
@@ -442,12 +490,7 @@ def embed_wheel_sbom(
     sbom_basename: str | None = None,
     creation_metadata: CreationMetadata | None = None,
     registry: str | Path | IdRegistry | None = None,
-    provenance: ProvenanceConfig | None = None,
-    enrich: bool | None = None,
-    extract_file_header: bool | None = None,
-    content_type: bool | None = None,
-    content_type_method: str | None = None,
-    offline: bool | None = None,
+    overrides: ConfigOverrides | None = None,
 ) -> tuple[Path, str, str, tuple[str, ...], bool]:
     """Generate and embed a PEP 770 SBOM into a built Python wheel.
 
@@ -459,13 +502,9 @@ def embed_wheel_sbom(
         sbom_basename: Custom basename for the embedded SBOM file.
         creation_metadata: Optional creation metadata overrides.
         registry: ID registry or path.
-        provenance: Metadata provenance config.
-        enrich: Override enrichment setting.
-        extract_file_header: Override SPDX header extraction.
-        content_type: Override content type detection.
-        content_type_method: Content type detection method
-            ('auto'/'magika'/'extension').
-        offline: Offline mode flag.
+        overrides: Per-run overrides for provenance/enrich/content-type/offline
+            settings, layered onto the project's ``[tool.pitloom]`` config.
+            Defaults to no overrides.
 
     Returns:
         Tuple of (modified_wheel_path, embedded_arcname, sbom_json_string,
@@ -474,41 +513,22 @@ def embed_wheel_sbom(
     """
     wheel_obj = Path(wheel_path).resolve()
     wheel_metadata, _ = read_wheel(wheel_obj)
+    eff_overrides = overrides if overrides is not None else ConfigOverrides()
 
-    if sbom_path is not None:
-        sbom_json = Path(sbom_path).read_text(encoding="utf-8")
-        eff_basename = sbom_basename
-    else:
-        proj_root = _resolve_project_root(project_dir)
-        if proj_root is not None:
-            _, cfg, _ = read_project(proj_root)
-            cfg = _apply_config_overrides(
-                cfg,
-                provenance=provenance,
-                enrich=enrich,
-                extract_file_header=extract_file_header,
-                content_type=content_type,
-                content_type_method=content_type_method,
-                offline=offline,
-            )
-            eff_registry = registry if registry is not None else cfg.ids_file
-            reg = resolve_registry(proj_root, eff_registry)
-            eff_creation = creation_metadata or cfg.creation_metadata
-            sbom_json = _build_sbom_from_project_and_wheel(
-                proj_root, wheel_metadata, cfg, reg, eff_creation
-            )
-            eff_basename = sbom_basename or cfg.sbom_basename
-        else:
-            sbom_json = _build_sbom_standalone_wheel(
-                wheel_metadata, creation_metadata, registry, provenance, offline
-            )
-            eff_basename = sbom_basename
-
-    if eff_basename:
-        eff_clean = eff_basename.removesuffix(_SPDX3_JSON_EXT)
-        target_filename = f"{eff_clean}{_SPDX3_JSON_EXT}"
-    else:
-        target_filename = None
+    sbom_json, eff_basename = _generate_embed_sbom_json(
+        wheel_metadata,
+        project_dir=project_dir,
+        sbom_path=sbom_path,
+        sbom_basename=sbom_basename,
+        creation_metadata=creation_metadata,
+        registry=registry,
+        overrides=eff_overrides,
+    )
+    target_filename = (
+        f"{eff_basename.removesuffix(_SPDX3_JSON_EXT)}{_SPDX3_JSON_EXT}"
+        if eff_basename
+        else None
+    )
 
     res_path, arcname, removed_arcnames, timestamp_floored = embed_sbom_in_wheel(
         wheel_obj, sbom_json, sbom_filename=target_filename
@@ -518,6 +538,46 @@ def embed_wheel_sbom(
         Path(output_path).write_text(sbom_json, encoding="utf-8")
 
     return res_path, arcname, sbom_json, removed_arcnames, timestamp_floored
+
+
+def _generate_embed_sbom_json(
+    wheel_metadata: ProjectMetadata,
+    *,
+    project_dir: Path | str | None,
+    sbom_path: Path | str | None,
+    sbom_basename: str | None,
+    creation_metadata: CreationMetadata | None,
+    registry: str | Path | IdRegistry | None,
+    overrides: ConfigOverrides,
+) -> tuple[str, str | None]:
+    """Resolve the SBOM JSON to embed and its effective basename.
+
+    A pre-generated ``sbom_path`` wins outright; otherwise a source project
+    (if found) drives a Build SBOM, falling back to a standalone Analyzed
+    SBOM from wheel contents alone -- see :func:`embed_wheel_sbom`.
+    """
+    if sbom_path is not None:
+        return Path(sbom_path).read_text(encoding="utf-8"), sbom_basename
+
+    proj_root = _resolve_project_root(project_dir)
+    if proj_root is None:
+        sbom_json = _build_sbom_standalone_wheel(
+            wheel_metadata,
+            creation_metadata,
+            registry,
+            overrides.provenance,
+            overrides.offline,
+        )
+        return sbom_json, sbom_basename
+
+    _, cfg, _ = read_project(proj_root)
+    cfg = _apply_config_overrides(cfg, overrides)
+    eff_registry = registry if registry is not None else cfg.ids_file
+    reg = resolve_registry(proj_root, eff_registry)
+    sbom_json = _build_sbom_from_project_and_wheel(
+        proj_root, wheel_metadata, cfg, reg, creation_metadata or cfg.creation_metadata
+    )
+    return sbom_json, sbom_basename or cfg.sbom_basename
 
 
 def _resolve_project_root(project_dir: Path | str | None) -> Path | None:
@@ -534,39 +594,33 @@ def _resolve_project_root(project_dir: Path | str | None) -> Path | None:
 
 
 def _apply_config_overrides(
-    cfg: PitloomConfig,
-    *,
-    provenance: ProvenanceConfig | None,
-    enrich: bool | None,
-    extract_file_header: bool | None,
-    content_type: bool | None,
-    content_type_method: str | None,
-    offline: bool | None,
+    cfg: PitloomConfig, overrides: ConfigOverrides
 ) -> PitloomConfig:
-    """Apply CLI overrides to PitloomConfig."""
+    """Apply per-run overrides to a PitloomConfig."""
     changes: dict[str, Any] = {}
-    if provenance is not None:
-        changes["provenance_format"] = provenance.format
-        changes["provenance_schema"] = provenance.schema
-        changes["provenance_detail"] = provenance.detail
+    if overrides.provenance is not None:
+        changes["provenance_format"] = overrides.provenance.format
+        changes["provenance_schema"] = overrides.provenance.schema
+        changes["provenance_detail"] = overrides.provenance.detail
         changes["provenance_preserve_source_metadata"] = (
-            provenance.preserve_source_metadata
+            overrides.provenance.preserve_source_metadata
         )
-    if enrich is not None:
-        changes["enrich_local"] = enrich
-    if extract_file_header is not None:
-        changes["extract_file_header"] = extract_file_header
-    if content_type is not None:
-        changes["content_type_enabled"] = content_type
-    if content_type_method is not None:
-        if content_type_method not in VALID_CONTENT_TYPE_METHODS:
+    if overrides.enrich is not None:
+        changes["enrich_local"] = overrides.enrich
+    if overrides.extract_file_header is not None:
+        changes["extract_file_header"] = overrides.extract_file_header
+    if overrides.content_type is not None:
+        changes["content_type_enabled"] = overrides.content_type
+    if overrides.content_type_method is not None:
+        if overrides.content_type_method not in VALID_CONTENT_TYPE_METHODS:
             raise ValueError(
                 "content_type_method must be one of "
-                f"{sorted(VALID_CONTENT_TYPE_METHODS)}, got {content_type_method!r}"
+                f"{sorted(VALID_CONTENT_TYPE_METHODS)}, got "
+                f"{overrides.content_type_method!r}"
             )
-        changes["content_type_method"] = content_type_method
-    if offline is not None:
-        changes["offline"] = offline
+        changes["content_type_method"] = overrides.content_type_method
+    if overrides.offline is not None:
+        changes["offline"] = overrides.offline
     return dataclasses.replace(cfg, **changes)
 
 

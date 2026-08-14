@@ -19,6 +19,7 @@ from uuid import uuid4
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
+    ConfigOverrides,
     embed_sbom_in_wheel,
     embed_wheel_sbom,
     enrich_model,
@@ -1135,6 +1136,13 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
 
         creation = _resolve_creation_metadata(args, pitloom_config)
 
+        overrides = ConfigOverrides(
+            enrich=args.enrich,
+            extract_file_header=args.extract_file_header,
+            content_type=args.content_type,
+            content_type_method=args.content_type_method,
+            offline=args.offline or None,
+        )
         for wheel_path in unique_wheels:
             output_path = args.output if len(unique_wheels) == 1 else None
             _, arcname, _, removed, floored = embed_wheel_sbom(
@@ -1145,11 +1153,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
                 sbom_basename=args.sbom_basename,
                 creation_metadata=creation.to_creation_metadata(),
                 registry=args.registry,
-                enrich=args.enrich,
-                extract_file_header=args.extract_file_header,
-                content_type=args.content_type,
-                content_type_method=args.content_type_method,
-                offline=args.offline or None,
+                overrides=overrides,
             )
             _report_embed_result(arcname, wheel_path.name, removed, floored)
         return 0
