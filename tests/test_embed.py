@@ -15,6 +15,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 from installer.sources import WheelFile
@@ -471,3 +472,299 @@ type = "person"
 
     # Compare entire wheel binary bytes
     assert w_cli.read_bytes() == w_api.read_bytes()
+
+
+def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
+    """Test _find_dist_info_prefix with single, matching, and ambiguous dist-infos."""
+    from pitloom.embed import _find_dist_info_prefix
+
+    # 1. No dist-info
+    p1 = tmp_path / "nodist-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(p1, "w") as zf:
+        zf.writestr("nodist/module.py", "# code")
+    with zipfile.ZipFile(p1, "r") as zf:
+        with pytest.raises(ValueError, match="no .dist-info directory found"):
+            _find_dist_info_prefix(zf, p1)
+
+    # 2. Multiple dist-info where one matches stem prefix
+    p2 = tmp_path / "mypkg-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(p2, "w") as zf:
+        zf.writestr("mypkg-1.0.0.dist-info/METADATA", "Name: mypkg\nVersion: 1.0.0\n")
+        zf.writestr("other-1.0.0.dist-info/METADATA", "Name: other\nVersion: 1.0.0\n")
+    with zipfile.ZipFile(p2, "r") as zf:
+        assert _find_dist_info_prefix(zf, p2) == "mypkg-1.0.0.dist-info/"
+
+    # 3. Multiple dist-info where none or multiple match stem prefix
+    p3 = tmp_path / "unmatched-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(p3, "w") as zf:
+        zf.writestr("pkg1-1.0.0.dist-info/METADATA", "Name: pkg1\n")
+        zf.writestr("pkg2-1.0.0.dist-info/METADATA", "Name: pkg2\n")
+    with zipfile.ZipFile(p3, "r") as zf:
+        with pytest.raises(ValueError, match="multiple .dist-info directories found"):
+            _find_dist_info_prefix(zf, p3)
+
+
+def test_resolve_zip_timestamp_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test _resolve_zip_timestamp under various invalid/fallback conditions."""
+    from pitloom.embed import _resolve_zip_timestamp
+
+    # Invalid string in SOURCE_DATE_EPOCH
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
+    ts = _resolve_zip_timestamp(fallback=(1990, 5, 1, 12, 0, 0))
+    assert ts == (1990, 5, 1, 12, 0, 0)
+
+    # Overflow in SOURCE_DATE_EPOCH
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "99999999999999999999999999999999999")
+    ts_overflow = _resolve_zip_timestamp(fallback=(1995, 1, 1, 0, 0, 0))
+    assert ts_overflow == (1995, 1, 1, 0, 0, 0)
+
+    # Fallback with year < 1980 clamped to 1980
+    monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+    ts_clamped = _resolve_zip_timestamp(fallback=(1970, 1, 1, 0, 0, 0))
+    assert ts_clamped == (1980, 1, 1, 0, 0, 0)
+
+    # Fallback None uses current time
+    ts_now = _resolve_zip_timestamp(fallback=None)
+    assert ts_now[0] >= 2026
+
+
+def test_update_record_lines_empty_rows() -> None:
+    """Test _update_record_lines skips empty rows in RECORD string."""
+    from pitloom.embed import _update_record_lines
+
+    raw_record = "pkg/__init__.py,sha256=abc,10\n\n\npkg-1.0.dist-info/RECORD,,\n"
+    updated = _update_record_lines(
+        raw_record,
+        "pkg-1.0.dist-info/sboms/pkg.spdx3.json",
+        "hash123",
+        100,
+        "pkg-1.0.dist-info/",
+    )
+    assert "pkg-1.0.dist-info/sboms/pkg.spdx3.json,sha256=hash123,100" in updated
+    assert "pkg-1.0.dist-info/RECORD,," in updated
+
+
+def test_embed_sbom_file_not_found(tmp_path: Path) -> None:
+    """Test embed_sbom_in_wheel raises FileNotFoundError for missing wheel."""
+    missing_wheel = tmp_path / "does_not_exist.whl"
+    with pytest.raises(FileNotFoundError, match="Wheel file not found"):
+        embed_sbom_in_wheel(missing_wheel, "{}")
+
+
+def test_embed_sbom_without_existing_record(tmp_path: Path) -> None:
+    """Test embed_sbom_in_wheel handles a wheel archive with no RECORD entry."""
+    wheel_path = tmp_path / "norec-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr(
+            "norec-1.0.0.dist-info/METADATA",
+            "Name: norec\nVersion: 1.0.0\n",
+        )
+        zf.writestr("norec/__init__.py", "# empty\n")
+
+    embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        assert "norec-1.0.0.dist-info/sboms/norec-1.0.0.spdx3.json" in zf.namelist()
+        assert "norec-1.0.0.dist-info/RECORD" in zf.namelist()
+        rec_text = zf.read("norec-1.0.0.dist-info/RECORD").decode("utf-8")
+        assert "norec-1.0.0.dist-info/sboms/norec-1.0.0.spdx3.json" in rec_text
+        assert "norec-1.0.0.dist-info/RECORD,," in rec_text
+
+
+def test_derive_wheel_sbom_filename_fallbacks(tmp_path: Path) -> None:
+    """Test _derive_wheel_sbom_filename metadata missing/empty header fallbacks."""
+    from pitloom.embed import _derive_wheel_sbom_filename
+
+    # 1. No METADATA in archive -> fall back to dist-info name prefix
+    p1 = tmp_path / "nometa-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(p1, "w") as zf:
+        zf.writestr("nometa-1.0.0.dist-info/WHEEL", "Wheel-Version: 1.0\n")
+    with zipfile.ZipFile(p1, "r") as zf:
+        fn1 = _derive_wheel_sbom_filename(zf, "nometa-1.0.0.dist-info/")
+        assert fn1 == "nometa-1.0.0.spdx3.json"
+
+    # 2. METADATA with no Name or Version headers -> fall back to dist-info prefix
+    p2 = tmp_path / "emptyheaders-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(p2, "w") as zf:
+        zf.writestr(
+            "emptyheaders-1.0.0.dist-info/METADATA",
+            "Summary: A summary\nAuthor: Author\n",
+        )
+    with zipfile.ZipFile(p2, "r") as zf:
+        fn2 = _derive_wheel_sbom_filename(zf, "emptyheaders-1.0.0.dist-info/")
+        assert fn2 == "emptyheaders-1.0.0.spdx3.json"
+
+    # 3. METADATA with blank line after Name (stops header scan)
+    p3 = tmp_path / "blankheader-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(p3, "w") as zf:
+        zf.writestr(
+            "blankheader-1.0.0.dist-info/METADATA",
+            "Name: myname\n\nVersion: 2.0.0 in description body\n",
+        )
+    with zipfile.ZipFile(p3, "r") as zf:
+        fn3 = _derive_wheel_sbom_filename(zf, "blankheader-1.0.0.dist-info/")
+        assert fn3 == "blankheader-1.0.0.spdx3.json"
+
+    # 4. Empty prefix fallback
+    with zipfile.ZipFile(p1, "r") as zf:
+        fn4 = _derive_wheel_sbom_filename(zf, ".dist-info/")
+        assert fn4 == "sbom.spdx3.json"
+
+
+def test_rewrite_wheel_archive_chmod_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test _rewrite_wheel_archive gracefully ignores OSError on os.chmod."""
+    wheel_path = _make_dummy_wheel(tmp_path, "chmodpkg", "1.0.0")
+
+    def _failing_chmod(path: Any, mode: int) -> None:
+        raise OSError("Permission denied simulation")
+
+    monkeypatch.setattr("pitloom.embed.os.chmod", _failing_chmod)
+    # Should complete without error
+    embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+
+
+def test_rewrite_wheel_archive_temp_file_cleanup_on_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test temporary file is cleaned up if archive write fails midway."""
+    wheel_path = _make_dummy_wheel(tmp_path, "cleanuppkg", "1.0.0")
+
+    def _failing_writestr(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("Disk write simulation failed")
+
+    monkeypatch.setattr("zipfile.ZipFile.writestr", _failing_writestr)
+    with pytest.raises(RuntimeError, match="Disk write simulation failed"):
+        embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+
+    # Verify no .tmp files remain in parent dir
+    tmp_files = list(tmp_path.glob("*.tmp"))
+    assert not tmp_files
+
+
+def test_resolve_project_root_non_existent(tmp_path: Path) -> None:
+    """Test _resolve_project_root when non-existent path or empty directory."""
+    from pitloom.embed import _resolve_project_root
+
+    # Non-existent explicit project_dir falls back to checking cwd
+    res = _resolve_project_root(tmp_path / "does_not_exist")
+    assert res is None or res.exists()
+
+
+def test_apply_config_overrides_full() -> None:
+    """Test _apply_config_overrides applies all CLI override parameters."""
+    from pitloom.core.config import PitloomConfig
+    from pitloom.core.provenance import ProvenanceConfig
+    from pitloom.embed import _apply_config_overrides
+
+    cfg = PitloomConfig()
+    prov = ProvenanceConfig(
+        format="fields",
+        schema="https://example.com/schema",
+        detail="full",
+        preserve_source_metadata=True,
+    )
+    overridden = _apply_config_overrides(
+        cfg,
+        provenance=prov,
+        enrich=True,
+        extract_file_header=False,
+        content_type=True,
+        content_type_method="extension",
+        offline=True,
+    )
+    assert overridden.provenance_format == "fields"
+    assert overridden.provenance_schema == "https://example.com/schema"
+    assert overridden.provenance_detail == "full"
+    assert overridden.provenance_preserve_source_metadata is True
+    assert overridden.enrich_local is True
+    assert overridden.extract_file_header is False
+    assert overridden.content_type.enabled is True
+    assert overridden.content_type.method == "extension"
+    assert overridden.offline is True
+
+    with pytest.raises(ValueError, match="content_type_method must be one of"):
+        _apply_config_overrides(
+            cfg,
+            provenance=None,
+            enrich=None,
+            extract_file_header=None,
+            content_type=None,
+            content_type_method="invalid_method",
+            offline=None,
+        )
+
+
+def test_build_sbom_standalone_wheel_registry_options(tmp_path: Path) -> None:
+    """Test _build_sbom_standalone_wheel with various registry options."""
+    from pitloom.core.project import ProjectMetadata
+    from pitloom.embed import _build_sbom_standalone_wheel
+    from pitloom.ids import IdRegistry
+
+    meta = ProjectMetadata(name="standalonereg", version="1.0.0", files=[])
+
+    # 1. IdRegistry instance with namespace
+    reg = IdRegistry(namespace="https://example.com/spdx")
+    sbom_1 = _build_sbom_standalone_wheel(meta, None, reg, None, False)
+    assert "standalonereg" in sbom_1
+
+    # 2. Path string to registry file
+    reg_file = tmp_path / "custom_ids.json"
+    reg.save(reg_file)
+    sbom_2 = _build_sbom_standalone_wheel(meta, None, str(reg_file), None, True)
+    assert "standalonereg" in sbom_2
+
+
+def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
+    """Test re-embedding drops prior SBOM from archive & RECORD."""
+    wheel_path = _make_dummy_wheel(tmp_path, "stalepkg", "1.0.0")
+
+    # 1. Embed initial SBOM under custom name 'first.spdx3.json'
+    embed_sbom_in_wheel(
+        wheel_path,
+        _SAMPLE_SPDX3_JSON,
+        sbom_filename="first.spdx3.json",
+    )
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        assert "stalepkg-1.0.0.dist-info/sboms/first.spdx3.json" in zf.namelist()
+
+    # 2. Embed second SBOM under custom name 'second.spdx3.json'
+    embed_sbom_in_wheel(
+        wheel_path,
+        _SAMPLE_SPDX3_JSON,
+        sbom_filename="second.spdx3.json",
+    )
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        namelist = zf.namelist()
+        assert "stalepkg-1.0.0.dist-info/sboms/second.spdx3.json" in namelist
+        assert "stalepkg-1.0.0.dist-info/sboms/first.spdx3.json" not in namelist
+
+        record_text = zf.read("stalepkg-1.0.0.dist-info/RECORD").decode("utf-8")
+        assert "stalepkg-1.0.0.dist-info/sboms/second.spdx3.json" in record_text
+        assert "stalepkg-1.0.0.dist-info/sboms/first.spdx3.json" not in record_text
+
+    with WheelFile.open(wheel_path) as wf:
+        wf.validate_record()
+
+
+def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:
+    """Test _rewrite_wheel_archive handles non-existent wheel path without error."""
+    from pitloom.embed import _rewrite_wheel_archive
+
+    source_wheel = _make_dummy_wheel(tmp_path, "orig_mode_pkg", "1.0.0")
+    target_wheel = tmp_path / "new_target.whl"
+
+    with zipfile.ZipFile(source_wheel, "r") as original_zf:
+        _rewrite_wheel_archive(
+            target_wheel,
+            original_zf,
+            "orig_mode_pkg-1.0.0.dist-info/sboms/sbom.spdx3.json",
+            b"{}",
+            "orig_mode_pkg-1.0.0.dist-info/RECORD",
+            b"",
+            (2026, 1, 1, 0, 0, 0),
+        )
+    assert target_wheel.exists()

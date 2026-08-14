@@ -518,26 +518,34 @@ def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:
             yield file_path
 
 
-def resolve_registry(project_dir: Path, ids_file: str | None) -> IdRegistry | None:
+def resolve_registry(
+    project_dir: Path,
+    ids_file: str | Path | IdRegistry | None = None,
+) -> IdRegistry | None:
     """Resolve the registry a project build should consult.
 
-    Shared by the Hatchling build hook and the CLI project-assembly path
-    (see :func:`~pitloom.assemble.generate_project_sbom`) so both use the exact same
-    resolution rule as ``pitloom.loom``: an explicit ``[tool.pitloom]
-    ids-file`` (``ids_file``) is loaded relative to *project_dir*; otherwise
-    ``loom-ids.json`` is auto-discovered by walking up from
-    *project_dir*. Any load failure is logged and degrades to "no registry"
-    -- a missing or broken registry must never fail a build.
+    Shared by the Hatchling build hook, Python API, and CLI project-assembly
+    paths so all use the exact same resolution rule:
+    - An :class:`IdRegistry` instance is returned as-is.
+    - A ``str`` or :class:`pathlib.Path` is loaded (relative to *project_dir* if
+      relative, or directly if absolute).
+    - ``None`` auto-discovers ``loom-ids.json`` by walking up from *project_dir*.
+
+    Any load failure is logged and degrades to "no registry" (``None``) --
+    a missing or broken registry must never fail a build.
 
     Args:
         project_dir: Project root directory.
-        ids_file: ``[tool.pitloom] ids-file`` value, or ``None``.
+        ids_file: File path, config string, :class:`IdRegistry`, or ``None``.
 
     Returns:
         The loaded :class:`IdRegistry`, or ``None`` if none is configured/found.
     """
+    if isinstance(ids_file, IdRegistry):
+        return ids_file
     if ids_file is not None:
-        registry_path = project_dir / ids_file
+        path = Path(ids_file)
+        registry_path = path if path.is_absolute() else project_dir / path
         try:
             return IdRegistry.load(registry_path)
         except (FileNotFoundError, ValueError, OSError) as exc:

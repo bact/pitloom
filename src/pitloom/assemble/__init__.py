@@ -228,12 +228,8 @@ def generate_project_sbom(
         ai_models, effective_enrich_config, target_path
     )
 
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(search_root / registry)
-        if registry is not None
-        else resolve_registry(search_root, pitloom_config.ids_file)
+    resolved_registry = resolve_registry(
+        search_root, registry if registry is not None else pitloom_config.ids_file
     )
 
     doc = DocumentModel(
@@ -294,13 +290,7 @@ def generate_wheel_sbom(
     effective_offline = (
         _resolve_local_offline_default(cwd) if offline is None else offline
     )
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(cwd / registry)
-        if registry is not None
-        else resolve_registry(cwd, None)
-    )
+    resolved_registry = resolve_registry(cwd, registry)
 
     doc = DocumentModel(
         project=project_metadata,
@@ -380,13 +370,7 @@ def generate_model_sbom(
     else:
         model_path = Path(source)
         model = read_ai_model(model_path)
-        resolved_registry = (
-            registry
-            if isinstance(registry, IdRegistry)
-            else IdRegistry.load(Path(registry))
-            if registry is not None
-            else IdRegistry.find()
-        )
+        resolved_registry = resolve_registry(model_path.parent, registry)
         entity_spdx_id = (
             resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
             if resolved_registry is not None
@@ -499,13 +483,7 @@ def enrich_model(
         if project_target is not None
         else None
     )
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(Path(registry))
-        if registry is not None
-        else IdRegistry.find()
-    )
+    resolved_registry = resolve_registry(model_path.parent, registry)
     entity_spdx_id = (
         resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
         if resolved_registry is not None
@@ -554,13 +532,7 @@ def generate_env_sbom(
     effective_offline = (
         _resolve_local_offline_default(cwd) if offline is None else offline
     )
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(cwd / registry)
-        if registry is not None
-        else resolve_registry(cwd, None)
-    )
+    resolved_registry = resolve_registry(cwd, registry)
 
     doc = DocumentModel(
         project=project_metadata,

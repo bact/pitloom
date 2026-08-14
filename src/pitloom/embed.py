@@ -426,13 +426,8 @@ def embed_wheel_sbom(
                 content_type_method=content_type_method,
                 offline=offline,
             )
-            reg = (
-                registry
-                if isinstance(registry, IdRegistry)
-                else IdRegistry.load(proj_root / registry)
-                if registry is not None
-                else resolve_registry(proj_root, cfg.ids_file)
-            )
+            eff_registry = registry if registry is not None else cfg.ids_file
+            reg = resolve_registry(proj_root, eff_registry)
             eff_creation = creation_metadata or CreationMetadata(
                 creators=cfg.creators,
                 tools=cfg.tools,
@@ -523,14 +518,7 @@ def _build_sbom_standalone_wheel(
     offline: bool | None,
 ) -> str:
     """Build SBOM from standalone wheel when no source project dir is present."""
-    cwd = Path.cwd()
-    reg = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(cwd / registry)
-        if registry is not None
-        else resolve_registry(cwd, None)
-    )
+    reg = resolve_registry(Path.cwd(), registry)
     doc = DocumentModel(
         project=wheel_metadata,
         creation_metadata=creation_metadata or CreationMetadata(),
