@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-12
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -113,8 +113,8 @@ The Skill reads the project's README or the model's model card, drafts a
 small standalone SPDX 3 JSON fragment for whatever it can infer (never
 hand-edits the generated SBOM), registers it under
 `[tool.pitloom.fragment]`, and re-runs Pitloom so the fragment is
-merged. Every inferred field is marked `Source: AI agent | Method:
-inference` in its `comment`, so it is never mistaken for Pitloom's own
+merged. Every inferred field is marked `Source: AI agent | Role:
+inferred` in its `comment`, so it is never mistaken for Pitloom's own
 extraction. See
 [`skills/sbom-enrich/references/examples.md`][sbom-enrich-examples] for a
 full worked example, including the pre-merge and post-merge validation

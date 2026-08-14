@@ -1,12 +1,16 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
 # CLI UX Analysis: Consolidating Generation Subcommands & Input-Centric Redesign
+
+See [docs/cli.md](../../docs/cli.md) for the shipped subcommand
+reference and worked examples -- this file covers the rationale behind
+the redesign, not the current command surface itself.
 
 > **Status:** Design Approved (2026-08-08) — Post-v0.12.0 Architectural
 > Decision. Merged 2026-08-11 from a separate `cisa-sbom-lifecycle.md`
@@ -64,92 +68,7 @@ The key resolution is to separate the **User Interface (UX)** from the **Emitted
 
 ---
 
-## 4. Input-Centric CLI Architecture
-
-```
-                       +----------------------------------+
-                       |    loom generate [TARGET]        |  <-- Smart Auto-Detect Entrypoint
-                       +----------------------------------+
-                                        |
-       +-------------------+------------+------------+-------------------+
-       |                   |                         |                   |
-[ loom project ]     [ loom wheel ]            [ loom model ]      [ loom env ]
- (Source / Sdist)     (Built .whl)              (GGUF/Safetensors   (Installed venv)
-                                                 HF URLs --offline)
-```
-
-### Subcommand Specification
-
-#### 1. Smart Entrypoint: `loom generate [TARGET]`
-
-Auto-detects the target type and dispatches to the corresponding target command:
-
-```bash
-loom generate .                          # Project directory -> Source SBOM
-loom generate mypkg-1.0.0.tar.gz         # Sdist archive     -> Source SBOM
-loom generate dist/pkg-1.0-py3-none.whl  # Wheel file        -> Analyzed SBOM
-loom generate models/model.gguf          # Model file        -> AI Model SBOM
-loom generate mistralai/Mistral-7B      # HF Model ID       -> Remote AI Model SBOM
-loom generate env                      # Active venv       -> Deployed SBOM
-```
-
-#### 2. Project Source & Sdist: `loom project [PATH]`
-
-Scans unbuilt source directories OR archived source distributions (`.tar.gz` / `.zip` sdists):
-
-```bash
-loom project .                           # Unpacked project root
-loom project /path/to/project
-loom project dist/mypkg-1.0.0.tar.gz     # Native sdist support (no manual extraction required)
-```
-
-- **CISA SBOM Type**: `Source` (`software_sbomType = [source]`)
-
-#### 3. Built Wheel: `loom wheel <WHEEL_FILE>`
-
-Inspects built Python `.whl` archives:
-
-```bash
-loom wheel dist/mypkg-1.0.0-py3-none-any.whl -o sbom.spdx3.json
-```
-
-- **CISA SBOM Type**: `Analyzed` (`software_sbomType = [analyzed]`)
-
-#### 4. AI Model Asset: `loom model <FILE_OR_URL> [--offline]`
-
-Inspects local model weight files (`.gguf`, `.safetensors`, `.onnx`, `.pt`, etc.) or Hugging Face Hub repositories:
-
-```bash
-loom model models/sentiment.gguf
-loom model mistralai/Mistral-7B-v0.1
-loom model models/sentiment.gguf --offline    # Guarantees zero network calls in sandboxed runners
-```
-
-- **CISA SBOM Type**: `Analyzed` (`software_sbomType = [analyzed]`, `ai_AIPackage`)
-
-#### 5. Deployed Environment: `loom env`
-
-Inspects active Python environment (`site-packages` via `pipdeptree`):
-
-```bash
-loom env -o env.spdx3.json
-```
-
-- **CISA SBOM Type**: `Deployed` (`software_sbomType = [deployed]`)
-
-#### 6. Fragment Merging: `loom merge <FRAGMENTS_DIR>`
-
-Stitches dynamic `@loom.run` runtime execution fragments into a static parent SBOM:
-
-```bash
-loom merge .spdx3-fragments/ -o combined.spdx3.json
-```
-
-- **CISA SBOM Type**: `Runtime` (`software_sbomType = [runtime]`)
-
----
-
-## 5. Input Target to CISA SBOM Type Mapping
+## 4. Input Target to CISA SBOM Type Mapping
 
 | Subcommand | Input Target | Network | CISA SBOM Type | SPDX 3 `software_sbomType` |
 | :--- | :--- | :--- | :--- | :--- |
@@ -161,24 +80,7 @@ loom merge .spdx3-fragments/ -o combined.spdx3.json
 | `loom merge` | Dynamic execution `.spdx3.json` fragments | Offline | **Runtime** | `[runtime]` |
 | *Hatchling Hook* | `hatch build` wheel output | Offline | **Build** | `[build]` |
 
-## 6. Python API
-
-Harmonized 1:1 with the CLI subcommands (`src/pitloom/assemble/__init__.py`):
-
-```python
-import pitloom
-
-# 1. Smart Unified Entrypoint
-sbom_json = pitloom.generate(target=".")
-
-# 2. Harmonized Explicit API (1:1 with CLI subcommands)
-sbom_json = pitloom.generate_project_sbom(project_dir=Path("."))
-sbom_json = pitloom.generate_wheel_sbom(wheel_path=Path("dist/pkg.whl"))
-sbom_json = pitloom.generate_model_sbom(source="models/model.gguf", offline=True)
-sbom_json = pitloom.generate_env_sbom()
-```
-
-## 7. Downstream integration impact
+## 5. Downstream integration impact
 
 1. **`pitloom.loom` Decorators**: `@loom.run` context managers emit CISA **Runtime SBOM fragments** without corrupting static build metadata. `loom merge` allows command-line stitching.
 2. **`SKILL.md` Agent Recipes**: Simplifies LLM agent routing trees (`loom generate <target>` or explicit target commands).

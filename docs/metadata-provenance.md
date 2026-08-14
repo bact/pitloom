@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-09
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,7 +89,10 @@ value, not just where it read it from. Values in use today:
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
 | `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
-| `synthetic` | The element itself was synthesized by Pitloom (e.g. a placeholder), not extracted from any source file. |
+| `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment (`loom env`), not extracted from any source file. |
+| `magika_content_detection` | Per-file content type resolved by the [`magika`](https://pypi.org/project/magika/) content-detection library. |
+| `extension_guess` | Per-file content type resolved by a filename-extension fallback (no `magika`, or no confident result). |
+| `yaml_frontmatter` | Read from a local README/model card's YAML frontmatter block during enrichment. |
 
 A field with **no** `method` -- just a `source` -- was read verbatim from
 the named file with no interpretation involved (e.g. `project.name` from
@@ -141,10 +144,15 @@ value) -- so none of these are misreported as a conflict.
 
   `role` says *whose* determination each candidate is: `declared` is the
   project's own stated claim; `detected` is Pitloom's own independent
-  directory-search procedure's result. (Two further roles,
-  `externalReported` and `inferred`, are
-  reserved for future candidate sources -- a linked GitHub/Hugging Face
-  Hub API, or an AI agent's inference -- not built yet.)
+  directory-search procedure's result; `sbomAuthorSupplied` is asserted
+  directly by the human operating Pitloom (e.g. a
+  `[[tool.pitloom.content-type.override]]` match, or a value the
+  `sbom-enrich` Skill records on the SBOM author's direct say-so).
+  `inferred` isn't emitted by Pitloom's own deterministic code, but is
+  what the `sbom-enrich` Skill's agent-authored fragments use for a value
+  the agent derived itself rather than one the SBOM author stated.
+  `externalReported` remains reserved for a future candidate source (a
+  linked GitHub/Hugging Face Hub API) -- not built yet.
 
 ## See also
 

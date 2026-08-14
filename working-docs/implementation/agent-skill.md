@@ -1,12 +1,16 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Using Pitloom as an AI-agent Skill
+# Using Pitloom as an AI-agent Skill: implementation notes
+
+See [docs/agent-skills.md](../../docs/agent-skills.md) for the
+user-facing install/usage walkthrough -- this file covers implementation
+detail and design rationale not needed to just use the Skills.
 
 Pitloom ships three Anthropic Agent-Skills -- `skills/sbom-generate/`,
 `skills/sbom-enrich/`, and `skills/sbom-validate/` -- so an AI coding
@@ -14,7 +18,7 @@ agent can generate, optionally enrich, and validate an SBOM on request,
 driving the same `loom` CLI a person would use from a terminal (plus,
 for validation, the third-party `spdx3-validate` CLI).
 
-See [adoption-surfaces.md](../design/adoption-surfaces.md) for how this
+See [adoption-surfaces.md](adoption-surfaces.md) for how this
 fits alongside Pitloom's other surfaces, and
 [sbom-enrichment.md](../design/sbom-enrichment.md) for the enrichment model
 the `sbom-enrich` skill builds on.
@@ -50,34 +54,7 @@ fires when asked for, or when a user explicitly wants to add detail
 Pitloom's static extraction cannot see; `sbom-validate` runs on any SPDX
 3 JSON document, Pitloom-generated or not.
 
-## Installing the Skills in Claude Code
-
-Copy (or symlink) any of `skills/sbom-generate/`, `skills/sbom-enrich/`,
-and `skills/sbom-validate/` into a skills directory Claude Code reads
-from. Copy all three for the full generate-enrich-validate workflow;
-`sbom-generate` alone is enough for generation only.
-
-```bash
-# Project-scoped (checked into the repository, shared with the team):
-mkdir -p .claude/skills
-cp -r /path/to/pitloom/skills/sbom-generate .claude/skills/
-cp -r /path/to/pitloom/skills/sbom-enrich .claude/skills/
-cp -r /path/to/pitloom/skills/sbom-validate .claude/skills/
-
-# User-scoped (available in every project on this machine):
-mkdir -p ~/.claude/skills
-cp -r /path/to/pitloom/skills/sbom-generate ~/.claude/skills/
-cp -r /path/to/pitloom/skills/sbom-enrich ~/.claude/skills/
-cp -r /path/to/pitloom/skills/sbom-validate ~/.claude/skills/
-```
-
-Once installed, asking Claude Code to "generate an SBOM for this project"
-(or any of the trigger phrasings in `sbom-generate/SKILL.md`'s
-`description`) should load that skill automatically; similarly for
-enrichment requests and `sbom-enrich/SKILL.md`, and validation requests
-and `sbom-validate/SKILL.md`.
-
-### If a skill name already exists (collides)
+## If a skill name already exists (collides)
 
 A skill's invocable name comes from its **directory name**, not its
 `SKILL.md` frontmatter -- so if you already have an unrelated skill at
@@ -133,8 +110,8 @@ None of the three skills contains Pitloom code of its own.
    contribute it back as a pitloom **fragment** -- a small standalone
    SPDX 3 JSON-LD file merged in via `[tool.pitloom.fragment]`. Every
    field is provenance-marked with the role matching how it was obtained
-   (`Source: AI agent | Method: inference` for a prose-derived guess,
-   `Source: SBOM author | Method: sbomAuthorSupplied` for a fact stated
+   (`Source: AI agent | Role: inferred` for a prose-derived guess,
+   `Source: SBOM author | Role: sbomAuthorSupplied` for a fact stated
    directly), so it is never confused with Pitloom's own extraction.
 3. **`sbom-validate`.** Run the third-party
    [`spdx3-validate`](https://github.com/JPEWdev/spdx3-validate) CLI
@@ -148,28 +125,6 @@ See `skills/sbom-generate/references/examples.md`,
 `skills/sbom-enrich/references/examples.md`, and
 `skills/sbom-validate/references/examples.md` for the exact commands and
 a full worked fragment example.
-
-## Verifying the Skills work
-
-```bash
-# sbom-generate, project mode:
-loom project . -o /tmp/sbom.spdx3.json
-
-# sbom-generate, model mode (adjust the path to a real model file):
-loom model tests/fixtures/aimodels/onnx/squeezenet1.1-7.onnx -o /tmp/model.spdx3.json
-
-# Both should exit 0 and produce a file containing an "@graph" array.
-
-# sbom-validate, against either output above:
-pip install spdx3-validate  # if not already installed
-spdx3-validate --json /tmp/sbom.spdx3.json
-```
-
-For the `sbom-enrich` recipe, follow
-`skills/sbom-enrich/references/examples.md` end to end: write the
-fragment, add a `[tool.pitloom.fragment]` entry pointing at it, re-run
-`loom`, and confirm the inferred element appears in the output with its
-`Source: AI agent | Method: inference` provenance.
 
 ## Also available as a Claude Code plugin
 

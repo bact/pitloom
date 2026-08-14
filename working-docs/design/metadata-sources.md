@@ -231,7 +231,7 @@ which pitloom's dependency `pyproject-metadata` transitively includes.
 
 - [working-docs/implementation/setuptools-support.md](../implementation/setuptools-support.md)
   implementation notes for the static `setup.cfg` / `setup.py` extractors
-- [working-docs/design/hatchling-build-hook.md](hatchling-build-hook.md) --
+- [working-docs/implementation/hatchling-build-hook.md](../implementation/hatchling-build-hook.md) --
   PEP 770 wheel embedding via the Hatchling hook
-- [working-docs/design/metadata-provenance.md](metadata-provenance.md) --
+- [working-docs/implementation/provenance/metadata-provenance.md](../implementation/provenance/metadata-provenance.md) --
   provenance tracking per field

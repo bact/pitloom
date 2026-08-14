@@ -1,12 +1,17 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-08-12
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
 # Per-file metadata extraction (SPDX-File\* header tags)
+
+See [provenance/annotation-provenance.md](provenance/annotation-provenance.md)
+and [provenance/metadata-provenance.md](provenance/metadata-provenance.md)
+for the intrinsic/extrinsic role vocabulary this document's "Provenance:
+intrinsic vs. extrinsic" section reuses.
 
 Pitloom extracts metadata at the project level (`pyproject.toml`,
 `codemeta.json`, `CITATION.cff`) and the dependency level (installed
@@ -190,7 +195,7 @@ change whether the feature runs at all.
 
 Role is `sbomAuthorSupplied`, not `detected` -- the config author is
 asserting the value directly, Pitloom isn't deriving anything for a
-match. Provenance: `Source: <file> | Method: sbomAuthorSupplied` (no
+match. Provenance: `Source: <file> | Role: sbomAuthorSupplied` (no
 `Tool:` segment -- there's no detector to attribute).
 
 **Config-only, deliberately.** No CLI flag (a glob -> MIME-type mapping

@@ -16,8 +16,8 @@ native-backfill checklist (6 of 6 items shipped as of 2026-08-10 -- see
 [`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md)
 for current status).
 **Planned with:** Opus 4.8. **Implemented by:** Sonnet 5.
-**Related design docs:** [`working-docs/design/metadata-provenance.md`](../design/metadata-provenance.md),
-[`working-docs/design/model-metadata-extraction.md`](../design/model-metadata-extraction.md).
+**Related docs:** [`metadata-provenance.md`](metadata-provenance.md),
+[`working-docs/design/model-metadata-extraction.md`](../../design/model-metadata-extraction.md).
 
 This is a self-contained handover. An implementing agent should be able to
 work from this file plus the cited source locations without re-deriving the
@@ -57,15 +57,15 @@ Provenance is a `dict[str, str]` field on each format-neutral metadata object,
 keyed by SBOM field name, value already semi-structured as pipe-delimited
 `"Key: value | Key: value"` segments:
 
-- `ProjectMetadata.provenance` — [`src/pitloom/core/project.py:77`](../../src/pitloom/core/project.py)
-- `AiModelMetadata.provenance` — [`src/pitloom/core/ai_metadata.py:201`](../../src/pitloom/core/ai_metadata.py)
-- `DatasetMetadata.provenance` — [`src/pitloom/core/dataset_metadata.py:89`](../../src/pitloom/core/dataset_metadata.py)
+- `ProjectMetadata.provenance` — [`src/pitloom/core/project.py:77`](../../../src/pitloom/core/project.py)
+- `AiModelMetadata.provenance` — [`src/pitloom/core/ai_metadata.py:201`](../../../src/pitloom/core/ai_metadata.py)
+- `DatasetMetadata.provenance` — [`src/pitloom/core/dataset_metadata.py:89`](../../../src/pitloom/core/dataset_metadata.py)
 
 Example values produced by extractors:
 
-- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/pyproject.py:81`](../../src/pitloom/extract/pyproject.py)
-- `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface.py:453`](../../src/pitloom/extract/_huggingface.py)
-- `f"{source} | Field: extra/name"` — [`src/pitloom/extract/_pytorch_pt2.py:132`](../../src/pitloom/extract/_pytorch_pt2.py)
+- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/pyproject.py:81`](../../../src/pitloom/extract/pyproject.py)
+- `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface.py:453`](../../../src/pitloom/extract/_huggingface.py)
+- `f"{source} | Field: extra/name"` — [`src/pitloom/extract/_pytorch_pt2.py:132`](../../../src/pitloom/extract/_pytorch_pt2.py)
 
 The pipe/`Key: value` convention is consistent enough to parse. Anything that
 does not fit `Key: value` must be preserved (see parser rules in §5.1).
@@ -74,12 +74,12 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
 
 | Subject element | Location |
 | --- | --- |
-| Main Python package | [`src/pitloom/assemble/spdx3/document.py:45`](../../src/pitloom/assemble/spdx3/document.py) (`_build_provenance_comment`), applied at `:102` |
-| AI `ai_AIPackage` | [`src/pitloom/assemble/spdx3/ai.py:193`](../../src/pitloom/assemble/spdx3/ai.py) (`_build_ai_package`) |
-| Dataset package | [`src/pitloom/assemble/spdx3/dataset.py:160`](../../src/pitloom/assemble/spdx3/dataset.py) |
-| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:211,291,308,346`](../../src/pitloom/assemble/spdx3/deps.py) |
-| pipdeptree deps | [`src/pitloom/assemble/spdx3/document.py:537,571`](../../src/pitloom/assemble/spdx3/document.py) |
-| Loom SDK fragments | [`src/pitloom/loom.py:249,307`](../../src/pitloom/loom.py) |
+| Main Python package | [`src/pitloom/assemble/spdx3/document.py:45`](../../../src/pitloom/assemble/spdx3/document.py) (`_build_provenance_comment`), applied at `:102` |
+| AI `ai_AIPackage` | [`src/pitloom/assemble/spdx3/ai.py:193`](../../../src/pitloom/assemble/spdx3/ai.py) (`_build_ai_package`) |
+| Dataset package | [`src/pitloom/assemble/spdx3/dataset.py:160`](../../../src/pitloom/assemble/spdx3/dataset.py) |
+| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:211,291,308,346`](../../../src/pitloom/assemble/spdx3/deps.py) |
+| pipdeptree deps | [`src/pitloom/assemble/spdx3/document.py:537,571`](../../../src/pitloom/assemble/spdx3/document.py) |
+| Loom SDK fragments | [`src/pitloom/loom.py:249,307`](../../../src/pitloom/loom.py) |
 
 ### 2.3 SPDX Annotation binding (verified)
 
@@ -102,14 +102,14 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
 ### 2.4 Supporting infrastructure to reuse
 
 - ID minting: `generate_spdx_id(prefix, doc_name, doc_uuid)` —
-  [`src/pitloom/core/models.py:234`](../../src/pitloom/core/models.py). Per
+  [`src/pitloom/core/models.py:234`](../../../src/pitloom/core/models.py). Per
   `(doc_uuid, prefix)` counter. Use prefix `"Annotation"`.
 - Shared `CreationInfo` (carries pitloom `Agent` via `createdBy` and `Tool`
-  via `createdUsing`) — [`src/pitloom/assemble/spdx3/creation_info.py`](../../src/pitloom/assemble/spdx3/creation_info.py).
+  via `createdUsing`) — [`src/pitloom/assemble/spdx3/creation_info.py`](../../../src/pitloom/assemble/spdx3/creation_info.py).
 - Exporter collectors (`add_package`, `add_relationship`, …) —
-  [`src/pitloom/export/spdx3_json.py:219-302`](../../src/pitloom/export/spdx3_json.py).
+  [`src/pitloom/export/spdx3_json.py:219-302`](../../../src/pitloom/export/spdx3_json.py).
   A new `add_annotation` follows the same pattern.
-- `require_spdx_id(element)` — [`src/pitloom/export/spdx3_json.py:32`](../../src/pitloom/export/spdx3_json.py).
+- `require_spdx_id(element)` — [`src/pitloom/export/spdx3_json.py:32`](../../../src/pitloom/export/spdx3_json.py).
 
 ### 2.5 Determinism constraints (do not break)
 
@@ -123,7 +123,7 @@ reproducible builds.
   are new leaf elements keyed by subject; they should not participate in
   fragment unification (they are document-local provenance, not shared
   identity). Confirm they are excluded from any dedup pass in
-  [`src/pitloom/assemble/spdx3/fragments.py`](../../src/pitloom/assemble/spdx3/fragments.py).
+  [`src/pitloom/assemble/spdx3/fragments.py`](../../../src/pitloom/assemble/spdx3/fragments.py).
 
 ---
 
@@ -394,7 +394,7 @@ def build_provenance_annotation(
 
 ### 5.3 Exporter: add `add_annotation`
 
-In [`src/pitloom/export/spdx3_json.py`](../../src/pitloom/export/spdx3_json.py),
+In [`src/pitloom/export/spdx3_json.py`](../../../src/pitloom/export/spdx3_json.py),
 mirror `add_relationship` (`:286`): a thin collector that appends the
 `Annotation` to the same element list that feeds the graph / SBOM
 `element` set. Ensure annotations are included wherever relationships are when
@@ -402,7 +402,7 @@ building the final `SpdxDocument` / `software_Sbom`.
 
 ### 5.4 Config toggle
 
-Add to config model ([`src/pitloom/core/config.py`](../../src/pitloom/core/config.py))
+Add to config model ([`src/pitloom/core/config.py`](../../../src/pitloom/core/config.py))
 under `[tool.pitloom.provenance]`:
 
 - `format` enum, default `"both"` (`"annotation" | "comment" | "both"`),
@@ -411,7 +411,7 @@ under `[tool.pitloom.provenance]`:
   (§5.2). **As implemented:** *not* validated at config-load time, because
   `core` must not import the `assemble`-layer encoder registry (see the
   layering rule enforced elsewhere in this file, e.g.
-  [`creation_info.py`](../../src/pitloom/assemble/spdx3/creation_info.py)).
+  [`creation_info.py`](../../../src/pitloom/assemble/spdx3/creation_info.py)).
   An unknown schema id instead fails fast the first time an SBOM is
   generated, since `build()`/`build_deployed()`/`build_model()` all call
   `resolve_encoder(provenance_schema)` unconditionally up front.
@@ -513,13 +513,13 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
   - `build_provenance_annotation` returns `None` on empty; sets
     `annotationType=other`, `contentType=application/json`, correct `subject`,
     and a minted `spdxId`.
-- **Update** [`tests/test_provenance.py`](../../tests/test_provenance.py): keep
+- **Update** [`tests/test_provenance.py`](../../../tests/test_provenance.py): keep
   the `dict` provenance assertions (those test extraction, unchanged); add a
   path asserting an Annotation is emitted when `format="annotation"`/`"both"`.
-- **Update** [`tests/test_spdx3_compliance.py`](../../tests/test_spdx3_compliance.py):
+- **Update** [`tests/test_spdx3_compliance.py`](../../../tests/test_spdx3_compliance.py):
   assert emitted `Annotation` elements validate (required `subject`,
   `annotationType`, valid `contentType` regex, resolvable `subject` id).
-- **Update** [`tests/test_jcs.py`](../../tests/test_jcs.py) / any golden-output
+- **Update** [`tests/test_jcs.py`](../../../tests/test_jcs.py) / any golden-output
   test: regenerate goldens under the new default; verify byte-stability across
   two runs.
 - Run the full determinism check (generate twice, diff) using the pyenv
@@ -538,7 +538,7 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
   - **SLSA provenance / in-toto attestations** — build/supply-chain focused;
     strong for "how was this produced" attestation.
   - **Croissant** provenance fields — already partly consumed for datasets
-    ([`src/pitloom/extract/_croissant.py`](../../src/pitloom/extract/_croissant.py));
+    ([`src/pitloom/extract/_croissant.py`](../../../src/pitloom/extract/_croissant.py));
     natural fit for dataset subjects.
   - **Hugging Face model-card / model-index** metadata as a first-class
     encoder for AI subjects (source SHA, author, repo URL).
@@ -557,22 +557,22 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 - [x] `provenance.py` module: parser, `ProvenanceEncoder` protocol + registry +
   `resolve_encoder`, `PitloomV1Encoder`, annotation builder — with unit tests
-  ([`tests/test_annotation_provenance.py`](../../tests/test_annotation_provenance.py)).
+  ([`tests/test_annotation_provenance.py`](../../../tests/test_annotation_provenance.py)).
 - [x] `exporter.add_annotation` and inclusion in graph/SBOM output.
 - [x] `[tool.pitloom.provenance] format` (default `"both"`, validated at
   config-load time) and `schema` (default `"pitloom/1"`, validated at first
   SBOM generation — see §5.4's "as implemented" note) config.
 - [x] All six call sites (§2.2) migrated behind the toggle.
 - [x] Emitted annotations pass SPDX 3 compliance tests
-  ([`tests/test_spdx3_compliance.py::test_spdx3_provenance_annotations_are_compliant`](../../tests/test_spdx3_compliance.py)).
+  ([`tests/test_spdx3_compliance.py::test_spdx3_provenance_annotations_are_compliant`](../../../tests/test_spdx3_compliance.py)).
 - [x] Output is byte-stable across two generations (determinism preserved) —
   verified cross-process with a fixed `creation_datetime`, both for
   `generate_project_sbom()` and the `pitloom.loom` SDK path.
 - [x] Existing `test_provenance.py` extraction assertions still pass.
 - [x] A second (stub) encoder can be registered without editing call sites —
   demonstrated by
-  [`test_swapping_encoder_changes_output_without_changing_wiring`](../../tests/test_annotation_provenance.py)
-  and [`test_build_provenance_annotation_uses_given_encoder`](../../tests/test_annotation_provenance.py).
+  [`test_swapping_encoder_changes_output_without_changing_wiring`](../../../tests/test_annotation_provenance.py)
+  and [`test_build_provenance_annotation_uses_given_encoder`](../../../tests/test_annotation_provenance.py).
 
 ### Found and fixed during implementation review
 
@@ -584,7 +584,7 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
   `test_emit_provenance_unknown_format_raises`. The `pyproject.toml`-driven
   path was never affected (`core/config.py` already validated `format`
   eagerly) — this only mattered for direct API/library callers.
-- [`working-docs/design/metadata-provenance.md`](../design/metadata-provenance.md)
+- [`metadata-provenance.md`](metadata-provenance.md)
   described only the pre-Annotation `comment`-based mechanism; updated to
   document Annotation as the primary mechanism with `comment` as the
   back-compat path.
@@ -730,7 +730,7 @@ constraint).
   annotated; its fragment origin is Phase-2 `SpdxDocument.imports` territory
   (see N1 below). A2 superseded identity across builds (useful,
   **not implemented — design only**): when file content changes,
-  [`ids.py`](../../src/pitloom/ids.py) `register_file` mints a fresh
+  [`ids.py`](../../../src/pitloom/ids.py) `register_file` mints a fresh
   `spdxId` and the old one is simply discarded — no supersedes/replaces
   record survives anywhere. Lower priority than A1: it's a cross-build fact
   (comparing this SBOM to a previous one), not something expressible within
@@ -784,7 +784,7 @@ sources reporting different values for the same field — applies to any
 field. Built as a generic schema from the start so a future field or
 candidate source never requires another schema redesign.
 
-**Where it lives.** [`provenance.py`](../../src/pitloom/assemble/spdx3/provenance.py)
+**Where it lives.** [`provenance.py`](../../../src/pitloom/assemble/spdx3/provenance.py)
 `ConflictCandidate` (a `TypedDict`) + `build_conflict_annotation`. Schema
 URL `https://pitloom.dev/provenance/conflict/1`, envelope:
 
@@ -864,15 +864,15 @@ method category):
   actually obtained the value from that source once it looked, never
   `sbomAuthorSupplied` (the human didn't assert the fact, only named
   where to find it). Added for the `sbom-enrich` Skill's interactive mode
-  (see [sbom-enrichment.md](../design/sbom-enrichment.md)'s "Interactive
+  (see [sbom-enrichment.md](../../design/sbom-enrichment.md)'s "Interactive
   mode" section) — that case is still Skill-only (an agent hand-authoring
   a fragment), not exercised by Pitloom's own generation code. A second,
   built case now is: a `[[tool.pitloom.content-type.override]]`
   config match (the config author is asserting a file's `contentType`
-  directly) — see [file-headers.md](../design/file-headers.md)'s
+  directly) — see [file-headers.md](../file-headers.md)'s
   "Content-type overrides" section and
   `_emit_file_header_metadata` in
-  [document.py](../../src/pitloom/assemble/spdx3/document.py).
+  [document.py](../../../src/pitloom/assemble/spdx3/document.py).
 
 **Decision rule:** ask "whose determination is this," never "was the
 data local or remote" and never "was a rule-based algorithm involved
@@ -895,21 +895,22 @@ any of these):
   Fits API-style sources (HF Hub, GitHub API); a non-API external source
   (a paper, a scraped webpage) will need its own, less endpoint-centric
   shape, worked out when that source type is actually built.
-- `inferred` (future convention, not built) — the answerer isn't Pitloom
-  at all; inference happens in an agent process entirely outside
-  Pitloom's own Python code, so it has to be the *agent's own
-  self-reported* identity: `"Source: <agent name> (<vendor>) | Method:
-  inference | Date: <ISO 8601 date>"`, e.g. `"Source: Claude Code
-  (Anthropic) | Method: inference | Date: 2026-08-10"`. Pitloom cannot
+- `inferred` (extended, self-identifying form not built) — the answerer
+  isn't Pitloom at all; inference happens in an agent process entirely
+  outside Pitloom's own Python code, so it has to be the *agent's own
+  self-reported* identity: `"Source: <agent name> (<vendor>) | Role:
+  inferred | Date: <ISO 8601 date>"`, e.g. `"Source: Claude Code
+  (Anthropic) | Role: inferred | Date: 2026-08-10"`. Pitloom cannot
   verify this at merge time — same trust model the `sbom-enrich` skill's
-  existing generic `"Source: AI agent | Method: inference"` marker
-  already has, just more specific when the agent knows its own identity.
-- `sbomAuthorSupplied` — `"Source: SBOM author | Method:
+  existing generic `"Source: AI agent | Role: inferred"` marker (built
+  2026-08-13) already has, just more specific when the agent knows its
+  own identity.
+- `sbomAuthorSupplied` — `"Source: SBOM author | Role:
   sbomAuthorSupplied | Date: <ISO 8601 date>"` for the human-interactive
   case (still a Skill-level convention, future — see above); **built**
   for the content-type-override case, using the file itself as `Source:`
   rather than `"SBOM author"` since there's a concrete subject to name:
-  `"Source: <file> | Method: sbomAuthorSupplied"` (no `Date:` segment —
+  `"Source: <file> | Role: sbomAuthorSupplied"` (no `Date:` segment —
   unlike an interactive answer, there's no distinct point-in-time
   assertion to record beyond the SBOM's own creation timestamp). Same
   unverifiable trust model as `inferred`, just a different answerer.
@@ -938,12 +939,12 @@ file's own header, if any) and its role is `declared` by construction —
 nothing to disambiguate, so the concluded-vs-declared classification
 heuristic used at project/dependency level doesn't apply. See
 `build_file_declared_license` in
-[`deps.py`](../../src/pitloom/assemble/spdx3/deps.py) and
-[file-headers.md](../design/file-headers.md) for the full per-file
+[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py) and
+[file-headers.md](../file-headers.md) for the full per-file
 extraction design.
 
 **What's actually built (v1, license only).**
-[`_license.py`](../../src/pitloom/extract/_license.py)
+[`_license.py`](../../../src/pitloom/extract/_license.py)
 `detect_independent_license` — independently scans the project directory
 (`CITATION.cff`, `codemeta.json`, license files), *ignoring* any declared
 value, so there's a genuine second opinion to compare against. Previously,
@@ -954,11 +955,11 @@ with; now the independent scan always runs alongside it.
 `resolve_license_concluded` (also in `_license.py`) is the single, shared
 G2 entry point every project-metadata extractor calls — not just
 `pyproject.py`'s `[project]` path. It exists because the four extraction
-paths (CLI's [`pyproject.py`](../../src/pitloom/extract/pyproject.py)
-`read_pyproject`, the [`hatchling.py`](../../src/pitloom/extract/hatchling.py)
+paths (CLI's [`pyproject.py`](../../../src/pitloom/extract/pyproject.py)
+`read_pyproject`, the [`hatchling.py`](../../../src/pitloom/extract/hatchling.py)
 build-hook path, the poetry-only
-[`poetry.py`](../../src/pitloom/extract/poetry.py) `read_poetry`, and the
-setuptools-only [`setuptools.py`](../../src/pitloom/extract/setuptools.py)
+[`poetry.py`](../../../src/pitloom/extract/poetry.py) `read_poetry`, and the
+setuptools-only [`setuptools.py`](../../../src/pitloom/extract/setuptools.py)
 `read_setuptools`) were each written and evolving independently. G2 first
 shipped wired only into the CLI path; a later review found the Hatchling
 build hook called `detect_license_for_project` directly and never ran the
@@ -975,12 +976,12 @@ in `tests/test_hatch_hook.py`,
 same review also found the Hatchling and CLI paths each hand-listed their
 own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
 `pyproject.py`, `merge_metadata` in `setuptools.py`); both were replaced
-by [`core/project.py`](../../src/pitloom/core/project.py)'s
+by [`core/project.py`](../../../src/pitloom/core/project.py)'s
 `merge_project_metadata`, which iterates `dataclasses.fields()` instead of
 naming every field by hand, so a newly added `ProjectMetadata` field
 merges automatically without a call site needing to be updated (see its
 own docstring for the field-drift history that motivated this).
-[`deps.py`](../../src/pitloom/assemble/spdx3/deps.py)
+[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py)
 `build_license_elements` gained `concluded_license_id`/
 `concluded_license_provenance` params (`None` default — the three other
 call sites, dependency and AI-model licenses, are unaffected, since
@@ -1023,7 +1024,7 @@ load-bearing — not a blanket strip-all-parens heuristic.
 
 **Future candidate sources (not built — `enrich/`-territory network or
 agent work, cross-referenced to
-[`sbom-enrichment.md`](../design/sbom-enrichment.md)'s existing source
+[`sbom-enrichment.md`](../../design/sbom-enrichment.md)'s existing source
 table):** HF Hub API (`externalReported`), GitHub via `ExternalRef`
 (`detected` if Pitloom runs its own scan on the fetched file,
 `externalReported` if relaying GitHub's own license badge), a linked
@@ -1060,12 +1061,12 @@ forgotten:
   Agent (no fictitious second identity); `createdUsing` is a `Tool` named
   after the enricher (e.g. `"pitloom.enrich.readme"`). See
   `build_enrichment_creation_info()` in
-  [`creation_info.py`](../../src/pitloom/assemble/spdx3/creation_info.py).
+  [`creation_info.py`](../../../src/pitloom/assemble/spdx3/creation_info.py).
   Residual (every field an enrichment run changed, new element or
   in-place fill alike): which field + before/after value + role, via the
   new `provenance/enrichment/1` Annotation schema (E1/E2) --
   `build_enrichment_annotation()` in
-  [`provenance.py`](../../src/pitloom/assemble/spdx3/provenance.py),
+  [`provenance.py`](../../../src/pitloom/assemble/spdx3/provenance.py),
   reusing G2's exact `role` vocabulary rather than a separate one.
   Wired from the MVP `enrich/` subpackage's first (and so far only)
   source, `enrich/readme.py`: local `README.md`/`MODEL_CARD.md` YAML
@@ -1076,7 +1077,7 @@ forgotten:
   gets the same per-model N3 CreationInfo + E1/E2 Annotation, closing a
   gap where project-level generation silently ran zero enrichment even
   with `[tool.pitloom] enrich = true` set (`add_ai_models()` in
-  [`ai.py`](../../src/pitloom/assemble/spdx3/ai.py) gained an
+  [`ai.py`](../../../src/pitloom/assemble/spdx3/ai.py) gained an
   `enrichment_results_by_model` param, mirroring `build_model()`'s
   single-model block). Also gained a standalone-fragment path
   (`build_enrichment_fragment()`, for `loom enrich`/`enrich_model()`) --
@@ -1112,7 +1113,7 @@ An end-to-end integration test exercising N1/N2/N4/N5/N6 together on one
 representative model -- all five native constructs present at once, no
 Annotation duplicating a now-native value, byte-identical output across two
 runs, and round-trip through `spdx-python-model` -- shipped in
-[`tests/test_provenance_integration.py`](../../tests/test_provenance_integration.py)
+[`tests/test_provenance_integration.py`](../../../tests/test_provenance_integration.py)
 (PR [#112](https://github.com/bact/pitloom/pull/112)).
 
 ---

@@ -1,75 +1,25 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Using Pitloom as a GitHub Action
+# Using Pitloom as a GitHub Action: implementation notes
+
+See [docs/github-action.md](../../docs/github-action.md) for the
+user-facing quick start, full inputs/outputs reference, and Configuration
+page -- this file covers implementation detail (design rationale,
+dogfooding) and CI recipes not covered there.
 
 Pitloom ships a composite GitHub Action (`action.yml` at the repository
 root) that wraps the `loom` CLI. It works for any Python project -- any
 build backend, not just Hatchling -- because it drives the CLI the same
 way a developer would from a terminal.
 
-See [adoption-surfaces.md](../design/adoption-surfaces.md) for how this
+See [adoption-surfaces.md](adoption-surfaces.md) for how this
 fits alongside Pitloom's other surfaces.
-
-## Quick start
-
-```yaml
-name: SBOM
-
-on: [push, pull_request]
-
-jobs:
-  sbom:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: bact/pitloom@v0.14.1
-        with:
-          project-path: "."
-          output: "sbom.spdx3.json"
-```
-
-This installs Pitloom, runs `loom project . -o sbom.spdx3.json`, and uploads the
-result as a workflow artefact named `sbom` (all defaults; see below to
-change any of it).
-
-## Inputs
-
-| Input | Default | Purpose |
-| :--- | :--- | :--- |
-| `project-path` | `.` | Directory to scan. Ignored when `model` is set. |
-| `model` | `""` | Local model file path or Hugging Face URL/ID -- runs model mode (`loom model ...`) instead of project mode. |
-| `output` | `sbom.spdx3.json` | SBOM output path. |
-| `extras` | `""` | Comma-separated pip extras, e.g. `ai` (all AI model formats, including Hugging Face Hub support). |
-| `pretty` | `false` | Pretty-print the SBOM JSON. |
-| `args` | `""` | Extra raw flags passed through to `loom` (e.g. `-v --creator-name CI`). This is also how to record more than one creator or tool -- `--creator-name`/`--creation-tool` are repeatable CLI flags, and the Action has no dedicated multi-creator input; see the recipe below. |
-| `pitloom-version` | `""` | Version/specifier to install; empty installs latest from PyPI. |
-| `python-version` | `3.x` | Passed to `actions/setup-python`. |
-| `install` | `true` | Set `false` to skip installing Python/Pitloom (assumes it is already on `PATH`). |
-| `upload-artifact` | `true` | Upload the SBOM via `actions/upload-artifact`. |
-| `artifact-name` | `sbom` | Artifact name when uploading. |
-
-## Output
-
-| Output | Description |
-| :--- | :--- |
-| `sbom-path` | Path to the generated SBOM file. |
-
-## Recipe: AI model SBOM
-
-```yaml
-- uses: bact/pitloom@v0.14.1
-  with:
-    model: "models/my-model.safetensors"
-    extras: "ai"
-    output: "model.spdx3.json"
-    pretty: "true"
-```
 
 ## Recipe: multiple creators
 

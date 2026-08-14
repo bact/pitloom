@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,7 +67,8 @@ loom env -o env.spdx3.json
 
 Generate an **Analyzed SBOM** for a single AI model file, without a Python
 project directory. Supported local formats: GGUF, ONNX, Safetensors,
-PyTorch (`.pt`/`.pth`), Keras, HDF5, NumPy, fastText:
+PyTorch (`.pt`/`.pth`), Keras, HDF5, NumPy, fastText -- see [AI model
+formats](ai-model-formats.md) for the full extension/install-extra table:
 
 ```bash
 loom model path/to/model.safetensors -o model.spdx3.json
@@ -204,3 +205,5 @@ does and worked examples.
 - [Hatchling build hook](hatchling-build-hook.md) -- generate the SBOM
   automatically at build time instead of a manual CLI call.
 - [GitHub Action](github-action.md) -- run the CLI as a CI step.
+- [AI model formats](ai-model-formats.md) -- every format `loom model`
+  supports, with install extras.

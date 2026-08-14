@@ -99,7 +99,7 @@ A **second CLI/API redesign landed in PR
 one day after #113 -- this supersedes the PR #96 CLI vocabulary this
 handover previously documented. Don't trust any earlier mention of
 `loom source`/`analyze`/`deployed` in this repo's history as current;
-see [`cli-ux.md`](../design/cli-ux.md) for the full rationale. As of now:
+see [`cli-ux.md`](../cli-ux.md) for the full rationale. As of now:
 
 - **CLI subcommands**: `loom generate [target]` (smart auto-detect),
   `loom project [path]` (was `source`), `loom wheel <file>` and
@@ -149,7 +149,8 @@ previously said `skills/sbom/` and `skills/enrich/*`, which no longer
 exist. New `skills/sbom-validate/` added in #123 has no CLI-vocabulary
 concern of its own since it wraps the third-party `spdx3-validate`
 CLI, not `loom`.)
-`working-docs/design/cli-ux.md` correctly describes the new design (its
+`working-docs/implementation/cli-ux.md` (moved from `design/` 2026-08-14)
+correctly describes the new design (its
 mentions of `source`/`analyze`/`deployed` are explicitly framed as
 historical background, not current state; a separate
 `cisa-sbom-lifecycle.md` covering the same decision was merged into it
@@ -188,7 +189,7 @@ value itself).
 
 ## Integration test — done
 
-Landed in [`tests/test_provenance_integration.py`](../../tests/test_provenance_integration.py)
+Landed in [`tests/test_provenance_integration.py`](../../../tests/test_provenance_integration.py)
 (PR [#112](https://github.com/bact/pitloom/pull/112)), exercising N1, N2,
 N4, N5, N6 together on one representative model. Confirms: all five
 native constructs present on the same document at once; no Annotation

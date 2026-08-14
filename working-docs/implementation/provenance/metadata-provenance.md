@@ -1,25 +1,22 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Metadata provenance and CreationInfo usage
+# Metadata provenance and CreationInfo usage: implementation
 
-This document describes how Pitloom implements metadata provenance tracking
-and uses SPDX 3 CreationInfo for transparency and auditability.
+See [annotation-provenance.md](annotation-provenance.md) for the full
+design history and [provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)
+for still-open questions (CreationInfo future enhancements, the unbounded
+artifact-metadata-blob question). The user-facing explainer lives at
+[docs/metadata-provenance.md](../../../docs/metadata-provenance.md) and
+[docs/creation-metadata.md](../../../docs/creation-metadata.md).
 
-## Overview
-
-Metadata provenance tracking enables users to understand where each piece of
-information in the SBOM comes from. This is essential for:
-
-- **Transparency**: Clear understanding of data sources
-- **Auditability**: Ability to verify and validate SBOM contents
-- **Trust**: Building confidence in automated SBOM generation
-- **Compliance**: Meeting requirements for supply chain security
+This document describes how Pitloom implements metadata provenance
+tracking and uses SPDX 3 CreationInfo for transparency and auditability.
 
 > **Status (2026-08):** Provenance is now recorded as SPDX 3 Core
 > `Annotation` elements -- systematic and machine-readable -- with the
@@ -33,10 +30,10 @@ information in the SBOM comes from. This is essential for:
 > is now implemented for license, and generalized to any field for when
 > future candidate sources land. A2 (superseded identity across builds)
 > remains design-only. See
-> [`working-docs/implementation/annotation-provenance.md`](../implementation/annotation-provenance.md)
+> [`annotation-provenance.md`](annotation-provenance.md)
 > §10 for the full design, current status, and code citations for all
 > pending items, and
-> [`working-docs/implementation/phase2-native-backfill-handover.md`](../implementation/phase2-native-backfill-handover.md)
+> [`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md)
 > for current status.
 
 ## Provenance tracking implementation
@@ -44,7 +41,7 @@ information in the SBOM comes from. This is essential for:
 ### 1. Core/Annotation elements (primary mechanism)
 
 Each element with tracked provenance gets one `Annotation` (per
-[`pitloom.assemble.spdx3.provenance`](../../src/pitloom/assemble/spdx3/provenance.py)):
+[`pitloom.assemble.spdx3.provenance`](../../../src/pitloom/assemble/spdx3/provenance.py)):
 `annotationType = "other"` (the SPDX 3.0.1 enum has no dedicated provenance
 value), `subject` pointing at the element's `spdxId`, and a JSON `statement`
 (`contentType = "application/json"`) keyed by field name:
@@ -56,7 +53,7 @@ value), `subject` pointing at the element's `spdxId`, and a JSON `statement`
   "annotationType": "other",
   "contentType": "application/json",
   "subject": "https://spdx.org/spdxdocs/mypackage-.../#Package-1",
-  "statement": "{\"schema\":\"https://pitloom.dev/provenance/1\",\"fields\":{\"version\":{\"source\":\"src/mypackage/__about__.py\",\"method\":\"dynamic_extraction\"}}}"
+  "statement": "{\"schema\":\"https://pitloom.dev/provenance/fields/1\",\"fields\":{\"version\":{\"source\":\"src/mypackage/__about__.py\",\"method\":\"dynamic_extraction\"}}}"
 }
 ```
 
@@ -88,14 +85,15 @@ checklist.
 **verbatim, with no size cap**, into a single `Annotation.statement`. For
 the small fixtures this repo tests against, that's a few KB at most; for
 a real production model with a large vocabulary (e.g. a GGUF LLM's
-32K–128K+ token list), the same field could inflate a single Annotation
+32K-128K+ token list), the same field could inflate a single Annotation
 into the multi-megabyte range. SPDX 3.0.1's `statement` is plain
 `xsd:string` with no spec-mandated limit, so this isn't a spec
 violation, but it's an untested scalability gap for realistic models
-(found by independent review). Not fixed here: the right behavior (drop
-oversized fields entirely? truncate with a marker? move to an external
-reference?) is a design decision this doc doesn't take a position on
-yet, not a mechanical fix.
+(found by independent review). The right behavior (drop oversized fields
+entirely? truncate with a marker? move to an external reference?) is
+still an open design question -- see
+[provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)'s
+"Open questions" list.
 
 Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
 
@@ -171,114 +169,6 @@ Pitloom tracks provenance for the following metadata fields:
 - **dependsOn relationships**: Package dependencies
   - Source: Same as dependencies field
 
-## CreationInfo usage
-
-### Current implementation
-
-`CreationInfo` records who created a set of elements, what tool produced
-them, when, and (optionally) how. Construction is centralised in
-`pitloom.assemble.spdx3.creation_info.build_creation_info()`, shared by the
-CLI, the Hatchling build hook, and `pitloom.loom` fragments, so all three
-paths model creation identically:
-
-```python
-spdx_ci, agents, tools = build_creation_info(
-    creation_metadata,  # a CreationMetadata
-    doc_name,
-    doc_uuid,
-    default_comment="Generated via Pitloom CLI",
-)
-```
-
-`agents` (`createdBy`) contains a `Person` or `Organization` per entry in
-`CreationMetadata.creators` (`Creator.type` selects which, plus
-`software-agent` and the generic `agent` for naming an automated creator
-that isn't Pitloom itself); with no creators given, it is a single
-`SoftwareAgent` "Pitloom" -- Pitloom acting unattended, not a fabricated
-human. `tools` (`createdUsing`) defaults to a single `Tool` "Pitloom"
-(carrying a `summary` with Pitloom's version), unless suppressed via
-`tools=[]` (`--no-creation-tool` on the CLI).
-
-Elements created together in one generation event -- one CLI run, one
-Hatchling build, one `loom.run` -- share a single `CreationInfo` instance,
-referenced by a blank node identifier such as `_:CreationInfo0`. A composite
-SBOM assembled from merged fragments (`[tool.pitloom.fragment]`) is *not*
-limited to one: each fragment keeps the `CreationInfo` from whichever run
-actually produced it, so the final graph can contain several, one per
-generation event that contributed to it. Don't assume a single-`CreationInfo`
-graph when consuming SBOMs Pitloom produces.
-
-### CreationInfo attributes
-
-Per SPDX 3:
-
-- **created**: Timestamp when the elements were created (`--creation-datetime`,
-  else the current UTC time)
-- **createdBy**: One or more Agents who created the elements -- see above
-- **createdUsing**: Zero or more Tools used -- Pitloom itself, unless suppressed
-- **specVersion**: SPDX specification version (`"3.0.1"`)
-- **comment**: A short, static, per-channel note (e.g. `"Generated via
-  Pitloom CLI"`), or the caller's own `--creation-comment` /
-  `creation_comment`
-
-### Future enhancements for CreationInfo
-
-1. **Data enrichment**: Record when third-party tools (e.g. the `enrich`
-   skill) augmented the data
-2. **Validation**: Track validation steps and results
-
-## Use cases
-
-The examples below show the legacy `comment` form, since it reads well
-inline; with the default `format = "both"`, the same information is *also*
-present as an Annotation (§1 above) alongside every `comment` shown here.
-
-### Example 1: Understanding version extraction
-
-**Question**: "Why does the SBOM say version 1.2.3?"
-
-**Answer**: Check the package's `comment` attribute:
-
-```json
-{
-  "type": "software_Package",
-  "name": "mypackage",
-  "software_packageVersion": "1.2.3",
-  "comment": "Metadata provenance: version: Source: src/mypackage/__about__.py | Method: dynamic_extraction"
-}
-```
-
-The version was dynamically extracted from `src/mypackage/__about__.py`.
-
-### Example 2: License determination
-
-**Question**: "How was the license determined?"
-
-**Answer**: Look at the license field provenance:
-
-```json
-{
-  "comment": "Metadata provenance: license: Source: pyproject.toml | Field: project.license"
-}
-```
-
-The license was read from the `project.license` field in `pyproject.toml`.
-
-### Example 3: Copyright attribution
-
-**Question**: "Where does the copyright text come from?"
-
-**Answer**: Check the copyright_text provenance:
-
-```json
-{
-  "software_copyrightText": "Copyright (c) 2026 Jane Doe",
-  "comment": "Metadata provenance: copyright_text: Source: Pitloom generator | Method: inferred_from_authors"
-}
-```
-
-The copyright was inferred by Pitloom from the authors listed in `pyproject.toml`.
-
 ## Machine-readable format
 
 The Annotation `statement` (JSON, per field) is the primary machine-readable
@@ -307,22 +197,6 @@ def parse_provenance_value(value: str) -> dict[str, str]:
     return parsed
 ```
 
-## Best practices
-
-### For SBOM generators
-
-1. **Always track provenance**: Record source for every metadata field
-2. **Use consistent format**: Follow the established pattern
-3. **Be specific**: Include exact file paths and field names
-4. **Handle uncertainty**: Clearly mark inferred or generated data
-
-### For SBOM consumers
-
-1. **Check provenance**: Review the comment field for data sources
-2. **Validate critical fields**: Verify important metadata against sources
-3. **Trust indicators**: Consider provenance when assessing SBOM quality
-4. **Automated processing**: Parse provenance for tool integration
-
 ## References
 
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf)
@@ -330,4 +204,4 @@ def parse_provenance_value(value: str) -> dict[str, str]:
 - [Core/Annotation class](https://spdx.github.io/spdx-spec/v3.0.1/model/Core/Classes/Annotation/)
 - [PEP 621 - Project metadata](https://peps.python.org/pep-0621/)
 - [Hatchling build backend](https://hatch.pypa.io/latest/config/build/)
-- [Implementation plan: metadata provenance via SPDX 3 Core/Annotation](../implementation/annotation-provenance.md)
+- [Implementation plan: metadata provenance via SPDX 3 Core/Annotation](annotation-provenance.md)

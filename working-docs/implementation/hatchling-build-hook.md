@@ -1,38 +1,17 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Hatchling build hook and PEP 770 wheel embedding
+# Hatchling build hook: implementation
 
-## Overview
-
-This document describes the design of Pitloom's Hatchling build hook plugin
-(`pitloom.plugins.hatch`) and the PEP 770-compliant embedding of SBOMs inside
-Python wheel archives.
-
-The goal is to make SBOM generation a zero-friction, automatic step: when
-a developer runs `hatch build` or `python -m build`, the SBOM is generated
-and embedded into the wheel with no additional commands.
-
-## PEP 770 background
-
-[PEP 770](https://peps.python.org/pep-0770/) reserves the
-`.dist-info/sboms/` directory inside wheel archives for SBOM documents.
-The directory may contain one or more SBOM files in any standard format.
-Downstream tools (e.g., Trivy, Grype, `pip show`) can discover and consume
-these documents from an installed package or directly from the wheel file.
-
-Target placement for Pitloom output:
-
-```text
-{name}-{version}.dist-info/
-└── sboms/
-    └── {name}-{version}.spdx3.json
-```
+See [docs/hatchling-build-hook.md](../../docs/hatchling-build-hook.md) for
+the user-facing quick start and PEP 770 background -- this file covers
+implementation detail only (build hook internals, data sources, test
+plan).
 
 ## Data sources from the build backend
 
@@ -165,29 +144,6 @@ files = [
     "fragments/eval_run.spdx3.json",
 ]
 ```
-
-## SBOM filename conventions
-
-### Inside the wheel (PEP 770)
-
-The default filename is `{name}-{version}.spdx3.json`, derived from the
-resolved project name/version (e.g. `mypackage-1.0.0.spdx3.json`). The
-user can override the base name via `sbom-basename`; the `.spdx3.json`
-extension is always appended by Pitloom to reflect the SPDX 3 JSON-LD
-format.
-
-PEP 770 allows a wheel to contain multiple SBOM files (e.g., one per
-format), so the `sbom-basename` option is designed to be forward-compatible
-with multi-SBOM scenarios.
-
-### Standalone CLI output
-
-When no `-o` / `--output` argument is given, the CLI derives the default
-output filename in priority order:
-
-1. `{sbom-basename}.spdx3.json` -- if `sbom-basename` is set in `[tool.pitloom]`
-2. `{name}-{version}.spdx3.json` -- derived from project metadata
-3. `sbom.spdx3.json` -- fallback
 
 ## Build hook class design
 
@@ -387,7 +343,7 @@ dependencies = [
 - Hatchling build hook interface: `hatchling.builders.hooks.plugin.interface.BuildHookInterface`
 - Hatchling resolved project metadata: `hatchling.metadata.core.ProjectMetadata`
 - Trivy PEP 770 tracking issue: <https://github.com/aquasecurity/trivy/issues/10021>
-- [wheel-sbom-verification.md](../implementation/wheel-sbom-verification.md) --
+- [wheel-sbom-verification.md](wheel-sbom-verification.md) --
   independent check of this design's output against the real, published
   v0.9.0 wheel (location, fields, hashes, SPDX 3.0.1 schema/SHACL
   conformance).
