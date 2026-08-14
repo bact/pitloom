@@ -6,6 +6,8 @@
 """Tests for per-file SPDX header tag parsing and content-type detection."""
 
 import sys
+from types import ModuleType
+from typing import cast
 
 import pytest
 
@@ -172,7 +174,7 @@ def test_guess_content_type_falls_back_to_extension_when_magika_unavailable(
 ) -> None:
     """When magika isn't importable, the stdlib filename-extension guess
     is used instead -- default method="auto"."""
-    monkeypatch.setitem(sys.modules, "magika", None)
+    monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
     mime_type, method = guess_content_type(b"whatever bytes", "example.py")
     assert method == "extension_guess"
     assert mime_type == "text/x-python"
@@ -182,7 +184,7 @@ def test_guess_content_type_returns_none_when_neither_resolves(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An unrecognized extension with magika unavailable resolves nothing."""
-    monkeypatch.setitem(sys.modules, "magika", None)
+    monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
     mime_type, method = guess_content_type(b"whatever bytes", "mystery.xyzzy123")
     assert (mime_type, method) == (None, None)
 
@@ -214,7 +216,7 @@ def test_guess_content_type_method_magika_falls_back_when_unavailable(
     when magika isn't importable -- require_magika_available() is the
     thing that turns this into a hard error, not guess_content_type()
     itself."""
-    monkeypatch.setitem(sys.modules, "magika", None)
+    monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
     mime_type, method = guess_content_type(
         b"whatever bytes", "example.py", method="magika"
     )
@@ -235,7 +237,7 @@ def test_require_magika_available_no_op_when_installed() -> None:
 def test_require_magika_available_raises_when_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setitem(sys.modules, "magika", None)
+    monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
     with pytest.raises(RuntimeError, match="content-type-method 'magika'"):
         require_magika_available()
 
