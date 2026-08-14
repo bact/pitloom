@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-13
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,6 +20,13 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.14.0...v0.14.1>
 
 ## [Unreleased]
+
+### Added
+
+- `loom wheel --embed`, `loom embed-wheel`, and GitHub Action support for
+  embedding SPDX 3 SBOMs into Python wheels
+
+### Changed
 
 - Reorganize project documentation ([#146])
 

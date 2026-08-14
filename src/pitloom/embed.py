@@ -57,7 +57,11 @@ def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
     if len(dist_infos) > 1:
         # Prefer dist-info matching the wheel file name prefix if ambiguous
         stem_prefix = wheel_path.stem.split("-")[0]
-        matching = [d for d in dist_infos if d.startswith(stem_prefix)]
+        matching = [
+            d
+            for d in dist_infos
+            if d.startswith(f"{stem_prefix}-") or d == f"{stem_prefix}.dist-info/"
+        ]
         if len(matching) == 1:
             return matching[0]
         raise ValueError(
@@ -80,7 +84,9 @@ def _resolve_zip_timestamp(
         except (ValueError, OverflowError, OSError):
             pass
     if fallback is not None:
-        return fallback
+        if fallback[0] >= 1980:
+            return fallback
+        return (1980, 1, 1, 0, 0, 0)
     now = datetime.now(timezone.utc)
     return (now.year, now.month, now.day, now.hour, now.minute, now.second)
 
@@ -162,6 +168,8 @@ def embed_sbom_in_wheel(
     sbom_bytes = (
         sbom_content.encode("utf-8") if isinstance(sbom_content, str) else sbom_content
     )
+    if not sbom_bytes.strip():
+        raise ValueError("SBOM content cannot be empty")
     sbom_hash = _calculate_record_hash(sbom_bytes)
     sbom_size = len(sbom_bytes)
 
@@ -220,6 +228,9 @@ def embed_sbom_in_wheel(
     return wheel_obj, sbom_arcname
 
 
+_INVALID_FILENAME_CHARS = frozenset({"/", "\\", "\x00"})
+
+
 def _validate_sbom_filename(filename: str) -> None:
     """Guard against path traversal in an embedded SBOM filename (CWE-22).
 
@@ -227,7 +238,12 @@ def _validate_sbom_filename(filename: str) -> None:
     or a user-supplied ``--sbom-basename``, so it must resolve to a plain
     filename with no path separators or traversal segments.
     """
-    if not filename or "/" in filename or "\\" in filename or filename in (".", ".."):
+    clean = filename.strip()
+    if (
+        not clean
+        or clean in (".", "..")
+        or any(c in clean for c in _INVALID_FILENAME_CHARS)
+    ):
         raise ValueError(f"Invalid SBOM filename: {filename!r}")
 
 
@@ -239,10 +255,13 @@ def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
     if metadata_path in zf.namelist():
         content = zf.read(metadata_path).decode("utf-8", errors="replace")
         for line in content.splitlines():
-            if line.startswith("Name: ") and not meta_name:
-                meta_name = line.split("Name: ", 1)[1].strip()
-            elif line.startswith("Version: ") and not meta_version:
-                meta_version = line.split("Version: ", 1)[1].strip()
+            lower = line.lower()
+            if lower.startswith("name: ") and not meta_name:
+                meta_name = line.split(":", 1)[1].strip()
+            elif lower.startswith("version: ") and not meta_version:
+                meta_version = line.split(":", 1)[1].strip()
+            elif not line.strip() and (meta_name or meta_version):
+                break
             if meta_name and meta_version:
                 break
     if meta_name and meta_version:
@@ -268,6 +287,7 @@ def _rewrite_wheel_archive(
     does not linger unlisted in the new RECORD.
     """
     temp_dir = wheel_path.parent
+    orig_mode = wheel_path.stat().st_mode if wheel_path.exists() else None
     with tempfile.NamedTemporaryFile(
         dir=temp_dir,
         delete=False,
@@ -299,6 +319,11 @@ def _rewrite_wheel_archive(
             new_zf.writestr(rec_info, record_bytes)
 
         os.replace(temp_path, wheel_path)
+        if orig_mode is not None:
+            try:
+                os.chmod(wheel_path, orig_mode)
+            except OSError:
+                pass
     finally:
         if temp_path.exists():
             temp_path.unlink()
@@ -418,7 +443,12 @@ def embed_wheel_sbom(
             )
             eff_basename = sbom_basename
 
-    target_filename = f"{eff_basename}{_SPDX3_JSON_EXT}" if eff_basename else None
+    if eff_basename:
+        eff_clean = eff_basename.removesuffix(_SPDX3_JSON_EXT)
+        target_filename = f"{eff_clean}{_SPDX3_JSON_EXT}"
+    else:
+        target_filename = None
+
     res_path, arcname = embed_sbom_in_wheel(
         wheel_obj, sbom_json, sbom_filename=target_filename
     )

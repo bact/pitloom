@@ -317,6 +317,7 @@ def test_cli_wheel_embed_flag(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """Test `loom wheel <wheel> --embed` CLI command."""
     wheel_path = _make_dummy_wheel(tmp_path, "flagpkg", "1.0.0")
     monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(wheel_path), "--embed"])
     assert __main__.main() == 0
@@ -326,3 +327,91 @@ def test_cli_wheel_embed_flag(
 
     with WheelFile.open(wheel_path) as wf:
         wf.validate_record()
+
+
+def test_validate_sbom_filename_edge_cases(tmp_path: Path) -> None:
+    """Test _validate_sbom_filename rejects null bytes, traversal, and whitespace."""
+    from pitloom.embed import _validate_sbom_filename
+
+    for bad in ("", "   ", "\x00", "a/b", "a\\b", "..", "."):
+        with pytest.raises(ValueError, match="Invalid SBOM filename"):
+            _validate_sbom_filename(bad)
+
+
+def test_embed_wheel_sbom_basename_with_extension_normalized(tmp_path: Path) -> None:
+    """Test custom basename already ending with .spdx3.json avoids double extension."""
+    wheel_path = _make_dummy_wheel(tmp_path, "extpkg", "1.0.0")
+    _, arcname, _ = embed_wheel_sbom(
+        wheel_path,
+        sbom_basename="custom.spdx3.json",
+    )
+    assert arcname.endswith(".dist-info/sboms/custom.spdx3.json")
+    assert not arcname.endswith(".spdx3.json.spdx3.json")
+
+    with WheelFile.open(wheel_path) as wf:
+        wf.validate_record()
+
+
+def test_cli_embed_wheel_absolute_glob(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test `loom embed-wheel <abs_path>/*.whl` with absolute glob patterns."""
+    dist_dir = tmp_path / "abs_dist"
+    w1 = _make_dummy_wheel(dist_dir, "abs_pkg", "1.0.0")
+
+    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(dist_dir / "*.whl")])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "abs_pkg-1.0.0-py3-none-any.whl" in captured.out
+
+    with WheelFile.open(w1) as wf:
+        wf.validate_record()
+
+
+def test_cli_embed_wheel_multiple_with_output_error(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test `loom embed-wheel` fails when multiple wheels match with -o."""
+    dist_dir = tmp_path / "dist"
+    _make_dummy_wheel(dist_dir, "m1", "1.0.0")
+    _make_dummy_wheel(dist_dir, "m2", "1.0.0")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", "dist/*.whl", "-o", "out.spdx3.json"],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "--output cannot be used when embedding multiple wheels" in captured.err
+
+
+def test_embed_sbom_empty_content_raises(tmp_path: Path) -> None:
+    """Test embed_sbom_in_wheel raises ValueError on empty or whitespace SBOM."""
+    wheel_path = _make_dummy_wheel(tmp_path, "empty_sbom", "1.0.0")
+    with pytest.raises(ValueError, match="SBOM content cannot be empty"):
+        embed_sbom_in_wheel(wheel_path, "")
+
+    with pytest.raises(ValueError, match="SBOM content cannot be empty"):
+        embed_sbom_in_wheel(wheel_path, "   \n\t  ")
+
+
+def test_embed_sbom_preserves_file_permissions(tmp_path: Path) -> None:
+    """Test embed_sbom_in_wheel preserves original filesystem permissions."""
+    import os
+    import stat
+
+    wheel_path = _make_dummy_wheel(tmp_path, "perm_pkg", "1.0.0")
+    target_mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o644
+    os.chmod(wheel_path, target_mode)
+
+    embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+    current_mode = stat.S_IMODE(wheel_path.stat().st_mode)
+    assert current_mode == target_mode

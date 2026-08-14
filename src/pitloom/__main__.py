@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import glob
 import logging
 import sys
 import traceback
@@ -986,8 +987,10 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         # With --embed, only write a standalone copy if the user explicitly
         # asked for one via -o; embedding into the wheel is the primary
         # output and shouldn't also litter cwd with a same-named file.
-        output_path = args.output if embed else args.output or (
-            Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}"
+        output_path = (
+            args.output
+            if embed
+            else args.output or (Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}")
         )
 
         if args.verbose:
@@ -1030,18 +1033,10 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     for pattern in patterns:
         if any(c in pattern for c in ("*", "?", "[")):
             matched = [
-                p
-                for p in Path.cwd().glob(pattern)
-                if p.is_file() and p.name.endswith(".whl")
+                Path(p).resolve()
+                for p in glob.glob(pattern)
+                if Path(p).is_file() and p.endswith(".whl")
             ]
-            if not matched:
-                p_obj = Path(pattern)
-                parent = p_obj.parent if p_obj.parent != Path(".") else Path.cwd()
-                matched = [
-                    p
-                    for p in parent.glob(p_obj.name)
-                    if p.is_file() and p.name.endswith(".whl")
-                ]
             wheel_paths.extend(matched)
         else:
             p = Path(pattern).resolve()
@@ -1070,6 +1065,13 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
                 return 1
             print(
                 f"ERROR: no wheel files matched: {' '.join(args.wheel_files)}",
+                file=sys.stderr,
+            )
+            return 1
+
+        if len(unique_wheels) > 1 and args.output is not None:
+            print(
+                "ERROR: --output cannot be used when embedding multiple wheels",
                 file=sys.stderr,
             )
             return 1
