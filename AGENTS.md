@@ -204,6 +204,33 @@ a human or agent judge a doc's staleness without checking git history.
 - `time_machine` for time-dependent tests.
 - `@pytest.mark.parametrize` for multiple similar inputs.
 
+### Test suite structure
+
+- **File size**: soft limit ~400-500 lines, hard limit ~800 lines --
+  same numbers as `working-docs/` (see Project context above), for
+  the same reason: keeps a file within a reasonable AI-agent context
+  window and makes selective test runs actually selective. Split
+  before crossing it -- one area of behaviour per file, not one file
+  per source module and everything it does.
+- **Naming**: `test_<area>.py`, snake_case, 1:1 with the source module
+  it exercises where a 1:1 mapping exists (`test_extract_gguf.py` <->
+  `extract/_gguf.py`). Disambiguate when two source packages could
+  produce the same tail -- name by the fuller source-path shape, not
+  just the leaf module name (e.g. don't let a `core/project.py` test
+  and an `extract/project.py` test both reduce to "test ... project").
+- **Grouping**: once a source package's tests grow to 3+ related
+  files, group them in a same-named subfolder under `tests/` mirroring
+  `src/pitloom/<package>/` (e.g. `tests/extract/`, `tests/cli/`) --
+  same 3+-files threshold `working-docs/` already uses for its own
+  subfolder grouping. Areas with 1-2 test files stay flat at `tests/`
+  root; don't create a folder for a single file.
+- No `__init__.py` needed in test folders --
+  `--import-mode=importlib` (`pyproject.toml`'s
+  `[tool.pytest.ini_options]`) already allows same-named test files
+  across different directories without one.
+- Folder-level `conftest.py` for fixtures scoped to that area; keep
+  root `tests/conftest.py` for fixtures genuinely shared across areas.
+
 ## Git and pull requests
 
 - Commit messages: user impact, not implementation details.
@@ -245,6 +272,27 @@ Consistent fields: project name, version, author/contributor names, license, des
 - ASCII letters, digits, hyphens (`-`), underscores (`_`) only.
 - Standard naming conventions for the language/framework.
 - Noun number: singular for single-entity classes, plural only for collections/utility modules/aggregates.
+- **Python module leading underscore**: a module gets a leading
+  underscore (e.g. `_gguf.py`) when nothing outside its own package
+  directory imports it -- an internal adapter, parser, or helper with
+  no stability contract. No prefix (e.g. `wheel.py`, `hatchling.py`)
+  when something outside the package imports it -- a stable entry
+  point. Two checks before naming or renaming a module, don't infer
+  the rule from a neighbouring file's name: (1) `grep` its actual
+  importers -- module-qualified imports only (`from pkg.module import
+  x`, not docstring/comment mentions); (2) check for an explicit
+  `__all__` and a "public API" docstring marker -- a deliberate
+  facade for external consumers of the library can legitimately have
+  zero *internal* importers and should stay unprefixed regardless
+  (e.g. `pitloom/extract/dataset.py` re-exports `read_croissant` for
+  outside callers even though nothing inside `pitloom` imports it).
+  Worked example in `pitloom/extract/`: `_gguf.py`, `_hdf5.py`,
+  `_pytorch.py`, etc. are per-format parsers only their aggregator
+  (`ai_model.py`) imports internally and carry no `__all__`, so they
+  stay underscored regardless of domain (AI model formats vs. Python
+  packaging formats); `wheel.py`, `hatchling.py`, `env.py` are
+  imported from outside `extract/` (`assemble/__init__.py`,
+  `plugins/hatch.py`), so they stay unprefixed.
 - Ontology/vocab: consult Schema.org; also NIEM Model <https://github.com/niemopen/niem-model> <https://docs.oasis-open.org/niemopen/niem-model/v6.0/niem-model-v6.0.html>, FIBO <https://github.com/edmcouncil/fibo/blob/master/ONTOLOGY_GUIDE.md> and OBO Foundry <https://obofoundry.org/principles/fp-012-naming-conventions.html>
 - URLs/IRIs: lowercase + hyphens; W3C Cool URIs: <https://www.w3.org/TR/cooluris/>
 - Consult SEMIC Style Guide: <https://semiceu.github.io/style-guide/1.0.0/index.html>
