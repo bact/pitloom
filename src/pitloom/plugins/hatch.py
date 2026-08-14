@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 import tempfile
@@ -111,15 +112,13 @@ def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
     and ``tools`` -> ``[Pitloom]`` -- matching the CLI.
     """
     comment = pitloom_config.creation_comment
-    return CreationMetadata(
-        creators=pitloom_config.creators,
-        tools=pitloom_config.tools,
+    return dataclasses.replace(
+        pitloom_config.creation_metadata,
         creation_comment=(
             comment
             if comment is not None
             else "Generated via Pitloom Hatchling build hook (PEP 770)"
         ),
-        creation_datetime=pitloom_config.creation_datetime,
         build_datetime=_resolve_build_datetime(pitloom_config),
     )
 

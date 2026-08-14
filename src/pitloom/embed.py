@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import csv
 import dataclasses
+import email
 import hashlib
 import io
 import os
@@ -254,16 +255,9 @@ def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
     metadata_path = f"{dist_info}METADATA"
     if metadata_path in zf.namelist():
         content = zf.read(metadata_path).decode("utf-8", errors="replace")
-        for line in content.splitlines():
-            lower = line.lower()
-            if lower.startswith("name: ") and not meta_name:
-                meta_name = line.split(":", 1)[1].strip()
-            elif lower.startswith("version: ") and not meta_version:
-                meta_version = line.split(":", 1)[1].strip()
-            elif not line.strip() and (meta_name or meta_version):
-                break
-            if meta_name and meta_version:
-                break
+        msg = email.message_from_string(content)
+        meta_name = msg.get("Name")
+        meta_version = msg.get("Version")
     if meta_name and meta_version:
         return f"{meta_name}-{meta_version}{_SPDX3_JSON_EXT}"
     prefix = dist_info.rstrip("/").removesuffix(".dist-info")
@@ -428,12 +422,7 @@ def embed_wheel_sbom(
             )
             eff_registry = registry if registry is not None else cfg.ids_file
             reg = resolve_registry(proj_root, eff_registry)
-            eff_creation = creation_metadata or CreationMetadata(
-                creators=cfg.creators,
-                tools=cfg.tools,
-                creation_datetime=cfg.creation_datetime,
-                creation_comment=cfg.creation_comment,
-            )
+            eff_creation = creation_metadata or cfg.creation_metadata
             sbom_json = _build_sbom_from_project_and_wheel(
                 proj_root, wheel_metadata, cfg, reg, eff_creation
             )
