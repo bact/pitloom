@@ -293,7 +293,7 @@ def test_post_build_wheel_embedding_integration(tmp_path: Path) -> None:
         assert not [n for n in zf.namelist() if "/sboms/" in n]
 
     # Post-process: embed PEP 770 SBOM via Pitloom
-    res_path, arcname, sbom_json = embed_wheel_sbom(
+    res_path, arcname, sbom_json, _ = embed_wheel_sbom(
         wheel_path,
         project_dir=proj_dir,
     )

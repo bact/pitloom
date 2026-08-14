@@ -370,7 +370,7 @@ def generate_model_sbom(
     else:
         model_path = Path(source)
         model = read_ai_model(model_path)
-        resolved_registry = resolve_registry(model_path.parent, registry)
+        resolved_registry = resolve_registry(Path.cwd(), registry)
         entity_spdx_id = (
             resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
             if resolved_registry is not None
@@ -483,7 +483,7 @@ def enrich_model(
         if project_target is not None
         else None
     )
-    resolved_registry = resolve_registry(model_path.parent, registry)
+    resolved_registry = resolve_registry(Path.cwd(), registry)
     entity_spdx_id = (
         resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
         if resolved_registry is not None

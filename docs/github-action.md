@@ -107,7 +107,7 @@ Output:
 
 | Output | Meaning |
 | :--- | :--- |
-| `sbom-path` | Path to the generated SBOM file. |
+| `sbom-path` | Path to the generated SBOM file. Empty when `embed-wheel` matches more than one wheel -- a standalone copy is ambiguous across wheels, so only the embedded copies are produced and `upload-artifact` is skipped for that run. |
 
 ## Code example: Build and Publish PEP 770 Wheel
 

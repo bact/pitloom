@@ -13,6 +13,7 @@ import dataclasses
 import email
 import hashlib
 import io
+import json
 import os
 import shutil
 import tempfile
@@ -98,6 +99,32 @@ def _calculate_record_hash(content: bytes) -> str:
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
+def _looks_like_pitloom_sbom(content: bytes) -> bool:
+    """Check whether an SPDX 3 JSON-LD payload was created by Pitloom.
+
+    Used to decide whether a pre-existing ``sboms/`` entry left by an
+    earlier run under a different filename is safe to clean up on
+    re-embed. PEP 770 allows multiple SBOMs from different tools to
+    coexist under ``sboms/``, so cleanup must not touch anything that
+    doesn't look like Pitloom's own prior output -- malformed/unparseable
+    content or the absence of a ``Tool``/``SoftwareAgent`` named
+    ``"Pitloom"`` in ``@graph`` means "leave it alone".
+    """
+    try:
+        doc = json.loads(content)
+    except (ValueError, UnicodeDecodeError):
+        return False
+    graph = doc.get("@graph") if isinstance(doc, dict) else None
+    if not isinstance(graph, list):
+        return False
+    return any(
+        isinstance(node, dict)
+        and node.get("type") in ("Tool", "SoftwareAgent")
+        and node.get("name") == "Pitloom"
+        for node in graph
+    )
+
+
 def _update_record_lines(
     record_text: str,
     sbom_arcname: str,
@@ -108,9 +135,9 @@ def _update_record_lines(
 ) -> str:
     """Update or insert the SBOM entry in RECORD and ensure RECORD,, is intact.
 
-    ``stale_arcnames`` are prior embedded-SBOM entries (e.g. left behind by
-    an earlier run under a different basename) whose rows are dropped so
-    RECORD does not go stale relative to the rewritten archive.
+    ``stale_arcnames`` are prior Pitloom-embedded SBOM entries (e.g. left
+    behind by an earlier run under a different basename) whose rows are
+    dropped so RECORD does not go stale relative to the rewritten archive.
     """
     rows: list[list[str]] = []
     reader = csv.reader(io.StringIO(record_text))
@@ -144,7 +171,7 @@ def embed_sbom_in_wheel(
     sbom_content: str | bytes,
     *,
     sbom_filename: str | None = None,
-) -> tuple[Path, str]:
+) -> tuple[Path, str, tuple[str, ...]]:
     """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
 
     Args:
@@ -154,9 +181,12 @@ def embed_sbom_in_wheel(
             Defaults to '<name>-<version>.spdx3.json' read from wheel metadata.
 
     Returns:
-        A tuple of (wheel_path, embedded_arcname), where embedded_arcname is
-        the relative path inside the wheel (e.g.
-        'pkg-1.0.dist-info/sboms/pkg-1.0.spdx3.json').
+        A tuple of (wheel_path, embedded_arcname, removed_arcnames).
+        ``embedded_arcname`` is the relative path inside the wheel (e.g.
+        'pkg-1.0.dist-info/sboms/pkg-1.0.spdx3.json'). ``removed_arcnames``
+        lists any prior Pitloom-embedded SBOM entries (under a different
+        filename) that were cleaned up as part of this embed -- see
+        :func:`_looks_like_pitloom_sbom`.
 
     Raises:
         ValueError: If the wheel archive has no valid .dist-info directory.
@@ -191,6 +221,7 @@ def embed_sbom_in_wheel(
             if name.startswith(sboms_prefix)
             and name.endswith(_SPDX3_JSON_EXT)
             and name != sbom_arcname
+            and _looks_like_pitloom_sbom(original_zf.read(name))
         )
 
         record_info = None
@@ -226,7 +257,7 @@ def embed_sbom_in_wheel(
             stale_arcnames,
         )
 
-    return wheel_obj, sbom_arcname
+    return wheel_obj, sbom_arcname, tuple(sorted(stale_arcnames))
 
 
 _INVALID_FILENAME_CHARS = frozenset({"/", "\\", "\x00"})
@@ -277,8 +308,7 @@ def _rewrite_wheel_archive(
     """Write updated entries to a temporary file and atomically replace target.
 
     ``stale_arcnames`` are dropped from the rewritten archive rather than
-    copied through, so a prior embedded SBOM under a different basename
-    does not linger unlisted in the new RECORD.
+    copied through -- see :func:`_looks_like_pitloom_sbom`.
     """
     temp_dir = wheel_path.parent
     orig_mode = wheel_path.stat().st_mode if wheel_path.exists() else None
@@ -379,7 +409,7 @@ def embed_wheel_sbom(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
-) -> tuple[Path, str, str]:
+) -> tuple[Path, str, str, tuple[str, ...]]:
     """Generate and embed a PEP 770 SBOM into a built Python wheel.
 
     Args:
@@ -399,7 +429,8 @@ def embed_wheel_sbom(
         offline: Offline mode flag.
 
     Returns:
-        Tuple of (modified_wheel_path, embedded_arcname, sbom_json_string).
+        Tuple of (modified_wheel_path, embedded_arcname, sbom_json_string,
+        removed_arcnames) -- see :func:`embed_sbom_in_wheel`.
     """
     wheel_obj = Path(wheel_path).resolve()
     wheel_metadata, _ = read_wheel(wheel_obj)
@@ -439,14 +470,14 @@ def embed_wheel_sbom(
     else:
         target_filename = None
 
-    res_path, arcname = embed_sbom_in_wheel(
+    res_path, arcname, removed_arcnames = embed_sbom_in_wheel(
         wheel_obj, sbom_json, sbom_filename=target_filename
     )
 
     if output_path is not None:
         Path(output_path).write_text(sbom_json, encoding="utf-8")
 
-    return res_path, arcname, sbom_json
+    return res_path, arcname, sbom_json, removed_arcnames
 
 
 def _resolve_project_root(project_dir: Path | str | None) -> Path | None:

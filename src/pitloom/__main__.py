@@ -1009,8 +1009,9 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         )
 
         if embed:
-            _, arcname = embed_sbom_in_wheel(wheel_path, sbom_json)
+            _, arcname, removed = embed_sbom_in_wheel(wheel_path, sbom_json)
             print(f"pitloom: embedded {arcname} into {wheel_path.name}")
+            _print_removed_stale_sboms(removed, wheel_path.name)
 
         return 0
 
@@ -1021,12 +1022,18 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         return 1
 
 
+def _print_removed_stale_sboms(removed: tuple[str, ...], wheel_name: str) -> None:
+    """Report any prior Pitloom-embedded SBOM entries cleaned up on re-embed."""
+    for arcname in removed:
+        print(f"INFO: removed stale SBOM {arcname} from {wheel_name}")
+
+
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     """Resolve and expand wheel file paths and glob patterns.
 
-    Every pattern is validated before returning, so all invalid literal
-    paths get reported -- not just the first one encountered. Returns an
-    empty list if any pattern is invalid.
+    Every pattern is validated before returning, and every error is
+    reported here -- the caller can treat an empty return as "already
+    explained on stderr", with no need to re-inspect the patterns itself.
     """
     wheel_paths: list[Path] = []
     had_error = False
@@ -1037,6 +1044,10 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
                 for p in glob.glob(pattern)
                 if Path(p).is_file() and p.endswith(".whl")
             ]
+            if not matched:
+                print(f"ERROR: no wheel files matched: {pattern}", file=sys.stderr)
+                had_error = True
+                continue
             wheel_paths.extend(matched)
         else:
             p = Path(pattern).resolve()
@@ -1059,14 +1070,6 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
     try:
         unique_wheels = _collect_wheel_paths(args.wheel_files)
         if not unique_wheels:
-            if not any(
-                any(c in pat for c in ("*", "?", "[")) for pat in args.wheel_files
-            ):
-                return 1
-            print(
-                f"ERROR: no wheel files matched: {' '.join(args.wheel_files)}",
-                file=sys.stderr,
-            )
             return 1
 
         if len(unique_wheels) > 1 and args.output is not None:
@@ -1103,7 +1106,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
 
         for wheel_path in unique_wheels:
             output_path = args.output if len(unique_wheels) == 1 else None
-            _, arcname, _ = embed_wheel_sbom(
+            _, arcname, _, removed = embed_wheel_sbom(
                 wheel_path,
                 project_dir=project_dir,
                 sbom_path=args.sbom,
@@ -1118,6 +1121,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
                 offline=args.offline or None,
             )
             print(f"pitloom: embedded {arcname} into {wheel_path.name}")
+            _print_removed_stale_sboms(removed, wheel_path.name)
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
