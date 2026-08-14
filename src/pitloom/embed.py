@@ -24,7 +24,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
-from pitloom.core.config import PitloomConfig
+from pitloom.core.config import VALID_CONTENT_TYPE_METHODS, PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
@@ -39,6 +39,7 @@ from pitloom.ids import IdRegistry, resolve_registry
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
+_ZIP_EPOCH_MIN = 315532800  # 1980-01-01T00:00:00Z, earliest zipfile supports
 
 
 def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
@@ -73,7 +74,8 @@ def _resolve_zip_timestamp(
     source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
     if source_date_epoch:
         try:
-            dt = datetime.fromtimestamp(int(source_date_epoch), tz=timezone.utc)
+            epoch = max(int(source_date_epoch), _ZIP_EPOCH_MIN)
+            dt = datetime.fromtimestamp(epoch, tz=timezone.utc)
             return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
         except (ValueError, OverflowError, OSError):
             pass
@@ -95,8 +97,14 @@ def _update_record_lines(
     sbom_hash: str,
     sbom_size: int,
     dist_info_prefix: str,
+    stale_arcnames: frozenset[str] = frozenset(),
 ) -> str:
-    """Update or insert the SBOM entry in RECORD and ensure RECORD,, is intact."""
+    """Update or insert the SBOM entry in RECORD and ensure RECORD,, is intact.
+
+    ``stale_arcnames`` are prior embedded-SBOM entries (e.g. left behind by
+    an earlier run under a different basename) whose rows are dropped so
+    RECORD does not go stale relative to the rewritten archive.
+    """
     rows: list[list[str]] = []
     reader = csv.reader(io.StringIO(record_text))
     found_sbom = False
@@ -108,7 +116,7 @@ def _update_record_lines(
         if row[0] == sbom_arcname:
             rows.append([sbom_arcname, f"sha256={sbom_hash}", str(sbom_size)])
             found_sbom = True
-        elif row[0] == record_arcname:
+        elif row[0] == record_arcname or row[0] in stale_arcnames:
             continue
         else:
             rows.append(row)
@@ -164,8 +172,17 @@ def embed_sbom_in_wheel(
             if sbom_filename is not None
             else _derive_wheel_sbom_filename(original_zf, dist_info)
         )
+        _validate_sbom_filename(target_name)
         sbom_arcname = f"{dist_info}sboms/{target_name}"
         record_arcname = f"{dist_info}RECORD"
+        sboms_prefix = f"{dist_info}sboms/"
+        stale_arcnames = frozenset(
+            name
+            for name in original_zf.namelist()
+            if name.startswith(sboms_prefix)
+            and name.endswith(_SPDX3_JSON_EXT)
+            and name != sbom_arcname
+        )
 
         record_info = None
         for info in original_zf.infolist():
@@ -182,6 +199,7 @@ def embed_sbom_in_wheel(
             sbom_hash,
             sbom_size,
             dist_info,
+            stale_arcnames,
         )
         new_record_bytes = new_record_text.encode("utf-8")
 
@@ -196,9 +214,21 @@ def embed_sbom_in_wheel(
             record_arcname,
             new_record_bytes,
             timestamp,
+            stale_arcnames,
         )
 
     return wheel_obj, sbom_arcname
+
+
+def _validate_sbom_filename(filename: str) -> None:
+    """Guard against path traversal in an embedded SBOM filename (CWE-22).
+
+    ``filename`` may come from wheel METADATA (untrusted archive content)
+    or a user-supplied ``--sbom-basename``, so it must resolve to a plain
+    filename with no path separators or traversal segments.
+    """
+    if not filename or "/" in filename or "\\" in filename or filename in (".", ".."):
+        raise ValueError(f"Invalid SBOM filename: {filename!r}")
 
 
 def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
@@ -229,8 +259,14 @@ def _rewrite_wheel_archive(
     record_arcname: str,
     record_bytes: bytes,
     timestamp: tuple[int, int, int, int, int, int],
+    stale_arcnames: frozenset[str] = frozenset(),
 ) -> None:
-    """Write updated entries to a temporary file and atomically replace target."""
+    """Write updated entries to a temporary file and atomically replace target.
+
+    ``stale_arcnames`` are dropped from the rewritten archive rather than
+    copied through, so a prior embedded SBOM under a different basename
+    does not linger unlisted in the new RECORD.
+    """
     temp_dir = wheel_path.parent
     with tempfile.NamedTemporaryFile(
         dir=temp_dir,
@@ -246,6 +282,8 @@ def _rewrite_wheel_archive(
         ) as new_zf:
             for info in original_zf.infolist():
                 if info.filename in (record_arcname, sbom_arcname):
+                    continue
+                if info.filename in stale_arcnames:
                     continue
                 with original_zf.open(info, "r") as src, new_zf.open(info, "w") as dst:
                     shutil.copyfileobj(src, dst)
@@ -430,6 +468,11 @@ def _apply_config_overrides(
     if content_type is not None:
         changes["content_type_enabled"] = content_type
     if content_type_method is not None:
+        if content_type_method not in VALID_CONTENT_TYPE_METHODS:
+            raise ValueError(
+                "content_type_method must be one of "
+                f"{sorted(VALID_CONTENT_TYPE_METHODS)}, got {content_type_method!r}"
+            )
         changes["content_type_method"] = content_type_method
     if offline is not None:
         changes["offline"] = offline

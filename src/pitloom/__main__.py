@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
+    embed_sbom_in_wheel,
     embed_wheel_sbom,
     enrich_model,
     generate,
@@ -990,23 +991,7 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             print(f"Wheel file      : {wheel_path}")
             print(f"Output path     : {output_path}")
 
-        if getattr(args, "embed", False):
-            _, arcname, _ = embed_wheel_sbom(
-                wheel_path,
-                output_path=args.output,
-                creation_metadata=creation.to_creation_metadata(),
-                registry=args.registry,
-                provenance=pitloom_config.provenance,
-                enrich=args.enrich,
-                extract_file_header=args.extract_file_header,
-                content_type=args.content_type,
-                content_type_method=args.content_type_method,
-                offline=args.offline or None,
-            )
-            print(f"pitloom: embedded {arcname} into {wheel_path.name}")
-            return 0
-
-        generate_wheel_sbom(
+        sbom_json = generate_wheel_sbom(
             wheel_path,
             output_path=output_path,
             creation_metadata=creation.to_creation_metadata(),
@@ -1015,6 +1000,11 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             registry=args.registry,
             offline=args.offline or None,
         )
+
+        if getattr(args, "embed", False):
+            _, arcname = embed_sbom_in_wheel(wheel_path, sbom_json)
+            print(f"pitloom: embedded {arcname} into {wheel_path.name}")
+
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -1025,8 +1015,14 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
 
 
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
-    """Resolve and expand wheel file paths and glob patterns."""
+    """Resolve and expand wheel file paths and glob patterns.
+
+    Every pattern is validated before returning, so all invalid literal
+    paths get reported -- not just the first one encountered. Returns an
+    empty list if any pattern is invalid.
+    """
     wheel_paths: list[Path] = []
+    had_error = False
     for pattern in patterns:
         if any(c in pattern for c in ("*", "?", "[")):
             matched = [
@@ -1047,11 +1043,15 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
             p = Path(pattern).resolve()
             if not p.exists():
                 print(f"ERROR: wheel file not found: {p}", file=sys.stderr)
-                return []
+                had_error = True
+                continue
             if not p.name.endswith(".whl"):
                 print(f"ERROR: not a .whl file: {p}", file=sys.stderr)
-                return []
+                had_error = True
+                continue
             wheel_paths.append(p)
+    if had_error:
+        return []
     return list(dict.fromkeys(wheel_paths))
 
 
