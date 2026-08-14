@@ -24,13 +24,14 @@ and this project adheres to
 ### Added
 
 - `loom wheel --embed`, `loom embed-wheel`, and GitHub Action support for
-  embedding SPDX 3 SBOMs into Python wheels
+  embedding SPDX 3 SBOMs into Python wheels ([#148])
 
 ### Changed
 
 - Reorganize project documentation ([#146])
 
 [#146]: https://github.com/bact/pitloom/pull/146
+[#148]: https://github.com/bact/pitloom/pull/148
 
 ## [0.14.1] 2026-08-13
 

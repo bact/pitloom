@@ -433,8 +433,14 @@ def embed_wheel_sbom(
                 if registry is not None
                 else resolve_registry(proj_root, cfg.ids_file)
             )
+            eff_creation = creation_metadata or CreationMetadata(
+                creators=cfg.creators,
+                tools=cfg.tools,
+                creation_datetime=cfg.creation_datetime,
+                creation_comment=cfg.creation_comment,
+            )
             sbom_json = _build_sbom_from_project_and_wheel(
-                proj_root, wheel_metadata, cfg, reg, creation_metadata
+                proj_root, wheel_metadata, cfg, reg, eff_creation
             )
             eff_basename = sbom_basename or cfg.sbom_basename
         else:

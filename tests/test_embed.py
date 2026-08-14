@@ -415,3 +415,59 @@ def test_embed_sbom_preserves_file_permissions(tmp_path: Path) -> None:
     embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
     current_mode = stat.S_IMODE(wheel_path.stat().st_mode)
     assert current_mode == target_mode
+
+
+def test_cli_and_api_produce_identical_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Verify CLI and Python API produce bit-for-bit identical wheels and SBOMs."""
+    import zipfile
+
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    monkeypatch.chdir(tmp_path)
+
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "identpkg"
+version = "1.0.0"
+
+[tool.pitloom]
+creation-comment = "shared-comment"
+creation-datetime = "2026-08-14T12:00:00Z"
+
+[[tool.pitloom.creator]]
+name = "Test Author"
+type = "person"
+""",
+        encoding="utf-8",
+    )
+
+    dir_cli = tmp_path / "cli"
+    dir_api = tmp_path / "api"
+    w_cli = _make_dummy_wheel(dir_cli, "identpkg", "1.0.0")
+    w_api = _make_dummy_wheel(dir_api, "identpkg", "1.0.0")
+
+    # Run via CLI
+    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(w_cli)])
+    assert __main__.main() == 0
+
+    # Run via Python API
+    _, arcname_api, sbom_json_api = embed_wheel_sbom(w_api)
+
+    # Compare embedded SBOM contents
+    with zipfile.ZipFile(w_cli, "r") as z_cli, zipfile.ZipFile(w_api, "r") as z_api:
+        assert z_cli.namelist() == z_api.namelist()
+        cli_sbom_bytes = z_cli.read(arcname_api)
+        api_sbom_bytes = z_api.read(arcname_api)
+        assert cli_sbom_bytes == api_sbom_bytes
+        assert cli_sbom_bytes.decode("utf-8") == sbom_json_api
+
+        # Compare RECORD contents
+        cli_record = z_cli.read("identpkg-1.0.0.dist-info/RECORD")
+        api_record = z_api.read("identpkg-1.0.0.dist-info/RECORD")
+        assert cli_record == api_record
+
+    # Compare entire wheel binary bytes
+    assert w_cli.read_bytes() == w_api.read_bytes()

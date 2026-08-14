@@ -83,6 +83,28 @@ kinds the [CLI](cli.md)'s `loom wheel` / `loom model` / `loom env`
 subcommands cover. See [AI model formats](ai-model-formats.md) for what
 `generate_model_sbom()` accepts.
 
+### Wheel embedding functions
+
+For programmatic PEP 770 post-build wheel injection:
+
+```python
+from pathlib import Path
+from pitloom.assemble import embed_sbom_in_wheel, embed_wheel_sbom
+
+# 1. Generate and embed SBOM in one step
+modified_wheel, arcname, sbom_json = embed_wheel_sbom(
+    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
+    project_dir=Path("."),
+)
+
+# 2. Or embed arbitrary pre-generated SBOM content
+modified_wheel, arcname = embed_sbom_in_wheel(
+    wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
+    sbom_content=sbom_json_string,
+    sbom_filename="custom.spdx3.json",  # optional
+)
+```
+
 ### Config
 
 Pass `creation_metadata=CreationMetadata(...)` to name creators, tools, a
