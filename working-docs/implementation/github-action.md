@@ -53,7 +53,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bact/pitloom@v0.14.1
         id: pitloom
         with:
@@ -83,7 +83,7 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bact/pitloom@v0.14.1
         with:
           project-path: "."
@@ -111,5 +111,5 @@ Use the same assertions in your own CI if you want a smoke test beyond
   malformed or empty input fails the step rather than silently doing the
   wrong thing.
 - Third-party actions are pinned by major version
-  (`actions/checkout@v6`, `actions/setup-python@v6`,
+  (`actions/checkout@v7`, `actions/setup-python@v7`,
   `actions/upload-artifact@v7`).

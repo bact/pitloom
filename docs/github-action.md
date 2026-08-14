@@ -34,7 +34,7 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: bact/pitloom@v0.14.1
 ```
 
@@ -102,7 +102,7 @@ jobs:
   sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: bact/pitloom@v0.14.1
         with:
           extras: ai
