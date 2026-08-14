@@ -10,6 +10,7 @@ import pytest
 
 from pitloom.core.config import (
     VALID_CONTENT_TYPE_METHODS,
+    PitloomConfig,
     _read_content_type_settings,
     _read_enrich_settings,
     _read_extract_file_header,
@@ -18,6 +19,7 @@ from pitloom.core.config import (
     _read_pitloom_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.creation import Creator, Tool
 
 # ---------------------------------------------------------------------------
 # _read_extract_file_header
@@ -282,14 +284,11 @@ def test_valid_content_type_methods_is_public() -> None:
 
 def test_pitloom_config_helper_properties() -> None:
     """Test PitloomConfig properties convert scalar fields to model objects."""
-    from pitloom.core.config import PitloomConfig
-    from pitloom.core.creation import Creator, Tool
-
     cfg = PitloomConfig(
         provenance_format="annotation",
         provenance_schema="spdx3",
         provenance_detail="full",
-        provenance_preserve_source_metadata=True,
+        provenance_preserve_source_metadata="always",
         content_type_enabled=True,
         content_type_method="magika",
         enrich_local=True,
@@ -303,7 +302,7 @@ def test_pitloom_config_helper_properties() -> None:
     assert prov.format == "annotation"
     assert prov.schema == "spdx3"
     assert prov.detail == "full"
-    assert prov.preserve_source_metadata is True
+    assert prov.preserve_source_metadata == "always"
 
     ct = cfg.content_type
     assert ct.enabled is True

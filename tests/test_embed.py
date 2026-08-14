@@ -10,6 +10,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -21,7 +23,23 @@ import pytest
 from installer.sources import WheelFile
 
 from pitloom import __main__
-from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom
+from pitloom.core.config import PitloomConfig
+from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import ProvenanceConfig
+from pitloom.embed import (
+    _apply_config_overrides,
+    _build_sbom_standalone_wheel,
+    _derive_wheel_sbom_filename,
+    _find_dist_info_prefix,
+    _resolve_project_root,
+    _resolve_zip_timestamp,
+    _rewrite_wheel_archive,
+    _update_record_lines,
+    _validate_sbom_filename,
+    embed_sbom_in_wheel,
+    embed_wheel_sbom,
+)
+from pitloom.ids import IdRegistry
 
 _SAMPLE_SPDX3_JSON = json.dumps(
     {
@@ -330,10 +348,8 @@ def test_cli_wheel_embed_flag(
         wf.validate_record()
 
 
-def test_validate_sbom_filename_edge_cases(tmp_path: Path) -> None:
+def test_validate_sbom_filename_edge_cases() -> None:
     """Test _validate_sbom_filename rejects null bytes, traversal, and whitespace."""
-    from pitloom.embed import _validate_sbom_filename
-
     for bad in ("", "   ", "\x00", "a/b", "a\\b", "..", "."):
         with pytest.raises(ValueError, match="Invalid SBOM filename"):
             _validate_sbom_filename(bad)
@@ -406,9 +422,6 @@ def test_embed_sbom_empty_content_raises(tmp_path: Path) -> None:
 
 def test_embed_sbom_preserves_file_permissions(tmp_path: Path) -> None:
     """Test embed_sbom_in_wheel preserves original filesystem permissions."""
-    import os
-    import stat
-
     wheel_path = _make_dummy_wheel(tmp_path, "perm_pkg", "1.0.0")
     target_mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o644
     os.chmod(wheel_path, target_mode)
@@ -423,8 +436,6 @@ def test_cli_and_api_produce_identical_artifacts(
     tmp_path: Path,
 ) -> None:
     """Verify CLI and Python API produce bit-for-bit identical wheels and SBOMs."""
-    import zipfile
-
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     monkeypatch.chdir(tmp_path)
 
@@ -476,8 +487,6 @@ type = "person"
 
 def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
     """Test _find_dist_info_prefix with single, matching, and ambiguous dist-infos."""
-    from pitloom.embed import _find_dist_info_prefix
-
     # 1. No dist-info
     p1 = tmp_path / "nodist-1.0.0-py3-none-any.whl"
     with zipfile.ZipFile(p1, "w") as zf:
@@ -506,8 +515,6 @@ def test_find_dist_info_prefix_edge_cases(tmp_path: Path) -> None:
 
 def test_resolve_zip_timestamp_branches(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test _resolve_zip_timestamp under various invalid/fallback conditions."""
-    from pitloom.embed import _resolve_zip_timestamp
-
     # Invalid string in SOURCE_DATE_EPOCH
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
     ts = _resolve_zip_timestamp(fallback=(1990, 5, 1, 12, 0, 0))
@@ -530,8 +537,6 @@ def test_resolve_zip_timestamp_branches(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_update_record_lines_empty_rows() -> None:
     """Test _update_record_lines skips empty rows in RECORD string."""
-    from pitloom.embed import _update_record_lines
-
     raw_record = "pkg/__init__.py,sha256=abc,10\n\n\npkg-1.0.dist-info/RECORD,,\n"
     updated = _update_record_lines(
         raw_record,
@@ -573,8 +578,6 @@ def test_embed_sbom_without_existing_record(tmp_path: Path) -> None:
 
 def test_derive_wheel_sbom_filename_fallbacks(tmp_path: Path) -> None:
     """Test _derive_wheel_sbom_filename metadata missing/empty header fallbacks."""
-    from pitloom.embed import _derive_wheel_sbom_filename
-
     # 1. No METADATA in archive -> fall back to dist-info name prefix
     p1 = tmp_path / "nometa-1.0.0-py3-none-any.whl"
     with zipfile.ZipFile(p1, "w") as zf:
@@ -647,8 +650,6 @@ def test_rewrite_wheel_archive_temp_file_cleanup_on_error(
 
 def test_resolve_project_root_non_existent(tmp_path: Path) -> None:
     """Test _resolve_project_root when non-existent path or empty directory."""
-    from pitloom.embed import _resolve_project_root
-
     # Non-existent explicit project_dir falls back to checking cwd
     res = _resolve_project_root(tmp_path / "does_not_exist")
     assert res is None or res.exists()
@@ -656,16 +657,12 @@ def test_resolve_project_root_non_existent(tmp_path: Path) -> None:
 
 def test_apply_config_overrides_full() -> None:
     """Test _apply_config_overrides applies all CLI override parameters."""
-    from pitloom.core.config import PitloomConfig
-    from pitloom.core.provenance import ProvenanceConfig
-    from pitloom.embed import _apply_config_overrides
-
     cfg = PitloomConfig()
     prov = ProvenanceConfig(
         format="fields",
         schema="https://example.com/schema",
         detail="full",
-        preserve_source_metadata=True,
+        preserve_source_metadata="always",
     )
     overridden = _apply_config_overrides(
         cfg,
@@ -679,7 +676,7 @@ def test_apply_config_overrides_full() -> None:
     assert overridden.provenance_format == "fields"
     assert overridden.provenance_schema == "https://example.com/schema"
     assert overridden.provenance_detail == "full"
-    assert overridden.provenance_preserve_source_metadata is True
+    assert overridden.provenance_preserve_source_metadata == "always"
     assert overridden.enrich_local is True
     assert overridden.extract_file_header is False
     assert overridden.content_type.enabled is True
@@ -700,10 +697,6 @@ def test_apply_config_overrides_full() -> None:
 
 def test_build_sbom_standalone_wheel_registry_options(tmp_path: Path) -> None:
     """Test _build_sbom_standalone_wheel with various registry options."""
-    from pitloom.core.project import ProjectMetadata
-    from pitloom.embed import _build_sbom_standalone_wheel
-    from pitloom.ids import IdRegistry
-
     meta = ProjectMetadata(name="standalonereg", version="1.0.0", files=[])
 
     # 1. IdRegistry instance with namespace
@@ -752,7 +745,6 @@ def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
 
 def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:
     """Test _rewrite_wheel_archive handles non-existent wheel path without error."""
-    from pitloom.embed import _rewrite_wheel_archive
 
     source_wheel = _make_dummy_wheel(tmp_path, "orig_mode_pkg", "1.0.0")
     target_wheel = tmp_path / "new_target.whl"
@@ -768,3 +760,206 @@ def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:
             (2026, 1, 1, 0, 0, 0),
         )
     assert target_wheel.exists()
+
+
+def test_cli_collect_wheel_paths_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI error handling for non-existent and non-whl paths."""
+    not_a_whl = tmp_path / "test.txt"
+    not_a_whl.write_text("hello", encoding="utf-8")
+    non_existent = tmp_path / "missing.whl"
+
+    # 1. Non-existent literal file
+    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(non_existent)])
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: wheel file not found" in err
+
+    # 2. Not a .whl file
+    monkeypatch.setattr(sys, "argv", ["loom", "embed-wheel", str(not_a_whl)])
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: not a .whl file" in err
+
+    # 3. Glob matching no wheels
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "embed-wheel", str(tmp_path / "empty_dir/*.whl")]
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: no wheel files matched" in err
+
+
+def test_cli_embed_wheel_multiple_with_output_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test multiple wheels with -o option returns error."""
+    w1 = _make_dummy_wheel(tmp_path, "pkg_one", "1.0.0")
+    w2 = _make_dummy_wheel(tmp_path, "pkg_two", "1.0.0")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(w1), str(w2), "-o", str(tmp_path / "out.json")],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: --output cannot be used when embedding multiple wheels" in err
+
+
+def test_cli_embed_wheel_project_dir(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI with explicit --project-dir."""
+    wheel_path = _make_dummy_wheel(tmp_path, "projdirpkg", "1.0.0")
+    fixture_dir = (
+        Path(__file__).parent / "fixtures" / "projects" / "sampleproject-hatchling"
+    )
+
+    # 1. Non-existent project directory
+    missing_dir = tmp_path / "no_such_proj_dir"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "--project-dir", str(missing_dir)],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: project directory not found" in err
+
+    # 2. Valid project directory
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "--project-dir", str(fixture_dir)],
+    )
+    assert __main__.main() == 0
+    out = capsys.readouterr().out
+    assert "pitloom: embedded" in out
+
+
+def test_cli_embed_wheel_pregenerated_sbom(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI embedding a pregenerated SBOM file with --sbom."""
+    wheel_path = _make_dummy_wheel(tmp_path, "pregenpkg", "1.0.0")
+    sbom_file = tmp_path / "custom_sbom.spdx3.json"
+    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--sbom-basename",
+            "embedded_pregen.spdx3.json",
+        ],
+    )
+    assert __main__.main() == 0
+    out = capsys.readouterr().out
+    assert "embedded_pregen.spdx3.json" in out
+
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        assert (
+            "pregenpkg-1.0.0.dist-info/sboms/embedded_pregen.spdx3.json"
+            in zf.namelist()
+        )
+
+
+def test_cli_wheel_embed_verbose_and_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test `loom wheel --embed` with --verbose and explicit -o."""
+    wheel_path = _make_dummy_wheel(tmp_path, "verbosepkg", "1.0.0")
+    out_file = tmp_path / "standalone.spdx3.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "wheel",
+            str(wheel_path),
+            "--embed",
+            "-v",
+            "-o",
+            str(out_file),
+        ],
+    )
+    assert __main__.main() == 0
+    captured = capsys.readouterr()
+    assert "Output path" in captured.out
+    assert out_file.exists()
+
+
+def test_cli_embed_wheel_error_verbose(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI error logging and traceback on failure with --verbose."""
+    bad_wheel = tmp_path / "corrupt.whl"
+    bad_wheel.write_bytes(b"not a zip file")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(bad_wheel), "-v"],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: wheel SBOM embedding failed" in err
+
+
+def test_cli_wheel_embed_error_verbose(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test `loom wheel --embed` failure with --verbose."""
+    bad_wheel = tmp_path / "corrupt.whl"
+    bad_wheel.write_bytes(b"not a zip file")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "wheel", str(bad_wheel), "--embed", "-v"],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: wheel SBOM generation failed" in err
+
+
+def test_cli_embed_wheel_project_dir_without_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test CLI fallback when project directory exists but has no pyproject.toml."""
+    wheel_path = _make_dummy_wheel(tmp_path, "nometa_pkg", "1.0.0")
+    empty_dir = tmp_path / "empty_project_dir"
+    empty_dir.mkdir()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "--project-dir", str(empty_dir)],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "No pyproject.toml" in err
