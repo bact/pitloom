@@ -31,6 +31,7 @@ keywords = [
     "safetensors",
     "ai-sbom",
     "software-supply-chain-security",
+    "pep770",
 ]
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [
