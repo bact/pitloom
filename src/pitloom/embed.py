@@ -39,6 +39,12 @@ from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 
+__all__ = [
+    "ConfigOverrides",
+    "embed_sbom_in_wheel",
+    "embed_wheel_sbom",
+]
+
 _SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
 
@@ -648,6 +654,3 @@ def _build_sbom_standalone_wheel(
         offline=offline or False,
     )
     return exporter.to_json(pretty=False)
-
-
-__all__ = ["embed_sbom_in_wheel", "embed_wheel_sbom"]
