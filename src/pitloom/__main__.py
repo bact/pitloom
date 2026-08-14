@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
+    embed_wheel_sbom,
     enrich_model,
     generate,
     generate_env_sbom,
@@ -358,12 +359,61 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the built .whl file.",
     )
     wheel_parser.add_argument(
+        "--embed",
+        action="store_true",
+        help="Embed the generated SBOM directly into the wheel archive (PEP 770).",
+    )
+    wheel_parser.add_argument(
         "--offline",
         action="store_true",
         help=(
             "Forbid network access -- skip PyPI lookup, no error "
             "(local metadata already covers what it can)."
         ),
+    )
+
+    # 3b. Embed into Wheel: loom embed-wheel <WHEEL_FILES...>
+    embed_parser = subparsers.add_parser(
+        "embed-wheel",
+        parents=[parent_parser],
+        help="Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).",
+    )
+    embed_parser.add_argument(
+        "wheel_files",
+        type=str,
+        nargs="+",
+        help="Path(s) or glob pattern(s) of built .whl file(s) to embed the SBOM into.",
+    )
+    embed_parser.add_argument(
+        "--project-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Project directory containing pyproject.toml to extract project "
+            "metadata, AI models, and file headers from (defaults to cwd)."
+        ),
+    )
+    embed_parser.add_argument(
+        "--sbom",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help=(
+            "Pre-generated SBOM JSON file to embed directly instead of generating one."
+        ),
+    )
+    embed_parser.add_argument(
+        "--sbom-basename",
+        type=str,
+        default=None,
+        metavar="NAME",
+        help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",
+    )
+    embed_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid network access during SBOM generation.",
     )
 
     # 4. AI Model Asset: loom model <SOURCE> [--offline]
@@ -819,6 +869,7 @@ def main() -> int:
         "generate": _run_generate_mode,
         "project": _run_project_mode,
         "wheel": _run_wheel_mode,
+        "embed-wheel": _run_embed_wheel_mode,
         "model": _run_model_mode,
         "enrich": _run_enrich_mode,
         "env": _run_env_mode,
@@ -939,6 +990,22 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             print(f"Wheel file      : {wheel_path}")
             print(f"Output path     : {output_path}")
 
+        if getattr(args, "embed", False):
+            _, arcname, _ = embed_wheel_sbom(
+                wheel_path,
+                output_path=args.output,
+                creation_metadata=creation.to_creation_metadata(),
+                registry=args.registry,
+                provenance=pitloom_config.provenance,
+                enrich=args.enrich,
+                extract_file_header=args.extract_file_header,
+                content_type=args.content_type,
+                content_type_method=args.content_type_method,
+                offline=args.offline or None,
+            )
+            print(f"pitloom: embedded {arcname} into {wheel_path.name}")
+            return 0
+
         generate_wheel_sbom(
             wheel_path,
             output_path=output_path,
@@ -952,6 +1019,103 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"ERROR: wheel SBOM generation failed: {e}", file=sys.stderr)
+        if args.verbose:
+            traceback.print_exc()
+        return 1
+
+
+def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
+    """Resolve and expand wheel file paths and glob patterns."""
+    wheel_paths: list[Path] = []
+    for pattern in patterns:
+        if any(c in pattern for c in ("*", "?", "[")):
+            matched = [
+                p
+                for p in Path.cwd().glob(pattern)
+                if p.is_file() and p.name.endswith(".whl")
+            ]
+            if not matched:
+                p_obj = Path(pattern)
+                parent = p_obj.parent if p_obj.parent != Path(".") else Path.cwd()
+                matched = [
+                    p
+                    for p in parent.glob(p_obj.name)
+                    if p.is_file() and p.name.endswith(".whl")
+                ]
+            wheel_paths.extend(matched)
+        else:
+            p = Path(pattern).resolve()
+            if not p.exists():
+                print(f"ERROR: wheel file not found: {p}", file=sys.stderr)
+                return []
+            if not p.name.endswith(".whl"):
+                print(f"ERROR: not a .whl file: {p}", file=sys.stderr)
+                return []
+            wheel_paths.append(p)
+    return list(dict.fromkeys(wheel_paths))
+
+
+def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
+    """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770)."""
+    try:
+        unique_wheels = _collect_wheel_paths(args.wheel_files)
+        if not unique_wheels:
+            if not any(
+                any(c in pat for c in ("*", "?", "[")) for pat in args.wheel_files
+            ):
+                return 1
+            print(
+                f"ERROR: no wheel files matched: {' '.join(args.wheel_files)}",
+                file=sys.stderr,
+            )
+            return 1
+
+        project_dir = args.project_dir
+        pitloom_config = PitloomConfig()
+        if project_dir is not None:
+            proj_path = Path(project_dir).resolve()
+            if not proj_path.exists():
+                print(
+                    f"ERROR: project directory not found: {proj_path}",
+                    file=sys.stderr,
+                )
+                return 1
+            try:
+                _, pitloom_config, _ = read_project(proj_path)
+            except FileNotFoundError:
+                pass
+        else:
+            for cand in ("pyproject.toml", "setup.cfg", "setup.py"):
+                if (Path.cwd() / cand).exists():
+                    try:
+                        _, pitloom_config, _ = read_project(Path.cwd())
+                    except FileNotFoundError:
+                        pass
+                    break
+
+        creation = _resolve_creation_metadata(args, pitloom_config)
+
+        for wheel_path in unique_wheels:
+            output_path = args.output if len(unique_wheels) == 1 else None
+            _, arcname, _ = embed_wheel_sbom(
+                wheel_path,
+                project_dir=project_dir,
+                sbom_path=args.sbom,
+                output_path=output_path,
+                sbom_basename=args.sbom_basename,
+                creation_metadata=creation.to_creation_metadata(),
+                registry=args.registry,
+                enrich=args.enrich,
+                extract_file_header=args.extract_file_header,
+                content_type=args.content_type,
+                content_type_method=args.content_type_method,
+                offline=args.offline or None,
+            )
+            print(f"pitloom: embedded {arcname} into {wheel_path.name}")
+        return 0
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"ERROR: wheel SBOM embedding failed: {e}", file=sys.stderr)
         if args.verbose:
             traceback.print_exc()
         return 1

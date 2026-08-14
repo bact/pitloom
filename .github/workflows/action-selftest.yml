@@ -47,13 +47,11 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install Pitloom from checkout
-        # Self-test runs project mode (no --model, no --content-type), so it
-        # never touches the ai/content-type extras' extraction code paths --
-        # a plain editable install is enough to dogfood the composite action.
+        # Self-test runs project mode and embed-wheel mode.
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install spdx3-validate
+          pip install build check-wheel-contents installer spdx3-validate
 
       - name: Build licenseid database
         run: licenseid update
@@ -125,3 +123,43 @@ jobs:
         run: |
           spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
         continue-on-error: true
+
+      - name: Build a wheel
+        run: |
+          python -m build --wheel --no-isolation --outdir dist/
+
+      - name: Run Pitloom action with embed-wheel
+        id: pitloom-embed
+        uses: ./
+        with:
+          embed-wheel: "dist/*.whl"
+          project-path: "."
+          output: "embedded-selftest-sbom.spdx3.json"
+          pretty: "true"
+          install: "false"
+          upload-artifact: "false"
+
+      - name: Validate embedded wheel and SBOM with authoritative tools
+        run: |
+          set -euo pipefail
+
+          # 1. spdx3-validate
+          spdx3-validate --json "${{ steps.pitloom-embed.outputs.sbom-path }}"
+
+          # 2. PyPA installer (RECORD verification)
+          python -c '
+          import glob
+          from installer.sources import WheelFile
+          wheels = glob.glob("dist/*.whl")
+          assert len(wheels) > 0, "No wheels found in dist/"
+          for w in wheels:
+              with WheelFile.open(w) as wf:
+                  wf.validate_record()
+              print(f"PyPA installer validation passed for {w}")
+          '
+
+          # 3. check-wheel-contents
+          check-wheel-contents dist/*.whl
+
+          # 4. pip install --dry-run
+          pip install --dry-run --target /tmp/pip-test --no-deps dist/*.whl

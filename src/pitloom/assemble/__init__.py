@@ -31,6 +31,7 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.models import compute_doc_uuid, get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.embed import embed_sbom_in_wheel, embed_wheel_sbom
 from pitloom.enrich import run_enrichers, run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
@@ -700,6 +701,8 @@ def generate(
 
 __all__ = [
     "ProvenanceConfig",
+    "embed_sbom_in_wheel",
+    "embed_wheel_sbom",
     "enrich_model",
     "generate",
     "generate_env_sbom",

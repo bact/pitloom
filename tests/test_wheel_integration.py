@@ -11,10 +11,14 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
 import pytest
+from installer.sources import WheelFile
 
 # Skip the entire module if hatchling is not installed.
 pytest.importorskip(
@@ -24,6 +28,8 @@ pytest.importorskip(
 # Guard import after importorskip.
 # pylint: disable=wrong-import-position
 from hatchling.builders.wheel import WheelBuilder  # noqa: E402
+
+from pitloom.embed import embed_wheel_sbom  # noqa: E402
 
 # pylint: enable=wrong-import-position
 
@@ -198,4 +204,141 @@ def test_sbom_graph_contains_main_package_purl(built_wheel: Path) -> None:
     main_package = next(p for p in packages if p["name"] == "sampleproject_hatchling")
     assert main_package["software_packageUrl"] == (
         "pkg:pypi/sampleproject-hatchling@0.1.0"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 3rd-party validation: PyPA installer, check-wheel-contents, pip, spdx3-validate
+# ---------------------------------------------------------------------------
+
+
+def test_wheel_record_passes_pypa_installer_validation(built_wheel: Path) -> None:
+    """PyPA installer strictly validates every file and RECORD hash in the wheel."""
+    with WheelFile.open(built_wheel) as wf:
+        wf.validate_record()
+
+
+def test_wheel_passes_check_wheel_contents(built_wheel: Path) -> None:
+    """check-wheel-contents validates the wheel's layout and files."""
+    res = subprocess.run(
+        [sys.executable, "-m", "check_wheel_contents", str(built_wheel)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert res.returncode == 0, f"check-wheel-contents failed: {res.stderr}"
+
+
+def test_wheel_passes_pip_install_dry_run(built_wheel: Path, tmp_path: Path) -> None:
+    """pip install --dry-run unpacks and validates wheel without issues."""
+    res = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--dry-run",
+            "--target",
+            str(tmp_path),
+            "--no-deps",
+            str(built_wheel),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert res.returncode == 0, f"pip install --dry-run failed: {res.stderr}"
+
+
+def test_wheel_sbom_passes_spdx3_validate(built_wheel: Path, tmp_path: Path) -> None:
+    """Embedded SBOM in wheel conforms to SPDX 3.0.1 per spdx3-validate."""
+    with zipfile.ZipFile(built_wheel) as zf:
+        (sbom_entry,) = [n for n in zf.namelist() if "/sboms/" in n]
+        sbom_data = zf.read(sbom_entry)
+
+    sbom_file = tmp_path / "embedded.spdx3.json"
+    sbom_file.write_bytes(sbom_data)
+
+    res = subprocess.run(
+        [sys.executable, "-m", "spdx3_validate", "--json", str(sbom_file)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert res.returncode == 0, f"spdx3-validate failed: {res.stderr} {res.stdout}"
+
+
+def _build_plain_fixture_wheel(tmp_path: Path) -> tuple[Path, Path]:
+    """Build a plain wheel from sampleproject-hatchling without pitloom hook."""
+    proj_dir = tmp_path / "plain_proj"
+    shutil.copytree(FIXTURE_DIR, proj_dir)
+    pyproject_file = proj_dir / "pyproject.toml"
+    content = pyproject_file.read_text(encoding="utf-8").replace(
+        "enabled = true", "enabled = false"
+    )
+    pyproject_file.write_text(content, encoding="utf-8")
+
+    out_dir = tmp_path / "wheel_out"
+    builder = WheelBuilder(str(proj_dir))
+    wheel_filename = next(builder.build(directory=str(out_dir), versions=["standard"]))
+    return proj_dir, Path(wheel_filename)
+
+
+def test_post_build_wheel_embedding_integration(tmp_path: Path) -> None:
+    """Test post-build wheel embedding (non-Hatchling / post-processing path)."""
+    proj_dir, wheel_path = _build_plain_fixture_wheel(tmp_path)
+
+    # Verify no SBOM exists before embedding
+    with zipfile.ZipFile(wheel_path) as zf:
+        assert not [n for n in zf.namelist() if "/sboms/" in n]
+
+    # Post-process: embed PEP 770 SBOM via Pitloom
+    res_path, arcname, sbom_json = embed_wheel_sbom(
+        wheel_path,
+        project_dir=proj_dir,
+    )
+    assert res_path == wheel_path
+    assert arcname.endswith(".dist-info/sboms/sbom.spdx3.json")
+
+    # Authoritative 3rd-party validation suite
+    with WheelFile.open(wheel_path) as wf:
+        wf.validate_record()
+
+    res = subprocess.run(
+        [sys.executable, "-m", "check_wheel_contents", str(wheel_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert res.returncode == 0, f"check-wheel-contents failed: {res.stderr}"
+
+    install_target = tmp_path / "install_target"
+    pip_res = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--dry-run",
+            "--target",
+            str(install_target),
+            "--no-deps",
+            str(wheel_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert pip_res.returncode == 0, f"pip install failed: {pip_res.stderr}"
+
+    sbom_file = tmp_path / "post_embedded.spdx3.json"
+    sbom_file.write_text(sbom_json, encoding="utf-8")
+    val_res = subprocess.run(
+        [sys.executable, "-m", "spdx3_validate", "--json", str(sbom_file)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert val_res.returncode == 0, (
+        f"spdx3-validate failed: {val_res.stderr} {val_res.stdout}"
     )

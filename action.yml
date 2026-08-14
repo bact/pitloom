@@ -18,6 +18,13 @@ inputs:
       setup.cfg, or setup.py). Ignored when "model" is set.
     required: false
     default: "."
+  embed-wheel:
+    description: >-
+      Path or glob pattern of built wheel file(s) to embed the generated
+      SBOM into (PEP 770). Example: "dist/*.whl". When set, runs
+      "loom embed-wheel <embed-wheel>" instead of project/model mode.
+    required: false
+    default: ""
   model:
     description: >-
       Path to a local AI model file, or a Hugging Face URL / model ID.
@@ -145,6 +152,7 @@ runs:
       shell: bash
       env:
         PL_PROJECT_PATH: ${{ inputs.project-path }}
+        PL_EMBED_WHEEL: ${{ inputs.embed-wheel }}
         PL_MODEL: ${{ inputs.model }}
         PL_OUTPUT: ${{ inputs.output }}
         PL_PRETTY: ${{ inputs.pretty }}
@@ -157,7 +165,12 @@ runs:
         set -euo pipefail
 
         declare -a loom_args
-        if [ -n "${PL_MODEL}" ]; then
+        if [ -n "${PL_EMBED_WHEEL}" ]; then
+          loom_args+=("embed-wheel" "${PL_EMBED_WHEEL}")
+          if [ -n "${PL_PROJECT_PATH}" ]; then
+            loom_args+=("--project-dir" "${PL_PROJECT_PATH}")
+          fi
+        elif [ -n "${PL_MODEL}" ]; then
           loom_args+=("model" "${PL_MODEL}")
         else
           loom_args+=("project" "${PL_PROJECT_PATH}")
