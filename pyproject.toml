@@ -5,7 +5,7 @@
 # pitloom is listed here so that isolated builds (pip install pitloom) embed the
 # SBOM via the Hatchling hook.  For CI and local dev, build with --no-isolation
 # so the current checkout is used instead of the PyPI-published version.
-requires = ["hatchling>=1.31.0", "pitloom"]
+requires = ["hatchling>=1.29.0", "pitloom"]
 build-backend = "hatchling.build"
 
 [project]
@@ -31,7 +31,7 @@ keywords = [
     "safetensors",
     "ai-sbom",
     "software-supply-chain-security",
-    "pep770",
+    "pep-770",
 ]
 authors = [{ name = "Arthit Suriyawongkul", email = "suriyawa@tcd.ie" }]
 classifiers = [
@@ -55,7 +55,7 @@ classifiers = [
 ]
 dependencies = [
     "auditwheel>=6.7.0; sys_platform == 'linux'",
-    "hatchling>=1.31.0",
+    "hatchling>=1.29.0",
     "licenseid>=0.3.3",
     "pipdeptree>=4.2.0",
     "py-spdx-license>=0.0.1,<1",
@@ -327,4 +327,4 @@ source = ["pitloom"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 88 # Hard floor minimum threshold; we try to keep it higher
+fail_under = 88      # Hard floor minimum threshold; we try to keep it higher
