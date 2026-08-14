@@ -30,6 +30,14 @@ and this project adheres to
 
 - Reorganize project documentation ([#146])
 
+### Fixed
+
+- SBOM `created` now honours `SOURCE_DATE_EPOCH` (same priority as the
+  Hatchling build hook's `builtTime`) -- previously only the embedded
+  wheel's ZIP entry timestamp respected it, so a wheel embedded under a
+  reproducible-build environment still carried a different SBOM `created`
+  value on every rebuild, even with `SOURCE_DATE_EPOCH` set ([#148])
+
 [#146]: https://github.com/bact/pitloom/pull/146
 [#148]: https://github.com/bact/pitloom/pull/148
 

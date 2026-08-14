@@ -14,7 +14,6 @@ import email
 import hashlib
 import io
 import json
-import logging
 import os
 import shutil
 import tempfile
@@ -28,7 +27,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS, PitloomConfig
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
@@ -40,11 +39,9 @@ from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 
-log = logging.getLogger(__name__)
-
 _SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
-_ZIP_EPOCH_MIN = 315532800  # 1980-01-01T00:00:00Z, earliest zipfile supports
+_ZIP_EPOCH_FLOOR = datetime(1980, 1, 1, tzinfo=timezone.utc)  # earliest zipfile supports
 
 
 def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
@@ -80,14 +77,17 @@ def _resolve_zip_timestamp(
     fallback: tuple[int, int, int, int, int, int] | None = None,
 ) -> tuple[int, int, int, int, int, int]:
     """Resolve entry timestamp respecting SOURCE_DATE_EPOCH if set."""
-    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
-    if source_date_epoch:
-        try:
-            epoch = max(int(source_date_epoch), _ZIP_EPOCH_MIN)
-            dt = datetime.fromtimestamp(epoch, tz=timezone.utc)
-            return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
-        except (ValueError, OverflowError, OSError) as exc:
-            log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
+    epoch_dt = resolve_source_date_epoch()
+    if epoch_dt is not None:
+        clamped = max(epoch_dt, _ZIP_EPOCH_FLOOR)
+        return (
+            clamped.year,
+            clamped.month,
+            clamped.day,
+            clamped.hour,
+            clamped.minute,
+            clamped.second,
+        )
     if fallback is not None:
         if fallback[0] >= 1980:
             return fallback

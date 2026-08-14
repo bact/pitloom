@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-26
-Last-Modified: 2026-08-09
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -92,6 +92,10 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Other resources
 
+- Reproducible Builds -- `SOURCE_DATE_EPOCH` specification (the timestamp
+  convention Pitloom honours for deterministic SBOM `created`/`builtTime`
+  fields and embedded-wheel ZIP entries):
+  <https://reproducible-builds.org/specs/source-date-epoch/>
 - Agent Skills standard <https://agentskills.io/>
 - SARIF (standard format for static analysis)
   - <https://sarifweb.azurewebsites.net/>

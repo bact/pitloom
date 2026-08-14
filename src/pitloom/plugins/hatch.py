@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-import os
 import tempfile
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
@@ -27,7 +26,7 @@ from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.enrich import run_enrichers_for_models
@@ -91,13 +90,9 @@ def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
     first two, repeated builds of unchanged sources produce byte-identical
     SBOMs (and therefore byte-identical wheels).
     """
-    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
-    if source_date_epoch:
-        try:
-            stamp = datetime.fromtimestamp(int(source_date_epoch), tz=timezone.utc)
-            return to_spdx3_datetime(stamp).isoformat()
-        except (ValueError, OverflowError, OSError) as exc:
-            log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
+    epoch_dt = resolve_source_date_epoch()
+    if epoch_dt is not None:
+        return to_spdx3_datetime(epoch_dt).isoformat()
     if pitloom_config.creation_datetime:
         return pitloom_config.creation_datetime
     return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
