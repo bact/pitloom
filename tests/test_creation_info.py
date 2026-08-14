@@ -217,14 +217,15 @@ def test_build_creation_info_source_date_epoch_used(
     assert spdx_ci.created == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
 
 
-def test_build_creation_info_source_date_epoch_overrides_explicit_datetime(
+def test_build_creation_info_explicit_datetime_overrides_source_date_epoch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """SOURCE_DATE_EPOCH wins over a pinned creation_datetime, matching the
-    Hatchling build hook's build_datetime priority -- a build environment's
-    reproducibility setting isn't silently defeated by a stale config pin.
+    """A pinned creation_datetime wins over SOURCE_DATE_EPOCH, matching the
+    Hatchling build hook's build_datetime priority -- an explicit, deliberate
+    per-SBOM pin is more specific than the ambient, workspace-wide
+    SOURCE_DATE_EPOCH signal, so it wins.
     """
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     metadata = CreationMetadata(creation_datetime="2026-03-01T00:00:00Z")
     spdx_ci, _agents, _tools = build_creation_info(metadata, _DOC_NAME, _DOC_UUID)
-    assert spdx_ci.created == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
+    assert spdx_ci.created == datetime(2026, 3, 1, tzinfo=timezone.utc)

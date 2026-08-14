@@ -84,17 +84,18 @@ def _check_hatchling_sbom_support() -> None:
 def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
     """Resolve the ``builtTime`` stamped on the main package.
 
-    Priority: the standard reproducible-builds ``SOURCE_DATE_EPOCH``
-    environment variable, then a pinned ``[tool.pitloom.creation]``
-    ``creation-datetime``, then the current UTC time.  With either of the
+    Priority: a pinned ``[tool.pitloom.creation]`` ``creation-datetime``
+    (a deliberate, explicit pin -- more specific than an ambient env var,
+    so it wins), then the standard reproducible-builds ``SOURCE_DATE_EPOCH``
+    environment variable, then the current UTC time.  With either of the
     first two, repeated builds of unchanged sources produce byte-identical
     SBOMs (and therefore byte-identical wheels).
     """
+    if pitloom_config.creation_datetime:
+        return pitloom_config.creation_datetime
     epoch_dt = resolve_source_date_epoch()
     if epoch_dt is not None:
         return to_spdx3_datetime(epoch_dt).isoformat()
-    if pitloom_config.creation_datetime:
-        return pitloom_config.creation_datetime
     return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
 
 
