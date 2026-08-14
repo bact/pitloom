@@ -145,7 +145,7 @@ Steps:
      `sbomAuthorSupplied` here -- it's whichever of
      `declared`/`externalReported`/`inferred` matches how you actually got
      the value from that source once you looked (see the role vocabulary
-     in `working-docs/implementation/annotation-provenance.md`).
+     in `working-docs/implementation/provenance/annotation-provenance.md`).
 5. **Before using any source outside this project** -- whether the SBOM
    author pointed you at it (step 4) or you noticed it **on your own
    initiative**: already in your context window, in another file you have

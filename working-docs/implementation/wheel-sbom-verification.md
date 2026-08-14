@@ -12,7 +12,7 @@ SPDX-License-Identifier: CC0-1.0
 
 The Hatchling-hook rewiring and code-review fixes (name/dependency
 canonicalization parity, Poetry fallback, PURLs, file hashes -- see
-[hatchling-build-hook.md](../design/hatchling-build-hook.md)) had only
+[hatchling-build-hook.md](hatchling-build-hook.md)) had only
 been checked against local dogfood builds and unit/integration tests
 before this pass. This document records independent checks against
 **actual published releases** on PyPI -- the real, externally-built

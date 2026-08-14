@@ -101,7 +101,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - Python API harmonized 1:1 (`pitloom.generate()`,
      `generate_project_sbom()`, `generate_wheel_sbom()`,
      `generate_model_sbom()`, `generate_env_sbom()`)
-   - See [working-docs/design/cli-ux.md](../design/cli-ux.md)
+   - See [working-docs/implementation/cli-ux.md](cli-ux.md)
    - Default output filename derived from project metadata
      (`{name}-{version}.spdx3.json`)
      or `[tool.pitloom] sbom-basename` when set
@@ -118,8 +118,8 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      (structured, machine-readable JSON),
      with the original SPDX 3 `comment` attribute kept for back-compat,
      controlled by `[tool.pitloom.provenance]`
-   - See [working-docs/design/metadata-provenance.md](../design/metadata-provenance.md)
-     and [annotation-provenance.md](annotation-provenance.md)
+   - See [working-docs/implementation/provenance/metadata-provenance.md](provenance/metadata-provenance.md)
+     and [annotation-provenance.md](provenance/annotation-provenance.md)
 
 8. **ML tracking SDK** (`src/pitloom/loom.py`)
    - Dual-syntax ContextDecorator (`@loom.run` and `with loom.run`)
@@ -176,7 +176,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 > counts below predate the input-centric CLI subcommands
 > (`project`/`wheel`/`model`/`env`/`generate`/`ids`) and
 > provenance-as-Annotation (see
-> [annotation-provenance.md](annotation-provenance.md)) -- a current run
+> [annotation-provenance.md](provenance/annotation-provenance.md)) -- a current run
 > uses `loom project <path>` (or `loom generate <path>`), not the bare
 > un-namespaced form shown here, and
 > emits additional `Annotation` elements for provenance. Kept as a record

@@ -364,7 +364,7 @@ Total elements: 55
 The 14 `Annotation` elements and 4 `CreationInfo` elements (vs. 1 apiece
 in earlier Pitloom versions) are metadata provenance -- where each field
 came from and, for enrichment runs, what changed and why. See
-[`working-docs/implementation/annotation-provenance.md`](../../working-docs/implementation/annotation-provenance.md)
+[`working-docs/implementation/provenance/annotation-provenance.md`](../../working-docs/implementation/provenance/annotation-provenance.md)
 for the full design. Exact counts will drift release to release as more
 fields gain native SPDX 3 constructs or provenance coverage; treat this
 as illustrative, not a golden output.
@@ -400,7 +400,7 @@ SBOM Sharing Lifecycle report, applied to AI systems.
 - Pitloom design doc on fragments:
   [`working-docs/design/sbom-fragments.md`](../../working-docs/design/sbom-fragments.md)
 - Pitloom Hatchling hook docs:
-  [`working-docs/design/hatchling-build-hook.md`](../../working-docs/design/hatchling-build-hook.md)
+  [`working-docs/implementation/hatchling-build-hook.md`](../../working-docs/implementation/hatchling-build-hook.md)
 - Linux Foundation AI BOM guide:
   <https://www.linuxfoundation.org/research/ai-bom>
 - PEP 770 - SBOM metadata in Python packages:

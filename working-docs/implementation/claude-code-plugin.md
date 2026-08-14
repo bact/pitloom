@@ -1,12 +1,17 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
-# Using Pitloom as a Claude Code plugin
+# Using Pitloom as a Claude Code plugin: implementation notes
+
+See [docs/claude-code-plugin.md](../../docs/claude-code-plugin.md) for
+the user-facing install/usage walkthrough -- this file covers
+implementation detail and design rationale not needed to just use the
+plugin.
 
 Pitloom ships a Claude Code plugin, self-hosted from this repository, that
 bundles the `sbom-generate`, `sbom-enrich`, and `sbom-validate` Skills
@@ -14,23 +19,8 @@ bundles the `sbom-generate`, `sbom-enrich`, and `sbom-validate` Skills
 namespace. It is the same Skills either way -- the plugin only adds an
 install path and namespaced explicit invocation.
 
-See [adoption-surfaces.md](../design/adoption-surfaces.md) for how this
+See [adoption-surfaces.md](adoption-surfaces.md) for how this
 fits alongside Pitloom's other surfaces.
-
-## Installing the plugin
-
-From a Claude Code session:
-
-```text
-/plugin marketplace add bact/pitloom
-/plugin install pitloom@pitloom
-```
-
-This registers Pitloom's repository as a marketplace (named `pitloom`) and
-installs the `pitloom` plugin from it. Once installed, all three Skills
-are available in every session, either by natural-language trigger or by
-explicit invocation (`/pitloom:sbom-generate`, `/pitloom:sbom-enrich`,
-`/pitloom:sbom-validate`).
 
 ## What is in the plugin
 
@@ -52,21 +42,6 @@ three directories. A skill's invocable name is its **directory name**,
 namespaced by the plugin's own name -- `skills/sbom-generate/` under
 plugin `pitloom` becomes `/pitloom:sbom-generate`, and likewise for the
 other two.
-
-## Using the Skills
-
-```text
-/pitloom:sbom-generate
-/pitloom:sbom-generate models/my-model.safetensors
-/pitloom:sbom-enrich
-/pitloom:sbom-validate
-```
-
-All three remain triggerable by natural language too (e.g. "generate an
-SBOM for this project"), the same as when installed standalone -- the
-plugin only adds the namespaced explicit path, useful when you want to be
-certain a skill runs, or want to pass a target path or file directly as
-an argument.
 
 ## Design notes
 

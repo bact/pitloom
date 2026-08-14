@@ -3,14 +3,41 @@
 ## Project context
 
 - SBOM generator targeting Python/Hatchling ecosystem, outputting SPDX 3 JSON-LD.
-- Design docs: `working-docs/design/`
+- Design docs: `working-docs/design/` -- future work, plans, sketches;
+  may be discarded, not yet built.
 - Implementation docs and progress reports: `working-docs/implementation/`
+  -- record of what WAS built: decisions made, why things are the way
+  they are, paths considered and rejected in service of something that
+  did get built, revisions. Not a user manual.
+- Rejected paths: `working-docs/archive/` -- evaluations of something
+  wholesale rejected, with nothing built from them (kept separate from
+  `implementation/` so they aren't mistaken for how something works).
 - Test fixtures: `tests/fixtures/README.md`
 - Private alpha, one developer. No backward compat needed yet.
 - `working-docs/` is internal notes only -- content can change without
   notice. The user-facing website (`docs/`) must never link into it, in
   any form (relative path, absolute GitHub URL, etc.). Reference a PR or
   issue number instead if a public pointer is needed.
+- **`working-docs/` file size**: soft limit ~400-500 lines, hard limit
+  ~800 lines (~30KB). Split before crossing it -- one topic per file, not
+  one file per topic-and-everything-about-it. A doc mixing what's shipped
+  and what's still planned is a split trigger on its own (shipped ->
+  `implementation/`, planned -> `design/`), independent of length.
+- **Naming and grouping**: kebab-case, topic-first filenames (e.g.
+  `hatchling-build-hook.md`). A `design/`+`implementation/` pair for the
+  same topic shares one base filename across the two directories, so the
+  pair is easy to find by name alone. If a topic outgrows that pair (3+
+  closely related files -- shared vocabulary, shared code-review
+  taxonomy, etc.), group them in a same-named subfolder (e.g.
+  `implementation/provenance/`) rather than growing filenames into
+  `topic-facet-subfacet.md` chains.
+- **Cross-linking**: every split or grouped file gets a "See also"
+  pointer near the top (before the main content) to its sibling file(s).
+  This is so a reader -- human or an AI agent that landed on one file via
+  grep/search -- finds the rest of the cluster in one hop, without
+  needing to open every file in the group to discover its shape. Smaller,
+  well-named, cross-linked files also mean an agent loads only the file
+  actually relevant to a question instead of scanning one large monolith.
 
 ### SBOM output
 

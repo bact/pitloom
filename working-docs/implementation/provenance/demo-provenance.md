@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 > **Historical, pre-Annotation.** This walkthrough predates the SPDX 3
 > Core `Annotation` provenance mechanism (see
 > [`annotation-provenance.md`](annotation-provenance.md) and
-> [`../design/metadata-provenance.md`](../design/metadata-provenance.md)
+> [`metadata-provenance.md`](metadata-provenance.md)
 > for the current design). The `comment` output shown below is still
 > produced (`[tool.pitloom.provenance] format = "both"`, the default), but
 > only under `detail = "full"` -- the current default, `detail =
@@ -285,5 +285,5 @@ process.
 
 For more information, see:
 
-- [metadata-provenance.md](../design/metadata-provenance.md)
-- [README.md](../../README.md)
+- [metadata-provenance.md](metadata-provenance.md)
+- [README.md](../../../README.md)

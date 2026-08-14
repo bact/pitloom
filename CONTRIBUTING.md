@@ -156,8 +156,8 @@ Internal, AI-agent-facing design and implementation notes live under
 [impl-summary]: working-docs/implementation/summary.md
 [roadmap-doc]: working-docs/design/roadmap.md
 [arch-doc]: working-docs/design/architecture-overview.md
-[surfaces-doc]: working-docs/design/adoption-surfaces.md
-[provenance-doc]: working-docs/design/metadata-provenance.md
+[surfaces-doc]: working-docs/implementation/adoption-surfaces.md
+[provenance-doc]: working-docs/implementation/provenance/metadata-provenance.md
 [release-doc]: working-docs/implementation/release-checklist.md
 
 ---

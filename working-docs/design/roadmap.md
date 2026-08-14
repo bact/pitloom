@@ -67,7 +67,7 @@ SPDX-License-Identifier: CC0-1.0
   `hasDeclaredLicense` and `hasConcludedLicense` are recorded alongside a
   generic `provenance/conflict/1` Annotation (reusable for any field, not
   license-specific). See
-  [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+  [annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
   G2 section. ([PR #121](https://github.com/bact/pitloom/pull/121))
   Remaining, narrower scope than "PEP 639 compliance" originally implied:
   `[project.license-files]` (the glob-list field for bundling multiple
@@ -78,7 +78,8 @@ SPDX-License-Identifier: CC0-1.0
 Pitloom's other surfaces (library API, CLI, Hatchling build hook, ML
 tracking SDK) all assume the consumer already has Pitloom installed or
 wired into a build backend. These two extend reach beyond that. See
-[adoption-surfaces.md](adoption-surfaces.md) for the full picture.
+[adoption-surfaces.md](../implementation/adoption-surfaces.md) for the
+full picture.
 
 - [x] **GitHub Action** (composite `action.yml`) -- generate an SBOM in CI
   with a single `uses:` line, for any Python project regardless of build
@@ -145,7 +146,7 @@ wired into a build backend. These two extend reach beyond that. See
   `[tool.pitloom] enrich` (**default off** -- opt-in until more
   sources ship). Not to be confused with the agent-facing `sbom-enrich`
   *Skill* above -- this is code-level, deterministic, non-agent. Also
-  what [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+  what [annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
   N3 ("who/when enriched") needed to exist first -- now shipped too, see
   its own entry there.
   Exposed as a first-class capability across every generation surface,

@@ -248,8 +248,8 @@ Python build backend, not just Hatchling:
 - uses: bact/pitloom@v0.14.1
 ```
 
-See [working-docs/implementation/github-action.md](working-docs/implementation/github-action.md)
-for inputs, outputs, and more recipes.
+See [docs/github-action.md](docs/github-action.md) for inputs, outputs,
+and more recipes.
 
 ### Use Pitloom as an AI-agent skill
 
@@ -282,9 +282,7 @@ second -- `sbom-enrich` needs a Pitloom-generated SBOM to already exist:
 ```
 
 See [docs/agent-skills.md](docs/agent-skills.md) for a walkthrough of all
-three skills, or
-[working-docs/implementation/agent-skill.md](working-docs/implementation/agent-skill.md)
-for full install instructions.
+three skills and full install instructions.
 
 ### Use Pitloom as a Claude Code plugin
 
@@ -300,9 +298,7 @@ Once installed, all three Skills are namespaced under the plugin:
 `/pitloom:sbom-generate [target]`, `/pitloom:sbom-enrich [sbom-file]`,
 and `/pitloom:sbom-validate [sbom-file]` (or just ask in plain
 language -- natural-language triggering works the same as standalone
-Skills). See
-[docs/claude-code-plugin.md](docs/claude-code-plugin.md) or
-[working-docs/implementation/claude-code-plugin.md](working-docs/implementation/claude-code-plugin.md)
+Skills). See [docs/claude-code-plugin.md](docs/claude-code-plugin.md)
 for what the plugin bundles.
 
 ## Example

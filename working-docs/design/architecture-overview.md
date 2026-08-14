@@ -234,7 +234,7 @@ A Hatchling `BuildHookInterface` plugin that generates the SBOM automatically
 during `hatch build` or `python -m build` and embeds it in the wheel's
 `.dist-info/sboms/` directory per PEP 770. Users opt in by adding
 `pitloom` to `build-system.requires` and enabling `[tool.hatch.build.hooks.pitloom]`.
-See `working-docs/design/hatchling-build-hook.md`.
+See `working-docs/implementation/hatchling-build-hook.md`.
 
 #### 2. PEP 770 wheel embedding
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-13
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,6 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 **Status:** draft, parked for later review.
 This file exists so a human or an AI agent can pick the work
 back up later without re-deriving the research.
+
+See [working-docs/implementation/provenance/](../implementation/provenance/)
+for the shipped provenance mechanism this vocabulary describes
+(`annotation-provenance.md`, `metadata-provenance.md`, and siblings).
 
 **Origin:** user asked for a dedicated `docs/` (user-facing website) page
 consolidating pitloom's provenance/enrichment vocabulary, since it's
@@ -98,6 +102,34 @@ it). §1/§2 below and the drafted page content are updated to match.
      already-shipped provenance JSON (`comment` strings and `Annotation`
      `statement` payloads both encode literal values) -- not something to
      do casually even after this page ships.
+6. **CreationInfo future enhancements** (carried over from the old
+   `working-docs/design/metadata-provenance.md`, folded in here
+   2026-08-14 when that file's shipped content moved to
+   `working-docs/implementation/provenance/metadata-provenance.md`):
+   record when third-party tools (e.g. the `enrich` skill) augmented the
+   data; track validation steps and results. Neither is built.
+7. **Unbounded artifact-metadata-blob size** (same carry-over): artifact-
+   metadata preservation (`_source_metadata_blob()`/`_emit_source_metadata()`
+   in `src/pitloom/assemble/spdx3/ai.py`) embeds an AI model's raw
+   metadata verbatim, with no size cap, into a single `Annotation.statement`
+   -- fine for small test fixtures, but a real production model with a
+   large vocabulary (e.g. a GGUF LLM's 32K-128K+ token list) could inflate
+   a single Annotation into the multi-megabyte range. Not a spec
+   violation (SPDX 3.0.1's `statement` is plain `xsd:string`, no
+   spec-mandated limit), but an untested scalability gap. Whether to drop
+   oversized fields entirely, truncate with a marker, or move to an
+   external reference is still undecided.
+8. **`Method` vs. `Role` as separate keys, flagged 2026-08-14 for
+   dedicated human review**: the 2026-08-13 fix (see "Already applied"
+   above) resolved the specific bug where `sbomAuthorSupplied` was
+   wrongly emitted via the `method` slot, by making `role` a first-class
+   key alongside `method`. That fixed the immediate overload, but the
+   user has explicitly asked to separately review whether `Method`/`Role`
+   as two distinct keys is the right split at all (naming, whether they
+   should be one key, whether other values are similarly misplaced) --
+   broader than item 5's casing question, and not yet started. Do this as
+   part of the same deferred vocabulary-review pass, not a quick
+   drive-by fix.
 
 ## Full inventory (from the `Explore` agent's repo-wide research)
 
@@ -147,7 +179,7 @@ Defined once, canonically, as the `ConflictCandidate.role` docstring in
 `src/pitloom/assemble/spdx3/provenance.py:369-397`, and reused for
 `EnrichedFieldEntry.role` (`provenance.py:443-459`) and
 `EnrichedField.role` (`src/pitloom/enrich/base.py:42-48`). Fuller prose
-in `working-docs/implementation/annotation-provenance.md:818-931`.
+in `working-docs/implementation/provenance/annotation-provenance.md:818-931`.
 
 | `role` value | Meaning | Actually implemented in `src/`? |
 | --- | --- | --- |
@@ -175,7 +207,7 @@ Every Annotation Pitloom builds uses `spdx3.AnnotationType.other`
 
 Four distinct `statement` JSON shapes (all `contentType:
 application/json`), each with a `"schema"` URL and matching `"kind"`
-string (convention: `working-docs/implementation/annotation-provenance.md:691-713`):
+string (convention: `working-docs/implementation/provenance/annotation-provenance.md:691-713`):
 
 | kind / schema URL | Builder function | Purpose | Source |
 | --- | --- | --- | --- |
@@ -190,9 +222,12 @@ string (convention: `working-docs/implementation/annotation-provenance.md:691-71
 (`.../provenance/fields/1`) -- this specific fix is the one already
 applied outside this deferral (see "Already applied" above). The bare
 URL is still visible as stale in
-`working-docs/implementation/annotation-provenance.md:169,214,332,472,498`
-and `working-docs/design/metadata-provenance.md:59` -- out of scope for
-a user-facing fix but worth a note if those working docs get revisited.
+`working-docs/implementation/provenance/annotation-provenance.md:169,214,332,472,498`
+-- out of scope for a user-facing fix but worth a note if that working
+doc gets revisited. (The former `working-docs/design/metadata-provenance.md:59`
+occurrence was fixed when that file's shipped content moved to
+`working-docs/implementation/provenance/metadata-provenance.md` on
+2026-08-14.)
 
 Distinct from the in-statement `schema` URL: the short config
 `[tool.pitloom.provenance] schema` id (`"pitloom/1"`,
@@ -203,7 +238,7 @@ the *encoder version*; the long URL says *which annotation kind*.
 Internal design-doc taxonomy codes G1-G4 (Generation), A1/A2
 (Aggregation), E1/E2 (Enrichment), P1 (Preservation), N1-N3
 (native-first backfill) are working-docs shorthand
-(`working-docs/implementation/annotation-provenance.md:715-1098`) for
+(`working-docs/implementation/provenance/annotation-provenance.md:715-1098`) for
 which mechanism above serves which use case -- not literal emitted
 strings, not vocabulary for a user-facing page.
 
@@ -240,7 +275,7 @@ Only `trainedOn`/`testedOn` are actually produced today
 
 No confidence-score or evidence-type controlled vocabulary exists.
 Pitloom's detector has no confidence score today (explicitly noted as a
-limitation at `working-docs/implementation/annotation-provenance.md:921-929`).
+limitation at `working-docs/implementation/provenance/annotation-provenance.md:921-929`).
 
 ### 5. Minimum-elements vocabulary
 
@@ -271,11 +306,11 @@ supersedes NTIA), `G7 SBOM for AI 2026` (additive, only when an
 | `docs/metadata-provenance.md` | User-facing: `method` table (7 of 11 real values -- misses 4, has 1 stale), the 4-of-5 implemented-looking roles section, `conflict` schema example, `[tool.pitloom.provenance]` config table |
 | `docs/creation-metadata.md` | CreationInfo who/what/when/how model -- background context, relevant for the N3 (enrichment CreationInfo) cross-link |
 | `docs/configuration.md:53-57` | A **different, unrelated** `method` vocabulary -- `--content-type-method` (`"auto"`/`"magika"`/`"extension"`), which resolves to the `magika_content_detection`/`extension_guess` provenance `method` strings at runtime |
-| `working-docs/implementation/annotation-provenance.md` | Canonical design rationale: full role vocabulary (§818-931), schema-envelope convention (§691-713), G1-G4/A1/A2/E1/E2/P1/N1-N3 taxonomy, statement examples |
-| `working-docs/implementation/annotation-provenance-full-plan.md` | Earlier/fuller planning doc, same taxonomy, older shape (`event:` key vs. shipped `kind:` in some examples -- lines 256/263/316) |
-| `working-docs/implementation/demo-provenance.md` | Worked CLI walkthrough reusing the same method strings |
-| `working-docs/implementation/phase2-native-backfill-handover.md:28` | One-line pointer into `annotation-provenance.md`'s taxonomy |
-| `working-docs/design/metadata-provenance.md` | Older/parallel version of `docs/metadata-provenance.md`'s content, same stale `.../provenance/1` schema URL |
+| `working-docs/implementation/provenance/annotation-provenance.md` | Canonical design rationale: full role vocabulary (§818-931), schema-envelope convention (§691-713), G1-G4/A1/A2/E1/E2/P1/N1-N3 taxonomy, statement examples |
+| `working-docs/implementation/provenance/annotation-provenance-full-plan.md` | Earlier/fuller planning doc, same taxonomy, older shape (`event:` key vs. shipped `kind:` in some examples -- lines 256/263/316) |
+| `working-docs/implementation/provenance/demo-provenance.md` | Worked CLI walkthrough reusing the same method strings |
+| `working-docs/implementation/provenance/phase2-native-backfill-handover.md:28` | One-line pointer into `annotation-provenance.md`'s taxonomy |
+| `working-docs/implementation/provenance/metadata-provenance.md` | Implementation-register version of `docs/metadata-provenance.md`'s content (moved here 2026-08-14 from `working-docs/design/metadata-provenance.md`, which no longer exists as a separate file); schema URL already fixed |
 | `working-docs/design/sbom-enrichment.md` | Source of truth for the dataset-relationship role table (§4), enrichment data-source table, "five-role provenance vocabulary" cross-reference |
 | `working-docs/design/model-metadata-extraction.md` | No relevant content (checked, zero hits) |
 | `skills/sbom-enrich/SKILL.md` | Agent-facing use of `Role: inferred` / `Role: sbomAuthorSupplied` (fixed from `Method:` 2026-08-13), the role-decision rule, minimum-elements workflow |

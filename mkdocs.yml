@@ -18,6 +18,7 @@ watch:
 nav:
   - Home: index.md
   - Command line: cli.md
+  - AI model formats: ai-model-formats.md
   - Python API:
       - Guide: python-api.md
       - API reference: api.md
@@ -26,6 +27,7 @@ nav:
   - Agent Skills: agent-skills.md
   - Claude Code plugin: claude-code-plugin.md
   - Reference:
+      - Configuration: configuration.md
       - Creation metadata: creation-metadata.md
       - Metadata provenance: metadata-provenance.md
       - Resources: resources.md

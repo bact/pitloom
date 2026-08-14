@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -80,7 +80,8 @@ generate_project_sbom(
 `pitloom.assemble` also exposes `generate_wheel_sbom()`,
 `generate_model_sbom()`, and `generate_env_sbom()` -- the same target
 kinds the [CLI](cli.md)'s `loom wheel` / `loom model` / `loom env`
-subcommands cover.
+subcommands cover. See [AI model formats](ai-model-formats.md) for what
+`generate_model_sbom()` accepts.
 
 ### Config
 
@@ -186,3 +187,5 @@ both creator and tool). See [Creation metadata](creation-metadata.md).
 - [Creation metadata](creation-metadata.md) and [Metadata
   provenance](metadata-provenance.md) -- the record every generated
   element carries.
+- [AI model formats](ai-model-formats.md) -- every format
+  `generate_model_sbom()` supports.

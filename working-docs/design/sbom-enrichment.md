@@ -206,7 +206,7 @@ dependency is actually *for*, or a `trainedOn`/`testedOn` dataset
 relationship implied by a paragraph rather than a machine-readable field.
 
 This is documented and enabled today via the `skills/sbom-enrich/` Skill
-(see [adoption-surfaces.md](adoption-surfaces.md) and
+(see [adoption-surfaces.md](../implementation/adoption-surfaces.md) and
 [agent-skill.md](../implementation/agent-skill.md) for the surfaces this
 builds on); it does not require new code inside Pitloom core. The Skill
 runs the deterministic `loom enrich` pass first (see "Surfaces" above),
@@ -241,16 +241,16 @@ third-party fragment producers (see
    fragment into the final SBOM.
 
 Every inferred field carries a provenance marker in its `comment` --
-`Source: <agent name> (<vendor>) | Method: inference | Date: <ISO 8601
+`Source: <agent name> (<vendor>) | Role: inferred | Date: <ISO 8601
 date>` when the agent knows its own identity, else the generic `Source:
-AI agent | Method: inference` -- reusing the same `role: "inferred"`
+AI agent | Role: inferred` -- reusing the same `role: "inferred"`
 provenance convention documented in
-[metadata-provenance.md](metadata-provenance.md) and in
-[annotation-provenance.md](../implementation/annotation-provenance.md)'s
+[metadata-provenance.md](../implementation/provenance/metadata-provenance.md) and in
+[annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
 G2 role vocabulary, so agent-derived content is always distinguishable
 from Pitloom's own extraction and from other configured enrichment
 sources. This keeps the result auditable: a reviewer can grep for `AI
-agent` or `Method: inference` in the SBOM to see exactly what was
+agent` or `Role: inferred` in the SBOM to see exactly what was
 inferred rather than extracted.
 
 See `skills/sbom-enrich/SKILL.md` and
@@ -295,7 +295,7 @@ fact?**
    on our internal support-ticket corpus"). Role is `sbomAuthorSupplied`,
    not `inferred` -- the agent didn't derive it, it relayed what it was
    told, and Pitloom can no more verify it than a `declared` value. See
-   [annotation-provenance.md](../implementation/annotation-provenance.md)'s
+   [annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
    role vocabulary for the full definition; the same role also covers a
    value passed via CLI flag or `[tool.pitloom]` config, since both are
    the SBOM author asserting a value directly, just through a different
