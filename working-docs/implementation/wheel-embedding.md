@@ -91,4 +91,6 @@ The implementation is verified across two layers:
      installs the wheel cleanly.
 2. **SPDX 3 SBOM validation**:
    - **`spdx3-validate`**: Verifies that the embedded SPDX 3 JSON-LD SBOM
-     conforms to SPDX 3.0.1 ontology and schema.
+     conforms to SPDX 3.0.1 ontology and schema (or any SPDX 3 version
+     as specified/detected and agreed with the user's intention at the
+     generation time)

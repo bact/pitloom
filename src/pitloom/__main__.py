@@ -982,14 +982,18 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             else False
         )
 
-        output_path = args.output or (
+        embed = getattr(args, "embed", False)
+        # With --embed, only write a standalone copy if the user explicitly
+        # asked for one via -o; embedding into the wheel is the primary
+        # output and shouldn't also litter cwd with a same-named file.
+        output_path = args.output if embed else args.output or (
             Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}"
         )
 
         if args.verbose:
             print(f"Pitloom version : {__version__}")
             print(f"Wheel file      : {wheel_path}")
-            print(f"Output path     : {output_path}")
+            print(f"Output path     : {output_path or '(embedded only)'}")
 
         sbom_json = generate_wheel_sbom(
             wheel_path,
@@ -1001,7 +1005,7 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
             offline=args.offline or None,
         )
 
-        if getattr(args, "embed", False):
+        if embed:
             _, arcname = embed_sbom_in_wheel(wheel_path, sbom_json)
             print(f"pitloom: embedded {arcname} into {wheel_path.name}")
 
