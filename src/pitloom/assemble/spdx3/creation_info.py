@@ -227,7 +227,9 @@ def build_creation_info(
         )
     else:
         epoch_dt = resolve_source_date_epoch()
-        created = to_spdx3_datetime(epoch_dt) if epoch_dt is not None else spdx3_utc_now()
+        created = (
+            to_spdx3_datetime(epoch_dt) if epoch_dt is not None else spdx3_utc_now()
+        )
     spdx_ci = spdx3.CreationInfo(specVersion="3.0.1", created=created)
 
     comment = (

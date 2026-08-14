@@ -1018,8 +1018,8 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         )
 
         if embed:
-            _, arcname, removed = embed_sbom_in_wheel(wheel_path, sbom_json)
-            _report_embed_result(arcname, wheel_path.name, removed)
+            _, arcname, removed, floored = embed_sbom_in_wheel(wheel_path, sbom_json)
+            _report_embed_result(arcname, wheel_path.name, removed, floored)
 
         return 0
 
@@ -1030,8 +1030,13 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         return 1
 
 
-def _report_embed_result(arcname: str, wheel_name: str, removed: tuple[str, ...]) -> None:
-    """Print the embed confirmation, plus one line per stale SBOM cleaned up.
+def _report_embed_result(
+    arcname: str,
+    wheel_name: str,
+    removed: tuple[str, ...],
+    timestamp_floored: bool = False,
+) -> None:
+    """Print the embed confirmation, plus one line per notable side effect.
 
     Shared by ``wheel --embed`` and ``embed-wheel`` so both report results
     identically -- see :func:`_run_wheel_mode`/:func:`_run_embed_wheel_mode`.
@@ -1039,6 +1044,12 @@ def _report_embed_result(arcname: str, wheel_name: str, removed: tuple[str, ...]
     print(f"pitloom: embedded {arcname} into {wheel_name}")
     for stale_arcname in removed:
         print(f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}")
+    if timestamp_floored:
+        print(
+            f"INFO: {wheel_name}'s embedded SBOM entry timestamp was before "
+            "1980 and was floored to 1980-01-01 (ZIP format limitation); "
+            "the SBOM's own 'created' field keeps the true value"
+        )
 
 
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
@@ -1126,7 +1137,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
 
         for wheel_path in unique_wheels:
             output_path = args.output if len(unique_wheels) == 1 else None
-            _, arcname, _, removed = embed_wheel_sbom(
+            _, arcname, _, removed, floored = embed_wheel_sbom(
                 wheel_path,
                 project_dir=project_dir,
                 sbom_path=args.sbom,
@@ -1140,7 +1151,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
                 content_type_method=args.content_type_method,
                 offline=args.offline or None,
             )
-            _report_embed_result(arcname, wheel_path.name, removed)
+            _report_embed_result(arcname, wheel_path.name, removed, floored)
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught

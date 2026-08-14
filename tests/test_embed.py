@@ -126,7 +126,7 @@ def test_embed_sbom_in_wheel_minimal(tmp_path: Path) -> None:
     """Test embedding an SBOM into a minimal wheel."""
     wheel_path = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0")
 
-    res_path, arcname, _ = embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+    res_path, arcname, _, _ = embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
     assert res_path == wheel_path
     assert arcname == "demo_pkg-1.0.0.dist-info/sboms/demo_pkg-1.0.0.spdx3.json"
 
@@ -173,7 +173,7 @@ def test_embed_sbom_in_wheel_custom_filename(tmp_path: Path) -> None:
     """Test embedding with custom sbom_filename."""
     wheel_path = _make_dummy_wheel(tmp_path, "my_app", "2.1.0")
 
-    _, arcname, _ = embed_sbom_in_wheel(
+    _, arcname, _, _ = embed_sbom_in_wheel(
         wheel_path,
         _SAMPLE_SPDX3_JSON,
         sbom_filename="custom_sbom.spdx3.json",
@@ -239,7 +239,7 @@ def test_embed_wheel_sbom_with_pregenerated_sbom(tmp_path: Path) -> None:
     sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
     out_file = tmp_path / "extracted_sbom.json"
 
-    res_path, arcname, sbom_json, _ = embed_wheel_sbom(
+    res_path, arcname, sbom_json, _, _ = embed_wheel_sbom(
         wheel_path,
         sbom_path=sbom_file,
         output_path=out_file,
@@ -263,7 +263,7 @@ def test_embed_wheel_sbom_with_project_fixture(tmp_path: Path) -> None:
 
     wheel_path = _make_dummy_wheel(tmp_path, "sampleproject_hatchling", "0.1.0")
 
-    res_path, arcname, sbom_json, _ = embed_wheel_sbom(
+    res_path, arcname, sbom_json, _, _ = embed_wheel_sbom(
         wheel_path,
         project_dir=fixture_dir,
     )
@@ -358,7 +358,7 @@ def test_validate_sbom_filename_edge_cases() -> None:
 def test_embed_wheel_sbom_basename_with_extension_normalized(tmp_path: Path) -> None:
     """Test custom basename already ending with .spdx3.json avoids double extension."""
     wheel_path = _make_dummy_wheel(tmp_path, "extpkg", "1.0.0")
-    _, arcname, _, _ = embed_wheel_sbom(
+    _, arcname, _, _, _ = embed_wheel_sbom(
         wheel_path,
         sbom_basename="custom.spdx3.json",
     )
@@ -466,7 +466,7 @@ type = "person"
     assert __main__.main() == 0
 
     # Run via Python API
-    _, arcname_api, sbom_json_api, _ = embed_wheel_sbom(w_api)
+    _, arcname_api, sbom_json_api, _, _ = embed_wheel_sbom(w_api)
 
     # Compare embedded SBOM contents
     with zipfile.ZipFile(w_cli, "r") as z_cli, zipfile.ZipFile(w_api, "r") as z_api:
@@ -517,22 +517,34 @@ def test_resolve_zip_timestamp_branches(monkeypatch: pytest.MonkeyPatch) -> None
     """Test _resolve_zip_timestamp under various invalid/fallback conditions."""
     # Invalid string in SOURCE_DATE_EPOCH
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
-    ts = _resolve_zip_timestamp(fallback=(1990, 5, 1, 12, 0, 0))
+    ts, floored = _resolve_zip_timestamp(fallback=(1990, 5, 1, 12, 0, 0))
     assert ts == (1990, 5, 1, 12, 0, 0)
+    assert floored is False
 
     # Overflow in SOURCE_DATE_EPOCH
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "99999999999999999999999999999999999")
-    ts_overflow = _resolve_zip_timestamp(fallback=(1995, 1, 1, 0, 0, 0))
+    ts_overflow, floored_overflow = _resolve_zip_timestamp(
+        fallback=(1995, 1, 1, 0, 0, 0)
+    )
     assert ts_overflow == (1995, 1, 1, 0, 0, 0)
+    assert floored_overflow is False
 
     # Fallback with year < 1980 clamped to 1980
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
-    ts_clamped = _resolve_zip_timestamp(fallback=(1970, 1, 1, 0, 0, 0))
+    ts_clamped, floored_clamped = _resolve_zip_timestamp(fallback=(1970, 1, 1, 0, 0, 0))
     assert ts_clamped == (1980, 1, 1, 0, 0, 0)
+    assert floored_clamped is True
 
     # Fallback None uses current time
-    ts_now = _resolve_zip_timestamp(fallback=None)
+    ts_now, floored_now = _resolve_zip_timestamp(fallback=None)
     assert ts_now[0] >= 2026
+    assert floored_now is False
+
+    # SOURCE_DATE_EPOCH itself before 1980 (e.g. SOURCE_DATE_EPOCH=0) is floored
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "0")
+    ts_epoch_floored, floored_epoch = _resolve_zip_timestamp()
+    assert ts_epoch_floored == (1980, 1, 1, 0, 0, 0)
+    assert floored_epoch is True
 
 
 def test_update_record_lines_empty_rows() -> None:

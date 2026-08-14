@@ -41,7 +41,26 @@ from pitloom.ids import IdRegistry, resolve_registry
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
-_ZIP_EPOCH_FLOOR = datetime(1980, 1, 1, tzinfo=timezone.utc)  # earliest zipfile supports
+
+#: Two different epoch floors are in play here, from unrelated conventions:
+#: - Unix time (what ``SOURCE_DATE_EPOCH`` counts from) starts 1970-01-01 --
+#:   ``SOURCE_DATE_EPOCH=0`` is a legitimate, deliberately-chosen value (some
+#:   build systems use it as a fixed "don't care, just be deterministic"
+#:   placeholder), not an error.
+#: - The ZIP format's per-entry timestamp field (DOS date/time, inherited
+#:   from MS-DOS's own timestamp format) can only represent 1980-01-01
+#:   onward -- a binary format limitation, unrelated to Unix time or to
+#:   what date is semantically correct.
+#: A `SOURCE_DATE_EPOCH` between these two floors (or an unset entry with
+#: no fallback, defaulting to the Unix epoch) is valid Unix time but not
+#: representable in a ZIP entry, so it must be floored to 1980-01-01 for
+#: the archive entry specifically -- see :func:`_resolve_zip_timestamp`.
+#: The embedded SBOM's own ``created`` field has no such constraint (plain
+#: JSON/ISO 8601) and is never floored, so the two can legitimately diverge;
+#: callers surface this via the ``floored`` return value rather than
+#: silently rewriting the SBOM's stated creation date to match the ZIP
+#: format's limitation -- see :func:`~pitloom.core.creation.CreationMetadata`.
+_ZIP_EPOCH_FLOOR = datetime(1980, 1, 1, tzinfo=timezone.utc)
 
 
 def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
@@ -75,25 +94,38 @@ def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
 
 def _resolve_zip_timestamp(
     fallback: tuple[int, int, int, int, int, int] | None = None,
-) -> tuple[int, int, int, int, int, int]:
-    """Resolve entry timestamp respecting SOURCE_DATE_EPOCH if set."""
+) -> tuple[tuple[int, int, int, int, int, int], bool]:
+    """Resolve entry timestamp respecting SOURCE_DATE_EPOCH if set.
+
+    Returns ``(timestamp, floored)`` -- ``floored`` is ``True`` when the
+    resolved value was below ``_ZIP_EPOCH_FLOOR`` and had to be bumped up
+    to it, since the ZIP format (unlike the SBOM's own JSON ``created``
+    field) cannot represent a pre-1980 date. Most commonly triggered by
+    ``SOURCE_DATE_EPOCH=0``, a common reproducible-builds convention for
+    "pin to a fixed placeholder" -- callers should surface ``floored`` to
+    the user, since it means the embedded SBOM's stated ``created`` and
+    the wheel archive's own entry timestamp now silently diverge.
+    """
     epoch_dt = resolve_source_date_epoch()
     if epoch_dt is not None:
         clamped = max(epoch_dt, _ZIP_EPOCH_FLOOR)
         return (
-            clamped.year,
-            clamped.month,
-            clamped.day,
-            clamped.hour,
-            clamped.minute,
-            clamped.second,
+            (
+                clamped.year,
+                clamped.month,
+                clamped.day,
+                clamped.hour,
+                clamped.minute,
+                clamped.second,
+            ),
+            clamped != epoch_dt,
         )
     if fallback is not None:
         if fallback[0] >= 1980:
-            return fallback
-        return (1980, 1, 1, 0, 0, 0)
+            return fallback, False
+        return (1980, 1, 1, 0, 0, 0), True
     now = datetime.now(timezone.utc)
-    return (now.year, now.month, now.day, now.hour, now.minute, now.second)
+    return (now.year, now.month, now.day, now.hour, now.minute, now.second), False
 
 
 def _calculate_record_hash(content: bytes) -> str:
@@ -174,7 +206,7 @@ def embed_sbom_in_wheel(
     sbom_content: str | bytes,
     *,
     sbom_filename: str | None = None,
-) -> tuple[Path, str, tuple[str, ...]]:
+) -> tuple[Path, str, tuple[str, ...], bool]:
     """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
 
     Args:
@@ -184,12 +216,16 @@ def embed_sbom_in_wheel(
             Defaults to '<name>-<version>.spdx3.json' read from wheel metadata.
 
     Returns:
-        A tuple of (wheel_path, embedded_arcname, removed_arcnames).
-        ``embedded_arcname`` is the relative path inside the wheel (e.g.
-        'pkg-1.0.dist-info/sboms/pkg-1.0.spdx3.json'). ``removed_arcnames``
-        lists any prior Pitloom-embedded SBOM entries (under a different
-        filename) that were cleaned up as part of this embed -- see
-        :func:`_looks_like_pitloom_sbom`.
+        A tuple of (wheel_path, embedded_arcname, removed_arcnames,
+        zip_timestamp_floored). ``embedded_arcname`` is the relative path
+        inside the wheel (e.g. 'pkg-1.0.dist-info/sboms/pkg-1.0.spdx3.json').
+        ``removed_arcnames`` lists any prior Pitloom-embedded SBOM entries
+        (under a different filename) that were cleaned up as part of this
+        embed -- see :func:`_looks_like_pitloom_sbom`. ``zip_timestamp_floored``
+        is ``True`` when the resolved entry timestamp was before 1980 and
+        had to be bumped up to the ZIP format's floor -- see
+        :func:`_resolve_zip_timestamp`; the embedded SBOM's own ``created``
+        is unaffected and keeps the true (possibly pre-1980) value.
 
     Raises:
         ValueError: If the wheel archive has no valid .dist-info directory.
@@ -246,7 +282,7 @@ def embed_sbom_in_wheel(
         )
         new_record_bytes = new_record_text.encode("utf-8")
 
-        timestamp = _resolve_zip_timestamp(
+        timestamp, timestamp_floored = _resolve_zip_timestamp(
             record_info.date_time if record_info else None
         )
         _rewrite_wheel_archive(
@@ -260,7 +296,7 @@ def embed_sbom_in_wheel(
             stale_arcnames,
         )
 
-    return wheel_obj, sbom_arcname, tuple(sorted(stale_arcnames))
+    return wheel_obj, sbom_arcname, tuple(sorted(stale_arcnames)), timestamp_floored
 
 
 _INVALID_FILENAME_CHARS = frozenset({"/", "\\", "\x00"})
@@ -412,7 +448,7 @@ def embed_wheel_sbom(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
-) -> tuple[Path, str, str, tuple[str, ...]]:
+) -> tuple[Path, str, str, tuple[str, ...], bool]:
     """Generate and embed a PEP 770 SBOM into a built Python wheel.
 
     Args:
@@ -433,7 +469,8 @@ def embed_wheel_sbom(
 
     Returns:
         Tuple of (modified_wheel_path, embedded_arcname, sbom_json_string,
-        removed_arcnames) -- see :func:`embed_sbom_in_wheel`.
+        removed_arcnames, zip_timestamp_floored) -- see
+        :func:`embed_sbom_in_wheel`.
     """
     wheel_obj = Path(wheel_path).resolve()
     wheel_metadata, _ = read_wheel(wheel_obj)
@@ -473,14 +510,14 @@ def embed_wheel_sbom(
     else:
         target_filename = None
 
-    res_path, arcname, removed_arcnames = embed_sbom_in_wheel(
+    res_path, arcname, removed_arcnames, timestamp_floored = embed_sbom_in_wheel(
         wheel_obj, sbom_json, sbom_filename=target_filename
     )
 
     if output_path is not None:
         Path(output_path).write_text(sbom_json, encoding="utf-8")
 
-    return res_path, arcname, sbom_json, removed_arcnames
+    return res_path, arcname, sbom_json, removed_arcnames, timestamp_floored
 
 
 def _resolve_project_root(project_dir: Path | str | None) -> Path | None:
