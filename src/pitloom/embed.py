@@ -14,6 +14,7 @@ import email
 import hashlib
 import io
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -38,6 +39,8 @@ from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
+
+log = logging.getLogger(__name__)
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
@@ -83,8 +86,8 @@ def _resolve_zip_timestamp(
             epoch = max(int(source_date_epoch), _ZIP_EPOCH_MIN)
             dt = datetime.fromtimestamp(epoch, tz=timezone.utc)
             return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
-        except (ValueError, OverflowError, OSError):
-            pass
+        except (ValueError, OverflowError, OSError) as exc:
+            log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
     if fallback is not None:
         if fallback[0] >= 1980:
             return fallback

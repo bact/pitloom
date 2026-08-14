@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-13
+# Last-Modified: 2026-08-14
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -21,7 +21,13 @@ description: >-
   Also triggers, with enrichment layered on top (see "Combine with
   enrichment" below), on "generate SBOM and enrich it", "give me a complete
   SBOM", "create an SBOM and fill in information as much as possible", and
-  "help me get a full SBOM".
+  "help me get a full SBOM". Also triggers on requests to embed an SBOM
+  directly into a built wheel per PEP 770 -- "embed the SBOM in this
+  wheel", "embed SBOM to the wheel", "embed SBOM to python wheel",
+  "embed-wheel", "add the SBOM to dist/*.whl", "put the SBOM in the
+  wheel", "create SBOM in the wheel", "create PEP 770 SBOM", "PEP 770
+  wheel embedding", and similar phrasings naming an SBOM together with a
+  wheel/PEP 770 -- see "Embed an SBOM into a wheel (PEP 770)" below.
 license: Apache-2.0
 argument-hint: "[target]"
 ---
@@ -101,6 +107,38 @@ loom env -o env.spdx3.json
 # 5. Fragment Merging
 loom merge .spdx3-fragments/ -o combined.spdx3.json
 ```
+
+## Embed an SBOM into a wheel (PEP 770)
+
+For a request to *embed* an SBOM into a built wheel rather than write it
+as a standalone file -- PEP 770's `.dist-info/sboms/` convention -- use
+`embed-wheel` instead of `wheel`:
+
+```bash
+loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
+loom embed-wheel dist/*.whl --project-dir .   # multiple wheels, Build SBOM
+```
+
+Or embed an already-generated SBOM file directly:
+
+```bash
+loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
+```
+
+Or embed directly on `loom wheel` for a single wheel's own Analyzed SBOM
+(no project-directory scanning):
+
+```bash
+loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
+```
+
+`embed-wheel` mutates the `.whl` archive in place (RECORD is updated to
+match); it works on any wheel regardless of build backend, since a wheel
+is just a ZIP archive -- unlike the Hatchling-specific build hook. See
+[`docs/cli.md`](https://github.com/bact/pitloom/blob/main/docs/cli.md)
+for the full flag reference, including `--output` (rejected when more
+than one wheel matches, since a single standalone copy would be
+ambiguous) and `--sbom-basename`.
 
 ## Useful flags
 

@@ -22,7 +22,9 @@ page -- it installs the exact same three `SKILL.md` files described here.
 Pitloom ships three Skills:
 
 - `sbom-generate` -- generates a base SBOM/AIBOM for a project, wheel, or
-  AI/ML model file.
+  AI/ML model file. Also embeds a generated (or pre-existing) SBOM
+  directly into a built wheel per PEP 770's `.dist-info/sboms/`
+  convention.
 - `sbom-enrich` -- reads a README or model card and contributes inferred
   detail (a license guess, a `trainedOn` dataset) back into an existing
   SBOM as a provenance-marked fragment; in an interactive session it can
@@ -101,6 +103,18 @@ line](cli.md) page). See
 for the full recipe set.
 
 [sbom-generate-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/examples.md
+
+### Embed an SBOM into a wheel (PEP 770)
+
+```text
+/sbom-generate .                                          # build the SBOM
+loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl    # embed it (or --sbom <file>)
+```
+
+Runs `loom embed-wheel` (or `loom wheel --embed` for a single wheel's own
+Analyzed SBOM, no project directory) under the hood, mutating the `.whl`
+archive in place and updating `RECORD` to match -- works on any wheel
+regardless of build backend, since a wheel is just a ZIP archive.
 
 ### Enrich an existing SBOM
 

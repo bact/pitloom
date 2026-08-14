@@ -966,7 +966,16 @@ def _run_project_mode(args: argparse.Namespace) -> int:
 
 
 def _run_wheel_mode(args: argparse.Namespace) -> int:
-    """Generate an Analyzed SBOM from a built wheel."""
+    """Generate an Analyzed SBOM from a built wheel.
+
+    ``--embed`` here is deliberately narrower than the ``embed-wheel``
+    command (see :func:`_run_embed_wheel_mode`): always the wheel's own
+    Analyzed SBOM, one wheel, no project-directory scanning. Both paths
+    converge on :func:`~pitloom.embed.embed_sbom_in_wheel` for the actual
+    archive mutation (RECORD update, stale-entry cleanup, atomic
+    rewrite), so a fix there benefits both without needing to be
+    duplicated -- only SBOM *content* generation differs by design.
+    """
     target: str = args.target
     try:
         wheel_path: Path = Path(target).resolve()
@@ -1010,8 +1019,7 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
 
         if embed:
             _, arcname, removed = embed_sbom_in_wheel(wheel_path, sbom_json)
-            print(f"pitloom: embedded {arcname} into {wheel_path.name}")
-            _print_removed_stale_sboms(removed, wheel_path.name)
+            _report_embed_result(arcname, wheel_path.name, removed)
 
         return 0
 
@@ -1022,10 +1030,15 @@ def _run_wheel_mode(args: argparse.Namespace) -> int:
         return 1
 
 
-def _print_removed_stale_sboms(removed: tuple[str, ...], wheel_name: str) -> None:
-    """Report any prior Pitloom-embedded SBOM entries cleaned up on re-embed."""
-    for arcname in removed:
-        print(f"INFO: removed stale SBOM {arcname} from {wheel_name}")
+def _report_embed_result(arcname: str, wheel_name: str, removed: tuple[str, ...]) -> None:
+    """Print the embed confirmation, plus one line per stale SBOM cleaned up.
+
+    Shared by ``wheel --embed`` and ``embed-wheel`` so both report results
+    identically -- see :func:`_run_wheel_mode`/:func:`_run_embed_wheel_mode`.
+    """
+    print(f"pitloom: embedded {arcname} into {wheel_name}")
+    for stale_arcname in removed:
+        print(f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}")
 
 
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
@@ -1066,7 +1079,14 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
 
 
 def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
-    """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770)."""
+    """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
+
+    The richer counterpart to ``wheel --embed`` (see :func:`_run_wheel_mode`):
+    supports multiple wheels, a project directory (Build-type SBOM), a
+    pre-generated ``--sbom`` file, and a custom ``--sbom-basename``. Both
+    commands converge on :func:`~pitloom.embed.embed_sbom_in_wheel` for
+    the actual archive mutation.
+    """
     try:
         unique_wheels = _collect_wheel_paths(args.wheel_files)
         if not unique_wheels:
@@ -1120,8 +1140,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
                 content_type_method=args.content_type_method,
                 offline=args.offline or None,
             )
-            print(f"pitloom: embedded {arcname} into {wheel_path.name}")
-            _print_removed_stale_sboms(removed, wheel_path.name)
+            _report_embed_result(arcname, wheel_path.name, removed)
         return 0
 
     except Exception as e:  # pylint: disable=broad-exception-caught
