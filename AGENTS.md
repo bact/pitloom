@@ -51,6 +51,11 @@
 - The CLI (`pitloom.__main__`) and `pitloom.assemble.generate_project_sbom()`'s default parsing path both resolve metadata/config from the project directory via the shared `pitloom.extract.project.read_project()` helper (`pyproject.toml` -> `setup.cfg`/`setup.py` -> error), so each parses its inputs once. The CLI passes its already-parsed `project_metadata`/`pitloom_config` into `generate_project_sbom()` so it never re-parses.
 - Both paths converge on the same `pitloom.assemble.spdx3.document.build()` assembly layer, so the emitted SBOM shape (file hashes, PURLs, licensing, etc.) is identical regardless of metadata source.
 
+## Design principles
+
+- **Honor user intent over silent fallbacks**: Do not implement implicit fallbacks that contradict the user's explicit instructions or command semantics (e.g. if the user specifies a standalone mode, do not silently parse a project directory).
+- **No silent deviations**: If Pitloom must deviate from the user's instruction to ensure correctness or safety, it must never do so silently. Always emit a clear `WARNING:` log or stderr message explaining what decision was made and why.
+
 ## CLI output
 
 Unix philosophy. Consistent, predictable, parseable.
@@ -95,6 +100,13 @@ Unix philosophy. Consistent, predictable, parseable.
 - `requires-python` must match actual min version.
 - Make packages zip-safe when possible.
 - Packaging metadata follows Core metadata spec: <https://packaging.python.org/en/latest/specifications/core-metadata/>
+
+## Cross-platform compatibility
+
+- Pitloom must work seamlessly across Windows, macOS, and Linux.
+- Be vigilant about OS differences: file locking semantics (e.g. Windows `PermissionError` when replacing or deleting an open file), path separators (`\` vs `/`), pipe behaviors, and filesystem case-sensitivity.
+- Always use `pathlib.Path` for file resolution and manipulation; never concatenate paths as strings.
+- Ensure automated tests run smoothly across platforms without leaving orphaned temporary files behind.
 
 ### Import order
 
@@ -199,6 +211,7 @@ a human or agent judge a doc's staleness without checking git history.
 ## Testing
 
 - Add tests for new behavior -- cover success, failure, edge cases.
+- **Bug fixes and regressions**: When fixing a bug, always add a regression test that fails without the fix and passes with it. Prove the bug is dead and ensure it stays dead.
 - Use pytest patterns, not `unittest.TestCase`.
 - `spec`/`autospec` when mocking.
 - `time_machine` for time-dependent tests.
