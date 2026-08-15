@@ -7,7 +7,12 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+
+log = logging.getLogger(__name__)
 
 #: Valid ``Creator.type`` values -- the SPDX 3 Agent subclass a creator maps
 #: onto is selected by one of these names.  ``"agent"`` is the generic base
@@ -103,7 +108,9 @@ class CreationMetadata:
             seconds). Pitloom preserves input precision internally and
             normalises to SPDX 3 DateTime (``YYYY-MM-DDThh:mm:ssZ``)
             only at export time.
-            When ``None`` the assembler uses the current UTC time.
+            When ``None``, the assembler falls back to ``SOURCE_DATE_EPOCH``
+            (reproducible-builds.org) if set, else the current UTC time --
+            see :func:`resolve_source_date_epoch`.
         creation_comment: Optional comment to include on the SPDX
             ``CreationInfo`` element.  Callers (CLI, Hatchling build hook)
             set this to a static description of the invocation channel,
@@ -122,4 +129,36 @@ class CreationMetadata:
     build_datetime: str | None = None
 
 
-__all__ = ["VALID_CREATOR_TYPES", "CreationMetadata", "Creator", "Tool"]
+def resolve_source_date_epoch() -> datetime | None:
+    """Read ``SOURCE_DATE_EPOCH`` as a UTC datetime, per reproducible-builds.org.
+
+    <https://reproducible-builds.org/specs/source-date-epoch/>: a single
+    environment variable the whole build toolchain honours for every
+    embedded timestamp, so an operator opts a build into reproducibility
+    once rather than configuring each tool individually. Shared by every
+    Pitloom timestamp that should respect it (SBOM ``created``, the
+    Hatchling build hook's ``builtTime``, embedded wheel ZIP entries) so
+    the parsing/validation rule -- and what counts as invalid -- stays in
+    one place.
+
+    Returns:
+        The resolved UTC datetime, or ``None`` when unset or invalid
+        (logged as a warning) -- callers fall back to their own default.
+    """
+    raw = os.environ.get("SOURCE_DATE_EPOCH")
+    if not raw:
+        return None
+    try:
+        return datetime.fromtimestamp(int(raw), tz=timezone.utc)
+    except (ValueError, OverflowError, OSError) as exc:
+        log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
+        return None
+
+
+__all__ = [
+    "VALID_CREATOR_TYPES",
+    "CreationMetadata",
+    "Creator",
+    "Tool",
+    "resolve_source_date_epoch",
+]

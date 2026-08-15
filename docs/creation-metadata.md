@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-09
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -54,7 +54,7 @@ explicit `creation_metadata=CreationMetadata(...)` to that call.
 | :--- | :--- | :--- |
 | `createdBy` (**≥1**) | *Who* created it | One or more **creators**: a person, organization, software agent, or generic agent for each one you name (`--creator-name`, repeatable); otherwise Pitloom itself, acting unattended (see below). |
 | `createdUsing` (0+) | *What* tool produced it | **Pitloom** by default, with a version summary; repeat `--creation-tool` for more than one. Suppress with `--no-creation-tool`. |
-| `created` (1) | *When* | `--creation-datetime` if set, else the current UTC time. |
+| `created` (1) | *When* | `--creation-datetime` if set, else [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/specs/source-date-epoch/) if set, else the current UTC time. |
 | `comment` (0-1) | *How* it was invoked | A short static note per channel (`Generated via Pitloom CLI`, `... Hatchling build hook`, `... loom SDK`), or your `--creation-comment`. |
 
 Pitloom's design distinguishes *who acted* from *what tool was used* --

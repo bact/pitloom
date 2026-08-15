@@ -10,6 +10,7 @@ import pytest
 
 from pitloom.core.config import (
     VALID_CONTENT_TYPE_METHODS,
+    PitloomConfig,
     _read_content_type_settings,
     _read_enrich_settings,
     _read_extract_file_header,
@@ -18,6 +19,7 @@ from pitloom.core.config import (
     _read_pitloom_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.creation import Creator, Tool
 
 # ---------------------------------------------------------------------------
 # _read_extract_file_header
@@ -278,3 +280,40 @@ def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
 
 def test_valid_content_type_methods_is_public() -> None:
     assert VALID_CONTENT_TYPE_METHODS == frozenset({"auto", "magika", "extension"})
+
+
+def test_pitloom_config_helper_properties() -> None:
+    """Test PitloomConfig properties convert scalar fields to model objects."""
+    cfg = PitloomConfig(
+        provenance_format="annotation",
+        provenance_schema="spdx3",
+        provenance_detail="full",
+        provenance_preserve_source_metadata="always",
+        content_type_enabled=True,
+        content_type_method="magika",
+        enrich_local=True,
+        creators=[Creator(name="Alice", type="person")],
+        tools=[Tool(name="Pitloom")],
+        creation_datetime="2026-08-14T00:00:00Z",
+        creation_comment="Test comment",
+    )
+
+    prov = cfg.provenance
+    assert prov.format == "annotation"
+    assert prov.schema == "spdx3"
+    assert prov.detail == "full"
+    assert prov.preserve_source_metadata == "always"
+
+    ct = cfg.content_type
+    assert ct.enabled is True
+    assert ct.method == "magika"
+
+    enrich = cfg.enrich
+    assert enrich.local is True
+
+    creation = cfg.creation_metadata
+    assert len(creation.creators) == 1
+    assert creation.creators[0].name == "Alice"
+    assert creation.tools is not None and len(creation.tools) == 1
+    assert creation.creation_datetime == "2026-08-14T00:00:00Z"
+    assert creation.creation_comment == "Test comment"

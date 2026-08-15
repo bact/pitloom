@@ -19,7 +19,12 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
 from pitloom.assemble.spdx3.provenance import EnrichedFieldEntry
-from pitloom.core.creation import VALID_CREATOR_TYPES, CreationMetadata, Tool
+from pitloom.core.creation import (
+    VALID_CREATOR_TYPES,
+    CreationMetadata,
+    Tool,
+    resolve_source_date_epoch,
+)
 from pitloom.core.models import build_pypi_purl, generate_spdx_id
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -205,17 +210,26 @@ def build_creation_info(
 ) -> tuple[spdx3.CreationInfo, list[spdx3.Agent], list[spdx3.Tool]]:
     """Assemble a ``CreationInfo`` plus its creator Agents and Tools.
 
-    ``created`` comes from ``creation_metadata.creation_datetime`` (normalised
-    to SPDX DateTime) or the current UTC time.  ``comment`` uses
-    ``creation_metadata.creation_comment`` if set, else *default_comment*.
-    The creator Agents go in ``createdBy`` and the Tools (when present) in
-    ``createdUsing``.
+    ``created`` priority: ``creation_metadata.creation_datetime`` (a
+    deliberate, explicit pin -- normalised to SPDX DateTime) if set, else
+    ``SOURCE_DATE_EPOCH`` (reproducible-builds.org, see
+    :func:`~pitloom.core.creation.resolve_source_date_epoch`) if set, else
+    the current UTC time -- an explicit per-SBOM pin is more specific than
+    the ambient, workspace-wide ``SOURCE_DATE_EPOCH`` signal, so it wins;
+    same priority order as the Hatchling build hook's ``builtTime``
+    resolution. ``comment`` uses ``creation_metadata.creation_comment`` if
+    set, else *default_comment*. The creator Agents go in ``createdBy`` and
+    the Tools (when present) in ``createdUsing``.
     """
-    created = (
-        to_spdx3_datetime(parse_iso_datetime(creation_metadata.creation_datetime))
-        if creation_metadata.creation_datetime
-        else spdx3_utc_now()
-    )
+    if creation_metadata.creation_datetime:
+        created = to_spdx3_datetime(
+            parse_iso_datetime(creation_metadata.creation_datetime)
+        )
+    else:
+        epoch_dt = resolve_source_date_epoch()
+        created = (
+            to_spdx3_datetime(epoch_dt) if epoch_dt is not None else spdx3_utc_now()
+        )
     spdx_ci = spdx3.CreationInfo(specVersion="3.0.1", created=created)
 
     comment = (

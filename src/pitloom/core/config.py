@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.content_type_config import ContentTypeConfig, ContentTypeOverride
-from pitloom.core.creation import Creator, Tool
+from pitloom.core.creation import CreationMetadata, Creator, Tool
 from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.provenance import ProvenanceConfig
 
@@ -220,6 +220,16 @@ class PitloomConfig:
     def enrich(self) -> EnrichConfig:
         """Return EnrichConfig constructed from current config settings."""
         return EnrichConfig(local=self.enrich_local)
+
+    @property
+    def creation_metadata(self) -> CreationMetadata:
+        """Return CreationMetadata constructed from current config settings."""
+        return CreationMetadata(
+            creators=self.creators,
+            tools=self.tools,
+            creation_datetime=self.creation_datetime,
+            creation_comment=self.creation_comment,
+        )
 
 
 def _check_moved_creation_keys(

@@ -23,7 +23,7 @@ from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.ids import IdRegistry
+from pitloom.ids import IdRegistry, resolve_registry
 
 #: loom.py is a standalone SDK invoked from ad hoc scripts/notebooks, not
 #: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
@@ -133,15 +133,7 @@ def _resolve_registry(
     logged and degrades to "no registry" rather than raising -- a missing or
     broken registry must never break a training/preprocessing run.
     """
-    if isinstance(registry, IdRegistry):
-        return registry
-    if registry is not None:
-        try:
-            return IdRegistry.load(Path(registry))
-        except (FileNotFoundError, ValueError, OSError) as exc:
-            log.warning("loom: could not load registry %s: %s", registry, exc)
-            return None
-    return IdRegistry.find()
+    return resolve_registry(Path.cwd(), registry)
 
 
 def _hash_and_registry_lookup(

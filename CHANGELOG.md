@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-13
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,9 +21,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `loom wheel --embed`, `loom embed-wheel`, and GitHub Action support for
+  embedding SPDX 3 SBOMs into Python wheels ([#148])
+
+### Changed
+
 - Reorganize project documentation ([#146])
 
+### Fixed
+
+- SBOM `created` now honours `SOURCE_DATE_EPOCH` (same priority as the
+  Hatchling build hook's `builtTime`) -- previously only the embedded
+  wheel's ZIP entry timestamp respected it, so a wheel embedded under a
+  reproducible-build environment still carried a different SBOM `created`
+  value on every rebuild, even with `SOURCE_DATE_EPOCH` set ([#148])
+
 [#146]: https://github.com/bact/pitloom/pull/146
+[#148]: https://github.com/bact/pitloom/pull/148
 
 ## [0.14.1] 2026-08-13
 

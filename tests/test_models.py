@@ -8,6 +8,8 @@
 import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from types import ModuleType
+from typing import cast
 
 import pytest
 from hatchling.builders.wheel import WheelBuilder
@@ -470,7 +472,7 @@ def test_get_wheel_files_content_type_method_magika_missing_raises_before_any_fi
     partway through a scan."""
     tagged_file, plain_file = _make_header_project(tmp_path)
     _patch_recurse(monkeypatch, tagged_file, plain_file)
-    monkeypatch.setitem(sys.modules, "magika", None)
+    monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
 
     recurse_calls: list[str] = []
 
@@ -497,7 +499,7 @@ def test_get_wheel_files_content_type_method_magika_missing_inert_when_detection
     gated by detection being on, same as everything else content-type."""
     tagged_file, plain_file = _make_header_project(tmp_path)
     _patch_recurse(monkeypatch, tagged_file, plain_file)
-    monkeypatch.setitem(sys.modules, "magika", None)
+    monkeypatch.setitem(sys.modules, "magika", cast(ModuleType, None))
 
     _root, files = get_wheel_files(tmp_path, content_type_method="magika")
 

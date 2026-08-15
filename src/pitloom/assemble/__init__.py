@@ -31,6 +31,7 @@ from pitloom.core.enrich_config import EnrichConfig
 from pitloom.core.models import compute_doc_uuid, get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
+from pitloom.embed import ConfigOverrides, embed_sbom_in_wheel, embed_wheel_sbom
 from pitloom.enrich import run_enrichers, run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
@@ -227,12 +228,8 @@ def generate_project_sbom(
         ai_models, effective_enrich_config, target_path
     )
 
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(search_root / registry)
-        if registry is not None
-        else resolve_registry(search_root, pitloom_config.ids_file)
+    resolved_registry = resolve_registry(
+        search_root, registry if registry is not None else pitloom_config.ids_file
     )
 
     doc = DocumentModel(
@@ -293,13 +290,7 @@ def generate_wheel_sbom(
     effective_offline = (
         _resolve_local_offline_default(cwd) if offline is None else offline
     )
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(cwd / registry)
-        if registry is not None
-        else resolve_registry(cwd, None)
-    )
+    resolved_registry = resolve_registry(cwd, registry)
 
     doc = DocumentModel(
         project=project_metadata,
@@ -379,13 +370,7 @@ def generate_model_sbom(
     else:
         model_path = Path(source)
         model = read_ai_model(model_path)
-        resolved_registry = (
-            registry
-            if isinstance(registry, IdRegistry)
-            else IdRegistry.load(Path(registry))
-            if registry is not None
-            else IdRegistry.find()
-        )
+        resolved_registry = resolve_registry(Path.cwd(), registry)
         entity_spdx_id = (
             resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
             if resolved_registry is not None
@@ -498,13 +483,7 @@ def enrich_model(
         if project_target is not None
         else None
     )
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(Path(registry))
-        if registry is not None
-        else IdRegistry.find()
-    )
+    resolved_registry = resolve_registry(Path.cwd(), registry)
     entity_spdx_id = (
         resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
         if resolved_registry is not None
@@ -553,13 +532,7 @@ def generate_env_sbom(
     effective_offline = (
         _resolve_local_offline_default(cwd) if offline is None else offline
     )
-    resolved_registry = (
-        registry
-        if isinstance(registry, IdRegistry)
-        else IdRegistry.load(cwd / registry)
-        if registry is not None
-        else resolve_registry(cwd, None)
-    )
+    resolved_registry = resolve_registry(cwd, registry)
 
     doc = DocumentModel(
         project=project_metadata,
@@ -699,7 +672,10 @@ def generate(
 
 
 __all__ = [
+    "ConfigOverrides",
     "ProvenanceConfig",
+    "embed_sbom_in_wheel",
+    "embed_wheel_sbom",
     "enrich_model",
     "generate",
     "generate_env_sbom",

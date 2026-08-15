@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -81,6 +81,9 @@ provenance](metadata-provenance.md).
 
 ## See also
 
-- [Command line](cli.md) -- generate an SBOM manually, outside a build.
+- [Command line](cli.md) -- generate an SBOM manually or post-process built
+  wheels with `loom embed-wheel`.
+- [GitHub Action](github-action.md) -- embed PEP 770 SBOMs in CI for any
+  build backend.
 - [Python API](python-api.md) -- the tracking decorator that produces the
   fragments this hook merges.
