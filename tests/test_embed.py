@@ -32,7 +32,6 @@ from pitloom.embed import (
     _build_sbom_standalone_wheel,
     _derive_wheel_sbom_filename,
     _find_dist_info_prefix,
-    _resolve_project_root,
     _resolve_zip_timestamp,
     _rewrite_wheel_archive,
     _update_record_lines,
@@ -467,7 +466,7 @@ type = "person"
     assert __main__.main() == 0
 
     # Run via Python API
-    _, arcname_api, sbom_json_api, _, _ = embed_wheel_sbom(w_api)
+    _, arcname_api, sbom_json_api, _, _ = embed_wheel_sbom(w_api, project_dir=tmp_path)
 
     # Compare embedded SBOM contents
     with zipfile.ZipFile(w_cli, "r") as z_cli, zipfile.ZipFile(w_api, "r") as z_api:
@@ -661,13 +660,6 @@ def test_rewrite_wheel_archive_temp_file_cleanup_on_error(
     assert not tmp_files
 
 
-def test_resolve_project_root_non_existent(tmp_path: Path) -> None:
-    """Test _resolve_project_root when non-existent path or empty directory."""
-    # Non-existent explicit project_dir falls back to checking cwd
-    res = _resolve_project_root(tmp_path / "does_not_exist")
-    assert res is None or res.exists()
-
-
 def test_apply_config_overrides_full() -> None:
     """Test _apply_config_overrides applies all CLI override parameters."""
     cfg = PitloomConfig()
@@ -760,7 +752,7 @@ def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:
     target_wheel = tmp_path / "new_target.whl"
 
     with zipfile.ZipFile(source_wheel, "r") as original_zf:
-        _rewrite_wheel_archive(
+        temp_path = _rewrite_wheel_archive(
             target_wheel,
             original_zf,
             "orig_mode_pkg-1.0.0.dist-info/sboms/sbom.spdx3.json",
@@ -769,7 +761,8 @@ def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:
             b"",
             (2026, 1, 1, 0, 0, 0),
         )
-    assert target_wheel.exists()
+    assert temp_path.exists()
+    temp_path.unlink()
 
 
 def test_cli_collect_wheel_paths_errors(
@@ -973,3 +966,41 @@ def test_cli_embed_wheel_project_dir_without_metadata(
     assert __main__.main() == 1
     err = capsys.readouterr().err
     assert "No pyproject.toml" in err
+
+
+def test_cli_wheel_embed_ignores_cwd_project(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Ensure loom wheel <wheel> --embed ignores cwd pyproject.toml."""
+    wheel_path = _make_dummy_wheel(tmp_path, "flagpkg", "1.0.0")
+
+    # Create a valid pyproject.toml in the cwd with pitloom config.
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "cwdpkg"
+version = "2.0.0"
+
+[tool.pitloom]
+creation-comment = "from-cwd"
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(wheel_path), "--embed"])
+
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+
+    with WheelFile.open(wheel_path) as wf:
+        wf.validate_record()
+
+    # Verify that the generated SBOM did NOT use the cwd's pyproject.toml
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        sbom_bytes = zf.read("flagpkg-1.0.0.dist-info/sboms/flagpkg-1.0.0.spdx3.json")
+        assert b"from-cwd" not in sbom_bytes

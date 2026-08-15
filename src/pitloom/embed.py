@@ -247,10 +247,12 @@ def embed_sbom_in_wheel(
     if not sbom_bytes.strip():
         raise ValueError("SBOM content cannot be empty")
 
+    orig_mode = wheel_obj.stat().st_mode if wheel_obj.exists() else None
+
     with zipfile.ZipFile(wheel_obj, "r") as original_zf:
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj)
         plan = _plan_embed(original_zf, dist_info, sbom_filename, sbom_bytes)
-        _rewrite_wheel_archive(
+        temp_path = _rewrite_wheel_archive(
             wheel_obj,
             original_zf,
             plan.sbom_arcname,
@@ -260,6 +262,17 @@ def embed_sbom_in_wheel(
             plan.timestamp,
             plan.stale_arcnames,
         )
+
+    try:
+        os.replace(temp_path, wheel_obj)
+        if orig_mode is not None:
+            try:
+                os.chmod(wheel_obj, orig_mode)
+            except OSError:
+                pass
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
     return (
         wheel_obj,
@@ -381,14 +394,13 @@ def _rewrite_wheel_archive(
     record_bytes: bytes,
     timestamp: tuple[int, int, int, int, int, int],
     stale_arcnames: frozenset[str] = frozenset(),
-) -> None:
-    """Write updated entries to a temporary file and atomically replace target.
+) -> Path:
+    """Write updated entries to a temporary file.
 
     ``stale_arcnames`` are dropped from the rewritten archive rather than
     copied through -- see :func:`_looks_like_pitloom_sbom`.
     """
     temp_dir = wheel_path.parent
-    orig_mode = wheel_path.stat().st_mode if wheel_path.exists() else None
     with tempfile.NamedTemporaryFile(
         dir=temp_dir,
         delete=False,
@@ -419,15 +431,11 @@ def _rewrite_wheel_archive(
             rec_info.external_attr = _DEFAULT_FILE_ATTR
             new_zf.writestr(rec_info, record_bytes)
 
-        os.replace(temp_path, wheel_path)
-        if orig_mode is not None:
-            try:
-                os.chmod(wheel_path, orig_mode)
-            except OSError:
-                pass
-    finally:
+        return temp_path
+    except Exception:
         if temp_path.exists():
             temp_path.unlink()
+        raise
 
 
 def _build_sbom_from_project_and_wheel(
@@ -487,10 +495,12 @@ class ConfigOverrides:
     offline: bool | None = None
 
 
+# pylint: disable=too-many-arguments
 def embed_wheel_sbom(
     wheel_path: Path | str,
     *,
     project_dir: Path | str | None = None,
+    pitloom_config: PitloomConfig | None = None,
     sbom_path: Path | str | None = None,
     output_path: Path | str | None = None,
     sbom_basename: str | None = None,
@@ -503,6 +513,8 @@ def embed_wheel_sbom(
     Args:
         wheel_path: Path to the target .whl file.
         project_dir: Optional source project root containing pyproject.toml.
+        project_metadata: Optional pre-parsed project metadata.
+        pitloom_config: Optional pre-parsed pitloom config.
         sbom_path: Optional path to a pre-generated SBOM to embed directly.
         output_path: Optional path to write a standalone copy of the SBOM.
         sbom_basename: Custom basename for the embedded SBOM file.
@@ -524,6 +536,7 @@ def embed_wheel_sbom(
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,
         project_dir=project_dir,
+        pitloom_config=pitloom_config,
         sbom_path=sbom_path,
         sbom_basename=sbom_basename,
         creation_metadata=creation_metadata,
@@ -546,10 +559,12 @@ def embed_wheel_sbom(
     return res_path, arcname, sbom_json, removed_arcnames, timestamp_floored
 
 
+# pylint: disable=too-many-arguments
 def _generate_embed_sbom_json(
     wheel_metadata: ProjectMetadata,
     *,
     project_dir: Path | str | None,
+    pitloom_config: PitloomConfig | None,
     sbom_path: Path | str | None,
     sbom_basename: str | None,
     creation_metadata: CreationMetadata | None,
@@ -565,8 +580,7 @@ def _generate_embed_sbom_json(
     if sbom_path is not None:
         return Path(sbom_path).read_text(encoding="utf-8"), sbom_basename
 
-    proj_root = _resolve_project_root(project_dir)
-    if proj_root is None:
+    if project_dir is None:
         sbom_json = _build_sbom_standalone_wheel(
             wheel_metadata,
             creation_metadata,
@@ -576,7 +590,12 @@ def _generate_embed_sbom_json(
         )
         return sbom_json, sbom_basename
 
-    _, cfg, _ = read_project(proj_root)
+    proj_root = Path(project_dir).resolve()
+    if pitloom_config is None:
+        _, cfg, _ = read_project(proj_root)
+    else:
+        cfg = pitloom_config
+
     cfg = _apply_config_overrides(cfg, overrides)
     eff_registry = registry if registry is not None else cfg.ids_file
     reg = resolve_registry(proj_root, eff_registry)
@@ -584,19 +603,6 @@ def _generate_embed_sbom_json(
         proj_root, wheel_metadata, cfg, reg, creation_metadata or cfg.creation_metadata
     )
     return sbom_json, sbom_basename or cfg.sbom_basename
-
-
-def _resolve_project_root(project_dir: Path | str | None) -> Path | None:
-    """Resolve project directory if explicitly given or present in cwd."""
-    if project_dir is not None:
-        candidate = Path(project_dir).resolve()
-        if candidate.exists():
-            return candidate
-    cwd_candidate = Path.cwd()
-    for fname in ("pyproject.toml", "setup.cfg", "setup.py"):
-        if (cwd_candidate / fname).exists():
-            return cwd_candidate
-    return None
 
 
 def _apply_config_overrides(

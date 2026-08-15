@@ -1124,12 +1124,18 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
             try:
                 _, pitloom_config, _ = read_project(proj_path)
             except FileNotFoundError:
-                pass
+                print(
+                    "ERROR: No pyproject.toml or setup.cfg found "
+                    f"in project directory: {proj_path}",
+                    file=sys.stderr,
+                )
+                return 1
         else:
             for cand in ("pyproject.toml", "setup.cfg", "setup.py"):
                 if (Path.cwd() / cand).exists():
                     try:
                         _, pitloom_config, _ = read_project(Path.cwd())
+                        project_dir = Path.cwd()
                     except FileNotFoundError:
                         pass
                     break
@@ -1148,6 +1154,7 @@ def _run_embed_wheel_mode(args: argparse.Namespace) -> int:
             _, arcname, _, removed, floored = embed_wheel_sbom(
                 wheel_path,
                 project_dir=project_dir,
+                pitloom_config=pitloom_config,
                 sbom_path=args.sbom,
                 output_path=output_path,
                 sbom_basename=args.sbom_basename,
