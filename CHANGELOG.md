@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-15
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,9 +17,12 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.14.0...v0.14.1>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0>
 
-## [Unreleased]
+## [0.15.0] - 2026-08-15
+
+This release introduces backend-agnostic support for embedding SBOM
+directly into Python wheels.
 
 ### Added
 
@@ -56,6 +59,10 @@ and this project adheres to
 [#144]: https://github.com/bact/pitloom/pull/144
 
 ## [0.14.0] - 2026-08-13
+
+This release introduces per-file header and content-type extraction.
+It also fixes format of error and warning CLI outputs for consistency
+and grep-ability.
 
 ### Added
 
@@ -153,6 +160,7 @@ This release fixes bugs and offers few fallbacks to improve SBOM completeness.
 This release introduces a redesigned CLI and API—a breaking change requiring
 updates to existing code and scripts. It also adds AI-model metadata enrichment
 and provenance tracking via SPDX 3's `Annotation`.
+
 Finally, usage surfaces are expanded with a new GitHub Action, AI-agent Skills,
 and a Claude Code plugin.
 
@@ -544,6 +552,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.15.0]: https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/bact/pitloom/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/bact/pitloom/compare/v0.13.3...v0.14.0
 [0.13.3]: https://github.com/bact/pitloom/compare/v0.13.2...v0.13.3
