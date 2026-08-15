@@ -660,6 +660,51 @@ def test_rewrite_wheel_archive_temp_file_cleanup_on_error(
     assert not tmp_files
 
 
+def test_embed_sbom_in_wheel_chmod_oserror(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that os.chmod raising OSError is gracefully ignored."""
+    wheel_path = _make_dummy_wheel(tmp_path, "chmodpkg", "1.0.0")
+
+    def _failing_chmod(*args: Any, **kwargs: Any) -> None:
+        raise OSError("Simulated permission error on chmod")
+
+    monkeypatch.setattr("os.chmod", _failing_chmod)
+
+    # Should complete without error
+    embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+    assert wheel_path.exists()
+
+
+def test_embed_wheel_sbom_not_found(tmp_path: Path) -> None:
+    """Test that embedding into a non-existent wheel
+    raises FileNotFoundError."""
+    with pytest.raises(FileNotFoundError):
+        embed_wheel_sbom(tmp_path / "does_not_exist.whl")
+
+
+def test_embed_sbom_in_wheel_replace_error_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that temp_path is cleaned up if os.replace fails
+    (e.g., Windows PermissionError)."""
+    wheel_path = _make_dummy_wheel(tmp_path, "replacepkg", "1.0.0")
+
+    def _failing_replace(src: str | Path, dst: str | Path) -> None:
+        raise PermissionError("Simulated file in use error")
+
+    monkeypatch.setattr("os.replace", _failing_replace)
+
+    with pytest.raises(PermissionError, match="Simulated file in use error"):
+        embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+
+    # Verify no .tmp files remain in parent dir
+    tmp_files = list(tmp_path.glob("*.tmp"))
+    assert not tmp_files
+
+
 def test_apply_config_overrides_full() -> None:
     """Test _apply_config_overrides applies all CLI override parameters."""
     cfg = PitloomConfig()
