@@ -58,6 +58,28 @@ binaries as phantom dependencies):
 loom wheel path/to/mypackage-1.0.0-py3-none-any.whl -o sbom.spdx3.json
 ```
 
+### Embed an SBOM into a wheel (PEP 770)
+
+Generate and embed an SPDX 3 SBOM directly into one or more built `.whl`
+files (writing to `.dist-info/sboms/` and updating `.dist-info/RECORD`):
+
+```bash
+loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
+loom embed-wheel dist/*.whl --project-dir .
+```
+
+Or inject an existing pre-generated SBOM into built wheels:
+
+```bash
+loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
+```
+
+Or use `--embed` directly on `loom wheel`:
+
+```bash
+loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
+```
+
 Generate a **Deployed SBOM** reflecting the exact installed environment
 graph:
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,6 +30,26 @@ loom project /path/to/project -o sbom.spdx3.json
 
 ```bash
 loom wheel dist/mypackage-1.0.0-py3-none-any.whl -o wheel.spdx3.json
+```
+
+## Embed an SBOM into a built wheel (PEP 770)
+
+```bash
+loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl --project-dir .
+# or, for a single wheel's own Analyzed SBOM, no project dir:
+loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
+```
+
+Confirm the embed:
+
+```bash
+python3 -c '
+import zipfile, sys
+with zipfile.ZipFile(sys.argv[1]) as zf:
+    sboms = [n for n in zf.namelist() if "/sboms/" in n]
+    assert sboms, "no SBOM embedded"
+    print(f"Embedded: {sboms}")
+' dist/mypackage-1.0.0-py3-none-any.whl
 ```
 
 ## AI model SBOM, local file

@@ -7,8 +7,8 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
-import os
 import tempfile
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
@@ -26,7 +26,7 @@ from pitloom.assemble.spdx3.creation_info import to_spdx3_datetime
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import PitloomConfig, read_pitloom_config
-from pitloom.core.creation import CreationMetadata
+from pitloom.core.creation import CreationMetadata, resolve_source_date_epoch
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.enrich import run_enrichers_for_models
@@ -84,21 +84,18 @@ def _check_hatchling_sbom_support() -> None:
 def _resolve_build_datetime(pitloom_config: PitloomConfig) -> str:
     """Resolve the ``builtTime`` stamped on the main package.
 
-    Priority: the standard reproducible-builds ``SOURCE_DATE_EPOCH``
-    environment variable, then a pinned ``[tool.pitloom.creation]``
-    ``creation-datetime``, then the current UTC time.  With either of the
+    Priority: a pinned ``[tool.pitloom.creation]`` ``creation-datetime``
+    (a deliberate, explicit pin -- more specific than an ambient env var,
+    so it wins), then the standard reproducible-builds ``SOURCE_DATE_EPOCH``
+    environment variable, then the current UTC time.  With either of the
     first two, repeated builds of unchanged sources produce byte-identical
     SBOMs (and therefore byte-identical wheels).
     """
-    source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
-    if source_date_epoch:
-        try:
-            stamp = datetime.fromtimestamp(int(source_date_epoch), tz=timezone.utc)
-            return to_spdx3_datetime(stamp).isoformat()
-        except (ValueError, OverflowError, OSError) as exc:
-            log.warning("Ignoring invalid SOURCE_DATE_EPOCH: %s", exc)
     if pitloom_config.creation_datetime:
         return pitloom_config.creation_datetime
+    epoch_dt = resolve_source_date_epoch()
+    if epoch_dt is not None:
+        return to_spdx3_datetime(epoch_dt).isoformat()
     return to_spdx3_datetime(datetime.now(timezone.utc)).isoformat()
 
 
@@ -111,15 +108,13 @@ def _build_creation_metadata(pitloom_config: PitloomConfig) -> CreationMetadata:
     and ``tools`` -> ``[Pitloom]`` -- matching the CLI.
     """
     comment = pitloom_config.creation_comment
-    return CreationMetadata(
-        creators=pitloom_config.creators,
-        tools=pitloom_config.tools,
+    return dataclasses.replace(
+        pitloom_config.creation_metadata,
         creation_comment=(
             comment
             if comment is not None
             else "Generated via Pitloom Hatchling build hook (PEP 770)"
         ),
-        creation_datetime=pitloom_config.creation_datetime,
         build_datetime=_resolve_build_datetime(pitloom_config),
     )
 

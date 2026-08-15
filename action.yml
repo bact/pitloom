@@ -18,6 +18,13 @@ inputs:
       setup.cfg, or setup.py). Ignored when "model" is set.
     required: false
     default: "."
+  embed-wheel:
+    description: >-
+      Path or glob pattern of built wheel file(s) to embed the generated
+      SBOM into (PEP 770). Example: "dist/*.whl". When set, runs
+      "loom embed-wheel <embed-wheel>" instead of project/model mode.
+    required: false
+    default: ""
   model:
     description: >-
       Path to a local AI model file, or a Hugging Face URL / model ID.
@@ -75,7 +82,7 @@ inputs:
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.14.1" or
+      Pitloom version or version specifier to install, e.g. "0.15.0" or
       ">=0.13,<1.0". Empty installs the latest release from PyPI.
     required: false
     default: ""
@@ -127,7 +134,7 @@ runs:
           spec="${spec}[${PL_EXTRAS}]"
         fi
         if [ -n "${PL_VERSION}" ]; then
-          # pitloom-version accepts either a bare version ("0.14.1") or a
+          # pitloom-version accepts either a bare version ("0.15.0") or a
           # full specifier (">=0.13,<1.0"). A leading comparison operator
           # means it is already a specifier; only bare versions need "=="
           # inserted, otherwise "pitloom==>=0.13,<1.0" is invalid.
@@ -145,6 +152,7 @@ runs:
       shell: bash
       env:
         PL_PROJECT_PATH: ${{ inputs.project-path }}
+        PL_EMBED_WHEEL: ${{ inputs.embed-wheel }}
         PL_MODEL: ${{ inputs.model }}
         PL_OUTPUT: ${{ inputs.output }}
         PL_PRETTY: ${{ inputs.pretty }}
@@ -156,13 +164,45 @@ runs:
       run: |
         set -euo pipefail
 
+        # Resolve a python binary up front -- used both for the embed-wheel
+        # match count below and for the PL_ARGS shlex split further down.
+        # When install=false, "Set up Python" is skipped, so don't assume
+        # python3 specifically is on PATH.
+        python_bin=python3
+        command -v "${python_bin}" >/dev/null 2>&1 || python_bin=python
+
         declare -a loom_args
-        if [ -n "${PL_MODEL}" ]; then
+        is_embed=false
+        if [ -n "${PL_EMBED_WHEEL}" ]; then
+          is_embed=true
+          loom_args+=("embed-wheel" "${PL_EMBED_WHEEL}")
+          if [ -n "${PL_PROJECT_PATH}" ]; then
+            loom_args+=("--project-dir" "${PL_PROJECT_PATH}")
+          fi
+        elif [ -n "${PL_MODEL}" ]; then
           loom_args+=("model" "${PL_MODEL}")
         else
           loom_args+=("project" "${PL_PROJECT_PATH}")
         fi
-        loom_args+=("-o" "${PL_OUTPUT}")
+
+        # "loom embed-wheel" rejects --output when its pattern matches more
+        # than one wheel (a standalone copy is ambiguous across wheels), so
+        # mirror that check here rather than crash: only pass -o (and later
+        # report sbom-path) when the pattern resolves to exactly one wheel.
+        skip_output=false
+        if [ "${is_embed}" = true ]; then
+          wheel_count=$(
+            "${python_bin}" -c 'import glob, sys; print(len(glob.glob(sys.argv[1])))' \
+              "${PL_EMBED_WHEEL}"
+          )
+          if [ "${wheel_count}" -ne 1 ]; then
+            skip_output=true
+          fi
+        fi
+        if [ "${skip_output}" = false ]; then
+          loom_args+=("-o" "${PL_OUTPUT}")
+        fi
+
         if [ "${PL_PRETTY}" = "true" ]; then
           loom_args+=("--pretty")
         fi
@@ -189,12 +229,8 @@ runs:
           # (e.g. '--creator-name "CI Bot"'), not a single token. Plain bash
           # word-splitting (extra_args=(${PL_ARGS})) has no quote-awareness
           # and would break a quoted multi-word value into separate tokens,
-          # so split it with Python's shlex instead.
-          #
-          # When install=false, "Set up Python" is skipped, so don't assume
-          # python3 specifically is on PATH -- fall back to python.
-          python_bin=python3
-          command -v "${python_bin}" >/dev/null 2>&1 || python_bin=python
+          # so split it with Python's shlex instead. (python_bin was
+          # resolved above.)
           readarray -t extra_args < <(
             "${python_bin}" -c 'import shlex, sys; print(*shlex.split(sys.argv[1]), sep="\n")' \
               "${PL_ARGS}"
@@ -204,10 +240,12 @@ runs:
 
         loom "${loom_args[@]}"
 
-        echo "sbom-path=${PL_OUTPUT}" >> "${GITHUB_OUTPUT}"
+        if [ "${skip_output}" = false ]; then
+          echo "sbom-path=${PL_OUTPUT}" >> "${GITHUB_OUTPUT}"
+        fi
 
     - name: Upload SBOM artifact
-      if: inputs.upload-artifact == 'true'
+      if: inputs.upload-artifact == 'true' && steps.generate.outputs.sbom-path != ''
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
       with:
         name: ${{ inputs.artifact-name }}

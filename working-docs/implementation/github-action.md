@@ -29,7 +29,7 @@ Pass them through `args` (the Action itself has no dedicated multi-creator
 input):
 
 ```yaml
-- uses: bact/pitloom@v0.14.1
+- uses: bact/pitloom@v0.15.0
   with:
     project-path: "."
     output: "sbom.spdx3.json"
@@ -54,7 +54,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: bact/pitloom@v0.14.1
+      - uses: bact/pitloom@v0.15.0
         id: pitloom
         with:
           project-path: "."
@@ -84,7 +84,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - uses: bact/pitloom@v0.14.1
+      - uses: bact/pitloom@v0.15.0
         with:
           project-path: "."
           python-version: ${{ matrix.python-version }}

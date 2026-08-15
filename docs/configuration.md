@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-08-12
+Last-Modified: 2026-08-14
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,6 +115,33 @@ key) since it's expected to grow more fragment-related settings.
 | `creation-datetime` | string (ISO 8601) | *(current time)* | `--creation-datetime` | Overrides the SBOM's recorded creation timestamp. |
 | `creation-comment` | string | `null` | `--creation-comment` | Free-text comment on `CreationInfo`. |
 | `no-creation-tool` | bool | `false` | `--no-creation-tool` | Omit the default `"Pitloom"` creation-tool entry. |
+
+**`creation-datetime` resolution order:** an explicit pin here (or
+`--creation-datetime`) always wins when set -- it is a deliberate,
+per-SBOM value and so takes priority over the ambient,
+workspace-wide [`SOURCE_DATE_EPOCH`][source-date-epoch] environment
+variable (reproducible-builds.org). When neither is set, the current UTC
+time is used. The same priority order applies to the Hatchling build
+hook's `builtTime` field. `SOURCE_DATE_EPOCH` is a useful default for CI
+environments that already export it for reproducibility without needing
+a per-project `creation-datetime` pin, but an explicit pin always
+overrides it.
+
+**Embedding into a wheel (`loom embed-wheel`, `loom wheel --embed`):** a
+`.whl` is a ZIP archive, and the ZIP format's own per-entry timestamp
+field can only represent dates from 1980-01-01 onward -- a binary format
+limitation, unrelated to Unix time (what `SOURCE_DATE_EPOCH` counts from,
+starting 1970-01-01) or to the SBOM's own `created` field (plain JSON,
+no such limit). A `SOURCE_DATE_EPOCH` set below 1980 (e.g. `0`, a
+value some build systems use deliberately as a fixed placeholder) is
+floored to `1980-01-01` for the wheel's embedded ZIP entry only -- the
+SBOM's own `created` field keeps the true value, so the two can
+legitimately diverge. When this happens, Pitloom prints an `INFO:` line
+rather than silently rewriting the SBOM's stated creation date to match
+the ZIP format's limitation. To avoid the divergence entirely, set
+`SOURCE_DATE_EPOCH` to `315532800` (1980-01-01) or later.
+
+[source-date-epoch]: https://reproducible-builds.org/specs/source-date-epoch/
 
 ## `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]`
 

@@ -23,7 +23,7 @@ import time
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -96,7 +96,7 @@ class _FakeMetadata:
         return item in self._fields
 
     def __getitem__(self, key: str) -> str:
-        return self._fields.get(key)  # type: ignore[return-value]
+        return cast(str, self._fields.get(key))
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._fields)
