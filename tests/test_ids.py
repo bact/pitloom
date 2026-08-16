@@ -19,7 +19,8 @@ from pathlib import Path
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.__main__ import _build_parser, _run_ids_cli
+from pitloom.cli.ids import _run_ids_cli
+from pitloom.cli.parser import _build_parser
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import (
     DEFAULT_REGISTRY_FILENAME,

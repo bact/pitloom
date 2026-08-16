@@ -41,6 +41,7 @@ import hashlib
 import json
 import logging
 import re
+import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -561,3 +562,37 @@ __all__ = [
     "IdRegistry",
     "resolve_registry",
 ]
+
+
+# ---------------------------------------------------------------------------
+# `pitloom ids` -- Loom ID registry management
+# ---------------------------------------------------------------------------
+
+_DEFAULT_IDS_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
+
+
+def _load_or_create_registry(
+    registry_path: Path, project_dir_name: str
+) -> IdRegistry | None:
+    """Load existing registry from registry_path or return a new one."""
+    if registry_path.exists():
+        try:
+            return IdRegistry.load(registry_path)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            print(
+                f"ERROR: failed to load registry from {registry_path}: {exc}",
+                file=sys.stderr,
+            )
+            return None
+
+    namespace = f"https://spdx.org/spdxdocs/{project_dir_name}-{uuid4()}"
+    return IdRegistry(namespace=namespace)
+
+
+def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
+    """Return default candidate paths for `pitloom ids generate`."""
+    return [
+        project_dir / name
+        for name in _DEFAULT_IDS_GENERATE_DIR_NAMES
+        if (project_dir / name).exists()
+    ]

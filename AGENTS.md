@@ -18,11 +18,12 @@
   notice. The user-facing website (`docs/`) must never link into it, in
   any form (relative path, absolute GitHub URL, etc.). Reference a PR or
   issue number instead if a public pointer is needed.
-- **`working-docs/` file size**: soft limit ~400-500 lines, hard limit
-  ~800 lines (~30KB). Split before crossing it -- one topic per file, not
-  one file per topic-and-everything-about-it. A doc mixing what's shipped
-  and what's still planned is a split trigger on its own (shipped ->
-  `implementation/`, planned -> `design/`), independent of length.
+- **Global file size**: soft limit ~400-500 lines, hard limit
+  ~800 lines (~30KB). This applies to ALL files in the repository (source code,
+  tests, and documentation). Split before crossing it -- one topic or cohesive 
+  component per file, not one file per topic-and-everything-about-it. For docs, 
+  a doc mixing what's shipped and what's still planned is a split trigger on its own 
+  (shipped -> `implementation/`, planned -> `design/`), independent of length.
 - **Naming and grouping**: kebab-case, topic-first filenames (e.g.
   `hatchling-build-hook.md`). A `design/`+`implementation/` pair for the
   same topic shares one base filename across the two directories, so the
@@ -222,7 +223,7 @@ a human or agent judge a doc's staleness without checking git history.
 ### Test suite structure
 
 - **File size**: soft limit ~400-500 lines, hard limit ~800 lines --
-  same numbers as `working-docs/` (see Project context above), for
+  same numbers as the global rule (see Project context above), for
   the same reason: keeps a file within a reasonable AI-agent context
   window and makes selective test runs actually selective. Split
   before crossing it -- one area of behaviour per file, not one file
