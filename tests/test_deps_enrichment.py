@@ -1,3 +1,4 @@
+# pylint: disable=protected-access
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
@@ -24,6 +25,7 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from typing import Any, cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -349,17 +351,19 @@ def test_enrich_from_installed_skips_license_when_absent(
 
 def test_resolve_supplier_from_author_email() -> None:
     meta = _FakeMetadata({"Author-email": "Trail of Bits <opensource@trailofbits.com>"})
-    assert _resolve_supplier(meta) == ("Trail of Bits", "opensource@trailofbits.com")
+    assert _resolve_supplier(meta) == [("Trail of Bits", "opensource@trailofbits.com")]
 
 
 def test_resolve_supplier_falls_back_to_maintainer() -> None:
     meta = _FakeMetadata(
         {"Maintainer-email": "Taneli Hukkinen <hukkin@users.noreply.github.com>"}
     )
-    assert _resolve_supplier(meta) == (
-        "Taneli Hukkinen",
-        "hukkin@users.noreply.github.com",
-    )
+    assert _resolve_supplier(meta) == [
+        (
+            "Taneli Hukkinen",
+            "hukkin@users.noreply.github.com",
+        )
+    ]
 
 
 def test_resolve_supplier_handles_multiple_maintainer_addresses() -> None:
@@ -379,19 +383,23 @@ def test_resolve_supplier_handles_multiple_maintainer_addresses() -> None:
             )
         }
     )
-    assert _resolve_supplier(meta) == ("Bernát Gábor", "gaborjbernat@gmail.com")
+    assert _resolve_supplier(meta) == [
+        ("Bernát Gábor", "gaborjbernat@gmail.com"),
+        ("Kemal Zebari", "kemalzebra@gmail.com"),
+        ("Vineet Naik", "naikvin@gmail.com"),
+    ]
 
 
 def test_resolve_supplier_plain_name_no_email() -> None:
     meta = _FakeMetadata({"Author": "Some Org"})
-    assert _resolve_supplier(meta) == ("Some Org", None)
+    assert _resolve_supplier(meta) == [("Some Org", None)]
 
 
 def test_resolve_supplier_absent_returns_none() -> None:
-    assert _resolve_supplier(_FakeMetadata({})) == (None, None)
+    assert _resolve_supplier(_FakeMetadata({})) == []
 
 
-def test_enrich_from_installed_sets_supplied_by(
+def test_enrich_from_installed_sets_originated_by(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -416,11 +424,11 @@ def test_enrich_from_installed_sets_supplied_by(
 
     _enrich_from_installed("tomli", dep_package, ci, "supptest", doc_uuid, exporter)
 
-    assert dep_package.suppliedBy is not None
+    assert len(dep_package.originatedBy) > 0
     agents = [o for o in exporter.object_set.objects if isinstance(o, spdx3.Person)]
     assert len(agents) == 1
     assert agents[0].name == "Taneli Hukkinen"
-    assert dep_package.suppliedBy == require_spdx_id(agents[0])
+    assert dep_package.originatedBy == [require_spdx_id(agents[0])]
 
 
 def test_enrich_from_installed_dedupes_shared_supplier_agent(
@@ -535,19 +543,23 @@ def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
 
 def test_extract_pypi_supplier_from_author() -> None:
     info = {"author": "Trail of Bits", "author_email": "opensource@trailofbits.com"}
-    assert _extract_pypi_supplier(info) == (
-        "Trail of Bits",
-        "opensource@trailofbits.com",
-    )
+    assert _extract_pypi_supplier(info) == [
+        ("Trail of Bits", "opensource@trailofbits.com")
+    ]
 
 
 def test_extract_pypi_supplier_falls_back_to_maintainer() -> None:
-    info = {"maintainer": "Someone", "maintainer_email": "someone@example.com"}
-    assert _extract_pypi_supplier(info) == ("Someone", "someone@example.com")
+    info = {
+        "maintainer": "Taneli Hukkinen",
+        "maintainer_email": "hukkin@users.noreply.github.com",
+    }
+    assert _extract_pypi_supplier(info) == [
+        ("Taneli Hukkinen", "hukkin@users.noreply.github.com")
+    ]
 
 
 def test_extract_pypi_supplier_absent_returns_none() -> None:
-    assert _extract_pypi_supplier({}) == (None, None)
+    assert _extract_pypi_supplier({}) == []
 
 
 def test_extract_pypi_license_prefers_license_expression() -> None:
@@ -989,3 +1001,147 @@ def test_fetch_pypi_release_info_live_network() -> None:
     digest = _extract_release_hash(release_info)
     assert digest is not None
     assert len(digest) == 64  # hex sha256
+
+
+def test_extract_suppliers_parses_comma_separated_names() -> None:
+    meta = _FakeMetadata({"Author": "Alice, Bob and Charlie"})
+    assert deps_mod._resolve_supplier(meta) == [
+        ("Alice", None),
+        ("Bob", None),
+        ("Charlie", None),
+    ]
+
+
+def test_apply_originator_creates_others_external_ref() -> None:
+    doc_uuid = compute_doc_uuid("otherstest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    dep_package = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="otherstest", doc_uuid=doc_uuid),
+        name="test",
+        creationInfo=ci,
+    )
+    exporter.add_package(dep_package)
+
+    originators: list[tuple[str | None, str | None]] = [
+        ("Alice", None),
+        ("Others (See OTHER_AUTHORS.md)", None),
+    ]
+    deps_mod._apply_originator(
+        originators,
+        dep_package,
+        ci,
+        "otherstest",
+        doc_uuid,
+        exporter,
+        repo_url="https://github.com/foo/bar.git",
+        offline=True,
+    )
+
+    agents = [
+        o
+        for o in exporter.object_set.objects
+        if isinstance(o, (spdx3.Person, spdx3.Organization))
+    ]
+    assert len(agents) == 2
+
+    others = next(
+        (
+            a
+            for a in agents
+            if a.name and "Others" in a.name and isinstance(a, spdx3.Organization)
+        ),
+        None,
+    )
+    assert others is not None
+    assert len(others.externalRef) == 1
+    ref = others.externalRef[0]
+    assert isinstance(ref, spdx3.ExternalRef)
+    assert ref.externalRefType == spdx3.ExternalRefType.documentation
+
+    assert len(dep_package.software_attributionText) > 0
+    assert (
+        "Attribution: This package includes contributions from additional authors"
+        in dep_package.software_attributionText[0]
+    )
+    assert ref.locator == ["https://github.com/foo/bar/blob/HEAD/OTHER_AUTHORS.md"]
+    assert ref.comment == "Refers to OTHER_AUTHORS.md"
+
+
+def test_resolve_remote_authors_file_offline_and_errors() -> None:
+    """Test offline behavior and ValueError handling for remote authors files."""
+    # Test offline returns immediately without trying to fetch
+    locator, ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://github.com/foo/pkg",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    assert ctype is None
+    assert content is None
+
+    # Test ValueError when scheme is disallowed (ftp)
+    locator, ctype, content = deps_mod._resolve_remote_authors_file(
+        "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
+    )
+    assert locator == "ftp://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    assert ctype is None
+    assert content is None
+
+    # Test lru_cache behavior (call twice, check it returns identical)
+    locator2, ctype2, content2 = deps_mod._resolve_remote_authors_file(
+        "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
+    )
+    assert locator2 == locator
+    assert ctype2 == ctype
+    assert content2 == content
+
+
+@patch("urllib.request.urlopen")
+def test_resolve_remote_authors_file_success_and_branches(
+    mock_urlopen: MagicMock,
+) -> None:
+    """Test successful URL fetch and other repository branches."""
+    # Mock successful response
+    mock_response = MagicMock()
+    mock_response.read.return_value = b"Author1\nAuthor2"
+    mock_urlopen.return_value.__enter__.return_value = mock_response
+
+    # Test github.com with successful fetch
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://github.com/foo/pkg",
+        "AUTHORS",
+        offline=False,
+        content_type_method="auto",
+    )
+    assert locator == "https://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    assert content == "Author1\nAuthor2"
+
+    # Test gitlab.com
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://gitlab.com/foo/pkg",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://gitlab.com/foo/pkg/-/blob/HEAD/AUTHORS"
+
+    # Test unknown host
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://example.com/foo/pkg",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://example.com/foo/pkg"
+
+    # Test short path
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://github.com/foo",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://github.com/foo"
