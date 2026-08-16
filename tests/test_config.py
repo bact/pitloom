@@ -16,7 +16,7 @@ from pitloom.core.config import (
     _read_extract_file_header,
     _read_fragments,
     _read_ids_file,
-    _read_pitloom_config,
+    parse_pitloom_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator, Tool
@@ -217,7 +217,7 @@ def test_old_ids_table_raises_instead_of_silently_ignored() -> None:
     revert ids-file to auto-discovery."""
     data = {"tool": {"pitloom": {"ids": {"file": "custom-ids.json"}}}}
     with pytest.raises(ValueError, match=r"\[tool\.pitloom\.ids\] has moved to"):
-        _read_pitloom_config(data)
+        parse_pitloom_config(data)
 
 
 def test_old_fragments_table_raises_instead_of_silently_ignored() -> None:
@@ -225,7 +225,7 @@ def test_old_fragments_table_raises_instead_of_silently_ignored() -> None:
     silently drop every registered fragment from the SBOM."""
     data = {"tool": {"pitloom": {"fragments": {"files": ["a.json"]}}}}
     with pytest.raises(ValueError, match=r"\[tool\.pitloom\.fragments\] has moved to"):
-        _read_pitloom_config(data)
+        parse_pitloom_config(data)
 
 
 def test_old_file_headers_table_raises_instead_of_silently_ignored() -> None:
@@ -240,7 +240,7 @@ def test_old_file_headers_table_raises_instead_of_silently_ignored() -> None:
     with pytest.raises(
         ValueError, match=r"\[tool\.pitloom\.file-headers\] has moved to"
     ):
-        _read_pitloom_config(data)
+        parse_pitloom_config(data)
 
 
 def test_old_enrich_table_raises_instead_of_silently_ignored() -> None:
@@ -249,7 +249,7 @@ def test_old_enrich_table_raises_instead_of_silently_ignored() -> None:
     otherwise surface."""
     data = {"tool": {"pitloom": {"enrich": {"local": True}}}}
     with pytest.raises(ValueError, match=r"\[tool\.pitloom\.enrich\] has moved to"):
-        _read_pitloom_config(data)
+        parse_pitloom_config(data)
 
 
 def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
@@ -265,7 +265,7 @@ def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
             }
         }
     }
-    config = _read_pitloom_config(data)
+    config = parse_pitloom_config(data)
     assert config.ids_file == "loom-ids.json"
     assert config.fragments == ["a.json"]
     assert config.extract_file_header is False
@@ -317,3 +317,27 @@ def test_pitloom_config_helper_properties() -> None:
     assert creation.tools is not None and len(creation.tools) == 1
     assert creation.creation_datetime == "2026-08-14T00:00:00Z"
     assert creation.creation_comment == "Test comment"
+
+
+def test_read_provenance_non_table_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": "string"}}}
+    with pytest.raises(ValueError, match="must be a table"):
+        parse_pitloom_config(data)
+
+
+def test_read_provenance_non_string_key_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": {"format": 123}}}}
+    with pytest.raises(ValueError, match="must be a string"):
+        parse_pitloom_config(data)
+
+
+def test_read_provenance_invalid_format_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": {"format": "invalid"}}}}
+    with pytest.raises(ValueError, match="must be one of"):
+        parse_pitloom_config(data)
+
+
+def test_read_provenance_invalid_detail_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": {"detail": "invalid"}}}}
+    with pytest.raises(ValueError, match="must be one of"):
+        parse_pitloom_config(data)

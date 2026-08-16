@@ -23,6 +23,13 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
+__all__ = [
+    "VALID_CONTENT_TYPE_METHODS",
+    "PitloomConfig",
+    "read_pitloom_config",
+    "parse_pitloom_config",
+]
+
 
 #: Old (pre-multi-creator) ``[tool.pitloom.creation]`` keys that moved to
 #: ``[[tool.pitloom.creator]]`` / ``[[tool.pitloom.creation-tool]]``.
@@ -634,7 +641,7 @@ def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
 
 
 # pylint: disable=too-many-locals
-def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
+def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
 
     Creators come from ``[[tool.pitloom.creator]]``, tools from
@@ -676,12 +683,16 @@ def _read_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         content_type_method,
         content_type_overrides,
     ) = _read_content_type_settings(pitloom_data)
-    pretty = bool(pitloom_data.get("pretty", False))
+    pretty = _read_bool_setting(pitloom_data, "pretty", default=False)
     desc_rel = pitloom_data.get("describe-relationship")
     if desc_rel is None:
         desc_rel = pitloom_data.get("describe_relationship")
     if desc_rel is not None:
-        desc_rel = bool(desc_rel)
+        if not isinstance(desc_rel, bool):
+            raise ValueError(
+                f"[tool.pitloom] describe-relationship must be a boolean, got "
+                f"{type(desc_rel).__name__}: {desc_rel!r}"
+            )
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
     offline = _read_offline_setting(pitloom_data)
 
@@ -744,7 +755,4 @@ def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
     with open(pyproject_path, "rb") as f:
         data: dict[str, Any] = tomllib.load(f)
 
-    return _read_pitloom_config(data)
-
-
-__all__ = ["VALID_CONTENT_TYPE_METHODS", "PitloomConfig", "read_pitloom_config"]
+    return parse_pitloom_config(data)

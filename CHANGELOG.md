@@ -21,12 +21,24 @@ and this project adheres to
 
 ## [Unreleased]
 
-## Fixed
+### Changed
 
+- Reorganize configuration parsing architecture: move INI-to-dictionary adapter
+  logic entirely into `setuptools.py` ([#152])
+
+### Fixed
+
+- Map legacy `fragments` key to `[tool.pitloom.fragment]` nested table
+  in `setup.cfg` to resolve crash ([#152])
+- Implement modern sub-section parsing (`provenance`, `content-type`, `fragment`)
+  in `setup.cfg`, bringing it to feature parity with `pyproject.toml` ([#152])
+- Enforce strict type-checking across all boolean fields, preventing string
+  values from silently evaluating to `True` ([#152])
 - Split a string containing a list of authors into discrete agents
   and generate external refs for a group of authors ("Others") ([#151])
 
 [#151]: https://github.com/bact/pitloom/pull/151
+[#152]: https://github.com/bact/pitloom/pull/152
 
 ## [0.15.0] - 2026-08-15
 

@@ -48,8 +48,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.config import PitloomConfig
-from pitloom.core.creation import Creator, Tool
+from pitloom.core.config import (
+    _MOVED_CREATION_KEYS,
+    PitloomConfig,
+    parse_pitloom_config,
+)
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._license import (
     detect_license_for_project,
@@ -660,19 +663,84 @@ def _read_pitloom_config_from_cfg(
 ) -> PitloomConfig:
     """Read ``[tool:pitloom]`` settings from a parsed ``setup.cfg``.
 
-    ``setup.cfg`` uses a colon as the sub-section separator
-    (``[tool:pitloom]``) rather than the dot used in ``pyproject.toml``
-    (``[tool.pitloom]``).  An optional ``[tool:pitloom:creation]`` section
-    mirrors ``[tool.pitloom.creation]``.
+    Translates the flat string key-values of INI into the nested TOML-like
+    dict expected by :func:`~pitloom.core.config.parse_pitloom_config`,
+    restoring defaults and type-casting.
     """
-    has_pitloom = cfg.has_section("tool:pitloom")
-    has_creation = cfg.has_section("tool:pitloom:creation")
-    if not has_pitloom and not has_creation:
+    if not any(
+        cfg.has_section(s) for s in cfg.sections() if s.startswith("tool:pitloom")
+    ):
         return PitloomConfig()
 
     raw = _section_dict(cfg, "tool:pitloom")
     creation_raw = _section_dict(cfg, "tool:pitloom:creation")
+    provenance_raw = _section_dict(cfg, "tool:pitloom:provenance")
+    content_type_raw = _section_dict(cfg, "tool:pitloom:content-type")
+    content_type_override_raw = _section_dict(cfg, "tool:pitloom:content-type:override")
+    fragment_raw = _section_dict(cfg, "tool:pitloom:fragment")
 
+    tool_pitloom: dict[str, Any] = {}
+    data = {"tool": {"pitloom": tool_pitloom}}
+
+    def _bool_val(v: str) -> bool | None:
+        v = v.strip().lower()
+        if v in ("true", "1", "yes"):
+            return True
+        if v in ("false", "0", "no"):
+            return False
+        return None
+
+    known_bool_keys = {
+        "pretty",
+        "describe-relationship",
+        "describe_relationship",
+        "offline",
+        "no-creation-tool",
+        "no_creation_tool",
+        "local",
+        "enabled",
+    }
+
+    for k, v in raw.items():
+        if k in known_bool_keys:
+            b = _bool_val(v)
+            tool_pitloom[k] = b if b is not None else v.strip()
+        elif k == "fragments":
+            tool_pitloom["fragment"] = {
+                "files": [f.strip() for f in v.splitlines() if f.strip()]
+            }
+        else:
+            tool_pitloom[k] = v.strip()
+
+    def _parse_sub_section(sub_raw: dict[str, str]) -> dict[str, Any]:
+        sub: dict[str, Any] = {}
+        for k, v in sub_raw.items():
+            if k in known_bool_keys:
+                b = _bool_val(v)
+                sub[k] = b if b is not None else v.strip()
+            elif k == "files":
+                sub[k] = [f.strip() for f in v.splitlines() if f.strip()]
+            else:
+                sub[k] = v.strip()
+        return sub
+
+    if creation_raw:
+        tool_pitloom["creation"] = _parse_sub_section(creation_raw)
+    if provenance_raw:
+        tool_pitloom["provenance"] = _parse_sub_section(provenance_raw)
+    if content_type_raw:
+        ct = _parse_sub_section(content_type_raw)
+        if content_type_override_raw:
+            overrides = []
+            for pat, ctype in content_type_override_raw.items():
+                overrides.append({"pattern": pat, "content-type": ctype})
+            ct["override"] = overrides
+        tool_pitloom["content-type"] = ct
+    if fragment_raw:
+        tool_pitloom["fragment"] = _parse_sub_section(fragment_raw)
+
+    # setup.cfg (INI) cannot express array-of-tables, so translate the old single
+    # creator/tool keys into the new array-of-tables form.
     def _pick_str(*keys: str) -> str | None:
         for key in keys:
             for src in (creation_raw, raw):
@@ -681,61 +749,37 @@ def _read_pitloom_config_from_cfg(
                     return val
         return None
 
-    pretty_str = raw.get("pretty", "").strip().lower()
-    pretty = pretty_str in ("true", "1", "yes")
-
-    desc_rel_str = (
-        (raw.get("describe-relationship") or raw.get("describe_relationship") or "")
-        .strip()
-        .lower()
-    )
-    if desc_rel_str in ("true", "1", "yes"):
-        desc_rel: bool | None = True
-    elif desc_rel_str in ("false", "0", "no"):
-        desc_rel = False
-    else:
-        desc_rel = None
-
-    sbom_basename = (
-        raw.get("sbom-basename") or raw.get("sbom_basename") or ""
-    ).strip() or None
-
-    fragments_raw = raw.get("fragments", "")
-    fragments = [f.strip() for f in fragments_raw.splitlines() if f.strip()]
-
-    # setup.cfg (INI) cannot express array-of-tables, so only a single
-    # creator and a single tool are supported here -- multi-creator/tool
-    # setups need pyproject.toml or the library API.
     creator_name = _pick_str("creator-name", "creator_name")
-    creators = (
-        [
-            Creator(
-                name=creator_name,
-                type=_pick_str("creator-type", "creator_type") or "person",
-                email=_pick_str("creator-email", "creator_email"),
-            )
-        ]
-        if creator_name
-        else []
-    )
+    if creator_name:
+        creator_dict = {"name": creator_name}
+        creator_type_val = _pick_str("creator-type", "creator_type")
+        if creator_type_val:
+            creator_dict["type"] = creator_type_val
+        cemail = _pick_str("creator-email", "creator_email")
+        if cemail:
+            creator_dict["email"] = cemail
+        tool_pitloom["creator"] = [creator_dict]
+
     creation_tool_name = _pick_str("creation-tool", "creation_tool", "tool")
-    tools = [Tool(name=creation_tool_name)] if creation_tool_name else None
+    if creation_tool_name:
+        tool_pitloom["creation-tool"] = [{"name": creation_tool_name}]
 
-    no_creation_tool_str = (
-        (_pick_str("no-creation-tool", "no_creation_tool") or "").strip().lower()
-    )
-    if no_creation_tool_str in ("true", "1", "yes"):
-        tools = []
+    no_creation_tool = _pick_str("no-creation-tool", "no_creation_tool")
+    if no_creation_tool is not None:
+        b = _bool_val(no_creation_tool)
+        if b is not None:
+            if "creation" not in tool_pitloom:
+                tool_pitloom["creation"] = {}
+            tool_pitloom["creation"]["no-creation-tool"] = b
 
-    return PitloomConfig(
-        pretty=pretty,
-        describe_relationship=desc_rel,
-        sbom_basename=sbom_basename,
-        fragments=fragments,
-        creators=creators,
-        tools=tools,
-        creation_datetime=_pick_str(
-            "creation-datetime", "creation_datetime", "datetime"
-        ),
-        creation_comment=_pick_str("creation-comment", "creation_comment", "comment"),
-    )
+    # Remove the old single-valued keys so _check_moved_creation_keys doesn't complain
+    for key in _MOVED_CREATION_KEYS:
+        tool_pitloom.pop(key, None)
+        if "creation" in tool_pitloom:
+            tool_pitloom["creation"].pop(key, None)
+
+    for key in ("no-creation-tool", "no_creation_tool"):
+        tool_pitloom.pop(key, None)
+        # We explicitly do NOT pop this from 'creation' because it belongs there
+
+    return parse_pitloom_config(data)
