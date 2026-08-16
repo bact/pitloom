@@ -667,7 +667,9 @@ def _read_pitloom_config_from_cfg(
     dict expected by :func:`~pitloom.core.config.parse_pitloom_config`,
     restoring defaults and type-casting.
     """
-    if not any(cfg.has_section(s) for s in cfg.sections() if s.startswith("tool:pitloom")):
+    if not any(
+        cfg.has_section(s) for s in cfg.sections() if s.startswith("tool:pitloom")
+    ):
         return PitloomConfig()
 
     raw = _section_dict(cfg, "tool:pitloom")
@@ -689,8 +691,14 @@ def _read_pitloom_config_from_cfg(
         return None
 
     known_bool_keys = {
-        "pretty", "describe-relationship", "describe_relationship",
-        "offline", "no-creation-tool", "no_creation_tool", "local"
+        "pretty",
+        "describe-relationship",
+        "describe_relationship",
+        "offline",
+        "no-creation-tool",
+        "no_creation_tool",
+        "local",
+        "enabled",
     }
 
     for k, v in raw.items():
@@ -698,7 +706,9 @@ def _read_pitloom_config_from_cfg(
             b = _bool_val(v)
             tool_pitloom[k] = b if b is not None else v.strip()
         elif k == "fragments":
-            tool_pitloom["fragment"] = {"files": [f.strip() for f in v.splitlines() if f.strip()]}
+            tool_pitloom["fragment"] = {
+                "files": [f.strip() for f in v.splitlines() if f.strip()]
+            }
         else:
             tool_pitloom[k] = v.strip()
 
@@ -721,7 +731,10 @@ def _read_pitloom_config_from_cfg(
     if content_type_raw:
         ct = _parse_sub_section(content_type_raw)
         if content_type_override_raw:
-            ct["override"] = _parse_sub_section(content_type_override_raw)
+            overrides = []
+            for pat, ctype in content_type_override_raw.items():
+                overrides.append({"pattern": pat, "content-type": ctype})
+            ct["override"] = overrides
         tool_pitloom["content-type"] = ct
     if fragment_raw:
         tool_pitloom["fragment"] = _parse_sub_section(fragment_raw)
@@ -739,9 +752,11 @@ def _read_pitloom_config_from_cfg(
     creator_name = _pick_str("creator-name", "creator_name")
     if creator_name:
         creator_dict = {"name": creator_name}
-        if ctype := _pick_str("creator-type", "creator_type"):
-            creator_dict["type"] = ctype
-        if cemail := _pick_str("creator-email", "creator_email"):
+        creator_type_val = _pick_str("creator-type", "creator_type")
+        if creator_type_val:
+            creator_dict["type"] = creator_type_val
+        cemail = _pick_str("creator-email", "creator_email")
+        if cemail:
             creator_dict["email"] = cemail
         tool_pitloom["creator"] = [creator_dict]
 
@@ -768,4 +783,3 @@ def _read_pitloom_config_from_cfg(
         # We explicitly do NOT pop this from 'creation' because it belongs there
 
     return parse_pitloom_config(data)
-

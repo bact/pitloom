@@ -317,3 +317,27 @@ def test_pitloom_config_helper_properties() -> None:
     assert creation.tools is not None and len(creation.tools) == 1
     assert creation.creation_datetime == "2026-08-14T00:00:00Z"
     assert creation.creation_comment == "Test comment"
+
+
+def test_read_provenance_non_table_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": "string"}}}
+    with pytest.raises(ValueError, match="must be a table"):
+        parse_pitloom_config(data)
+
+
+def test_read_provenance_non_string_key_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": {"format": 123}}}}
+    with pytest.raises(ValueError, match="must be a string"):
+        parse_pitloom_config(data)
+
+
+def test_read_provenance_invalid_format_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": {"format": "invalid"}}}}
+    with pytest.raises(ValueError, match="must be one of"):
+        parse_pitloom_config(data)
+
+
+def test_read_provenance_invalid_detail_raises() -> None:
+    data = {"tool": {"pitloom": {"provenance": {"detail": "invalid"}}}}
+    with pytest.raises(ValueError, match="must be one of"):
+        parse_pitloom_config(data)
