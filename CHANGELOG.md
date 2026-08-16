@@ -19,6 +19,15 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0>
 
+## [Unreleased]
+
+## Fixed
+
+- Split a string containing a list of authors into discrete agents
+  and generate external refs for a group of authors ("Others") ([#151])
+
+[#151]: https://github.com/bact/pitloom/pull/151
+
 ## [0.15.0] - 2026-08-15
 
 This release introduces backend-agnostic support for embedding SBOM

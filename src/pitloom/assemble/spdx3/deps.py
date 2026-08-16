@@ -309,7 +309,7 @@ def _resolve_remote_authors_file(
     filename: str,
     offline: bool,
     content_type_method: str,
-) -> tuple[str, str]:
+) -> tuple[str, str, str | None]:
     """Resolve the URL locator and content type for a remote authors file."""
     base_url = repo_url[:-4] if repo_url.endswith(".git") else repo_url
     base_url = base_url.rstrip("/")
@@ -344,17 +344,19 @@ def _resolve_remote_authors_file(
 
     if offline or content_type_method == "extension":
         ctype, _ = guess_content_type(b"", filename, method="extension")
-        return locator, (ctype or "text/plain")
+        return locator, (ctype or "text/plain"), None
 
     try:
+        if not raw_url.startswith(("http://", "https://")):
+            raise ValueError(f"Disallowed scheme in URL: {raw_url}")
         req = urllib.request.Request(raw_url, headers={"User-Agent": "pitloom"})
-        with urllib.request.urlopen(req, timeout=5) as res:
+        with urllib.request.urlopen(req, timeout=5) as res:  # nosec B310
             content = res.read(1024 * 64)
         ctype, _ = guess_content_type(content, filename, method=content_type_method)
-        return locator, (ctype or "text/plain")
+        return locator, (ctype or "text/plain"), content.decode("utf-8", errors="replace")
     except (URLError, http.client.HTTPException, OSError):
         ctype, _ = guess_content_type(b"", filename, method="extension")
-        return locator, (ctype or "text/plain")
+        return locator, (ctype or "text/plain"), None
 
 
 def _get_or_create_originator_agent(
@@ -369,7 +371,7 @@ def _get_or_create_originator_agent(
     *,
     offline: bool = False,
     content_type_method: str = "auto",
-) -> str:
+) -> tuple[str, str | None]:
     """Get or create an Agent for a dependency's originator, deduped
     by ``name``/``email`` so packages sharing an author reuse one Agent."""
     key = f"{name or ''}|{email or ''}"
@@ -378,7 +380,7 @@ def _get_or_create_originator_agent(
         key += f"|{repo_url or package_name or 'unknown'}"
     existing = exporter.find_agent(key)
     if existing:
-        return existing
+        return existing, None
 
     agent_type = "Organization" if is_others else "Person"
     kwargs = {
@@ -398,12 +400,13 @@ def _get_or_create_originator_agent(
                 identifier=email,
             )
         ]
+    attribution_text = None
     if is_others and repo_url:
         import re
         match = re.search(r"see\s+([a-zA-Z0-9_.-]+)", name, re.IGNORECASE)
         filename = match.group(1) if match else "AUTHORS"
 
-        locator, ctype = _resolve_remote_authors_file(
+        locator, ctype, fetched_text = _resolve_remote_authors_file(
             repo_url, filename, offline, content_type_method
         )
 
@@ -415,9 +418,13 @@ def _get_or_create_originator_agent(
                 comment=f"Refers to {filename}"
             )
         ]
+        
+        attribution_text = fetched_text
+        if not attribution_text:
+            attribution_text = f"Attribution: This software includes contributions from additional authors detailed in the {filename} file at {repo_url}."
 
     exporter.add_agent(agent, key=key)
-    return require_spdx_id(agent)
+    return require_spdx_id(agent), attribution_text
 
 
 def _find_license_copyright(dist_name: str, pkg_meta: PackageMetadata) -> str | None:
@@ -518,10 +525,15 @@ def _apply_originator(
     originator_ids = []
     for name, email in originators:
         if name or email:
-            agent_id = _get_or_create_originator_agent(
+            agent_id, attribution_text = _get_or_create_originator_agent(
                 name, email, creation_info, doc_name, doc_uuid, exporter, repo_url=repo_url, package_name=dep_package.name, offline=offline, content_type_method=content_type_method
             )
             originator_ids.append(agent_id)
+            if attribution_text:
+                if not dep_package.software_attributionText:
+                    dep_package.software_attributionText = [attribution_text]
+                else:
+                    dep_package.software_attributionText.append(attribution_text)
             
     if not originator_ids:
         return False

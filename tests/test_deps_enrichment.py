@@ -1040,5 +1040,8 @@ def test_apply_originator_creates_others_external_ref() -> None:
     assert len(others.externalRef) == 1
     ref = others.externalRef[0]
     assert ref.externalRefType == spdx3.ExternalRefType.documentation
+    
+    assert dep_package.software_attributionText is not None
+    assert "Attribution: This software includes contributions from additional authors" in dep_package.software_attributionText[0]
     assert ref.locator == ["https://github.com/foo/bar/blob/HEAD/OTHER_AUTHORS.md"]
     assert ref.comment == "Refers to OTHER_AUTHORS.md"
