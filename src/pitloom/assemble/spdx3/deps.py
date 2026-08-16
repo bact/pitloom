@@ -330,12 +330,15 @@ def _resolve_remote_authors_file(
         except ValueError:
             pass
 
-    if host == "github.com":
-        locator = f"{base_url}/blob/{branch}/{filename}"
-        raw_url = f"https://raw.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/{branch}/{filename}"
-    elif host == "gitlab.com":
-        locator = f"{base_url}/-/blob/{branch}/{filename}"
-        raw_url = f"{base_url}/-/raw/{branch}/{filename}"
+    if len(path_parts) >= 2:
+        if host == "github.com":
+            locator = f"{base_url}/blob/{branch}/{filename}"
+            raw_url = f"https://raw.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/{branch}/{filename}"
+        elif host == "gitlab.com":
+            locator = f"{base_url}/-/blob/{branch}/{filename}"
+            raw_url = f"{base_url}/-/raw/{branch}/{filename}"
+        else:
+            return base_url, "text/plain"
     else:
         return base_url, "text/plain"
 
@@ -346,15 +349,15 @@ def _resolve_remote_authors_file(
     try:
         req = urllib.request.Request(raw_url, headers={"User-Agent": "pitloom"})
         with urllib.request.urlopen(req, timeout=5) as res:
-            content = res.read()
+            content = res.read(1024 * 64)
         ctype, _ = guess_content_type(content, filename, method=content_type_method)
         return locator, (ctype or "text/plain")
-    except URLError:
+    except (URLError, http.client.HTTPException, OSError):
         ctype, _ = guess_content_type(b"", filename, method="extension")
         return locator, (ctype or "text/plain")
 
 
-def _get_or_create_supplier_agent(
+def _get_or_create_originator_agent(
     name: str | None,
     email: str | None,
     creation_info: spdx3.CreationInfo,
@@ -367,7 +370,7 @@ def _get_or_create_supplier_agent(
     offline: bool = False,
     content_type_method: str = "auto",
 ) -> str:
-    """Get or create a ``Person`` Agent for a dependency's supplier, deduped
+    """Get or create an Agent for a dependency's originator, deduped
     by ``name``/``email`` so packages sharing an author reuse one Agent."""
     key = f"{name or ''}|{email or ''}"
     is_others = bool(name and "others" in name.lower())
@@ -377,14 +380,17 @@ def _get_or_create_supplier_agent(
     if existing:
         return existing
 
+    agent_type = "Organization" if is_others else "Person"
     kwargs = {
-        "spdxId": generate_spdx_id("Person", doc_name=doc_name, doc_uuid=doc_uuid),
+        "spdxId": generate_spdx_id(agent_type, doc_name=doc_name, doc_uuid=doc_uuid),
         "name": name or email,
         "creationInfo": creation_info,
     }
     if is_others:
         kwargs["comment"] = "Represents a group of additional contributors referenced externally."
-    agent = spdx3.Person(**kwargs)
+        agent = spdx3.Organization(**kwargs)
+    else:
+        agent = spdx3.Person(**kwargs)
     if email:
         agent.externalIdentifier = [
             spdx3.ExternalIdentifier(
@@ -489,8 +495,8 @@ def _resolve_metadata_url(
     return value if value and value != "UNKNOWN" else None
 
 
-def _apply_supplier(
-    suppliers: list[tuple[str | None, str | None]],
+def _apply_originator(
+    originators: list[tuple[str, str | None]],
     dep_package: spdx3.software_Package,
     creation_info: spdx3.CreationInfo,
     doc_name: str,
@@ -504,31 +510,31 @@ def _apply_supplier(
     offline: bool = False,
     content_type_method: str = "auto",
 ) -> bool:
-    """Set ``suppliedBy`` to a list of Agent(s) built from *suppliers*.
+    """Set ``originatedBy`` to a list of Agent(s) built from *originators*.
     Returns whether it was set."""
-    if not suppliers:
+    if not originators:
         return False
         
-    supplier_ids = []
-    for name, email in suppliers:
+    originator_ids = []
+    for name, email in originators:
         if name or email:
-            agent_id = _get_or_create_supplier_agent(
+            agent_id = _get_or_create_originator_agent(
                 name, email, creation_info, doc_name, doc_uuid, exporter, repo_url=repo_url, package_name=dep_package.name, offline=offline, content_type_method=content_type_method
             )
-            supplier_ids.append(agent_id)
+            originator_ids.append(agent_id)
             
-    if not supplier_ids:
+    if not originator_ids:
         return False
         
-    if supplier_ids:
-        dep_package.suppliedBy = supplier_ids[0]
+    if originator_ids:
+        dep_package.originatedBy = originator_ids
     
     if provenance_source:
-        method = "parsed_author_list" if len(suppliers) > 1 else ""
+        method = "parsed_author_list" if len(originators) > 1 else ""
         prov_str = f"{provenance_source} | Method: {method}" if method else provenance_source
         emit_provenance(
             subject=dep_package,
-            provenance={"suppliedBy": prov_str},
+            provenance={"originatedBy": prov_str},
             creation_info=creation_info,
             doc_name=doc_name,
             doc_uuid=doc_uuid,
@@ -629,10 +635,10 @@ def _enrich_from_installed(
     if version and version != "unknown":
         dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
 
-    # suppliedBy -- Person built from Author/Maintainer metadata, when known
-    suppliers = _resolve_supplier(pkg_meta)
-    if _apply_supplier(
-        suppliers,
+    # originatedBy -- Person built from Author/Maintainer metadata, when known
+    originators = _resolve_supplier(pkg_meta)
+    if _apply_originator(
+        originators,
         dep_package,
         creation_info,
         doc_name,
@@ -645,7 +651,7 @@ def _enrich_from_installed(
         offline=offline,
         content_type_method=content_type_method,
     ):
-        filled.add("supplier")
+        filled.add("originator")
 
     # copyrightText -- first copyright line found in a declared License-File
     copyright_text = _find_license_copyright(dep_name, pkg_meta)
@@ -727,10 +733,10 @@ def _enrich_from_pypi(
         home_page = info.get("home_page") or _resolve_metadata_url(info.get("project_url") or "", lower_project_urls, _HOMEPAGE_LABELS)
         repo_url = home_page
 
-    if "supplier" not in already_filled:
-        suppliers = _extract_pypi_supplier(info)
-        if _apply_supplier(
-            suppliers,
+    if "originator" not in already_filled:
+        originators = _extract_pypi_supplier(info)
+        if _apply_originator(
+            originators,
             dep_package,
             creation_info,
             doc_name,
@@ -743,7 +749,7 @@ def _enrich_from_pypi(
             offline=offline,
             content_type_method=content_type_method,
         ):
-            filled.add("supplier")
+            filled.add("originator")
 
     if "license" not in already_filled:
         license_id = _extract_pypi_license(info)

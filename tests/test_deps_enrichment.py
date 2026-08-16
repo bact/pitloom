@@ -397,7 +397,7 @@ def test_resolve_supplier_absent_returns_none() -> None:
     assert _resolve_supplier(_FakeMetadata({})) == []
 
 
-def test_enrich_from_installed_sets_supplied_by(
+def test_enrich_from_installed_sets_originated_by(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -422,11 +422,11 @@ def test_enrich_from_installed_sets_supplied_by(
 
     _enrich_from_installed("tomli", dep_package, ci, "supptest", doc_uuid, exporter)
 
-    assert dep_package.suppliedBy is not None
+    assert dep_package.originatedBy is not None
     agents = [o for o in exporter.object_set.objects if isinstance(o, spdx3.Person)]
     assert len(agents) == 1
     assert agents[0].name == "Taneli Hukkinen"
-    assert dep_package.suppliedBy == require_spdx_id(agents[0])
+    assert dep_package.originatedBy == [require_spdx_id(agents[0])]
 
 
 def test_enrich_from_installed_dedupes_shared_supplier_agent(
@@ -1006,7 +1006,7 @@ def test_extract_suppliers_parses_comma_separated_names() -> None:
     ]
 
 
-def test_apply_supplier_creates_others_external_ref() -> None:
+def test_apply_originator_creates_others_external_ref() -> None:
     doc_uuid = compute_doc_uuid("otherstest", "1.0", [])
     _clear_doc_counters(doc_uuid)
     exporter = Spdx3JsonExporter()
@@ -1018,9 +1018,9 @@ def test_apply_supplier_creates_others_external_ref() -> None:
     )
     exporter.add_package(dep_package)
 
-    suppliers = [("Alice", None), ("Others (See OTHER_AUTHORS.md)", None)]
-    deps_mod._apply_supplier(
-        suppliers,
+    originators = [("Alice", None), ("Others (See OTHER_AUTHORS.md)", None)]
+    deps_mod._apply_originator(
+        originators,
         dep_package,
         ci,
         "otherstest",
@@ -1030,11 +1030,13 @@ def test_apply_supplier_creates_others_external_ref() -> None:
         offline=True,
     )
 
-    agents = [o for o in exporter.object_set.objects if isinstance(o, spdx3.Person)]
+    agents = [o for o in exporter.object_set.objects if isinstance(o, (spdx3.Person, spdx3.Organization))]
     assert len(agents) == 2
     
-    others = next((a for a in agents if "Others" in a.name), None)
+    others = next((a for a in agents if "Others" in a.name and isinstance(a, spdx3.Organization)), None)
     assert others is not None
+    
+    assert len(dep_package.originatedBy) == 2
     assert len(others.externalRef) == 1
     ref = others.externalRef[0]
     assert ref.externalRefType == spdx3.ExternalRefType.documentation
