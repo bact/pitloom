@@ -25,6 +25,7 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from typing import Any, cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -1096,3 +1097,51 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert locator2 == locator
     assert ctype2 == ctype
     assert content2 == content
+
+
+@patch("urllib.request.urlopen")
+def test_resolve_remote_authors_file_success_and_branches(
+    mock_urlopen: MagicMock,
+) -> None:
+    """Test successful URL fetch and other repository branches."""
+    # Mock successful response
+    mock_response = MagicMock()
+    mock_response.read.return_value = b"Author1\nAuthor2"
+    mock_urlopen.return_value.__enter__.return_value = mock_response
+
+    # Test github.com with successful fetch
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://github.com/foo/pkg",
+        "AUTHORS",
+        offline=False,
+        content_type_method="auto",
+    )
+    assert locator == "https://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    assert content == "Author1\nAuthor2"
+
+    # Test gitlab.com
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://gitlab.com/foo/pkg",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://gitlab.com/foo/pkg/-/blob/HEAD/AUTHORS"
+
+    # Test unknown host
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://example.com/foo/pkg",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://example.com/foo/pkg"
+
+    # Test short path
+    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://github.com/foo",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
+    )
+    assert locator == "https://github.com/foo"
