@@ -143,7 +143,9 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
     return "unknown", None
 
 
-def _extract_suppliers(name: str, email_raw: str) -> list[tuple[str | None, str | None]]:
+def _extract_suppliers(
+    name: str, email_raw: str
+) -> list[tuple[str | None, str | None]]:
     """Return a list of ``(name, email)`` tuples from metadata fields.
 
     *email_raw* may carry an RFC 5322 ``"Name <email>"`` form (how PEP 621
@@ -186,7 +188,9 @@ def _resolve_supplier(pkg_meta: PackageMetadata) -> list[tuple[str | None, str |
         ("Author", "Author-email"),
         ("Maintainer", "Maintainer-email"),
     ):
-        results = _extract_suppliers(pkg_meta[name_field] or "", pkg_meta[email_field] or "")
+        results = _extract_suppliers(
+            pkg_meta[name_field] or "", pkg_meta[email_field] or ""
+        )
         if results:
             return results
     return []
@@ -200,7 +204,9 @@ def _extract_pypi_supplier(info: dict[str, Any]) -> list[tuple[str | None, str |
         ("author", "author_email"),
         ("maintainer", "maintainer_email"),
     ):
-        results = _extract_suppliers(info.get(name_key) or "", info.get(email_key) or "")
+        results = _extract_suppliers(
+            info.get(name_key) or "", info.get(email_key) or ""
+        )
         if results:
             return results
     return []
@@ -306,13 +312,15 @@ def _prefetch_pypi_release_infos(
         for future, key in futures.items():
             results[key] = future.result()
     return results
+
+
 @functools.lru_cache(maxsize=256)
 def _resolve_remote_authors_file(
     repo_url: str,
     filename: str,
     offline: bool,
     content_type_method: str,
-) -> tuple[str, str, str | None]:
+) -> tuple[str, str | None, str | None]:
     """Resolve the URL locator and content type for a remote authors file."""
     base_url = repo_url[:-4] if repo_url.endswith(".git") else repo_url
     base_url = base_url.rstrip("/")
@@ -325,18 +333,21 @@ def _resolve_remote_authors_file(
     if len(path_parts) >= 2:
         if host == "github.com":
             locator = f"{base_url}/blob/{branch}/{filename}"
-            raw_url = f"https://raw.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/{branch}/{filename}"
+            raw_url = (
+                f"https://raw.githubusercontent.com/{path_parts[0]}/"
+                f"{path_parts[1]}/{branch}/{filename}"
+            )
         elif host == "gitlab.com":
             locator = f"{base_url}/-/blob/{branch}/{filename}"
             raw_url = f"{base_url}/-/raw/{branch}/{filename}"
         else:
-            return base_url, "text/plain", None
+            return base_url, None, None
     else:
-        return base_url, "text/plain", None
+        return base_url, None, None
 
     if offline or content_type_method == "extension":
         ctype, _ = guess_content_type(b"", filename, method="extension")
-        return locator, (ctype or "text/plain"), None
+        return locator, ctype, None
 
     try:
         if not raw_url.startswith(("http://", "https://")):
@@ -345,12 +356,17 @@ def _resolve_remote_authors_file(
         with urllib.request.urlopen(req, timeout=5) as res:  # nosec B310
             content = res.read(1024 * 64)
         ctype, _ = guess_content_type(content, filename, method=content_type_method)
-        return locator, (ctype or "text/plain"), content.decode("utf-8", errors="replace")
+        return (
+            locator,
+            ctype,
+            content.decode("utf-8", errors="replace"),
+        )
     except (URLError, http.client.HTTPException, OSError, ValueError):
         ctype, _ = guess_content_type(b"", filename, method="extension")
-        return locator, (ctype or "text/plain"), None
+        return locator, ctype, None
 
 
+# pylint: disable=too-many-arguments,too-many-locals
 def _get_or_create_originator_agent(
     name: str | None,
     email: str | None,
@@ -382,7 +398,9 @@ def _get_or_create_originator_agent(
     }
     agent: spdx3.Agent
     if is_others:
-        kwargs["comment"] = "Represents a group of additional contributors referenced externally."
+        kwargs["comment"] = (
+            "Represents a group of additional contributors referenced externally."
+        )
         agent = spdx3.Organization(**kwargs)  # type: ignore[arg-type]
     else:
         agent = spdx3.Person(**kwargs)  # type: ignore[arg-type]
@@ -395,7 +413,6 @@ def _get_or_create_originator_agent(
         ]
     attribution_text = None
     if is_others and repo_url:
-        import re
         match = re.search(r"see\s+([a-zA-Z0-9_.-]+)", str(name), re.IGNORECASE)
         filename = match.group(1) if match else "AUTHORS"
 
@@ -403,18 +420,22 @@ def _get_or_create_originator_agent(
             repo_url, filename, offline, content_type_method
         )
 
-        agent.externalRef = [
-            spdx3.ExternalRef(
-                externalRefType=spdx3.ExternalRefType.documentation,
-                locator=[locator],
-                contentType=ctype,
-                comment=f"Refers to {filename}"
-            )
-        ]
+        ref_kwargs: dict[str, Any] = {
+            "externalRefType": spdx3.ExternalRefType.documentation,
+            "locator": [locator],
+            "comment": f"Refers to {filename}",
+        }
+        if ctype:
+            ref_kwargs["contentType"] = ctype
+
+        agent.externalRef = [spdx3.ExternalRef(**ref_kwargs)]
 
         attribution_text = fetched_text
         if not attribution_text:
-            attribution_text = f"Attribution: This package includes contributions from additional authors detailed in the {filename} file at {repo_url}."
+            attribution_text = (
+                "Attribution: This package includes contributions from additional "
+                f"authors detailed in the {filename} file at {repo_url}."
+            )
 
     exporter.add_agent(agent, key=key)
     return require_spdx_id(agent), attribution_text
@@ -519,7 +540,16 @@ def _apply_originator(
     for name, email in originators:
         if name or email:
             agent_id, attribution_text = _get_or_create_originator_agent(
-                name, email, creation_info, doc_name, doc_uuid, exporter, repo_url=repo_url, package_name=dep_package.name, offline=offline, content_type_method=content_type_method
+                name,
+                email,
+                creation_info,
+                doc_name,
+                doc_uuid,
+                exporter,
+                repo_url=repo_url,
+                package_name=dep_package.name,
+                offline=offline,
+                content_type_method=content_type_method,
             )
             originator_ids.append(agent_id)
             if attribution_text:
@@ -535,11 +565,15 @@ def _apply_originator(
 
     if provenance_source:
         method = "parsed_author_list" if len(originators) > 1 else ""
-        prov_str = f"{provenance_source} | Method: {method}" if method else provenance_source
+        prov_str = (
+            f"{provenance_source} | Method: {method}" if method else provenance_source
+        )
         prov_dict = {"originatedBy": prov_str}
 
         if dep_package.software_attributionText and repo_url:
-            prov_dict["software_attributionText"] = f"Fetched from AUTHORS at {repo_url}"
+            prov_dict["software_attributionText"] = (
+                f"Fetched from AUTHORS at {repo_url}"
+            )
 
         emit_provenance(
             subject=dep_package,
@@ -590,6 +624,7 @@ def _apply_license(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
+# pylint: disable=too-many-locals
 def _enrich_from_installed(
     dep_name: str,
     dep_package: spdx3.software_Package,
@@ -635,7 +670,9 @@ def _enrich_from_installed(
     if download_url:
         dep_package.software_downloadLocation = download_url
 
-    repo_url = _resolve_metadata_url("", project_urls, ("repository", "source", "source code"))
+    repo_url = _resolve_metadata_url(
+        "", project_urls, ("repository", "source", "source code")
+    )
     if not repo_url:
         repo_url = home_page
 
@@ -737,9 +774,13 @@ def _enrich_from_pypi(
 
     project_urls = info.get("project_urls") or {}
     lower_project_urls = {k.lower(): v for k, v in project_urls.items()}
-    repo_url = _resolve_metadata_url("", lower_project_urls, ("repository", "source", "source code"))
+    repo_url = _resolve_metadata_url(
+        "", lower_project_urls, ("repository", "source", "source code")
+    )
     if not repo_url:
-        home_page = info.get("home_page") or _resolve_metadata_url(info.get("project_url") or "", lower_project_urls, _HOMEPAGE_LABELS)
+        home_page = info.get("home_page") or _resolve_metadata_url(
+            info.get("project_url") or "", lower_project_urls, _HOMEPAGE_LABELS
+        )
         repo_url = home_page
 
     if "originator" not in already_filled:

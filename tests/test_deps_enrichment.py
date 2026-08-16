@@ -1,3 +1,4 @@
+# pylint: disable=protected-access
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
@@ -541,7 +542,9 @@ def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
 
 def test_extract_pypi_supplier_from_author() -> None:
     info = {"author": "Trail of Bits", "author_email": "opensource@trailofbits.com"}
-    assert _extract_pypi_supplier(info) == [("Trail of Bits", "opensource@trailofbits.com")]
+    assert _extract_pypi_supplier(info) == [
+        ("Trail of Bits", "opensource@trailofbits.com")
+    ]
 
 
 def test_extract_pypi_supplier_falls_back_to_maintainer() -> None:
@@ -549,7 +552,9 @@ def test_extract_pypi_supplier_falls_back_to_maintainer() -> None:
         "maintainer": "Taneli Hukkinen",
         "maintainer_email": "hukkin@users.noreply.github.com",
     }
-    assert _extract_pypi_supplier(info) == [("Taneli Hukkinen", "hukkin@users.noreply.github.com")]
+    assert _extract_pypi_supplier(info) == [
+        ("Taneli Hukkinen", "hukkin@users.noreply.github.com")
+    ]
 
 
 def test_extract_pypi_supplier_absent_returns_none() -> None:
@@ -1018,7 +1023,10 @@ def test_apply_originator_creates_others_external_ref() -> None:
     )
     exporter.add_package(dep_package)
 
-    originators: list[tuple[str | None, str | None]] = [("Alice", None), ("Others (See OTHER_AUTHORS.md)", None)]
+    originators: list[tuple[str | None, str | None]] = [
+        ("Alice", None),
+        ("Others (See OTHER_AUTHORS.md)", None),
+    ]
     deps_mod._apply_originator(
         originators,
         dep_package,
@@ -1030,10 +1038,21 @@ def test_apply_originator_creates_others_external_ref() -> None:
         offline=True,
     )
 
-    agents = [o for o in exporter.object_set.objects if isinstance(o, (spdx3.Person, spdx3.Organization))]
+    agents = [
+        o
+        for o in exporter.object_set.objects
+        if isinstance(o, (spdx3.Person, spdx3.Organization))
+    ]
     assert len(agents) == 2
 
-    others = next((a for a in agents if a.name and "Others" in a.name and isinstance(a, spdx3.Organization)), None)
+    others = next(
+        (
+            a
+            for a in agents
+            if a.name and "Others" in a.name and isinstance(a, spdx3.Organization)
+        ),
+        None,
+    )
     assert others is not None
     assert len(others.externalRef) == 1
     ref = others.externalRef[0]
@@ -1041,7 +1060,10 @@ def test_apply_originator_creates_others_external_ref() -> None:
     assert ref.externalRefType == spdx3.ExternalRefType.documentation
 
     assert len(dep_package.software_attributionText) > 0
-    assert "Attribution: This package includes contributions from additional authors" in dep_package.software_attributionText[0]
+    assert (
+        "Attribution: This package includes contributions from additional authors"
+        in dep_package.software_attributionText[0]
+    )
     assert ref.locator == ["https://github.com/foo/bar/blob/HEAD/OTHER_AUTHORS.md"]
     assert ref.comment == "Refers to OTHER_AUTHORS.md"
 
@@ -1050,10 +1072,13 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     """Test offline behavior and ValueError handling for remote authors files."""
     # Test offline returns immediately without trying to fetch
     locator, ctype, content = deps_mod._resolve_remote_authors_file(
-        "https://github.com/foo/pkg", "AUTHORS", offline=True, content_type_method="auto"
+        "https://github.com/foo/pkg",
+        "AUTHORS",
+        offline=True,
+        content_type_method="auto",
     )
     assert locator == "https://github.com/foo/pkg/blob/HEAD/AUTHORS"
-    assert ctype == "text/plain"
+    assert ctype is None
     assert content is None
 
     # Test ValueError when scheme is disallowed (ftp)
@@ -1061,7 +1086,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
         "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
     )
     assert locator == "ftp://github.com/foo/pkg/blob/HEAD/AUTHORS"
-    assert ctype == "text/plain"
+    assert ctype is None
     assert content is None
 
     # Test lru_cache behavior (call twice, check it returns identical)
@@ -1071,4 +1096,3 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert locator2 == locator
     assert ctype2 == ctype
     assert content2 == content
-
