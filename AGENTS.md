@@ -55,6 +55,8 @@
 
 - **Honor user intent over silent fallbacks**: Do not implement implicit fallbacks that contradict the user's explicit instructions or command semantics (e.g. if the user specifies a standalone mode, do not silently parse a project directory).
 - **No silent deviations**: If Pitloom must deviate from the user's instruction to ensure correctness or safety, it must never do so silently. Always emit a clear `WARNING:` log or stderr message explaining what decision was made and why.
+- **Respect configuration hierarchy**: Always honor the configuration cascade (CLI flags > `pyproject.toml` > hardcoded defaults). Ensure configuration intent is properly propagated through the assembly layer.
+- **Resource efficiency**: Be mindful of performance and memory. Prevent excessive network access by combining API requests where possible, using caching (`lru_cache`), and leveraging route optimization (`HEAD` before `GET` to avoid rate limits). Prevent memory spikes by streaming data instead of loading large structures (like NumPy arrays, PyTorch weights, or big archives) entirely into memory.
 
 ## CLI output
 
