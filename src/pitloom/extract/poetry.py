@@ -62,7 +62,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.config import PitloomConfig, _read_pitloom_config
+from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     detect_license_for_project,
@@ -99,7 +99,7 @@ def read_poetry(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
         data: dict[str, Any] = tomllib.load(f)
 
     metadata = extract_poetry_metadata(data, pyproject_path.parent)
-    pitloom_config = _read_pitloom_config(data)
+    pitloom_config = parse_pitloom_config(data)
     return metadata, pitloom_config
 
 

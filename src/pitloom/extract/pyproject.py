@@ -18,7 +18,7 @@ from typing import Any
 
 from pyproject_metadata import StandardMetadata
 
-from pitloom.core.config import PitloomConfig, _read_pitloom_config
+from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._license import (
@@ -67,7 +67,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
         data: dict[str, Any] = tomllib.load(f)
 
     project_data: dict[str, Any] = data.get("project", {})
-    pitloom_config = _read_pitloom_config(data)
+    pitloom_config = parse_pitloom_config(data)
 
     name: str = (project_data.get("name") or "").strip()
 
