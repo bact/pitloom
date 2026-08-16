@@ -245,6 +245,7 @@ def generate_project_sbom(
         provenance=effective_provenance,
         enrichment_results_by_model=enrichment_results_by_model,
         offline=effective_offline,
+        content_type_method=effective_content_type_method,
     )
 
     if target_path.is_dir():

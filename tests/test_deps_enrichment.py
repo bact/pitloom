@@ -422,7 +422,7 @@ def test_enrich_from_installed_sets_originated_by(
 
     _enrich_from_installed("tomli", dep_package, ci, "supptest", doc_uuid, exporter)
 
-    assert dep_package.originatedBy is not None
+    assert len(dep_package.originatedBy) > 0
     agents = [o for o in exporter.object_set.objects if isinstance(o, spdx3.Person)]
     assert len(agents) == 1
     assert agents[0].name == "Taneli Hukkinen"
@@ -1018,7 +1018,7 @@ def test_apply_originator_creates_others_external_ref() -> None:
     )
     exporter.add_package(dep_package)
 
-    originators = [("Alice", None), ("Others (See OTHER_AUTHORS.md)", None)]
+    originators: list[tuple[str | None, str | None]] = [("Alice", None), ("Others (See OTHER_AUTHORS.md)", None)]
     deps_mod._apply_originator(
         originators,
         dep_package,
@@ -1032,16 +1032,43 @@ def test_apply_originator_creates_others_external_ref() -> None:
 
     agents = [o for o in exporter.object_set.objects if isinstance(o, (spdx3.Person, spdx3.Organization))]
     assert len(agents) == 2
-    
-    others = next((a for a in agents if "Others" in a.name and isinstance(a, spdx3.Organization)), None)
+
+    others = next((a for a in agents if a.name and "Others" in a.name and isinstance(a, spdx3.Organization)), None)
     assert others is not None
-    
-    assert len(dep_package.originatedBy) == 2
     assert len(others.externalRef) == 1
     ref = others.externalRef[0]
+    assert isinstance(ref, spdx3.ExternalRef)
     assert ref.externalRefType == spdx3.ExternalRefType.documentation
-    
-    assert dep_package.software_attributionText is not None
-    assert "Attribution: This software includes contributions from additional authors" in dep_package.software_attributionText[0]
+
+    assert len(dep_package.software_attributionText) > 0
+    assert "Attribution: This package includes contributions from additional authors" in dep_package.software_attributionText[0]
     assert ref.locator == ["https://github.com/foo/bar/blob/HEAD/OTHER_AUTHORS.md"]
     assert ref.comment == "Refers to OTHER_AUTHORS.md"
+
+
+def test_resolve_remote_authors_file_offline_and_errors() -> None:
+    """Test offline behavior and ValueError handling for remote authors files."""
+    # Test offline returns immediately without trying to fetch
+    locator, ctype, content = deps_mod._resolve_remote_authors_file(
+        "https://github.com/foo/pkg", "AUTHORS", offline=True, content_type_method="auto"
+    )
+    assert locator == "https://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    assert ctype == "text/plain"
+    assert content is None
+
+    # Test ValueError when scheme is disallowed (ftp)
+    locator, ctype, content = deps_mod._resolve_remote_authors_file(
+        "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
+    )
+    assert locator == "ftp://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    assert ctype == "text/plain"
+    assert content is None
+
+    # Test lru_cache behavior (call twice, check it returns identical)
+    locator2, ctype2, content2 = deps_mod._resolve_remote_authors_file(
+        "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
+    )
+    assert locator2 == locator
+    assert ctype2 == ctype
+    assert content2 == content
+

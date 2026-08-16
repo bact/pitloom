@@ -408,6 +408,7 @@ def build(
     provenance: ProvenanceConfig | None = None,
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
     offline: bool = False,
+    content_type_method: str = "auto",
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
@@ -531,7 +532,7 @@ def build(
         offline=offline,
         provenance_config=prov_cfg,
         encoder=encoder,
-        content_type_method=effective_content_type_method,
+        content_type_method=content_type_method,
     )
 
     # --- Files ---

@@ -7,7 +7,10 @@
 
 from __future__ import annotations
 
+import functools
+import http.client
 import re
+import urllib.request
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import getaddresses
@@ -16,7 +19,9 @@ from importlib.metadata import distribution as get_pkg_distribution
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
 from typing import Any
+from urllib.error import URLError
 from urllib.parse import quote as url_quote
+from urllib.parse import urlparse
 
 from packaging.requirements import InvalidRequirement, Requirement
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -34,14 +39,11 @@ from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract._extract_utils import fetch_json
+from pitloom.extract._file_headers import guess_content_type
 from pitloom.extract._license import (
     normalize_license_expression,
     tag_license_normalization,
 )
-from pitloom.extract._file_headers import guess_content_type
-import urllib.request
-from urllib.error import URLError
-from urllib.parse import urlparse
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
 # avoid splitting on a prefix of a multi-character operator (e.g. "==" before "=").
@@ -304,6 +306,7 @@ def _prefetch_pypi_release_infos(
         for future, key in futures.items():
             results[key] = future.result()
     return results
+@functools.lru_cache(maxsize=256)
 def _resolve_remote_authors_file(
     repo_url: str,
     filename: str,
@@ -316,19 +319,8 @@ def _resolve_remote_authors_file(
     parsed = urlparse(base_url)
     host = parsed.netloc.lower()
     path_parts = [p for p in parsed.path.split("/") if p]
-    
+
     branch = "HEAD"
-    if not offline and len(path_parts) >= 2:
-        owner, repo = path_parts[0], path_parts[1]
-        try:
-            if host == "github.com":
-                data = fetch_json(f"https://api.github.com/repos/{owner}/{repo}", timeout=5)
-                branch = data.get("default_branch", "HEAD")
-            elif host == "gitlab.com":
-                data = fetch_json(f"https://gitlab.com/api/v4/projects/{owner}%2F{repo}", timeout=5)
-                branch = data.get("default_branch", "HEAD")
-        except ValueError:
-            pass
 
     if len(path_parts) >= 2:
         if host == "github.com":
@@ -338,9 +330,9 @@ def _resolve_remote_authors_file(
             locator = f"{base_url}/-/blob/{branch}/{filename}"
             raw_url = f"{base_url}/-/raw/{branch}/{filename}"
         else:
-            return base_url, "text/plain"
+            return base_url, "text/plain", None
     else:
-        return base_url, "text/plain"
+        return base_url, "text/plain", None
 
     if offline or content_type_method == "extension":
         ctype, _ = guess_content_type(b"", filename, method="extension")
@@ -354,7 +346,7 @@ def _resolve_remote_authors_file(
             content = res.read(1024 * 64)
         ctype, _ = guess_content_type(content, filename, method=content_type_method)
         return locator, (ctype or "text/plain"), content.decode("utf-8", errors="replace")
-    except (URLError, http.client.HTTPException, OSError):
+    except (URLError, http.client.HTTPException, OSError, ValueError):
         ctype, _ = guess_content_type(b"", filename, method="extension")
         return locator, (ctype or "text/plain"), None
 
@@ -388,11 +380,12 @@ def _get_or_create_originator_agent(
         "name": name or email,
         "creationInfo": creation_info,
     }
+    agent: spdx3.Agent
     if is_others:
         kwargs["comment"] = "Represents a group of additional contributors referenced externally."
-        agent = spdx3.Organization(**kwargs)
+        agent = spdx3.Organization(**kwargs)  # type: ignore[arg-type]
     else:
-        agent = spdx3.Person(**kwargs)
+        agent = spdx3.Person(**kwargs)  # type: ignore[arg-type]
     if email:
         agent.externalIdentifier = [
             spdx3.ExternalIdentifier(
@@ -403,7 +396,7 @@ def _get_or_create_originator_agent(
     attribution_text = None
     if is_others and repo_url:
         import re
-        match = re.search(r"see\s+([a-zA-Z0-9_.-]+)", name, re.IGNORECASE)
+        match = re.search(r"see\s+([a-zA-Z0-9_.-]+)", str(name), re.IGNORECASE)
         filename = match.group(1) if match else "AUTHORS"
 
         locator, ctype, fetched_text = _resolve_remote_authors_file(
@@ -418,10 +411,10 @@ def _get_or_create_originator_agent(
                 comment=f"Refers to {filename}"
             )
         ]
-        
+
         attribution_text = fetched_text
         if not attribution_text:
-            attribution_text = f"Attribution: This software includes contributions from additional authors detailed in the {filename} file at {repo_url}."
+            attribution_text = f"Attribution: This package includes contributions from additional authors detailed in the {filename} file at {repo_url}."
 
     exporter.add_agent(agent, key=key)
     return require_spdx_id(agent), attribution_text
@@ -503,7 +496,7 @@ def _resolve_metadata_url(
 
 
 def _apply_originator(
-    originators: list[tuple[str, str | None]],
+    originators: list[tuple[str | None, str | None]],
     dep_package: spdx3.software_Package,
     creation_info: spdx3.CreationInfo,
     doc_name: str,
@@ -521,7 +514,7 @@ def _apply_originator(
     Returns whether it was set."""
     if not originators:
         return False
-        
+
     originator_ids = []
     for name, email in originators:
         if name or email:
@@ -534,19 +527,23 @@ def _apply_originator(
                     dep_package.software_attributionText = [attribution_text]
                 else:
                     dep_package.software_attributionText.append(attribution_text)
-            
+
     if not originator_ids:
         return False
-        
-    if originator_ids:
-        dep_package.originatedBy = originator_ids
-    
+
+    dep_package.originatedBy = originator_ids
+
     if provenance_source:
         method = "parsed_author_list" if len(originators) > 1 else ""
         prov_str = f"{provenance_source} | Method: {method}" if method else provenance_source
+        prov_dict = {"originatedBy": prov_str}
+
+        if dep_package.software_attributionText and repo_url:
+            prov_dict["software_attributionText"] = f"Fetched from AUTHORS at {repo_url}"
+
         emit_provenance(
             subject=dep_package,
-            provenance={"originatedBy": prov_str},
+            provenance=prov_dict,
             creation_info=creation_info,
             doc_name=doc_name,
             doc_uuid=doc_uuid,
@@ -1266,6 +1263,7 @@ def add_dependencies(
             release_info_cache=release_info_cache,
             provenance_config=provenance_config,
             encoder=encoder,
+            content_type_method=content_type_method,
         )
 
         exporter.add_package(dep_package)
