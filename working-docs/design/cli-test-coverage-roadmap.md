@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -106,7 +106,7 @@ Target layout (matches the flat-multi-module-package convention
   siblings.
 - `cli/verbose.py` -- `_print_verbose`, `_build_creation_option_rows`.
 - `cli/modes/` -- one file per mode handler
-  (`generate.py`, `project.py`, `wheel.py`, `model.py`, `enrich.py`,
+  (`generate.py`, `project.py`, `wheel.py`, `embed_wheel.py`, `model.py`, `enrich.py`,
   `env.py`, `merge.py`), each holding its `_run_<verb>_mode` function.
   One file per mode keeps each under the size limit on its own and
   gives Phase 2's test split an exact 1:1 file to mirror.
