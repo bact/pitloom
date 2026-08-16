@@ -531,6 +531,7 @@ def build(
         offline=offline,
         provenance_config=prov_cfg,
         encoder=encoder,
+        content_type_method=effective_content_type_method,
     )
 
     # --- Files ---

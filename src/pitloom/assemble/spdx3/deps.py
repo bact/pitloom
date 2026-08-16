@@ -38,6 +38,10 @@ from pitloom.extract._license import (
     normalize_license_expression,
     tag_license_normalization,
 )
+from pitloom.extract._file_headers import guess_content_type
+import urllib.request
+from urllib.error import URLError
+from urllib.parse import urlparse
 
 # Operators used in PEP 508 dependency specifiers, ordered longest-first to
 # avoid splitting on a prefix of a multi-character operator (e.g. "==" before "=").
@@ -137,8 +141,8 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
     return "unknown", None
 
 
-def _pick_supplier(name: str, email_raw: str) -> tuple[str | None, str | None] | None:
-    """Return ``(name, email)`` from one name/email metadata pair, or ``None``.
+def _extract_suppliers(name: str, email_raw: str) -> list[tuple[str | None, str | None]]:
+    """Return a list of ``(name, email)`` tuples from metadata fields.
 
     *email_raw* may carry an RFC 5322 ``"Name <email>"`` form (how PEP 621
     ``[project.authors]`` round-trips through core metadata / PyPI's JSON
@@ -146,50 +150,58 @@ def _pick_supplier(name: str, email_raw: str) -> tuple[str | None, str | None] |
     comma-separated list of several such entries; :func:`email.utils.
     getaddresses` handles all three (unlike :func:`email.utils.parseaddr`,
     which mis-parses a multi-entry list as one malformed address and
-    silently returns nothing). Only the first entry is used. *name* alone
-    (no email) is still a usable result.
+    silently returns nothing).
+
+    If *email_raw* is empty but *name* contains a comma-separated list of
+    names, it splits them into individual tuples.
     """
     name = name.strip()
     email_raw = email_raw.strip()
+    results: list[tuple[str | None, str | None]] = []
+
     if email_raw:
         addresses = getaddresses([email_raw])
-        if addresses:
-            parsed_name, parsed_email = addresses[0]
+        for parsed_name, parsed_email in addresses:
             resolved_name = parsed_name.strip() or name or None
             resolved_email = parsed_email.strip() or None
             if resolved_name or resolved_email:
-                return resolved_name, resolved_email
+                results.append((resolved_name, resolved_email))
+        return results
+
     if name:
-        return name, None
-    return None
+        for part in re.split(r",|\band\b", name):
+            part = part.strip()
+            if part:
+                results.append((part, None))
+    return results
 
 
-def _resolve_supplier(pkg_meta: PackageMetadata) -> tuple[str | None, str | None]:
-    """Return ``(name, email)`` for a dependency's supplier from installed
-    metadata, or ``(None, None)``. Tries ``Author``/``Author-email`` first,
+def _resolve_supplier(pkg_meta: PackageMetadata) -> list[tuple[str | None, str | None]]:
+    """Return a list of ``(name, email)`` tuples for a dependency's supplier from
+    installed metadata, or an empty list. Tries ``Author``/``Author-email`` first,
     then falls back to ``Maintainer``/``Maintainer-email``."""
     for name_field, email_field in (
         ("Author", "Author-email"),
         ("Maintainer", "Maintainer-email"),
     ):
-        result = _pick_supplier(pkg_meta[name_field] or "", pkg_meta[email_field] or "")
-        if result:
-            return result
-    return None, None
+        results = _extract_suppliers(pkg_meta[name_field] or "", pkg_meta[email_field] or "")
+        if results:
+            return results
+    return []
 
 
-def _extract_pypi_supplier(info: dict[str, Any]) -> tuple[str | None, str | None]:
-    """Return ``(name, email)`` for a dependency's supplier from a PyPI JSON
-    API ``info`` object, or ``(None, None)``. Same author-then-maintainer
+def _extract_pypi_supplier(info: dict[str, Any]) -> list[tuple[str | None, str | None]]:
+    """Return a list of ``(name, email)`` tuples for a dependency's supplier from a
+    PyPI JSON API ``info`` object, or an empty list. Same author-then-maintainer
     precedence as :func:`_resolve_supplier`."""
     for name_key, email_key in (
         ("author", "author_email"),
         ("maintainer", "maintainer_email"),
     ):
-        result = _pick_supplier(info.get(name_key) or "", info.get(email_key) or "")
-        if result:
-            return result
-    return None, None
+        results = _extract_suppliers(info.get(name_key) or "", info.get(email_key) or "")
+        if results:
+            return results
+    return []
 
 
 def _extract_pypi_license(info: dict[str, Any]) -> str | None:
@@ -292,6 +304,54 @@ def _prefetch_pypi_release_infos(
         for future, key in futures.items():
             results[key] = future.result()
     return results
+def _resolve_remote_authors_file(
+    repo_url: str,
+    filename: str,
+    offline: bool,
+    content_type_method: str,
+) -> tuple[str, str]:
+    """Resolve the URL locator and content type for a remote authors file."""
+    base_url = repo_url[:-4] if repo_url.endswith(".git") else repo_url
+    base_url = base_url.rstrip("/")
+    parsed = urlparse(base_url)
+    host = parsed.netloc.lower()
+    path_parts = [p for p in parsed.path.split("/") if p]
+    
+    branch = "HEAD"
+    if not offline and len(path_parts) >= 2:
+        owner, repo = path_parts[0], path_parts[1]
+        try:
+            if host == "github.com":
+                data = fetch_json(f"https://api.github.com/repos/{owner}/{repo}", timeout=5)
+                branch = data.get("default_branch", "HEAD")
+            elif host == "gitlab.com":
+                data = fetch_json(f"https://gitlab.com/api/v4/projects/{owner}%2F{repo}", timeout=5)
+                branch = data.get("default_branch", "HEAD")
+        except ValueError:
+            pass
+
+    if host == "github.com":
+        locator = f"{base_url}/blob/{branch}/{filename}"
+        raw_url = f"https://raw.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/{branch}/{filename}"
+    elif host == "gitlab.com":
+        locator = f"{base_url}/-/blob/{branch}/{filename}"
+        raw_url = f"{base_url}/-/raw/{branch}/{filename}"
+    else:
+        return base_url, "text/plain"
+
+    if offline or content_type_method == "extension":
+        ctype, _ = guess_content_type(b"", filename, method="extension")
+        return locator, (ctype or "text/plain")
+
+    try:
+        req = urllib.request.Request(raw_url, headers={"User-Agent": "pitloom"})
+        with urllib.request.urlopen(req, timeout=5) as res:
+            content = res.read()
+        ctype, _ = guess_content_type(content, filename, method=content_type_method)
+        return locator, (ctype or "text/plain")
+    except URLError:
+        ctype, _ = guess_content_type(b"", filename, method="extension")
+        return locator, (ctype or "text/plain")
 
 
 def _get_or_create_supplier_agent(
@@ -301,19 +361,30 @@ def _get_or_create_supplier_agent(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
+    repo_url: str | None = None,
+    package_name: str | None = None,
+    *,
+    offline: bool = False,
+    content_type_method: str = "auto",
 ) -> str:
     """Get or create a ``Person`` Agent for a dependency's supplier, deduped
     by ``name``/``email`` so packages sharing an author reuse one Agent."""
     key = f"{name or ''}|{email or ''}"
+    is_others = bool(name and "others" in name.lower())
+    if is_others:
+        key += f"|{repo_url or package_name or 'unknown'}"
     existing = exporter.find_agent(key)
     if existing:
         return existing
 
-    agent = spdx3.Person(
-        spdxId=generate_spdx_id("Person", doc_name=doc_name, doc_uuid=doc_uuid),
-        name=name or email,
-        creationInfo=creation_info,
-    )
+    kwargs = {
+        "spdxId": generate_spdx_id("Person", doc_name=doc_name, doc_uuid=doc_uuid),
+        "name": name or email,
+        "creationInfo": creation_info,
+    }
+    if is_others:
+        kwargs["comment"] = "Represents a group of additional contributors referenced externally."
+    agent = spdx3.Person(**kwargs)
     if email:
         agent.externalIdentifier = [
             spdx3.ExternalIdentifier(
@@ -321,6 +392,24 @@ def _get_or_create_supplier_agent(
                 identifier=email,
             )
         ]
+    if is_others and repo_url:
+        import re
+        match = re.search(r"see\s+([a-zA-Z0-9_.-]+)", name, re.IGNORECASE)
+        filename = match.group(1) if match else "AUTHORS"
+
+        locator, ctype = _resolve_remote_authors_file(
+            repo_url, filename, offline, content_type_method
+        )
+
+        agent.externalRef = [
+            spdx3.ExternalRef(
+                externalRefType=spdx3.ExternalRefType.documentation,
+                locator=[locator],
+                contentType=ctype,
+                comment=f"Refers to {filename}"
+            )
+        ]
+
     exporter.add_agent(agent, key=key)
     return require_spdx_id(agent)
 
@@ -401,21 +490,52 @@ def _resolve_metadata_url(
 
 
 def _apply_supplier(
-    name: str | None,
-    email: str | None,
+    suppliers: list[tuple[str | None, str | None]],
     dep_package: spdx3.software_Package,
     creation_info: spdx3.CreationInfo,
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
+    repo_url: str | None = None,
+    *,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+    provenance_source: str = "",
+    offline: bool = False,
+    content_type_method: str = "auto",
 ) -> bool:
-    """Set ``suppliedBy`` to a (deduped) Agent built from *name*/*email*, if
-    either is given. Returns whether it was set."""
-    if not (name or email):
+    """Set ``suppliedBy`` to a list of Agent(s) built from *suppliers*.
+    Returns whether it was set."""
+    if not suppliers:
         return False
-    dep_package.suppliedBy = _get_or_create_supplier_agent(
-        name, email, creation_info, doc_name, doc_uuid, exporter
-    )
+        
+    supplier_ids = []
+    for name, email in suppliers:
+        if name or email:
+            agent_id = _get_or_create_supplier_agent(
+                name, email, creation_info, doc_name, doc_uuid, exporter, repo_url=repo_url, package_name=dep_package.name, offline=offline, content_type_method=content_type_method
+            )
+            supplier_ids.append(agent_id)
+            
+    if not supplier_ids:
+        return False
+        
+    if supplier_ids:
+        dep_package.suppliedBy = supplier_ids[0]
+    
+    if provenance_source:
+        method = "parsed_author_list" if len(suppliers) > 1 else ""
+        prov_str = f"{provenance_source} | Method: {method}" if method else provenance_source
+        emit_provenance(
+            subject=dep_package,
+            provenance={"suppliedBy": prov_str},
+            creation_info=creation_info,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
     return True
 
 
@@ -465,6 +585,8 @@ def _enrich_from_installed(
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    offline: bool = False,
+    content_type_method: str = "auto",
 ) -> set[str]:
     """Populate optional fields on a dependency package from installed metadata.
 
@@ -498,21 +620,30 @@ def _enrich_from_installed(
     if download_url:
         dep_package.software_downloadLocation = download_url
 
+    repo_url = _resolve_metadata_url("", project_urls, ("repository", "source", "source code"))
+    if not repo_url:
+        repo_url = home_page
+
     # packageUrl -- PyPI PURL (pkg:pypi/<name>@<version>)
     version = dep_package.software_packageVersion
     if version and version != "unknown":
         dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
 
     # suppliedBy -- Person built from Author/Maintainer metadata, when known
-    supplier_name, supplier_email = _resolve_supplier(pkg_meta)
+    suppliers = _resolve_supplier(pkg_meta)
     if _apply_supplier(
-        supplier_name,
-        supplier_email,
+        suppliers,
         dep_package,
         creation_info,
         doc_name,
         doc_uuid,
         exporter,
+        repo_url=repo_url,
+        provenance_config=provenance_config,
+        encoder=encoder,
+        provenance_source=f"Source: installed metadata | Package: {dep_name}",
+        offline=offline,
+        content_type_method=content_type_method,
     ):
         filled.add("supplier")
 
@@ -560,6 +691,8 @@ def _enrich_from_pypi(
     | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    offline: bool = False,
+    content_type_method: str = "auto",
 ) -> set[str]:
     """Best-effort PyPI JSON API fallback for whatever *already_filled*
     doesn't already cover (supplier, license), plus the published
@@ -587,16 +720,28 @@ def _enrich_from_pypi(
     filled: set[str] = set()
     info = release_info.get("info") or {}
 
+    project_urls = info.get("project_urls") or {}
+    lower_project_urls = {k.lower(): v for k, v in project_urls.items()}
+    repo_url = _resolve_metadata_url("", lower_project_urls, ("repository", "source", "source code"))
+    if not repo_url:
+        home_page = info.get("home_page") or _resolve_metadata_url(info.get("project_url") or "", lower_project_urls, _HOMEPAGE_LABELS)
+        repo_url = home_page
+
     if "supplier" not in already_filled:
-        supplier_name, supplier_email = _extract_pypi_supplier(info)
+        suppliers = _extract_pypi_supplier(info)
         if _apply_supplier(
-            supplier_name,
-            supplier_email,
+            suppliers,
             dep_package,
             creation_info,
             doc_name,
             doc_uuid,
             exporter,
+            repo_url=repo_url,
+            provenance_config=provenance_config,
+            encoder=encoder,
+            provenance_source=f"Source: PyPI JSON API | Package: {dep_name}",
+            offline=offline,
+            content_type_method=content_type_method,
         ):
             filled.add("supplier")
 
@@ -964,6 +1109,7 @@ def _finish_dependency_enrichment(
     | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    content_type_method: str = "auto",
 ) -> None:
     """Apply the shared dependency-package completeness policy to an
     already-created *dep_package*: PURL (name-only when *dep_version* is
@@ -993,6 +1139,8 @@ def _finish_dependency_enrichment(
         exporter,
         provenance_config=provenance_config,
         encoder=encoder,
+        offline=offline,
+        content_type_method=content_type_method,
     )
 
     if not offline:
@@ -1008,6 +1156,8 @@ def _finish_dependency_enrichment(
             release_info_cache=release_info_cache,
             provenance_config=provenance_config,
             encoder=encoder,
+            offline=offline,
+            content_type_method=content_type_method,
         )
 
     if "copyright" not in filled:
@@ -1037,6 +1187,7 @@ def add_dependencies(
     offline: bool = False,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
+    content_type_method: str = "auto",
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for each
     declared dependency.

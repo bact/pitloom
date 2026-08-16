@@ -145,6 +145,7 @@ keyed `method` in the JSON statement).
 | `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/pyproject.py:340`, `:361` |
 | `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- detected, not declared | `src/pitloom/extract/pyproject.py:301`; `src/pitloom/extract/_huggingface.py:392`, `:523`; `src/pitloom/extract/_license.py:352`, `:415` |
 | `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/setuptools.py:280`, `:427`; `src/pitloom/extract/poetry.py:169`; `src/pitloom/extract/hatchling.py:143`; `src/pitloom/extract/pyproject.py:200` |
+| `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps.py` |
 | `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/setuptools.py:495` |
 | `attr_directive` | `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`) | `src/pitloom/extract/setuptools.py:514` |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` SDK via stack inspection | `src/pitloom/loom.py:52`, `:57`, `:62` |
@@ -357,6 +358,7 @@ involved.
 | `dynamic_extraction` | Read from a Python file at build time (e.g. a `__version__` or `__about__.py` variable), not from `pyproject.toml` directly. |
 | `licenseid_detection` | License text matched against a known SPDX license using the [`licenseid`](https://pypi.org/project/licenseid/) library -- detected, not author-declared. |
 | `inferred_from_authors` | Derived from the `authors` list (e.g. a copyright statement), not read verbatim from any single field. |
+| `parsed_author_list` | Extracted multiple individual entities by splitting a single, comma-separated author string. |
 | `file_directive` | A `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`); the value was read from that file. |
 | `attr_directive` | A `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`); the value was imported and read from code. |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` tracking SDK via Python stack inspection -- identifies which script/function called the SDK. |
