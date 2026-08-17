@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -90,7 +90,13 @@ Everything since v0.12.0 (the last tagged release, 2026-07-10) is
   URL as ground truth, see `claude-code-plugin.md`'s design notes).
 - `tests/test_provenance_integration.py`, `test_annotation_provenance.py`,
   `test_fragments.py` -- all still pass; the N1-N6 machinery survived
-  the CLI/API redesign below intact.
+  the CLI/API redesign below intact. (These three have since moved and
+  split further: `test_provenance_integration.py` ->
+  `tests/assemble/test_provenance_integration.py`;
+  `test_annotation_provenance.py` -> `tests/assemble/
+  test_annotation_provenance_core.py`/`_emit.py`/`_annotations.py`;
+  `test_fragments.py` -> `tests/core/test_fragments_misc.py`/`_merge.py`/
+  `_project.py`/`_extract.py`. See `cli-test-coverage-roadmap.md`.)
 
 ### 2026-08-10 recheck: what changed since PR #113, and why it matters
 

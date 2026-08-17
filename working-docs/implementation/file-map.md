@@ -163,11 +163,11 @@ pitloom/
 │       ├── loom.py                 # ML tracking SDK (Run context manager / decorator)
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
-│   ├── assemble/                   # 15 files -- assemble/, embed.py, enrich/ coverage
-│   ├── cli/                        # 11 files -- one per src/pitloom/cli/ module, + shared.py
-│   ├── core/                       # 20 files -- core/, ids.py, loom.py, generator orchestration
-│   ├── extract/                    # 27 files, one per extractor
-│   │   └── huggingface/            # 6 files -- _huggingface.py split by metadata category
+│   ├── assemble/                   # 26 files -- assemble/, embed.py, enrich/ coverage + conftest.py
+│   ├── cli/                        # 13 files -- one per src/pitloom/cli/ module, + shared.py
+│   ├── core/                       # 28 files -- core/, ids.py, loom.py, generator orchestration
+│   ├── extract/                    # 32 files, one per extractor
+│   │   └── huggingface/            # 23 files -- split by metadata category + _hf_patches_*.py
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── ids_shared.py               # Shared helpers for ids-registry tests

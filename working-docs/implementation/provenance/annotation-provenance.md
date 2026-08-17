@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -505,7 +505,9 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 ## 7. Tests
 
-- **New** `tests/test_annotation_provenance.py`:
+- **New** `tests/test_annotation_provenance.py` (since moved and split
+  into `tests/assemble/test_annotation_provenance_core.py`/`_emit.py`/
+  `_annotations.py` -- see `cli-test-coverage-roadmap.md`):
   - `parse_provenance_value` round-trips each real extractor string form
     (`Source: X | Field: Y`, `{source} | Field: extra/name`, note-only, empty).
   - `build_provenance_statement` is deterministic (`sort_keys`), valid JSON,
@@ -513,13 +515,13 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
   - `build_provenance_annotation` returns `None` on empty; sets
     `annotationType=other`, `contentType=application/json`, correct `subject`,
     and a minted `spdxId`.
-- **Update** [`tests/test_provenance.py`](../../../tests/test_provenance.py): keep
+- **Update** [`tests/assemble/test_provenance.py`](../../../tests/assemble/test_provenance.py): keep
   the `dict` provenance assertions (those test extraction, unchanged); add a
   path asserting an Annotation is emitted when `format="annotation"`/`"both"`.
-- **Update** [`tests/test_spdx3_compliance.py`](../../../tests/test_spdx3_compliance.py):
+- **Update** [`tests/assemble/test_spdx3_compliance_shacl.py`](../../../tests/assemble/test_spdx3_compliance_shacl.py):
   assert emitted `Annotation` elements validate (required `subject`,
   `annotationType`, valid `contentType` regex, resolvable `subject` id).
-- **Update** [`tests/test_jcs.py`](../../../tests/test_jcs.py) / any golden-output
+- **Update** [`tests/extract/test_jcs.py`](../../../tests/extract/test_jcs.py) / any golden-output
   test: regenerate goldens under the new default; verify byte-stability across
   two runs.
 - Run the full determinism check (generate twice, diff) using the pyenv
@@ -557,22 +559,22 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 - [x] `provenance.py` module: parser, `ProvenanceEncoder` protocol + registry +
   `resolve_encoder`, `PitloomV1Encoder`, annotation builder — with unit tests
-  ([`tests/test_annotation_provenance.py`](../../../tests/test_annotation_provenance.py)).
+  ([`tests/assemble/test_annotation_provenance_core.py`](../../../tests/assemble/test_annotation_provenance_core.py)).
 - [x] `exporter.add_annotation` and inclusion in graph/SBOM output.
 - [x] `[tool.pitloom.provenance] format` (default `"both"`, validated at
   config-load time) and `schema` (default `"pitloom/1"`, validated at first
   SBOM generation — see §5.4's "as implemented" note) config.
 - [x] All six call sites (§2.2) migrated behind the toggle.
 - [x] Emitted annotations pass SPDX 3 compliance tests
-  ([`tests/test_spdx3_compliance.py::test_spdx3_provenance_annotations_are_compliant`](../../../tests/test_spdx3_compliance.py)).
+  ([`tests/assemble/test_spdx3_compliance_shacl.py::test_spdx3_provenance_annotations_are_compliant`](../../../tests/assemble/test_spdx3_compliance_shacl.py)).
 - [x] Output is byte-stable across two generations (determinism preserved) —
   verified cross-process with a fixed `creation_datetime`, both for
   `generate_project_sbom()` and the `pitloom.loom` SDK path.
 - [x] Existing `test_provenance.py` extraction assertions still pass.
 - [x] A second (stub) encoder can be registered without editing call sites —
   demonstrated by
-  [`test_swapping_encoder_changes_output_without_changing_wiring`](../../../tests/test_annotation_provenance.py)
-  and [`test_build_provenance_annotation_uses_given_encoder`](../../../tests/test_annotation_provenance.py).
+  [`test_swapping_encoder_changes_output_without_changing_wiring`](../../../tests/assemble/test_annotation_provenance_core.py)
+  and [`test_build_provenance_annotation_uses_given_encoder`](../../../tests/assemble/test_annotation_provenance_core.py).
 
 ### Found and fixed during implementation review
 
@@ -970,12 +972,14 @@ paths, the same directory-detection fallback when nothing is declared) so
 a future fifth extraction path can't reintroduce the same gap by omission.
 Cross-path regression tests
 (`test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict`
-in `tests/test_hatch_hook.py`,
+in `tests/extract/test_hatch_hook_metadata.py`,
 `test_read_poetry_matches_read_pyproject_fallback_for_license_conflict` in
-`tests/test_poetry.py`) assert the paths agree on the same project. The
+`tests/extract/test_poetry_pyproject.py` -- paths since renamed and moved,
+see `cli-test-coverage-roadmap.md`) assert the paths agree on the same
+project. The
 same review also found the Hatchling and CLI paths each hand-listed their
 own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
-`pyproject.py`, `merge_metadata` in `setuptools.py`); both were replaced
+`_pyproject.py`, `merge_metadata` in `_setuptools.py`); both were replaced
 by [`core/project.py`](../../../src/pitloom/core/project.py)'s
 `merge_project_metadata`, which iterates `dataclasses.fields()` instead of
 naming every field by hand, so a newly added `ProjectMetadata` field

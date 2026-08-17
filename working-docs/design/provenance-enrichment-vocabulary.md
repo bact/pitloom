@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -201,7 +201,9 @@ in `working-docs/implementation/provenance/annotation-provenance.md:818-931`.
 entirely -- still true, that file is untouched by the 2026-08-13 fix
 (the fix was in code + the Skill, not in this doc).
 
-Unrelated to this vocabulary: `tests/test_spdx3_dataset.py:360` uses
+Unrelated to this vocabulary: `tests/assemble/test_spdx3_dataset_relationships.py`
+(originally `tests/test_spdx3_dataset.py`, since moved and split --
+see `cli-test-coverage-roadmap.md`; line number not re-verified) uses
 `role="someNewRole"` to test the fallback-to-`other` behavior in
 `_role_to_rel` -- a **different**, dataset-relationship role vocabulary
 (see §4), easy to confuse by name only.

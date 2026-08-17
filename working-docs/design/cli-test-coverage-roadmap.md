@@ -116,23 +116,26 @@ Testing section, not just here.
 
 Shipped folders:
 
-- `tests/extract/` (27 files, mirrors `src/pitloom/extract/`), with
-  `tests/extract/huggingface/` (6 files) as a further split of the
-  9,357-line `test_extract_huggingface.py`.
-- `tests/assemble/` (15 files, covers `assemble/`, `embed.py`,
-  `enrich/`).
-- `tests/cli/` (11 files, mirrors `src/pitloom/cli/`): `shared.py`
+- `tests/extract/` (32 files, mirrors `src/pitloom/extract/`), with
+  `tests/extract/huggingface/` (23 files after the further split pass
+  below) as a further split of the 9,357-line
+  `test_extract_huggingface.py`.
+- `tests/assemble/` (26 files after the further split pass, covers
+  `assemble/`, `embed.py`, `enrich/`).
+- `tests/cli/` (13 files, mirrors `src/pitloom/cli/`): `shared.py`
   (helpers, not a `conftest.py`), `test_cli_enrich.py`,
-  `test_cli_generate.py`, `test_cli_ids.py`, `test_cli_merge.py`,
-  `test_cli_model.py`, `test_cli_options.py`, `test_cli_parser.py`,
-  `test_cli_project.py`, `test_cli_verbose.py`, `test_cli_wheel.py`.
-  **Gap**: no dedicated `test_cli_env.py` or `test_cli_embed_wheel.py`
-  -- those command modules are only incidentally exercised via
-  `test_cli_generate.py` and `tests/assemble/test_embed.py`. Not
-  blocking (both modules are 88%/94% covered per Phase 3 below), but
-  worth adding if either command grows.
-- `tests/core/` (20 files: `core/`, `ids.py`, `loom.py`, generator
-  orchestration).
+  `test_cli_generate.py`, `test_cli_hf.py`, `test_cli_ids.py`,
+  `test_cli_merge.py`, `test_cli_model.py`, `test_cli_options.py`,
+  `test_cli_parser.py`, `test_cli_project.py`,
+  `test_cli_project_creators.py`, `test_cli_verbose.py`,
+  `test_cli_wheel.py`. **Gap**: no dedicated `test_cli_env.py` or
+  `test_cli_embed_wheel.py` -- those command modules are only
+  incidentally exercised via `test_cli_generate.py` and
+  `tests/assemble/test_embed_core.py`. Not blocking (both modules
+  are 88%/94% covered per Phase 3 below), but worth adding if either
+  command grows.
+- `tests/core/` (28 files after the further split pass: `core/`,
+  `ids.py`, `loom.py`, generator orchestration).
 - Single-file areas stayed flat at `tests/` root
   (`tests/enrich_readme_test.py`-style singletons, `tests/ids_shared.py`
   for shared registry-test helpers, root `tests/conftest.py` for
@@ -142,26 +145,34 @@ No `__init__.py` needed in any new folder --
 `--import-mode=importlib` (`pyproject.toml:240`) allows same-named
 test files across directories.
 
-### Still oversized (open follow-up, not this doc's scope to fix)
+### Further split pass (COMPLETE 2026-08-17)
 
-The split happened, but several resulting files are still over
-AGENTS.md's ~800-line hard cap and would benefit from a further pass:
+The 20 files that were still over 430 lines after the initial Phase 2
+split (10 over the 800-line hard cap, ~10 more over the 400-500 soft
+limit) were split again, at each file's own existing section/group
+boundaries -- mechanical relocation only, no test-logic changes. 20
+originals -> 56 new files + 8 files trimmed in place (kept their
+original name for the first chunk). New shared infra:
+`tests/assemble/conftest.py` (didn't exist before -- now holds
+`_FakeMetadata`, `_make_dummy_wheel`, `_DOC_NAME`/`_DOC_UUID`/
+`_make_ci`, `_make_subject`, `_make_meta`, deduping what were
+previously copy-pasted helpers), `tests/extract/huggingface/
+_hf_patches_01.py`..`_10.py` (the former `conftest.py`'s ~165
+`_patch_<model>()` helpers, which turned out to hold zero real
+`@pytest.fixture`s -- it was a misnamed plain helper module, not a
+real conftest; also deduped 3 byte-identical `__all__` blocks found
+during the split, ~640 dead lines removed).
 
-- `tests/extract/huggingface/conftest.py` -- 5,424 lines
-- `tests/extract/huggingface/test_huggingface_misc.py` -- 3,124 lines
-- `tests/core/test_generator_project.py` -- 1,260 lines
-- `tests/assemble/test_deps_enrichment.py` -- 1,147 lines
-- `tests/assemble/test_embed.py` -- 1,057 lines
-- `tests/core/test_metadata.py` -- 987 lines
-- `tests/core/test_generator_model.py` -- 918 lines
-- `tests/assemble/test_annotation_provenance.py` -- 906 lines
-- `tests/core/test_loom.py` -- 855 lines
-- `tests/extract/test_setuptools.py` -- 829 lines
+Verified: `pytest --collect-only` count unchanged (1960), full-suite
+pass/skip count unchanged (1936/24), coverage unchanged (91.83%),
+`ruff check`/`ruff format --check`/`mypy` clean across all of
+`tests/`.
 
-Plus roughly 10 more files over the 400-500 soft limit but under the
-hard cap. Not urgent -- these are all functioning, organized-by-topic
-files; the remaining split work is about AI-agent context economy,
-not correctness.
+18 files still land in the 440-531 line range rather than strictly
+under 430 -- the 10 worst are the `_hf_patches_*.py` helper modules
+(492-531 lines each), where further splitting would fragment already-
+small per-model mock data with no readability gain. All are well
+under the 800-line hard cap; none needed further action.
 
 ### Naming pass (COMPLETE 2026-08-17)
 
@@ -248,40 +259,31 @@ test-order-dependency flakiness surfaced from parallelization so far.
 
 ## Next step
 
-Two genuinely open items, either can be picked up independently:
+One genuinely open item:
 
-1. **Split the remaining oversized test files** listed under Phase
-   2's "Still oversized" section, starting with
-   `tests/extract/huggingface/conftest.py` (5,424 lines) and
-   `tests/extract/huggingface/test_huggingface_misc.py` (3,124
-   lines) -- the two furthest over the 800-line hard cap.
-2. **Push coverage toward the 95% stretch target**, starting with the
+1. **Push coverage toward the 95% stretch target**, starting with the
    Phase 3 priority list (`extract/_sdist.py` 72% first).
+
+The test-file-size work (Phase 2's original scope plus the further
+split pass) is now complete -- no oversized-test-file follow-up
+remains open.
 
 ### Pickup prompt for a new session
 
 ```text
 Read working-docs/design/cli-test-coverage-roadmap.md in full. Phases
-1-3 (the __main__.py -> cli/ split, test-suite modularization, and
-coverage floor raise to 90) are all COMPLETE -- do not redo them.
+1-3 (the __main__.py -> cli/ split, test-suite modularization incl.
+the further split pass, and coverage floor raise to 90) are all
+COMPLETE -- do not redo them.
 
-Two items are still open, see "Next step":
-
-1. Split the test files listed under Phase 2's "Still oversized"
-   section (all over AGENTS.md's ~800-line hard cap), starting with
-   tests/extract/huggingface/conftest.py (5,424 lines) and
-   tests/extract/huggingface/test_huggingface_misc.py (3,124 lines).
-   Mechanical relocation only -- no test-logic changes. Pick sub-area
-   boundaries from each file's existing section/class structure, not
-   guessed ahead of time.
-
-2. Backfill coverage toward the 95% stretch target using Phase 3's
-   priority list (extract/_sdist.py at 72% first). Re-measure current
-   percentages before starting -- Phase 3's numbers are a 2026-08-17
-   3.10-local snapshot and will have drifted.
+One item is still open, see "Next step": backfill coverage toward the
+95% stretch target using Phase 3's priority list (extract/_sdist.py
+at 72% first). Re-measure current percentages before starting --
+Phase 3's numbers are a 2026-08-17 3.10-local snapshot and will have
+drifted.
 
 Pre-1.0, so no backward-compat shims needed for any renames this
 touches. Run the full test suite and the project's lint/type-check
-commands (AGENTS.md "Linting and formatting") before considering
-either item done.
+commands (AGENTS.md "Linting and formatting") before considering it
+done.
 ```

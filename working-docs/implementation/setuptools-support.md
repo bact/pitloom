@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-08-08
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,7 @@ initial setuptools support added in the `setuptools-support` branch.
 | `src/pitloom/extract/_setuptools.py` | New extraction module (renamed from `setuptools.py`) |
 | `src/pitloom/extract/project.py` | Shared resolver (`read_project()`) used by both the CLI and `generate_project_sbom()` |
 | `src/pitloom/cli/` | CLI updated to accept projects without `pyproject.toml` (originally in `__main__.py`, since split into `cli/` -- see `cli-test-coverage-roadmap.md`) |
-| `tests/extract/test_setuptools.py` | 53 new unit and integration tests (originally `tests/test_setuptools.py`) |
+| `tests/extract/test_setuptools_cfg.py`, `tests/extract/test_setuptools_py.py` | 53 new unit and integration tests (originally `tests/test_setuptools.py`, later split into these two files -- see `cli-test-coverage-roadmap.md`) |
 | `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
 
 ## Extraction functions
