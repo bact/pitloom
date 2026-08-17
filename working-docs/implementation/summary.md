@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -37,13 +37,13 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `[tool.poetry.dependencies]`; converts Poetry version specifiers
      (`^`, `~`, bare versions) to PEP 440; `[tool.poetry.group.*]` dev/deploy
      dependency groups are intentionally excluded from the SBOM
-   - `_setuptools.py` --
-     reads `setup.cfg` and `setup.py` for setuptools projects;
+   - `_setuptools.py`, `_setuptools_cfg.py`, `_setuptools_py.py` --
+     extract metadata from `setup.cfg` and `setup.py` for setuptools projects;
      `detect_build_backend()` auto-selects the right extractor;
      `merge_metadata()` fills gaps across sources (setup.cfg > setup.py)
    - `project.py`/`wheel.py`/`env.py`/`ai_model.py`/`hatchling.py`/
      `binary.py`/`scanner.py` are the public, cross-package-imported entry
-     points; `_pyproject.py`/`_poetry.py`/`_setuptools.py`/`_sdist.py` and
+     points; `_pyproject.py`/`_poetry.py`/`_setuptools*.py`/`_sdist.py` and
      the per-model-format parsers below them are internal-only (leading
      underscore = nothing outside `extract/` imports it -- see `AGENTS.md`'s
      Naming section for the rule)

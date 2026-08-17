@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,7 +108,7 @@ modified_wheel, arcname, removed, floored = embed_sbom_in_wheel(
 
 `removed` lists any prior Pitloom-embedded SBOM entries cleaned up as part
 of the embed; `floored` is `True` when the wheel's ZIP entry timestamp had
-to be floored to 1980-01-01 (see [Configuration](configuration.md#tool-pitloomcreation)).
+to be floored to 1980-01-01 (see [Configuration](configuration.md#toolpitloomcreation)).
 
 ### Config
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-08-12
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -133,7 +133,7 @@ generate --no-enrich <target>` + `loom enrich <target>` + `loom merge`)
 produce equivalent enrichment evidence *for a single-model-file target*
 -- both paths share the same deterministic identity computation for the
 referenced `ai_AIPackage` (`_ai_model_identity()` in `document.py`).
-Verified by `tests/test_generator.py::test_enrich_then_merge_matches_one_shot_enrich`.
+Verified by `tests/core/test_generator_misc.py::test_enrich_then_merge_matches_one_shot_enrich`.
 
 **This does NOT hold for a project directory target without extra
 care.** `loom project <dir>`/`loom generate <dir>` assign a model's
@@ -148,8 +148,8 @@ git history for the fix). **Always pass `loom enrich --project-dir
 <dir>` (or `enrich_model(..., project_target=<dir>)`)** when the
 fragment is meant to merge into a project-level base document -- this
 resolves the project's own identity (see `_project_doc_identity()` in
-`assemble/__init__.py`) so the two agree. Covered by
-`tests/test_generator.py::test_enrich_model_project_target_merges_correctly_end_to_end`
+`assemble/_model_generator.py`) so the two agree. Covered by
+`tests/core/test_generator_model_fragments.py::test_enrich_model_project_target_merges_correctly_end_to_end`
 (the real regression test -- verifies attachment survives an actual
 merge, not just matching id strings) and
 `test_enrich_model_without_project_target_mismatches_project_level_id`

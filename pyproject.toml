@@ -316,9 +316,6 @@ line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
-ignore = [
-    "E501", # line too long, handled by formatter
-]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -338,7 +335,7 @@ known-first-party = ["pitloom"]
 # activates without breaking CI. AGENTS.md's real target is 10 -- see
 # working-docs/design/complexity-and-file-size-roadmap.md for the
 # 33-function backlog that has to shrink before this can drop.
-max-complexity = 35
+max-complexity = 32
 
 [tool.coverage.run]
 branch = true
@@ -347,4 +344,4 @@ source = ["pitloom"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 90      # Hard floor minimum threshold; we try to keep it higher
+fail_under = 91      # Hard floor minimum threshold; we try to keep it higher
