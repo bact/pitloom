@@ -32,7 +32,8 @@ and this project adheres to
   (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
   ([#153], [#155])
 - Raised fail_under coverage floor to 90% ([#155])
-- Avoid loading full file to memory ([#156])
+- Avoid loading full file to memory during AI model (NumPy, PyTorch) and
+  archive (sdist) extraction, reducing peak memory usage by over 97% ([#156])
 
 ### Fixed
 
