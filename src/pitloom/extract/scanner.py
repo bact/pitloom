@@ -75,7 +75,8 @@ def scan_project_for_ai_models(
                     phys_path,
                     e,
                 )
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception as e:
                 log.warning(
                     "FORMAT=%s FILE=%s: failed to extract metadata; %s",
                     fmt,
@@ -99,7 +100,8 @@ def scan_project_for_ai_models(
                             file_name,
                             pf.distribution_path,
                         )
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception as e:
                 log.warning(
                     "Could not read text from %s for usage scanning: %s", phys_path, e
                 )

@@ -64,6 +64,7 @@ def test_record_dict_field_provenance_sanitizes_pipe_in_key() -> None:
     misattributing the provenance to a transparent manifest and causing it to
     be silently dropped in minimal detail mode."""
     # pylint: disable=import-outside-toplevel
+
     from pitloom.assemble.spdx3.provenance import (
         filter_high_signal,
         parse_provenance_value,

@@ -49,7 +49,8 @@ class AiModelFormat(str, Enum):
 
     def __init__(
         self,
-        value: str,  # pylint: disable=unused-argument  # consumed by __new__
+        # pylint: disable=unused-argument  # consumed by __new__
+        value: str,
         extensions: tuple[str, ...] = (),
         magic: bytes | None = None,
     ) -> None:
@@ -145,7 +146,8 @@ class AiModelUsage:
 
 
 @dataclass
-class AiModelMetadata:  # pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes
+class AiModelMetadata:
     """Metadata extracted from an AI model file.
 
     Fields align with the SPDX 3.0 AI profile where applicable.

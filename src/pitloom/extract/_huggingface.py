@@ -125,6 +125,7 @@ def _canonicalize_license_id(raw: str) -> str:
     When the database has not been built, *raw* is returned unchanged.
     """
     # pylint: disable=import-outside-toplevel
+
     from pitloom.extract._license import canonicalize_license_id
 
     return canonicalize_license_id(raw)
@@ -221,7 +222,8 @@ def parse_hf_model_id(source: str) -> str | None:
 
     # Accept bare owner/name that has no local counterpart
     if _HF_ID_RE.match(source):
-        from pathlib import Path  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from pathlib import Path
 
         if not Path(source).exists():
             return source
@@ -252,6 +254,7 @@ def _safe_load_json(
         )
     try:
         # pylint: disable=import-outside-toplevel
+
         from huggingface_hub import hf_hub_download
 
         local_path = hf_hub_download(
@@ -261,7 +264,8 @@ def _safe_load_json(
         )
         with open(local_path, encoding="utf-8") as fh:
             return json.load(fh)  # type: ignore[no-any-return]
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to load %s for %s: %s", filename, model_id, exc)
         return None
 
@@ -272,12 +276,14 @@ def _load_model_card(
     """Load model card text and YAML frontmatter as a dict."""
     try:
         # pylint: disable=import-outside-toplevel
+
         from huggingface_hub import ModelCard
 
         card = ModelCard.load(model_id)
         card_data: dict[str, Any] = card.data.to_dict() if card.data else {}
         return card.text or None, card_data
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to load model card for %s: %s", model_id, exc)
         return None, {}
 
@@ -296,6 +302,7 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
     """
     try:
         # pylint: disable=import-outside-toplevel
+
         from huggingface_hub import model_info
 
         info = model_info(model_id)
@@ -313,7 +320,8 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         if info.tags:
             result["tags"] = list(info.tags)
         return result
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to load model_info() for %s: %s", model_id, exc)
         return {}
 
@@ -326,11 +334,13 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
     """
     try:
         # pylint: disable=import-outside-toplevel
+
         from huggingface_hub import list_repo_files
 
         existing: set[str] = set(list_repo_files(model_id))
         return [f for f in _HF_LICENSE_FILENAMES if f in existing]
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to list repo files for %s: %s", model_id, exc)
         return []
 
@@ -355,6 +365,7 @@ def _detect_license_from_hf_files(
             model_id,
         )
     # pylint: disable=import-outside-toplevel
+
     from pathlib import Path as _Path
 
     from pitloom.extract._license import detect_license_from_text
@@ -362,6 +373,7 @@ def _detect_license_from_hf_files(
     for filename in _list_license_files_in_repo(model_id):
         try:
             # pylint: disable=import-outside-toplevel
+
             from huggingface_hub import hf_hub_download
 
             local_path = hf_hub_download(
@@ -372,7 +384,8 @@ def _detect_license_from_hf_files(
             text = (
                 _Path(local_path).read_text(encoding="utf-8", errors="replace").strip()
             )
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.debug(
                 "Failed to download/read license file %s for %s: %s",
                 filename,
@@ -833,6 +846,7 @@ def read_huggingface(source: str) -> AiModelMetadata:
     """
     try:
         # pylint: disable=import-outside-toplevel
+
         __import__("huggingface_hub")
     except ImportError as exc:
         raise ImportError(

@@ -71,7 +71,8 @@ def _run_ids_import(args: argparse.Namespace) -> int:
 
     try:
         registry.import_sbom(sbom_path)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         print(f"ERROR: failed to import SBOM {sbom_path}: {exc}", file=sys.stderr)
         return 1
 

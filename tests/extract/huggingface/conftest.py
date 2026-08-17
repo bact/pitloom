@@ -88,7 +88,8 @@ _OPENTHAIGPT_CARD_DATA = _make_card_data(
 )
 
 
-def _patch_hf_calls(  # pylint: disable=dangerous-default-value
+# pylint: disable=dangerous-default-value
+def _patch_hf_calls(
     config: dict[str, Any] | None = _MISTRAL_CONFIG,
     tokenizer_config: dict[str, Any] | None = _MISTRAL_TOKENIZER_CONFIG,
     generation_config: dict[str, Any] | None = None,

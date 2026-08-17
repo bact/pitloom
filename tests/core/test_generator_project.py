@@ -172,6 +172,7 @@ def test_magika_version_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
     call_count = 0
 
     # pylint: disable=unused-argument
+
     def _fake_pkg_version(name: str) -> str:
         nonlocal call_count
         call_count += 1

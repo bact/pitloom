@@ -31,9 +31,11 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     cannot be determined.  Never executes the pickle.
     """
     try:
-        import ast as pyast  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        import ast as pyast
 
-        from fickling.fickle import (  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from fickling.fickle import (
             Pickled,
         )
     except ImportError:
@@ -41,7 +43,8 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
 
     try:
         pkl = Pickled.load(cast(BinaryIO, pkl_file))
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("fickling failed to parse pickle bytes: %s", exc)
         return None
 
@@ -102,7 +105,8 @@ def _read_pytorch_zip(
                 provenance["type_of_model"] = (
                     f"{source} | Field: {pkl_entry} (fickling)"
                 )
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.debug("Failed to inspect %s in %s: %s", pkl_entry, source, exc)
 
     return type_of_model, properties, provenance
@@ -136,7 +140,8 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     Raises:
         ValueError: If the file cannot be opened.
     """
-    import zipfile  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import zipfile
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     framework = "pytorch"

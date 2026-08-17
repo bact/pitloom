@@ -115,6 +115,7 @@ def _stable_key(obj: spdx3.SHACLObject) -> tuple[Any, ...]:
     ``spdxId`` for Elements and the blank-node label otherwise.
     """
     # pylint: disable=protected-access
+
     obj_id: str = getattr(obj, "_id", None) or ""
     return (type(obj).__name__, obj_id, _signature(obj))
 
@@ -730,7 +731,8 @@ def merge_fragments(
             with open(fragment_path, "rb") as f:
                 fragment_set = spdx3.SHACLObjectSet()
                 spdx3.JSONLDDeserializer().read(f, fragment_set)
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.warning("Failed to ingest SBOM fragment %s: %s", fragment_path, exc)
             continue
 

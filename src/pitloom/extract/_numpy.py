@@ -60,7 +60,8 @@ def _read_npy_metadata(
     model_path: Path, source: str
 ) -> tuple[str, dict[str, str], list[dict[str, Any]], dict[str, str]]:
     """Helper to read .npy format metadata."""
-    import numpy as np  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import numpy as np
 
     major, minor = _read_npy_version(model_path)
     format_version = f"{major}.{minor}"
@@ -85,7 +86,8 @@ def _shim_read_array_header(
     fp: Any, version: tuple[int, int]
 ) -> tuple[tuple[int, ...], bool, Any]:
     """Shim for reading numpy array headers across numpy 1.x and 2.x."""
-    import numpy.lib.format as fmt  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import numpy.lib.format as fmt
 
     if hasattr(fmt, "_read_array_header"):
         return fmt._read_array_header(fp, version)  # type: ignore
@@ -98,9 +100,11 @@ def _read_npz_metadata(
     model_path: Path, source: str
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Helper to read .npz format metadata."""
-    import numpy as np  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import numpy as np
 
     # pylint: disable=import-outside-toplevel
+
     from numpy.lib.format import read_magic
 
     inputs: list[dict[str, Any]] = []
@@ -183,7 +187,8 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             )
         elif model_path.suffix.lower() == ".npz":
             inputs, provenance = _read_npz_metadata(model_path, source)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to read NumPy file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc
 

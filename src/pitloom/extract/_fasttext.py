@@ -43,6 +43,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
     """Load a fastText model with consistent dependency and format errors."""
     try:
         # pylint: disable=import-outside-toplevel
+
         import fasttext
     except ImportError as exc:
         raise ImportError(
@@ -52,7 +53,8 @@ def _load_fasttext_model(model_path: Path) -> Any:
 
     try:
         return fasttext.load_model(str(model_path))
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to load fastText model from %s: %s", model_path, exc)
         raise ValueError(
             f"Failed to load fastText model from {model_path}: {exc}"
@@ -69,7 +71,8 @@ def _extract_fasttext_args(
 
     try:
         args = model.f.getArgs()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to read fastText model.f.getArgs(): %s", exc)
         return hyperparameters, properties, type_of_model
 
@@ -101,7 +104,8 @@ def _extract_fasttext_outputs(
 
     try:
         labels = get_labels()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to read fastText model labels: %s", exc)
         return properties, outputs
 

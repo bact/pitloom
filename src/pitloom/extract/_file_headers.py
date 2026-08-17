@@ -199,7 +199,8 @@ def _get_magika() -> Any:
     failed import isn't retried on every call either.
     """
     try:
-        from magika import Magika  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from magika import Magika
     except ImportError:
         return None
     return Magika()
@@ -250,7 +251,8 @@ def guess_content_type(
                 magika_mime_type: str = result.output.mime_type
                 if magika_mime_type and label not in _MAGIKA_INCONCLUSIVE_LABELS:
                     return magika_mime_type, "magika"
-            except Exception as exc:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception as exc:
                 log.debug(
                     "magika content-type detection failed for %s: %s", filename, exc
                 )

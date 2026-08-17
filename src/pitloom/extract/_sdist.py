@@ -139,7 +139,8 @@ def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
                     description=proj.get("description"),
                     dependencies=proj.get("dependencies", []),
                 )
-            except Exception:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception:
                 metadata = ProjectMetadata(name="unknown")
 
     return metadata, project_files
@@ -206,7 +207,8 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
                     description=proj.get("description"),
                     dependencies=proj.get("dependencies", []),
                 )
-            except Exception:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception:
                 metadata = ProjectMetadata(name="unknown")
 
     return metadata, project_files

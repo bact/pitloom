@@ -38,7 +38,8 @@ def test_get_caller_info_exception_logs_and_returns_fallback(
     string as before logging was added."""
     with patch("pitloom.loom.inspect.stack", side_effect=RuntimeError("no frames")):
         with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
-            result = loom._get_caller_info()  # pylint: disable=protected-access
+            # pylint: disable=protected-access
+            result = loom._get_caller_info()
 
     assert result == "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
     assert any("caller info" in r.message for r in caplog.records)

@@ -201,6 +201,7 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
         return {}
 
     # pylint: disable=import-outside-toplevel
+
     if sys.version_info >= (3, 11):
         import tomllib
     else:
@@ -215,7 +216,8 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
         if not isinstance(pitloom_tool, dict):
             return {}
         return {str(key): value for key, value in pitloom_tool.items()}
-    except Exception:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception:
         return {}
 
 

@@ -57,7 +57,8 @@ def _get_caller_info() -> str:
                     f"Method: inspect_caller (tool: pitloom.loom, "
                     f"function: {func_name})"
                 )
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to determine caller info: %s", exc)
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
@@ -92,7 +93,8 @@ def _get_caller_script_path() -> str | None:
                 return path.resolve().relative_to(Path.cwd()).as_posix()
             except ValueError:
                 return path.as_posix()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to determine caller script path: %s", exc)
     return None
 
@@ -174,7 +176,8 @@ def _hash_and_registry_lookup(
     return hash_element, registered_id
 
 
-class _ActiveRun:  # pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes
+class _ActiveRun:
     """Internal state for an active BOM recording run."""
 
     def __init__(
@@ -628,7 +631,8 @@ class _ActiveRun:  # pylint: disable=too-many-instance-attributes
 
 
 # Global state holding the active run
-_active_run: _ActiveRun | None = None  # pylint: disable=invalid-name
+# pylint: disable=invalid-name
+_active_run: _ActiveRun | None = None
 
 
 class Run(contextlib.ContextDecorator):
@@ -699,7 +703,8 @@ class Run(contextlib.ContextDecorator):
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
-        global _active_run  # pylint: disable=global-statement
+        # pylint: disable=global-statement
+        global _active_run
         self.previous_run = _active_run
         _active_run = _ActiveRun(
             self.output_file,
@@ -715,7 +720,8 @@ class Run(contextlib.ContextDecorator):
         exc_val: BaseException | None,
         exc_tb: types.TracebackType | None,
     ) -> None:
-        global _active_run  # pylint: disable=global-statement
+        # pylint: disable=global-statement
+        global _active_run
         if _active_run is not None:
             # Generate the fragment only if the code block executed successfully
             if exc_type is None:
@@ -724,7 +730,8 @@ class Run(contextlib.ContextDecorator):
 
 
 #: Lowercase alias for :class:`Run`
-run = Run  # pylint: disable=invalid-name
+# pylint: disable=invalid-name
+run = Run
 
 
 def set_model(

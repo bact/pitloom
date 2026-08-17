@@ -112,7 +112,8 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
             dynamic_metadata=dynamic_fields or None,
             allow_extra_keys=True,
         )
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         raise ValueError(f"Failed to parse project metadata: {exc}") from exc
 
     license_name, license_prov = _extract_and_detect_license(std, pyproject_path.parent)
