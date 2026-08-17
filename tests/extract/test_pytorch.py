@@ -120,7 +120,7 @@ def test_fickling_get_top_class_malformed_pickle_logs_and_returns_none(
     # b"\x80\x99" starts a pickle stream (protocol opcode) but is truncated
     # before a STOP opcode, so fickling's AST parser raises.
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch"):
-        result = _fickling_get_top_class(b"\x80\x99")
+        result = _fickling_get_top_class(_io.BytesIO(b"\x80\x99"))
 
     assert result is None
     assert any(

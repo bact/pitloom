@@ -197,7 +197,7 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
     mock_file_a = MagicMock()
     mock_file_b = MagicMock()
 
-    def mock_zip_open(name):
+    def mock_zip_open(name: str) -> MagicMock:
         cm = MagicMock()
         cm.__enter__.return_value = (
             mock_file_a if name == "weights.npy" else mock_file_b
