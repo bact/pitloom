@@ -25,7 +25,7 @@ generally) already carry this as machine-readable
 [SPDX File Tags](https://spdx.github.io/spdx-spec/v2.3.1-dev/file-tags/)
 in a leading comment block:
 
-```
+```python
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE

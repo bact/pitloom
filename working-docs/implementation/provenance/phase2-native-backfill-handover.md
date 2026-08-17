@@ -132,7 +132,8 @@ see [`cli-ux.md`](../cli-ux.md) for the full rationale. As of now:
   when using the smart entrypoint on a project. Fixed to call
   `read_project()` on the target when it's an existing path, matching
   `loom project`'s precedence. Covered by 58 new lines in
-  `tests/test_main_cli.py`.
+  `tests/test_main_cli.py` (that file has since been split into
+  `tests/cli/*.py` -- see `cli-test-coverage-roadmap.md`).
 - **Also merged in this window**: #115/#117 (Bandit hardening --
   pinned `hf_hub_download()` revisions, hardened env-command
   invocation), #118 (mypy >= 2.3.0), #119 (OpenSSF Scorecard CI),
@@ -201,7 +202,10 @@ shape directly (the real merge path is separately covered by
 `test_merge_fragments_populates_spdx_document_imports` in
 `tests/test_fragments.py`). Not extended to cover N3 -- enrichment's own
 coverage lives in `test_generator.py`/`test_main_cli.py`/
-`test_hatch_hook.py` instead (see PR #124).
+`test_hatch_hook.py` instead (see PR #124; those three files have
+since been split into `tests/core/test_generator_*.py`,
+`tests/cli/*.py`, and `tests/extract/test_hatch_hook_*.py`
+respectively).
 
 ## Workflow notes carried from Phase 1
 

@@ -63,7 +63,7 @@ keyed by SBOM field name, value already semi-structured as pipe-delimited
 
 Example values produced by extractors:
 
-- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/pyproject.py:81`](../../../src/pitloom/extract/pyproject.py)
+- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/_pyproject.py`](../../../src/pitloom/extract/_pyproject.py) (line number not re-verified after the `pyproject.py` → `_pyproject.py` rename)
 - `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface.py:453`](../../../src/pitloom/extract/_huggingface.py)
 - `f"{source} | Field: extra/name"` — [`src/pitloom/extract/_pytorch_pt2.py:132`](../../../src/pitloom/extract/_pytorch_pt2.py)
 
@@ -954,12 +954,12 @@ with; now the independent scan always runs alongside it.
 
 `resolve_license_concluded` (also in `_license.py`) is the single, shared
 G2 entry point every project-metadata extractor calls — not just
-`pyproject.py`'s `[project]` path. It exists because the four extraction
-paths (CLI's [`pyproject.py`](../../../src/pitloom/extract/pyproject.py)
+`_pyproject.py`'s `[project]` path. It exists because the four extraction
+paths (CLI's [`_pyproject.py`](../../../src/pitloom/extract/_pyproject.py)
 `read_pyproject`, the [`hatchling.py`](../../../src/pitloom/extract/hatchling.py)
 build-hook path, the poetry-only
-[`poetry.py`](../../../src/pitloom/extract/poetry.py) `read_poetry`, and the
-setuptools-only [`setuptools.py`](../../../src/pitloom/extract/setuptools.py)
+[`_poetry.py`](../../../src/pitloom/extract/_poetry.py) `read_poetry`, and the
+setuptools-only [`_setuptools.py`](../../../src/pitloom/extract/_setuptools.py)
 `read_setuptools`) were each written and evolving independently. G2 first
 shipped wired only into the CLI path; a later review found the Hatchling
 build hook called `detect_license_for_project` directly and never ran the

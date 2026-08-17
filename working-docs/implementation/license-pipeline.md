@@ -94,7 +94,7 @@ Spdx3JsonExporter.to_json()
 
 ### Python project sources
 
-`src/pitloom/extract/pyproject.py` calls
+`src/pitloom/extract/_pyproject.py` calls
 `detect_license_for_project()` from `_license.py` after parsing
 `pyproject.toml`. That function tries four sources in priority order:
 
@@ -279,11 +279,11 @@ For each package with a known licence, the JSON-LD graph contains:
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`,
   `find_license_files()`, `detect_license_for_project()` |
-| `src/pitloom/extract/pyproject.py` | Python project licence
+| `src/pitloom/extract/_pyproject.py` | Python project licence
   extraction and detection |
-| `src/pitloom/extract/setuptools.py` | setuptools project licence
+| `src/pitloom/extract/_setuptools.py` | setuptools project licence
   extraction |
-| `src/pitloom/extract/poetry.py` | Poetry project licence extraction |
+| `src/pitloom/extract/_poetry.py` | Poetry project licence extraction |
 | `src/pitloom/extract/_huggingface.py` | HuggingFace Hub card YAML
   and file-based detection |
 | `src/pitloom/extract/_pytorch_pt2.py` | PT2 archive `extra/license`

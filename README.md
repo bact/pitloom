@@ -124,10 +124,16 @@ loom model Qwen/Qwen3-235B-A22B   # bare model ID also works
 Or use the smart unified entrypoint:
 
 ```bash
-loom generate .                           # project directory -> Source SBOM
-loom generate path/to/model.safetensors   # AI model asset   -> Analyzed SBOM
-loom generate env                         # installed venv    -> Deployed SBOM
+loom generate . -o sbom.spdx3.json                           # project directory -> Source SBOM
+loom generate path/to/model.safetensors -o model.spdx3.json  # AI model asset   -> Analyzed SBOM
+loom generate env -o env.spdx3.json                          # installed venv    -> Deployed SBOM
 ```
+
+`-o`/`--output` is required for `generate`: unlike `project`/`wheel`/
+`model`/`env`, which each know their target type and so have an obvious
+default filename, `generate` dispatches across several target types with
+no single natural default -- pass `-o` explicitly, or use the
+target-specific command for its own default.
 
 #### Enrich an SBOM
 

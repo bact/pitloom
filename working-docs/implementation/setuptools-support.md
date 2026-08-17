@@ -20,10 +20,10 @@ initial setuptools support added in the `setuptools-support` branch.
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/setuptools.py` | New extraction module |
+| `src/pitloom/extract/_setuptools.py` | New extraction module (renamed from `setuptools.py`) |
 | `src/pitloom/extract/project.py` | Shared resolver (`read_project()`) used by both the CLI and `generate_project_sbom()` |
-| `src/pitloom/__main__.py` | CLI updated to accept projects without `pyproject.toml` |
-| `tests/test_setuptools.py` | 53 new unit and integration tests |
+| `src/pitloom/cli/` | CLI updated to accept projects without `pyproject.toml` (originally in `__main__.py`, since split into `cli/` -- see `cli-test-coverage-roadmap.md`) |
+| `tests/extract/test_setuptools.py` | 53 new unit and integration tests (originally `tests/test_setuptools.py`) |
 | `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
 
 ## Extraction functions

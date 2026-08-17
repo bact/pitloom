@@ -52,21 +52,26 @@ See `references/examples.md` for copy-paste recipes.
 Prefer an ephemeral run so the user's environment is not polluted:
 
 ```bash
-uvx pitloom generate <target>       # Smart auto-detection entrypoint
+uvx pitloom generate <target> -o sbom.spdx3.json       # Smart auto-detection entrypoint
 ```
 
 or
 
 ```bash
-pipx run pitloom generate <target>  # pipx's ephemeral runner
+pipx run pitloom generate <target> -o sbom.spdx3.json  # pipx's ephemeral runner
 ```
 
 Fall back to a normal install only if neither `uv` nor `pipx` is available:
 
 ```bash
 pip install pitloom
-loom generate <target>
+loom generate <target> -o sbom.spdx3.json
 ```
+
+`-o`/`--output` is required for `generate` -- unlike `project`/`wheel`/
+`model`/`env` below, which each know their target type and so have an
+obvious default filename, `generate` dispatches across several target
+types with no single natural default.
 
 `loom` and `pitloom` are two names for the same console-script entry point.
 
@@ -75,12 +80,12 @@ loom generate <target>
 Use `loom generate` for automatic target detection:
 
 ```bash
-loom generate .                              # project directory -> Source SBOM
-loom generate mypackage-1.0.0.tar.gz         # sdist archive     -> Source SBOM
-loom generate dist/pkg-1.0-py3-none-any.whl  # wheel package     -> Analyzed SBOM
-loom generate models/model.gguf              # local model file  -> AI Model SBOM
-loom generate mistralai/Mistral-7B-v0.1      # Hugging Face URL  -> AI Model SBOM
-loom generate env                            # installed venv    -> Deployed SBOM
+loom generate . -o sbom.spdx3.json                              # project directory -> Source SBOM
+loom generate mypackage-1.0.0.tar.gz -o sbom.spdx3.json         # sdist archive     -> Source SBOM
+loom generate dist/pkg-1.0-py3-none-any.whl -o sbom.spdx3.json  # wheel package     -> Analyzed SBOM
+loom generate models/model.gguf -o sbom.spdx3.json              # local model file  -> AI Model SBOM
+loom generate mistralai/Mistral-7B-v0.1 -o sbom.spdx3.json      # Hugging Face URL  -> AI Model SBOM
+loom generate env -o sbom.spdx3.json                            # installed venv    -> Deployed SBOM
 ```
 
 ## Explicit Target Subcommands
@@ -176,7 +181,7 @@ which one:
   to the generate command:
 
   ```bash
-  loom generate <target> --enrich
+  loom generate <target> --enrich -o sbom.spdx3.json
   ```
 
   This runs Pitloom's own deterministic, local, frontmatter-only pass

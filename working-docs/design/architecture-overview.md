@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -191,8 +191,8 @@ Pitloom will follow modern Python software engineering best practices,
 utilizing the "src" layout to prevent subtle import-path bugs and ensure
 the development environment mirrors production (Ghadge 2025).
 
-See [working-docs/implementation/summary.md](../implementation/summary.md) for the
-canonical, up-to-date project tree.
+See [working-docs/implementation/file-map.md](../implementation/file-map.md)
+for the canonical, up-to-date project tree.
 
 ## Integration with the SCA pipeline and DevOps ecosystem
 
@@ -213,8 +213,8 @@ standards, and the roadmap for new integrations.
 
 | Source | Extractor / mechanism | What it contributes |
 | :---- | :---- | :---- |
-| `pyproject.toml` | `pitloom.extract.pyproject` | Package identity, version, license, dependencies, authors |
-| `setup.cfg` / `setup.py` | `pitloom.extract.setuptools` | Package identity, version, license, dependencies, authors |
+| `pyproject.toml` | `pitloom.extract._pyproject` | Package identity, version, license, dependencies, authors |
+| `setup.cfg` / `setup.py` | `pitloom.extract._setuptools` | Package identity, version, license, dependencies, authors |
 | Python environment | `pitloom.extract.env` | Deployed environment dependency graph |
 | Built wheel (`.whl`) | `pitloom.extract.wheel` / `binary` | Analyzed wheel metadata, files, and phantom dependencies |
 | AI model files (GGUF, ONNX, SafeTensors, etc.) | `pitloom.extract.ai_model` | Model architecture, format, hyperparameters, framework |
@@ -290,8 +290,8 @@ See `working-docs/design/sbom-fragments.md`.
 ```text
 Information sources
 ───────────────────
-pyproject.toml            -> ProjectMetadata           (pitloom.extract.pyproject)
-setup.cfg / setup.py      -> ProjectMetadata           (pitloom.extract.setuptools)
+pyproject.toml            -> ProjectMetadata           (pitloom.extract._pyproject)
+setup.cfg / setup.py      -> ProjectMetadata           (pitloom.extract._setuptools)
 model.onnx / .gguf / …    -> AiModelMetadata           (pitloom.extract.ai_model)
 dataset.croissant.json    -> DatasetMetadata           (pitloom.extract.dataset)
 MLflow run                -> SPDX AI fragment          (pitloom.extract.mlflow)  [planned]

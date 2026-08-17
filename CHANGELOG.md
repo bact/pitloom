@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-15
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,9 +38,22 @@ and this project adheres to
 - Optimize pytest-xdist parallelization with `loadscope` to prevent
   redundant fixture evaluations ([#158])
 - Optimize test workflow by caching the `licenseid` database ([#159])
+- `loom generate` now requires `-o`/`--output` and fails with a clear
+  error if it's omitted, instead of guessing a filename -- unlike
+  `project`/`wheel`/`model`/`env`, which each know their target type
+  and so have an obvious default, `generate` dispatches across several
+  target types with no single natural default.
 
 ### Fixed
 
+- `loom generate` no longer silently writes a fixed `sbom.spdx3.json`
+  to the current directory when `-o` is omitted -- that could (and
+  did) clobber an unrelated file already present there, since the
+  path was resolved against the process's cwd rather than the target.
+  See the "Changed" entry above for the new behaviour.
+- Remove `split_main.py` and `src/pitloom/__main__.py.bak`, leftover
+  files from the CLI restructuring ([#153]) that were accidentally
+  committed -- the `.bak` file was shipping inside the built wheel.
 - Map legacy `fragments` key to `[tool.pitloom.fragment]` nested table
   in `setup.cfg` to resolve crash ([#152])
 - Implement modern sub-section parsing (`provenance`, `content-type`, `fragment`)

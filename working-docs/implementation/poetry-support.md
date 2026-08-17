@@ -22,9 +22,9 @@ under `[tool.poetry]`.  Issue [#64].
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/poetry.py` | New extraction module |
-| `src/pitloom/extract/pyproject.py` | Updated to fall back to / merge Poetry data |
-| `tests/test_poetry.py` | 51 unit and integration tests |
+| `src/pitloom/extract/_poetry.py` | New extraction module (renamed from `poetry.py`) |
+| `src/pitloom/extract/_pyproject.py` | Updated to fall back to / merge Poetry data |
+| `tests/extract/test_poetry.py` | 51 unit and integration tests (originally `tests/test_poetry.py`) |
 | `tests/fixtures/projects/sampleproject-poetry/` | Real-world fixture (mistral-inference) |
 
 ## Extraction functions
