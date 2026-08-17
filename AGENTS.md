@@ -12,6 +12,7 @@
 - **Global file size**: soft limit ~400-500 lines, hard limit ~800 lines (~30KB). This applies to ALL files (source code, tests, documentation). Split before crossing it.
 - **Naming and grouping**: kebab-case, topic-first filenames. If a topic outgrows 3+ closely related files, group them in a same-named subfolder.
 - **Cross-linking**: every split or grouped file gets a "See also" pointer near the top.
+- Every commit need a sign-off line (DCO) in the commit message.
 
 ### SBOM output
 
@@ -57,6 +58,7 @@ Unix philosophy. Consistent, predictable, parseable.
 - Fully qualified names in docstrings for non-stdlib types (e.g., `numpy.ndarray`).
 - No `assert` in production -- tests only.
 - All config in `pyproject.toml` where possible.
+- No wildcard imports (e.g., `from module import *`). Always use explicit imports.
 - Type completeness: All visible class vars, instance vars, methods, params, and return types must be annotated. Generic base classes must have type args specified. (Except simple literals, enum members, and standard dunders).
 
 ## Cross-platform compatibility
