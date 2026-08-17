@@ -101,7 +101,7 @@ _BLOOMZ_7B1_CONFIG: dict[str, Any] = {
     "hidden_size": 4096,
     "n_layer": 30,  # BLOOM-specific: not captured
     "n_head": 32,  # BLOOM-specific: not captured
-    "seq_length": 2048,  # added to _HYPER_KEYS → captured as context length
+    "seq_length": 2048,  # added to _HYPER_KEYS -> captured as context length
     "attention_softmax_in_fp32": True,
     "masked_softmax_fusion": True,
     "bias_dropout_fusion": True,
@@ -182,7 +182,7 @@ def _patch_cohere_aya_23() -> Any:
     return _patch_hf_calls(
         config=None,
         tokenizer_config=None,
-        card_data={},  # gated card → empty dict
+        card_data={},  # gated card -> empty dict
         hub_info={"author": "CohereLabs", "sha": "deadf00d"},
     )
 
@@ -238,7 +238,7 @@ _PHARIA_CONTROL_CARD_DATA = _make_card_data(
 
 def _patch_pharia_control() -> Any:
     return _patch_hf_calls(
-        config=None,  # absent (404) — custom scaling framework
+        config=None,  # absent (404) -- custom scaling framework
         tokenizer_config=None,
         card_data=_PHARIA_CONTROL_CARD_DATA,
         hub_info={"author": "Aleph-Alpha", "sha": "deadf00d"},
@@ -272,7 +272,7 @@ def _patch_wmt22_cometkiwi() -> Any:
     return _patch_hf_calls(
         config=None,
         tokenizer_config=None,
-        card_data={},  # gated → empty
+        card_data={},  # gated -> empty
         hub_info={"author": "Unbabel", "sha": "deadf00d"},
     )
 

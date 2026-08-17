@@ -170,7 +170,7 @@ class PitloomV1Encoder:
 
 
 #: Registry of available encoders, keyed by ``schema_id``. A future external
-#: schema (see working-docs/implementation/annotation-provenance.md §8)
+#: schema (see working-docs/implementation/annotation-provenance.md Section 8)
 #: registers itself here alongside ``pitloom/1`` -- no call site changes.
 #: Known limitation, currently latent only: nothing writes into this dict
 #: after module load today (confirmed by independent review), so there is

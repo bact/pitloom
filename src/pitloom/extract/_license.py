@@ -116,11 +116,11 @@ def canonicalize_license_id(raw: str) -> str:
 
     Uses ``AggregatedLicenseMatcher.match(license_id=raw)`` for a direct
     database lookup.  Returns the canonical casing when *raw* is a recognised
-    SPDX License ID (e.g. ``"bsd-3-clause"`` → ``"BSD-3-Clause"``).
+    SPDX License ID (e.g. ``"bsd-3-clause"`` -> ``"BSD-3-Clause"``).
 
-    For unrecognised values — non-SPDX identifiers, deprecated bare
+    For unrecognised values -- non-SPDX identifiers, deprecated bare
     copyleft forms (``"agpl-3.0"``, ``"gpl-3.0"``), or vendor-specific
-    strings (``"gemma"``, ``"llama3.2"``) — the original string is
+    strings (``"gemma"``, ``"llama3.2"``) -- the original string is
     returned verbatim.  pitloom records what it found and leaves further
     interpretation (e.g. deciding whether to add a ``LicenseRef-`` prefix)
     to the ``licenseid`` library or downstream SBOM tooling.

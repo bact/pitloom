@@ -250,7 +250,7 @@ def test_resnet_beans_input(resnet_beans_metadata: AiModelMetadata) -> None:
     inp = inputs[0]
     assert inp["name"] == "pixel_values"
     assert inp["dtype"] == _ONNX_FLOAT
-    # Spatial dimensions 224×224 are fixed; batch and channels are dynamic
+    # Spatial dimensions 224x224 are fixed; batch and channels are dynamic
     assert inp["shape"][2] == 224
     assert inp["shape"][3] == 224
 

@@ -125,7 +125,7 @@ _RTDETR_COCO_O365_CONFIG: dict[str, Any] = {
     "model_type": "rt_detr",
     "architectures": ["RTDetrForObjectDetection"],
     "torch_dtype": "float32",
-    # Detection-specific keys — none in _HYPER_KEYS
+    # Detection-specific keys -- none in _HYPER_KEYS
     "d_model": 256,
     "decoder_attention_heads": 8,
     "encoder_attention_heads": 8,
@@ -205,7 +205,7 @@ _TIMELENS_CONFIG: dict[str, Any] = {
     "model_type": "qwen3_vl",
     "architectures": ["Qwen3VLForConditionalGeneration"],
     "dtype": "bfloat16",  # non-standard: uses dtype, not torch_dtype
-    # All LM numeric fields are nested inside text_config — NOT at top level
+    # All LM numeric fields are nested inside text_config -- NOT at top level
     "text_config": {
         "vocab_size": 151936,
         "hidden_size": 4096,
@@ -254,7 +254,7 @@ def _patch_timelens() -> Any:
 
 _BERT_TURKISH_CONFIG: dict[str, Any] = {
     "model_type": "bert",
-    # "architectures" field absent — different from [] (empty list)
+    # "architectures" field absent -- different from [] (empty list)
     "vocab_size": 32000,
     "hidden_size": 768,
     "num_hidden_layers": 12,

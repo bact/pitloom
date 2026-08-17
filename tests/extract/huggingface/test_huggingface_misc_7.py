@@ -173,7 +173,7 @@ def test_rtdetr_coco_o365_architecture() -> None:
 
 
 def test_rtdetr_coco_o365_object_detection_domain() -> None:
-    # object-detection is in _DOMAIN_TAGS — captured as domain
+    # object-detection is in _DOMAIN_TAGS -- captured as domain
     with _patch_rtdetr_coco_o365():
         meta = read_huggingface("PekingU/rtdetr_r50vd_coco_o365")
     assert "object-detection" in meta.usage.domains
@@ -231,7 +231,7 @@ def test_sap_rpt_tabular_classification_domain() -> None:
 
 
 def test_sap_rpt_no_architecture_gated() -> None:
-    # Config 401 → no type_of_model or architecture
+    # Config 401 -> no type_of_model or architecture
     with _patch_sap_rpt():
         meta = read_huggingface("SAP/sap-rpt-1-oss")
     assert meta.type_of_model is None
@@ -279,7 +279,7 @@ def test_timelens_video_text_to_text_domain() -> None:
 
 
 def test_timelens_nested_text_config_empty_hyperparameters() -> None:
-    # All LM numeric keys are inside text_config → not captured by _HYPER_KEYS
+    # All LM numeric keys are inside text_config -> not captured by _HYPER_KEYS
     # dtype at top level is NOT in _HYPER_KEYS (only torch_dtype is)
     with _patch_timelens():
         meta = read_huggingface("TencentARC/TimeLens-8B")
@@ -308,14 +308,14 @@ def test_bert_turkish_type_of_model() -> None:
 
 
 def test_bert_turkish_architecture_none() -> None:
-    # architectures key absent from config → architecture=None
+    # architectures key absent from config -> architecture=None
     with _patch_bert_turkish():
         meta = read_huggingface("dbmdz/bert-base-turkish-cased")
     assert meta.architecture is None
 
 
 def test_bert_turkish_no_pipeline_tag_empty_domains() -> None:
-    # No pipeline_tag in card → empty usage.domains
+    # No pipeline_tag in card -> empty usage.domains
     with _patch_bert_turkish():
         meta = read_huggingface("dbmdz/bert-base-turkish-cased")
     assert not meta.usage.domains
@@ -355,7 +355,7 @@ def test_cross_encoder_text_ranking_domain() -> None:
 
 
 def test_cross_encoder_small_hidden_size() -> None:
-    # hidden_size=384 — half of standard BERT-base
+    # hidden_size=384 -- half of standard BERT-base
     with _patch_cross_encoder():
         meta = read_huggingface("cross-encoder/ms-marco-MiniLM-L6-v2")
     assert meta.hyperparameters.get("hidden_size") == 384

@@ -31,7 +31,7 @@ from .conftest import (
 
 
 def test_windowseat_no_architecture() -> None:
-    # No config.json → type_of_model and architecture are None
+    # No config.json -> type_of_model and architecture are None
     with _patch_windowseat():
         meta = read_huggingface("windowseat-ai/windowseat-reflection")
     assert meta.type_of_model is None
@@ -39,7 +39,7 @@ def test_windowseat_no_architecture() -> None:
 
 
 def test_windowseat_peft_library_name() -> None:
-    # PEFT adapter: library_name="peft" → extra_data["hf.library_name"]
+    # PEFT adapter: library_name="peft" -> extra_data["hf.library_name"]
     with _patch_windowseat():
         meta = read_huggingface("windowseat-ai/windowseat-reflection")
     assert (meta.extra_data or {}).get("hf.library_name") == "peft"
@@ -52,14 +52,14 @@ def test_windowseat_image_to_image_domain() -> None:
 
 
 def test_moirai_no_type_of_model() -> None:
-    # Config has no "model_type" key → type_of_model=None
+    # Config has no "model_type" key -> type_of_model=None
     with _patch_moirai():
         meta = read_huggingface("Salesforce/moirai-2.0-R-small")
     assert meta.type_of_model is None
 
 
 def test_moirai_no_architecture() -> None:
-    # Config has no "architectures" key → architecture=None
+    # Config has no "architectures" key -> architecture=None
     with _patch_moirai():
         meta = read_huggingface("Salesforce/moirai-2.0-R-small")
     assert meta.architecture is None
@@ -73,7 +73,7 @@ def test_moirai_empty_hyperparameters() -> None:
 
 
 def test_moirai_time_series_forecasting_domain() -> None:
-    # "time-series-forecasting" added to _DOMAIN_TAGS → captured as domain
+    # "time-series-forecasting" added to _DOMAIN_TAGS -> captured as domain
     with _patch_moirai():
         meta = read_huggingface("Salesforce/moirai-2.0-R-small")
     assert "time-series-forecasting" in meta.usage.domains
@@ -124,7 +124,7 @@ def test_voxtral_mini_asr_domain() -> None:
 
 
 def test_voxtral_mini_vllm_library() -> None:
-    # vllm as serving framework: library_name="vllm" → hf.library_name
+    # vllm as serving framework: library_name="vllm" -> hf.library_name
     with _patch_voxtral_mini():
         meta = read_huggingface("mistralai/Voxtral-Mini-4B-Realtime-2602")
     assert (meta.extra_data or {}).get("hf.library_name") == "vllm"
@@ -144,14 +144,14 @@ def test_tildeopen_30b_64k_type_of_model() -> None:
 
 
 def test_tildeopen_30b_64k_yarn_extended_context() -> None:
-    # YaRN RoPE extends context from 8192 → 65536; max_position_embeddings captured
+    # YaRN RoPE extends context from 8192 -> 65536; max_position_embeddings captured
     with _patch_tildeopen_30b_64k():
         meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
     assert meta.hyperparameters.get("max_position_embeddings") == 65536
 
 
 def test_tildeopen_30b_64k_tokenizer_max_length() -> None:
-    # model_max_length=65536 is a real value (not unlimited sentinel) → captured
+    # model_max_length=65536 is a real value (not unlimited sentinel) -> captured
     with _patch_tildeopen_30b_64k():
         meta = read_huggingface("TildeAI/TildeOpen-30b-64k")
     assert (meta.extra_data or {}).get("hf.tokenizer_max_length") == 65536
@@ -174,7 +174,7 @@ def test_tildeopen_30b_type_of_model() -> None:
 
 
 def test_tildeopen_30b_sentinel_tokenizer_max_length_filtered() -> None:
-    # LlamaTokenizer unlimited sentinel → hf.tokenizer_max_length NOT set
+    # LlamaTokenizer unlimited sentinel -> hf.tokenizer_max_length NOT set
     with _patch_tildeopen_30b():
         meta = read_huggingface("TildeAI/TildeOpen-30b")
     assert "hf.tokenizer_max_length" not in (meta.extra_data or {})
@@ -206,7 +206,7 @@ def test_openeurollm_large_gemma3_vocab() -> None:
 
 
 def test_openeurollm_no_gqa() -> None:
-    # num_key_value_heads == num_attention_heads == 32 → standard MHA, no GQA
+    # num_key_value_heads == num_attention_heads == 32 -> standard MHA, no GQA
     with _patch_openeurollm():
         meta = read_huggingface("openeurollm/datamix-9b-80-20")
     assert meta.hyperparameters.get("num_key_value_heads") == 32
@@ -244,7 +244,7 @@ def test_bloom_vocab_size_captured() -> None:
 
 
 def test_bloom_nonstandard_layer_key_not_captured() -> None:
-    # BLOOM uses n_layer (not num_hidden_layers) → not in _HYPER_KEYS → absent
+    # BLOOM uses n_layer (not num_hidden_layers) -> not in _HYPER_KEYS -> absent
     with _patch_bloom():
         meta = read_huggingface("bigscience/bloom")
     assert "num_hidden_layers" not in meta.hyperparameters
@@ -265,7 +265,7 @@ def test_bloomz_7b1_type_of_model() -> None:
 
 
 def test_bloomz_7b1_seq_length_captured() -> None:
-    # seq_length added to _HYPER_KEYS → BLOOM context length now captured
+    # seq_length added to _HYPER_KEYS -> BLOOM context length now captured
     with _patch_bloomz_7b1():
         meta = read_huggingface("bigscience/bloomz-7b1")
     assert meta.hyperparameters.get("seq_length") == 2048
@@ -309,7 +309,7 @@ def test_occiglot_type_of_model() -> None:
 
 
 def test_occiglot_sliding_window_captured() -> None:
-    # sliding_window is in _HYPER_KEYS → captured as hyperparameter
+    # sliding_window is in _HYPER_KEYS -> captured as hyperparameter
     with _patch_occiglot():
         meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
     assert meta.hyperparameters.get("sliding_window") == 4096
@@ -330,7 +330,7 @@ def test_occiglot_five_eu_languages() -> None:
 
 
 def test_occiglot_sentinel_filtered() -> None:
-    # Unlimited sentinel → hf.tokenizer_max_length not set
+    # Unlimited sentinel -> hf.tokenizer_max_length not set
     with _patch_occiglot():
         meta = read_huggingface("occiglot/occiglot-7b-eu5-instruct")
     assert "hf.tokenizer_max_length" not in (meta.extra_data or {})
@@ -345,7 +345,7 @@ def test_pharia_control_no_architecture() -> None:
 
 
 def test_pharia_control_scaling_library() -> None:
-    # Custom "scaling" framework: library_name="scaling" → hf.library_name
+    # Custom "scaling" framework: library_name="scaling" -> hf.library_name
     with _patch_pharia_control():
         meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
     assert (meta.extra_data or {}).get("hf.library_name") == "scaling"

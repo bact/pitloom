@@ -209,7 +209,7 @@ def test_gemma_proprietary_license_used_directly() -> None:
 
 def test_llama_custom_license_used_directly() -> None:
     # "llama3.2" is not in _VAGUE_LICENSE_VALUES, so it is taken from the card.
-    # Not recognized by licenseid matcher → _canonicalize_license_id returns
+    # Not recognized by licenseid matcher -> _canonicalize_license_id returns
     # it unchanged.
     with _patch_llama():
         meta = read_huggingface("meta-llama/Llama-3.2-1B")

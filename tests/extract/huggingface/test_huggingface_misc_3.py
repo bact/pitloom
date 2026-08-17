@@ -384,7 +384,7 @@ def test_seamless_asr_domain_from_pipeline_tag() -> None:
 
 
 def test_seamless_audio_to_audio_tag_in_domain() -> None:
-    # "audio-to-audio" in tags → captured as domain (audio-to-audio domain tag).
+    # "audio-to-audio" in tags -> captured as domain (audio-to-audio domain tag).
     with _patch_seamless_m4t():
         meta = read_huggingface("facebook/seamless-m4t-v2-large")
     assert "audio-to-audio" in meta.usage.domains

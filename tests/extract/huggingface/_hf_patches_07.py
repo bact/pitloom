@@ -26,7 +26,7 @@ _EXAONE_PATH_CARD_DATA = _make_card_data(
 
 def _patch_exaone_path() -> Any:
     return _patch_hf_calls(
-        config=None,  # gated → 401
+        config=None,  # gated -> 401
         tokenizer_config=None,
         card_data=_EXAONE_PATH_CARD_DATA,
         hub_info={"author": "LGAI-EXAONE", "sha": "deadf00d"},
@@ -130,7 +130,7 @@ _FUJITSU_LLM_CARD_DATA = _make_card_data(
 
 def _patch_fujitsu_llm() -> Any:
     return _patch_hf_calls(
-        config=None,  # gated → 401
+        config=None,  # gated -> 401
         tokenizer_config=None,
         card_data=_FUJITSU_LLM_CARD_DATA,
         hub_info={"author": "Fujitsu", "sha": "deadf00d"},
@@ -147,7 +147,7 @@ _WINDOWSEAT_CARD_DATA = _make_card_data(
 
 def _patch_windowseat() -> Any:
     return _patch_hf_calls(
-        config=None,  # absent → 404
+        config=None,  # absent -> 404
         tokenizer_config=None,
         card_data=_WINDOWSEAT_CARD_DATA,
         hub_info={"author": "windowseat-ai", "sha": "deadf00d"},

@@ -36,9 +36,9 @@ def _canonicalize_license_id(raw: str) -> str:
     Delegates to :func:`~pitloom.extract._license.canonicalize_license_id`,
     which uses ``AggregatedLicenseMatcher.match()`` from the ``licenseid``
     library.  When *raw* is recognised as an SPDX License ID the canonical
-    casing is returned (e.g. ``"bsd-3-clause"`` → ``"BSD-3-Clause"``).
+    casing is returned (e.g. ``"bsd-3-clause"`` -> ``"BSD-3-Clause"``).
 
-    When *raw* is not recognised it is returned verbatim — pitloom records
+    When *raw* is not recognised it is returned verbatim -- pitloom records
     what it found and leaves further interpretation (e.g. deciding whether to
     add a ``LicenseRef-`` prefix for non-SPDX identifiers) to the
     ``licenseid`` library or downstream SBOM tooling.
@@ -85,7 +85,7 @@ def _safe_load_json(
 
         from huggingface_hub import hf_hub_download
 
-        local_path = hf_hub_download(
+        local_path = hf_hub_download(  # nosec B615
             repo_id=model_id,
             filename=filename,
             revision=revision,
@@ -204,7 +204,7 @@ def _detect_license_from_hf_files(
 
             from huggingface_hub import hf_hub_download
 
-            local_path = hf_hub_download(
+            local_path = hf_hub_download(  # nosec B615
                 repo_id=model_id,
                 filename=filename,
                 revision=revision,

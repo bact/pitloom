@@ -83,7 +83,7 @@ class ProjectMetadata:
 
     This dataclass is the common currency between the extract and assemble
     layers.  It carries no knowledge of how the data was obtained; any
-    extractor (``pyproject.toml``, ``setup.cfg``, build logs, …) can
+    extractor (``pyproject.toml``, ``setup.cfg``, build logs, ...) can
     populate it.
 
     Provenance is recorded per-field in :attr:`provenance` using the pattern

@@ -137,7 +137,7 @@ def test_aspect_finnlp_th_camembert_no_license() -> None:
 
 
 def test_protonx_legal_vietnamese_nc_license() -> None:
-    # Proprietary NC license → "other" in card → hf.license_raw.
+    # Proprietary NC license -> "other" in card -> hf.license_raw.
     with _patch_protonx_legal():
         meta = read_huggingface("protonx-models/protonx-legal-tc")
     assert meta.license is None
@@ -171,7 +171,7 @@ def test_sealion_27b_it_sea_languages_gemma_license() -> None:
 
 
 def test_qwen3_235b_qwen_license_passthrough() -> None:
-    # "qwen" not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher →
+    # "qwen" not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher ->
     # _canonicalize_license_id returns it unchanged
     with _patch_qwen3_235b():
         meta = read_huggingface("Qwen/Qwen3-235B-A22B")
@@ -186,7 +186,7 @@ def test_qwen35_27b_apache_license() -> None:
 
 def test_kanana_15v_license_passthrough() -> None:
     # "kanana-license" not in _VAGUE_LICENSE_VALUES; not recognized by
-    # licenseid matcher → _canonicalize_license_id returns it unchanged;
+    # licenseid matcher -> _canonicalize_license_id returns it unchanged;
     # no file detection triggered
     with _patch_kanana_15v():
         meta = read_huggingface("kakaobank/kanana-1.5-v-3b-instruct")
@@ -195,7 +195,7 @@ def test_kanana_15v_license_passthrough() -> None:
 
 
 def test_exaone45_33b_vague_license() -> None:
-    # license="other" → vague → detection mock returns (None, None) → license=None
+    # license="other" -> vague -> detection mock returns (None, None) -> license=None
     with _patch_exaone45_33b():
         meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B")
     assert meta.license is None
@@ -280,7 +280,7 @@ def test_tildeopen_30b_64k_cc_by_license() -> None:
 
 def test_bloom_custom_license_passthrough() -> None:
     # "bigscience-bloom-rail-1.0" not in _VAGUE_LICENSE_VALUES, not a known
-    # Not recognized by licenseid matcher → _canonicalize_license_id returns
+    # Not recognized by licenseid matcher -> _canonicalize_license_id returns
     # it unchanged.
     with _patch_bloom():
         meta = read_huggingface("bigscience/bloom")
@@ -301,7 +301,7 @@ def test_cohere_aya_23_no_license() -> None:
 
 
 def test_pharia_control_vague_license_with_license_name() -> None:
-    # license=other (vague) → detection triggered → mock returns (None, None)
+    # license=other (vague) -> detection triggered -> mock returns (None, None)
     # license_name=open-aleph-license stored in extra_data["hf.license_name"]
     with _patch_pharia_control():
         meta = read_huggingface("Aleph-Alpha/Pharia-1-LLM-7B-control")
@@ -347,7 +347,7 @@ def test_hy_motion_vague_license_with_license_name() -> None:
 
 
 def test_apple_sharp_apple_amlr_license_passthrough() -> None:
-    # apple-amlr not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher →
+    # apple-amlr not in _VAGUE_LICENSE_VALUES; not recognized by licenseid matcher ->
     # _canonicalize_license_id returns it unchanged
     with _patch_apple_sharp():
         meta = read_huggingface("apple/Sharp")
@@ -388,7 +388,7 @@ def test_lightglue_vague_license() -> None:
 
 
 def test_codeberta_no_license() -> None:
-    # No license field in card YAML → meta.license=None
+    # No license field in card YAML -> meta.license=None
     with _patch_codeberta():
         meta = read_huggingface("huggingface/CodeBERTa-small-v1")
     assert meta.license is None

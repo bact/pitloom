@@ -111,7 +111,7 @@ def test_tinyllama_chat_architecture_and_depth() -> None:
 
 
 def test_phi2_code_tag_in_domain() -> None:
-    # "code" is in _DOMAIN_TAGS → usage.domains, not extra_lists["hf.tags"].
+    # "code" is in _DOMAIN_TAGS -> usage.domains, not extra_lists["hf.tags"].
     with _patch_phi2():
         meta = read_huggingface("microsoft/phi-2")
     assert "code" in meta.usage.domains
@@ -121,7 +121,7 @@ def test_llama_3_2_3b_gated_base_no_architecture() -> None:
     with _patch_llama_3_2_3b():
         meta = read_huggingface("meta-llama/Llama-3.2-3B")
     assert meta.license == "llama3.2"
-    assert meta.type_of_model is None  # config gated → not extractable
+    assert meta.type_of_model is None  # config gated -> not extractable
 
 
 def test_llama_3_2_3b_instruct_base_model_finetune() -> None:
@@ -156,7 +156,7 @@ def test_qwen3_swallow_sft_japanese_finetune() -> None:
 
 
 def test_sealion_27b_it_image_text_tag_also_domain() -> None:
-    # "image-text-to-text" in tags → also captured as domain.
+    # "image-text-to-text" in tags -> also captured as domain.
     with _patch_sealion_27b_it():
         meta = read_huggingface("aisingapore/Gemma-SEA-LION-v4-27B-IT")
     assert "image-text-to-text" in meta.usage.domains
@@ -281,7 +281,7 @@ def test_exaone45_33b_multilingual() -> None:
 
 
 def test_exaone45_33b_awq_type_of_model() -> None:
-    # AWQ: config.json is present (unlike GGUF) → type_of_model extractable
+    # AWQ: config.json is present (unlike GGUF) -> type_of_model extractable
     with _patch_exaone45_33b_awq():
         meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-AWQ")
     assert meta.type_of_model == "exaone4_5"
@@ -312,7 +312,7 @@ def test_exaone45_33b_fp8_type_of_model() -> None:
 
 
 def test_exaone45_33b_fp8_dtype_in_hyperparameters() -> None:
-    # torch_dtype is in _HYPER_KEYS → captured even for FP8 quantized dtype
+    # torch_dtype is in _HYPER_KEYS -> captured even for FP8 quantized dtype
     with _patch_exaone45_33b_fp8():
         meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-FP8")
     assert meta.hyperparameters.get("torch_dtype") == "float8_e4m3fn"
@@ -331,7 +331,7 @@ def test_exaone45_33b_fp8_image_text_to_text_domain() -> None:
 
 
 def test_exaone45_33b_gguf_no_type_of_model() -> None:
-    # GGUF: config.json absent → cannot determine model_type
+    # GGUF: config.json absent -> cannot determine model_type
     with _patch_exaone45_33b_gguf():
         meta = read_huggingface("LGAI-EXAONE/EXAONE-4.5-33B-GGUF")
     assert meta.type_of_model is None
@@ -351,7 +351,7 @@ def test_exaone45_33b_gguf_image_text_to_text_domain() -> None:
 
 
 def test_exaone_path_no_architecture() -> None:
-    # Config gated → no type_of_model or architecture
+    # Config gated -> no type_of_model or architecture
     with _patch_exaone_path():
         meta = read_huggingface("LGAI-EXAONE/EXAONE-Path-2.0-rev-EGFR")
     assert meta.type_of_model is None
@@ -410,7 +410,7 @@ def test_line_distilbert_architecture() -> None:
 
 
 def test_line_distilbert_six_layers() -> None:
-    # DistilBERT halves BERT's 12 layers → 6 layers
+    # DistilBERT halves BERT's 12 layers -> 6 layers
     with _patch_line_distilbert():
         meta = read_huggingface("line-corporation/line-distilbert-base-japanese")
     assert meta.hyperparameters.get("num_hidden_layers") == 6
@@ -448,7 +448,7 @@ def test_clip_japanese_v2_hidden_size() -> None:
 
 
 def test_fujitsu_llm_no_architecture() -> None:
-    # Config gated → type_of_model and architecture not available
+    # Config gated -> type_of_model and architecture not available
     with _patch_fujitsu_llm():
         meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
     assert meta.type_of_model is None
@@ -456,7 +456,7 @@ def test_fujitsu_llm_no_architecture() -> None:
 
 
 def test_fujitsu_llm_nemo_library_name() -> None:
-    # NeMo framework: library_name="nemo" → extra_data["hf.library_name"]
+    # NeMo framework: library_name="nemo" -> extra_data["hf.library_name"]
     with _patch_fujitsu_llm():
         meta = read_huggingface("Fujitsu/Fujitsu-LLM-KG-8x7B")
     assert (meta.extra_data or {}).get("hf.library_name") == "nemo"

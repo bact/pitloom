@@ -227,19 +227,19 @@ class AiModelMetadata:
     # Distribution paths of Python scripts that use/load this model
     usage_files: list[str] = field(default_factory=list)
 
-    # ── User-defined extension slots ──────────────────────────────────────────
+    # -- User-defined extension slots ------------------------------------------
     # Use these for metadata that does not map to any standard field above.
     # Keys should be namespaced with a source prefix separated by a dot so
     # consumers can identify the origin:
-    #   "hf.library_name", "hf.license_name", "onnx.producer_version", …
+    #   "hf.library_name", "hf.license_name", "onnx.producer_version", ...
     # The exporter decides how (or whether) to include these in the SBOM.
 
     # Key -> any scalar or structured value (str, int, float, bool, dict).
     # For single-valued metadata that is richer than a plain string.
-    # Examples: "hf.model_index" -> {…eval results…}, "hf.sha" -> "abc123"
+    # Examples: "hf.model_index" -> {...eval results...}, "hf.sha" -> "abc123"
     extra_data: dict[str, Any] = field(default_factory=dict)
 
-    # Key -> list of values (str, int, dict, …) for multi-valued properties.
+    # Key -> list of values (str, int, dict, ...) for multi-valued properties.
     # Examples:
     #   "hf.language"  -> ["en", "th"]
     #   "hf.tags"      -> ["pretrained", "reasoning"]

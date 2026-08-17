@@ -172,7 +172,7 @@ def test_openelm_270m_architecture() -> None:
 
 
 def test_openelm_270m_head_dim_captured() -> None:
-    # head_dim is in _HYPER_KEYS → captured even for custom arch
+    # head_dim is in _HYPER_KEYS -> captured even for custom arch
     with _patch_openelm_270m():
         meta = read_huggingface("apple/OpenELM-270M")
     assert meta.hyperparameters.get("head_dim") == 64
@@ -197,7 +197,7 @@ def test_minimax_m2_architecture() -> None:
 
 
 def test_minimax_m2_very_long_context() -> None:
-    # max_position_embeddings=1_000_000 → captured
+    # max_position_embeddings=1_000_000 -> captured
     with _patch_minimax_m2():
         meta = read_huggingface("MiniMaxAI/MiniMax-M2.7")
     assert meta.hyperparameters.get("max_position_embeddings") == 1_000_000
@@ -228,7 +228,7 @@ def test_bagel_type_of_model() -> None:
 
 
 def test_bagel_empty_hyperparameters() -> None:
-    # All numeric keys are nested inside llm_config/vit_config → not captured
+    # All numeric keys are nested inside llm_config/vit_config -> not captured
     with _patch_bagel():
         meta = read_huggingface("ByteDance-Seed/BAGEL-7B-MoT")
     assert not meta.hyperparameters
@@ -259,7 +259,7 @@ def test_sensenova_architecture() -> None:
 
 
 def test_sensenova_empty_hyperparameters() -> None:
-    # Numeric keys only in nested llm_config → not captured by extractor
+    # Numeric keys only in nested llm_config -> not captured by extractor
     with _patch_sensenova():
         meta = read_huggingface("sensenova/SenseNova-U1-8B-MoT")
     assert not meta.hyperparameters
@@ -278,7 +278,7 @@ def test_mmada_type_of_model() -> None:
 
 
 def test_mmada_alibi_no_max_position_embeddings() -> None:
-    # ALiBi: no max_position_embeddings in config → not in hyperparameters
+    # ALiBi: no max_position_embeddings in config -> not in hyperparameters
     with _patch_mmada():
         meta = read_huggingface("Gen-Verse/MMaDA-8B-Base")
     assert "max_position_embeddings" not in meta.hyperparameters
@@ -370,7 +370,7 @@ def test_aion_library_name() -> None:
 
 
 def test_stanza_fi_no_architecture() -> None:
-    # Stanza: no config.json → no type_of_model or architecture
+    # Stanza: no config.json -> no type_of_model or architecture
     with _patch_stanza_fi():
         meta = read_huggingface("stanfordnlp/stanza-fi")
     assert meta.type_of_model is None
@@ -391,7 +391,7 @@ def test_stanza_fi_language() -> None:
 
 
 def test_stanza_fi_empty_domains() -> None:
-    # No pipeline_tag → empty usage.domains
+    # No pipeline_tag -> empty usage.domains
     with _patch_stanza_fi():
         meta = read_huggingface("stanfordnlp/stanza-fi")
     assert not meta.usage.domains
@@ -417,14 +417,14 @@ def test_stanza_de_no_architecture() -> None:
 
 
 def test_openvino_mixtral_type_of_model() -> None:
-    # Config accessible despite OpenVINO quantization → model_type extractable
+    # Config accessible despite OpenVINO quantization -> model_type extractable
     with _patch_openvino_mixtral():
         meta = read_huggingface("OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov")
     assert meta.type_of_model == "mixtral"
 
 
 def test_openvino_mixtral_int8_dtype_captured() -> None:
-    # torch_dtype="int8" is in _HYPER_KEYS → captured even for quantized model
+    # torch_dtype="int8" is in _HYPER_KEYS -> captured even for quantized model
     with _patch_openvino_mixtral():
         meta = read_huggingface("OpenVINO/Mixtral-8x7B-Instruct-v0.1-int8-ov")
     assert meta.hyperparameters.get("torch_dtype") == "int8"
@@ -443,7 +443,7 @@ def test_openvino_mixtral_quantized_relation() -> None:
 
 
 def test_mlx_gemma4_type_of_model() -> None:
-    # MLX: config.json accessible → model_type extractable
+    # MLX: config.json accessible -> model_type extractable
     with _patch_mlx_gemma4():
         meta = read_huggingface("mlx-community/gemma-4-e2b-it-4bit")
     assert meta.type_of_model == "gemma4"
