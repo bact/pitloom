@@ -249,6 +249,7 @@ version = "1.0.0"
         assert config.provenance_format == "both"
         assert config.provenance_schema == "pitloom/1"
         assert config.provenance_detail == "minimal"
+        assert config.provenance_preserve_source_metadata == "auto"
 
 
 def test_extract_pitloom_provenance_settings_explicit() -> None:
