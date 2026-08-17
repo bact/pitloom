@@ -19,7 +19,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
-from pitloom.core.models import generate_spdx_id
+from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._extract_utils import sanitize_provenance_text
@@ -448,34 +448,30 @@ class _ActiveRun:
         # model trainedOn training datasets
         if self.model and self.datasets:
             for dataset in self.datasets:
-                rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship",
-                        f"{self.model.name}-trainedOn-{dataset.name}",
-                        self.doc_uuid,
-                    ),
-                    from_=self.model.spdxId,
-                    to=[require_spdx_id(dataset)],
-                    relationshipType=spdx3.RelationshipType.trainedOn,
-                    creationInfo=self.creation_info,
+                rel = build_relationship(
+                    from_id=self.model.spdxId,
+                    to_ids=[require_spdx_id(dataset)],
+                    rel_type=spdx3.RelationshipType.trainedOn,
+                    doc_name="loom",
+                    doc_uuid=self.doc_uuid,
+                    creation_info=self.creation_info,
                 )
-                self.exporter.add_relationship(rel)
+                if rel:
+                    self.exporter.add_relationship(rel)
 
         # model testedOn validation datasets
         if self.model and self.validation_datasets:
             for dataset in self.validation_datasets:
-                rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship",
-                        f"{self.model.name}-testedOn-{dataset.name}",
-                        self.doc_uuid,
-                    ),
-                    from_=self.model.spdxId,
-                    to=[require_spdx_id(dataset)],
-                    relationshipType=spdx3.RelationshipType.testedOn,
-                    creationInfo=self.creation_info,
+                rel = build_relationship(
+                    from_id=self.model.spdxId,
+                    to_ids=[require_spdx_id(dataset)],
+                    rel_type=spdx3.RelationshipType.testedOn,
+                    doc_name="loom",
+                    doc_uuid=self.doc_uuid,
+                    creation_info=self.creation_info,
                 )
-                self.exporter.add_relationship(rel)
+                if rel:
+                    self.exporter.add_relationship(rel)
 
         # output_dataset hasInput input_datasets (dataset lineage / preprocessing)
         if self.output_datasets and self.input_datasets:
@@ -503,18 +499,16 @@ class _ActiveRun:
                         input_ids.append(input_id)
                 if not input_ids:
                     continue
-                rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship",
-                        f"{output_ds.name}-hasInput-sources",
-                        self.doc_uuid,
-                    ),
-                    from_=output_ds.spdxId,
-                    to=input_ids,
-                    relationshipType=spdx3.RelationshipType.hasInput,
-                    creationInfo=self.creation_info,
+                rel = build_relationship(
+                    from_id=output_ds.spdxId,
+                    to_ids=input_ids,
+                    rel_type=spdx3.RelationshipType.hasInput,
+                    doc_name="loom",
+                    doc_uuid=self.doc_uuid,
+                    creation_info=self.creation_info,
                 )
-                self.exporter.add_relationship(rel)
+                if rel:
+                    self.exporter.add_relationship(rel)
 
         self._emit_script_file_and_generates()
 
@@ -562,51 +556,45 @@ class _ActiveRun:
         # emits for a runtime consumer like predict.py loading model.bin
         # (see pitloom.assemble.spdx3.ai), which is scoped `runtime`.
         if generates_model and self.model is not None:
-            self.exporter.add_relationship(
-                spdx3.LifecycleScopedRelationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship",
-                        f"{script_path}-generates-{self.model.name}",
-                        self.doc_uuid,
-                    ),
-                    from_=script_id,
-                    to=[require_spdx_id(self.model)],
-                    relationshipType=spdx3.RelationshipType.generates,
-                    scope=spdx3.LifecycleScopeType.build,
-                    creationInfo=self.creation_info,
-                )
+            rel1 = build_relationship(
+                from_id=script_id,
+                to_ids=[require_spdx_id(self.model)],
+                rel_type=spdx3.RelationshipType.generates,
+                doc_name="loom",
+                doc_uuid=self.doc_uuid,
+                creation_info=self.creation_info,
+                rel_class=spdx3.LifecycleScopedRelationship,
+                scope=spdx3.LifecycleScopeType.build,
             )
+            if rel1:
+                self.exporter.add_relationship(rel1)
         elif self.model is not None and not generates_model:
-            self.exporter.add_relationship(
-                spdx3.LifecycleScopedRelationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship",
-                        f"{script_path}-hasDataFile-{self.model.name}",
-                        self.doc_uuid,
-                    ),
-                    from_=script_id,
-                    to=[require_spdx_id(self.model)],
-                    relationshipType=spdx3.RelationshipType.hasDataFile,
-                    scope=spdx3.LifecycleScopeType.runtime,
-                    creationInfo=self.creation_info,
-                )
+            rel2 = build_relationship(
+                from_id=script_id,
+                to_ids=[require_spdx_id(self.model)],
+                rel_type=spdx3.RelationshipType.hasDataFile,
+                doc_name="loom",
+                doc_uuid=self.doc_uuid,
+                creation_info=self.creation_info,
+                rel_class=spdx3.LifecycleScopedRelationship,
+                scope=spdx3.LifecycleScopeType.runtime,
             )
+            if rel2:
+                self.exporter.add_relationship(rel2)
 
         if output_targets:
-            self.exporter.add_relationship(
-                spdx3.LifecycleScopedRelationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship",
-                        f"{script_path}-generates-outputs",
-                        self.doc_uuid,
-                    ),
-                    from_=script_id,
-                    to=output_targets,
-                    relationshipType=spdx3.RelationshipType.generates,
-                    scope=spdx3.LifecycleScopeType.build,
-                    creationInfo=self.creation_info,
-                )
+            rel3 = build_relationship(
+                from_id=script_id,
+                to_ids=output_targets,
+                rel_type=spdx3.RelationshipType.generates,
+                doc_name="loom",
+                doc_uuid=self.doc_uuid,
+                creation_info=self.creation_info,
+                rel_class=spdx3.LifecycleScopedRelationship,
+                scope=spdx3.LifecycleScopeType.build,
             )
+            if rel3:
+                self.exporter.add_relationship(rel3)
 
     def _build_script_file(self, script_path: str) -> spdx3.software_File:
         """Build the ``software_File`` for the generating script, consulting

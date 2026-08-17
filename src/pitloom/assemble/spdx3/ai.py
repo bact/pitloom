@@ -24,7 +24,7 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
 )
 from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
-from pitloom.core.models import generate_spdx_id
+from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -264,14 +264,14 @@ def _add_base_model_lineage(
         "hf.base_model_relation"
     )
 
-    rel = spdx3.Relationship(
-        spdxId=generate_spdx_id(
-            "Relationship-lineage", doc_name=ctx.doc_name, doc_uuid=ctx.doc_uuid
-        ),
-        from_=require_spdx_id(ai_pkg),
-        relationshipType=spdx3.RelationshipType.descendantOf,
-        to=[base_spdx_id],
-        creationInfo=ctx.creation_info,
+    rel = build_relationship(
+        from_id=require_spdx_id(ai_pkg),
+        to_ids=[base_spdx_id],
+        rel_type=spdx3.RelationshipType.descendantOf,
+        doc_name=ctx.doc_name,
+        doc_uuid=ctx.doc_uuid,
+        creation_info=ctx.creation_info,
+        id_suffix="Relationship-lineage",
     )
     # comment is unset (not None) when there's no relation -- the
     # underlying SPDX 3 binding rejects an explicit None for a string
@@ -280,9 +280,10 @@ def _add_base_model_lineage(
     # a model card's frontmatter, base_model_relation from a separate Hub
     # API computed tag -- a model with the former but not the latter
     # crashed SBOM generation entirely before this fix).
-    if rel_relation:
-        rel.comment = f"base_model_relation:{rel_relation}"
-    ctx.exporter.add_relationship(rel)
+    if rel:
+        if rel_relation:
+            rel.comment = f"base_model_relation:{rel_relation}"
+        ctx.exporter.add_relationship(rel)
 
 
 def _build_ai_package(
@@ -542,18 +543,16 @@ def add_ai_models(
             if rel_concluded:
                 exporter.add_relationship(rel_concluded)
 
-        rel = spdx3.Relationship(
-            spdxId=generate_spdx_id(
-                "Relationship",
-                doc_name=doc_name,
-                doc_uuid=doc_uuid,
-            ),
-            from_=main_package_spdx_id,
-            to=[require_spdx_id(ai_pkg)],
-            relationshipType=spdx3.RelationshipType.contains,
-            creationInfo=creation_info,
+        rel = build_relationship(
+            from_id=main_package_spdx_id,
+            to_ids=[require_spdx_id(ai_pkg)],
+            rel_type=spdx3.RelationshipType.contains,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            creation_info=creation_info,
         )
-        exporter.add_relationship(rel)
+        if rel:
+            exporter.add_relationship(rel)
 
         model_file_id = (
             file_spdx_ids.get(ai_model.format_info.file_path_relative)
@@ -561,18 +560,16 @@ def add_ai_models(
             else None
         )
         if model_file_id:
-            rel_contains_file = spdx3.Relationship(
-                spdxId=generate_spdx_id(
-                    "Relationship",
-                    doc_name=doc_name,
-                    doc_uuid=doc_uuid,
-                ),
-                from_=ai_pkg.spdxId,
-                to=[model_file_id],
-                relationshipType=spdx3.RelationshipType.contains,
-                creationInfo=creation_info,
+            rel_contains_file = build_relationship(
+                from_id=ai_pkg.spdxId,
+                to_ids=[model_file_id],
+                rel_type=spdx3.RelationshipType.contains,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                creation_info=creation_info,
             )
-            exporter.add_relationship(rel_contains_file)
+            if rel_contains_file:
+                exporter.add_relationship(rel_contains_file)
 
             for usage_path in ai_model.usage_files:
                 usage_file_id = file_spdx_ids.get(usage_path)
@@ -582,16 +579,15 @@ def add_ai_models(
                     # contrast with the `generates` relationships loom.run
                     # emits for a build-time training/preprocessing script,
                     # which are scoped `build` (see pitloom.loom).
-                    rel_usage = spdx3.LifecycleScopedRelationship(
-                        spdxId=generate_spdx_id(
-                            "Relationship",
-                            doc_name=doc_name,
-                            doc_uuid=doc_uuid,
-                        ),
-                        from_=usage_file_id,
-                        to=[model_file_id],
-                        relationshipType=spdx3.RelationshipType.hasDataFile,
+                    rel_usage = build_relationship(
+                        from_id=usage_file_id,
+                        to_ids=[model_file_id],
+                        rel_type=spdx3.RelationshipType.hasDataFile,
+                        doc_name=doc_name,
+                        doc_uuid=doc_uuid,
+                        creation_info=creation_info,
+                        rel_class=spdx3.LifecycleScopedRelationship,
                         scope=spdx3.LifecycleScopeType.runtime,
-                        creationInfo=creation_info,
                     )
-                    exporter.add_relationship(rel_usage)
+                    if rel_usage:
+                        exporter.add_relationship(rel_usage)
