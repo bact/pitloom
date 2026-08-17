@@ -266,7 +266,7 @@ ignored-modules = ["gguf", "magika"]
 
 [tool.pyrefly]
 project-excludes = ["**/tests/fixtures/"]
-search-path = ["src", "examples/sentimentdemo-aibom/src"]
+search-path = [".", "src", "examples/sentimentdemo-aibom/src"]
 python-version = "3.10.0"
 
 # spdx-python-model uses SHACL-based dynamic class generation: its enum-like

@@ -990,7 +990,7 @@ def test_cli_wheel_embed_error_verbose(
     )
     assert __main__.main() == 1
     err = capsys.readouterr().err
-    assert "ERROR: wheel SBOM generation failed" in err
+    assert "ERROR: wheel command failed" in err
 
 
 def test_cli_embed_wheel_project_dir_without_metadata(

@@ -25,6 +25,12 @@ and this project adheres to
 
 - Reorganize configuration parsing architecture: move INI-to-dictionary adapter
   logic entirely into `setuptools.py` ([#152])
+- Restructure CLI architecture: decentralize parser configuration into
+  individual command modules, and replace `__main__.py` static dispatch
+  with dynamic `args.func` routing ([#153])
+- Modularize CLI test suite: dissolve monolith `test_main_cli.py` into
+  strictly bounded per-command test files within `tests/cli/`
+  to adhere to repository file size limits ([#153])
 
 ### Fixed
 
@@ -39,6 +45,7 @@ and this project adheres to
 
 [#151]: https://github.com/bact/pitloom/pull/151
 [#152]: https://github.com/bact/pitloom/pull/152
+[#153]: https://github.com/bact/pitloom/pull/153
 
 ## [0.15.0] - 2026-08-15
 
