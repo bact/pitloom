@@ -51,6 +51,17 @@ Spec references:
 
 ## 2. Current state (verified against code, 2026-07-20)
 
+**Historical snapshot.** §2.1-2.4 describe the pre-migration
+`comment`-string state as it stood on 2026-07-20, before this plan's own
+Annotation migration (§5.5) landed and before the later 4-file source
+split (`deps.py`, `document.py`, `_huggingface.py`, `loom.py` each broken
+into a smaller facade plus siblings). Paths/lines have been updated below
+to point at where the equivalent code lives today, but the described
+mechanism (writing directly into `comment`) is itself superseded by the
+Annotation-based `emit_provenance()` calls those locations now contain.
+`_build_provenance_comment` (§2.2 row 1) no longer exists under that
+name.
+
 ### 2.1 Provenance data model
 
 Provenance is a `dict[str, str]` field on each format-neutral metadata object,
@@ -63,8 +74,8 @@ keyed by SBOM field name, value already semi-structured as pipe-delimited
 
 Example values produced by extractors:
 
-- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/_pyproject.py`](../../../src/pitloom/extract/_pyproject.py) (line number not re-verified after the `pyproject.py` → `_pyproject.py` rename)
-- `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface.py:453`](../../../src/pitloom/extract/_huggingface.py)
+- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/_pyproject.py:83`](../../../src/pitloom/extract/_pyproject.py)
+- `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface_fields.py:134`](../../../src/pitloom/extract/_huggingface_fields.py)
 - `f"{source} | Field: extra/name"` — [`src/pitloom/extract/_pytorch_pt2.py:132`](../../../src/pitloom/extract/_pytorch_pt2.py)
 
 The pipe/`Key: value` convention is consistent enough to parse. Anything that
@@ -74,12 +85,12 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
 
 | Subject element | Location |
 | --- | --- |
-| Main Python package | [`src/pitloom/assemble/spdx3/document.py:45`](../../../src/pitloom/assemble/spdx3/document.py) (`_build_provenance_comment`), applied at `:102` |
+| Main Python package (post-migration: `emit_provenance()` call) | [`src/pitloom/assemble/spdx3/document.py:220`](../../../src/pitloom/assemble/spdx3/document.py) |
 | AI `ai_AIPackage` | [`src/pitloom/assemble/spdx3/ai.py:193`](../../../src/pitloom/assemble/spdx3/ai.py) (`_build_ai_package`) |
 | Dataset package | [`src/pitloom/assemble/spdx3/dataset.py:160`](../../../src/pitloom/assemble/spdx3/dataset.py) |
-| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:211,291,308,346`](../../../src/pitloom/assemble/spdx3/deps.py) |
-| pipdeptree deps | [`src/pitloom/assemble/spdx3/document.py:537,571`](../../../src/pitloom/assemble/spdx3/document.py) |
-| Loom SDK fragments | [`src/pitloom/loom.py:249,307`](../../../src/pitloom/loom.py) |
+| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:492,566`](../../../src/pitloom/assemble/spdx3/deps.py), [`deps_license.py:79`](../../../src/pitloom/assemble/spdx3/deps_license.py), [`deps_supplier.py:358`](../../../src/pitloom/assemble/spdx3/deps_supplier.py) |
+| pipdeptree deps | [`src/pitloom/assemble/spdx3/_document_deployed.py:89,158`](../../../src/pitloom/assemble/spdx3/_document_deployed.py) |
+| Loom SDK fragments | [`src/pitloom/_loom_active_run.py:295,341,367`](../../../src/pitloom/_loom_active_run.py) |
 
 ### 2.3 SPDX Annotation binding (verified)
 
@@ -605,7 +616,7 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 - `pitloom.loom` always uses `provenance_format = "both"` (hardcoded, not
   config-driven) — it is a standalone SDK invoked from ad hoc scripts, not
   through a `pyproject.toml`-based config; see the comment at
-  `src/pitloom/loom.py`'s `_LOOM_PROVENANCE_FORMAT`.
+  `src/pitloom/loom.py`'s `_LOOM_PROVENANCE_CONFIG`.
 - Demo/example SBOM fixtures under `examples/sentimentdemo-aibom/` were not
   regenerated (no test depends on their exact content; they now simply show
   the pre-Annotation output format).
@@ -874,7 +885,7 @@ method category):
   directly) — see [file-headers.md](../file-headers.md)'s
   "Content-type overrides" section and
   `_emit_file_header_metadata` in
-  [document.py](../../../src/pitloom/assemble/spdx3/document.py).
+  [_document_files.py](../../../src/pitloom/assemble/spdx3/_document_files.py).
 
 **Decision rule:** ask "whose determination is this," never "was the
 data local or remote" and never "was a rule-based algorithm involved
@@ -941,7 +952,7 @@ file's own header, if any) and its role is `declared` by construction —
 nothing to disambiguate, so the concluded-vs-declared classification
 heuristic used at project/dependency level doesn't apply. See
 `build_file_declared_license` in
-[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py) and
+[`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py) and
 [file-headers.md](../file-headers.md) for the full per-file
 extraction design.
 
@@ -985,7 +996,7 @@ by [`core/project.py`](../../../src/pitloom/core/project.py)'s
 naming every field by hand, so a newly added `ProjectMetadata` field
 merges automatically without a call site needing to be updated (see its
 own docstring for the field-drift history that motivated this).
-[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py)
+[`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py)
 `build_license_elements` gained `concluded_license_id`/
 `concluded_license_provenance` params (`None` default — the three other
 call sites, dependency and AI-model licenses, are unaffected, since

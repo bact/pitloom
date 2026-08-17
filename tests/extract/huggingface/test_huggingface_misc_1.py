@@ -1,4 +1,3 @@
-# ruff: noqa: F403, F405
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
@@ -11,12 +10,11 @@ from unittest.mock import patch
 
 import pytest
 
-from pitloom.extract._huggingface import (
+from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
+from pitloom.extract._huggingface_fetch import (
     _load_model_card,
     _load_model_info,
     _safe_load_json,
-    is_huggingface_source,
-    read_huggingface,
 )
 
 from .conftest import (
@@ -56,7 +54,9 @@ def test_safe_load_json_download_failure_logs_and_returns_none(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with patch("huggingface_hub.hf_hub_download", side_effect=OSError("network down")):
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
             result = _safe_load_json("org/model", "config.json")
     assert result is None
     assert any("config.json" in r.message for r in caplog.records)
@@ -68,7 +68,9 @@ def test_load_model_card_failure_logs_and_returns_empty(
     with patch(
         "huggingface_hub.ModelCard.load", side_effect=OSError("card fetch failed")
     ):
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
             text, data = _load_model_card("org/model")
     assert text is None
     assert data == {}
@@ -79,7 +81,9 @@ def test_load_model_info_failure_logs_and_returns_empty(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with patch("huggingface_hub.model_info", side_effect=OSError("info fetch failed")):
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
             result = _load_model_info("org/model")
     assert not result
     assert any("org/model" in r.message for r in caplog.records)

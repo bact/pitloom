@@ -123,7 +123,7 @@ def _patch_hf_calls(
         return None
 
     return patch.multiple(
-        "pitloom.extract._huggingface",
+        "pitloom.extract._huggingface_fetch",
         _safe_load_json=MagicMock(side_effect=_json_side_effect),
         _load_model_card=MagicMock(
             return_value=(

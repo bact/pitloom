@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pitloom import loom
+from pitloom import _loom_active_run, loom
 
 from .conftest import _relationships
 
@@ -28,10 +28,12 @@ def test_get_caller_info_exception_logs_and_returns_fallback(
     """When inspect.stack() itself raises, _get_caller_info() catches it,
     logs at debug level, and returns the same "unknown source" fallback
     string as before logging was added."""
-    with patch("pitloom.loom.inspect.stack", side_effect=RuntimeError("no frames")):
+    with patch(
+        "pitloom._loom_active_run.inspect.stack", side_effect=RuntimeError("no frames")
+    ):
         with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
             # pylint: disable=protected-access
-            result = loom._get_caller_info()
+            result = _loom_active_run._get_caller_info()
 
     assert result == "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
     assert any("caller info" in r.message for r in caplog.records)

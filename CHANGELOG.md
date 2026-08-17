@@ -39,12 +39,12 @@ and this project adheres to
   redundant fixture evaluations ([#158])
 - Optimize test workflow by caching the `licenseid` database ([#159])
 - `loom generate` now requires `-o`/`--output` and fails with a clear
-  error if it's omitted, instead of guessing a filename.
+  error if it's omitted, instead of guessing a filename. ([#160])
 
 ### Fixed
 
 - `loom generate` no longer silently writes a fixed `sbom.spdx3.json`
-  to the current directory when `-o` is omitted.
+  to the current directory when `-o` is omitted. ([#160])
 - Remove `split_main.py` and `src/pitloom/__main__.py.bak`, leftover
   files from the CLI restructuring ([#153]) that were accidentally
   committed -- the `.bak` file was shipping inside the built wheel.
@@ -65,6 +65,7 @@ and this project adheres to
 [#157]: https://github.com/bact/pitloom/pull/157
 [#158]: https://github.com/bact/pitloom/pull/158
 [#159]: https://github.com/bact/pitloom/pull/159
+[#160]: https://github.com/bact/pitloom/pull/160
 
 ## [0.15.0] - 2026-08-15
 

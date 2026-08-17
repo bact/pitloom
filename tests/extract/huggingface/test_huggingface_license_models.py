@@ -1,4 +1,3 @@
-# ruff: noqa: F403, F405
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE

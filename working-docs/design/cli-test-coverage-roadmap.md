@@ -40,7 +40,7 @@ See Phase 3 below for current numbers.
   matrix leg, not 3.10.
 - **Worst-covered files at the time**: `__main__.py` 71% (491 stmts /
   115 miss), `extract/sdist.py` 69%, `extract/wheel.py` 71%,
-  `export/spdx3_json.py` 75%, `extract/pyproject.py` 77%,
+  `export/spdx3_json.py` 75%, `extract/_pyproject.py` 77%,
   `extract/_hdf5.py` 83%, `extract/scanner.py` 84%,
   `assemble/__init__.py` 85%.
 - **Largest test files at the time**: `test_extract_huggingface.py`

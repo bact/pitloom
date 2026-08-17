@@ -27,11 +27,12 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps as deps_mod
-from pitloom.assemble.spdx3.deps import (
+from pitloom.assemble.spdx3 import deps_pypi, deps_supplier
+from pitloom.assemble.spdx3.deps import add_dependencies
+from pitloom.assemble.spdx3.deps_pypi import (
     _extract_release_hash,
     _fetch_pypi_release_info,
     _prefetch_pypi_release_infos,
-    add_dependencies,
 )
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -58,7 +59,7 @@ def test_prefetch_pypi_release_infos_runs_concurrently(
     def _slow_fetch(_name: str, _version: str | None) -> None:
         time.sleep(0.2)
 
-    monkeypatch.setattr(deps_mod, "_fetch_pypi_release_info", _slow_fetch)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _slow_fetch)
 
     start = time.monotonic()
     _prefetch_pypi_release_infos([(f"pkg{i}", "unknown") for i in range(6)])
@@ -79,7 +80,7 @@ def test_prefetch_pypi_release_infos_dedupes_same_name_version(
         call_count += 1
         return {"info": {}}
 
-    monkeypatch.setattr(deps_mod, "_fetch_pypi_release_info", _counting_fetch)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _counting_fetch)
 
     _prefetch_pypi_release_infos(
         [("samepkg", "1.0.0"), ("samepkg", "1.0.0"), ("samepkg", "1.0.0")]
@@ -95,7 +96,7 @@ def test_prefetch_pypi_release_infos_normalizes_unknown_to_none(
     def _record_fetch(_name: str, version: str | None) -> None:
         seen_versions.append(version)
 
-    monkeypatch.setattr(deps_mod, "_fetch_pypi_release_info", _record_fetch)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _record_fetch)
 
     _prefetch_pypi_release_infos([("pkg", "unknown")])
     assert seen_versions == [None]
@@ -121,7 +122,7 @@ def test_add_dependencies_uses_prefetch_cache_not_individual_fetches(
         call_count += 1
         return {"info": {"license_expression": "MIT"}}
 
-    monkeypatch.setattr(deps_mod, "_fetch_pypi_release_info", _counting_fetch)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _counting_fetch)
 
     doc_uuid = compute_doc_uuid("prefetchtest", "1.0", [])
     _clear_doc_counters(doc_uuid)
@@ -167,7 +168,7 @@ def test_fetch_pypi_release_info_live_network() -> None:
 
 def test_extract_suppliers_parses_comma_separated_names() -> None:
     meta = _FakeMetadata({"Author": "Alice, Bob and Charlie"})
-    assert deps_mod._resolve_supplier(meta) == [
+    assert deps_supplier._resolve_supplier(meta) == [
         ("Alice", None),
         ("Bob", None),
         ("Charlie", None),
@@ -190,7 +191,7 @@ def test_apply_originator_creates_others_external_ref() -> None:
         ("Alice", None),
         ("Others (See OTHER_AUTHORS.md)", None),
     ]
-    deps_mod._apply_originator(
+    deps_supplier._apply_originator(
         originators,
         dep_package,
         ci,
@@ -234,7 +235,7 @@ def test_apply_originator_creates_others_external_ref() -> None:
 def test_resolve_remote_authors_file_offline_and_errors() -> None:
     """Test offline behavior and ValueError handling for remote authors files."""
     # Test offline returns immediately without trying to fetch
-    locator, ctype, content = deps_mod._resolve_remote_authors_file(
+    locator, ctype, content = deps_supplier._resolve_remote_authors_file(
         "https://github.com/foo/pkg",
         "AUTHORS",
         offline=True,
@@ -245,7 +246,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert content is None
 
     # Test ValueError when scheme is disallowed (ftp)
-    locator, ctype, content = deps_mod._resolve_remote_authors_file(
+    locator, ctype, content = deps_supplier._resolve_remote_authors_file(
         "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
     )
     assert locator == "ftp://github.com/foo/pkg/blob/HEAD/AUTHORS"
@@ -253,7 +254,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert content is None
 
     # Test lru_cache behavior (call twice, check it returns identical)
-    locator2, ctype2, content2 = deps_mod._resolve_remote_authors_file(
+    locator2, ctype2, content2 = deps_supplier._resolve_remote_authors_file(
         "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
     )
     assert locator2 == locator
@@ -272,7 +273,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     mock_urlopen.return_value.__enter__.return_value = mock_response
 
     # Test github.com with successful fetch
-    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
         "https://github.com/foo/pkg",
         "AUTHORS",
         offline=False,
@@ -282,7 +283,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     assert content == "Author1\nAuthor2"
 
     # Test gitlab.com
-    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
         "https://gitlab.com/foo/pkg",
         "AUTHORS",
         offline=True,
@@ -291,7 +292,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     assert locator == "https://gitlab.com/foo/pkg/-/blob/HEAD/AUTHORS"
 
     # Test unknown host
-    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
         "https://example.com/foo/pkg",
         "AUTHORS",
         offline=True,
@@ -300,7 +301,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     assert locator == "https://example.com/foo/pkg"
 
     # Test short path
-    locator, _ctype, content = deps_mod._resolve_remote_authors_file(
+    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
         "https://github.com/foo",
         "AUTHORS",
         offline=True,

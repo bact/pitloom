@@ -191,7 +191,7 @@ Source: model.pt2 | Field: extra/license
 
 ## Stage 3: assemble and export
 
-### `build_license_elements()` -- `assemble/spdx3/deps.py`
+### `build_license_elements()` -- `assemble/spdx3/deps_license.py`
 
 This shared helper is called by every code path that needs to emit
 licence relationships. It:
@@ -292,10 +292,10 @@ For each package with a known licence, the JSON-LD graph contains:
   field |
 | `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license`
   field |
-| `src/pitloom/assemble/spdx3/deps.py` | `build_license_elements()`
+| `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`
   shared helper |
-| `src/pitloom/assemble/spdx3/document.py` | `build()` and
-  `build_model()` -- licence wiring |
+| `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring
+  (`build_model()` moved to `_document_model.py`, re-exported here) |
 | `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model
   licence wiring |
 | `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license()`,

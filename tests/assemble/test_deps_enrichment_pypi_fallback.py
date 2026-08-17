@@ -26,11 +26,10 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps as deps_mod
-from pitloom.assemble.spdx3.deps import (
-    _add_license_noassertion,
-    _resolve_metadata_url,
-    add_dependencies,
-)
+from pitloom.assemble.spdx3 import deps_pypi
+from pitloom.assemble.spdx3.deps import add_dependencies
+from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
+from pitloom.assemble.spdx3.deps_supplier import _resolve_metadata_url
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -89,7 +88,7 @@ def test_add_dependencies_pypi_fallback_fills_gaps_and_hash(
     monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
     monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
     monkeypatch.setattr(
-        deps_mod,
+        deps_pypi,
         "_fetch_pypi_release_info",
         lambda name, version: {
             "info": {
@@ -172,7 +171,7 @@ def test_add_dependencies_noassertion_when_nothing_found(
     monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
     monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
     monkeypatch.setattr(
-        deps_mod, "_fetch_pypi_release_info", lambda name, version: None
+        deps_pypi, "_fetch_pypi_release_info", lambda name, version: None
     )
 
     doc_uuid = compute_doc_uuid("noassertion", "1.0", [])
@@ -238,7 +237,7 @@ def test_add_dependencies_offline_skips_pypi_entirely(
         nonlocal called
         called = True
 
-    monkeypatch.setattr(deps_mod, "_fetch_pypi_release_info", _fail_if_called)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _fail_if_called)
 
     doc_uuid = compute_doc_uuid("offlinetest", "1.0", [])
     _clear_doc_counters(doc_uuid)

@@ -1,4 +1,3 @@
-# ruff: noqa: F403, F405
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
@@ -12,10 +11,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pitloom.extract._huggingface import (
+from pitloom.extract._huggingface import read_huggingface
+from pitloom.extract._huggingface_fetch import (
     _detect_license_from_hf_files,
     _list_license_files_in_repo,
-    read_huggingface,
 )
 
 from .conftest import (
@@ -57,7 +56,7 @@ def test_license_from_file_when_card_has_none() -> None:
     card_data = _make_card_data(license=None, pipeline_tag="text-generation")
     with _patch_hf_calls(card_data=card_data):
         with patch(
-            "pitloom.extract._huggingface._detect_license_from_hf_files",
+            "pitloom.extract._huggingface_fetch._detect_license_from_hf_files",
             return_value=(
                 "Apache-2.0",
                 "Source: Hugging Face Hub "
@@ -75,7 +74,7 @@ def test_license_from_file_when_card_says_other() -> None:
     card_data = _make_card_data(license="other")
     with _patch_hf_calls(card_data=card_data):
         with patch(
-            "pitloom.extract._huggingface._detect_license_from_hf_files",
+            "pitloom.extract._huggingface_fetch._detect_license_from_hf_files",
             return_value=(
                 "MIT",
                 "Source: Hugging Face Hub "
@@ -101,7 +100,8 @@ def test_license_detection_not_called_when_card_has_real_spdx_id() -> None:
     mock_detect = MagicMock(return_value=(None, None))
     with _patch_hf_calls():
         with patch(
-            "pitloom.extract._huggingface._detect_license_from_hf_files", mock_detect
+            "pitloom.extract._huggingface_fetch._detect_license_from_hf_files",
+            mock_detect,
         ):
             read_huggingface("mistralai/Mistral-7B-v0.1")
     mock_detect.assert_not_called()
@@ -121,7 +121,7 @@ def test_detect_license_from_hf_files_returns_none_on_empty_file(
 ) -> None:
     # Empty licence file should not produce a match.
     with patch(
-        "pitloom.extract._huggingface._list_license_files_in_repo",
+        "pitloom.extract._huggingface_fetch._list_license_files_in_repo",
         return_value=["LICENSE"],
     ):
         empty_file = tmp_path / "LICENSE"
@@ -137,7 +137,9 @@ def test_list_license_files_in_repo_failure_logs_and_returns_empty(
     with patch(
         "huggingface_hub.list_repo_files", side_effect=OSError("listing failed")
     ):
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
             result = _list_license_files_in_repo("org/model")
     assert not result
     assert any("org/model" in r.message for r in caplog.records)
@@ -150,14 +152,16 @@ def test_detect_license_from_hf_files_download_failure_logs_and_continues(
     # the loop must catch, log, and continue (returning (None, None) since
     # no other candidates exist) rather than raising.
     with patch(
-        "pitloom.extract._huggingface._list_license_files_in_repo",
+        "pitloom.extract._huggingface_fetch._list_license_files_in_repo",
         return_value=["LICENSE"],
     ):
         with patch(
             "huggingface_hub.hf_hub_download",
             side_effect=OSError("download failed"),
         ):
-            with caplog.at_level(logging.DEBUG, logger="pitloom.extract._huggingface"):
+            with caplog.at_level(
+                logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+            ):
                 detected_id, provenance = _detect_license_from_hf_files("org/model")
     assert detected_id is None
     assert provenance is None
@@ -186,7 +190,8 @@ def test_kimi_vague_license_triggers_file_detection() -> None:
     )
     with _patch_kimi():
         with patch(
-            "pitloom.extract._huggingface._detect_license_from_hf_files", detected_mock
+            "pitloom.extract._huggingface_fetch._detect_license_from_hf_files",
+            detected_mock,
         ):
             meta = read_huggingface("moonshotai/Kimi-K2.6")
     detected_mock.assert_called_once_with("moonshotai/Kimi-K2.6", revision=None)

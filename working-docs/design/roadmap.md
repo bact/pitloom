@@ -33,7 +33,7 @@ SPDX-License-Identifier: CC0-1.0
   - `[tool:pitloom]` config section in `setup.cfg`
 - [x] Poetry support -- initial implementation
   - `read_poetry()`, `extract_poetry_metadata()`
-    in `src/pitloom/extract/poetry.py`
+    in `src/pitloom/extract/_poetry.py`
   - Reads `[tool.poetry]` and `[tool.poetry.dependencies]`
   - `[tool.poetry.group.*]` dev/deploy dependency groups intentionally excluded
   - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440

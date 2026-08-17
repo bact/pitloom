@@ -16,7 +16,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.creation_info import build_enrichment_elements
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
-from pitloom.assemble.spdx3.deps import build_license_elements
+from pitloom.assemble.spdx3.deps_license import build_license_elements
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     build_enrichment_annotation,
@@ -83,6 +83,7 @@ def _source_metadata_blob(ai_model: AiModelMetadata) -> tuple[str, dict[str, Any
     return fmt, blob
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _emit_source_metadata(
     ai_model: AiModelMetadata,
     ai_pkg: spdx3.ai_AIPackage,

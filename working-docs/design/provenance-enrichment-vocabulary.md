@@ -41,7 +41,7 @@ current PR.
 question 3 below) is fixed, not just documented-around.** `role` is now
 a first-class key in the per-field provenance string format:
 `_KEY_MAP` in `src/pitloom/assemble/spdx3/provenance.py` gained
-`"role": "role"`; `document.py:235`'s content-type-override case now
+`"role": "role"`; `_document_files.py:132`'s content-type-override case now
 emits `Role: sbomAuthorSupplied` instead of `Method: sbomAuthorSupplied`
 (the encoder already passed through arbitrary parsed keys generically,
 so no other code changed). `tests/test_generator.py`'s
@@ -148,21 +148,21 @@ line numbers are approximate.
 
 | `method` value | Meaning | Emission site(s) |
 | --- | --- | --- |
-| `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/_pyproject.py:340`, `:361` |
-| `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- detected, not declared | `src/pitloom/extract/_pyproject.py:301`; `src/pitloom/extract/_huggingface.py:392`, `:523`; `src/pitloom/extract/_license.py:352`, `:415` |
-| `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/_setuptools.py:280`, `:427`; `src/pitloom/extract/_poetry.py:169`; `src/pitloom/extract/hatchling.py:143`; `src/pitloom/extract/_pyproject.py:200` |
-| `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps.py` |
-| `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/_setuptools.py:495` |
-| `attr_directive` | `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`) | `src/pitloom/extract/_setuptools.py:514` |
-| `inspect_caller` | Recorded automatically by the `pitloom.loom` SDK via stack inspection | `src/pitloom/loom.py:52`, `:57`, `:62` |
+| `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/_pyproject.py:342`, `:363` |
+| `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- detected, not declared | `src/pitloom/extract/_pyproject.py:301`; `src/pitloom/extract/_huggingface_fetch.py:233`, `:327`; `src/pitloom/extract/_license.py:354`, `:417` |
+| `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/_setuptools.py:284`, `:432`; `src/pitloom/extract/_poetry.py:169`; `src/pitloom/extract/hatchling.py:143`; `src/pitloom/extract/_pyproject.py:202` |
+| `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps_supplier.py:347` |
+| `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/_setuptools.py:500` |
+| `attr_directive` | `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`) | `src/pitloom/extract/_setuptools.py:519` |
+| `inspect_caller` | Recorded automatically by the `pitloom.loom` SDK via stack inspection | `src/pitloom/_loom_active_run.py:62`, `:67`, `:73` |
 | `synthetic environment root` | The element is Pitloom's own synthesized placeholder root package for an installed environment | `src/pitloom/extract/env.py:42-43` |
-| `extension_guess` | File content-type resolved by filename-extension fallback (no `magika` / no confident result) | `src/pitloom/assemble/spdx3/document.py:241` |
-| `magika_content_detection` | File content-type resolved by the `magika` content-detection library; includes a `Tool: magika==<ver>` segment | `src/pitloom/assemble/spdx3/document.py:238` |
+| `extension_guess` | File content-type resolved by filename-extension fallback (no `magika` / no confident result) | `src/pitloom/assemble/spdx3/_document_files.py:138` |
+| `magika_content_detection` | File content-type resolved by the `magika` content-detection library; includes a `Tool: magika==<ver>` segment | `src/pitloom/assemble/spdx3/_document_files.py:135` |
 | `yaml_frontmatter` | Value read from a local README/model-card's YAML frontmatter block (the `enrich/readme.py` enricher) | `src/pitloom/enrich/readme.py:100` |
 
 **As of 2026-08-13, `sbomAuthorSupplied` and `inference` are no longer
 `method` values** -- both retired from this table; see the `role` table
-in §2 below instead. Before the fix, `document.py:235` emitted
+in §2 below instead. Before the fix, `document.py:235` (now `_document_files.py:132`) emitted
 `Method: sbomAuthorSupplied` (a bug -- the surrounding docstring and
 comment already called it a role); the `sbom-enrich` Skill's own
 conventions independently used `Method: inference` for the exact concept
@@ -190,11 +190,11 @@ in `working-docs/implementation/provenance/annotation-provenance.md:818-931`.
 
 | `role` value | Meaning | Actually implemented in `src/`? |
 | --- | --- | --- |
-| `declared` | The subject's own stated claim, however observed | **Yes** -- `src/pitloom/assemble/spdx3/deps.py:877` |
-| `detected` | Pitloom's own independent-verification procedure's determination | **Yes** -- `deps.py:883`; `src/pitloom/enrich/readme.py:114`, `:138` |
+| `declared` | The subject's own stated claim, however observed | **Yes** -- `src/pitloom/assemble/spdx3/deps_license.py:244` |
+| `detected` | Pitloom's own independent-verification procedure's determination | **Yes** -- `deps_license.py:250`; `src/pitloom/enrich/readme.py:114`, `:138` |
 | `externalReported` | Some other party's own determination, relayed without Pitloom re-deriving it | **No** -- defined and documented (`provenance.py:376-379`) but zero `role="externalReported"` in `src/**/*.py` today |
 | `inferred` | An AI agent's non-deterministic reasoning/judgment | **No** in Pitloom's own code as a literal `role=` keyword argument -- but as of 2026-08-13 it's what the `sbom-enrich` Skill's hand-authored fragments literally write (`Role: inferred`, fixed from the old `Method: inference`) |
-| `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement) | **Yes**, as of 2026-08-13 -- `document.py:235` now emits `Role: sbomAuthorSupplied` (was `Method: sbomAuthorSupplied`); the `sbom-enrich` Skill's conventions fixed to match |
+| `sbomAuthorSupplied` | Asserted directly by the human operating Pitloom (or an agent relaying their direct statement) | **Yes**, as of 2026-08-13 -- `_document_files.py:132` now emits `Role: sbomAuthorSupplied` (was `Method: sbomAuthorSupplied`); the `sbom-enrich` Skill's conventions fixed to match |
 
 `docs/metadata-provenance.md:142-147` (current, unreverted state) covers
 4 of the 5 roles and omits `sbomAuthorSupplied` from that section
@@ -280,7 +280,7 @@ sharing the field name `role`. Defined in
 
 Mapping logic: `_role_to_rel()` in `src/pitloom/assemble/spdx3/dataset.py:18-49`.
 Only `trainedOn`/`testedOn` are actually produced today
-(`enrich/readme.py:144`; `extract/_huggingface.py:639`, `:659`).
+(`enrich/readme.py:144`; `extract/_huggingface_fields.py:248`, `:268`).
 
 No confidence-score or evidence-type controlled vocabulary exists.
 Pitloom's detector has no confidence score today (explicitly noted as a

@@ -2,3 +2,6 @@
 exclude = tests/fixtures
 extend-ignore = E203
 max-line-length = 88
+# Interim ceiling; AGENTS.md's real target is 15 -- see
+# working-docs/design/complexity-and-file-size-roadmap.md.
+max-cognitive-complexity = 57

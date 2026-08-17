@@ -35,6 +35,7 @@ else:
     import tomli as tomllib
 
 
+# pylint: disable-next=too-many-locals
 def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from a ``pyproject.toml`` file.
 

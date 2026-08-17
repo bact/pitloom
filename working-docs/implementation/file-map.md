@@ -87,8 +87,14 @@ pitloom/
 │       │   │   ├── ai.py           # AI model element assembly
 │       │   │   ├── creation_info.py # Shared CreationInfo construction
 │       │   │   ├── dataset.py      # Dataset element assembly
-│       │   │   ├── deps.py         # Dependency + license element assembly
-│       │   │   ├── document.py     # build(DocumentModel) -> Spdx3JsonExporter
+│       │   │   ├── deps.py         # Dependency enrichment (name/version resolution)
+│       │   │   ├── deps_license.py # License element assembly (split from deps.py)
+│       │   │   ├── deps_pypi.py    # PyPI release-info lookups (split from deps.py)
+│       │   │   ├── deps_supplier.py # Supplier/originator resolution (split from deps.py)
+│       │   │   ├── document.py     # Facade: build(DocumentModel) -> Spdx3JsonExporter
+│       │   │   ├── _document_deployed.py # Deployed-environment assembly (split from document.py)
+│       │   │   ├── _document_files.py # File-element assembly (split from document.py)
+│       │   │   ├── _document_model.py # Single-AI-model assembly (split from document.py)
 │       │   │   ├── fragments.py    # Fragment merging + unification provenance
 │       │   │   ├── provenance.py   # Provenance Annotation builders/emitter
 │       │   │   └── __init__.py
@@ -133,7 +139,9 @@ pitloom/
 │       │   ├── _file_headers.py    # SPDX-File* comment-header scanner
 │       │   ├── _gguf.py            # GGUF (.gguf)
 │       │   ├── _hdf5.py            # HDF5 / Keras v1-v2 (.h5, .hdf5)
-│       │   ├── _huggingface.py     # Hugging Face Hub model extraction
+│       │   ├── _huggingface.py     # Hugging Face Hub model extraction (facade)
+│       │   ├── _huggingface_fetch.py # HF API/card fetching + license detection (split from _huggingface.py)
+│       │   ├── _huggingface_fields.py # HF metadata field parsing (split from _huggingface.py)
 │       │   ├── _keras.py           # Keras v3 (.keras)
 │       │   ├── _license.py         # License file/id detection
 │       │   ├── _numpy.py           # NumPy (.npy, .npz)
@@ -160,7 +168,8 @@ pitloom/
 │       ├── __main__.py             # Thin entry point only: logging setup + args.func dispatch
 │       ├── embed.py                # PEP 770 wheel embedding (RECORD update, stale-entry cleanup)
 │       ├── ids.py                  # Loom ID registry (loom-ids.json); stable cross-fragment SPDX ids
-│       ├── loom.py                 # ML tracking SDK (Run context manager / decorator)
+│       ├── loom.py                 # ML tracking SDK facade (Run context manager / decorator)
+│       ├── _loom_active_run.py     # Active-run state machine (split from loom.py)
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
 │   ├── assemble/                   # 26 files -- assemble/, embed.py, enrich/ coverage + conftest.py

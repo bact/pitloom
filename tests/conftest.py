@@ -36,6 +36,6 @@ def _block_pypi_network_lookups(
     if "pypi_network" in request.keywords:
         return
     monkeypatch.setattr(
-        "pitloom.assemble.spdx3.deps._fetch_pypi_release_info",
+        "pitloom.assemble.spdx3.deps_pypi._fetch_pypi_release_info",
         lambda name, version: None,
     )

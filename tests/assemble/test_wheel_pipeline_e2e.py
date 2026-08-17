@@ -103,7 +103,7 @@ def sbom_graph(
     os.chdir(project)
     try:
         with patch(
-            "pitloom.loom._get_caller_script_path",
+            "pitloom._loom_active_run._get_caller_script_path",
             return_value="src/pipedemo/preprocess.py",
         ):
             with loom.run(project / "fragments" / "01_preprocess.spdx3.json") as run:
@@ -112,7 +112,7 @@ def sbom_graph(
                 run.add_output_dataset("data/test.txt")
 
         with patch(
-            "pitloom.loom._get_caller_script_path",
+            "pitloom._loom_active_run._get_caller_script_path",
             return_value="src/pipedemo/train.py",
         ):
             with loom.run(project / "fragments" / "02_train.spdx3.json") as run:

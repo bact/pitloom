@@ -136,6 +136,7 @@ class _FileHeaderExtras(TypedDict):
     content_type_method: str | None
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _resolve_file_header_extras(
     raw_bytes: bytes,
     filename: str,
@@ -437,6 +438,7 @@ def generate_spdx_id(
     return f"{doc_namespace}#{prefix}-{seq_id}"
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def build_relationship(
     from_id: str | None,
     to_ids: list[str],

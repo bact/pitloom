@@ -91,7 +91,7 @@ each targeting a specific functional domain (SPDX Group 2024).
 
 **`specVersion` must track which profiles/classes a document actually
 uses, not a fixed default.** Pitloom currently hardcodes
-`CreationInfo.specVersion = "3.0.1"` in `assemble/spdx3/document.py`,
+`CreationInfo.specVersion = "3.0.1"` in `assemble/spdx3/creation_info.py`,
 which is correct today only because 3.0.1 is the sole released SPDX 3.x
 version and nothing Pitloom emits requires a later one. This will stop
 being sufficient the moment Pitloom emits a class or property first

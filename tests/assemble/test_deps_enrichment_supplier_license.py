@@ -24,11 +24,14 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps as deps_mod
-from pitloom.assemble.spdx3.deps import (
-    _enrich_from_installed,
+from pitloom.assemble.spdx3 import deps_supplier
+from pitloom.assemble.spdx3.deps import _enrich_from_installed
+from pitloom.assemble.spdx3.deps_pypi import (
     _extract_pypi_license,
     _extract_pypi_supplier,
     _extract_release_hash,
+)
+from pitloom.assemble.spdx3.deps_supplier import (
     _find_license_copyright,
     _resolve_supplier,
 )
@@ -206,7 +209,7 @@ def test_find_license_copyright_ignores_same_named_file_outside_dist_info(
         "Copyright (c) 2026 Real Author\n",
     )
     fake_dist = _FakeDistribution([vendored_license, real_license])
-    monkeypatch.setattr(deps_mod, "get_pkg_distribution", lambda name: fake_dist)
+    monkeypatch.setattr(deps_supplier, "get_pkg_distribution", lambda name: fake_dist)
 
     meta = _FakeMetadata({}, license_files=["LICENSE"])
     assert _find_license_copyright("mypkg", meta) == "Copyright (c) 2026 Real Author"
@@ -220,7 +223,7 @@ def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
         "Copyright (c) 2026 Root Dist-Info Author\n",
     )
     fake_dist = _FakeDistribution([license_file])
-    monkeypatch.setattr(deps_mod, "get_pkg_distribution", lambda name: fake_dist)
+    monkeypatch.setattr(deps_supplier, "get_pkg_distribution", lambda name: fake_dist)
 
     meta = _FakeMetadata({}, license_files=["LICENSE.txt"])
     assert (

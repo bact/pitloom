@@ -83,7 +83,12 @@ flake8
 ```
 
 - Avoid ambiguous variable name (E741).
-- Adhere strictly to complexity limits (Returns≤6, Args≤5, Locals≤15, Nesting≤5, McCabe≤10, Cognitive≤15).
+- Complexity targets: Returns≤6, Args≤5, Locals≤15, Nesting≤5, Branches≤20, Statements≤80, McCabe≤10, Cognitive≤15.
+  Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
+  ratchets above some of these targets (`max-args=6`, `max-locals=18`,
+  McCabe=35, Cognitive=60) -- see
+  `working-docs/design/complexity-and-file-size-roadmap.md` for the
+  backlog that has to shrink before each ceiling can drop to its target.
 - Enforce max line length 88 (prefer 80).
 - Sort all imports alphabetically and logically (enforced by `ruff` / `isort`).
 - Remove unused imports and trailing whitespace.

@@ -180,7 +180,7 @@ def test_magika_version_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
         return "1.2.3"
 
     monkeypatch.setattr(
-        "pitloom.assemble.spdx3.document._pkg_version", _fake_pkg_version
+        "pitloom.assemble.spdx3._document_files._pkg_version", _fake_pkg_version
     )
 
     assert _magika_version() == "1.2.3"

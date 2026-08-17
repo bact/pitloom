@@ -437,7 +437,9 @@ def test_loom_repl_caller_gets_no_script_file() -> None:
     run."""
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        with patch("pitloom.loom._get_caller_script_path", return_value=None):
+        with patch(
+            "pitloom._loom_active_run._get_caller_script_path", return_value=None
+        ):
             with loom.run(output_file):
                 loom.set_model("test-model")
                 loom.add_dataset(_EXISTING_FILE)

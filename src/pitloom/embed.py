@@ -385,6 +385,7 @@ def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
     return f"{prefix}{_SPDX3_JSON_EXT}" if prefix else f"sbom{_SPDX3_JSON_EXT}"
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _rewrite_wheel_archive(
     wheel_path: Path,
     original_zf: zipfile.ZipFile,
@@ -496,6 +497,7 @@ class ConfigOverrides:
 
 
 # pylint: disable=too-many-arguments
+# pylint: disable-next=too-many-locals
 def embed_wheel_sbom(
     wheel_path: Path | str,
     *,

@@ -311,6 +311,7 @@ def read_setup_cfg(
 
 
 # pylint: disable=too-many-locals
+# pylint: disable-next=too-many-branches
 def read_setup_py(
     project_dir: Path,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
@@ -659,6 +660,7 @@ def _ast_literal(node: ast.expr) -> Any:
     return None
 
 
+# pylint: disable-next=too-many-branches
 def _read_pitloom_config_from_cfg(
     cfg: configparser.ConfigParser,
 ) -> PitloomConfig:
