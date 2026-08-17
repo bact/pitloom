@@ -86,7 +86,9 @@ def _read_npz_metadata(
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """Helper to read .npz format metadata."""
     import numpy as np  # pylint: disable=import-outside-toplevel
-    from numpy.lib.format import (  # type: ignore[attr-defined] # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=import-outside-toplevel
+    from numpy.lib.format import (  # type: ignore[attr-defined]
         _read_array_header,
         read_magic,
     )
