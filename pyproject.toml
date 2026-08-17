@@ -216,10 +216,6 @@ module = "yaml.*"
 warn_unused_ignores = false
 module = "pitloom.extract._safetensors"
 
-[[tool.mypy.overrides]]
-warn_unused_ignores = false
-module = "tests.test_extract_huggingface"
-
 [tool.pitloom]
 pretty = true
 

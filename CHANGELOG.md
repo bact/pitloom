@@ -39,18 +39,12 @@ and this project adheres to
   redundant fixture evaluations ([#158])
 - Optimize test workflow by caching the `licenseid` database ([#159])
 - `loom generate` now requires `-o`/`--output` and fails with a clear
-  error if it's omitted, instead of guessing a filename -- unlike
-  `project`/`wheel`/`model`/`env`, which each know their target type
-  and so have an obvious default, `generate` dispatches across several
-  target types with no single natural default.
+  error if it's omitted, instead of guessing a filename.
 
 ### Fixed
 
 - `loom generate` no longer silently writes a fixed `sbom.spdx3.json`
-  to the current directory when `-o` is omitted -- that could (and
-  did) clobber an unrelated file already present there, since the
-  path was resolved against the process's cwd rather than the target.
-  See the "Changed" entry above for the new behaviour.
+  to the current directory when `-o` is omitted.
 - Remove `split_main.py` and `src/pitloom/__main__.py.bak`, leftover
   files from the CLI restructuring ([#153]) that were accidentally
   committed -- the `.bak` file was shipping inside the built wheel.
