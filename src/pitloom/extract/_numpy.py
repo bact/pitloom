@@ -81,6 +81,19 @@ def _read_npy_metadata(
     return format_version, properties, inputs, provenance
 
 
+def _shim_read_array_header(
+    fp: Any, version: tuple[int, int]
+) -> tuple[tuple[int, ...], bool, Any]:
+    """Shim for reading numpy array headers across numpy 1.x and 2.x."""
+    import numpy.lib.format as fmt  # pylint: disable=import-outside-toplevel
+
+    if hasattr(fmt, "_read_array_header"):
+        return fmt._read_array_header(fp, version)  # type: ignore
+    if version == (1, 0):
+        return fmt.read_array_header_1_0(fp)  # type: ignore
+    return fmt.read_array_header_2_0(fp)  # type: ignore
+
+
 def _read_npz_metadata(
     model_path: Path, source: str
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
@@ -88,10 +101,7 @@ def _read_npz_metadata(
     import numpy as np  # pylint: disable=import-outside-toplevel
 
     # pylint: disable=import-outside-toplevel
-    from numpy.lib.format import (  # type: ignore[attr-defined]
-        _read_array_header,
-        read_magic,
-    )
+    from numpy.lib.format import read_magic
 
     inputs: list[dict[str, Any]] = []
     provenance: dict[str, str] = {}
@@ -102,7 +112,7 @@ def _read_npz_metadata(
             array_name = archive_name[:-4]
             with npzfile.zip.open(archive_name) as f:
                 version = read_magic(f)  # type: ignore[no-untyped-call]
-                shape, _, dtype = _read_array_header(f, version)
+                shape, _, dtype = _shim_read_array_header(f, version)
                 inputs.append(
                     {
                         "name": array_name,
