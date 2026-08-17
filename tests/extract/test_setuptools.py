@@ -89,7 +89,7 @@ def test_detect_backend_malformed_pyproject_logs_and_returns_none(
     content = "[build-system\nbroken toml"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
-        with caplog.at_level(logging.DEBUG, logger="pitloom.extract.setuptools"):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._setuptools"):
             result = detect_build_backend(Path(d))
     assert result is None
     assert any("pyproject.toml" in r.message for r in caplog.records)
