@@ -87,6 +87,7 @@ flake8
 - Sort all imports alphabetically and logically (enforced by `ruff` / `isort`).
 - Remove unused imports and trailing whitespace.
 - Restrict non-ASCII characters to human language messages and diagrams.
+- Place `# pylint: disable=` comments on the preceding line rather than inline to save line length.
 
 ## File headers
 
