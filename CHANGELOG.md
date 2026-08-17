@@ -35,6 +35,8 @@ and this project adheres to
 - Avoid loading full file to memory during AI model (NumPy, PyTorch) and
   archive (sdist) extraction, reducing peak memory usage by over 97% ([#156])
 - Centralize SPDX relationship boilerplate across the codebase ([#157])
+- Optimize pytest-xdist parallelization with `loadscope` to prevent
+  redundant fixture evaluations ([#158])
 
 ### Fixed
 
@@ -53,6 +55,7 @@ and this project adheres to
 [#155]: https://github.com/bact/pitloom/pull/155
 [#156]: https://github.com/bact/pitloom/pull/156
 [#157]: https://github.com/bact/pitloom/pull/157
+[#158]: https://github.com/bact/pitloom/pull/158
 
 ## [0.15.0] - 2026-08-15
 

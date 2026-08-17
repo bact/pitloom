@@ -246,7 +246,7 @@ max-statements = 100
 max-line-length = 88
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib", "-n", "auto"]
+addopts = ["--import-mode=importlib", "-n", "auto", "--dist=loadscope"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
