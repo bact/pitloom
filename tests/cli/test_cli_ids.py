@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,11 @@ from typing import Any
 import pytest
 
 from pitloom import __main__
+from pitloom.cli.ids import (  # type: ignore[attr-defined]
+    _load_or_create_registry,
+    _run_ids_cli,
+)
+from pitloom.cli.parser import _build_parser
 from pitloom.ids import IdRegistry
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -125,7 +131,6 @@ def test_ids_import_fails(
     sbom_path.write_text("{}")
 
     # Force an exception during import_sbom
-    from pitloom.ids import IdRegistry
 
     def fake_import(*args: Any, **kwargs: Any) -> Any:
         raise ValueError("Simulated failure")
@@ -138,15 +143,48 @@ def test_ids_import_fails(
     assert "ERROR: failed to import SBOM" in capsys.readouterr().err
 
 
-def test_ids_cli_invalid_command(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_ids_cli_invalid_command() -> None:
     # argparse will normally catch this, but if we bypass it
     # or test `_run_ids_cli` directly
-    import argparse
-
-    from pitloom.cli.ids import _run_ids_cli
-
     args = argparse.Namespace(ids_command="invalid")
     result = _run_ids_cli(args)
     assert result == 1
+
+
+def test_ids_generate_cli_entity_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--entity NAME[:TYPE]` registers entities up front, before the model
+    file exists, so loom.set_model() can already share the id."""
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "raw.txt").write_text("raw\n")
+    monkeypatch.chdir(tmp_path)
+
+    parser = _build_parser()
+    args = parser.parse_args(
+        [
+            "ids",
+            "generate",
+            "data",
+            "--entity",
+            "sentimentdemo",
+            "--entity",
+            "other:dataset_DatasetPackage",
+        ]
+    )
+    exit_code = _run_ids_cli(args)
+    assert exit_code == 0
+
+    registry = IdRegistry.load(tmp_path / "loom-ids.json")
+    assert registry.entities["sentimentdemo"].type == "ai_AIPackage"
+    assert registry.entities["sentimentdemo"].spdx_id.endswith("#AIPackage-1")
+    assert registry.entities["other"].type == "dataset_DatasetPackage"
+    assert "data/raw.txt" in registry.files
+
+
+def test_load_or_create_registry_fails(tmp_path: Path) -> None:
+
+    registry_path = tmp_path / "loom-ids.json"
+    registry_path.write_text("invalid json")
+
+    assert _load_or_create_registry(registry_path, "proj") is None
