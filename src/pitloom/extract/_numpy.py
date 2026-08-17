@@ -99,9 +99,11 @@ def _shim_read_array_header(
     # Fallback for version (3, 0) on numpy >= 2.0 where _read_array_header is removed
     # and read_array_header_3_0 is not exposed.
     # (3, 0) uses 4-byte uint for length and utf-8.
-    # Format specification: https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html
+    # Format specification:
+    # https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html
     # pylint: disable=import-outside-toplevel
     import ast
+
     # pylint: disable=import-outside-toplevel
     import struct
 
