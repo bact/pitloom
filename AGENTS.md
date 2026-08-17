@@ -144,3 +144,4 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 
 - Edit generated files by hand when generation workflow exists.
 - Use destructive git operations unless explicitly requested.
+- Auto-commit changes; leave all changes uncommitted in the working directory for the user to review and commit manually, unless they explicitly request otherwise.
