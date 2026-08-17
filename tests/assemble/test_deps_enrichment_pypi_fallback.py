@@ -25,7 +25,7 @@ from importlib.metadata import PackageNotFoundError
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3 import deps as deps_mod
+from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_pypi
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_license import _add_license_noassertion

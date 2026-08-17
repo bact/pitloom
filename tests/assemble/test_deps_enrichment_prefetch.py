@@ -26,7 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3 import deps as deps_mod
+from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_pypi, deps_supplier
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_pypi import (

@@ -184,7 +184,7 @@ def test_rewrite_wheel_archive_chmod_error(
     def _failing_chmod(path: Any, mode: int) -> None:
         raise OSError("Permission denied simulation")
 
-    monkeypatch.setattr("pitloom.embed.os.chmod", _failing_chmod)
+    monkeypatch.setattr("pitloom._embed_wheel.os.chmod", _failing_chmod)
     # Should complete without error
     embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
 

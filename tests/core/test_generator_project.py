@@ -4,17 +4,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for pitloom.assemble.generate_project_sbom / build(): basic
-generation, main-package PURL, output path, creation comment/tool
-summary, and createdBy creator-type handling.
+generation, main-package PURL, output path, and content-type method validation.
 
-See also: tests/core/test_generator_project_structure.py for
-creator/tool multiplicity, sentimentdemo structure, dependency-name
-parsing, fragments, setup.cfg, and preparsed-metadata tests.
-tests/core/test_generator_project_enrichment.py for project-level
-enrichment and license-conflict-detection tests.
+See also:
+- :mod:`tests.core.test_generator_project_creators` for creators and tool handling.
+- :mod:`tests.core.test_generator_project_structure` for structure and dependencies.
+- :mod:`tests.core.test_generator_project_enrichment` for project-level enrichment.
 """
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json
@@ -23,14 +20,11 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.__about__ import __version__
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3.document import _magika_version, build
-from pitloom.core.creation import CreationMetadata, Creator, Tool
+from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
-
-from .conftest import _creation_agents
 
 
 def test_generate_project_sbom_basic() -> None:
@@ -166,9 +160,7 @@ def test_build_main_package_purl_normalizes_name() -> None:
 
 
 def test_magika_version_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
-    """_magika_version() must only hit importlib.metadata once per process,
-    not once per magika-detected file -- real disk I/O otherwise repeated
-    for a value that can't change mid-process."""
+    """_magika_version() must only hit importlib.metadata once per process."""
     _magika_version.cache_clear()
     call_count = 0
 
@@ -217,272 +209,3 @@ description = "A simple application"
         sbom_data = json.loads(output_path.read_text())
         assert "@context" in sbom_data
         assert "@graph" in sbom_data
-
-
-def test_generate_project_sbom_creation_comment_and_no_tool() -> None:
-    """Creation comment must map to CreationInfo.comment and tool is optional."""
-    pyproject_content = """
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "comment-app"
-version = "0.1.0"
-"""
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        pyproject_path = tmppath / "pyproject.toml"
-        pyproject_path.write_text(pyproject_content)
-
-        sbom_json = generate_project_sbom(
-            tmppath,
-            creation_metadata=CreationMetadata(
-                creators=[Creator(name="Test Creator")],
-                tools=[],
-                creation_comment="Generated in CI",
-            ),
-        )
-        sbom_data = json.loads(sbom_json)
-        graph = sbom_data["@graph"]
-
-        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
-        assert len(creation_infos) == 1
-        assert creation_infos[0]["comment"] == "Generated in CI"
-        assert "createdUsing" not in creation_infos[0]
-
-        tool_elements = [e for e in graph if e["type"] == "Tool"]
-        assert not tool_elements
-
-
-def test_generate_project_sbom_tool_summary_default_and_no_comment() -> None:
-    """Default creation_tool gets a Pitloom-versioned summary; no comment by default."""
-    pyproject_content = """
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "summary-app"
-version = "0.1.0"
-"""
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        pyproject_path = tmppath / "pyproject.toml"
-        pyproject_path.write_text(pyproject_content)
-
-        sbom_json = generate_project_sbom(tmppath)
-        sbom_data = json.loads(sbom_json)
-        graph = sbom_data["@graph"]
-
-        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
-        assert len(creation_infos) == 1
-        assert "comment" not in creation_infos[0]
-
-        tool_elements = [e for e in graph if e["type"] == "Tool"]
-        assert len(tool_elements) == 1
-        assert tool_elements[0]["name"] == "Pitloom"
-        assert tool_elements[0]["summary"] == f"Pitloom {__version__}"
-
-
-def test_generate_project_sbom_tool_summary_omitted_for_custom_tool_name() -> None:
-    """A user-supplied tool name gets no Pitloom-version summary."""
-    pyproject_content = """
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "custom-tool-app"
-version = "0.1.0"
-"""
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        pyproject_path = tmppath / "pyproject.toml"
-        pyproject_path.write_text(pyproject_content)
-
-        sbom_json = generate_project_sbom(
-            tmppath,
-            creation_metadata=CreationMetadata(tools=[Tool("MyWrapper")]),
-        )
-        sbom_data = json.loads(sbom_json)
-        graph = sbom_data["@graph"]
-
-        tool_elements = [e for e in graph if e["type"] == "Tool"]
-        assert len(tool_elements) == 1
-        assert tool_elements[0]["name"] == "MyWrapper"
-        assert "summary" not in tool_elements[0]
-
-
-def test_generate_project_sbom_default_creator_is_software_agent() -> None:
-    """With no named creator, createdBy is the SoftwareAgent "Pitloom", not a
-    Person, and the package asserts no suppliedBy."""
-    pyproject_content = """
-[project]
-name = "anon-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        graph = json.loads(generate_project_sbom(tmppath))["@graph"]
-
-        agents = _creation_agents(graph)
-        assert [a["type"] for a in agents] == ["SoftwareAgent"]
-        assert agents[0]["name"] == "Pitloom"
-        assert not [e for e in graph if e["type"] == "Person"]
-
-        packages = [e for e in graph if e["type"] == "software_Package"]
-        assert packages and all("suppliedBy" not in p for p in packages)
-
-
-def test_generate_project_sbom_named_creator_is_person_with_supplied_by() -> None:
-    """A named creator becomes a Person in createdBy and the main package's
-    suppliedBy."""
-    pyproject_content = """
-[project]
-name = "named-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        graph = json.loads(
-            generate_project_sbom(
-                tmppath,
-                creation_metadata=CreationMetadata(
-                    creators=[Creator(name="Alice", email="alice@example.com")]
-                ),
-            )
-        )["@graph"]
-
-        agents = _creation_agents(graph)
-        assert [a["type"] for a in agents] == ["Person"]
-        assert agents[0]["name"] == "Alice"
-
-        main_pkg = next(
-            e
-            for e in graph
-            if e["type"] == "software_Package" and e["name"] == "named-app"
-        )
-        assert main_pkg["suppliedBy"] == agents[0]["spdxId"]
-
-
-def test_generate_project_sbom_organization_creator() -> None:
-    """type='organization' makes the named creator an Organization."""
-    pyproject_content = """
-[project]
-name = "org-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        graph = json.loads(
-            generate_project_sbom(
-                tmppath,
-                creation_metadata=CreationMetadata(
-                    creators=[Creator(name="Acme Corp", type="organization")]
-                ),
-            )
-        )["@graph"]
-
-        agents = _creation_agents(graph)
-        assert [a["type"] for a in agents] == ["Organization"]
-        assert agents[0]["name"] == "Acme Corp"
-
-
-@pytest.mark.parametrize(
-    ("creator_type", "expected_element_type"),
-    [
-        ("person", "Person"),
-        ("organization", "Organization"),
-        ("software-agent", "SoftwareAgent"),
-        ("agent", "Agent"),
-    ],
-)
-def test_generate_project_sbom_all_valid_creator_types(
-    creator_type: str, expected_element_type: str
-) -> None:
-    """Every SPDX 3 Agent subclass is a valid createdBy type: Person,
-    Organization, SoftwareAgent, and the generic Agent."""
-    pyproject_content = """
-[project]
-name = "creator-type-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        graph = json.loads(
-            generate_project_sbom(
-                tmppath,
-                creation_metadata=CreationMetadata(
-                    creators=[Creator(name="Bot", type=creator_type)]
-                ),
-            )
-        )["@graph"]
-
-        agents = _creation_agents(graph)
-        assert [a["type"] for a in agents] == [expected_element_type]
-        assert agents[0]["name"] == "Bot"
-
-
-def test_generate_project_sbom_invalid_creator_type_raises() -> None:
-    """An unrecognised creator type raises ValueError naming the valid set,
-    rather than silently falling back to Person."""
-    pyproject_content = """
-[project]
-name = "bad-creator-type-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        with pytest.raises(ValueError, match="Invalid creator type"):
-            generate_project_sbom(
-                tmppath,
-                creation_metadata=CreationMetadata(
-                    creators=[Creator(name="Bot", type="robot")]
-                ),
-            )
-
-
-def test_generate_project_sbom_creation_datetime_normalized_on_export() -> None:
-    """Full ISO creation_datetime must be normalised only at SPDX export time."""
-    pyproject_content = """
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "datetime-app"
-version = "0.1.0"
-"""
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        pyproject_path = tmppath / "pyproject.toml"
-        pyproject_path.write_text(pyproject_content)
-
-        sbom_json = generate_project_sbom(
-            tmppath,
-            creation_metadata=CreationMetadata(
-                creators=[Creator(name="Test Creator")],
-                creation_datetime="2026-01-01T12:34:56.789123+02:30",
-            ),
-        )
-        sbom_data = json.loads(sbom_json)
-        graph = sbom_data["@graph"]
-
-        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
-        assert len(creation_infos) == 1
-        assert creation_infos[0]["created"] == "2026-01-01T10:04:56Z"

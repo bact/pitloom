@@ -3,18 +3,15 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.assemble.generate_project_sbom / build(): creator/tool
-multiplicity, sentimentdemo-shaped structure, dependency-name parsing,
-external SBOM fragments, setup.cfg-only projects, and preparsed
-metadata/config passthrough.
+"""Tests for pitloom.assemble.generate_project_sbom / build(): structure,
+dependency-name parsing, external SBOM fragments, setup.cfg, and preparsed metadata.
 
-See also: tests/core/test_generator_project.py for basic generation,
-main-package PURL, output path, creation comment/tool summary, and
-createdBy creator-type handling. tests/core/test_generator_project_enrichment.py
-for project-level enrichment and license-conflict-detection tests.
+See also:
+- :mod:`tests.core.test_generator_project` for basic generation and PURL.
+- :mod:`tests.core.test_generator_project_creators` for creators and tools.
+- :mod:`tests.core.test_generator_project_enrichment` for project-level enrichment.
 """
 
-# ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json
@@ -24,122 +21,14 @@ from pathlib import Path
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.__about__ import __version__
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3.document import build
 from pitloom.core.config import PitloomConfig
-from pitloom.core.creation import CreationMetadata, Creator, Tool
+from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-
-from .conftest import _creation_agents
-
-
-def test_generate_project_sbom_multiple_creators_and_supplied_by_first() -> None:
-    """Multiple creators each become their own Agent in createdBy, of the
-    correct subclass; suppliedBy on the main package is the *first* named
-    creator."""
-    pyproject_content = """
-[project]
-name = "multi-creator-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        graph = json.loads(
-            generate_project_sbom(
-                tmppath,
-                creation_metadata=CreationMetadata(
-                    creators=[
-                        Creator(name="Acme Corp", type="organization"),
-                        Creator(name="Alice", email="alice@example.com"),
-                    ]
-                ),
-            )
-        )["@graph"]
-
-        agents = _creation_agents(graph)
-        assert [a["type"] for a in agents] == ["Organization", "Person"]
-        assert agents[0]["name"] == "Acme Corp"
-        assert agents[1]["name"] == "Alice"
-
-        main_pkg = next(
-            e
-            for e in graph
-            if e["type"] == "software_Package" and e["name"] == "multi-creator-app"
-        )
-        assert main_pkg["suppliedBy"] == agents[0]["spdxId"]
-
-
-def test_generate_project_sbom_multiple_creators_same_type_distinct_agents() -> None:
-    """Two creators of the *same* type each become their own Agent, with
-    distinct spdxIds, and both are present in createdBy -- same-type
-    creators must not collapse into a single Agent."""
-    pyproject_content = """
-[project]
-name = "multi-person-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        graph = json.loads(
-            generate_project_sbom(
-                tmppath,
-                creation_metadata=CreationMetadata(
-                    creators=[
-                        Creator(name="Alice", type="person"),
-                        Creator(name="Bob", type="person"),
-                    ]
-                ),
-            )
-        )["@graph"]
-
-        agents = _creation_agents(graph)
-        assert [a["type"] for a in agents] == ["Person", "Person"]
-        assert [a["name"] for a in agents] == ["Alice", "Bob"]
-        assert agents[0]["spdxId"] != agents[1]["spdxId"]
-
-        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
-        assert len(creation_infos) == 1
-        assert set(creation_infos[0]["createdBy"]) == {
-            agents[0]["spdxId"],
-            agents[1]["spdxId"],
-        }
-
-
-def test_generate_project_sbom_multiple_tools() -> None:
-    """Multiple tools each become their own Tool in createdUsing."""
-    pyproject_content = """
-[project]
-name = "multi-tool-app"
-version = "0.1.0"
-"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "pyproject.toml").write_text(pyproject_content)
-
-        sbom_json = generate_project_sbom(
-            tmppath,
-            creation_metadata=CreationMetadata(
-                tools=[Tool("Pitloom"), Tool("MyWrapper")]
-            ),
-        )
-        graph = json.loads(sbom_json)["@graph"]
-
-        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
-        assert len(creation_infos) == 1
-        by_id = {e["spdxId"]: e for e in graph if "spdxId" in e}
-        tools = [by_id[ref] for ref in creation_infos[0]["createdUsing"]]
-
-        assert [t["name"] for t in tools] == ["Pitloom", "MyWrapper"]
-        assert tools[0]["summary"] == f"Pitloom {__version__}"
-        assert "summary" not in tools[1]
 
 
 def test_generate_project_sbom_sentimentdemo_structure() -> None:
@@ -204,18 +93,7 @@ Source = "https://github.com/bact/sentimentdemo"
 
 
 def test_generate_project_sbom_dependency_names_with_markers_and_specifiers() -> None:
-    """Dependency names must be clean even with markers and multi-clause specifiers.
-
-    Regression guard: a naive operator-substring split on a fixed priority
-    order (``===``, ``~=``, ``!=``, ``==``, ``>=``, ``<=``, ``>``, ``<``)
-    mis-parses two real-world shapes -- an environment marker's own ``==``
-    comparison being matched before the specifier's real operator (e.g.
-    ``pkg>=1.0; sys_platform == 'linux'``), and a later clause's operator
-    appearing earlier in the string than an earlier clause's (e.g.
-    ``pkg>=0.1,<1``, which -- after ``packaging.Requirement`` reorders
-    clauses -- puts ``<1`` before ``>=0.1``). Both previously produced a
-    garbled package name (with leftover operators/markers) and no PURL.
-    """
+    """Dependency names must be clean even with markers and multi-clause specifiers."""
     pyproject_content = """
 [project]
 name = "markerdemo"
@@ -249,10 +127,6 @@ dependencies = [
             version = pkg.get("software_packageVersion")
             assert version is not None
             assert ";" not in version and "'" not in version
-            # Every dependency gets a PURL, even with an unresolved version
-            # (e.g. an unpinned, platform-gated requirement not installed
-            # in the current environment) -- name-only is still a valid,
-            # matchable purl-spec identifier, preferable to none at all.
             purl = pkg["software_packageUrl"]
             expected = f"pkg:pypi/{name}" + (
                 "" if version == "unknown" else f"@{version}"
@@ -261,10 +135,7 @@ dependencies = [
 
 
 def test_build_main_package_noassertion_license_when_undeclared() -> None:
-    """The main project package must assert ``hasDeclaredLicense:
-    NOASSERTION`` when no license is declared anywhere, rather than
-    silently having no license relationship at all -- same policy as
-    dependency packages (see add_dependencies)."""
+    """The main project package must assert hasDeclaredLicense: NOASSERTION."""
     project = ProjectMetadata(name="nolicenseproject", version="1.0.0")
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
@@ -367,7 +238,6 @@ files = ["fragment1.json", "fragment2.json"]
         sbom_json = generate_project_sbom(tmppath)
         sbom_data = json.loads(sbom_json)
 
-        # Validate that elements from fragments are included in the graph
         graph = sbom_data["@graph"]
         element_types = {elem["type"] for elem in graph}
 
@@ -375,7 +245,6 @@ files = ["fragment1.json", "fragment2.json"]
         assert "dataset_DatasetPackage" in element_types
         assert "software_Package" in element_types
 
-        # Verify names
         ai_packages = [e for e in graph if e["type"] == "ai_AIPackage"]
         assert ai_packages[0]["name"] == "cool-ai-model"
 
@@ -384,13 +253,7 @@ files = ["fragment1.json", "fragment2.json"]
 
 
 def test_generate_project_sbom_setup_cfg_only_project() -> None:
-    """generate_project_sbom() must support projects with no pyproject.toml at all,
-    falling back to setup.cfg via the shared read_project() helper.
-
-    Regression test: generate_project_sbom() previously hardcoded a pyproject.toml
-    read with no setup.cfg/setup.py fallback, so a setup.cfg-only project
-    raised FileNotFoundError.
-    """
+    """generate_project_sbom() must support projects with no pyproject.toml at all."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         (tmppath / "setup.cfg").write_text(
@@ -412,8 +275,6 @@ def test_generate_project_sbom_uses_preparsed_metadata_without_reparsing() -> No
     re-parse project_dir via read_project()."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
-        # No pyproject.toml, setup.cfg, or setup.py -- read_project() would
-        # raise FileNotFoundError if generate_project_sbom() called it.
         metadata = ProjectMetadata(name="preparsed-package", version="9.9.9")
         pitloom_config = PitloomConfig()
 
@@ -428,10 +289,7 @@ def test_generate_project_sbom_uses_preparsed_metadata_without_reparsing() -> No
 
 
 def test_generate_project_sbom_partial_preparsed_args_reparses_both() -> None:
-    """project_metadata and pitloom_config must be given together.
-
-    Passing only one is treated as if neither were given: both are read
-    fresh from project_dir, and the one caller-supplied value is ignored."""
+    """project_metadata and pitloom_config must be given together."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         (tmppath / "pyproject.toml").write_text(
