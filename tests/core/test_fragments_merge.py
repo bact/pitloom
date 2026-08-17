@@ -203,15 +203,12 @@ def test_unification_annotation_records_sha256_merge() -> None:
     import hashlib
 
     # pylint: disable=import-outside-toplevel
-
     from pitloom.assemble.spdx3.document import build
 
     # pylint: disable=import-outside-toplevel
-
     from pitloom.core.document import DocumentModel
 
     # pylint: disable=import-outside-toplevel
-
     from pitloom.core.project import (
         ProjectFile,
         ProjectMetadata,

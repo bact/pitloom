@@ -104,7 +104,6 @@ def _read_npz_metadata(
     import numpy as np
 
     # pylint: disable=import-outside-toplevel
-
     from numpy.lib.format import read_magic
 
     inputs: list[dict[str, Any]] = []
