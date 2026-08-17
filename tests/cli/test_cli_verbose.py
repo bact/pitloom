@@ -90,3 +90,71 @@ version = "0.1.0"
     assert "Config file" in captured.out
     assert "creation_datetime     : None" in captured.out
     assert "creation_comment      : 'Generated via Pitloom CLI'" in captured.out
+
+
+def test_build_creation_option_rows_full() -> None:
+    from pitloom.cli.options import (
+        _ResolvedCreationMetadata,
+        _ResolvedCreators,
+        _ResolvedTools,
+        _ResolvedValue,
+    )
+    from pitloom.cli.verbose import _build_creation_option_rows
+    from pitloom.core.creation import Creator, Tool
+
+    creation = _ResolvedCreationMetadata(
+        creators=_ResolvedCreators(
+            value=[Creator(name="Alice", type="person", email="alice@example.com")],
+            source="cli",
+        ),
+        tools=_ResolvedTools(value=[], source="default"),
+        creation_datetime=_ResolvedValue(value="2026-08-17T00:00:00Z", source="cli"),
+        creation_comment=_ResolvedValue(value="Test comment", source="cli"),
+    )
+
+    rows = _build_creation_option_rows(
+        creation,
+        eff_pretty=True,
+        pretty_src="cli",
+        eff_desc=False,
+        desc_src="cli",
+    )
+
+    keys = [r[0] for r in rows]
+    assert "creator[1]" in keys
+    assert "tools" in keys
+    assert "creation_datetime" in keys
+    assert "creation_comment" in keys
+
+    # Test None tools
+    creation_none_tools = _ResolvedCreationMetadata(
+        creators=_ResolvedCreators(value=[], source="default"),
+        tools=_ResolvedTools(value=None, source="default"),
+        creation_datetime=_ResolvedValue(value=None, source="default"),
+        creation_comment=_ResolvedValue(value=None, source="default"),
+    )
+    rows_none = _build_creation_option_rows(
+        creation_none_tools,
+        eff_pretty=True,
+        pretty_src="cli",
+        eff_desc=False,
+        desc_src="cli",
+    )
+    assert any(r[1].startswith("None") for r in rows_none if r[0] == "tools")
+    assert any(r[1].startswith("[]") for r in rows_none if r[0] == "creators")
+
+    # Test tools list
+    creation_tools_list = _ResolvedCreationMetadata(
+        creators=_ResolvedCreators(value=[], source="default"),
+        tools=_ResolvedTools(value=[Tool(name="MyTool")], source="default"),
+        creation_datetime=_ResolvedValue(value=None, source="default"),
+        creation_comment=_ResolvedValue(value=None, source="default"),
+    )
+    rows_list = _build_creation_option_rows(
+        creation_tools_list,
+        eff_pretty=True,
+        pretty_src="cli",
+        eff_desc=False,
+        desc_src="cli",
+    )
+    assert any(r[0] == "tool[1]" for r in rows_list)

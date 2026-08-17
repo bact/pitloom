@@ -126,6 +126,7 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 
 - British English for docs, comments, text. American English for code only.
 - IETF verbal forms (RFC 2119/8174) for internet/web/semantic web projects; ISO verbal forms for SPDX docs.
+- Code comments must direct, concise and about current implementation. Do not discuss history. Legimate current behavior vs alternative design is ok.
 
 ## Boundaries
 

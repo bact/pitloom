@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -71,3 +72,142 @@ def test_creator_email_before_creator_name_errors(
     with pytest.raises(SystemExit):
         __main__.main()
     assert "--creator-email must come after a --creator-name" in capsys.readouterr().err
+
+
+def test_resolve_project_paths_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    nonexistent = tmp_path / "does_not_exist"
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(nonexistent)])
+    result = __main__.main()
+    assert result == 1
+    assert "ERROR: project directory not found" in capsys.readouterr().err
+
+
+def test_resolve_project_paths_is_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sdist_file = tmp_path / "my_project-1.0.tar.gz"
+    sdist_file.write_text("dummy content")
+
+    from pitloom.cli.commands import project
+
+    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+        class MockMeta:
+            name = "foo"
+            version = "1.0"
+
+        from pitloom.core.config import PitloomConfig
+
+        return MockMeta(), PitloomConfig(), None
+
+    monkeypatch.setattr(project, "read_project", fake_read_project)
+
+    def fake_generate(*args: Any, **kwargs: Any) -> Any:
+        pass
+
+    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
+
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(sdist_file), "-o", "-"])
+    result = __main__.main()
+    assert result == 0
+
+
+def test_resolve_project_paths_no_config(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(empty_dir)])
+    result = __main__.main()
+    assert result == 1
+    assert "ERROR: no project configuration found" in capsys.readouterr().err
+
+
+def test_explicit_creation_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from pitloom.cli.commands import project
+
+    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+        class MockMeta:
+            name = "foo"
+            version = "1.0"
+
+        from pitloom.core.config import PitloomConfig
+
+        return MockMeta(), PitloomConfig(), None
+
+    monkeypatch.setattr(project, "read_project", fake_read_project)
+
+    def fake_generate(*args: Any, **kwargs: Any) -> Any:
+        pass
+
+    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
+
+    proj_dir = tmp_path / "proj"
+    proj_dir.mkdir()
+    (proj_dir / "pyproject.toml").write_text('[project]\nname="foo"\nversion="1.0"\n')
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "project",
+            str(proj_dir),
+            "-o",
+            "-",
+            "--creator-name",
+            "TestUser",
+            "--creator-type",
+            "person",
+            "--creation-datetime",
+            "2026-08-17T00:00:00Z",
+            "--creation-comment",
+            "CLI Comment",
+            "--creation-tool",
+            "MyCustomTool",
+        ],
+    )
+    result = __main__.main()
+    assert result == 0
+
+
+def test_no_creation_tool(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from pitloom.cli.commands import project
+
+    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+        class MockMeta:
+            name = "foo"
+            version = "1.0"
+
+        from pitloom.core.config import PitloomConfig
+
+        return MockMeta(), PitloomConfig(), None
+
+    monkeypatch.setattr(project, "read_project", fake_read_project)
+
+    def fake_generate(*args: Any, **kwargs: Any) -> Any:
+        pass
+
+    monkeypatch.setattr(project, "generate_project_sbom", fake_generate)
+
+    proj_dir = tmp_path / "proj"
+    proj_dir.mkdir()
+    (proj_dir / "pyproject.toml").write_text('[project]\nname="foo"\nversion="1.0"\n')
+
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "project", str(proj_dir), "-o", "-", "--no-creation-tool"]
+    )
+    result = __main__.main()
+    assert result == 0

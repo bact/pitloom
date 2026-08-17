@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -51,3 +52,101 @@ version = "1.0.0"
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
     assert "importable-pkg" in registry.entities
+
+
+def test_ids_generate_registry_load_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # _load_or_create_registry returns None when it fails (e.g. invalid JSON)
+    registry_path = tmp_path / "loom-ids.json"
+    registry_path.write_text("invalid json")
+
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "ids", "generate", "--registry", str(registry_path)]
+    )
+    result = __main__.main()
+    assert result == 1
+
+
+def test_ids_generate_no_paths(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    monkeypatch.chdir(empty_dir)
+
+    # We provide no paths and the default path resolution fails
+    monkeypatch.setattr(sys, "argv", ["loom", "ids", "generate"])
+    result = __main__.main()
+    assert result == 1
+    assert "ERROR: no source/data directories found" in capsys.readouterr().err
+
+
+def test_ids_import_sbom_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    nonexistent = tmp_path / "does_not_exist.json"
+    monkeypatch.setattr(sys, "argv", ["loom", "ids", "import", str(nonexistent)])
+    result = __main__.main()
+    assert result == 1
+    assert "ERROR: SBOM file not found" in capsys.readouterr().err
+
+
+def test_ids_import_registry_load_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sbom_path = tmp_path / "valid.json"
+    sbom_path.write_text("{}")
+
+    registry_path = tmp_path / "loom-ids.json"
+    registry_path.write_text("invalid json")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "ids", "import", str(sbom_path), "--registry", str(registry_path)],
+    )
+    result = __main__.main()
+    assert result == 1
+
+
+def test_ids_import_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    sbom_path = tmp_path / "valid.json"
+    sbom_path.write_text("{}")
+
+    # Force an exception during import_sbom
+    from pitloom.ids import IdRegistry
+
+    def fake_import(*args: Any, **kwargs: Any) -> Any:
+        raise ValueError("Simulated failure")
+
+    monkeypatch.setattr(IdRegistry, "import_sbom", fake_import)
+
+    monkeypatch.setattr(sys, "argv", ["loom", "ids", "import", str(sbom_path)])
+    result = __main__.main()
+    assert result == 1
+    assert "ERROR: failed to import SBOM" in capsys.readouterr().err
+
+
+def test_ids_cli_invalid_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # argparse will normally catch this, but if we bypass it
+    # or test `_run_ids_cli` directly
+    import argparse
+
+    from pitloom.cli.ids import _run_ids_cli
+
+    args = argparse.Namespace(ids_command="invalid")
+    result = _run_ids_cli(args)
+    assert result == 1

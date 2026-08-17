@@ -30,9 +30,9 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
         print(f"ERROR: model file not found: {model_path}", file=sys.stderr)
         return 1
 
-    pitloom_config, creation, effective_pretty, effective_describe = (
-        _resolve_common_options(args, load_project=False)
-    )
+    # Do not load pyproject.toml (load_project=False) to keep fragment generation
+    # isolated and prevent accidental pollution from unrelated projects.
+    _, creation, effective_pretty, _ = _resolve_common_options(args, load_project=False)
 
     output_path = args.output or (
         Path.cwd() / f"{model_path.name}.enrich{_SPDX3_JSON_EXT}"

@@ -88,3 +88,54 @@ def test_enrich_command_no_enrich_flag_suppresses(
     assert __main__.main() == 0
     doc = json.loads(out.read_text())
     assert not [n for n in doc["@graph"] if n.get("type") == "dataset_DatasetPackage"]
+
+
+def test_enrich_command_model_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    nonexistent = tmp_path / "does_not_exist.safetensors"
+    monkeypatch.setattr(sys, "argv", ["loom", "enrich", str(nonexistent)])
+    result = __main__.main()
+    assert result == 1
+    assert "ERROR: model file not found" in capsys.readouterr().err
+
+
+def test_enrich_command_verbose_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    model_path = tmp_path / "model.safetensors"
+    model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname="foo"\nversion="1.0"\n'
+    )
+
+    out = tmp_path / "model.enrich.spdx3.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "enrich",
+            str(model_path),
+            "-o",
+            str(out),
+            "--verbose",
+            "--project-dir",
+            str(project_dir),
+        ],
+    )
+    result = __main__.main()
+    assert result == 0
+
+    captured = capsys.readouterr()
+    assert "Pitloom version:" in captured.out
+    assert "Model file      :" in captured.out
+    assert "Project dir     :" in captured.out

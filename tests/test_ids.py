@@ -15,6 +15,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -498,3 +499,138 @@ def test_ids_generate_cli_entity_flag(
     assert registry.entities["sentimentdemo"].spdx_id.endswith("#AIPackage-1")
     assert registry.entities["other"].type == "dataset_DatasetPackage"
     assert "data/raw.txt" in registry.files
+
+
+def test_sha256_from_verified_using_no_hash() -> None:
+    from pitloom.ids import _sha256_from_verified_using
+
+    class DummyHash:
+        algorithm = "sha1"
+        hashValue = "abc"
+
+    class DummyObj:
+        verifiedUsing = [DummyHash()]
+
+    assert _sha256_from_verified_using(DummyObj()) is None
+
+
+def test_load_malformed_entries(tmp_path: Path) -> None:
+    path = tmp_path / "loom-ids.json"
+    path.write_text('{"namespace": "ns", "files": {"a": {"spdxId": 123}}}')
+    with pytest.raises(ValueError, match="malformed"):
+        IdRegistry.load(path)
+
+
+def test_find_returns_none_on_load_error(tmp_path: Path) -> None:
+    root = _make_project(tmp_path)
+    registry_path = root / DEFAULT_REGISTRY_FILENAME
+    registry_path.write_text("invalid json")
+
+    assert IdRegistry.find(start=root) is None
+
+
+def test_register_entity_different_type() -> None:
+    registry = IdRegistry(namespace="https://spdx.org/spdxdocs/x-1")
+    first = registry.register_entity("model", "ai_AIPackage")
+    # This should log a warning but reuse the ID
+    second = registry.register_entity("model", "dataset_DatasetPackage")
+    assert first == second
+
+
+def test_generate_handles_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _make_project(tmp_path)
+    (root / "src").mkdir(exist_ok=True)
+    f = root / "src" / "test.txt"
+    f.write_text("data")
+
+    def fake_sha256(*args: Any, **kwargs: Any) -> Any:
+        raise OSError("Permission denied")
+
+    import pitloom.ids as ids_mod
+
+    monkeypatch.setattr(ids_mod, "_sha256_file", fake_sha256)
+
+    registry = IdRegistry.new("test")
+    registry.generate([root / "src"], root)
+    assert "src/test.txt" not in registry.files
+
+
+def test_import_sbom_empty_elements(tmp_path: Path) -> None:
+    registry = IdRegistry.new("test")
+
+    # We can fake the deserialized set and call _import_sbom_element
+    from pitloom.ids import _import_sbom_element
+
+    class DummyElement:
+        name = "test"
+        spdxId = "http://test"
+
+        def get_compact_type(self) -> Any:
+            return "object"
+
+    _import_sbom_element(registry, DummyElement())
+    assert "test" not in registry.entities
+
+    class DummyElement2:
+        name = "test"
+        spdxId = "http://test"
+
+        def get_compact_type(self) -> Any:
+            return None
+
+    _import_sbom_element(registry, DummyElement2())
+    assert registry.entities["test"].type == "DummyElement2"
+
+    class DummyElement3:
+        name = "test"
+        spdxId = "http://test"
+        # no get_compact_type, but class name fallback
+
+    _import_sbom_element(registry, DummyElement3())
+    assert registry.entities["test"].type == "DummyElement3"
+
+
+def test_save_no_path() -> None:
+    registry = IdRegistry.new("test")
+    registry.path = None
+    with pytest.raises(ValueError, match="No path given"):
+        registry.save()
+
+
+def test_iter_files_not_found(tmp_path: Path) -> None:
+    from pitloom.ids import _iter_files
+
+    paths = list(_iter_files([tmp_path / "does_not_exist"], tmp_path))
+    assert not paths
+
+
+def test_iter_files_is_file(tmp_path: Path) -> None:
+    from pitloom.ids import _iter_files
+
+    f = tmp_path / "test.txt"
+    f.write_text("data")
+    paths = list(_iter_files([f], tmp_path))
+    assert paths == [f]
+
+
+def test_iter_files_ignores(tmp_path: Path) -> None:
+    from pitloom.ids import _iter_files
+
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "__pycache__" / "test.pyc").write_text("data")
+
+    (tmp_path / "loom-ids.json").write_text("data")
+
+    paths = list(_iter_files([tmp_path], tmp_path))
+    assert not paths
+
+
+def test_load_or_create_registry_fails(tmp_path: Path) -> None:
+    from pitloom.cli.ids import _load_or_create_registry  # type: ignore[attr-defined]
+
+    registry_path = tmp_path / "loom-ids.json"
+    registry_path.write_text("invalid json")
+
+    assert _load_or_create_registry(registry_path, "proj") is None
