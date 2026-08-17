@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,10 +20,12 @@ initial setuptools support added in the `setuptools-support` branch.
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/_setuptools.py` | New extraction module (renamed from `setuptools.py`) |
+| `src/pitloom/extract/_setuptools.py` | Extraction facade and backend detection |
+| `src/pitloom/extract/_setuptools_cfg.py` | `setup.cfg` metadata and `[tool:pitloom]` parser (split from `_setuptools.py`) |
+| `src/pitloom/extract/_setuptools_py.py` | `setup.py` AST metadata parser (split from `_setuptools.py`) |
 | `src/pitloom/extract/project.py` | Shared resolver (`read_project()`) used by both the CLI and `generate_project_sbom()` |
 | `src/pitloom/cli/` | CLI updated to accept projects without `pyproject.toml` (originally in `__main__.py`, since split into `cli/` -- see `cli-test-coverage-roadmap.md`) |
-| `tests/extract/test_setuptools_cfg.py`, `tests/extract/test_setuptools_py.py` | 53 new unit and integration tests (originally `tests/test_setuptools.py`, later split into these two files -- see `cli-test-coverage-roadmap.md`) |
+| `tests/extract/test_setuptools_cfg.py`, `test_setuptools_cfg_config.py`, `test_setuptools_py.py`, `test_setuptools_integration.py` | Unit and integration tests (originally `tests/test_setuptools.py`, later split into these modular suites -- see `cli-test-coverage-roadmap.md`) |
 | `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
 
 ## Extraction functions

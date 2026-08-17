@@ -5,8 +5,13 @@
 
 """Tests for metadata extraction from setup.cfg.
 
-See also: test_setuptools_py.py for setup.py and merge/fixture tests.
+See also:
+- :mod:`tests.extract.test_setuptools_cfg_config` for [tool:pitloom] config
+  in setup.cfg.
+- :mod:`tests.extract.test_setuptools_py` for setup.py and merge/fixture tests.
 """
+
+from __future__ import annotations
 
 import logging
 import tempfile
@@ -14,13 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.creation import Creator
 from pitloom.extract._setuptools import detect_build_backend, read_setup_cfg
-
-# ---------------------------------------------------------------------------
-# detect_build_backend
-# ---------------------------------------------------------------------------
 
 
 def test_detect_backend_hatchling() -> None:
@@ -76,9 +75,7 @@ def test_detect_backend_no_config_files() -> None:
 def test_detect_backend_malformed_pyproject_logs_and_returns_none(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A pyproject.toml that fails to parse is caught, logged, and the
-    function falls back to None -- same as when no backend can be
-    determined -- rather than raising."""
+    """A pyproject.toml that fails to parse is caught, logged, and returns None."""
     content = "[build-system\nbroken toml"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
@@ -98,11 +95,6 @@ build-backend = "mesonpy"
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "pyproject.toml").write_text(content)
         assert detect_build_backend(Path(d)) == "mesonpy"
-
-
-# ---------------------------------------------------------------------------
-# read_setup_cfg -- basic fields
-# ---------------------------------------------------------------------------
 
 
 def test_read_setup_cfg_basic() -> None:
@@ -201,11 +193,6 @@ def test_read_setup_cfg_author_only_email() -> None:
     assert metadata.authors == [{"email": "bob@example.com"}]
 
 
-# ---------------------------------------------------------------------------
-# read_setup_cfg -- version directives
-# ---------------------------------------------------------------------------
-
-
 def test_read_setup_cfg_version_file_directive() -> None:
     """Resolves `version = file: VERSION` by reading the VERSION file."""
     content = "[metadata]\nname = pkg\nversion = file: VERSION\n"
@@ -251,11 +238,6 @@ def test_read_setup_cfg_version_attr_directive_src_layout() -> None:
     assert metadata.version == "2.0.0"
 
 
-# ---------------------------------------------------------------------------
-# read_setup_cfg -- long_description file directive
-# ---------------------------------------------------------------------------
-
-
 def test_read_setup_cfg_readme_file_directive() -> None:
     """Reads long_description = file: README.md content into readme field."""
     content = (
@@ -276,144 +258,7 @@ def test_read_setup_cfg_readme_file_missing_returns_filename() -> None:
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
         metadata, _ = read_setup_cfg(Path(d))
-    # Falls back to the filename hint rather than raising
     assert metadata.readme == "README.rst"
-
-
-# ---------------------------------------------------------------------------
-# read_setup_cfg -- [tool:pitloom] config
-# ---------------------------------------------------------------------------
-
-
-def test_read_setup_cfg_pitloom_config() -> None:
-    """Reads [tool:pitloom] settings into PitloomConfig."""
-    content = """
-[metadata]
-name = pkg
-version = 1.0
-
-[tool:pitloom]
-pretty = true
-sbom-basename = my-sbom
-creator-name = Test Creator
-creator-email = test@example.com
-"""
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-    assert config.pretty is True
-    assert config.sbom_basename == "my-sbom"
-    assert config.creators == [Creator(name="Test Creator", email="test@example.com")]
-
-
-def test_read_setup_cfg_pitloom_config_creation_section() -> None:
-    """Reads [tool:pitloom:creation] sub-section into PitloomConfig."""
-    content = """
-[metadata]
-name = pkg
-version = 1.0
-
-[tool:pitloom:creation]
-creator-name = Sub Creator
-creation-datetime = 2026-01-01T00:00:00+00:00
-"""
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-    assert config.creators == [Creator(name="Sub Creator")]
-    assert config.creation_datetime == "2026-01-01T00:00:00+00:00"
-
-
-def test_read_setup_cfg_pitloom_config_modern_sections() -> None:
-    """Reads [tool:pitloom:fragment], [tool:pitloom:provenance], etc."""
-    content = """
-[metadata]
-name = pkg
-version = 1.0
-
-[tool:pitloom]
-fragments =
-    abc.json
-    def.json
-describe-relationship = false
-
-[tool:pitloom:fragment]
-files =
-    xyz.json
-
-[tool:pitloom:provenance]
-format = both
-detail = minimal
-
-[tool:pitloom:content-type]
-enabled = true
-
-[tool:pitloom:content-type:override]
-"*.myext" = "application/x-myext"
-"""
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-
-    assert config.fragments == ["xyz.json"]
-    assert config.provenance_format == "both"
-    assert config.provenance_detail == "minimal"
-    assert config.content_type_enabled is True
-    assert config.content_type_overrides == (
-        ContentTypeOverride(pattern='"*.myext"', content_type='"application/x-myext"'),
-    )
-    assert config.describe_relationship is False
-
-
-def test_read_setup_cfg_no_creation_tool_suppresses_tools() -> None:
-    """``[tool:pitloom:creation] no-creation-tool = true`` maps to
-    ``tools == []``, mirroring the ``pyproject.toml`` behaviour."""
-    content = """
-[metadata]
-name = pkg
-version = 1.0
-
-[tool:pitloom:creation]
-no-creation-tool = true
-"""
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-    assert config.tools == []
-
-
-def test_read_setup_cfg_no_creation_tool_overrides_explicit_tool_name() -> None:
-    """``no-creation-tool = true`` forces ``tools == []`` even when a
-    ``creation-tool`` name is also set -- suppression wins."""
-    content = """
-[metadata]
-name = pkg
-version = 1.0
-
-[tool:pitloom]
-creation-tool = MyWrapper
-no_creation_tool = yes
-"""
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-    assert config.tools == []
-
-
-def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
-    """Returns default PitloomConfig when [tool:pitloom] is absent."""
-    content = "[metadata]\nname = pkg\nversion = 1.0\n"
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-    assert config.pretty is False
-    assert config.sbom_basename is None
-    assert not config.fragments
-
-
-# ---------------------------------------------------------------------------
-# read_setup_cfg -- provenance
-# ---------------------------------------------------------------------------
 
 
 def test_read_setup_cfg_provenance() -> None:

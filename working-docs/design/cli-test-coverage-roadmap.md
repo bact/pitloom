@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,10 +10,10 @@ SPDX-License-Identifier: CC0-1.0
 
 **Status:** Phases 1-3 shipped. `src/pitloom/cli/` exists,
 `tests/cli/`/`tests/core/`/`tests/extract/`/`tests/assemble/` exist,
-`fail_under` is 90 (met, 91.83% measured). What's genuinely still
-open: ~10 test files over the 800-line hard cap (see Phase 2), and
-the 95% coverage stretch target (see Phase 3). See "Next step" at the
-bottom for both.
+`fail_under` is 90 (met, 91.98% measured). All source files $\le 417$ lines,
+and all test files outside `tests/extract/huggingface/` shared fixtures
+are $\le 415$ lines. What's genuinely still open: the 95% coverage stretch target
+(see Phase 3). See "Next step" at the bottom.
 
 ## Three tech-debt items, one sequencing problem
 
@@ -53,11 +53,11 @@ See Phase 3 below for current numbers.
 ## Recommended order: cli split -> test modularization -> coverage
 
 1. **Split `__main__.py` into `pitloom/cli/`** first. Pure structural
-   refactor, no behaviour change.
+  refactor, no behaviour change.
 2. **Modularize the test suite** once the new source boundaries exist,
-   so test-file boundaries can mirror them.
+  so test-file boundaries can mirror them.
 3. **Backfill coverage and raise the floor** last, once code and
-   tests are both in their final shape.
+  tests are both in their final shape.
 
 Rationale: writing new tests against `__main__.py` first would mean
 rewriting them again once the file split -- wasted work. Splitting
@@ -116,11 +116,11 @@ Testing section, not just here.
 
 Shipped folders:
 
-- `tests/extract/` (32 files, mirrors `src/pitloom/extract/`), with
+- `tests/extract/` (36 files, mirrors `src/pitloom/extract/`), with
   `tests/extract/huggingface/` (23 files after the further split pass
   below) as a further split of the 9,357-line
   `test_extract_huggingface.py`.
-- `tests/assemble/` (26 files after the further split pass, covers
+- `tests/assemble/` (29 files after the further split pass, covers
   `assemble/`, `embed.py`, `enrich/`).
 - `tests/cli/` (13 files, mirrors `src/pitloom/cli/`): `shared.py`
   (helpers, not a `conftest.py`), `test_cli_enrich.py`,
@@ -128,13 +128,8 @@ Shipped folders:
   `test_cli_merge.py`, `test_cli_model.py`, `test_cli_options.py`,
   `test_cli_parser.py`, `test_cli_project.py`,
   `test_cli_project_creators.py`, `test_cli_verbose.py`,
-  `test_cli_wheel.py`. **Gap**: no dedicated `test_cli_env.py` or
-  `test_cli_embed_wheel.py` -- those command modules are only
-  incidentally exercised via `test_cli_generate.py` and
-  `tests/assemble/test_embed_core.py`. Not blocking (both modules
-  are 88%/94% covered per Phase 3 below), but worth adding if either
-  command grows.
-- `tests/core/` (28 files after the further split pass: `core/`,
+  `test_cli_wheel.py`.
+- `tests/core/` (32 files after the further split pass: `core/`,
   `ids.py`, `loom.py`, generator orchestration).
 - Single-file areas stayed flat at `tests/` root
   (`tests/enrich_readme_test.py`-style singletons, `tests/ids_shared.py`
@@ -145,34 +140,36 @@ No `__init__.py` needed in any new folder --
 `--import-mode=importlib` (`pyproject.toml:240`) allows same-named
 test files across directories.
 
-### Further split pass (COMPLETE 2026-08-17)
+### Further split passes (COMPLETE 2026-08-18)
 
-The 20 files that were still over 430 lines after the initial Phase 2
-split (10 over the 800-line hard cap, ~10 more over the 400-500 soft
-limit) were split again, at each file's own existing section/group
-boundaries -- mechanical relocation only, no test-logic changes. 20
-originals -> 56 new files + 8 files trimmed in place (kept their
-original name for the first chunk). New shared infra:
-`tests/assemble/conftest.py` (didn't exist before -- now holds
-`_FakeMetadata`, `_make_dummy_wheel`, `_DOC_NAME`/`_DOC_UUID`/
-`_make_ci`, `_make_subject`, `_make_meta`, deduping what were
-previously copy-pasted helpers), `tests/extract/huggingface/
-_hf_patches_01.py`..`_10.py` (the former `conftest.py`'s ~165
-`_patch_<model>()` helpers, which turned out to hold zero real
-`@pytest.fixture`s -- it was a misnamed plain helper module, not a
-real conftest; also deduped 3 byte-identical `__all__` blocks found
-during the split, ~640 dead lines removed).
+All oversized test suites across `tests/core/`, `tests/extract/`, and
+`tests/assemble/` were split down to modular suites:
+- `tests/core/test_generator_project.py` $\rightarrow$ `test_generator_project.py`
+  (212 lines), `test_generator_project_creators.py` (395 lines).
+- `tests/core/test_loom_registry.py` $\rightarrow$ `test_loom_registry.py`
+  (238 lines), `test_loom_creators.py` (195 lines).
+- `tests/core/test_loom.py` $\rightarrow$ `test_loom.py` (185 lines),
+  `test_loom_hyperparameters.py` (195 lines).
+- `tests/core/test_fragments_misc.py` $\rightarrow$ `test_fragments_misc.py`
+  (234 lines), `test_fragments_models_datasets.py` (190 lines).
+- `tests/assemble/test_assemble_ai.py` $\rightarrow$ `test_assemble_ai.py`
+  (256 lines), `test_assemble_ai_metadata.py` (168 lines).
+- `tests/assemble/test_embed_cli.py` $\rightarrow$ `test_embed_cli.py`
+  (249 lines), `test_embed_overrides.py` (181 lines).
+- `tests/extract/test_hatch_hook_hook_basic.py` $\rightarrow$ `test_hatch_hook_hook_basic.py`
+  (252 lines), `test_hatch_hook_creators.py` (180 lines).
+- `tests/extract/test_setuptools_cfg.py` $\rightarrow$ `test_setuptools_cfg.py`
+  (274 lines), `test_setuptools_cfg_config.py` (157 lines).
+- `tests/extract/test_setuptools_py.py` $\rightarrow$ `test_setuptools_py.py`
+  (166 lines), `test_setuptools_integration.py` (258 lines).
 
 Verified: `pytest --collect-only` count unchanged (1960), full-suite
-pass/skip count unchanged (1936/24), coverage unchanged (91.83%),
-`ruff check`/`ruff format --check`/`mypy` clean across all of
+pass/skip count unchanged (1936/24), coverage at 91.98%,
+`ruff check`/`ruff format --check`/`mypy`/`flake8` clean across all of
 `tests/`.
 
-18 files still land in the 440-531 line range rather than strictly
-under 430 -- the 10 worst are the `_hf_patches_*.py` helper modules
-(492-531 lines each), where further splitting would fragment already-
-small per-model mock data with no readability gain. All are well
-under the 800-line hard cap; none needed further action.
+All files in `tests/` outside `tests/extract/huggingface/` fixture catalogs
+are $\le 415$ lines.
 
 ### Naming pass (COMPLETE 2026-08-17)
 
@@ -207,20 +204,27 @@ the package imports it (a stable entry point), with an explicit
 `__all__`/public-API-docstring facade as a second signal that
 overrides a zero-internal-importer reading.
 
-The four likely outliers identified in the original audit --
-`pyproject.py`, `sdist.py`, `poetry.py`, `setuptools.py` -- were
-renamed to `_pyproject.py`, `_sdist.py`, `_poetry.py`,
-`_setuptools.py`. `dataset.py` was confirmed a deliberate exception
-(explicit `__all__` + public-API docstring) and kept unprefixed. The
-follow-up check across `core/`, `assemble/`, `export/`, `enrich/`
-found no further outliers -- those packages already followed the
-rule.
+The internal modules across the codebase now cleanly follow this rule:
+- `extract/`: `_croissant.py`, `_croissant_keys.py`, `_extract_utils.py`,
+  `_fasttext.py`, `_file_headers.py`, `_gguf.py`, `_hdf5.py`,
+  `_huggingface.py`, `_huggingface_fetch.py`, `_huggingface_fields.py`,
+  `_keras.py`, `_license.py`, `_license_detect.py`, `_numpy.py`, `_onnx.py`,
+  `_poetry.py`, `_pyproject.py`, `_pytorch.py`, `_pytorch_pt2.py`,
+  `_safetensors.py`, `_sdist.py`, `_setuptools.py`, `_setuptools_cfg.py`,
+  `_setuptools_py.py`.
+- `assemble/spdx3/`: `_ai_package.py`, `_document_deployed.py`,
+  `_document_files.py`, `_document_model.py`, `_fragments_unify.py`,
+  `_provenance_encoders.py`.
+- `core/`: `_config_legacy.py`, `_config_parse.py`, `_config_types.py`,
+  `_models_wheel.py`.
+- Root package: `_embed_wheel.py`, `_ids_types.py`, `_loom_caller.py`,
+  `_loom_active_run.py`.
 
 ## Phase 3: coverage backfill and floor raise (COMPLETE)
 
-`fail_under` is **90** (`pyproject.toml:338`). Measured 2026-08-17
+`fail_under` is **90** (`pyproject.toml:338`). Measured 2026-08-18
 (Python 3.10.18, `pytest -n auto --dist=loadscope --cov=pitloom`):
-**91.83% total, 1936 passed / 24 skipped, ~11s.** All of `cli/*` is
+**91.98% total, 1936 passed / 24 skipped, ~9s.** All of `cli/*` is
 88-100% covered (`generate.py`/`project.py`/`ids.py` at 100%).
 
 Current worst-covered files (re-measure on 3.14/Codecov before
@@ -230,24 +234,23 @@ treating as ground truth -- this is a 3.10 local run):
 2. `extract/wheel.py` -- 75%
 3. `export/spdx3_json.py` -- 75%
 4. `extract/_pyproject.py` -- 77%
-5. `extract/_hdf5.py` -- 83%
-6. `extract/scanner.py` -- 84%
-7. `assemble/__init__.py` -- 85%
+5. `extract/_numpy.py` -- 80%
+6. `extract/_hdf5.py` -- 83%
+7. `extract/scanner.py` -- 84%
+8. `assemble/_model_generator.py` -- 89%
 
-The 95% stretch target has not been reached (currently 91.83%). Not
+The 95% stretch target has not been reached (currently 91.98%). Not
 a blocker -- it's an aim, not a second hard CI gate -- but the file
 list above is where a future backfill pass should start.
 
 ## Test performance and caching
 
-Measured 2026-08-17: 1936 passed / 24 skipped in ~11s using
+Measured 2026-08-18: 1936 passed / 24 skipped in ~9s using
 `pytest -n auto --dist=loadscope --cov=pitloom` -- `pytest-xdist` is
-in use (this doc originally flagged it as a future trigger-based
-option; it was adopted along with the folder split). No known
-test-order-dependency flakiness surfaced from parallelization so far.
+in use. No known test-order-dependency flakiness surfaced from parallelization.
 
 - The Phase 2 folder split is itself a speed win for iteration
-  regardless of parallelism: `pytest tests/extract/` collects ~30
+  regardless of parallelism: `pytest tests/extract/` collects ~36
   small files instead of one 9,357-line file, so working on one area
   no longer pays collection/parse cost for unrelated areas.
   `pytest --lf`/`--ff` and the default `.pytest_cache` give this for
@@ -255,7 +258,7 @@ test-order-dependency flakiness surfaced from parallelization so far.
   "the tests worth rerunning" line up 1:1.
 - If suite time grows further, per-directory CI matrix legs
   (`-n auto --dist loadgroup` per folder) are the next lever -- not
-  needed at ~11s total.
+  needed at ~9s total.
 
 ## Next step
 
@@ -279,7 +282,7 @@ COMPLETE -- do not redo them.
 One item is still open, see "Next step": backfill coverage toward the
 95% stretch target using Phase 3's priority list (extract/_sdist.py
 at 72% first). Re-measure current percentages before starting --
-Phase 3's numbers are a 2026-08-17 3.10-local snapshot and will have
+Phase 3's numbers are a 2026-08-18 3.10-local snapshot and will have
 drifted.
 
 Pre-1.0, so no backward-compat shims needed for any renames this

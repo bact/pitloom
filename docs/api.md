@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,6 +24,14 @@ exact call signature.
 ::: pitloom.assemble.generate_model_sbom
 
 ::: pitloom.assemble.generate_env_sbom
+
+## Wheel embedding
+
+::: pitloom.embed.embed_wheel_sbom
+
+::: pitloom.embed.embed_sbom_in_wheel
+
+::: pitloom.embed.ConfigOverrides
 
 ## Tracking decorator
 

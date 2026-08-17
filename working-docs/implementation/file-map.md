@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,8 +11,7 @@ SPDX-License-Identifier: CC0-1.0
 See also: [summary.md](summary.md) (implementation summary this tree
 was split out of) and
 [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
-(the `__main__.py` → `cli/` split and `tests/` folder split this tree
-now reflects).
+(the CLI, test-suite, and source modularization this tree reflects).
 
 This tree is the canonical reference for the repository's file/directory
 layout; `README.md` and design docs point here rather than duplicating
@@ -41,7 +40,8 @@ pitloom/
 │   ├── design/
 │   │   ├── adoption-surfaces.md
 │   │   ├── architecture-overview.md
-│   │   ├── cli-test-coverage-roadmap.md  # __main__.py/cli/ split + tests/ folder split
+│   │   ├── cli-test-coverage-roadmap.md        # CLI split + test suite modularization roadmap
+│   │   ├── complexity-and-file-size-roadmap.md # Complexity metrics and file limits tracking
 │   │   ├── format-neutral-representation.md
 │   │   ├── metadata-sources.md
 │   │   ├── mlflow-extractor.md
@@ -84,27 +84,33 @@ pitloom/
 │   └── pitloom/
 │       ├── assemble/               # Layers 2+3 -- build DocumentModel + map to spec
 │       │   ├── spdx3/              # SPDX 3 specific (future: spdx23, cyclonedx)
-│       │   │   ├── ai.py           # AI model element assembly
-│       │   │   ├── creation_info.py # Shared CreationInfo construction
-│       │   │   ├── dataset.py      # Dataset element assembly
-│       │   │   ├── deps.py         # Dependency enrichment (name/version resolution)
-│       │   │   ├── deps_license.py # License element assembly (split from deps.py)
-│       │   │   ├── deps_pypi.py    # PyPI release-info lookups (split from deps.py)
-│       │   │   ├── deps_supplier.py # Supplier/originator resolution (split from deps.py)
-│       │   │   ├── document.py     # Facade: build(DocumentModel) -> Spdx3JsonExporter
-│       │   │   ├── _document_deployed.py # Deployed-environment assembly (split from document.py)
-│       │   │   ├── _document_files.py # File-element assembly (split from document.py)
-│       │   │   ├── _document_model.py # Single-AI-model assembly (split from document.py)
-│       │   │   ├── fragments.py    # Fragment merging + unification provenance
-│       │   │   ├── provenance.py   # Provenance Annotation builders/emitter
+│       │   │   ├── _ai_package.py  # AIPackage creation and optional field mapping
+│       │   │   ├── _document_deployed.py    # Deployed-environment assembly
+│       │   │   ├── _document_files.py       # File-element assembly
+│       │   │   ├── _document_model.py       # Single-AI-model assembly
+│       │   │   ├── _fragments_unify.py      # Fragment entity unification and deduplication
+│       │   │   ├── _provenance_encoders.py  # Provenance encoder and payload builders
+│       │   │   ├── ai.py             # AI model element assembly facade
+│       │   │   ├── creation_info.py  # Shared CreationInfo construction
+│       │   │   ├── dataset.py        # Dataset element assembly
+│       │   │   ├── deps_installed.py # Installed-environment dependency tree mapping
+│       │   │   ├── deps_license.py   # License element assembly
+│       │   │   ├── deps_pypi.py      # PyPI release-info lookups
+│       │   │   ├── deps_supplier.py  # Supplier/originator resolution
+│       │   │   ├── deps.py           # Dependency enrichment facade
+│       │   │   ├── document.py       # Facade: build(DocumentModel) -> Spdx3JsonExporter
+│       │   │   ├── fragments.py      # Fragment merging + unification provenance facade
+│       │   │   ├── provenance.py     # Provenance Annotation builders/emitter facade
 │       │   │   └── __init__.py
-│       │   └── __init__.py         # generate_*_sbom() orchestrators + backend routing
-│       ├── cli/                    # CLI: argparse, options, dispatch (see cli-test-coverage-roadmap.md)
+│       │   ├── _generators.py      # Project, wheel, and env SBOM generators
+│       │   ├── _model_generator.py # Model SBOM generator and enrichment orchestration
+│       │   └── __init__.py         # Public assemble facade and generate() entrypoint
+│       ├── cli/                    # CLI: argparse, options, dispatch
 │       │   ├── commands/           # One module per subcommand: _run_<verb>_command() + add_parser()
 │       │   │   ├── embed_wheel.py  # loom embed-wheel
 │       │   │   ├── enrich.py       # loom enrich
 │       │   │   ├── env.py          # loom env
-│       │   │   ├── generate.py     # loom generate (smart entrypoint; -o required, see CHANGELOG)
+│       │   │   ├── generate.py     # loom generate (smart entrypoint; -o required)
 │       │   │   ├── merge.py        # loom merge
 │       │   │   ├── model.py        # loom model
 │       │   │   ├── project.py      # loom project
@@ -116,14 +122,18 @@ pitloom/
 │       │   ├── parser.py           # argparse tree: parent parser + every subcommand
 │       │   └── verbose.py          # --verbose effective-options report
 │       ├── core/                   # Format-neutral data models (no SBOM lib deps)
+│       │   ├── _config_legacy.py   # Migration error checks and constants
+│       │   ├── _config_parse.py    # TOML parser for [tool.pitloom]
+│       │   ├── _config_types.py    # Configuration dataclasses and type definitions
+│       │   ├── _models_wheel.py    # Wheel file records and Merkle root calculation
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
-│       │   ├── config.py           # PitloomConfig ([tool.pitloom] settings)
+│       │   ├── config.py           # PitloomConfig facade and re-exports
 │       │   ├── content_type_config.py # [tool.pitloom.content-type] settings
 │       │   ├── creation.py         # CreationMetadata (creator / timestamp)
 │       │   ├── dataset_metadata.py # DatasetMetadata
 │       │   ├── document.py         # DocumentModel (assembled, pre-serialization)
 │       │   ├── enrich_config.py    # [tool.pitloom.enrich] / EnrichConfig
-│       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation
+│       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation facade
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
 │       │   └── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
@@ -140,10 +150,11 @@ pitloom/
 │       │   ├── _gguf.py            # GGUF (.gguf)
 │       │   ├── _hdf5.py            # HDF5 / Keras v1-v2 (.h5, .hdf5)
 │       │   ├── _huggingface.py     # Hugging Face Hub model extraction (facade)
-│       │   ├── _huggingface_fetch.py # HF API/card fetching + license detection (split from _huggingface.py)
-│       │   ├── _huggingface_fields.py # HF metadata field parsing (split from _huggingface.py)
+│       │   ├── _huggingface_fetch.py # HF API/card fetching + license detection
+│       │   ├── _huggingface_fields.py # HF metadata field parsing
 │       │   ├── _keras.py           # Keras v3 (.keras)
-│       │   ├── _license.py         # License file/id detection
+│       │   ├── _license_detect.py  # License text detection and file scanning
+│       │   ├── _license.py         # License normalization and resolution facade
 │       │   ├── _numpy.py           # NumPy (.npy, .npz)
 │       │   ├── _onnx.py            # ONNX (.onnx)
 │       │   ├── _poetry.py          # [tool.poetry] extractor; Poetry -> PEP 440 conversion
@@ -152,7 +163,9 @@ pitloom/
 │       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
 │       │   ├── _safetensors.py     # Safetensors (.safetensors)
 │       │   ├── _sdist.py           # sdist archive (.tar.gz/.zip) unpacking
-│       │   ├── _setuptools.py      # setup.cfg + setup.py extractor; backend detection; merge
+│       │   ├── _setuptools_cfg.py  # setup.cfg parser and [tool:pitloom] config extraction
+│       │   ├── _setuptools_py.py   # setup.py AST parser
+│       │   ├── _setuptools.py      # Setuptools extractor facade and backend detection
 │       │   ├── ai_model.py         # AI model dispatcher + format detection (public entry point)
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── dataset.py          # Dataset metadata extraction public API (Croissant)
@@ -166,16 +179,19 @@ pitloom/
 │       ├── __about__.py            # Package version (__version__)
 │       ├── __init__.py
 │       ├── __main__.py             # Thin entry point only: logging setup + args.func dispatch
-│       ├── embed.py                # PEP 770 wheel embedding (RECORD update, stale-entry cleanup)
-│       ├── ids.py                  # Loom ID registry (loom-ids.json); stable cross-fragment SPDX ids
+│       ├── _embed_wheel.py         # Low-level ZIP rewriting and RECORD injection
+│       ├── _ids_types.py           # ID registry types and hash helpers
+│       ├── _loom_caller.py         # Caller stack inspection and provenance helpers
+│       ├── _loom_active_run.py     # Active-run state machine
+│       ├── embed.py                # PEP 770 wheel embedding facade
+│       ├── ids.py                  # Loom ID registry facade (loom-ids.json)
 │       ├── loom.py                 # ML tracking SDK facade (Run context manager / decorator)
-│       ├── _loom_active_run.py     # Active-run state machine (split from loom.py)
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
-│   ├── assemble/                   # 26 files -- assemble/, embed.py, enrich/ coverage + conftest.py
+│   ├── assemble/                   # 29 files -- assemble/, embed.py, enrich/ coverage + conftest.py
 │   ├── cli/                        # 13 files -- one per src/pitloom/cli/ module, + shared.py
-│   ├── core/                       # 28 files -- core/, ids.py, loom.py, generator orchestration
-│   ├── extract/                    # 32 files, one per extractor
+│   ├── core/                       # 32 files -- core/, ids.py, loom.py, generator orchestration
+│   ├── extract/                    # 36 files, one per extractor
 │   │   └── huggingface/            # 23 files -- split by metadata category + _hf_patches_*.py
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)

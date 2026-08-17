@@ -4,10 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the Pitloom Hatchling build hook (pitloom.plugins.hatch):
-lifecycle basics, creator/creation metadata, fragments.
+lifecycle basics, staging, and fragments.
 
-See also: test_hatch_hook_hook_integration.py for fixture-driven and
-version-gate integration tests.
+See also:
+- :mod:`tests.extract.test_hatch_hook_creators` for creators and creation metadata.
+- :mod:`tests.extract.test_hatch_hook_hook_integration` for integration tests.
 """
 
 from __future__ import annotations
@@ -20,14 +21,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from spdx_python_model.bindings import v3_0_1 as spdx3  # noqa: E402
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.__about__ import __version__  # noqa: E402
-from pitloom.core.models import generate_spdx_id  # noqa: E402
-from pitloom.export.spdx3_json import (  # noqa: E402
-    Spdx3JsonExporter,
-    require_spdx_id,
-)
+from pitloom.core.models import generate_spdx_id
+from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 from .conftest import (
     make_hook,
@@ -52,7 +49,6 @@ def test_hook_initialize_stages_sbom() -> None:
         assert hook._sbom_staging_path.exists()
         assert hook._sbom_staging_path.stat().st_size > 0
 
-        # Cleanup without a real wheel (no injection)
         hook.finalize("standard", build_data, "")
 
 
@@ -74,176 +70,8 @@ def test_hook_sbom_is_valid_json() -> None:
         hook.finalize("standard", build_data, "")
 
 
-def test_hook_creator_name_propagated() -> None:
-    """[[tool.pitloom.creator]] name must appear in the SBOM graph."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject_with_pitloom_config(
-            tmp_path,
-            '[[tool.pitloom.creator]]\nname = "Test Creator"\n',
-        )
-
-        hook = make_hook(tmp, {})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
-        graph = data["@graph"]
-        names = [e.get("name") for e in graph if e.get("type") == "Person"]
-        assert "Test Creator" in names
-
-        hook.finalize("standard", build_data, "")
-
-
-def test_hook_organization_creator_from_config() -> None:
-    """[[tool.pitloom.creator]] type = organization emits an
-    Organization (not a Person) in the SBOM graph."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject_with_pitloom_config(
-            tmp_path,
-            '[[tool.pitloom.creator]]\nname = "Acme Corp"\ntype = "organization"\n',
-        )
-
-        hook = make_hook(tmp, {})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
-        orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
-        assert orgs == ["Acme Corp"]
-        assert not [e for e in graph if e.get("type") == "Person"]
-
-        hook.finalize("standard", build_data, "")
-
-
-def test_hook_multiple_creators_appear_in_graph() -> None:
-    """Multiple [[tool.pitloom.creator]] tables all appear in the SBOM
-    @graph, as their respective Agent subclasses."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject_with_pitloom_config(
-            tmp_path,
-            "[[tool.pitloom.creator]]\n"
-            'name = "Acme Corp"\n'
-            'type = "organization"\n'
-            "\n"
-            "[[tool.pitloom.creator]]\n"
-            'name = "Alice"\n'
-            'email = "alice@example.com"\n',
-        )
-
-        hook = make_hook(tmp, {})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
-        orgs = [e.get("name") for e in graph if e.get("type") == "Organization"]
-        persons = [e.get("name") for e in graph if e.get("type") == "Person"]
-        assert orgs == ["Acme Corp"]
-        assert persons == ["Alice"]
-
-        creation_infos = [e for e in graph if e.get("type") == "CreationInfo"]
-        assert len(creation_infos) == 1
-        assert len(creation_infos[0]["createdBy"]) == 2
-
-        hook.finalize("standard", build_data, "")
-
-
-@pytest.mark.parametrize(
-    ("creator_type", "expected_element_type"),
-    [
-        ("software-agent", "SoftwareAgent"),
-        ("agent", "Agent"),
-    ],
-)
-def test_hook_software_agent_and_generic_agent_creator_from_config(
-    creator_type: str, expected_element_type: str
-) -> None:
-    """[[tool.pitloom.creator]] type also allows a named
-    SoftwareAgent or generic Agent, not just Person/Organization."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject_with_pitloom_config(
-            tmp_path,
-            f'[[tool.pitloom.creator]]\nname = "CI Bot"\ntype = "{creator_type}"\n',
-        )
-
-        hook = make_hook(tmp, {})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
-        matches = [
-            e.get("name") for e in graph if e.get("type") == expected_element_type
-        ]
-        assert "CI Bot" in matches
-
-        hook.finalize("standard", build_data, "")
-
-
-def test_hook_default_creator_is_software_agent() -> None:
-    """With no [[tool.pitloom.creator]], the hook records the
-    SoftwareAgent "Pitloom" as the createdBy agent."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
-
-        hook = make_hook(tmp, {})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-
-        assert hook._sbom_staging_path is not None
-        graph = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))[
-            "@graph"
-        ]
-        agents = [e for e in graph if e.get("type") == "SoftwareAgent"]
-        assert [a["name"] for a in agents] == ["Pitloom"]
-        assert not [e for e in graph if e.get("type") == "Person"]
-
-        hook.finalize("standard", build_data, "")
-
-
-def test_hook_creation_comment_and_tool_summary() -> None:
-    """Hook must stamp a build-hook comment and a Pitloom-versioned Tool.summary."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path)
-
-        hook = make_hook(tmp, {})
-        build_data: dict[str, Any] = {}
-        hook.initialize("standard", build_data)
-
-        assert hook._sbom_staging_path is not None
-        data = json.loads(hook._sbom_staging_path.read_text(encoding="utf-8"))
-        graph = data["@graph"]
-
-        creation_infos = [e for e in graph if e["type"] == "CreationInfo"]
-        assert len(creation_infos) == 1
-        assert creation_infos[0]["comment"] == (
-            "Generated via Pitloom Hatchling build hook (PEP 770)"
-        )
-
-        tool_elements = [e for e in graph if e["type"] == "Tool"]
-        assert len(tool_elements) == 1
-        assert tool_elements[0]["summary"] == f"Pitloom {__version__}"
-
-        hook.finalize("standard", build_data, "")
-
-
 def test_hook_custom_basename_stored() -> None:
-    """A custom [tool.pitloom] sbom-basename must be reflected in the staged
-    filename."""
+    """A custom [tool.pitloom] sbom-basename must be reflected in staged filename."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
@@ -288,7 +116,6 @@ def test_hook_finalize_cleans_up() -> None:
         staged = hook._sbom_staging_path
         assert staged is not None and staged.exists()
 
-        # Pass empty artifact_path to skip wheel injection
         hook.finalize("standard", build_data, "")
 
         assert not staged.exists()
@@ -306,7 +133,7 @@ def test_hook_finalize_idempotent() -> None:
         build_data: dict[str, Any] = {}
         hook.initialize("standard", build_data)
         hook.finalize("standard", build_data, "")
-        hook.finalize("standard", build_data, "")  # second call must be a no-op
+        hook.finalize("standard", build_data, "")
 
 
 def test_hook_sbom_files_populated() -> None:
@@ -329,8 +156,7 @@ def test_hook_sbom_files_populated() -> None:
 
 
 def test_hook_sbom_files_custom_basename() -> None:
-    """[tool.pitloom] sbom-basename must determine the filename appended to
-    sbom_files."""
+    """[tool.pitloom] sbom-basename must determine filename appended to sbom_files."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject_with_pitloom_config(
@@ -371,7 +197,6 @@ def test_hook_with_pitloom_fragments() -> None:
             tmp_path, '[tool.pitloom.fragment]\nfiles = ["frag.json"]\n'
         )
 
-        # Build a valid fragment via Spdx3JsonExporter
         doc_uuid = "test-frag-uuid"
         ci = spdx3.CreationInfo(
             specVersion="3.0.1",
@@ -423,7 +248,6 @@ def test_hook_missing_fragment_logs_warning(
             hook.initialize("standard", build_data)
 
         assert any("does_not_exist.json" in msg for msg in caplog.messages)
-        # SBOM is still generated despite the missing fragment
         assert hook._sbom_staging_path is not None
 
         hook.finalize("standard", build_data, "")

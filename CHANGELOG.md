@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -40,6 +40,9 @@ and this project adheres to
 - Optimize test workflow by caching the `licenseid` database ([#159])
 - `loom generate` now requires `-o`/`--output` and fails with a clear
   error if it's omitted, instead of guessing a filename. ([#160])
+- Modularize source and test files to strictly comply with file-size limits
+  (all source files $\le 417$ lines, all tests $\le 415$ lines outside mock
+  fixture catalogs) ([#161])
 
 ### Fixed
 
@@ -66,6 +69,7 @@ and this project adheres to
 [#158]: https://github.com/bact/pitloom/pull/158
 [#159]: https://github.com/bact/pitloom/pull/159
 [#160]: https://github.com/bact/pitloom/pull/160
+[#161]: https://github.com/bact/pitloom/pull/161
 
 ## [0.15.0] - 2026-08-15
 
