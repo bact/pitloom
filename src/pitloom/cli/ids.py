@@ -18,11 +18,6 @@ from pitloom.ids import (
     _load_or_create_registry,
 )
 
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
-
 
 def _run_ids_generate(args: argparse.Namespace) -> int:
     """Run `pitloom ids generate`."""

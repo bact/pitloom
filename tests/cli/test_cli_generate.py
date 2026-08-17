@@ -27,7 +27,7 @@ SAFETENSORS_FIXTURE = (
 ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
 
 
-def test_generate_mode_honours_project_config(
+def test_generate_command_honours_project_config(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -85,7 +85,7 @@ creation-comment = "configured in pyproject"
     assert creation.creation_comment == "configured in pyproject"
 
 
-def test_generate_mode_default_file_headers_and_content_type_are_none(
+def test_generate_command_default_file_headers_and_content_type_are_none(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -120,7 +120,7 @@ def test_generate_mode_default_file_headers_and_content_type_are_none(
         ("--no-content-type", "content_type", False),
     ],
 )
-def test_generate_mode_file_headers_content_type_flags_passed_through(
+def test_generate_command_file_headers_content_type_flags_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     flag: str,
@@ -146,7 +146,7 @@ def test_generate_mode_file_headers_content_type_flags_passed_through(
     assert captured[kwarg] is expected
 
 
-def test_generate_mode_content_type_method_flag_passed_through(
+def test_generate_command_content_type_method_flag_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -183,8 +183,10 @@ def test_deployed_dispatches_to_generate_env_sbom(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object = None,
-        offline: bool = False,
-    ) -> str:
+            offline: bool = False,
+            provenance: object = None,
+            **kwargs: object,
+        ) -> str:
         _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["output_path"] = output_path
         return "{}"

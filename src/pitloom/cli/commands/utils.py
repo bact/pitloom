@@ -9,7 +9,32 @@ from __future__ import annotations
 
 import glob
 import sys
+import traceback
+from collections.abc import Callable
+from functools import wraps
 from pathlib import Path
+from typing import Any
+
+
+def cli_error_handler(
+    error_msg: str,
+) -> Callable[[Callable[..., int]], Callable[..., int]]:
+    """Decorator to standardize CLI error handling and tracebacks."""
+
+    def decorator(func: Callable[..., int]) -> Callable[..., int]:
+        @wraps(func)
+        def wrapper(args: Any, *pargs: Any, **kwargs: Any) -> int:
+            try:
+                return func(args, *pargs, **kwargs)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                print(f"ERROR: {error_msg}: {e}", file=sys.stderr)
+                if getattr(args, "verbose", False):
+                    traceback.print_exc()
+                return 1
+
+        return wrapper
+
+    return decorator
 
 
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
@@ -22,7 +47,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     wheel_paths: list[Path] = []
     had_error = False
     for pattern in patterns:
-        if any(c in pattern for c in ("*", "?", "[")):
+        if glob.has_magic(pattern):
             matched = [
                 Path(p).resolve()
                 for p in glob.glob(pattern)

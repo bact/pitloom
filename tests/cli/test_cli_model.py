@@ -24,7 +24,7 @@ SAFETENSORS_FIXTURE = (
 ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
 
 
-def test_model_mode_explicit_output_path(
+def test_model_command_explicit_output_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -54,7 +54,7 @@ def test_model_mode_explicit_output_path(
     assert captured["output_path"] == explicit_out
 
 
-def test_model_mode_default_output_path_uses_full_filename(
+def test_model_command_default_output_path_uses_full_filename(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -83,7 +83,7 @@ def test_model_mode_default_output_path_uses_full_filename(
     assert out.parent == Path.cwd()
 
 
-def test_model_mode_default_enrich_is_none(
+def test_model_command_default_enrich_is_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No --enrich/--no-enrich flag passed: args.enrich must reach
@@ -122,7 +122,7 @@ def test_model_mode_default_enrich_is_none(
     ("flag", "expected"),
     [("--enrich", True), ("--no-enrich", False)],
 )
-def test_model_mode_enrich_flag_passed_through(
+def test_model_command_enrich_flag_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     flag: str,
     expected: bool,
@@ -158,7 +158,7 @@ def test_model_mode_enrich_flag_passed_through(
     assert captured["enrich"] is expected
 
 
-def test_model_mode_passes_pretty_flag(
+def test_model_command_passes_pretty_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -184,7 +184,7 @@ def test_model_mode_passes_pretty_flag(
     assert captured["pretty"] is True
 
 
-def test_model_mode_passes_creation_info(
+def test_model_command_passes_creation_info(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -216,7 +216,7 @@ def test_model_mode_passes_creation_info(
     assert [c.name for c in ci.creators] == ["TestBot"]
 
 
-def test_model_mode_nonexistent_file_returns_error(
+def test_model_command_nonexistent_file_returns_error(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -226,7 +226,7 @@ def test_model_mode_nonexistent_file_returns_error(
     assert __main__.main() == 1
 
 
-def test_model_mode_verbose_shows_model_path(
+def test_model_command_verbose_shows_model_path(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -252,7 +252,7 @@ def test_model_mode_verbose_shows_model_path(
     assert "Pitloom version" in out
 
 
-def test_model_mode_safetensors_produces_ai_package(
+def test_model_command_safetensors_produces_ai_package(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -272,7 +272,7 @@ def test_model_mode_safetensors_produces_ai_package(
     assert "ai_AIPackage" in types
 
 
-def test_model_mode_onnx_produces_ai_package(
+def test_model_command_onnx_produces_ai_package(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -292,7 +292,7 @@ def test_model_mode_onnx_produces_ai_package(
     assert "ai_AIPackage" in types
 
 
-def test_model_mode_safetensors_no_software_package(
+def test_model_command_safetensors_no_software_package(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -311,7 +311,7 @@ def test_model_mode_safetensors_no_software_package(
     assert "software_Package" not in types
 
 
-def test_model_mode_onnx_sbom_root_is_ai_package(
+def test_model_command_onnx_sbom_root_is_ai_package(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -333,7 +333,7 @@ def test_model_mode_onnx_sbom_root_is_ai_package(
     assert ai_pkg["spdxId"] in sbom.get("rootElement", [])
 
 
-def test_enrich_mode_missing_model_file_errors(
+def test_enrich_command_missing_model_file_errors(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -395,7 +395,7 @@ def test_hf_model_id_routes_to_huggingface_sbom(
     assert captured["model_source"] == "Qwen/Qwen3-235B-A22B"
 
 
-def test_hf_mode_default_output_uses_model_name(
+def test_hf_command_default_output_uses_model_name(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -426,7 +426,7 @@ def test_hf_mode_default_output_uses_model_name(
     assert out.parent == Path.cwd()
 
 
-def test_hf_mode_explicit_output_path(
+def test_hf_command_explicit_output_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -462,7 +462,7 @@ def test_hf_mode_explicit_output_path(
     assert captured["output_path"] == explicit_out
 
 
-def test_hf_mode_passes_creation_info(
+def test_hf_command_passes_creation_info(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -498,7 +498,7 @@ def test_hf_mode_passes_creation_info(
     assert [c.name for c in ci.creators] == ["Researcher"]
 
 
-def test_hf_mode_passes_pretty_flag(
+def test_hf_command_passes_pretty_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -532,7 +532,7 @@ def test_hf_mode_passes_pretty_flag(
     assert captured["pretty"] is True
 
 
-def test_hf_mode_verbose_shows_model_id(
+def test_hf_command_verbose_shows_model_id(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:

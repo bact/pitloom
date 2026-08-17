@@ -8,49 +8,44 @@
 from __future__ import annotations
 
 import argparse
-import sys
-import traceback
+from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import (
     generate,
 )
-from pitloom.cli.options import (
-    _resolve_generate_mode_settings,
-)
-
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
+from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.constants import _SPDX3_JSON_EXT
+from pitloom.cli.options import _resolve_common_options
 
 
+@cli_error_handler("SBOM generation failed")
 def _run_generate_command(args: argparse.Namespace) -> int:
     """Smart generate mode."""
-    try:
-        creation_metadata, pretty, describe_relationship = (
-            _resolve_generate_mode_settings(args)
-        )
-        output_path = args.output
-        generate(
-            args.target,
-            offline=args.offline or None,
-            output_path=output_path,
-            creation_metadata=creation_metadata,
-            pretty=pretty,
-            describe_relationship=describe_relationship,
-            registry=args.registry,
-            enrich=args.enrich,
-            extract_file_header=args.extract_file_header,
-            content_type=args.content_type,
-            content_type_method=args.content_type_method,
-        )
-        return 0
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"ERROR: SBOM generation failed: {e}", file=sys.stderr)
-        if args.verbose:
-            traceback.print_exc()
-        return 1
+    target_path = Path(args.target) if args.target else None
+    pitloom_config, creation_metadata, pretty, describe_relationship = _resolve_common_options(
+        args, target_dir=target_path
+    )
+    output_path = args.output
+    sbom_json = generate(
+        args.target,
+        offline=args.offline or None,
+        output_path=output_path,
+        creation_metadata=creation_metadata,
+        pretty=pretty,
+        describe_relationship=describe_relationship,
+        registry=args.registry,
+        provenance=pitloom_config.provenance,
+        enrich=args.enrich,
+        extract_file_header=args.extract_file_header,
+        content_type=args.content_type,
+        content_type_method=args.content_type_method,
+    )
+    if output_path is None:
+        fallback_path = Path(f"sbom{_SPDX3_JSON_EXT}")
+        fallback_path.write_text(sbom_json, encoding="utf-8")
+        print(f"Wrote SBOM to {fallback_path}")
+    return 0
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:

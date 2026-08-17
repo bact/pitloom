@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -19,15 +18,12 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.cli.commands.embed_wheel import _report_embed_result
-from pitloom.cli.options import _resolve_creation_metadata
-from pitloom.core.config import PitloomConfig
-
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
+from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.constants import _SPDX3_JSON_EXT
+from pitloom.cli.options import _resolve_common_options
 
 
+@cli_error_handler("wheel command failed")
 def _run_wheel_command(args: argparse.Namespace) -> int:
     """Generate an Analyzed SBOM from a built wheel.
 
@@ -40,57 +36,46 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     duplicated -- only SBOM *content* generation differs by design.
     """
     target: str = args.target
-    try:
-        wheel_path: Path = Path(target).resolve()
-        if not wheel_path.exists():
-            print(f"ERROR: wheel file not found: {wheel_path}", file=sys.stderr)
-            return 1
-
-        pitloom_config = PitloomConfig()
-        creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = args.pretty if args.pretty is not None else False
-        effective_describe = (
-            bool(args.describe_relationship)
-            if args.describe_relationship is not None
-            else False
-        )
-
-        embed = getattr(args, "embed", False)
-        # With --embed, only write a standalone copy if the user explicitly
-        # asked for one via -o; embedding into the wheel is the primary
-        # output and shouldn't also litter cwd with a same-named file.
-        output_path = (
-            args.output
-            if embed
-            else args.output or (Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}")
-        )
-
-        if args.verbose:
-            print(f"Pitloom version : {__version__}")
-            print(f"Wheel file      : {wheel_path}")
-            print(f"Output path     : {output_path or '(embedded only)'}")
-
-        sbom_json = generate_wheel_sbom(
-            wheel_path,
-            output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=effective_pretty,
-            describe_relationship=effective_describe,
-            registry=args.registry,
-            offline=args.offline or None,
-        )
-
-        if embed:
-            _, arcname, removed, floored = embed_sbom_in_wheel(wheel_path, sbom_json)
-            _report_embed_result(arcname, wheel_path.name, removed, floored)
-
-        return 0
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"ERROR: wheel SBOM generation failed: {e}", file=sys.stderr)
-        if args.verbose:
-            traceback.print_exc()
+    wheel_path: Path = Path(target).resolve()
+    if not wheel_path.exists():
+        print(f"ERROR: wheel file not found: {wheel_path}", file=sys.stderr)
         return 1
+
+    pitloom_config, creation, effective_pretty, effective_describe = (
+        _resolve_common_options(args, load_project=False)
+    )
+
+    embed = getattr(args, "embed", False)
+    # With --embed, only write a standalone copy if the user explicitly
+    # asked for one via -o; embedding into the wheel is the primary
+    # output and shouldn't also litter cwd with a same-named file.
+    output_path = (
+        args.output
+        if embed
+        else args.output or (Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}")
+    )
+
+    if args.verbose:
+        print(f"Pitloom version : {__version__}")
+        print(f"Wheel file      : {wheel_path}")
+        print(f"Output path     : {output_path or '(embedded only)'}")
+
+    sbom_json = generate_wheel_sbom(
+        wheel_path,
+        output_path=output_path,
+        creation_metadata=creation,
+        pretty=effective_pretty,
+        describe_relationship=effective_describe,
+        registry=args.registry,
+        provenance=pitloom_config.provenance,
+        offline=args.offline or None,
+    )
+
+    if embed:
+        _, arcname, removed, floored = embed_sbom_in_wheel(wheel_path, sbom_json)
+        _report_embed_result(arcname, wheel_path.name, removed, floored)
+
+    return 0
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:

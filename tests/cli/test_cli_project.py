@@ -223,7 +223,7 @@ creation-datetime = "2030-01-02T03:04:05Z"
     assert creation.creation_datetime == "2030-01-02T03:04:05Z"
 
 
-def test_project_mode_malformed_pitloom_config_surfaces_error(
+def test_project_command_malformed_pitloom_config_surfaces_error(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -234,7 +234,7 @@ def test_project_mode_malformed_pitloom_config_surfaces_error(
     ``creator-name`` directly under ``[tool.pitloom]`` is the old/invalid
     single-valued form (creators now live under
     ``[[tool.pitloom.creator]]``), so ``read_pyproject`` raises ``ValueError``.
-    ``_run_project_mode`` reads the project once via ``read_project()``; that
+    ``_run_project_command`` reads the project once via ``read_project()``; that
     error must propagate rather than being silently discarded: exit code 1,
     no SBOM written.
     """
@@ -271,7 +271,7 @@ creator-name = 123
     assert not (tmp_path / "sbom.spdx3.json").exists()
 
 
-def test_model_mode_no_project_dir_required(
+def test_model_command_no_project_dir_required(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -298,7 +298,7 @@ def test_model_mode_no_project_dir_required(
     assert captured["model_path"] == SAFETENSORS_FIXTURE.resolve()
 
 
-def test_project_mode_default_file_headers_and_content_type_are_none(
+def test_project_command_default_file_headers_and_content_type_are_none(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -336,7 +336,7 @@ def test_project_mode_default_file_headers_and_content_type_are_none(
         ("--no-content-type", "content_type", False),
     ],
 )
-def test_project_mode_file_headers_content_type_flags_passed_through(
+def test_project_command_file_headers_content_type_flags_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     flag: str,
@@ -366,7 +366,7 @@ def test_project_mode_file_headers_content_type_flags_passed_through(
 
 
 @pytest.mark.parametrize("method", ["auto", "magika", "extension"])
-def test_project_mode_content_type_method_flag_passed_through(
+def test_project_command_content_type_method_flag_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     method: str,
@@ -394,7 +394,7 @@ def test_project_mode_content_type_method_flag_passed_through(
     assert captured["content_type_method"] == method
 
 
-def test_project_mode_default_creation_comment(
+def test_project_command_default_creation_comment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -417,7 +417,7 @@ def test_project_mode_default_creation_comment(
     assert creation_infos[0]["comment"] == "Generated via Pitloom CLI"
 
 
-def test_project_mode_creator_type_organization(
+def test_project_command_creator_type_organization(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -459,7 +459,7 @@ def test_project_mode_creator_type_organization(
         ("agent", "Agent"),
     ],
 )
-def test_project_mode_creator_type_software_agent_and_agent(
+def test_project_command_creator_type_software_agent_and_agent(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     creator_type: str,
@@ -495,7 +495,7 @@ def test_project_mode_creator_type_software_agent_and_agent(
     assert "CI Bot" in matches
 
 
-def test_project_mode_multiple_interleaved_creators(
+def test_project_command_multiple_interleaved_creators(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -538,7 +538,7 @@ def test_project_mode_multiple_interleaved_creators(
     assert persons[0]["externalIdentifier"]
 
 
-def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
+def test_project_command_three_creators_type_and_email_bind_to_most_recent(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -594,7 +594,7 @@ def test_project_mode_three_creators_type_and_email_bind_to_most_recent(
     assert persons["Alice"]["externalIdentifier"]
 
 
-def test_project_mode_repeated_creation_tool(
+def test_project_command_repeated_creation_tool(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -629,7 +629,7 @@ def test_project_mode_repeated_creation_tool(
     assert sorted(t["name"] for t in tools) == ["MyWrapper", "Pitloom"]
 
 
-def test_enrich_mode_project_dir_flag_passed_through(
+def test_enrich_command_project_dir_flag_passed_through(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """--project-dir must reach enrich_model()'s project_target parameter

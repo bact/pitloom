@@ -27,11 +27,6 @@ from pitloom.core.creation import (
     Creator,
 )
 
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
-
 
 class _CreatorNameAction(argparse.Action):
     """``--creator-name`` starts a new :class:`Creator`, appended in order."""

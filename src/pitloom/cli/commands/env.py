@@ -8,8 +8,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -17,50 +15,33 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_env_sbom,
 )
-from pitloom.cli.options import _resolve_creation_metadata
-from pitloom.core.config import PitloomConfig
-
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
+from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.constants import _SPDX3_JSON_EXT
+from pitloom.cli.options import _resolve_common_options
 
 
+@cli_error_handler("deployed SBOM generation failed")
 def _run_env_command(args: argparse.Namespace) -> int:
     """Generate a Deployed SBOM for the active installed environment."""
-    try:
-        pitloom_config = PitloomConfig()
-        creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = args.pretty if args.pretty is not None else False
-        effective_describe = (
-            bool(args.describe_relationship)
-            if args.describe_relationship is not None
-            else False
-        )
+    pitloom_config, creation, effective_pretty, effective_describe = (
+        _resolve_common_options(args, load_project=False)
+    )
+    output_path = args.output or (Path.cwd() / f"deployed-environment{_SPDX3_JSON_EXT}")
 
-        output_path = args.output or (
-            Path.cwd() / f"deployed-environment{_SPDX3_JSON_EXT}"
-        )
+    if args.verbose:
+        print(f"Pitloom version : {__version__}")
+        print(f"Output path     : {output_path}")
 
-        if args.verbose:
-            print(f"Pitloom version : {__version__}")
-            print(f"Output path     : {output_path}")
-
-        generate_env_sbom(
-            output_path=output_path,
-            creation_metadata=creation.to_creation_metadata(),
-            pretty=effective_pretty,
-            describe_relationship=effective_describe,
-            registry=args.registry,
-            offline=args.offline or None,
-        )
-        return 0
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"ERROR: deployed SBOM generation failed: {e}", file=sys.stderr)
-        if args.verbose:
-            traceback.print_exc()
-        return 1
+    generate_env_sbom(
+        output_path=output_path,
+        creation_metadata=creation,
+        pretty=effective_pretty,
+        describe_relationship=effective_describe,
+        registry=args.registry,
+        provenance=pitloom_config.provenance,
+        offline=args.offline or None,
+    )
+    return 0
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:

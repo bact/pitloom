@@ -22,7 +22,7 @@ SAFETENSORS_FIXTURE = (
 ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
 
 
-def test_enrich_mode_writes_fragment(
+def test_enrich_command_writes_fragment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -53,7 +53,7 @@ def test_enrich_mode_writes_fragment(
     assert ds_pkgs[0]["name"] == "tiny-imagenet"
 
 
-def test_enrich_mode_default_output_path_uses_full_filename(
+def test_enrich_command_default_output_path_uses_full_filename(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -66,7 +66,7 @@ def test_enrich_mode_default_output_path_uses_full_filename(
     assert (tmp_path / "mymodel.safetensors.enrich.spdx3.json").exists()
 
 
-def test_enrich_mode_no_enrich_flag_suppresses(
+def test_enrich_command_no_enrich_flag_suppresses(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:

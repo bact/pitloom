@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pitloom.cli.constants import _PROJECT_PYPROJECT_SOURCE, _SPDX3_JSON_EXT
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import (
     CreationMetadata,
@@ -21,11 +22,6 @@ from pitloom.core.creation import (
 )
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract.project import read_project
-
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
 
 
 @dataclass(frozen=True)
@@ -142,7 +138,7 @@ def _resolve_tools(
 
 def _resolve_creation_metadata(
     args: argparse.Namespace,
-    pitloom_config: Any,
+    pitloom_config: PitloomConfig,
 ) -> _ResolvedCreationMetadata:
     """Resolve creation metadata."""
     default_creation = CreationMetadata()
@@ -162,28 +158,37 @@ def _resolve_creation_metadata(
     )
 
 
-def _resolve_generate_mode_settings(
+def _resolve_common_options(
     args: argparse.Namespace,
-) -> tuple[CreationMetadata, bool | None, bool | None]:
-    """Resolve settings for ``loom generate`` using project config when available."""
-    pitloom_config = PitloomConfig()
-    target_value = str(args.target).strip()
-    if target_value:
-        target_path = Path(target_value)
-        if target_path.exists():
-            try:
-                _, pitloom_config, _ = read_project(target_path)
-            except FileNotFoundError:
-                pitloom_config = PitloomConfig()
+    target_dir: Path | None = None,
+    load_project: bool = True,
+) -> tuple[PitloomConfig, CreationMetadata, bool, bool]:
+    """Resolve common settings using project config when available."""
+    if load_project:
+        lookup_dir = target_dir if target_dir is not None else Path.cwd()
+        if lookup_dir.is_file():
+            lookup_dir = lookup_dir.parent
+
+        try:
+            _, pitloom_config, _ = read_project(lookup_dir)
+        except FileNotFoundError:
+            pitloom_config = PitloomConfig()
+    else:
+        pitloom_config = PitloomConfig()
 
     creation = _resolve_creation_metadata(args, pitloom_config)
-    effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
-    effective_describe_relationship = (
+    effective_pretty = (
+        pitloom_config.pretty
+        if getattr(args, "pretty", None) is None
+        else getattr(args, "pretty", False)
+    )
+    effective_describe_relationship = bool(
         pitloom_config.describe_relationship
-        if args.describe_relationship is None
-        else args.describe_relationship
+        if getattr(args, "describe_relationship", None) is None
+        else getattr(args, "describe_relationship", False)
     )
     return (
+        pitloom_config,
         creation.to_creation_metadata(),
         effective_pretty,
         effective_describe_relationship,
@@ -215,7 +220,7 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
 
 
 def _resolve_output_source(
-    args: argparse.Namespace, pitloom_config: Any, config_path: Path | None
+    args: argparse.Namespace, pitloom_config: PitloomConfig, config_path: Path | None
 ) -> str:
     if args.output is not None:
         return "command-line"
@@ -226,9 +231,9 @@ def _resolve_output_source(
 
 def _resolve_pretty(
     args: argparse.Namespace,
-    pitloom_config: Any,
+    pitloom_config: PitloomConfig,
     pitloom_tool: dict[str, Any],
-    config_source: str = _PROJECT_PYPROJECT_SOURCE,
+    config_source: str = "pyproject.toml",
 ) -> tuple[bool, str]:
     value = pitloom_config.pretty if args.pretty is None else args.pretty
     if args.pretty is not None:
@@ -240,9 +245,9 @@ def _resolve_pretty(
 
 def _resolve_describe_relationship(
     args: argparse.Namespace,
-    pitloom_config: Any,
+    pitloom_config: PitloomConfig,
     pitloom_tool: dict[str, Any],
-    config_source: str = _PROJECT_PYPROJECT_SOURCE,
+    config_source: str = "pyproject.toml",
 ) -> tuple[bool, str]:
     value = bool(
         pitloom_config.describe_relationship
@@ -266,7 +271,7 @@ def _quote_optional(value: str | None) -> str:
 
 
 def _resolve_output_path(
-    explicit: Path | None, metadata: ProjectMetadata, pitloom_config: Any
+    explicit: Path | None, metadata: ProjectMetadata, pitloom_config: PitloomConfig
 ) -> Path:
     if explicit is not None:
         return explicit

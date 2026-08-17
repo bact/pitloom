@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -17,15 +16,10 @@ from pitloom.assemble import (
     ConfigOverrides,
     embed_wheel_sbom,
 )
-from pitloom.cli.commands.utils import _collect_wheel_paths
+from pitloom.cli.commands.utils import _collect_wheel_paths, cli_error_handler
 from pitloom.cli.options import _resolve_creation_metadata
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
-
-_SPDX3_JSON_EXT = ".spdx3.json"
-_PROJECT_PYPROJECT_SOURCE = "pyproject.toml"
-_PROJECT_SETUP_CFG_SOURCE = "setup.cfg"
-_PROJECT_SETUP_PY_SOURCE = "setup.py"
 
 
 def _report_embed_result(
@@ -50,6 +44,7 @@ def _report_embed_result(
         )
 
 
+@cli_error_handler("wheel SBOM embedding failed")
 def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
 
@@ -59,77 +54,69 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     commands converge on :func:`~pitloom.embed.embed_sbom_in_wheel` for
     the actual archive mutation.
     """
-    try:
-        unique_wheels = _collect_wheel_paths(args.wheel_files)
-        if not unique_wheels:
-            return 1
+    unique_wheels = _collect_wheel_paths(args.wheel_files)
+    if not unique_wheels:
+        return 1
 
-        if len(unique_wheels) > 1 and args.output is not None:
+    if len(unique_wheels) > 1 and args.output is not None:
+        print(
+            "ERROR: --output cannot be used when embedding multiple wheels",
+            file=sys.stderr,
+        )
+        return 1
+
+    project_dir = args.project_dir
+    pitloom_config = PitloomConfig()
+    if project_dir is not None:
+        proj_path = Path(project_dir).resolve()
+        if not proj_path.exists():
             print(
-                "ERROR: --output cannot be used when embedding multiple wheels",
+                f"ERROR: project directory not found: {proj_path}",
                 file=sys.stderr,
             )
             return 1
-
-        project_dir = args.project_dir
-        pitloom_config = PitloomConfig()
-        if project_dir is not None:
-            proj_path = Path(project_dir).resolve()
-            if not proj_path.exists():
-                print(
-                    f"ERROR: project directory not found: {proj_path}",
-                    file=sys.stderr,
-                )
-                return 1
-            try:
-                _, pitloom_config, _ = read_project(proj_path)
-            except FileNotFoundError:
-                print(
-                    "ERROR: No pyproject.toml or setup.cfg found "
-                    f"in project directory: {proj_path}",
-                    file=sys.stderr,
-                )
-                return 1
-        else:
-            for cand in ("pyproject.toml", "setup.cfg", "setup.py"):
-                if (Path.cwd() / cand).exists():
-                    try:
-                        _, pitloom_config, _ = read_project(Path.cwd())
-                        project_dir = Path.cwd()
-                    except FileNotFoundError:
-                        pass
-                    break
-
-        creation = _resolve_creation_metadata(args, pitloom_config)
-
-        overrides = ConfigOverrides(
-            enrich=args.enrich,
-            extract_file_header=args.extract_file_header,
-            content_type=args.content_type,
-            content_type_method=args.content_type_method,
-            offline=args.offline or None,
-        )
-        for wheel_path in unique_wheels:
-            output_path = args.output if len(unique_wheels) == 1 else None
-            _, arcname, _, removed, floored = embed_wheel_sbom(
-                wheel_path,
-                project_dir=project_dir,
-                pitloom_config=pitloom_config,
-                sbom_path=args.sbom,
-                output_path=output_path,
-                sbom_basename=args.sbom_basename,
-                creation_metadata=creation.to_creation_metadata(),
-                registry=args.registry,
-                overrides=overrides,
+        try:
+            _, pitloom_config, _ = read_project(proj_path)
+            project_dir = proj_path
+        except FileNotFoundError:
+            print(
+                "ERROR: No pyproject.toml or setup.cfg found "
+                f"in project directory: {proj_path}",
+                file=sys.stderr,
             )
-            _report_embed_result(arcname, wheel_path.name, removed, floored)
-        return 0
+            return 1
+    else:
+        try:
+            _, pitloom_config, _ = read_project(Path.cwd())
+            project_dir = Path.cwd()
+        except FileNotFoundError:
+            pass
 
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"ERROR: wheel SBOM embedding failed: {e}", file=sys.stderr)
-        if args.verbose:
-            traceback.print_exc()
-        return 1
+    creation = _resolve_creation_metadata(args, pitloom_config)
+
+    overrides = ConfigOverrides(
+        enrich=args.enrich,
+        extract_file_header=args.extract_file_header,
+        content_type=args.content_type,
+        content_type_method=args.content_type_method,
+        provenance=pitloom_config.provenance,
+        offline=args.offline or None,
+    )
+    for wheel_path in unique_wheels:
+        output_path = args.output if len(unique_wheels) == 1 else None
+        _, arcname, _, removed, floored = embed_wheel_sbom(
+            wheel_path,
+            project_dir=project_dir,
+            pitloom_config=pitloom_config,
+            sbom_path=args.sbom,
+            output_path=output_path,
+            sbom_basename=args.sbom_basename,
+            creation_metadata=creation.to_creation_metadata(),
+            registry=args.registry,
+            overrides=overrides,
+        )
+        _report_embed_result(arcname, wheel_path.name, removed, floored)
+    return 0
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
