@@ -196,17 +196,19 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
 
     mock_file_a = MagicMock()
     mock_file_b = MagicMock()
-    
+
     def mock_zip_open(name):
         cm = MagicMock()
-        cm.__enter__.return_value = mock_file_a if name == "weights.npy" else mock_file_b
+        cm.__enter__.return_value = (
+            mock_file_a if name == "weights.npy" else mock_file_b
+        )
         return cm
-        
+
     mock_npz.zip.open.side_effect = mock_zip_open
 
     mock_np = MagicMock()
     mock_np.load.return_value = mock_npz
-    
+
     mock_format = MagicMock()
     mock_format.read_magic.return_value = (1, 0)
     mock_format._read_array_header.side_effect = lambda f, v: (

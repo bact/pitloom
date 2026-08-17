@@ -93,10 +93,16 @@ def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
 
             parts = Path(member.name).parts
             basename = Path(member.name).name
-            
-            is_pkg_info = basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2
-            is_pyproject = basename == "pyproject.toml" and pyproject_content is None and len(parts) == 2
-            
+
+            is_pkg_info = (
+                basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2
+            )
+            is_pyproject = (
+                basename == "pyproject.toml"
+                and pyproject_content is None
+                and len(parts) == 2
+            )
+
             hasher = hashlib.sha256()
             with extracted:
                 if is_pkg_info or is_pyproject:
@@ -155,8 +161,14 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
             parts = Path(info.filename).parts
             basename = Path(info.filename).name
 
-            is_pkg_info = basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2
-            is_pyproject = basename == "pyproject.toml" and pyproject_content is None and len(parts) == 2
+            is_pkg_info = (
+                basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2
+            )
+            is_pyproject = (
+                basename == "pyproject.toml"
+                and pyproject_content is None
+                and len(parts) == 2
+            )
 
             hasher = hashlib.sha256()
             with zf.open(info) as f:
