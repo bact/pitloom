@@ -196,7 +196,7 @@ value itself).
 
 ## Integration test — done
 
-Landed in [`tests/test_provenance_integration.py`](../../../tests/test_provenance_integration.py)
+Landed in [`tests/assemble/test_provenance_integration.py`](../../../tests/assemble/test_provenance_integration.py)
 (PR [#112](https://github.com/bact/pitloom/pull/112)), exercising N1, N2,
 N4, N5, N6 together on one representative model. Confirms: all five
 native constructs present on the same document at once; no Annotation

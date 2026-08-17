@@ -1128,7 +1128,7 @@ An end-to-end integration test exercising N1/N2/N4/N5/N6 together on one
 representative model -- all five native constructs present at once, no
 Annotation duplicating a now-native value, byte-identical output across two
 runs, and round-trip through `spdx-python-model` -- shipped in
-[`tests/test_provenance_integration.py`](../../../tests/test_provenance_integration.py)
+[`tests/assemble/test_provenance_integration.py`](../../../tests/assemble/test_provenance_integration.py)
 (PR [#112](https://github.com/bact/pitloom/pull/112)).
 
 ---
