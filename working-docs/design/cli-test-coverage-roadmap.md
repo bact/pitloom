@@ -126,7 +126,7 @@ imported, so every such patch site needs its target module updated in
 the same change that moves the code, or the test suite silently stops
 testing what it claims to.
 
-## Phase 2: test-suite modularization
+## Phase 2: test-suite modularization (COMPLETE)
 
 ### Folder-vs-flat decision
 
@@ -252,7 +252,7 @@ imports them either), and the same check needs to run once across
 covered `extract/`). Do this as part of Phase 2 when those files are
 already open for the test-folder move.
 
-## Phase 3: coverage backfill and floor raise
+## Phase 3: coverage backfill and floor raise (COMPLETE)
 
 Priority order (by current miss count / percentage, re-measure after
 Phases 1-2 land since the `cli/` split changes what "cover

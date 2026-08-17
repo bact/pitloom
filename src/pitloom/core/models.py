@@ -47,7 +47,7 @@ def normalize_dependency_specifier(dep: str) -> str:
     Hatchling's own ``normalize_requirement()`` (lowercases the name and any
     extras, and collapses runs of ``-``/``_``/``.`` to a single ``-``) so
     that a dependency specifier is rendered identically regardless of which
-    extractor produced it -- :func:`~pitloom.extract.pyproject.read_pyproject`
+    extractor produced it -- :func:`~pitloom.extract._pyproject.read_pyproject`
     (the CLI) or :func:`~pitloom.extract.hatchling.metadata_from_hatchling`
     (the Hatchling build hook). Both paths feed :func:`compute_doc_uuid`, so
     any drift here would give the same project two different document UUIDs

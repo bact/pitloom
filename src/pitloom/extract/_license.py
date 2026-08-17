@@ -367,7 +367,7 @@ def resolve_license_concluded(
     path (:func:`~pitloom.extract.hatchling.metadata_from_hatchling`)
     originally did -- it called :func:`detect_license_for_project` directly
     and never ran the independent directory scan at all, so G2 only ever
-    fired via the CLI's :func:`~pitloom.extract.pyproject.read_pyproject`.
+    fired via the CLI's :func:`~pitloom.extract._pyproject.read_pyproject`.
     If you're adding a new project-metadata extractor, call this too; see
     ``tests/test_hatch_hook.py``'s
     ``test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict``
