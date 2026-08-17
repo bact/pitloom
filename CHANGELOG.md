@@ -32,6 +32,7 @@ and this project adheres to
   (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
   ([#153], [#155])
 - Raised fail_under coverage floor to 90% ([#155])
+- Avoid loading full file to memory ([#156])
 
 ### Fixed
 
@@ -48,6 +49,7 @@ and this project adheres to
 [#152]: https://github.com/bact/pitloom/pull/152
 [#153]: https://github.com/bact/pitloom/pull/153
 [#155]: https://github.com/bact/pitloom/pull/155
+[#156]: https://github.com/bact/pitloom/pull/156
 
 ## [0.15.0] - 2026-08-15
 
