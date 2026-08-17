@@ -14,6 +14,7 @@ References:
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 from pathlib import Path
 from typing import Any
@@ -146,8 +147,6 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         ImportError: If ``numpy`` is not installed.
         ValueError: If the file cannot be read as a valid NumPy file.
     """
-    import importlib.util
-
     try:
         has_numpy = importlib.util.find_spec("numpy") is not None
     except ValueError:
