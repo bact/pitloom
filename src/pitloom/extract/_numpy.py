@@ -123,16 +123,23 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             if inputs:
                 provenance["inputs"] = f"{source} | Field: .npy header (shape, dtype)"
         elif suffix == ".npz":
+            import numpy.lib.format  # pylint: disable=import-outside-toplevel
+
             with np.load(str(model_path), allow_pickle=False) as npzfile:
-                for array_name in npzfile.files:
-                    arr = npzfile[array_name]
-                    inputs.append(
-                        {
-                            "name": array_name,
-                            "shape": list(arr.shape),
-                            "dtype": str(arr.dtype),
-                        }
-                    )
+                for archive_name in npzfile.zip.namelist():
+                    if not archive_name.endswith(".npy"):
+                        continue
+                    array_name = archive_name[:-4]
+                    with npzfile.zip.open(archive_name) as f:
+                        version = np.lib.format.read_magic(f)
+                        shape, _, dtype = np.lib.format._read_array_header(f, version)
+                        inputs.append(
+                            {
+                                "name": array_name,
+                                "shape": list(shape),
+                                "dtype": str(dtype),
+                            }
+                        )
             if inputs:
                 provenance["inputs"] = f"{source} | Field: array names, shapes, dtypes"
     except Exception as exc:  # pylint: disable=broad-exception-caught

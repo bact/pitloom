@@ -137,7 +137,7 @@ def test_read_pytorch_zip_inspect_failure_logs_and_continues(
     raising."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["archive/data.pkl"]
-    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+    mock_zf.open.side_effect = RuntimeError("bad CRC-32")
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch"):
         type_of_model, properties, provenance = _read_pytorch_zip(
