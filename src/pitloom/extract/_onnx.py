@@ -43,7 +43,8 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
     return specs
 
 
-def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-locals
+# pylint: disable=too-many-locals
+def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
 
     Requires the ``onnx`` package (``pip install onnx``).
@@ -67,7 +68,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
         ValueError: If the file cannot be loaded as a valid ONNX model.
     """
     try:
-        import onnx  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        import onnx
     except ImportError as exc:
         raise ImportError(
             "The 'onnx' package is required to extract ONNX model metadata. "
@@ -77,7 +79,8 @@ def read_onnx(model_path: Path) -> AiModelMetadata:  # pylint: disable=too-many-
     try:
         # load_external_data=False avoids loading large external tensor files
         model = onnx.load(str(model_path), load_external_data=False)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to load ONNX model from %s: %s", model_path, exc)
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 

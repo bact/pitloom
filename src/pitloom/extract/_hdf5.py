@@ -150,7 +150,8 @@ def _parse_model_config(
     Returns:
         Tuple of ``(type_of_model, name)``.
     """
-    import json  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import json
 
     type_of_model: str | None = None
     name: str | None = None
@@ -234,7 +235,8 @@ def _parse_training_config(
         properties: Updated in-place with optimizer, loss, and metrics entries.
         provenance: Updated in-place with per-field source descriptions.
     """
-    import json  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import json
 
     try:
         training_config = json.loads(raw)
@@ -295,7 +297,8 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
         ValueError: If the file cannot be read as a valid HDF5 file.
     """
     try:
-        import h5py  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        import h5py
     except ImportError as exc:
         raise ImportError(
             "The 'h5py' package is required to extract HDF5 model metadata. "
@@ -304,7 +307,8 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
     try:
         hf = h5py.File(str(model_path), "r")
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to open HDF5 file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read HDF5 file {model_path}: {exc}") from exc
 

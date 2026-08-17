@@ -199,6 +199,7 @@ def test_unification_annotation_records_sha256_merge() -> None:
     criterion, the dropped id, and the origin fragment -- provenance the merge
     would otherwise silently discard."""
     # pylint: disable=import-outside-toplevel
+
     import hashlib
 
     # pylint: disable=import-outside-toplevel

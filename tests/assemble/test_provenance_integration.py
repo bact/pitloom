@@ -230,6 +230,7 @@ def test_enrichment_creation_info_and_annotation_present() -> None:
     mocks" style.
     """
     # pylint: disable=import-outside-toplevel
+
     import tempfile
 
     from pitloom.enrich.readme import ReadmeEnricher

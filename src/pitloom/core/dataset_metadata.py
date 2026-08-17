@@ -16,7 +16,8 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class DatasetMetadata:  # pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes
+class DatasetMetadata:
     """Metadata describing a dataset.
 
     Fields align with the SPDX 3.0 Dataset profile where applicable.

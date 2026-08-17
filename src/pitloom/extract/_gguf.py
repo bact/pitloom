@@ -64,10 +64,12 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
 
     try:
         # pylint: disable=import-outside-toplevel
+
         from gguf import GGMLQuantizationType
 
         return str(GGMLQuantizationType(int_val).name)
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug(
             "Failed to resolve GGUF quantization name for file_type=%r: %s",
             file_type_value,
@@ -99,7 +101,8 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         ValueError: If the file cannot be read as a valid GGUF file.
     """
     try:
-        from gguf import (  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from gguf import (
             GGUFReader,
             GGUFValueType,
         )
@@ -111,7 +114,8 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
 
     try:
         reader = GGUFReader(str(model_path), mode="r")
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to open GGUF file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
 

@@ -109,7 +109,8 @@ def detect_build_backend(project_dir: Path) -> str | None:
                 return backend
         if build_backend:
             return build_backend.split(".")[0].lower()
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to detect build backend from %s: %s", pyproject_path, exc)
     return None
 

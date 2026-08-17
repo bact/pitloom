@@ -185,6 +185,7 @@ def _stage_sbom_file(
     # Not used as a context manager: the directory must outlive initialize()
     # and be cleaned up in finalize() after the wheel is packaged.
     # pylint: disable=consider-using-with
+
     staging_dir = tempfile.TemporaryDirectory()  # noqa: SIM115
     staging_path = Path(staging_dir.name) / sbom_filename
     staging_path.write_text(sbom_json, encoding="utf-8")

@@ -105,7 +105,8 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
         results = matcher.match(text)
         filtered = [r for r in results if r["score"] >= threshold]
         return str(filtered[0]["license_id"]) if filtered else None
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         _logger.debug("licenseid detection failed: %s", exc)
         return None
 
@@ -131,7 +132,8 @@ def canonicalize_license_id(raw: str) -> str:
         results = AggregatedLicenseMatcher().match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)
     return raw
 

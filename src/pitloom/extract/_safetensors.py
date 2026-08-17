@@ -45,7 +45,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         ValueError: If the file cannot be read as a valid Safetensors file.
     """
     try:
-        from safetensors import safe_open  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from safetensors import safe_open
     except ImportError as exc:
         raise ImportError(
             "The 'safetensors' package is required "
@@ -61,7 +62,8 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         ) as f:  # type: ignore[no-untyped-call]
             raw_metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to read Safetensors file %s: %s", model_path, exc)
         raise ValueError(
             f"Failed to read Safetensors file {model_path}: {exc}"

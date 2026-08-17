@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import IO, Any, BinaryIO, cast
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -23,26 +23,28 @@ from pitloom.extract._extract_utils import sanitize_provenance_text
 log = logging.getLogger(__name__)
 
 
-def _fickling_get_top_class(pkl_bytes: bytes) -> str | None:
-    """Use fickling to safely extract the top-level class name from pickle bytes.
+def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
+    """Use fickling to safely extract the top-level class name from a pickle file.
 
     Returns the first dotted class name (title-case final component) found in
     the pickle AST, or ``None`` if fickling is not installed or the class
     cannot be determined.  Never executes the pickle.
     """
     try:
-        import ast as pyast  # pylint: disable=import-outside-toplevel
-        import io  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        import ast as pyast
 
-        from fickling.fickle import (  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from fickling.fickle import (
             Pickled,
         )
     except ImportError:
         return None
 
     try:
-        pkl = Pickled.load(io.BytesIO(pkl_bytes))
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+        pkl = Pickled.load(cast(BinaryIO, pkl_file))
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("fickling failed to parse pickle bytes: %s", exc)
         return None
 
@@ -97,13 +99,14 @@ def _read_pytorch_zip(
     )
     if pkl_entry is not None:
         try:
-            pkl_data = zf.read(pkl_entry)
-            type_of_model = _fickling_get_top_class(pkl_data)
+            with zf.open(pkl_entry) as fh:
+                type_of_model = _fickling_get_top_class(fh)
             if type_of_model:
                 provenance["type_of_model"] = (
                     f"{source} | Field: {pkl_entry} (fickling)"
                 )
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.debug("Failed to inspect %s in %s: %s", pkl_entry, source, exc)
 
     return type_of_model, properties, provenance
@@ -137,7 +140,8 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
     Raises:
         ValueError: If the file cannot be opened.
     """
-    import zipfile  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import zipfile
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     framework = "pytorch"
@@ -156,8 +160,7 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
         provenance["properties.format_detail"] = f"{source} | Field: raw pickle format"
         try:
             with model_path.open("rb") as fh:
-                pkl_data = fh.read()
-            type_of_model = _fickling_get_top_class(pkl_data)
+                type_of_model = _fickling_get_top_class(fh)
             if type_of_model:
                 provenance["type_of_model"] = f"{source} | Field: raw pickle (fickling)"
         except OSError:

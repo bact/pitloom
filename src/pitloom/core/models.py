@@ -166,6 +166,7 @@ def _resolve_file_header_extras(
             # Deferred: core/ must not import from extract/ at runtime
             # except behind a gate like this one (see get_wheel_files()).
             # pylint: disable=import-outside-toplevel
+
             from pitloom.extract._file_headers import resolve_content_type_override
 
             override = resolve_content_type_override(
@@ -241,6 +242,7 @@ def get_wheel_files(
     """
     # TODO: Update this when supporting setuptools or other build backends.
     # pylint: disable=import-outside-toplevel,cyclic-import
+
     from hatchling.builders.wheel import WheelBuilder  # runtime dep, local import
 
     parse_header = None
@@ -312,7 +314,8 @@ def get_wheel_files(
                         **extras,
                     )
                 )
-    except Exception:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception:
         # hatchling raises ValueError when it cannot determine the file set
         # (e.g. no pyproject.toml, no recognisable package layout).  Treat
         # this the same as "no files found" so UUID computation degrades

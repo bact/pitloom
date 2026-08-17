@@ -36,7 +36,8 @@ def _read_pt2_meta_entry(
     Returns:
         Tuple of (name, provenance_value), both ``None`` on failure.
     """
-    import json  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import json
 
     try:
         meta = json.loads(zf.read(meta_entry))
@@ -51,7 +52,8 @@ def _read_pt2_meta_entry(
                 field_name = "model_name"
             if name and field_name:
                 return name, f"{source} | Field: {meta_entry}.{field_name}"
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to parse PT2 metadata entry %s: %s", meta_entry, exc)
     return None, None
 
@@ -111,7 +113,8 @@ def _read_pt2_extra_files(
     Returns:
         Tuple of ``(name, description, version, license_expr)``.
     """
-    import json  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import json
 
     file_list = set(zf.namelist())
     name: str | None = None
@@ -124,7 +127,8 @@ def _read_pt2_extra_files(
         if full in file_list:
             try:
                 return zf.read(full).decode("utf-8", errors="replace").strip() or None
-            except Exception as exc:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception as exc:
                 log.debug("Failed to read PT2 extra file %s: %s", full, exc)
         return None
 
@@ -159,7 +163,8 @@ def _read_pt2_extra_files(
                 properties["tags"] = ", ".join(str(t) for t in tags_list)
             else:
                 properties["tags"] = tags_raw
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.debug("Failed to parse PT2 extra/tags as JSON: %s", exc)
             properties["tags"] = tags_raw
         provenance["properties.tags"] = f"{source} | Field: extra/tags"
@@ -192,7 +197,8 @@ def _read_pt2_graph_io(
         ``{"name": str}``.  Returns empty lists if the file is absent or
         unparseable.
     """
-    import json  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import json
 
     model_json_path = f"{prefix}models/model.json"
     if model_json_path not in zf.namelist():
@@ -200,7 +206,8 @@ def _read_pt2_graph_io(
 
     try:
         data = json.loads(zf.read(model_json_path))
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.debug("Failed to parse PT2 model graph %s: %s", model_json_path, exc)
         return [], []
 
@@ -287,7 +294,8 @@ def _read_pt2_zip(
                 provenance["format_version"] = (
                     f"{source} | Field: {prefix}archive_version"
                 )
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.debug("Failed to read PT2 %sarchive_version: %s", prefix, exc)
 
     # PT2 Archive: optional metadata JSON (simple format).
@@ -364,7 +372,8 @@ def read_pytorch_pt2(model_path: Path) -> AiModelMetadata:
     Raises:
         ValueError: If the file is not a valid ZIP archive.
     """
-    import zipfile  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import zipfile
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
 

@@ -91,21 +91,32 @@ def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
             if extracted is None:
                 continue
 
-            with extracted:
-                content = extracted.read()
-
             parts = Path(member.name).parts
             basename = Path(member.name).name
-            if basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2:
-                pkg_info_content = content.decode("utf-8", errors="replace")
-            elif (
+
+            is_pkg_info = (
+                basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2
+            )
+            is_pyproject = (
                 basename == "pyproject.toml"
                 and pyproject_content is None
                 and len(parts) == 2
-            ):
-                pyproject_content = content
+            )
 
-            digest = hashlib.sha256(content).hexdigest()
+            hasher = hashlib.sha256()
+            with extracted:
+                if is_pkg_info or is_pyproject:
+                    content = extracted.read()
+                    hasher.update(content)
+                    if is_pkg_info:
+                        pkg_info_content = content.decode("utf-8", errors="replace")
+                    else:
+                        pyproject_content = content
+                else:
+                    while chunk := extracted.read(8192):
+                        hasher.update(chunk)
+
+            digest = hasher.hexdigest()
             project_files.append(
                 ProjectFile(
                     physical_path=member.name,
@@ -128,7 +139,8 @@ def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
                     description=proj.get("description"),
                     dependencies=proj.get("dependencies", []),
                 )
-            except Exception:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception:
                 metadata = ProjectMetadata(name="unknown")
 
     return metadata, project_files
@@ -147,21 +159,32 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
             if info.is_dir():
                 continue
 
-            with zf.open(info) as f:
-                content = f.read()
-
             parts = Path(info.filename).parts
             basename = Path(info.filename).name
-            if basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2:
-                pkg_info_content = content.decode("utf-8", errors="replace")
-            elif (
+
+            is_pkg_info = (
+                basename == "PKG-INFO" and pkg_info_content is None and len(parts) == 2
+            )
+            is_pyproject = (
                 basename == "pyproject.toml"
                 and pyproject_content is None
                 and len(parts) == 2
-            ):
-                pyproject_content = content
+            )
 
-            digest = hashlib.sha256(content).hexdigest()
+            hasher = hashlib.sha256()
+            with zf.open(info) as f:
+                if is_pkg_info or is_pyproject:
+                    content = f.read()
+                    hasher.update(content)
+                    if is_pkg_info:
+                        pkg_info_content = content.decode("utf-8", errors="replace")
+                    else:
+                        pyproject_content = content
+                else:
+                    while chunk := f.read(8192):
+                        hasher.update(chunk)
+
+            digest = hasher.hexdigest()
             project_files.append(
                 ProjectFile(
                     physical_path=info.filename,
@@ -184,7 +207,8 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
                     description=proj.get("description"),
                     dependencies=proj.get("dependencies", []),
                 )
-            except Exception:  # pylint: disable=broad-exception-caught
+            # pylint: disable=broad-exception-caught
+            except Exception:
                 metadata = ProjectMetadata(name="unknown")
 
     return metadata, project_files

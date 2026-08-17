@@ -199,6 +199,7 @@ def test_build_provenance_annotation_uses_given_encoder() -> None:
     change to build_provenance_annotation or its callers."""
 
     # pylint: disable=too-few-public-methods
+
     class _StubEncoder:
         schema_id = "stub/1"
         content_type = "text/plain"
@@ -228,6 +229,7 @@ def test_build_provenance_annotation_bad_content_type_names_schema() -> None:
     plugin's mistake is nearly impossible to trace back to its source."""
 
     # pylint: disable=too-few-public-methods
+
     class _BadEncoder:
         schema_id = "bad/1"
         content_type = "not-a-mime-type"
@@ -458,6 +460,7 @@ def test_emit_provenance_appends_to_existing_comment() -> None:
 
 def test_swapping_encoder_changes_output_without_changing_wiring() -> None:
     # pylint: disable=too-few-public-methods
+
     class _FutureSchemaEncoder:
         schema_id = "future-schema/1"
         content_type = "application/ld+json"
@@ -895,6 +898,7 @@ def test_sanitize_for_json_orders_unsortable_elements_deterministically() -> Non
     ``PYTHONHASHSEED``-dependent. Ordering by canonical JSON form instead of
     Python's native `<` must stay stable regardless of insertion order."""
     # pylint: disable=import-outside-toplevel
+
     from pitloom.assemble.spdx3.provenance import _sanitize_for_json
 
     set_a = {frozenset({1, 2}), frozenset({3, 4}), frozenset({5})}

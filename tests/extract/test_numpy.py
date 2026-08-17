@@ -189,24 +189,34 @@ def test_read_numpy_npz_multiple_arrays(tmp_path: Path) -> None:
     model_file = tmp_path / "arrays.npz"
     model_file.write_bytes(b"fake")
 
-    mock_arr_a = MagicMock()
-    mock_arr_a.shape = (10, 5)
-    mock_arr_a.dtype = MagicMock(__str__=lambda _: "float32")
-    mock_arr_b = MagicMock()
-    mock_arr_b.shape = (5,)
-    mock_arr_b.dtype = MagicMock(__str__=lambda _: "float32")
-
     mock_npz = MagicMock()
     mock_npz.__enter__ = MagicMock(return_value=mock_npz)
     mock_npz.__exit__ = MagicMock(return_value=False)
-    mock_npz.files = ["weights", "biases"]
-    mock_npz.__getitem__ = lambda self, key: (
-        mock_arr_a if key == "weights" else mock_arr_b
-    )
+    mock_npz.zip.namelist.return_value = ["weights.npy", "biases.npy"]
+
+    mock_file_a = MagicMock()
+    mock_file_b = MagicMock()
+
+    def mock_zip_open(name: str) -> MagicMock:
+        cm = MagicMock()
+        cm.__enter__.return_value = (
+            mock_file_a if name == "weights.npy" else mock_file_b
+        )
+        return cm
+
+    mock_npz.zip.open.side_effect = mock_zip_open
 
     mock_np = MagicMock()
     mock_np.load.return_value = mock_npz
-    with patch.dict("sys.modules", {"numpy": mock_np}):
+
+    mock_format = MagicMock()
+    mock_format.read_magic.return_value = (1, 0)
+    mock_format._read_array_header.side_effect = lambda f, v: (
+        ((10, 5), False, "float32") if f == mock_file_a else ((5,), False, "float32")
+    )
+    mock_np.lib.format = mock_format
+
+    with patch.dict("sys.modules", {"numpy": mock_np, "numpy.lib.format": mock_format}):
         meta = read_numpy(model_file)
 
     assert meta.format_info.model_format == AiModelFormat.NUMPY
@@ -224,11 +234,11 @@ def test_read_numpy_npz_no_format_version(tmp_path: Path) -> None:
     mock_npz = MagicMock()
     mock_npz.__enter__ = MagicMock(return_value=mock_npz)
     mock_npz.__exit__ = MagicMock(return_value=False)
-    mock_npz.files = []
+    mock_npz.zip.namelist.return_value = []
 
     mock_np = MagicMock()
     mock_np.load.return_value = mock_npz
-    with patch.dict("sys.modules", {"numpy": mock_np}):
+    with patch.dict("sys.modules", {"numpy": mock_np, "numpy.lib.format": MagicMock()}):
         meta = read_numpy(model_file)
     assert meta.format_info.format_version is None
 

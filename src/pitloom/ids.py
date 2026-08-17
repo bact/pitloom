@@ -359,6 +359,7 @@ class IdRegistry:
                 this root, in POSIX form.
         """
         # pylint: disable=import-outside-toplevel,cyclic-import
+
         from pitloom.extract.ai_model import AiModelFormat, detect_ai_model_format
 
         for file_path in _iter_files(paths, project_root):
@@ -578,7 +579,8 @@ def _load_or_create_registry(
     if registry_path.exists():
         try:
             return IdRegistry.load(registry_path)
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             print(
                 f"ERROR: failed to load registry from {registry_path}: {exc}",
                 file=sys.stderr,
