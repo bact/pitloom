@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, BinaryIO, cast
 from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -40,7 +40,7 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
         return None
 
     try:
-        pkl = Pickled.load(pkl_file)
+        pkl = Pickled.load(cast(BinaryIO, pkl_file))
     except Exception as exc:  # pylint: disable=broad-exception-caught
         log.debug("fickling failed to parse pickle bytes: %s", exc)
         return None
