@@ -146,13 +146,18 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
         ImportError: If ``numpy`` is not installed.
         ValueError: If the file cannot be read as a valid NumPy file.
     """
+    import importlib.util
+
     try:
-        import numpy as np  # pylint: disable=import-outside-toplevel,unused-import
-    except ImportError as exc:
+        has_numpy = importlib.util.find_spec("numpy") is not None
+    except ValueError:
+        has_numpy = True
+
+    if not has_numpy:
         raise ImportError(
             "The 'numpy' package is required to extract NumPy model metadata. "
             "Install it with: pip install numpy"
-        ) from exc
+        )
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
     format_version: str | None = None
