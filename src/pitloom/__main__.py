@@ -14,7 +14,6 @@ import typing
 from pitloom.cli.parser import _build_parser
 
 
-
 def _configure_logging() -> None:
     """Prefix internal ``log.warning(...)`` output with ``WARNING: ``.
 

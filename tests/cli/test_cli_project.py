@@ -18,8 +18,7 @@ from pitloom.cli.commands import enrich as mod_enrich
 from pitloom.cli.commands import model as mod_model
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.creation import CreationMetadata
-
-from .shared import _make_simple_project
+from tests.cli.shared import _make_simple_project
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (

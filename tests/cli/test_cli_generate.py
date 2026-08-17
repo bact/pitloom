@@ -17,8 +17,7 @@ from pitloom.cli.commands import env as mod_env
 from pitloom.cli.commands import generate as mod_generate
 from pitloom.core.creation import CreationMetadata
 from pitloom.ids import IdRegistry
-
-from .shared import _make_simple_project
+from tests.cli.shared import _make_simple_project
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -183,10 +182,10 @@ def test_deployed_dispatches_to_generate_env_sbom(
         pretty: bool = False,
         describe_relationship: bool = False,
         registry: object = None,
-            offline: bool = False,
-            provenance: object = None,
-            **kwargs: object,
-        ) -> str:
+        offline: bool = False,
+        provenance: object = None,
+        **kwargs: object,
+    ) -> str:
         _ = (creation_metadata, pretty, describe_relationship, registry, offline)
         captured["output_path"] = output_path
         return "{}"

@@ -23,8 +23,8 @@ from pitloom.cli.options import _resolve_common_options
 def _run_generate_command(args: argparse.Namespace) -> int:
     """Smart generate mode."""
     target_path = Path(args.target) if args.target else None
-    pitloom_config, creation_metadata, pretty, describe_relationship = _resolve_common_options(
-        args, target_dir=target_path
+    pitloom_config, creation_metadata, pretty, describe_relationship = (
+        _resolve_common_options(args, target_dir=target_path)
     )
     output_path = args.output
     sbom_json = generate(
