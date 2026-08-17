@@ -93,7 +93,26 @@ def _shim_read_array_header(
         return fmt._read_array_header(fp, version)  # type: ignore
     if version == (1, 0):
         return fmt.read_array_header_1_0(fp)  # type: ignore
-    return fmt.read_array_header_2_0(fp)  # type: ignore
+    if version == (2, 0):
+        return fmt.read_array_header_2_0(fp)  # type: ignore
+
+    # Fallback for version (3, 0) on numpy >= 2.0 where _read_array_header is removed
+    # and read_array_header_3_0 is not exposed.
+    # (3, 0) uses 4-byte uint for length and utf-8.
+    # pylint: disable=import-outside-toplevel
+    import ast
+    # pylint: disable=import-outside-toplevel
+    import struct
+
+    hlength_str = fp.read(4)
+    header_length = struct.unpack("<I", hlength_str)[0]
+    header = fp.read(header_length).decode("utf-8")
+    d = ast.literal_eval(header)
+    return (
+        d["shape"],
+        d["fortran_order"],
+        fmt.descr_to_dtype(d["descr"]),  # type: ignore[no-untyped-call]
+    )
 
 
 def _read_npz_metadata(
