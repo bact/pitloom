@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Hugging Face Hub mock data
 
-`tests/test_extract_huggingface.py` exercises `pitloom.extract._huggingface`
+`tests/extract/huggingface/` exercises `pitloom.extract._huggingface`
 entirely through mocks -- no network calls are made at test time.  The survey
 covers **165 real model repositories** observed on Hugging Face Hub in May 2026.
 

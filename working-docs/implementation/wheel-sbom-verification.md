@@ -233,7 +233,7 @@ Same as rc1 below, against `https://pypi.org/pypi/pitloom/0.13.3/json`.
   sha256 or better; specifically, md5 and sha1 are not permitted."*
   Pitloom hardcodes SHA-256 with no weaker fallback
   (`src/pitloom/core/models.py:134`, `:99` for the Merkle-root
-  aggregation; `src/pitloom/assemble/spdx3/document.py:209`).
+  aggregation; `src/pitloom/assemble/spdx3/document.py:136`).
 - **File-collection algorithm.** `get_wheel_files()`
   (`src/pitloom/core/models.py:107-159`) does not independently walk the
   filesystem -- it instantiates Hatchling's own

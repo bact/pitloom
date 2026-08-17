@@ -17,7 +17,7 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.ids import (  # type: ignore[attr-defined]
     _load_or_create_registry,
-    _run_ids_cli,
+    _run_ids_command,
 )
 from pitloom.cli.parser import _build_parser
 from pitloom.ids import IdRegistry
@@ -145,9 +145,9 @@ def test_ids_import_fails(
 
 def test_ids_cli_invalid_command() -> None:
     # argparse will normally catch this, but if we bypass it
-    # or test `_run_ids_cli` directly
+    # or test `_run_ids_command` directly
     args = argparse.Namespace(ids_command="invalid")
-    result = _run_ids_cli(args)
+    result = _run_ids_command(args)
     assert result == 1
 
 
@@ -172,7 +172,7 @@ def test_ids_generate_cli_entity_flag(
             "other:dataset_DatasetPackage",
         ]
     )
-    exit_code = _run_ids_cli(args)
+    exit_code = _run_ids_command(args)
     assert exit_code == 0
 
     registry = IdRegistry.load(tmp_path / "loom-ids.json")

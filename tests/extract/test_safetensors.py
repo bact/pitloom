@@ -234,7 +234,7 @@ def test_phi_format_property(phi_metadata: AiModelMetadata) -> None:
 
 
 def test_phi_tensor_count(phi_metadata: AiModelMetadata) -> None:
-    # 2-layer Phi model: embeddings + 2 × attention blocks + head
+    # 2-layer Phi model: embeddings + 2 x attention blocks + head
     assert len(phi_metadata.inputs) == 33
 
 

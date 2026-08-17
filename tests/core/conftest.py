@@ -123,14 +123,15 @@ def _run_unify_pipeline(tmppath: Path) -> None:
     registry.register_entity("demo-model", "ai_AIPackage")
     registry.save(tmppath / "loom-ids.json")
     with patch(
-        "pitloom.loom._get_caller_script_path",
+        "pitloom._loom_active_run._get_caller_script_path",
         return_value="src/fragdemo/preprocess.py",
     ):
         with loom.run(tmppath / "fragments" / "01_preprocess.spdx3.json") as run:
             run.add_input_dataset("data/raw.txt")
             run.add_output_dataset("data/train.txt")
     with patch(
-        "pitloom.loom._get_caller_script_path", return_value="src/fragdemo/train.py"
+        "pitloom._loom_active_run._get_caller_script_path",
+        return_value="src/fragdemo/train.py",
     ):
         with loom.run(tmppath / "fragments" / "02_train.spdx3.json") as run:
             run.set_model("demo-model", model_type="supervised")

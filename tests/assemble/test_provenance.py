@@ -218,7 +218,7 @@ authors = [
 def test_provenance_emitted_as_annotation_in_sbom_output() -> None:
     """The default provenance_format ("both") records high-signal provenance as
     a Core Annotation in addition to the legacy comment (see
-    test_annotation_provenance.py and the implementation design doc)."""
+    test_annotation_provenance_emit.py and the implementation design doc)."""
     pyproject_content = """
 [project]
 name = "test-pkg"

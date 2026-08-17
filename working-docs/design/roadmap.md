@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,13 +27,13 @@ SPDX-License-Identifier: CC0-1.0
 - [x] Setuptools support -- initial implementation
   - `read_setup_cfg()`, `read_setup_py()`, `read_setuptools()`,
     `merge_metadata()`, `detect_build_backend()`
-    in `src/pitloom/extract/setuptools.py`
+    in `src/pitloom/extract/_setuptools.py`
   - Conflict resolution: `pyproject.toml` > `setup.cfg` > `setup.py`
   - CLI and `generate_project_sbom()` work without `pyproject.toml`
   - `[tool:pitloom]` config section in `setup.cfg`
 - [x] Poetry support -- initial implementation
   - `read_poetry()`, `extract_poetry_metadata()`
-    in `src/pitloom/extract/poetry.py`
+    in `src/pitloom/extract/_poetry.py`
   - Reads `[tool.poetry]` and `[tool.poetry.dependencies]`
   - `[tool.poetry.group.*]` dev/deploy dependency groups intentionally excluded
   - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440

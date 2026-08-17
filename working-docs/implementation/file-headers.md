@@ -25,7 +25,7 @@ generally) already carry this as machine-readable
 [SPDX File Tags](https://spdx.github.io/spdx-spec/v2.3.1-dev/file-tags/)
 in a leading comment block:
 
-```
+```python
 # SPDX-FileContributor: Arthit Suriyawongkul
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
@@ -261,8 +261,9 @@ field's source string is in `TRANSPARENT_SOURCES` -- a file's own path
 is never in that set, so calling it as-is would silently misclassify
 every file's own tag as `hasConcludedLicense`. There's exactly one
 candidate at file granularity and its role is `declared` by
-construction, so `build_file_declared_license()` (`assemble/spdx3/deps.py`)
-skips the classification heuristic entirely.
+construction, so `build_file_declared_license()`
+(`assemble/spdx3/deps_license.py`) skips the classification heuristic
+entirely.
 
 **Nothing is emitted when a file's header scan finds nothing.** No
 `NOASSERTION` license/copyright per file -- a project can have thousands

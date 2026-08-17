@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,22 +16,39 @@ from pitloom.assemble import (
     generate,
 )
 from pitloom.cli.commands.utils import cli_error_handler
-from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.cli.options import _resolve_common_options
 
 
 @cli_error_handler("SBOM generation failed")
 def _run_generate_command(args: argparse.Namespace) -> int:
-    """Smart generate mode."""
+    """Smart generate mode.
+
+    ``-o``/``--output`` is required here (unlike ``project``/``wheel``/
+    ``model``/``env``/``enrich``, which each know their target type and
+    so have an obvious default filename): ``generate`` dispatches across
+    project/wheel/model/env targets, each with a different natural
+    default name, so guessing one would be arbitrary. Failing fast is
+    more transparent than picking a name the user didn't ask for.
+    """
+    if args.output is None:
+        print(
+            "ERROR: -o/--output is required for 'loom generate' "
+            "(the target-detection dispatch has no single natural default "
+            "filename -- pass -o FILE, or use 'loom project'/'loom wheel'/"
+            "'loom model'/'loom env' directly for that target type's own "
+            "default).",
+            file=sys.stderr,
+        )
+        return 1
+
     target_path = Path(args.target) if args.target else None
     pitloom_config, creation_metadata, pretty, describe_relationship = (
         _resolve_common_options(args, target_dir=target_path)
     )
-    output_path = args.output
-    sbom_json = generate(
+    generate(
         args.target,
         offline=args.offline or None,
-        output_path=output_path,
+        output_path=args.output,
         creation_metadata=creation_metadata,
         pretty=pretty,
         describe_relationship=describe_relationship,
@@ -41,10 +59,6 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         content_type=args.content_type,
         content_type_method=args.content_type_method,
     )
-    if output_path is None:
-        fallback_path = Path(f"sbom{_SPDX3_JSON_EXT}")
-        fallback_path.write_text(sbom_json, encoding="utf-8")
-        print(f"Wrote SBOM to {fallback_path}")
     return 0
 
 

@@ -74,6 +74,7 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
     return metadata
 
 
+# pylint: disable-next=too-many-locals
 def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract metadata and files from a tar-based sdist (.tar.gz, .tgz)."""
     metadata = ProjectMetadata(name="unknown")
@@ -146,6 +147,7 @@ def _read_tar_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
     return metadata, project_files
 
 
+# pylint: disable-next=too-many-locals
 def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile]]:
     """Extract metadata and files from a zip-based sdist (.zip)."""
     metadata = ProjectMetadata(name="unknown")

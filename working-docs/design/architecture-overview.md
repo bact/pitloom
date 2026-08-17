@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-07-08
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,7 +91,7 @@ each targeting a specific functional domain (SPDX Group 2024).
 
 **`specVersion` must track which profiles/classes a document actually
 uses, not a fixed default.** Pitloom currently hardcodes
-`CreationInfo.specVersion = "3.0.1"` in `assemble/spdx3/document.py`,
+`CreationInfo.specVersion = "3.0.1"` in `assemble/spdx3/creation_info.py`,
 which is correct today only because 3.0.1 is the sole released SPDX 3.x
 version and nothing Pitloom emits requires a later one. This will stop
 being sufficient the moment Pitloom emits a class or property first
@@ -191,8 +191,8 @@ Pitloom will follow modern Python software engineering best practices,
 utilizing the "src" layout to prevent subtle import-path bugs and ensure
 the development environment mirrors production (Ghadge 2025).
 
-See [working-docs/implementation/summary.md](../implementation/summary.md) for the
-canonical, up-to-date project tree.
+See [working-docs/implementation/file-map.md](../implementation/file-map.md)
+for the canonical, up-to-date project tree.
 
 ## Integration with the SCA pipeline and DevOps ecosystem
 
@@ -213,8 +213,8 @@ standards, and the roadmap for new integrations.
 
 | Source | Extractor / mechanism | What it contributes |
 | :---- | :---- | :---- |
-| `pyproject.toml` | `pitloom.extract.pyproject` | Package identity, version, license, dependencies, authors |
-| `setup.cfg` / `setup.py` | `pitloom.extract.setuptools` | Package identity, version, license, dependencies, authors |
+| `pyproject.toml` | `pitloom.extract._pyproject` | Package identity, version, license, dependencies, authors |
+| `setup.cfg` / `setup.py` | `pitloom.extract._setuptools` | Package identity, version, license, dependencies, authors |
 | Python environment | `pitloom.extract.env` | Deployed environment dependency graph |
 | Built wheel (`.whl`) | `pitloom.extract.wheel` / `binary` | Analyzed wheel metadata, files, and phantom dependencies |
 | AI model files (GGUF, ONNX, SafeTensors, etc.) | `pitloom.extract.ai_model` | Model architecture, format, hyperparameters, framework |
@@ -290,8 +290,8 @@ See `working-docs/design/sbom-fragments.md`.
 ```text
 Information sources
 ───────────────────
-pyproject.toml            -> ProjectMetadata           (pitloom.extract.pyproject)
-setup.cfg / setup.py      -> ProjectMetadata           (pitloom.extract.setuptools)
+pyproject.toml            -> ProjectMetadata           (pitloom.extract._pyproject)
+setup.cfg / setup.py      -> ProjectMetadata           (pitloom.extract._setuptools)
 model.onnx / .gguf / …    -> AiModelMetadata           (pitloom.extract.ai_model)
 dataset.croissant.json    -> DatasetMetadata           (pitloom.extract.dataset)
 MLflow run                -> SPDX AI fragment          (pitloom.extract.mlflow)  [planned]

@@ -36,8 +36,8 @@ if TYPE_CHECKING:
 PITLOOM_NS = UUID("aecb050b-c1a4-5c3f-aaa7-d8e12dee7e5b")
 
 # Counters keyed by (doc_uuid, element_type) so each type has its own sequence.
-# For example: (uuid, "software_Package") -> 1, 2, 3 …
-#              (uuid, "Relationship")     -> 1, 2, 3 …
+# For example: (uuid, "software_Package") -> 1, 2, 3 ...
+#              (uuid, "Relationship")     -> 1, 2, 3 ...
 _ID_COUNTERS: dict[tuple[str, str], int] = {}
 
 
@@ -90,7 +90,7 @@ def _clear_doc_counters(doc_uuid: str) -> None:
 
     Must be called at the start of each document assembly to guarantee that
     repeated builds of the same package (same deterministic *doc_uuid*) always
-    produce the same element fragment IDs (``Person-1``, ``Package-1``, …).
+    produce the same element fragment IDs (``Person-1``, ``Package-1``, ...).
     Without this reset, counters from a previous build in the same process
     would cause the second build to emit ``Person-2``, ``Package-2``, etc.
     """
@@ -136,6 +136,7 @@ class _FileHeaderExtras(TypedDict):
     content_type_method: str | None
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _resolve_file_header_extras(
     raw_bytes: bytes,
     filename: str,
@@ -437,6 +438,7 @@ def generate_spdx_id(
     return f"{doc_namespace}#{prefix}-{seq_id}"
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def build_relationship(
     from_id: str | None,
     to_ids: list[str],

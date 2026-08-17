@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-05-13
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -22,9 +22,9 @@ under `[tool.poetry]`.  Issue [#64].
 
 | File | Role |
 | :--- | :--- |
-| `src/pitloom/extract/poetry.py` | New extraction module |
-| `src/pitloom/extract/pyproject.py` | Updated to fall back to / merge Poetry data |
-| `tests/test_poetry.py` | 51 unit and integration tests |
+| `src/pitloom/extract/_poetry.py` | New extraction module (renamed from `poetry.py`) |
+| `src/pitloom/extract/_pyproject.py` | Updated to fall back to / merge Poetry data |
+| `tests/extract/test_poetry_parsing.py`, `tests/extract/test_poetry_pyproject.py` | 51 unit and integration tests (originally `tests/test_poetry.py`, later split into these two files -- see `working-docs/design/cli-test-coverage-roadmap.md`) |
 | `tests/fixtures/projects/sampleproject-poetry/` | Real-world fixture (mistral-inference) |
 
 ## Extraction functions

@@ -77,6 +77,7 @@ def _build_creation_option_rows(
     return rows
 
 
+# pylint: disable-next=too-many-locals
 def _print_verbose(
     args: argparse.Namespace,
     project_dir: Path,

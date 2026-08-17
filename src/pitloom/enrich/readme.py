@@ -8,7 +8,7 @@
 Deliberately narrow: parses only the leading ``---\\n...\\n---`` YAML
 frontmatter block -- the de facto convention Hugging Face model cards
 popularized, already handled for *remote* HF models by
-:func:`pitloom.extract._huggingface._load_model_card`. This module closes
+:func:`pitloom.extract._huggingface_fetch._load_model_card`. This module closes
 the equivalent gap for a *local* model file sitting next to a local
 ``README.md``/``MODEL_CARD.md``, which no local-format extractor
 (``_gguf.py``, ``_safetensors.py``, ...) ever reads.

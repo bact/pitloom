@@ -7,7 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 # Croissant fixtures
 
 Synthetic JSON-LD files in [Croissant](https://mlcommons.org/croissant/) format,
-used by [tests/test_extract_croissant.py](../../test_extract_croissant.py) to test
+used by [tests/extract/test_croissant.py](../../extract/test_croissant.py) to test
 dataset metadata extraction via `pitloom.extract._croissant`.
 
 ## Fixtures

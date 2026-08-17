@@ -269,6 +269,7 @@ def _parse_training_config(
         pass
 
 
+# pylint: disable-next=too-many-locals
 def read_hdf5(model_path: Path) -> AiModelMetadata:
     """Extract metadata from a generic HDF5 file (``.h5`` or ``.hdf5``).
 

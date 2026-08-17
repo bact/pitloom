@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -90,7 +90,13 @@ Everything since v0.12.0 (the last tagged release, 2026-07-10) is
   URL as ground truth, see `claude-code-plugin.md`'s design notes).
 - `tests/test_provenance_integration.py`, `test_annotation_provenance.py`,
   `test_fragments.py` -- all still pass; the N1-N6 machinery survived
-  the CLI/API redesign below intact.
+  the CLI/API redesign below intact. (These three have since moved and
+  split further: `test_provenance_integration.py` ->
+  `tests/assemble/test_provenance_integration.py`;
+  `test_annotation_provenance.py` -> `tests/assemble/
+  test_annotation_provenance_core.py`/`_emit.py`/`_annotations.py`;
+  `test_fragments.py` -> `tests/core/test_fragments_misc.py`/`_merge.py`/
+  `_project.py`/`_extract.py`. See `cli-test-coverage-roadmap.md`.)
 
 ### 2026-08-10 recheck: what changed since PR #113, and why it matters
 
@@ -132,7 +138,8 @@ see [`cli-ux.md`](../cli-ux.md) for the full rationale. As of now:
   when using the smart entrypoint on a project. Fixed to call
   `read_project()` on the target when it's an existing path, matching
   `loom project`'s precedence. Covered by 58 new lines in
-  `tests/test_main_cli.py`.
+  `tests/test_main_cli.py` (that file has since been split into
+  `tests/cli/*.py` -- see `cli-test-coverage-roadmap.md`).
 - **Also merged in this window**: #115/#117 (Bandit hardening --
   pinned `hf_hub_download()` revisions, hardened env-command
   invocation), #118 (mypy >= 2.3.0), #119 (OpenSSF Scorecard CI),
@@ -189,7 +196,7 @@ value itself).
 
 ## Integration test — done
 
-Landed in [`tests/test_provenance_integration.py`](../../../tests/test_provenance_integration.py)
+Landed in [`tests/assemble/test_provenance_integration.py`](../../../tests/assemble/test_provenance_integration.py)
 (PR [#112](https://github.com/bact/pitloom/pull/112)), exercising N1, N2,
 N4, N5, N6 together on one representative model. Confirms: all five
 native constructs present on the same document at once; no Annotation
@@ -201,7 +208,10 @@ shape directly (the real merge path is separately covered by
 `test_merge_fragments_populates_spdx_document_imports` in
 `tests/test_fragments.py`). Not extended to cover N3 -- enrichment's own
 coverage lives in `test_generator.py`/`test_main_cli.py`/
-`test_hatch_hook.py` instead (see PR #124).
+`test_hatch_hook.py` instead (see PR #124; those three files have
+since been split into `tests/core/test_generator_*.py`,
+`tests/cli/*.py`, and `tests/extract/test_hatch_hook_*.py`
+respectively).
 
 ## Workflow notes carried from Phase 1
 
