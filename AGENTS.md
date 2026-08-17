@@ -31,7 +31,7 @@
 - **Honor user intent over silent fallbacks**: Do not implement implicit fallbacks that contradict the user's explicit instructions.
 - **No silent deviations**: Always emit a clear `WARNING:` log or stderr message explaining what decision was made and why if deviating from instruction.
 - **Respect configuration hierarchy**: Always honor the configuration cascade (CLI flags > `pyproject.toml` > hardcoded defaults).
-- **Resource efficiency**: Prevent excessive network access (use caching and route optimization). Prevent memory spikes by streaming data for large structures.
+- **Resource efficiency**: Prevent excessive network access (use caching and route optimization). Prevent memory spikes by streaming data for large structures. Never load entire files (like ML models or archives) into memory. Always use chunked reads (`read(8192)`), memory mapping, or native lazy header extraction (e.g., `np.lib.format` for NumPy, stream loading for fickling/pickle) to extract metadata.
 
 ## Code health and continuous refactoring
 
