@@ -10,8 +10,6 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import PhantomDependency, ProjectFile, ProjectMetadata
 
-from .conftest import *
-
 
 def test_phantom_dependency_creates_package_and_dependency_relationship() -> None:
     """A phantom dependency produces a software_Package (name/version) and a

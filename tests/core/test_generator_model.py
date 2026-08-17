@@ -24,7 +24,13 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.ids import IdRegistry
 
-from .conftest import *
+from .conftest import (
+    _AI_LICENSE_CASES,
+    _AI_MODEL_ROOT,
+    _BUILD_MODEL_LICENSE_CASES,
+    _check_license_relationships,
+    _write_smoke_project,
+)
 
 
 def test_assembler_ai_model_with_inputs_outputs() -> None:

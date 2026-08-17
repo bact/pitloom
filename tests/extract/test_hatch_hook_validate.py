@@ -9,8 +9,6 @@ from pitloom.plugins.hatch import (  # noqa: E402
     _validate_config,
 )
 
-from .conftest import *
-
 
 def test_validate_config_defaults_pass() -> None:
     """Empty config (all defaults) must not raise."""

@@ -12,8 +12,6 @@ from pitloom.plugins.hatch import (  # noqa: E402
     _check_hatchling_sbom_support,
 )
 
-from .conftest import *
-
 
 def test_check_hatchling_sbom_support_passes_for_current_hatchling() -> None:
     """The Hatchling installed in the test environment must satisfy the gate."""

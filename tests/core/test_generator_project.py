@@ -25,7 +25,11 @@ from pitloom.core.models import generate_spdx_id
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
-from .conftest import *
+from .conftest import (
+    _AI_MODEL_ROOT,
+    _creation_agents,
+    _license_relationships,
+)
 
 
 def test_generate_project_sbom_basic() -> None:

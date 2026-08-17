@@ -11,7 +11,10 @@ from pitloom.extract._huggingface import (
     read_huggingface,
 )
 
-from .conftest import *
+from .conftest import (
+    _make_card_data,
+    _patch_hf_calls,
+)
 
 
 def test_read_huggingface_name() -> None:

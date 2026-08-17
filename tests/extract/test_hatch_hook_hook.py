@@ -20,7 +20,12 @@ from pitloom.export.spdx3_json import (  # noqa: E402
     require_spdx_id,
 )
 
-from .conftest import *
+from .conftest import (
+    PYPROJECT_WITH_PRETTY,
+    make_hook,
+    write_pyproject,
+    write_pyproject_with_pitloom_config,
+)
 
 
 def test_hook_initialize_stages_sbom() -> None:

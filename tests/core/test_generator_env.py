@@ -12,8 +12,6 @@ from pitloom.assemble import (
     generate_env_sbom,
 )
 
-from .conftest import *
-
 
 def test_generate_env_sbom_mocked_pipdeptree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

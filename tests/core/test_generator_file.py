@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from pitloom.core.project import ProjectFile
 
-from .conftest import *
+from .conftest import (
+    _annotation_fields_for,
+    _build_graph_for_files,
+    _find_file_element,
+)
 
 
 def test_build_file_native_copyright_and_declared_license() -> None:

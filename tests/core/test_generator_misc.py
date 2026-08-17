@@ -24,7 +24,12 @@ from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.ai_model import read_ai_model
 
-from .conftest import *
+from .conftest import (
+    _AI_MODEL_FIXTURES,
+    _AI_MODEL_ROOT,
+    _check_license_relationships,
+    _make_wheel,
+)
 
 
 def test_build_package_files_have_sha256_verified_using() -> None:

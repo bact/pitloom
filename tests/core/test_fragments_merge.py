@@ -16,7 +16,16 @@ from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
 
-from .conftest import *
+from .conftest import (
+    _AI_MODEL_FRAGMENT,
+    _DATASET_FRAGMENT,
+    _PYPROJECT_TEMPLATE,
+    _TRAINING_RUN_FRAGMENT,
+    _by_type,
+    _hyperparams,
+    _merge_and_parse,
+    _relationships,
+)
 
 
 class TestMultipleFragmentsMerge:

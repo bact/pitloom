@@ -229,7 +229,7 @@ def test_resolve_common_options_file_target(tmp_path: Path) -> None:
     conf, meta, pretty, desc = _resolve_common_options(
         args, target_dir=f, load_project=True
     )
-    # The config should gracefully fallback to empty because no pyproject exists in parent
+    # The config should gracefully fallback to empty because no pyproject exists in parent  # noqa: E501
     assert conf.pretty is False
 
 

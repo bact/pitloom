@@ -7,8 +7,6 @@ from pitloom.extract._huggingface import (
     parse_hf_model_id,
 )
 
-from .conftest import *
-
 
 @pytest.mark.parametrize(
     ("source", "expected_id"),

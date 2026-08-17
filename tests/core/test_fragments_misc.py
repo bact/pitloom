@@ -14,7 +14,21 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
 
-from .conftest import *
+from .conftest import (
+    _AI_MODEL_FRAGMENT,
+    _DATASET_FRAGMENT,
+    _TRAINING_RUN_FRAGMENT,
+    _by_type,
+    _entries,
+    _fixed_creation,
+    _hyperparams,
+    _make_unify_project,
+    _merge_and_parse,
+    _metrics,
+    _relationships,
+    _resolve,
+    _run_unify_pipeline,
+)
 
 
 class TestAiModelFragment:

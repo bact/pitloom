@@ -9,7 +9,9 @@ import pytest
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
-from .conftest import *
+from .conftest import (
+    _FRAGMENTS_DIR,
+)
 
 
 def test_missing_fragment_does_not_raise(caplog: pytest.LogCaptureFixture) -> None:

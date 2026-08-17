@@ -5,7 +5,9 @@ from pitloom.extract._huggingface import (
     read_huggingface,
 )
 
-from .conftest import *
+from .conftest import (
+    _patch_openthaigpt,
+)
 
 
 def test_openthaigpt_name() -> None:
