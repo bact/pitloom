@@ -84,6 +84,7 @@ flake8
 - Avoid ambiguous variable name (E741).
 - Adhere strictly to complexity limits (Returns≤6, Args≤5, Locals≤15, Nesting≤5, McCabe≤10, Cognitive≤15).
 - Enforce max line length 88 (prefer 80).
+- Sort all imports alphabetically and logically (enforced by `ruff` / `isort`).
 - Remove unused imports and trailing whitespace.
 - Restrict non-ASCII characters to human language messages and diagrams.
 
