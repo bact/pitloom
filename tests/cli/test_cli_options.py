@@ -211,3 +211,146 @@ def test_no_creation_tool(
     )
     result = __main__.main()
     assert result == 0
+
+
+def test_resolve_common_options_file_target(tmp_path: Path) -> None:
+    import argparse
+
+    from pitloom.cli.options import _resolve_common_options
+
+    f = tmp_path / "target.txt"
+    f.write_text("a")
+    args = argparse.Namespace(
+        no_creation_tool=True,
+        creators=[],
+        creation_datetime=None,
+        creation_comment=None,
+    )
+    conf, meta, pretty, desc = _resolve_common_options(
+        args, target_dir=f, load_project=True
+    )
+    # The config should gracefully fallback to empty because no pyproject exists in parent  # noqa: E501
+    assert conf.pretty is False
+
+
+def test_resolve_common_options_not_found(tmp_path: Path) -> None:
+    import argparse
+
+    from pitloom.cli.options import _resolve_common_options
+
+    # passing a non-existent dir
+    missing = tmp_path / "missing"
+    args = argparse.Namespace(
+        no_creation_tool=True,
+        creators=[],
+        creation_datetime=None,
+        creation_comment=None,
+    )
+    conf, meta, pretty, desc = _resolve_common_options(
+        args, target_dir=missing, load_project=True
+    )
+    assert conf.pretty is False
+
+
+def test_read_pitloom_tool_missing_sections(tmp_path: Path) -> None:
+    from pitloom.cli.options import _load_pitloom_tool_section
+
+    # No tool section
+    p = tmp_path / "pyproject.toml"
+    p.write_text("[project]\nname='a'\n")
+    assert _load_pitloom_tool_section(p) == {}
+
+    # No tool.pitloom section
+    p.write_text("[tool.other]\nval=1\n")
+    assert _load_pitloom_tool_section(p) == {}
+
+    # Malformed toml
+    p.write_text("[tool")
+    assert _load_pitloom_tool_section(p) == {}
+
+
+def test_resolve_describe_relationship_and_pretty() -> None:
+    import argparse
+
+    from pitloom.cli.options import (
+        _resolve_describe_relationship,
+        _resolve_pretty,
+    )
+    from pitloom.core.config import PitloomConfig
+
+    conf = PitloomConfig(pretty=True, describe_relationship=True)
+    args = argparse.Namespace(pretty=False, describe_relationship=False)
+
+    # command line overrides all
+    v, src = _resolve_pretty(args, conf, {})
+    assert v is False
+    assert src == "command-line"
+
+    v, src = _resolve_describe_relationship(args, conf, {})
+    assert v is False
+    assert src == "command-line"
+
+    # fallback to pyproject if no command line
+    args = argparse.Namespace(pretty=None, describe_relationship=None)
+    v, src = _resolve_pretty(args, conf, {"pretty": False})
+    assert v is True  # value comes from conf, source indicates pyproject
+    assert src == "pyproject.toml"
+
+    v, src = _resolve_describe_relationship(
+        args, conf, {"describe_relationship": False}
+    )
+    assert v is True
+    assert src == "pyproject.toml"
+
+
+def test_resolve_output_path_combinations() -> None:
+    from pitloom.cli.options import _resolve_output_path
+    from pitloom.core.config import PitloomConfig
+    from pitloom.core.project import ProjectMetadata
+
+    # Explicit path
+    assert _resolve_output_path(
+        Path("explicit.json"), ProjectMetadata(name="empty"), PitloomConfig()
+    ) == Path("explicit.json")
+
+    # basename override
+    assert _resolve_output_path(
+        None, ProjectMetadata(name="empty"), PitloomConfig(sbom_basename="mybase")
+    ) == Path("mybase.spdx3.json")
+
+    # fallback to project name and version
+    assert _resolve_output_path(
+        None, ProjectMetadata(name="pkg", version="1.0"), PitloomConfig()
+    ) == Path("pkg-1.0.spdx3.json")
+
+    # fallback to project name only
+    assert _resolve_output_path(
+        None, ProjectMetadata(name="pkg", version=""), PitloomConfig()
+    ) == Path("pkg.spdx3.json")
+
+    # ultimate fallback
+    assert _resolve_output_path(
+        None, ProjectMetadata(name="", version=""), PitloomConfig()
+    ) == Path("sbom.spdx3.json")
+
+
+def test_resolve_output_source() -> None:
+    import argparse
+
+    from pitloom.cli.options import _resolve_output_source
+    from pitloom.core.config import PitloomConfig
+
+    args = argparse.Namespace(output="file.json")
+    assert _resolve_output_source(args, PitloomConfig(), None) == "command-line"
+
+    args = argparse.Namespace(output=None)
+    assert (
+        _resolve_output_source(
+            args, PitloomConfig(sbom_basename="out"), Path("pyproject.toml")
+        )
+        == "pyproject.toml"
+    )
+
+    assert (
+        _resolve_output_source(args, PitloomConfig(sbom_basename=""), None) == "default"
+    )

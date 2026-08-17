@@ -28,9 +28,10 @@ and this project adheres to
 - Restructure CLI architecture: decentralize parser configuration into
   individual command modules, and replace `__main__.py` static dispatch
   with dynamic `args.func` routing ([#153])
-- Modularize CLI test suite: dissolve monolith `test_main_cli.py` into
-  strictly bounded per-command test files within `tests/cli/`
-  to adhere to repository file size limits ([#153])
+- Split monolithic test files into domain-scoped folders
+  (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
+  ([#153], [#155])
+- Raised fail_under coverage floor to 90% ([#155])
 
 ### Fixed
 
@@ -46,6 +47,7 @@ and this project adheres to
 [#151]: https://github.com/bact/pitloom/pull/151
 [#152]: https://github.com/bact/pitloom/pull/152
 [#153]: https://github.com/bact/pitloom/pull/153
+[#155]: https://github.com/bact/pitloom/pull/155
 
 ## [0.15.0] - 2026-08-15
 
