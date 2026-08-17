@@ -5,14 +5,14 @@
 
 """Extractor for project metadata resolved by the Hatchling build backend.
 
-Unlike :func:`~pitloom.extract.pyproject.read_pyproject`, which re-parses
+Unlike :func:`~pitloom.extract._pyproject.read_pyproject`, which re-parses
 ``pyproject.toml`` from scratch, this module maps the metadata that
 Hatchling has *already resolved* -- including dynamic ``version``,
 ``dependencies``, and metadata-hook-populated fields -- into Pitloom's
 format-neutral :class:`~pitloom.core.project.ProjectMetadata`.  It is used
 exclusively by the Hatchling build hook
 (:mod:`pitloom.plugins.hatch`); the CLI continues to use
-:func:`~pitloom.extract.pyproject.read_pyproject`.
+:func:`~pitloom.extract._pyproject.read_pyproject`.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
-from pitloom.extract.pyproject import _try_read_poetry
+from pitloom.extract._pyproject import _try_read_poetry
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -41,9 +41,9 @@ _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
     """Return ``[tool.poetry]`` gap-fill metadata for *project_dir*, or ``None``.
 
-    Mirrors the fallback :func:`~pitloom.extract.pyproject.read_pyproject`
+    Mirrors the fallback :func:`~pitloom.extract._pyproject.read_pyproject`
     already performs: re-reads ``pyproject.toml`` and reuses
-    :func:`~pitloom.extract.pyproject._try_read_poetry` so the Hatchling hook
+    :func:`~pitloom.extract._pyproject._try_read_poetry` so the Hatchling hook
     path can also recover ``authors``/``keywords``/``urls`` (and similar)
     from ``[tool.poetry]`` when ``[project]`` is incomplete. Returns ``None``
     when ``pyproject.toml`` is missing or has no usable ``[tool.poetry]``

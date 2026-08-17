@@ -93,7 +93,7 @@ class ProjectMetadata:
     Pitloom tool settings such as ``fragments`` and ``pretty`` are **not** stored
     here; they live in :class:`~pitloom.core.config.PitloomConfig` which is returned
     alongside this object by
-    :func:`~pitloom.extract.pyproject.read_pyproject`.
+    :func:`~pitloom.extract._pyproject.read_pyproject`.
     """
 
     name: str

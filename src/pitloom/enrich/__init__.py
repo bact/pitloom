@@ -49,7 +49,8 @@ def run_enrichers(
             continue
         try:
             results.append(enricher.enrich(model, model_dir=model_dir))
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
             log.warning("Enricher %r failed, skipping: %s", enricher.name, exc)
     return results
 

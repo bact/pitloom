@@ -11,7 +11,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
-from pitloom.core.models import generate_spdx_id
+from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -184,14 +184,16 @@ def _add_dataset_creator_agent(
         creationInfo=creation_info,
     )
     exporter.add_agent(creator_agent)
-    rel_creator = spdx3.Relationship(
-        spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
-        from_=dataset_pkg_spdx_id,
-        relationshipType=spdx3.RelationshipType.publishedBy,
-        to=[require_spdx_id(creator_agent)],
+    rel_creator = build_relationship(
+        from_id=dataset_pkg_spdx_id,
+        to_ids=[require_spdx_id(creator_agent)],
+        rel_type=spdx3.RelationshipType.publishedBy,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        creation_info=creation_info,
     )
-    exporter.add_relationship(rel_creator)
+    if rel_creator:
+        exporter.add_relationship(rel_creator)
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -252,15 +254,15 @@ def add_datasets_for_model(
             )
 
         rel_type, fallback_comment = _role_to_rel(dataset_ref.role)
-        rel = spdx3.Relationship(
-            spdxId=generate_spdx_id(
-                "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
-            ),
-            creationInfo=element_creation_info,
-            from_=ai_package_spdx_id,
-            to=[require_spdx_id(dataset_pkg)],
-            relationshipType=rel_type,
+        rel = build_relationship(
+            from_id=ai_package_spdx_id,
+            to_ids=[require_spdx_id(dataset_pkg)],
+            rel_type=rel_type,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            creation_info=element_creation_info,
         )
-        if fallback_comment:
-            rel.comment = fallback_comment
-        exporter.add_relationship(rel)
+        if rel:
+            if fallback_comment and rel_type == spdx3.RelationshipType.other:
+                rel.comment = fallback_comment
+            exporter.add_relationship(rel)

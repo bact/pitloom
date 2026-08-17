@@ -49,6 +49,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import (
     _clear_doc_counters,
     build_pypi_purl,
+    build_relationship,
     compute_doc_uuid,
     generate_spdx_id,
 )
@@ -340,17 +341,16 @@ def _add_package_files(
                 if index == 0
                 else dir_spdx_ids[parent_paths[index - 1].as_posix()]
             )
-            exporter.add_relationship(
-                spdx3.Relationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
-                    ),
-                    from_=parent_id,
-                    to=[require_spdx_id(directory_file)],
-                    relationshipType=spdx3.RelationshipType.contains,
-                    creationInfo=spdx_ci,
-                )
+            rel1 = build_relationship(
+                from_id=parent_id,
+                to_ids=[require_spdx_id(directory_file)],
+                rel_type=spdx3.RelationshipType.contains,
+                doc_name=metadata.name,
+                doc_uuid=doc_uuid,
+                creation_info=spdx_ci,
             )
+            if rel1:
+                exporter.add_relationship(rel1)
 
         registered_id = (
             registry.lookup_file(package_file.physical_path, package_file.digest_sha256)
@@ -383,17 +383,16 @@ def _add_package_files(
             if parent_paths
             else main_package.spdxId
         )
-        exporter.add_relationship(
-            spdx3.Relationship(
-                spdxId=generate_spdx_id(
-                    "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
-                ),
-                from_=parent_id,
-                to=[require_spdx_id(package_entry)],
-                relationshipType=spdx3.RelationshipType.contains,
-                creationInfo=spdx_ci,
-            )
+        rel2 = build_relationship(
+            from_id=parent_id,
+            to_ids=[require_spdx_id(package_entry)],
+            rel_type=spdx3.RelationshipType.contains,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            creation_info=spdx_ci,
         )
+        if rel2:
+            exporter.add_relationship(rel2)
 
     return file_spdx_ids
 
@@ -408,6 +407,7 @@ def build(
     provenance: ProvenanceConfig | None = None,
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
     offline: bool = False,
+    content_type_method: str = "auto",
 ) -> Spdx3JsonExporter:
     """Assemble SPDX 3 elements from a :class:`~pitloom.core.document.DocumentModel`.
 
@@ -531,6 +531,7 @@ def build(
         offline=offline,
         provenance_config=prov_cfg,
         encoder=encoder,
+        content_type_method=content_type_method,
     )
 
     # --- Files ---
@@ -1042,19 +1043,16 @@ def build_deployed(
             dep_keys_with_parents.add(child_key)
             child_spdx_id = package_spdx_ids.get(child_key)
             if child_spdx_id:
-                dep_rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
-                    ),
-                    from_=parent_spdx_id,
-                    to=[child_spdx_id],
-                    relationshipType=spdx3.RelationshipType.dependsOn,
-                    creationInfo=spdx_ci,
+                dep_rel = build_relationship(
+                    from_id=parent_spdx_id,
+                    to_ids=[child_spdx_id],
+                    rel_type=spdx3.RelationshipType.dependsOn,
+                    doc_name=metadata.name,
+                    doc_uuid=doc_uuid,
+                    creation_info=spdx_ci,
                 )
-                # No provenance Annotation on the dependsOn edge: the
-                # relationship is itself the native record (extraction-source
-                # is on the packages). Annotating it would shadow native.
-                exporter.add_relationship(dep_rel)
+                if dep_rel:
+                    exporter.add_relationship(dep_rel)
 
     # Third pass: Link top-level packages to the environment root
     for node in env_tree:
@@ -1062,16 +1060,16 @@ def build_deployed(
         if pkg_key not in dep_keys_with_parents:
             child_spdx_id = package_spdx_ids.get(pkg_key)
             if child_spdx_id:
-                dep_rel = spdx3.Relationship(
-                    spdxId=generate_spdx_id(
-                        "Relationship", doc_name=metadata.name, doc_uuid=doc_uuid
-                    ),
-                    from_=require_spdx_id(main_package),
-                    to=[child_spdx_id],
-                    relationshipType=spdx3.RelationshipType.dependsOn,
-                    creationInfo=spdx_ci,
+                dep_rel = build_relationship(
+                    from_id=require_spdx_id(main_package),
+                    to_ids=[child_spdx_id],
+                    rel_type=spdx3.RelationshipType.dependsOn,
+                    doc_name=metadata.name,
+                    doc_uuid=doc_uuid,
+                    creation_info=spdx_ci,
                 )
-                exporter.add_relationship(dep_rel)
+                if dep_rel:
+                    exporter.add_relationship(dep_rel)
 
     # --- SBOM and document envelope ---
     sbom = spdx3.software_Sbom(

@@ -19,6 +19,46 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0>
 
+## [Unreleased]
+
+### Changed
+
+- Reorganize configuration parsing architecture: move INI-to-dictionary adapter
+  logic entirely into `setuptools.py` ([#152])
+- Restructure CLI architecture: decentralize parser configuration into
+  individual command modules, and replace `__main__.py` static dispatch
+  with dynamic `args.func` routing ([#153])
+- Split monolithic test files into domain-scoped folders
+  (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
+  ([#153], [#155])
+- Raised fail_under coverage floor to 90% ([#155])
+- Avoid loading full file to memory during AI model (NumPy, PyTorch) and
+  archive (sdist) extraction, reducing peak memory usage by over 97% ([#156])
+- Centralize SPDX relationship boilerplate across the codebase ([#157])
+- Optimize pytest-xdist parallelization with `loadscope` to prevent
+  redundant fixture evaluations ([#158])
+- Optimize test workflow by caching the `licenseid` database ([#159])
+
+### Fixed
+
+- Map legacy `fragments` key to `[tool.pitloom.fragment]` nested table
+  in `setup.cfg` to resolve crash ([#152])
+- Implement modern sub-section parsing (`provenance`, `content-type`, `fragment`)
+  in `setup.cfg`, bringing it to feature parity with `pyproject.toml` ([#152])
+- Enforce strict type-checking across all boolean fields, preventing string
+  values from silently evaluating to `True` ([#152])
+- Split a string containing a list of authors into discrete agents
+  and generate external refs for a group of authors ("Others") ([#151])
+
+[#151]: https://github.com/bact/pitloom/pull/151
+[#152]: https://github.com/bact/pitloom/pull/152
+[#153]: https://github.com/bact/pitloom/pull/153
+[#155]: https://github.com/bact/pitloom/pull/155
+[#156]: https://github.com/bact/pitloom/pull/156
+[#157]: https://github.com/bact/pitloom/pull/157
+[#158]: https://github.com/bact/pitloom/pull/158
+[#159]: https://github.com/bact/pitloom/pull/159
+
 ## [0.15.0] - 2026-08-15
 
 This release introduces backend-agnostic support for embedding SBOM

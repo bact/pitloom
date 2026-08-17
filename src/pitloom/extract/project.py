@@ -17,9 +17,9 @@ from pathlib import Path
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
-from pitloom.extract.pyproject import read_pyproject
-from pitloom.extract.sdist import read_sdist
-from pitloom.extract.setuptools import read_setuptools
+from pitloom.extract._pyproject import read_pyproject
+from pitloom.extract._sdist import read_sdist
+from pitloom.extract._setuptools import read_setuptools
 
 _SDIST_EXTENSIONS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip")
 

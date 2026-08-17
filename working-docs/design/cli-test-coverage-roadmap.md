@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-16
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,7 +56,7 @@ item 2's test-file boundaries should track, and both change what
   `_resolve_generate_mode_settings`, `_resolve_output_path` and
   siblings) ~200 lines; verbose-print helpers (`_print_verbose`,
   `_build_creation_option_rows`) ~100 lines; the 7 mode handlers
-  (`_run_generate_mode` ... `_run_merge_mode`) ~350 lines; the `ids`
+  (`_run_generate_command` ... `_run_merge_command`) ~350 lines; the `ids`
   subcommand (`_run_ids_generate`, `_run_ids_import`, `_run_ids_cli`,
   `_load_or_create_registry`) ~200 lines.
 - **Largest test files today**: `test_extract_huggingface.py` 9,357
@@ -106,8 +106,8 @@ Target layout (matches the flat-multi-module-package convention
   siblings.
 - `cli/verbose.py` -- `_print_verbose`, `_build_creation_option_rows`.
 - `cli/modes/` -- one file per mode handler
-  (`generate.py`, `project.py`, `wheel.py`, `model.py`, `enrich.py`,
-  `env.py`, `merge.py`), each holding its `_run_<verb>_mode` function.
+  (`generate.py`, `project.py`, `wheel.py`, `embed_wheel.py`, `model.py`, `enrich.py`,
+  `env.py`, `merge.py`), each holding its `_run_<verb>_command` function.
   One file per mode keeps each under the size limit on its own and
   gives Phase 2's test split an exact 1:1 file to mirror.
 - `cli/ids.py` -- `_run_ids_generate`, `_run_ids_import`,
@@ -126,7 +126,7 @@ imported, so every such patch site needs its target module updated in
 the same change that moves the code, or the test suite silently stops
 testing what it claims to.
 
-## Phase 2: test-suite modularization
+## Phase 2: test-suite modularization (COMPLETE)
 
 ### Folder-vs-flat decision
 
@@ -190,7 +190,7 @@ fix a name is the same commit that's already moving the file.
   tail, different source modules, easy to grab the wrong one by grep.
   Rename one to make the source package unambiguous from the filename
   alone; check what each file actually covers before renaming.
-- **Align the `ids` subcommand's names** to the `_run_<verb>_mode` /
+- **Align the `ids` subcommand's names** to the `_run_<verb>_command` /
   `_add_<verb>_subparser` pattern the other six verbs already use,
   while it's being extracted into `cli/ids.py` anyway (currently
   `_run_ids_cli`/`_run_ids_generate`/`_run_ids_import` have no
@@ -252,7 +252,7 @@ imports them either), and the same check needs to run once across
 covered `extract/`). Do this as part of Phase 2 when those files are
 already open for the test-folder move.
 
-## Phase 3: coverage backfill and floor raise
+## Phase 3: coverage backfill and floor raise (COMPLETE)
 
 Priority order (by current miss count / percentage, re-measure after
 Phases 1-2 land since the `cli/` split changes what "cover
