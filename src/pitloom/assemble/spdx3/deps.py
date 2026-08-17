@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
     parse_provenance_value,
 )
-from pitloom.core.models import build_pypi_purl, generate_spdx_id
+from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
@@ -935,13 +935,17 @@ def _build_license_relationship(
     doc_name: str,
     doc_uuid: str,
 ) -> spdx3.Relationship:
-    return spdx3.Relationship(
-        spdxId=generate_spdx_id("Relationship", doc_name=doc_name, doc_uuid=doc_uuid),
-        creationInfo=creation_info,
-        from_=package_spdx_id,
-        relationshipType=relationship_type,
-        to=[license_spdx_id],
+    rel = build_relationship(
+        from_id=package_spdx_id,
+        to_ids=[license_spdx_id],
+        rel_type=relationship_type,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        creation_info=creation_info,
     )
+    if not rel:
+        raise ValueError("Failed to build relationship")
+    return rel
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
@@ -1319,16 +1323,16 @@ def add_dependencies(
             encoder=encoder,
         )
 
-        dep_rel = spdx3.Relationship(
-            spdxId=generate_spdx_id(
-                "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
-            ),
-            from_=main_package_spdx_id,
-            to=[require_spdx_id(dep_package)],
-            relationshipType=spdx3.RelationshipType.dependsOn,
-            creationInfo=creation_info,
+        dep_rel = build_relationship(
+            from_id=main_package_spdx_id,
+            to_ids=[require_spdx_id(dep_package)],
+            rel_type=spdx3.RelationshipType.dependsOn,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            creation_info=creation_info,
         )
-        exporter.add_relationship(dep_rel)
+        if dep_rel:
+            exporter.add_relationship(dep_rel)
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -1396,27 +1400,27 @@ def add_phantom_dependencies(
         )
 
         # The main package depends on this phantom package.
-        dep_rel = spdx3.Relationship(
-            spdxId=generate_spdx_id(
-                "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
-            ),
-            from_=main_package_spdx_id,
-            to=[require_spdx_id(dep_package)],
-            relationshipType=spdx3.RelationshipType.dependsOn,
-            creationInfo=creation_info,
+        dep_rel = build_relationship(
+            from_id=main_package_spdx_id,
+            to_ids=[require_spdx_id(dep_package)],
+            rel_type=spdx3.RelationshipType.dependsOn,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            creation_info=creation_info,
         )
-        exporter.add_relationship(dep_rel)
+        if dep_rel:
+            exporter.add_relationship(dep_rel)
 
         # Link the phantom package to the physical file if it was registered
         file_spdx_id = file_spdx_ids.get(dep.file_path)
         if file_spdx_id:
-            file_rel = spdx3.Relationship(
-                spdxId=generate_spdx_id(
-                    "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
-                ),
-                from_=require_spdx_id(dep_package),
-                to=[file_spdx_id],
-                relationshipType=spdx3.RelationshipType.contains,
-                creationInfo=creation_info,
+            file_rel = build_relationship(
+                from_id=require_spdx_id(dep_package),
+                to_ids=[file_spdx_id],
+                rel_type=spdx3.RelationshipType.contains,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                creation_info=creation_info,
             )
-            exporter.add_relationship(file_rel)
+            if file_rel:
+                exporter.add_relationship(file_rel)

@@ -59,6 +59,7 @@ Unix philosophy. Consistent, predictable, parseable.
 - No `assert` in production -- tests only.
 - All config in `pyproject.toml` where possible.
 - No wildcard imports (e.g., `from module import *`). Always use explicit imports.
+- **Import order**: Groups: stdlib -> third-party -> local, alphabetically within each. Don't reorder imports with comments explaining required order (circular import/init constraint). Use `ruff check --fix --select I` to automate this.
 - Type completeness: All visible class vars, instance vars, methods, params, and return types must be annotated. Generic base classes must have type args specified. (Except simple literals, enum members, and standard dunders).
 
 ## Cross-platform compatibility

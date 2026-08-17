@@ -12,12 +12,13 @@ import operator
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import UUID, uuid4, uuid5
 
 from hatchling.metadata.utils import normalize_requirement
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
@@ -434,3 +435,57 @@ def generate_spdx_id(
     _ID_COUNTERS[counter_key] = _ID_COUNTERS.get(counter_key, 0) + 1
     seq_id = _ID_COUNTERS[counter_key]
     return f"{doc_namespace}#{prefix}-{seq_id}"
+
+
+def build_relationship(
+    from_id: str | None,
+    to_ids: list[str],
+    rel_type: str,
+    doc_name: str,
+    doc_uuid: str,
+    creation_info: spdx3.CreationInfo,
+    rel_class: type[spdx3.Relationship] = spdx3.Relationship,
+    id_suffix: str | None = None,
+    **kwargs: Any,
+) -> spdx3.Relationship | None:
+    """Helper to cleanly instantiate SPDX 3 Relationship objects.
+
+    Centralizes the boilerplate of generating the spdxId, injecting creation
+    info, and handling the relationship arguments. Supports subclass
+    instantiation via the ``rel_class`` parameter.
+
+    Args:
+        from_id: The spdxId of the source element. Returns ``None`` if
+            this is ``None``.
+        to_ids: List of target spdxIds.
+        rel_type: SPDX 3 RelationshipType enum value
+            (e.g. ``spdx3.RelationshipType.contains``).
+        doc_name: The current document's namespace name.
+        doc_uuid: The current document's UUID.
+        creation_info: The ``spdx3.CreationInfo`` to attach to the relationship.
+        rel_class: The class to instantiate. Defaults to ``spdx3.Relationship``,
+            but can be subclasses like ``spdx3.LifecycleScopedRelationship`` or
+            ``spdx3.VulnAssessmentRelationship``.
+        id_suffix: Optional suffix for the fragment, if generating something
+            other than the standard ``"Relationship"`` prefix
+            (e.g. ``"Relationship-lineage"``).
+        **kwargs: Additional properties to pass to the relationship constructor
+            (e.g. ``scope`` for ``LifecycleScopedRelationship``).
+
+    Returns:
+        The instantiated relationship object, or ``None`` if ``from_id`` is ``None``.
+    """
+    if from_id is None:
+        return None
+
+    spdx_id = generate_spdx_id(
+        id_suffix or "Relationship", doc_name=doc_name, doc_uuid=doc_uuid
+    )
+    return rel_class(
+        spdxId=spdx_id,
+        from_=from_id,
+        to=to_ids,
+        relationshipType=rel_type,
+        creationInfo=creation_info,
+        **kwargs,
+    )

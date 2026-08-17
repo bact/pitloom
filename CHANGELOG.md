@@ -34,6 +34,7 @@ and this project adheres to
 - Raised fail_under coverage floor to 90% ([#155])
 - Avoid loading full file to memory during AI model (NumPy, PyTorch) and
   archive (sdist) extraction, reducing peak memory usage by over 97% ([#156])
+- Centralize SPDX relationship boilerplate across the codebase ([#157])
 
 ### Fixed
 
@@ -51,6 +52,7 @@ and this project adheres to
 [#153]: https://github.com/bact/pitloom/pull/153
 [#155]: https://github.com/bact/pitloom/pull/155
 [#156]: https://github.com/bact/pitloom/pull/156
+[#157]: https://github.com/bact/pitloom/pull/157
 
 ## [0.15.0] - 2026-08-15
 
