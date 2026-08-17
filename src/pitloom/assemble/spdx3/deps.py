@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
     parse_provenance_value,
 )
-from pitloom.core.models import build_relationship, build_pypi_purl, generate_spdx_id
+from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash

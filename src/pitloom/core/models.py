@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from uuid import UUID, uuid4, uuid5
 
 from hatchling.metadata.utils import normalize_requirement
-from spdx_python_model.bindings import v3_0_1 as spdx3
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
