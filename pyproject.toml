@@ -115,6 +115,7 @@ test = [
     "installer>=0.7.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.6.1",
     "spdx3-validate>=0.0.7",
     "stav>=0.4.1",
 ]
@@ -245,7 +246,7 @@ max-statements = 100
 max-line-length = 88
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib"]
+addopts = ["--import-mode=importlib", "-n", "auto"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
