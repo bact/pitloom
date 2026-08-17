@@ -37,6 +37,7 @@ and this project adheres to
 - Centralize SPDX relationship boilerplate across the codebase ([#157])
 - Optimize pytest-xdist parallelization with `loadscope` to prevent
   redundant fixture evaluations ([#158])
+- Optimize test workflow by caching the `licenseid` database ([#159])
 
 ### Fixed
 
@@ -56,6 +57,7 @@ and this project adheres to
 [#156]: https://github.com/bact/pitloom/pull/156
 [#157]: https://github.com/bact/pitloom/pull/157
 [#158]: https://github.com/bact/pitloom/pull/158
+[#159]: https://github.com/bact/pitloom/pull/159
 
 ## [0.15.0] - 2026-08-15
 
