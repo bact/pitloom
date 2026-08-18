@@ -244,7 +244,7 @@ def _strip_card_yaml_frontmatter(lines: list[str]) -> list[str]:
             if in_yaml:
                 return lines[i + 1 :]
             in_yaml = True
-    return lines if not in_yaml else []
+    return []
 
 
 def _extract_card_description(card_text: str) -> str | None:
