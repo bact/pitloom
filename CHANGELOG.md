@@ -30,19 +30,16 @@ and this project adheres to
   with dynamic `args.func` routing ([#153])
 - Split monolithic test files into domain-scoped folders
   (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
-  ([#153], [#155])
-- Raised fail_under coverage floor to 90% ([#155])
-- Avoid loading full file to memory during AI model (NumPy, PyTorch) and
-  archive (sdist) extraction, reducing peak memory usage by over 97% ([#156])
+  ([#153], [#155], [#161])
+- Raised test coverage to 90% ([#155], [#162])
+- Avoid loading full file to memory during AI model and sdist extraction,
+  reducing peak memory usage by over 97% ([#156])
 - Centralize SPDX relationship boilerplate across the codebase ([#157])
 - Optimize pytest-xdist parallelization with `loadscope` to prevent
   redundant fixture evaluations ([#158])
 - Optimize test workflow by caching the `licenseid` database ([#159])
 - `loom generate` now requires `-o`/`--output` and fails with a clear
   error if it's omitted, instead of guessing a filename. ([#160])
-- Modularize source and test files to strictly comply with file-size limits
-  (all source files $\le 417$ lines, all tests $\le 415$ lines outside mock
-  fixture catalogs) ([#161])
 
 ### Fixed
 
@@ -70,6 +67,7 @@ and this project adheres to
 [#159]: https://github.com/bact/pitloom/pull/159
 [#160]: https://github.com/bact/pitloom/pull/160
 [#161]: https://github.com/bact/pitloom/pull/161
+[#162]: https://github.com/bact/pitloom/pull/162
 
 ## [0.15.0] - 2026-08-15
 
