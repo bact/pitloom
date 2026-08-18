@@ -19,6 +19,24 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.16.0...v0.16.1>
 
+## [Unreleased]
+
+### Added
+
+- `loom project`/`loom model`/`loom env`/`loom wheel`/`loom embed-wheel`
+  print `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after writing an SBOM,
+  letting callers (e.g. the GitHub Action) discover the resolved output
+  path without re-deriving the default-naming logic themselves ([#171])
+
+### Fixed
+
+- The GitHub Action no longer forces a generic `sbom.spdx3.json` output
+  filename when `output` is left unset; it now defers to `loom`'s own
+  default-naming logic (`packagename-version.spdx3.json`, falling back to
+  `packagename.spdx3.json`, then `sbom.spdx3.json` as a last resort) ([#171])
+
+[#171]: https://github.com/bact/pitloom/pull/171
+
 ## [0.16.1] - 2026-08-18
 
 ### Fixed
