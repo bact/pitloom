@@ -226,6 +226,9 @@ module = "pitloom.extract._safetensors"
 [tool.pitloom]
 pretty = true
 
+[tool.pitloom.content-type]
+enabled = true
+
 [[tool.pitloom.creator]]
 name = "Arthit Suriyawongkul"
 email = "suriyawa@tcd.ie"
