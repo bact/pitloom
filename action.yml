@@ -280,7 +280,7 @@ runs:
             # (see pitloom.cli.commands.utils._print_sbom_output_path).
             sbom_path=$(
               printf '%s\n' "${loom_stdout}" \
-                | sed -n 's/^SBOM_OUTPUT_PATH=//p' | head -n1
+                | sed -n 's/^PITLOOM_SBOM_OUTPUT_PATH=//p' | head -n1
             )
           fi
           echo "sbom-path=${sbom_path}" >> "${GITHUB_OUTPUT}"

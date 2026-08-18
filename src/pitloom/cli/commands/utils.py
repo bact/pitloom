@@ -43,8 +43,10 @@ def _print_sbom_output_path(output_path: Path | str) -> None:
 
     Lets callers (e.g. the GitHub Action) discover the filename a command's
     own default-naming logic picked, without re-deriving it themselves.
+    Namespaced "PITLOOM_" so it reads unambiguously as this stdout line,
+    distinct from the GitHub Action's own "sbom-path" output.
     """
-    print(f"SBOM_OUTPUT_PATH={output_path}")
+    print(f"PITLOOM_SBOM_OUTPUT_PATH={output_path}")
 
 
 def _collect_wheel_paths(patterns: list[str]) -> list[Path]:

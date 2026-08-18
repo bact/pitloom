@@ -126,7 +126,7 @@ jobs:
 
       - name: Run Pitloom action with default output (project mode)
         # No "output:" given -- exercises the action's own default-naming
-        # resolution (SBOM_OUTPUT_PATH= stdout parsing), not the generic
+        # resolution (PITLOOM_SBOM_OUTPUT_PATH= stdout parsing), not the generic
         # "sbom.spdx3.json" the action used to force.
         id: pitloom-default
         uses: ./
