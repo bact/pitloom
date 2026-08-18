@@ -54,9 +54,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "auditwheel>=6.7.0; sys_platform == 'linux'",
-    "hatchling>=1.29.0",
-    "licenseid>=0.3.3",
+    "auditwheel>=6.8.1; sys_platform == 'linux'",
+    "hatchling>=1.32.0",
+    "licenseid>=0.3.4",
     "pipdeptree>=4.2.0",
     "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
@@ -113,6 +113,7 @@ lint = [
     "bandit>=1.9.4",
     "flake8>=7.3.0",
     "flake8-cognitive-complexity>=0.1.0",
+    "pip-audit>=2.10.1",
     "pylint>=4.0.7",
     "ruff>=0.16.3",
 ]

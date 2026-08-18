@@ -10,13 +10,15 @@ See also: [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md) for
 the sibling test-suite health effort this doc's structure follows.
 
 **Status:**
-- File-size refactoring complete across all `src/` (all files $\le 417$ lines)
-  and all `tests/` (all files $\le 415$ lines outside Hugging Face mock
-  fixture catalogs).
 - McCabe complexity ratchet tightened: `max-complexity = 15` (down from 35).
-  All functions in `src/` are now $\le 15$.
+  All functions in `src/` are now $\le 15$ (verified, zero current violations).
 - Cognitive complexity ratchet tightened: `max-cognitive-complexity = 20`
-  (down from 60). All functions in `src/` are now $\le 20$.
+  (down from 60). All functions in `src/` are now $\le 20$ (verified, zero
+  current violations).
+- File-size refactoring is **not** complete -- it drifted back above the
+  limits this doc previously reported clean; see "File-size limits status"
+  below for the current offenders. Unlike complexity, file size has no CI
+  gate, so nothing catches this drift automatically.
 
 ## Why this exists
 
@@ -62,15 +64,38 @@ helper functions:
 | `_build_extra_data` | `src/pitloom/extract/_huggingface_fields.py` | 16 | 16 | $\le 10$ | $\le 15$ | Fixed |
 | `_build_dataset_package` | `src/pitloom/assemble/spdx3/dataset.py` | 16 | 16 | $\le 10$ | $\le 15$ | Fixed |
 
-## File-size limits status (COMPLETE)
+## File-size limits status (DRIFTED -- needs a follow-up pass)
 
-All files across the entire codebase strictly obey file-size limits:
-- **`src/`**: Every file is $\le 417$ lines (well under the 500-line soft limit
-  and 800-line hard cap).
-- **`tests/`**: Every test file outside `tests/extract/huggingface/` shared
-  mock fixture catalogs is $\le 415$ lines.
+As of 2026-08-18, both boundaries this doc previously reported clean have
+been crossed again by organic growth (new tests, new fields), none of it
+individually large enough to trip review attention:
 
-| Former oversized file | Split result | Max lines |
+- **`src/`** (soft limit 400-500, hard cap 800): 6 files now exceed 400
+  lines; two exceed the previous $\le 417$ high-water mark:
+  - `src/pitloom/extract/_setuptools_cfg.py` -- 431 lines
+  - `src/pitloom/extract/_huggingface_fields.py` -- 426 lines
+- **`tests/`** (excluding `tests/extract/huggingface/` mock fixture
+  catalogs, which are exempted separately): 4 files now exceed the previous
+  $\le 415$ high-water mark:
+  - `tests/extract/test_hdf5.py` -- 540 lines (also the largest test file
+    outside the exempted Hugging Face catalogs)
+  - `tests/extract/test_pytorch_pt2.py` -- 455 lines
+  - `tests/assemble/test_assembly_edge_cases.py` -- 440 lines
+  - `tests/extract/test_pyproject.py` -- 419 lines
+
+None of these have crossed the 800-line hard cap, so nothing is currently
+broken -- but per AGENTS.md, a file should be split *before* crossing the
+soft limit, not after. `_setuptools_cfg.py` and `deps_supplier.py`
+(407 lines, under the old high-water mark but still growing) are the
+best next candidates: both were split once already (see the table below)
+and have regrown past a third of their original decomposed size.
+
+Complexity has a CI gate (the ruff/flake8 ratchets above) that makes
+regressions visible immediately; file size does not, which is how this
+drifted unnoticed. A `wc -l` CI check against the soft limit would close
+that gap -- not yet implemented.
+
+| Former oversized file | Split result (at time of split) | Max lines |
 | :--- | :--- | ---: |
 | `src/pitloom/ids.py` (601) | `_ids_types.py` (112), `ids.py` (317) | 317 |
 | `src/pitloom/_loom_active_run.py` (633) | `_loom_caller.py` (128), `_loom_active_run.py` (395) | 395 |
