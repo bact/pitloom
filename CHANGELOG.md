@@ -19,6 +19,18 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.15.0...v0.16.0>
 
+## [Unreleased]
+
+### Fixed
+
+- Split an author list packed into a single email's display name
+  (e.g. `"A, B, C" <shared@example.com>`) into individual Persons instead
+  of emitting one combined-name Person; the shared address, when it
+  doesn't belong to any listed name, is kept on its own anonymous Person
+  ([#169])
+
+[#169]: https://github.com/bact/pitloom/pull/169
+
 ## [0.16.0] - 2026-08-18
 
 ### Added

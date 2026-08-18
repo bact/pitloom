@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for dependency supplier/license resolution and the PyPI
+"""Regression tests for dependency originator/license resolution and the PyPI
 JSON API extraction helpers used by ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
@@ -24,16 +24,16 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
-from pitloom.assemble.spdx3 import deps_supplier
+from pitloom.assemble.spdx3 import deps_originator
 from pitloom.assemble.spdx3.deps import _enrich_from_installed
+from pitloom.assemble.spdx3.deps_originator import (
+    _find_license_copyright,
+    _resolve_author_or_maintainer,
+)
 from pitloom.assemble.spdx3.deps_pypi import (
     _extract_pypi_license,
-    _extract_pypi_supplier,
+    _extract_pypi_originator,
     _extract_release_hash,
-)
-from pitloom.assemble.spdx3.deps_supplier import (
-    _find_license_copyright,
-    _resolve_supplier,
 )
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -41,20 +41,22 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from .conftest import _FakeMetadata, _make_ci
 
 # ---------------------------------------------------------------------------
-# _resolve_supplier -- single address, Maintainer fallback, multi-address list
+# _resolve_author_or_maintainer -- single address, Maintainer fallback, multi-address
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_supplier_from_author_email() -> None:
+def test_resolve_author_or_maintainer_from_author_email() -> None:
     meta = _FakeMetadata({"Author-email": "Trail of Bits <opensource@trailofbits.com>"})
-    assert _resolve_supplier(meta) == [("Trail of Bits", "opensource@trailofbits.com")]
+    assert _resolve_author_or_maintainer(meta) == [
+        ("Trail of Bits", "opensource@trailofbits.com")
+    ]
 
 
-def test_resolve_supplier_falls_back_to_maintainer() -> None:
+def test_resolve_author_or_maintainer_falls_back_to_maintainer() -> None:
     meta = _FakeMetadata(
         {"Maintainer-email": "Taneli Hukkinen <hukkin@users.noreply.github.com>"}
     )
-    assert _resolve_supplier(meta) == [
+    assert _resolve_author_or_maintainer(meta) == [
         (
             "Taneli Hukkinen",
             "hukkin@users.noreply.github.com",
@@ -62,7 +64,7 @@ def test_resolve_supplier_falls_back_to_maintainer() -> None:
     ]
 
 
-def test_resolve_supplier_handles_multiple_maintainer_addresses() -> None:
+def test_resolve_author_or_maintainer_handles_multiple_maintainer_addresses() -> None:
     """Regression: a comma-separated multi-maintainer ``Maintainer-email``
     (common in real PyPI metadata, e.g. pipdeptree's three maintainers)
     made ``email.utils.parseaddr`` -- which expects a single address --
@@ -79,20 +81,20 @@ def test_resolve_supplier_handles_multiple_maintainer_addresses() -> None:
             )
         }
     )
-    assert _resolve_supplier(meta) == [
+    assert _resolve_author_or_maintainer(meta) == [
         ("Bernát Gábor", "gaborjbernat@gmail.com"),
         ("Kemal Zebari", "kemalzebra@gmail.com"),
         ("Vineet Naik", "naikvin@gmail.com"),
     ]
 
 
-def test_resolve_supplier_plain_name_no_email() -> None:
+def test_resolve_author_or_maintainer_plain_name_no_email() -> None:
     meta = _FakeMetadata({"Author": "Some Org"})
-    assert _resolve_supplier(meta) == [("Some Org", None)]
+    assert _resolve_author_or_maintainer(meta) == [("Some Org", None)]
 
 
-def test_resolve_supplier_absent_returns_none() -> None:
-    assert _resolve_supplier(_FakeMetadata({})) == []
+def test_resolve_author_or_maintainer_absent_returns_none() -> None:
+    assert _resolve_author_or_maintainer(_FakeMetadata({})) == []
 
 
 def test_enrich_from_installed_sets_originated_by(
@@ -209,7 +211,7 @@ def test_find_license_copyright_ignores_same_named_file_outside_dist_info(
         "Copyright (c) 2026 Real Author\n",
     )
     fake_dist = _FakeDistribution([vendored_license, real_license])
-    monkeypatch.setattr(deps_supplier, "get_pkg_distribution", lambda name: fake_dist)
+    monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: fake_dist)
 
     meta = _FakeMetadata({}, license_files=["LICENSE"])
     assert _find_license_copyright("mypkg", meta) == "Copyright (c) 2026 Real Author"
@@ -223,7 +225,7 @@ def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
         "Copyright (c) 2026 Root Dist-Info Author\n",
     )
     fake_dist = _FakeDistribution([license_file])
-    monkeypatch.setattr(deps_supplier, "get_pkg_distribution", lambda name: fake_dist)
+    monkeypatch.setattr(deps_originator, "get_pkg_distribution", lambda name: fake_dist)
 
     meta = _FakeMetadata({}, license_files=["LICENSE.txt"])
     assert (
@@ -237,25 +239,25 @@ def test_find_license_copyright_matches_dist_info_root_not_only_licenses_subdir(
 # ---------------------------------------------------------------------------
 
 
-def test_extract_pypi_supplier_from_author() -> None:
+def test_extract_pypi_originator_from_author() -> None:
     info = {"author": "Trail of Bits", "author_email": "opensource@trailofbits.com"}
-    assert _extract_pypi_supplier(info) == [
+    assert _extract_pypi_originator(info) == [
         ("Trail of Bits", "opensource@trailofbits.com")
     ]
 
 
-def test_extract_pypi_supplier_falls_back_to_maintainer() -> None:
+def test_extract_pypi_originator_falls_back_to_maintainer() -> None:
     info = {
         "maintainer": "Taneli Hukkinen",
         "maintainer_email": "hukkin@users.noreply.github.com",
     }
-    assert _extract_pypi_supplier(info) == [
+    assert _extract_pypi_originator(info) == [
         ("Taneli Hukkinen", "hukkin@users.noreply.github.com")
     ]
 
 
-def test_extract_pypi_supplier_absent_returns_none() -> None:
-    assert _extract_pypi_supplier({}) == []
+def test_extract_pypi_originator_absent_returns_none() -> None:
+    assert _extract_pypi_originator({}) == []
 
 
 def test_extract_pypi_license_prefers_license_expression() -> None:

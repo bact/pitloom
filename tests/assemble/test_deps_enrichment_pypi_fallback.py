@@ -7,7 +7,7 @@
 ``pitloom.assemble.spdx3.deps.add_dependencies``.
 
 See also: test_deps_enrichment_names_versions.py,
-test_deps_enrichment_supplier_license.py, test_deps_enrichment_prefetch.py --
+test_deps_enrichment_originator_license.py, test_deps_enrichment_prefetch.py --
 this module's siblings, split from the original test_deps_enrichment.py.
 
 Covers the PyPI JSON API fallback (used when installed metadata doesn't
@@ -29,7 +29,7 @@ from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_pypi
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
-from pitloom.assemble.spdx3.deps_supplier import _resolve_metadata_url
+from pitloom.assemble.spdx3.deps_originator import _resolve_metadata_url
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 

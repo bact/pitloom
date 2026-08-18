@@ -58,7 +58,7 @@ helper functions:
 | `_iter_files` | `src/pitloom/_ids_types.py` | 10 | 22 | $\le 10$ | $\le 15$ | Fixed |
 | `_read_tar_sdist` | `src/pitloom/extract/_sdist.py` | 11 | 22 | $\le 10$ | $\le 15$ | Fixed |
 | `_resolve_cfg_version` | `src/pitloom/extract/_setuptools_cfg.py` | 11 | 22 | $\le 8$ | $\le 10$ | Fixed |
-| `_apply_originator` / `_find_license_copyright` | `src/pitloom/assemble/spdx3/deps_supplier.py` | 10 | 22 | $\le 10$ | $\le 15$ | Fixed |
+| `_apply_originator` / `_find_license_copyright` | `src/pitloom/assemble/spdx3/deps_originator.py` | 10 | 22 | $\le 10$ | $\le 15$ | Fixed |
 | `read_pyproject` | `src/pitloom/extract/_pyproject.py` | 11 | 22 | $\le 10$ | $\le 15$ | Fixed |
 | `read_onnx` | `src/pitloom/extract/_onnx.py` | 14 | 21 | $\le 10$ | $\le 15$ | Fixed |
 | `metadata_from_hatchling` | `src/pitloom/extract/hatchling.py` | 12 | 21 | $\le 10$ | $\le 15$ | Fixed |
@@ -87,7 +87,7 @@ individually large enough to trip review attention:
 
 None of these have crossed the 800-line hard cap, so nothing is currently
 broken -- but per AGENTS.md, a file should be split *before* crossing the
-soft limit, not after. `_setuptools_cfg.py` and `deps_supplier.py`
+soft limit, not after. `_setuptools_cfg.py` and `deps_originator.py`
 (407 lines, under the old high-water mark but still growing) are the
 best next candidates: both were split once already (see the table below)
 and have regrown past a third of their original decomposed size.
@@ -107,7 +107,7 @@ that gap -- not yet implemented.
 | `src/pitloom/assemble/spdx3/fragments.py` (758) | `_fragments_unify.py` (279), `fragments.py` (366) | 366 |
 | `src/pitloom/assemble/spdx3/provenance.py` (634) | `_provenance_encoders.py` (275), `provenance.py` (374) | 374 |
 | `src/pitloom/assemble/spdx3/ai.py` (593) | `_ai_package.py` (226), `ai.py` (363) | 363 |
-| `src/pitloom/assemble/spdx3/deps.py` (519) | `deps_installed.py` (168), `deps_license.py` (391), `deps_pypi.py` (307), `deps_supplier.py` (264), `deps.py` (311) | 391 |
+| `src/pitloom/assemble/spdx3/deps.py` (519) | `deps_installed.py` (168), `deps_license.py` (391), `deps_pypi.py` (307), `deps_originator.py` (264), `deps.py` (311) | 391 |
 | `src/pitloom/extract/_setuptools.py` (786) | `_setuptools_cfg.py` (228), `_setuptools_py.py` (190), `_setuptools.py` (158) | 228 |
 | `src/pitloom/extract/_license.py` (420) | `_license_detect.py` (178), `_license.py` (186) | 186 |
 | `src/pitloom/core/models.py` (450) | `_models_wheel.py` (168), `models.py` (186) | 186 |

@@ -8,7 +8,7 @@ PyPI JSON API sanity check, and supplier/originator/remote-authors
 handling in ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
-test_deps_enrichment_supplier_license.py,
+test_deps_enrichment_originator_license.py,
 test_deps_enrichment_pypi_fallback.py -- this module's siblings, split from
 the original test_deps_enrichment.py.
 """
@@ -28,7 +28,7 @@ import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
-from pitloom.assemble.spdx3 import deps_pypi, deps_supplier
+from pitloom.assemble.spdx3 import deps_originator, deps_pypi
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_pypi import (
     _extract_release_hash,
@@ -167,9 +167,9 @@ def test_fetch_pypi_release_info_live_network() -> None:
     assert len(digest) == 64  # hex sha256
 
 
-def test_extract_suppliers_parses_comma_separated_names() -> None:
+def test_extract_name_email_pairs_parses_comma_separated_names() -> None:
     meta = _FakeMetadata({"Author": "Alice, Bob and Charlie"})
-    assert deps_supplier._resolve_supplier(meta) == [
+    assert deps_originator._resolve_author_or_maintainer(meta) == [
         ("Alice", None),
         ("Bob", None),
         ("Charlie", None),
@@ -192,7 +192,7 @@ def test_apply_originator_creates_others_external_ref() -> None:
         ("Alice", None),
         ("Others (See OTHER_AUTHORS.md)", None),
     ]
-    deps_supplier._apply_originator(
+    deps_originator._apply_originator(
         originators,
         dep_package,
         ci,
@@ -246,7 +246,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     real (and previously unmocked) network call.
     """
     # Test offline returns immediately without trying to fetch
-    locator, ctype, content = deps_supplier._resolve_remote_authors_file(
+    locator, ctype, content = deps_originator._resolve_remote_authors_file(
         "https://github.com/foo/pkg",
         "AUTHORS",
         offline=True,
@@ -259,7 +259,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     # Test the URLError/OSError fallback path returns a locator-only result,
     # without making a real network call.
     with patch("urllib.request.urlopen", side_effect=URLError("simulated failure")):
-        locator, ctype, content = deps_supplier._resolve_remote_authors_file(
+        locator, ctype, content = deps_originator._resolve_remote_authors_file(
             "https://github.com/foo/pkg-offline-fallback",
             "AUTHORS",
             offline=False,
@@ -271,7 +271,7 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
 
     # Test lru_cache behavior (call twice, check it returns identical)
     # without hitting the network again on the second call.
-    locator2, ctype2, content2 = deps_supplier._resolve_remote_authors_file(
+    locator2, ctype2, content2 = deps_originator._resolve_remote_authors_file(
         "https://github.com/foo/pkg-offline-fallback",
         "AUTHORS",
         offline=False,
@@ -293,7 +293,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     mock_urlopen.return_value.__enter__.return_value = mock_response
 
     # Test github.com with successful fetch
-    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
+    locator, _ctype, content = deps_originator._resolve_remote_authors_file(
         "https://github.com/foo/pkg",
         "AUTHORS",
         offline=False,
@@ -303,7 +303,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     assert content == "Author1\nAuthor2"
 
     # Test gitlab.com
-    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
+    locator, _ctype, content = deps_originator._resolve_remote_authors_file(
         "https://gitlab.com/foo/pkg",
         "AUTHORS",
         offline=True,
@@ -312,7 +312,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     assert locator == "https://gitlab.com/foo/pkg/-/blob/HEAD/AUTHORS"
 
     # Test unknown host
-    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
+    locator, _ctype, content = deps_originator._resolve_remote_authors_file(
         "https://example.com/foo/pkg",
         "AUTHORS",
         offline=True,
@@ -321,7 +321,7 @@ def test_resolve_remote_authors_file_success_and_branches(
     assert locator == "https://example.com/foo/pkg"
 
     # Test short path
-    locator, _ctype, content = deps_supplier._resolve_remote_authors_file(
+    locator, _ctype, content = deps_originator._resolve_remote_authors_file(
         "https://github.com/foo",
         "AUTHORS",
         offline=True,

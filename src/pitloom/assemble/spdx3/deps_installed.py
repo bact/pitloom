@@ -18,12 +18,12 @@ from packaging.requirements import InvalidRequirement, Requirement
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps_license import _apply_license
-from pitloom.assemble.spdx3.deps_supplier import (
+from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
     _find_license_copyright,
     _parse_project_urls,
+    _resolve_author_or_maintainer,
     _resolve_metadata_url,
-    _resolve_supplier,
 )
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder
 from pitloom.core.models import build_pypi_purl
@@ -121,7 +121,7 @@ def _enrich_from_installed(
     if version and version != "unknown":
         dep_package.software_packageUrl = build_pypi_purl(dep_name, version)
 
-    originators = _resolve_supplier(pkg_meta)
+    originators = _resolve_author_or_maintainer(pkg_meta)
     if _apply_originator(
         originators,
         dep_package,

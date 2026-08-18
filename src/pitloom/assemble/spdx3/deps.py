@@ -8,7 +8,7 @@
 See also: :mod:`pitloom.assemble.spdx3.deps_installed` for local metadata parsing,
 :mod:`pitloom.assemble.spdx3.deps_pypi` for the PyPI JSON API fallback,
 :mod:`pitloom.assemble.spdx3.deps_license` for license element construction,
-and :mod:`pitloom.assemble.spdx3.deps_supplier` for supplier/originator resolution.
+and :mod:`pitloom.assemble.spdx3.deps_originator` for originator resolution.
 """
 
 from __future__ import annotations
@@ -26,16 +26,16 @@ from pitloom.assemble.spdx3.deps_installed import (
     _resolve_version,
 )
 from pitloom.assemble.spdx3.deps_license import _add_license_noassertion, _apply_license
+from pitloom.assemble.spdx3.deps_originator import (
+    _apply_originator,
+    _resolve_metadata_url,
+)
 from pitloom.assemble.spdx3.deps_pypi import (
     _extract_pypi_license,
-    _extract_pypi_supplier,
+    _extract_pypi_originator,
     _extract_release_hash,
     _fetch_pypi_release_info,
     _prefetch_pypi_release_infos,
-)
-from pitloom.assemble.spdx3.deps_supplier import (
-    _apply_originator,
-    _resolve_metadata_url,
 )
 from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
@@ -76,7 +76,7 @@ def _enrich_from_pypi(
     offline: bool = False,
     content_type_method: str = "auto",
 ) -> set[str]:
-    """Best-effort PyPI JSON API fallback for supplier, license, and hash."""
+    """Best-effort PyPI JSON API fallback for originator, license, and hash."""
     version = dep_version if dep_version != "unknown" else None
     release_info = (
         release_info_cache.get((dep_name, version))
@@ -101,7 +101,7 @@ def _enrich_from_pypi(
         repo_url = home_page
 
     if "originator" not in already_filled:
-        originators = _extract_pypi_supplier(info)
+        originators = _extract_pypi_originator(info)
         if _apply_originator(
             originators,
             dep_package,
