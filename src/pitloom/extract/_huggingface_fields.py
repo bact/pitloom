@@ -302,6 +302,32 @@ def _get_library_name(hf_data: dict[str, Any]) -> str | None:
     return str(lib) if lib else None
 
 
+def _populate_hub_info(extra_data: dict[str, Any], hub_info: dict[str, Any]) -> None:
+    """Populate Hub metadata keys on extra_data."""
+    for key in ("author", "sha", "created_at", "last_modified"):
+        val = hub_info.get(key)
+        if val:
+            extra_data[f"hf.{key}"] = str(val)
+
+
+def _populate_tokenizer_info(
+    extra_data: dict[str, Any], tokenizer_config: dict[str, Any] | None
+) -> None:
+    """Populate tokenizer configuration keys on extra_data."""
+    if not tokenizer_config:
+        return
+    tc_class = tokenizer_config.get("tokenizer_class")
+    if tc_class:
+        extra_data["hf.tokenizer_class"] = str(tc_class)
+    max_len = tokenizer_config.get("model_max_length")
+    if (
+        max_len is not None
+        and isinstance(max_len, (int, float))
+        and max_len < _TOKENIZER_MAX_LEN_UNLIMITED
+    ):
+        extra_data["hf.tokenizer_max_length"] = int(max_len)
+
+
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _build_extra_data(
     model_id: str,
@@ -321,14 +347,7 @@ def _build_extra_data(
 
     if vague_raw_license:
         extra_data["hf.license_raw"] = vague_raw_license
-    if hub_info.get("author"):
-        extra_data["hf.author"] = str(hub_info["author"])
-    if hub_info.get("sha"):
-        extra_data["hf.sha"] = str(hub_info["sha"])
-    if hub_info.get("created_at"):
-        extra_data["hf.created_at"] = str(hub_info["created_at"])
-    if hub_info.get("last_modified"):
-        extra_data["hf.last_modified"] = str(hub_info["last_modified"])
+    _populate_hub_info(extra_data, hub_info)
 
     library_name = card_data.get("library_name")
     if library_name:
@@ -337,17 +356,7 @@ def _build_extra_data(
     if license_name:
         extra_data["hf.license_name"] = str(license_name)
 
-    if tokenizer_config:
-        tc_class = tokenizer_config.get("tokenizer_class")
-        if tc_class:
-            extra_data["hf.tokenizer_class"] = str(tc_class)
-        max_len = tokenizer_config.get("model_max_length")
-        if (
-            max_len is not None
-            and isinstance(max_len, (int, float))
-            and max_len < _TOKENIZER_MAX_LEN_UNLIMITED
-        ):
-            extra_data["hf.tokenizer_max_length"] = int(max_len)
+    _populate_tokenizer_info(extra_data, tokenizer_config)
 
     model_index = card_data.get("model-index")
     if model_index:

@@ -69,18 +69,93 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     return {}
 
 
+def _parse_setup_keywords(kwargs: dict[str, Any]) -> list[str]:
+    """Extract normalized keyword list from setup() kwargs."""
+    keywords_raw = kwargs.get("keywords", [])
+    if isinstance(keywords_raw, str):
+        return [k.strip() for k in keywords_raw.replace(",", " ").split() if k.strip()]
+    if isinstance(keywords_raw, (list, tuple)):
+        return [str(k).strip() for k in keywords_raw if k]
+    return []
+
+
+def _parse_setup_urls(kwargs: dict[str, Any]) -> dict[str, str]:
+    """Extract URLs dictionary from setup() kwargs."""
+    urls: dict[str, str] = {}
+    url = kwargs.get("url", "")
+    if isinstance(url, str) and url.strip():
+        urls["Homepage"] = url.strip()
+    project_urls_raw = kwargs.get("project_urls", {})
+    if isinstance(project_urls_raw, dict):
+        for k, v in project_urls_raw.items():
+            if isinstance(k, str) and isinstance(v, str):
+                urls[k] = v
+    return urls
+
+
+def _parse_setup_authors(kwargs: dict[str, Any]) -> list[dict[str, str]]:
+    """Extract authors list from setup() kwargs."""
+    author_name = kwargs.get("author")
+    author_email = kwargs.get("author_email")
+    authors: list[dict[str, str]] = []
+    if isinstance(author_name, str) and author_name.strip():
+        entry: dict[str, str] = {"name": author_name.strip()}
+        if isinstance(author_email, str) and author_email.strip():
+            entry["email"] = author_email.strip()
+        authors.append(entry)
+    return authors
+
+
+# pylint: disable=too-many-arguments
+def _build_setup_py_provenance(
+    *,
+    has_version: bool,
+    has_description: bool,
+    has_readme: bool,
+    has_license: bool,
+    has_authors: bool,
+    has_urls: bool,
+    has_dependencies: bool,
+    has_requires_python: bool,
+    has_keywords: bool,
+) -> dict[str, str]:
+    """Build provenance dictionary for extracted setup.py fields."""
+    prov: dict[str, str] = {"name": "Source: setup.py | Field: setup(name=...)"}
+    if has_version:
+        prov["version"] = "Source: setup.py | Field: setup(version=...)"
+    if has_description:
+        prov["description"] = "Source: setup.py | Field: setup(description=...)"
+    if has_readme:
+        prov["readme"] = "Source: setup.py | Field: setup(long_description=...)"
+    if has_license:
+        prov["license"] = "Source: setup.py | Field: setup(license=...)"
+    if has_authors:
+        prov["authors"] = "Source: setup.py | Field: setup(author=...)"
+        prov["copyright_text"] = (
+            "Source: Pitloom generator | Method: inferred_from_authors"
+        )
+    if has_urls:
+        prov["urls"] = "Source: setup.py | Field: setup(url=...)"
+    if has_dependencies:
+        prov["dependencies"] = "Source: setup.py | Field: setup(install_requires=...)"
+    if has_requires_python:
+        prov["requires_python"] = "Source: setup.py | Field: setup(python_requires=...)"
+    if has_keywords:
+        prov["keywords"] = "Source: setup.py | Field: setup(keywords=...)"
+    return prov
+
+
+def _extract_str_kwarg(kwargs: dict[str, Any], key: str) -> str | None:
+    """Extract a stripped string kwarg if non-empty."""
+    val = kwargs.get(key)
+    return val.strip() if isinstance(val, str) and val.strip() else None
+
+
 # pylint: disable=too-many-locals
-# pylint: disable-next=too-many-branches
 def read_setup_py(
     project_dir: Path,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from ``setup.py`` using AST parsing.
-
-    Extracts keyword arguments from ``setup()`` or ``setuptools.setup()``
-    calls.  Only **literal** values (strings, lists, dicts, tuples) are
-    extracted; dynamic values (variables, function calls, f-strings) are
-    silently skipped.
-    """
+    """Read project metadata from ``setup.py`` using AST parsing."""
     setup_py_path = project_dir / "setup.py"
     if not setup_py_path.exists():
         raise FileNotFoundError(f"setup.py not found at {setup_py_path}")
@@ -92,7 +167,6 @@ def read_setup_py(
         raise ValueError(f"Could not parse setup.py: {exc}") from exc
 
     kwargs = _extract_setup_kwargs(tree)
-
     name = kwargs.get("name")
     if not isinstance(name, str) or not name.strip():
         raise ValueError(
@@ -101,61 +175,14 @@ def read_setup_py(
         )
     name = name.strip()
 
-    raw_version = kwargs.get("version")
-    version = raw_version.strip() if isinstance(raw_version, str) else None
-
-    description = kwargs.get("description")
-    description = (
-        description.strip() if isinstance(description, str) and description else None
-    )
-
-    readme_raw = kwargs.get("long_description")
-    readme = (
-        readme_raw.strip()
-        if isinstance(readme_raw, str) and readme_raw.strip()
-        else None
-    )
-
-    requires_python = kwargs.get("python_requires")
-    requires_python = (
-        requires_python.strip()
-        if isinstance(requires_python, str) and requires_python
-        else None
-    )
-
-    license_raw = kwargs.get("license")
-    license_name = (
-        license_raw.strip() if isinstance(license_raw, str) and license_raw else None
-    )
-
-    keywords_raw = kwargs.get("keywords", [])
-    if isinstance(keywords_raw, str):
-        keywords = [
-            k.strip() for k in keywords_raw.replace(",", " ").split() if k.strip()
-        ]
-    elif isinstance(keywords_raw, (list, tuple)):
-        keywords = [str(k).strip() for k in keywords_raw if k]
-    else:
-        keywords = []
-
-    urls: dict[str, str] = {}
-    url = kwargs.get("url", "")
-    if isinstance(url, str) and url.strip():
-        urls["Homepage"] = url.strip()
-    project_urls_raw = kwargs.get("project_urls", {})
-    if isinstance(project_urls_raw, dict):
-        for k, v in project_urls_raw.items():
-            if isinstance(k, str) and isinstance(v, str):
-                urls[k] = v
-
-    author_name = kwargs.get("author")
-    author_email = kwargs.get("author_email")
-    authors: list[dict[str, str]] = []
-    if isinstance(author_name, str) and author_name.strip():
-        entry: dict[str, str] = {"name": author_name.strip()}
-        if isinstance(author_email, str) and author_email.strip():
-            entry["email"] = author_email.strip()
-        authors.append(entry)
+    version = _extract_str_kwarg(kwargs, "version")
+    description = _extract_str_kwarg(kwargs, "description")
+    readme = _extract_str_kwarg(kwargs, "long_description")
+    requires_python = _extract_str_kwarg(kwargs, "python_requires")
+    license_name = _extract_str_kwarg(kwargs, "license")
+    keywords = _parse_setup_keywords(kwargs)
+    urls = _parse_setup_urls(kwargs)
+    authors = _parse_setup_authors(kwargs)
 
     install_requires = kwargs.get("install_requires", [])
     dependencies = (
@@ -164,28 +191,17 @@ def read_setup_py(
         else []
     )
 
-    prov: dict[str, str] = {"name": "Source: setup.py | Field: setup(name=...)"}
-    if version:
-        prov["version"] = "Source: setup.py | Field: setup(version=...)"
-    if description:
-        prov["description"] = "Source: setup.py | Field: setup(description=...)"
-    if readme:
-        prov["readme"] = "Source: setup.py | Field: setup(long_description=...)"
-    if license_name:
-        prov["license"] = "Source: setup.py | Field: setup(license=...)"
-    if authors:
-        prov["authors"] = "Source: setup.py | Field: setup(author=...)"
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
-    if urls:
-        prov["urls"] = "Source: setup.py | Field: setup(url=...)"
-    if dependencies:
-        prov["dependencies"] = "Source: setup.py | Field: setup(install_requires=...)"
-    if requires_python:
-        prov["requires_python"] = "Source: setup.py | Field: setup(python_requires=...)"
-    if keywords:
-        prov["keywords"] = "Source: setup.py | Field: setup(keywords=...)"
+    prov = _build_setup_py_provenance(
+        has_version=bool(version),
+        has_description=bool(description),
+        has_readme=bool(readme),
+        has_license=bool(license_name),
+        has_authors=bool(authors),
+        has_urls=bool(urls),
+        has_dependencies=bool(dependencies),
+        has_requires_python=bool(requires_python),
+        has_keywords=bool(keywords),
+    )
 
     project_metadata = ProjectMetadata(
         name=name,

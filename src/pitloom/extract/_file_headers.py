@@ -104,6 +104,31 @@ class FileHeaderMetadata:
     spdx_license_identifier: str | None = None
 
 
+@dataclass
+class _HeaderBuilder:
+    copyright_text: str | None = None
+    copyright_source: str | None = None
+    file_contributors: list[str] = field(default_factory=list)
+    file_type: str | None = None
+    spdx_license_identifier: str | None = None
+
+    def build(self) -> FileHeaderMetadata | None:
+        if (
+            self.copyright_text is None
+            and not self.file_contributors
+            and self.file_type is None
+            and self.spdx_license_identifier is None
+        ):
+            return None
+        return FileHeaderMetadata(
+            copyright_text=self.copyright_text,
+            copyright_source=self.copyright_source,
+            file_contributors=list(self.file_contributors),
+            file_type=self.file_type,
+            spdx_license_identifier=self.spdx_license_identifier,
+        )
+
+
 def _strip_comment_markers(line: str) -> str:
     """Strip leading/trailing comment-syntax markers, return the remainder."""
     stripped = _COMMENT_PREFIX_RE.sub("", line)
@@ -111,16 +136,46 @@ def _strip_comment_markers(line: str) -> str:
     return stripped.strip()
 
 
-def parse_file_header(data: bytes) -> FileHeaderMetadata | None:
-    """Parse SPDX-File* tags (and a bare copyright fallback) from *data*.
+def _find_bare_copyright(lines: list[str]) -> str | None:
+    """Find a fallback bare copyright line in comment-stripped lines."""
+    for raw_line in lines:
+        stripped = _strip_comment_markers(raw_line)
+        if stripped and _BARE_COPYRIGHT_RE.match(stripped):
+            return stripped
+    return None
 
-    Scans only the leading ``_HEADER_SCAN_MAX_BYTES``/``_HEADER_SCAN_MAX_LINES``
-    of *data* (whichever limit is hit first). Binary content (detected via
-    a null byte in the scanned region) is silently skipped, returning
-    ``None`` -- never raises on non-text input. Returns ``None`` when
-    nothing at all was found, so a header-less file (the common case)
-    doesn't produce an all-empty result.
-    """
+
+def _parse_header_line(
+    stripped: str,
+    meta: _HeaderBuilder,
+) -> None:
+    """Parse a single comment-stripped line into _HeaderBuilder."""
+    if meta.copyright_text is None:
+        match = _SPDX_COPYRIGHT_TAG_RE.match(stripped)
+        if match:
+            meta.copyright_text = match.group(1)
+            meta.copyright_source = "spdx_tag"
+            return
+
+    if meta.file_type is None:
+        match = _SPDX_FILETYPE_TAG_RE.match(stripped)
+        if match:
+            meta.file_type = match.group(1)
+            return
+
+    if meta.spdx_license_identifier is None:
+        match = _SPDX_LICENSE_TAG_RE.match(stripped)
+        if match:
+            meta.spdx_license_identifier = match.group(1)
+            return
+
+    match = _SPDX_CONTRIBUTOR_TAG_RE.match(stripped)
+    if match:
+        meta.file_contributors.append(match.group(1))
+
+
+def parse_file_header(data: bytes) -> FileHeaderMetadata | None:
+    """Parse SPDX-File* tags (and a bare copyright fallback) from *data*."""
     head = data[:_HEADER_SCAN_MAX_BYTES]
     if b"\x00" in head:
         return None
@@ -129,63 +184,19 @@ def parse_file_header(data: bytes) -> FileHeaderMetadata | None:
     non_blank_lines = [raw_line for raw_line in text.splitlines() if raw_line.strip()]
     lines = non_blank_lines[:_HEADER_SCAN_MAX_LINES]
 
-    copyright_text: str | None = None
-    copyright_source: str | None = None
-    file_contributors: list[str] = []
-    file_type: str | None = None
-    spdx_license_identifier: str | None = None
-
+    meta = _HeaderBuilder()
     for raw_line in lines:
         stripped = _strip_comment_markers(raw_line)
-        if not stripped:
-            continue
+        if stripped:
+            _parse_header_line(stripped, meta)
 
-        if copyright_text is None:
-            match = _SPDX_COPYRIGHT_TAG_RE.match(stripped)
-            if match:
-                copyright_text = match.group(1)
-                copyright_source = "spdx_tag"
-                continue
+    if meta.copyright_text is None:
+        bare = _find_bare_copyright(lines)
+        if bare is not None:
+            meta.copyright_text = bare
+            meta.copyright_source = "bare_copyright_line"
 
-        if file_type is None:
-            match = _SPDX_FILETYPE_TAG_RE.match(stripped)
-            if match:
-                file_type = match.group(1)
-                continue
-
-        if spdx_license_identifier is None:
-            match = _SPDX_LICENSE_TAG_RE.match(stripped)
-            if match:
-                spdx_license_identifier = match.group(1)
-                continue
-
-        match = _SPDX_CONTRIBUTOR_TAG_RE.match(stripped)
-        if match:
-            file_contributors.append(match.group(1))
-
-    if copyright_text is None:
-        for raw_line in lines:
-            stripped = _strip_comment_markers(raw_line)
-            if stripped and _BARE_COPYRIGHT_RE.match(stripped):
-                copyright_text = stripped
-                copyright_source = "bare_copyright_line"
-                break
-
-    if (
-        copyright_text is None
-        and not file_contributors
-        and file_type is None
-        and spdx_license_identifier is None
-    ):
-        return None
-
-    return FileHeaderMetadata(
-        copyright_text=copyright_text,
-        copyright_source=copyright_source,
-        file_contributors=file_contributors,
-        file_type=file_type,
-        spdx_license_identifier=spdx_license_identifier,
-    )
+    return meta.build()
 
 
 @lru_cache(maxsize=1)

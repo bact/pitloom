@@ -129,56 +129,17 @@ def _extract_size(data: dict[str, Any]) -> int | None:
     return 0
 
 
-# pylint: disable=too-many-locals
-def read_croissant(source: str | Path) -> DatasetMetadata:
-    """Extract metadata from a Croissant JSON-LD document.
-
-    Accepts a local file path or an HTTP/HTTPS URL.  No third-party packages
-    are required -- only the Python stdlib is used.
-
-    Extracted fields:
-
-    - ``name`` -- from ``schema:name`` (required; raises if absent)
-    - ``version`` -- from ``schema:version``
-    - ``description`` -- from ``schema:description``
-    - ``download_url`` -- from ``schema:url``
-    - ``license`` -- from ``schema:license``
-    - ``keywords`` -- from ``schema:keywords``
-    - ``creator`` -- from ``schema:creator`` (name extracted from nested node)
-    - ``dataset_types`` -- inferred from all ``sc:dataType`` values in the document
-    - ``data_collection_process`` -- from ``rai:dataCollection``
-    - ``data_preprocessing`` -- from ``rai:dataPreprocessingProtocol``
-    - ``known_bias`` -- from ``rai:dataBiases``
-    - ``has_sensitive_personal_information`` --
-      from ``rai:personalSensitiveInformation``
-    - ``croissant_url`` -- the URL string of *source* (when *source* is a URL)
-
-    Args:
-        source: Path to a local ``.json`` file or an HTTP/HTTPS URL.
-
-    Returns:
-        :class:`~pitloom.core.dataset_metadata.DatasetMetadata` with available
-        fields populated.
-
-    Raises:
-        ValueError: If *source* cannot be read, is not valid JSON, or has no
-            ``name`` field.
-    """
-    try:
-        data = fetch_json(source)
-    except ValueError as exc:
-        # Re-raise with Croissant-specific wording for context.
-        raise ValueError(str(exc).replace("Source ", "Croissant source ")) from exc
-
-    src_label = str(source)
-
-    name_raw = get_first(data, *NAME_KEYS)
-    if not name_raw:
-        raise ValueError(f"Croissant source {source!r} has no 'name' field.")
-    name = str(name_raw)
-
-    provenance: dict[str, str] = {"name": f"Source: {src_label} | Field: name"}
-
+def _extract_croissant_core_fields(
+    data: dict[str, Any], src_label: str, provenance: dict[str, str]
+) -> tuple[
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+    list[str],
+    str | None,
+]:
+    """Extract version, description, download_url, license, keywords, creator."""
     version_raw = get_first(data, *VERSION_KEYS)
     version = str(version_raw) if version_raw else None
     if version:
@@ -207,14 +168,13 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     if creator:
         provenance["creator"] = f"Source: {src_label} | Field: creator"
 
-    dataset_types = _infer_dataset_types(data)
-    if dataset_types:
-        provenance["dataset_types"] = (
-            f"Source: {src_label} | Field: cr:recordSet, sc:dataType"
-        )
+    return version, description, download_url, license_val, keywords, creator
 
-    dataset_size = 0  # To implement
 
+def _extract_croissant_rai_fields(
+    data: dict[str, Any], src_label: str, provenance: dict[str, str]
+) -> tuple[str | None, list[str], list[str], str | None]:
+    """Extract RAI collection, preprocessing, bias, and sensitivity fields."""
     collection_raw = get_first(data, *RAI_COLLECTION_KEYS)
     data_collection_process = str(collection_raw) if collection_raw else None
     if data_collection_process:
@@ -234,8 +194,6 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
     if known_bias:
         provenance["known_bias"] = f"Source: {src_label} | Field: rai:dataBiases"
 
-    intended_use = None
-
     sensitivity_raw = get_first(data, *RAI_SENSITIVITY_KEYS)
     has_sensitive = _normalize_sensitivity(sensitivity_raw)
     if has_sensitive is not None:
@@ -243,7 +201,51 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
             f"Source: {src_label} | Field: rai:personalSensitiveInformation"
         )
 
-    anonymization_methods: list[str] = []
+    return (
+        data_collection_process,
+        data_preprocessing,
+        known_bias,
+        has_sensitive,
+    )
+
+
+# pylint: disable=too-many-locals
+def read_croissant(source: str | Path) -> DatasetMetadata:
+    """Extract metadata from a Croissant JSON-LD document."""
+    try:
+        data = fetch_json(source)
+    except ValueError as exc:
+        raise ValueError(str(exc).replace("Source ", "Croissant source ")) from exc
+
+    src_label = str(source)
+    name_raw = get_first(data, *NAME_KEYS)
+    if not name_raw:
+        raise ValueError(f"Croissant source {source!r} has no 'name' field.")
+    name = str(name_raw)
+
+    provenance: dict[str, str] = {"name": f"Source: {src_label} | Field: name"}
+
+    (
+        version,
+        description,
+        download_url,
+        license_val,
+        keywords,
+        creator,
+    ) = _extract_croissant_core_fields(data, src_label, provenance)
+
+    dataset_types = _infer_dataset_types(data)
+    if dataset_types:
+        provenance["dataset_types"] = (
+            f"Source: {src_label} | Field: cr:recordSet, sc:dataType"
+        )
+
+    (
+        data_collection_process,
+        data_preprocessing,
+        known_bias,
+        has_sensitive,
+    ) = _extract_croissant_rai_fields(data, src_label, provenance)
 
     croissant_url: str | None = None
     if isinstance(source, str) and source.startswith(("http://", "https://")):
@@ -258,13 +260,13 @@ def read_croissant(source: str | Path) -> DatasetMetadata:
         keywords=keywords,
         creator=creator,
         dataset_types=dataset_types,
-        dataset_size=dataset_size,
+        dataset_size=0,
         data_collection_process=data_collection_process,
         data_preprocessing=data_preprocessing,
         known_bias=known_bias,
-        intended_use=intended_use,
+        intended_use=None,
         has_sensitive_personal_information=has_sensitive,
-        anonymization_methods=anonymization_methods,
+        anonymization_methods=[],
         croissant_url=croissant_url,
         provenance=provenance,
     )

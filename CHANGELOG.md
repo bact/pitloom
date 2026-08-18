@@ -56,6 +56,7 @@ and this project adheres to
   values from silently evaluating to `True` ([#152])
 - Split a string containing a list of authors into discrete agents
   and generate external refs for a group of authors ("Others") ([#151])
+- Reduce function complexity ([#163])
 
 [#151]: https://github.com/bact/pitloom/pull/151
 [#152]: https://github.com/bact/pitloom/pull/152
@@ -68,6 +69,7 @@ and this project adheres to
 [#160]: https://github.com/bact/pitloom/pull/160
 [#161]: https://github.com/bact/pitloom/pull/161
 [#162]: https://github.com/bact/pitloom/pull/162
+[#163]: https://github.com/bact/pitloom/pull/163
 
 ## [0.15.0] - 2026-08-15
 

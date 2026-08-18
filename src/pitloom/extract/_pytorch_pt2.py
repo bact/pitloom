@@ -232,6 +232,37 @@ def _read_pt2_graph_io(
     return inputs, outputs
 
 
+def _read_pt2_format_version(
+    zf: ZipFile, prefix: str, file_list: list[str], source: str
+) -> tuple[str | None, str | None]:
+    """Read ExecuTorch archive format version if present."""
+    if f"{prefix}archive_version" in file_list:
+        try:
+            arch_ver = (
+                zf.read(f"{prefix}archive_version")
+                .decode("utf-8", errors="replace")
+                .strip()
+            )
+            if arch_ver:
+                return arch_ver, f"{source} | Field: {prefix}archive_version"
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
+            log.debug("Failed to read PT2 %sarchive_version: %s", prefix, exc)
+    return None, None
+
+
+def _find_pt2_metadata_entry(
+    zf: ZipFile, file_list: list[str], source: str
+) -> tuple[str | None, str | None]:
+    """Search for simple PT2 metadata JSON entry."""
+    for meta_entry in ("METADATA.json", "metadata.json", "extra/metadata.json"):
+        if meta_entry in file_list:
+            name, prov_name = _read_pt2_meta_entry(zf, meta_entry, source)
+            if name:
+                return name, prov_name
+    return None, None
+
+
 # pylint: disable=too-many-locals
 def _read_pt2_zip(
     zf: ZipFile,
@@ -247,22 +278,11 @@ def _read_pt2_zip(
     list[dict[str, object]],
     list[dict[str, object]],
 ]:
-    """Read metadata from a PT2 Archive ZIP.
-
-    Args:
-        zf: Open ZipFile handle.
-        source: Provenance source string (e.g. "Source: model.pt2").
-
-    Returns:
-        Tuple of (name, description, version, license_expr, format_version,
-        properties, provenance, inputs, outputs).
-    """
+    """Read metadata from a PT2 Archive ZIP."""
     file_list = zf.namelist()
-    name: str | None = None
     description: str | None = None
     version: str | None = None
     license_expr: str | None = None
-    format_version: str | None = None
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
@@ -275,37 +295,18 @@ def _read_pt2_zip(
 
     prefix = _detect_root_prefix(file_list)
 
-    # PT2 Archive: dedicated root-level version file (simple format).
     if "version" in file_list:
         version = zf.read("version").decode("utf-8", errors="replace").strip() or None
         if version:
             provenance["version"] = f"{source} | Field: version file"
 
-    # ExecuTorch rich format: archive_version is the archive format version.
-    if f"{prefix}archive_version" in file_list:
-        try:
-            arch_ver = (
-                zf.read(f"{prefix}archive_version")
-                .decode("utf-8", errors="replace")
-                .strip()
-            )
-            if arch_ver:
-                format_version = arch_ver
-                provenance["format_version"] = (
-                    f"{source} | Field: {prefix}archive_version"
-                )
-        # pylint: disable=broad-exception-caught
-        except Exception as exc:
-            log.debug("Failed to read PT2 %sarchive_version: %s", prefix, exc)
+    format_version, prov_fv = _read_pt2_format_version(zf, prefix, file_list, source)
+    if prov_fv:
+        provenance["format_version"] = prov_fv
 
-    # PT2 Archive: optional metadata JSON (simple format).
-    for meta_entry in ("METADATA.json", "metadata.json", "extra/metadata.json"):
-        if meta_entry in file_list:
-            name, prov_name = _read_pt2_meta_entry(zf, meta_entry, source)
-            if name:
-                if prov_name:
-                    provenance["name"] = prov_name
-                break
+    name, prov_name = _find_pt2_metadata_entry(zf, file_list, source)
+    if prov_name:
+        provenance["name"] = prov_name
 
     # ExecuTorch rich format: extra/ metadata directory (updates properties/provenance
     # in-place; returns scalar fields that may override the above).

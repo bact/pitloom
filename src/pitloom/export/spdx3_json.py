@@ -189,41 +189,53 @@ def _deduplicate_named_elements(
     return result
 
 
+def _resolve_element_name(el: dict[str, Any], spdx_id: str) -> str:
+    """Derive human-friendly name for an SPDX element."""
+    name = el.get("name")
+    if not name:
+        name = el.get("simplelicensing_licenseExpression") or el.get("description")
+    if not name:
+        name = spdx_id.split("#")[-1]
+    return name if isinstance(name, str) else str(name)
+
+
+def _build_id_to_name_map(graph: list[dict[str, Any]]) -> dict[str, str]:
+    """Build mapping from spdxId to human-readable element name."""
+    id_to_name: dict[str, str] = {}
+    for el in graph:
+        spdx_id = el.get("spdxId") or el.get("@id")
+        if spdx_id:
+            id_to_name[spdx_id] = _resolve_element_name(el, spdx_id)
+    return id_to_name
+
+
+def _annotate_single_relationship(
+    node: dict[str, Any], id_to_name: dict[str, str]
+) -> None:
+    """Format and set description on a relationship node."""
+    rel_type = node.get("relationshipType")
+    from_id = node.get("from")
+    to_ids = node.get("to")
+    if not (rel_type and from_id and isinstance(to_ids, list)):
+        return
+    from_name = id_to_name.get(from_id, from_id.rsplit("#", maxsplit=1)[-1])
+    to_names = [
+        id_to_name.get(str(tid)) or str(tid).rsplit("#", maxsplit=1)[-1]
+        for tid in to_ids
+    ]
+    node["description"] = f"{from_name} {rel_type}: {', '.join(to_names)}"
+
+
 def _annotate_relationships(graph: list[dict[str, Any]]) -> None:
     """Add a descriptive 'description' field to Relationship elements
     to ease human reading.
 
     Format: <name of from Element> <relationship type>: <name of to Elements>
     """
-    id_to_name: dict[str, str] = {}
-    for el in graph:
-        spdx_id = el.get("spdxId") or el.get("@id")
-        if spdx_id:
-            name = el.get("name")
-            if not name:
-                name = el.get("simplelicensing_licenseExpression") or el.get(
-                    "description"
-                )
-            if not name:
-                name = spdx_id.split("#")[-1]
-            if isinstance(name, str):
-                id_to_name[spdx_id] = name
-
+    id_to_name = _build_id_to_name_map(graph)
     for node in graph:
-        if not isinstance(node, dict):
-            continue  # type: ignore[unreachable]
-        rel_type = node.get("relationshipType")
-        if not rel_type:
-            continue
-        from_id = node.get("from")
-        to_ids = node.get("to")
-        if rel_type and from_id and to_ids and isinstance(to_ids, list):
-            from_name = id_to_name.get(from_id, from_id.rsplit("#", maxsplit=1)[-1])
-            to_names = [
-                id_to_name.get(str(tid)) or str(tid).rsplit("#", maxsplit=1)[-1]
-                for tid in to_ids
-            ]
-            node["description"] = f"{from_name} {rel_type}: {', '.join(to_names)}"
+        if isinstance(node, dict) and "relationshipType" in node:
+            _annotate_single_relationship(node, id_to_name)
 
 
 class Spdx3JsonExporter:

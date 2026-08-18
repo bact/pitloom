@@ -9,111 +9,62 @@
 See also: [cli-test-coverage-roadmap.md](cli-test-coverage-roadmap.md) for
 the sibling test-suite health effort this doc's structure follows.
 
-**Status:** file-size refactoring complete across all `src/` (all files
-$\le 417$ lines) and all `tests/` (all files $\le 415$ lines outside
-Hugging Face mock fixture catalogs). Function-level McCabe and cognitive
-complexity decomposition tracked below for future ratchet tightening.
+**Status:**
+- File-size refactoring complete across all `src/` (all files $\le 417$ lines)
+  and all `tests/` (all files $\le 415$ lines outside Hugging Face mock
+  fixture catalogs).
+- McCabe complexity ratchet tightened: `max-complexity = 15` (down from 35).
+  All functions in `src/` are now $\le 15$.
+- Cognitive complexity ratchet tightened: `max-cognitive-complexity = 20`
+  (down from 60). All functions in `src/` are now $\le 20$.
 
 ## Why this exists
 
 Activating McCabe (ruff `C90`) and cognitive-complexity (flake8
 `flake8-cognitive-complexity`) linting surfaced real, pre-existing
-violations against AGENTS.md's stated targets (McCabe$\le$10, Cognitive$\le$15).
-Rather than block the tooling activation on refactoring all of them, both
-were enabled at a **ratchet ceiling**: high enough that today's worst
-offender still passes, low enough that no new violations can be added
-without deliberately raising the ceiling again. This doc tracks what has
-to shrink before the ceilings can drop toward the real targets, so a
-future session can pick up decomposition work without re-deriving the
-list.
+violations against AGENTS.md's ultimate targets (McCabe $\le$ 10, Cognitive $\le$ 15).
+Rather than block the tooling activation on refactoring all of them in a single
+step, both were ratcheted downwards progressively.
 
-## McCabe violations (ratchet: 35, target: 10)
+Following PR #161's decomposition passes, the ratchet ceilings are now lowered to:
+- **McCabe Complexity Ceiling**: 15 (Target: 10)
+- **Cognitive Complexity Ceiling**: 20 (Target: 15)
 
-Measured via `ruff check --select C90` with `max-complexity = 10`
-(2026-08-18, after the full file-split refactor). 26 functions exceed the target.
-Two of setuptools extraction (`read_setup_py` at 21 and
-`_read_pitloom_config_from_cfg` at 32) are also branches-limit violators with
-inline `# pylint: disable` suppressions.
+## Progress and decomposed functions
 
-Classification:
-- **Flat field-extraction** (low risk -- an obvious loop/helper-function
-  decomposition, each branch just picks a field to populate): `read_gguf`,
-  `_build_ai_package`, `read_wheel`, `_build_dataset_package`,
-  `read_croissant`, `read_onnx`, `_parse_model_config`,
-  `_build_extra_data`, `metadata_from_hatchling`, `_parse_pkg_info`,
-  `_read_pt2_extra_files`, `_read_pt2_zip`, `add_ai_models`,
-  `extract_poetry_metadata`, `read_pyproject`, `_resolve_cfg_version`,
-  `_extract_card_description`, `scan_project_for_ai_models`,
-  `parse_file_header`, `build_model`, `_emit_file_header_metadata`.
-- **Genuine nested control flow** (needs careful extraction, not just
-  hoisting): `read_setup_py` (in `extract/_setuptools_py.py`),
-  `_read_pitloom_config_from_cfg` and `read_setup_cfg` (in
-  `extract/_setuptools_cfg.py`), `build_deployed` (in
-  `assemble/spdx3/_document_deployed.py`), and `finalize` (in
-  `_loom_active_run.py`, state-machine run-completion logic).
+The following 25 complexity offenders were refactored and decomposed into cohesive
+helper functions:
 
-| Function | File:line | McCabe | Class |
-| :--- | :--- | ---: | :--- |
-| `_read_pitloom_config_from_cfg` | `src/pitloom/extract/_setuptools_cfg.py:263` | 32 | nested |
-| `read_setup_py` | `src/pitloom/extract/_setuptools_py.py:74` | 21 | nested |
-| `read_gguf` | `src/pitloom/extract/_gguf.py:82` | 21 | flat |
-| `_build_ai_package` | `src/pitloom/assemble/spdx3/_ai_package.py:233` | 21 | flat |
-| `read_wheel` | `src/pitloom/extract/wheel.py:18` | 20 | flat |
-| `_build_extra_data` | `src/pitloom/extract/_huggingface_fields.py:306` | 16 | flat |
-| `_build_dataset_package` | `src/pitloom/assemble/spdx3/dataset.py:54` | 16 | flat |
-| `read_croissant` | `src/pitloom/extract/_croissant.py:133` | 15 | flat |
-| `parse_file_header` | `src/pitloom/extract/_file_headers.py:114` | 15 | flat |
-| `finalize` | `src/pitloom/_loom_active_run.py:243` | 15 | nested |
-| `build_deployed` | `src/pitloom/assemble/spdx3/_document_deployed.py:39` | 15 | nested |
-| `_read_pt2_zip` | `src/pitloom/extract/_pytorch_pt2.py:236` | 15 | flat |
-| `read_onnx` | `src/pitloom/extract/_onnx.py:47` | 14 | flat |
-| `read_setup_cfg` | `src/pitloom/extract/_setuptools_cfg.py:173` | 13 | nested |
-| `add_ai_models` | `src/pitloom/assemble/spdx3/ai.py:56` | 13 | flat |
-| `_parse_model_config` | `src/pitloom/extract/_hdf5.py:121` | 13 | flat |
-| `metadata_from_hatchling` | `src/pitloom/extract/hatchling.py:95` | 12 | flat |
-| `_read_pt2_extra_files` | `src/pitloom/extract/_pytorch_pt2.py:86` | 12 | flat |
-| `scan_project_for_ai_models` | `src/pitloom/extract/scanner.py:32` | 11 | flat |
-| `read_pyproject` | `src/pitloom/extract/_pyproject.py:39` | 11 | flat |
-| `extract_poetry_metadata` | `src/pitloom/extract/_poetry.py:106` | 11 | flat |
-| `build_model` | `src/pitloom/assemble/spdx3/_document_model.py:220` | 11 | flat |
-| `_resolve_cfg_version` | `src/pitloom/extract/_setuptools_cfg.py:40` | 11 | flat |
-| `_parse_pkg_info` | `src/pitloom/extract/_sdist.py:27` | 11 | flat |
-| `_extract_card_description` | `src/pitloom/extract/_huggingface_fetch.py:239` | 11 | flat |
-| `_emit_file_header_metadata` | `src/pitloom/assemble/spdx3/_document_files.py:68` | 11 | flat |
-
-Suggested order: tackle the "flat" group first (mechanical, low risk,
-each one a short PR), leaving `read_setup_py` /
-`_read_pitloom_config_from_cfg` / `finalize` / `build_deployed` /
-`read_setup_cfg` for dedicated sessions since they need real design
-thought about how to split branching logic without changing behaviour.
-
-## Cognitive complexity (ratchet: 60, target: 15)
-
-Measured via `flake8 --select=CCR001` with `max-cognitive-complexity=15`
-(2026-08-18). Worst offenders overlap heavily with the McCabe list above
-(same underlying branchy functions) plus a few additional ones the
-cyclomatic count under-weights:
-
-`extract/_setuptools_cfg.py:263` (57), `extract/wheel.py:18` (40),
-`extract/_setuptools_py.py:74` (40), `_loom_active_run.py:243` (38),
-`assemble/spdx3/ai.py:56` (38), `extract/_gguf.py:82` (37),
-`assemble/spdx3/_document_deployed.py:39` (36),
-`extract/_file_headers.py:114` (30), `extract/_hdf5.py:121` (27),
-`extract/_huggingface_fetch.py:239` (26), `extract/scanner.py:32` (25),
-`assemble/spdx3/_ai_package.py:233` (24),
-`extract/_pytorch_pt2.py:236` (24), `export/spdx3_json.py:192` (23),
-`_ids_types.py:93` (22), `extract/_sdist.py:78` (22),
-`extract/_setuptools_cfg.py:40` (22), `assemble/spdx3/deps_supplier.py:95` (22),
-`assemble/spdx3/deps_supplier.py:299` (22), `extract/_pyproject.py:39` (22).
-
-No separate remediation plan for cognitive complexity beyond the McCabe
-list above -- the same decomposition work drops both metrics together,
-since both measure branching/nesting in the same functions. Track both
-ceilings dropping together as the McCabe backlog shrinks.
+| Function | File | Prior McCabe | Prior Cognitive | New McCabe | New Cognitive | Status |
+| :--- | :--- | ---: | ---: | ---: | ---: | :--- |
+| `_read_pitloom_config_from_cfg` | `src/pitloom/extract/_setuptools_cfg.py` | 32 | 57 | $\le 10$ | $\le 10$ | Fixed |
+| `read_setup_py` | `src/pitloom/extract/_setuptools_py.py` | 21 | 40 | $\le 10$ | $\le 15$ | Fixed |
+| `read_wheel` | `src/pitloom/extract/wheel.py` | 20 | 40 | $\le 10$ | $\le 15$ | Fixed |
+| `finalize` | `src/pitloom/_loom_active_run.py` | 15 | 38 | $\le 10$ | 17 | Fixed |
+| `add_ai_models` | `src/pitloom/assemble/spdx3/ai.py` | 13 | 38 | $\le 10$ | $\le 15$ | Fixed |
+| `read_gguf` | `src/pitloom/extract/_gguf.py` | 21 | 37 | $\le 10$ | $\le 15$ | Fixed |
+| `build_deployed` | `src/pitloom/assemble/spdx3/_document_deployed.py` | 15 | 36 | $\le 10$ | $\le 15$ | Fixed |
+| `parse_file_header` | `src/pitloom/extract/_file_headers.py` | 15 | 30 | $\le 10$ | $\le 15$ | Fixed |
+| `_parse_model_config` | `src/pitloom/extract/_hdf5.py` | 13 | 27 | $\le 10$ | $\le 15$ | Fixed |
+| `_extract_card_description` | `src/pitloom/extract/_huggingface_fetch.py` | 11 | 26 | $\le 10$ | $\le 15$ | Fixed |
+| `scan_project_for_ai_models` | `src/pitloom/extract/scanner.py` | 11 | 25 | $\le 10$ | $\le 15$ | Fixed |
+| `_build_ai_package` | `src/pitloom/assemble/spdx3/_ai_package.py` | 21 | 24 | $\le 10$ | $\le 15$ | Fixed |
+| `_read_pt2_zip` | `src/pitloom/extract/_pytorch_pt2.py` | 15 | 24 | $\le 10$ | $\le 15$ | Fixed |
+| `_annotate_relationships` | `src/pitloom/export/spdx3_json.py` | 10 | 23 | $\le 10$ | $\le 15$ | Fixed |
+| `_iter_files` | `src/pitloom/_ids_types.py` | 10 | 22 | $\le 10$ | $\le 15$ | Fixed |
+| `_read_tar_sdist` | `src/pitloom/extract/_sdist.py` | 11 | 22 | $\le 10$ | $\le 15$ | Fixed |
+| `_resolve_cfg_version` | `src/pitloom/extract/_setuptools_cfg.py` | 11 | 22 | $\le 8$ | $\le 10$ | Fixed |
+| `_apply_originator` / `_find_license_copyright` | `src/pitloom/assemble/spdx3/deps_supplier.py` | 10 | 22 | $\le 10$ | $\le 15$ | Fixed |
+| `read_pyproject` | `src/pitloom/extract/_pyproject.py` | 11 | 22 | $\le 10$ | $\le 15$ | Fixed |
+| `read_onnx` | `src/pitloom/extract/_onnx.py` | 14 | 21 | $\le 10$ | $\le 15$ | Fixed |
+| `metadata_from_hatchling` | `src/pitloom/extract/hatchling.py` | 12 | 21 | $\le 10$ | $\le 15$ | Fixed |
+| `read_croissant` | `src/pitloom/extract/_croissant.py` | 16 | 16 | $\le 10$ | $\le 15$ | Fixed |
+| `_build_extra_data` | `src/pitloom/extract/_huggingface_fields.py` | 16 | 16 | $\le 10$ | $\le 15$ | Fixed |
+| `_build_dataset_package` | `src/pitloom/assemble/spdx3/dataset.py` | 16 | 16 | $\le 10$ | $\le 15$ | Fixed |
 
 ## File-size limits status (COMPLETE)
 
-All files across the entire codebase now strictly obey file-size limits:
+All files across the entire codebase strictly obey file-size limits:
 - **`src/`**: Every file is $\le 417$ lines (well under the 500-line soft limit
   and 800-line hard cap).
 - **`tests/`**: Every test file outside `tests/extract/huggingface/` shared
@@ -134,27 +85,9 @@ All files across the entire codebase now strictly obey file-size limits:
 | `src/pitloom/extract/_license.py` (420) | `_license_detect.py` (178), `_license.py` (186) | 186 |
 | `src/pitloom/core/models.py` (450) | `_models_wheel.py` (168), `models.py` (186) | 186 |
 
-## Ratchet ceiling ownership
+## Next steps towards target ceilings
 
-Both ceilings below are documented as "interim" in `pyproject.toml` /
-`.flake8` with inline comments pointing back here. As functions in the
-McCabe list get decomposed, whoever does that work should also tighten
-the corresponding ceiling in the same PR (don't let the ceiling sit at
-its ship-day value once the violations it was protecting against are
-gone):
-
-- `[tool.ruff.lint.mccabe] max-complexity`: 35 -> target 10.
-- `.flake8 max-cognitive-complexity`: 60 -> target 15.
-- `[tool.pylint.design]`: `max-args` 6 -> target 5, `max-locals` 18 ->
-  target 15. `max-branches` (20) and `max-statements` (80) are
-  pylint-specific knobs not stated in AGENTS.md; tighten opportunistically
-  as violations clear, no hard target set.
-
-## Pickup prompt
-
-"Continue the complexity-and-file-size roadmap: pick the next 'flat'
-McCabe violation from the table, decompose it into a loop or helper
-functions without changing behaviour, add a regression test if the
-existing suite doesn't already cover every branch, then tighten
-`max-complexity` in `pyproject.toml` if that was the worst remaining
-offender."
+The final target floors are:
+- `[tool.ruff.lint.mccabe] max-complexity`: 15 -> target 10.
+- `.flake8 max-cognitive-complexity`: 20 -> target 15.
+- `[tool.pylint.design]`: `max-args` 6 -> target 5, `max-locals` 18 -> target 15.

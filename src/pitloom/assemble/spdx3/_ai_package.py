@@ -158,6 +158,44 @@ class _LineageContext:
     cache: dict[str, str] = field(default_factory=dict)
 
 
+def _find_or_create_base_pkg(base_model_str: str, ctx: _LineageContext) -> str:
+    """Find existing base model package or create a new external reference node."""
+    pkg_name = (
+        base_model_str.rsplit("/", maxsplit=1)[-1]
+        if "/" in base_model_str
+        else base_model_str
+    )
+    for obj in ctx.exporter.object_set.objects:
+        if isinstance(obj, spdx3.ai_AIPackage) and obj.name in (
+            base_model_str,
+            pkg_name,
+        ):
+            return require_spdx_id(obj)
+
+    base_spdx_id = generate_spdx_id(
+        f"AIPackage-{pkg_name}", doc_name=ctx.doc_name, doc_uuid=ctx.doc_uuid
+    )
+    base_pkg = spdx3.ai_AIPackage(
+        spdxId=base_spdx_id,
+        name=pkg_name,
+        creationInfo=ctx.creation_info,
+    )
+    url = (
+        base_model_str
+        if base_model_str.startswith(("http://", "https://"))
+        else f"https://huggingface.co/{base_model_str}"
+    )
+    base_pkg.externalRef.append(
+        spdx3.ExternalRef(
+            externalRefType=spdx3.ExternalRefType.altWebPage,
+            locator=[url],
+            comment="Base model repository",
+        )
+    )
+    ctx.exporter.add_package(base_pkg)
+    return base_spdx_id
+
+
 def _add_base_model_lineage(
     ai_pkg: spdx3.ai_AIPackage,
     ai_model: AiModelMetadata,
@@ -171,44 +209,7 @@ def _add_base_model_lineage(
     base_model_str = str(base_model_id)
     base_spdx_id = ctx.cache.get(base_model_str)
     if base_spdx_id is None:
-        pkg_name = (
-            base_model_str.rsplit("/", maxsplit=1)[-1]
-            if "/" in base_model_str
-            else base_model_str
-        )
-        existing_spdx_id = None
-        for obj in ctx.exporter.object_set.objects:
-            if isinstance(obj, spdx3.ai_AIPackage) and obj.name in (
-                base_model_str,
-                pkg_name,
-            ):
-                existing_spdx_id = require_spdx_id(obj)
-                break
-
-        if existing_spdx_id:
-            base_spdx_id = existing_spdx_id
-        else:
-            base_spdx_id = generate_spdx_id(
-                f"AIPackage-{pkg_name}", doc_name=ctx.doc_name, doc_uuid=ctx.doc_uuid
-            )
-            base_pkg = spdx3.ai_AIPackage(
-                spdxId=base_spdx_id,
-                name=pkg_name,
-                creationInfo=ctx.creation_info,
-            )
-            url = (
-                base_model_str
-                if base_model_str.startswith(("http://", "https://"))
-                else f"https://huggingface.co/{base_model_str}"
-            )
-            base_pkg.externalRef.append(
-                spdx3.ExternalRef(
-                    externalRefType=spdx3.ExternalRefType.altWebPage,
-                    locator=[url],
-                    comment="Base model repository",
-                )
-            )
-            ctx.exporter.add_package(base_pkg)
+        base_spdx_id = _find_or_create_base_pkg(base_model_str, ctx)
         ctx.cache[base_model_str] = base_spdx_id
 
     rel_relation = ai_model.base_model_relation or ai_model.extra_data.get(
@@ -228,6 +229,64 @@ def _add_base_model_lineage(
         if rel_relation:
             rel.comment = f"base_model_relation:{rel_relation}"
         ctx.exporter.add_relationship(rel)
+
+
+def _populate_ai_pkg_hyperparameters(
+    ai_pkg: spdx3.ai_AIPackage, ai_model: AiModelMetadata
+) -> None:
+    """Populate hyperparameters dictionary entries on ai_AIPackage."""
+    hyperparameter_entries: list[spdx3.DictionaryEntry] = []
+    if ai_model.quantization:
+        hyperparameter_entries.append(
+            spdx3.DictionaryEntry(key="quantization", value=ai_model.quantization)
+        )
+    for key, val in ai_model.hyperparameters.items():
+        hyperparameter_entries.append(
+            spdx3.DictionaryEntry(key=str(key), value=str(val))
+        )
+    if hyperparameter_entries:
+        ai_pkg.ai_hyperparameter = hyperparameter_entries
+
+
+def _populate_ai_pkg_domains_and_safety(
+    ai_pkg: spdx3.ai_AIPackage, ai_model: AiModelMetadata
+) -> None:
+    """Populate domain, limitations, and safety risk assessment fields."""
+    combined_domains: list[str] = []
+    seen_domains: set[str] = set()
+    for d in list(ai_model.domain) + list(ai_model.usage.domains):
+        if d not in seen_domains:
+            combined_domains.append(d)
+            seen_domains.add(d)
+    if combined_domains:
+        ai_pkg.ai_domain = combined_domains
+
+    if ai_model.usage.limitations:
+        ai_pkg.ai_limitation = "; ".join(ai_model.usage.limitations)
+
+    if ai_model.usage.safety_risk_assessment:
+        risk_val = ai_model.usage.safety_risk_assessment.lower()
+        if risk_val in _SAFETY_RISK_VALUES:
+            ai_pkg.ai_safetyRiskAssessment = getattr(
+                spdx3.ai_SafetyRiskAssessmentType, risk_val, None
+            )
+
+
+def _populate_ai_pkg_io_application(
+    ai_pkg: spdx3.ai_AIPackage, ai_model: AiModelMetadata
+) -> None:
+    """Populate informationAboutApplication JSON structure on ai_AIPackage."""
+    io_parts: dict[str, Any] = {}
+    if ai_model.inputs:
+        io_parts["inputs"] = ai_model.inputs
+    if ai_model.outputs:
+        io_parts["outputs"] = ai_model.outputs
+    if ai_model.usage.intended_use:
+        io_parts["intended_use"] = ai_model.usage.intended_use
+    if ai_model.usage.unintended_use:
+        io_parts["unintended_use"] = ai_model.usage.unintended_use
+    if io_parts:
+        ai_pkg.ai_informationAboutApplication = json.dumps(io_parts, ensure_ascii=False)
 
 
 def _build_ai_package(
@@ -262,49 +321,9 @@ def _build_ai_package(
     if type_of_model_values:
         ai_pkg.ai_typeOfModel = type_of_model_values
 
-    hyperparameter_entries: list[spdx3.DictionaryEntry] = []
-    if ai_model.quantization:
-        hyperparameter_entries.append(
-            spdx3.DictionaryEntry(key="quantization", value=ai_model.quantization)
-        )
-    for key, val in ai_model.hyperparameters.items():
-        hyperparameter_entries.append(
-            spdx3.DictionaryEntry(key=str(key), value=str(val))
-        )
-    if hyperparameter_entries:
-        ai_pkg.ai_hyperparameter = hyperparameter_entries
-
-    combined_domains: list[str] = []
-    seen_domains: set[str] = set()
-    for d in list(ai_model.domain) + list(ai_model.usage.domains):
-        if d not in seen_domains:
-            combined_domains.append(d)
-            seen_domains.add(d)
-    if combined_domains:
-        ai_pkg.ai_domain = combined_domains
-
-    if ai_model.usage.limitations:
-        ai_pkg.ai_limitation = "; ".join(ai_model.usage.limitations)
-
-    if ai_model.usage.safety_risk_assessment:
-        risk_val = ai_model.usage.safety_risk_assessment.lower()
-        if risk_val in _SAFETY_RISK_VALUES:
-            ai_pkg.ai_safetyRiskAssessment = getattr(
-                spdx3.ai_SafetyRiskAssessmentType, risk_val, None
-            )
-
-    io_parts: dict[str, Any] = {}
-    if ai_model.inputs:
-        io_parts["inputs"] = ai_model.inputs
-    if ai_model.outputs:
-        io_parts["outputs"] = ai_model.outputs
-    if ai_model.usage.intended_use:
-        io_parts["intended_use"] = ai_model.usage.intended_use
-    if ai_model.usage.unintended_use:
-        io_parts["unintended_use"] = ai_model.usage.unintended_use
-    if io_parts:
-        ai_pkg.ai_informationAboutApplication = json.dumps(io_parts, ensure_ascii=False)
-
+    _populate_ai_pkg_hyperparameters(ai_pkg, ai_model)
+    _populate_ai_pkg_domains_and_safety(ai_pkg, ai_model)
+    _populate_ai_pkg_io_application(ai_pkg, ai_model)
     _add_external_identifiers_and_refs(ai_pkg, ai_model)
 
     if ai_model.usage.known_biases:

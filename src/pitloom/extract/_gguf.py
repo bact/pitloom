@@ -78,86 +78,39 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         return str(int_val)
 
 
-# pylint: disable=too-many-locals
-def read_gguf(model_path: Path) -> AiModelMetadata:
-    """Extract metadata from a GGUF model file.
-
-    Requires the ``gguf`` package (``pip install gguf``).
-
-    GGUF stores typed key-value pairs in its header. This extractor reads:
-    - ``general.*`` keys for name, description, architecture, and version
-    - Architecture-specific hyperparameter keys (e.g. ``llama.context_length``)
-    - ``general.file_type`` for quantization level
-    - All remaining key-value pairs as generic properties
-
-    Args:
-        model_path: Path to a ``.gguf`` file.
-
-    Returns:
-        AiModelMetadata with available fields populated.
-
-    Raises:
-        ImportError: If ``gguf`` is not installed.
-        ValueError: If the file cannot be read as a valid GGUF file.
-    """
-    try:
-        # pylint: disable=import-outside-toplevel
-        from gguf import (
-            GGUFReader,
-            GGUFValueType,
-        )
-    except ImportError as exc:
-        raise ImportError(
-            "The 'gguf' package is required to extract GGUF model metadata. "
-            "Install it with: pip install gguf"
-        ) from exc
-
-    try:
-        reader = GGUFReader(str(model_path), mode="r")
-    # pylint: disable=broad-exception-caught
-    except Exception as exc:
-        log.debug("Failed to open GGUF file %s: %s", model_path, exc)
-        raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
-
-    source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    framework = "llama.cpp"
-
-    # Read GGUF format version from the binary header (uint32 at byte offset 4).
-    format_version: str | None = None
+def _read_gguf_format_version(model_path: Path, source: str) -> tuple[str | None, str]:
+    """Read GGUF format version from the binary header (uint32 at offset 4)."""
     try:
         with model_path.open("rb") as fh:
             fh.seek(4)
             ver_bytes = fh.read(4)
         if len(ver_bytes) == 4:
             format_version = str(struct.unpack("<I", ver_bytes)[0])
-            provenance_format_ver = f"{source} | Field: GGUF header version (bytes 4-7)"
-        else:
-            provenance_format_ver = ""
+            return format_version, f"{source} | Field: GGUF header version (bytes 4-7)"
     except OSError:
-        provenance_format_ver = ""
+        pass
+    return None, ""
 
-    hyperparameters: dict[str, Any] = {}
-    properties: dict[str, str] = {}
-    provenance: dict[str, str] = {}
-    if format_version:
-        provenance["format_version"] = provenance_format_ver
 
-    # Resolve field values to plain Python scalars
-    def _field_value(gguf_field: Any) -> Any:
-        parts = gguf_field.parts
-        if not parts:
-            return None
-        last = parts[-1]
-        # String fields are stored as a raw byte array; decode them explicitly
-        if gguf_field.types and gguf_field.types[0] == GGUFValueType.STRING:
-            return last.tobytes().decode("utf-8")
-        if hasattr(last, "tolist"):
-            val = last.tolist()
-            return val[0] if isinstance(val, list) and len(val) == 1 else val
-        return last
+def _field_value(gguf_field: Any) -> Any:
+    """Resolve GGUF field values to plain Python scalars."""
+    parts = gguf_field.parts
+    if not parts:
+        return None
+    last = parts[-1]
+    # String fields are stored as raw byte arrays; decode explicitly
+    if gguf_field.types and getattr(gguf_field.types[0], "name", "") == "STRING":
+        return last.tobytes().decode("utf-8")
+    if hasattr(last, "tolist"):
+        val = last.tolist()
+        return val[0] if isinstance(val, list) and len(val) == 1 else val
+    return last
 
-    fields: dict[str, Any] = {k: _field_value(v) for k, v in reader.fields.items()}
 
+def _extract_gguf_core_fields(
+    fields: dict[str, Any], source: str, provenance: dict[str, str]
+) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+    """Extract core model identification fields from GGUF fields dictionary."""
     name: str | None = None
     for key in _GGUF_NAME_KEYS:
         if key in fields and fields[key] is not None:
@@ -172,7 +125,6 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
             provenance["description"] = f"{source} | Field: {key}"
             break
 
-    # general.architecture -> architecture (specific arch name, e.g. "llama", "bert")
     architecture: str | None = fields.get(_GGUF_ARCH_KEY)
     if architecture is not None:
         architecture = str(architecture)
@@ -183,14 +135,21 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         version = str(fields[_GGUF_VERSION_KEY])
         provenance["version"] = f"{source} | Field: {_GGUF_VERSION_KEY}"
 
-    # general.file_type -> quantization level (e.g. "Q4_K_M", "F16")
     quantization: str | None = None
     if _GGUF_FILE_TYPE_KEY in fields:
         quantization = _resolve_quantization(fields[_GGUF_FILE_TYPE_KEY])
         if quantization:
             provenance["quantization"] = f"{source} | Field: {_GGUF_FILE_TYPE_KEY}"
 
-    # Separate hyperparameters from general properties
+    return name, description, architecture, version, quantization
+
+
+def _categorize_gguf_fields(
+    fields: dict[str, Any], source: str, provenance: dict[str, str]
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Separate hyperparameters from general properties and record provenance."""
+    hyperparameters: dict[str, Any] = {}
+    properties: dict[str, str] = {}
     for key, value in fields.items():
         if value is None:
             continue
@@ -199,17 +158,55 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         else:
             properties[key] = str(value)
 
-    # Exact per-key provenance: each hyperparameter/property is traceable to
-    # its own GGUF kv key (the dict key *is* the kv key here).
     record_dict_field_provenance(provenance, "hyperparameters", hyperparameters, source)
     record_dict_field_provenance(provenance, "properties", properties, source)
+    return hyperparameters, properties
+
+
+def read_gguf(model_path: Path) -> AiModelMetadata:
+    """Extract metadata from a GGUF model file.
+
+    Requires the ``gguf`` package (``pip install gguf``).
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        from gguf import GGUFReader
+    except ImportError as exc:
+        raise ImportError(
+            "The 'gguf' package is required to extract GGUF model metadata. "
+            "Install it with: pip install gguf"
+        ) from exc
+
+    try:
+        reader = GGUFReader(str(model_path), mode="r")
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        log.debug("Failed to open GGUF file %s: %s", model_path, exc)
+        raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc
+
+    source = f"Source: {sanitize_provenance_text(model_path.name)}"
+    format_version, prov_ver = _read_gguf_format_version(model_path, source)
+    provenance: dict[str, str] = {}
+    if format_version:
+        provenance["format_version"] = prov_ver
+
+    fields: dict[str, Any] = {k: _field_value(v) for k, v in reader.fields.items()}
+    (
+        name,
+        description,
+        architecture,
+        version,
+        quantization,
+    ) = _extract_gguf_core_fields(fields, source, provenance)
+
+    hyperparameters, properties = _categorize_gguf_fields(fields, source, provenance)
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(
             file_name=model_path.name,
             model_format=AiModelFormat.GGUF,
             format_version=format_version,
-            framework=framework,
+            framework="llama.cpp",
         ),
         name=name,
         description=description,
