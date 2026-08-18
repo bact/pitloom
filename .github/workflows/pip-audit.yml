@@ -43,9 +43,5 @@ jobs:
           pip install ".[ai,content-type]" --group dev
 
       - name: Run pip-audit
-        # Non-blocking for now: the existing dependency tree has known,
-        # untriaged transitive findings (idna, setuptools, soupsieve,
-        # urllib3 as of 2026-08-18). Flip to blocking once those are
-        # resolved or explicitly ignored via `pip-audit --ignore-vuln`.
-        continue-on-error: true
+        # Failed pip-audit = blocking
         run: pip-audit --progress-spinner=off
