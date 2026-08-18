@@ -33,9 +33,9 @@ def test_resolve_quantization_edge_cases() -> None:
     assert result == "999999"
 
 
-def test_read_gguf_format_version_oserror() -> None:
+def test_read_gguf_format_version_oserror(tmp_path: Path) -> None:
     """_read_gguf_format_version handles OSError during open."""
-    nonexistent = Path("/tmp/nonexistent_gguf_header_12345.gguf")
+    nonexistent = tmp_path / "nonexistent_gguf_header_12345.gguf"
     version, prov = _read_gguf_format_version(nonexistent, "Source: test")
     assert version is None
     assert prov == ""

@@ -96,15 +96,16 @@ def test_loom_nested_runs_restore_previous_run() -> None:
         assert inner_file.exists()
 
 
-def test_caller_info_module_level_and_external_path() -> None:
+def test_caller_info_module_level_and_external_path(tmp_path: Path) -> None:
     """_get_caller_info formats '<module>' and paths outside cwd properly."""
     fake_frame = collections.namedtuple(
         "fake_frame", ["filename", "function", "lineno"]
     )
+    outside_dir = tmp_path / "outside" / "scripts"
 
     # Frame with function == '<module>' and path outside cwd
     frame = fake_frame(
-        filename="/opt/custom/scripts/train_script.py",
+        filename=str(outside_dir / "train_script.py"),
         function="<module>",
         lineno=10,
     )
@@ -116,7 +117,7 @@ def test_caller_info_module_level_and_external_path() -> None:
 
     # Frame with a named function outside cwd
     frame2 = fake_frame(
-        filename="/opt/custom/scripts/eval_script.py",
+        filename=str(outside_dir / "eval_script.py"),
         function="evaluate",
         lineno=25,
     )
@@ -127,7 +128,7 @@ def test_caller_info_module_level_and_external_path() -> None:
         assert "function: evaluate" in info2
 
 
-def test_caller_script_path_edge_cases() -> None:
+def test_caller_script_path_edge_cases(tmp_path: Path) -> None:
     """_get_caller_script_path handles repl frames, missing files, and outside cwd."""
     fake_frame = collections.namedtuple("fake_frame", ["filename"])
 
@@ -138,7 +139,7 @@ def test_caller_script_path_edge_cases() -> None:
         assert _loom_caller._get_caller_script_path() is None
 
     # 2. Filename does not exist on disk
-    nonexistent = fake_frame(filename="/tmp/nonexistent_dummy_file_12345.py")
+    nonexistent = fake_frame(filename=str(tmp_path / "nonexistent_dummy_file_12345.py"))
     with patch("pitloom._loom_caller.inspect.stack", return_value=[nonexistent]):
         # pylint: disable=protected-access
         assert _loom_caller._get_caller_script_path() is None

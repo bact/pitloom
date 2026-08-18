@@ -79,9 +79,9 @@ def test_tag_license_normalization_and_tool_tags_without_versions() -> None:
         assert res == "Source: test"
 
 
-def test_find_license_files_oserror() -> None:
+def test_find_license_files_oserror(tmp_path: Path) -> None:
     """find_license_files returns empty list on OSError."""
-    nonexistent = Path("/tmp/nonexistent_license_dir_12345")
+    nonexistent = tmp_path / "nonexistent_license_dir_12345"
     assert find_license_files(nonexistent) == []
 
 

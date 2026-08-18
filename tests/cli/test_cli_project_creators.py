@@ -236,12 +236,13 @@ def test_project_command_repeated_creation_tool(
 
 
 def test_enrich_command_project_dir_flag_passed_through(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """--project-dir must reach enrich_model()'s project_target parameter
     so the fragment references the project-level ai_AIPackage id, not the
     single-model one -- the fix for the project-level merge bug."""
     captured: dict[str, object] = {}
+    project_dir = tmp_path / "some-project"
 
     def _fake_enrich_model(
         source: Path,
@@ -263,9 +264,9 @@ def test_enrich_command_project_dir_flag_passed_through(
             "enrich",
             str(SAFETENSORS_FIXTURE),
             "--project-dir",
-            "/tmp/some-project",
+            str(project_dir),
         ],
     )
 
     assert __main__.main() == 0
-    assert captured["project_target"] == Path("/tmp/some-project")
+    assert captured["project_target"] == project_dir

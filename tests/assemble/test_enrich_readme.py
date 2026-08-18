@@ -221,7 +221,7 @@ def test_enrich_oserror_recovery() -> None:
             assert not result.fields
 
 
-def test_run_enrichers_failing_enricher_logged() -> None:
+def test_run_enrichers_failing_enricher_logged(tmp_path: Path) -> None:
     """run_enrichers logs and continues when an enricher raises an exception."""
     from unittest.mock import MagicMock, patch
 
@@ -238,15 +238,15 @@ def test_run_enrichers_failing_enricher_logged() -> None:
     ):
         model = AiModelMetadata()
         cfg = EnrichConfig(local=True)
-        results = run_enrichers(model, cfg, Path("/tmp"))
+        results = run_enrichers(model, cfg, tmp_path)
         assert results == []
 
 
-def test_enricher_protocol_raises_not_implemented() -> None:
+def test_enricher_protocol_raises_not_implemented(tmp_path: Path) -> None:
     """Enricher.enrich raises NotImplementedError when invoked directly."""
     import pytest
 
     from pitloom.enrich.base import Enricher
 
     with pytest.raises(NotImplementedError):
-        Enricher.enrich(None, None, model_dir=Path("/tmp"))  # type: ignore[arg-type]
+        Enricher.enrich(None, None, model_dir=tmp_path)  # type: ignore[arg-type]

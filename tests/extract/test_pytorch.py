@@ -24,7 +24,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
-from pitloom.extract._pytorch import _fickling_get_top_class, _read_pytorch_zip
+from pitloom.extract._pytorch import (
+    _dotted_name,
+    _fickling_get_top_class,
+    _read_pytorch_zip,
+)
 from pitloom.extract.ai_model import read_pytorch
 
 # ---------------------------------------------------------------------------
@@ -201,8 +205,6 @@ def test_read_pytorch_raw_pickle_open_oserror(tmp_path: Path) -> None:
 
 def test_dotted_name_unrecognized_ast_node() -> None:
     """_dotted_name returns None for AST nodes that are not Name or Attribute."""
-    from pitloom.extract._pytorch import _dotted_name
-
     assert _dotted_name(object()) is None
 
 

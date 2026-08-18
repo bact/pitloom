@@ -274,11 +274,11 @@ def test_read_setup_cfg_provenance() -> None:
     assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
 
 
-def test_resolve_cfg_version_edge_cases() -> None:
+def test_resolve_cfg_version_edge_cases(tmp_path: Path) -> None:
     """_resolve_cfg_version handles empty strings, invalid attrs, and directives."""
     from pitloom.extract._setuptools_cfg import _resolve_cfg_version
 
-    p = Path("/tmp")
+    p = tmp_path
     assert _resolve_cfg_version("", p) == (None, None)
     assert _resolve_cfg_version("attr: no_dot_attribute", p) == (None, None)
     assert _resolve_cfg_version("unknown_directive: val", p) == (
@@ -332,7 +332,7 @@ def test_detect_build_backend_empty_string() -> None:
         assert detect_build_backend(Path(d)) is None
 
 
-def test_resolve_setuptools_license_without_provenance() -> None:
+def test_resolve_setuptools_license_without_provenance(tmp_path: Path) -> None:
     """_resolve_setuptools_license handles detected license with None provenance."""
     from pitloom.core.project import ProjectMetadata
     from pitloom.extract._setuptools import _resolve_setuptools_license
@@ -342,7 +342,7 @@ def test_resolve_setuptools_license_without_provenance() -> None:
         "pitloom.extract._setuptools.detect_license_for_project",
         return_value=("MIT", None),
     ):
-        res = _resolve_setuptools_license(meta, Path("/tmp"))
+        res = _resolve_setuptools_license(meta, tmp_path)
         assert res.license_name == "MIT"
         assert "license" not in res.provenance
 

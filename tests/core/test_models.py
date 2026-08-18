@@ -133,7 +133,7 @@ def test_generate_spdx_id() -> None:
 class _FakeIncludedFile:
     """Minimal stand-in for ``hatchling.builders.plugin.interface.IncludedFile``."""
 
-    def __init__(self, path: str, distribution_path: str):
+    def __init__(self, path: str, distribution_path: str) -> None:
         self.path = path
         self.relative_path = distribution_path
         self.distribution_path = distribution_path
