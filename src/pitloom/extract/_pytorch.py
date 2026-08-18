@@ -56,6 +56,12 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
 
     try:
         pkl = Pickled.load(cast(BinaryIO, pkl_file))
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        log.debug("fickling failed to parse pickle bytes: %s", exc)
+        return None
+
+    try:
         for node in pyast.walk(pkl.ast):
             if isinstance(node, pyast.Call):
                 name = _dotted_name(node.func)
@@ -65,7 +71,10 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
                         return name
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("fickling failed to parse pickle bytes: %s", exc)
+        log.warning(
+            "fickling parsed pickle but AST walk failed, type_of_model unavailable: %s",
+            exc,
+        )
         return None
 
     return None

@@ -223,7 +223,25 @@ def test_read_pytorch_raw_pickle_with_class(tmp_path: Path) -> None:
 
 def test_fickling_get_top_class_no_title_case_returns_none() -> None:
     """_fickling_get_top_class returns None when AST has no title-case class names."""
-    import pickle  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    import pickle
 
     data = pickle.dumps({"key": 1, "nested": [2, 3]})
     assert _fickling_get_top_class(_io.BytesIO(data)) is None
+
+
+def test_fickling_get_top_class_ast_walk_failure_logs_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """_fickling_get_top_class logs a warning and returns None if the AST
+    walk fails after a successful parse, distinct from a parse failure."""
+    # pylint: disable=import-outside-toplevel
+    import pickle
+
+    data = pickle.dumps({"key": 1})
+    with (
+        patch("ast.walk", side_effect=RuntimeError("walk exploded")),
+        caplog.at_level(logging.WARNING, logger="pitloom.extract._pytorch"),
+    ):
+        assert _fickling_get_top_class(_io.BytesIO(data)) is None
+    assert any("AST walk failed" in r.message for r in caplog.records)

@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.error import URLError
 
 import pytest
 from packaging.requirements import InvalidRequirement
@@ -316,14 +317,31 @@ def test_deps_supplier_edge_branches() -> None:
     urls = _parse_project_urls(mock_pkg)
     assert urls == {"home": "https://example.com"}
 
-    # _resolve_remote_authors_file with disallowed scheme
+    # _resolve_remote_authors_file with an unrecognized host: no known
+    # blob/raw URL scheme, so it returns the bare repo URL with no fetch.
     loc, ctype, text = _resolve_remote_authors_file(
-        "git://github.com/foo/bar",
+        "https://bitbucket.org/foo/bar",
         "AUTHORS",
         offline=False,
         content_type_method="auto",
     )
+    assert loc == "https://bitbucket.org/foo/bar"
+    assert ctype is None
     assert text is None
+
+    # _resolve_remote_authors_file falls back to a locator-only result when
+    # the raw-content fetch fails, without making a real network call.
+    with patch(
+        "urllib.request.urlopen", side_effect=URLError("simulated network failure")
+    ):
+        loc2, ctype2, text2 = _resolve_remote_authors_file(
+            "https://github.com/foo/bar",
+            "AUTHORS",
+            offline=False,
+            content_type_method="auto",
+        )
+    assert loc2 == "https://github.com/foo/bar/blob/HEAD/AUTHORS"
+    assert text2 is None
 
     # _find_license_copyright where files exist but no copyright matches
     class MockNoMatchFile:

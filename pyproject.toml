@@ -254,7 +254,7 @@ addopts = ["--import-mode=importlib", "-n", "auto", "--dist=loadscope"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
-    "pypi_network: exercises the real PyPI JSON API fallback path (opts out of conftest's default network block)",
+    "pypi_network: exercises a real network path (opts out of conftest's default socket block)",
 ]
 
 [tool.pylint.messages_control]

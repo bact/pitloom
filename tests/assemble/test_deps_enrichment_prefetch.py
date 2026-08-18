@@ -22,6 +22,7 @@ import time
 from importlib.metadata import PackageNotFoundError
 from typing import Any
 from unittest.mock import MagicMock, patch
+from urllib.error import URLError
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -233,7 +234,17 @@ def test_apply_originator_creates_others_external_ref() -> None:
 
 
 def test_resolve_remote_authors_file_offline_and_errors() -> None:
-    """Test offline behavior and ValueError handling for remote authors files."""
+    """Test offline behavior and network-failure fallback for remote authors
+    files.
+
+    ``ftp://`` as the *repo_url* scheme does not exercise the function's
+    "disallowed scheme" ``ValueError`` branch: ``_resolve_remote_authors_file``
+    only inspects ``netloc`` (which ``urlparse`` populates the same way
+    regardless of scheme) and always builds an ``https://`` raw-content URL
+    for recognized hosts, so a non-http(s) *repo_url* still reaches the real
+    fetch path. This test therefore mocks the fetch instead of relying on a
+    real (and previously unmocked) network call.
+    """
     # Test offline returns immediately without trying to fetch
     locator, ctype, content = deps_supplier._resolve_remote_authors_file(
         "https://github.com/foo/pkg",
@@ -245,17 +256,26 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert ctype is None
     assert content is None
 
-    # Test ValueError when scheme is disallowed (ftp)
-    locator, ctype, content = deps_supplier._resolve_remote_authors_file(
-        "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
-    )
-    assert locator == "ftp://github.com/foo/pkg/blob/HEAD/AUTHORS"
+    # Test the URLError/OSError fallback path returns a locator-only result,
+    # without making a real network call.
+    with patch("urllib.request.urlopen", side_effect=URLError("simulated failure")):
+        locator, ctype, content = deps_supplier._resolve_remote_authors_file(
+            "https://github.com/foo/pkg-offline-fallback",
+            "AUTHORS",
+            offline=False,
+            content_type_method="auto",
+        )
+    assert locator == "https://github.com/foo/pkg-offline-fallback/blob/HEAD/AUTHORS"
     assert ctype is None
     assert content is None
 
     # Test lru_cache behavior (call twice, check it returns identical)
+    # without hitting the network again on the second call.
     locator2, ctype2, content2 = deps_supplier._resolve_remote_authors_file(
-        "ftp://github.com/foo/pkg", "AUTHORS", offline=False, content_type_method="auto"
+        "https://github.com/foo/pkg-offline-fallback",
+        "AUTHORS",
+        offline=False,
+        content_type_method="auto",
     )
     assert locator2 == locator
     assert ctype2 == ctype
