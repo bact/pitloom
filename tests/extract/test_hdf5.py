@@ -20,6 +20,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.extract._hdf5 import (
+    _decode_h5_attr,
+    _extract_input_from_layers,
+    _parse_model_config,
+    _parse_training_config,
+)
 from pitloom.extract.ai_model import read_hdf5
 
 # ---------------------------------------------------------------------------
@@ -243,6 +249,236 @@ def test_read_hdf5_no_keras_attrs(tmp_path: Path) -> None:
     assert meta.format_info.framework is None
     assert meta.format_info.framework_version is None
     assert meta.hyperparameters == {}
+
+
+def test_read_hdf5_unparseable_keras_version_defaults_to_v2(
+    tmp_path: Path,
+) -> None:
+    # A non-numeric keras_version (e.g. corrupted attribute) can't be split
+    # into a major version int -- ValueError is caught, defaulting to v2.
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"fake")
+    mock_hf = _make_hdf5_file(keras_version="unknown")
+    mock_h5py = MagicMock()
+    mock_h5py.File.return_value = mock_hf
+    with patch.dict("sys.modules", {"h5py": mock_h5py}):
+        meta = read_hdf5(model_file)
+    assert meta.format_info.format_version == "v2"
+
+
+def test_read_hdf5_unparseable_model_config_stores_raw_text(
+    tmp_path: Path,
+) -> None:
+    # model_config present but not valid JSON -> _parse_model_config returns
+    # (None, None); the caller then stashes the raw text for inspection
+    # instead of silently dropping it.
+    model_file = tmp_path / "model.h5"
+    model_file.write_bytes(b"fake")
+    mock_hf = _make_hdf5_file()
+    mock_hf.attrs["model_config"] = "not valid json {{{"
+    mock_h5py = MagicMock()
+    mock_h5py.File.return_value = mock_hf
+    with patch.dict("sys.modules", {"h5py": mock_h5py}):
+        meta = read_hdf5(model_file)
+    assert meta.type_of_model is None
+    assert meta.name is None
+    assert meta.properties.get("model_config_raw") == "not valid json {{{"
+    assert "properties.model_config_raw" in meta.provenance
+
+
+# ---------------------------------------------------------------------------
+# _decode_h5_attr -- direct unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_decode_h5_attr_bytes() -> None:
+    assert _decode_h5_attr(b"2.15.0") == "2.15.0"
+
+
+def test_decode_h5_attr_numpy_like_tobytes() -> None:
+    # numpy.bytes_ (and similar) expose .tobytes() rather than being a
+    # plain `bytes` instance.
+    fake_numpy_bytes = MagicMock()
+    fake_numpy_bytes.tobytes.return_value = b"tensorflow"
+    assert _decode_h5_attr(fake_numpy_bytes) == "tensorflow"
+
+
+def test_decode_h5_attr_plain_str() -> None:
+    assert _decode_h5_attr("already-a-str") == "already-a-str"
+
+
+def test_decode_h5_attr_none() -> None:
+    assert _decode_h5_attr(None) is None
+
+
+# ---------------------------------------------------------------------------
+# _extract_input_from_layers -- direct unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_extract_input_from_layers_non_input_layer_build_config() -> None:
+    # A non-InputLayer entry with a build_config.input_shape is used as a
+    # fallback source for the input shape.
+    layers = [{"class_name": "Dense", "build_config": {"input_shape": [None, 32]}}]
+    inputs, prov = _extract_input_from_layers(layers, "Source: model.h5")
+    assert inputs == [{"shape": [None, 32]}]
+    assert "layers[0].build_config.input_shape" in prov
+
+
+def test_extract_input_from_layers_skips_unmatching_then_matches() -> None:
+    # First layer (Dense, no build_config) yields nothing; loop continues to
+    # the second layer (InputLayer) which does.
+    layers = [
+        {"class_name": "Dense"},
+        {"class_name": "InputLayer", "config": {"batch_shape": [None, 10]}},
+    ]
+    inputs, prov = _extract_input_from_layers(layers, "Source: model.h5")
+    assert inputs == [{"shape": [None, 10]}]
+    assert "InputLayer" in prov
+
+
+def test_extract_input_from_layers_no_match_returns_empty() -> None:
+    layers = [{"class_name": "Dense"}, {"class_name": "Activation"}]
+    inputs, prov = _extract_input_from_layers(layers, "Source: model.h5")
+    assert inputs == []
+    assert prov == ""
+
+
+# ---------------------------------------------------------------------------
+# _parse_model_config -- direct unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_parse_model_config_no_class_name_skips_provenance() -> None:
+    hyperparameters: dict[str, Any] = {}
+    inputs: list[dict[str, Any]] = []
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    raw = _json.dumps({"config": {"name": "my_model"}})
+
+    type_of_model, name = _parse_model_config(
+        raw, "Source: m.h5", hyperparameters, inputs, properties, provenance
+    )
+
+    assert type_of_model is None
+    assert name == "my_model"
+    assert "type_of_model" not in provenance
+
+
+def test_parse_model_config_no_name_skips_name_provenance() -> None:
+    hyperparameters: dict[str, Any] = {}
+    inputs: list[dict[str, Any]] = []
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    raw = _json.dumps({"class_name": "Sequential", "config": {"trainable": True}})
+
+    type_of_model, name = _parse_model_config(
+        raw, "Source: m.h5", hyperparameters, inputs, properties, provenance
+    )
+
+    assert type_of_model == "Sequential"
+    assert name is None
+    assert "name" not in provenance
+
+
+def test_parse_model_config_config_not_a_dict_is_ignored() -> None:
+    # A malformed model_config where "config" isn't a dict must not raise --
+    # the whole `if isinstance(config, dict)` block is skipped.
+    hyperparameters: dict[str, Any] = {}
+    inputs: list[dict[str, Any]] = []
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    raw = _json.dumps({"class_name": "Sequential", "config": "not-a-dict"})
+
+    type_of_model, name = _parse_model_config(
+        raw, "Source: m.h5", hyperparameters, inputs, properties, provenance
+    )
+
+    assert type_of_model == "Sequential"
+    assert name is None
+    assert hyperparameters == {}
+
+
+def test_parse_model_config_top_level_build_config_fallback() -> None:
+    # No layers give a shape (there are none), so the top-level
+    # build_config.input_shape is used as a fallback.
+    hyperparameters: dict[str, Any] = {}
+    inputs: list[dict[str, Any]] = []
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    raw = _json.dumps(
+        {
+            "class_name": "Sequential",
+            "config": {"name": "m"},
+            "build_config": {"input_shape": [None, 4]},
+        }
+    )
+
+    _parse_model_config(
+        raw, "Source: m.h5", hyperparameters, inputs, properties, provenance
+    )
+
+    assert inputs == [{"shape": [None, 4]}]
+    assert provenance["inputs"] == (
+        "Source: m.h5 | Field: model_config.build_config.input_shape"
+    )
+
+
+def test_parse_model_config_invalid_json_returns_none_none() -> None:
+    hyperparameters: dict[str, Any] = {}
+    inputs: list[dict[str, Any]] = []
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+
+    type_of_model, name = _parse_model_config(
+        "not valid json",
+        "Source: m.h5",
+        hyperparameters,
+        inputs,
+        properties,
+        provenance,
+    )
+
+    assert type_of_model is None
+    assert name is None
+    assert provenance == {}
+
+
+# ---------------------------------------------------------------------------
+# _parse_training_config -- direct unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_parse_training_config_empty_dict_populates_nothing() -> None:
+    # No optimizer/loss/metrics keys at all -- every guard's false branch.
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+
+    _parse_training_config(_json.dumps({}), "Source: m.h5", properties, provenance)
+
+    assert properties == {}
+    assert provenance == {}
+
+
+def test_parse_training_config_optimizer_without_class_name() -> None:
+    # optimizer is a dict but has no (or an empty) class_name.
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    raw = _json.dumps({"optimizer": {}})
+
+    _parse_training_config(raw, "Source: m.h5", properties, provenance)
+
+    assert "optimizer" not in properties
+
+
+def test_parse_training_config_invalid_json_is_ignored() -> None:
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+
+    _parse_training_config("not valid json", "Source: m.h5", properties, provenance)
+
+    assert properties == {}
+    assert provenance == {}
 
 
 # ---------------------------------------------------------------------------
