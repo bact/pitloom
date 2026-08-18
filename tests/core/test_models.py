@@ -18,10 +18,32 @@ from hatchling.builders.wheel import WheelBuilder
 from pitloom.core.models import (
     _clear_doc_counters,
     _normalize_dep,
+    build_relationship,
     compute_doc_uuid,
     generate_spdx_id,
     get_wheel_files,
+    normalize_dependency_specifier,
 )
+
+
+def test_models_edge_cases() -> None:
+    """normalize_dependency_specifier handles bad reqs and build_relationship None."""
+    assert normalize_dependency_specifier("invalid requirement syntax >= 1.0 <=") == (
+        "invalid requirement syntax >= 1.0 <="
+    )
+    assert _normalize_dep("") == ""
+    assert _normalize_dep("---not-a-dep") == "---not-a-dep"
+    assert (
+        build_relationship(
+            None,
+            ["to_id"],
+            "contains",
+            "doc",
+            "uuid",
+            None,  # type: ignore[arg-type]
+        )
+        is None
+    )
 
 
 def test_normalize_dep_pep503() -> None:
@@ -111,7 +133,7 @@ def test_generate_spdx_id() -> None:
 class _FakeIncludedFile:
     """Minimal stand-in for ``hatchling.builders.plugin.interface.IncludedFile``."""
 
-    def __init__(self, path: str, distribution_path: str):
+    def __init__(self, path: str, distribution_path: str) -> None:
         self.path = path
         self.relative_path = distribution_path
         self.distribution_path = distribution_path

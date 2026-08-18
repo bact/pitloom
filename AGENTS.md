@@ -66,6 +66,7 @@ Unix philosophy. Consistent, predictable, parseable.
 
 - Pitloom must work seamlessly across Windows, macOS, and Linux.
 - Always use `pathlib.Path` for file resolution and manipulation.
+- `/tmp/` and POSIX-directories are not exist on Windows.
 
 ## Linting and formatting
 
@@ -115,6 +116,8 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 - **Test suite structure**: Adhere to the same file size limits as source code.
 - **Naming**: `test_<area>.py`, 1:1 with the source module. Disambiguate when two source packages could produce the same tail.
 - **Grouping**: Group tests in same-named subfolders under `tests/` mirroring `src/pitloom/<package>/` when a source package's tests grow to 3+ related files. No `__init__.py` needed in test folders.
+- **No non-deterministic assertions**: Never assert against real wall-clock time (`datetime.now()`, `time.time()`, `date.today()`), unseeded random/UUID values, or set/dict iteration order. Use a fixed/frozen timestamp, mock the random source, or sort before comparing. Elapsed-duration checks (e.g. concurrency regression tests bounding `time.monotonic()` deltas) are a different category and fine with a generous bound.
+- **Don't couple tests to undocumented internals**: A `pytest.raises(match=...)` or log-message assertion should target wording the source documents as intentional (a deliberate user-facing error/warning, a documented format's field/member name), not an incidental internal string that could change during a harmless refactor. Prefer a short, stable substring over the full message. SPDX3 field/type assertions must come from the spec (`spdx_python_model.bindings`), not an undocumented Pitloom-internal layout.
 
 ## Shell scripts
 

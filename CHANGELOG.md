@@ -31,7 +31,7 @@ and this project adheres to
 - Split monolithic test files into domain-scoped folders
   (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
   ([#153], [#155], [#161])
-- Raised test coverage to 90% ([#155], [#162])
+- Raised test coverage to 90% ([#155], [#162], [#164])
 - Avoid loading full file to memory during AI model and sdist extraction,
   reducing peak memory usage by over 97% ([#156])
 - Centralize SPDX relationship boilerplate across the codebase ([#157])
@@ -70,6 +70,7 @@ and this project adheres to
 [#161]: https://github.com/bact/pitloom/pull/161
 [#162]: https://github.com/bact/pitloom/pull/162
 [#163]: https://github.com/bact/pitloom/pull/163
+[#164]: https://github.com/bact/pitloom/pull/164
 
 ## [0.15.0] - 2026-08-15
 

@@ -374,3 +374,34 @@ def test_get_wheel_files_content_type_independent_of_file_header_scanning(
     assert plain.copyright_text is None  # no header, regardless of the flag
     assert plain.content_type == "text/x-python"
     assert plain.content_type_method == "extension_guess"
+
+
+def test_get_wheel_files_empty_and_external_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """get_wheel_files handles empty file list, directories, and external paths."""
+    # Empty files list returns (None, [])
+    monkeypatch.setattr(WheelBuilder, "recurse_included_files", lambda _self: iter([]))
+    root, files = get_wheel_files(tmp_path)
+    assert root is None
+    assert files == []
+
+    # Included file that is a directory or outside tmp_path
+    ext_dir = tmp_path.parent / "external_pkg"
+    ext_dir.mkdir(exist_ok=True)
+    ext_file = ext_dir / "external.py"
+    ext_file.write_text("ext = 1\n", encoding="utf-8")
+
+    sub_dir = tmp_path / "sub_dir"
+    sub_dir.mkdir(exist_ok=True)
+
+    def _custom_recurse(_self: WheelBuilder) -> Iterator[_FakeIncludedFile]:
+        yield _FakeIncludedFile(str(sub_dir), "pkg/sub_dir")
+        yield _FakeIncludedFile(str(ext_file), "pkg/external.py")
+
+    monkeypatch.setattr(WheelBuilder, "recurse_included_files", _custom_recurse)
+    root, files = get_wheel_files(tmp_path)
+    assert root is not None
+    assert len(files) == 1
+    assert files[0].distribution_path == "pkg/external.py"
+    assert files[0].physical_path == ext_file.as_posix()

@@ -254,7 +254,7 @@ addopts = ["--import-mode=importlib", "-n", "auto", "--dist=loadscope"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
-    "pypi_network: exercises the real PyPI JSON API fallback path (opts out of conftest's default network block)",
+    "pypi_network: exercises a real network path (opts out of conftest's default socket block)",
 ]
 
 [tool.pylint.messages_control]
@@ -331,8 +331,8 @@ select = [
 known-first-party = ["pitloom"]
 
 [tool.ruff.lint.mccabe]
-# Ratchet ceiling lowered to 15. AGENTS.md target is 10.
-max-complexity = 15
+# Ratchet ceiling lowered to 14. AGENTS.md target is 10.
+max-complexity = 14
 
 [tool.coverage.run]
 branch = true
@@ -341,4 +341,4 @@ source = ["pitloom"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 90      # Hard floor minimum threshold; we try to keep it higher
+fail_under = 95      # Hard floor minimum threshold; we try to keep it higher

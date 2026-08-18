@@ -340,3 +340,34 @@ def test_enrich_command_missing_model_file_errors(
         sys, "argv", ["loom", "enrich", str(tmp_path / "no-such-model.safetensors")]
     )
     assert __main__.main() == 1
+
+
+def test_model_command_invalid_hf_target(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Invalid HF target format returns exit code 1 with stderr error."""
+    with monkeypatch.context() as m:
+        m.setattr("pitloom.cli.commands.model.is_huggingface_source", lambda _t: True)
+        m.setattr("pitloom.cli.commands.model.parse_hf_model_id", lambda _t: None)
+        m.setattr(sys, "argv", ["loom", "model", "hf://invalid"])
+        assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: not a valid Hugging Face URL or model ID" in err
+
+
+def test_env_command_verbose(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """loom env -v prints version and output path."""
+    out = tmp_path / "env.spdx3.json"
+    monkeypatch.setattr(
+        "pitloom.cli.commands.env.generate_env_sbom", lambda *a, **k: "{}"
+    )
+    monkeypatch.setattr(sys, "argv", ["loom", "env", "-v", "-o", str(out)])
+    assert __main__.main() == 0
+    stdout = capsys.readouterr().out
+    assert "Pitloom version" in stdout
+    assert "Output path" in stdout

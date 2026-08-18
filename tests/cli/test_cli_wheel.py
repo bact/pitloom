@@ -62,3 +62,38 @@ def test_analyze_wheel_dispatches_to_wheel_path(
 
     assert __main__.main() == 0
     assert captured["wheel_path"] == wheel_path.resolve()
+
+
+def test_wheel_command_nonexistent_and_verbose(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Non-existent wheel returns code 1; verbose mode prints wheel info."""
+    monkeypatch.setattr(sys, "argv", ["loom", "wheel", str(tmp_path / "missing.whl")])
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: wheel file not found" in err
+
+    # Verbose mode on valid wheel
+    wheel_path = _make_wheel(tmp_path, "pkg_v", "1.0.0")
+    monkeypatch.setattr(mod_wheel, "generate_wheel_sbom", lambda *a, **k: "{}")
+    monkeypatch.setattr(sys, "argv", ["loom", "wheel", "-v", str(wheel_path)])
+    assert __main__.main() == 0
+    out = capsys.readouterr().out
+    assert "Pitloom version" in out
+    assert "Wheel file" in out
+
+
+def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
+    """_report_embed_result prints removal and timestamp floored messages."""
+    from pitloom.cli.commands.embed_wheel import _report_embed_result
+
+    _report_embed_result(
+        "sbom.spdx.json",
+        "pkg.whl",
+        ("old_sbom.spdx.json",),
+        timestamp_floored=True,
+    )
+    out = capsys.readouterr().out
+    assert "embedded sbom.spdx.json into pkg.whl" in out
+    assert "removed stale SBOM old_sbom.spdx.json" in out
+    assert "timestamp was before 1980" in out
