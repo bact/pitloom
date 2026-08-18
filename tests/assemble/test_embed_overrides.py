@@ -13,10 +13,12 @@ See also:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 from installer.sources import WheelFile
@@ -125,12 +127,10 @@ def test_apply_config_overrides_full() -> None:
 def test_embed_wheel_content_type_reaches_sbom_files(tmp_path: Path) -> None:
     """content-type detection must reach the Build SBOM's file list.
 
-    Regression test: ``_build_sbom_from_project_and_wheel`` used to build
-    the document from ``wheel_metadata`` (``read_wheel()``'s plain
-    hash-only file records), discarding the content-type data
-    ``get_wheel_files()`` had just computed -- so ``--content-type`` was
-    silently a no-op for ``loom embed-wheel``'s Build SBOM, even though
-    ``_apply_config_overrides`` correctly flipped the config flag.
+    ``_build_sbom_from_project_and_wheel`` merges ``get_wheel_files()``'s
+    content-type/file-header data onto ``wheel_metadata``'s file records
+    (see ``_merge_file_extras``); this guards against a regression where
+    that data is computed but never reaches the assembled SBOM.
     """
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -161,6 +161,110 @@ packages = ["ctpkg"]
     assert any(f.get("contentType") for f in files), (
         "content-type override did not reach the SBOM's file list"
     )
+
+
+def _sbom_files_by_name(sbom_json: str) -> dict[str, dict[str, Any]]:
+    """Map ``name`` -> node for every file-kind ``software_File`` in *sbom_json*."""
+    doc = json.loads(sbom_json)
+    return {
+        n["name"]: n
+        for n in doc["@graph"]
+        if n.get("type") == "software_File" and n.get("software_fileKind") == "file"
+    }
+
+
+def test_embed_wheel_preserves_wheel_truth_and_merges_content_type(
+    tmp_path: Path,
+) -> None:
+    """Merging must keep the wheel's own file list and hashes intact.
+
+    ``_build_sbom_from_project_and_wheel`` must not replace
+    ``wheel_metadata.files`` outright with a project-dir rescan: that would
+    drop ``.dist-info/*`` entries and report hashes of the *current*
+    source tree instead of the wheel's own already-built bytes. This
+    checks both are preserved while content-type still reaches the
+    matching file (see ``_merge_file_extras``).
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "ctpkg"
+version = "1.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ctpkg"]
+""",
+        encoding="utf-8",
+    )
+    pkg_dir = tmp_path / "ctpkg"
+    pkg_dir.mkdir()
+    # Deliberately differs from the wheel's own __init__.py (see
+    # _make_dummy_wheel) so a hash mix-up between "source on disk" and
+    # "bytes actually in the wheel" would be caught.
+    (pkg_dir / "__init__.py").write_text("x = 1\n", encoding="utf-8")
+
+    wheel_path = _make_dummy_wheel(tmp_path / "dist", "ctpkg", "1.0.0")
+
+    _, _, sbom_json, _, _ = embed_wheel_sbom(
+        wheel_path,
+        project_dir=tmp_path,
+        overrides=ConfigOverrides(content_type=True),
+    )
+
+    files_by_name = _sbom_files_by_name(sbom_json)
+    assert "ctpkg-1.0.0.dist-info/METADATA" in files_by_name
+    assert "ctpkg-1.0.0.dist-info/WHEEL" in files_by_name
+    assert "ctpkg-1.0.0.dist-info/RECORD" in files_by_name
+
+    init_file = files_by_name["ctpkg/__init__.py"]
+    (hash_obj,) = init_file["verifiedUsing"]
+    expected_digest = hashlib.sha256(b"__version__ = '1.0.0'\n").hexdigest()
+    assert hash_obj["hashValue"] == expected_digest
+    assert init_file.get("contentType")
+
+
+def test_embed_wheel_scan_failure_keeps_wheel_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A get_wheel_files() scan failure must not empty the SBOM's file list.
+
+    ``get_wheel_files()`` returns ``(None, [])`` on any scan failure; the
+    merge in ``_build_sbom_from_project_and_wheel`` must fall back to the
+    wheel's own files rather than propagating that empty result.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "ctpkg"
+version = "1.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ctpkg"]
+""",
+        encoding="utf-8",
+    )
+    pkg_dir = tmp_path / "ctpkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("x = 1\n", encoding="utf-8")
+
+    wheel_path = _make_dummy_wheel(tmp_path / "dist", "ctpkg", "1.0.0")
+
+    monkeypatch.setattr("pitloom.embed.get_wheel_files", lambda *a, **k: (None, []))
+
+    _, _, sbom_json, _, _ = embed_wheel_sbom(
+        wheel_path,
+        project_dir=tmp_path,
+        overrides=ConfigOverrides(content_type=True),
+    )
+
+    files_by_name = _sbom_files_by_name(sbom_json)
+    assert files_by_name.keys() == {
+        "ctpkg/__init__.py",
+        "ctpkg-1.0.0.dist-info/METADATA",
+        "ctpkg-1.0.0.dist-info/WHEEL",
+        "ctpkg-1.0.0.dist-info/RECORD",
+    }
+    assert not files_by_name["ctpkg/__init__.py"].get("contentType")
 
 
 def test_build_sbom_standalone_wheel_registry_options(tmp_path: Path) -> None:
