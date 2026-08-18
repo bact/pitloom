@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,7 +151,7 @@ line numbers are approximate.
 | `dynamic_extraction` | Value read from a Python file at build time (e.g. `__version__`/`__about__.py`), not `pyproject.toml` directly | `src/pitloom/extract/_pyproject.py:342`, `:363` |
 | `licenseid_detection` | License matched against a known SPDX id via the `licenseid` library -- detected, not declared | `src/pitloom/extract/_pyproject.py:301`; `src/pitloom/extract/_huggingface_fetch.py:233`, `:327`; `src/pitloom/extract/_license.py:354`, `:417` |
 | `inferred_from_authors` | Copyright text derived from the `authors` list, not read verbatim | `src/pitloom/extract/_setuptools.py:284`, `:432`; `src/pitloom/extract/_poetry.py:169`; `src/pitloom/extract/hatchling.py:143`; `src/pitloom/extract/_pyproject.py:202` |
-| `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps_supplier.py:347` |
+| `parsed_author_list` | Multiple individual entities extracted by splitting a single, comma-separated author string | `src/pitloom/assemble/spdx3/deps_originator.py:347` |
 | `file_directive` | `pyproject.toml` dynamic field pointed at a file (`{file = "..."}`) | `src/pitloom/extract/_setuptools.py:500` |
 | `attr_directive` | `pyproject.toml` dynamic field pointed at a Python attribute (`{attr = "..."}`) | `src/pitloom/extract/_setuptools.py:519` |
 | `inspect_caller` | Recorded automatically by the `pitloom.loom` SDK via stack inspection | `src/pitloom/_loom_active_run.py:62`, `:67`, `:73` |

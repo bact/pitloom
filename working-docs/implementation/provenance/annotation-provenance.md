@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -88,7 +88,7 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
 | Main Python package (post-migration: `emit_provenance()` call) | [`src/pitloom/assemble/spdx3/document.py:220`](../../../src/pitloom/assemble/spdx3/document.py) |
 | AI `ai_AIPackage` | [`src/pitloom/assemble/spdx3/ai.py:193`](../../../src/pitloom/assemble/spdx3/ai.py) (`_build_ai_package`) |
 | Dataset package | [`src/pitloom/assemble/spdx3/dataset.py:160`](../../../src/pitloom/assemble/spdx3/dataset.py) |
-| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:492,566`](../../../src/pitloom/assemble/spdx3/deps.py), [`deps_license.py:79`](../../../src/pitloom/assemble/spdx3/deps_license.py), [`deps_supplier.py:358`](../../../src/pitloom/assemble/spdx3/deps_supplier.py) |
+| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:492,566`](../../../src/pitloom/assemble/spdx3/deps.py), [`deps_license.py:79`](../../../src/pitloom/assemble/spdx3/deps_license.py), [`deps_originator.py:358`](../../../src/pitloom/assemble/spdx3/deps_originator.py) |
 | pipdeptree deps | [`src/pitloom/assemble/spdx3/_document_deployed.py:89,158`](../../../src/pitloom/assemble/spdx3/_document_deployed.py) |
 | Loom SDK fragments | [`src/pitloom/_loom_active_run.py:295,341,367`](../../../src/pitloom/_loom_active_run.py) |
 

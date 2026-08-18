@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.parse import quote as url_quote
 
-from pitloom.assemble.spdx3.deps_supplier import _extract_suppliers
+from pitloom.assemble.spdx3.deps_originator import _extract_name_email_pairs
 from pitloom.extract._extract_utils import fetch_json
 
 # Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
@@ -34,15 +34,18 @@ _PYPI_LICENSE_FIELD_MAX_LEN = 200
 _PYPI_MAX_CONCURRENT_FETCHES = 8
 
 
-def _extract_pypi_supplier(info: dict[str, Any]) -> list[tuple[str | None, str | None]]:
-    """Return a list of ``(name, email)`` tuples for a dependency's supplier from a
-    PyPI JSON API ``info`` object, or an empty list. Same author-then-maintainer
-    precedence as :func:`~pitloom.assemble.spdx3.deps_supplier._resolve_supplier`."""
+def _extract_pypi_originator(
+    info: dict[str, Any],
+) -> list[tuple[str | None, str | None]]:
+    """Return a list of ``(name, email)`` tuples for a dependency's originator
+    from a PyPI JSON API ``info`` object, or an empty list. Same
+    author-then-maintainer precedence as
+    :func:`~pitloom.assemble.spdx3.deps_originator._resolve_author_or_maintainer`."""
     for name_key, email_key in (
         ("author", "author_email"),
         ("maintainer", "maintainer_email"),
     ):
-        results = _extract_suppliers(
+        results = _extract_name_email_pairs(
             info.get(name_key) or "", info.get(email_key) or ""
         )
         if results:
