@@ -90,6 +90,19 @@ def _sha256_from_verified_using(obj: Any) -> str | None:
     return None
 
 
+def _is_eligible_file(file_path: Path, seen: set[Path]) -> bool:
+    """Check if a path is an eligible, unvisited file for registry indexing."""
+    if not file_path.is_file():
+        return False
+    if any(part in _IGNORED_DIR_NAMES for part in file_path.parts):
+        return False
+    if file_path.name == DEFAULT_REGISTRY_FILENAME:
+        return False
+    if file_path in seen:
+        return False
+    return True
+
+
 def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:
     """Yield every regular file under *paths* in deterministic order."""
     seen: set[Path] = set()
@@ -100,20 +113,10 @@ def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:
             log.warning("Registry: path not found, skipping: %s", root)
             continue
 
-        candidates: Iterable[Path]
-        if root.is_file():
-            candidates = [root]
-        else:
-            candidates = sorted(root.rglob("*"))
-
+        candidates: Iterable[Path] = (
+            [root] if root.is_file() else sorted(root.rglob("*"))
+        )
         for file_path in candidates:
-            if not file_path.is_file():
-                continue
-            if any(part in _IGNORED_DIR_NAMES for part in file_path.parts):
-                continue
-            if file_path.name == DEFAULT_REGISTRY_FILENAME:
-                continue
-            if file_path in seen:
-                continue
-            seen.add(file_path)
-            yield file_path
+            if _is_eligible_file(file_path, seen):
+                seen.add(file_path)
+                yield file_path

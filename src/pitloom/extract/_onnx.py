@@ -43,29 +43,31 @@ def _onnx_tensor_specs(value_infos: Any) -> list[dict[str, Any]]:
     return specs
 
 
+def _extract_onnx_properties(
+    model: Any, source: str, provenance: dict[str, str]
+) -> dict[str, str]:
+    """Extract domain, opset versions, and metadata_props into properties dict."""
+    properties: dict[str, str] = {}
+    domain = model.domain if model.domain else None
+    if domain:
+        properties["domain"] = domain
+
+    for opset in model.opset_import:
+        opset_domain = opset.domain if opset.domain else "ai.onnx"
+        properties[f"opset.{opset_domain}"] = str(opset.version)
+
+    for prop in model.metadata_props:
+        properties[prop.key] = prop.value
+
+    record_dict_field_provenance(provenance, "properties", properties, source)
+    return properties
+
+
 # pylint: disable=too-many-locals
 def read_onnx(model_path: Path) -> AiModelMetadata:
     """Extract metadata from an ONNX model file.
 
     Requires the ``onnx`` package (``pip install onnx``).
-
-    Extracted fields:
-    - name: from the graph name or model doc_string
-    - description: model doc_string
-    - version: model_version integer cast to string
-    - type_of_model: domain (e.g. "ai.onnx")
-    - properties: metadata_props key/value pairs and opset versions
-    - inputs/outputs: tensor names and shapes
-
-    Args:
-        model_path: Path to a ``.onnx`` file.
-
-    Returns:
-        AiModelMetadata with available fields populated.
-
-    Raises:
-        ImportError: If ``onnx`` is not installed.
-        ValueError: If the file cannot be loaded as a valid ONNX model.
     """
     try:
         # pylint: disable=import-outside-toplevel
@@ -85,16 +87,13 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc
 
     source = f"Source: {sanitize_provenance_text(model_path.name)}"
-    properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
 
-    # ONNX IR format version (integer, e.g. 9 for IR version 9)
     format_version: str | None = None
     if model.ir_version:
         format_version = str(model.ir_version)
         provenance["format_version"] = f"{source} | Field: ir_version"
 
-    # Producer name/version (the framework that exported the model)
     framework = model.producer_name if model.producer_name else None
     if framework:
         provenance["framework"] = f"{source} | Field: producer_name"
@@ -103,7 +102,6 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     if framework_version:
         provenance["framework_version"] = f"{source} | Field: producer_version"
 
-    # Graph name as the model name fallback
     graph_name = model.graph.name if model.graph.name else None
     doc_string = model.doc_string if model.doc_string else None
 
@@ -121,21 +119,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
         provenance["version"] = f"{source} | Field: model_version"
 
     domain = model.domain if model.domain else None
-    if domain:
-        properties["domain"] = domain
-
-    # Opset versions
-    for opset in model.opset_import:
-        opset_domain = opset.domain if opset.domain else "ai.onnx"
-        properties[f"opset.{opset_domain}"] = str(opset.version)
-
-    # metadata_props: list of StringStringEntryProto
-    for prop in model.metadata_props:
-        properties[prop.key] = prop.value
-
-    # Exact per-key provenance: each property is traceable to its own origin
-    # key (a ``metadata_props`` entry, an ``opset.<domain>``, or ``domain``).
-    record_dict_field_provenance(provenance, "properties", properties, source)
+    properties = _extract_onnx_properties(model, source, provenance)
 
     # Input tensor specifications
     inputs = _onnx_tensor_specs(model.graph.input)

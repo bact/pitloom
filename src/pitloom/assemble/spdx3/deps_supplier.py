@@ -92,19 +92,23 @@ def _resolve_supplier(pkg_meta: PackageMetadata) -> list[tuple[str | None, str |
     return []
 
 
+def _read_candidate_copyright(candidate: Any) -> str | None:
+    """Read head of dist-info candidate file and extract copyright regex match."""
+    if not str(candidate).split("/", 1)[0].endswith(".dist-info"):
+        return None
+    try:
+        text = candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    if not text:
+        return None
+    match = _COPYRIGHT_LINE_RE.search(text[:_COPYRIGHT_SEARCH_HEAD_CHARS])
+    return match.group(0).strip() if match else None
+
+
 def _find_license_copyright(dist_name: str, pkg_meta: PackageMetadata) -> str | None:
     """Return a copyright statement from the dependency's installed
     ``License-File``, or ``None`` if not found.
-
-    Only the first :data:`_COPYRIGHT_SEARCH_HEAD_CHARS` of the file are
-    searched: a permissive (MIT/BSD-style) license puts its copyright line
-    right at the top, while a copyleft/Apache-style license's boilerplate
-    body can contain the word "copyright" in an unrelated sentence deep in
-    the file (e.g. Apache-2.0 SS4's "You must retain... all copyright...
-    notices") -- restricting to the head avoids that false positive, at the
-    cost of correctly finding nothing for those license families (which
-    don't embed a per-project copyright line in ``LICENSE`` anyway; that
-    text lives in an optional, non-standardized ``NOTICE`` file instead).
     """
     license_files = pkg_meta.get_all("License-File") or []
     if not license_files:
@@ -117,26 +121,10 @@ def _find_license_copyright(dist_name: str, pkg_meta: PackageMetadata) -> str | 
     package_files = dist.files or []
     for license_file in license_files:
         for candidate in package_files:
-            if candidate.name != license_file:
-                continue
-            # License-File-declared files live under the package's own
-            # .dist-info directory (PEP 639, either directly or under its
-            # licenses/ subdirectory) -- restricting to that prevents a
-            # same-named LICENSE file elsewhere in the installed package
-            # tree (e.g. a vendored third-party library at
-            # mypkg/vendor/otherlib/LICENSE) from being matched instead of
-            # the real one, misattributing that library's copyright.
-            if not str(candidate).split("/", 1)[0].endswith(".dist-info"):
-                continue
-            try:
-                text = candidate.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue
-            if not text:
-                continue
-            match = _COPYRIGHT_LINE_RE.search(text[:_COPYRIGHT_SEARCH_HEAD_CHARS])
-            if match:
-                return match.group(0).strip()
+            if candidate.name == license_file:
+                match = _read_candidate_copyright(candidate)
+                if match:
+                    return match
     return None
 
 
@@ -296,6 +284,79 @@ def _get_or_create_originator_agent(
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
+def _collect_originator_agents(
+    originators: list[tuple[str | None, str | None]],
+    dep_package: spdx3.software_Package,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    repo_url: str | None,
+    offline: bool,
+    content_type_method: str,
+) -> list[str]:
+    """Create originator agents and append attribution texts."""
+    originator_ids = []
+    for name, email in originators:
+        if not (name or email):
+            continue
+        agent_id, attribution_text = _get_or_create_originator_agent(
+            name,
+            email,
+            creation_info,
+            doc_name,
+            doc_uuid,
+            exporter,
+            repo_url=repo_url,
+            package_name=dep_package.name,
+            offline=offline,
+            content_type_method=content_type_method,
+        )
+        originator_ids.append(agent_id)
+        if attribution_text:
+            if not dep_package.software_attributionText:
+                dep_package.software_attributionText = [attribution_text]
+            else:
+                dep_package.software_attributionText.append(attribution_text)
+    return originator_ids
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def _emit_originator_provenance(
+    dep_package: spdx3.software_Package,
+    originators_count: int,
+    provenance_source: str,
+    repo_url: str | None,
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    provenance_config: ProvenanceConfig | None,
+    encoder: ProvenanceEncoder | None,
+) -> None:
+    """Emit provenance annotations for originator assignment."""
+    if not provenance_source:
+        return
+    method = "parsed_author_list" if originators_count > 1 else ""
+    prov_str = (
+        f"{provenance_source} | Method: {method}" if method else provenance_source
+    )
+    prov_dict = {"originatedBy": prov_str}
+    if dep_package.software_attributionText and repo_url:
+        prov_dict["software_attributionText"] = f"Fetched from AUTHORS at {repo_url}"
+    emit_provenance(
+        subject=dep_package,
+        provenance=prov_dict,
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _apply_originator(
     originators: list[tuple[str | None, str | None]],
     dep_package: spdx3.software_Package,
@@ -316,53 +377,31 @@ def _apply_originator(
     if not originators:
         return False
 
-    originator_ids = []
-    for name, email in originators:
-        if name or email:
-            agent_id, attribution_text = _get_or_create_originator_agent(
-                name,
-                email,
-                creation_info,
-                doc_name,
-                doc_uuid,
-                exporter,
-                repo_url=repo_url,
-                package_name=dep_package.name,
-                offline=offline,
-                content_type_method=content_type_method,
-            )
-            originator_ids.append(agent_id)
-            if attribution_text:
-                if not dep_package.software_attributionText:
-                    dep_package.software_attributionText = [attribution_text]
-                else:
-                    dep_package.software_attributionText.append(attribution_text)
-
+    originator_ids = _collect_originator_agents(
+        originators,
+        dep_package,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        repo_url,
+        offline,
+        content_type_method,
+    )
     if not originator_ids:
         return False
 
     dep_package.originatedBy = originator_ids
-
-    if provenance_source:
-        method = "parsed_author_list" if len(originators) > 1 else ""
-        prov_str = (
-            f"{provenance_source} | Method: {method}" if method else provenance_source
-        )
-        prov_dict = {"originatedBy": prov_str}
-
-        if dep_package.software_attributionText and repo_url:
-            prov_dict["software_attributionText"] = (
-                f"Fetched from AUTHORS at {repo_url}"
-            )
-
-        emit_provenance(
-            subject=dep_package,
-            provenance=prov_dict,
-            creation_info=creation_info,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
+    _emit_originator_provenance(
+        dep_package,
+        len(originators),
+        provenance_source,
+        repo_url,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+        provenance_config,
+        encoder,
+    )
     return True

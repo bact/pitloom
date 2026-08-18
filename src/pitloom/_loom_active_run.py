@@ -240,70 +240,87 @@ class _ActiveRun:
         self.output_datasets.append((dataset_pkg, input_datasets))
         self.exporter.add_package(dataset_pkg)
 
+    def _emit_model_dataset_relationships(self) -> None:
+        """Emit trainedOn and testedOn relationships for models and datasets."""
+        if not self.model:
+            return
+        for dataset in self.datasets:
+            rel = build_relationship(
+                from_id=self.model.spdxId,
+                to_ids=[require_spdx_id(dataset)],
+                rel_type=spdx3.RelationshipType.trainedOn,
+                doc_name="loom",
+                doc_uuid=self.doc_uuid,
+                creation_info=self.creation_info,
+            )
+            if rel:
+                self.exporter.add_relationship(rel)
+
+        for dataset in self.validation_datasets:
+            rel = build_relationship(
+                from_id=self.model.spdxId,
+                to_ids=[require_spdx_id(dataset)],
+                rel_type=spdx3.RelationshipType.testedOn,
+                doc_name="loom",
+                doc_uuid=self.doc_uuid,
+                creation_info=self.creation_info,
+            )
+            if rel:
+                self.exporter.add_relationship(rel)
+
+    def _resolve_input_ids_for_output(
+        self,
+        wanted_names: list[str] | None,
+        all_input_ids: list[str],
+        input_ids_by_name: dict[str | None, str],
+        output_ds_name: str | None,
+    ) -> list[str]:
+        """Resolve specific input IDs requested by an output dataset."""
+        if wanted_names is None:
+            return all_input_ids
+        input_ids: list[str] = []
+        for wanted_name in wanted_names:
+            input_id = input_ids_by_name.get(wanted_name)
+            if input_id is None:
+                log.warning(
+                    "loom: add_output_dataset(%r) names input_datasets=%r "
+                    "as a source, but no add_input_dataset(%r) was "
+                    "declared in this run; skipping it.",
+                    output_ds_name,
+                    wanted_name,
+                    wanted_name,
+                )
+                continue
+            input_ids.append(input_id)
+        return input_ids
+
+    def _emit_output_input_dataset_relationships(self) -> None:
+        """Emit hasInput relationships between output and input datasets."""
+        if not (self.output_datasets and self.input_datasets):
+            return
+        all_input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
+        input_ids_by_name = {ds.name: require_spdx_id(ds) for ds in self.input_datasets}
+        for output_ds, wanted_names in self.output_datasets:
+            input_ids = self._resolve_input_ids_for_output(
+                wanted_names, all_input_ids, input_ids_by_name, output_ds.name
+            )
+            if not input_ids:
+                continue
+            rel = build_relationship(
+                from_id=output_ds.spdxId,
+                to_ids=input_ids,
+                rel_type=spdx3.RelationshipType.hasInput,
+                doc_name="loom",
+                doc_uuid=self.doc_uuid,
+                creation_info=self.creation_info,
+            )
+            if rel:
+                self.exporter.add_relationship(rel)
+
     def finalize(self) -> None:
         """Finalize the run and output the SBOM fragment."""
-        if self.model and self.datasets:
-            for dataset in self.datasets:
-                rel = build_relationship(
-                    from_id=self.model.spdxId,
-                    to_ids=[require_spdx_id(dataset)],
-                    rel_type=spdx3.RelationshipType.trainedOn,
-                    doc_name="loom",
-                    doc_uuid=self.doc_uuid,
-                    creation_info=self.creation_info,
-                )
-                if rel:
-                    self.exporter.add_relationship(rel)
-
-        if self.model and self.validation_datasets:
-            for dataset in self.validation_datasets:
-                rel = build_relationship(
-                    from_id=self.model.spdxId,
-                    to_ids=[require_spdx_id(dataset)],
-                    rel_type=spdx3.RelationshipType.testedOn,
-                    doc_name="loom",
-                    doc_uuid=self.doc_uuid,
-                    creation_info=self.creation_info,
-                )
-                if rel:
-                    self.exporter.add_relationship(rel)
-
-        if self.output_datasets and self.input_datasets:
-            all_input_ids = [require_spdx_id(ds) for ds in self.input_datasets]
-            input_ids_by_name = {
-                ds.name: require_spdx_id(ds) for ds in self.input_datasets
-            }
-            for output_ds, wanted_names in self.output_datasets:
-                if wanted_names is None:
-                    input_ids = all_input_ids
-                else:
-                    input_ids = []
-                    for wanted_name in wanted_names:
-                        input_id = input_ids_by_name.get(wanted_name)
-                        if input_id is None:
-                            log.warning(
-                                "loom: add_output_dataset(%r) names input_datasets=%r "
-                                "as a source, but no add_input_dataset(%r) was "
-                                "declared in this run; skipping it.",
-                                output_ds.name,
-                                wanted_name,
-                                wanted_name,
-                            )
-                            continue
-                        input_ids.append(input_id)
-                if not input_ids:
-                    continue
-                rel = build_relationship(
-                    from_id=output_ds.spdxId,
-                    to_ids=input_ids,
-                    rel_type=spdx3.RelationshipType.hasInput,
-                    doc_name="loom",
-                    doc_uuid=self.doc_uuid,
-                    creation_info=self.creation_info,
-                )
-                if rel:
-                    self.exporter.add_relationship(rel)
-
+        self._emit_model_dataset_relationships()
+        self._emit_output_input_dataset_relationships()
         self._emit_script_file_and_generates()
 
         output_path = Path(self.output_file)

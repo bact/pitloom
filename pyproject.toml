@@ -331,11 +331,8 @@ select = [
 known-first-party = ["pitloom"]
 
 [tool.ruff.lint.mccabe]
-# Interim ceiling, headroom above today's measured worst (32) so this
-# activates without breaking CI. AGENTS.md's real target is 10 -- see
-# working-docs/design/complexity-and-file-size-roadmap.md for the
-# 33-function backlog that has to shrink before this can drop.
-max-complexity = 32
+# Ratchet ceiling lowered to 15. AGENTS.md target is 10.
+max-complexity = 15
 
 [tool.coverage.run]
 branch = true

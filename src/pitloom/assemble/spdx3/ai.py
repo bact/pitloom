@@ -52,7 +52,169 @@ __all__ = [
 ]
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def _add_ai_model_file_relationships(
+    ai_model: AiModelMetadata,
+    ai_pkg_id: str,
+    file_spdx_ids: dict[str, str],
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+) -> None:
+    """Build contains and hasDataFile relationships for model files."""
+    model_file_id = (
+        file_spdx_ids.get(ai_model.format_info.file_path_relative)
+        if ai_model.format_info.file_path_relative
+        else None
+    )
+    if not model_file_id:
+        return
+
+    rel_contains_file = build_relationship(
+        from_id=ai_pkg_id,
+        to_ids=[model_file_id],
+        rel_type=spdx3.RelationshipType.contains,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        creation_info=creation_info,
+    )
+    if rel_contains_file:
+        exporter.add_relationship(rel_contains_file)
+
+    for usage_path in ai_model.usage_files:
+        usage_file_id = file_spdx_ids.get(usage_path)
+        if usage_file_id:
+            rel_usage = build_relationship(
+                from_id=usage_file_id,
+                to_ids=[model_file_id],
+                rel_type=spdx3.RelationshipType.hasDataFile,
+                doc_name=doc_name,
+                doc_uuid=doc_uuid,
+                creation_info=creation_info,
+                rel_class=spdx3.LifecycleScopedRelationship,
+                scope=spdx3.LifecycleScopeType.runtime,
+            )
+            if rel_usage:
+                exporter.add_relationship(rel_usage)
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+def _add_single_ai_model(
+    ai_model: AiModelMetadata,
+    model_enrichment_results: list[EnrichmentResult],
+    main_package_spdx_id: str,
+    file_spdx_ids: dict[str, str],
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    registry: IdRegistry | None,
+    config: ProvenanceConfig,
+    encoder: ProvenanceEncoder | None,
+    lineage_ctx: _LineageContext,
+) -> None:
+    """Assemble elements and relationships for a single AI model."""
+    entity_spdx_id = _lookup_ai_model_entity(ai_model, registry)
+    ai_pkg = _build_ai_package(
+        ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
+    )
+    exporter.add_package(ai_pkg)
+    ai_pkg_id = require_spdx_id(ai_pkg)
+    _add_base_model_lineage(ai_pkg, ai_model, lineage_ctx)
+
+    emit_provenance(
+        subject=ai_pkg,
+        provenance=ai_model.provenance,
+        creation_info=creation_info,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=config,
+        encoder=encoder,
+    )
+    _emit_source_metadata(
+        ai_model,
+        ai_pkg,
+        file_spdx_ids,
+        config.preserve_source_metadata,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+    )
+
+    dataset_creation_info, annotation_groups = build_enrichment_elements(
+        model_enrichment_results, creation_info, doc_name, doc_uuid, exporter
+    )
+
+    if ai_model.datasets:
+        add_datasets_for_model(
+            ai_package_spdx_id=ai_pkg_id,
+            datasets=ai_model.datasets,
+            creation_info=creation_info,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=config,
+            encoder=encoder,
+            dataset_creation_info=dataset_creation_info,
+        )
+
+    for enrich_ci, changes in annotation_groups:
+        exporter.add_annotation(
+            build_enrichment_annotation(
+                subject_spdx_id=ai_pkg_id,
+                changes=changes,
+                creation_info=enrich_ci,
+                annotation_spdx_id=generate_spdx_id(
+                    "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
+            )
+        )
+
+    if ai_model.license:
+        rel_declared, rel_concluded = build_license_elements(
+            license_id=ai_model.license,
+            package_spdx_id=ai_pkg_id,
+            license_provenance=ai_model.provenance.get(
+                "license", "Source: model file / Hugging Face Hub"
+            ),
+            creation_info=creation_info,
+            doc_name=doc_name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=config,
+            encoder=encoder,
+        )
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
+
+    rel = build_relationship(
+        from_id=main_package_spdx_id,
+        to_ids=[ai_pkg_id],
+        rel_type=spdx3.RelationshipType.contains,
+        doc_name=doc_name,
+        doc_uuid=doc_uuid,
+        creation_info=creation_info,
+    )
+    if rel:
+        exporter.add_relationship(rel)
+
+    _add_ai_model_file_relationships(
+        ai_model,
+        ai_pkg_id,
+        file_spdx_ids,
+        creation_info,
+        doc_name,
+        doc_uuid,
+        exporter,
+    )
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def add_ai_models(
     ai_models: list[AiModelMetadata],
     main_package_spdx_id: str,
@@ -69,7 +231,6 @@ def add_ai_models(
 ) -> None:
     """Build ``ai_AIPackage`` and ``contains`` relationship elements for AI models."""
     config = provenance_config or ProvenanceConfig()
-    preserve_source_metadata = config.preserve_source_metadata
     lineage_ctx = _LineageContext(
         creation_info=creation_info,
         doc_name=doc_name,
@@ -82,122 +243,17 @@ def add_ai_models(
             if enrichment_results_by_model and index < len(enrichment_results_by_model)
             else []
         )
-        entity_spdx_id = _lookup_ai_model_entity(ai_model, registry)
-        ai_pkg = _build_ai_package(
-            ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
-        )
-        exporter.add_package(ai_pkg)
-        _add_base_model_lineage(ai_pkg, ai_model, lineage_ctx)
-        emit_provenance(
-            subject=ai_pkg,
-            provenance=ai_model.provenance,
-            creation_info=creation_info,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_config=config,
-            encoder=encoder,
-        )
-        _emit_source_metadata(
+        _add_single_ai_model(
             ai_model,
-            ai_pkg,
+            model_enrichment_results,
+            main_package_spdx_id,
             file_spdx_ids,
-            preserve_source_metadata,
             creation_info,
             doc_name,
             doc_uuid,
             exporter,
+            registry,
+            config,
+            encoder,
+            lineage_ctx,
         )
-
-        dataset_creation_info, annotation_groups = build_enrichment_elements(
-            model_enrichment_results, creation_info, doc_name, doc_uuid, exporter
-        )
-
-        if ai_model.datasets:
-            add_datasets_for_model(
-                ai_package_spdx_id=require_spdx_id(ai_pkg),
-                datasets=ai_model.datasets,
-                creation_info=creation_info,
-                doc_name=doc_name,
-                doc_uuid=doc_uuid,
-                exporter=exporter,
-                provenance_config=config,
-                encoder=encoder,
-                dataset_creation_info=dataset_creation_info,
-            )
-
-        for enrich_ci, changes in annotation_groups:
-            exporter.add_annotation(
-                build_enrichment_annotation(
-                    subject_spdx_id=require_spdx_id(ai_pkg),
-                    changes=changes,
-                    creation_info=enrich_ci,
-                    annotation_spdx_id=generate_spdx_id(
-                        "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
-                    ),
-                )
-            )
-
-        if ai_model.license:
-            rel_declared, rel_concluded = build_license_elements(
-                license_id=ai_model.license,
-                package_spdx_id=require_spdx_id(ai_pkg),
-                license_provenance=ai_model.provenance.get(
-                    "license",
-                    "Source: model file / Hugging Face Hub",
-                ),
-                creation_info=creation_info,
-                doc_name=doc_name,
-                doc_uuid=doc_uuid,
-                exporter=exporter,
-                provenance_config=config,
-                encoder=encoder,
-            )
-            if rel_declared:
-                exporter.add_relationship(rel_declared)
-            if rel_concluded:
-                exporter.add_relationship(rel_concluded)
-
-        rel = build_relationship(
-            from_id=main_package_spdx_id,
-            to_ids=[require_spdx_id(ai_pkg)],
-            rel_type=spdx3.RelationshipType.contains,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            creation_info=creation_info,
-        )
-        if rel:
-            exporter.add_relationship(rel)
-
-        model_file_id = (
-            file_spdx_ids.get(ai_model.format_info.file_path_relative)
-            if ai_model.format_info.file_path_relative
-            else None
-        )
-        if model_file_id:
-            rel_contains_file = build_relationship(
-                from_id=ai_pkg.spdxId,
-                to_ids=[model_file_id],
-                rel_type=spdx3.RelationshipType.contains,
-                doc_name=doc_name,
-                doc_uuid=doc_uuid,
-                creation_info=creation_info,
-            )
-            if rel_contains_file:
-                exporter.add_relationship(rel_contains_file)
-
-            for usage_path in ai_model.usage_files:
-                usage_file_id = file_spdx_ids.get(usage_path)
-                if usage_file_id:
-                    rel_usage = build_relationship(
-                        from_id=usage_file_id,
-                        to_ids=[model_file_id],
-                        rel_type=spdx3.RelationshipType.hasDataFile,
-                        doc_name=doc_name,
-                        doc_uuid=doc_uuid,
-                        creation_info=creation_info,
-                        rel_class=spdx3.LifecycleScopedRelationship,
-                        scope=spdx3.LifecycleScopeType.runtime,
-                    )
-                    if rel_usage:
-                        exporter.add_relationship(rel_usage)

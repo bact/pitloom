@@ -37,6 +37,42 @@ def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str
     return dict(cfg.items(section)) if cfg.has_section(section) else {}
 
 
+def _resolve_cfg_version_file_directive(
+    value: str, project_dir: Path
+) -> tuple[str | None, str | None]:
+    """Resolve a file: directive for version from setup.cfg."""
+    ver_file = project_dir / value
+    if ver_file.exists():
+        content = ver_file.read_text(encoding="utf-8").strip()
+        if content and "\n" not in content and not content.startswith("#"):
+            return content, f"Source: {value} | Method: file_directive"
+    return None, None
+
+
+def _resolve_cfg_attr_directive(
+    value: str, project_dir: Path
+) -> tuple[str | None, str | None]:
+    """Resolve an attr: directive from setup.cfg."""
+    parts = value.rsplit(".", 1)
+    if len(parts) != 2:
+        return None, None
+    module_path, attr_name = parts
+    module_rel = module_path.replace(".", "/")
+    candidates = [
+        project_dir / (module_rel + ".py"),
+        project_dir / module_rel / "__init__.py",
+        project_dir / "src" / (module_rel + ".py"),
+        project_dir / "src" / module_rel / "__init__.py",
+    ]
+    for module_file in candidates:
+        if module_file.exists():
+            version = _read_version_attr(module_file, attr_name)
+            if version:
+                rel = module_file.relative_to(project_dir).as_posix()
+                return version, f"Source: {rel} | Method: attr_directive"
+    return None, None
+
+
 def _resolve_cfg_version(
     raw: str,
     project_dir: Path,
@@ -56,32 +92,10 @@ def _resolve_cfg_version(
         return raw, "Source: setup.cfg | Field: metadata.version"
 
     directive, value = m.group(1), m.group(2).strip()
-
     if directive == "file":
-        ver_file = project_dir / value
-        if ver_file.exists():
-            content = ver_file.read_text(encoding="utf-8").strip()
-            if content and "\n" not in content and not content.startswith("#"):
-                return content, f"Source: {value} | Method: file_directive"
-
-    elif directive == "attr":
-        parts = value.rsplit(".", 1)
-        if len(parts) == 2:
-            module_path, attr_name = parts
-            module_rel = module_path.replace(".", "/")
-            candidates = [
-                project_dir / (module_rel + ".py"),
-                project_dir / module_rel / "__init__.py",
-                project_dir / "src" / (module_rel + ".py"),
-                project_dir / "src" / module_rel / "__init__.py",
-            ]
-            for module_file in candidates:
-                if module_file.exists():
-                    version = _read_version_attr(module_file, attr_name)
-                    if version:
-                        rel = module_file.relative_to(project_dir).as_posix()
-                        return version, f"Source: {rel} | Method: attr_directive"
-
+        return _resolve_cfg_version_file_directive(value, project_dir)
+    if directive == "attr":
+        return _resolve_cfg_attr_directive(value, project_dir)
     return None, None
 
 
@@ -259,7 +273,112 @@ def read_setup_cfg(
     return project_metadata, pitloom_config
 
 
-# pylint: disable-next=too-many-branches
+_KNOWN_BOOL_KEYS = frozenset(
+    {
+        "pretty",
+        "describe-relationship",
+        "describe_relationship",
+        "offline",
+        "no-creation-tool",
+        "no_creation_tool",
+        "local",
+        "enabled",
+    }
+)
+
+
+def _bool_val(v: str) -> bool | None:
+    """Parse boolean values from INI strings."""
+    v = v.strip().lower()
+    if v in ("true", "1", "yes"):
+        return True
+    if v in ("false", "0", "no"):
+        return False
+    return None
+
+
+def _parse_sub_section(sub_raw: dict[str, str]) -> dict[str, Any]:
+    """Parse key-values of a sub-section table in setup.cfg."""
+    sub: dict[str, Any] = {}
+    for k, v in sub_raw.items():
+        if k in _KNOWN_BOOL_KEYS:
+            b = _bool_val(v)
+            sub[k] = b if b is not None else v.strip()
+        elif k == "files":
+            sub[k] = [f.strip() for f in v.splitlines() if f.strip()]
+        else:
+            sub[k] = v.strip()
+    return sub
+
+
+def _pick_cfg_str(
+    raw: dict[str, str], creation_raw: dict[str, str], *keys: str
+) -> str | None:
+    """Pick the first non-empty value matching any of the candidate keys."""
+    for key in keys:
+        for src in (creation_raw, raw):
+            val = src.get(key, "").strip()
+            if val:
+                return val
+    return None
+
+
+def _parse_creator_from_cfg(
+    raw: dict[str, str], creation_raw: dict[str, str]
+) -> list[dict[str, Any]] | None:
+    """Extract creator dictionary from raw and creation tables."""
+    creator_name = _pick_cfg_str(raw, creation_raw, "creator-name", "creator_name")
+    if not creator_name:
+        return None
+    creator_dict: dict[str, Any] = {"name": creator_name}
+    creator_type = _pick_cfg_str(raw, creation_raw, "creator-type", "creator_type")
+    if creator_type:
+        creator_dict["type"] = creator_type
+    cemail = _pick_cfg_str(raw, creation_raw, "creator-email", "creator_email")
+    if cemail:
+        creator_dict["email"] = cemail
+    return [creator_dict]
+
+
+def _clean_creation_keys(tool_pitloom: dict[str, Any]) -> None:
+    """Strip legacy and moved creation keys from dictionaries."""
+    for key in _MOVED_CREATION_KEYS:
+        tool_pitloom.pop(key, None)
+        if "creation" in tool_pitloom:
+            tool_pitloom["creation"].pop(key, None)
+
+    for key in ("no-creation-tool", "no_creation_tool"):
+        tool_pitloom.pop(key, None)
+
+
+def _populate_sub_sections_from_cfg(
+    cfg: configparser.ConfigParser, tool_pitloom: dict[str, Any]
+) -> None:
+    """Populate creation, provenance, content-type, and fragment sub-tables."""
+    creation_raw = _section_dict(cfg, "tool:pitloom:creation")
+    if creation_raw:
+        tool_pitloom["creation"] = _parse_sub_section(creation_raw)
+
+    provenance_raw = _section_dict(cfg, "tool:pitloom:provenance")
+    if provenance_raw:
+        tool_pitloom["provenance"] = _parse_sub_section(provenance_raw)
+
+    content_type_raw = _section_dict(cfg, "tool:pitloom:content-type")
+    if content_type_raw:
+        ct = _parse_sub_section(content_type_raw)
+        override_raw = _section_dict(cfg, "tool:pitloom:content-type:override")
+        if override_raw:
+            ct["override"] = [
+                {"pattern": pat, "content-type": ctype}
+                for pat, ctype in override_raw.items()
+            ]
+        tool_pitloom["content-type"] = ct
+
+    fragment_raw = _section_dict(cfg, "tool:pitloom:fragment")
+    if fragment_raw:
+        tool_pitloom["fragment"] = _parse_sub_section(fragment_raw)
+
+
 def _read_pitloom_config_from_cfg(
     cfg: configparser.ConfigParser,
 ) -> PitloomConfig:
@@ -271,35 +390,12 @@ def _read_pitloom_config_from_cfg(
 
     raw = _section_dict(cfg, "tool:pitloom")
     creation_raw = _section_dict(cfg, "tool:pitloom:creation")
-    provenance_raw = _section_dict(cfg, "tool:pitloom:provenance")
-    content_type_raw = _section_dict(cfg, "tool:pitloom:content-type")
-    content_type_override_raw = _section_dict(cfg, "tool:pitloom:content-type:override")
-    fragment_raw = _section_dict(cfg, "tool:pitloom:fragment")
 
     tool_pitloom: dict[str, Any] = {}
     data = {"tool": {"pitloom": tool_pitloom}}
 
-    def _bool_val(v: str) -> bool | None:
-        v = v.strip().lower()
-        if v in ("true", "1", "yes"):
-            return True
-        if v in ("false", "0", "no"):
-            return False
-        return None
-
-    known_bool_keys = {
-        "pretty",
-        "describe-relationship",
-        "describe_relationship",
-        "offline",
-        "no-creation-tool",
-        "no_creation_tool",
-        "local",
-        "enabled",
-    }
-
     for k, v in raw.items():
-        if k in known_bool_keys:
+        if k in _KNOWN_BOOL_KEYS:
             b = _bool_val(v)
             tool_pitloom[k] = b if b is not None else v.strip()
         elif k == "fragments":
@@ -309,57 +405,21 @@ def _read_pitloom_config_from_cfg(
         else:
             tool_pitloom[k] = v.strip()
 
-    def _parse_sub_section(sub_raw: dict[str, str]) -> dict[str, Any]:
-        sub: dict[str, Any] = {}
-        for k, v in sub_raw.items():
-            if k in known_bool_keys:
-                b = _bool_val(v)
-                sub[k] = b if b is not None else v.strip()
-            elif k == "files":
-                sub[k] = [f.strip() for f in v.splitlines() if f.strip()]
-            else:
-                sub[k] = v.strip()
-        return sub
+    _populate_sub_sections_from_cfg(cfg, tool_pitloom)
 
-    if creation_raw:
-        tool_pitloom["creation"] = _parse_sub_section(creation_raw)
-    if provenance_raw:
-        tool_pitloom["provenance"] = _parse_sub_section(provenance_raw)
-    if content_type_raw:
-        ct = _parse_sub_section(content_type_raw)
-        if content_type_override_raw:
-            overrides = []
-            for pat, ctype in content_type_override_raw.items():
-                overrides.append({"pattern": pat, "content-type": ctype})
-            ct["override"] = overrides
-        tool_pitloom["content-type"] = ct
-    if fragment_raw:
-        tool_pitloom["fragment"] = _parse_sub_section(fragment_raw)
+    creator = _parse_creator_from_cfg(raw, creation_raw)
+    if creator:
+        tool_pitloom["creator"] = creator
 
-    def _pick_str(*keys: str) -> str | None:
-        for key in keys:
-            for src in (creation_raw, raw):
-                val = src.get(key, "").strip()
-                if val:
-                    return val
-        return None
+    tool_name = _pick_cfg_str(
+        raw, creation_raw, "creation-tool", "creation_tool", "tool"
+    )
+    if tool_name:
+        tool_pitloom["creation-tool"] = [{"name": tool_name}]
 
-    creator_name = _pick_str("creator-name", "creator_name")
-    if creator_name:
-        creator_dict = {"name": creator_name}
-        creator_type_val = _pick_str("creator-type", "creator_type")
-        if creator_type_val:
-            creator_dict["type"] = creator_type_val
-        cemail = _pick_str("creator-email", "creator_email")
-        if cemail:
-            creator_dict["email"] = cemail
-        tool_pitloom["creator"] = [creator_dict]
-
-    creation_tool_name = _pick_str("creation-tool", "creation_tool", "tool")
-    if creation_tool_name:
-        tool_pitloom["creation-tool"] = [{"name": creation_tool_name}]
-
-    no_creation_tool = _pick_str("no-creation-tool", "no_creation_tool")
+    no_creation_tool = _pick_cfg_str(
+        raw, creation_raw, "no-creation-tool", "no_creation_tool"
+    )
     if no_creation_tool is not None:
         b = _bool_val(no_creation_tool)
         if b is not None:
@@ -367,12 +427,5 @@ def _read_pitloom_config_from_cfg(
                 tool_pitloom["creation"] = {}
             tool_pitloom["creation"]["no-creation-tool"] = b
 
-    for key in _MOVED_CREATION_KEYS:
-        tool_pitloom.pop(key, None)
-        if "creation" in tool_pitloom:
-            tool_pitloom["creation"].pop(key, None)
-
-    for key in ("no-creation-tool", "no_creation_tool"):
-        tool_pitloom.pop(key, None)
-
+    _clean_creation_keys(tool_pitloom)
     return parse_pitloom_config(data)

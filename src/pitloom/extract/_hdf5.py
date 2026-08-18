@@ -118,6 +118,47 @@ def _extract_input_from_layers(
     return [], ""
 
 
+def _extract_layers_info(
+    layers: list[Any],
+    source: str,
+    properties: dict[str, str],
+    inputs: list[dict[str, Any]],
+    provenance: dict[str, str],
+) -> None:
+    """Extract layer count and input shapes from layers list."""
+    properties["layer_count"] = str(len(layers))
+    provenance["properties.layer_count"] = (
+        f"{source} | Field: model_config.config.layers (count)"
+    )
+    new_inputs, inputs_prov = _extract_input_from_layers(layers, source)
+    if new_inputs:
+        inputs.extend(new_inputs)
+    if inputs_prov:
+        provenance["inputs"] = inputs_prov
+
+
+def _extract_config_hyperparameters(
+    config: dict[str, Any],
+    source: str,
+    hyperparameters: dict[str, Any],
+    provenance: dict[str, str],
+) -> None:
+    """Extract scalar hyperparameter entries and record their provenance."""
+    for key, val in config.items():
+        if key in ("name", "layers"):
+            continue
+        if isinstance(val, (int, float, bool, str)):
+            hyperparameters[key] = val
+
+    record_dict_field_provenance(
+        provenance,
+        "hyperparameters",
+        hyperparameters,
+        source,
+        location_prefix="model_config.config.",
+    )
+
+
 def _parse_model_config(
     raw: str,
     source: str,
@@ -126,30 +167,7 @@ def _parse_model_config(
     properties: dict[str, str],
     provenance: dict[str, str],
 ) -> tuple[str | None, str | None]:
-    """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model.
-
-    Extracts:
-
-    - ``class_name`` -> ``type_of_model`` (returned)
-    - ``config.name`` / ``config.model_name`` -> ``name`` (returned)
-    - Scalar entries of ``config`` (excluding ``name`` and ``layers``)
-      -> ``hyperparameters`` (updated in-place)
-    - ``config.layers`` count -> ``properties["layer_count"]`` (updated in-place)
-    - Input shape from layers or ``build_config.input_shape``
-      -> ``inputs`` (updated in-place)
-    - Per-field source paths -> ``provenance`` (updated in-place)
-
-    Args:
-        raw: Raw JSON string from the ``model_config`` HDF5 attribute.
-        source: Provenance source string (e.g. ``"Source: model.h5"``).
-        hyperparameters: Updated in-place with scalar config entries.
-        inputs: Updated in-place with extracted input shape entries.
-        properties: Updated in-place with ``layer_count`` and similar.
-        provenance: Updated in-place with per-field source descriptions.
-
-    Returns:
-        Tuple of ``(type_of_model, name)``.
-    """
+    """Parse ``model_config`` JSON from a Keras v1/v2 HDF5 model."""
     # pylint: disable=import-outside-toplevel
     import json
 
@@ -158,7 +176,6 @@ def _parse_model_config(
 
     try:
         model_config = json.loads(raw)
-
         type_of_model = model_config.get("class_name") or None
         if type_of_model:
             provenance["type_of_model"] = f"{source} | Field: model_config.class_name"
@@ -171,30 +188,9 @@ def _parse_model_config(
 
             layers = config.get("layers")
             if isinstance(layers, list):
-                properties["layer_count"] = str(len(layers))
-                provenance["properties.layer_count"] = (
-                    f"{source} | Field: model_config.config.layers (count)"
-                )
-                new_inputs, inputs_prov = _extract_input_from_layers(layers, source)
-                if new_inputs:
-                    inputs.extend(new_inputs)
-                if inputs_prov:
-                    provenance["inputs"] = inputs_prov
+                _extract_layers_info(layers, source, properties, inputs, provenance)
 
-            for key, val in config.items():
-                if key in ("name", "layers"):
-                    continue
-                if isinstance(val, (int, float, bool, str)):
-                    hyperparameters[key] = val
-
-            # Exact per-key provenance under ``model_config.config.``.
-            record_dict_field_provenance(
-                provenance,
-                "hyperparameters",
-                hyperparameters,
-                source,
-                location_prefix="model_config.config.",
-            )
+            _extract_config_hyperparameters(config, source, hyperparameters, provenance)
 
         # Top-level build_config -- fallback if layers didn't give a shape.
         if not inputs:

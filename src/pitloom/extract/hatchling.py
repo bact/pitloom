@@ -92,28 +92,43 @@ def _field_provenance(field_name: str) -> str:
     return f"{_PROVENANCE_SOURCE} | Field: project.{field_name}"
 
 
+def _resolve_hatchling_readme(core: Any) -> str | None:
+    """Extract readme string or path safely from Hatchling core metadata."""
+    try:
+        return core.readme_path or core.readme or None
+    except OSError:
+        return None
+
+
+def _resolve_hatchling_license(
+    core: Any, project_dir: Path, provenance: dict[str, str]
+) -> tuple[str | None, str | None]:
+    """Extract declared/detected license and concluded license from Hatchling core."""
+    try:
+        license_hint = core.license_expression or core.license or None
+    except OSError:
+        license_hint = None
+
+    license_name, license_prov = detect_license_for_project(project_dir, license_hint)
+    if license_prov:
+        provenance["license"] = license_prov
+    elif license_name:
+        provenance["license"] = _field_provenance("license")
+
+    license_concluded, license_concluded_prov = resolve_license_concluded(
+        bool(license_hint), project_dir
+    )
+    if license_concluded and license_concluded_prov:
+        provenance["license_concluded"] = license_concluded_prov
+
+    return license_name, license_concluded
+
+
 def metadata_from_hatchling(
     hatch_metadata: Any,
     project_dir: Path,
 ) -> ProjectMetadata:
-    """Map Hatchling's resolved project metadata into a :class:`ProjectMetadata`.
-
-    Args:
-        hatch_metadata: An object exposing ``.core`` (Hatchling's
-            ``CoreMetadata``, resolved PEP 621 fields) and ``.version`` (the
-            resolved project version). In production this is
-            ``hatchling.metadata.core.ProjectMetadata``
-            (``BuildHookInterface.metadata``); tests may pass a lightweight
-            duck-typed stand-in exposing the same two attributes.
-        project_dir: Project root directory, used for the license-detection
-            fallback when neither ``license`` nor ``license_expression`` is
-            declared.
-
-    Returns:
-        Populated :class:`~pitloom.core.project.ProjectMetadata` with
-        per-field provenance recorded in
-        :attr:`~pitloom.core.project.ProjectMetadata.provenance`.
-    """
+    """Map Hatchling's resolved project metadata into a :class:`ProjectMetadata`."""
     core = hatch_metadata.core
     version = str(hatch_metadata.version) if hatch_metadata.version else None
 
@@ -125,15 +140,7 @@ def metadata_from_hatchling(
     if description:
         provenance["description"] = _field_provenance("description")
 
-    # core.readme / core.readme_path are lazily evaluated and raise a bare
-    # OSError when the declared readme file does not exist on disk. Degrade
-    # gracefully instead of crashing the build, mirroring read_pyproject()'s
-    # tolerance for the same situation (_strip_missing_readme).
-    try:
-        readme = core.readme_path or core.readme or None
-    except OSError:
-        readme = None
-
+    readme = _resolve_hatchling_readme(core)
     requires_python = core.requires_python or None
 
     authors = _authors_from_data(core.authors_data or {})
@@ -153,27 +160,9 @@ def metadata_from_hatchling(
     if dependencies:
         provenance["dependencies"] = _field_provenance("dependencies")
 
-    # core.license / core.license_expression can likewise raise a bare
-    # OSError when a declared license *file* does not exist on disk.
-    try:
-        license_hint = core.license_expression or core.license or None
-    except OSError:
-        license_hint = None
-    license_name, license_prov = detect_license_for_project(project_dir, license_hint)
-    if license_prov:
-        provenance["license"] = license_prov
-    elif license_name:
-        provenance["license"] = _field_provenance("license")
-
-    # G2: independently scan project_dir for a second opinion when a license
-    # was declared, exactly like read_pyproject() does for the CLI path --
-    # via the shared resolve_license_concluded() so this can't drift out of
-    # sync again (see its docstring for why this was previously missing here).
-    license_concluded, license_concluded_prov = resolve_license_concluded(
-        bool(license_hint), project_dir
+    license_name, license_concluded = _resolve_hatchling_license(
+        core, project_dir, provenance
     )
-    if license_concluded and license_concluded_prov:
-        provenance["license_concluded"] = license_concluded_prov
 
     metadata = ProjectMetadata(
         name=core.raw_name,

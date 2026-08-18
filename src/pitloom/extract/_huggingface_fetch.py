@@ -236,26 +236,25 @@ def _detect_license_from_hf_files(
     return None, None
 
 
+def _strip_card_yaml_frontmatter(lines: list[str]) -> list[str]:
+    """Strip YAML frontmatter delimited by '---' markers from lines."""
+    in_yaml = False
+    for i, line in enumerate(lines):
+        if line.strip() == "---":
+            if in_yaml:
+                return lines[i + 1 :]
+            in_yaml = True
+    return lines if not in_yaml else []
+
+
 def _extract_card_description(card_text: str) -> str | None:
     """Return the first non-empty prose paragraph from a model card."""
-    in_yaml = False
-    yaml_done = False
-    lines = card_text.splitlines()
+    lines = _strip_card_yaml_frontmatter(card_text.splitlines())
     collected: list[str] = []
 
     for line in lines:
         stripped = line.strip()
-        if stripped == "---":
-            if not yaml_done:
-                in_yaml = not in_yaml
-                if not in_yaml:
-                    yaml_done = True
-                continue
-        if in_yaml:
-            continue
-        if not yaml_done:
-            continue
-        # Skip headings and blank lines at the start
+        # Skip headings and blank lines before the first paragraph
         if not collected and (not stripped or stripped.startswith("#")):
             continue
         if not stripped:

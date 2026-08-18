@@ -29,81 +29,79 @@ for _fmt in AiModelFormat.__members__.values():
         _ALLOWED_EXTS.add(_ext.lower())
 
 
+def _scan_single_file_for_model(
+    pf: ProjectFile, project_dir: Path
+) -> AiModelMetadata | None:
+    """Detect and extract metadata from a potential AI model file."""
+    phys_path = project_dir / pf.physical_path
+    suffix = phys_path.suffix.lower()
+    if suffix not in _ALLOWED_EXTS:
+        return None
+
+    fmt = detect_ai_model_format(phys_path)
+    if fmt == AiModelFormat.UNKNOWN:
+        return None
+
+    try:
+        meta = read_ai_model(phys_path)
+        meta.format_info.file_name = phys_path.name
+        meta.format_info.file_path_relative = pf.distribution_path
+        meta.format_info.physical_path = pf.physical_path
+        log.debug("Discovered AI model: %s (format: %s)", pf.distribution_path, fmt)
+        return meta
+    except ImportError as e:
+        log.warning(
+            "FORMAT=%s FILE=%s: required library not installed; %s",
+            fmt,
+            phys_path,
+            e,
+        )
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        log.warning(
+            "FORMAT=%s FILE=%s: failed to extract metadata; %s",
+            fmt,
+            phys_path,
+            e,
+        )
+    return None
+
+
+def _scan_python_file_usages(
+    pf: ProjectFile, project_dir: Path, ai_models: list[AiModelMetadata]
+) -> None:
+    """Scan a Python file for string references to discovered AI models."""
+    if not pf.distribution_path.endswith(".py"):
+        return
+    phys_path = project_dir / pf.physical_path
+    try:
+        content = phys_path.read_text(encoding="utf-8")
+        for meta in ai_models:
+            file_name = meta.format_info.file_name
+            if file_name and file_name in content:
+                meta.usage_files.append(pf.distribution_path)
+                log.debug(
+                    "Found usage of %s inside %s",
+                    file_name,
+                    pf.distribution_path,
+                )
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        log.warning("Could not read text from %s for usage scanning: %s", phys_path, e)
+
+
 def scan_project_for_ai_models(
     project_dir: Path, files: list[ProjectFile]
 ) -> list[AiModelMetadata]:
-    """Scan project files for AI models and detect their usages in scripts.
-
-    For performance, files are only checked against their magic bytes via
-    :func:`~pitloom.extract.ai_model.detect_ai_model_format` if their
-    extension matches known formats or generic data extensions
-    (``.zip``, ``.bin``).
-
-    Args:
-        project_dir: Root directory of the project.
-        files: List of files discovered for inclusion in the package or wheel.
-
-    Returns:
-        List of populated :class:`~pitloom.core.ai_metadata.AiModelMetadata`
-        instances, each with a ``usage_files`` list of referencing Scripts.
-    """
+    """Scan project files for AI models and detect their usages in scripts."""
     ai_models: list[AiModelMetadata] = []
 
-    # 1. Identify AI models
     for pf in files:
-        phys_path = project_dir / pf.physical_path
-        suffix = phys_path.suffix.lower()
+        meta = _scan_single_file_for_model(pf, project_dir)
+        if meta is not None:
+            ai_models.append(meta)
 
-        if suffix not in _ALLOWED_EXTS:
-            continue
-
-        fmt = detect_ai_model_format(phys_path)
-        if fmt != AiModelFormat.UNKNOWN:
-            try:
-                meta = read_ai_model(phys_path)
-                meta.format_info.file_name = phys_path.name
-                meta.format_info.file_path_relative = pf.distribution_path
-                meta.format_info.physical_path = pf.physical_path
-                ai_models.append(meta)
-                log.debug(
-                    "Discovered AI model: %s (format: %s)", pf.distribution_path, fmt
-                )
-            except ImportError as e:
-                log.warning(
-                    "FORMAT=%s FILE=%s: required library not installed; %s",
-                    fmt,
-                    phys_path,
-                    e,
-                )
-            # pylint: disable=broad-exception-caught
-            except Exception as e:
-                log.warning(
-                    "FORMAT=%s FILE=%s: failed to extract metadata; %s",
-                    fmt,
-                    phys_path,
-                    e,
-                )
-
-    # 2. Find usages in code
     for pf in files:
-        if pf.distribution_path.endswith(".py"):
-            phys_path = project_dir / pf.physical_path
-            try:
-                content = phys_path.read_text(encoding="utf-8")
-                for meta in ai_models:
-                    file_name = meta.format_info.file_name
-                    # Basic string matching heuristic for file loading.
-                    if file_name and file_name in content:
-                        meta.usage_files.append(pf.distribution_path)
-                        log.debug(
-                            "Found usage of %s inside %s",
-                            file_name,
-                            pf.distribution_path,
-                        )
-            # pylint: disable=broad-exception-caught
-            except Exception as e:
-                log.warning(
-                    "Could not read text from %s for usage scanning: %s", phys_path, e
-                )
+        _scan_python_file_usages(pf, project_dir, ai_models)
 
     return ai_models

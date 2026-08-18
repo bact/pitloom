@@ -2,6 +2,6 @@
 exclude = tests/fixtures
 extend-ignore = E203
 max-line-length = 88
-# Interim ceiling; AGENTS.md's real target is 15 -- see
-# working-docs/design/complexity-and-file-size-roadmap.md.
-max-cognitive-complexity = 57
+max-complexity = 15
+# Ratchet ceiling lowered to 20. AGENTS.md target is 15.
+max-cognitive-complexity = 20

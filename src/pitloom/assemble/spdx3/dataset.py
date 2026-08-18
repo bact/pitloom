@@ -51,6 +51,45 @@ def _role_to_rel(role: str) -> tuple[str, str | None]:
     )
 
 
+def _resolve_dataset_types(dataset_types: list[str]) -> list[str]:
+    """Map known dataset type string names to enum values or noAssertion."""
+    type_values: list[str] = []
+    for type_name in dataset_types:
+        enum_val = getattr(spdx3.dataset_DatasetType, type_name, None)
+        if enum_val is not None:
+            type_values.append(enum_val)
+    return type_values if type_values else [spdx3.dataset_DatasetType.noAssertion]
+
+
+def _populate_dataset_profile_fields(
+    dataset_pkg: spdx3.dataset_DatasetPackage, meta: DatasetMetadata
+) -> None:
+    """Populate optional dataset profile and privacy fields."""
+    if meta.dataset_size is not None:
+        dataset_pkg.dataset_datasetSize = meta.dataset_size
+    if meta.data_collection_process:
+        dataset_pkg.dataset_dataCollectionProcess = meta.data_collection_process
+    if meta.data_preprocessing:
+        dataset_pkg.dataset_dataPreprocessing = list(meta.data_preprocessing)
+    if meta.known_bias:
+        dataset_pkg.dataset_knownBias = list(meta.known_bias)
+    if meta.intended_use:
+        dataset_pkg.dataset_intendedUse = meta.intended_use
+    if meta.has_sensitive_personal_information is not None:
+        presence = _PRESENCE_MAP.get(meta.has_sensitive_personal_information)
+        if presence is not None:
+            dataset_pkg.dataset_hasSensitivePersonalInformation = presence
+    if meta.anonymization_methods:
+        dataset_pkg.dataset_anonymizationMethodUsed = list(meta.anonymization_methods)
+    if meta.croissant_url:
+        ext_ref = spdx3.ExternalRef(
+            externalRefType=spdx3.ExternalRefType.other,
+            locator=[meta.croissant_url],
+            comment="Croissant metadata",
+        )
+        dataset_pkg.externalRef = [ext_ref]
+
+
 def _build_dataset_package(
     meta: DatasetMetadata,
     creation_info: spdx3.CreationInfo,
@@ -59,48 +98,6 @@ def _build_dataset_package(
 ) -> spdx3.dataset_DatasetPackage:
     """Build a ``dataset_DatasetPackage`` SPDX 3 element from a
     :class:`~pitloom.core.dataset_metadata.DatasetMetadata`.
-
-    Field mapping:
-
-    **Core identification**
-
-    - ``name`` -> ``name``
-    - ``version`` -> ``software_packageVersion``
-    - ``description`` -> ``description``
-    - ``download_url`` -> ``software_downloadLocation``
-
-    **Dataset profile**
-
-    - ``dataset_types`` -> ``dataset_datasetType`` (list of enum values)
-    - ``dataset_size`` -> ``dataset_datasetSize``
-    - ``data_collection_process`` -> ``dataset_dataCollectionProcess``
-    - ``data_preprocessing`` -> ``dataset_dataPreprocessing``
-    - ``known_bias`` -> ``dataset_knownBias``
-    - ``intended_use`` -> ``dataset_intendedUse``
-    - ``has_sensitive_personal_information``
-      -> ``dataset_hasSensitivePersonalInformation`` (``PresenceType`` enum)
-    - ``anonymization_methods`` -> ``dataset_anonymizationMethodUsed``
-
-    **External reference**
-
-    - ``croissant_url`` -> ``externalRef`` with type ``other`` and comment
-      ``"Croissant metadata"``
-
-    **Provenance**
-
-    - ``provenance`` is emitted separately by :func:`add_datasets_for_model`
-      via :func:`~pitloom.assemble.spdx3.provenance.emit_provenance` (Core
-      Annotation and/or legacy ``comment``, per config) once this package
-      has been added to the exporter.
-
-    Args:
-        meta: Extracted dataset metadata.
-        creation_info: The shared CreationInfo node.
-        doc_name: The parent document/package name (for deterministic spdxId).
-        doc_uuid: The document UUID (for deterministic spdxId).
-
-    Returns:
-        A populated :class:`spdx3.dataset_DatasetPackage` instance.
     """
     dataset_pkg = spdx3.dataset_DatasetPackage(
         spdxId=generate_spdx_id("DatasetPackage", doc_name=doc_name, doc_uuid=doc_uuid),
@@ -110,58 +107,13 @@ def _build_dataset_package(
 
     if meta.version:
         dataset_pkg.software_packageVersion = meta.version
-
     if meta.description:
         dataset_pkg.description = meta.description
-
     if meta.download_url:
         dataset_pkg.software_downloadLocation = meta.download_url
 
-    # dataset_datasetType is required by the SPDX model; always set it.
-    # Map known string names to enum values, skip unknowns silently.
-    # Fall back to [noAssertion] when no type information is available.
-    # dataset_DatasetType members are plain str NamedIndividual IRIs.
-    type_values: list[str] = []
-    for type_name in meta.dataset_types:
-        enum_val = getattr(spdx3.dataset_DatasetType, type_name, None)
-        if enum_val is not None:
-            type_values.append(enum_val)
-    if not type_values:
-        type_values = [spdx3.dataset_DatasetType.noAssertion]
-    dataset_pkg.dataset_datasetType = type_values
-
-    if meta.dataset_size is not None:
-        dataset_pkg.dataset_datasetSize = meta.dataset_size
-
-    if meta.data_collection_process:
-        dataset_pkg.dataset_dataCollectionProcess = meta.data_collection_process
-
-    if meta.data_preprocessing:
-        dataset_pkg.dataset_dataPreprocessing = list(meta.data_preprocessing)
-
-    if meta.known_bias:
-        dataset_pkg.dataset_knownBias = list(meta.known_bias)
-
-    if meta.intended_use:
-        dataset_pkg.dataset_intendedUse = meta.intended_use
-
-    if meta.has_sensitive_personal_information is not None:
-        presence = _PRESENCE_MAP.get(meta.has_sensitive_personal_information)
-        if presence is not None:
-            dataset_pkg.dataset_hasSensitivePersonalInformation = presence
-
-    if meta.anonymization_methods:
-        dataset_pkg.dataset_anonymizationMethodUsed = list(meta.anonymization_methods)
-
-    # ExternalRef pointing to the Croissant document for full provenance.
-    if meta.croissant_url:
-        ext_ref = spdx3.ExternalRef(
-            externalRefType=spdx3.ExternalRefType.other,
-            locator=[meta.croissant_url],
-            comment="Croissant metadata",
-        )
-        dataset_pkg.externalRef = [ext_ref]
-
+    dataset_pkg.dataset_datasetType = _resolve_dataset_types(meta.dataset_types)
+    _populate_dataset_profile_fields(dataset_pkg, meta)
     return dataset_pkg
 
 
