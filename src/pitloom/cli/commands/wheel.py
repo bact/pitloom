@@ -18,7 +18,7 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.cli.commands.embed_wheel import _report_embed_result
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.cli.options import _resolve_common_options
 
@@ -74,6 +74,9 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     if embed:
         _, arcname, removed, floored = embed_sbom_in_wheel(wheel_path, sbom_json)
         _report_embed_result(arcname, wheel_path.name, removed, floored)
+
+    if output_path is not None:
+        _print_sbom_output_path(output_path)
 
     return 0
 
