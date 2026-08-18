@@ -47,6 +47,9 @@ and this project adheres to
 - Optimize test workflow by caching the `licenseid` database ([#159])
 - `loom generate` now requires `-o`/`--output` and fails with a clear
   error if it's omitted, instead of guessing a filename. ([#160])
+- `pytest` now fails on any runtime warning (`filterwarnings = ["error"]`,
+  plus `--strict-markers`/`--strict-config`) instead of printing an
+  ignorable summary line -- OpenSSF Best Practices `warnings_strict`
 
 ### Fixed
 

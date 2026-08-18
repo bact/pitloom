@@ -251,12 +251,25 @@ max-statements = 80           # Tightened from 100; zero current violations, roo
 max-line-length = 88
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib", "-n", "auto", "--dist=loadscope"]
+addopts = [
+    "--import-mode=importlib",
+    "-n", "auto",
+    "--dist=loadscope",
+    "--strict-markers",
+    "--strict-config",
+]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
     "pypi_network: exercises a real network path (opts out of conftest's default socket block)",
 ]
+# OpenSSF Best Practices "warnings_strict": promote every runtime warning
+# (DeprecationWarning, ResourceWarning, pytest's own internal warnings,
+# etc.) to a hard test failure instead of a silently-printed summary line.
+# Currently zero warnings fire across the suite; a specific, scoped
+# "ignore" entry (not a blanket one) is the fix if a genuine
+# can't-avoid-it warning shows up later.
+filterwarnings = ["error"]
 
 [tool.pylint.messages_control]
 disable = [
