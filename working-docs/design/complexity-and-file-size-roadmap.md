@@ -1,8 +1,10 @@
-# SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
-# SPDX-FileType: DOCUMENTATION
-# SPDX-License-Identifier: CC0-1.0
-# Created: 2026-08-17
-# Last-Modified: 2026-08-18
+---
+Created: 2026-08-17
+Last-Modified: 2026-08-18
+SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
 
 # Complexity and file-size roadmap
 

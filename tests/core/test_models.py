@@ -50,7 +50,7 @@ def test_normalize_dep_pep503() -> None:
     """PEP 503 name normalization leaves version/marker portion untouched."""
     assert _normalize_dep("Foo_Bar>=1.0") == "foo-bar>=1.0"
     assert _normalize_dep("PyProject.Metadata") == "pyproject-metadata"
-    assert _normalize_dep("hatchling>=1.31.0") == "hatchling>=1.31.0"
+    assert _normalize_dep("hatchling>=1.32.0") == "hatchling>=1.32.0"
     assert _normalize_dep("  tomli>=2.0; python_version<'3.11'  ") == (
         "tomli>=2.0; python_version<'3.11'"
     )
