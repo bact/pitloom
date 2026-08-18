@@ -86,6 +86,11 @@ def _build_sbom_from_project_and_wheel(
         content_type_method=pitloom_config.content_type.method,
         content_type_overrides=pitloom_config.content_type.overrides,
     )
+    # Without this, the SBOM's file list comes from wheel_metadata.files
+    # (read_wheel()'s plain content-hash-only entries), silently dropping
+    # the content-type/file-header data get_wheel_files() just computed
+    # -- mirrors pitloom.plugins.hatch._build_document_model.
+    wheel_metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
     phantom_deps = find_phantom_dependencies(wheel_metadata.files)
     enrichment_results = run_enrichers_for_models(

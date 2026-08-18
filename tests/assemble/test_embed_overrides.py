@@ -13,6 +13,7 @@ See also:
 
 from __future__ import annotations
 
+import json
 import sys
 import zipfile
 from pathlib import Path
@@ -119,6 +120,47 @@ def test_apply_config_overrides_full() -> None:
             cfg,
             ConfigOverrides(content_type_method="invalid_method"),
         )
+
+
+def test_embed_wheel_content_type_reaches_sbom_files(tmp_path: Path) -> None:
+    """content-type detection must reach the Build SBOM's file list.
+
+    Regression test: ``_build_sbom_from_project_and_wheel`` used to build
+    the document from ``wheel_metadata`` (``read_wheel()``'s plain
+    hash-only file records), discarding the content-type data
+    ``get_wheel_files()`` had just computed -- so ``--content-type`` was
+    silently a no-op for ``loom embed-wheel``'s Build SBOM, even though
+    ``_apply_config_overrides`` correctly flipped the config flag.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "ctpkg"
+version = "1.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ctpkg"]
+""",
+        encoding="utf-8",
+    )
+    pkg_dir = tmp_path / "ctpkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("x = 1\n", encoding="utf-8")
+
+    wheel_path = _make_dummy_wheel(tmp_path / "dist", "ctpkg", "1.0.0")
+
+    _, _, sbom_json, _, _ = embed_wheel_sbom(
+        wheel_path,
+        project_dir=tmp_path,
+        overrides=ConfigOverrides(content_type=True),
+    )
+
+    doc = json.loads(sbom_json)
+    files = [n for n in doc["@graph"] if n.get("type") == "software_File"]
+    assert files, "expected at least one software_File in the SBOM"
+    assert any(f.get("contentType") for f in files), (
+        "content-type override did not reach the SBOM's file list"
+    )
 
 
 def test_build_sbom_standalone_wheel_registry_options(tmp_path: Path) -> None:

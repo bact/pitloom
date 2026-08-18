@@ -14,7 +14,7 @@ jobs:
     name: Build distribution
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # gh release upload, for the standalone SBOM asset
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -38,7 +38,36 @@ jobs:
         run: |
           # --no-isolation: use the locally installed Pitloom so the build hook
           # embeds a freshly generated SBOM into the wheel (.dist-info/sboms/).
+          # This hook-embedded SBOM is what any plain "pip install"/"build"
+          # of this project gets -- the Action step below overwrites it in
+          # the published wheel with the same generator, dogfooded end to end.
           python -m build --no-isolation
+
+      - name: Regenerate and embed SBOM via the Pitloom Action (PEP 770)
+        # Dogfoods this exact commit's own Action + CLI ("uses: ./",
+        # install: false reuses the checkout installed above) against its
+        # own release wheel, overwriting the Hatchling hook's embedded copy
+        # with the Action-driven one and producing a standalone copy for
+        # the release/artifact steps below.
+        id: pitloom
+        uses: ./
+        with:
+          embed-wheel: "dist/*.whl"
+          install: "false"
+          content-type: "true"
+          upload-artifact: "true"
+          artifact-name: "sbom"
+
+      - name: Attach SBOM to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release upload "${RELEASE_TAG}" "${SBOM_PATH}" \
+            --clobber --repo "${REPO}"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
