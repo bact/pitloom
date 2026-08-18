@@ -124,6 +124,37 @@ jobs:
           spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
         continue-on-error: true
 
+      - name: Run Pitloom action with default output (project mode)
+        # No "output:" given -- exercises the action's own default-naming
+        # resolution (PITLOOM_SBOM_OUTPUT_PATH= stdout parsing), not the generic
+        # "sbom.spdx3.json" the action used to force.
+        id: pitloom-default
+        uses: ./
+        with:
+          project-path: "."
+          install: "false"
+          upload-artifact: "false"
+
+      - name: Assert default output filename is packagename-version, not generic
+        run: |
+          set -euo pipefail
+
+          SBOM_PATH="${{ steps.pitloom-default.outputs.sbom-path }}"
+          echo "Default SBOM path: ${SBOM_PATH}"
+
+          if [ ! -s "${SBOM_PATH}" ]; then
+            echo "::error title=Missing SBOM::${SBOM_PATH} was not created."
+            exit 1
+          fi
+          case "${SBOM_PATH}" in
+            pitloom-*.spdx3.json) ;;
+            *)
+              echo "::error title=Unexpected default filename::" \
+                "expected pitloom-<version>.spdx3.json, got ${SBOM_PATH}"
+              exit 1
+              ;;
+          esac
+
       - name: Build a wheel
         run: |
           python -m build --wheel --no-isolation --outdir dist/
@@ -138,6 +169,38 @@ jobs:
           pretty: "true"
           install: "false"
           upload-artifact: "false"
+
+      - name: Run Pitloom action with embed-wheel and default output
+        # No "output:" given -- exercises the action's arcname-parsing +
+        # wheel-zip-extraction fallback, not the generic "sbom.spdx3.json"
+        # the action used to force.
+        id: pitloom-embed-default
+        uses: ./
+        with:
+          embed-wheel: "dist/*.whl"
+          project-path: "."
+          install: "false"
+          upload-artifact: "false"
+
+      - name: Assert embed-wheel default output filename is packagename-version
+        run: |
+          set -euo pipefail
+
+          SBOM_PATH="${{ steps.pitloom-embed-default.outputs.sbom-path }}"
+          echo "Default embed-wheel SBOM path: ${SBOM_PATH}"
+
+          if [ ! -s "${SBOM_PATH}" ]; then
+            echo "::error title=Missing SBOM::${SBOM_PATH} was not created."
+            exit 1
+          fi
+          case "${SBOM_PATH}" in
+            pitloom-*.spdx3.json) ;;
+            *)
+              echo "::error title=Unexpected default filename::" \
+                "expected pitloom-<version>.spdx3.json, got ${SBOM_PATH}"
+              exit 1
+              ;;
+          esac
 
       - name: Validate embedded wheel and SBOM with authoritative tools
         run: |

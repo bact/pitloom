@@ -50,8 +50,11 @@ as any third-party action.
 ## Usage details
 
 By default the action scans the checkout root as a Python project and
-writes `sbom.spdx3.json`. Point it at an AI model instead of a project
-directory with `model:`:
+writes `<name>-<version>.spdx3.json` (falling back to `<name>.spdx3.json`,
+then `sbom.spdx3.json` as a last resort, unless the project's
+`[tool.pitloom] sbom-basename` overrides it -- the same default-naming
+logic `loom project` uses directly). Point it at an AI model instead of a
+project directory with `model:`:
 
 ```yaml
 - uses: bact/pitloom@v0.16.1
@@ -89,7 +92,7 @@ Inputs (all optional):
 | `project-path` | `.` | Directory to scan for a Python project. Ignored when `model` is set. |
 | `embed-wheel` | *(empty)* | Path or glob pattern of built wheel(s) to embed the SBOM into (PEP 770), e.g. `dist/*.whl`. |
 | `model` | *(empty)* | Local model file path, or Hugging Face URL/model ID. Switches to model mode. |
-| `output` | `sbom.spdx3.json` | SBOM output file path. |
+| `output` | *(empty)* | SBOM output file path. Empty lets `loom` apply its own default naming for the resolved mode: project mode uses `<name>-<version>.spdx3.json` (falling back to `<name>.spdx3.json`, then `sbom.spdx3.json`, unless `[tool.pitloom] sbom-basename` overrides it); model mode names the file after the model's own filename or Hugging Face repo ID; embed-wheel mode reuses the name it embeds into the wheel. |
 | `extras` | *(empty)* | Comma-separated pip extras to install alongside Pitloom, e.g. `ai` (all AI model formats, including Hugging Face Hub support). |
 | `pretty` | `false` | Pretty-print the SBOM output. |
 | `enrich` | *(empty)* | `true`/`false` to force README/model-card enrichment on or off; empty defers to the project's `[tool.pitloom] enrich` config (off by default). |

@@ -14,7 +14,7 @@ from typing import Any
 from pitloom.assemble import (
     generate_project_sbom,
 )
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.options import (
     _resolve_creation_metadata,
     _resolve_output_path,
@@ -68,6 +68,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
         content_type=args.content_type,
         content_type_method=args.content_type_method,
     )
+    _print_sbom_output_path(output_path)
     return 0
 
 
