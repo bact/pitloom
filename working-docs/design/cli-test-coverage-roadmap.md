@@ -8,12 +8,16 @@ SPDX-License-Identifier: CC0-1.0
 
 # CLI split, test-suite modularization, and coverage roadmap
 
-**Status:** Phases 1-3 shipped. `src/pitloom/cli/` exists,
+**Status:** Phases 1-3 shipped and the 95% stretch target has since been
+reached and exceeded. As of 2026-08-18: `src/pitloom/cli/` exists,
 `tests/cli/`/`tests/core/`/`tests/extract/`/`tests/assemble/` exist,
-`fail_under` is 90 (met, 91.98% measured). All source files $\le 417$ lines,
-and all test files outside `tests/extract/huggingface/` shared fixtures
-are $\le 415$ lines. What's genuinely still open: the 95% coverage stretch target
-(see Phase 3). See "Next step" at the bottom.
+`fail_under` is **95** (raised from 90, met -- **97.35%** measured,
+2119 passed / 24 skipped). File-size limits have since drifted back
+above what this doc originally reported -- see
+[complexity-and-file-size-roadmap.md](complexity-and-file-size-roadmap.md)
+for the current offenders, tracked there rather than duplicated here.
+What's genuinely still open: nothing from this doc's original scope --
+see "Next step" at the bottom for what comes after it.
 
 ## Three tech-debt items, one sequencing problem
 
@@ -220,34 +224,40 @@ The internal modules across the codebase now cleanly follow this rule:
 - Root package: `_embed_wheel.py`, `_ids_types.py`, `_loom_caller.py`,
   `_loom_active_run.py`.
 
-## Phase 3: coverage backfill and floor raise (COMPLETE)
+## Phase 3: coverage backfill and floor raise (COMPLETE, then exceeded)
 
-`fail_under` is **90** (`pyproject.toml:338`). Measured 2026-08-18
-(Python 3.10.18, `pytest -n auto --dist=loadscope --cov=pitloom`):
-**91.98% total, 1936 passed / 24 skipped, ~9s.** All of `cli/*` is
-88-100% covered (`generate.py`/`project.py`/`ids.py` at 100%).
+`fail_under` was raised to **90**, then to **95**
+(`pyproject.toml:345`) as PR #164 backfilled coverage across
+`extract/`, `assemble/`, and `cli/`. Re-measured 2026-08-18 (Python
+3.10.20, `pytest -n auto --dist=loadscope --cov=pitloom`):
+**97.35% total, 2119 passed / 24 skipped.** All of `cli/*` remains
+88-100% covered.
 
 Current worst-covered files (re-measure on 3.14/Codecov before
 treating as ground truth -- this is a 3.10 local run):
 
-1. `extract/_sdist.py` -- 72%
-2. `extract/wheel.py` -- 75%
-3. `export/spdx3_json.py` -- 75%
-4. `extract/_pyproject.py` -- 77%
-5. `extract/_numpy.py` -- 80%
-6. `extract/_hdf5.py` -- 83%
-7. `extract/scanner.py` -- 84%
-8. `assemble/_model_generator.py` -- 89%
+1. `assemble/__init__.py` -- 71%
+2. `__main__.py` -- 84%
+3. `assemble/_model_generator.py` -- 85%
+4. `assemble/spdx3/_fragments_unify.py` -- 88%
+5. `assemble/_generators.py` -- 94%
+6. `assemble/spdx3/deps.py`, `extract/hatchling.py`, `ids.py` -- 95%
 
-The 95% stretch target has not been reached (currently 91.98%). Not
-a blocker -- it's an aim, not a second hard CI gate -- but the file
-list above is where a future backfill pass should start.
+The 95% stretch target was reached and exceeded (97.35%) via PR #164's
+coverage backfill (see [CHANGELOG.md](../../CHANGELOG.md)'s 0.16.0
+entry). Not a blocker either way -- it was an aim, not a second hard
+CI gate -- but the file list above is where a future backfill pass
+should start if coverage is worth pushing further.
 
 ## Test performance and caching
 
-Measured 2026-08-18: 1936 passed / 24 skipped in ~9s using
+Measured 2026-08-18 (re-measured after PR #164's ~180 new tests):
+2119 passed / 24 skipped in ~35s using
 `pytest -n auto --dist=loadscope --cov=pitloom` -- `pytest-xdist` is
 in use. No known test-order-dependency flakiness surfaced from parallelization.
+Runtime grew roughly proportionally to test count (was ~9s at 1936
+tests); still comfortably fast enough that per-directory CI matrix
+legs aren't warranted yet (see below).
 
 - The Phase 2 folder split is itself a speed win for iteration
   regardless of parallelism: `pytest tests/extract/` collects ~36
@@ -262,28 +272,27 @@ in use. No known test-order-dependency flakiness surfaced from parallelization.
 
 ## Next step
 
-One genuinely open item:
-
-1. **Push coverage toward the 95% stretch target**, starting with the
-   Phase 3 priority list (`extract/_sdist.py` 72% first).
-
-The test-file-size work (Phase 2's original scope plus the further
-split pass) is now complete -- no oversized-test-file follow-up
-remains open.
+Nothing from this doc's original scope (CLI split, test modularization,
+coverage floor) remains open -- Phase 3's stretch target was reached
+and exceeded. What's open now lives in the sibling doc instead: see
+[complexity-and-file-size-roadmap.md](complexity-and-file-size-roadmap.md)
+for the file-size drift that's resumed since Phase 2 completed (this
+doc's Phase 2 status above still accurately describes the *split
+work itself* as complete -- it's organic regrowth since, not a
+reopening of Phase 2).
 
 ### Pickup prompt for a new session
 
 ```text
 Read working-docs/design/cli-test-coverage-roadmap.md in full. Phases
 1-3 (the __main__.py -> cli/ split, test-suite modularization incl.
-the further split pass, and coverage floor raise to 90) are all
-COMPLETE -- do not redo them.
+the further split pass, and coverage floor raise to 90, later 95) are
+all COMPLETE, and the 95% stretch target has been reached and
+exceeded (97.35% as of 2026-08-18) -- do not redo any of this.
 
-One item is still open, see "Next step": backfill coverage toward the
-95% stretch target using Phase 3's priority list (extract/_sdist.py
-at 72% first). Re-measure current percentages before starting --
-Phase 3's numbers are a 2026-08-18 3.10-local snapshot and will have
-drifted.
+This doc's own scope is closed. If you're here for file-size or
+coverage follow-up, check complexity-and-file-size-roadmap.md first --
+that's where the currently-open item (file-size drift) is tracked.
 
 Pre-1.0, so no backward-compat shims needed for any renames this
 touches. Run the full test suite and the project's lint/type-check

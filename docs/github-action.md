@@ -20,13 +20,13 @@ generated SBOM directly into built `.whl` files via `embed-wheel: "dist/*.whl"`.
 Standalone SBOM artifact:
 
 ```yaml
-- uses: bact/pitloom@v0.15.0
+- uses: bact/pitloom@v0.16.0
 ```
 
 Generate and embed PEP 770 SBOM into built wheels:
 
 ```yaml
-- uses: bact/pitloom@v0.15.0
+- uses: bact/pitloom@v0.16.0
   with:
     embed-wheel: "dist/*.whl"
 ```
@@ -41,10 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: bact/pitloom@v0.15.0
+      - uses: bact/pitloom@v0.16.0
 ```
 
-Pin to a specific release tag (`@v0.15.0`) rather than a branch, the same
+Pin to a specific release tag (`@v0.16.0`) rather than a branch, the same
 as any third-party action.
 
 ## Usage details
@@ -54,7 +54,7 @@ writes `sbom.spdx3.json`. Point it at an AI model instead of a project
 directory with `model:`:
 
 ```yaml
-- uses: bact/pitloom@v0.15.0
+- uses: bact/pitloom@v0.16.0
   with:
     model: path/to/model.safetensors
 ```
@@ -63,7 +63,7 @@ Embed the SBOM into built wheels (PEP 770) for any build backend
 (`flit`, `setuptools`, `poetry-core`, `maturin`, etc.):
 
 ```yaml
-- uses: bact/pitloom@v0.15.0
+- uses: bact/pitloom@v0.16.0
   with:
     embed-wheel: "dist/*.whl"
 ```
@@ -72,7 +72,7 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 [creator/creation metadata](creation-metadata.md)):
 
 ```yaml
-- uses: bact/pitloom@v0.15.0
+- uses: bact/pitloom@v0.16.0
   with:
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
@@ -97,7 +97,7 @@ Inputs (all optional):
 | `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.content-type] enabled` (off by default). |
 | `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
 | `args` | *(empty)* | Extra raw flags passed through to the `loom` command. |
-| `pitloom-version` | *(empty)* | Pitloom version/specifier to install, e.g. `0.15.0` or `>=0.13,<1.0`. Empty installs the latest release. |
+| `pitloom-version` | *(empty)* | Pitloom version/specifier to install, e.g. `0.16.0` or `>=0.13,<1.0`. Empty installs the latest release. |
 | `python-version` | `3.x` | Python version passed to `actions/setup-python`. |
 | `install` | `true` | Set `false` to skip installing Python/Pitloom and assume `loom` is already on `PATH`. |
 | `upload-artifact` | `true` | Upload the generated SBOM via `actions/upload-artifact`. |
@@ -126,7 +126,7 @@ jobs:
 
       # 2. Generate and embed PEP 770 SBOM into built wheels
       - name: Embed PEP 770 SBOM
-        uses: bact/pitloom@v0.15.0
+        uses: bact/pitloom@v0.16.0
         with:
           embed-wheel: "dist/*.whl"
 

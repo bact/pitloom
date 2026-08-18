@@ -17,9 +17,16 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.15.0...v0.16.0>
 
-## [Unreleased]
+## [0.16.0] - 2026-08-18
+
+### Added
+
+- Split a string containing a list of authors into discrete agents
+  and generate external refs for a group of authors ("Others") ([#151])
+- Scan the resolved dependency tree for known CVEs with `pip-audit` in CI,
+  blocking on findings ([#165], [#166])
 
 ### Changed
 
@@ -43,20 +50,21 @@ and this project adheres to
 
 ### Fixed
 
-- `loom generate` no longer silently writes a fixed `sbom.spdx3.json`
-  to the current directory when `-o` is omitted. ([#160])
-- Remove `split_main.py` and `src/pitloom/__main__.py.bak`, leftover
-  files from the CLI restructuring ([#153]) that were accidentally
-  committed -- the `.bak` file was shipping inside the built wheel.
 - Map legacy `fragments` key to `[tool.pitloom.fragment]` nested table
   in `setup.cfg` to resolve crash ([#152])
 - Implement modern sub-section parsing (`provenance`, `content-type`, `fragment`)
   in `setup.cfg`, bringing it to feature parity with `pyproject.toml` ([#152])
 - Enforce strict type-checking across all boolean fields, preventing string
   values from silently evaluating to `True` ([#152])
-- Split a string containing a list of authors into discrete agents
-  and generate external refs for a group of authors ("Others") ([#151])
+- Remove `split_main.py` and `src/pitloom/__main__.py.bak`, leftover
+  files from the CLI restructuring ([#153]) that were accidentally
+  committed -- the `.bak` file was shipping inside the built wheel.
+- `loom generate` no longer silently writes a fixed `sbom.spdx3.json`
+  to the current directory when `-o` is omitted. ([#160])
 - Reduce function complexity ([#163])
+- `_fickling_get_top_class` no longer folds an AST-walk failure into the
+  same debug-level "failed to parse" message as an actual pickle-parse
+  failure -- it now logs a distinct warning ([#164])
 
 [#151]: https://github.com/bact/pitloom/pull/151
 [#152]: https://github.com/bact/pitloom/pull/152
@@ -71,6 +79,8 @@ and this project adheres to
 [#162]: https://github.com/bact/pitloom/pull/162
 [#163]: https://github.com/bact/pitloom/pull/163
 [#164]: https://github.com/bact/pitloom/pull/164
+[#165]: https://github.com/bact/pitloom/pull/165
+[#166]: https://github.com/bact/pitloom/pull/166
 
 ## [0.15.0] - 2026-08-15
 
@@ -605,6 +615,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.16.0]: https://github.com/bact/pitloom/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/bact/pitloom/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/bact/pitloom/compare/v0.13.3...v0.14.0

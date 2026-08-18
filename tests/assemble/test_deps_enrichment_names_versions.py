@@ -78,7 +78,7 @@ def test_parse_dep_name_handles_multi_clause_specifier() -> None:
 
 
 def test_parse_dep_name_plain_specifier_still_works() -> None:
-    assert _parse_dep_name("hatchling>=1.31.0") == "hatchling"
+    assert _parse_dep_name("hatchling>=1.32.0") == "hatchling"
     assert _parse_dep_name("numpy==1.24.0") == "numpy"
     assert _parse_dep_name("click") == "click"
 

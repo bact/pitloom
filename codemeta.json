@@ -18,8 +18,8 @@
     "codeRepository": "https://github.com/bact/pitloom",
     "copyrightYear": 2026,
     "dateCreated": "2026-03-27",
-    "dateModified": "2026-08-15",
-    "datePublished": "2026-08-15",
+    "dateModified": "2026-08-18",
+    "datePublished": "2026-08-18",
     "description": "Generate SPDX 3 SBOMs for Python projects and AI models with native Hatchling build-hook support.",
     "developmentStatus": "active",
     "downloadUrl": "https://github.com/bact/pitloom/releases",
@@ -60,5 +60,5 @@
     "programmingLanguage": "Python 3",
     "readme": "https://github.com/bact/pitloom/blob/main/README.md",
     "url": "https://github.com/bact/pitloom",
-    "version": "0.15.0"
+    "version": "0.16.0"
 }
