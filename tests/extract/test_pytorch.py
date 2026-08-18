@@ -166,3 +166,64 @@ def pytorch_fixture() -> Any:
 
 def test_pytorch_fixture_format(pytorch_fixture: Any) -> None:
     assert pytorch_fixture.format_info.model_format == AiModelFormat.PYTORCH
+
+
+def test_read_pytorch_zip_large_file_list() -> None:
+    """_read_pytorch_zip truncates and summarizes archive contents if > 20 entries."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = [f"file_{i}.bin" for i in range(25)]
+
+    _, properties, _ = _read_pytorch_zip(mock_zf, "Source: model.pt")
+    assert "... (25 total)" in properties["archive_contents"]
+
+
+def test_read_pytorch_is_zipfile_oserror(tmp_path: Path) -> None:
+    """read_pytorch treats files raising OSError on zip check as raw pickle."""
+    fake_pt = tmp_path / "corrupt.pt"
+    fake_pt.write_bytes(b"\x80\x04\x95\x00\x00\x00\x00\x00\x00\x00\x00.")
+
+    with patch("zipfile.is_zipfile", side_effect=OSError("disk read error")):
+        meta = read_pytorch(fake_pt)
+        assert meta.properties.get("format_detail") == "raw pickle"
+
+
+def test_read_pytorch_raw_pickle_open_oserror(tmp_path: Path) -> None:
+    """read_pytorch handles OSError when opening raw pickle file for inspection."""
+    fake_pt = tmp_path / "unreadable.pt"
+    fake_pt.write_bytes(b"dummy")
+
+    with patch("zipfile.is_zipfile", return_value=False):
+        with patch.object(Path, "open", side_effect=OSError("permission denied")):
+            meta = read_pytorch(fake_pt)
+            assert meta.format_info.model_format == AiModelFormat.PYTORCH
+            assert meta.type_of_model is None
+
+
+def test_dotted_name_unrecognized_ast_node() -> None:
+    """_dotted_name returns None for AST nodes that are not Name or Attribute."""
+    from pitloom.extract._pytorch import _dotted_name
+
+    assert _dotted_name(object()) is None
+
+
+def test_read_pytorch_raw_pickle_with_class(tmp_path: Path) -> None:
+    """read_pytorch records type_of_model from raw pickle with class name."""
+    fake_pt = tmp_path / "model.pt"
+    fake_pt.write_bytes(b"dummy_bytes")
+
+    with patch("zipfile.is_zipfile", return_value=False):
+        with patch(
+            "pitloom.extract._pytorch._fickling_get_top_class",
+            return_value="torch.nn.Linear",
+        ):
+            meta = read_pytorch(fake_pt)
+            assert meta.type_of_model == "torch.nn.Linear"
+            assert "type_of_model" in meta.provenance
+
+
+def test_fickling_get_top_class_no_title_case_returns_none() -> None:
+    """_fickling_get_top_class returns None when AST has no title-case class names."""
+    import pickle  # pylint: disable=import-outside-toplevel
+
+    data = pickle.dumps({"key": 1, "nested": [2, 3]})
+    assert _fickling_get_top_class(_io.BytesIO(data)) is None

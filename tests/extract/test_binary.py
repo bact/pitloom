@@ -101,3 +101,19 @@ def test_extract_phantom_dependencies_end_to_end(tmp_path: Path) -> None:
 
     expected_digest = hashlib.sha256(b"\x7fELF fake binary content").hexdigest()
     assert dep.digest_sha256 == expected_digest
+
+
+def test_extract_phantom_dependencies_with_directory_entry(tmp_path: Path) -> None:
+    """extract_phantom_dependencies skips directory entries inside the wheel zip."""
+    wheel_path = tmp_path / "test_dir_entries-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr("test_pkg/", "")
+        zf.writestr("test_pkg/module.py", "print('hello')\n")
+        zf.writestr("test_pkg/extension.pyd", b"fake pyd binary")
+        zf.writestr("test_pkg.libs/", "")
+        zf.writestr("test_pkg.libs/libbar.so", b"\x7fELF shared lib")
+
+    deps = extract_phantom_dependencies(wheel_path)
+    assert len(deps) == 1
+    assert deps[0].name == "libbar"
+    assert deps[0].file_path == "test_pkg.libs/libbar.so"

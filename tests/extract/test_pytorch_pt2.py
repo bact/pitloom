@@ -20,12 +20,17 @@ import logging
 import zipfile as _zipfile
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
-from pitloom.extract._pytorch_pt2 import _read_pt2_extra_files, _read_pt2_zip
+from pitloom.extract._pytorch_pt2 import (
+    _detect_root_prefix,
+    _read_pt2_extra_files,
+    _read_pt2_meta_entry,
+    _read_pt2_zip,
+)
 from pitloom.extract.ai_model import read_pytorch_pt2
 
 # ---------------------------------------------------------------------------
@@ -333,3 +338,118 @@ def test_pt2_fixture_inputs(pt2_fixture: Any) -> None:
 def test_pt2_fixture_outputs(pt2_fixture: Any) -> None:
     assert len(pt2_fixture.outputs) > 0
     assert pt2_fixture.outputs[0]["name"] == "linear"
+
+
+def test_detect_root_prefix_edge_cases() -> None:
+    """_detect_root_prefix handles empty lists and archives without common root."""
+    assert _detect_root_prefix([]) == ""
+    assert _detect_root_prefix(["model_a/weights.bin", "model_b/weights.bin"]) == ""
+    assert _detect_root_prefix(["root_file.txt", "other.txt"]) == ""
+
+
+def test_read_pt2_meta_entry_model_name_and_invalid_json() -> None:
+    """_read_pt2_meta_entry parses model_name key and handles invalid JSON."""
+    mock_zf = MagicMock()
+    mock_zf.read.return_value = b'{"model_name": "exec_model"}'
+    name, prov = _read_pt2_meta_entry(mock_zf, "METADATA.json", "Source: test.pt2")
+    assert name == "exec_model"
+    assert prov is not None and "METADATA.json.model_name" in prov
+
+    # Non-dict JSON
+    mock_zf.read.return_value = b'["not", "a", "dict"]'
+    name2, prov2 = _read_pt2_meta_entry(mock_zf, "METADATA.json", "Source: test.pt2")
+    assert name2 is None
+    assert prov2 is None
+
+
+def test_read_pt2_zip_large_file_list() -> None:
+    """_read_pt2_zip summarizes archive contents when > 20 members are present."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = [f"entry_{i}.bin" for i in range(25)]
+    mock_zf.read.return_value = b""
+
+    res = _read_pt2_zip(mock_zf, "Source: test.pt2")
+    properties = res[5]
+    assert "... (25 total)" in properties["archive_contents"]
+
+
+def test_read_pytorch_pt2_is_zipfile_oserror(tmp_path: Path) -> None:
+    """read_pytorch_pt2 raises ValueError when is_zipfile encounters an OSError."""
+    fake_pt2 = tmp_path / "corrupt.pt2"
+    fake_pt2.write_bytes(b"dummy")
+
+    with patch("zipfile.is_zipfile", side_effect=OSError("IO failure")):
+        with pytest.raises(ValueError, match="Failed to open PT2 Archive"):
+            read_pytorch_pt2(fake_pt2)
+
+
+def test_read_pt2_extra_tags_string_fallback() -> None:
+    """_read_pt2_extra_files handles non-JSON list extra/tags gracefully."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = ["extra/tags"]
+
+    # 1. Valid JSON that is not a list (e.g. dict)
+    mock_zf.read.return_value = b'{"not_a_list": true}'
+    props: dict[str, str] = {}
+    prov: dict[str, str] = {}
+    _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props, prov)
+    assert props.get("tags") == '{"not_a_list": true}'
+
+    # 2. Invalid JSON string
+    mock_zf.read.return_value = b"plain_tag_string"
+    props2: dict[str, str] = {}
+    prov2: dict[str, str] = {}
+    _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props2, prov2)
+    assert props2.get("tags") == "plain_tag_string"
+
+
+def test_read_pt2_meta_entry_empty_dict() -> None:
+    """_read_pt2_meta_entry returns None when JSON dict lacks name/model_name."""
+    mock_zf = MagicMock()
+    mock_zf.read.return_value = b'{"other_key": "val"}'
+    name, prov = _read_pt2_meta_entry(mock_zf, "metadata.json", "Source: test.pt2")
+    assert name is None
+    assert prov is None
+
+
+def test_read_pt2_zip_rich_metadata_combination() -> None:
+    """_read_pt2_zip parses root version, archive_version, extra/name, and graph io."""
+    zip_bytes = _make_pt2_zip(
+        {
+            "version": b"0.9.0",
+            "archive_version": b"2.1.0",
+            "extra/name": b"overridden_name",
+            "extra/description": b"A rich model",
+            "models/model.json": _json.dumps(
+                {
+                    "graph_module": {
+                        "graph": {
+                            "inputs": [
+                                "not_a_dict",
+                                {"as_tensor": {"name": "tensor_in"}},
+                            ],
+                            "outputs": [{"as_tensor": {"name": "tensor_out"}}],
+                        }
+                    }
+                }
+            ).encode("utf-8"),
+        }
+    )
+    zf = _zipfile.ZipFile(_io.BytesIO(zip_bytes))
+    res = _read_pt2_zip(zf, "Source: test.pt2")
+
+    name = res[0]
+    description = res[1]
+    version = res[2]
+    format_version = res[4]
+    inputs = res[7]
+    outputs = res[8]
+
+    assert name == "overridden_name"
+    assert description == "A rich model"
+    assert version == "0.9.0"
+    assert format_version == "2.1.0"
+    assert len(inputs) == 1
+    assert inputs[0]["name"] == "tensor_in"
+    assert len(outputs) == 1
+    assert outputs[0]["name"] == "tensor_out"
