@@ -200,3 +200,53 @@ def test_enrich_no_frontmatter_prose_only_is_noop() -> None:
         model = AiModelMetadata()
         result = ReadmeEnricher().enrich(model, model_dir=p)
     assert not result.fields
+
+
+def test_enrich_oserror_recovery() -> None:
+    """_find_model_card_file and enricher handle OSError gracefully."""
+    from unittest.mock import MagicMock, patch
+
+    mock_dir = MagicMock(spec=Path)
+    mock_dir.iterdir.side_effect = OSError("permission denied")
+    assert _find_model_card_file(mock_dir) is None
+
+    # Read error on card file
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        card = p / "README.md"
+        card.write_text("---\nlicense: mit\n---\n")
+        with patch.object(Path, "read_text", side_effect=OSError("read error")):
+            model = AiModelMetadata()
+            result = ReadmeEnricher().enrich(model, model_dir=p)
+            assert not result.fields
+
+
+def test_run_enrichers_failing_enricher_logged() -> None:
+    """run_enrichers logs and continues when an enricher raises an exception."""
+    from unittest.mock import MagicMock, patch
+
+    from pitloom.core.enrich_config import EnrichConfig
+    from pitloom.enrich import run_enrichers
+
+    failing_enricher = MagicMock()
+    failing_enricher.name = "broken"
+    failing_enricher.enrich.side_effect = RuntimeError("broken enricher")
+
+    with patch(
+        "pitloom.enrich.ReadmeEnricher",
+        return_value=failing_enricher,
+    ):
+        model = AiModelMetadata()
+        cfg = EnrichConfig(local=True)
+        results = run_enrichers(model, cfg, Path("/tmp"))
+        assert results == []
+
+
+def test_enricher_protocol_raises_not_implemented() -> None:
+    """Enricher.enrich raises NotImplementedError when invoked directly."""
+    import pytest
+
+    from pitloom.enrich.base import Enricher
+
+    with pytest.raises(NotImplementedError):
+        Enricher.enrich(None, None, model_dir=Path("/tmp"))  # type: ignore[arg-type]
