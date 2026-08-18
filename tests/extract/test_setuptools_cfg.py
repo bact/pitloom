@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -271,3 +272,119 @@ def test_read_setup_cfg_provenance() -> None:
     assert "setup.cfg" in metadata.provenance.get("version", "")
     assert "setup.cfg" in metadata.provenance.get("authors", "")
     assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
+
+
+def test_resolve_cfg_version_edge_cases() -> None:
+    """_resolve_cfg_version handles empty strings, invalid attrs, and directives."""
+    from pitloom.extract._setuptools_cfg import _resolve_cfg_version
+
+    p = Path("/tmp")
+    assert _resolve_cfg_version("", p) == (None, None)
+    assert _resolve_cfg_version("attr: no_dot_attribute", p) == (None, None)
+    assert _resolve_cfg_version("unknown_directive: val", p) == (
+        "unknown_directive: val",
+        "Source: setup.cfg | Field: metadata.version",
+    )
+
+
+def test_read_setup_cfg_pitloom_config_sections() -> None:
+    """read_setup_cfg parses [tool:pitloom:content-type:override] and provenance."""
+    content = (
+        "[metadata]\n"
+        "name = full-cfg-pkg\n"
+        "version = 1.0\n\n"
+        "[tool:pitloom:content-type]\n"
+        "enabled = true\n\n"
+        "[tool:pitloom:content-type:override]\n"
+        "*.bin = application/octet-stream\n"
+        "*.onnx = application/x-onnx\n\n"
+        "[tool:pitloom:provenance]\n"
+        "detail = full\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert len(config.content_type.overrides) == 2
+    assert config.provenance.detail == "full"
+
+
+def test_detect_build_backend_custom_backend() -> None:
+    """detect_build_backend returns prefix for unknown custom build backend."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    content = (
+        "[build-system]\n"
+        'requires = ["custom-build"]\n'
+        'build-backend = "my_builder.api"\n'
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "my_builder"
+
+
+def test_detect_build_backend_empty_string() -> None:
+    """detect_build_backend returns None when build-backend is empty string."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    content = '[build-system]\nrequires = ["custom-build"]\nbuild-backend = ""\n'
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) is None
+
+
+def test_resolve_setuptools_license_without_provenance() -> None:
+    """_resolve_setuptools_license handles detected license with None provenance."""
+    from pitloom.core.project import ProjectMetadata
+    from pitloom.extract._setuptools import _resolve_setuptools_license
+
+    meta = ProjectMetadata(name="test-pkg", version="1.0.0")
+    with patch(
+        "pitloom.extract._setuptools.detect_license_for_project",
+        return_value=("MIT", None),
+    ):
+        res = _resolve_setuptools_license(meta, Path("/tmp"))
+        assert res.license_name == "MIT"
+        assert "license" not in res.provenance
+
+
+def test_setuptools_cfg_version_and_attr_edge_cases() -> None:
+    """_resolve_cfg_version handles multiline versions and attr syntax errors."""
+    from pitloom.extract._setuptools_cfg import (
+        _read_version_attr,
+        _resolve_cfg_attr_directive,
+        _resolve_cfg_version,
+    )
+
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        # Multiline file
+        (p / "VERSION").write_text("1.0.0\n# comment\n")
+        assert _resolve_cfg_version("file: VERSION", p) == (None, None)
+
+        # Python file with syntax error and multi-target assign
+        bad_py = p / "bad.py"
+        bad_py.write_text("a = b = '1.0'\ndef invalid_syntax(")
+        assert _read_version_attr(bad_py, "__version__") is None
+
+        # Existing file without matching attribute
+        clean_py = p / "clean.py"
+        clean_py.write_text("other_var = '2.0.0'\n")
+        assert _resolve_cfg_attr_directive("clean.__version__", p) == (None, None)
+
+
+def test_read_setup_cfg_content_type_without_override() -> None:
+    """read_setup_cfg handles [tool:pitloom:content-type] without override sub-table."""
+    content = (
+        "[metadata]\n"
+        "name = ct-pkg\n"
+        "version = 1.0\n\n"
+        "[tool:pitloom:content-type]\n"
+        "enabled = true\n\n"
+        "[tool:pitloom:creation]\n"
+        "no-creation-tool = true\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.content_type.enabled is True
+    assert len(config.content_type.overrides) == 0

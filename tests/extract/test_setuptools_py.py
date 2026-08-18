@@ -163,3 +163,68 @@ def test_fixture_read_setup_py_bare_setup() -> None:
     """setup.py with bare setup() call extracts no metadata (all in setup.cfg)."""
     with pytest.raises(ValueError, match="project name"):
         read_setup_py(SETUPTOOLS_FIXTURE)
+
+
+def test_read_setup_py_syntax_error() -> None:
+    """read_setup_py raises ValueError on invalid Python syntax."""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text("def unclosed_syntax(")
+        with pytest.raises(ValueError, match="Could not parse setup.py"):
+            read_setup_py(Path(d))
+
+
+def test_read_setup_py_long_description_and_tuples() -> None:
+    """read_setup_py handles long_description and tuple arguments."""
+    content = (
+        "import setuptools\n"
+        "setuptools.setup(\n"
+        "    name='full-pkg',\n"
+        "    version='2.0.0',\n"
+        "    long_description='A detailed description',\n"
+        "    keywords=123,\n"
+        "    install_requires=('dep1', 'dep2'),\n"
+        ")\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert metadata.readme == "A detailed description"
+    assert metadata.dependencies == ["dep1", "dep2"]
+    assert "readme" in metadata.provenance
+
+
+def test_ast_literal_dict_unpacking_and_calls() -> None:
+    """_extract_setup_kwargs handles dict unpacking and non-setup calls."""
+    import ast  # pylint: disable=import-outside-toplevel
+
+    from pitloom.extract._setuptools_py import (
+        _ast_literal,
+        _extract_setup_kwargs,
+        _parse_setup_urls,
+    )
+
+    code = (
+        "print('hello')\n"
+        "extra = {'a': 1}\n"
+        "setup(name='pkg', version='1.0', "
+        "project_urls={'Docs': 'https://doc', 1: 'num', **extra}, "
+        "**extra)\n"
+    )
+    tree = ast.parse(code)
+    kwargs = _extract_setup_kwargs(tree)
+    assert kwargs.get("name") == "pkg"
+    assert kwargs.get("project_urls") == {"Docs": "https://doc"}
+
+    # No setup call in AST returns empty dict
+    no_setup_tree = ast.parse("x = 1\ny = 2\n")
+    assert _extract_setup_kwargs(no_setup_tree) == {}
+
+    # Non-string dict key ignored by _ast_literal
+    expr_stmt = ast.parse("{1: 'val', 'k': 'v'}").body[0]
+    dict_node = expr_stmt.value  # type: ignore[attr-defined]
+    assert _ast_literal(dict_node) == {"k": "v"}
+
+    # Non-dict project_urls and non-string values
+    assert _parse_setup_urls({"project_urls": "https://invalid"}) == {}
+    urls_dict = {"Docs": 123, "Home": "https://h"}
+    assert _parse_setup_urls({"project_urls": urls_dict}) == {"Home": "https://h"}

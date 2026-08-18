@@ -242,3 +242,19 @@ def test_fixture_read_setuptools_merges_cfg_and_py() -> None:
     assert metadata.name == "sampleproject_setuptools"
     assert metadata.version == "0.1.0"
     assert config.sbom_basename == "sbom"
+
+
+def test_read_setuptools_detects_project_license_when_unspecified() -> None:
+    """read_setuptools detects license from directory when omitted from setup.cfg."""
+    cfg = "[metadata]\nname = lic-pkg\nversion = 1.0\n"
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        (p / "setup.cfg").write_text(cfg)
+        (p / "LICENSE").write_text("Apache-2.0 License", encoding="utf-8")
+        with patch(
+            "pitloom.extract._license.detect_license_from_text",
+            return_value="Apache-2.0",
+        ):
+            metadata, _ = read_setuptools(p)
+            assert metadata.license_name == "Apache-2.0"
+            assert "license" in metadata.provenance

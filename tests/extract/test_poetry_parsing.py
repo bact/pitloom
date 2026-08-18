@@ -316,3 +316,29 @@ pretty = true
         (Path(d) / "pyproject.toml").write_text(content)
         _, config = read_poetry(Path(d) / "pyproject.toml")
     assert config.pretty is True
+
+
+def test_convert_caret_and_tilde_edge_cases() -> None:
+    """_convert_caret and _convert_tilde handle zero/short/invalid versions."""
+    from pitloom.extract._poetry import (
+        _convert_caret,
+        _convert_tilde,
+        _parse_poetry_authors,
+        _poetry_constraint_to_pep440,
+    )
+
+    # Caret edge cases
+    assert _convert_caret("0") == ">=0"
+    assert _convert_caret("0.0") == ">=0.0,<0.1.0"
+    assert _convert_caret("invalid") == ">=invalid"
+
+    # Tilde edge cases
+    assert _convert_tilde("1") == ">=1"
+    assert _convert_tilde("abc") == ">=abc"
+
+    # Non-string / invalid constraint
+    assert _poetry_constraint_to_pep440(12345) is None
+    assert _poetry_constraint_to_pep440(None) is None
+
+    # Authors with invalid string formats
+    assert _parse_poetry_authors([123, "", "   "]) == []
