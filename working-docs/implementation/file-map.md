@@ -96,7 +96,7 @@ pitloom/
 │       │   │   ├── deps_installed.py # Installed-environment dependency tree mapping
 │       │   │   ├── deps_license.py   # License element assembly
 │       │   │   ├── deps_pypi.py      # PyPI release-info lookups
-│       │   │   ├── deps_originator.py  # Originator resolution
+│       │   │   ├── deps_originator.py # Originator resolution
 │       │   │   ├── deps.py           # Dependency enrichment facade
 │       │   │   ├── document.py       # Facade: build(DocumentModel) -> Spdx3JsonExporter
 │       │   │   ├── fragments.py      # Fragment merging + unification provenance facade

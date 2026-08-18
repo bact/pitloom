@@ -8,7 +8,7 @@ PyPI JSON API sanity check, and supplier/originator/remote-authors
 handling in ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
-test_deps_enrichment_supplier_license.py,
+test_deps_enrichment_originator_license.py,
 test_deps_enrichment_pypi_fallback.py -- this module's siblings, split from
 the original test_deps_enrichment.py.
 """

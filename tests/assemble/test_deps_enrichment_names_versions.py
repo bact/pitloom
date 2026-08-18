@@ -6,7 +6,7 @@
 """Regression tests for dependency name/version parsing and PURL/installed
 enrichment in SPDX 3 SBOMs.
 
-See also: test_deps_enrichment_supplier_license.py,
+See also: test_deps_enrichment_originator_license.py,
 test_deps_enrichment_pypi_fallback.py, test_deps_enrichment_prefetch.py --
 this module's siblings, split from the original test_deps_enrichment.py.
 

@@ -7,7 +7,7 @@
 
 See also:
 - :mod:`tests.assemble.test_deps_enrichment_names_versions`
-- :mod:`tests.assemble.test_deps_enrichment_supplier_license`
+- :mod:`tests.assemble.test_deps_enrichment_originator_license`
 - :mod:`tests.assemble.test_annotation_provenance_core`
 """
 

@@ -7,7 +7,7 @@
 ``pitloom.assemble.spdx3.deps.add_dependencies``.
 
 See also: test_deps_enrichment_names_versions.py,
-test_deps_enrichment_supplier_license.py, test_deps_enrichment_prefetch.py --
+test_deps_enrichment_originator_license.py, test_deps_enrichment_prefetch.py --
 this module's siblings, split from the original test_deps_enrichment.py.
 
 Covers the PyPI JSON API fallback (used when installed metadata doesn't

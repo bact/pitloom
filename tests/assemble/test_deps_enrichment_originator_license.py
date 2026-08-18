@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for dependency supplier/license resolution and the PyPI
+"""Regression tests for dependency originator/license resolution and the PyPI
 JSON API extraction helpers used by ``pitloom.assemble.spdx3.deps``.
 
 See also: test_deps_enrichment_names_versions.py,
