@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      sbom-path: ${{ steps.pitloom.outputs.sbom-path }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -29,16 +31,70 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build spdx3-validate
 
       - name: Install Pitloom from checkout
         run: pip install -e ".[content-type]"
 
       - name: Build sdist and wheel
         run: |
-          # --no-isolation: use the locally installed Pitloom so the build hook
-          # embeds a freshly generated SBOM into the wheel (.dist-info/sboms/).
+          # --no-isolation: use the checkout's local Pitloom, not an isolated
+          # build env, so the build hook embeds a freshly generated SBOM
+          # (.dist-info/sboms/). The Action step below regenerates and
+          # overwrites this copy in the published wheel.
           python -m build --no-isolation
+
+      - name: Regenerate and embed SBOM
+        # uses: ./ + install: false runs this commit's own Action/CLI
+        # (reusing the checkout installed above) against the release wheel,
+        # and also writes a standalone copy for the steps below.
+        id: pitloom
+        uses: ./
+        with:
+          embed-wheel: "dist/*.whl"
+          install: "false"
+          content-type: "true"
+          upload-artifact: "true"
+          artifact-name: "sbom"
+
+      - name: Check SBOM is at the PEP 770 location
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one wheel in dist/, found" \
+              "${#wheels[@]}: ${wheels[*]}"
+            exit 1
+          fi
+          whl="${wheels[0]}"
+          sbom_basename=$(basename "${SBOM_PATH}")
+
+          # Match the exact embedded basename, not just "any .spdx3.json
+          # exists". Bash glob, not grep -E, so dots/dashes in the
+          # basename stay literal.
+          matched=""
+          while IFS= read -r entry; do
+            case "${entry}" in
+              *.dist-info/sboms/"${sbom_basename}")
+                matched="${entry}"
+                break
+                ;;
+            esac
+          done < <(unzip -Z1 "${whl}")
+
+          if [ -z "${matched}" ]; then
+            echo "::error::${sbom_basename} not found under" \
+              "*.dist-info/sboms/ in ${whl}"
+            exit 1
+          fi
+          echo "Found: ${matched}"
+
+      - name: Validate SBOM
+        run: |
+          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -63,3 +119,35 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
+
+  attach-release-sbom:
+    name: Attach SBOM to GitHub Release
+    needs: build
+    # A custom "if:" replaces needs:'s implicit success() gate, so both
+    # conditions are explicit here:
+    # - result == 'success': skip if "Validate SBOM" failed in "build".
+    # - sbom-path != '': skip if "build" produced no standalone SBOM
+    #   (embed-wheel matched more than one wheel), since no "sbom"
+    #   artifact was uploaded for this job to download.
+    if: needs.build.result == 'success' && needs.build.outputs.sbom-path != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # gh release upload, for the standalone SBOM asset
+
+    steps:
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: sbom
+          path: sbom/
+
+      - name: Attach SBOM to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          SBOM_BASENAME: ${{ needs.build.outputs.sbom-path }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release upload "${RELEASE_TAG}" "sbom/${SBOM_BASENAME}" \
+            --clobber --repo "${REPO}"

@@ -27,6 +27,9 @@ and this project adheres to
   print `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after writing an SBOM,
   letting callers (e.g. the GitHub Action) discover the resolved output
   path without re-deriving the default-naming logic themselves ([#171])
+- The PyPI release workflow attaches the standalone SBOM as a GitHub
+  Release asset, generated via the project's own GitHub Action ([#172],
+  [#174])
 
 ### Fixed
 
@@ -34,8 +37,20 @@ and this project adheres to
   filename when `output` is left unset; it now defers to `loom`'s own
   default-naming logic (`packagename-version.spdx3.json`, falling back to
   `packagename.spdx3.json`, then `sbom.spdx3.json` as a last resort) ([#171])
+- `loom embed-wheel`'s Build SBOM now includes content-type and
+  file-header data for each file (previously silently dropped even with
+  `--content-type`/`--extract-file-header` enabled), while still
+  preserving the wheel's own file records -- hashes of the actually-built
+  wheel's bytes, `.dist-info/*` entries, and any build-hook-injected files
+  that a project-directory rescan alone can't see ([#172], [#174])
+- `loom embed-wheel`'s Merkle root (asserted as the main package's
+  `verifiedUsing` hash, and fed into every generated SPDX ID) is now
+  computed from the wheel's own file hashes instead of a project-directory
+  rescan that could diverge from the actually-built wheel ([#172])
 
 [#171]: https://github.com/bact/pitloom/pull/171
+[#172]: https://github.com/bact/pitloom/pull/172
+[#174]: https://github.com/bact/pitloom/pull/174
 
 ## [0.16.1] - 2026-08-18
 
