@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-14
+# Last-Modified: 2026-08-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -243,6 +243,28 @@ back a JSON file that looks complete but isn't:
   Hub models). A model in some other serialization format isn't
   recognized at all -- same "say so" rule applies rather than silently
   skipping it.
+- **Non-Hatchling build backend** for `loom project`/`loom generate`
+  against a project directory -- check `pyproject.toml`'s
+  `[build-system] build-backend` *before* generating, not after. If it
+  isn't `hatchling.build` (`setuptools.build_meta`,
+  `poetry.core.masonry.api`, `pdm.backend`, `flit_core.buildapi`,
+  `uv_build`, etc. -- or there's no `pyproject.toml` build-backend
+  declared at all, just a bare `setup.py`/`setup.cfg`), say so upfront,
+  don't wait for the user to ask why the SBOM looks off:
+
+  > **Limitation notes:** While Pitloom can work with any Python
+  > project, it currently gathers more information from Hatchling
+  > project. More complete support for `setuptools` is planned for
+  > version 0.17.0. `uv_build`, `Poetry Core`, `PDM-Backend`, and
+  > `Flit-Core` are also in the plan. See full [limitation
+  > notes](https://bact.github.io/pitloom/cli/#usage-details).
+
+  Project-level metadata (name, version, dependencies, license,
+  authors) is unaffected by this -- it's read correctly regardless of
+  backend. What's affected is the *file-level* inventory: which files
+  are listed, their hashes, and the package's Merkle-root integrity
+  hash, which currently rely on Hatchling's own file-discovery
+  heuristics regardless of the declared backend.
 
 ## See also
 

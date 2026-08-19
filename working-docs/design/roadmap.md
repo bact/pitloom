@@ -109,7 +109,10 @@ full picture.
 **Next up:**
 [Non-Hatchling file discovery](#non-hatchling-file-discovery-feature-parity)
 below -- a major feature-parity gap affecting the accuracy of `loom
-project`'s file inventory for any non-Hatchling project.
+project`'s file inventory for any non-Hatchling project. Setuptools
+support (priority 1 below) is committed to the 0.16.2 release notes as
+targeted for **0.17.0**; `uv_build`, Poetry, PDM-backend, and Flit-core
+are named as "also in the plan" without a committed version yet.
 
 ### Non-Hatchling file discovery (feature parity)
 
