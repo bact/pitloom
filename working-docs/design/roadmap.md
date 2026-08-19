@@ -106,6 +106,107 @@ full picture.
 
 ## Near-term
 
+**Next up:**
+[Non-Hatchling file discovery](#non-hatchling-file-discovery-feature-parity)
+below -- a major feature-parity gap affecting the accuracy of `loom
+project`'s file inventory for any non-Hatchling project.
+
+### Non-Hatchling file discovery (feature parity)
+
+- [ ] **`get_wheel_files()` file discovery is not backend-agnostic** --
+  despite its generic name, `get_wheel_files()`
+  (`src/pitloom/core/_models_wheel.py`) unconditionally instantiates
+  Hatchling's own `WheelBuilder` to discover a project's files,
+  regardless of the project's actual `[build-system] build-backend`.
+  This is not merely "returns `None` for non-Hatchling projects" (the
+  original framing of this item) -- confirmed by direct testing:
+  - For a non-Hatchling project whose layout happens to match
+    Hatchling's own auto-detection conventions (a single top-level
+    package, or `src/<name>`, named after the normalized project name),
+    it works by coincidence.
+  - For a setuptools project using
+    `[tool.setuptools.packages.find] where=` (or `MANIFEST.in`,
+    `package_data`, or any other backend-specific inclusion rule
+    Hatchling doesn't understand), it silently produces a **wrong** file
+    list, not just a missing one -- confirmed with a `where = ["lib"]`
+    setuptools layout: `get_wheel_files()` reported
+    `lib/mypkg/__init__.py` as the distribution path (plus spurious
+    directory-shaped entries) instead of the `mypkg/__init__.py` the
+    actual wheel would contain.
+  - The same applies to Poetry, PDM, and Flit projects with their own
+    inclusion config -- this affects **any non-Hatchling backend**, not
+    setuptools specifically.
+  - Impact differs by command: `loom project`/`loom generate` (Source
+    SBOM, directory target) has no wheel to fall back on, so the wrong
+    file list, hashes, and Merkle-root integrity hash go straight into
+    the SBOM. `loom embed-wheel --project-dir` is safer -- its
+    `_merge_file_extras` step already keeps the real wheel's file
+    list/hashes as truth (see the "Build backend improvements" Merkle
+    root item below), so only `--content-type`/`--extract-file-header`
+    enrichment silently fails to attach per mismatched file, degrading
+    gracefully rather than corrupting the SBOM.
+  - Project-level metadata (name, version, dependencies, license,
+    authors) is unaffected -- `read_project()` resolves it independently
+    of `get_wheel_files()` via Pitloom's own setuptools/Poetry
+    extractors.
+  Documented as a known limitation in [docs/cli.md](../../docs/cli.md)'s
+  Source SBOM and embed-wheel sections. Fixing this needs a
+  backend-aware file-discovery layer (dispatch on the declared
+  `build-backend`) rather than always defaulting to Hatchling's own
+  heuristics.
+
+#### Backend priority
+
+Two fundamentally different classes of backend, needing two different
+fixes:
+
+- **Track A -- static/declarative backends** (setuptools, Poetry,
+  PDM-backend, Flit-core, `uv_build`): every file that ends up in the
+  wheel already exists as a real file in `project_dir` before any build
+  runs. A backend-aware rescan (read each backend's own inclusion
+  config, walk the matching files) is correct and sufficient here --
+  the same strategy `get_wheel_files()` already uses for Hatchling,
+  just with each backend's own config format instead of
+  `[tool.hatch.build...]`.
+- **Track B -- compiled/native backends** (`maturin`,
+  `scikit-build-core`, `meson-python`): the wheel's actual contents
+  (compiled `.so`/`.pyd` extensions, platform-specific artifacts,
+  generated files) do not exist as source files at all until the
+  backend's own compiler toolchain runs. **No rescan of `project_dir`
+  can ever discover these correctly, even in principle** -- this is
+  the same "wheel truth vs. rescan" problem `_merge_file_extras`
+  already solves for `embed-wheel`, but for Track B there is no static
+  fallback at all. The only correct fix is a **build-and-read**
+  mechanism: actually invoke the project's declared backend to produce
+  a real wheel, then discover files by reading it with the existing
+  `read_wheel()` -- the same function `embed-wheel` already trusts as
+  ground truth. One implementation unlocks all three Track B backends
+  at once (and doubles as a robustness fallback for Track A, and for
+  any future/unrecognized backend), at the cost of actually running a
+  build (slower, executes arbitrary build-time code, needs the
+  backend's build dependencies installed) -- a real trade-off `loom
+  project` doesn't currently make.
+
+Priority order, weighing popularity, prevalence in AI/ML Python
+projects, implementation size, and reuse leverage across backends:
+
+| # | Backend | Track | Why this order |
+| :-- | :--- | :--- | :--- |
+| 1 | setuptools | A | Still the single most-installed backend, including plenty of legacy/established AI packages. Bounded but nontrivial effort (`packages.find`/`where`, `package_data`, `MANIFEST.in`). No reuse with anything else -- do it first because it's highest-value, not because it's cheap. |
+| 2 | `uv_build` | A | Explicitly designed to be Hatchling-like (zero-config, sensible defaults) -- almost certainly the cheapest Track A backend to add given `get_wheel_files()`'s existing Hatchling-shaped logic, and it's the fastest-growing default for new pure-Python projects on the back of `uv`'s adoption curve. High effort-to-value ratio. |
+| 3 | Poetry | A | Declarative `[tool.poetry]`/`packages`/`exclude` config, no build-time code execution to model. Pitloom already has a Poetry config reader (`src/pitloom/extract/_poetry.py`) to build on. Common in AI/ML research repos for reproducible environments. |
+| 4 | PDM-backend, Flit-core | A | Bundle together -- both are simple, PEP 621-native, declarative (Flit's default is literally "bundle whatever Git tracks"). Smaller install base than 1-3, but nearly free once the Track A discovery pattern exists from steps 1-3, and already share a metadata-extractor item ("PDM / Flit extractors" under Medium-term) worth doing in the same pass. |
+| 5 | Build-and-read fallback | (mechanism) | Not a backend -- the mechanism Track B requires. Medium effort, but the single highest-leverage item on this list: it's a prerequisite for all three Track B backends below, and a correctness safety net everywhere else. |
+| 6 | `maturin`, `scikit-build-core` | B | Tied -- both are surging in the AI/ML stack specifically (Rust-based tooling via PyO3 for `maturin`; CUDA/C++/Fortran extensions for `scikit-build-core`), both need exactly the build-and-read mechanism from step 5, and neither is meaningfully cheaper or more valuable than the other. |
+| 7 | `meson-python` | B | Same mechanism as step 6, but lower priority for Pitloom's own user base specifically: it's foundational to the AI/ML ecosystem (NumPy, SciPy) but those are far more often a Pitloom user's *dependency* than a project they're generating an SBOM for directly. |
+
+Caveat: the research behind this ranking (see the conversation this
+list came from) is qualitative, not install-count data -- re-validate
+popularity/AI-relevance claims against PyPI download stats or a
+dependency survey before treating the exact ordering as authoritative,
+especially for `uv_build` vs. Poetry vs. PDM/Flit-core, which are close
+enough that new data could reorder them.
+
 ### Build backend improvements
 
 - [ ] **PEP 517 `prepare_metadata_for_build_wheel`** (opt-in) -- call the build
@@ -113,8 +214,9 @@ full picture.
   computed deps) that static parsing cannot handle.
   See [metadata-sources.md](metadata-sources.md).
 - [ ] **Setuptools wheel file discovery** -- use setuptools' own file inclusion
-  logic to compute a Merkle root for setuptools projects (currently
-  `get_wheel_files()` returns `None` for non-Hatchling projects).
+  logic for setuptools projects instead of Hatchling's `WheelBuilder`
+  (see "Non-Hatchling file discovery" above for the full scope of why
+  this is needed -- it's not just about the Merkle root).
 - [ ] **`get_wheel_files()` option to skip Merkle root computation** --
   `_build_sbom_from_project_and_wheel` (`src/pitloom/embed.py`) already
   discards `get_wheel_files()`'s own `merkle_root` return value in favor
@@ -147,7 +249,8 @@ full picture.
   pipeline (not just this repo's own release workflow) without
   reimplementing the path convention.
   Since `spdx3-validate` 0.0.7, it's usable as a Python library, not just
-  a CLI (see [using-as-a-library](https://github.com/JPEWdev/spdx3-validate#using-as-a-library)) --
+  a CLI -- see
+  <https://github.com/JPEWdev/spdx3-validate#using-as-a-library> --
   `--verify` could call it in-process instead of shelling out, avoiding a
   second subprocess/dependency-install step in CI.
 
@@ -206,7 +309,11 @@ full picture.
   and bundled libraries from build output logs.
 - [ ] **PDM / Flit extractors** -- extend `detect_build_backend()` and
   add per-backend extractor functions following the same
-  `read_X() -> (ProjectMetadata, PitloomConfig)` pattern.
+  `read_X() -> (ProjectMetadata, PitloomConfig)` pattern. Worth pairing
+  with PDM/Flit-core's Track A file-discovery work (see
+  "Non-Hatchling file discovery" under Near-term) in the same pass --
+  metadata extraction and file discovery are separate concerns but the
+  same backends.
 
 ## Long-term
 
