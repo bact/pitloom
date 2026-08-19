@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -115,10 +115,41 @@ full picture.
 - [ ] **Setuptools wheel file discovery** -- use setuptools' own file inclusion
   logic to compute a Merkle root for setuptools projects (currently
   `get_wheel_files()` returns `None` for non-Hatchling projects).
+- [ ] **`get_wheel_files()` option to skip Merkle root computation** --
+  `_build_sbom_from_project_and_wheel` (`src/pitloom/embed.py`) already
+  discards `get_wheel_files()`'s own `merkle_root` return value in favor
+  of one computed from the wheel's own (post-merge) file hashes (see
+  `_compute_wheel_merkle_root`), so that work is wasted for its one
+  current caller. Worth adding only when both `extract_file_header` and
+  `content_type` are off too -- otherwise every file's bytes get read
+  off disk anyway for header/content-type scanning, and skipping just
+  the hash/tree-build step on top of bytes already in memory saves
+  little. With both scanners off, though, `get_wheel_files()` currently
+  reads every file's full bytes solely to hash them for the discarded
+  root -- real, avoidable I/O for large projects.
 - [ ] **Installed `.dist-info` / `.egg-info` as metadata source** -- treat
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](metadata-sources.md).
+
+### PEP 770 / embed-wheel
+
+- [ ] **`loom embed-wheel --verify`** -- check that a wheel's embedded SBOM
+  is at the correct `.dist-info/sboms/<basename>` location and passes
+  schema/SHACL validation, as a single CLI command. Right now
+  `.github/workflows/pypi-publish.yml`'s "Check SBOM is at the PEP 770
+  location" step hand-rolls this in bash (`unzip -Z1` + a glob match)
+  against the same path convention `pitloom._embed_wheel._plan_embed`
+  already encodes in Python, plus a separate `spdx3-validate` call -- two
+  independently-maintained representations of one convention that could
+  drift if `_plan_embed`'s layout ever changes. A `--verify` flag would
+  consolidate both checks into the tool itself, reusable by any CI
+  pipeline (not just this repo's own release workflow) without
+  reimplementing the path convention.
+  Since `spdx3-validate` 0.0.7, it's usable as a Python library, not just
+  a CLI (see [using-as-a-library](https://github.com/JPEWdev/spdx3-validate#using-as-a-library)) --
+  `--verify` could call it in-process instead of shelling out, avoiding a
+  second subprocess/dependency-install step in CI.
 
 ### Extractors
 

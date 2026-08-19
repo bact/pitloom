@@ -25,6 +25,7 @@ from installer.sources import WheelFile
 
 from pitloom import __main__
 from pitloom.core.config import PitloomConfig
+from pitloom.core.models import _build_merkle_tree
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import (
@@ -221,6 +222,82 @@ packages = ["ctpkg"]
     expected_digest = hashlib.sha256(b"__version__ = '1.0.0'\n").hexdigest()
     assert hash_obj["hashValue"] == expected_digest
     assert init_file.get("contentType")
+
+
+def test_embed_wheel_merkle_root_reflects_wheel_not_rescan(
+    tmp_path: Path,
+) -> None:
+    """The document's Merkle root must be computed from the wheel's own
+    (post-merge) file hashes, not a fresh rescan of ``project_dir``.
+
+    Regression test: ``_build_sbom_from_project_and_wheel`` used to pass
+    through ``get_wheel_files()``'s own ``merkle_root`` -- computed by
+    hashing ``project_dir``'s on-disk bytes -- straight into the exported
+    document, even though ``_merge_file_extras`` had already fixed the
+    *per-file* hashes to prefer the wheel's own truth. Whenever
+    ``project_dir`` diverges from the already-built wheel (as it
+    deliberately does here, mirroring
+    ``test_embed_wheel_preserves_wheel_truth_and_merges_content_type``),
+    that left the package's ``verifiedUsing`` Merkle root -- and every
+    SPDX ID derived from it via ``compute_doc_uuid`` -- describing a
+    different file set than the one actually reported.
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "ctpkg"
+version = "1.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ctpkg"]
+""",
+        encoding="utf-8",
+    )
+    pkg_dir = tmp_path / "ctpkg"
+    pkg_dir.mkdir()
+    # Deliberately differs from the wheel's own __init__.py (see
+    # _make_dummy_wheel) so a Merkle root computed from this rescan would
+    # differ from one computed from the wheel's own bytes.
+    (pkg_dir / "__init__.py").write_text("x = 1\n", encoding="utf-8")
+
+    wheel_path = _make_dummy_wheel(tmp_path / "dist", "ctpkg", "1.0.0")
+
+    # Capture the wheel's own bytes *before* embedding mutates it (adds the
+    # SBOM entry and rewrites RECORD) -- this is the file set
+    # _compute_wheel_merkle_root should be reproducible from.
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        wheel_contents = {name: zf.read(name) for name in zf.namelist()}
+
+    _, _, sbom_json, _, _ = embed_wheel_sbom(
+        wheel_path,
+        project_dir=tmp_path,
+        overrides=ConfigOverrides(content_type=True),
+    )
+
+    doc = json.loads(sbom_json)
+    (main_pkg,) = [
+        n
+        for n in doc["@graph"]
+        if n.get("type") == "software_Package" and n.get("name") == "ctpkg"
+    ]
+    (verified,) = main_pkg["verifiedUsing"]
+
+    ordered_payloads = [p for _, p in sorted(wheel_contents.items())]
+    expected_root = _build_merkle_tree(
+        [hashlib.sha256(p).digest() for p in ordered_payloads]
+    )
+    assert verified["hashValue"] == expected_root
+
+    # Sanity check that this fixture actually exercises divergence: a root
+    # over the *rescanned* project_dir bytes (which differ only in
+    # ctpkg/__init__.py) must NOT equal the wheel-derived root above, or
+    # this test would pass even with the old, buggy code.
+    rescan_contents = dict(wheel_contents)
+    rescan_contents["ctpkg/__init__.py"] = b"x = 1\n"
+    rescan_root = _build_merkle_tree(
+        [hashlib.sha256(p).digest() for _, p in sorted(rescan_contents.items())]
+    )
+    assert rescan_root != expected_root
 
 
 def test_embed_wheel_scan_failure_keeps_wheel_files(

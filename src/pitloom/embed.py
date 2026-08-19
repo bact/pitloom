@@ -37,7 +37,7 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS, PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import get_wheel_files
+from pitloom.core.models import _build_merkle_tree, get_wheel_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
@@ -107,6 +107,22 @@ def _merge_file_extras(
     return merged
 
 
+def _compute_wheel_merkle_root(files: list[ProjectFile]) -> str | None:
+    """Merkle root over *files*' own digests -- the wheel's truth, not a rescan.
+
+    Mirrors :func:`pitloom.core._models_wheel.get_wheel_files`'s ordering
+    (sort by ``distribution_path``) and hashing convention so the result is
+    reproducible the same way, but computed from files whose
+    ``digest_sha256`` already reflects the wheel's own bytes (post-merge)
+    instead of a fresh ``project_dir`` rescan that can diverge from them.
+    """
+    if not files:
+        return None
+    ordered = sorted(files, key=lambda f: f.distribution_path)
+    leaf_hashes = [bytes.fromhex(f.digest_sha256) for f in ordered]
+    return _build_merkle_tree(leaf_hashes)
+
+
 def _build_sbom_from_project_and_wheel(
     project_dir: Path,
     wheel_metadata: ProjectMetadata,
@@ -115,7 +131,11 @@ def _build_sbom_from_project_and_wheel(
     creation_metadata: CreationMetadata | None,
 ) -> str:
     """Generate a canonical Build SBOM from project sources and wheel files."""
-    merkle_root, project_files = get_wheel_files(
+    # merkle_root (the rescan's own, over project_dir's on-disk bytes) is
+    # deliberately discarded here -- see _compute_wheel_merkle_root below,
+    # which recomputes it from the wheel's own (post-merge) file hashes so
+    # it can't diverge from what merged_files actually reports.
+    _, project_files = get_wheel_files(
         project_dir,
         scan_file_headers=pitloom_config.extract_file_header,
         detect_content_type=pitloom_config.content_type.enabled,
@@ -132,6 +152,7 @@ def _build_sbom_from_project_and_wheel(
     # caller's wheel_metadata (e.g. embed_wheel_sbom's read_wheel() result)
     # isn't silently mutated as a side effect of building this SBOM.
     project_metadata = dataclasses.replace(wheel_metadata, files=merged_files)
+    merkle_root = _compute_wheel_merkle_root(merged_files)
     ai_models = scan_project_for_ai_models(project_dir, project_files)
     phantom_deps = find_phantom_dependencies(merged_files)
     enrichment_results = run_enrichers_for_models(

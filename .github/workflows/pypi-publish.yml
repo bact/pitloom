@@ -31,7 +31,7 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build spdx3-validate
 
       - name: Install Pitloom from checkout
         run: pip install -e ".[content-type]"
@@ -45,7 +45,7 @@ jobs:
           # the published wheel with the same generator, dogfooded end to end.
           python -m build --no-isolation
 
-      - name: Regenerate and embed SBOM via the Pitloom Action (PEP 770)
+      - name: Regenerate and embed SBOM
         # Dogfoods this exact commit's own Action + CLI ("uses: ./",
         # install: false reuses the checkout installed above) against its
         # own release wheel, overwriting the Hatchling hook's embedded copy
@@ -59,6 +59,41 @@ jobs:
           content-type: "true"
           upload-artifact: "true"
           artifact-name: "sbom"
+
+      - name: Check SBOM is at the PEP 770 location
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+        run: |
+          set -euo pipefail
+          whl=$(ls dist/*.whl)
+          sbom_basename=$(basename "${SBOM_PATH}")
+
+          # Match the exact file "loom" just embedded (by its packagename-
+          # version basename), not merely "some .spdx3.json exists" -- a
+          # stray/leftover SBOM under .dist-info/sboms/ would otherwise
+          # pass this check without being the one Pitloom just generated.
+          # Bash glob (not grep -E) so dots/dashes in sbom_basename are
+          # matched literally, not as regex metacharacters.
+          matched=""
+          while IFS= read -r entry; do
+            case "${entry}" in
+              *.dist-info/sboms/"${sbom_basename}")
+                matched="${entry}"
+                break
+                ;;
+            esac
+          done < <(unzip -Z1 "${whl}")
+
+          if [ -z "${matched}" ]; then
+            echo "::error::${sbom_basename} not found under" \
+              "*.dist-info/sboms/ in ${whl}"
+            exit 1
+          fi
+          echo "Found: ${matched}"
+
+      - name: Validate SBOM
+        run: |
+          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -89,7 +124,14 @@ jobs:
     needs: build
     # Runs independently of "publish": the release asset is a nice-to-have,
     # so a failure/skip here must never block the actual PyPI publish.
-    if: needs.build.outputs.sbom-path != ''
+    # needs.build.result must be checked explicitly -- a custom "if:"
+    # replaces the implicit success() gate "needs:" would otherwise apply,
+    # and sbom-path is set as soon as the embed step runs, before the
+    # later "Check SBOM location"/"Validate SBOM" steps that can fail it.
+    # Without this, a validation failure still blocks PyPI publish (the
+    # "publish" job keeps its implicit gate) but this job would still
+    # attach the unvalidated SBOM to the public release.
+    if: needs.build.result == 'success' && needs.build.outputs.sbom-path != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write  # gh release upload, for the standalone SBOM asset
