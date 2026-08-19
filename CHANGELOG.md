@@ -43,6 +43,10 @@ and this project adheres to
   preserving the wheel's own file records -- hashes of the actually-built
   wheel's bytes, `.dist-info/*` entries, and any build-hook-injected files
   that a project-directory rescan alone can't see ([#172], [#174])
+- `loom embed-wheel`'s Merkle root (asserted as the main package's
+  `verifiedUsing` hash, and fed into every generated SPDX ID) is now
+  computed from the wheel's own file hashes instead of a project-directory
+  rescan that could diverge from the actually-built wheel ([#172])
 
 [#171]: https://github.com/bact/pitloom/pull/171
 [#172]: https://github.com/bact/pitloom/pull/172

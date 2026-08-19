@@ -38,19 +38,16 @@ jobs:
 
       - name: Build sdist and wheel
         run: |
-          # --no-isolation: use the locally installed Pitloom so the build hook
-          # embeds a freshly generated SBOM into the wheel (.dist-info/sboms/).
-          # This hook-embedded SBOM is what any plain "pip install"/"build"
-          # of this project gets -- the Action step below overwrites it in
-          # the published wheel with the same generator, dogfooded end to end.
+          # --no-isolation: use the checkout's local Pitloom, not an isolated
+          # build env, so the build hook embeds a freshly generated SBOM
+          # (.dist-info/sboms/). The Action step below regenerates and
+          # overwrites this copy in the published wheel.
           python -m build --no-isolation
 
       - name: Regenerate and embed SBOM
-        # Dogfoods this exact commit's own Action + CLI ("uses: ./",
-        # install: false reuses the checkout installed above) against its
-        # own release wheel, overwriting the Hatchling hook's embedded copy
-        # with the Action-driven one and producing a standalone copy for
-        # the release/artifact steps below.
+        # uses: ./ + install: false runs this commit's own Action/CLI
+        # (reusing the checkout installed above) against the release wheel,
+        # and also writes a standalone copy for the steps below.
         id: pitloom
         uses: ./
         with:
@@ -65,15 +62,19 @@ jobs:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
         run: |
           set -euo pipefail
-          whl=$(ls dist/*.whl)
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one wheel in dist/, found" \
+              "${#wheels[@]}: ${wheels[*]}"
+            exit 1
+          fi
+          whl="${wheels[0]}"
           sbom_basename=$(basename "${SBOM_PATH}")
 
-          # Match the exact file "loom" just embedded (by its packagename-
-          # version basename), not merely "some .spdx3.json exists" -- a
-          # stray/leftover SBOM under .dist-info/sboms/ would otherwise
-          # pass this check without being the one Pitloom just generated.
-          # Bash glob (not grep -E) so dots/dashes in sbom_basename are
-          # matched literally, not as regex metacharacters.
+          # Match the exact embedded basename, not just "any .spdx3.json
+          # exists". Bash glob, not grep -E, so dots/dashes in the
+          # basename stay literal.
           matched=""
           while IFS= read -r entry; do
             case "${entry}" in
@@ -122,15 +123,12 @@ jobs:
   attach-release-sbom:
     name: Attach SBOM to GitHub Release
     needs: build
-    # Runs independently of "publish": the release asset is a nice-to-have,
-    # so a failure/skip here must never block the actual PyPI publish.
-    # needs.build.result must be checked explicitly -- a custom "if:"
-    # replaces the implicit success() gate "needs:" would otherwise apply,
-    # and sbom-path is set as soon as the embed step runs, before the
-    # later "Check SBOM location"/"Validate SBOM" steps that can fail it.
-    # Without this, a validation failure still blocks PyPI publish (the
-    # "publish" job keeps its implicit gate) but this job would still
-    # attach the unvalidated SBOM to the public release.
+    # A custom "if:" replaces needs:'s implicit success() gate, so both
+    # conditions are explicit here:
+    # - result == 'success': skip if "Validate SBOM" failed in "build".
+    # - sbom-path != '': skip if "build" produced no standalone SBOM
+    #   (embed-wheel matched more than one wheel), since no "sbom"
+    #   artifact was uploaded for this job to download.
     if: needs.build.result == 'success' && needs.build.outputs.sbom-path != ''
     runs-on: ubuntu-latest
     permissions:
