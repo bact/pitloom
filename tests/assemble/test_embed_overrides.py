@@ -32,6 +32,7 @@ from pitloom.embed import (
     ConfigOverrides,
     _apply_config_overrides,
     _build_sbom_standalone_wheel,
+    _compute_wheel_merkle_root,
     embed_wheel_sbom,
 )
 from pitloom.ids import IdRegistry
@@ -222,6 +223,11 @@ packages = ["ctpkg"]
     expected_digest = hashlib.sha256(b"__version__ = '1.0.0'\n").hexdigest()
     assert hash_obj["hashValue"] == expected_digest
     assert init_file.get("contentType")
+
+
+def test_compute_wheel_merkle_root_empty_returns_none() -> None:
+    """No files means no Merkle root to assert, not a computed one over nothing."""
+    assert _compute_wheel_merkle_root([]) is None
 
 
 def test_embed_wheel_merkle_root_reflects_wheel_not_rescan(
