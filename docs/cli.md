@@ -168,6 +168,13 @@ pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`.
 
+Every subcommand that writes an SBOM (`project`, `model`, `env`, `wheel`,
+`embed-wheel`) prints `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after
+writing it -- the resolved path, including when a command's own
+default-naming logic picked it rather than an explicit `-o`. Scripts and
+CI can parse this line instead of re-deriving the default-naming logic
+themselves.
+
 ## Configuration
 
 See [Configuration](configuration.md) for the full reference -- every

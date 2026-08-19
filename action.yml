@@ -89,7 +89,7 @@ inputs:
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.16.1" or
+      Pitloom version or version specifier to install, e.g. "0.16.2" or
       ">=0.13,<1.0". Empty installs the latest release from PyPI.
     required: false
     default: ""
@@ -141,7 +141,7 @@ runs:
           spec="${spec}[${PL_EXTRAS}]"
         fi
         if [ -n "${PL_VERSION}" ]; then
-          # pitloom-version accepts either a bare version ("0.16.1") or a
+          # pitloom-version accepts either a bare version ("0.16.2") or a
           # full specifier (">=0.13,<1.0"). A leading comparison operator
           # means it is already a specifier; only bare versions need "=="
           # inserted, otherwise "pitloom==>=0.13,<1.0" is invalid.
