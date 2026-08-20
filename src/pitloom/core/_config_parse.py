@@ -235,6 +235,11 @@ def _read_extract_file_header(pitloom_data: dict[str, Any]) -> bool:
     return _read_bool_setting(pitloom_data, "extract-file-header", True)
 
 
+def _read_update_registry(pitloom_data: dict[str, Any]) -> bool:
+    """Read ``[tool.pitloom] update-registry``."""
+    return _read_bool_setting(pitloom_data, "update-registry", True)
+
+
 def _read_content_type_settings(
     pitloom_data: dict[str, Any],
 ) -> tuple[bool, str, tuple[ContentTypeOverride, ...]]:
@@ -313,6 +318,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     ) = _read_provenance_settings(pitloom_data)
     enrich_local = _read_enrich_settings(pitloom_data)
     extract_file_header = _read_extract_file_header(pitloom_data)
+    update_registry = _read_update_registry(pitloom_data)
     (
         content_type_enabled,
         content_type_method,
@@ -353,6 +359,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         creation_datetime=creation_datetime,
         creation_comment=creation_comment,
         ids_file=ids_file,
+        update_registry=update_registry,
         provenance_format=provenance_format,
         provenance_schema=provenance_schema,
         provenance_detail=provenance_detail,

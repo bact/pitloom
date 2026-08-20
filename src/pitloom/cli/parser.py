@@ -166,6 +166,17 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="Loom ID registry JSON file path.",
     )
+    parent.add_argument(
+        "--update-registry",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "After generating, harvest newly-minted ids back into the "
+            "resolved Loom ID registry and save it. Defers to "
+            "[tool.pitloom] update-registry (on by default) when omitted; "
+            "no effect when no registry is resolved."
+        ),
+    )
 
     creator_group = parent.add_argument_group("Creator metadata")
     creator_group.add_argument(

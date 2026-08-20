@@ -61,6 +61,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
         project_metadata=project_metadata,
         pitloom_config=pitloom_config,
         registry=args.registry,
+        update_registry=args.update_registry,
         provenance=pitloom_config.provenance,
         enrich=args.enrich,
         offline=args.offline or None,

@@ -12,12 +12,13 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.ids import IdRegistry, _sha256_from_verified_using
+from pitloom.ids import EntityEntry, FileEntry, IdRegistry, _sha256_from_verified_using
 
 
 def test_resolve_registry_error(tmp_path: Path) -> None:
@@ -136,3 +137,53 @@ def test_sha256_from_verified_using_skips_empty_hash_value() -> None:
         ]
     )
     assert _sha256_from_verified_using(obj) == "cafebabe"
+
+
+def _build_sample_object_set(
+    namespace: str = "https://spdx.org/spdxdocs/h-1",
+) -> tuple[spdx3.SHACLObjectSet, str, str, str]:
+    ci = spdx3.CreationInfo(
+        specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+    pkg_id = f"{namespace}#Package-1"
+    pkg = spdx3.software_Package(spdxId=pkg_id, name="requests", creationInfo=ci)
+    file_hash = "aa" * 32
+    file_id = f"{namespace}#File-1"
+    file_elem = spdx3.software_File(
+        spdxId=file_id,
+        name="src/pkg/train.py",
+        creationInfo=ci,
+        verifiedUsing=[
+            spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=file_hash)
+        ],
+    )
+    object_set = spdx3.SHACLObjectSet()
+    object_set.add(ci)
+    object_set.add(pkg)
+    object_set.add(file_elem)
+    return object_set, pkg_id, file_id, file_hash
+
+
+def test_harvest_adds_new_entities_and_files_from_object_set() -> None:
+    registry = IdRegistry.new("proj")
+    object_set, pkg_id, file_id, file_hash = _build_sample_object_set()
+
+    new_files, new_entities = registry.harvest(object_set)
+
+    assert (new_files, new_entities) == (1, 1)
+    assert registry.entities["requests"] == EntityEntry(
+        type="software_Package", spdx_id=pkg_id
+    )
+    assert registry.files["src/pkg/train.py"] == FileEntry(
+        spdx_id=file_id, sha256=file_hash
+    )
+
+
+def test_harvest_is_idempotent_for_already_registered_ids() -> None:
+    registry = IdRegistry.new("proj")
+    object_set, _, _, _ = _build_sample_object_set()
+
+    registry.harvest(object_set)
+    new_files, new_entities = registry.harvest(object_set)
+
+    assert (new_files, new_entities) == (0, 0)
