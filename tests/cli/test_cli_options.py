@@ -323,6 +323,25 @@ def test_read_pitloom_tool_stdlib_tomllib_branch(
     assert _load_pitloom_tool_section(p) == {"pretty": True}
 
 
+def test_read_pitloom_tool_tomli_backport_branch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """On a Python < 3.11 interpreter, the ``tomli`` backport is imported
+    instead of stdlib ``tomllib`` -- the mirror-image branch of the test
+    above, needed so this stays covered regardless of which Python version
+    CI happens to collect coverage on (this repo's CI matrix runs both
+    3.10 and 3.14). ``_load_pitloom_tool_section`` imports fresh on every
+    call (no module-level import to reload), so faking
+    ``sys.version_info`` alone is enough."""
+    from pitloom.cli.options import _load_pitloom_tool_section
+
+    monkeypatch.setattr(sys, "version_info", (3, 10, 0, "final", 0))
+
+    p = tmp_path / "pyproject.toml"
+    p.write_text("[tool.pitloom]\npretty = true\n")
+    assert _load_pitloom_tool_section(p) == {"pretty": True}
+
+
 def test_resolve_describe_relationship_and_pretty() -> None:
     import argparse
 
