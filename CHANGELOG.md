@@ -23,9 +23,10 @@ and this project adheres to
 
 ## Fixed
 
-- Test coverage near 100% ([#176])
+- Test coverage near 100% ([#176], [#177])
 
 [#176]: https://github.com/bact/pitloom/pull/176
+[#177]: https://github.com/bact/pitloom/pull/177
 
 ## [0.16.2] - 2026-08-19
 
