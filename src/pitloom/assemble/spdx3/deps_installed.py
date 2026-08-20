@@ -29,6 +29,7 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder
 from pitloom.core.models import build_pypi_purl
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract._extract_utils import pkg_meta_get
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
@@ -96,17 +97,17 @@ def _enrich_from_installed(
     filled: set[str] = set()
     project_urls = _parse_project_urls(pkg_meta)
 
-    summary = pkg_meta["Summary"] or ""
+    summary = pkg_meta_get(pkg_meta, "Summary")
     if summary and summary != "UNKNOWN":
         dep_package.description = summary
 
     home_page = _resolve_metadata_url(
-        pkg_meta["Home-page"] or "", project_urls, _HOMEPAGE_LABELS
+        pkg_meta_get(pkg_meta, "Home-page"), project_urls, _HOMEPAGE_LABELS
     )
     if home_page:
         dep_package.software_homePage = home_page
     download_url = _resolve_metadata_url(
-        pkg_meta["Download-URL"] or "", project_urls, _DOWNLOAD_LABELS
+        pkg_meta_get(pkg_meta, "Download-URL"), project_urls, _DOWNLOAD_LABELS
     )
     if download_url:
         dep_package.software_downloadLocation = download_url
@@ -143,7 +144,9 @@ def _enrich_from_installed(
         dep_package.software_copyrightText = copyright_text
         filled.add("copyright")
 
-    license_id = pkg_meta["License-Expression"] or pkg_meta["License"] or ""
+    license_id = pkg_meta_get(pkg_meta, "License-Expression") or pkg_meta_get(
+        pkg_meta, "License"
+    )
     if _apply_license(
         license_id,
         f"Source: installed metadata | Package: {dep_name}",

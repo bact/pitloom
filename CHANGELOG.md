@@ -21,12 +21,27 @@ and this project adheres to
 
 ## [Unreleased]
 
-## Fixed
+### Added
+
+- Atheris fuzz harnesses for license expression normalization and
+  GGUF model header parsing. See `fuzz/README.md` ([#179])
+- `pytest` now fails on any runtime warning (`filterwarnings = ["error"]`,
+  plus `--strict-markers`/`--strict-config`) instead of printing an
+  ignorable summary line -- OpenSSF Best Practices `warnings_strict` ([#179])
+
+### Fixed
 
 - Test coverage near 100% ([#176], [#177])
+- `normalize_license_expression` no longer raises `IndexError` on an
+  unbalanced `)` (e.g. a lone `")"`) ([#179])
+- Dependency metadata reads (`Summary`, `Home-page`, `Author`, license,
+  etc.) no longer trip a `DeprecationWarning` on Python 3.14 ([#179])
+- Bump `licenseid` floor to `>=0.3.7`, fixing an upstream sqlite3
+  connection leak ([#179])
 
 [#176]: https://github.com/bact/pitloom/pull/176
 [#177]: https://github.com/bact/pitloom/pull/177
+[#179]: https://github.com/bact/pitloom/pull/179
 
 ## [0.16.2] - 2026-08-19
 
