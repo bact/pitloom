@@ -1,225 +1,45 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for registry unification and hash-fallback unification in fragment merging.
+
+See also:
+- :mod:`tests.core.test_fragments_models_datasets` for AI model, dataset,
+  and training runs.
+"""
+
 # ruff: noqa: F403, F405
 from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
 from pitloom.assemble import generate_project_sbom
-from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.assemble.spdx3.fragments import (
+    _add_fragment_imports,
+    _add_model_sbom,
+    _find_fragment_document_id,
+    merge_fragments,
+)
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
 
 from .conftest import (
-    _AI_MODEL_FRAGMENT,
-    _DATASET_FRAGMENT,
-    _TRAINING_RUN_FRAGMENT,
     _by_type,
-    _entries,
     _fixed_creation,
-    _hyperparams,
     _make_unify_project,
-    _merge_and_parse,
-    _metrics,
     _relationships,
-    _resolve,
     _run_unify_pipeline,
 )
-
-
-class TestAiModelFragment:
-    def test_ai_package_present(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        ai_pkgs = _by_type(graph, "ai_AIPackage")
-        assert len(ai_pkgs) == 1, "Expected exactly one ai_AIPackage in merged output"
-
-    def test_name_and_version_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        assert pkg["name"] == "resnet-tiny-classifier"
-        assert pkg["software_packageVersion"] == "1.0.0"
-
-    def test_type_of_model_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        type_of_model = pkg.get("ai_typeOfModel", [])
-        assert "classification" in type_of_model
-        assert "convolutional" in type_of_model
-
-    def test_hyperparameters_all_preserved(self) -> None:
-        graph, index = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        hp = _hyperparams(pkg, index)
-        assert hp.get("learning_rate") == "0.001"
-        assert hp.get("batch_size") == "32"
-        assert hp.get("epochs") == "50"
-        assert len(hp) == 3, f"Expected 3 hyperparameters, got {len(hp)}: {hp}"
-
-    def test_metrics_all_preserved(self) -> None:
-        graph, index = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        m = _metrics(pkg, index)
-        assert m.get("accuracy") == "0.9234"
-        assert m.get("f1") == "0.9187"
-        assert len(m) == 2, f"Expected 2 metrics, got {len(m)}: {m}"
-
-    def test_domain_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        domain = pkg.get("ai_domain", [])
-        assert "image classification" in domain
-        assert "computer vision" in domain
-
-    def test_autonomy_type_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        assert pkg.get("ai_autonomyType") == "yes"
-
-    def test_energy_consumption_preserved(self) -> None:
-        graph, index = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-
-        # ai_energyConsumption is serialised as a blank-node reference
-        energy = _resolve(pkg.get("ai_energyConsumption"), index)
-        assert isinstance(energy, dict), "ai_energyConsumption was dropped during merge"
-
-        # Training energy entry
-        training = _entries(energy, "ai_trainingEnergyConsumption", index)
-        assert len(training) == 1
-        assert training[0].get("ai_energyQuantity") == "0.5"
-        assert training[0].get("ai_energyUnit") == "kilowattHour"
-
-        # Inference energy entry
-        inference = _entries(energy, "ai_inferenceEnergyConsumption", index)
-        assert len(inference) == 1
-        assert inference[0].get("ai_energyQuantity") == "0.001"
-
-    def test_sensitive_personal_info_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        assert pkg.get("ai_useSensitivePersonalInformation") == "no"
-
-    def test_description_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        assert "image classification" in pkg.get("description", "")
-
-    def test_primary_purpose_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_AI_MODEL_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        assert pkg.get("software_primaryPurpose") == "model"
-
-
-class TestDatasetFragment:
-    def test_dataset_package_present(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        ds_pkgs = _by_type(graph, "dataset_DatasetPackage")
-        assert len(ds_pkgs) == 1, "Expected exactly one dataset_DatasetPackage"
-
-    def test_name_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        pkg = _by_type(graph, "dataset_DatasetPackage")[0]
-        assert pkg["name"] == "tiny-image-dataset"
-
-    def test_dataset_type_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        pkg = _by_type(graph, "dataset_DatasetPackage")[0]
-        assert pkg.get("dataset_datasetType") == ["image"]
-
-    def test_dataset_size_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        pkg = _by_type(graph, "dataset_DatasetPackage")[0]
-        assert pkg.get("dataset_datasetSize") == 50000
-
-    def test_dataset_availability_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        pkg = _by_type(graph, "dataset_DatasetPackage")[0]
-        assert pkg.get("dataset_datasetAvailability") == "directDownload"
-
-    def test_description_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        pkg = _by_type(graph, "dataset_DatasetPackage")[0]
-        assert "image dataset" in pkg.get("description", "")
-
-    def test_download_location_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_DATASET_FRAGMENT)
-        pkg = _by_type(graph, "dataset_DatasetPackage")[0]
-        assert "example.org/datasets/tiny-image" in pkg.get(
-            "software_downloadLocation", ""
-        )
-
-
-class TestTrainingRunFragment:
-    def test_ai_package_present(self) -> None:
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        ai_pkgs = _by_type(graph, "ai_AIPackage")
-        assert len(ai_pkgs) == 1
-
-    def test_two_dataset_packages_present(self) -> None:
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        ds_pkgs = _by_type(graph, "dataset_DatasetPackage")
-        assert len(ds_pkgs) == 2, f"Expected 2 datasets, got {len(ds_pkgs)}"
-
-    def test_dataset_names_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        names = {e["name"] for e in _by_type(graph, "dataset_DatasetPackage")}
-        assert "tabular-train-dataset" in names
-        assert "tabular-test-dataset" in names
-
-    def test_trained_on_relationship_present(self) -> None:
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        rels = _relationships(graph)
-        trained_on = [r for r in rels if r.get("relationshipType") == "trainedOn"]
-        assert len(trained_on) == 1, "trainedOn relationship was dropped during merge"
-
-    def test_tested_on_relationship_present(self) -> None:
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        rels = _relationships(graph)
-        tested_on = [r for r in rels if r.get("relationshipType") == "testedOn"]
-        assert len(tested_on) == 1, "testedOn relationship was dropped during merge"
-
-    def test_trained_on_provenance_links_correct(self) -> None:
-        """trainedOn must point from the AI model to the training dataset."""
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        rels = _relationships(graph)
-        trained_on = next(r for r in rels if r.get("relationshipType") == "trainedOn")
-        assert "linear-regressor-01" in trained_on["from"]
-        assert any("tabular-train-01" in t for t in trained_on["to"])
-
-    def test_tested_on_provenance_links_correct(self) -> None:
-        """testedOn must point from the AI model to the test dataset."""
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        rels = _relationships(graph)
-        tested_on = next(r for r in rels if r.get("relationshipType") == "testedOn")
-        assert "linear-regressor-01" in tested_on["from"]
-        assert any("tabular-test-01" in t for t in tested_on["to"])
-
-    def test_ai_hyperparameters_preserved(self) -> None:
-        graph, index = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        hp = _hyperparams(pkg, index)
-        assert hp.get("lr") == "0.01"
-        assert hp.get("momentum") == "0.9"
-
-    def test_ai_metrics_preserved(self) -> None:
-        graph, index = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        pkg = _by_type(graph, "ai_AIPackage")[0]
-        m = _metrics(pkg, index)
-        assert m.get("val_loss") == "0.0423"
-        assert m.get("val_accuracy") == "0.9876"
-
-    def test_dataset_sizes_preserved(self) -> None:
-        graph, _ = _merge_and_parse(_TRAINING_RUN_FRAGMENT)
-        sizes = {
-            e["name"]: e.get("dataset_datasetSize")
-            for e in _by_type(graph, "dataset_DatasetPackage")
-        }
-        assert sizes["tabular-train-dataset"] == 10000
-        assert sizes["tabular-test-dataset"] == 2000
 
 
 class TestRegistryUnification:
@@ -396,7 +216,6 @@ class TestHashFallbackUnification:
             if d["name"] == "data/train.txt"
         ]
         assert len(datasets) == 1
-        # The trainedOn edge from fragment 2 must point at the surviving id.
         rels = _relationships(graph)
         trained = [r for r in rels if r["relationshipType"] == "trainedOn"]
         assert trained and trained[0]["to"] == [datasets[0]["spdxId"]]
@@ -419,3 +238,73 @@ class TestHashFallbackUnification:
         ]
         assert len(datasets) == 2
         assert any("two different SHA-256" in r.message for r in caplog.records)
+
+
+def _make_ci() -> spdx3.CreationInfo:
+    return spdx3.CreationInfo(
+        specVersion="3.0.1",
+        created=datetime.fromtimestamp(1_700_000_000, tz=timezone.utc),
+        createdBy=["http://spdx.org/spdxdocs/actor"],
+    )
+
+
+class TestFragmentMergeUnitBranches:
+    """Direct unit coverage for a few loop-continuation / early-return
+    branches in fragment merging that the integration-style tests above
+    don't reach."""
+
+    def test_find_fragment_document_id_skips_doc_without_spdx_id(self) -> None:
+        """A real ``SpdxDocument`` with no ``spdxId`` is skipped (the loop
+        continues, rather than returning) and the function falls through
+        to ``None``.
+
+        A single-element set (rather than two) avoids relying on set
+        iteration order to reach this branch deterministically."""
+        ci = _make_ci()
+        doc_without_id = spdx3.SpdxDocument(creationInfo=ci, name="no-id-doc")
+        frag_set = spdx3.SHACLObjectSet()
+        frag_set.objects = {doc_without_id}
+        assert _find_fragment_document_id(frag_set) is None
+
+    def test_add_fragment_imports_skips_non_map_non_str_entries(self) -> None:
+        """An existing ``import_`` entry that is neither an ``ExternalMap``
+        with an id nor a ``str`` is ignored when collecting existing ids
+        -- it must not raise, and the new import is still appended."""
+        ci = _make_ci()
+        main_doc = spdx3.SpdxDocument(
+            spdxId="http://spdx.org/spdxdocs/doc",
+            creationInfo=ci,
+            name="doc",
+        )
+        # An ExternalMap with no externalSpdxId matches neither branch.
+        main_doc.import_ = [spdx3.ExternalMap(locationHint="no-id.json")]
+        new_imports = [
+            spdx3.ExternalMap(
+                externalSpdxId="http://spdx.org/spdxdocs/frag-1",
+                locationHint="frag1.json",
+            )
+        ]
+        _add_fragment_imports(main_doc, new_imports)
+        assert len(main_doc.import_) == 2
+
+    def test_add_model_sbom_no_namespace_returns_early(self) -> None:
+        """An ``ai_AIPackage`` is present but the main document has no
+        ``spdxId`` -- ``_add_model_sbom`` must bail out without minting a
+        second ``software_Sbom``."""
+        ci = _make_ci()
+        exporter = Spdx3JsonExporter()
+        ai_pkg = spdx3.ai_AIPackage(
+            spdxId="http://spdx.org/spdxdocs/ai-pkg",
+            creationInfo=ci,
+            name="model",
+        )
+        exporter.add_package(ai_pkg)
+        main_doc = spdx3.SpdxDocument(creationInfo=ci, name="doc")
+        main_doc.rootElement = ["http://spdx.org/spdxdocs/sbom-1"]
+
+        _add_model_sbom(main_doc, exporter)
+
+        sboms = [
+            o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Sbom)
+        ]
+        assert not sboms

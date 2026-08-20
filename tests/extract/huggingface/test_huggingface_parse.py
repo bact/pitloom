@@ -1,6 +1,8 @@
 # ruff: noqa: F403, F405
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from pitloom.extract._huggingface import (
@@ -55,3 +57,14 @@ def test_parse_hf_model_id_valid(source: str, expected_id: str) -> None:
 )
 def test_parse_hf_model_id_invalid(source: str) -> None:
     assert parse_hf_model_id(source) is None
+
+
+def test_parse_hf_model_id_owner_name_shape_with_local_dir_is_not_hf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A string that has the ``owner/name`` shape is rejected when a local
+    directory of that relative path actually exists -- it's treated as a
+    relative project path, not a Hugging Face model ID."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "models" / "my-model").mkdir(parents=True)
+    assert parse_hf_model_id("models/my-model") is None

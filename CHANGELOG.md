@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-15
+Last-Modified: 2026-08-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,9 +17,69 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2>
 
 ## [Unreleased]
+
+## Fixed
+
+- Test coverage near 100% ([#176])
+
+[#176]: https://github.com/bact/pitloom/pull/176
+
+## [0.16.2] - 2026-08-19
+
+### Added
+
+- `loom project`/`loom model`/`loom env`/`loom wheel`/`loom embed-wheel`
+  print `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after writing an SBOM,
+  letting callers (e.g. the GitHub Action) discover the resolved output
+  path without re-deriving the default-naming logic themselves ([#171])
+- The PyPI release workflow attaches the standalone SBOM as a GitHub
+  Release asset, generated via the project's own GitHub Action ([#172],
+  [#174])
+
+### Fixed
+
+- The GitHub Action no longer forces a generic `sbom.spdx3.json` output
+  filename when `output` is left unset; it now defers to `loom`'s own
+  default-naming logic (`packagename-version.spdx3.json`, falling back to
+  `packagename.spdx3.json`, then `sbom.spdx3.json` as a last resort) ([#171])
+- `loom embed-wheel`'s Build SBOM now includes content-type and
+  file-header data for each file (previously silently dropped even with
+  `--content-type`/`--extract-file-header` enabled), while still
+  preserving the wheel's own file records -- hashes of the actually-built
+  wheel's bytes, `.dist-info/*` entries, and any build-hook-injected files
+  that a project-directory rescan alone can't see ([#172], [#174])
+- `loom embed-wheel`'s Merkle root (asserted as the main package's
+  `verifiedUsing` hash, and fed into every generated SPDX ID) is now
+  computed from the wheel's own file hashes instead of a project-directory
+  rescan that could diverge from the actually-built wheel ([#172])
+
+[#171]: https://github.com/bact/pitloom/pull/171
+[#172]: https://github.com/bact/pitloom/pull/172
+[#174]: https://github.com/bact/pitloom/pull/174
+
+## [0.16.1] - 2026-08-18
+
+### Fixed
+
+- Split an author list packed into a single email's display name
+  (e.g. `"A, B, C" <shared@example.com>`) into individual Persons instead
+  of emitting one combined-name Person; the shared address, when it
+  doesn't belong to any listed name, is kept on its own anonymous Person
+  ([#169])
+
+[#169]: https://github.com/bact/pitloom/pull/169
+
+## [0.16.0] - 2026-08-18
+
+### Added
+
+- Split a string containing a list of authors into discrete agents
+  and generate external refs for a group of authors ("Others") ([#151])
+- Scan the resolved dependency tree for known CVEs with `pip-audit` in CI,
+  blocking on findings ([#165], [#166])
 
 ### Changed
 
@@ -30,14 +90,16 @@ and this project adheres to
   with dynamic `args.func` routing ([#153])
 - Split monolithic test files into domain-scoped folders
   (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
-  ([#153], [#155])
-- Raised fail_under coverage floor to 90% ([#155])
-- Avoid loading full file to memory during AI model (NumPy, PyTorch) and
-  archive (sdist) extraction, reducing peak memory usage by over 97% ([#156])
+  ([#153], [#155], [#161])
+- Raised test coverage to 90% ([#155], [#162], [#164])
+- Avoid loading full file to memory during AI model and sdist extraction,
+  reducing peak memory usage by over 97% ([#156])
 - Centralize SPDX relationship boilerplate across the codebase ([#157])
 - Optimize pytest-xdist parallelization with `loadscope` to prevent
   redundant fixture evaluations ([#158])
 - Optimize test workflow by caching the `licenseid` database ([#159])
+- `loom generate` now requires `-o`/`--output` and fails with a clear
+  error if it's omitted, instead of guessing a filename. ([#160])
 
 ### Fixed
 
@@ -47,8 +109,15 @@ and this project adheres to
   in `setup.cfg`, bringing it to feature parity with `pyproject.toml` ([#152])
 - Enforce strict type-checking across all boolean fields, preventing string
   values from silently evaluating to `True` ([#152])
-- Split a string containing a list of authors into discrete agents
-  and generate external refs for a group of authors ("Others") ([#151])
+- Remove `split_main.py` and `src/pitloom/__main__.py.bak`, leftover
+  files from the CLI restructuring ([#153]) that were accidentally
+  committed -- the `.bak` file was shipping inside the built wheel.
+- `loom generate` no longer silently writes a fixed `sbom.spdx3.json`
+  to the current directory when `-o` is omitted. ([#160])
+- Reduce function complexity ([#163])
+- `_fickling_get_top_class` no longer folds an AST-walk failure into the
+  same debug-level "failed to parse" message as an actual pickle-parse
+  failure -- it now logs a distinct warning ([#164])
 
 [#151]: https://github.com/bact/pitloom/pull/151
 [#152]: https://github.com/bact/pitloom/pull/152
@@ -58,6 +127,13 @@ and this project adheres to
 [#157]: https://github.com/bact/pitloom/pull/157
 [#158]: https://github.com/bact/pitloom/pull/158
 [#159]: https://github.com/bact/pitloom/pull/159
+[#160]: https://github.com/bact/pitloom/pull/160
+[#161]: https://github.com/bact/pitloom/pull/161
+[#162]: https://github.com/bact/pitloom/pull/162
+[#163]: https://github.com/bact/pitloom/pull/163
+[#164]: https://github.com/bact/pitloom/pull/164
+[#165]: https://github.com/bact/pitloom/pull/165
+[#166]: https://github.com/bact/pitloom/pull/166
 
 ## [0.15.0] - 2026-08-15
 
@@ -592,6 +668,9 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.16.2]: https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2
+[0.16.1]: https://github.com/bact/pitloom/compare/v0.16.0...v0.16.1
+[0.16.0]: https://github.com/bact/pitloom/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/bact/pitloom/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/bact/pitloom/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/bact/pitloom/compare/v0.13.3...v0.14.0

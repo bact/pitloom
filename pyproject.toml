@@ -5,7 +5,7 @@
 # pitloom is listed here so that isolated builds (pip install pitloom) embed the
 # SBOM via the Hatchling hook.  For CI and local dev, build with --no-isolation
 # so the current checkout is used instead of the PyPI-published version.
-requires = ["hatchling>=1.29.0", "pitloom"]
+requires = ["hatchling>=1.32.0", "pitloom"]
 build-backend = "hatchling.build"
 
 [project]
@@ -54,9 +54,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "auditwheel>=6.7.0; sys_platform == 'linux'",
-    "hatchling>=1.29.0",
-    "licenseid>=0.3.3",
+    "auditwheel>=6.8.1; sys_platform == 'linux'",
+    "hatchling>=1.32.0",
+    "licenseid>=0.3.4",
     "pipdeptree>=4.2.0",
     "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
@@ -109,7 +109,14 @@ documentation = "https://github.com/bact/pitloom#readme"
 issues = "https://github.com/bact/pitloom/issues"
 
 [dependency-groups]
-lint = ["bandit>=1.9.4", "flake8>=7.3.0", "pylint>=4.0.7", "ruff>=0.16.3"]
+lint = [
+    "bandit>=1.9.4",
+    "flake8>=7.3.0",
+    "flake8-cognitive-complexity>=0.1.0",
+    "pip-audit>=2.10.1",
+    "pylint>=4.0.7",
+    "ruff>=0.16.3",
+]
 test = [
     "check-wheel-contents>=0.6.3",
     "installer>=1.0.1",
@@ -216,12 +223,11 @@ module = "yaml.*"
 warn_unused_ignores = false
 module = "pitloom.extract._safetensors"
 
-[[tool.mypy.overrides]]
-warn_unused_ignores = false
-module = "tests.test_extract_huggingface"
-
 [tool.pitloom]
 pretty = true
+
+[tool.pitloom.content-type]
+enabled = true
 
 [[tool.pitloom.creator]]
 name = "Arthit Suriyawongkul"
@@ -234,13 +240,15 @@ init-hook = "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, 'examples
 source-roots = ["src", "examples/sentimentdemo-aibom/src"]
 
 [tool.pylint.design]
-max-args = 8
+max-args = 6                  # Interim ceiling; AGENTS.md target is 5
 max-attributes = 12
-max-branches = 25
-max-locals = 20
-max-positional-arguments = 8
+max-branches = 12             # Tightened from 20; zero current violations across codebase
+max-locals = 18               # Interim ceiling; AGENTS.md target is 15
+max-nested-blocks = 5         # Already at AGENTS.md's target -- pinned explicitly, not relying on pylint's default
+max-positional-arguments = 6  # Track max-args
 max-public-methods = 20
-max-statements = 100
+max-returns = 6                # Already at AGENTS.md's target -- pinned explicitly, not relying on pylint's default
+max-statements = 80           # Tightened from 100; zero current violations, room to tighten further later
 
 [tool.pylint.format]
 max-line-length = 88
@@ -250,7 +258,7 @@ addopts = ["--import-mode=importlib", "-n", "auto", "--dist=loadscope"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
-    "pypi_network: exercises the real PyPI JSON API fallback path (opts out of conftest's default network block)",
+    "pypi_network: exercises a real network path (opts out of conftest's default socket block)",
 ]
 
 [tool.pylint.messages_control]
@@ -312,21 +320,23 @@ line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
-ignore = [
-    "E501", # line too long, handled by formatter
-]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "C90", # mccabe complexity -- see [tool.ruff.lint.mccabe] below
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["pitloom"]
+
+[tool.ruff.lint.mccabe]
+# Ratchet ceiling lowered to 14. AGENTS.md target is 10.
+max-complexity = 14
 
 [tool.coverage.run]
 branch = true
@@ -335,4 +345,4 @@ source = ["pitloom"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 90      # Hard floor minimum threshold; we try to keep it higher
+fail_under = 97      # Hard floor minimum threshold; we try to keep it higher

@@ -342,6 +342,10 @@ conflict, `fragments.py`), so structured override needs the enricher to run in-p
   `tests/test_spdx3_compliance.py` for minimal-mode default (fewer annotations); add a
   `tests/test_fragments.py` case asserting a unification annotation on a hash-merged survivor; add an
   AI-model case asserting P1 `auto` embeds the raw blob for a URL/HF model but not a bundled one.
+  (All of these test files have since moved under `tests/assemble/` or
+  `tests/core/` and split further -- see `cli-test-coverage-roadmap.md`
+  for current paths. Not updated inline above since this section is an
+  archived plan snapshot, not a living reference.)
 
 ## Verification (Phase 1 — historical)
 

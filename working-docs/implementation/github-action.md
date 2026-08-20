@@ -29,7 +29,7 @@ Pass them through `args` (the Action itself has no dedicated multi-creator
 input):
 
 ```yaml
-- uses: bact/pitloom@v0.15.0
+- uses: bact/pitloom@v0.16.2
   with:
     project-path: "."
     output: "sbom.spdx3.json"
@@ -54,7 +54,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: bact/pitloom@v0.15.0
+      - uses: bact/pitloom@v0.16.2
         id: pitloom
         with:
           project-path: "."
@@ -84,7 +84,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - uses: bact/pitloom@v0.15.0
+      - uses: bact/pitloom@v0.16.2
         with:
           project-path: "."
           python-version: ${{ matrix.python-version }}
@@ -110,6 +110,7 @@ Use the same assertions in your own CI if you want a smoke test beyond
 - Every `run:` block uses `set -euo pipefail` and quotes all inputs, so a
   malformed or empty input fails the step rather than silently doing the
   wrong thing.
-- Third-party actions are pinned by major version
-  (`actions/checkout@v7`, `actions/setup-python@v7`,
-  `actions/upload-artifact@v7`).
+- Third-party actions are pinned by full commit SHA, with the resolved
+  version as a trailing comment (`actions/checkout@<sha> # v7.0.1`,
+  `actions/setup-python@<sha> # v7.0.0`), not by a mutable major-version
+  tag.

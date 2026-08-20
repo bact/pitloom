@@ -44,3 +44,7 @@ def main() -> int:
     if hasattr(args, "func"):
         return typing.cast(int, args.func(args))
     return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

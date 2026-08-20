@@ -12,6 +12,7 @@ References:
 
 from __future__ import annotations
 
+import ast
 import logging
 from pathlib import Path
 from typing import IO, Any, BinaryIO, cast
@@ -23,6 +24,16 @@ from pitloom.extract._extract_utils import sanitize_provenance_text
 log = logging.getLogger(__name__)
 
 
+def _dotted_name(node: Any) -> str | None:
+    """Extract dotted identifier from an AST Name or Attribute node."""
+    if isinstance(node, ast.Name):
+        return str(node.id)
+    if isinstance(node, ast.Attribute):
+        parent = _dotted_name(node.value)
+        return f"{parent}.{node.attr}" if parent else str(node.attr)
+    return None
+
+
 def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     """Use fickling to safely extract the top-level class name from a pickle file.
 
@@ -31,9 +42,6 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     cannot be determined.  Never executes the pickle.
     """
     try:
-        # pylint: disable=import-outside-toplevel
-        import ast as pyast
-
         # pylint: disable=import-outside-toplevel
         from fickling.fickle import (
             Pickled,
@@ -48,21 +56,22 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
         log.debug("fickling failed to parse pickle bytes: %s", exc)
         return None
 
-    def _dotted_name(node: Any) -> str | None:
-        if isinstance(node, pyast.Name):
-            return node.id
-        if isinstance(node, pyast.Attribute):
-            parent = _dotted_name(node.value)
-            return f"{parent}.{node.attr}" if parent else node.attr
+    try:
+        for node in ast.walk(pkl.ast):
+            if isinstance(node, ast.Call):
+                name = _dotted_name(node.func)
+                if name:
+                    last = name.rsplit(".", 1)[-1]
+                    if last[:1].isupper():
+                        return name
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        log.warning(
+            "fickling parsed pickle but AST walk failed, type_of_model unavailable: %s",
+            exc,
+        )
         return None
 
-    for node in pyast.walk(pkl.ast):
-        if isinstance(node, pyast.Call):
-            name = _dotted_name(node.func)
-            if name:
-                last = name.rsplit(".", 1)[-1]
-                if last[:1].isupper():
-                    return name
     return None
 
 

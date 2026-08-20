@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,6 +51,17 @@ Spec references:
 
 ## 2. Current state (verified against code, 2026-07-20)
 
+**Historical snapshot.** §2.1-2.4 describe the pre-migration
+`comment`-string state as it stood on 2026-07-20, before this plan's own
+Annotation migration (§5.5) landed and before the later 4-file source
+split (`deps.py`, `document.py`, `_huggingface.py`, `loom.py` each broken
+into a smaller facade plus siblings). Paths/lines have been updated below
+to point at where the equivalent code lives today, but the described
+mechanism (writing directly into `comment`) is itself superseded by the
+Annotation-based `emit_provenance()` calls those locations now contain.
+`_build_provenance_comment` (§2.2 row 1) no longer exists under that
+name.
+
 ### 2.1 Provenance data model
 
 Provenance is a `dict[str, str]` field on each format-neutral metadata object,
@@ -63,8 +74,8 @@ keyed by SBOM field name, value already semi-structured as pipe-delimited
 
 Example values produced by extractors:
 
-- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/pyproject.py:81`](../../../src/pitloom/extract/pyproject.py)
-- `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface.py:453`](../../../src/pitloom/extract/_huggingface.py)
+- `"Source: pyproject.toml | Field: project.name"` — [`src/pitloom/extract/_pyproject.py:83`](../../../src/pitloom/extract/_pyproject.py)
+- `"Source: Hugging Face Hub | Field: model card"` — [`src/pitloom/extract/_huggingface_fields.py:134`](../../../src/pitloom/extract/_huggingface_fields.py)
 - `f"{source} | Field: extra/name"` — [`src/pitloom/extract/_pytorch_pt2.py:132`](../../../src/pitloom/extract/_pytorch_pt2.py)
 
 The pipe/`Key: value` convention is consistent enough to parse. Anything that
@@ -74,12 +85,12 @@ does not fit `Key: value` must be preserved (see parser rules in §5.1).
 
 | Subject element | Location |
 | --- | --- |
-| Main Python package | [`src/pitloom/assemble/spdx3/document.py:45`](../../../src/pitloom/assemble/spdx3/document.py) (`_build_provenance_comment`), applied at `:102` |
+| Main Python package (post-migration: `emit_provenance()` call) | [`src/pitloom/assemble/spdx3/document.py:220`](../../../src/pitloom/assemble/spdx3/document.py) |
 | AI `ai_AIPackage` | [`src/pitloom/assemble/spdx3/ai.py:193`](../../../src/pitloom/assemble/spdx3/ai.py) (`_build_ai_package`) |
 | Dataset package | [`src/pitloom/assemble/spdx3/dataset.py:160`](../../../src/pitloom/assemble/spdx3/dataset.py) |
-| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:211,291,308,346`](../../../src/pitloom/assemble/spdx3/deps.py) |
-| pipdeptree deps | [`src/pitloom/assemble/spdx3/document.py:537,571`](../../../src/pitloom/assemble/spdx3/document.py) |
-| Loom SDK fragments | [`src/pitloom/loom.py:249,307`](../../../src/pitloom/loom.py) |
+| Dependency packages / license text / relationships | [`src/pitloom/assemble/spdx3/deps.py:492,566`](../../../src/pitloom/assemble/spdx3/deps.py), [`deps_license.py:79`](../../../src/pitloom/assemble/spdx3/deps_license.py), [`deps_originator.py:358`](../../../src/pitloom/assemble/spdx3/deps_originator.py) |
+| pipdeptree deps | [`src/pitloom/assemble/spdx3/_document_deployed.py:89,158`](../../../src/pitloom/assemble/spdx3/_document_deployed.py) |
+| Loom SDK fragments | [`src/pitloom/_loom_active_run.py:295,341,367`](../../../src/pitloom/_loom_active_run.py) |
 
 ### 2.3 SPDX Annotation binding (verified)
 
@@ -505,7 +516,9 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 ## 7. Tests
 
-- **New** `tests/test_annotation_provenance.py`:
+- **New** `tests/test_annotation_provenance.py` (since moved and split
+  into `tests/assemble/test_annotation_provenance_core.py`/`_emit.py`/
+  `_annotations.py` -- see `cli-test-coverage-roadmap.md`):
   - `parse_provenance_value` round-trips each real extractor string form
     (`Source: X | Field: Y`, `{source} | Field: extra/name`, note-only, empty).
   - `build_provenance_statement` is deterministic (`sort_keys`), valid JSON,
@@ -513,13 +526,13 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
   - `build_provenance_annotation` returns `None` on empty; sets
     `annotationType=other`, `contentType=application/json`, correct `subject`,
     and a minted `spdxId`.
-- **Update** [`tests/test_provenance.py`](../../../tests/test_provenance.py): keep
+- **Update** [`tests/assemble/test_provenance.py`](../../../tests/assemble/test_provenance.py): keep
   the `dict` provenance assertions (those test extraction, unchanged); add a
   path asserting an Annotation is emitted when `format="annotation"`/`"both"`.
-- **Update** [`tests/test_spdx3_compliance.py`](../../../tests/test_spdx3_compliance.py):
+- **Update** [`tests/assemble/test_spdx3_compliance_shacl.py`](../../../tests/assemble/test_spdx3_compliance_shacl.py):
   assert emitted `Annotation` elements validate (required `subject`,
   `annotationType`, valid `contentType` regex, resolvable `subject` id).
-- **Update** [`tests/test_jcs.py`](../../../tests/test_jcs.py) / any golden-output
+- **Update** [`tests/extract/test_jcs.py`](../../../tests/extract/test_jcs.py) / any golden-output
   test: regenerate goldens under the new default; verify byte-stability across
   two runs.
 - Run the full determinism check (generate twice, diff) using the pyenv
@@ -557,22 +570,22 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 - [x] `provenance.py` module: parser, `ProvenanceEncoder` protocol + registry +
   `resolve_encoder`, `PitloomV1Encoder`, annotation builder — with unit tests
-  ([`tests/test_annotation_provenance.py`](../../../tests/test_annotation_provenance.py)).
+  ([`tests/assemble/test_annotation_provenance_core.py`](../../../tests/assemble/test_annotation_provenance_core.py)).
 - [x] `exporter.add_annotation` and inclusion in graph/SBOM output.
 - [x] `[tool.pitloom.provenance] format` (default `"both"`, validated at
   config-load time) and `schema` (default `"pitloom/1"`, validated at first
   SBOM generation — see §5.4's "as implemented" note) config.
 - [x] All six call sites (§2.2) migrated behind the toggle.
 - [x] Emitted annotations pass SPDX 3 compliance tests
-  ([`tests/test_spdx3_compliance.py::test_spdx3_provenance_annotations_are_compliant`](../../../tests/test_spdx3_compliance.py)).
+  ([`tests/assemble/test_spdx3_compliance_shacl.py::test_spdx3_provenance_annotations_are_compliant`](../../../tests/assemble/test_spdx3_compliance_shacl.py)).
 - [x] Output is byte-stable across two generations (determinism preserved) —
   verified cross-process with a fixed `creation_datetime`, both for
   `generate_project_sbom()` and the `pitloom.loom` SDK path.
 - [x] Existing `test_provenance.py` extraction assertions still pass.
 - [x] A second (stub) encoder can be registered without editing call sites —
   demonstrated by
-  [`test_swapping_encoder_changes_output_without_changing_wiring`](../../../tests/test_annotation_provenance.py)
-  and [`test_build_provenance_annotation_uses_given_encoder`](../../../tests/test_annotation_provenance.py).
+  [`test_swapping_encoder_changes_output_without_changing_wiring`](../../../tests/assemble/test_annotation_provenance_core.py)
+  and [`test_build_provenance_annotation_uses_given_encoder`](../../../tests/assemble/test_annotation_provenance_core.py).
 
 ### Found and fixed during implementation review
 
@@ -603,7 +616,7 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 - `pitloom.loom` always uses `provenance_format = "both"` (hardcoded, not
   config-driven) — it is a standalone SDK invoked from ad hoc scripts, not
   through a `pyproject.toml`-based config; see the comment at
-  `src/pitloom/loom.py`'s `_LOOM_PROVENANCE_FORMAT`.
+  `src/pitloom/loom.py`'s `_LOOM_PROVENANCE_CONFIG`.
 - Demo/example SBOM fixtures under `examples/sentimentdemo-aibom/` were not
   regenerated (no test depends on their exact content; they now simply show
   the pre-Annotation output format).
@@ -872,7 +885,7 @@ method category):
   directly) — see [file-headers.md](../file-headers.md)'s
   "Content-type overrides" section and
   `_emit_file_header_metadata` in
-  [document.py](../../../src/pitloom/assemble/spdx3/document.py).
+  [_document_files.py](../../../src/pitloom/assemble/spdx3/_document_files.py).
 
 **Decision rule:** ask "whose determination is this," never "was the
 data local or remote" and never "was a rule-based algorithm involved
@@ -939,7 +952,7 @@ file's own header, if any) and its role is `declared` by construction —
 nothing to disambiguate, so the concluded-vs-declared classification
 heuristic used at project/dependency level doesn't apply. See
 `build_file_declared_license` in
-[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py) and
+[`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py) and
 [file-headers.md](../file-headers.md) for the full per-file
 extraction design.
 
@@ -954,12 +967,12 @@ with; now the independent scan always runs alongside it.
 
 `resolve_license_concluded` (also in `_license.py`) is the single, shared
 G2 entry point every project-metadata extractor calls — not just
-`pyproject.py`'s `[project]` path. It exists because the four extraction
-paths (CLI's [`pyproject.py`](../../../src/pitloom/extract/pyproject.py)
+`_pyproject.py`'s `[project]` path. It exists because the four extraction
+paths (CLI's [`_pyproject.py`](../../../src/pitloom/extract/_pyproject.py)
 `read_pyproject`, the [`hatchling.py`](../../../src/pitloom/extract/hatchling.py)
 build-hook path, the poetry-only
-[`poetry.py`](../../../src/pitloom/extract/poetry.py) `read_poetry`, and the
-setuptools-only [`setuptools.py`](../../../src/pitloom/extract/setuptools.py)
+[`_poetry.py`](../../../src/pitloom/extract/_poetry.py) `read_poetry`, and the
+setuptools-only [`_setuptools.py`](../../../src/pitloom/extract/_setuptools.py)
 `read_setuptools`) were each written and evolving independently. G2 first
 shipped wired only into the CLI path; a later review found the Hatchling
 build hook called `detect_license_for_project` directly and never ran the
@@ -970,18 +983,20 @@ paths, the same directory-detection fallback when nothing is declared) so
 a future fifth extraction path can't reintroduce the same gap by omission.
 Cross-path regression tests
 (`test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict`
-in `tests/test_hatch_hook.py`,
+in `tests/extract/test_hatch_hook_metadata.py`,
 `test_read_poetry_matches_read_pyproject_fallback_for_license_conflict` in
-`tests/test_poetry.py`) assert the paths agree on the same project. The
+`tests/extract/test_poetry_pyproject.py` -- paths since renamed and moved,
+see `cli-test-coverage-roadmap.md`) assert the paths agree on the same
+project. The
 same review also found the Hatchling and CLI paths each hand-listed their
 own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
-`pyproject.py`, `merge_metadata` in `setuptools.py`); both were replaced
+`_pyproject.py`, `merge_metadata` in `_setuptools.py`); both were replaced
 by [`core/project.py`](../../../src/pitloom/core/project.py)'s
 `merge_project_metadata`, which iterates `dataclasses.fields()` instead of
 naming every field by hand, so a newly added `ProjectMetadata` field
 merges automatically without a call site needing to be updated (see its
 own docstring for the field-drift history that motivated this).
-[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py)
+[`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py)
 `build_license_elements` gained `concluded_license_id`/
 `concluded_license_provenance` params (`None` default — the three other
 call sites, dependency and AI-model licenses, are unaffected, since
@@ -1113,7 +1128,7 @@ An end-to-end integration test exercising N1/N2/N4/N5/N6 together on one
 representative model -- all five native constructs present at once, no
 Annotation duplicating a now-native value, byte-identical output across two
 runs, and round-trip through `spdx-python-model` -- shipped in
-[`tests/test_provenance_integration.py`](../../../tests/test_provenance_integration.py)
+[`tests/assemble/test_provenance_integration.py`](../../../tests/assemble/test_provenance_integration.py)
 (PR [#112](https://github.com/bact/pitloom/pull/112)).
 
 ---

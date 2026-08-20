@@ -1,0 +1,47 @@
+---
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: pip-audit
+
+on:
+  push:
+    paths: &trigger-paths
+      - "pyproject.toml"
+      - ".github/workflows/pip-audit.yml"
+  pull_request:
+    paths: *trigger-paths
+  schedule:
+    # Weekly, Monday 03:41 UTC -- catches newly disclosed CVEs against
+    # unchanged pins, not just dependency edits.
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[ai,content-type]" --group dev
+
+      - name: Run pip-audit
+        # Failed pip-audit = blocking
+        run: pip-audit --progress-spinner=off

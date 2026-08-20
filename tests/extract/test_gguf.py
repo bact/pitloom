@@ -109,6 +109,34 @@ def test_gguf_minimal_fields(tmp_path: Path) -> None:
     assert meta.version is None
 
 
+def test_gguf_no_architecture_no_unresolvable_file_type(tmp_path: Path) -> None:
+    """No 'general.architecture' key at all leaves architecture as None
+    (rather than an empty string), and a 'general.file_type' value that
+    can't be resolved to a quantization name leaves quantization as None
+    without adding quantization provenance."""
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"fake")
+
+    mock_fields = {
+        "general.name": _make_gguf_field("Nameless"),
+        "general.file_type": _make_gguf_field("not_a_number"),
+    }
+
+    mock_reader = MagicMock()
+    mock_reader.fields = mock_fields
+
+    mock_gguf = MagicMock()
+    mock_gguf.GGUFReader.return_value = mock_reader
+
+    with patch.dict("sys.modules", {"gguf": mock_gguf}):
+        meta = read_gguf(model_file)
+
+    assert meta.architecture is None
+    assert "architecture" not in meta.provenance
+    assert meta.quantization is None
+    assert "quantization" not in meta.provenance
+
+
 def test_gguf_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     model_file = tmp_path / "model.gguf"
     model_file.write_bytes(b"corrupt")

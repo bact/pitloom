@@ -5,11 +5,26 @@
 
 """Shared pytest fixtures and configuration."""
 
+import socket
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+class _NetworkBlockedError(RuntimeError):
+    """Raised when a test tries to open a real network socket."""
+
+
+def _blocked_socket(*_args: Any, **_kwargs: Any) -> None:
+    raise _NetworkBlockedError(
+        "Real network access attempted during a test. Mock the network call "
+        "(e.g. patch urllib.request.urlopen / fetch_json), or opt in "
+        "explicitly with @pytest.mark.pypi_network if the test genuinely "
+        "needs a live socket."
+    )
 
 
 @pytest.fixture
@@ -19,23 +34,24 @@ def fixtures_dir() -> Path:
 
 
 @pytest.fixture(autouse=True)
-def _block_pypi_network_lookups(
+def _block_network_access(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Make PyPI JSON API dependency enrichment act as if offline, by default.
+    """Block real outbound sockets during tests, by default.
 
-    ``add_dependencies`` (``pitloom.assemble.spdx3.deps``) makes a real
-    network request per dependency unless ``offline=True`` is threaded all
-    the way from the caller -- which most existing SBOM-generation tests
-    don't do, since that plumbing didn't exist when they were written.
-    Without this, the whole suite would silently start making live network
-    calls, become slow, flaky, and fail offline/CI-sandboxed runs. Tests
-    that specifically exercise the PyPI fallback path opt out via the
+    Several code paths (PyPI JSON API dependency enrichment, remote
+    ``AUTHORS`` file fetches) make real network requests unless the caller
+    threads ``offline=True`` all the way through -- which not every test
+    does, since some of that plumbing didn't exist when the tests were
+    written. Without this guard, a forgotten mock silently turns into a
+    live network call: slow, flaky, and broken in offline/CI-sandboxed
+    runs. Tests that genuinely need a live socket opt out via the
     ``pypi_network`` marker.
     """
     if "pypi_network" in request.keywords:
         return
     monkeypatch.setattr(
-        "pitloom.assemble.spdx3.deps._fetch_pypi_release_info",
+        "pitloom.assemble.spdx3.deps_pypi._fetch_pypi_release_info",
         lambda name, version: None,
     )
+    monkeypatch.setattr(socket, "socket", _blocked_socket)

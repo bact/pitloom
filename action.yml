@@ -32,9 +32,16 @@ inputs:
     required: false
     default: ""
   output:
-    description: "SBOM output file path."
+    description: >-
+      SBOM output file path. Empty (default) lets "loom" apply its own
+      default naming for the resolved mode: project mode uses
+      packagename-version.spdx3.json (falling back to packagename.spdx3.json,
+      then sbom.spdx3.json as a last resort, unless overridden by the
+      project's [tool.pitloom] sbom-basename); model mode names the file
+      after the model's own filename or Hugging Face repo ID; embed-wheel
+      mode reuses the name it embeds into the wheel.
     required: false
-    default: "sbom.spdx3.json"
+    default: ""
   extras:
     description: >-
       Comma-separated pip extras to install alongside Pitloom, e.g. "ai"
@@ -82,7 +89,7 @@ inputs:
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.15.0" or
+      Pitloom version or version specifier to install, e.g. "0.16.2" or
       ">=0.13,<1.0". Empty installs the latest release from PyPI.
     required: false
     default: ""
@@ -134,7 +141,7 @@ runs:
           spec="${spec}[${PL_EXTRAS}]"
         fi
         if [ -n "${PL_VERSION}" ]; then
-          # pitloom-version accepts either a bare version ("0.15.0") or a
+          # pitloom-version accepts either a bare version ("0.16.2") or a
           # full specifier (">=0.13,<1.0"). A leading comparison operator
           # means it is already a specifier; only bare versions need "=="
           # inserted, otherwise "pitloom==>=0.13,<1.0" is invalid.
@@ -199,7 +206,13 @@ runs:
             skip_output=true
           fi
         fi
-        if [ "${skip_output}" = false ]; then
+        # An explicit "output" input always wins. Otherwise leave -o off and
+        # let "loom" apply its own default-naming logic (packagename-version,
+        # falling back to packagename, then "sbom" as a last resort -- see
+        # pitloom.cli.options._resolve_output_path and
+        # pitloom._embed_wheel._derive_wheel_sbom_filename) rather than
+        # forcing a generic "sbom.spdx3.json" here.
+        if [ "${skip_output}" = false ] && [ -n "${PL_OUTPUT}" ]; then
           loom_args+=("-o" "${PL_OUTPUT}")
         fi
 
@@ -238,10 +251,39 @@ runs:
           loom_args+=("${extra_args[@]}")
         fi
 
-        loom "${loom_args[@]}"
+        # Capture stdout (while still echoing it to the log) so a
+        # loom-picked default filename can be recovered below when
+        # "output" was left empty.
+        loom_stdout=$(loom "${loom_args[@]}" | tee /dev/stderr)
 
         if [ "${skip_output}" = false ]; then
-          echo "sbom-path=${PL_OUTPUT}" >> "${GITHUB_OUTPUT}"
+          if [ -n "${PL_OUTPUT}" ]; then
+            sbom_path="${PL_OUTPUT}"
+          elif [ "${is_embed}" = true ]; then
+            # "loom embed-wheel" doesn't write a standalone copy unless -o is
+            # given (only the wheel's embedded copy, named via
+            # _derive_wheel_sbom_filename); extract that copy to disk so the
+            # action can still surface a sbom-path and upload it.
+            embed_wheel_path=$(
+              "${python_bin}" -c 'import glob, sys; print(glob.glob(sys.argv[1])[0])' \
+                "${PL_EMBED_WHEEL}"
+            )
+            arcname=$(
+              printf '%s\n' "${loom_stdout}" \
+                | sed -n 's/^pitloom: embedded \(.*\) into .*$/\1/p' | head -n1
+            )
+            sbom_path=$(basename "${arcname}")
+            "${python_bin}" -c 'import sys, zipfile; wp, an, op = sys.argv[1:4]; zf = zipfile.ZipFile(wp); data = zf.read(an); zf.close(); out = open(op, "wb"); out.write(data); out.close()' \
+              "${embed_wheel_path}" "${arcname}" "${sbom_path}"
+          else
+            # "loom project"/"loom model" print their resolved default path
+            # (see pitloom.cli.commands.utils._print_sbom_output_path).
+            sbom_path=$(
+              printf '%s\n' "${loom_stdout}" \
+                | sed -n 's/^PITLOOM_SBOM_OUTPUT_PATH=//p' | head -n1
+            )
+          fi
+          echo "sbom-path=${sbom_path}" >> "${GITHUB_OUTPUT}"
         fi
 
     - name: Upload SBOM artifact

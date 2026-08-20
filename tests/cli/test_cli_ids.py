@@ -17,7 +17,7 @@ import pytest
 from pitloom import __main__
 from pitloom.cli.ids import (  # type: ignore[attr-defined]
     _load_or_create_registry,
-    _run_ids_cli,
+    _run_ids_command,
 )
 from pitloom.cli.parser import _build_parser
 from pitloom.ids import IdRegistry
@@ -145,9 +145,9 @@ def test_ids_import_fails(
 
 def test_ids_cli_invalid_command() -> None:
     # argparse will normally catch this, but if we bypass it
-    # or test `_run_ids_cli` directly
+    # or test `_run_ids_command` directly
     args = argparse.Namespace(ids_command="invalid")
-    result = _run_ids_cli(args)
+    result = _run_ids_command(args)
     assert result == 1
 
 
@@ -172,7 +172,7 @@ def test_ids_generate_cli_entity_flag(
             "other:dataset_DatasetPackage",
         ]
     )
-    exit_code = _run_ids_cli(args)
+    exit_code = _run_ids_command(args)
     assert exit_code == 0
 
     registry = IdRegistry.load(tmp_path / "loom-ids.json")
@@ -188,3 +188,33 @@ def test_load_or_create_registry_fails(tmp_path: Path) -> None:
     registry_path.write_text("invalid json")
 
     assert _load_or_create_registry(registry_path, "proj") is None
+
+
+def test_main_returns_1_when_parsed_args_have_no_func(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Defensive fallback: if a future parser change ever produced a
+    Namespace with no ``func`` (the live parser's ``required=True``
+    subparsers normally prevent this via SystemExit before main() is
+    reached), main() returns 1 rather than crashing on the missing
+    attribute."""
+
+    class _FakeParser:
+        def parse_args(self) -> argparse.Namespace:
+            return argparse.Namespace()
+
+    monkeypatch.setattr(__main__, "_build_parser", _FakeParser)
+    assert __main__.main() == 1
+
+
+def test_module_entrypoint_exits_with_main_return_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Running ``python -m pitloom`` (the ``if __name__ == "__main__":``
+    guard) calls ``sys.exit(main())``."""
+    import runpy
+
+    monkeypatch.setattr(sys, "argv", ["pitloom", "ids", "generate", "--help"])
+    with pytest.raises(SystemExit) as exc_info:
+        runpy.run_module("pitloom.__main__", run_name="__main__")
+    assert exc_info.value.code == 0

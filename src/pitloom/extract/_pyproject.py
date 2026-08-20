@@ -35,61 +35,36 @@ else:
     import tomli as tomllib
 
 
-def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from a ``pyproject.toml`` file.
+def _read_pyproject_fallback(
+    data: dict[str, Any],
+    pyproject_path: Path,
+    name: str,
+    pitloom_config: PitloomConfig,
+) -> tuple[ProjectMetadata, PitloomConfig]:
+    """Handle fallback when [project] section is absent or missing a name."""
+    poetry_meta = _try_read_poetry(data, pyproject_path.parent)
+    if poetry_meta is not None:
+        return poetry_meta, pitloom_config
+    license_name, license_prov = detect_license_for_project(pyproject_path.parent)
+    prov: dict[str, str] = {}
+    if name:
+        prov["name"] = "Source: pyproject.toml | Field: project.name"
+    if license_prov:
+        prov["license"] = license_prov
+    return (
+        ProjectMetadata(name=name, license_name=license_name, provenance=prov),
+        pitloom_config,
+    )
 
-    Parses the ``[project]`` section via ``pyproject-metadata``, resolves
-    dynamic versions, and reads Pitloom-specific settings from ``[tool.pitloom]``.
-    When ``[project]`` is absent or has no ``name``, falls back to
-    ``[tool.poetry]``.  When both sections are present, ``[project]`` wins
-    field-by-field and ``[tool.poetry]`` fills any gaps.
 
-    Args:
-        pyproject_path: Path to the ``pyproject.toml`` file.
-
-    Returns:
-        A 2-tuple of:
-
-        * :class:`~pitloom.core.project.ProjectMetadata` -- populated project
-          metadata.
-        * :class:`~pitloom.core.config.PitloomConfig` -- settings from
-          ``[tool.pitloom]`` (all fields default gracefully when the section is
-          absent).
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If ``pyproject-metadata`` cannot parse the ``[project]`` section.
-    """
-    if not pyproject_path.exists():
-        raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
-
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
-
-    project_data: dict[str, Any] = data.get("project", {})
-    pitloom_config = parse_pitloom_config(data)
-
-    name: str = (project_data.get("name") or "").strip()
-
-    if not project_data or not name:
-        # No [project] section (or no name) -- try [tool.poetry] as primary source.
-        poetry_meta = _try_read_poetry(data, pyproject_path.parent)
-        if poetry_meta is not None:
-            return poetry_meta, pitloom_config
-        license_name, license_prov = detect_license_for_project(pyproject_path.parent)
-        prov: dict[str, str] = {}
-        if name:
-            prov["name"] = "Source: pyproject.toml | Field: project.name"
-        if license_prov:
-            prov["license"] = license_prov
-        return (
-            ProjectMetadata(name=name, license_name=license_name, provenance=prov),
-            pitloom_config,
-        )
-
-    dynamic_fields: list[str] = list(project_data.get("dynamic", []))
+def _prepare_dynamic_version(
+    data: dict[str, Any],
+    project_data: dict[str, Any],
+    pyproject_path: Path,
+) -> tuple[dict[str, Any], list[str], str | None]:
+    """Resolve dynamic version in project metadata if declared."""
+    dynamic_fields = list(project_data.get("dynamic", []))
     version_source: str | None = None
-
     if "version" in dynamic_fields:
         version, version_source = _extract_dynamic_version(pyproject_path.parent, data)
         if version:
@@ -102,7 +77,32 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
                 },
             }
             dynamic_fields = [f for f in dynamic_fields if f != "version"]
+    return data, dynamic_fields, version_source
 
+
+# pylint: disable-next=too-many-locals
+def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
+    """Read project metadata from a ``pyproject.toml`` file.
+
+    Parses the ``[project]`` section via ``pyproject-metadata``, resolves
+    dynamic versions, and reads Pitloom-specific settings from ``[tool.pitloom]``.
+    """
+    if not pyproject_path.exists():
+        raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
+
+    with open(pyproject_path, "rb") as f:
+        data: dict[str, Any] = tomllib.load(f)
+
+    project_data: dict[str, Any] = data.get("project", {})
+    pitloom_config = parse_pitloom_config(data)
+
+    name: str = (project_data.get("name") or "").strip()
+    if not project_data or not name:
+        return _read_pyproject_fallback(data, pyproject_path, name, pitloom_config)
+
+    data, dynamic_fields, version_source = _prepare_dynamic_version(
+        data, project_data, pyproject_path
+    )
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
 
     try:

@@ -69,8 +69,11 @@ creation-comment = "configured in pyproject"
         captured["describe_relationship"] = describe_relationship
         return "{}"
 
+    output_path = tmp_path / "out.spdx3.json"
     monkeypatch.setattr(mod_generate, "generate", _fake_generate)
-    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir)])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "generate", str(project_dir), "-o", str(output_path)]
+    )
 
     exit_code = __main__.main()
 
@@ -101,8 +104,11 @@ def test_generate_command_default_file_headers_and_content_type_are_none(
         captured["content_type_method"] = kwargs.get("content_type_method")
         return "{}"
 
+    output_path = tmp_path / "out.spdx3.json"
     monkeypatch.setattr(mod_generate, "generate", _fake_generate)
-    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir)])
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "generate", str(project_dir), "-o", str(output_path)]
+    )
 
     assert __main__.main() == 0
     assert captured["extract_file_header"] is None
@@ -138,8 +144,13 @@ def test_generate_command_file_headers_content_type_flags_passed_through(
         captured["content_type"] = kwargs.get("content_type")
         return "{}"
 
+    output_path = tmp_path / "out.spdx3.json"
     monkeypatch.setattr(mod_generate, "generate", _fake_generate)
-    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir), flag])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "generate", str(project_dir), flag, "-o", str(output_path)],
+    )
 
     assert __main__.main() == 0
     assert captured[kwarg] is expected
@@ -158,15 +169,51 @@ def test_generate_command_content_type_method_flag_passed_through(
         captured["content_type_method"] = kwargs.get("content_type_method")
         return "{}"
 
+    output_path = tmp_path / "out.spdx3.json"
     monkeypatch.setattr(mod_generate, "generate", _fake_generate)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "generate", str(project_dir), "--content-type-method", "magika"],
+        [
+            "loom",
+            "generate",
+            str(project_dir),
+            "--content-type-method",
+            "magika",
+            "-o",
+            str(output_path),
+        ],
     )
 
     assert __main__.main() == 0
     assert captured["content_type_method"] == "magika"
+
+
+def test_generate_command_requires_output_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Without ``-o``, ``loom generate`` must fail loudly and write
+    nothing -- no default filename is guessed (regression: an earlier
+    version silently wrote a hardcoded ``sbom.spdx3.json`` to whatever
+    the process cwd happened to be, overwriting anything already
+    there)."""
+    project_dir = _make_simple_project(tmp_path)
+    other_dir = tmp_path / "workdir"
+    other_dir.mkdir()
+    monkeypatch.chdir(other_dir)
+
+    def _fake_generate(target: object, **kwargs: object) -> str:
+        _ = (target, kwargs)
+        raise AssertionError("generate() must not run without -o")
+
+    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(sys, "argv", ["loom", "generate", str(project_dir)])
+
+    assert __main__.main() == 1
+    assert "ERROR:" in capsys.readouterr().err
+    assert list(other_dir.iterdir()) == []
 
 
 def test_deployed_dispatches_to_generate_env_sbom(

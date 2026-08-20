@@ -18,6 +18,17 @@ from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
 
+def _write_merge_output(sbom_json: str, output_path: Path) -> None:
+    """Write merged SBOM output to stdout or file. Appends a newline to
+    stdout output only when the JSON doesn't already end with one."""
+    if str(output_path) == "-":
+        sys.stdout.write(sbom_json)
+        if not sbom_json.endswith("\n"):
+            sys.stdout.write("\n")
+    else:
+        output_path.write_text(sbom_json, encoding="utf-8")
+
+
 @cli_error_handler("fragment merge failed")
 def _run_merge_command(args: argparse.Namespace) -> int:
     """Merge dynamic execution fragments into a combined SBOM."""
@@ -46,12 +57,8 @@ def _run_merge_command(args: argparse.Namespace) -> int:
 
     sbom_json = exporter.to_json(pretty=bool(args.pretty))
     output_path: Path = args.output
-    if str(output_path) == "-":
-        sys.stdout.write(sbom_json)
-        if not sbom_json.endswith("\n"):
-            sys.stdout.write("\n")
-    else:
-        output_path.write_text(sbom_json, encoding="utf-8")
+    _write_merge_output(sbom_json, output_path)
+    if str(output_path) != "-":
         print(f"pitloom: merged {len(fragment_files)} fragment(s) into {output_path}")
     return 0
 

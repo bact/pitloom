@@ -44,6 +44,7 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
         "modelspec.description": "A latent diffusion model",
         "modelspec.architecture": "stable-diffusion-xl-v1",
         "modelspec.version": "1.0",
+        "modelspec.precision": "fp16",
         "custom_key": "custom_value",
     }
     tensor_keys = ["model.embed_tokens.weight", "model.layers.0.weight"]
@@ -65,6 +66,8 @@ def test_safetensors_basic_extraction(tmp_path: Path) -> None:
     assert meta.description == "A latent diffusion model"
     assert meta.version == "1.0"
     assert meta.architecture == "stable-diffusion-xl-v1"
+    assert meta.quantization == "fp16"
+    assert "quantization" in meta.provenance
     assert meta.properties["custom_key"] == "custom_value"
     assert len(meta.inputs) == 2
     assert meta.inputs[0]["name"] == "model.embed_tokens.weight"
@@ -234,7 +237,7 @@ def test_phi_format_property(phi_metadata: AiModelMetadata) -> None:
 
 
 def test_phi_tensor_count(phi_metadata: AiModelMetadata) -> None:
-    # 2-layer Phi model: embeddings + 2 × attention blocks + head
+    # 2-layer Phi model: embeddings + 2 x attention blocks + head
     assert len(phi_metadata.inputs) == 33
 
 

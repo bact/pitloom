@@ -5,14 +5,9 @@
 
 """Build SPDX 3 Core/Annotation elements recording metadata provenance.
 
-Provenance answers "where did Pitloom collect this field from". The *who/when*
-(pitloom Agent + Tool + timestamp) is carried by the Annotation's own
-``creationInfo``. The *what/where* (per-field source) is carried by the
-``statement``, whose shape and ``contentType`` are decided by a pluggable
-:class:`ProvenanceEncoder` selected by schema id -- so an external AI-model
-provenance schema can be adopted later without touching call sites.
-
-See ``working-docs/implementation/annotation-provenance.md`` for the design.
+See Also:
+    :mod:`pitloom.assemble.spdx3._provenance_encoders` for schema encoders
+    and value parsing.
 """
 
 from __future__ import annotations
@@ -20,23 +15,25 @@ from __future__ import annotations
 import base64
 import json
 import math
-from typing import Any, Protocol, TypedDict
+from typing import Any, TypedDict
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._provenance_encoders import (
+    _KEY_MAP,
+    DEFAULT_SCHEMA_ID,
+    TRANSPARENT_SOURCES,
+    VALID_PROVENANCE_DETAIL,
+    VALID_PROVENANCE_FORMATS,
+    PitloomV1Encoder,
+    ProvenanceEncoder,
+    filter_high_signal,
+    parse_provenance_value,
+    resolve_encoder,
+)
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-
-#: Segment-key normalization for the ``"Key: value | Key: value"`` strings
-#: produced by extractors (e.g. ``"Source: pyproject.toml | Field: project.name"``).
-_KEY_MAP = {
-    "source": "source",
-    "field": "location",
-    "method": "method",
-    "package": "package",
-    "role": "role",
-}
 
 #: Statement-schema URL for a fragment-unification process Annotation (A1).
 UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
@@ -47,228 +44,39 @@ ARTIFACT_METADATA_SCHEMA_URL = "https://pitloom.dev/provenance/artifact-metadata
 #: Statement-schema URL for a multi-source field-value disagreement (G2).
 CONFLICT_SCHEMA_URL = "https://pitloom.dev/provenance/conflict/1"
 
-#: Statement-schema URL for an enrichment run's field changes (E1/E2, N3's
-#: Annotation residual).
+#: Statement-schema URL for an enrichment run's field changes (E1/E2).
 ENRICHMENT_SCHEMA_URL = "https://pitloom.dev/provenance/enrichment/1"
 
-#: Transparent, re-readable manifest sources. A field read verbatim from one of
-#: these (no extraction ``method``) is *low* signal in minimal mode: its value
-#: is already the native SPDX field and the source is trivially re-derivable by
-#: the consumer. Anything else -- an inference, a scan (pipdeptree), a binary
-#: artifact's internal key, a synthesized package -- is kept.
-TRANSPARENT_SOURCES: frozenset[str] = frozenset(
-    {
-        "pyproject.toml",
-        "hatchling build backend",  # same pyproject.toml data via the build hook
-        "setup.cfg",
-        "setup.py",
-        "wheel metadata",
-        "hugging face hub",
-    }
-)
-
-#: Valid ``provenance_detail`` values for :func:`emit_provenance`. Mirrored
-#: (not imported) in :mod:`pitloom.core.config`.
-VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
-
-
-def parse_provenance_value(value: str) -> dict[str, str]:
-    """Parse ``"Source: X | Field: Y"`` into a structured dict.
-
-    Segments without a ``:`` and segments with unrecognized keys are
-    preserved (unrecognized keys pass through lower-cased) so that no
-    information is silently dropped. Shared by any encoder that wants the
-    pre-parsed form; encoders are free to consume the raw string instead.
-    """
-    parsed: dict[str, str] = {}
-    notes: list[str] = []
-    for raw in value.split("|"):
-        segment = raw.strip()
-        if not segment:
-            continue
-        key, sep, val = segment.partition(":")
-        if sep:
-            norm = _KEY_MAP.get(key.strip().lower(), key.strip().lower())
-            parsed[norm] = val.strip()
-        else:
-            notes.append(segment)
-    if notes:
-        parsed.setdefault("note", " | ".join(notes))
-    return parsed
-
-
-def _is_high_signal(entry: dict[str, str]) -> bool:
-    """Return whether a parsed field-provenance *entry* carries signal beyond
-    the native SPDX value (the "minimal" detail boundary).
-
-    Low-signal (dropped) only when the value was read *verbatim* from a
-    transparent, re-readable manifest (:data:`TRANSPARENT_SOURCES`) with no
-    extraction ``method`` -- e.g. ``name`` from ``project.name``, whose value
-    is already the native ``Element.name`` and whose source the consumer can
-    trivially re-read. Everything else is high-signal and kept:
-
-    - any recorded ``method`` (inferred/detected/dynamic/caller/directive/
-      inference) -- the native value can't convey it wasn't a plain read (G1);
-    - a non-manifest ``source`` -- a scan (pipdeptree), a binary artifact's
-      internal key (G4), a synthesized/phantom package, an enrichment;
-    - the raw PEP 508 ``declared_constraint`` (parsed as a note, no manifest
-      source), which has no native home (G3).
-    """
-    if entry.get("method"):
-        return True
-    source = entry.get("source", "").strip().lower()
-    if " (" in source:
-        source = source.split(" (", 1)[0].strip()
-    return not source or source not in TRANSPARENT_SOURCES
-
-
-def filter_high_signal(provenance: dict[str, str]) -> dict[str, str]:
-    """Return the subset of *provenance* whose entries are high-signal.
-
-    Used for ``detail == "minimal"``: drops trivial per-field source strings
-    that merely restate where a natively-stored value was read from, keeping
-    only those that add something the native value cannot convey. See
-    :func:`_is_high_signal`.
-    """
-    return {
-        field: src
-        for field, src in provenance.items()
-        if _is_high_signal(parse_provenance_value(src))
-    }
-
-
-# pylint: disable=too-few-public-methods
-class ProvenanceEncoder(Protocol):
-    """Turns Pitloom's ``field -> source string`` map into an SPDX statement."""
-
-    schema_id: str
-    """Short id used in config/registry lookup, e.g. ``"pitloom/1"``."""
-
-    content_type: str
-    """Value for ``Annotation.contentType`` (must match ``^[^/]+/[^/]+$``)."""
-
-    def encode(self, provenance: dict[str, str]) -> str:
-        """Return the serialized ``Annotation.statement`` body."""
-        raise NotImplementedError
-
-
-# pylint: disable=too-few-public-methods
-class PitloomV1Encoder:
-    """Pitloom's own simple JSON schema (the default)."""
-
-    schema_id = "pitloom/1"
-    schema_url = "https://pitloom.dev/provenance/fields/1"
-    content_type = "application/json"
-
-    def encode(self, provenance: dict[str, str]) -> str:
-        fields = {
-            field: parse_provenance_value(src) for field, src in provenance.items()
-        }
-        envelope = {"schema": self.schema_url, "kind": "fields", "fields": fields}
-        # sort_keys keeps output byte-stable for reproducible builds.
-        return json.dumps(envelope, ensure_ascii=False, sort_keys=True)
-
-
-#: Registry of available encoders, keyed by ``schema_id``. A future external
-#: schema (see working-docs/implementation/annotation-provenance.md §8)
-#: registers itself here alongside ``pitloom/1`` -- no call site changes.
-#: Known limitation, currently latent only: nothing writes into this dict
-#: after module load today (confirmed by independent review), so there is
-#: no reset-between-generations concern yet -- but if a future external
-#: schema plugin ever *does* register into it at runtime, this dict is
-#: process-lifetime, with no reset mechanism between separate SBOM
-#: generations in the same process (unlike ``_ID_COUNTERS``, which
-#: ``_clear_doc_counters()`` explicitly resets per generation). Add a
-#: reset path if/when a real runtime-registering plugin lands.
-_ENCODERS: dict[str, ProvenanceEncoder] = {
-    PitloomV1Encoder.schema_id: PitloomV1Encoder(),
-}
-
-DEFAULT_SCHEMA_ID = PitloomV1Encoder.schema_id
-
-#: Valid ``provenance_format`` values for :func:`emit_provenance`. Mirrored
-#: (not imported) in :mod:`pitloom.core.config`, which validates the same
-#: set at ``pyproject.toml`` parse time -- ``core`` must not import from
-#: ``assemble``, so the two layers each fail fast independently rather than
-#: sharing one source of truth.
-VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
-
-
-def resolve_encoder(schema_id: str | None = None) -> ProvenanceEncoder:
-    """Return the encoder registered for *schema_id* (default when ``None``).
-
-    An explicit empty string is treated as an (invalid) id, not as "use the
-    default" -- only omitting *schema_id* (``None``) selects the default, so
-    a mistakenly blank ``schema = ""`` in config fails loudly instead of
-    silently resolving to :data:`DEFAULT_SCHEMA_ID`.
-
-    Raises:
-        ValueError: If *schema_id* is not a registered encoder.
-    """
-    key = DEFAULT_SCHEMA_ID if schema_id is None else schema_id
-    try:
-        return _ENCODERS[key]
-    except KeyError:
-        known = ", ".join(sorted(_ENCODERS))
-        raise ValueError(f"Unknown provenance schema {key!r}; known: {known}") from None
-
-
-def build_provenance_annotation(
-    subject_spdx_id: str,
-    provenance: dict[str, str],
-    creation_info: spdx3.CreationInfo,
-    doc_name: str,
-    doc_uuid: str,
-    encoder: ProvenanceEncoder | None = None,
-) -> spdx3.Annotation | None:
-    """Return an Annotation recording where each metadata field came from.
-
-    Returns ``None`` when *provenance* is empty (nothing to record).
-    *encoder* defaults to the configured/registered default schema.
-    """
-    if not provenance:
-        return None
-
-    enc = encoder or resolve_encoder()
-
-    try:
-        return spdx3.Annotation(
-            spdxId=generate_spdx_id("Annotation", doc_name=doc_name, doc_uuid=doc_uuid),
-            creationInfo=creation_info,
-            annotationType=spdx3.AnnotationType.other,
-            contentType=enc.content_type,
-            subject=subject_spdx_id,
-            statement=enc.encode(provenance),
-        )
-    except ValueError as exc:
-        # The library validates contentType (must match ^[^/]+/[^/]+$) at
-        # construction time -- a pluggable encoder with a malformed
-        # content_type would otherwise surface as a bare library ValueError
-        # with no indication of which schema/encoder caused it.
-        raise ValueError(
-            f"Invalid Annotation for provenance schema {enc.schema_id!r} "
-            f"(content_type={enc.content_type!r}): {exc}"
-        ) from exc
+__all__ = [
+    "ARTIFACT_METADATA_SCHEMA_URL",
+    "CONFLICT_SCHEMA_URL",
+    "DEFAULT_SCHEMA_ID",
+    "ENRICHMENT_SCHEMA_URL",
+    "TRANSPARENT_SOURCES",
+    "UNIFICATION_SCHEMA_URL",
+    "VALID_PROVENANCE_DETAIL",
+    "VALID_PROVENANCE_FORMATS",
+    "ConflictCandidate",
+    "EnrichedFieldEntry",
+    "PitloomV1Encoder",
+    "ProvenanceEncoder",
+    "_KEY_MAP",
+    "build_conflict_annotation",
+    "build_enrichment_annotation",
+    "build_provenance_annotation",
+    "build_provenance_comment",
+    "build_source_metadata_annotation",
+    "build_unification_annotation",
+    "emit_provenance",
+    "filter_high_signal",
+    "parse_provenance_value",
+    "resolve_encoder",
+]
 
 
 # pylint: disable=too-many-return-statements
 def _sanitize_for_json(obj: object) -> object:
-    """Recursively normalize preserved raw metadata into deterministic,
-    RFC 8259-valid JSON-safe values before serialization.
-
-    ``json.dumps`` cannot be trusted to do this on its own: a ``float`` is
-    natively serializable, so its ``default=`` hook is never called for one --
-    a NaN/Infinity value (reachable from a malformed binary model's float
-    metadata) would otherwise round-trip straight into the non-standard
-    ``NaN``/``Infinity`` JSON tokens. A ``set`` has no stable iteration order
-    across processes (``PYTHONHASHSEED`` randomization), so leaving it to a
-    generic ``str()`` fallback would break the byte-stable-SBOM guarantee.
-
-    Extractors are expected to normalize numpy/library-native scalar types
-    (e.g. via ``.tolist()``/``.item()``) to plain Python types before they
-    reach ``raw_metadata`` -- see ``_gguf.py``'s ``_field_value`` -- so this
-    function only needs to handle the plain-Python types below.
-    """
+    """Recursively normalize preserved raw metadata into JSON-safe values."""
     if isinstance(obj, float):
         if math.isnan(obj):
             return "NaN"
@@ -282,14 +90,6 @@ def _sanitize_for_json(obj: object) -> object:
     if isinstance(obj, (list, tuple)):
         return [_sanitize_for_json(v) for v in obj]
     if isinstance(obj, (set, frozenset)):
-        # Sanitize each element first, then order by its *canonical JSON
-        # form* -- not by Python's native `<` (the fallback point of the
-        # bug this replaces). `sorted()` on the raw elements can silently
-        # "succeed" without raising TypeError yet still be order-dependent
-        # on input iteration order for types with a non-total `<` (e.g.
-        # frozenset, whose `<` means "is a proper subset of", not a total
-        # order) -- a canonical-string sort key is well-defined for any
-        # JSON-safe value, so it can't hit that trap.
         sanitized = [_sanitize_for_json(v) for v in obj]
         return sorted(sanitized, key=lambda v: json.dumps(v, sort_keys=True))
     return obj
@@ -301,9 +101,7 @@ def _build_json_annotation(
     creation_info: spdx3.CreationInfo,
     annotation_spdx_id: str,
 ) -> spdx3.Annotation:
-    """Build an ``application/json`` Annotation with the given *annotation_spdx_id*
-    whose statement is *statement_obj* serialized byte-stably (``sort_keys``).
-    Shared by the process-level and preservation builders below."""
+    """Build an ``application/json`` Annotation with the given id."""
     return spdx3.Annotation(
         spdxId=annotation_spdx_id,
         creationInfo=creation_info,
@@ -327,24 +125,7 @@ def build_unification_annotation(
     creation_info: spdx3.CreationInfo,
     annotation_spdx_id: str,
 ) -> spdx3.Annotation:
-    """Return an Annotation recording *why* fragment elements were unified into
-    the survivor *subject_spdx_id* (A1).
-
-    SPDX has no native home for this: the merged-away ids vanish from the graph
-    and ``SpdxDocument.imports`` (a Phase-2 native anchor, see the design doc)
-    can only say an element came from a fragment, not the matching *criterion*.
-
-    Args:
-        subject_spdx_id: The surviving element's id.
-        criterion: Which rule matched. The merge currently records only
-            ``"sha256"`` (content equality folds a distinct id); the field is
-            kept general for future criteria.
-        unified_ids: Dropped duplicate ids, distinct from the survivor, that
-            were folded in (non-empty).
-        fragments: Source fragment file paths that contributed.
-        annotation_spdx_id: The Annotation's own id (minted by the caller in the
-            document namespace, since fragment merge runs without a doc UUID).
-    """
+    """Return an Annotation recording why fragment elements were unified (A1)."""
     statement = {
         "schema": UNIFICATION_SCHEMA_URL,
         "kind": "unification",
@@ -364,39 +145,7 @@ class _ConflictCandidateRequired(TypedDict):
 
 
 class ConflictCandidate(_ConflictCandidateRequired, total=False):
-    """One source's reported value for a field under dispute (G2).
-
-    ``role`` is an epistemic-process label -- *whose* determination this is,
-    not which native SPDX slot it maps to (that mapping is a separate,
-    per-field, per-caller decision -- see :func:`build_conflict_annotation`):
-
-    * ``"declared"`` -- the subject's own stated claim, however observed
-      (read locally, or relayed unedited by a third party).
-    * ``"detected"`` -- Pitloom's own deterministic algorithm's
-      determination, whatever the input's origin.
-    * ``"externalReported"`` -- some other party's own determination or
-      opinion, relayed without Pitloom re-deriving it -- and not the
-      subject's own claim either.
-    * ``"inferred"`` -- an AI agent's non-deterministic reasoning/judgment.
-    * ``"sbomAuthorSupplied"`` -- asserted directly by the human operating
-      Pitloom (or an agent on their behalf), regardless of channel: typed
-      in answer to an agent's question in an interactive session, passed
-      as a CLI flag, or set in ``[tool.pitloom]`` config. Not
-      ``"declared"`` (that's the *artifact's* author/vendor, not the
-      SBOM's author); not ``"inferred"`` (nothing was derived -- the value
-      was simply relayed, and Pitloom can no more verify it than a
-      ``"declared"`` value). Only applies when the human states the fact
-      itself -- if they instead point at a source ("look at X", "read Y",
-      "infer it from Z"), the role is whichever of the other four
-      actually matches how the agent obtained the value once it looked
-      there; a pointer is never itself ``"sbomAuthorSupplied"``.
-
-    ``source`` follows the existing ``"Key: Value | Key: Value"`` provenance
-    string convention (:func:`parse_provenance_value`). ``ref`` is the
-    spdxId of a native element this candidate maps to, when one exists (e.g.
-    the license text element for a ``"declared"``/``"detected"`` license
-    candidate) -- omitted when the candidate has no native counterpart.
-    """
+    """One source's reported value for a field under dispute (G2)."""
 
     ref: str
 
@@ -408,28 +157,7 @@ def build_conflict_annotation(
     creation_info: spdx3.CreationInfo,
     annotation_spdx_id: str,
 ) -> spdx3.Annotation:
-    """Return an Annotation recording that multiple sources disagree on
-    *field*'s value for *subject_spdx_id* (G2).
-
-    Generic across fields -- license is the first field this fires for, but
-    the mechanism (several sources reporting different values for the same
-    field) applies to any field; a future field just supplies its own
-    *candidates*. SPDX has no native home for the *disagreement itself*: even
-    when individual candidate values do have a native slot (a license's
-    ``hasDeclaredLicense``/``hasConcludedLicense``), SPDX only ever has two
-    such slots, so a 3rd+ candidate -- and the fact that any of them
-    conflict -- has nowhere native to go regardless of field.
-
-    Only call this when candidates actually disagree; full agreement across
-    all known candidates has nothing extrinsic to assert.
-
-    Args:
-        subject_spdx_id: The element the disputed field belongs to (e.g. the
-            package, for license).
-        field: The field name in dispute (``"license"`` today).
-        candidates: Every known source's reported value, non-empty.
-        annotation_spdx_id: The Annotation's own id.
-    """
+    """Return an Annotation recording multi-source disagreement (G2)."""
     statement = {
         "schema": CONFLICT_SCHEMA_URL,
         "kind": "conflict",
@@ -442,15 +170,7 @@ def build_conflict_annotation(
 
 
 class EnrichedFieldEntry(TypedDict):
-    """One field an enrichment run changed on a single element (E1/E2).
-
-    Mirrors :class:`ConflictCandidate`'s ``role``/``source`` shape exactly
-    -- same vocabulary, same provenance-string convention -- since both
-    describe "who/how a value came to be" for the same kind of consumer.
-    ``before``/``after`` use ``None`` for a newly-created element (nothing
-    to compare against) rather than omitting the key, so every entry has
-    the same shape.
-    """
+    """One field an enrichment run changed on a single element (E1/E2)."""
 
     field: str
     before: Any
@@ -465,23 +185,7 @@ def build_enrichment_annotation(
     creation_info: spdx3.CreationInfo,
     annotation_spdx_id: str,
 ) -> spdx3.Annotation:
-    """Return an Annotation recording what an enrichment run changed on
-    *subject_spdx_id* (E1 override lineage / E2 inferred-vs-not marker).
-
-    N3 (a second ``CreationInfo`` on elements an enrichment run *creates*,
-    see :func:`~pitloom.assemble.spdx3.creation_info.build_enrichment_creation_info`)
-    only covers new elements -- it can't represent a field merely
-    *filled in place* on an already-existing element, since SPDX's
-    ``Element.creationInfo`` is singular per element. This Annotation is
-    where that case's evidence lives instead: which field changed, its
-    before/after value, and the role (``"declared"``/``"detected"``/
-    ``"externalReported"``/``"inferred"``/``"sbomAuthorSupplied"`` -- G2's
-    exact vocabulary, reused rather than inventing a separate one for
-    enrichment).
-
-    Only call this when *changes* is non-empty; a no-op enrichment run has
-    nothing extrinsic to assert.
-    """
+    """Return an Annotation recording what an enrichment run changed."""
     statement = {
         "schema": ENRICHMENT_SCHEMA_URL,
         "kind": "enrichment",
@@ -500,22 +204,7 @@ def build_source_metadata_annotation(
     doc_name: str,
     doc_uuid: str,
 ) -> spdx3.Annotation | None:
-    """Return an Annotation embedding an artifact's verbatim original metadata
-    *metadata* (P1), or ``None`` when there is nothing to preserve.
-
-    Preserves the original as-is (in the model's own key vocabulary) so the SBOM
-    stays a self-contained record when the artifact is not shipped and cannot be
-    re-extracted later. Complements -- never replaces -- the native subset
-    already mapped onto the ``ai_AIPackage``.
-
-    Args:
-        source_format: The artifact's metadata format tag -- the model file
-            format's name (e.g. ``"gguf"``, ``"safetensors"``, ``"onnx"``), or
-            ``"huggingface"`` for a hub-sourced model. Set by the caller (see
-            :func:`~pitloom.assemble.spdx3.ai._source_metadata_blob`).
-        metadata: The complete raw metadata map. Normalized for deterministic,
-            valid JSON before serialization -- see :func:`_sanitize_for_json`.
-    """
+    """Return an Annotation embedding verbatim original metadata (P1)."""
     if not metadata:
         return None
     statement = {
@@ -533,15 +222,42 @@ def build_source_metadata_annotation(
 
 
 def build_provenance_comment(provenance: dict[str, str]) -> str | None:
-    """Return the human-readable ``"Metadata provenance: ..."`` comment form.
-
-    Returns ``None`` when *provenance* is empty.
-    """
+    """Return the human-readable ``"Metadata provenance: ..."`` comment form."""
     if not provenance:
         return None
     return "Metadata provenance: " + "; ".join(
         f"{field}: {source}" for field, source in provenance.items()
     )
+
+
+def build_provenance_annotation(
+    subject_spdx_id: str,
+    provenance: dict[str, str],
+    creation_info: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    encoder: ProvenanceEncoder | None = None,
+) -> spdx3.Annotation | None:
+    """Return an Annotation recording where each metadata field came from."""
+    if not provenance:
+        return None
+
+    enc = encoder or resolve_encoder()
+
+    try:
+        return spdx3.Annotation(
+            spdxId=generate_spdx_id("Annotation", doc_name=doc_name, doc_uuid=doc_uuid),
+            creationInfo=creation_info,
+            annotationType=spdx3.AnnotationType.other,
+            contentType=enc.content_type,
+            subject=subject_spdx_id,
+            statement=enc.encode(provenance),
+        )
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid Annotation for provenance schema {enc.schema_id!r} "
+            f"(content_type={enc.content_type!r}): {exc}"
+        ) from exc
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -556,25 +272,7 @@ def emit_provenance(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
 ) -> None:
-    """Write provenance for *subject* as an Annotation, a ``.comment``, or both.
-
-    Args:
-        subject: The SPDX element the provenance describes. Must already
-            have an ``spdxId`` (added to *exporter* beforehand).
-        provenance: Field -> source-string map (see :func:`parse_provenance_value`).
-        creation_info: Shared ``CreationInfo`` for the new Annotation, when built.
-        doc_name: Document name (project name) for SPDX ID generation.
-        doc_uuid: Document-scoped UUID used in SPDX ID generation.
-        exporter: Receives the new Annotation element, when built.
-        provenance_config: ProvenanceConfig instance (defaults to default
-            ProvenanceConfig()).
-        encoder: Encoder used for the annotation path; defaults to the
-            registered default schema.
-
-    Raises:
-        ValueError: If *provenance_format* or *provenance_detail* is not a valid
-            value. Rejected rather than silently falling through.
-    """
+    """Write provenance for *subject* as an Annotation, a ``.comment``, or both."""
     config = provenance_config or ProvenanceConfig()
     provenance_format = config.format
     provenance_detail = config.detail
@@ -613,22 +311,3 @@ def emit_provenance(
         )
         if annotation is not None:
             exporter.add_annotation(annotation)
-
-
-__all__ = [
-    "ARTIFACT_METADATA_SCHEMA_URL",
-    "DEFAULT_SCHEMA_ID",
-    "UNIFICATION_SCHEMA_URL",
-    "VALID_PROVENANCE_DETAIL",
-    "VALID_PROVENANCE_FORMATS",
-    "PitloomV1Encoder",
-    "ProvenanceEncoder",
-    "build_provenance_annotation",
-    "build_provenance_comment",
-    "build_source_metadata_annotation",
-    "build_unification_annotation",
-    "emit_provenance",
-    "filter_high_signal",
-    "parse_provenance_value",
-    "resolve_encoder",
-]

@@ -16,7 +16,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import (
     generate_model_sbom,
 )
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
 from pitloom.cli.options import (
     _resolve_common_options,
     _resolve_hf_output_path,
@@ -70,6 +70,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
         provenance=pitloom_config.provenance,
         enrich=args.enrich,
     )
+    _print_sbom_output_path(output_path)
     return 0
 
 

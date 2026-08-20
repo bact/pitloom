@@ -105,3 +105,33 @@ def _write_sample_sbom(path: Path) -> dict[str, str]:
         "dep_package_id": f"{namespace}#Package-2",
         "agent_id": f"{namespace}#SoftwareAgent-1",
     }
+
+
+def _write_sample_sbom_without_document(path: Path) -> dict[str, str]:
+    """Write a small SPDX 3 SBOM with no ``SpdxDocument`` element.
+
+    Used to exercise the "no SpdxDocument found while harvesting a fresh
+    registry's namespace" fall-through in :meth:`pitloom.ids.IdRegistry.import_sbom`.
+    """
+    namespace = "https://spdx.org/spdxdocs/sample-nodoc"
+    ci = spdx3.CreationInfo(
+        specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+    agent = spdx3.SoftwareAgent(
+        spdxId=f"{namespace}#SoftwareAgent-1", name="Pitloom", creationInfo=ci
+    )
+    ci.createdBy = [f"{namespace}#SoftwareAgent-1"]
+    model = spdx3.ai_AIPackage(
+        spdxId=f"{namespace}#AIPackage-1", name="nodoc-model", creationInfo=ci
+    )
+
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_agent(agent)
+    exporter.add_package(model)
+    path.write_text(exporter.to_json(), encoding="utf-8")
+
+    return {
+        "namespace": namespace,
+        "model_id": f"{namespace}#AIPackage-1",
+    }

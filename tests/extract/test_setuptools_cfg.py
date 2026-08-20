@@ -1,0 +1,426 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for metadata extraction from setup.cfg.
+
+See also:
+- :mod:`tests.extract.test_setuptools_cfg_config` for [tool:pitloom] config
+  in setup.cfg.
+- :mod:`tests.extract.test_setuptools_py` for setup.py and merge/fixture tests.
+"""
+
+from __future__ import annotations
+
+import logging
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from pitloom.extract._setuptools import detect_build_backend, read_setup_cfg
+
+
+def test_detect_backend_hatchling() -> None:
+    """Detects hatchling backend from pyproject.toml build-backend key."""
+    content = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "hatchling"
+
+
+def test_detect_backend_setuptools_in_pyproject() -> None:
+    """Detects setuptools backend when pyproject.toml declares setuptools.build_meta."""
+    content = """
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mypackage"
+version = "1.0.0"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_backend_no_pyproject_with_setup_cfg() -> None:
+    """Infers setuptools backend when only setup.cfg exists."""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_backend_no_pyproject_with_setup_py() -> None:
+    """Infers setuptools backend when only setup.py exists."""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(
+            'from setuptools import setup\nsetup(name="pkg")\n'
+        )
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_backend_no_config_files() -> None:
+    """Returns None when no build configuration files are present."""
+    with tempfile.TemporaryDirectory() as d:
+        assert detect_build_backend(Path(d)) is None
+
+
+def test_detect_backend_malformed_pyproject_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pyproject.toml that fails to parse is caught, logged, and returns None."""
+    content = "[build-system\nbroken toml"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        with caplog.at_level(logging.DEBUG, logger="pitloom.extract._setuptools"):
+            result = detect_build_backend(Path(d))
+    assert result is None
+    assert any("pyproject.toml" in r.message for r in caplog.records)
+
+
+def test_detect_backend_unknown_backend() -> None:
+    """Returns the raw backend string for unrecognised build backends."""
+    content = """
+[build-system]
+requires = ["meson-python"]
+build-backend = "mesonpy"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "mesonpy"
+
+
+def test_read_setup_cfg_basic() -> None:
+    """Extracts core metadata fields from a minimal setup.cfg."""
+    content = """
+[metadata]
+name = mypackage
+version = 1.2.3
+description = A test package
+author = Alice Smith
+author_email = alice@example.com
+license = MIT
+keywords = foo bar baz
+url = https://example.com
+
+[options]
+python_requires = >=3.9
+install_requires =
+    requests>=2.0
+    click>=8.0
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+
+    assert metadata.name == "mypackage"
+    assert metadata.version == "1.2.3"
+    assert metadata.description == "A test package"
+    assert metadata.license_name == "MIT"
+    assert metadata.requires_python == ">=3.9"
+    assert metadata.authors == [{"name": "Alice Smith", "email": "alice@example.com"}]
+    assert metadata.urls == {"Homepage": "https://example.com"}
+    assert "requests>=2.0" in metadata.dependencies
+    assert "click>=8.0" in metadata.dependencies
+    assert "foo" in metadata.keywords
+    assert "bar" in metadata.keywords
+
+
+def test_read_setup_cfg_keywords_comma_separated() -> None:
+    """Parses comma-separated keywords into a list."""
+    content = "[metadata]\nname = pkg\nversion = 1.0\nkeywords = alpha, beta, gamma\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.keywords == ["alpha", "beta", "gamma"]
+
+
+def test_read_setup_cfg_project_urls() -> None:
+    """Reads project_urls into a dict of label to URL mappings."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+project_urls =
+    Homepage = https://example.com
+    Source = https://github.com/example/pkg
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.urls["Homepage"] == "https://example.com"
+    assert metadata.urls["Source"] == "https://github.com/example/pkg"
+
+
+def test_parse_cfg_urls_skips_blank_key_or_value_lines() -> None:
+    """A ``project_urls`` line with an empty key or empty value is skipped,
+    and scanning continues to subsequent lines."""
+    from pitloom.extract._setuptools_cfg import _parse_cfg_urls
+
+    urls = _parse_cfg_urls(
+        {
+            "project_urls": (
+                "= https://no-key.example.com\n"
+                "NoValue = \n"
+                "Homepage = https://example.com\n"
+            )
+        }
+    )
+    assert urls == {"Homepage": "https://example.com"}
+
+
+def test_read_setup_cfg_missing_file() -> None:
+    """Raises FileNotFoundError when setup.cfg does not exist."""
+    with tempfile.TemporaryDirectory() as d:
+        with pytest.raises(FileNotFoundError):
+            read_setup_cfg(Path(d))
+
+
+def test_read_setup_cfg_missing_name() -> None:
+    """Raises ValueError when [metadata] name is absent."""
+    content = "[metadata]\nversion = 1.0\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        with pytest.raises(ValueError, match="name is required"):
+            read_setup_cfg(Path(d))
+
+
+def test_read_setup_cfg_author_only_name() -> None:
+    """Author entry with name only -- no email key in dict."""
+    content = "[metadata]\nname = pkg\nversion = 1.0\nauthor = Bob\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.authors == [{"name": "Bob"}]
+
+
+def test_read_setup_cfg_author_only_email() -> None:
+    """Author entry with email only -- no name key in dict."""
+    content = "[metadata]\nname = pkg\nversion = 1.0\nauthor_email = bob@example.com\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.authors == [{"email": "bob@example.com"}]
+
+
+def test_read_setup_cfg_version_file_directive() -> None:
+    """Resolves `version = file: VERSION` by reading the VERSION file."""
+    content = "[metadata]\nname = pkg\nversion = file: VERSION\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        (Path(d) / "VERSION").write_text("3.4.5\n")
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.version == "3.4.5"
+    assert "file_directive" in (metadata.provenance.get("version") or "")
+
+
+def test_read_setup_cfg_version_file_directive_missing_file() -> None:
+    """Returns None version when the referenced VERSION file is absent."""
+    content = "[metadata]\nname = pkg\nversion = file: VERSION\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.version is None
+
+
+def test_read_setup_cfg_version_attr_directive() -> None:
+    """Resolves `version = attr: pkg.__version__` via AST in package root."""
+    content = "[metadata]\nname = mypackage\nversion = attr: mypackage.__version__\n"
+    with tempfile.TemporaryDirectory() as d:
+        pkg_dir = Path(d) / "mypackage"
+        pkg_dir.mkdir()
+        (pkg_dir / "__init__.py").write_text('__version__ = "9.8.7"\n')
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.version == "9.8.7"
+    assert "attr_directive" in (metadata.provenance.get("version") or "")
+
+
+def test_read_setup_cfg_version_attr_directive_src_layout() -> None:
+    """Resolves attr directive for a src-layout package."""
+    content = "[metadata]\nname = mypkg\nversion = attr: mypkg.__version__\n"
+    with tempfile.TemporaryDirectory() as d:
+        src_pkg = Path(d) / "src" / "mypkg"
+        src_pkg.mkdir(parents=True)
+        (src_pkg / "__init__.py").write_text('__version__ = "2.0.0"\n')
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.version == "2.0.0"
+
+
+def test_read_setup_cfg_readme_file_directive() -> None:
+    """Reads long_description = file: README.md content into readme field."""
+    content = (
+        "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.md\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        (Path(d) / "README.md").write_text("# My Package\n\nA great package.")
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.readme and "My Package" in metadata.readme
+
+
+def test_read_setup_cfg_readme_file_missing_returns_filename() -> None:
+    """Falls back to the filename hint when the README file is absent."""
+    content = (
+        "[metadata]\nname = pkg\nversion = 1.0\nlong_description = file: README.rst\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.readme == "README.rst"
+
+
+def test_read_setup_cfg_provenance() -> None:
+    """Each extracted field records setup.cfg as its source in provenance."""
+    content = "[metadata]\nname = pkg\nversion = 1.0\nauthor = Alice\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert "setup.cfg" in metadata.provenance.get("name", "")
+    assert "setup.cfg" in metadata.provenance.get("version", "")
+    assert "setup.cfg" in metadata.provenance.get("authors", "")
+    assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
+
+
+def test_resolve_cfg_version_edge_cases(tmp_path: Path) -> None:
+    """_resolve_cfg_version handles empty strings, invalid attrs, and directives."""
+    from pitloom.extract._setuptools_cfg import _resolve_cfg_version
+
+    p = tmp_path
+    assert _resolve_cfg_version("", p) == (None, None)
+    assert _resolve_cfg_version("attr: no_dot_attribute", p) == (None, None)
+    assert _resolve_cfg_version("unknown_directive: val", p) == (
+        "unknown_directive: val",
+        "Source: setup.cfg | Field: metadata.version",
+    )
+
+
+def test_bool_val_unrecognized_string_returns_none() -> None:
+    """_bool_val returns None for values that aren't a recognized boolean
+    spelling."""
+    from pitloom.extract._setuptools_cfg import _bool_val
+
+    assert _bool_val("maybe") is None
+
+
+def test_resolve_cfg_file_directive_non_file_directive_returns_raw(
+    tmp_path: Path,
+) -> None:
+    """A directive-shaped value that isn't ``file:`` (e.g. ``attr:``) is not
+    resolved as a file path -- the raw string is returned unchanged."""
+    from pitloom.extract._setuptools_cfg import _resolve_cfg_file_directive
+
+    result = _resolve_cfg_file_directive("attr: package.__readme__", tmp_path)
+    assert result == "attr: package.__readme__"
+
+
+def test_read_setup_cfg_pitloom_config_sections() -> None:
+    """read_setup_cfg parses [tool:pitloom:content-type:override] and provenance."""
+    content = (
+        "[metadata]\n"
+        "name = full-cfg-pkg\n"
+        "version = 1.0\n\n"
+        "[tool:pitloom:content-type]\n"
+        "enabled = true\n\n"
+        "[tool:pitloom:content-type:override]\n"
+        "*.bin = application/octet-stream\n"
+        "*.onnx = application/x-onnx\n\n"
+        "[tool:pitloom:provenance]\n"
+        "detail = full\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert len(config.content_type.overrides) == 2
+    assert config.provenance.detail == "full"
+
+
+def test_detect_build_backend_custom_backend() -> None:
+    """detect_build_backend returns prefix for unknown custom build backend."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    content = (
+        "[build-system]\n"
+        'requires = ["custom-build"]\n'
+        'build-backend = "my_builder.api"\n'
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "my_builder"
+
+
+def test_detect_build_backend_empty_string() -> None:
+    """detect_build_backend returns None when build-backend is empty string."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    content = '[build-system]\nrequires = ["custom-build"]\nbuild-backend = ""\n'
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) is None
+
+
+def test_resolve_setuptools_license_without_provenance(tmp_path: Path) -> None:
+    """_resolve_setuptools_license handles detected license with None provenance."""
+    from pitloom.core.project import ProjectMetadata
+    from pitloom.extract._setuptools import _resolve_setuptools_license
+
+    meta = ProjectMetadata(name="test-pkg", version="1.0.0")
+    with patch(
+        "pitloom.extract._setuptools.detect_license_for_project",
+        return_value=("MIT", None),
+    ):
+        res = _resolve_setuptools_license(meta, tmp_path)
+        assert res.license_name == "MIT"
+        assert "license" not in res.provenance
+
+
+def test_setuptools_cfg_version_and_attr_edge_cases() -> None:
+    """_resolve_cfg_version handles multiline versions and attr syntax errors."""
+    from pitloom.extract._setuptools_cfg import (
+        _read_version_attr,
+        _resolve_cfg_attr_directive,
+        _resolve_cfg_version,
+    )
+
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d)
+        # Multiline file
+        (p / "VERSION").write_text("1.0.0\n# comment\n")
+        assert _resolve_cfg_version("file: VERSION", p) == (None, None)
+
+        # Python file with syntax error and multi-target assign
+        bad_py = p / "bad.py"
+        bad_py.write_text("a = b = '1.0'\ndef invalid_syntax(")
+        assert _read_version_attr(bad_py, "__version__") is None
+
+        # Existing file without matching attribute
+        clean_py = p / "clean.py"
+        clean_py.write_text("other_var = '2.0.0'\n")
+        assert _resolve_cfg_attr_directive("clean.__version__", p) == (None, None)
+
+
+def test_read_setup_cfg_content_type_without_override() -> None:
+    """read_setup_cfg handles [tool:pitloom:content-type] without override sub-table."""
+    content = (
+        "[metadata]\n"
+        "name = ct-pkg\n"
+        "version = 1.0\n\n"
+        "[tool:pitloom:content-type]\n"
+        "enabled = true\n\n"
+        "[tool:pitloom:creation]\n"
+        "no-creation-tool = true\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.content_type.enabled is True
+    assert len(config.content_type.overrides) == 0

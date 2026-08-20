@@ -84,7 +84,7 @@ def _run_ids_import(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run_ids_cli(args: argparse.Namespace) -> int:
+def _run_ids_command(args: argparse.Namespace) -> int:
     """Dispatch `pitloom ids <command> ...` arguments."""
     if args.ids_command == "generate":
         return _run_ids_generate(args)
@@ -158,4 +158,4 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         help="Registry file to update.",
     )
 
-    ids_parser.set_defaults(func=_run_ids_cli)
+    ids_parser.set_defaults(func=_run_ids_command)

@@ -18,4 +18,4 @@ the stitch step.
 | `training-run-fragment.spdx3.json` | `ai_AIPackage` + 2 `dataset_DatasetPackage` + `trainedOn`/`testedOn` relationships | Tests that provenance relationships from a simulated `loom.run()` output survive |
 
 All fragment fixtures are licensed CC0-1.0.
-Tests that exercise these fixtures live in `tests/test_fragments.py`.
+Tests that exercise these fixtures live in `tests/assemble/test_fragments.py`.

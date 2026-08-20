@@ -66,6 +66,7 @@ Unix philosophy. Consistent, predictable, parseable.
 
 - Pitloom must work seamlessly across Windows, macOS, and Linux.
 - Always use `pathlib.Path` for file resolution and manipulation.
+- `/tmp/` and POSIX-directories are not exist on Windows.
 
 ## Linting and formatting
 
@@ -83,7 +84,12 @@ flake8
 ```
 
 - Avoid ambiguous variable name (E741).
-- Adhere strictly to complexity limits (Returns≤6, Args≤5, Locals≤15, Nesting≤5, McCabe≤10, Cognitive≤15).
+- Complexity targets: Returns≤6, Args≤5, Locals≤15, Nesting≤5, Branches≤20, Statements≤80, McCabe≤10, Cognitive≤15.
+  Enforced ceilings in `pyproject.toml`/`.flake8` are currently interim
+  ratchets above some of these targets (`max-args=6`, `max-locals=18`,
+  McCabe=35, Cognitive=60) -- see
+  `working-docs/design/complexity-and-file-size-roadmap.md` for the
+  backlog that has to shrink before each ceiling can drop to its target.
 - Enforce max line length 88 (prefer 80).
 - Sort all imports alphabetically and logically (enforced by `ruff` / `isort`).
 - Remove unused imports and trailing whitespace.
@@ -110,6 +116,8 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 - **Test suite structure**: Adhere to the same file size limits as source code.
 - **Naming**: `test_<area>.py`, 1:1 with the source module. Disambiguate when two source packages could produce the same tail.
 - **Grouping**: Group tests in same-named subfolders under `tests/` mirroring `src/pitloom/<package>/` when a source package's tests grow to 3+ related files. No `__init__.py` needed in test folders.
+- **No non-deterministic assertions**: Never assert against real wall-clock time (`datetime.now()`, `time.time()`, `date.today()`), unseeded random/UUID values, or set/dict iteration order. Use a fixed/frozen timestamp, mock the random source, or sort before comparing. Elapsed-duration checks (e.g. concurrency regression tests bounding `time.monotonic()` deltas) are a different category and fine with a generous bound.
+- **Don't couple tests to undocumented internals**: A `pytest.raises(match=...)` or log-message assertion should target wording the source documents as intentional (a deliberate user-facing error/warning, a documented format's field/member name), not an incidental internal string that could change during a harmless refactor. Prefer a short, stable substring over the full message. SPDX3 field/type assertions must come from the spec (`spdx_python_model.bindings`), not an undocumented Pitloom-internal layout.
 
 ## Shell scripts
 

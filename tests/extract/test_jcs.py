@@ -103,7 +103,7 @@ def test_compact_output_keys_sorted_at_every_level() -> None:
     lexicographic (Unicode code point) order, including nested objects
     inside @graph elements.
 
-    RFC 8785 §3.2.3 requires members to be sorted by key using UTF-16 code
+    RFC 8785 Section 3.2.3 requires members to be sorted by key using UTF-16 code
     units as unsigned integers.  For the ASCII-only keys used in SPDX 3
     JSON-LD this is equivalent to standard lexicographic ordering.
     """
@@ -120,7 +120,7 @@ def test_compact_output_keys_sorted_at_every_level() -> None:
 def test_compact_output_has_no_extra_whitespace() -> None:
     """Compact output must contain no whitespace outside string values.
 
-    RFC 8785 §3.2 prohibits insignificant whitespace (spaces, newlines,
+    RFC 8785 Section 3.2 prohibits insignificant whitespace (spaces, newlines,
     tabs between tokens).  The round-trip test already covers this
     implicitly; this test makes the constraint explicit and pinpoints which
     character is at fault.
@@ -148,7 +148,7 @@ def test_compact_output_has_no_extra_whitespace() -> None:
 
 
 def test_compact_output_graph_array_order_preserved() -> None:
-    """RFC 8785 §3.2.2 requires that array element order is not changed.
+    """RFC 8785 Section 3.2.2 requires that array element order is not changed.
 
     The @graph array is pre-sorted by _graph_sort_key before rfc8785.dumps()
     is applied.  This test verifies that rfc8785 does not disturb the

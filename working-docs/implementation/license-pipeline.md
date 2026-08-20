@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-05-13
+Last-Modified: 2026-08-17
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,7 +94,7 @@ Spdx3JsonExporter.to_json()
 
 ### Python project sources
 
-`src/pitloom/extract/pyproject.py` calls
+`src/pitloom/extract/_pyproject.py` calls
 `detect_license_for_project()` from `_license.py` after parsing
 `pyproject.toml`. That function tries four sources in priority order:
 
@@ -191,7 +191,7 @@ Source: model.pt2 | Field: extra/license
 
 ## Stage 3: assemble and export
 
-### `build_license_elements()` -- `assemble/spdx3/deps.py`
+### `build_license_elements()` -- `assemble/spdx3/deps_license.py`
 
 This shared helper is called by every code path that needs to emit
 licence relationships. It:
@@ -279,11 +279,11 @@ For each package with a known licence, the JSON-LD graph contains:
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`,
   `find_license_files()`, `detect_license_for_project()` |
-| `src/pitloom/extract/pyproject.py` | Python project licence
+| `src/pitloom/extract/_pyproject.py` | Python project licence
   extraction and detection |
-| `src/pitloom/extract/setuptools.py` | setuptools project licence
+| `src/pitloom/extract/_setuptools.py` | setuptools project licence
   extraction |
-| `src/pitloom/extract/poetry.py` | Poetry project licence extraction |
+| `src/pitloom/extract/_poetry.py` | Poetry project licence extraction |
 | `src/pitloom/extract/_huggingface.py` | HuggingFace Hub card YAML
   and file-based detection |
 | `src/pitloom/extract/_pytorch_pt2.py` | PT2 archive `extra/license`
@@ -292,14 +292,20 @@ For each package with a known licence, the JSON-LD graph contains:
   field |
 | `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license`
   field |
-| `src/pitloom/assemble/spdx3/deps.py` | `build_license_elements()`
+| `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`
   shared helper |
-| `src/pitloom/assemble/spdx3/document.py` | `build()` and
-  `build_model()` -- licence wiring |
+| `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring
+  (`build_model()` moved to `_document_model.py`, re-exported here) |
 | `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model
   licence wiring |
 | `src/pitloom/export/spdx3_json.py` | `Spdx3JsonExporter.find_license()`,
   `add_license()` |
-| `tests/test_license.py` | Unit tests for `_license.py` utilities |
-| `tests/test_generator.py` | End-to-end licence export tests with
-  fixture files |
+| `tests/assemble/test_license_detection.py`,
+  `tests/assemble/test_license_normalization.py` | Unit tests for
+  `_license.py` utilities (originally `tests/test_license.py`, later
+  split -- see `cli-test-coverage-roadmap.md`) |
+| `tests/core/test_generator_project_enrichment.py`,
+  `tests/core/test_generator_project_structure.py` | End-to-end
+  licence export tests with fixture files (originally
+  `tests/test_generator.py`, since split by generation target and
+  further by section -- see `cli-test-coverage-roadmap.md`) |
