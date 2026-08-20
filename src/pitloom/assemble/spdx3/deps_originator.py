@@ -28,6 +28,7 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
 
 # A permissive (MIT/BSD-style) LICENSE file's copyright line, e.g.
@@ -115,7 +116,7 @@ def _resolve_author_or_maintainer(
         ("Maintainer", "Maintainer-email"),
     ):
         results = _extract_name_email_pairs(
-            pkg_meta[name_field] or "", pkg_meta[email_field] or ""
+            pkg_meta_get(pkg_meta, name_field), pkg_meta_get(pkg_meta, email_field)
         )
         if results:
             return results
