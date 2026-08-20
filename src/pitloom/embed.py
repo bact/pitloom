@@ -37,8 +37,8 @@ from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS, PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.models import get_wheel_files
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.models import _build_merkle_tree, get_wheel_files
+from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.binary import find_phantom_dependencies
@@ -71,6 +71,58 @@ __all__ = [
 ]
 
 
+def _merge_file_extras(
+    wheel_files: list[ProjectFile], project_files: list[ProjectFile]
+) -> list[ProjectFile]:
+    """Layer re-scanned content-type/header data onto the wheel's own files.
+
+    ``wheel_files`` (from :func:`pitloom.extract.wheel.read_wheel`) is the
+    source of truth for what the already-built wheel actually contains --
+    including ``.dist-info/*`` entries and any build-hook-injected files
+    that never existed in ``project_dir`` -- so it is kept intact,
+    including its hashes computed from the wheel's own bytes.
+    ``project_files`` (from :func:`~pitloom.core.models.get_wheel_files`)
+    only supplies the content-type/file-header extras it computed by
+    re-scanning the sources, adopted for files present in both lists.
+    """
+    extras_by_path = {f.distribution_path: f for f in project_files}
+    merged: list[ProjectFile] = []
+    for wheel_file in wheel_files:
+        extra = extras_by_path.get(wheel_file.distribution_path)
+        if extra is None:
+            merged.append(wheel_file)
+            continue
+        merged.append(
+            dataclasses.replace(
+                wheel_file,
+                copyright_text=extra.copyright_text,
+                copyright_source=extra.copyright_source,
+                file_contributors=extra.file_contributors,
+                file_type=extra.file_type,
+                spdx_license_identifier=extra.spdx_license_identifier,
+                content_type=extra.content_type,
+                content_type_method=extra.content_type_method,
+            )
+        )
+    return merged
+
+
+def _compute_wheel_merkle_root(files: list[ProjectFile]) -> str | None:
+    """Merkle root over *files*' own digests -- the wheel's truth, not a rescan.
+
+    Mirrors :func:`pitloom.core._models_wheel.get_wheel_files`'s ordering
+    (sort by ``distribution_path``) and hashing convention so the result is
+    reproducible the same way, but computed from files whose
+    ``digest_sha256`` already reflects the wheel's own bytes (post-merge)
+    instead of a fresh ``project_dir`` rescan that can diverge from them.
+    """
+    if not files:
+        return None
+    ordered = sorted(files, key=lambda f: f.distribution_path)
+    leaf_hashes = [bytes.fromhex(f.digest_sha256) for f in ordered]
+    return _build_merkle_tree(leaf_hashes)
+
+
 def _build_sbom_from_project_and_wheel(
     project_dir: Path,
     wheel_metadata: ProjectMetadata,
@@ -79,21 +131,36 @@ def _build_sbom_from_project_and_wheel(
     creation_metadata: CreationMetadata | None,
 ) -> str:
     """Generate a canonical Build SBOM from project sources and wheel files."""
-    merkle_root, project_files = get_wheel_files(
+    # merkle_root (the rescan's own, over project_dir's on-disk bytes) is
+    # deliberately discarded here -- see _compute_wheel_merkle_root below,
+    # which recomputes it from the wheel's own (post-merge) file hashes so
+    # it can't diverge from what merged_files actually reports.
+    _, project_files = get_wheel_files(
         project_dir,
         scan_file_headers=pitloom_config.extract_file_header,
         detect_content_type=pitloom_config.content_type.enabled,
         content_type_method=pitloom_config.content_type.method,
         content_type_overrides=pitloom_config.content_type.overrides,
     )
+    # Layer content-type/file-header extras onto the wheel's own file
+    # records rather than replacing them outright: replacing would drop
+    # .dist-info entries and any build-hook-injected files (e.g. compiled
+    # extensions, auditwheel-repaired shared libraries) that read_wheel()
+    # found in the actual wheel but that a source-tree rescan can't see.
+    merged_files = _merge_file_extras(wheel_metadata.files, project_files)
+    # dataclasses.replace, not an in-place `.files =` assignment, so the
+    # caller's wheel_metadata (e.g. embed_wheel_sbom's read_wheel() result)
+    # isn't silently mutated as a side effect of building this SBOM.
+    project_metadata = dataclasses.replace(wheel_metadata, files=merged_files)
+    merkle_root = _compute_wheel_merkle_root(merged_files)
     ai_models = scan_project_for_ai_models(project_dir, project_files)
-    phantom_deps = find_phantom_dependencies(wheel_metadata.files)
+    phantom_deps = find_phantom_dependencies(merged_files)
     enrichment_results = run_enrichers_for_models(
         ai_models, pitloom_config.enrich, project_dir
     )
 
     doc = DocumentModel(
-        project=wheel_metadata,
+        project=project_metadata,
         creation_metadata=creation_metadata or CreationMetadata(),
         ai_models=ai_models,
         phantom_dependencies=phantom_deps,

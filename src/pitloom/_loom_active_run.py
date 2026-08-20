@@ -324,8 +324,7 @@ class _ActiveRun:
         self._emit_script_file_and_generates()
 
         output_path = Path(self.output_file)
-        if output_path.parent:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(self.exporter.to_json(pretty=self.pretty))

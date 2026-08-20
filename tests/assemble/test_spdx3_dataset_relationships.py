@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from pitloom.assemble.spdx3.dataset import add_datasets_for_model
 from pitloom.assemble.spdx3.document import build as build_doc
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
@@ -128,6 +130,37 @@ def test_add_datasets_empty_list_no_elements() -> None:
     data = json.loads(exporter.to_json())
     graph = data.get("@graph", [])
     assert all(e.get("type") != "Relationship" for e in graph)
+
+
+def test_add_datasets_skips_relationships_when_build_relationship_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both the dataset-creator "publishedBy" Relationship and the
+    AI-package -> dataset role Relationship must be skipped -- not added --
+    when build_relationship() returns None, rather than crashing."""
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.dataset.build_relationship",
+        lambda *args, **kwargs: None,
+    )
+    _clear_doc_counters(_DOC_UUID)
+    exporter = _make_exporter()
+    ci = _make_ci()
+    ai_spdx_id = generate_spdx_id("AIPackage", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID)
+
+    datasets = [
+        DatasetReference(
+            role="trainedOn", metadata=_make_meta(creator="Dataset Creators Org")
+        )
+    ]
+    add_datasets_for_model(ai_spdx_id, datasets, ci, _DOC_NAME, _DOC_UUID, exporter)
+
+    data = json.loads(exporter.to_json())
+    graph = data.get("@graph", [])
+    assert all(e.get("type") != "Relationship" for e in graph)
+    # The dataset package and its creator Agent are still created --
+    # only the relationships linking them are skipped.
+    assert any(e.get("type") == "dataset_DatasetPackage" for e in graph)
+    assert any(e.get("type") == "Agent" for e in graph)
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@
 
 See also:
 - :mod:`tests.assemble.test_deps_enrichment_names_versions`
-- :mod:`tests.assemble.test_deps_enrichment_supplier_license`
+- :mod:`tests.assemble.test_deps_enrichment_originator_license`
 - :mod:`tests.assemble.test_annotation_provenance_core`
 """
 
@@ -31,7 +31,7 @@ from pitloom.assemble.spdx3.deps_installed import (
     _parse_dep_name,
     _resolve_version,
 )
-from pitloom.assemble.spdx3.deps_supplier import (
+from pitloom.assemble.spdx3.deps_originator import (
     _apply_originator,
     _collect_originator_agents,
     _find_license_copyright,
@@ -126,7 +126,7 @@ def test_enrich_from_installed_unknown_version_skips_purl() -> None:
     assert getattr(dep_pkg, "software_packageUrl", None) is None
 
 
-def test_deps_supplier_candidate_copyright_and_find_license() -> None:
+def test_deps_originator_candidate_copyright_and_find_license() -> None:
     """_read_candidate_copyright and _find_license_copyright handle errors."""
 
     class MockDecodeErrFile:
@@ -150,7 +150,7 @@ def test_deps_supplier_candidate_copyright_and_find_license() -> None:
     mock_pkg_meta = MagicMock()
     mock_pkg_meta.get_all.return_value = ["LICENSE"]
     with patch(
-        "pitloom.assemble.spdx3.deps_supplier.get_pkg_distribution",
+        "pitloom.assemble.spdx3.deps_originator.get_pkg_distribution",
         side_effect=PackageNotFoundError("not found"),
     ):
         assert _find_license_copyright("nonexistent", mock_pkg_meta) is None
@@ -298,18 +298,34 @@ def test_deps_pypi_fetch_release_info_mocked() -> None:
         assert _fetch_pypi_release_info("badpkg", None) is None
 
 
-def test_deps_supplier_edge_branches() -> None:
-    """_extract_suppliers, _parse_project_urls, and remote authors edge branches."""
-    from pitloom.assemble.spdx3.deps_supplier import (
-        _extract_suppliers,
+def test_deps_originator_edge_branches() -> None:
+    """_extract_name_email_pairs, _parse_project_urls, remote authors edge branches."""
+    from pitloom.assemble.spdx3.deps_originator import (
+        _extract_name_email_pairs,
         _get_or_create_originator_agent,
         _parse_project_urls,
         _resolve_remote_authors_file,
     )
 
-    # _extract_suppliers with empty name/email or commas with spaces
-    assert _extract_suppliers("", "  ") == []
-    assert len(_extract_suppliers("Alice, , and Bob", "")) == 2
+    # _extract_name_email_pairs with empty name/email or commas with spaces
+    assert _extract_name_email_pairs("", "  ") == []
+    assert len(_extract_name_email_pairs("Alice, , and Bob", "")) == 2
+
+    # A single address's display name can itself be a comma-separated list
+    # of names sharing one address (seen in the wild on PyPI for a real
+    # package, where the address belongs to a person not even in the name
+    # list). The shared address can't be fairly attributed to any one
+    # listed name, so it splits into name-only tuples plus one extra
+    # email-only tuple that keeps the address on its own anonymous Person.
+    assert _extract_name_email_pairs(
+        "",
+        '"Author One, Author Two, Author Three" <x@example.com>',
+    ) == [
+        ("Author One", None),
+        ("Author Two", None),
+        ("Author Three", None),
+        (None, "x@example.com"),
+    ]
 
     # _parse_project_urls with malformed entry without comma
     mock_pkg = MagicMock()
@@ -358,7 +374,7 @@ def test_deps_supplier_edge_branches() -> None:
     mock_pkg_with_lic = MagicMock()
     mock_pkg_with_lic.get_all.return_value = ["LICENSE"]
     with patch(
-        "pitloom.assemble.spdx3.deps_supplier.get_pkg_distribution",
+        "pitloom.assemble.spdx3.deps_originator.get_pkg_distribution",
         return_value=mock_dist,
     ):
         assert _find_license_copyright("mypkg", mock_pkg_with_lic) is None
@@ -367,7 +383,7 @@ def test_deps_supplier_edge_branches() -> None:
     exporter = Spdx3JsonExporter()
     creation_info = _make_ci()
     with patch(
-        "pitloom.assemble.spdx3.deps_supplier._resolve_remote_authors_file",
+        "pitloom.assemble.spdx3.deps_originator._resolve_remote_authors_file",
         return_value=("https://raw.../AUTHORS", "text/plain", "Author text"),
     ):
         aid, attr_text = _get_or_create_originator_agent(
@@ -390,7 +406,7 @@ def test_deps_supplier_edge_branches() -> None:
     )
     dep_pkg.software_attributionText = ["Initial attribution"]
     with patch(
-        "pitloom.assemble.spdx3.deps_supplier._get_or_create_originator_agent",
+        "pitloom.assemble.spdx3.deps_originator._get_or_create_originator_agent",
         return_value=("http://spdx.org/spdxdocs/aid", "Second attribution"),
     ):
         _collect_originator_agents(

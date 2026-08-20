@@ -120,6 +120,16 @@ def test_parse_pkg_info_minimal_fields_absent() -> None:
     assert metadata.provenance == {"name": "src"}
 
 
+def test_parse_pkg_info_requires_python_provenance() -> None:
+    """A present ``Requires-Python`` field is recorded with its own
+    provenance entry."""
+    metadata = _parse_pkg_info(
+        "Metadata-Version: 2.1\nName: pkg\nRequires-Python: >=3.10\n", "src"
+    )
+    assert metadata.requires_python == ">=3.10"
+    assert metadata.provenance["requires_python"] == "src"
+
+
 def test_parse_pkg_info_project_urls_mixed_valid_invalid() -> None:
     """``Project-URL`` entries without a comma are skipped; valid
     ``label, url`` entries are kept."""

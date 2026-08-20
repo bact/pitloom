@@ -51,6 +51,21 @@ loom project .
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
+> **Limitation:** the per-file inventory (which files are listed, their
+> hashes, and the package's Merkle-root integrity hash) is currently
+> discovered using Hatchling's own file-inclusion rules, regardless of
+> the project's actual build backend. For a Hatchling project, or a
+> non-Hatchling project whose layout happens to match Hatchling's
+> conventions (a single top-level package, or a `src/<name>` layout,
+> named after the normalized project name), this is accurate. For a
+> setuptools, Poetry, PDM, or Flit project using backend-specific
+> inclusion rules (`[tool.setuptools.packages.find] where=`,
+> `MANIFEST.in`, Poetry's own `packages` config, etc.), the file list
+> can be silently incomplete or mis-pathed. Project-level metadata
+> (name, version, dependencies, license, authors) is unaffected -- it's
+> read independently and isn't subject to this limitation. Tracked as a
+> near-term roadmap priority.
+
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
 binaries as phantom dependencies):
 
@@ -67,6 +82,14 @@ files (writing to `.dist-info/sboms/` and updating `.dist-info/RECORD`):
 loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
 loom embed-wheel dist/*.whl --project-dir .
 ```
+
+With `--project-dir`, the file list and hashes always come from the
+wheel itself, so they're accurate regardless of build backend. What can
+still be affected by the Source SBOM limitation above is `--content-type`
+and `--extract-file-header`: on a non-Hatchling project whose layout
+doesn't match Hatchling's conventions, that per-file enrichment can
+silently fail to attach to any file (falls back to no content-type/header
+data for it, not a wrong one).
 
 Or inject an existing pre-generated SBOM into built wheels:
 
@@ -167,6 +190,13 @@ pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 - `-v` / `--verbose` -- print effective options and where each came from.
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`.
+
+Every subcommand that writes an SBOM (`project`, `model`, `env`, `wheel`,
+`embed-wheel`) prints `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after
+writing it -- the resolved path, including when a command's own
+default-naming logic picked it rather than an explicit `-o`. Scripts and
+CI can parse this line instead of re-deriving the default-naming logic
+themselves.
 
 ## Configuration
 

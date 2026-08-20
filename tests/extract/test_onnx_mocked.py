@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.extract._onnx import _onnx_tensor_specs
 from pitloom.extract.ai_model import read_onnx
 
 _ONNX = Path(__file__).parent.parent / "fixtures" / "aimodels" / "onnx"
@@ -167,6 +168,50 @@ def test_onnx_no_graph_name_falls_back(tmp_path: Path) -> None:
     assert meta.description is None
     assert meta.version is None
     assert meta.format_info.model_format == AiModelFormat.ONNX
+
+
+def test_onnx_tensor_specs_missing_dtype_shape_and_dim() -> None:
+    """_onnx_tensor_specs handles a missing elem_type, a falsy shape, and a
+    dimension with neither dim_value nor dim_param set."""
+    vi_no_dtype_no_shape = MagicMock()
+    vi_no_dtype_no_shape.name = "no_dtype"
+    vi_no_dtype_no_shape.type.tensor_type.HasField.return_value = False
+    vi_no_dtype_no_shape.type.tensor_type.shape = None
+
+    dim_no_field = MagicMock()
+    dim_no_field.HasField.return_value = False
+
+    vi_unknown_dim = MagicMock()
+    vi_unknown_dim.name = "unknown_dim"
+    vi_unknown_dim.type.tensor_type.HasField.return_value = True
+    vi_unknown_dim.type.tensor_type.elem_type = _ONNX_FLOAT
+    vi_unknown_dim.type.tensor_type.shape.dim = [dim_no_field]
+
+    specs = _onnx_tensor_specs([vi_no_dtype_no_shape, vi_unknown_dim])
+
+    assert specs[0] == {"name": "no_dtype"}
+    assert "dtype" not in specs[0]
+    assert "shape" not in specs[0]
+    assert specs[1]["shape"] == [None]
+
+
+def test_onnx_zero_ir_version_skips_format_version(tmp_path: Path) -> None:
+    model_file = tmp_path / "model.onnx"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_onnx_mock()
+    mock_model.ir_version = 0
+    mock_model.graph.input = []
+    mock_model.graph.output = []
+
+    mock_onnx = MagicMock()
+    mock_onnx.load.return_value = mock_model
+
+    with patch.dict("sys.modules", {"onnx": mock_onnx}):
+        meta = read_onnx(model_file)
+
+    assert meta.format_info.format_version is None
+    assert "format_version" not in meta.provenance
 
 
 def test_onnx_load_failure(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

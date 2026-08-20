@@ -168,7 +168,7 @@ register the hook:
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.32.0", "pitloom>=0.16.0"]
+requires = ["hatchling>=1.32.0", "pitloom>=0.16.2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -251,7 +251,7 @@ Add SBOM generation to any repository's CI with a single step, for any
 Python build backend, not just Hatchling:
 
 ```yaml
-- uses: bact/pitloom@v0.16.0
+- uses: bact/pitloom@v0.16.2
 ```
 
 See [docs/github-action.md](docs/github-action.md) for inputs, outputs,
@@ -458,7 +458,7 @@ and a worked example.
 
 If you use this software, please cite it as follows:
 
-> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.16.0) [Computer software]. https://doi.org/10.5281/zenodo.19246283
+> Suriyawongkul, A. (2026). Pitloom - SBOM generator for AI models and Python projects (Version 0.16.2) [Computer software]. https://doi.org/10.5281/zenodo.19246283
 
 BibTeX:
 
@@ -469,7 +469,7 @@ BibTeX:
     month = aug,
     title = {{Pitloom - SBOM generator for AI models and Python projects}},
     url = {https://github.com/bact/pitloom},
-    version = {0.16.0},
+    version = {0.16.2},
     year = {2026}
 }
 ```

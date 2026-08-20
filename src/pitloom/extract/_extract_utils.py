@@ -11,6 +11,7 @@ import http.client
 import json
 import urllib.request
 from collections.abc import Iterable
+from importlib.metadata import PackageMetadata
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +81,17 @@ def get_first(d: dict[str, Any], *keys: str) -> Any:
         if k in d:
             return d[k]
     return None
+
+
+def pkg_meta_get(pkg_meta: PackageMetadata, key: str, default: str = "") -> str:
+    """Return *pkg_meta*'s value for *key*, or *default* when absent.
+
+    ``PackageMetadata`` has no ``.get()`` in its ``Protocol`` (only
+    ``__getitem__``/``__contains__``/``get_all``), so guard with ``in``
+    instead -- also avoids ``__getitem__``'s missing-key path, deprecated
+    in Python 3.14+.
+    """
+    return pkg_meta[key] if key in pkg_meta else default
 
 
 def to_str_list(value: Any) -> list[str]:

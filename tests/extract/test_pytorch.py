@@ -18,6 +18,7 @@ import io as _io
 import logging
 import zipfile as _zipfile
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -230,6 +231,24 @@ def test_fickling_get_top_class_no_title_case_returns_none() -> None:
 
     data = pickle.dumps({"key": 1, "nested": [2, 3]})
     assert _fickling_get_top_class(_io.BytesIO(data)) is None
+
+
+def test_fickling_get_top_class_skips_unresolvable_call_then_matches() -> None:
+    """A Call node whose func isn't a Name/Attribute (e.g. a subscript) yields
+    no dotted name, so the loop continues to the next Call node instead of
+    stopping (line 63's ``if name:`` false branch)."""
+    # pylint: disable=import-outside-toplevel
+    import ast
+
+    from fickling.fickle import Pickled
+
+    tree = ast.parse("x[0]()\nFoo()\n")
+    fake_pkl = SimpleNamespace(ast=tree)
+
+    with patch.object(Pickled, "load", return_value=fake_pkl):
+        result = _fickling_get_top_class(_io.BytesIO(b"unused"))
+
+    assert result == "Foo"
 
 
 def test_fickling_get_top_class_ast_walk_failure_logs_warning(

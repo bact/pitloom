@@ -5,9 +5,10 @@
 
 """Tests for per-file SPDX header tag parsing and content-type detection."""
 
+import logging
 import sys
 from types import ModuleType
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -222,6 +223,30 @@ def test_guess_content_type_method_magika_falls_back_when_unavailable(
     )
     assert method == "extension_guess"
     assert mime_type == "text/x-python"
+
+
+def test_guess_content_type_magika_exception_falls_back_to_extension(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A magika instance that raises while classifying (e.g. a corrupt
+    ONNX runtime state) is caught and logged; detection falls back to the
+    stdlib extension guess rather than propagating."""
+
+    class _BrokenMagika:
+        def identify_bytes(self, data: bytes) -> Any:
+            raise RuntimeError("inference session broken")
+
+    monkeypatch.setattr(
+        "pitloom.extract._file_headers._get_magika", lambda: _BrokenMagika()
+    )
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._file_headers"):
+        mime_type, method = guess_content_type(b"whatever bytes", "example.py")
+
+    assert method == "extension_guess"
+    assert mime_type == "text/x-python"
+    assert any(
+        "magika content-type detection failed" in r.message for r in caplog.records
+    )
 
 
 # ---------------------------------------------------------------------------

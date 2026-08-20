@@ -12,10 +12,13 @@ See also:
 
 from __future__ import annotations
 
+import importlib
 import tempfile
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pitloom.extract._license as _license_module
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _with_tool_tag,
@@ -57,7 +60,9 @@ def test_canonicalize_license_id_match_and_exception() -> None:
     ):
         assert canonicalize_license_id("mit") == "MIT"
 
-    # Exception path returns raw
+    # Exception path returns raw. Clear the cache first, or _get_matcher's
+    # lru_cache would still return the block above's mock_matcher.
+    _license_module._get_matcher.cache_clear()
     mock_err_matcher = MagicMock()
     mock_err_matcher.match.side_effect = RuntimeError("fail")
     with patch(
@@ -123,6 +128,35 @@ def test_collect_license_candidates_file_read_oserror() -> None:
         with patch.object(Path, "read_text", side_effect=OSError("disk error")):
             candidates = collect_license_candidates(p)
             assert len(candidates) == 0
+
+
+def test_module_level_version_lookup_missing_packages() -> None:
+    """_LICENSEID_VERSION/_PY_SPDX_LICENSE_VERSION fall back to None when the
+    underlying distributions are not installed (PackageNotFoundError)."""
+
+    def _raise(_name: str) -> str:
+        raise PackageNotFoundError(_name)
+
+    try:
+        with patch("importlib.metadata.version", side_effect=_raise):
+            importlib.reload(_license_module)
+            assert _license_module._LICENSEID_VERSION is None
+            assert _license_module._PY_SPDX_LICENSE_VERSION is None
+    finally:
+        importlib.reload(_license_module)
+
+
+def test_collect_license_candidates_skips_blank_file_and_continues() -> None:
+    """collect_license_candidates skips a whitespace-only license file and keeps
+    scanning subsequent license files instead of stopping."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        p = Path(tmpdir)
+        (p / "LICENSE").write_text("   \n  \n", encoding="utf-8")
+        (p / "COPYING").write_text("MIT License text", encoding="utf-8")
+
+        candidates = collect_license_candidates(p)
+        assert len(candidates) == 1
+        assert candidates[0][0] == "MIT License text"
 
 
 def test_detect_independent_license_loop_continuation() -> None:

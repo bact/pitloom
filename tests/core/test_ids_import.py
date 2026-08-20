@@ -20,15 +20,10 @@ from pitloom.ids import (
     IdRegistry,
     _import_sbom_element,
 )
-from tests.ids_shared import _write_sample_sbom
-
-
-def _make_project(tmp_path: Path) -> Path:
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "a.py").write_bytes(b"print(1)\n")
-    (tmp_path / "data").mkdir()
-    (tmp_path / "data" / "x.txt").write_bytes(b"hello\n")
-    return tmp_path
+from tests.ids_shared import (
+    _write_sample_sbom,
+    _write_sample_sbom_without_document,
+)
 
 
 def test_import_sbom_harvests_files_and_entities(tmp_path: Path) -> None:
@@ -101,6 +96,22 @@ def test_import_sbom_keeps_namespace_when_registry_nonempty(tmp_path: Path) -> N
     registry.import_sbom(sbom_path)
     assert registry.namespace == "https://spdx.org/spdxdocs/mine-1"
     assert "kept.txt" in registry.files
+
+
+def test_import_sbom_no_document_keeps_minted_namespace(tmp_path: Path) -> None:
+    """When no SpdxDocument element is present, a fresh registry's own
+    freshly-minted namespace is left untouched (the harvesting loop runs
+    to completion without ever finding a namespace to adopt)."""
+    sbom_path = tmp_path / "sample.spdx3.json"
+    _write_sample_sbom_without_document(sbom_path)
+
+    registry = IdRegistry.new("proj")
+    original_namespace = registry.namespace
+
+    registry.import_sbom(sbom_path)
+
+    assert registry.namespace == original_namespace
+    assert "nodoc-model" in registry.entities
 
 
 def test_import_sbom_empty_elements() -> None:

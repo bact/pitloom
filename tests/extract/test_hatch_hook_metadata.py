@@ -213,6 +213,34 @@ def test_metadata_from_hatchling_maps_authors() -> None:
     )
 
 
+def test_metadata_from_hatchling_authors_skip_blank_name_and_email() -> None:
+    """A blank name-only entry is skipped (loop continues to the next
+    entry); an email entry that parses to a display name but no address
+    (e.g. ``"Alice <>"``) keeps only the name; an entry that parses to
+    neither name nor address (e.g. an empty string) is dropped entirely."""
+    hatch_meta = _fake_hatch_metadata(
+        core={
+            "authors_data": {
+                "name": ["", "Bob"],
+                "email": ["Alice <>", "", "carol@example.com"],
+            }
+        }
+    )
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert {"name": "Bob"} in metadata.authors
+    assert {"name": "Alice"} in metadata.authors
+    assert {"email": "carol@example.com"} in metadata.authors
+    assert len(metadata.authors) == 3
+
+
+def test_metadata_from_hatchling_no_version_skips_provenance() -> None:
+    """A falsy resolved version leaves ``provenance["version"]`` unset."""
+    hatch_meta = _fake_hatch_metadata(version="")
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.version is None
+    assert "version" not in metadata.provenance
+
+
 def test_metadata_from_hatchling_tolerates_none_authors_data() -> None:
     """``authors_data=None`` must not crash ``metadata_from_hatchling``.
 

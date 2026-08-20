@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Supplier/originator resolution for dependency enrichment.
+"""Originator resolution for dependency enrichment.
 
 See also: :mod:`pitloom.assemble.spdx3.deps`, which calls into this module
 to populate a dependency package's ``originatedBy``.
@@ -28,6 +28,7 @@ from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
 from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._extract_utils import pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
 
 # A permissive (MIT/BSD-style) LICENSE file's copyright line, e.g.
@@ -39,7 +40,43 @@ _COPYRIGHT_LINE_RE = re.compile(
 _COPYRIGHT_SEARCH_HEAD_CHARS = 500
 
 
-def _extract_suppliers(
+def _split_names(name: str) -> list[str]:
+    """Split a comma-/``and``-separated name list into stripped parts."""
+    return [part.strip() for part in re.split(r",|\band\b", name) if part.strip()]
+
+
+def _resolve_address_entry(
+    parsed_name: str, parsed_email: str, fallback_name: str
+) -> list[tuple[str | None, str | None]]:
+    """Resolve one :func:`email.utils.getaddresses` result into one or more
+    ``(name, email)`` tuples.
+
+    A single parsed address's display name can itself be a comma-separated
+    list of names sharing one address -- e.g. ``'"Author One, Author Two,
+    Author Three" <x@example.com>'``, seen in the wild on PyPI for a real
+    package, where the address belongs to a person not even in the name
+    list. The address cannot be fairly attributed to any of the listed
+    names, so it is split into individual name-only tuples plus one extra
+    email-only, name-``None`` tuple that keeps the address on its own
+    anonymous Person rather than discarding or misattributing it.
+    """
+    resolved_name = parsed_name.strip() or fallback_name or None
+    resolved_email = parsed_email.strip() or None
+    name_parts = _split_names(resolved_name) if resolved_name else []
+
+    if len(name_parts) > 1:
+        entries: list[tuple[str | None, str | None]] = [
+            (part, None) for part in name_parts
+        ]
+        if resolved_email:
+            entries.append((None, resolved_email))
+        return entries
+    if resolved_name or resolved_email:
+        return [(resolved_name, resolved_email)]
+    return []
+
+
+def _extract_name_email_pairs(
     name: str, email_raw: str
 ) -> list[tuple[str | None, str | None]]:
     """Return a list of ``(name, email)`` tuples from metadata fields.
@@ -50,42 +87,36 @@ def _extract_suppliers(
     comma-separated list of several such entries; :func:`email.utils.
     getaddresses` handles all three (unlike :func:`email.utils.parseaddr`,
     which mis-parses a multi-entry list as one malformed address and
-    silently returns nothing).
+    silently returns nothing). See :func:`_resolve_address_entry` for how
+    each parsed address is turned into one or more tuples.
 
     If *email_raw* is empty but *name* contains a comma-separated list of
     names, it splits them into individual tuples.
     """
     name = name.strip()
     email_raw = email_raw.strip()
-    results: list[tuple[str | None, str | None]] = []
 
     if email_raw:
-        addresses = getaddresses([email_raw])
-        for parsed_name, parsed_email in addresses:
-            resolved_name = parsed_name.strip() or name or None
-            resolved_email = parsed_email.strip() or None
-            if resolved_name or resolved_email:
-                results.append((resolved_name, resolved_email))
+        results: list[tuple[str | None, str | None]] = []
+        for parsed_name, parsed_email in getaddresses([email_raw]):
+            results.extend(_resolve_address_entry(parsed_name, parsed_email, name))
         return results
 
-    if name:
-        for part in re.split(r",|\band\b", name):
-            part = part.strip()
-            if part:
-                results.append((part, None))
-    return results
+    return [(part, None) for part in _split_names(name)]
 
 
-def _resolve_supplier(pkg_meta: PackageMetadata) -> list[tuple[str | None, str | None]]:
-    """Return a list of ``(name, email)`` tuples for a dependency's supplier from
-    installed metadata, or an empty list. Tries ``Author``/``Author-email`` first,
-    then falls back to ``Maintainer``/``Maintainer-email``."""
+def _resolve_author_or_maintainer(
+    pkg_meta: PackageMetadata,
+) -> list[tuple[str | None, str | None]]:
+    """Return a list of ``(name, email)`` tuples for a dependency's originator
+    from installed metadata, or an empty list. Tries ``Author``/``Author-email``
+    first, then falls back to ``Maintainer``/``Maintainer-email``."""
     for name_field, email_field in (
         ("Author", "Author-email"),
         ("Maintainer", "Maintainer-email"),
     ):
-        results = _extract_suppliers(
-            pkg_meta[name_field] or "", pkg_meta[email_field] or ""
+        results = _extract_name_email_pairs(
+            pkg_meta_get(pkg_meta, name_field), pkg_meta_get(pkg_meta, email_field)
         )
         if results:
             return results

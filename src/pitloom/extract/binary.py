@@ -34,10 +34,6 @@ def _is_phantom_binary(filename: str) -> bool:
     if ".cpython-" in name or ".abi3-" in name:
         return False
 
-    # On Windows, compiled extensions end with .pyd
-    if name.endswith(".pyd"):
-        return False
-
     # Check if it is in a known bundled dependency directory
     # - auditwheel puts them in <package>.libs/
     # - delocate puts them in <package>/.dylibs/

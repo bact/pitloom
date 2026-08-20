@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from unittest.mock import patch
 
 import pytest
 
+from pitloom.core.config import PitloomConfig
 from pitloom.plugins.hatch import (  # noqa: E402
     _HATCHLING_ERROR_PREFIX,
     _check_hatchling_sbom_support,
+    _resolve_build_datetime,
 )
 
 
@@ -63,3 +66,17 @@ def test_check_hatchling_sbom_support_errors_share_filterable_prefix(
     with mock_patch:
         with pytest.raises(RuntimeError, match=re.escape(_HATCHLING_ERROR_PREFIX)):
             _check_hatchling_sbom_support()
+
+
+def test_resolve_build_datetime_uses_source_date_epoch_when_unpinned() -> None:
+    """No pinned ``creation-datetime`` but SOURCE_DATE_EPOCH resolves: the
+    epoch-derived timestamp is used (reproducible-builds fallback), rather
+    than falling through to the current wall-clock time."""
+    epoch_dt = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    config = PitloomConfig(creation_datetime=None)
+    with patch(
+        "pitloom.plugins.hatch.resolve_source_date_epoch", return_value=epoch_dt
+    ):
+        result = _resolve_build_datetime(config)
+
+    assert result == "2020-01-01T00:00:00+00:00"

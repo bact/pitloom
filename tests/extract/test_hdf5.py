@@ -337,6 +337,18 @@ def test_extract_input_from_layers_skips_unmatching_then_matches() -> None:
     assert "InputLayer" in prov
 
 
+def test_extract_input_from_layers_input_layer_missing_batch_shape_continues() -> None:
+    # An InputLayer entry with no config.batch_shape yields nothing from
+    # that layer; the loop continues to the next layer instead of stopping.
+    layers = [
+        {"class_name": "InputLayer", "config": {}},
+        {"class_name": "Dense", "build_config": {"input_shape": [None, 16]}},
+    ]
+    inputs, prov = _extract_input_from_layers(layers, "Source: model.h5")
+    assert inputs == [{"shape": [None, 16]}]
+    assert "layers[1].build_config.input_shape" in prov
+
+
 def test_extract_input_from_layers_no_match_returns_empty() -> None:
     layers = [{"class_name": "Dense"}, {"class_name": "Activation"}]
     inputs, prov = _extract_input_from_layers(layers, "Source: model.h5")

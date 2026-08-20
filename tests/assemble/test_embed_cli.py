@@ -252,6 +252,29 @@ def test_cli_wheel_embed_error_verbose(
     assert "ERROR: wheel command failed" in err
 
 
+def test_cli_embed_wheel_single_with_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test `loom embed-wheel <single_wheel> -o <path>` also writes a
+    standalone SBOM copy and reports its path -- unlike the multi-wheel
+    case, a single wheel is allowed to combine ``--embed`` with ``-o``."""
+    wheel_path = _make_dummy_wheel(tmp_path, "singlepkg", "1.0.0")
+    out_file = tmp_path / "standalone.spdx3.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "-o", str(out_file)],
+    )
+    assert __main__.main() == 0
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert "PITLOOM_" in captured.out
+    assert out_file.exists()
+
+
 def test_cli_embed_wheel_project_dir_without_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

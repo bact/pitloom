@@ -16,7 +16,11 @@ from pitloom.assemble import (
     ConfigOverrides,
     embed_wheel_sbom,
 )
-from pitloom.cli.commands.utils import _collect_wheel_paths, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _collect_wheel_paths,
+    _print_sbom_output_path,
+    cli_error_handler,
+)
 from pitloom.cli.options import _resolve_creation_metadata
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
@@ -116,6 +120,8 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
             overrides=overrides,
         )
         _report_embed_result(arcname, wheel_path.name, removed, floored)
+        if output_path is not None:
+            _print_sbom_output_path(output_path)
     return 0
 
 

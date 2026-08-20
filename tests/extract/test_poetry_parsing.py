@@ -150,6 +150,12 @@ def test_dep_dict_git_returns_none() -> None:
     assert _poetry_dep_to_pep508("dev-pkg", {"git": "https://github.com/x/y"}) is None
 
 
+def test_parse_authors_unmatched_email_bracket_skipped() -> None:
+    """An entry with an unclosed '<' fails the author regex and is skipped."""
+    authors = _parse_poetry_authors(["Name <unclosed", "Valid <v@example.com>"])
+    assert authors == [{"name": "Valid", "email": "v@example.com"}]
+
+
 # ---------------------------------------------------------------------------
 # _parse_poetry_deps
 # ---------------------------------------------------------------------------
@@ -180,6 +186,18 @@ def test_parse_deps_not_a_dict() -> None:
     packages, requires_python = _parse_poetry_deps("invalid")
     assert not packages
     assert requires_python is None
+
+
+def test_parse_deps_skips_unrepresentable_git_dependency() -> None:
+    """A git-sourced dependency converts to None and is not appended."""
+    deps = {
+        "dev-pkg": {"git": "https://github.com/x/y"},
+        "requests": "^2.28",
+    }
+    packages, requires_python = _parse_poetry_deps(deps)
+    assert requires_python is None
+    assert not any("dev-pkg" in d for d in packages)
+    assert any("requests" in d for d in packages)
 
 
 # ---------------------------------------------------------------------------
@@ -335,6 +353,7 @@ def test_convert_caret_and_tilde_edge_cases() -> None:
     # Tilde edge cases
     assert _convert_tilde("1") == ">=1"
     assert _convert_tilde("abc") == ">=abc"
+    assert _convert_tilde("abc.def") == ">=abc.def"
 
     # Non-string / invalid constraint
     assert _poetry_constraint_to_pep440(12345) is None

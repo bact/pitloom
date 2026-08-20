@@ -15,11 +15,14 @@ a generic "wrong graph shape" failure somewhere else.
 
 from __future__ import annotations
 
+import importlib
 from datetime import datetime, timezone
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+import pitloom.assemble.spdx3.creation_info as creation_info_module
+import pitloom.core.creation as creation_module
 from pitloom.assemble.spdx3.creation_info import (
     _tool_summary,
     build_creation_info,
@@ -229,3 +232,32 @@ def test_build_creation_info_explicit_datetime_overrides_source_date_epoch(
     metadata = CreationMetadata(creation_datetime="2026-03-01T00:00:00Z")
     spdx_ci, _agents, _tools = build_creation_info(metadata, _DOC_NAME, _DOC_UUID)
     assert spdx_ci.created == datetime(2026, 3, 1, tzinfo=timezone.utc)
+
+
+# ---------------------------------------------------------------------------
+# Module-level CREATOR_TYPES / VALID_CREATOR_TYPES invariant
+# ---------------------------------------------------------------------------
+
+
+def test_creator_types_mismatch_raises_runtime_error_on_import(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The module-level sanity check guarding CREATOR_TYPES against
+    pitloom.core.creation.VALID_CREATOR_TYPES drifting apart must raise
+    RuntimeError if the two ever disagree -- simulated here by patching
+    VALID_CREATOR_TYPES and re-executing the module's top level via
+    importlib.reload()."""
+    original_valid = creation_module.VALID_CREATOR_TYPES
+    monkeypatch.setattr(
+        creation_module, "VALID_CREATOR_TYPES", frozenset({"bogus-type"})
+    )
+    try:
+        with pytest.raises(RuntimeError, match="CREATOR_TYPES keys must match"):
+            importlib.reload(creation_info_module)
+    finally:
+        # Restore the real VALID_CREATOR_TYPES and re-reload so the module
+        # is left in a normal, working state for any tests that run after
+        # this one (monkeypatch's own teardown runs after this function
+        # returns, too late to protect a reload happening here).
+        monkeypatch.setattr(creation_module, "VALID_CREATOR_TYPES", original_valid)
+        importlib.reload(creation_info_module)

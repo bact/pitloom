@@ -160,6 +160,23 @@ project_urls =
     assert metadata.urls["Source"] == "https://github.com/example/pkg"
 
 
+def test_parse_cfg_urls_skips_blank_key_or_value_lines() -> None:
+    """A ``project_urls`` line with an empty key or empty value is skipped,
+    and scanning continues to subsequent lines."""
+    from pitloom.extract._setuptools_cfg import _parse_cfg_urls
+
+    urls = _parse_cfg_urls(
+        {
+            "project_urls": (
+                "= https://no-key.example.com\n"
+                "NoValue = \n"
+                "Homepage = https://example.com\n"
+            )
+        }
+    )
+    assert urls == {"Homepage": "https://example.com"}
+
+
 def test_read_setup_cfg_missing_file() -> None:
     """Raises FileNotFoundError when setup.cfg does not exist."""
     with tempfile.TemporaryDirectory() as d:
@@ -285,6 +302,25 @@ def test_resolve_cfg_version_edge_cases(tmp_path: Path) -> None:
         "unknown_directive: val",
         "Source: setup.cfg | Field: metadata.version",
     )
+
+
+def test_bool_val_unrecognized_string_returns_none() -> None:
+    """_bool_val returns None for values that aren't a recognized boolean
+    spelling."""
+    from pitloom.extract._setuptools_cfg import _bool_val
+
+    assert _bool_val("maybe") is None
+
+
+def test_resolve_cfg_file_directive_non_file_directive_returns_raw(
+    tmp_path: Path,
+) -> None:
+    """A directive-shaped value that isn't ``file:`` (e.g. ``attr:``) is not
+    resolved as a file path -- the raw string is returned unchanged."""
+    from pitloom.extract._setuptools_cfg import _resolve_cfg_file_directive
+
+    result = _resolve_cfg_file_directive("attr: package.__readme__", tmp_path)
+    assert result == "attr: package.__readme__"
 
 
 def test_read_setup_cfg_pitloom_config_sections() -> None:
