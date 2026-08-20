@@ -258,9 +258,11 @@ def _extract_card_description(card_text: str) -> str | None:
         if not collected and (not stripped or stripped.startswith("#")):
             continue
         if not stripped:
-            if collected:
-                break  # end of first paragraph
-            continue
+            # Reaching here with an empty `collected` is impossible: the
+            # guard above already `continue`s past every leading blank/
+            # heading line while `collected` is empty, so a blank line
+            # seen here always means the first paragraph just ended.
+            break
         collected.append(stripped)
         if len(" ".join(collected)) > 500:
             break

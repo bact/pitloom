@@ -76,8 +76,7 @@ def _read_npy_metadata(
     # mmap_mode='r' reads shape/dtype from header without loading full tensor
     arr = np.load(str(model_path), mmap_mode="r", allow_pickle=False)
     inputs = [{"shape": list(arr.shape), "dtype": str(arr.dtype)}]
-    if inputs:
-        provenance["inputs"] = f"{source} | Field: .npy header (shape, dtype)"
+    provenance["inputs"] = f"{source} | Field: .npy header (shape, dtype)"
 
     return format_version, properties, inputs, provenance
 

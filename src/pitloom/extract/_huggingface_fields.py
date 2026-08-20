@@ -375,11 +375,9 @@ def _build_extra_data(
     if tag_data.doi_val:
         extra_data["hf.doi"] = tag_data.doi_val
         provenance["doi"] = "Source: Hugging Face Hub | Field: model_info tags (doi:*)"
-    if extra_data:
-        provenance["extra_data"] = (
-            "Source: Hugging Face Hub"
-            " | Field: hub API / model card / tokenizer_config.json"
-        )
+    provenance["extra_data"] = (
+        "Source: Hugging Face Hub | Field: hub API / model card / tokenizer_config.json"
+    )
     return extra_data
 
 
