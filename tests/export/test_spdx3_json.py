@@ -205,6 +205,25 @@ def test_annotate_relationships_skips_when_to_is_not_a_list() -> None:
     assert "description" not in graph[1]
 
 
+def test_annotate_relationships_skips_element_without_id() -> None:
+    """A graph node with neither ``spdxId`` nor ``@id`` (e.g. a bare
+    ``CreationInfo`` blank node) is skipped when building the id-to-name
+    map, and doesn't prevent later elements' names from being resolved."""
+    graph: list[dict[str, Any]] = [
+        {"type": "CreationInfo", "specVersion": "3.0.1"},
+        {"spdxId": "urn:x#A", "name": "app"},
+        {"spdxId": "urn:x#B", "name": "lib"},
+        {
+            "spdxId": "urn:x#Rel-1",
+            "relationshipType": "dependsOn",
+            "from": "urn:x#A",
+            "to": ["urn:x#B"],
+        },
+    ]
+    _annotate_relationships(graph)
+    assert graph[3]["description"] == "app dependsOn: lib"
+
+
 def test_annotate_relationships_skips_missing_from_or_to() -> None:
     graph: list[dict[str, Any]] = [
         {

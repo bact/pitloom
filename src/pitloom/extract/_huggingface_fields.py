@@ -343,6 +343,8 @@ def _build_extra_data(
     hub_info: dict[str, Any] = hf_data.get("hub_info") or {}
     tokenizer_config: dict[str, Any] | None = hf_data.get("tokenizer_config")
 
+    # hf.model_id/hf.url are seeded unconditionally, so extra_data is never
+    # empty by the time provenance["extra_data"] is set below.
     extra_data: dict[str, Any] = {"hf.model_id": model_id, "hf.url": hf_url}
 
     if vague_raw_license:
@@ -375,11 +377,9 @@ def _build_extra_data(
     if tag_data.doi_val:
         extra_data["hf.doi"] = tag_data.doi_val
         provenance["doi"] = "Source: Hugging Face Hub | Field: model_info tags (doi:*)"
-    if extra_data:
-        provenance["extra_data"] = (
-            "Source: Hugging Face Hub"
-            " | Field: hub API / model card / tokenizer_config.json"
-        )
+    provenance["extra_data"] = (
+        "Source: Hugging Face Hub | Field: hub API / model card / tokenizer_config.json"
+    )
     return extra_data
 
 

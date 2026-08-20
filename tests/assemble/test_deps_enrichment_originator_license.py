@@ -28,7 +28,9 @@ from pitloom.assemble.spdx3 import deps_originator
 from pitloom.assemble.spdx3.deps import _enrich_from_installed
 from pitloom.assemble.spdx3.deps_originator import (
     _find_license_copyright,
+    _resolve_address_entry,
     _resolve_author_or_maintainer,
+    _resolve_remote_authors_file,
 )
 from pitloom.assemble.spdx3.deps_pypi import (
     _extract_pypi_license,
@@ -311,3 +313,44 @@ def test_extract_release_hash_falls_back_to_sdist() -> None:
 def test_extract_release_hash_no_urls_returns_none() -> None:
     assert _extract_release_hash({"urls": []}) is None
     assert _extract_release_hash({}) is None
+
+
+# ---------------------------------------------------------------------------
+# _resolve_address_entry -- no-email and all-empty edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_address_entry_multiple_names_no_email_appends_no_extra() -> None:
+    """Several comma-separated names sharing no address must not append an
+    extra email-only tuple (branch: ``resolved_email`` falsy)."""
+    entries = _resolve_address_entry("Author One, Author Two", "", "fallback")
+    assert entries == [("Author One", None), ("Author Two", None)]
+
+
+def test_resolve_address_entry_all_empty_returns_empty_list() -> None:
+    assert _resolve_address_entry("", "", "") == []
+
+
+# ---------------------------------------------------------------------------
+# _resolve_remote_authors_file -- disallowed-scheme defensive raise
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_remote_authors_file_disallowed_scheme_falls_back() -> None:
+    """A gitlab.com repo URL with a non-http(s) scheme produces a
+    ``raw_url`` that fails the scheme allowlist -- the defensive
+    ``ValueError`` raise inside the fetch's ``try`` block is caught by the
+    same ``except`` clause as a genuine network failure, so no real
+    network I/O happens."""
+    loc, ctype, text = _resolve_remote_authors_file(
+        "ftp://gitlab.com/group/disallowed-scheme-project",
+        "AUTHORS",
+        False,
+        "auto",
+    )
+    assert loc == "ftp://gitlab.com/group/disallowed-scheme-project/-/blob/HEAD/AUTHORS"
+    assert text is None
+    # No real network call is made -- guess_content_type falls back to
+    # extension-based sniffing, which returns None for an extensionless
+    # filename like "AUTHORS".
+    assert ctype is None

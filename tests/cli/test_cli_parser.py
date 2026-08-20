@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -30,3 +31,34 @@ def test_no_args_returns_error(
         __main__.main()
     assert excinfo.value.code == 2
     assert "the following arguments are required: command" in capsys.readouterr().err
+
+
+def test_creator_type_action_returns_after_parser_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``_CreatorTypeAction.__call__`` hits its ``return`` statement right
+    after ``parser.error(...)``. Normally unreachable in a real run because
+    ``ArgumentParser.error`` calls ``sys.exit(2)`` -- verified separately
+    by the ``--creator-type`` before ``--creator-name`` CLI-level tests in
+    tests/cli/test_cli_options.py. Here we stub out ``error`` itself (a
+    standard technique for testing custom argparse ``Action`` internals)
+    to confirm parsing returns cleanly instead of raising, without
+    touching the action's own unreachable-return code."""
+    from pitloom.cli.parser import _build_parser
+
+    monkeypatch.setattr(argparse.ArgumentParser, "error", lambda self, msg: None)
+    parser = _build_parser()
+    namespace = parser.parse_args(["project", ".", "--creator-type", "person"])
+    assert namespace.creators is None
+
+
+def test_creator_email_action_returns_after_parser_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same as above for ``_CreatorEmailAction.__call__``."""
+    from pitloom.cli.parser import _build_parser
+
+    monkeypatch.setattr(argparse.ArgumentParser, "error", lambda self, msg: None)
+    parser = _build_parser()
+    namespace = parser.parse_args(["project", ".", "--creator-email", "a@example.com"])
+    assert namespace.creators is None

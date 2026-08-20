@@ -19,6 +19,14 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2>
 
+## [Unreleased]
+
+## Fixed
+
+- Test coverage near 100% ([#176])
+
+[#176]: https://github.com/bact/pitloom/pull/176
+
 ## [0.16.2] - 2026-08-19
 
 ### Added

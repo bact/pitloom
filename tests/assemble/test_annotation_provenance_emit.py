@@ -20,8 +20,10 @@ import json
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3 import provenance as provenance_module
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
+    _sanitize_for_json,
     build_provenance_annotation,
     emit_provenance,
     filter_high_signal,
@@ -375,3 +377,73 @@ def test_emit_provenance_full_keeps_all_fields() -> None:
     assert annotations[0].statement is not None
     statement = json.loads(annotations[0].statement)
     assert set(statement["fields"]) == {"name", "version"}
+
+
+def test_sanitize_for_json_passes_through_plain_float() -> None:
+    """A finite, non-NaN/non-Infinity float is returned unchanged -- only
+    the NaN/Infinity special cases get rewritten to strings."""
+    assert _sanitize_for_json(3.14) == 3.14
+
+
+def test_emit_provenance_skips_comment_assignment_when_comment_builder_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Defensive guard: even though ``build_provenance_comment`` can never
+    return a falsy value for the non-empty *provenance* that reaches it
+    (callers already return early on an empty dict), ``emit_provenance``
+    still checks before assigning ``subject.comment`` rather than
+    assuming truthiness. Monkeypatch the comment builder in
+    ``emit_provenance``'s own module namespace to return ``None`` and
+    confirm ``subject.comment`` is left untouched."""
+    monkeypatch.setattr(
+        provenance_module, "build_provenance_comment", lambda _provenance: None
+    )
+    _clear_doc_counters(_DOC_UUID)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    pkg = _make_subject(exporter, ci)
+
+    emit_provenance(
+        subject=pkg,
+        provenance={"name": "Source: pyproject.toml | Field: project.name"},
+        creation_info=ci,
+        doc_name=_DOC_NAME,
+        doc_uuid=_DOC_UUID,
+        exporter=exporter,
+        provenance_config=ProvenanceConfig(format="both", detail="full"),
+    )
+
+    assert pkg.comment is None
+    annotations = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.Annotation)
+    ]
+    assert len(annotations) == 1
+
+
+def test_emit_provenance_skips_annotation_when_annotation_builder_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same defensive-guard shape as above, for the annotation side: when
+    ``build_provenance_annotation`` returns ``None``, ``emit_provenance``
+    must return without calling ``exporter.add_annotation``."""
+    monkeypatch.setattr(
+        provenance_module,
+        "build_provenance_annotation",
+        lambda **_kwargs: None,
+    )
+    _clear_doc_counters(_DOC_UUID)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    pkg = _make_subject(exporter, ci)
+
+    emit_provenance(
+        subject=pkg,
+        provenance={"name": "Source: pyproject.toml | Field: project.name"},
+        creation_info=ci,
+        doc_name=_DOC_NAME,
+        doc_uuid=_DOC_UUID,
+        exporter=exporter,
+        provenance_config=ProvenanceConfig(format="annotation", detail="full"),
+    )
+
+    assert not any(isinstance(o, spdx3.Annotation) for o in exporter.object_set.objects)

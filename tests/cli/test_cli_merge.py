@@ -109,6 +109,20 @@ def test_merge_command_no_json_files(
     assert "ERROR: no JSON fragment files found" in captured.err
 
 
+def test_write_merge_output_to_stdout_adds_missing_trailing_newline(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """output_path == "-" writes to stdout, appending a newline only when
+    the SBOM JSON does not already end with one."""
+    from pitloom.cli.commands.merge import _write_merge_output
+
+    _write_merge_output("no-newline", Path("-"))
+    assert capsys.readouterr().out == "no-newline\n"
+
+    _write_merge_output("has-newline\n", Path("-"))
+    assert capsys.readouterr().out == "has-newline\n"
+
+
 def test_merge_command_stdout(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

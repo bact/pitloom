@@ -19,12 +19,13 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_project_sbom
 from pitloom.assemble.spdx3.document import _magika_version, build
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import ProjectFile, ProjectMetadata
 
 
 def test_generate_project_sbom_basic() -> None:
@@ -209,3 +210,97 @@ description = "A simple application"
         sbom_data = json.loads(output_path.read_text())
         assert "@context" in sbom_data
         assert "@graph" in sbom_data
+
+
+def test_build_main_package_concluded_only_license_skips_declared_relationship() -> (
+    None
+):
+    """When the main package's only license candidate is classified as
+    *concluded* (single-candidate mode, no ``license_concluded`` set --
+    e.g. detected from a LICENSE file rather than declared in
+    pyproject.toml), ``build_license_elements`` returns ``(None,
+    rel_concluded)``. ``build()`` must skip adding the (absent) declared
+    relationship without error, and still add the concluded one."""
+    project = ProjectMetadata(
+        name="concludedonly",
+        version="1.0.0",
+        license_name="MIT",
+        provenance={"license": "Source: LICENSE file"},
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc)
+
+    relationships = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.Relationship)
+    ]
+    license_rels = [
+        r
+        for r in relationships
+        if r.relationshipType
+        in (
+            spdx3.RelationshipType.hasDeclaredLicense,
+            spdx3.RelationshipType.hasConcludedLicense,
+        )
+        and r.from_
+        in {
+            p.spdxId
+            for p in exporter.object_set.objects
+            if isinstance(p, spdx3.software_Package) and p.name == "concludedonly"
+        }
+    ]
+    assert len(license_rels) == 1
+    assert (
+        license_rels[0].relationshipType == spdx3.RelationshipType.hasConcludedLicense
+    )
+
+
+def test_magika_version_falls_back_to_unknown_when_package_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_magika_version() must fall back to "unknown" when ``magika`` isn't
+    installed (importlib.metadata.version() raises PackageNotFoundError)."""
+    from importlib.metadata import PackageNotFoundError
+
+    _magika_version.cache_clear()
+
+    def _raise_not_found(name: str) -> str:
+        raise PackageNotFoundError(name)
+
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3._document_files._pkg_version", _raise_not_found
+    )
+
+    assert _magika_version() == "unknown"
+    _magika_version.cache_clear()
+
+
+def test_add_package_files_skips_relationships_when_build_relationship_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both the directory-containment and file-containment "contains"
+    Relationship elements must be skipped -- not added -- when
+    build_relationship() returns None, rather than crashing."""
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3._document_files.build_relationship",
+        lambda *args, **kwargs: None,
+    )
+    files = [
+        ProjectFile(
+            physical_path="src/pkg/module.py",
+            distribution_path="pkg/module.py",
+            digest_sha256="a" * 64,
+        ),
+    ]
+    project = ProjectMetadata(name="rel-none-project", version="1.0.0", files=files)
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    contains_rels = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship" and e.get("relationshipType") == "contains"
+    ]
+    assert contains_rels == []

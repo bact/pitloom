@@ -27,8 +27,12 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_pypi
-from pitloom.assemble.spdx3.deps import add_dependencies
-from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
+from pitloom.assemble.spdx3.deps import _enrich_from_pypi, add_dependencies
+from pitloom.assemble.spdx3.deps_license import (
+    _add_license_noassertion,
+    _build_license_relationship,
+    _get_or_create_license_element,
+)
 from pitloom.assemble.spdx3.deps_originator import _resolve_metadata_url
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -299,3 +303,158 @@ def test_add_license_noassertion_is_deduped() -> None:
         lic for lic in licenses if lic.simplelicensing_licenseText == "NOASSERTION"
     ]
     assert len(noassertion_licenses) == 1
+
+
+# ---------------------------------------------------------------------------
+# _fetch_pypi_release_info -- URL construction and failure handling
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.pypi_network
+def test_fetch_pypi_release_info_versioned_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_fetch_json(url: str, *, timeout: float) -> dict[str, object]:
+        captured["url"] = url
+        captured["timeout"] = timeout
+        return {"info": {}}
+
+    monkeypatch.setattr(deps_pypi, "fetch_json", _fake_fetch_json)
+    result = deps_pypi._fetch_pypi_release_info("requests", "2.31.0")
+    assert captured["url"] == "https://pypi.org/pypi/requests/2.31.0/json"
+    assert result == {"info": {}}
+
+
+@pytest.mark.pypi_network
+def test_fetch_pypi_release_info_unversioned_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_fetch_json(url: str, *, timeout: float) -> dict[str, object]:
+        captured["url"] = url
+        return {"info": {}}
+
+    monkeypatch.setattr(deps_pypi, "fetch_json", _fake_fetch_json)
+    deps_pypi._fetch_pypi_release_info("requests", None)
+    assert captured["url"] == "https://pypi.org/pypi/requests/json"
+
+
+@pytest.mark.pypi_network
+def test_fetch_pypi_release_info_returns_none_on_value_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _raise(url: str, *, timeout: float) -> dict[str, object]:
+        raise ValueError("network error")
+
+    monkeypatch.setattr(deps_pypi, "fetch_json", _raise)
+    assert deps_pypi._fetch_pypi_release_info("requests", None) is None
+
+
+# ---------------------------------------------------------------------------
+# _enrich_from_pypi -- repo_url-already-present and unknown-version branches
+# ---------------------------------------------------------------------------
+
+
+def test_enrich_from_pypi_repo_url_present_skips_home_page_fallback() -> None:
+    """When ``project_urls`` already yields a repository URL, the
+    ``home_page`` fallback lookup is skipped entirely (branch: ``repo_url``
+    truthy). No license fields are present either, exercising the
+    "license lookup found nothing" branch in the same call."""
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    dep_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="repourltest", doc_uuid="u"),
+        name="pkgx",
+        creationInfo=ci,
+    )
+    release_info = {
+        "info": {
+            "project_urls": {"Repository": "https://github.com/example/pkgx"},
+            "home_page": "https://should-not-be-consulted.example",
+        },
+        "urls": [],
+    }
+    filled = _enrich_from_pypi(
+        "pkgx",
+        "1.0.0",
+        dep_pkg,
+        ci,
+        "repourltest",
+        "u",
+        exporter,
+        already_filled=set(),
+        release_info_cache={("pkgx", "1.0.0"): release_info},
+    )
+    assert "license" not in filled
+    assert "hash" not in filled
+
+
+def test_enrich_from_pypi_unknown_version_skips_hash_extraction() -> None:
+    """``dep_version == "unknown"`` resolves to ``version=None``, which
+    skips the release-hash extraction entirely (branch: ``version is
+    None``), even though the release info carries a hash."""
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    dep_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="unkverstest", doc_uuid="u"),
+        name="pkgy",
+        creationInfo=ci,
+    )
+    release_info = {
+        "info": {"license_expression": "MIT"},
+        "urls": [{"packagetype": "bdist_wheel", "digests": {"sha256": "abc123"}}],
+    }
+    filled = _enrich_from_pypi(
+        "pkgy",
+        "unknown",
+        dep_pkg,
+        ci,
+        "unkverstest",
+        "u",
+        exporter,
+        already_filled=set(),
+        release_info_cache={("pkgy", None): release_info},
+    )
+    assert "hash" not in filled
+    assert not dep_pkg.verifiedUsing
+
+
+# ---------------------------------------------------------------------------
+# deps_license -- long-name truncation and the defensive raise
+# ---------------------------------------------------------------------------
+
+
+def test_get_or_create_license_element_truncates_long_name() -> None:
+    doc_uuid = compute_doc_uuid("longlicense", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    long_id = "X" * 80
+
+    spdx_id = _get_or_create_license_element(
+        long_id, "Source: test", ci, "longlicense", doc_uuid, exporter
+    )
+
+    license_text = exporter.object_set.obj_by_id[spdx_id]
+    assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
+    assert license_text.name == "X" * 57 + "..."
+    assert len(license_text.name) == 60
+
+
+def test_build_license_relationship_raises_when_relationship_build_fails() -> None:
+    """``build_relationship`` returns ``None`` when ``from_id`` is ``None``;
+    ``_build_license_relationship`` must fail loudly rather than silently
+    swallow it."""
+    ci = _make_ci()
+    with pytest.raises(ValueError, match="Failed to build relationship"):
+        _build_license_relationship(
+            None,  # type: ignore[arg-type]
+            "http://spdx.org/spdxdocs/license-1",
+            spdx3.RelationshipType.hasDeclaredLicense,
+            ci,
+            "doc",
+            "uuid",
+        )
