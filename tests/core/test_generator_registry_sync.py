@@ -16,19 +16,70 @@ from __future__ import annotations
 
 import json
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import (
     generate_env_sbom,
     generate_project_sbom,
     generate_wheel_sbom,
 )
+from pitloom.assemble._generators import _sync_registry
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
 
 from .conftest import _find_file_element, _make_wheel, _write_smoke_project
+
+
+def _exporter_with_one_package() -> Spdx3JsonExporter:
+    ci = spdx3.CreationInfo(
+        specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+    pkg = spdx3.software_Package(
+        spdxId="https://spdx.org/spdxdocs/x-1#Package-1",
+        name="requests",
+        creationInfo=ci,
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_package(pkg)
+    return exporter
+
+
+def test_sync_registry_skips_when_registry_has_no_path(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A registry resolved without an on-disk path (e.g. constructed
+    programmatically) is skipped entirely, not harvested into or saved."""
+    registry = IdRegistry.new("no-path")
+    exporter = _exporter_with_one_package()
+
+    with caplog.at_level("WARNING"):
+        _sync_registry(exporter, registry, True)
+
+    assert not registry.entities
+    assert "no file path resolved" in caplog.text
+
+
+def test_sync_registry_logs_warning_on_save_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A save failure is logged, not raised -- it must never break SBOM
+    generation itself."""
+    registry_path = tmp_path / "loom-ids.json"
+    registry = IdRegistry.new("save-fails", path=registry_path)
+    exporter = _exporter_with_one_package()
+
+    with patch.object(registry, "save", side_effect=OSError("disk full")):
+        with caplog.at_level("WARNING"):
+            _sync_registry(exporter, registry, True)
+
+    assert "failed to save" in caplog.text
+    assert not registry_path.exists()
 
 
 def test_generate_project_sbom_auto_updates_registry(tmp_path: Path) -> None:

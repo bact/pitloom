@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-19
+Last-Modified: 2026-08-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,12 +21,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- Auto-sync Loom ID registry after SBOM generation ([#178])
+
 ## Fixed
 
 - Test coverage near 100% ([#176], [#177])
 
 [#176]: https://github.com/bact/pitloom/pull/176
 [#177]: https://github.com/bact/pitloom/pull/177
+[#178]: https://github.com/bact/pitloom/pull/178
 
 ## [0.16.2] - 2026-08-19
 
