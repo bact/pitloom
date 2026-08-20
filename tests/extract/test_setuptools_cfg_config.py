@@ -133,6 +133,24 @@ no_creation_tool = yes
     assert config.tools == []
 
 
+def test_read_setup_cfg_no_creation_tool_unrecognized_value_ignored() -> None:
+    """An unrecognized ``no-creation-tool`` value (``_bool_val`` returns
+    ``None``) leaves the ``creation`` block untouched instead of being
+    coerced into a boolean."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+
+[tool:pitloom]
+no-creation-tool = maybe
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        _, config = read_setup_cfg(Path(d))
+    assert config.tools is None
+
+
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
     """Returns default PitloomConfig when [tool:pitloom] is absent."""
     content = "[metadata]\nname = pkg\nversion = 1.0\n"

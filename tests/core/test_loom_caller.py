@@ -128,6 +128,30 @@ def test_caller_info_module_level_and_external_path(tmp_path: Path) -> None:
         assert "function: evaluate" in info2
 
 
+def test_caller_info_all_frames_skipped_returns_fallback() -> None:
+    """_get_caller_info falls through to the fallback when every frame on the
+    stack belongs to the loom/caller modules themselves (never a match)."""
+    fake_frame = collections.namedtuple("fake_frame", ["filename"])
+    frames = [fake_frame(filename="loom.py"), fake_frame(filename="_loom_caller.py")]
+    with patch("pitloom._loom_caller.inspect.stack", return_value=frames):
+        # pylint: disable=protected-access
+        info = _loom_caller._get_caller_info()
+    assert info == "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
+
+
+def test_caller_script_path_all_frames_skipped_returns_none() -> None:
+    """_get_caller_script_path falls through to None when every frame on the
+    stack belongs to the loom/caller modules themselves (never a match)."""
+    fake_frame = collections.namedtuple("fake_frame", ["filename"])
+    frames = [
+        fake_frame(filename="loom.py"),
+        fake_frame(filename="_loom_active_run.py"),
+    ]
+    with patch("pitloom._loom_caller.inspect.stack", return_value=frames):
+        # pylint: disable=protected-access
+        assert _loom_caller._get_caller_script_path() is None
+
+
 def test_caller_script_path_edge_cases(tmp_path: Path) -> None:
     """_get_caller_script_path handles repl frames, missing files, and outside cwd."""
     fake_frame = collections.namedtuple("fake_frame", ["filename"])

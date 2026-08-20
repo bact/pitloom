@@ -337,6 +337,30 @@ def test_read_provenance_invalid_format_raises() -> None:
         parse_pitloom_config(data)
 
 
+def test_parse_pitloom_config_non_table_creation_falls_back_empty() -> None:
+    """A ``[tool.pitloom.creation]`` value that isn't a table (e.g. a bare
+    string) is treated as absent rather than raising -- other sections of
+    ``[tool.pitloom]`` are unaffected."""
+    data = {
+        "tool": {
+            "pitloom": {
+                "creation": "not-a-table",
+                "ids-file": "loom-ids.json",
+            }
+        }
+    }
+    config = parse_pitloom_config(data)
+    assert config.ids_file == "loom-ids.json"
+    assert config.creation_datetime is None
+    assert config.creation_comment is None
+
+
+def test_parse_pitloom_config_describe_relationship_non_bool_raises() -> None:
+    data = {"tool": {"pitloom": {"describe-relationship": "yes"}}}
+    with pytest.raises(ValueError, match="describe-relationship must be a boolean"):
+        parse_pitloom_config(data)
+
+
 def test_read_provenance_invalid_detail_raises() -> None:
     data = {"tool": {"pitloom": {"provenance": {"detail": "invalid"}}}}
     with pytest.raises(ValueError, match="must be one of"):

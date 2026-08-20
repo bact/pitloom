@@ -153,6 +153,28 @@ def test_read_keras_no_inputs_when_no_build_config(tmp_path: Path) -> None:
     assert read_keras(f).inputs == []
 
 
+def test_read_keras_missing_class_name_and_non_dict_config_sections(
+    tmp_path: Path,
+) -> None:
+    """No 'class_name' key leaves type_of_model as None (no provenance
+    entry); a 'config' section that isn't a dict is skipped entirely (no
+    name/hyperparameters extracted); a 'build_config' section that isn't a
+    dict is likewise skipped (no inputs extracted)."""
+    f = tmp_path / "model.keras"
+    f.write_bytes(
+        _make_keras_zip(
+            config={"config": "not-a-dict", "build_config": ["not-a-dict-either"]}
+        )
+    )
+    meta = read_keras(f)
+    assert meta.type_of_model is None
+    assert "type_of_model" not in meta.provenance
+    assert meta.name is None
+    assert meta.hyperparameters == {}
+    assert meta.inputs == []
+    assert "inputs" not in meta.provenance
+
+
 def test_read_keras_bad_zip_raises_value_error(tmp_path: Path) -> None:
     f = tmp_path / "model.keras"
     f.write_bytes(b"not a zip file at all")

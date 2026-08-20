@@ -109,6 +109,45 @@ def test_merge_command_no_json_files(
     assert "ERROR: no JSON fragment files found" in captured.err
 
 
+def test_merge_command_stdout_already_ends_with_newline(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test merge-to-stdout doesn't add a second trailing newline when the
+    exported JSON already ends with one."""
+    from pitloom.export.spdx3_json import Spdx3JsonExporter
+
+    fragments_dir = tmp_path / "fragments"
+    fragments_dir.mkdir()
+    frag1_content = (
+        '{"@graph": [{"@id": "urn:uuid:frag1", "type": "SoftwareAgent", '
+        '"name": "Agent", "creationInfo": "_:ci"}, {"@id": "_:ci", '
+        '"type": "CreationInfo", "specVersion": "3.0.1", '
+        '"created": "2023-01-01T00:00:00Z", "createdBy": ["urn:uuid:frag1"]}]}'
+    )
+    (fragments_dir / "frag1.json").write_text(frag1_content, encoding="utf-8")
+
+    monkeypatch.setattr(
+        Spdx3JsonExporter, "to_json", lambda self, pretty=False: '{"@graph": []}\n'
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "loom",
+            "merge",
+            str(fragments_dir),
+            "--output",
+            "-",
+        ],
+    )
+    result = __main__.main()
+    assert result == 0
+
+    captured = capsys.readouterr()
+    assert captured.out == '{"@graph": []}\n'
+
+
 def test_merge_command_stdout(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

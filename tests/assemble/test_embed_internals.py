@@ -23,6 +23,7 @@ from installer.sources import WheelFile
 from pitloom.embed import (
     _derive_wheel_sbom_filename,
     _find_dist_info_prefix,
+    _looks_like_pitloom_sbom,
     _resolve_zip_timestamp,
     _rewrite_wheel_archive,
     _update_record_lines,
@@ -283,6 +284,68 @@ def test_embed_sbom_drops_stale_sboms_from_archive(tmp_path: Path) -> None:
 
     with WheelFile.open(wheel_path) as wf:
         wf.validate_record()
+
+
+def test_looks_like_pitloom_sbom_invalid_json_returns_false() -> None:
+    """Test _looks_like_pitloom_sbom returns False when content isn't valid JSON."""
+    assert _looks_like_pitloom_sbom(b"{not valid json") is False
+
+
+def test_looks_like_pitloom_sbom_non_list_graph_returns_false() -> None:
+    """Test _looks_like_pitloom_sbom returns False when @graph isn't a list."""
+    assert _looks_like_pitloom_sbom(b'{"@graph": "not-a-list"}') is False
+    assert _looks_like_pitloom_sbom(b"{}") is False
+
+
+def test_embed_sbom_orig_mode_none_skips_chmod(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test that a wheel_obj.exists() False on the orig_mode check leaves
+    orig_mode as None and skips the chmod block entirely."""
+    wheel_path = _make_dummy_wheel(tmp_path, "origmodenone", "1.0.0")
+    real_exists = Path.exists
+    call_count = {"n": 0}
+
+    def fake_exists(self: Path) -> bool:
+        call_count["n"] += 1
+        if call_count["n"] == 2:
+            return False
+        return real_exists(self)
+
+    def _chmod_should_not_be_called(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("os.chmod should not be called when orig_mode is None")
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+    monkeypatch.setattr("pitloom._embed_wheel.os.chmod", _chmod_should_not_be_called)
+
+    embed_sbom_in_wheel(wheel_path, _SAMPLE_SPDX3_JSON)
+
+
+def test_rewrite_wheel_archive_exception_when_temp_already_gone(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Test the except-block's cleanup guard when temp_path no longer exists
+    by the time an exception is raised mid-write."""
+    wheel_path = _make_dummy_wheel(tmp_path, "vanishtemp", "1.0.0")
+
+    def _boom(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("copy failed")
+
+    with zipfile.ZipFile(wheel_path, "r") as original_zf:
+        monkeypatch.setattr("pitloom._embed_wheel.shutil.copyfileobj", _boom)
+        monkeypatch.setattr(Path, "exists", lambda self: False)
+        with pytest.raises(RuntimeError, match="copy failed"):
+            _rewrite_wheel_archive(
+                wheel_path,
+                original_zf,
+                "vanishtemp-1.0.0.dist-info/sboms/x.spdx3.json",
+                b"{}",
+                "vanishtemp-1.0.0.dist-info/RECORD",
+                b"",
+                (2020, 1, 1, 0, 0, 0),
+            )
 
 
 def test_rewrite_wheel_archive_orig_mode_none(tmp_path: Path) -> None:

@@ -22,12 +22,14 @@ from unittest.mock import patch
 import pytest
 from pyproject_metadata import StandardMetadata
 
+from pitloom.core._config_types import PitloomConfig
 from pitloom.extract._pyproject import (
     _build_provenance,
     _extract_and_detect_license,
     _extract_authors,
     _extract_dynamic_version,
     _extract_readme,
+    _read_pyproject_fallback,
     _read_version_from_file,
     _resolve_license_hint,
     _try_read_poetry,
@@ -71,6 +73,21 @@ def test_read_pyproject_no_project_no_poetry_no_license_found() -> None:
 # ---------------------------------------------------------------------------
 # read_pyproject -- dynamic version present but unresolvable
 # ---------------------------------------------------------------------------
+
+
+def test_read_pyproject_fallback_records_name_provenance() -> None:
+    """``_read_pyproject_fallback`` records ``prov["name"]`` when a non-empty
+    *name* is supplied even though there is no usable ``[project]`` section
+    (e.g. a caller reusing a name resolved from elsewhere)."""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        pyproject_path = tmp_path / "pyproject.toml"
+        pyproject_path.write_text("[build-system]\n")
+        metadata, _config = _read_pyproject_fallback(
+            {}, pyproject_path, "mypkg", PitloomConfig()
+        )
+    assert metadata.name == "mypkg"
+    assert metadata.provenance["name"] == "Source: pyproject.toml | Field: project.name"
 
 
 def test_read_pyproject_dynamic_version_unresolvable() -> None:

@@ -308,6 +308,83 @@ def test_fasttext_ftz_extension(tmp_path: Path) -> None:
     assert meta.type_of_model == "cbow"
 
 
+def test_fasttext_args_partial_attributes_skip_none_values(tmp_path: Path) -> None:
+    """When getattr(args, attr, None) returns None for some hyperparameter
+    attrs (e.g. an older binding missing a field), those keys are simply
+    skipped rather than added with a None value."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    class _PartialArgs:
+        # Only "dim" is present; all other hyperparameter attrs are absent,
+        # so getattr(..., None) falls back to None and is skipped.
+        dim = 100
+        loss = None
+        model = None
+
+    mock_f = MagicMock()
+    mock_f.getArgs.return_value = _PartialArgs()
+
+    mock_model = MagicMock(spec=["f"])
+    mock_model.f = mock_f
+
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.hyperparameters == {"dim": 100}
+    assert "lr" not in meta.hyperparameters
+    assert meta.type_of_model is None
+    assert meta.properties == {}
+    assert meta.outputs == []
+
+
+def test_fasttext_no_loss_attribute_skips_loss_name(tmp_path: Path) -> None:
+    """When args.loss is absent/falsy, "lossName" is not added to
+    properties and no properties.lossName provenance entry is recorded."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_model = _make_fasttext_model()
+    mock_model.f.getArgs.return_value.loss = None
+
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert "lossName" not in meta.properties
+    assert "properties.lossName" not in meta.provenance
+
+
+def test_fasttext_no_get_labels_method_returns_empty_outputs(
+    tmp_path: Path,
+) -> None:
+    """When the model object has no get_labels attribute at all (as opposed
+    to it raising), properties/outputs stay empty without touching
+    get_labels."""
+    model_file = tmp_path / "model.bin"
+    model_file.write_bytes(b"fake")
+
+    mock_f = MagicMock()
+    mock_f.getArgs.return_value = _make_fasttext_args(_FASTTEXT_ARGS_DEFAULTS)
+
+    mock_model = MagicMock(spec=["f"])
+    mock_model.f = mock_f
+
+    mock_fasttext = MagicMock()
+    mock_fasttext.load_model.return_value = mock_model
+
+    with patch.dict("sys.modules", {"fasttext": mock_fasttext}):
+        meta = read_fasttext(model_file)
+
+    assert meta.outputs == []
+    assert "labels" not in meta.properties
+
+
 def test_fasttext_no_name_or_description(tmp_path: Path) -> None:
     """fastText models do not store a name or description field."""
     model_file = tmp_path / "model.bin"

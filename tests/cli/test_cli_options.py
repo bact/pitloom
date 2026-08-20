@@ -269,6 +269,60 @@ def test_read_pitloom_tool_missing_sections(tmp_path: Path) -> None:
     assert _load_pitloom_tool_section(p) == {}
 
 
+def test_read_pitloom_tool_non_pyproject_config(tmp_path: Path) -> None:
+    """A config path that isn't ``pyproject.toml`` (e.g. ``setup.cfg``)
+    short-circuits to ``{}`` without attempting to parse it as TOML."""
+    from pitloom.cli.options import _load_pitloom_tool_section
+
+    p = tmp_path / "setup.cfg"
+    p.write_text("[tool.pitloom]\nval=1\n")
+    assert _load_pitloom_tool_section(p) == {}
+
+
+def test_read_pitloom_tool_none_config(tmp_path: Path) -> None:
+    """A ``None`` config path (no pyproject.toml/setup.cfg found at all)
+    short-circuits to ``{}``."""
+    from pitloom.cli.options import _load_pitloom_tool_section
+
+    assert _load_pitloom_tool_section(None) == {}
+
+
+def test_read_pitloom_tool_returns_section(tmp_path: Path) -> None:
+    """A well-formed ``[tool.pitloom]`` section is returned as a plain
+    ``str``-keyed dict."""
+    from pitloom.cli.options import _load_pitloom_tool_section
+
+    p = tmp_path / "pyproject.toml"
+    p.write_text("[tool.pitloom]\npretty = true\nenrich = false\n")
+    assert _load_pitloom_tool_section(p) == {"pretty": True, "enrich": False}
+
+
+def test_read_pitloom_tool_stdlib_tomllib_branch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """On a Python >= 3.11 interpreter, the stdlib ``tomllib`` module is
+    imported instead of the ``tomli`` backport. This repo's test
+    environment runs on 3.10 (no stdlib ``tomllib``), so the branch is
+    exercised here by faking both ``sys.version_info`` and a ``tomllib``
+    entry in ``sys.modules`` (reusing the real ``tomli`` parser under that
+    name) -- no source changes involved, purely a test-side substitution
+    of what ``import tomllib`` resolves to."""
+    import types
+
+    import tomli
+
+    from pitloom.cli.options import _load_pitloom_tool_section
+
+    fake_tomllib = types.ModuleType("tomllib")
+    fake_tomllib.loads = tomli.loads  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "tomllib", fake_tomllib)
+    monkeypatch.setattr(sys, "version_info", (3, 11, 0, "final", 0))
+
+    p = tmp_path / "pyproject.toml"
+    p.write_text("[tool.pitloom]\npretty = true\n")
+    assert _load_pitloom_tool_section(p) == {"pretty": True}
+
+
 def test_resolve_describe_relationship_and_pretty() -> None:
     import argparse
 

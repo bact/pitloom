@@ -130,6 +130,21 @@ def test_collect_data_types_nested() -> None:
     assert "sc:Integer" in types
 
 
+def test_collect_data_types_list_value() -> None:
+    # dataType may itself hold a list of type strings (e.g. multiple
+    # sc:dataType references on one field); non-string entries are dropped.
+    data = {"sc:dataType": ["sc:Text", "sc:Integer", 123]}
+    types = _collect_data_types(data)
+    assert types == ["sc:Text", "sc:Integer"]
+
+
+def test_collect_data_types_non_str_non_list_value_skipped() -> None:
+    # A dataType value that is neither a str nor a list (e.g. an int) is
+    # silently skipped, and the loop continues to the next dict key.
+    data = {"sc:dataType": 123, "sc:name": "Widget"}
+    assert not _collect_data_types(data)
+
+
 def test_infer_dataset_types_text_and_numeric() -> None:
     data = {
         "cr:recordSet": [
@@ -199,6 +214,12 @@ def test_infer_dataset_types_empty() -> None:
 
 def test_extract_size_no_record_sets() -> None:
     assert _extract_size({}) is None
+
+
+def test_extract_size_nonempty_data_returns_zero() -> None:
+    # Sizing calculation logic is not implemented yet; any non-empty data
+    # falls back to 0 rather than None.
+    assert _extract_size({"cr:recordSet": [{"cr:totalItems": 1000}]}) == 0
 
 
 # def test_extract_size_missing_total_items() -> None:

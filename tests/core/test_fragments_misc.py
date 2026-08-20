@@ -15,14 +15,21 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
+from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
 from pitloom.assemble import generate_project_sbom
-from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.assemble.spdx3.fragments import (
+    _add_fragment_imports,
+    _add_model_sbom,
+    _find_fragment_document_id,
+    merge_fragments,
+)
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
 
@@ -231,3 +238,73 @@ class TestHashFallbackUnification:
         ]
         assert len(datasets) == 2
         assert any("two different SHA-256" in r.message for r in caplog.records)
+
+
+def _make_ci() -> spdx3.CreationInfo:
+    return spdx3.CreationInfo(
+        specVersion="3.0.1",
+        created=datetime.fromtimestamp(1_700_000_000, tz=timezone.utc),
+        createdBy=["http://spdx.org/spdxdocs/actor"],
+    )
+
+
+class TestFragmentMergeUnitBranches:
+    """Direct unit coverage for a few loop-continuation / early-return
+    branches in fragment merging that the integration-style tests above
+    don't reach."""
+
+    def test_find_fragment_document_id_skips_doc_without_spdx_id(self) -> None:
+        """A real ``SpdxDocument`` with no ``spdxId`` is skipped (the loop
+        continues, rather than returning) and the function falls through
+        to ``None``.
+
+        A single-element set (rather than two) avoids relying on set
+        iteration order to reach this branch deterministically."""
+        ci = _make_ci()
+        doc_without_id = spdx3.SpdxDocument(creationInfo=ci, name="no-id-doc")
+        frag_set = spdx3.SHACLObjectSet()
+        frag_set.objects = {doc_without_id}
+        assert _find_fragment_document_id(frag_set) is None
+
+    def test_add_fragment_imports_skips_non_map_non_str_entries(self) -> None:
+        """An existing ``import_`` entry that is neither an ``ExternalMap``
+        with an id nor a ``str`` is ignored when collecting existing ids
+        -- it must not raise, and the new import is still appended."""
+        ci = _make_ci()
+        main_doc = spdx3.SpdxDocument(
+            spdxId="http://spdx.org/spdxdocs/doc",
+            creationInfo=ci,
+            name="doc",
+        )
+        # An ExternalMap with no externalSpdxId matches neither branch.
+        main_doc.import_ = [spdx3.ExternalMap(locationHint="no-id.json")]
+        new_imports = [
+            spdx3.ExternalMap(
+                externalSpdxId="http://spdx.org/spdxdocs/frag-1",
+                locationHint="frag1.json",
+            )
+        ]
+        _add_fragment_imports(main_doc, new_imports)
+        assert len(main_doc.import_) == 2
+
+    def test_add_model_sbom_no_namespace_returns_early(self) -> None:
+        """An ``ai_AIPackage`` is present but the main document has no
+        ``spdxId`` -- ``_add_model_sbom`` must bail out without minting a
+        second ``software_Sbom``."""
+        ci = _make_ci()
+        exporter = Spdx3JsonExporter()
+        ai_pkg = spdx3.ai_AIPackage(
+            spdxId="http://spdx.org/spdxdocs/ai-pkg",
+            creationInfo=ci,
+            name="model",
+        )
+        exporter.add_package(ai_pkg)
+        main_doc = spdx3.SpdxDocument(creationInfo=ci, name="doc")
+        main_doc.rootElement = ["http://spdx.org/spdxdocs/sbom-1"]
+
+        _add_model_sbom(main_doc, exporter)
+
+        sboms = [
+            o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Sbom)
+        ]
+        assert not sboms

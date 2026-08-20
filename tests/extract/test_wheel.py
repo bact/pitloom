@@ -156,6 +156,35 @@ def test_read_wheel_authors_email_only(tmp_path: Path) -> None:
     assert metadata.authors == [{"email": "jane@example.com"}]
 
 
+def test_read_wheel_authors_name_only(tmp_path: Path) -> None:
+    """Author alone (no Author-email) still produces an authors entry with
+    just the name key."""
+    metadata_body = (
+        "Metadata-Version: 2.1\nName: pkg\nVersion: 1.0.0\nAuthor: Jane Doe\n"
+    )
+    wheel_path = _make_wheel(tmp_path, "pkg", metadata_body)
+
+    metadata, _ = read_wheel(wheel_path)
+
+    assert metadata.authors == [{"name": "Jane Doe"}]
+
+
+def test_read_wheel_no_name_no_version_still_reads_other_fields(
+    tmp_path: Path,
+) -> None:
+    """A METADATA file lacking both Name and Version still populates
+    fields that don't depend on them, and records no name/version
+    provenance."""
+    metadata_body = "Metadata-Version: 2.1\nSummary: A short description.\n"
+    wheel_path = _make_wheel(tmp_path, "pkg", metadata_body)
+
+    metadata, _ = read_wheel(wheel_path)
+
+    assert metadata.description == "A short description."
+    assert "name" not in metadata.provenance
+    assert "version" not in metadata.provenance
+
+
 def test_read_wheel_no_authors_when_absent(tmp_path: Path) -> None:
     """Neither Author nor Author-email present -> authors stays empty."""
     metadata_body = "Metadata-Version: 2.1\nName: pkg\nVersion: 1.0.0\n"

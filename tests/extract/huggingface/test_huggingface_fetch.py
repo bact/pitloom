@@ -168,6 +168,25 @@ def test_load_model_info_falsy_fields_omitted_but_zero_downloads_kept() -> None:
     assert result == {"sha": "abc", "downloads": 0}
 
 
+def test_load_model_info_sha_and_downloads_none_omitted() -> None:
+    # sha and downloads both falsy/None -> both keys omitted, exercising the
+    # false branch of each "if" independently of the other falsy fields.
+    info = _FakeModelInfo(
+        author="someone",
+        sha=None,
+        created_at=None,
+        last_modified=None,
+        downloads=None,
+        tags=[],
+    )
+    with patch("huggingface_hub.model_info", return_value=info):
+        result = _load_model_info("org/model")
+
+    assert "sha" not in result
+    assert "downloads" not in result
+    assert result == {"author": "someone"}
+
+
 # ---------------------------------------------------------------------------
 # _list_license_files_in_repo
 # ---------------------------------------------------------------------------
@@ -214,6 +233,31 @@ def test_detect_license_from_hf_files_pinned_revision_detects_license(
         "Source: Hugging Face Hub | File: LICENSE | Method: licenseid_detection"
     )
     assert not any("pinned revision" in r.message for r in caplog.records)
+
+
+def test_detect_license_from_hf_files_undetected_continues_to_next_file(
+    tmp_path: Path,
+) -> None:
+    """When a candidate license file's text doesn't match any known
+    license, the loop continues to the next candidate rather than
+    returning immediately -- and falls through to (None, None) once all
+    candidates are exhausted."""
+    license_file = tmp_path / "LICENSE"
+    license_file.write_text("Some unrecognizable legal text.", encoding="utf-8")
+
+    with patch(
+        "pitloom.extract._huggingface_fetch._list_license_files_in_repo",
+        return_value=["LICENSE", "COPYING"],
+    ):
+        with patch("huggingface_hub.hf_hub_download", return_value=str(license_file)):
+            with patch(
+                "pitloom.extract._license.detect_license_from_text",
+                return_value=None,
+            ):
+                detected_id, provenance = _detect_license_from_hf_files("org/model")
+
+    assert detected_id is None
+    assert provenance is None
 
 
 # ---------------------------------------------------------------------------

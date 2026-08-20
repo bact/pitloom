@@ -90,6 +90,31 @@ def test_enrich_command_no_enrich_flag_suppresses(
     assert not [n for n in doc["@graph"] if n.get("type") == "dataset_DatasetPackage"]
 
 
+def test_enrich_command_verbose_mode_without_project_dir(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`loom enrich --verbose` without `--project-dir` must skip the
+    "Project dir" line entirely, not print it empty."""
+    model_path = tmp_path / "model.safetensors"
+    model_path.write_bytes(SAFETENSORS_FIXTURE.read_bytes())
+    out = tmp_path / "model.enrich.spdx3.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "enrich", str(model_path), "-o", str(out), "--verbose"],
+    )
+    result = __main__.main()
+    assert result == 0
+
+    captured = capsys.readouterr()
+    assert "Pitloom version:" in captured.out
+    assert "Model file      :" in captured.out
+    assert "Project dir     :" not in captured.out
+
+
 def test_enrich_command_model_not_found(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

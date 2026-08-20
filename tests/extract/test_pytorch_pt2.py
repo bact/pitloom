@@ -6,6 +6,10 @@
 """Tests for the PyTorch PT2 Archive metadata extractor (.pt2).
 
 Covers mocked and integration tests.
+
+See also: :mod:`tests.extract.test_pytorch_pt2_edge_cases` for graph-io,
+format-version, and version-file edge cases split out to stay under the
+project's file-size limit.
 """
 
 # pylint: disable=missing-function-docstring

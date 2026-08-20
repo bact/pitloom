@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.ai import (
@@ -268,3 +269,31 @@ def test_add_base_model_lineage_relation_comment() -> None:
         if isinstance(obj, spdx3.Relationship)
     ]
     assert relationships[0].comment == "base_model_relation:quantized"
+
+
+def test_add_base_model_lineage_no_relationship_when_build_relationship_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If build_relationship() ever returns None (e.g. from_id somehow
+    unset), _add_base_model_lineage() must not add a Relationship element
+    -- covers the "skip, no relationship built" exit branch."""
+    ci = _make_ci()
+    exporter = Spdx3JsonExporter()
+    model = AiModelMetadata(name="finetuned-model", base_model="org/base-model")
+    pkg = _build_ai_package(model, ci, _DOC_NAME, _DOC_UUID)
+    exporter.add_package(pkg)
+    ctx = _LineageContext(
+        creation_info=ci, doc_name=_DOC_NAME, doc_uuid=_DOC_UUID, exporter=exporter
+    )
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3._ai_package.build_relationship",
+        lambda *args, **kwargs: None,
+    )
+    _add_base_model_lineage(pkg, model, ctx)
+
+    relationships = [
+        obj
+        for obj in exporter.object_set.objects
+        if isinstance(obj, spdx3.Relationship)
+    ]
+    assert relationships == []

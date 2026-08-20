@@ -42,6 +42,23 @@ def test_get_caller_info_exception_logs_and_returns_fallback(
     assert any("caller info" in r.message for r in caplog.records)
 
 
+def test_run_exit_without_active_run_is_a_noop() -> None:
+    """Run.__exit__ is a no-op (no finalize, no crash) when there is no
+    active run at all -- e.g. __exit__ invoked without a matching __enter__."""
+    run_ctx = loom.Run("unused.json")
+    run_ctx.previous_run = None
+
+    original_active_run = loom._active_run
+    loom._active_run = None
+    try:
+        run_ctx.__exit__(None, None, None)
+        # previous_run was None, and __exit__ found no active run to
+        # finalize -- _active_run stays None rather than raising.
+        assert loom._active_run is None
+    finally:
+        loom._active_run = original_active_run
+
+
 def test_loom_run_as_context_manager() -> None:
     """Test using loom.run as a context manager."""
     with tempfile.TemporaryDirectory() as tmpdir:
