@@ -12,8 +12,6 @@ See also: :mod:`tests.assemble.test_assemble_ai_metadata`.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -26,22 +24,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
-_DOC_NAME = "testproject"
-_DOC_UUID = "00000000-0000-0000-0000-000000000000"
-
-
-def _make_ci() -> spdx3.CreationInfo:
-    ci = spdx3.CreationInfo(
-        specVersion="3.0.1",
-        created=datetime(2026, 1, 1, tzinfo=timezone.utc),
-    )
-    person = spdx3.Person(
-        spdxId=generate_spdx_id("Person", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID),
-        name="Test",
-        creationInfo=ci,
-    )
-    ci.createdBy = [require_spdx_id(person)]
-    return ci
+from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
 
 
 def test_build_ai_package_minimal() -> None:

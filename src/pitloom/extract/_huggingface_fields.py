@@ -343,6 +343,8 @@ def _build_extra_data(
     hub_info: dict[str, Any] = hf_data.get("hub_info") or {}
     tokenizer_config: dict[str, Any] | None = hf_data.get("tokenizer_config")
 
+    # hf.model_id/hf.url are seeded unconditionally, so extra_data is never
+    # empty by the time provenance["extra_data"] is set below.
     extra_data: dict[str, Any] = {"hf.model_id": model_id, "hf.url": hf_url}
 
     if vague_raw_license:

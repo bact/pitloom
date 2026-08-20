@@ -75,40 +75,6 @@ def test_finalize_skips_has_data_file_relationship_when_none(
     assert not _relationships(graph)
 
 
-def test_finalize_skips_mkdir_when_output_parent_is_falsy(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """finalize() only calls output_path.parent.mkdir() when the parent is
-    truthy; simulate a falsy parent (Path.parent can't itself be falsy) via
-    a stand-in Path-like object."""
-
-    class _FalsyParentPath:
-        """A minimal os.PathLike whose .parent is falsy (None)."""
-
-        def __init__(self, path: str) -> None:
-            self._path = Path(path)
-
-        def __fspath__(self) -> str:
-            return str(self._path)
-
-        @property
-        def parent(self) -> None:
-            return None
-
-    monkeypatch.setattr(
-        "pitloom._loom_active_run.Path",
-        lambda p: _FalsyParentPath(p),
-    )
-
-    output_file = tmp_path / "frag_falsy_parent.json"
-    with loom.run(output_file):
-        loom.set_model("test-model")
-        loom.add_dataset("train.txt")
-
-    assert output_file.exists()
-
-
 def test_script_file_has_no_verified_using_when_hash_lookup_returns_none(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

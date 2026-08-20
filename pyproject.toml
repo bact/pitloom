@@ -345,4 +345,4 @@ source = ["pitloom"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 95      # Hard floor minimum threshold; we try to keep it higher
+fail_under = 97      # Hard floor minimum threshold; we try to keep it higher

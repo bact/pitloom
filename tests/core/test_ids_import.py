@@ -20,15 +20,10 @@ from pitloom.ids import (
     IdRegistry,
     _import_sbom_element,
 )
-from tests.ids_shared import _write_sample_sbom, _write_sample_sbom_without_document
-
-
-def _make_project(tmp_path: Path) -> Path:
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "a.py").write_bytes(b"print(1)\n")
-    (tmp_path / "data").mkdir()
-    (tmp_path / "data" / "x.txt").write_bytes(b"hello\n")
-    return tmp_path
+from tests.ids_shared import (
+    _write_sample_sbom,
+    _write_sample_sbom_without_document,
+)
 
 
 def test_import_sbom_harvests_files_and_entities(tmp_path: Path) -> None:

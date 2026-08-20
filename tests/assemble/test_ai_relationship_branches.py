@@ -17,8 +17,6 @@ _add_ai_model_file_relationships()'s other branch (an unmapped usage file).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -27,22 +25,7 @@ from pitloom.core.ai_metadata import AiModelFormatInfo, AiModelMetadata
 from pitloom.core.models import generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
-_DOC_NAME = "testproject"
-_DOC_UUID = "00000000-0000-0000-0000-000000000000"
-
-
-def _make_ci() -> spdx3.CreationInfo:
-    ci = spdx3.CreationInfo(
-        specVersion="3.0.1",
-        created=datetime(2026, 1, 1, tzinfo=timezone.utc),
-    )
-    person = spdx3.Person(
-        spdxId=generate_spdx_id("Person", doc_name=_DOC_NAME, doc_uuid=_DOC_UUID),
-        name="Test",
-        creationInfo=ci,
-    )
-    ci.createdBy = [require_spdx_id(person)]
-    return ci
+from .conftest import _DOC_NAME, _DOC_UUID, _make_ci
 
 
 def test_add_ai_model_file_relationships_skips_when_build_relationship_none(

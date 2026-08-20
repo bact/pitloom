@@ -20,14 +20,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.ids import IdRegistry, _sha256_from_verified_using
 
 
-def _make_project(tmp_path: Path) -> Path:
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "a.py").write_bytes(b"print(1)\n")
-    (tmp_path / "data").mkdir()
-    (tmp_path / "data" / "x.txt").write_bytes(b"hello\n")
-    return tmp_path
-
-
 def test_resolve_registry_error(tmp_path: Path) -> None:
     from pitloom.ids import resolve_registry
 

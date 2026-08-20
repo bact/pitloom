@@ -25,14 +25,7 @@ from pitloom.extract._pytorch_pt2 import (
     _read_pt2_zip,
 )
 
-
-def _make_pt2_zip(files: dict[str, bytes] | None = None) -> bytes:
-    """Build a minimal in-memory ZIP archive for PT2 Archive testing."""
-    buf = _io.BytesIO()
-    with _zipfile.ZipFile(buf, "w") as zf:
-        for name, data in (files or {}).items():
-            zf.writestr(name, data)
-    return buf.getvalue()
+from .test_pytorch_pt2 import _make_pt2_zip
 
 
 def test_read_pt2_graph_io_skips_unresolvable_entries_then_matches() -> None:
@@ -105,6 +98,6 @@ def test_read_pt2_zip_whitespace_only_version_file_skips_provenance() -> None:
     mock_zf.read.return_value = b"  \n"
 
     res = _read_pt2_zip(mock_zf, "Source: model.pt2")
-    (_, version, _, _, _, _, provenance, _, _) = res
+    (_, _, version, _, _, _, provenance, _, _) = res
     assert version is None
     assert "version" not in provenance
