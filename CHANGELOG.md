@@ -23,12 +23,8 @@ and this project adheres to
 
 ### Added
 
-- Atheris fuzz harnesses for the two highest-value untrusted-input
-  parsing surfaces (SPDX license expression normalization, GGUF model
-  header parsing), run manually via a `workflow_dispatch` CI job before
-  tagging a release -- OpenSSF Best Practices `dynamic_analysis`
-  (SUGGESTED). See `fuzz/README.md` and
-  `working-docs/implementation/fuzzing.md`.
+- Atheris fuzz harnesses for license expression normalization and
+  GGUF model header parsing. See `fuzz/README.md` ([#179])
 - `pytest` now fails on any runtime warning (`filterwarnings = ["error"]`,
   plus `--strict-markers`/`--strict-config`) instead of printing an
   ignorable summary line -- OpenSSF Best Practices `warnings_strict`
@@ -38,14 +34,11 @@ and this project adheres to
 
 - Test coverage near 100% ([#176], [#177])
 - `normalize_license_expression` no longer raises `IndexError` on an
-  unbalanced `)` (e.g. a lone `")"`) -- found by the new fuzz harness
-  within seconds of random input. The underlying bug is in the
-  third-party `py-spdx-license` parser; this widens Pitloom's own
-  fallback to catch it, matching how `canonicalize_license_id` already
-  defends against its own third-party call.
+  unbalanced `)` (e.g. a lone `")"`) ([#179])
 
 [#176]: https://github.com/bact/pitloom/pull/176
 [#177]: https://github.com/bact/pitloom/pull/177
+[#179]: https://github.com/bact/pitloom/pull/179
 
 ## [0.16.2] - 2026-08-19
 
