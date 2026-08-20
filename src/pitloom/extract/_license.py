@@ -138,6 +138,15 @@ def normalize_license_expression(raw: str) -> str:
         return str(node.sort().to_string())
     except SpdxExpressionParseError as exc:
         _logger.debug("Failed to parse SPDX expression %r: %s", raw, exc)
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        # py-spdx-license can raise something other than its own
+        # ParseError on malformed input (e.g. an unbalanced ")" hits an
+        # IndexError deep in its parser stack instead) -- this function's
+        # contract is to always degrade gracefully, matching
+        # canonicalize_license_id's fallback below, so any parser failure
+        # (documented or not) takes the same fallback path.
+        _logger.debug("SPDX expression parser raised unexpectedly for %r: %s", raw, exc)
     return canonicalize_license_id(raw)
 
 

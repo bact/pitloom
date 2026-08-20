@@ -233,6 +233,19 @@ def test_normalize_license_expression_malformed_syntax_falls_back_gracefully() -
     assert normalize_license_expression(malformed) == canonicalize_license_id(malformed)
 
 
+@pytest.mark.parametrize("malformed", [")", ")(", "A)", ")A", "))"])
+def test_normalize_license_expression_unbalanced_close_paren_falls_back(
+    malformed: str,
+) -> None:
+    """A ")" with no matching "(" before it must not raise, even though
+    py-spdx-license itself raises IndexError (not its own ParseError) for
+    this specific shape -- found by fuzzing (fuzz/fuzz_license_expression.py)
+    within seconds of random input. This function's contract is "never
+    raises for any string," so any parser failure, documented or not,
+    takes the same graceful fallback as the "((unbalanced" case above."""
+    assert normalize_license_expression(malformed) == canonicalize_license_id(malformed)
+
+
 def test_normalize_license_expression_idempotent() -> None:
     """Normalizing an already-normalized expression returns it unchanged --
     required for the G2 comparison to be stable (declared side and detected

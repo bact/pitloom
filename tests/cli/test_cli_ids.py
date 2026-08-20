@@ -211,10 +211,18 @@ def test_module_entrypoint_exits_with_main_return_code(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Running ``python -m pitloom`` (the ``if __name__ == "__main__":``
-    guard) calls ``sys.exit(main())``."""
+    guard) calls ``sys.exit(main())``.
+
+    Uses ``runpy.run_path`` (not ``run_module``): by the time this test
+    runs, ``pitloom.__main__`` is already in ``sys.modules`` (imported
+    above for ``__main__.main()``), and ``run_module`` documents +
+    raises a ``RuntimeWarning`` for exactly that "already imported"
+    case -- a real Python footgun, not a Pitloom bug, but one this test
+    can simply avoid by executing the file directly instead.
+    """
     import runpy
 
     monkeypatch.setattr(sys, "argv", ["pitloom", "ids", "generate", "--help"])
     with pytest.raises(SystemExit) as exc_info:
-        runpy.run_module("pitloom.__main__", run_name="__main__")
+        runpy.run_path(__main__.__file__, run_name="__main__")
     assert exc_info.value.code == 0
