@@ -3,5 +3,5 @@ exclude = tests/fixtures
 extend-ignore = E203
 max-line-length = 88
 max-complexity = 14
-# Ratchet ceiling lowered to 20. AGENTS.md target is 15.
+# max-cognitive-complexity Target: 15
 max-cognitive-complexity = 20
