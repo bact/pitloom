@@ -19,6 +19,14 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3>
 
+## [Unreleased]
+
+### Fixed
+
+- Deduplicate dependencies ([#184])
+
+[#184]:  https://github.com/bact/pitloom/pull/184
+
 ## [0.16.3] - 2026-08-21
 
 ### Added
