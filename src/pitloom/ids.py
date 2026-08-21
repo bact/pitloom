@@ -210,9 +210,7 @@ class IdRegistry:
         with open(sbom_path, "rb") as f:
             spdx3.JSONLDDeserializer().read(f, object_set)
 
-        sorted_objects = sorted(
-            object_set.objects, key=lambda o: getattr(o, "spdxId", None) or ""
-        )
+        sorted_objects = _sorted_by_spdx_id(object_set)
 
         if not self.files and not self.entities:
             for obj in sorted_objects:
@@ -220,8 +218,32 @@ class IdRegistry:
                     self.namespace = obj.spdxId
                     break
 
+        self._harvest_sorted(sorted_objects)
+
+    def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, int]:
+        """Harvest every named element in *object_set* into this registry.
+
+        Used both by :meth:`import_sbom` (after deserializing an existing
+        SBOM from disk) and by SBOM generation itself, directly on a
+        :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`'s in-memory
+        object set -- no serialize/reparse round trip needed there, since
+        every element already carries its assigned ``spdxId``.
+
+        Returns the number of ``(new_files, new_entities)`` added.
+        """
+        return self._harvest_sorted(_sorted_by_spdx_id(object_set))
+
+    def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, int]:
+        """Harvest *sorted_objects* (see :func:`_sorted_by_spdx_id`).
+
+        Split out of :meth:`harvest` so :meth:`import_sbom` -- which
+        already needs a sorted list for its own namespace-seeding scan --
+        can reuse it here instead of sorting the same object set twice.
+        """
+        before_files, before_entities = len(self.files), len(self.entities)
         for obj in sorted_objects:
             _import_sbom_element(self, obj)
+        return len(self.files) - before_files, len(self.entities) - before_entities
 
     def save(self, path: Path | None = None) -> None:
         """Write this registry as JSON to *path*."""
@@ -245,6 +267,12 @@ class IdRegistry:
             json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
             f.write("\n")
         self.path = target
+
+
+def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
+    """Return *object_set*'s objects sorted by ``spdxId`` for deterministic
+    iteration (``SHACLObjectSet.objects`` is an unordered set)."""
+    return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
 
 
 def _import_sbom_element(registry: IdRegistry, obj: Any) -> None:

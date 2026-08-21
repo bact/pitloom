@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -73,10 +73,10 @@ it). §1/§2 below and the drafted page content are updated to match.
    value in code and in the `sbom-enrich` Skill's own conventions, no
    longer overloaded with `method`. §1/§2 below and the drafted page
    content reflect the fix.
-4. **`docs/metadata-provenance.md`'s stale `synthetic` value**: code
-   emits `synthetic environment root`, the doc says `synthetic`. Small,
-   independent fix, not yet applied anywhere -- could be split out and
-   shipped on its own regardless of what happens to the rest of this.
+4. ~~**`docs/metadata-provenance.md`'s stale `synthetic` value**~~ --
+   **Resolved** (checked 2026-08-20): `docs/metadata-provenance.md`
+   already reads `synthetic environment root`, matching
+   `src/pitloom/extract/env.py`. No stale value remains.
 5. **Casing is inconsistent between the `method` and `role` vocabularies**,
    and worth reconciling later:
    - `method` values are uniformly `snake_case`: `dynamic_extraction`,

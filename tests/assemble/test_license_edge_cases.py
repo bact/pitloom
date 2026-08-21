@@ -60,7 +60,9 @@ def test_canonicalize_license_id_match_and_exception() -> None:
     ):
         assert canonicalize_license_id("mit") == "MIT"
 
-    # Exception path returns raw
+    # Exception path returns raw. Clear the cache first, or _get_matcher's
+    # lru_cache would still return the block above's mock_matcher.
+    _license_module._get_matcher.cache_clear()
     mock_err_matcher = MagicMock()
     mock_err_matcher.match.side_effect = RuntimeError("fail")
     with patch(

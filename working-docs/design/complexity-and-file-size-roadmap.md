@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-21
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -68,34 +68,31 @@ helper functions:
 
 ## File-size limits status (DRIFTED -- needs a follow-up pass)
 
-As of 2026-08-18, both boundaries this doc previously reported clean have
-been crossed again by organic growth (new tests, new fields), none of it
-individually large enough to trip review attention:
+As of 2026-08-21, both boundaries this doc previously reported clean are
+still crossed by organic growth, none of it individually large enough to
+trip review attention:
 
-- **`src/`** (soft limit 400-500, hard cap 800): 6 files now exceed 400
-  lines; two exceed the previous $\le 417$ high-water mark:
-  - `src/pitloom/extract/_setuptools_cfg.py` -- 431 lines
-  - `src/pitloom/extract/_huggingface_fields.py` -- 426 lines
+- **`src/`** (soft limit 400-500, hard cap 800): 6 files exceed 400 lines,
+  worst is `deps_originator.py` at 438 (`_setuptools_cfg.py` 431,
+  `_huggingface_fields.py` 426, `_pytorch_pt2.py` 417, `_loom_active_run.py`
+  411, `export/spdx3_json.py` 401).
 - **`tests/`** (excluding `tests/extract/huggingface/` mock fixture
-  catalogs, which are exempted separately): 4 files now exceed the previous
-  $\le 415$ high-water mark:
-  - `tests/extract/test_hdf5.py` -- 540 lines (also the largest test file
-    outside the exempted Hugging Face catalogs)
-  - `tests/extract/test_pytorch_pt2.py` -- 455 lines
-  - `tests/assemble/test_assembly_edge_cases.py` -- 440 lines
-  - `tests/extract/test_pyproject.py` -- 419 lines
+  catalogs): 9 files exceed 415 lines, worst is `test_hdf5.py` at 552
+  (`test_deps_enrichment_pypi_fallback.py` 460, `test_pytorch_pt2.py` 459,
+  `test_assembly_edge_cases.py` 456, `test_annotation_provenance_emit.py`
+  449, `test_pyproject.py` 436, `test_cli_options.py` 429,
+  `test_setuptools_cfg.py` 426, `test_gguf.py` 423).
 
-None of these have crossed the 800-line hard cap, so nothing is currently
-broken -- but per AGENTS.md, a file should be split *before* crossing the
-soft limit, not after. `_setuptools_cfg.py` and `deps_originator.py`
-(407 lines, under the old high-water mark but still growing) are the
-best next candidates: both were split once already (see the table below)
-and have regrown past a third of their original decomposed size.
+None have crossed the 800-line hard cap, so nothing is currently broken --
+but per AGENTS.md, a file should be split *before* crossing the soft
+limit. `deps_originator.py` and `_setuptools_cfg.py` are the best next
+candidates: both were split once already (see the table below) and have
+regrown past a third of their original decomposed size.
 
 Complexity has a CI gate (the ruff/flake8 ratchets above) that makes
 regressions visible immediately; file size does not, which is how this
-drifted unnoticed. A `wc -l` CI check against the soft limit would close
-that gap -- not yet implemented.
+keeps drifting unnoticed. A `wc -l` CI check against the soft limit would
+close that gap -- not yet implemented.
 
 | Former oversized file | Split result (at time of split) | Max lines |
 | :--- | :--- | ---: |

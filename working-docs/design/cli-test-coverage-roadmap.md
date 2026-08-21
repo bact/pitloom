@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,10 +9,10 @@ SPDX-License-Identifier: CC0-1.0
 # CLI split, test-suite modularization, and coverage roadmap
 
 **Status:** Phases 1-3 shipped and the 95% stretch target has since been
-reached and exceeded. As of 2026-08-18: `src/pitloom/cli/` exists,
+reached and exceeded. As of 2026-08-21: `src/pitloom/cli/` exists,
 `tests/cli/`/`tests/core/`/`tests/extract/`/`tests/assemble/` exist,
-`fail_under` is **95** (raised from 90, met -- **97.35%** measured,
-2119 passed / 24 skipped). File-size limits have since drifted back
+`fail_under` is **97** (raised further from 95 -- **99.89%** measured,
+2270 passed / 24 skipped). File-size limits have since drifted back
 above what this doc originally reported -- see
 [complexity-and-file-size-roadmap.md](complexity-and-file-size-roadmap.md)
 for the current offenders, tracked there rather than duplicated here.
@@ -226,37 +226,20 @@ The internal modules across the codebase now cleanly follow this rule:
 
 ## Phase 3: coverage backfill and floor raise (COMPLETE, then exceeded)
 
-`fail_under` was raised to **90**, then to **95**
-(`pyproject.toml:345`) as PR #164 backfilled coverage across
-`extract/`, `assemble/`, and `cli/`. Re-measured 2026-08-18 (Python
-3.10.20, `pytest -n auto --dist=loadscope --cov=pitloom`):
-**97.35% total, 2119 passed / 24 skipped.** All of `cli/*` remains
-88-100% covered.
-
-Current worst-covered files (re-measure on 3.14/Codecov before
-treating as ground truth -- this is a 3.10 local run):
-
-1. `assemble/__init__.py` -- 71%
-2. `__main__.py` -- 84%
-3. `assemble/_model_generator.py` -- 85%
-4. `assemble/spdx3/_fragments_unify.py` -- 88%
-5. `assemble/_generators.py` -- 94%
-6. `assemble/spdx3/deps.py`, `extract/hatchling.py`, `ids.py` -- 95%
-
-The 95% stretch target was reached and exceeded (97.35%) via PR #164's
-coverage backfill (see [CHANGELOG.md](../../CHANGELOG.md)'s 0.16.0
-entry). Not a blocker either way -- it was an aim, not a second hard
-CI gate -- but the file list above is where a future backfill pass
-should start if coverage is worth pushing further.
+`fail_under` was raised 90 -> 95 -> **97** (`pyproject.toml:368`) as
+PR #164 and later #176/#177 backfilled coverage across `extract/`,
+`assemble/`, and `cli/`. Re-measured 2026-08-21: **99.89% total, 2270
+passed / 24 skipped.** Worst-covered files are now `assemble/spdx3/document.py`
+(98%) and `extract/_setuptools.py` (98%) -- everything else is 99-100%.
+Nothing left worth a dedicated backfill pass.
 
 ## Test performance and caching
 
-Measured 2026-08-18 (re-measured after PR #164's ~180 new tests):
-2119 passed / 24 skipped in ~35s using
+Re-measured 2026-08-21: 2270 passed / 24 skipped in ~35s using
 `pytest -n auto --dist=loadscope --cov=pitloom` -- `pytest-xdist` is
 in use. No known test-order-dependency flakiness surfaced from parallelization.
-Runtime grew roughly proportionally to test count (was ~9s at 1936
-tests); still comfortably fast enough that per-directory CI matrix
+Runtime has stayed roughly flat since the 2119-test measurement (also
+~35s), still comfortably fast enough that per-directory CI matrix
 legs aren't warranted yet (see below).
 
 - The Phase 2 folder split is itself a speed win for iteration
@@ -288,7 +271,7 @@ Read working-docs/design/cli-test-coverage-roadmap.md in full. Phases
 1-3 (the __main__.py -> cli/ split, test-suite modularization incl.
 the further split pass, and coverage floor raise to 90, later 95) are
 all COMPLETE, and the 95% stretch target has been reached and
-exceeded (97.35% as of 2026-08-18) -- do not redo any of this.
+exceeded (99.89% as of 2026-08-21) -- do not redo any of this.
 
 This doc's own scope is closed. If you're here for file-size or
 coverage follow-up, check complexity-and-file-size-roadmap.md first --

@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: Apache-2.0
+
+name: Fuzz
+
+# Manual trigger, not tied to a release-candidate tag: this project
+# doesn't otherwise cut RCs (see release-checklist.md), so a dedicated
+# RC-tag convention would exist solely to serve this job. A bounded-time
+# workflow_dispatch run before tagging a release satisfies OpenSSF Best
+# Practices' "at least one dynamic analysis tool ... before its release"
+# (SUGGESTED) without that extra process weight -- see
+# working-docs/implementation/fuzzing.md.
+on:
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: "Seconds to fuzz each target for"
+        required: false
+        default: "300"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    # Linux only: atheris needs a real (non-Apple) Clang with libFuzzer
+    # to build and has no Windows wheels -- see fuzz/README.md.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [license_expression, gguf_header]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and fuzz dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[gguf]" --group fuzz
+
+      - name: Run fuzz_${{ matrix.target }}.py
+        run: |
+          python "fuzz/fuzz_${{ matrix.target }}.py" \
+            "-max_total_time=${{ inputs.duration_seconds }}"
+
+      - name: Upload crash artifact
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: crash-*
+          if-no-files-found: ignore

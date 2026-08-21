@@ -11,6 +11,8 @@ from typing import Any
 
 import pytest
 
+from pitloom.extract._license import _get_matcher
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -31,6 +33,13 @@ def _blocked_socket(*_args: Any, **_kwargs: Any) -> None:
 def fixtures_dir() -> Path:
     """Return the path to the test fixtures directory."""
     return FIXTURES_DIR
+
+
+@pytest.fixture(autouse=True)
+def _reset_license_matcher_cache() -> None:
+    """Clear the cached ``AggregatedLicenseMatcher`` before each test, so a
+    mock from one test can't leak into the next via ``_get_matcher``'s cache."""
+    _get_matcher.cache_clear()
 
 
 @pytest.fixture(autouse=True)

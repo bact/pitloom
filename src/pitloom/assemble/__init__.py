@@ -60,6 +60,7 @@ def generate(
     extract_file_header: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
+    update_registry: bool | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types."""
     target_str = str(target).strip()
@@ -73,6 +74,7 @@ def generate(
             registry=registry,
             provenance=provenance,
             offline=offline,
+            update_registry=update_registry,
         )
 
     if target_str.lower().endswith(".whl"):
@@ -85,6 +87,7 @@ def generate(
             registry=registry,
             provenance=provenance,
             offline=offline,
+            update_registry=update_registry,
         )
 
     if is_huggingface_source(target_str):
@@ -145,4 +148,5 @@ def generate(
         content_type=content_type,
         content_type_method=content_type_method,
         offline=offline,
+        update_registry=update_registry,
     )

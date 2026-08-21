@@ -71,13 +71,10 @@ def _make_meta(**kwargs) -> DatasetMetadata:  # type: ignore[no-untyped-def]
 
 
 class _FakeMetadata:
-    """Minimal stand-in satisfying the ``importlib.metadata.PackageMetadata``
-    protocol. ``__getitem__`` returns ``None`` for a missing key at runtime
-    (matching the real, ``email.message.Message``-backed implementation,
-    which the ``-> str`` protocol signature doesn't accurately capture
-    either) -- callers here always guard with ``pkg_meta[field] or ""``,
-    same as production code.
-    """
+    """Minimal stand-in for the ``importlib.metadata.PackageMetadata``
+    protocol. ``__contains__`` is real, so production code's
+    ``pkg_meta_get()`` (see ``pitloom.extract._extract_utils``) works
+    against it without hitting ``__getitem__``'s missing-key path."""
 
     def __init__(
         self,

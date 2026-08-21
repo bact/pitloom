@@ -13,6 +13,7 @@
 - **Naming and grouping**: kebab-case, topic-first filenames. If a topic outgrows 3+ closely related files, group them in a same-named subfolder.
 - **Cross-linking**: every split or grouped file gets a "See also" pointer near the top.
 - Every commit need a sign-off line (DCO) in the commit message.
+- **CHANGELOG entries**: concise, to the point. No background/rationale -- link the PR for that. Target ~160 chars per bullet; exception for a genuinely complex PR.
 
 ### SBOM output
 
@@ -25,6 +26,7 @@
 - The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` via `pitloom.extract.hatchling.metadata_from_hatchling()`.
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default parsing path both resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
+- **`physical_path` vs `distribution_path`**: on-disk project-root-relative path vs in-package/built path -- diverge for any `src/`-layout project. `software_File.name` in the SPDX graph always uses `distribution_path`. Any file-lookup/registry code keyed by path must check both, not just `physical_path`.
 
 ## Design principles
 
@@ -112,12 +114,14 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 ## Testing
 
 - **Bug fixes and regressions**: Always add a regression test that fails without the fix and passes with it.
+- **Guard against vacuous passes**: for a "changed input -> unchanged output" test (e.g. stability/idempotency), assert the input actually changed, not just that the output didn't -- a misplaced setup edit can make the test pass without exercising anything.
 - Use pytest patterns. Use `spec`/`autospec` when mocking. Use `@pytest.mark.parametrize`.
 - **Test suite structure**: Adhere to the same file size limits as source code.
 - **Naming**: `test_<area>.py`, 1:1 with the source module. Disambiguate when two source packages could produce the same tail.
 - **Grouping**: Group tests in same-named subfolders under `tests/` mirroring `src/pitloom/<package>/` when a source package's tests grow to 3+ related files. No `__init__.py` needed in test folders.
 - **No non-deterministic assertions**: Never assert against real wall-clock time (`datetime.now()`, `time.time()`, `date.today()`), unseeded random/UUID values, or set/dict iteration order. Use a fixed/frozen timestamp, mock the random source, or sort before comparing. Elapsed-duration checks (e.g. concurrency regression tests bounding `time.monotonic()` deltas) are a different category and fine with a generous bound.
 - **Don't couple tests to undocumented internals**: A `pytest.raises(match=...)` or log-message assertion should target wording the source documents as intentional (a deliberate user-facing error/warning, a documented format's field/member name), not an incidental internal string that could change during a harmless refactor. Prefer a short, stable substring over the full message. SPDX3 field/type assertions must come from the spec (`spdx_python_model.bindings`), not an undocumented Pitloom-internal layout.
+- **Runtime warnings are test failures**: `filterwarnings = ["error"]` (OpenSSF `warnings_strict`) turns every `DeprecationWarning`/`ResourceWarning`/pytest-internal warning into a hard failure -- there is no silent "printed but ignored" path. If a genuinely unavoidable third-party warning appears, add a specific, narrowly-scoped `ignore::` filter entry (module/category-qualified), never a blanket one, and say why in a comment next to it.
 
 ## Shell scripts
 

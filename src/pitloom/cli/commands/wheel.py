@@ -67,6 +67,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         pretty=effective_pretty,
         describe_relationship=effective_describe,
         registry=args.registry,
+        update_registry=args.update_registry,
         provenance=pitloom_config.provenance,
         offline=args.offline or None,
     )

@@ -382,6 +382,18 @@ so the same file/entity carries the same id everywhere. Regeneration is
 stable: an unchanged file keeps its id; changed content gets a fresh one
 (different bytes are different provenance).
 
+`loom project`/`wheel`/`env` also harvest newly-minted ids back into the
+resolved registry after each run (`update-registry`, on by default) --
+running `loom project` then `loom wheel` then `loom env` in sequence keeps
+the same spdxIds without a manual `ids generate`/`import` step in between.
+`ai_AIPackage` and `dataset_DatasetPackage` entries are the exceptions:
+`pitloom ids generate` remains the way to register AI models, since their
+stable key (the model file's stem) can't safely come from auto-harvest;
+datasets aren't registry-consulted at build time at all yet, so harvesting
+them would just write dead entries. See
+[Persisting the Loom ID registry in CI](docs/github-action.md#persisting-the-loom-id-registry-in-ci)
+for the CI workflow shape this implies.
+
 At build time `merge_fragments` unifies fragment elements -- by shared
 `spdxId`, by identical SHA-256 content, or (for the per-fragment "Pitloom"
 `Agent`/`Tool` copies) by structural equality; **never by name alone**.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-08-18
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -36,6 +36,10 @@ the release-cutting process itself, run once per version bump.
       `[#NNN]:` link refs at the bottom of the file).
 - [ ] `python -m build --wheel` succeeds locally; the built wheel embeds
       `<name>-<version>.dist-info/sboms/<name>-<version>.spdx3.json` (PEP 770).
+- [ ] Run the `Fuzz` workflow (`workflow_dispatch`, both targets) for a
+      major release; skim the run for crash artifacts before proceeding.
+      See [fuzzing.md](fuzzing.md) for why this is manual/pre-release
+      rather than continuous or RC-tag-triggered.
 
 ## 2. Tag and publish
 
