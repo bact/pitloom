@@ -190,6 +190,65 @@ def test_add_dependencies_sets_name_only_purl_for_unresolved_version(
     assert dep.software_packageVersion == "unknown"
 
 
+def test_add_dependencies_dedupes_same_resolved_name_and_version() -> None:
+    """Regression: a package declared under more than one
+    ``pyproject.toml`` extra, each split by a ``python_version`` marker
+    (e.g. Pitloom's own ``numpy`` under both the ``ai`` and ``numpy``
+    extras), used to produce one ``software_Package`` node per raw
+    declared string even though they all resolve to the same pinned
+    ``(name, version)`` -- duplicate nodes in the emitted SBOM. Declared
+    strings that resolve to the same ``(name, version)`` must collapse
+    into a single node, with every raw string preserved in its
+    provenance comment."""
+    doc_uuid = compute_doc_uuid("deduptest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="deduptest", doc_uuid=doc_uuid),
+        name="deduptest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        [
+            "numpy==2.5.2; python_version<'3.11' and extra == 'ai'",
+            "numpy==2.5.2; python_version>='3.11' and extra == 'ai'",
+            "numpy==2.5.2; python_version<'3.11' and extra == 'numpy'",
+            "numpy==2.5.2; python_version>='3.11' and extra == 'numpy'",
+        ],
+        "Source: pyproject.toml | Field: project.optional-dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "deduptest",
+        doc_uuid,
+        exporter,
+        offline=True,
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    numpy_packages = [p for p in packages if p.name == "numpy"]
+    assert len(numpy_packages) == 1
+
+    relationships = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.Relationship)
+    ]
+    depends_on = [
+        r
+        for r in relationships
+        if r.relationshipType == spdx3.RelationshipType.dependsOn
+    ]
+    assert len(depends_on) == 1
+
+    dep_comment = numpy_packages[0].comment
+    assert dep_comment is not None
+    assert dep_comment.count("extra == 'ai'") == 2
+    assert dep_comment.count("extra == 'numpy'") == 2
+
+
 # ---------------------------------------------------------------------------
 # _enrich_from_installed -- the discarded-concluded-license-relationship bug
 # ---------------------------------------------------------------------------
