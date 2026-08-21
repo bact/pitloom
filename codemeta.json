@@ -18,9 +18,9 @@
     "codeRepository": "https://github.com/bact/pitloom",
     "copyrightYear": 2026,
     "dateCreated": "2026-03-27",
-    "dateModified": "2026-08-19",
-    "datePublished": "2026-08-19",
-    "description": "Generate SPDX 3 SBOMs for Python projects and AI models with native Hatchling build-hook support.",
+    "dateModified": "2026-08-21",
+    "datePublished": "2026-08-21",
+    "description": "Generate SPDX 3 SBOMs for Python projects and AI models, with native Hatchling build-hook support and GitHub Action integration.",
     "developmentStatus": "active",
     "downloadUrl": "https://github.com/bact/pitloom/releases",
     "identifier": "10.5281/zenodo.19246283",
@@ -60,5 +60,5 @@
     "programmingLanguage": "Python 3",
     "readme": "https://github.com/bact/pitloom/blob/main/README.md",
     "url": "https://github.com/bact/pitloom",
-    "version": "0.16.2"
+    "version": "0.16.3"
 }
