@@ -62,7 +62,7 @@ dependencies = [
     "pyproject-metadata>=0.12.1",
     "pyyaml>=6.0.3,<7",
     "rfc8785>=0.1.4",
-    "spdx-python-model>=0.0.6",
+    "spdx-python-model==0.0.6",
     "tomli>=2.4.1; python_version<'3.11'",
 ]
 
@@ -71,7 +71,7 @@ pitloom = "pitloom.plugins.hatch"
 
 [project.optional-dependencies]
 ai = [
-    "fasttext>=0.9.3",                          # or fasttext-community>=0.11.7
+    "fasttext==0.9.3",                          # or fasttext-community>=0.11.7
     "fickling>=0.1.12",
     "gguf>=0.19.0",
     "h5py>=3.16.0",
@@ -83,7 +83,7 @@ ai = [
 ]
 content-type = ["magika>=1.0.3"]
 
-fasttext = ["fasttext>=0.9.3"] # or fasttext-community>=0.11.7
+fasttext = ["fasttext==0.9.3"] # or fasttext-community>=0.11.7
 gguf = ["gguf>=0.19.0"]
 hdf5 = ["h5py>=3.16.0"]
 huggingface_hub = ["huggingface_hub>=1.22.0"]
@@ -133,21 +133,23 @@ docs = [
     "mkdocstrings[python]>=1.0.6",
     "ruff>=0.16.3",
 ]
-# Not part of "dev": atheris needs a real (non-Apple) Clang with libFuzzer
-# to build, so it doesn't install on macOS or Windows -- see fuzz/README.md.
-fuzz = ["atheris>=3.0.0", "gguf>=0.19.0"]
 dev = [
     { include-group = "lint" },
     { include-group = "test" },
     { include-group = "typecheck" },
     { include-group = "docs" },
 ]
+# Not part of "dev": atheris needs a real (non-Apple) Clang with libFuzzer
+# to build, so it doesn't install on macOS or Windows -- see fuzz/README.md.
+fuzz = ["atheris>=3.1.0", "gguf>=0.19.0"]
 
 [tool.black]
 line-length = 88
 target-version = ["py310"]
 
 [tool.hatch.build.hooks.pitloom]
+# Need this section to trigger the Pitloom build hook,
+# even though it has no config options.
 
 [tool.hatch.build.targets.sdist]
 # /docs (curated, public) is not excluded, so it ships in the sdist as-is;
@@ -248,15 +250,15 @@ init-hook = "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, 'examples
 source-roots = ["src", "examples/sentimentdemo-aibom/src"]
 
 [tool.pylint.design]
-max-args = 6                  # Interim ceiling; AGENTS.md target is 5
-max-attributes = 12
-max-branches = 12             # Tightened from 20; zero current violations across codebase
-max-locals = 18               # Interim ceiling; AGENTS.md target is 15
-max-nested-blocks = 5         # Already at AGENTS.md's target -- pinned explicitly, not relying on pylint's default
+max-args = 6                  # Target: 5
+max-attributes = 12           # Target: 10
+max-branches = 12             # Target: 12
+max-locals = 17               # Target: 15
+max-nested-blocks = 5         # Target: 4
 max-positional-arguments = 6  # Track max-args
-max-public-methods = 20
-max-returns = 6                # Already at AGENTS.md's target -- pinned explicitly, not relying on pylint's default
-max-statements = 80           # Tightened from 100; zero current violations, room to tighten further later
+max-public-methods = 20       # Target: 20
+max-returns = 6               # Target: 6
+max-statements = 50           # Target: 50
 
 [tool.pylint.format]
 max-line-length = 88
