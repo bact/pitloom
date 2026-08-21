@@ -83,7 +83,7 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
 ## Persisting the Loom ID registry in CI
 
 `loom project`/`wheel`/`env` (and this Action, which wraps them) harvest
-newly-minted ids back into the resolved [Loom ID registry](../README.md#loom-ids-across-fragments-pitloom-ids)
+newly-minted ids back into the resolved [Loom ID registry](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-pitloom-ids)
 (`loom-ids.json`) by default -- see `update-registry` in
 [Configuration](configuration.md). That write only ever touches the
 runner's local checkout; it never needs elevated permissions itself
