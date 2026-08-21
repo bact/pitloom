@@ -185,7 +185,7 @@ pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 `project`/`wheel`/`env` also auto-harvest newly-minted ids back into the
 resolved registry after each run (`--update-registry`/`--no-update-registry`,
 on by default) -- see
-[Loom IDs across fragments](../README.md#loom-ids-across-fragments-pitloom-ids)
+[Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-pitloom-ids)
 for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
 
 ## Useful flags
