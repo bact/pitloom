@@ -17,9 +17,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3>
 
-## [Unreleased]
+## [0.16.3] - 2026-08-21
 
 ### Added
 
@@ -39,7 +39,6 @@ and this project adheres to
   etc.) no longer trip a `DeprecationWarning` on Python 3.14 ([#179])
 - Bump `licenseid` floor to `>=0.3.7`, fixing an upstream sqlite3
   connection leak ([#179])
-- Fix links in website ([#182])
 
 [#176]: https://github.com/bact/pitloom/pull/176
 [#177]: https://github.com/bact/pitloom/pull/177
@@ -675,6 +674,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.16.3]: https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/bact/pitloom/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/bact/pitloom/compare/v0.15.0...v0.16.0
