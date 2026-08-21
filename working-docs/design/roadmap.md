@@ -72,6 +72,21 @@ SPDX-License-Identifier: CC0-1.0
   Remaining, narrower scope than "PEP 639 compliance" originally implied:
   `[project.license-files]` (the glob-list field for bundling multiple
   license files) is not specifically parsed.
+- [x] **Auto-sync the Loom ID registry after SBOM generation** -- `loom
+  project`/`wheel`/`env` harvest newly-minted ids back into the resolved
+  registry after each run (`--update-registry`/`--no-update-registry`, on
+  by default), so a `project` -> `wheel` -> `env` pipeline keeps stable
+  spdxIds with no manual `pitloom ids generate`/`import` step in between.
+  `ai_AIPackage` and `dataset_DatasetPackage` are deliberately excluded --
+  see [Loom IDs across fragments](../../README.md#loom-ids-across-fragments-pitloom-ids).
+  Fixed along the way: `_add_package_files`'s registry lookup only tried
+  `physical_path`, so a src/-layout project (`physical_path` !=
+  `distribution_path`) never matched its own auto-harvested file entries --
+  now falls back to `distribution_path`
+  (`src/pitloom/assemble/spdx3/_document_files.py`). Open follow-ups: see
+  [AI model id stability](#ai-model-id-stability-follow-up-to-178) and
+  [Sort-order canonicalization](#sort-order-canonicalization-follow-up-to-178)
+  below. ([PR #178](https://github.com/bact/pitloom/pull/178))
 
 ## Adoption surfaces
 
