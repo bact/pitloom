@@ -141,7 +141,7 @@ dev = [
 ]
 # Not part of "dev": atheris needs a real (non-Apple) Clang with libFuzzer
 # to build, so it doesn't install on macOS or Windows -- see fuzz/README.md.
-fuzz = ["atheris>=3.0.0", "gguf>=0.19.0"]
+fuzz = ["atheris>=3.1.0", "gguf>=0.19.0"]
 
 [tool.black]
 line-length = 88

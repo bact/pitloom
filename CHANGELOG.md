@@ -34,9 +34,10 @@ and this project adheres to
 - Auto-sync Loom ID registry after SBOM generation ([#178])
 - Atheris fuzz harnesses for license expression normalization and
   GGUF model header parsing. See `fuzz/README.md` ([#179])
-- `pytest` now fails on any runtime warning (`filterwarnings = ["error"]`,
-  plus `--strict-markers`/`--strict-config`) instead of printing an
-  ignorable summary line -- OpenSSF Best Practices `warnings_strict` ([#179])
+- `pytest` now fails on any runtime warning
+  (`filterwarnings = ["error"]`, plus `--strict-markers`/`--strict-config`) --
+  OpenSSF Best Practices `warnings_strict` ([#179])
+- Add sigstore and provenance attestation ([#180])
 
 ### Fixed
 
@@ -52,6 +53,7 @@ and this project adheres to
 [#177]: https://github.com/bact/pitloom/pull/177
 [#178]: https://github.com/bact/pitloom/pull/178
 [#179]: https://github.com/bact/pitloom/pull/179
+[#180]: https://github.com/bact/pitloom/pull/180
 
 ## [0.16.2] - 2026-08-19
 
