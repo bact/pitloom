@@ -19,6 +19,7 @@ See Also:
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 from importlib.metadata import PackageNotFoundError
@@ -85,6 +86,13 @@ _SPDX_OPERATOR_CASING_RE = re.compile(
 _SPDX_LICENSE_EXPR_KEYWORDS_RE = re.compile(r"\s+(OR|AND|WITH)\s+", re.IGNORECASE)
 
 
+@functools.lru_cache(maxsize=1)
+def _get_matcher() -> AggregatedLicenseMatcher:
+    """Return a process-wide shared matcher instead of one per lookup --
+    each construction opens a sqlite3 connection, wasteful at project scale."""
+    return AggregatedLicenseMatcher()
+
+
 def _looks_like_spdx_license_expression(value: str) -> bool:
     """Return True when *value* looks like a compound SPDX License Expression."""
     stripped = value.strip()
@@ -100,7 +108,7 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     ``None`` when the database is not populated or no match exceeds the threshold.
     """
     try:
-        matcher = AggregatedLicenseMatcher()
+        matcher = _get_matcher()
         if not matcher.match(license_id="MIT"):
             _logger.warning(
                 "licenseid database appears empty -- "
@@ -119,7 +127,7 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
 def canonicalize_license_id(raw: str) -> str:
     """Return the canonical SPDX License ID for *raw*, or *raw* unchanged."""
     try:
-        results = AggregatedLicenseMatcher().match(license_id=raw)
+        results = _get_matcher().match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
     # pylint: disable=broad-exception-caught
@@ -138,6 +146,12 @@ def normalize_license_expression(raw: str) -> str:
         return str(node.sort().to_string())
     except SpdxExpressionParseError as exc:
         _logger.debug("Failed to parse SPDX expression %r: %s", raw, exc)
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        # py-spdx-license can raise other than ParseError on malformed
+        # input (e.g. unbalanced ")" -> IndexError); degrade gracefully
+        # either way, same as canonicalize_license_id's fallback below.
+        _logger.debug("SPDX expression parser raised unexpectedly for %r: %s", raw, exc)
     return canonicalize_license_id(raw)
 
 

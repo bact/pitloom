@@ -136,9 +136,10 @@ relationships.
 
 1. **Card YAML** -- reads `license:` from the model card frontmatter. If
    the value is not a vague sentinel (`other`, `custom`, `proprietary`,
-   `unknown`, `unlicensed`), it is passed through `_canonicalize_license_id()`,
-   which calls `AggregatedLicenseMatcher.match(license_id=raw)` from the
-   `licenseid` library for a direct database lookup. Recognised SPDX
+   `unknown`, `unlicensed`), it is passed through `canonicalize_license_id()`,
+   which calls `.match(license_id=raw)` on a process-wide cached
+   `AggregatedLicenseMatcher` (see `_get_matcher()`) from the `licenseid`
+   library for a direct database lookup. Recognised SPDX
    License IDs are returned in canonical casing (e.g. `"apache-2.0"` →
    `"Apache-2.0"`). Values not recognised — proprietary or non-SPDX
    identifiers such as `"gemma"`, `"llama3.2"`, or deprecated bare
