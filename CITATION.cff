@@ -9,7 +9,7 @@ abstract: Generate SPDX 3 SBOMs for Python projects and AI models, with native H
 repository-code: "https://github.com/bact/pitloom"
 type: software
 doi: 10.5281/zenodo.19246283
-version: 0.16.3
+version: 0.16.4
 license-url: "https://spdx.org/licenses/Apache-2.0"
 keywords:
   - sbom

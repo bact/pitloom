@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-20
+Last-Modified: 2026-08-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,9 +17,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4>
 
-## [Unreleased]
+## [0.16.4] - 2026-08-21
 
 ### Fixed
 
@@ -37,7 +37,7 @@ and this project adheres to
 - `pytest` now fails on any runtime warning
   (`filterwarnings = ["error"]`, plus `--strict-markers`/`--strict-config`) --
   OpenSSF Best Practices `warnings_strict` ([#179])
-- Add sigstore and provenance attestation ([#180])
+- Add Sigstore and provenance attestation to GitHub release ([#180])
 
 ### Fixed
 
@@ -683,6 +683,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.16.4]: https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/bact/pitloom/compare/v0.16.0...v0.16.1
