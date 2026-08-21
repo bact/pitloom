@@ -44,7 +44,6 @@ and this project adheres to
 [#177]: https://github.com/bact/pitloom/pull/177
 [#178]: https://github.com/bact/pitloom/pull/178
 [#179]: https://github.com/bact/pitloom/pull/179
-[#182]: https://github.com/bact/pitloom/pull/182
 
 ## [0.16.2] - 2026-08-19
 
