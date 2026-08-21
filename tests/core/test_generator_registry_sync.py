@@ -50,6 +50,30 @@ def _exporter_with_one_package() -> Spdx3JsonExporter:
     return exporter
 
 
+def test_sync_registry_excludes_dataset_packages(tmp_path: Path) -> None:
+    """``dataset_DatasetPackage`` is excluded the same way ``ai_AIPackage``
+    is: nothing in ``build()`` ever looks a dataset up by name, so a
+    harvested entry would just be dead, silently-overwritten weight."""
+    ci = spdx3.CreationInfo(
+        specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+    dataset = spdx3.dataset_DatasetPackage(
+        spdxId="https://spdx.org/spdxdocs/x-1#DatasetPackage-1",
+        name="flores-200",
+        creationInfo=ci,
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    exporter.add_package(dataset)
+
+    registry_path = tmp_path / "loom-ids.json"
+    registry = IdRegistry.new("dataset-exclusion", path=registry_path)
+
+    _sync_registry(exporter, registry, True)
+
+    assert "flores-200" not in registry.entities
+
+
 def test_sync_registry_skips_when_registry_has_no_path(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -122,15 +146,33 @@ def test_generate_project_sbom_stable_ids_across_two_runs(tmp_path: Path) -> Non
         "@graph"
     ]
     first_id = _find_file_element(first_graph, "smoke_project/__init__.py")["spdxId"]
+    first_deps = [e["name"] for e in first_graph if e.get("type") == "software_Package"]
+    assert "requests" not in first_deps
 
+    # Insert into [project] (right after "version = ..."), not appended
+    # blindly at end of file -- appending after the file's last table
+    # header ([tool.hatch.build.targets.wheel]) would silently nest the
+    # new key under *that* table instead of [project], leaving
+    # project_metadata.dependencies (and therefore doc_uuid) unchanged
+    # and this test not actually exercising what its docstring claims.
     pyproject_path.write_text(
-        pyproject_path.read_text() + '\ndependencies = ["requests"]\n'
+        pyproject_path.read_text().replace(
+            'version = "0.1.0"\n',
+            'version = "0.1.0"\ndependencies = ["requests"]\n',
+        )
     )
     second_graph = json.loads(generate_project_sbom(tmp_path, registry=registry_path))[
         "@graph"
     ]
     second_id = _find_file_element(second_graph, "smoke_project/__init__.py")["spdxId"]
+    second_deps = [
+        e["name"] for e in second_graph if e.get("type") == "software_Package"
+    ]
 
+    # Confirm the dependency list -- and therefore doc_uuid -- actually
+    # changed between runs, so a matching id below is meaningful and not
+    # a byte-identical rerun that would pass even without the registry.
+    assert "requests" in second_deps
     assert first_id == second_id
 
 

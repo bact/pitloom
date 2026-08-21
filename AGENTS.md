@@ -13,6 +13,7 @@
 - **Naming and grouping**: kebab-case, topic-first filenames. If a topic outgrows 3+ closely related files, group them in a same-named subfolder.
 - **Cross-linking**: every split or grouped file gets a "See also" pointer near the top.
 - Every commit need a sign-off line (DCO) in the commit message.
+- **CHANGELOG entries**: concise, to the point. No background/rationale -- link the PR for that. Target ~160 chars per bullet; exception for a genuinely complex PR.
 
 ### SBOM output
 

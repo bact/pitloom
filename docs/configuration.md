@@ -31,7 +31,7 @@ the same way.
 | `extract-file-header` | bool | `true` | `--extract-file-header` / `--no-extract-file-header` | `extract-file-header` | `extract_file_header` | Scan each source file's leading comment header for SPDX-File\* tags. Independent of content-type detection below -- a binary file with no text header still gets a `contentType` when that's on. |
 | `enrich` | bool | `false` | `--enrich` / `--no-enrich` | `enrich` | `enrich` | Run local README/model-card enrichment for discovered AI models. |
 | `ids-file` | string | `null` (auto-discovers `loom-ids.json` by walking up from the project directory) | -- | -- | -- (see `registry` param) | Path to the Loom ID registry file. |
-| `update-registry` | bool | `true` (`project` command only -- `wheel`/`env` aren't pyproject-cascaded, same as `ids-file`) | `--update-registry` / `--no-update-registry` | -- | `update_registry` | After generating, harvest newly-minted ids back into the resolved registry and save it. No effect when no registry is resolved -- see [Loom IDs across fragments](../README.md#loom-ids-across-fragments-pitloom-ids). |
+| `update-registry` | bool | `true` (`project` command only -- `wheel`/`env` aren't pyproject-cascaded, same as `ids-file`) | `--update-registry` / `--no-update-registry` | -- | `update_registry` | After generating, harvest newly-minted ids back into the resolved registry and save it. Only consulted by `project`/`wheel`/`env`/`generate`; accepted but has no effect on `model`/`enrich`/`embed-wheel`. No effect when no registry is resolved -- see [Loom IDs across fragments](../README.md#loom-ids-across-fragments-pitloom-ids). |
 
 **Invalid values / fallback behavior:** every boolean above raises
 `ValueError` at config-read time if set to a non-boolean (e.g. the TOML

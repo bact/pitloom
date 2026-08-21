@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-20
+Last-Modified: 2026-08-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -302,6 +302,21 @@ enough that new data could reorder them.
     above is settled, or how the two ideas would interact.
   No implementation direction chosen yet -- open design question, not a
   committed plan.
+
+### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
+
+- [ ] **Audit where element/entry sort order feeds hash or id construction.**
+  While fixing [#178], `IdRegistry.import_sbom()`/`harvest()` had a
+  double-sort bug (sorted twice, redundant but harmless) consolidated into
+  one shared `_sorted_by_spdx_id()` helper (`src/pitloom/ids.py`). That
+  particular sort doesn't feed a hash today, but the SBOM output spec
+  (top of this doc: bit-for-bit determinism, RFC 8785 JSON
+  canonicalization) means *some* sort orders in this codebase do
+  eventually feed content that's hashed or id-derived. No incident here --
+  just a reminder to check, next time a sort is touched near
+  `generate_spdx_id`/hashing/serialization, whether its order is load-bearing
+  for determinism (and if so, whether it's documented as such) rather than
+  assuming it's cosmetic.
 
 ### Extractors
 

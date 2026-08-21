@@ -174,7 +174,10 @@ def _build_parent_parser() -> argparse.ArgumentParser:
             "After generating, harvest newly-minted ids back into the "
             "resolved Loom ID registry and save it. Defers to "
             "[tool.pitloom] update-registry (on by default) when omitted; "
-            "no effect when no registry is resolved."
+            "no effect when no registry is resolved. Only consulted by "
+            "'project'/'wheel'/'env'/'generate' -- accepted but has no "
+            "effect on 'model'/'enrich'/'embed-wheel', which don't "
+            "auto-update the registry."
         ),
     )
 

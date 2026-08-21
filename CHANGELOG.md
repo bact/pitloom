@@ -49,30 +49,20 @@ and this project adheres to
 
 ### Added
 
-- `loom project`/`loom model`/`loom env`/`loom wheel`/`loom embed-wheel`
-  print `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after writing an SBOM,
-  letting callers (e.g. the GitHub Action) discover the resolved output
-  path without re-deriving the default-naming logic themselves ([#171])
-- The PyPI release workflow attaches the standalone SBOM as a GitHub
-  Release asset, generated via the project's own GitHub Action ([#172],
-  [#174])
+- `loom project`/`loom model`/`loom env`/`loom wheel`/`loom embed-wheel` print
+  `PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout after writing an SBOM ([#171])
+- The PyPI release workflow attaches the standalone SBOM as a GitHub Release
+  asset, generated via the project's own GitHub Action ([#172], [#174])
 
 ### Fixed
 
-- The GitHub Action no longer forces a generic `sbom.spdx3.json` output
-  filename when `output` is left unset; it now defers to `loom`'s own
-  default-naming logic (`packagename-version.spdx3.json`, falling back to
-  `packagename.spdx3.json`, then `sbom.spdx3.json` as a last resort) ([#171])
-- `loom embed-wheel`'s Build SBOM now includes content-type and
-  file-header data for each file (previously silently dropped even with
-  `--content-type`/`--extract-file-header` enabled), while still
-  preserving the wheel's own file records -- hashes of the actually-built
-  wheel's bytes, `.dist-info/*` entries, and any build-hook-injected files
-  that a project-directory rescan alone can't see ([#172], [#174])
-- `loom embed-wheel`'s Merkle root (asserted as the main package's
-  `verifiedUsing` hash, and fed into every generated SPDX ID) is now
-  computed from the wheel's own file hashes instead of a project-directory
-  rescan that could diverge from the actually-built wheel ([#172])
+- GitHub Action now defers to `loom`'s own default-naming logic
+  (`packagename-version.spdx3.json`) ([#171])
+- `loom embed-wheel`'s Build SBOM now includes content-type and file-header
+  data for each file, while still preserving the wheel's own file records
+  ([#172], [#174])
+- `loom embed-wheel`'s Merkle root is now computed from the wheel's own file
+  hashes instead of a project-directory rescan ([#172])
 
 [#171]: https://github.com/bact/pitloom/pull/171
 [#172]: https://github.com/bact/pitloom/pull/172
@@ -83,10 +73,7 @@ and this project adheres to
 ### Fixed
 
 - Split an author list packed into a single email's display name
-  (e.g. `"A, B, C" <shared@example.com>`) into individual Persons instead
-  of emitting one combined-name Person; the shared address, when it
-  doesn't belong to any listed name, is kept on its own anonymous Person
-  ([#169])
+  (e.g. `"A, B, C" <shared@example.com>`) into individual Persons ([#169])
 
 [#169]: https://github.com/bact/pitloom/pull/169
 

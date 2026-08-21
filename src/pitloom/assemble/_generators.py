@@ -45,7 +45,13 @@ log = logging.getLogger(__name__)
 # installed. Harvesting it by name would write entries that never match
 # future lookups (see `_lookup_ai_model_entity`,
 # pitloom.assemble.spdx3._ai_package) instead of just doing nothing.
-_AUTO_HARVEST_EXCLUDED_TYPES = frozenset({"ai_AIPackage"})
+#
+# dataset_DatasetPackage is excluded for a related but simpler reason:
+# `_build_dataset_package` (pitloom.assemble.spdx3.dataset) never consults
+# the registry at all -- every dataset spdxId is freshly minted every run,
+# with no lookup path to match a harvested entry against. Harvesting it
+# would just write a dead, silently-overwritten entry every run.
+_AUTO_HARVEST_EXCLUDED_TYPES = frozenset({"ai_AIPackage", "dataset_DatasetPackage"})
 
 
 def _require_valid_content_type_method(value: str) -> None:

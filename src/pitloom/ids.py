@@ -210,15 +210,15 @@ class IdRegistry:
         with open(sbom_path, "rb") as f:
             spdx3.JSONLDDeserializer().read(f, object_set)
 
+        sorted_objects = _sorted_by_spdx_id(object_set)
+
         if not self.files and not self.entities:
-            for obj in sorted(
-                object_set.objects, key=lambda o: getattr(o, "spdxId", None) or ""
-            ):
+            for obj in sorted_objects:
                 if isinstance(obj, spdx3.SpdxDocument) and obj.spdxId:
                     self.namespace = obj.spdxId
                     break
 
-        self.harvest(object_set)
+        self._harvest_sorted(sorted_objects)
 
     def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, int]:
         """Harvest every named element in *object_set* into this registry.
@@ -231,10 +231,17 @@ class IdRegistry:
 
         Returns the number of ``(new_files, new_entities)`` added.
         """
+        return self._harvest_sorted(_sorted_by_spdx_id(object_set))
+
+    def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, int]:
+        """Harvest *sorted_objects* (see :func:`_sorted_by_spdx_id`).
+
+        Split out of :meth:`harvest` so :meth:`import_sbom` -- which
+        already needs a sorted list for its own namespace-seeding scan --
+        can reuse it here instead of sorting the same object set twice.
+        """
         before_files, before_entities = len(self.files), len(self.entities)
-        for obj in sorted(
-            object_set.objects, key=lambda o: getattr(o, "spdxId", None) or ""
-        ):
+        for obj in sorted_objects:
             _import_sbom_element(self, obj)
         return len(self.files) - before_files, len(self.entities) - before_entities
 
@@ -260,6 +267,12 @@ class IdRegistry:
             json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
             f.write("\n")
         self.path = target
+
+
+def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
+    """Return *object_set*'s objects sorted by ``spdxId`` for deterministic
+    iteration (``SHACLObjectSet.objects`` is an unordered set)."""
+    return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
 
 
 def _import_sbom_element(registry: IdRegistry, obj: Any) -> None:
