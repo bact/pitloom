@@ -53,6 +53,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         pretty=pretty,
         describe_relationship=describe_relationship,
         registry=args.registry,
+        update_registry=args.update_registry,
         provenance=pitloom_config.provenance,
         enrich=args.enrich,
         extract_file_header=args.extract_file_header,

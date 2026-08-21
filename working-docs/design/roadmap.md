@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-19
+Last-Modified: 2026-08-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,6 +72,21 @@ SPDX-License-Identifier: CC0-1.0
   Remaining, narrower scope than "PEP 639 compliance" originally implied:
   `[project.license-files]` (the glob-list field for bundling multiple
   license files) is not specifically parsed.
+- [x] **Auto-sync the Loom ID registry after SBOM generation** -- `loom
+  project`/`wheel`/`env` harvest newly-minted ids back into the resolved
+  registry after each run (`--update-registry`/`--no-update-registry`, on
+  by default), so a `project` -> `wheel` -> `env` pipeline keeps stable
+  spdxIds with no manual `pitloom ids generate`/`import` step in between.
+  `ai_AIPackage` and `dataset_DatasetPackage` are deliberately excluded --
+  see [Loom IDs across fragments](../../README.md#loom-ids-across-fragments-pitloom-ids).
+  Fixed along the way: `_add_package_files`'s registry lookup only tried
+  `physical_path`, so a src/-layout project (`physical_path` !=
+  `distribution_path`) never matched its own auto-harvested file entries --
+  now falls back to `distribution_path`
+  (`src/pitloom/assemble/spdx3/_document_files.py`). Open follow-ups: see
+  [AI model id stability](#ai-model-id-stability-follow-up-to-178) and
+  [Sort-order canonicalization](#sort-order-canonicalization-follow-up-to-178)
+  below. ([PR #178](https://github.com/bact/pitloom/pull/178))
 
 ## Adoption surfaces
 
@@ -256,6 +271,67 @@ enough that new data could reorder them.
   <https://github.com/JPEWdev/spdx3-validate#using-as-a-library> --
   `--verify` could call it in-process instead of shelling out, avoiding a
   second subprocess/dependency-install step in CI.
+
+### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
+
+- [ ] **Deterministic same-model identification for auto-harvest** --
+  `ai_AIPackage` elements are currently excluded from the Loom ID
+  registry's auto-harvest (`_sync_registry` in
+  `src/pitloom/assemble/_generators.py`) because `ai_model.name` is
+  extraction-dependent (varies with whether `ai` extras are installed),
+  so a name-keyed harvest would write entries that never match
+  `_lookup_ai_model_entity`'s lookup candidates. The only currently-stable
+  path is the extras-free, filename-stem-keyed `pitloom ids generate`.
+  Revisit whether auto-harvest can be safely extended once there's a
+  reliable way to say "this is the same model I saw last time":
+  - **Content hash (SHA-256 of the raw model file bytes)** is the
+    mechanism already used for regular files (`register_file`/
+    `lookup_file`) and would be directly reusable -- `IdRegistry.generate()`
+    already computes this hash for every file, AI models included,
+    before separately doing the stem-based registration. The blocker is
+    that `_lookup_ai_model_entity()` never tries a hash-based lookup
+    against `registry.files`, only name/path/stem candidates against
+    `registry.entities`; and the harvest side would need the model's
+    hash reachable from the `ai_AIPackage` element at harvest time, not
+    just on a separately-linked `software_File`.
+  - **Caveat**: content hash is strictly *narrower* than "same model" for
+    AI models, unlike source files where any byte change legitimately
+    means "different provenance." A model re-exported, re-quantized, or
+    re-saved with a different serialization -- or retrained
+    non-deterministically from the same recipe -- changes every byte
+    without changing what a person would call "the same model."
+    Content-hash matching would under-match (mint a new id) in exactly
+    the cases stability matters most. Source files don't have this
+    problem; AI model files might.
+  - **"Machine ID" scoping idea**: record a randomly-generated (not
+    identifying) machine tag in `loom-ids.json` itself, so the registry
+    can distinguish "these runs are from the same working environment
+    across time" from "these came from different machines/CI runners,"
+    without claiming any actual machine identity. This addresses a
+    different axis than the matching criterion above -- how much a match
+    should be *trusted* -- rather than what counts as a match. Loose
+    heuristic matching (e.g. same relative path, ignore content) might be
+    acceptable within one developer's local iteration loop but unsafe
+    once a registry is shared, committed, or consulted from CI. Not yet
+    clear whether this is needed at all once the content-hash caveat
+    above is settled, or how the two ideas would interact.
+  No implementation direction chosen yet -- open design question, not a
+  committed plan.
+
+### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
+
+- [ ] **Audit where element/entry sort order feeds hash or id construction.**
+  While fixing [#178], `IdRegistry.import_sbom()`/`harvest()` had a
+  double-sort bug (sorted twice, redundant but harmless) consolidated into
+  one shared `_sorted_by_spdx_id()` helper (`src/pitloom/ids.py`). That
+  particular sort doesn't feed a hash today, but the SBOM output spec
+  (top of this doc: bit-for-bit determinism, RFC 8785 JSON
+  canonicalization) means *some* sort orders in this codebase do
+  eventually feed content that's hashed or id-derived. No incident here --
+  just a reminder to check, next time a sort is touched near
+  `generate_spdx_id`/hashing/serialization, whether its order is load-bearing
+  for determinism (and if so, whether it's documented as such) rather than
+  assuming it's cosmetic.
 
 ### Extractors
 

@@ -79,11 +79,12 @@ def test_scan_detects_and_reads_model_successfully(tmp_path: Path) -> None:
     assert result[0].format_info.physical_path == "model.gguf"
 
 
-def test_scan_logs_warning_and_continues_on_import_error(
+def test_scan_logs_warning_and_keeps_degraded_record_on_import_error(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     # A recognised format whose optional dependency isn't installed must
-    # log a warning (not crash the whole scan) and simply skip that file.
+    # log a warning (not crash the whole scan) and still record the model
+    # with degraded (format + filename only) metadata, not drop it.
     (tmp_path / "model.h5").write_bytes(b"fake h5")
     files = [_pf("model.h5")]
 
@@ -98,7 +99,10 @@ def test_scan_logs_warning_and_continues_on_import_error(
             with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
                 result = scan_project_for_ai_models(tmp_path, files)
 
-    assert result == []
+    assert len(result) == 1
+    assert result[0].name is None
+    assert result[0].format_info.model_format == AiModelFormat.HDF5
+    assert result[0].format_info.file_name == "model.h5"
     assert any("required library not installed" in r.message for r in caplog.records)
 
 

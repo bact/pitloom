@@ -182,6 +182,12 @@ pitloom ids generate data src --entity model      # pin ids before running
 pitloom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
+`project`/`wheel`/`env` also auto-harvest newly-minted ids back into the
+resolved registry after each run (`--update-registry`/`--no-update-registry`,
+on by default) -- see
+[Loom IDs across fragments](../README.md#loom-ids-across-fragments-pitloom-ids)
+for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
+
 ## Useful flags
 
 - `-o FILE` / `--output FILE` -- explicit output path.

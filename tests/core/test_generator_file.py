@@ -1,7 +1,13 @@
 # ruff: noqa: F403, F405
 from __future__ import annotations
 
-from pitloom.core.project import ProjectFile
+import json
+
+from pitloom.assemble.spdx3.document import build
+from pitloom.core.creation import CreationMetadata
+from pitloom.core.document import DocumentModel
+from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.ids import FileEntry, IdRegistry
 
 from .conftest import (
     _annotation_fields_for,
@@ -216,6 +222,36 @@ def test_build_file_no_header_data_emits_nothing_extra() -> None:
     assert _annotation_fields_for(graph, file_elem["spdxId"]) is None
     relationships = [e for e in graph if e.get("type") == "Relationship"]
     assert not [r for r in relationships if r.get("from") == file_elem["spdxId"]]
+
+
+def test_add_package_files_falls_back_to_distribution_path_lookup() -> None:
+    """A registry entry keyed by distribution_path (the only path an
+    auto-harvested ``software_File`` element can carry -- see
+    `pitloom.ids.IdRegistry.harvest`) is still found, even though the
+    live-scan lookup tries physical_path first. Without this fallback, a
+    src/-layout project (physical_path != distribution_path) would never
+    match auto-harvested file entries, silently defeating cross-run id
+    stability for exactly the most common Python project layout."""
+    registered_id = "https://spdx.org/spdxdocs/pinned-1#File-9"
+    registry = IdRegistry(
+        namespace="https://spdx.org/spdxdocs/pinned-1",
+        files={"pkg/mod.py": FileEntry(spdx_id=registered_id, sha256="a" * 64)},
+    )
+    files = [
+        ProjectFile(
+            physical_path="src/pkg/mod.py",
+            distribution_path="pkg/mod.py",
+            digest_sha256="a" * 64,
+        )
+    ]
+    project = ProjectMetadata(name="fallback-project", version="1.0.0", files=files)
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+    file_elem = _find_file_element(graph, "pkg/mod.py")
+
+    assert file_elem["spdxId"] == registered_id
 
 
 def test_build_file_shared_license_dedupes_to_one_element() -> None:

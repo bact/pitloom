@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-20
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -79,6 +79,95 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
   with:
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
+
+## Persisting the Loom ID registry in CI
+
+`loom project`/`wheel`/`env` (and this Action, which wraps them) harvest
+newly-minted ids back into the resolved [Loom ID registry](../README.md#loom-ids-across-fragments-pitloom-ids)
+(`loom-ids.json`) by default -- see `update-registry` in
+[Configuration](configuration.md). That write only ever touches the
+runner's local checkout; it never needs elevated permissions itself
+(that's a `git push`, which Pitloom never does). But the write is
+ephemeral unless a workflow step commits it back, so a release/publish
+job that intentionally runs with `permissions: contents: read` (common
+for trusted PyPI publishing -- see this repo's own
+[`pypi-publish.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/pypi-publish.yml))
+can update `loom-ids.json` locally but shouldn't have its permissions
+relaxed just to push that one file.
+
+Instead, run registry maintenance in a separate, appropriately-scoped
+workflow -- the same shape this repo already uses to commit a generated
+`CITATION.cff` back to the repo
+([`codemeta2cff.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/codemeta2cff.yml)):
+
+```yaml
+name: Update Loom ID registry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "data/**"
+      - "models/**"
+
+permissions: read-all
+
+concurrency:
+  group: update-loom-ids-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update-registry:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # EndBug/add-and-commit needs write to push loom-ids.json
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+      - run: pip install pitloom
+
+      # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
+      # spdxIds stable regardless of whether "ai" extras are installed
+      # (auto-harvest excludes AI packages -- see below). Omit this step
+      # if the project has no AI model files.
+      - name: Seed/refresh AI model registry entries
+        run: pitloom ids generate
+
+      - uses: bact/pitloom@v0.16.2
+        with:
+          project-path: .
+          # Optional: richer ai_AIPackage metadata (architecture,
+          # hyperparameters, etc.) -- NOT what keeps spdxIds stable, that's
+          # the step above. Omit if there are no AI models, or if sparse
+          # metadata is acceptable.
+          extras: "ai"
+
+      - name: Commit and push updated loom-ids.json
+        uses: EndBug/add-and-commit@v11.0.0
+        with:
+          message: "Update loom-ids.json"
+          add: "loom-ids.json"
+```
+
+Two things worth calling out about that snippet:
+
+- **AI model id stability doesn't come from `extras: "ai"` or from
+  auto-harvest at all.** `ai_AIPackage` elements are deliberately excluded
+  from auto-harvest, because their correct registry key is the model
+  file's stem -- which only ever comes from the extras-free
+  `pitloom ids generate` step above. `extras: "ai"` only affects metadata
+  richness (architecture, hyperparameters, etc.), not which spdxId a model
+  gets.
+- **Race conditions**: this workflow never competes with the publish
+  workflow to push (the publish job doesn't commit, per the guidance
+  above). It can race with *itself*, though -- two pushes to `main` close
+  together could trigger two concurrent runs both trying to commit and
+  push. The `concurrency:` group above queues same-branch runs instead of
+  racing them. One sequencing caveat remains, shared by any
+  generated-and-committed file (this repo's own `CITATION.cff` included):
+  cutting a release at the exact moment a registry-update commit is in
+  flight could still pick up a slightly-stale `loom-ids.json`.
 
 ## Configuration
 

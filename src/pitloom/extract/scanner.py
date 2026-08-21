@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.core.project import ProjectFile
 from pitloom.extract.ai_model import detect_ai_model_format, read_ai_model
 
@@ -55,6 +55,14 @@ def _scan_single_file_for_model(
             fmt,
             phys_path,
             e,
+        )
+        return AiModelMetadata(
+            format_info=AiModelFormatInfo(
+                model_format=fmt,
+                file_name=phys_path.name,
+                file_path_relative=pf.distribution_path,
+                physical_path=pf.physical_path,
+            )
         )
     # pylint: disable=broad-exception-caught
     except Exception as e:

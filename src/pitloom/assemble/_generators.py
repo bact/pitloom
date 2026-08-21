@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 from pathlib import Path
+from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
@@ -26,6 +28,7 @@ from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
+from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.env import read_environment
 from pitloom.extract.project import read_project
@@ -33,12 +36,75 @@ from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 
+log = logging.getLogger(__name__)
+
+# ai_AIPackage is deliberately excluded from auto-harvest: its correct
+# registry key is the model file's stem (only ever registered via the
+# extras-free `pitloom ids generate`), not its `.name`, which is
+# extraction-dependent and varies with whether AI-format libraries are
+# installed. Harvesting it by name would write entries that never match
+# future lookups (see `_lookup_ai_model_entity`,
+# pitloom.assemble.spdx3._ai_package) instead of just doing nothing.
+#
+# dataset_DatasetPackage is excluded for a related but simpler reason:
+# `_build_dataset_package` (pitloom.assemble.spdx3.dataset) never consults
+# the registry at all -- every dataset spdxId is freshly minted every run,
+# with no lookup path to match a harvested entry against. Harvesting it
+# would just write a dead, silently-overwritten entry every run.
+_AUTO_HARVEST_EXCLUDED_TYPES = frozenset({"ai_AIPackage", "dataset_DatasetPackage"})
+
 
 def _require_valid_content_type_method(value: str) -> None:
     """Raise ``ValueError`` unless *value* is a valid content-type method."""
     if value not in VALID_CONTENT_TYPE_METHODS:
         valid = ", ".join(sorted(VALID_CONTENT_TYPE_METHODS))
         raise ValueError(f"content_type_method must be one of {valid}, got {value!r}")
+
+
+def _harvestable(obj: Any) -> bool:
+    """Return whether *obj* is safe for auto-harvest (see module docstring)."""
+    get_compact_type = getattr(obj, "get_compact_type", None)
+    compact_type = get_compact_type() if get_compact_type is not None else None
+    return compact_type not in _AUTO_HARVEST_EXCLUDED_TYPES
+
+
+def _sync_registry(
+    exporter: Spdx3JsonExporter,
+    registry: IdRegistry | None,
+    update_registry: bool,
+) -> None:
+    """Harvest newly-minted ids from *exporter* back into *registry*.
+
+    No-op when no registry was resolved, auto-update was disabled, or the
+    registry has no on-disk path to save to. A save failure is logged as a
+    ``WARNING`` and otherwise ignored -- it must never break SBOM
+    generation itself.
+    """
+    if registry is None or not update_registry:
+        return
+    if registry.path is None:
+        log.warning("Registry: no file path resolved; skipping auto-update.")
+        return
+
+    filtered = spdx3_bindings.SHACLObjectSet()
+    for obj in exporter.object_set.objects:
+        if _harvestable(obj):
+            filtered.add(obj)
+
+    new_files, new_entities = registry.harvest(filtered)
+    if not new_files and not new_entities:
+        return
+    try:
+        registry.save()
+    except OSError as exc:
+        log.warning("Registry: failed to save %s: %s", registry.path, exc)
+        return
+    log.info(
+        "Registry: added %d new file(s), %d new entit(y/ies) to %s",
+        new_files,
+        new_entities,
+        registry.path,
+    )
 
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
@@ -58,6 +124,7 @@ def generate_project_sbom(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
+    update_registry: bool | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive."""
     target_path = Path(project_target)
@@ -91,6 +158,9 @@ def generate_project_sbom(
     )
     _require_valid_content_type_method(effective_content_type_method)
     effective_offline: bool = pitloom_config.offline if offline is None else offline
+    effective_update_registry: bool = (
+        pitloom_config.update_registry if update_registry is None else update_registry
+    )
 
     if target_path.is_file():
         merkle_root = None
@@ -140,6 +210,8 @@ def generate_project_sbom(
     if target_path.is_dir():
         merge_fragments(target_path, pitloom_config.fragments, exporter)
 
+    _sync_registry(exporter, resolved_registry, effective_update_registry)
+
     sbom_json = exporter.to_json(
         pretty=effective_pretty,
         describe_relationship=effective_describe,
@@ -160,12 +232,14 @@ def generate_wheel_sbom(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     offline: bool | None = None,
+    update_registry: bool | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel."""
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
     )
+    effective_update_registry = True if update_registry is None else update_registry
     wheel_path_obj = Path(wheel_path)
     project_metadata, project_files = read_wheel(wheel_path_obj)
     phantom_deps = find_phantom_dependencies(project_files)
@@ -191,6 +265,8 @@ def generate_wheel_sbom(
         offline=effective_offline,
     )
 
+    _sync_registry(exporter, resolved_registry, effective_update_registry)
+
     sbom_json = exporter.to_json(
         pretty=effective_pretty,
         describe_relationship=effective_describe,
@@ -210,12 +286,14 @@ def generate_env_sbom(
     registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     offline: bool | None = None,
+    update_registry: bool | None = None,
 ) -> str:
     """Generate a Deployed SPDX 3 SBOM for the current installed environment."""
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
     )
+    effective_update_registry = True if update_registry is None else update_registry
     project_metadata, env_tree = read_environment()
 
     cwd = Path.cwd()
@@ -236,6 +314,8 @@ def generate_env_sbom(
         provenance=provenance,
         offline=effective_offline,
     )
+
+    _sync_registry(exporter, resolved_registry, effective_update_registry)
 
     sbom_json = exporter.to_json(
         pretty=effective_pretty,

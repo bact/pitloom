@@ -13,6 +13,7 @@
 - **Naming and grouping**: kebab-case, topic-first filenames. If a topic outgrows 3+ closely related files, group them in a same-named subfolder.
 - **Cross-linking**: every split or grouped file gets a "See also" pointer near the top.
 - Every commit need a sign-off line (DCO) in the commit message.
+- **CHANGELOG entries**: concise, to the point. No background/rationale -- link the PR for that. Target ~160 chars per bullet; exception for a genuinely complex PR.
 
 ### SBOM output
 
@@ -25,6 +26,7 @@
 - The Hatchling build hook (`pitloom.plugins.hatch`) reads project metadata from `self.metadata` via `pitloom.extract.hatchling.metadata_from_hatchling()`.
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default parsing path both resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
+- **`physical_path` vs `distribution_path`**: on-disk project-root-relative path vs in-package/built path -- diverge for any `src/`-layout project. `software_File.name` in the SPDX graph always uses `distribution_path`. Any file-lookup/registry code keyed by path must check both, not just `physical_path`.
 
 ## Design principles
 
@@ -112,6 +114,7 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 ## Testing
 
 - **Bug fixes and regressions**: Always add a regression test that fails without the fix and passes with it.
+- **Guard against vacuous passes**: for a "changed input -> unchanged output" test (e.g. stability/idempotency), assert the input actually changed, not just that the output didn't -- a misplaced setup edit can make the test pass without exercising anything.
 - Use pytest patterns. Use `spec`/`autospec` when mocking. Use `@pytest.mark.parametrize`.
 - **Test suite structure**: Adhere to the same file size limits as source code.
 - **Naming**: `test_<area>.py`, 1:1 with the source module. Disambiguate when two source packages could produce the same tail.

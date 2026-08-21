@@ -193,15 +193,18 @@ def _add_package_files(
 ) -> dict[str, str]:
     """Add package files and directory containment relationships.
 
-    When *registry* is given, each wheel file's id is looked up by its
-    physical (project-root-relative) path and content hash
-    (:meth:`~pitloom.ids.IdRegistry.lookup_file`); a match reuses the
-    registered ``spdxId`` instead of minting a fresh one, so this element and
-    the ``software_File`` a ``pitloom.loom`` fragment emits for the same
-    script become literally the same element once merged (see
-    :func:`pitloom.assemble.spdx3.fragments.merge_fragments`). A miss (not
-    registered, or a stale/mismatched hash) falls back to the existing
-    deterministic minting -- unchanged behaviour when no registry applies.
+    When *registry* is given, each wheel file's id is looked up by content
+    hash under its physical (project-root-relative) path first, then its
+    distribution (in-package) path (:meth:`~pitloom.ids.IdRegistry.lookup_file`,
+    tried twice -- the two paths differ for any src/-layout project, and
+    auto-harvested entries can only ever carry the distribution path); a
+    match reuses the registered ``spdxId`` instead of minting a fresh one,
+    so this element and the ``software_File`` a ``pitloom.loom`` fragment
+    emits for the same script become literally the same element once merged
+    (see :func:`pitloom.assemble.spdx3.fragments.merge_fragments`). A miss
+    (not registered under either path, or a stale/mismatched hash) falls
+    back to the existing deterministic minting -- unchanged behaviour when
+    no registry applies.
 
     When a ``package_file`` carries SPDX-header-derived data (see
     :class:`pitloom.core.project.ProjectFile`), it's wired onto the
@@ -249,11 +252,21 @@ def _add_package_files(
             if rel1:
                 exporter.add_relationship(rel1)
 
-        registered_id = (
-            registry.lookup_file(package_file.physical_path, package_file.digest_sha256)
-            if registry is not None
-            else None
-        )
+        registered_id = None
+        if registry is not None:
+            # physical_path (project-root-relative, e.g. from `pitloom ids
+            # generate`'s filesystem scan) is tried first; distribution_path
+            # (the built package's internal path -- the only path a
+            # software_File element's `name` field actually carries, so
+            # it's what auto-harvest keys files by, see
+            # `pitloom.ids.IdRegistry.harvest`) is the fallback. The two
+            # differ for any src/-layout project, where auto-harvest's
+            # entries would otherwise never be found again.
+            registered_id = registry.lookup_file(
+                package_file.physical_path, package_file.digest_sha256
+            ) or registry.lookup_file(
+                package_file.distribution_path, package_file.digest_sha256
+            )
         package_entry = spdx3.software_File(
             spdxId=registered_id
             or generate_spdx_id("File", doc_name=metadata.name, doc_uuid=doc_uuid),
