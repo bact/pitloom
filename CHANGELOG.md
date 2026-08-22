@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-20
+Last-Modified: 2026-08-21
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,18 +17,27 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4>
 
-## [Unreleased]
+## [0.16.4] - 2026-08-21
+
+### Fixed
+
+- Deduplicate dependencies ([#184])
+
+[#184]:  https://github.com/bact/pitloom/pull/184
+
+## [0.16.3] - 2026-08-21
 
 ### Added
 
 - Auto-sync Loom ID registry after SBOM generation ([#178])
 - Atheris fuzz harnesses for license expression normalization and
   GGUF model header parsing. See `fuzz/README.md` ([#179])
-- `pytest` now fails on any runtime warning (`filterwarnings = ["error"]`,
-  plus `--strict-markers`/`--strict-config`) instead of printing an
-  ignorable summary line -- OpenSSF Best Practices `warnings_strict` ([#179])
+- `pytest` now fails on any runtime warning
+  (`filterwarnings = ["error"]`, plus `--strict-markers`/`--strict-config`) --
+  OpenSSF Best Practices `warnings_strict` ([#179])
+- Add Sigstore and provenance attestation to GitHub release ([#180])
 
 ### Fixed
 
@@ -44,6 +53,7 @@ and this project adheres to
 [#177]: https://github.com/bact/pitloom/pull/177
 [#178]: https://github.com/bact/pitloom/pull/178
 [#179]: https://github.com/bact/pitloom/pull/179
+[#180]: https://github.com/bact/pitloom/pull/180
 
 ## [0.16.2] - 2026-08-19
 
@@ -673,6 +683,8 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.16.4]: https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4
+[0.16.3]: https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/bact/pitloom/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/bact/pitloom/compare/v0.15.0...v0.16.0

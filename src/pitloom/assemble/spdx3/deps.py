@@ -225,7 +225,14 @@ def add_dependencies(
     content_type_method: str = "auto",
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
-    dependencies."""
+    dependencies.
+
+    Multiple declared dependency strings that resolve to the same
+    ``(name, version)`` -- e.g. the same package listed under more than one
+    ``pyproject.toml`` extra, each split by a ``python_version`` marker --
+    collapse into a single ``software_Package`` node. Their raw declared
+    strings are preserved together in that node's provenance comment.
+    """
     resolved = []
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
@@ -239,10 +246,16 @@ def add_dependencies(
         )
     )
 
+    grouped: dict[tuple[str, str], list[tuple[str, str | None]]] = {}
     for dep, dep_name, dep_version, version_note in resolved:
+        grouped.setdefault((dep_name, dep_version), []).append((dep, version_note))
+
+    for (dep_name, dep_version), declared in grouped.items():
+        declared_constraints = [dep for dep, _note in declared]
+        version_note = next((note for _dep, note in declared if note), None)
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
-            "declared_constraint": dep,
+            "declared_constraint": " | ".join(declared_constraints),
         }
         if version_note:
             dep_provenance_fields["version"] = version_note

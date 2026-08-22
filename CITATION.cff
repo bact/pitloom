@@ -5,11 +5,11 @@ authors:
   - family-names: Suriyawongkul
     given-names: Arthit
     orcid: https://orcid.org/0000-0002-9698-1899
-abstract: Generate SPDX 3 SBOMs for Python projects and AI models with native Hatchling build-hook support.
+abstract: Generate SPDX 3 SBOMs for Python projects and AI models, with native Hatchling build-hook support and GitHub Action integration.
 repository-code: "https://github.com/bact/pitloom"
 type: software
 doi: 10.5281/zenodo.19246283
-version: 0.16.2
+version: 0.16.4
 license-url: "https://spdx.org/licenses/Apache-2.0"
 keywords:
   - sbom
@@ -27,4 +27,4 @@ keywords:
   - safetensors
   - ai sbom
   - software supply chain security
-date-released: 2026-08-19
+date-released: 2026-08-21
