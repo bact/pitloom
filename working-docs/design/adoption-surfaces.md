@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,7 +27,7 @@ directory scan G2 depends on -- so every Hatchling-built project silently
 got zero G2 conflict detection until a later review caught it. The fix
 (`resolve_license_concluded` as one shared entry point every extraction
 path calls, described in
-[annotation-provenance.md](../implementation/provenance/annotation-provenance.md))
+[multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md))
 closes that specific gap, but doesn't stop the *next* new field or feature
 from repeating the pattern on some other surface.
 

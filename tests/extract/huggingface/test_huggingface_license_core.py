@@ -17,31 +17,49 @@ from pitloom.extract._huggingface_fetch import (
     _list_license_files_in_repo,
 )
 
-from .conftest import (
+from .hf_patches._hf_patches_base import (
     _make_card_data,
-    _patch_aya_vision,
-    _patch_deepseek,
-    _patch_depth_pro,
-    _patch_gemma,
-    _patch_groot,
     _patch_hf_calls,
+)
+from .hf_patches._hf_patches_embeddings import (
+    _patch_rad_dino,
+    _patch_timm_convnext,
+    _patch_uni2,
+)
+from .hf_patches._hf_patches_gated_access import (
+    _patch_aya_vision,
+    _patch_gemma,
     _patch_inkubalm,
+    _patch_serengeti,
+)
+from .hf_patches._hf_patches_gated_metadata import (
+    _patch_deepseek,
+    _patch_mistral_medium,
+    _patch_seallms,
+)
+from .hf_patches._hf_patches_generative_3d import (
+    _patch_groot,
+    _patch_pi05,
+)
+from .hf_patches._hf_patches_multimodal import (
     _patch_jina_v4,
     _patch_kimi,
-    _patch_kokoro,
-    _patch_llama,
-    _patch_mallam,
-    _patch_mistral_medium,
-    _patch_pi05,
-    _patch_rad_dino,
-    _patch_rmbg14,
     _patch_sealion_gguf,
-    _patch_seallms,
-    _patch_serengeti,
+)
+from .hf_patches._hf_patches_speech_audio import (
+    _patch_kokoro,
+)
+from .hf_patches._hf_patches_text_generation_pretrained import (
+    _patch_llama,
     _patch_starcoder2,
-    _patch_timm_convnext,
+)
+from .hf_patches._hf_patches_text_generation_regional import (
+    _patch_mallam,
     _patch_typhoon,
-    _patch_uni2,
+)
+from .hf_patches._hf_patches_vision import (
+    _patch_depth_pro,
+    _patch_rmbg14,
 )
 
 

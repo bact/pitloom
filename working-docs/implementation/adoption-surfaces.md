@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -46,7 +46,7 @@ true on its own.
 | Library API | You are calling Pitloom from Python code you control (a script, a larger tool, a test). | [README.md](../../README.md#python-api) |
 | CLI (`loom` / `pitloom`) | You want a one-off SBOM from a terminal, a Makefile target, or any shell script. | [README.md](../../README.md#command-line) |
 | Hatchling build hook | You build wheels with Hatchling and want an SBOM embedded automatically, with no extra command. | [hatchling-build-hook.md](hatchling-build-hook.md) |
-| ML tracking SDK (`pitloom.loom`) | You are training or fine-tuning a model and want to capture dataset/hyperparameter/metric provenance as you go, as an SPDX fragment. | [README.md](../../README.md#python-tracking-decorator), [sbom-fragments.md](../design/sbom-fragments.md) |
+| ML tracking SDK (`pitloom.loom`) | You are training or fine-tuning a model and want to capture dataset/hyperparameter/metric provenance as you go, as an SPDX fragment. | [README.md](../../README.md#python-tracking-decorator), [sbom-fragments/loom-sdk-and-notebooks.md](../design/sbom-fragments/loom-sdk-and-notebooks.md) |
 | GitHub Action | Your project is *not* Hatchling-based (or you just want CI to produce an SBOM artefact with one `uses:` line), regardless of build backend. | [github-action.md](github-action.md) |
 | AI-agent Skills (`sbom-generate`, `sbom-enrich`, `sbom-validate`) | You want an AI coding agent (Claude Code, the Agent SDK, or similar) to generate -- and optionally enrich and validate -- an SBOM on request, as a first-class capability rather than an ad hoc shell command. | [agent-skill.md](agent-skill.md) |
 | Claude Code plugin | You use Claude Code and want all three Skills installable with one command (`/plugin install`), plus namespaced explicit invocation (`/pitloom:sbom-generate`, `/pitloom:sbom-enrich`, `/pitloom:sbom-validate`). | [claude-code-plugin.md](claude-code-plugin.md) |
@@ -92,7 +92,7 @@ the line between "extracted fact" and "AI guess":
   attribution (see [metadata-provenance.md](provenance/metadata-provenance.md)).
 - **The fragment system** -- independently generated SPDX 3 JSON-LD files
   are merged into the final SBOM via `[tool.pitloom.fragment]` and
-  `merge_fragments()` (see [sbom-fragments.md](../design/sbom-fragments.md)).
+  `merge_fragments()` (see [sbom-fragments/fragment-merge-design.md](../design/sbom-fragments/fragment-merge-design.md)).
 
 The `sbom-enrich` skill's guidance has an agent contribute enrichment as a
 fragment, with every field marked with the provenance role that matches

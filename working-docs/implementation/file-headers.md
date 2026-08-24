@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Per-file metadata extraction (SPDX-File\* header tags)
 
-See [provenance/annotation-provenance.md](provenance/annotation-provenance.md)
+See [provenance/role-vocabulary.md](provenance/role-vocabulary.md)
 and [provenance/metadata-provenance.md](provenance/metadata-provenance.md)
 for the intrinsic/extrinsic role vocabulary this document's "Provenance:
 intrinsic vs. extrinsic" section reuses.
@@ -226,7 +226,7 @@ correctness gap.
 
 Everything read verbatim from a file's own header is *intrinsic* --
 role `declared`, full stop, using the established shape
-(`annotation-provenance.md`'s role vocabulary): `Source: <this file's
+(`provenance/role-vocabulary.md`): `Source: <this file's
 own path> | Field: SPDX-FileCopyrightText` / `SPDX-License-Identifier` /
 `SPDX-FileType` / `SPDX-FileContributor` (the bare-copyright-line
 fallback uses `Field: bare Copyright line` instead).

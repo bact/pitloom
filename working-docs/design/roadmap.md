@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-21
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,8 +67,8 @@ SPDX-License-Identifier: CC0-1.0
   `hasDeclaredLicense` and `hasConcludedLicense` are recorded alongside a
   generic `provenance/conflict/1` Annotation (reusable for any field, not
   license-specific). See
-  [annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
-  G2 section. ([PR #121](https://github.com/bact/pitloom/pull/121))
+  [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md).
+  ([PR #121](https://github.com/bact/pitloom/pull/121))
   Remaining, narrower scope than "PEP 639 compliance" originally implied:
   `[project.license-files]` (the glob-list field for bundling multiple
   license files) is not specifically parsed.
@@ -359,7 +359,7 @@ enough that new data could reorder them.
   `[tool.pitloom] enrich` (**default off** -- opt-in until more
   sources ship). Not to be confused with the agent-facing `sbom-enrich`
   *Skill* above -- this is code-level, deterministic, non-agent. Also
-  what [annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
+  what [use-case-catalog.md](../implementation/provenance/use-case-catalog.md)'s
   N3 ("who/when enriched") needed to exist first -- now shipped too, see
   its own entry there.
   Exposed as a first-class capability across every generation surface,

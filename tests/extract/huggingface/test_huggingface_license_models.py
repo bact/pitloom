@@ -9,55 +9,77 @@ from pitloom.extract._huggingface import (
     read_huggingface,
 )
 
-from .conftest import (
-    _patch_apple_sharp,
-    _patch_arabic_legal_ocr,
-    _patch_aspect_finnlp_th,
-    _patch_blip_vqa,
-    _patch_bloom,
-    _patch_bloomz_7b1,
+from .hf_patches._hf_patches_embeddings import (
     _patch_clip_japanese_v2,
     _patch_codeberta,
+    _patch_gabert,
+    _patch_gte_reranker,
+    _patch_legal_embed_ita,
+    _patch_line_distilbert,
+)
+from .hf_patches._hf_patches_gated_access import (
     _patch_cohere_aya_23,
-    _patch_deberta_human_value,
+    _patch_wmt22_cometkiwi,
+)
+from .hf_patches._hf_patches_gated_metadata import (
+    _patch_hunyuan_mt,
+)
+from .hf_patches._hf_patches_generative_3d import (
+    _patch_apple_sharp,
+    _patch_hy_motion,
+    _patch_shap_e,
+    _patch_stable_zero123,
+)
+from .hf_patches._hf_patches_multimodal import (
+    _patch_arabic_legal_ocr,
+    _patch_blip_vqa,
     _patch_exaone45_33b,
     _patch_exaone45_33b_awq,
     _patch_exaone45_33b_fp8,
     _patch_exaone45_33b_gguf,
-    _patch_exaone_path,
-    _patch_firered_vad,
-    _patch_fujitsu_llm,
-    _patch_gabert,
-    _patch_glm45_air_reap,
-    _patch_gte_reranker,
-    _patch_hermes_3_llama_3b,
-    _patch_hrnetpose,
-    _patch_hunyuan_mt,
-    _patch_hy_motion,
     _patch_kanana_15v,
-    _patch_legal_embed_ita,
-    _patch_lightglue,
-    _patch_line_distilbert,
+    _patch_timelens,
+)
+from .hf_patches._hf_patches_omni_modal import (
     _patch_llada2_moe,
+)
+from .hf_patches._hf_patches_speech_audio import (
+    _patch_firered_vad,
     _patch_llasa_3b,
-    _patch_minimax_m2,
+    _patch_seamless_m4t,
+)
+from .hf_patches._hf_patches_structured_text import (
+    _patch_aspect_finnlp_th,
+    _patch_deberta_human_value,
     _patch_moirai,
-    _patch_opt_2_7b,
+    _patch_protonx_legal,
+)
+from .hf_patches._hf_patches_text_generation_instruct import (
+    _patch_bloomz_7b1,
+    _patch_glm45_air_reap,
+    _patch_hermes_3_llama_3b,
+    _patch_minimax_m2,
     _patch_opt_iml,
     _patch_pharia_aligned,
     _patch_pharia_control,
+)
+from .hf_patches._hf_patches_text_generation_pretrained import (
+    _patch_bloom,
+    _patch_opt_2_7b,
     _patch_phi2,
-    _patch_protonx_legal,
     _patch_qwen3_235b,
     _patch_qwen35_27b,
+)
+from .hf_patches._hf_patches_text_generation_regional import (
+    _patch_fujitsu_llm,
     _patch_sealion_27b_it,
-    _patch_seamless_m4t,
-    _patch_shap_e,
-    _patch_stable_zero123,
     _patch_tildeopen_30b_64k,
-    _patch_timelens,
+)
+from .hf_patches._hf_patches_vision import (
+    _patch_exaone_path,
+    _patch_hrnetpose,
+    _patch_lightglue,
     _patch_windowseat,
-    _patch_wmt22_cometkiwi,
 )
 
 

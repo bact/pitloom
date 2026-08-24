@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-13
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -216,7 +216,7 @@ extraction.
   check above.
 - `working-docs/design/sbom-enrichment.md` -- enrichment data-source table
   and the `[tool.pitloom] enrich` enable/disable model.
-- `working-docs/design/sbom-fragments.md` -- fragment system design and
+- `working-docs/design/sbom-fragments/` -- fragment system design and
   vocabulary.
 - `docs/resources.md` in the Pitloom repository -- SPDX 3 spec, ontology,
   and JSON Schema links.

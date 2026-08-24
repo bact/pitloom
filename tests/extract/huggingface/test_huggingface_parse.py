@@ -1,4 +1,8 @@
-# ruff: noqa: F403, F405
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract._huggingface import (
+    is_huggingface_source,
     parse_hf_model_id,
 )
 
@@ -68,3 +73,19 @@ def test_parse_hf_model_id_owner_name_shape_with_local_dir_is_not_hf(
     monkeypatch.chdir(tmp_path)
     (tmp_path / "models" / "my-model").mkdir(parents=True)
     assert parse_hf_model_id("models/my-model") is None
+
+
+def test_is_huggingface_source_url() -> None:
+    assert is_huggingface_source("https://huggingface.co/mistralai/Mistral-7B-v0.1")
+
+
+def test_is_huggingface_source_model_id() -> None:
+    assert is_huggingface_source("Qwen/Qwen3-235B-A22B")
+
+
+def test_is_huggingface_source_local_path() -> None:
+    assert not is_huggingface_source("/path/to/model.onnx")
+
+
+def test_is_huggingface_source_plain_filename() -> None:
+    assert not is_huggingface_source("model.safetensors")

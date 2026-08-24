@@ -5,7 +5,7 @@ from pitloom.extract._huggingface import (
     read_huggingface,
 )
 
-from .conftest import (
+from .hf_patches._hf_patches_text_generation_regional import (
     _patch_openthaigpt,
 )
 

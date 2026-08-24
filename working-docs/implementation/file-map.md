@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,8 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Pitloom - project file map
 
-See also: [summary.md](summary.md) (implementation summary this tree
-was split out of) and
+See also: [summary.md](summary.md) (implementation summary) and
 [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
 (the CLI, test-suite, and source modularization this tree reflects).
 
@@ -49,9 +48,9 @@ pitloom/
 │   │   ├── provenance-enrichment-vocabulary.md
 │   │   ├── roadmap.md              # Canonical roadmap
 │   │   ├── sbom-enrichment.md
-│   │   └── sbom-fragments.md
+│   │   └── sbom-fragments/          # 5 files -- fragment-merge-design.md, etc.
 │   ├── implementation/
-│   │   ├── provenance/             # 4 files -- annotation-provenance(-full-plan).md, etc.
+│   │   ├── provenance/             # 10 files -- annotation-provenance(-mechanism/-full-plan).md, role-vocabulary.md, etc.
 │   │   ├── adoption-surfaces.md
 │   │   ├── agent-skill.md
 │   │   ├── claude-code-plugin.md
@@ -192,7 +191,7 @@ pitloom/
 │   ├── cli/                        # 13 files -- one per src/pitloom/cli/ module, + shared.py
 │   ├── core/                       # 32 files -- core/, ids.py, loom.py, generator orchestration
 │   ├── extract/                    # 36 files, one per extractor
-│   │   └── huggingface/            # 23 files -- split by metadata category + _hf_patches_*.py
+│   │   └── huggingface/            # 33 files -- split by metadata category; mock patches in hf_patches/
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── ids_shared.py               # Shared helpers for ids-registry tests
