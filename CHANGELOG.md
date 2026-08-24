@@ -25,7 +25,12 @@ and this project adheres to
 
 - Reorganize Hugging Face tests ([#187])
 
+### Fixed
+
+- Prune two unreachable branches in `_setuptools_cfg.py` ([#188])
+
 [#187]: https://github.com/bact/pitloom/pull/187
+[#188]: https://github.com/bact/pitloom/pull/188
 
 ## [0.16.4] - 2026-08-21
 
