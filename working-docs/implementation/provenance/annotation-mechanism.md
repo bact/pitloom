@@ -13,11 +13,10 @@ design rationale, start here), [role-vocabulary.md](role-vocabulary.md),
 [use-case-catalog.md](use-case-catalog.md),
 [multi-source-conflict.md](multi-source-conflict.md).
 
-Split out of `annotation-provenance.md`'s former `## 10. Boundary
-refinement` (2026-08-25) -- this file covers *when/how to use the
-`Annotation` mechanism at all*, independent of what vocabulary or use
-case ends up inside one. See the sibling files above for the `role`
-vocabulary and the specific use cases that make use of this mechanism.
+This file covers *when/how to use the `Annotation` mechanism at all*,
+independent of what vocabulary or use case ends up inside one. See the
+sibling files above for the `role` vocabulary and the specific use
+cases that make use of this mechanism.
 
 ## Boundary refinement (2026-07-20): non-native, high-signal only
 

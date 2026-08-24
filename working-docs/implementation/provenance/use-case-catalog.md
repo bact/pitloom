@@ -15,11 +15,10 @@ design rationale, start here),
 [multi-source-conflict.md](multi-source-conflict.md),
 [phase2-native-backfill-handover.md](phase2-native-backfill-handover.md).
 
-Split out of `annotation-provenance.md`'s former `## 10. Boundary
-refinement` (2026-08-25) -- the taxonomy of *why* an Annotation earns its
-place for each use case (G1-G4/A1-A2/E1-E2/P1), plus the Phase 2
-native-first backfill checklist (N1-N6). G2's own implementation depth
-lives separately in [multi-source-conflict.md](multi-source-conflict.md).
+The taxonomy of *why* an Annotation earns its place for each use case
+(G1-G4/A1-A2/E1-E2/P1), plus the Phase 2 native-first backfill
+checklist (N1-N6). G2's own implementation depth lives separately in
+[multi-source-conflict.md](multi-source-conflict.md).
 
 ## Use-case catalog (why the Annotation earns its place)
 

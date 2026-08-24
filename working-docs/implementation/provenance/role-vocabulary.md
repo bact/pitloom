@@ -17,16 +17,11 @@ design rationale, start here),
 [working-docs/design/provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)
 §1 (parked, deferred).
 
-Split out of `annotation-provenance.md`'s former G2 subsection
-(2026-08-25), where it was originally written alongside G2-specific
-(license-conflict) implementation detail. The `role` vocabulary itself
-is general-purpose -- it is reused by G2 (multi-source disagreement),
-E1/E2 (enrichment lineage), and file-header extraction alike -- so it
-gets its own file. For G2's own implementation depth (schema,
-normalization logic, what's built), see
+The `role` vocabulary is general-purpose -- it is reused by G2
+(multi-source disagreement), E1/E2 (enrichment lineage), and
+file-header extraction alike -- so it gets its own file. For G2's own
+implementation depth (schema, normalization logic, what's built), see
 [multi-source-conflict.md](multi-source-conflict.md).
-
-## Role vocabulary
 
 **`role` vocabulary** — an epistemic-process label (*whose* determination
 this is), deliberately not "which native SPDX slot it maps to" (that

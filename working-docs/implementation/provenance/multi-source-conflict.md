@@ -14,10 +14,9 @@ design rationale, start here),
 [role-vocabulary.md](role-vocabulary.md),
 [use-case-catalog.md](use-case-catalog.md) (G2's short catalog summary).
 
-Split out of `annotation-provenance.md`'s former G2 subsection
-(2026-08-25). This file is the implementation depth behind G2 -- the
-largest and most fleshed-out use case in the catalog. The `role`
-vocabulary G2 relies on is documented once, generally, in
+This file is the implementation depth behind G2 -- the largest and
+most fleshed-out use case in the catalog. The `role` vocabulary G2
+relies on is documented once, generally, in
 [role-vocabulary.md](role-vocabulary.md) rather than repeated here.
 
 ## G2 — multi-source disagreement (2026-08-10, generalized, license implemented)

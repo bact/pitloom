@@ -19,6 +19,14 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4>
 
+## [Unreleased]
+
+### Changed
+
+- Reorganize Hugging Face tests ([#187])
+
+[#187]: https://github.com/bact/pitloom/pull/187
+
 ## [0.16.4] - 2026-08-21
 
 ### Fixed

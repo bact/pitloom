@@ -11,7 +11,7 @@ from pitloom.extract._huggingface import (
     read_huggingface,
 )
 
-from .conftest import (
+from .hf_patches._hf_patches_base import (
     _make_card_data,
     _patch_hf_calls,
 )

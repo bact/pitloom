@@ -320,10 +320,10 @@ supersedes NTIA), `G7 SBOM for AI 2026` (additive, only when an
 | `docs/creation-metadata.md` | CreationInfo who/what/when/how model -- background context, relevant for the N3 (enrichment CreationInfo) cross-link |
 | `docs/configuration.md:53-57` | A **different, unrelated** `method` vocabulary -- `--content-type-method` (`"auto"`/`"magika"`/`"extension"`), which resolves to the `magika_content_detection`/`extension_guess` provenance `method` strings at runtime |
 | `working-docs/implementation/provenance/annotation-provenance.md` | Canonical design rationale: goal, design decisions, statement schema, implementation, tests, statement examples. Start here. |
-| `working-docs/implementation/provenance/role-vocabulary.md` | Full role vocabulary, decision rule, source-recording convention, role-to-native mapping (split out of `annotation-provenance.md` 2026-08-25). |
-| `working-docs/implementation/provenance/annotation-mechanism.md` | Boundary principle, extrinsic-assertion test, schema-envelope convention (split out 2026-08-25). |
-| `working-docs/implementation/provenance/use-case-catalog.md` | G1-G4/A1/A2/E1/E2/P1/N1-N6 taxonomy (split out 2026-08-25). |
-| `working-docs/implementation/provenance/multi-source-conflict.md` | G2 implementation depth (split out 2026-08-25). |
+| `working-docs/implementation/provenance/role-vocabulary.md` | Full role vocabulary, decision rule, source-recording convention, role-to-native mapping. |
+| `working-docs/implementation/provenance/annotation-mechanism.md` | Boundary principle, extrinsic-assertion test, schema-envelope convention. |
+| `working-docs/implementation/provenance/use-case-catalog.md` | G1-G4/A1/A2/E1/E2/P1/N1-N6 taxonomy. |
+| `working-docs/implementation/provenance/multi-source-conflict.md` | G2 implementation depth. |
 | `working-docs/implementation/provenance/annotation-provenance-full-plan.md` | Earlier/fuller planning doc, same taxonomy, older shape (`event:` key vs. shipped `kind:` in some examples -- lines 256/263/316) |
 | `working-docs/implementation/provenance/demo-provenance.md` | Worked CLI walkthrough reusing the same method strings |
 | `working-docs/implementation/provenance/phase2-native-backfill-handover.md:28` | One-line pointer into `annotation-provenance-full-plan.md`'s taxonomy |
