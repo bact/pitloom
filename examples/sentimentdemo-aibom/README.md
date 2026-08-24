@@ -398,7 +398,7 @@ SBOM Sharing Lifecycle report, applied to AI systems.
 ## Further reading
 
 - Pitloom design doc on fragments:
-  [`working-docs/design/sbom-fragments.md`](../../working-docs/design/sbom-fragments.md)
+  [`working-docs/design/sbom-fragments/`](../../working-docs/design/sbom-fragments/README.md)
 - Pitloom Hatchling hook docs:
   [`working-docs/implementation/hatchling-build-hook.md`](../../working-docs/implementation/hatchling-build-hook.md)
 - Linux Foundation AI BOM guide:

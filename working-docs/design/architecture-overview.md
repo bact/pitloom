@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -205,7 +205,7 @@ compliant, composite SBOM document.
 
 This assembly model reflects the reality that no single tool or team
 has visibility into the full provenance of a modern AI system.
-See `working-docs/design/sbom-fragments.md` for the detailed design of the
+See `working-docs/design/sbom-fragments/` for the detailed design of the
 fragment system, vocabulary alignment with SPDX 3 / CycloneDX / CISA
 standards, and the roadmap for new integrations.
 
@@ -263,7 +263,8 @@ Weave's model version URIs (`weave:///entity/project/object/Name:hash`)
 map naturally to SPDX `ai_AIPackage` with a content-addressed
 `software_downloadLocation`. Evaluation results become SPDX `Annotation`
 elements. The top-level function is `pitloom.loom.from_weave_model()`.
-See `working-docs/design/sbom-fragments.md` for the full object mapping.
+See `working-docs/design/sbom-fragments/extractor-integrations.md` for
+the full object mapping.
 
 #### 5. DVC extractor (`pitloom.extract.dvc`) [planned]
 
@@ -283,7 +284,7 @@ Planned improvements: structured fragment declaration in `pyproject.toml`
 (with role, sha256, link-to-main relationship), pre-merge validation,
 duplicate-ID detection, and `SpdxDocument.imports` population for
 cross-document traceability.
-See `working-docs/design/sbom-fragments.md`.
+See `working-docs/design/sbom-fragments/fragment-merge-design.md`.
 
 ### Data flow: extraction -> document model -> assembly
 

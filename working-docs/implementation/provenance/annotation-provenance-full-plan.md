@@ -86,7 +86,7 @@ and which half is genuinely Annotation-only.
 | **declared constraint vs resolved version** | **No** (`software_packageVersion` holds only the resolved value) | **G3 — useful** |
 | **sub-file extraction location** (safetensors `__metadata__`, GGUF kv, pt2 `extra/*`) | **No** | **G4 — useful** |
 | **DOI / arXiv / repo & model-card URLs** (from HF `extra_data`) | **Yes, native, but NOT built** — `ExternalIdentifier` (doi) / `ExternalRef` | **Phase 2 → N4**; today only in provenance/`extra_data` |
-| **element came from fragment document F** | **Yes, native, but NOT built** — `SpdxDocument.imports` + `ExternalMap` (doc-level; flagged unbuilt in `sbom-fragments.md:146,698-701`) | **Phase 2 → N1**; Annotation keeps the *criterion* |
+| **element came from fragment document F** | **Yes, native, but NOT built** — `SpdxDocument.imports` + `ExternalMap` (doc-level; flagged unbuilt in `sbom-fragments/fragment-merge-design.md`) | **Phase 2 → N1**; Annotation keeps the *criterion* |
 | **why two fragments were unified** (criterion: registry-id / sha256 / structural) | **No** (merged-away ids vanish; `imports` can't say *why*) | **A1 — necessary** |
 | **who/when enriched** | **Yes, native, but NOT built** — a second `CreationInfo` per enrichment run | **Phase 2 → N3**; Annotation keeps which-field + before/after |
 | **field overridden A→B by enrichment source Y** | **No** (`CreationInfo` is element-level, no before/after) | **E1/E2 — necessary (design only now)** |
@@ -207,7 +207,7 @@ corresponding Annotation content.**
 
 | # | Fact | Native construct to build | Currently | Residual left to Annotation |
 | --- | --- | --- | --- | --- |
-| **N1** | Element originates from fragment document F | `SpdxDocument.imports` + `ExternalMap` (one per source fragment) | Fragment origin discarded at merge (`fragments.py:461-464`); `imports` unbuilt (`sbom-fragments.md:146,698-701`) | Unification *criterion* only (registry-id/sha256/structural) — A1 |
+| **N1** | Element originates from fragment document F | `SpdxDocument.imports` + `ExternalMap` (one per source fragment) | Fragment origin discarded at merge (`fragments.py:461-464`); `imports` unbuilt (`sbom-fragments/fragment-merge-design.md`) | Unification *criterion* only (registry-id/sha256/structural) — A1 |
 | **N2** | Declared vs. concluded license | Distinct `hasDeclaredLicense` (author-stated) and `hasConcludedLicense` (Pitloom-detected from LICENSE/licenseid evidence) | Concluded is set equal to declared, "no inference yet" (`deps.py:246-252`) | The *evidence* (which file/heuristic) behind the concluded license — G1/G2 |
 | **N3** | Who/when enriched | A second `CreationInfo` (createdBy = enricher agent, createdUsing = enricher tool, created = enrichment time) attached to enriched elements | Enrichers mutate in-place under the original `CreationInfo`; agent path only tags a comment | Which field + before/after value + inferred-marker — E1/E2 |
 | **N4** | External identifiers (DOI, arXiv, repo URL, model-card URL) | `ExternalIdentifier` (type `doi`, …) / `ExternalRef` on the AI package | Captured into `extra_data`/provenance only (`_huggingface.py:710-764`) | none once mapped (fully native) |

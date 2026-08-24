@@ -225,7 +225,7 @@ for the full sequencing.
 An agent never edits a generated SBOM file in place. Instead it follows
 the same **fragment** mechanism already used by `pitloom.loom` and
 third-party fragment producers (see
-[sbom-fragments.md](sbom-fragments.md)):
+[sbom-fragments/fragment-merge-design.md](sbom-fragments/fragment-merge-design.md)):
 
 1. Generate (or reuse) a base SBOM with `loom <project-or-model>`.
 2. Draft a small, standalone SPDX 3 JSON-LD fragment containing only the
