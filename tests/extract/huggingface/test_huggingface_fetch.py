@@ -12,8 +12,8 @@ higher-level facade never exercises: a pinned revision short-circuiting the
 "no pinned revision" warning, the success paths of the raw fetch helpers,
 and the paragraph-collection edge cases in ``_extract_card_description``.
 
-See also: conftest.py and the topic-grouped _hf_patches_*.py submodules
-for the shared mock-HF-API helpers used by the higher-level tests.
+See also: the topic-grouped hf_patches/_hf_patches_*.py submodules for the
+shared mock-HF-API helpers used by the higher-level tests.
 """
 
 from __future__ import annotations
@@ -312,3 +312,42 @@ def test_extract_card_description_truncates_at_500_chars() -> None:
 
     assert result is not None
     assert len(result) == 500
+
+
+def test_safe_load_json_download_failure_logs_and_returns_none(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch("huggingface_hub.hf_hub_download", side_effect=OSError("network down")):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
+            result = _safe_load_json("org/model", "config.json")
+    assert result is None
+    assert any("config.json" in r.message for r in caplog.records)
+
+
+def test_load_model_card_failure_logs_and_returns_empty(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch(
+        "huggingface_hub.ModelCard.load", side_effect=OSError("card fetch failed")
+    ):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
+            text, data = _load_model_card("org/model")
+    assert text is None
+    assert data == {}
+    assert any("org/model" in r.message for r in caplog.records)
+
+
+def test_load_model_info_failure_logs_and_returns_empty(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with patch("huggingface_hub.model_info", side_effect=OSError("info fetch failed")):
+        with caplog.at_level(
+            logging.DEBUG, logger="pitloom.extract._huggingface_fetch"
+        ):
+            result = _load_model_info("org/model")
+    assert not result
+    assert any("org/model" in r.message for r in caplog.records)

@@ -191,7 +191,7 @@ pitloom/
 │   ├── cli/                        # 13 files -- one per src/pitloom/cli/ module, + shared.py
 │   ├── core/                       # 32 files -- core/, ids.py, loom.py, generator orchestration
 │   ├── extract/                    # 36 files, one per extractor
-│   │   └── huggingface/            # 23 files -- split by metadata category + _hf_patches_*.py
+│   │   └── huggingface/            # 33 files -- split by metadata category; mock patches in hf_patches/
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── ids_shared.py               # Shared helpers for ids-registry tests

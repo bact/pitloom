@@ -9,10 +9,11 @@ classification, translation, tabular and table QA, and summarization.
 See also: _hf_patches_base.py, _hf_patches_text_generation_pretrained.py,
 _hf_patches_text_generation_instruct.py,
 _hf_patches_text_generation_regional.py, _hf_patches_gated_metadata.py,
-_hf_patches_speech_audio.py, _hf_patches_multimodal.py,
-_hf_patches_omni_modal.py, _hf_patches_embeddings.py, _hf_patches_vision.py,
-_hf_patches_generative_3d.py. Sibling test modules import helper names from
-``conftest``, not from this module directly.
+_hf_patches_gated_access.py, _hf_patches_speech_audio.py,
+_hf_patches_multimodal.py, _hf_patches_omni_modal.py,
+_hf_patches_embeddings.py, _hf_patches_vision.py, _hf_patches_generative_3d.py.
+Sibling test modules import these names directly from the matching topic
+module.
 """
 
 from __future__ import annotations

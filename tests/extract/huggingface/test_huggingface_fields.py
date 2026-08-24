@@ -11,8 +11,8 @@ its own: an empty extracted card description, a ``base_model:`` tag with an
 unrecognised relation, empty ``arxiv:``/``dataset:`` tag values, and a
 tokenizer config with no ``tokenizer_class``.
 
-See also: conftest.py and the topic-grouped _hf_patches_*.py submodules
-for the shared mock-HF-API helpers used by the higher-level tests.
+See also: the topic-grouped hf_patches/_hf_patches_*.py submodules for the
+shared mock-HF-API helpers used by the higher-level tests.
 """
 
 from __future__ import annotations

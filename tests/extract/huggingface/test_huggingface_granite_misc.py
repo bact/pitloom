@@ -7,20 +7,31 @@
 geospatial models), plus generic dataset-extraction priority tests that
 aren't tied to any specific model.
 
-See also: test_huggingface_vision_robotics.py, test_huggingface_speech_misc.py,
-and test_huggingface_text_misc.py.
+See also: test_huggingface_embeddings.py, test_huggingface_gated_access.py,
+test_huggingface_gated_metadata.py, test_huggingface_multimodal.py,
+test_huggingface_omni_modal.py, test_huggingface_speech_misc.py,
+test_huggingface_structured_text.py,
+test_huggingface_text_generation_instruct.py,
+test_huggingface_text_generation_pretrained.py, test_huggingface_text_misc.py,
+test_huggingface_vision.py, test_huggingface_vision_robotics.py.
 """
 
 from __future__ import annotations
 
 from pitloom.extract._huggingface import read_huggingface
 
-from .conftest import (
+from .hf_patches._hf_patches_base import (
     _make_card_data,
-    _patch_granite_4_1_8b,
-    _patch_granite_embed,
-    _patch_granite_geo_flood,
     _patch_hf_calls,
+)
+from .hf_patches._hf_patches_embeddings import (
+    _patch_granite_embed,
+)
+from .hf_patches._hf_patches_text_generation_pretrained import (
+    _patch_granite_4_1_8b,
+)
+from .hf_patches._hf_patches_vision import (
+    _patch_granite_geo_flood,
 )
 
 
