@@ -12,8 +12,8 @@ higher-level facade never exercises: a pinned revision short-circuiting the
 "no pinned revision" warning, the success paths of the raw fetch helpers,
 and the paragraph-collection edge cases in ``_extract_card_description``.
 
-See also: conftest.py and _hf_patches_01.py through _hf_patches_10.py for
-the shared mock-HF-API helpers used by the higher-level tests.
+See also: conftest.py and the topic-grouped _hf_patches_*.py submodules
+for the shared mock-HF-API helpers used by the higher-level tests.
 """
 
 from __future__ import annotations

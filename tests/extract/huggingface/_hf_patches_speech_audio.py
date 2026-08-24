@@ -3,222 +3,164 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Mock patches for Hugging Face model metadata tests (part 4 of 10).
+"""Mock patches for speech and audio models: automatic speech recognition, text-
+to-speech, voice activity detection, and speaker diarization.
 
-See also: conftest.py, which re-exports everything via ``from
-._hf_patches_04 import *``. Sibling test modules import helper names
-from ``conftest``, not from this module directly.
+See also: _hf_patches_base.py, _hf_patches_text_generation_pretrained.py,
+_hf_patches_text_generation_instruct.py,
+_hf_patches_text_generation_regional.py, _hf_patches_gated_metadata.py,
+_hf_patches_multimodal.py, _hf_patches_omni_modal.py,
+_hf_patches_embeddings.py, _hf_patches_vision.py,
+_hf_patches_structured_text.py, _hf_patches_generative_3d.py. Sibling test
+modules import helper names from ``conftest``, not from this module directly.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from ._hf_patches_01 import _make_card_data, _patch_hf_calls
+from ._hf_patches_base import (
+    _make_card_data,
+    _patch_hf_calls,
+)
+
+_KOKORO_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="text-to-speech",
+    tags=None,
+    language=["en"],
+    library_name=None,
+)
 
 
-def _patch_gpt_neox_jp() -> Any:
+_KOKORO_CONFIG: dict[str, Any] = {
+    # Custom Kokoro schema - no model_type or architectures
+    "istftnet": {},
+    "dim_in": 64,
+    "hidden_dim": 512,
+    "n_layer": 3,
+    "n_mels": 80,
+    "multispeaker": True,
+}
+
+
+def _patch_kokoro() -> Any:
     return _patch_hf_calls(
-        config={
-            "model_type": "gpt_neox_japanese",
-            "architectures": ["GPTNeoXJapaneseForCausalLM"],
-            "vocab_size": 32000,
-            "num_hidden_layers": 32,
-            "hidden_size": 2560,
-        },
+        config=_KOKORO_CONFIG,
         tokenizer_config=None,
-        card_data=_make_card_data(
-            license="mit",
-            pipeline_tag="text-generation",
-            tags=["ja", "japanese", "gpt_neox", "gpt", "lm", "nlp"],
-            language="ja",  # scalar string
-            datasets=["cc100", "wikipedia"],
-        ),
-        hub_info={"author": "abeja"},
+        card_data=_KOKORO_CARD_DATA,
+        card_text="---\nlicense: apache-2.0\n---\n\nA small TTS model.",
+        hub_info={"author": "hexgrad"},
     )
 
 
-def _patch_falconsai() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "t5",
-            "architectures": ["T5ForConditionalGeneration"],
-            "vocab_size": 32128,
-        },
-        tokenizer_config={"tokenizer_class": "T5Tokenizer", "model_max_length": 512},
-        card_data=_make_card_data(
-            license="apache-2.0",
-            pipeline_tag="summarization",
-            tags=["medical"],
-            language=["en"],
-        ),
-        hub_info={"author": "Falconsai"},
-    )
+_WHISPER_LANGUAGES: list[Any] = [
+    "en",
+    "zh",
+    "de",
+    "es",
+    "ru",
+    "ko",
+    "fr",
+    "ja",
+    "pt",
+    "tr",
+    "pl",
+    "ca",
+    "nl",
+    "ar",
+    "sv",
+    "it",
+    "id",
+    "hi",
+    "fi",
+    "vi",
+    "he",
+    "uk",
+    "el",
+    "ms",
+    "cs",
+    "ro",
+    "da",
+    "hu",
+    "ta",
+    False,  # YAML 1.1 parses "no" (Norwegian Bokmål) as False
+    "th",
+    "ur",
+    "hr",
+    "bg",
+    "lt",
+]
 
 
-def _patch_opus_mt_th_en() -> Any:
+_WHISPER_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="automatic-speech-recognition",
+    tags=["audio", "automatic-speech-recognition", "hf-asr-leaderboard"],
+    language=_WHISPER_LANGUAGES,
+    library_name=None,
+)
+
+
+_WHISPER_CONFIG: dict[str, Any] = {
+    "model_type": "whisper",
+    "architectures": ["WhisperForConditionalGeneration"],
+    "vocab_size": 51865,
+    "num_hidden_layers": 32,
+    "max_source_positions": 1500,
+}
+
+
+def _patch_whisper() -> Any:
     return _patch_hf_calls(
-        config={
-            "model_type": "marian",
-            "architectures": ["MarianMTModel"],
-            "vocab_size": 62307,
-            "num_hidden_layers": 6,
-        },
+        config=_WHISPER_CONFIG,
         tokenizer_config=None,
-        card_data=_make_card_data(
-            license="apache-2.0",
-            pipeline_tag=None,
-            tags=["translation"],
-            language=["th", "en"],
-        ),
-        hub_info={"author": "Helsinki-NLP"},
+        card_data=_WHISPER_CARD_DATA,
+        hub_info={"author": "openai"},
     )
 
 
-def _patch_hunyuan_mt() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "hunyuan_v1_dense",
-            "architectures": ["HunYuanDenseV1ForCausalLM"],
-            "vocab_size": 120818,
-            "num_hidden_layers": 32,
-            "hidden_size": 2048,
-        },
-        tokenizer_config={
-            "tokenizer_class": "PreTrainedTokenizerFast",
-            "model_max_length": 1000000000000000019884624838656,
-        },
-        card_data=_make_card_data(
-            license=None,
-            pipeline_tag=None,
-            tags=["translation"],
-            language=["zh", "en", "fr", "pt", "es", "ja", "tr"],
-        ),
-        hub_info={"author": "tencent"},
-    )
+_WAV2VEC2_JP_MODEL_INDEX = [
+    {
+        "name": "XLSR Wav2Vec2 Japanese by Jonatas Grosman",
+        "results": [
+            {
+                "task": {"type": "automatic-speech-recognition"},
+                "dataset": {"name": "Common Voice ja", "type": "common_voice"},
+                "metrics": [{"type": "wer", "value": 81.8, "name": "Test WER"}],
+            }
+        ],
+    }
+]
 
 
-def _patch_hy_mt_gguf() -> Any:
+_WAV2VEC2_JP_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="automatic-speech-recognition",
+    tags=["audio", "speech", "xlsr-fine-tuning-week"],
+    language="ja",  # scalar string
+    datasets=["common_voice"],
+    model_index=_WAV2VEC2_JP_MODEL_INDEX,
+)
+
+
+_WAV2VEC2_JP_CONFIG: dict[str, Any] = {
+    "model_type": "wav2vec2",
+    "architectures": ["Wav2Vec2ForCTC"],
+    "vocab_size": 2341,
+    "num_hidden_layers": 24,
+    "hidden_size": 1024,
+}
+
+
+def _patch_wav2vec2_jp() -> Any:
     return _patch_hf_calls(
-        config=None,
+        config=_WAV2VEC2_JP_CONFIG,
         tokenizer_config=None,
-        card_data=_make_card_data(
-            license=None,
-            pipeline_tag="translation",
-            tags=["hy-mt", "quant", "2bit"],
-            language=["multilingual"],  # keyword, not ISO code
-            base_model="AngelSlim/Hy-MT1.5-1.8B-2bit",
-        ),
+        card_data=_WAV2VEC2_JP_CARD_DATA,
         hub_info={
-            "author": "tencent",
-            "tags": [
-                "base_model:AngelSlim/Hy-MT1.5-1.8B-2bit",
-                "base_model:quantized:AngelSlim/Hy-MT1.5-1.8B-2bit",
-            ],
-        },
-    )
-
-
-def _patch_hunyuan_mt7b() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "hunyuan_v1_dense",
-            "architectures": ["HunYuanDenseV1ForCausalLM"],
-            "vocab_size": 128256,
-            "num_hidden_layers": 32,
-        },
-        tokenizer_config=None,
-        card_data=_make_card_data(
-            license=None,
-            pipeline_tag=None,
-            tags=["translation"],
-            library_name="transformers",
-        ),
-        hub_info={"author": "tencent"},
-    )
-
-
-def _patch_ii_medical() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "qwen3",
-            "architectures": ["Qwen3ForCausalLM"],
-            "vocab_size": 151936,
-            "num_hidden_layers": 36,
-            "hidden_size": 4096,
-        },
-        tokenizer_config=None,
-        card_data=_make_card_data(
-            license="apache-2.0",
-            pipeline_tag=None,
-            tags=[],
-        ),
-        hub_info={"author": "Intelligent-Internet"},
-    )
-
-
-def _patch_vilt_vqa() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "vilt",
-            "architectures": ["ViltForVisualQuestionAnswering"],
-            "num_hidden_layers": 12,
-            "hidden_size": 768,
-        },
-        tokenizer_config=None,
-        card_data=_make_card_data(
-            license="apache-2.0",
-            pipeline_tag="visual-question-answering",
-            tags=["vilt", "visual-question-answering"],
-            base_model=["dandelin/vilt-b32"],
-        ),
-        hub_info={
-            "author": "dandelin",
-            "tags": [
-                "arxiv:2102.03334",
-                "base_model:dandelin/vilt-b32",
-                "base_model:finetune:dandelin/vilt-b32",
-            ],
-        },
-    )
-
-
-def _patch_deplot() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "pix2struct",
-            "architectures": ["Pix2StructForConditionalGeneration"],
-        },
-        tokenizer_config=None,
-        card_data=_make_card_data(
-            license="apache-2.0",
-            pipeline_tag="visual-question-answering",
-            tags=["pix2struct", "image-text-to-text"],
-            language=["en", "fr", "de", "es", "pt"],
-        ),
-        hub_info={
-            "author": "google",
-            "tags": ["arxiv:2212.10505"],
-        },
-    )
-
-
-def _patch_blip_vqa() -> Any:
-    return _patch_hf_calls(
-        config={
-            "model_type": "blip",
-            "architectures": ["BlipForQuestionAnswering"],
-        },
-        tokenizer_config=None,
-        card_data=_make_card_data(
-            license="bsd-3-clause",
-            pipeline_tag="visual-question-answering",
-            tags=["blip"],
-            language=["en"],
-        ),
-        hub_info={
-            "author": "Salesforce",
-            "tags": ["arxiv:2201.12086"],
+            "author": "jonatasgrosman",
+            "tags": ["doi:10.57967/hf/3568"],
         },
     )
 
@@ -461,68 +403,132 @@ def _patch_wav2vec2_id_jv_su() -> Any:
     )
 
 
-def _patch_granite_4_1_8b() -> Any:
+_LLASA_3B_CONFIG: dict[str, Any] = {
+    "model_type": "llama",
+    "architectures": ["LlamaForCausalLM"],
+    "vocab_size": 193800,
+    "hidden_size": 3072,
+    "num_hidden_layers": 28,
+    "num_attention_heads": 24,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 4096,
+    "torch_dtype": "bfloat16",
+}
+
+
+_LLASA_3B_CARD_DATA = _make_card_data(
+    license="cc-by-nc-4.0",
+    pipeline_tag="text-to-speech",
+    language=["en", "zh"],
+    library_name="transformers",
+)
+
+
+def _patch_llasa_3b() -> Any:
     return _patch_hf_calls(
-        config={
-            "model_type": "granite",
-            "architectures": ["GraniteForCausalLM"],
-            "vocab_size": 49152,
-            "num_hidden_layers": 40,
-            "hidden_size": 4096,
-            "num_attention_heads": 32,
-            "num_key_value_heads": 8,
-        },
+        config=_LLASA_3B_CONFIG,
+        tokenizer_config={"tokenizer_class": "PreTrainedTokenizerFast"},
+        card_data=_LLASA_3B_CARD_DATA,
+        hub_info={"author": "HKUSTAudio", "sha": "deadf00d"},
+    )
+
+
+_VOXTRAL_MINI_CONFIG: dict[str, Any] = {
+    "model_type": "voxtral_realtime",
+    "architectures": ["VoxtralRealtimeForConditionalGeneration"],
+    "vocab_size": 131072,
+    "hidden_size": 3072,
+    "num_hidden_layers": 26,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "max_position_embeddings": 131072,
+    "torch_dtype": "bfloat16",
+    "audio_config": {"audio_length_per_tok": 8},
+    "projector_hidden_act": "gelu",
+}
+
+
+_VOXTRAL_MINI_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="automatic-speech-recognition",
+    language=[
+        "en",
+        "fr",
+        "es",
+        "de",
+        "ru",
+        "zh",
+        "ja",
+        "it",
+        "pt",
+        "nl",
+        "ar",
+        "hi",
+        "ko",
+    ],
+    library_name="vllm",
+    base_model="mistralai/Ministral-3-3B-Base-2512",
+)
+
+
+def _patch_voxtral_mini() -> Any:
+    return _patch_hf_calls(
+        config=_VOXTRAL_MINI_CONFIG,
         tokenizer_config=None,
-        card_data=_make_card_data(
-            license="apache-2.0",
-            pipeline_tag="text-generation",
-            tags=["granite", "conversational"],
-            language=[
-                "en",
-                "de",
-                "es",
-                "fr",
-                "ja",
-                "pt",
-                "ar",
-                "cs",
-                "it",
-                "ko",
-                "nl",
-                "zh",
-            ],
-            base_model=["ibm-granite/granite-4.1-8b-base"],
-        ),
+        card_data=_VOXTRAL_MINI_CARD_DATA,
         hub_info={
-            "author": "ibm-granite",
-            "tags": [
-                "base_model:ibm-granite/granite-4.1-8b-base",
-                "base_model:finetune:ibm-granite/granite-4.1-8b-base",
-            ],
+            "author": "mistralai",
+            "sha": "deadf00d",
+            "tags": ["base_model:finetune:mistralai/Ministral-3-3B-Base-2512"],
         },
     )
 
 
+_FIRERED_VAD_CARD_DATA = _make_card_data(
+    license="apache-2.0",
+    pipeline_tag="voice-activity-detection",
+    language=None,
+    library_name=None,
+)
+
+
+def _patch_firered_vad() -> Any:
+    return _patch_hf_calls(
+        config=None,
+        tokenizer_config=None,
+        card_data=_FIRERED_VAD_CARD_DATA,
+        hub_info={"author": "FireRedTeam", "sha": "deadf00d"},
+    )
+
+
 __all__ = [
-    "_patch_blip_vqa",
-    "_patch_deplot",
-    "_patch_falconsai",
-    "_patch_gpt_neox_jp",
-    "_patch_granite_4_1_8b",
+    "_FIRERED_VAD_CARD_DATA",
+    "_KOKORO_CARD_DATA",
+    "_KOKORO_CONFIG",
+    "_LLASA_3B_CARD_DATA",
+    "_LLASA_3B_CONFIG",
+    "_VOXTRAL_MINI_CARD_DATA",
+    "_VOXTRAL_MINI_CONFIG",
+    "_WAV2VEC2_JP_CARD_DATA",
+    "_WAV2VEC2_JP_CONFIG",
+    "_WAV2VEC2_JP_MODEL_INDEX",
+    "_WHISPER_CARD_DATA",
+    "_WHISPER_CONFIG",
+    "_WHISPER_LANGUAGES",
+    "_patch_firered_vad",
     "_patch_granite_speech",
-    "_patch_hunyuan_mt",
-    "_patch_hunyuan_mt7b",
-    "_patch_hy_mt_gguf",
-    "_patch_ii_medical",
     "_patch_indic_conformer",
     "_patch_ipa_whisper",
+    "_patch_kokoro",
+    "_patch_llasa_3b",
     "_patch_mimo_asr_gguf",
     "_patch_omnivoice",
     "_patch_omnivoice_bf16",
-    "_patch_opus_mt_th_en",
     "_patch_pyannote_diar",
     "_patch_seamless_m4t",
     "_patch_vibevoice_asr",
-    "_patch_vilt_vqa",
+    "_patch_voxtral_mini",
     "_patch_wav2vec2_id_jv_su",
+    "_patch_wav2vec2_jp",
+    "_patch_whisper",
 ]
