@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-08
-Last-Modified: 2026-08-17
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,7 +53,7 @@ Phase 2 native-first backfill is **largely complete and merged**:
   `sbom-enrich` Skill to ask the SBOM author directly in interactive
   sessions, adding a fifth E1/E2 role (`sbomAuthorSupplied`) alongside
   `declared`/`detected`/`externalReported`/`inferred` -- see
-  `annotation-provenance.md`'s role vocabulary.
+  `role-vocabulary.md`.
 - ✅ **Integration test** (N1/N2/N4/N5/N6 together): PR [#112](https://github.com/bact/pitloom/pull/112) merged to `main`.
 - ✅ **`pitloom.loom` hyperparameter provenance + PR #96 CLI-consistency doc sweep**: PR [#113](https://github.com/bact/pitloom/pull/113) merged to `main`.
 - ✅ **CLI/API redesign (`generate`/`project`/`wheel`/`model`/`env`/`merge`/`ids`, sdist support)**: PR [#114](https://github.com/bact/pitloom/pull/114), merged to `main`; see "2026-08-10 recheck" below -- supersedes the PR #96 vocabulary this handover previously documented.
@@ -66,7 +66,7 @@ Phase 2 native-first backfill is **largely complete and merged**:
   (CLI/library, Hatchling build hook, poetry-only, setuptools-only --
   the Hatchling path silently had zero G2 coverage until this PR).
   PR [#121](https://github.com/bact/pitloom/pull/121) merged to `main`.
-  See `annotation-provenance.md`'s G2 section for the full design.
+  See `multi-source-conflict.md` for the full design.
 - ✅ **AI-agent Skills renamed + `sbom-validate` added**: `skills/sbom/` ->
   `skills/sbom-generate/`, `skills/enrich/` -> `skills/sbom-enrich/`, new
   `skills/sbom-validate/` (thin wrapper around the third-party

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,11 +10,17 @@ SPDX-License-Identifier: CC0-1.0
 
 **Status:** implemented and merged
 (PR [#102](https://github.com/bact/pitloom/pull/102)) --
-see §9 for what shipped vs. deferred, and **§10 for the boundary
-refinement** (non-native / high-signal only, config-gated) plus the Phase 2
-native-backfill checklist (6 of 6 items shipped as of 2026-08-10 -- see
-[`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md)
-for current status).
+see §9 for what shipped vs. deferred, and §10 for security/robustness
+hardening. The boundary-refinement work (non-native / high-signal only,
+config-gated) that used to live in this file's own §10 is now split
+across [`annotation-mechanism.md`](annotation-mechanism.md),
+[`role-vocabulary.md`](role-vocabulary.md),
+[`use-case-catalog.md`](use-case-catalog.md), and
+[`multi-source-conflict.md`](multi-source-conflict.md) (2026-08-25 split,
+see the pointer where §10 used to be, below). The Phase 2 native-backfill
+checklist (6 of 6 items shipped as of 2026-08-10) is now in
+`use-case-catalog.md`; current PR-by-PR status is in
+[`phase2-native-backfill-handover.md`](phase2-native-backfill-handover.md).
 **Planned with:** Opus 4.8. **Implemented by:** Sonnet 5.
 **Related docs:** [`metadata-provenance.md`](metadata-provenance.md),
 [`working-docs/design/model-metadata-extraction.md`](../../design/model-metadata-extraction.md).
@@ -626,514 +632,27 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 
 ---
 
-## 10. Boundary refinement (2026-07-20): non-native, high-signal only
+## (Former §10) Boundary refinement, role vocabulary, use-case catalog, and G2 -- moved 2026-08-25
 
-The first cut emitted a field-source Annotation for *every* field on *every*
-element, much of it shadowing what SPDX already stores natively (a `name`
-annotation on an element whose `name` is the native `Element.name`). This
-refinement limits Annotations to what SPDX 3 **cannot** record natively, and
-adds two new Annotation roles. Config-gated so an exhaustive audit is still
-available.
+This section originally covered non-native/high-signal Annotation
+boundaries, the `role` vocabulary, the G1-G4/A1-A2/E1-E2/P1 use-case
+catalog, and the Phase 2 native-first backfill checklist -- it grew past
+this file's own 800-line size cap and was split into four sibling files
+in this directory:
 
-### Extrinsic-assertion test (2026-08-10, supersedes "high-signal" as the stated rationale)
+- [`annotation-mechanism.md`](annotation-mechanism.md) -- when/how to use
+  the Annotation mechanism at all (boundary principle, extrinsic-assertion
+  test, high-signal test, config, statement-envelope convention).
+- [`role-vocabulary.md`](role-vocabulary.md) -- the `role` vocabulary
+  (`declared`/`detected`/`externalReported`/`inferred`/`sbomAuthorSupplied`),
+  decision rule, source-recording convention, role-to-native mapping.
+- [`use-case-catalog.md`](use-case-catalog.md) -- the G1-G4/A1-A2/E1-E2/P1
+  catalog and the Phase 2 N1-N6 backfill checklist.
+- [`multi-source-conflict.md`](multi-source-conflict.md) -- G2's own
+  implementation depth (license-conflict schema, normalization logic,
+  what's built, real-world validation, future candidate sources).
 
-Annotation serves exactly one purpose in Pitloom: **provenance** — an
-extrinsic assertion Pitloom (or an agent) makes *about* an element from
-outside, never a restatement of the element's own intrinsic data. SPDX 3's
-own `Annotation` definition backs this: an assertion in relation to an
-element, explicitly *not part of the element's own definition*.
-
-A second, rejected use would be treating Annotation as an extension slot
-for intrinsic properties SPDX has no native field for (e.g. a dataset's
-image count — SPDX 3.0.1/3.1 only has byte size). That is out of scope
-here: if SPDX is missing a real field, the fix is a spec change or a
-documented lossy fallback (`description`/`summary`), not an Annotation.
-Annotation cannot fix a native-model gap because doing so would make it
-represent an intrinsic characteristic, which contradicts its own
-definition.
-
-**The test:** does the Annotation's *role* stay extrinsic — an assertion
-about the element from outside — even when its *payload* looks
-data-shaped? Role, not payload shape, decides. Most entries pass trivially
-(a `{source, method}` string is obviously an outside assertion). One
-existing case is genuinely borderline and its justification is written
-out explicitly at its definition below rather than left implicit: **P1**
-(artifact-metadata preservation) embeds a verbatim metadata blob, which
-looks intrinsic — see the P1 bullet under "Use-case catalog" for why it
-still passes.
-
-**Burden of proof:** any new Annotation use that looks even slightly
-data-shaped must carry this same kind of explicit written justification
-at its point of use. Silence is not an acceptable state for a borderline
-case.
-
-### Boundary principle (native-first)
-
-1. Never put a value in an Annotation that has a native SPDX home; the
-   Annotation only describes *how the value came to be*.
-2. Never annotate a native relationship redundantly — the `dependsOn` edge is
-   itself the record. (Removed the two relationship annotations in
-   `deps.py add_dependencies` and `document.py build_deployed`.)
-3. Field-level Annotations only when they add signal the native value can't
-   convey (minimal mode). `full` mode keeps all field sources.
-4. Process-level facts with no native anchor (fragment unification; enrichment
-   override) are the highest-value Annotation content.
-
-### High-signal test (`provenance.py _is_high_signal`)
-
-A parsed field entry is dropped in minimal mode **only** when it was read
-verbatim from a transparent, re-readable manifest
-(`_TRANSPARENT_SOURCES` = pyproject.toml / hatchling build backend / setup.cfg
-/ setup.py / wheel metadata / Hugging Face Hub) with no extraction `method`.
-Everything else is kept: any recorded `method` (inferred/detected/dynamic/
-caller/directive/inference), a non-manifest source (a pipdeptree scan, a
-binary artifact's internal key, a synthesized phantom package), or the raw
-PEP 508 `declared_constraint`.
-
-### Config (`[tool.pitloom.provenance]`)
-
-- `detail = "minimal" | "full"` — default `"minimal"`.
-- `preserve-source-metadata = "auto" | "always" | "never"` — default
-  `"auto"` (preserve an AI model's verbatim metadata only when the artifact is
-  not shipped in the distribution and can't be re-extracted).
-
-Both parsed/validated in `core/config.py` (`_read_provenance_settings`),
-threaded through `build`/`build_model` and the `generate_*` / hatch-hook
-entry points exactly as `provenance_format`/`schema` already were.
-
-### Statement envelope convention (2026-08-10)
-
-Every Pitloom statement schema shares the same two leading keys, so a
-consumer can dispatch mechanically without pattern-matching prose:
-
-- `"schema"` — the full versioned URL (`https://pitloom.dev/provenance/
-  <kind>/<version>`, or `.../fields/<version>` for the default field-level
-  schema).
-- `"kind"` — a short string, always equal to the schema URL's own `<kind>`
-  path segment (`"fields"`, `"unification"`, `"artifact-metadata"`,
-  `"conflict"`).
-
-Compound JSON keys use `camelCase`, matching the surrounding SPDX 3
-JSON-LD style already used everywhere in the same document (`spdxId`,
-`creationInfo`, `annotationType`). None of the four current schemas ends
-up needing a compound key — G2's `candidates` list settled on flat,
-single-word fields (`value`/`role`/`source`/`ref`) once it moved to an
-open candidate-list design instead of fixed `declaredLicenseId`-style
-pairs — but the convention is stated explicitly so the next schema that
-*does* need one (E1/E2, whenever `enrich/` lands) doesn't have to
-re-derive it. Established retroactively across all four schemas this
-session (none had shipped in a release yet, so no compatibility
-constraint).
-
-### Use-case catalog (why the Annotation earns its place)
-
-- **Generation** — G1 inferred/detected/AI-generated qualifier (necessary,
-  **implemented**: `licenseid_detection`, `inferred_from_authors` have no
-  native assertedness marker); **G2 multi-source disagreement** (necessary
-  on conflict, **implemented for license**, generalized beyond license — see
-  the dedicated subsection below); G3 declared constraint vs resolved
-  version (useful, **implemented** — SPDX keeps only the resolved version);
-  G4 sub-file location in opaque AI formats (useful, **implemented**).
-- **Aggregation** — A1 unification rationale (necessary, **implemented**):
-  `_merge_fragment_set` records `(survivor, criterion, dropped_id, fragment)`
-  for a **SHA-256 content-equality** match — a genuinely distinct id folded
-  into the survivor, which SPDX cannot express — and emits a
-  `provenance/unification/1` Annotation on the survivor. A same-id registry
-  match carries no such fact (nothing distinct was folded) and is not
-  annotated; its fragment origin is Phase-2 `SpdxDocument.imports` territory
-  (see N1 below). A2 superseded identity across builds (useful,
-  **not implemented — design only**): when file content changes,
-  [`ids.py`](../../../src/pitloom/ids.py) `register_file` mints a fresh
-  `spdxId` and the old one is simply discarded — no supersedes/replaces
-  record survives anywhere. Lower priority than A1: it's a cross-build fact
-  (comparing this SBOM to a previous one), not something expressible within
-  one SBOM generation.
-- **Enrichment** — E1 override lineage, E2 AI-inferred-vs-non-inferred
-  marker (both necessary; **implemented**, see the N3 row below for the
-  `build_enrichment_annotation()` mechanism). E2's "non-inferred" pole is
-  any of G2's `declared`/`detected`/`externalReported` roles below — same
-  vocabulary, reused rather than a separate "extracted" word (which would
-  have collided with `extract/`, Pitloom's own name for the whole
-  read-a-value pipeline stage). The `enrich/` subpackage itself so far has
-  one source (`enrich/readme.py`, local frontmatter, always `"detected"`)
-  -- `"inferred"` is exercised by the AI-agent `sbom-enrich` Skill's
-  fragment path, not yet by in-process code.
-- **Preservation** — P1 verbatim original AI-model metadata
-  (`provenance/artifact-metadata/1`), config-gated, complements the lossy
-  native mapping when the artifact isn't shipped. `raw_metadata` captured
-  verbatim by the safetensors & GGUF extractors; HF/others fall back to the
-  retained `properties`/`extra_data`. **Extrinsic-assertion justification**
-  (this is the one borderline case per the test above): the blob payload
-  looks intrinsic, but P1's role stays extrinsic — it is Pitloom witnessing
-  and recording "here is what the source artifact's own header said at
-  generation time," not Pitloom declaring a new native characteristic of
-  the model. It exists precisely because the artifact won't travel with the
-  SBOM and can't be re-read later to re-derive this; a shipped, re-extractable
-  artifact gets no P1 blob at all (`preserve-source-metadata = "auto"`),
-  which is itself evidence the role is "preserve what would otherwise be
-  lost," not "hold a property."
-
-  **Known limitation (unbounded statement size):** the P1 blob embeds
-  `raw_metadata` verbatim with no size cap. Pitloom's own GGUF/safetensors
-  test fixtures are small ("vocab-only" stubs, ~4 KB statements), but a
-  production LLM's GGUF kv-store can carry a 32K–128K-entry tokenizer vocab
-  (plus parallel `scores`/`token_type` arrays) in the same field, which would
-  inflate a single `Annotation.statement` into the multi-megabyte range.
-  SPDX 3.0.1's `statement` is a plain `xsd:string` with no spec-mandated
-  limit, so this isn't a compliance violation, just a real scale gap not
-  exercised by the current test suite. No truncation heuristic is applied
-  here deliberately — silently cutting array data would make "verbatim
-  preservation" dishonest about what was actually preserved, which defeats
-  P1's purpose more than the size cost does. For large models, set
-  `preserve-source-metadata = "never"` (or leave the default `"auto"`, which
-  already skips preservation for any model that *is* shipped and thus
-  re-extractable). A future fix, if needed, should truncate with an explicit,
-  visible marker (e.g. `"_truncated": true`) rather than cutting silently.
-
-### G2 — multi-source disagreement (2026-08-10, generalized, license implemented)
-
-License is the first field this fires for, but the *mechanism* — several
-sources reporting different values for the same field — applies to any
-field. Built as a generic schema from the start so a future field or
-candidate source never requires another schema redesign.
-
-**Where it lives.** [`provenance.py`](../../../src/pitloom/assemble/spdx3/provenance.py)
-`ConflictCandidate` (a `TypedDict`) + `build_conflict_annotation`. Schema
-URL `https://pitloom.dev/provenance/conflict/1`, envelope:
-
-```json
-{
-  "schema": "https://pitloom.dev/provenance/conflict/1",
-  "kind": "conflict",
-  "field": "license",
-  "candidates": [
-    {"value": "MIT", "role": "declared", "source": "Source: pyproject.toml | Field: project.license", "ref": "<spdxId of hasDeclaredLicense target>"},
-    {"value": "Apache-2.0", "role": "detected", "source": "Source: LICENSE | Method: licenseid_detection | Tool: licenseid==0.3.0", "ref": "<spdxId of hasConcludedLicense target>"}
-  ]
-}
-```
-
-Only emitted when candidates actually disagree after normalization
-(`_license.py` `normalize_license_expression`, built on the
-[`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) parser —
-a plain `.strip()` comparison alone would false-positive not just on
-casing differences (declared `"mit"` vs. detected `"MIT"`) but on
-equivalent-yet-differently-spelled compound expressions too (`"MIT AND
-MIT"` vs. `"MIT"`; `"MIT OR Apache-2.0"` vs. `"Apache-2.0 OR MIT"`) — so
-both candidate values are parsed, deduplicated, and canonically reordered
-before both the comparison and the license-element lookup/creation. A
-value that fails to parse as a valid SPDX expression at all falls back to
-`canonicalize_license_id`'s bare-id casing lookup, then to the raw string
-unchanged. Full agreement emits no Annotation — both native relationships
-still get built, just pointing at the same license element, and there's nothing
-extrinsic left to assert.
-
-**`role` vocabulary** — an epistemic-process label (*whose* determination
-this is), deliberately not "which native SPDX slot it maps to" (that
-would have overloaded SPDX's own `hasConcludedLicense` meaning, "the
-SBOM creator's final determination," a graph-placement outcome, not a
-method category):
-
-- `declared` — the subject's own stated claim, however observed (read
-  locally, or relayed unedited by a third party).
-- `detected` — Pitloom's own independent-verification *procedure*'s
-  determination, whatever the input's origin (locality of the *input*
-  never matters; locality of the *determination* does — Pitloom fetching a
-  remote file and running its own `licenseid` match on it is still
-  `detected`). "Procedure," not "algorithm ran": the license implementation
-  (`detect_independent_license`) is a multi-step search — `CITATION.cff`,
-  then `codemeta.json`, then license files, applying `licenseid` text
-  matching only where a value isn't already a bare SPDX id — and a step
-  that resolves via a direct bare-id read still counts as `detected`,
-  because it was Pitloom's own independently-consulted secondary source,
-  not a re-read of the subject's primary declared field. What decides the
-  role is *whose search procedure* produced the value, not whether every
-  individual step needed fuzzy text matching. Not named "extracted":
-  `extract/` is already Pitloom's own name for the whole read-a-value
-  pipeline stage, and `declared` is also extracted in that sense —
-  "extracted" would have collided with `declared` instead of contrasting
-  with it.
-- `externalReported` — some *other* party's own determination or opinion,
-  relayed without Pitloom re-deriving it, and not the subject's own claim
-  either (a paper's interpretation, an unrelated org's assessment, or
-  another system's own algorithmic conclusion — GitHub's own
-  license-detector badge is still GitHub's determination, not Pitloom's,
-  even though GitHub's detector is itself rule-based internally —
-  "rule-based" was never the right test, "whose algorithm" is). No native
-  slot exists for this role by nature, not because it lost a priority
-  race against a local `declared` candidate.
-- `inferred` — an AI agent's non-deterministic reasoning/judgment. Same
-  word E2 already reserves for this.
-- `sbomAuthorSupplied` — asserted directly by the human operating Pitloom
-  (or an agent on their behalf), through any channel: a CLI flag,
-  `[tool.pitloom]` config, or an answer typed in an interactive
-  `sbom-enrich` session. Not `declared` (that's the *artifact's*
-  author/vendor, not the SBOM's author); not `inferred` (nothing was
-  derived — the value was simply relayed, and Pitloom can no more verify
-  it than a `declared` value). Applies only when the human states the
-  fact itself, not when they merely point the agent at a source ("look at
-  X", "read Y", "infer it from Z") -- in that case the role is whichever
-  of `declared`/`externalReported`/`inferred` matches how the agent
-  actually obtained the value from that source once it looked, never
-  `sbomAuthorSupplied` (the human didn't assert the fact, only named
-  where to find it). Added for the `sbom-enrich` Skill's interactive mode
-  (see [sbom-enrichment.md](../../design/sbom-enrichment.md)'s "Interactive
-  mode" section) — that case is still Skill-only (an agent hand-authoring
-  a fragment), not exercised by Pitloom's own generation code. A second,
-  built case now is: a `[[tool.pitloom.content-type.override]]`
-  config match (the config author is asserting a file's `contentType`
-  directly) — see [file-headers.md](../file-headers.md)'s
-  "Content-type overrides" section and
-  `_emit_file_header_metadata` in
-  [_document_files.py](../../../src/pitloom/assemble/spdx3/_document_files.py).
-
-**Decision rule:** ask "whose determination is this," never "was the
-data local or remote" and never "was a rule-based algorithm involved
-somewhere" (a third-party service's own rule-based detector is still
-`externalReported`, because the algorithm wasn't Pitloom's).
-
-**Source-recording convention, per role** — each role's `source` string
-records identity appropriate to *that* answerer, using the existing
-generic `"Key: Value | Key: Value"` parser (no parser change needed for
-any of these):
-
-- `declared` — unchanged: `"Source: <file> | Field: <field>"`.
-- `detected` — **implemented**: gains a `Tool:` segment with the
-  detection library's version (`importlib.metadata.version("licenseid")`),
-  e.g. `"Source: LICENSE | Method: licenseid_detection | Tool:
-  licenseid==0.3.0"` — a detection result is only as reproducible as the
-  library version that produced it.
-- `externalReported` (future convention, not built) — `"Source: <service
-  name> | Endpoint: <API path/version> | Retrieved: <ISO 8601 date>"`.
-  Fits API-style sources (HF Hub, GitHub API); a non-API external source
-  (a paper, a scraped webpage) will need its own, less endpoint-centric
-  shape, worked out when that source type is actually built.
-- `inferred` (extended, self-identifying form not built) — the answerer
-  isn't Pitloom at all; inference happens in an agent process entirely
-  outside Pitloom's own Python code, so it has to be the *agent's own
-  self-reported* identity: `"Source: <agent name> (<vendor>) | Role:
-  inferred | Date: <ISO 8601 date>"`, e.g. `"Source: Claude Code
-  (Anthropic) | Role: inferred | Date: 2026-08-10"`. Pitloom cannot
-  verify this at merge time — same trust model the `sbom-enrich` skill's
-  existing generic `"Source: AI agent | Role: inferred"` marker (built
-  2026-08-13) already has, just more specific when the agent knows its
-  own identity.
-- `sbomAuthorSupplied` — `"Source: SBOM author | Role:
-  sbomAuthorSupplied | Date: <ISO 8601 date>"` for the human-interactive
-  case (still a Skill-level convention, future — see above); **built**
-  for the content-type-override case, using the file itself as `Source:`
-  rather than `"SBOM author"` since there's a concrete subject to name:
-  `"Source: <file> | Role: sbomAuthorSupplied"` (no `Date:` segment —
-  unlike an interactive answer, there's no distinct point-in-time
-  assertion to record beyond the SBOM's own creation timestamp). Same
-  unverifiable trust model as `inferred`, just a different answerer.
-
-**Role → native relationship mapping is today's default policy, not an
-inherent law.** For license: `declared` → `hasDeclaredLicense`,
-`detected` → `hasConcludedLicense` (the only place the word "concluded"
-appears — as SPDX's own relationship-type name, applied to the `detected`
-candidate). This is a policy choice made *because* Pitloom's detector has
-no confidence score today — its one output is the only candidate
-determination available to call "concluded," not because a detected
-value is inherently more trustworthy than a declared one. A bad/spurious
-detection can and does produce a wrong `hasConcludedLicense` — a
-pre-existing limitation of the single detector itself, not something G2
-introduces. Once multiple detectors or confidence scoring exist, this
-mapping is where a smarter policy would plug in (e.g. falling back to
-`declared` when `detected` confidence is low) — future work, not built.
-`externalReported`, `inferred`, and `sbomAuthorSupplied` never map to a
-native relationship for license (no 3rd/4th/5th native slot exists).
-
-**File-level exception:** a `software_File`'s own `SPDX-License-Identifier`
-header tag always maps to `hasDeclaredLicense`, never
-`hasConcludedLicense`, regardless of the general `declared`/`detected`
-split above. There is exactly one candidate at file granularity (the
-file's own header, if any) and its role is `declared` by construction —
-nothing to disambiguate, so the concluded-vs-declared classification
-heuristic used at project/dependency level doesn't apply. See
-`build_file_declared_license` in
-[`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py) and
-[file-headers.md](../file-headers.md) for the full per-file
-extraction design.
-
-**What's actually built (v1, license only).**
-[`_license.py`](../../../src/pitloom/extract/_license.py)
-`detect_independent_license` — independently scans the project directory
-(`CITATION.cff`, `codemeta.json`, license files), *ignoring* any declared
-value, so there's a genuine second opinion to compare against. Previously,
-a declared value that already looked like a valid SPDX id short-circuited
-before the `LICENSE` file was ever read, so there was nothing to disagree
-with; now the independent scan always runs alongside it.
-
-`resolve_license_concluded` (also in `_license.py`) is the single, shared
-G2 entry point every project-metadata extractor calls — not just
-`_pyproject.py`'s `[project]` path. It exists because the four extraction
-paths (CLI's [`_pyproject.py`](../../../src/pitloom/extract/_pyproject.py)
-`read_pyproject`, the [`hatchling.py`](../../../src/pitloom/extract/hatchling.py)
-build-hook path, the poetry-only
-[`_poetry.py`](../../../src/pitloom/extract/_poetry.py) `read_poetry`, and the
-setuptools-only [`_setuptools.py`](../../../src/pitloom/extract/_setuptools.py)
-`read_setuptools`) were each written and evolving independently. G2 first
-shipped wired only into the CLI path; a later review found the Hatchling
-build hook called `detect_license_for_project` directly and never ran the
-independent scan at all, so G2 silently never fired for any Hatchling-built
-project. Rather than patch that one path, all four now call the same
-`resolve_license_concluded` (and, for the poetry-only and setuptools-only
-paths, the same directory-detection fallback when nothing is declared) so
-a future fifth extraction path can't reintroduce the same gap by omission.
-Cross-path regression tests
-(`test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict`
-in `tests/extract/test_hatch_hook_metadata.py`,
-`test_read_poetry_matches_read_pyproject_fallback_for_license_conflict` in
-`tests/extract/test_poetry_pyproject.py` -- paths since renamed and moved,
-see `cli-test-coverage-roadmap.md`) assert the paths agree on the same
-project. The
-same review also found the Hatchling and CLI paths each hand-listed their
-own `[tool.poetry]`-gap-fill field merge (`_merge_with_poetry` in
-`_pyproject.py`, `merge_metadata` in `_setuptools.py`); both were replaced
-by [`core/project.py`](../../../src/pitloom/core/project.py)'s
-`merge_project_metadata`, which iterates `dataclasses.fields()` instead of
-naming every field by hand, so a newly added `ProjectMetadata` field
-merges automatically without a call site needing to be updated (see its
-own docstring for the field-drift history that motivated this).
-[`deps_license.py`](../../../src/pitloom/assemble/spdx3/deps_license.py)
-`build_license_elements` gained `concluded_license_id`/
-`concluded_license_provenance` params (`None` default — the three other
-call sites, dependency and AI-model licenses, are unaffected, since
-neither has a local second source to detect from today): when given, both
-candidates are run through `normalize_license_expression` before both the
-comparison and the license-element lookup/creation, then both
-`hasDeclaredLicense` and `hasConcludedLicense` are always built, and a G2
-conflict Annotation is added on disagreement.
-
-`normalize_license_expression` (also in `_license.py`) is the new,
-stronger canonicalization step: operator casing (`AND`/`OR`/`WITH`/`NOT`)
-is normalized first — but only when the operator stands alone as its own
-whitespace/paren-delimited token, never when it's hyphen-glued into an
-identifier (`GPL-2.0-or-later`, a custom `LicenseRef-my-or-license`) —
-then the result is parsed and canonically sorted via `py-spdx-license`
-(a new base dependency). This both canonicalizes bare-id casing (same as
-`canonicalize_license_id`, which it falls back to on a parse failure) and
-dedupes/reorders compound expressions, which `canonicalize_license_id`
-alone never handled.
-
-**Real-world validation.** This is not a hypothetical gap:
-[Trivy discussion #10139](https://github.com/aquasecurity/trivy/discussions/10139)
-reports scanning the same package and getting the same license expression
-back with and without a redundant outer paren
-(`GPL-3.0-or-later WITH GCC-exception-3.1` vs.
-`(GPL-3.0-or-later WITH GCC-exception-3.1)`), breaking policy rules that
-compare against one fixed string. Checked `normalize_license_expression`
-against all four of that report's example pairs — every pair normalizes
-to an identical string. Separately verified the harder case, where a
-paren is *not* redundant: for mixed `AND`/`OR` expressions,
-`MIT AND Apache-2.0 OR BSD-3-Clause` (no parens, relies on `AND` binding
-tighter than `OR` per the SPDX spec) and
-`(MIT AND Apache-2.0) OR BSD-3-Clause` (explicit parens matching that
-same default precedence) both normalize to `Apache-2.0 AND MIT OR
-BSD-3-Clause`, while `MIT AND (Apache-2.0 OR BSD-3-Clause)` (parens
-*overriding* default precedence, semantically different) correctly stays
-distinct and keeps its now-necessary paren. So the normalization strips
-parens exactly when they're redundant and keeps them exactly when they're
-load-bearing — not a blanket strip-all-parens heuristic.
-
-**Future candidate sources (not built — `enrich/`-territory network or
-agent work, cross-referenced to
-[`sbom-enrichment.md`](../../design/sbom-enrichment.md)'s existing source
-table):** HF Hub API (`externalReported`), GitHub via `ExternalRef`
-(`detected` if Pitloom runs its own scan on the fetched file,
-`externalReported` if relaying GitHub's own license badge), a linked
-paper (`externalReported`), README/source-comment agent inference
-(`inferred`). The schema already has the `role` slots waiting for all of
-these — no further schema change needed when they land.
-
-### Phase 2 (documented; built after this Annotation work): native-first backfill
-
-Several facts still live only in an Annotation/comment but have a real SPDX
-home Pitloom does not yet populate. Build the native construct, then **trim
-the corresponding Annotation to the residual**. Track here so it is not
-forgotten:
-
-- [x] **N1 — Fragment origin** → `SpdxDocument.imports` + `ExternalMap` (per
-  source fragment). Residual in Annotation: the unification *criterion* only. (PR [#108](https://github.com/bact/pitloom/pull/108))
-- [x] **N2 — Declared vs. concluded license** → distinct `hasDeclaredLicense`
-  (author-stated) / `hasConcludedLicense` (Pitloom-detected). Originally
-  shipped mirrored (single winning value classified as one or the other,
-  "no inference yet") in PR [#105](https://github.com/bact/pitloom/pull/105);
-  the main project package now populates both independently when a second,
-  directory-detected opinion exists (G2, above), across all four
-  project-metadata extraction paths (CLI, Hatchling build hook,
-  poetry-only, setuptools-only) — dependency and AI-model license paths
-  remain single-value/mirrored, no local second source to detect from.
-  Residual: the detection evidence.
-- [x] **N3 — Who/when enriched** → a second `CreationInfo` per enrichment
-  run. Shipped scoped to *new elements* an enrichment run creates (e.g. a
-  `dataset_DatasetPackage` the README enricher adds) -- SPDX's
-  `Element.creationInfo` is singular per element, so it can't represent a
-  single *existing* element's field being filled in-place at a different
-  time by a different tool; that case has no native home and stays
-  Annotation-only. `createdBy` reuses the document's existing "Pitloom"
-  Agent (no fictitious second identity); `createdUsing` is a `Tool` named
-  after the enricher (e.g. `"pitloom.enrich.readme"`). See
-  `build_enrichment_creation_info()` in
-  [`creation_info.py`](../../../src/pitloom/assemble/spdx3/creation_info.py).
-  Residual (every field an enrichment run changed, new element or
-  in-place fill alike): which field + before/after value + role, via the
-  new `provenance/enrichment/1` Annotation schema (E1/E2) --
-  `build_enrichment_annotation()` in
-  [`provenance.py`](../../../src/pitloom/assemble/spdx3/provenance.py),
-  reusing G2's exact `role` vocabulary rather than a separate one.
-  Wired from the MVP `enrich/` subpackage's first (and so far only)
-  source, `enrich/readme.py`: local `README.md`/`MODEL_CARD.md` YAML
-  frontmatter only (not prose) -- see `sbom-enrichment.md` for the
-  broader enrichment design and which sources remain unbuilt.
-  Extended (next round) from single-model-only to project-level: every AI
-  model `generate_project_sbom()`/the Hatchling build hook discovers now
-  gets the same per-model N3 CreationInfo + E1/E2 Annotation, closing a
-  gap where project-level generation silently ran zero enrichment even
-  with `[tool.pitloom] enrich = true` set (`add_ai_models()` in
-  [`ai.py`](../../../src/pitloom/assemble/spdx3/ai.py) gained an
-  `enrichment_results_by_model` param, mirroring `build_model()`'s
-  single-model block). Also gained a standalone-fragment path
-  (`build_enrichment_fragment()`, for `loom enrich`/`enrich_model()`) --
-  its newly-minted elements deliberately live under their own `doc_uuid`,
-  distinct from the referenced base document's, so `generate_spdx_id`'s
-  purely-sequential per-prefix counters can't accidentally collide with
-  an unrelated element in the base document once merged (see that
-  function's docstring for why).
-  Fixed (found by independent review, same round): the E1/E2 Annotation
-  itself was using the *document's* generic `CreationInfo` instead of the
-  enrichment `CreationInfo` `build_enrichment_elements()` already builds
-  for N3 -- meaning an in-place field-fill's who/when fact (the one case
-  where the Annotation is the *only* place it can live, per the note
-  above) was silently lost, replaced by "whoever built the whole
-  document, whenever that was." `build_enrichment_elements()` now
-  returns one `(CreationInfo, changes)` group per enrichment source
-  rather than a single flattened changes list, and every call site
-  (`build_model()`, `build_enrichment_fragment()`, `add_ai_models()`)
-  builds one Annotation per group using that group's own `CreationInfo`.
-- [x] **N4 — External identifiers** (DOI, arXiv, repo / model-card URL) →
-  `ExternalIdentifier` / `ExternalRef` on the AI package (today only in
-  `extra_data`/provenance). Residual: none once mapped. (PR [#106](https://github.com/bact/pitloom/pull/106))
-- [x] **N5 — Base-model lineage** (HF `base_model`) → `descendantOf`
-  `Relationship`. Residual: raw relation subtype in comment. (PR [#109](https://github.com/bact/pitloom/pull/109))
-- [x] **N6 — Dataset `creator`** → `Agent` + `publishedBy` relationship on the
-  dataset package (extracted but not wired). Residual: none once mapped. (PR [#107](https://github.com/bact/pitloom/pull/107))
-
-Every use case splits into a **native part** (Phase 2) and an **Annotation
-part** (this phase); e.g. G2 license = N2 relationships + Annotation evidence,
-A1 unification = N1 `imports` + Annotation criterion.
-
-An end-to-end integration test exercising N1/N2/N4/N5/N6 together on one
-representative model -- all five native constructs present at once, no
-Annotation duplicating a now-native value, byte-identical output across two
-runs, and round-trip through `spdx-python-model` -- shipped in
-[`tests/assemble/test_provenance_integration.py`](../../../tests/assemble/test_provenance_integration.py)
-(PR [#112](https://github.com/bact/pitloom/pull/112)).
-
----
-
-## 11. Security/robustness hardening (2026-07-21)
+## 10. Security/robustness hardening (2026-07-21)
 
 Agent-driven adversarial review of the provenance-string construction and
 JSON-serialization paths (`record_dict_field_provenance`, `_sanitize_for_json`)
@@ -1183,7 +702,7 @@ found and fixed two real gaps:
   against, since guarding it well requires a numpy dependency this module
   doesn't otherwise need.
 
-Also documented (§10, Preservation bullet): the P1 blob has no size cap, so a
+Also documented (`use-case-catalog.md`, P1 Preservation bullet): the P1 blob has no size cap, so a
 production-scale model's large arrays (e.g. a 32K+ entry GGUF vocab table)
 could produce a multi-megabyte `Annotation.statement`. Not a spec violation
 (`statement` is unbounded `xsd:string`), not exercised by the small test

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-20
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -74,7 +74,7 @@ it). §1/§2 below and the drafted page content are updated to match.
    longer overloaded with `method`. §1/§2 below and the drafted page
    content reflect the fix.
 4. ~~**`docs/metadata-provenance.md`'s stale `synthetic` value**~~ --
-   **Resolved** (checked 2026-08-20): `docs/metadata-provenance.md`
+   **Resolved** (checked 2026-08-25): `docs/metadata-provenance.md`
    already reads `synthetic environment root`, matching
    `src/pitloom/extract/env.py`. No stale value remains.
 5. **Casing is inconsistent between the `method` and `role` vocabularies**,
@@ -186,7 +186,8 @@ Defined once, canonically, as the `ConflictCandidate.role` docstring in
 `src/pitloom/assemble/spdx3/provenance.py:369-397`, and reused for
 `EnrichedFieldEntry.role` (`provenance.py:443-459`) and
 `EnrichedField.role` (`src/pitloom/enrich/base.py:42-48`). Fuller prose
-in `working-docs/implementation/provenance/annotation-provenance.md:818-931`.
+in `working-docs/implementation/provenance/role-vocabulary.md` (split out
+of `annotation-provenance.md` 2026-08-25).
 
 | `role` value | Meaning | Actually implemented in `src/`? |
 | --- | --- | --- |
@@ -216,14 +217,14 @@ Every Annotation Pitloom builds uses `spdx3.AnnotationType.other`
 
 Four distinct `statement` JSON shapes (all `contentType:
 application/json`), each with a `"schema"` URL and matching `"kind"`
-string (convention: `working-docs/implementation/provenance/annotation-provenance.md:691-713`):
+string (convention: `working-docs/implementation/provenance/annotation-mechanism.md`, "Statement envelope convention"):
 
 | kind / schema URL | Builder function | Purpose | Source |
 | --- | --- | --- | --- |
 | `"fields"` -- `https://pitloom.dev/provenance/fields/1` | `build_provenance_annotation()` via `PitloomV1Encoder.encode()` | Per-field `{source, method, ...}` map (the default provenance Annotation) | `provenance.py:155-168`, `215-251` |
 | `"unification"` -- `https://pitloom.dev/provenance/unification/1` | `build_unification_annotation()` | Why fragment elements were unified (A1: SHA-256 content-equality merge) | `provenance.py:41`, `321-356` |
 | `"conflict"` -- `https://pitloom.dev/provenance/conflict/1` | `build_conflict_annotation()` | Multi-source field-value disagreement (G2), e.g. declared vs. detected license | `provenance.py:47`, `403-440` |
-| `"enrichment"` -- `https://pitloom.dev/provenance/enrichment/1` | `build_enrichment_annotation()` | What an enrichment run changed (E1 override lineage / E2 inferred-vs-not marker); reuses the §2 role vocabulary in each `changes[].role` | `provenance.py:51`, `461-491` |
+| `"enrichment"` -- `https://pitloom.dev/provenance/enrichment/1` | `build_enrichment_annotation()` | What an enrichment run changed (E1 override lineage / E2 inferred-vs-not marker); reuses the §2 role vocabulary (also `working-docs/implementation/provenance/role-vocabulary.md`) in each `changes[].role` | `provenance.py:51`, `461-491` |
 | `"artifact-metadata"` -- `https://pitloom.dev/provenance/artifact-metadata/1` | `build_source_metadata_annotation()` | Verbatim preserved original AI-model metadata (P1), config-gated by `preserve-source-metadata` | `provenance.py:44`, `494-531` |
 
 `docs/metadata-provenance.md:50`'s example `schema` URL
@@ -231,7 +232,8 @@ string (convention: `working-docs/implementation/provenance/annotation-provenanc
 (`.../provenance/fields/1`) -- this specific fix is the one already
 applied outside this deferral (see "Already applied" above). The bare
 URL is still visible as stale in
-`working-docs/implementation/provenance/annotation-provenance.md:169,214,332,472,498`
+`working-docs/implementation/provenance/annotation-provenance.md:186,231,349,489,515`
+(all in §1-9, unaffected by the 2026-08-25 §10 split)
 -- out of scope for a user-facing fix but worth a note if that working
 doc gets revisited. (The former `working-docs/design/metadata-provenance.md:59`
 occurrence was fixed when that file's shipped content moved to
@@ -246,9 +248,10 @@ the *encoder version*; the long URL says *which annotation kind*.
 
 Internal design-doc taxonomy codes G1-G4 (Generation), A1/A2
 (Aggregation), E1/E2 (Enrichment), P1 (Preservation), N1-N3
-(native-first backfill) are working-docs shorthand
-(`working-docs/implementation/provenance/annotation-provenance.md:715-1098`) for
-which mechanism above serves which use case -- not literal emitted
+(native-first backfill) are working-docs shorthand -- see
+`working-docs/implementation/provenance/use-case-catalog.md` (catalog +
+N1-N6 checklist) and `multi-source-conflict.md` (G2 detail) for
+which mechanism serves which use case -- not literal emitted
 strings, not vocabulary for a user-facing page.
 
 ### 4. Enrichment vocabulary (`src/pitloom/enrich/`)
@@ -284,7 +287,8 @@ Only `trainedOn`/`testedOn` are actually produced today
 
 No confidence-score or evidence-type controlled vocabulary exists.
 Pitloom's detector has no confidence score today (explicitly noted as a
-limitation at `working-docs/implementation/provenance/annotation-provenance.md:921-929`).
+limitation in `working-docs/implementation/provenance/role-vocabulary.md`,
+"Role → native relationship mapping" section).
 
 ### 5. Minimum-elements vocabulary
 
@@ -315,10 +319,14 @@ supersedes NTIA), `G7 SBOM for AI 2026` (additive, only when an
 | `docs/metadata-provenance.md` | User-facing: `method` table (7 of 11 real values -- misses 4, has 1 stale), the 4-of-5 implemented-looking roles section, `conflict` schema example, `[tool.pitloom.provenance]` config table |
 | `docs/creation-metadata.md` | CreationInfo who/what/when/how model -- background context, relevant for the N3 (enrichment CreationInfo) cross-link |
 | `docs/configuration.md:53-57` | A **different, unrelated** `method` vocabulary -- `--content-type-method` (`"auto"`/`"magika"`/`"extension"`), which resolves to the `magika_content_detection`/`extension_guess` provenance `method` strings at runtime |
-| `working-docs/implementation/provenance/annotation-provenance.md` | Canonical design rationale: full role vocabulary (§818-931), schema-envelope convention (§691-713), G1-G4/A1/A2/E1/E2/P1/N1-N3 taxonomy, statement examples |
+| `working-docs/implementation/provenance/annotation-provenance.md` | Canonical design rationale: goal, design decisions, statement schema, implementation, tests, statement examples. Start here. |
+| `working-docs/implementation/provenance/role-vocabulary.md` | Full role vocabulary, decision rule, source-recording convention, role-to-native mapping (split out of `annotation-provenance.md` 2026-08-25). |
+| `working-docs/implementation/provenance/annotation-mechanism.md` | Boundary principle, extrinsic-assertion test, schema-envelope convention (split out 2026-08-25). |
+| `working-docs/implementation/provenance/use-case-catalog.md` | G1-G4/A1/A2/E1/E2/P1/N1-N6 taxonomy (split out 2026-08-25). |
+| `working-docs/implementation/provenance/multi-source-conflict.md` | G2 implementation depth (split out 2026-08-25). |
 | `working-docs/implementation/provenance/annotation-provenance-full-plan.md` | Earlier/fuller planning doc, same taxonomy, older shape (`event:` key vs. shipped `kind:` in some examples -- lines 256/263/316) |
 | `working-docs/implementation/provenance/demo-provenance.md` | Worked CLI walkthrough reusing the same method strings |
-| `working-docs/implementation/provenance/phase2-native-backfill-handover.md:28` | One-line pointer into `annotation-provenance.md`'s taxonomy |
+| `working-docs/implementation/provenance/phase2-native-backfill-handover.md:28` | One-line pointer into `annotation-provenance-full-plan.md`'s taxonomy |
 | `working-docs/implementation/provenance/metadata-provenance.md` | Implementation-register version of `docs/metadata-provenance.md`'s content (moved here 2026-08-14 from `working-docs/design/metadata-provenance.md`, which no longer exists as a separate file); schema URL already fixed |
 | `working-docs/design/sbom-enrichment.md` | Source of truth for the dataset-relationship role table (§4), enrichment data-source table, "five-role provenance vocabulary" cross-reference |
 | `working-docs/design/model-metadata-extraction.md` | No relevant content (checked, zero hits) |

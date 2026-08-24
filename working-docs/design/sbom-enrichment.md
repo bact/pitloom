@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -246,8 +246,8 @@ date>` when the agent knows its own identity, else the generic `Source:
 AI agent | Role: inferred` -- reusing the same `role: "inferred"`
 provenance convention documented in
 [metadata-provenance.md](../implementation/provenance/metadata-provenance.md) and in
-[annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
-G2 role vocabulary, so agent-derived content is always distinguishable
+[role-vocabulary.md](../implementation/provenance/role-vocabulary.md),
+so agent-derived content is always distinguishable
 from Pitloom's own extraction and from other configured enrichment
 sources. This keeps the result auditable: a reviewer can grep for `AI
 agent` or `Role: inferred` in the SBOM to see exactly what was
@@ -295,8 +295,8 @@ fact?**
    on our internal support-ticket corpus"). Role is `sbomAuthorSupplied`,
    not `inferred` -- the agent didn't derive it, it relayed what it was
    told, and Pitloom can no more verify it than a `declared` value. See
-   [annotation-provenance.md](../implementation/provenance/annotation-provenance.md)'s
-   role vocabulary for the full definition; the same role also covers a
+   [role-vocabulary.md](../implementation/provenance/role-vocabulary.md)
+   for the full definition; the same role also covers a
    value passed via CLI flag or `[tool.pitloom]` config, since both are
    the SBOM author asserting a value directly, just through a different
    channel than chat.
@@ -353,7 +353,7 @@ inference (or no enrichment) for anything these would have covered.
    follows) **and** returns an `EnrichmentResult` (`enrich/base.py`)
    listing exactly which fields it changed -- the return value, not a
    post-hoc diff, is what feeds N3's `CreationInfo` and the E1/E2
-   Annotation (see `annotation-provenance.md`'s N3 row).
+   Annotation (see `use-case-catalog.md`'s N3 row).
 3. Wired at both the single-model and project levels. `generate_model_sbom()`
    (`src/pitloom/assemble/__init__.py`) reads `[tool.pitloom] enrich` from
    a `pyproject.toml` in the model file's own directory (no ancestor
