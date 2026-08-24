@@ -8,8 +8,7 @@ extraction, pathology tags, robotic control, and visual question
 answering.
 
 See also: test_huggingface_speech_misc.py, test_huggingface_text_misc.py,
-and test_huggingface_granite_misc.py -- the other topic groups split out
-of the former test_huggingface_misc_3.py.
+and test_huggingface_granite_misc.py.
 """
 
 from __future__ import annotations

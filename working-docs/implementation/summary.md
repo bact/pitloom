@@ -101,8 +101,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      `add_parser()` (`cli/commands/*.py`, one module per subcommand) all
      live under `cli/` -- see
      [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
-     for why and how this was split out of the former monolithic
-     `__main__.py`
+     for the per-module breakdown
    - User-friendly argparse-based CLI with input-centric subcommands
      (`project`, `wheel`, `model`, `env`, `merge`, `embed-wheel`, `ids`)
      and a smart entrypoint `loom generate [TARGET]` (requires `-o`,

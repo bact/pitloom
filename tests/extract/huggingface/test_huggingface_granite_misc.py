@@ -8,8 +8,7 @@ geospatial models), plus generic dataset-extraction priority tests that
 aren't tied to any specific model.
 
 See also: test_huggingface_vision_robotics.py, test_huggingface_speech_misc.py,
-and test_huggingface_text_misc.py -- the other topic groups split out of
-the former test_huggingface_misc_3.py.
+and test_huggingface_text_misc.py.
 """
 
 from __future__ import annotations

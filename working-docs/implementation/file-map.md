@@ -8,8 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Pitloom - project file map
 
-See also: [summary.md](summary.md) (implementation summary this tree
-was split out of) and
+See also: [summary.md](summary.md) (implementation summary) and
 [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
 (the CLI, test-suite, and source modularization this tree reflects).
 
