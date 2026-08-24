@@ -94,9 +94,9 @@ def _resolve_cfg_version(
     directive, value = m.group(1), m.group(2).strip()
     if directive == "file":
         return _resolve_cfg_version_file_directive(value, project_dir)
-    if directive == "attr":
-        return _resolve_cfg_attr_directive(value, project_dir)
-    return None, None
+    # _DIRECTIVE_RE only captures "file" or "attr" in this group, so
+    # "attr" is the only remaining case.
+    return _resolve_cfg_attr_directive(value, project_dir)
 
 
 def _resolve_cfg_file_directive(raw: str, project_dir: Path) -> str | None:
@@ -231,10 +231,10 @@ def read_setup_cfg(
     dependencies = _parse_cfg_requires(install_requires_raw)
 
     prov: dict[str, str] = {"name": "Source: setup.cfg | Field: metadata.name"}
+    # _resolve_cfg_version() always returns a paired (version, source) --
+    # never one truthy without the other -- so version_source alone gates it.
     if version_source:
         prov["version"] = version_source
-    elif version:
-        prov["version"] = "Source: setup.cfg | Field: metadata.version"
     if description:
         prov["description"] = "Source: setup.cfg | Field: metadata.description"
     if readme:
