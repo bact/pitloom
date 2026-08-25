@@ -13,10 +13,11 @@ See Also:
 from __future__ import annotations
 
 import base64
-import json
+import logging
 import math
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
+import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._provenance_encoders import (
@@ -32,8 +33,13 @@ from pitloom.assemble.spdx3._provenance_encoders import (
     resolve_encoder,
 )
 from pitloom.core.models import generate_spdx_id
-from pitloom.core.provenance import ProvenanceConfig
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    normalize_max_source_metadata_bytes,
+)
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+
+log = logging.getLogger(__name__)
 
 #: Statement-schema URL for a fragment-unification process Annotation (A1).
 UNIFICATION_SCHEMA_URL = "https://pitloom.dev/provenance/unification/1"
@@ -91,8 +97,23 @@ def _sanitize_for_json(obj: object) -> object:
         return [_sanitize_for_json(v) for v in obj]
     if isinstance(obj, (set, frozenset)):
         sanitized = [_sanitize_for_json(v) for v in obj]
-        return sorted(sanitized, key=lambda v: json.dumps(v, sort_keys=True))
-    return obj
+        return sorted(sanitized, key=_canonical_bytes)
+    if isinstance(obj, (str, int, bool)) or obj is None:
+        return obj
+    # RFC 8785 has no default=str-style hook for unrecognized types (unlike
+    # plain json.dumps) -- stringify anything else here so it never reaches
+    # the serializer, matching the previous default=str fallback.
+    return str(obj)
+
+
+def _canonical_bytes(obj: object) -> bytes:
+    """Serialize obj via RFC 8785 (JSON Canonicalization Scheme), as bytes."""
+    return rfc8785.dumps(cast(Any, _sanitize_for_json(obj)))
+
+
+def _canonical_json(obj: object) -> str:
+    """Serialize obj via RFC 8785 (JSON Canonicalization Scheme), as a str."""
+    return _canonical_bytes(obj).decode("utf-8")
 
 
 def _build_json_annotation(
@@ -108,12 +129,7 @@ def _build_json_annotation(
         annotationType=spdx3.AnnotationType.other,
         contentType="application/json",
         subject=subject_spdx_id,
-        statement=json.dumps(
-            _sanitize_for_json(statement_obj),
-            ensure_ascii=False,
-            sort_keys=True,
-            default=str,
-        ),
+        statement=_canonical_json(statement_obj),
     )
 
 
@@ -196,6 +212,74 @@ def build_enrichment_annotation(
     )
 
 
+def _artifact_metadata_envelope(
+    source_format: str,
+    kept_metadata: dict[str, Any],
+    dropped_keys: list[str],
+    max_metadata_bytes: int,
+) -> dict[str, Any]:
+    """Build the artifact-metadata ``statement`` envelope (P1)."""
+    statement: dict[str, Any] = {
+        "schema": ARTIFACT_METADATA_SCHEMA_URL,
+        "kind": "artifact-metadata",
+        "format": source_format,
+        "metadata": kept_metadata,
+    }
+    if dropped_keys:
+        statement["truncated"] = True
+        statement["truncatedKeys"] = sorted(dropped_keys)
+        statement["truncatedKeyCount"] = len(dropped_keys)
+        statement["maxMetadataBytes"] = max_metadata_bytes
+    return statement
+
+
+def _truncate_metadata_for_budget(
+    metadata: dict[str, Any],
+    source_format: str,
+    max_metadata_bytes: int,
+) -> tuple[dict[str, Any], list[str]] | None:
+    """Drop the largest metadata entries first until the artifact-metadata
+    envelope's serialized size fits ``max_metadata_bytes``.
+
+    Returns ``(kept_metadata, dropped_keys)`` -- ``dropped_keys`` is empty
+    when nothing needed dropping. Returns ``None`` if even an empty
+    ``metadata: {}`` (plus the marker fields) wouldn't fit the budget.
+
+    Re-checks the real serialized size of the candidate envelope at every
+    step rather than approximating it -- the realistic key count here (a
+    single AI model's metadata table) is small enough (dozens of keys, not
+    thousands) that this stays cheap even though it isn't asymptotically
+    optimal.
+    """
+    sanitized = cast(dict[str, Any], _sanitize_for_json(metadata))
+
+    def envelope_bytes(kept: dict[str, Any], dropped: list[str]) -> int:
+        envelope = _artifact_metadata_envelope(
+            source_format, kept, dropped, max_metadata_bytes
+        )
+        return len(_canonical_bytes(envelope))
+
+    if envelope_bytes(sanitized, []) <= max_metadata_bytes:
+        return sanitized, []
+
+    entry_bytes = {
+        key: len(_canonical_bytes(key)) + 1 + len(_canonical_bytes(value))
+        for key, value in sanitized.items()
+    }
+    drop_order = sorted(sanitized, key=lambda key: (-entry_bytes[key], key))
+
+    kept = dict(sanitized)
+    dropped: list[str] = []
+    for key in drop_order:
+        del kept[key]
+        dropped.append(key)
+        if envelope_bytes(kept, dropped) <= max_metadata_bytes:
+            return kept, dropped
+
+    return None
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def build_source_metadata_annotation(
     subject_spdx_id: str,
     source_format: str,
@@ -203,16 +287,50 @@ def build_source_metadata_annotation(
     creation_info: spdx3.CreationInfo,
     doc_name: str,
     doc_uuid: str,
+    max_metadata_bytes: int = 0,
 ) -> spdx3.Annotation | None:
-    """Return an Annotation embedding verbatim original metadata (P1)."""
+    """Return an Annotation embedding verbatim original metadata (P1).
+
+    ``max_metadata_bytes`` (0 = unlimited, the default) caps the serialized
+    Annotation's size: when exceeded, the largest metadata entries are
+    dropped first and the result is marked with
+    ``truncated``/``truncatedKeys``/``truncatedKeyCount``/
+    ``maxMetadataBytes`` so the reduction is visible rather than silent.
+    If even an empty ``metadata: {}`` plus the marker fields wouldn't fit
+    the budget, no Annotation is emitted at all.
+    """
     if not metadata:
         return None
-    statement = {
-        "schema": ARTIFACT_METADATA_SCHEMA_URL,
-        "kind": "artifact-metadata",
-        "format": source_format,
-        "metadata": metadata,
-    }
+
+    max_metadata_bytes = normalize_max_source_metadata_bytes(max_metadata_bytes)
+    dropped_keys: list[str] = []
+    kept_metadata = metadata
+    if max_metadata_bytes:
+        result = _truncate_metadata_for_budget(
+            metadata, source_format, max_metadata_bytes
+        )
+        if result is None:
+            log.warning(
+                "Artifact-metadata Annotation for %r dropped entirely: "
+                "max-source-metadata-bytes=%d is too small to hold even an "
+                "empty metadata envelope.",
+                subject_spdx_id,
+                max_metadata_bytes,
+            )
+            return None
+        kept_metadata, dropped_keys = result
+        if dropped_keys and not kept_metadata:
+            log.warning(
+                "Artifact-metadata Annotation for %r had all %d metadata "
+                "keys dropped to fit max-source-metadata-bytes=%d.",
+                subject_spdx_id,
+                len(dropped_keys),
+                max_metadata_bytes,
+            )
+
+    statement = _artifact_metadata_envelope(
+        source_format, kept_metadata, dropped_keys, max_metadata_bytes
+    )
     annotation_spdx_id = generate_spdx_id(
         "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
     )

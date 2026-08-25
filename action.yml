@@ -83,6 +83,15 @@ inputs:
       [tool.pitloom.content-type] method, which is "auto" by default.
     required: false
     default: ""
+  max-source-metadata-bytes:
+    description: >-
+      Cap the artifact-metadata preservation Annotation's serialized size
+      to this many UTF-8 bytes; truncates the largest metadata entries
+      first when exceeded. Empty (default) defers to
+      [tool.pitloom.provenance] max-source-metadata-bytes, which is 0
+      (unbounded) by default.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
@@ -167,6 +176,7 @@ runs:
         PL_EXTRACT_FILE_HEADER: ${{ inputs.extract-file-header }}
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
+        PL_MAX_SOURCE_METADATA_BYTES: ${{ inputs.max-source-metadata-bytes }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -236,6 +246,9 @@ runs:
         fi
         if [ -n "${PL_CONTENT_TYPE_METHOD}" ]; then
           loom_args+=("--content-type-method" "${PL_CONTENT_TYPE_METHOD}")
+        fi
+        if [ -n "${PL_MAX_SOURCE_METADATA_BYTES}" ]; then
+          loom_args+=("--max-source-metadata-bytes" "${PL_MAX_SOURCE_METADATA_BYTES}")
         fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

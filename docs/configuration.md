@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-08-20
+Last-Modified: 2026-08-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -165,15 +165,17 @@ the whole configured list for that run rather than merging with it.
 
 ## `[tool.pitloom.provenance]`
 
-Config-only (no CLI flags) -- see [Metadata provenance](metadata-provenance.md)
-for what each setting changes in the generated SBOM's Annotations.
+Config-only, except `max-source-metadata-bytes` (see below) -- see
+[Metadata provenance](metadata-provenance.md) for what each setting
+changes in the generated SBOM's Annotations.
 
-| Key | Type | Default | Meaning |
-| :-- | :--- | :------ | :------ |
-| `format` | `"annotation"` \| `"comment"` \| `"both"` | `"both"` | How metadata provenance is recorded: SPDX Core `Annotation` elements, legacy `Element.comment` strings, or both. |
-| `schema` | string | `"pitloom/1"` | Which statement schema encodes provenance Annotations. |
-| `detail` | `"minimal"` \| `"full"` | `"minimal"` | `"minimal"` emits a field-source Annotation only when the source adds signal the native value can't convey; `"full"` emits the per-field source map for every field. |
-| `preserve-source-metadata` | `"auto"` \| `"always"` \| `"never"` | `"auto"` | Whether to embed an artifact's verbatim original metadata blob. `"auto"` does so only when the artifact isn't shipped with the distribution (and so can't be re-extracted later). |
+| Key | Type | Default | CLI flag / Action input | Meaning |
+| :-- | :--- | :------ | :----------------------- | :------ |
+| `format` | `"annotation"` \| `"comment"` \| `"both"` | `"both"` | -- | How metadata provenance is recorded: SPDX Core `Annotation` elements, legacy `Element.comment` strings, or both. |
+| `schema` | string | `"pitloom/1"` | -- | Which statement schema encodes provenance Annotations. |
+| `detail` | `"minimal"` \| `"full"` | `"minimal"` | -- | `"minimal"` emits a field-source Annotation only when the source adds signal the native value can't convey; `"full"` emits the per-field source map for every field. |
+| `preserve-source-metadata` | `"auto"` \| `"always"` \| `"never"` | `"auto"` | -- | Whether to embed an artifact's verbatim original metadata blob. `"auto"` does so only when the artifact isn't shipped with the distribution (and so can't be re-extracted later). |
+| `max-source-metadata-bytes` | non-negative integer | `0` | `--max-source-metadata-bytes` / `max-source-metadata-bytes` | Byte budget for the serialized artifact-metadata `Annotation.statement`. `0` means unlimited (today's behavior). When exceeded, the largest metadata entries are dropped first and the result is marked `truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes` -- see [Metadata provenance](metadata-provenance.md#size-bounded-preservation). Unlike its siblings above, this one has a CLI flag / Action input: a byte cap is an operational knob someone may want to override per-run without editing `pyproject.toml`. |
 
 **Invalid values / fallback behavior:** a non-string value, or a
 `format`/`detail`/`preserve-source-metadata` outside its listed set,
@@ -181,6 +183,11 @@ raises `ValueError` at config-read time. An unknown `schema` id is not
 caught here (`core` doesn't import the assembly layer's encoder
 registry) -- it's caught with a clear error the first time an SBOM is
 actually generated.
+`max-source-metadata-bytes`: a non-integer or `bool`
+value raises `ValueError` at config-read time; a negative value, or a
+positive value below the smallest possible JSON object it could ever
+hold (8 bytes), is normalized to `0` (unlimited) with a logged
+`WARNING`, not rejected.
 
 ## See also
 
