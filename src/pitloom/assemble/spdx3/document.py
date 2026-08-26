@@ -230,6 +230,7 @@ def build(
 
     # --- License ---
     if metadata.license_name:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
         rel_declared, rel_concluded = build_license_elements(
             license_id=metadata.license_name,
             package_spdx_id=require_spdx_id(main_package),
@@ -266,11 +267,6 @@ def build(
             provenance_config=prov_cfg,
             encoder=encoder,
         )
-    # Only fires when a real license claim was made above, matching the
-    # AI-models check below (see line 316) -- NOASSERTION alone doesn't
-    # warrant declaring the simpleLicensing profile.
-    if metadata.license_name:
-        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
 
     # --- Dependencies ---
     add_dependencies(
