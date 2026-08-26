@@ -18,7 +18,11 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 from pitloom.cli.commands.embed_wheel import _report_embed_result
-from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    resolve_effective_provenance,
+)
 from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.cli.options import _resolve_common_options
 
@@ -68,7 +72,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         describe_relationship=effective_describe,
         registry=args.registry,
         update_registry=args.update_registry,
-        provenance=pitloom_config.provenance,
+        provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline or None,
     )
 

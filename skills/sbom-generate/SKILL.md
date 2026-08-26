@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-19
+# Last-Modified: 2026-08-26
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -205,6 +205,17 @@ both -- just run the base generate command.
 A quick `@graph`-presence sanity check is enough for most runs (see
 `references/examples.md`), but for a schema/shape-level conformance
 check, use the `sbom-validate` skill on the output.
+
+## Check stderr for WARNING:/ERROR: lines
+
+Pitloom logs to stderr with a grep-able `WARNING:`/`ERROR:` prefix (e.g.
+"a config value was too small to be useful and got normalized instead",
+"a requested detector isn't installed"). These don't always fail the
+command or show up in the output JSON itself, so after running `loom`,
+scan the captured stderr for these prefixes and mention any hit to the
+user in plain language -- don't let a real warning about the SBOM's own
+completeness or configuration pass by unmentioned just because the
+command exited 0 and produced a file.
 
 ## Known limitations -- say so, don't paper over it
 
