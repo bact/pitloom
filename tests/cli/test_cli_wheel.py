@@ -107,7 +107,8 @@ def test_wheel_command_wires_max_source_metadata_bytes(
 
     assert __main__.main() == 0
     assert captured["provenance"] is not None
-    assert captured["provenance"].max_source_metadata_bytes == 5000  # type: ignore[attr-defined]
+    provenance = captured["provenance"]
+    assert provenance.max_source_metadata_bytes == 5000  # type: ignore[attr-defined]
 
 
 def test_wheel_command_nonexistent_and_verbose(
