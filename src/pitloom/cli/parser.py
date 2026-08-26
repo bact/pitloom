@@ -154,6 +154,20 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         ),
     )
     parent.add_argument(
+        "--max-source-metadata-bytes",
+        type=int,
+        default=None,
+        metavar="BYTES",
+        help=(
+            "Cap the artifact-metadata preservation Annotation's serialized "
+            "size to this many UTF-8 bytes; truncates the largest metadata "
+            "entries first when exceeded. 0 (or any value too small to "
+            "hold data) disables the cap. Defers to "
+            "[tool.pitloom.provenance] max-source-metadata-bytes (0, "
+            "unbounded, by default) when omitted."
+        ),
+    )
+    parent.add_argument(
         "-v",
         "--verbose",
         action="store_true",

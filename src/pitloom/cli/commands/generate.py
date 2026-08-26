@@ -15,7 +15,7 @@ from typing import Any
 from pitloom.assemble import (
     generate,
 )
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_provenance
 from pitloom.cli.options import _resolve_common_options
 
 
@@ -54,7 +54,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         describe_relationship=describe_relationship,
         registry=args.registry,
         update_registry=args.update_registry,
-        provenance=pitloom_config.provenance,
+        provenance=resolve_effective_provenance(pitloom_config, args),
         enrich=args.enrich,
         extract_file_header=args.extract_file_header,
         content_type=args.content_type,

@@ -20,6 +20,7 @@ from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _print_sbom_output_path,
     cli_error_handler,
+    resolve_effective_provenance,
 )
 from pitloom.cli.options import _resolve_creation_metadata
 from pitloom.core.config import PitloomConfig
@@ -103,7 +104,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         extract_file_header=args.extract_file_header,
         content_type=args.content_type,
         content_type_method=args.content_type_method,
-        provenance=pitloom_config.provenance,
+        provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline or None,
     )
     for wheel_path in unique_wheels:

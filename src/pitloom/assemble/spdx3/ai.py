@@ -138,6 +138,7 @@ def _add_single_ai_model(
         ai_pkg,
         file_spdx_ids,
         config.preserve_source_metadata,
+        config.max_source_metadata_bytes,
         creation_info,
         doc_name,
         doc_uuid,

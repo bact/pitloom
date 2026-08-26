@@ -26,6 +26,7 @@ from pitloom.core._config_types import (
 )
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator, Tool
+from pitloom.core.provenance import normalize_max_source_metadata_bytes
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -50,6 +51,26 @@ def _read_bool_setting(
     if not isinstance(value, bool):
         raise ValueError(
             f"{table_path} {key!r} must be a boolean, got "
+            f"{type(value).__name__}: {value!r}"
+        )
+    return value
+
+
+def _read_int_setting(
+    data: dict[str, Any],
+    key: str,
+    default: int,
+    table_path: str = "[tool.pitloom]",
+) -> int:
+    """Read an int key from data, defaulting to default when absent.
+
+    Rejects a bool value explicitly -- ``isinstance(True, int)`` is ``True``
+    in Python, so a TOML ``key = true`` would otherwise silently pass as 1.
+    """
+    value = data.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(
+            f"{table_path} {key!r} must be an integer, got "
             f"{type(value).__name__}: {value!r}"
         )
     return value
@@ -148,9 +169,17 @@ def _provenance_str(raw: dict[str, Any], keys: tuple[str, ...], default: str) ->
     return default
 
 
+def _provenance_int(raw: dict[str, Any], keys: tuple[str, ...], default: int) -> int:
+    """Return the first present ``[tool.pitloom.provenance]`` key as an int."""
+    for key in keys:
+        if key in raw:
+            return _read_int_setting(raw, key, default, "[tool.pitloom.provenance]")
+    return default
+
+
 def _read_provenance_settings(
     pitloom_data: dict[str, Any],
-) -> tuple[str, str, str, str]:
+) -> tuple[str, str, str, str, int]:
     """Read ``[tool.pitloom.provenance]`` settings."""
     raw = pitloom_data.get("provenance", {})
     if not isinstance(raw, dict):
@@ -181,7 +210,12 @@ def _read_provenance_settings(
         "preserve-source-metadata",
     )
 
-    return fmt, schema, detail, preserve
+    max_metadata_bytes = _provenance_int(
+        raw, ("max-source-metadata-bytes", "max_source_metadata_bytes"), 0
+    )
+    max_metadata_bytes = normalize_max_source_metadata_bytes(max_metadata_bytes)
+
+    return fmt, schema, detail, preserve, max_metadata_bytes
 
 
 def _read_ids_file(pitloom_data: dict[str, Any]) -> str | None:
@@ -315,6 +349,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_schema,
         provenance_detail,
         provenance_preserve,
+        provenance_max_metadata_bytes,
     ) = _read_provenance_settings(pitloom_data)
     enrich_local = _read_enrich_settings(pitloom_data)
     extract_file_header = _read_extract_file_header(pitloom_data)
@@ -364,6 +399,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         provenance_schema=provenance_schema,
         provenance_detail=provenance_detail,
         provenance_preserve_source_metadata=provenance_preserve,
+        provenance_max_source_metadata_bytes=provenance_max_metadata_bytes,
         enrich_local=enrich_local,
         extract_file_header=extract_file_header,
         content_type_enabled=content_type_enabled,

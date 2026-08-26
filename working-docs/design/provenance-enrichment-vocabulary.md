@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-25
+Last-Modified: 2026-08-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -108,17 +108,19 @@ it). §1/§2 below and the drafted page content are updated to match.
    `working-docs/implementation/provenance/metadata-provenance.md`):
    record when third-party tools (e.g. the `enrich` skill) augmented the
    data; track validation steps and results. Neither is built.
-7. **Unbounded artifact-metadata-blob size** (same carry-over): artifact-
-   metadata preservation (`_source_metadata_blob()`/`_emit_source_metadata()`
-   in `src/pitloom/assemble/spdx3/ai.py`) embeds an AI model's raw
-   metadata verbatim, with no size cap, into a single `Annotation.statement`
-   -- fine for small test fixtures, but a real production model with a
-   large vocabulary (e.g. a GGUF LLM's 32K-128K+ token list) could inflate
-   a single Annotation into the multi-megabyte range. Not a spec
-   violation (SPDX 3.0.1's `statement` is plain `xsd:string`, no
-   spec-mandated limit), but an untested scalability gap. Whether to drop
-   oversized fields entirely, truncate with a marker, or move to an
-   external reference is still undecided.
+7. ~~**Unbounded artifact-metadata-blob size**~~ -- **Resolved
+   (2026-08-26):** `[tool.pitloom.provenance] max-source-metadata-bytes`
+   (default `0`, unbounded) caps the serialized `Annotation.statement`
+   byte length via dictionary-level, greedy-heaviest-key-first
+   truncation, marked with `truncated`/`truncatedKeys`/
+   `truncatedKeyCount`/`maxMetadataBytes` in the statement envelope when
+   it fires. Also gained a `--max-source-metadata-bytes` CLI flag /
+   `action.yml` input, a deliberate exception to this table's
+   config-only precedent. See
+   `working-docs/implementation/provenance/annotation-mechanism.md`'s
+   "Size-bounded artifact-metadata preservation" section for the shipped
+   design, and `docs/metadata-provenance.md`'s "Size-bounded
+   preservation" section for the user-facing explainer.
 8. **`Method` vs. `Role` as separate keys, flagged 2026-08-14 for
    dedicated human review**: the 2026-08-13 fix (see "Already applied"
    above) resolved the specific bug where `sbomAuthorSupplied` was

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-25
+# Last-Modified: 2026-08-26
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -302,6 +302,15 @@ g. **Final report.** List which elements are now satisfied, which remain unknown
 `references/minimum-elements.md` also lists a manual, optional cross-check
 (`ntia-conformance-checker`) for NTIA/CISA targets -- not a required step, and not
 wired into this skill.
+
+## Check stderr for WARNING:/ERROR: lines
+
+`loom enrich`/`loom project`/`loom generate` log to stderr with a
+grep-able `WARNING:`/`ERROR:` prefix. These don't always fail the
+command or show up in the output JSON, so after running one, scan the
+captured stderr for these prefixes and mention any hit to the user in
+plain language -- don't let a real warning pass by unmentioned just
+because the command exited 0.
 
 ## See also
 

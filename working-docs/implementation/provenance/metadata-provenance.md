@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,8 +10,9 @@ SPDX-License-Identifier: CC0-1.0
 
 See [annotation-provenance.md](annotation-provenance.md) for the full
 design history and [provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)
-for still-open questions (CreationInfo future enhancements, the unbounded
-artifact-metadata-blob question). The user-facing explainer lives at
+for still-open questions (CreationInfo future enhancements; the
+unbounded artifact-metadata-blob question was resolved 2026-08-26 -- see
+below). The user-facing explainer lives at
 [docs/metadata-provenance.md](../../../docs/metadata-provenance.md) and
 [docs/creation-metadata.md](../../../docs/creation-metadata.md).
 
@@ -79,21 +80,24 @@ the model is not shipped and can't be re-extracted). See §10 of the
 implementation plan for the use-case catalog and the Phase 2 native-backfill
 checklist.
 
-**Known limitation, not yet fixed:** artifact-metadata preservation
-(`_source_metadata_blob()`/`_emit_source_metadata()` in
-`src/pitloom/assemble/spdx3/ai.py`) embeds an AI model's raw metadata
-**verbatim, with no size cap**, into a single `Annotation.statement`. For
-the small fixtures this repo tests against, that's a few KB at most; for
-a real production model with a large vocabulary (e.g. a GGUF LLM's
-32K-128K+ token list), the same field could inflate a single Annotation
-into the multi-megabyte range. SPDX 3.0.1's `statement` is plain
-`xsd:string` with no spec-mandated limit, so this isn't a spec
-violation, but it's an untested scalability gap for realistic models
-(found by independent review). The right behavior (drop oversized fields
-entirely? truncate with a marker? move to an external reference?) is
-still an open design question -- see
+**Size, bounded (2026-08-26):** artifact-metadata preservation
+(`_source_metadata_blob()` in `src/pitloom/assemble/spdx3/_ai_package.py`,
+`build_source_metadata_annotation()` in
+`src/pitloom/assemble/spdx3/provenance.py`) embeds an AI model's raw
+metadata verbatim into a single `Annotation.statement` -- for a real
+production model with a large vocabulary (e.g. a GGUF LLM's 32K-128K+
+token list), that field alone could inflate a single Annotation into the
+multi-megabyte range. `[tool.pitloom.provenance] max-source-metadata-bytes`
+(default `0`, unlimited -- unchanged behavior unless a project opts in)
+now caps the serialized statement's size: whole `metadata` keys are
+dropped, largest first, and the reduction is marked explicitly
+(`truncated`/`truncatedKeys`/`truncatedKeyCount`/`maxMetadataBytes`)
+rather than silently losing data. See
+[annotation-mechanism.md](annotation-mechanism.md)'s "Size-bounded
+artifact-metadata preservation" section for the full algorithm and edge
+cases. Previously an open design question (see
 [provenance-enrichment-vocabulary.md](../../design/provenance-enrichment-vocabulary.md)'s
-"Open questions" list.
+open question #7, now marked resolved).
 
 Controlled by `[tool.pitloom.provenance]` in `pyproject.toml`:
 

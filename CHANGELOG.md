@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-21
+Last-Modified: 2026-08-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -20,6 +20,17 @@ and this project adheres to
 - Commit history: <https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4>
 
 ## [Unreleased]
+
+### Added
+
+- Serialize every Annotation's `statement` via RFC 8785 (JSON
+  Canonicalization Scheme) instead of plain JSON, shrinking the output
+  and closing a spec-compliance gap
+- Cap artifact-metadata `Annotation.statement` size via
+  `[tool.pitloom.provenance] max-source-metadata-bytes` /
+  `--max-source-metadata-bytes`; truncates by dropping the largest
+  metadata keys first and marks the result with
+  `truncated`/`truncatedKeys`/`maxMetadataBytes`
 
 ### Changed
 

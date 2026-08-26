@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -26,6 +26,7 @@ machine-readable JSON keyed by field name -- with the original human-readable
 format = "both"                    # "annotation" | "comment" | "both" (default)
 detail = "minimal"                 # "minimal" (default) | "full"
 preserve-source-metadata = "auto"  # "auto" (default) | "always" | "never"
+max-source-metadata-bytes = 0      # 0 (default, unlimited) | a byte budget
 ```
 
 By default (`detail = "minimal"`), a field only gets a provenance
@@ -75,6 +76,51 @@ This transparency is crucial for:
   extracted facts from inferred/detected ones
 - **Machine consumption**: Automated tools can parse provenance
 - **Human review**: Manual inspection of data sources
+
+## Size-bounded preservation
+
+`preserve-source-metadata` can embed an artifact's verbatim original
+metadata (e.g. a GGUF model's full KV header, including its tokenizer
+vocabulary) into a single `Annotation.statement`. For a real model this
+can be large -- a 32K-128K-entry vocab array easily reaches multi-megabyte
+territory. `max-source-metadata-bytes` (also `--max-source-metadata-bytes`
+on the CLI, or the Action's `max-source-metadata-bytes` input) caps the
+serialized `Annotation.statement`'s size in UTF-8 bytes; `0` (the default)
+means unlimited.
+
+When the budget is exceeded, whole metadata entries are dropped --
+largest first, to keep as many entries as possible -- never a value
+truncated mid-string, which would produce invalid JSON. The reduction is
+always marked explicitly in the same envelope, never silent:
+
+```json
+{
+  "schema": "https://pitloom.dev/provenance/artifact-metadata/1",
+  "kind": "artifact-metadata",
+  "format": "gguf",
+  "metadata": {
+    "general.architecture": "llama",
+    "block_count": 32
+  },
+  "truncated": true,
+  "truncatedKeys": ["tokenizer.ggml.tokens"],
+  "truncatedKeyCount": 1,
+  "maxMetadataBytes": 500
+}
+```
+
+If the budget is too small to hold even an empty `metadata: {}` plus the
+marker fields, no Annotation is emitted for that artifact at all (a
+`WARNING` is logged) -- an Annotation whose own `maxMetadataBytes` field
+claims a budget its own overhead violates would be worse than omitting
+it. A budget that forces every key to be dropped, but still fits the
+marker overhead, is emitted with `metadata: {}` and a `WARNING`.
+
+The `Annotation.statement` value is itself serialized via RFC 8785 (JSON
+Canonicalization Scheme, JCS) -- the same canonicalization the whole SBOM
+document uses -- so it has no insignificant whitespace and a
+deterministic key order; byte-for-byte comparing or hashing this blob
+across runs with unchanged input is safe.
 
 ## What the `method` values mean
 
