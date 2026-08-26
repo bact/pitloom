@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-25
+Last-Modified: 2026-08-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -118,6 +118,19 @@ full picture.
 - [ ] **Docker container action** (future) -- a `Dockerfile` +
   `action.yml` `using: docker` variant of the GitHub Action for hermetic
   or self-hosted-runner use.
+- [ ] **Surface `WARNING:`/`ERROR:` stderr as GitHub Actions annotations**
+  (future) -- `action.yml`'s composite "Generate SBOM" step captures
+  stdout only (`loom_stdout=$(loom "${loom_args[@]}" | tee /dev/stderr)`);
+  a `loom`-emitted `WARNING:`/`ERROR:` (e.g. artifact-metadata truncation,
+  see [metadata-provenance.md](../implementation/provenance/metadata-provenance.md))
+  goes to the raw job log only, not the workflow-run summary or PR
+  "Files changed" view (`::warning::`/`::error::` workflow commands).
+  A synchronous `2>`-redirect-to-file approach is race-free but drops
+  real-time log streaming; a `tee`-based approach needs a provably
+  race-free wait, not just bash's default process-substitution
+  behavior. Needs a design pass on that trade-off before implementing.
+  Already done for AI-agent Skills -- see
+  [agent-skill.md](../implementation/agent-skill.md#relaying-warningerror-stderr-to-the-user).
 
 ## Near-term
 
