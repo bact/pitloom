@@ -230,6 +230,7 @@ def build(
 
     # --- License ---
     if metadata.license_name:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
         rel_declared, rel_concluded = build_license_elements(
             license_id=metadata.license_name,
             package_spdx_id=require_spdx_id(main_package),
@@ -266,11 +267,6 @@ def build(
             provenance_config=prov_cfg,
             encoder=encoder,
         )
-    # TODO: appended unconditionally even when NOASSERTION was the only
-    # outcome above -- should only fire when a real license/copyright
-    # claim was actually made, matching the AI-models check below (see
-    # line 317).
-    spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
 
     # --- Dependencies ---
     add_dependencies(
