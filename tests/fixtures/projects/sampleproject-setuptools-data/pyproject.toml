@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal setuptools project used as a fixture for testing Pitloom's
+# setuptools wheel file discovery over package_data/include_package_data/
+# MANIFEST.in -- the manifest-analysis path, distinct from
+# sampleproject-setuptools (packages.find only, no data files).
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

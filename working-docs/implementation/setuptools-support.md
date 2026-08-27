@@ -1,12 +1,17 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
 ---
 
 # Setuptools support -- implementation notes
+
+See also: [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for why
+wheel file discovery below stays a static-config read (never executes
+`setup.py`), and how this compares to the Hatchling backend and to
+`loom wheel`/`embed-wheel`'s build-stage path.
 
 ## Motivation
 
@@ -27,6 +32,11 @@ initial setuptools support added in the `setuptools-support` branch.
 | `src/pitloom/cli/` | CLI updated to accept projects without `pyproject.toml` (originally in `__main__.py`, since split into `cli/` -- see `cli-test-coverage-roadmap.md`) |
 | `tests/extract/test_setuptools_cfg.py`, `test_setuptools_cfg_config.py`, `test_setuptools_py.py`, `test_setuptools_integration.py` | Unit and integration tests (originally `tests/test_setuptools.py`, later split into these modular suites -- see `cli-test-coverage-roadmap.md`) |
 | `tests/fixtures/projects/sampleproject-setuptools/` | Transitional-layout fixture project |
+| `src/pitloom/core/_models_wheel.py` | Backend-dispatch facade for wheel file discovery (`get_wheel_files()`), shared per-file hashing/header loop |
+| `src/pitloom/core/_models_wheel_setuptools.py` | Setuptools wheel file discovery -- static config only, see below |
+| `src/pitloom/core/_models_wheel_hatchling.py`, `_models_wheel_types.py` | Hatchling discovery module and shared types, siblings of the facade above |
+| `tests/core/test_models_wheel_setuptools.py`, `test_models_wheel_files.py` | Wheel file discovery tests (setuptools-specific, and facade dispatch/fallback) |
+| `tests/fixtures/projects/sampleproject-setuptools-data/` | `package_data`/`include_package_data`/`MANIFEST.in` fixture for the manifest-analysis discovery path |
 
 ## Extraction functions
 
@@ -128,6 +138,44 @@ non-empty/truthy; otherwise the secondary value fills the gap.  The primary
 `name` is always kept.  Provenance dicts are merged with primary entries
 overriding secondary on key conflicts.
 
+## Wheel file discovery (`_models_wheel_setuptools.discover()`)
+
+`get_wheel_files()` (`src/pitloom/core/_models_wheel.py`) dispatches to
+`pitloom.core._models_wheel_setuptools.discover()` for any project whose
+`detect_build_backend()` result is `"setuptools"`. Same static-only
+boundary as metadata extraction above -- resolves
+`packages`/`package_dir`/`packages.find`/`package_data`/
+`include_package_data` via setuptools' own official config-resolution
+API (`setuptools.config.pyprojecttoml`/`setupcfg`'s
+`apply_configuration()`), which fully populates a `Distribution` the
+same way a real setuptools build would, without executing `setup.py`.
+See [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for why.
+
+**Module files** (`.py`): `setuptools.command.build_py.build_py`'s
+`find_all_modules()`, called after `finalize_options()`.
+
+**Data files** (`package_data`, and `include_package_data` +
+`MANIFEST.in`): `build_py._get_data_files()`, which internally runs
+setuptools' manifest analysis. `include_package_data=True` triggers a
+real `egg_info` command invocation -- redirected via the command's own
+`egg_base` option to a `tempfile.TemporaryDirectory()` so the project
+directory is never mutated by what is meant to be a read-only
+discovery pass (verified by a regression test asserting no `.egg-info`
+artifact is left behind).
+
+**No static config at all** (packages/data files only resolvable by
+executing an imperative `setup.py`) returns `None`, same "out of
+scope" boundary as `read_setup_py`'s literal-only AST parsing above --
+the facade then falls back to the Hatchling-based heuristic with a
+logged warning, same as any other backend without a dedicated
+discovery module.
+
+**Fixes the exact bug from `working-docs/design/roadmap.md`'s
+"Non-Hatchling file discovery" item**: a `where = ["lib"]`-style
+`[options.packages.find]` layout previously reported
+`lib/mypkg/__init__.py` (wrong -- carried the `where=` source directory
+into the distribution path); now correctly reports `mypkg/__init__.py`.
+
 ## Conflict resolution
 
 Multiple metadata sources may coexist in a single project (common during
@@ -199,13 +247,11 @@ in `setup.cfg`.
 | `attr:` with complex paths | Only `module.ATTR` (two-part) is resolved; deeper paths (e.g., `pkg.sub.module.ATTR`) fall back to `None`. |
 | Multiple authors in `setup.cfg` | `author` / `author_email` yield at most one entry; setuptools supports comma-separated lists but pitloom does not yet parse them. |
 | Optional / extras dependencies | `[options.extras_require]` is not extracted. |
-| Wheel file discovery | `get_wheel_files()` still uses `hatchling.builders.wheel.WheelBuilder`; for setuptools projects it returns `(None, [])`, so the SBOM UUID is computed from name + version + deps only (no Merkle root). |
+| Wheel file discovery, no static config | A setuptools project with no `[tool.setuptools]`/`setup.cfg` at all (packages only resolvable via imperative `setup.py`) falls back to the Hatchling-based heuristic (logged warning) -- same static-only boundary as metadata extraction. |
 | Build-time dynamic metadata | `version` set via Git tags, `importlib.metadata`, or other runtime mechanisms is not resolved statically.  See [working-docs/design/metadata-sources.md](../design/metadata-sources.md) for the planned PEP 517 approach. |
 
 ## Planned enhancements
 
-- **setuptools wheel file discovery** via `setuptools.build_meta` or
-  `importlib.metadata` to compute a Merkle root for setuptools projects.
 - **`attr:` with deep module paths** (e.g., `pkg.sub.module.ATTR`).
 - **Multiple authors** from comma-separated `setup.cfg` `author` fields.
 - **`[options.extras_require]`** extraction.

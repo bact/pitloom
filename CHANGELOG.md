@@ -28,10 +28,15 @@ and this project adheres to
 - Cap artifact-metadata `Annotation.statement` size via
   `[tool.pitloom.provenance] max-source-metadata-bytes` /
   `--max-source-metadata-bytes` ([#189])
+- Setuptools wheel file discovery from static `pyproject.toml`/`setup.cfg`
+  config (`packages.find`, `package_data`, `include_package_data`/
+  `MANIFEST.in`) ([#196])
 
 ### Changed
 
 - Reorganize Hugging Face tests ([#187])
+- Split `get_wheel_files()` into a per-backend discovery module + registry,
+  ready for Poetry/PDM/Flit-core/`uv_build` ([#196])
 
 ### Fixed
 
@@ -39,12 +44,17 @@ and this project adheres to
 - Only declare the `simpleLicensing` profile when a real license claim was
   made ([#190])
 - Prune two unreachable branches in `_pyproject.py` ([#195])
+- Setuptools `packages.find where=` layouts no longer report wrong
+  distribution paths (e.g. `lib/pkg/...` instead of `pkg/...`) ([#196])
+- Unhandled build backends now log a warning instead of silently falling
+  back to a possibly-inaccurate Hatchling-based file list ([#196])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188
 [#189]: https://github.com/bact/pitloom/pull/189
 [#190]: https://github.com/bact/pitloom/pull/190
 [#195]: https://github.com/bact/pitloom/pull/195
+[#196]: https://github.com/bact/pitloom/pull/196
 
 ## [0.16.4] - 2026-08-21
 

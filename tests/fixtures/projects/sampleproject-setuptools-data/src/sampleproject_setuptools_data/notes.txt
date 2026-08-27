@@ -1,0 +1,1 @@
+Only reachable via MANIFEST.in, not the package_data glob (*.json).

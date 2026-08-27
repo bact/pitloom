@@ -10,6 +10,7 @@ See also: tests/core/test_models.py for dependency normalization,
 doc-uuid, and SPDX-id generation tests.
 """
 
+import logging
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -19,6 +20,7 @@ from typing import cast
 import pytest
 from hatchling.builders.wheel import WheelBuilder
 
+from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.models import get_wheel_files
 from pitloom.extract._file_headers import _get_magika
@@ -384,7 +386,7 @@ def test_get_wheel_files_empty_and_external_path(
     monkeypatch.setattr(WheelBuilder, "recurse_included_files", lambda _self: iter([]))
     root, files = get_wheel_files(tmp_path)
     assert root is None
-    assert files == []
+    assert not files
 
     # Included file that is a directory or outside tmp_path
     ext_dir = tmp_path.parent / "external_pkg"
@@ -405,3 +407,91 @@ def test_get_wheel_files_empty_and_external_path(
     assert len(files) == 1
     assert files[0].distribution_path == "pkg/external.py"
     assert files[0].physical_path == ext_file.as_posix()
+
+
+# ---------------------------------------------------------------------------
+# get_wheel_files: backend dispatch and fallback-warning behavior
+# ---------------------------------------------------------------------------
+
+
+def _make_backend_project(tmp_path: Path, build_backend: str) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        f'[build-system]\nrequires = ["{build_backend.split(".", maxsplit=1)[0]}"]\n'
+        f'build-backend = "{build_backend}"\n\n'
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+
+
+def test_get_wheel_files_dispatches_setuptools_backend_to_its_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A project whose backend is detected as ``setuptools`` routes
+    through the setuptools discovery module, not the Hatchling
+    heuristic."""
+    _make_backend_project(tmp_path, "setuptools.build_meta")
+
+    def _fake_discover(project_dir: Path) -> list[IncludedFile]:
+        del project_dir
+        return [IncludedFile(path=str(tmp_path / "a.py"), distribution_path="pkg/a.py")]
+
+    (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover", _fake_discover
+    )
+    hatchling_called: list[Path] = []
+
+    def _fail_if_called(project_dir: Path) -> list[IncludedFile]:
+        hatchling_called.append(project_dir)
+        return []
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_hatchling.discover", _fail_if_called
+    )
+
+    _root, files = get_wheel_files(tmp_path)
+
+    assert not hatchling_called
+    assert [f.distribution_path for f in files] == ["pkg/a.py"]
+
+
+def test_get_wheel_files_setuptools_no_static_config_falls_back_with_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When the setuptools module can't resolve static config (``None``),
+    the facade falls back to the Hatchling heuristic and logs a
+    warning -- not a silent, unexplained accuracy regression."""
+    _make_backend_project(tmp_path, "setuptools.build_meta")
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover", lambda project_dir: None
+    )
+    monkeypatch.setattr(WheelBuilder, "recurse_included_files", lambda _self: iter([]))
+
+    with caplog.at_level(logging.WARNING):
+        root, files = get_wheel_files(tmp_path)
+
+    assert root is None
+    assert not files
+    assert "setuptools" in caplog.text
+    assert "Hatchling" in caplog.text
+
+
+def test_get_wheel_files_unhandled_backend_falls_back_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A backend with no dedicated discovery module (e.g. Poetry, ahead
+    of its own dedicated support landing) still gets a result via the
+    Hatchling heuristic, but now with an explicit warning instead of
+    silently risking an inaccurate file list -- closing the gap for
+    every unhandled backend, not just setuptools."""
+    _make_backend_project(tmp_path, "poetry.core.masonry.api")
+
+    with caplog.at_level(logging.WARNING):
+        root, files = get_wheel_files(tmp_path)
+
+    assert root is None
+    assert not files
+    assert "poetry" in caplog.text
+    assert "Hatchling" in caplog.text
