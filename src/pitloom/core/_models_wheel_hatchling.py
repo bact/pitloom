@@ -11,9 +11,12 @@ See also: :mod:`pitloom.core._models_wheel` (dispatch facade),
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pitloom.core._models_wheel_types import IncludedFile
+
+log = logging.getLogger(__name__)
 
 
 def discover(project_dir: Path) -> list[IncludedFile] | None:
@@ -43,5 +46,6 @@ def discover(project_dir: Path) -> list[IncludedFile] | None:
             for included_file in builder.recurse_included_files()
         ]
     # pylint: disable=broad-exception-caught
-    except Exception:
+    except Exception as exc:
+        log.warning("Hatchling file discovery failed for %s: %s", project_dir, exc)
         return None

@@ -112,9 +112,9 @@ setup(
 
 ```python
 setup(
-    version=get_version(),  # ✗ function call
-    name=PKG_NAME,  # ✗ variable
-    install_requires=REQS,  # ✗ variable
+    version=get_version(),      # ✗ function call
+    name=PKG_NAME,              # ✗ variable
+    install_requires=REQS,      # ✗ variable
 )
 ```
 
@@ -151,6 +151,27 @@ API (`setuptools.config.pyprojecttoml`/`setupcfg`'s
 same way a real setuptools build would, without executing `setup.py`.
 See [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for why.
 
+Unlike metadata extraction's `read_project()` (see "Conflict
+resolution" below), this module applies **both** `setup.cfg` and
+`pyproject.toml` when both are present, `setup.cfg` first: setuptools'
+own `apply_configuration()` calls are cumulative on the same
+`Distribution`, so `pyproject.toml` (applied second) can supply
+`[tool.setuptools.dynamic]`/PEP 621 fields on top of `setup.cfg`'s
+`packages`/`package_dir`, matching how a real setuptools build
+consults both rather than treating them as mutually exclusive. A
+`pyproject.toml` carrying only a PEP 621 `[project]` table, with no
+`[tool.setuptools]` table at all, is also resolved -- setuptools'
+own zero-config auto-discovery applies there.
+
+`apply_configuration()` runs with the process cwd already set to the
+target project directory (`_chdir`, serialized by a module-level
+`threading.Lock` against concurrent `discover()` calls racing on the
+shared `os.chdir()` state): `[tool.setuptools.dynamic]`/`attr:`
+resolution can import the target project's own modules, and running
+that import from the wrong cwd risks resolving it against an
+unrelated module reachable from Pitloom's own `sys.path` instead of
+the intended one.
+
 **Module files** (`.py`): `setuptools.command.build_py.build_py`'s
 `find_all_modules()`, called after `finalize_options()`.
 
@@ -163,12 +184,17 @@ directory is never mutated by what is meant to be a read-only
 discovery pass (verified by a regression test asserting no `.egg-info`
 artifact is left behind).
 
-**No static config at all** (packages/data files only resolvable by
-executing an imperative `setup.py`) returns `None`, same "out of
+**No static config at all** -- a `pyproject.toml` with only
+`[build-system]` (no `[project]`, no `[tool.setuptools]`) and no
+`setup.cfg`, meaning packages/data files are only resolvable by
+executing an imperative `setup.py` -- returns `None`, same "out of
 scope" boundary as `read_setup_py`'s literal-only AST parsing above --
 the facade then falls back to the Hatchling-based heuristic with a
 logged warning, same as any other backend without a dedicated
-discovery module.
+discovery module. Files resolved from static config are also
+deduplicated by distribution path (a `package_data` glob can overlap a
+`.py` module already found by module discovery); each output entry is
+unique.
 
 **Fixes the exact bug from `working-docs/design/roadmap.md`'s
 "Non-Hatchling file discovery" item**: a `where = ["lib"]`-style
@@ -247,7 +273,7 @@ in `setup.cfg`.
 | `attr:` with complex paths | Only `module.ATTR` (two-part) is resolved; deeper paths (e.g., `pkg.sub.module.ATTR`) fall back to `None`. |
 | Multiple authors in `setup.cfg` | `author` / `author_email` yield at most one entry; setuptools supports comma-separated lists but pitloom does not yet parse them. |
 | Optional / extras dependencies | `[options.extras_require]` is not extracted. |
-| Wheel file discovery, no static config | A setuptools project with no `[tool.setuptools]`/`setup.cfg` at all (packages only resolvable via imperative `setup.py`) falls back to the Hatchling-based heuristic (logged warning) -- same static-only boundary as metadata extraction. |
+| Wheel file discovery, no static config | A setuptools project with no `[project]`/`[tool.setuptools]` in `pyproject.toml` and no `setup.cfg` (packages only resolvable via imperative `setup.py`) falls back to the Hatchling-based heuristic (logged warning) -- same static-only boundary as metadata extraction. |
 | Build-time dynamic metadata | `version` set via Git tags, `importlib.metadata`, or other runtime mechanisms is not resolved statically.  See [working-docs/design/metadata-sources.md](../design/metadata-sources.md) for the planned PEP 517 approach. |
 
 ## Planned enhancements

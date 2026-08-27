@@ -7,13 +7,15 @@
 
 Resolves ``packages``/``packages.find``/``package_dir``/``package_data``/
 ``include_package_data`` via setuptools' own config-resolution API
-(``setuptools.config.pyprojecttoml``/``setupcfg``), the same way a real
-setuptools build would -- without executing ``setup.py``. A project
-with no static config (packages only resolvable by running an
-imperative ``setup.py``) is out of scope, matching
-:mod:`pitloom.extract._setuptools`'s existing static-analysis-only
-boundary; see ``working-docs/implementation/sbom-lifecycle-stages.md``
-for the full rationale.
+(``setuptools.config.pyprojecttoml``/``setupcfg``), applying both
+``setup.cfg`` and ``pyproject.toml`` when present (not mutually
+exclusive) the same way a real setuptools build would -- without
+executing ``setup.py``. A project with neither file (packages only
+resolvable by running an imperative ``setup.py``) is out of scope,
+matching :mod:`pitloom.extract._setuptools`'s existing
+static-analysis-only boundary; see
+``working-docs/implementation/sbom-lifecycle-stages.md`` for the full
+rationale.
 
 See also: :mod:`pitloom.core._models_wheel` (dispatch facade),
 :mod:`pitloom.core._models_wheel_types`.
@@ -23,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import tempfile
 import threading
 from collections.abc import Iterator
@@ -31,6 +34,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pitloom.core._models_wheel_types import IncludedFile
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
@@ -57,39 +65,61 @@ def _chdir(project_dir: Path) -> Iterator[None]:
         os.chdir(original_cwd)
 
 
-def _has_setuptools_pyproject_config(pyproject_data: dict[str, object]) -> bool:
-    """Whether the parsed ``pyproject.toml`` declares static
-    ``[tool.setuptools]`` config, as opposed to only ``[build-system]``."""
-    tool = pyproject_data.get("tool", {})
-    return isinstance(tool, dict) and "setuptools" in tool
+def _has_resolvable_pyproject_config(pyproject_path: Path) -> bool:
+    """Whether *pyproject_path* declares enough for setuptools to
+    resolve packages from: a PEP 621 ``[project]`` table (setuptools'
+    own zero-config auto-discovery applies here even without an
+    explicit ``[tool.setuptools]`` table) or an explicit
+    ``[tool.setuptools]`` table. A ``pyproject.toml`` with only
+    ``[build-system]`` (e.g. packages declared imperatively in
+    ``setup.py`` instead) declares neither."""
+    try:
+        with pyproject_path.open("rb") as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+    tool = data.get("tool", {})
+    return "project" in data or (
+        "setuptools" in tool if isinstance(tool, dict) else False
+    )
 
 
-def _load_distribution(
-    project_dir: Path, pyproject_data: dict[str, object] | None
-) -> Distribution | None:
+def _load_distribution(project_dir: Path) -> Distribution | None:
+    """Resolve a setuptools ``Distribution`` from static config only.
+
+    Must run with the process cwd already set to *project_dir* (see the
+    ``_chdir`` caller in :func:`discover`): ``apply_configuration()`` is
+    what performs ``[tool.setuptools.dynamic]``/``attr:`` resolution,
+    which can import the target project's own modules -- running it
+    with the wrong cwd risks resolving that import against an unrelated
+    module reachable from Pitloom's own cwd/``sys.path`` instead of the
+    intended one, silently reading the wrong package's data.
+
+    ``setup.cfg`` is applied first (legacy config as a base), then
+    ``pyproject.toml`` on top -- matching how a real setuptools build
+    consults both rather than treating them as mutually exclusive.
+    """
     # pylint: disable=import-outside-toplevel
     from setuptools.config import pyprojecttoml, setupcfg
     from setuptools.dist import Distribution
 
+    pyproject_path = project_dir / "pyproject.toml"
+    setup_cfg_path = project_dir / "setup.cfg"
+    has_pyproject = pyproject_path.is_file() and _has_resolvable_pyproject_config(
+        pyproject_path
+    )
+    has_setup_cfg = setup_cfg_path.is_file()
+    if not has_pyproject and not has_setup_cfg:
+        return None
+
     dist = Distribution()
     dist.script_name = "setup.py"
 
-    pyproject_path = project_dir / "pyproject.toml"
-    setup_cfg_path = project_dir / "setup.cfg"
-
-    if pyproject_data is None and pyproject_path.is_file():
-        # pylint: disable-next=import-outside-toplevel
-        from pitloom.extract._setuptools import read_pyproject_toml
-
-        pyproject_data = read_pyproject_toml(project_dir)
-
-    if pyproject_data is not None and _has_setuptools_pyproject_config(pyproject_data):
-        pyprojecttoml.apply_configuration(dist, str(pyproject_path))
-        return dist
-    if setup_cfg_path.is_file():
+    if has_setup_cfg:
         setupcfg.apply_configuration(dist, str(setup_cfg_path))
-        return dist
-    return None
+    if has_pyproject:
+        pyprojecttoml.apply_configuration(dist, str(pyproject_path))
+    return dist
 
 
 def _distribution_path(package: str, filename: str) -> str:
@@ -149,30 +179,23 @@ def _dedupe_by_distribution_path(files: list[IncludedFile]) -> list[IncludedFile
     return list(seen.values())
 
 
-def discover(
-    project_dir: Path, *, pyproject_data: dict[str, object] | None = None
-) -> list[IncludedFile] | None:
+def discover(project_dir: Path) -> list[IncludedFile] | None:
     """Discover a setuptools wheel's file set from static config only.
 
-    Returns ``None`` when there's no static ``[tool.setuptools]``/
+    Returns ``None`` when there's no static ``pyproject.toml``/
     ``setup.cfg`` config to resolve from, or on any setuptools
     introspection failure -- both signal "fall back", not "found zero
     files".
-
-    *pyproject_data*, when given, is the already-parsed
-    ``pyproject.toml`` (see
-    :func:`pitloom.extract._setuptools.read_pyproject_toml`) -- pass it
-    when the caller already parsed the file, to avoid re-parsing it here.
     """
     # pylint: disable=import-outside-toplevel
     from setuptools.command.build_py import build_py
 
     try:
-        dist = _load_distribution(project_dir, pyproject_data)
-        if dist is None:
-            return None
-
         with _DISCOVERY_LOCK, _chdir(project_dir):
+            dist = _load_distribution(project_dir)
+            if dist is None:
+                return None
+
             build_py_cmd = build_py(dist)
             build_py_cmd.finalize_options()
             files = _dedupe_by_distribution_path(
