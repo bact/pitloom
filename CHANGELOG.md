@@ -31,6 +31,8 @@ and this project adheres to
 - Setuptools wheel file discovery from static `pyproject.toml`/`setup.cfg`
   config (`packages.find`, `package_data`, `include_package_data`/
   `MANIFEST.in`) ([#196])
+- `setuptools>=70` is now a hard runtime dependency (needed to resolve the
+  above regardless of the scanned project's own build backend) ([#196])
 
 ### Changed
 

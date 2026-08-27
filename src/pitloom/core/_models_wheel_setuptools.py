@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import tempfile
 import threading
 from collections.abc import Iterator
@@ -35,20 +34,19 @@ from typing import TYPE_CHECKING
 
 from pitloom.core._models_wheel_types import IncludedFile
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
-
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
     from setuptools.dist import Distribution
 
 log = logging.getLogger(__name__)
 
-# Serializes discovery calls that rely on the process-wide cwd (see
-# `_chdir`) -- concurrent `discover()` calls would otherwise race on
-# `os.chdir()`.
+# Serializes concurrent calls to this module's own `discover()` against
+# each other, so they don't race on `_chdir`'s process-wide `os.chdir()`.
+# Scoped to this module only -- it does not protect against unrelated
+# code elsewhere in the process that also changes the cwd. A future
+# backend module needing the same cwd-pinning trick (e.g. for its own
+# `attr:`-equivalent resolution) would need to coordinate through a
+# shared lock, not reuse this one.
 _DISCOVERY_LOCK = threading.Lock()
 
 
@@ -65,26 +63,23 @@ def _chdir(project_dir: Path) -> Iterator[None]:
         os.chdir(original_cwd)
 
 
-def _has_resolvable_pyproject_config(pyproject_path: Path) -> bool:
-    """Whether *pyproject_path* declares enough for setuptools to
-    resolve packages from: a PEP 621 ``[project]`` table (setuptools'
-    own zero-config auto-discovery applies here even without an
-    explicit ``[tool.setuptools]`` table) or an explicit
+def _has_resolvable_pyproject_config(pyproject_data: dict[str, object]) -> bool:
+    """Whether the parsed ``pyproject.toml`` declares enough for
+    setuptools to resolve packages from: a PEP 621 ``[project]`` table
+    (setuptools' own zero-config auto-discovery applies here even
+    without an explicit ``[tool.setuptools]`` table) or an explicit
     ``[tool.setuptools]`` table. A ``pyproject.toml`` with only
     ``[build-system]`` (e.g. packages declared imperatively in
     ``setup.py`` instead) declares neither."""
-    try:
-        with pyproject_path.open("rb") as handle:
-            data = tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError):
-        return False
-    tool = data.get("tool", {})
-    return "project" in data or (
+    tool = pyproject_data.get("tool", {})
+    return "project" in pyproject_data or (
         "setuptools" in tool if isinstance(tool, dict) else False
     )
 
 
-def _load_distribution(project_dir: Path) -> Distribution | None:
+def _load_distribution(
+    project_dir: Path, pyproject_data: dict[str, object] | None
+) -> Distribution | None:
     """Resolve a setuptools ``Distribution`` from static config only.
 
     Must run with the process cwd already set to *project_dir* (see the
@@ -98,6 +93,11 @@ def _load_distribution(project_dir: Path) -> Distribution | None:
     ``setup.cfg`` is applied first (legacy config as a base), then
     ``pyproject.toml`` on top -- matching how a real setuptools build
     consults both rather than treating them as mutually exclusive.
+
+    *pyproject_data*, when given, is the already-parsed
+    ``pyproject.toml`` (see
+    :func:`pitloom.extract._setuptools.read_pyproject_toml`) -- pass it
+    when the caller already parsed the file, to avoid re-parsing it here.
     """
     # pylint: disable=import-outside-toplevel
     from setuptools.config import pyprojecttoml, setupcfg
@@ -105,8 +105,15 @@ def _load_distribution(project_dir: Path) -> Distribution | None:
 
     pyproject_path = project_dir / "pyproject.toml"
     setup_cfg_path = project_dir / "setup.cfg"
-    has_pyproject = pyproject_path.is_file() and _has_resolvable_pyproject_config(
-        pyproject_path
+
+    if pyproject_data is None and pyproject_path.is_file():
+        # pylint: disable-next=import-outside-toplevel
+        from pitloom.extract._setuptools import read_pyproject_toml
+
+        pyproject_data = read_pyproject_toml(project_dir)
+
+    has_pyproject = pyproject_data is not None and _has_resolvable_pyproject_config(
+        pyproject_data
     )
     has_setup_cfg = setup_cfg_path.is_file()
     if not has_pyproject and not has_setup_cfg:
@@ -123,11 +130,15 @@ def _load_distribution(project_dir: Path) -> Distribution | None:
 
 
 def _distribution_path(package: str, filename: str) -> str:
-    """Build a wheel-relative distribution path for *filename* under
-    *package*, without a leading slash when *package* is the top-level
-    (empty) package -- e.g. top-level ``py_modules``/``package_data``."""
+    """Build a wheel-relative, forward-slash-only distribution path for
+    *filename* under *package* -- without a leading slash when *package*
+    is the top-level (empty) package (e.g. top-level ``py_modules``/
+    ``package_data``), and with any backslash normalized regardless of
+    source (a malformed ``packages``/``package_dir`` entry, or a
+    Windows-style *filename* from setuptools' own file enumeration)."""
     prefix = package.replace(".", "/")
-    return f"{prefix}/{filename}" if prefix else filename
+    path = f"{prefix}/{filename}" if prefix else filename
+    return path.replace("\\", "/")
 
 
 def _discover_module_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
@@ -157,9 +168,7 @@ def _discover_data_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
         # pylint: disable-next=protected-access
         for package, src_dir, _build_dir, filenames in build_py_cmd._get_data_files():
             for filename in filenames:
-                distribution_path = _distribution_path(package, filename).replace(
-                    "\\", "/"
-                )
+                distribution_path = _distribution_path(package, filename)
                 physical_path = str(Path(src_dir, filename))
                 files.append(
                     IncludedFile(
@@ -179,20 +188,27 @@ def _dedupe_by_distribution_path(files: list[IncludedFile]) -> list[IncludedFile
     return list(seen.values())
 
 
-def discover(project_dir: Path) -> list[IncludedFile] | None:
+def discover(
+    project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+) -> list[IncludedFile] | None:
     """Discover a setuptools wheel's file set from static config only.
 
     Returns ``None`` when there's no static ``pyproject.toml``/
     ``setup.cfg`` config to resolve from, or on any setuptools
     introspection failure -- both signal "fall back", not "found zero
     files".
+
+    *pyproject_data*, when given, is the already-parsed
+    ``pyproject.toml`` (see
+    :func:`pitloom.extract._setuptools.read_pyproject_toml`) -- pass it
+    when the caller already parsed the file, to avoid re-parsing it here.
     """
     # pylint: disable=import-outside-toplevel
     from setuptools.command.build_py import build_py
 
     try:
         with _DISCOVERY_LOCK, _chdir(project_dir):
-            dist = _load_distribution(project_dir)
+            dist = _load_distribution(project_dir, pyproject_data)
             if dist is None:
                 return None
 

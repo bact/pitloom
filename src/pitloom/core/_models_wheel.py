@@ -92,19 +92,41 @@ def _discover_included_files(project_dir: Path) -> list[IncludedFile]:
     """
     # pylint: disable=import-outside-toplevel
     from pitloom.core._models_wheel_setuptools import discover as discover_setuptools
-    from pitloom.extract._setuptools import detect_build_backend
+    from pitloom.extract._setuptools import detect_build_backend, read_pyproject_toml
 
     backend_discoverers: dict[str, Callable[[Path], list[IncludedFile] | None]] = {
         "setuptools": discover_setuptools,
     }
 
-    backend = detect_build_backend(project_dir)
+    # Parsed once and reused for backend detection and setuptools' own
+    # static-config check below -- both read the same pyproject.toml.
+    pyproject_data = read_pyproject_toml(project_dir)
+    backend = detect_build_backend(project_dir, pyproject_data=pyproject_data)
     if backend not in (None, "hatchling"):
         discoverer = backend_discoverers.get(backend)
         if discoverer is not None:
-            files = discoverer(project_dir)
+            files = (
+                discover_setuptools(project_dir, pyproject_data=pyproject_data)
+                if backend == "setuptools"
+                else discoverer(project_dir)
+            )
             if files is not None:
                 return files
+            if not (project_dir / "pyproject.toml").is_file():
+                # Hatchling's WheelBuilder requires a pyproject.toml
+                # [project] table -- with none present at all, it is
+                # guaranteed to also fail, so skip the doomed attempt
+                # and its confusing "Hatchling"-branded error for a
+                # project that has nothing to do with Hatchling.
+                log.warning(
+                    "No static %s config resolvable in %s and no "
+                    "pyproject.toml present -- file discovery is "
+                    "unsupported for this project (packages only "
+                    "resolvable via an imperative setup.py build)",
+                    backend,
+                    project_dir,
+                )
+                return []
             log.warning(
                 "No static %s config resolvable in %s -- falling back to "
                 "Hatchling-based heuristic, file list may be inaccurate",
