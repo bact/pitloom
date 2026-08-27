@@ -12,6 +12,11 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Completed
 
+Implementation detail for each item below (design decisions, function
+names, PR links) lives in `working-docs/implementation/` where noted --
+read the code/that doc for current state rather than this list, which
+is not kept in sync with post-ship changes.
+
 - [x] SPDX 3.0 SBOM generation (JSON-LD)
 - [x] Hatchling metadata extraction (`pyproject.toml`)
 - [x] Dependency tracking and SPDX relationship elements
@@ -25,66 +30,27 @@ SPDX-License-Identifier: CC0-1.0
 - [x] Metadata provenance tracking (per-field source attribution)
 - [x] CLI (`loom`) with verbose mode and creator info options
 - [x] Setuptools support -- initial implementation
-  - `read_setup_cfg()`, `read_setup_py()`, `read_setuptools()`,
-    `merge_metadata()`, `detect_build_backend()`
-    in `src/pitloom/extract/_setuptools.py`
-  - Conflict resolution: `pyproject.toml` > `setup.cfg` > `setup.py`
-  - CLI and `generate_project_sbom()` work without `pyproject.toml`
-  - `[tool:pitloom]` config section in `setup.cfg`
+  (`src/pitloom/extract/_setuptools.py`; `pyproject.toml` > `setup.cfg` >
+  `setup.py` conflict resolution)
 - [x] Poetry support -- initial implementation
-  - `read_poetry()`, `extract_poetry_metadata()`
-    in `src/pitloom/extract/_poetry.py`
-  - Reads `[tool.poetry]` and `[tool.poetry.dependencies]`
-  - `[tool.poetry.group.*]` dev/deploy dependency groups intentionally excluded
-  - Poetry version specifiers (`^`, `~`, bare versions) converted to PEP 440
-  - `read_pyproject()` falls back to `[tool.poetry]` when `[project]` is absent;
-    merges both sections when both are present (`[project]` wins field-by-field)
-- [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator` /
-  `Tool` dataclasses replace the old scalar `creator_name`/
-  `creation_tool` fields; `CreationMetadata.creators: list[Creator]` and
-  `.tools: list[Tool] | None` allow ≥1 Agents in `createdBy` and 0+
-  Tools in `createdUsing`, matching what SPDX 3 allows. CLI: repeatable
-  `--creator-name` (stateful -- `--creator-type`/`--creator-email` bind to
-  the most recently named creator) and repeatable `--creation-tool`.
-  Config: `[[tool.pitloom.creator]]` / `[[tool.pitloom.creation-tool]]`
-  array-of-tables in `pyproject.toml` (Poetry too); `setup.cfg` keeps
-  single-creator/-tool support only (INI can't express array-of-tables).
-  `suppliedBy` on the main package -- single-valued in SPDX 3 -- is set to
-  the first named creator. See
-  [creation-metadata.md](../../docs/creation-metadata.md).
+  (`src/pitloom/extract/_poetry.py`; `read_pyproject()` falls back to
+  `[tool.poetry]` when `[project]` is absent, merges both when present)
+- [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator`/
+  `Tool` dataclasses, repeatable `--creator-name`/`--creation-tool`,
+  array-of-tables config. See [creation-metadata.md](../../docs/creation-metadata.md).
 - [x] **SPDX license expression normalization and declared-vs-detected
-  conflict detection (G2)** -- compound SPDX license expressions
-  (`"MIT AND MIT"`, `"(MIT AND Apache-2.0) OR BSD-3-Clause"`) are parsed,
-  deduped, and canonically reordered via
-  [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license) (not
-  the `license-expression` library originally envisioned here), so a
-  casing difference or an equivalent-but-differently-written expression
-  is never misreported as a conflict. The project directory
-  (`CITATION.cff`, `codemeta.json`, `LICENSE` files) is independently
-  scanned even when a license is already declared, uniformly across all
-  four project-metadata extraction paths (CLI/library, Hatchling build
-  hook, poetry-only, setuptools-only). On genuine disagreement, both
-  `hasDeclaredLicense` and `hasConcludedLicense` are recorded alongside a
-  generic `provenance/conflict/1` Annotation (reusable for any field, not
-  license-specific). See
-  [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md).
-  ([PR #121](https://github.com/bact/pitloom/pull/121))
-  Remaining, narrower scope than "PEP 639 compliance" originally implied:
-  `[project.license-files]` (the glob-list field for bundling multiple
-  license files) is not specifically parsed.
+  conflict detection (G2)** -- via [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license).
+  Remaining, narrower scope: `[project.license-files]` (PEP 639 glob-list
+  for bundling multiple license files) not specifically parsed -- tracked
+  under Metadata quality below.
+  See [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)
+  ([PR #121](https://github.com/bact/pitloom/pull/121)).
 - [x] **Auto-sync the Loom ID registry after SBOM generation** -- `loom
   project`/`wheel`/`env` harvest newly-minted ids back into the resolved
-  registry after each run (`--update-registry`/`--no-update-registry`, on
-  by default), so a `project` -> `wheel` -> `env` pipeline keeps stable
-  spdxIds with no manual `pitloom ids generate`/`import` step in between.
-  `ai_AIPackage` and `dataset_DatasetPackage` are deliberately excluded --
-  see [Loom IDs across fragments](../../README.md#loom-ids-across-fragments-pitloom-ids).
-  Fixed along the way: `_add_package_files`'s registry lookup only tried
-  `physical_path`, so a src/-layout project (`physical_path` !=
-  `distribution_path`) never matched its own auto-harvested file entries --
-  now falls back to `distribution_path`
-  (`src/pitloom/assemble/spdx3/_document_files.py`). Open follow-ups: see
-  [AI model id stability](#ai-model-id-stability-follow-up-to-178) and
+  registry after each run. `ai_AIPackage`/`dataset_DatasetPackage`
+  deliberately excluded -- see
+  [Loom IDs across fragments](../../README.md#loom-ids-across-fragments-pitloom-ids).
+  Open follow-ups: [AI model id stability](#ai-model-id-stability-follow-up-to-178),
   [Sort-order canonicalization](#sort-order-canonicalization-follow-up-to-178)
   below. ([PR #178](https://github.com/bact/pitloom/pull/178))
 
@@ -98,22 +64,15 @@ full picture.
 
 - [x] **GitHub Action** (composite `action.yml`) -- generate an SBOM in CI
   with a single `uses:` line, for any Python project regardless of build
-  backend. Dogfooded on Pitloom itself in
-  `.github/workflows/action-selftest.yml`.
-  See [github-action.md](../implementation/github-action.md).
+  backend. See [github-action.md](../implementation/github-action.md).
 - [x] **AI-agent Skills** (`skills/sbom-generate/`, `skills/sbom-enrich/`,
-  `skills/sbom-validate/`) -- lets Claude Code, the Claude Agent SDK, or
-  similar runtimes generate an SBOM on request, optionally enrich it
-  (README/model-card inference contributed back as a provenance-marked
-  fragment), and validate any SPDX 3 document's schema/shape conformance.
-  Independently triggerable by natural language or explicit invocation.
+  `skills/sbom-validate/`) -- generate/enrich/validate an SBOM on
+  request from Claude Code, the Claude Agent SDK, or similar runtimes.
   See [agent-skill.md](../implementation/agent-skill.md) and
   [sbom-enrichment.md](sbom-enrichment.md).
 - [x] **Claude Code plugin** (`.claude-plugin/`) -- bundles all three
-  Skills under the `pitloom` plugin namespace so they install with
-  `/plugin install` directly from this repository, with namespaced
-  explicit invocation (`/pitloom:sbom-generate`, `/pitloom:sbom-enrich`,
-  `/pitloom:sbom-validate`). See
+  Skills under the `pitloom` plugin namespace (`/plugin install`,
+  `/pitloom:sbom-generate` etc). See
   [claude-code-plugin.md](../implementation/claude-code-plugin.md).
 - [ ] **Docker container action** (future) -- a `Dockerfile` +
   `action.yml` `using: docker` variant of the GitHub Action for hermetic
@@ -367,28 +326,13 @@ enough that new data could reorder them.
 - [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
   extras, development dependencies.
 - [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
-  -- MVP shipped: local README/model-card **YAML frontmatter** parsing
-  (`enrich/readme.py`, license + dataset gaps only, not prose), gated by
-  `[tool.pitloom] enrich` (**default off** -- opt-in until more
-  sources ship). Not to be confused with the agent-facing `sbom-enrich`
-  *Skill* above -- this is code-level, deterministic, non-agent. Also
-  what [use-case-catalog.md](../implementation/provenance/use-case-catalog.md)'s
-  N3 ("who/when enriched") needed to exist first -- now shipped too, see
-  its own entry there.
-  Exposed as a first-class capability across every generation surface,
-  not just `generate_model_sbom()`: a standalone `loom enrich`
-  CLI/`enrich_model()` API (writes a mergeable fragment, no full SBOM),
-  `--enrich`/`--no-enrich` on `loom model`/`loom project`/`loom generate`,
-  project-level enrichment for every AI model `loom project`/`loom
-  generate` discovers (previously silently skipped), automatic
-  inheritance in the Hatchling build hook, and a `enrich` input on the
-  GitHub Action. See [sbom-enrichment.md](sbom-enrichment.md)'s
-  "Surfaces" section.
-  Still not started: OpenSSF Scorecard (public API), Hugging Face Hub and
-  PyPI metadata (user opt-in), per-source enable/disable via additional
-  `[tool.pitloom]` enrich-related keys added when each lands (`enrich`
-  itself is a flat bool now, not a table -- a per-source toggle scheme
-  will need its own naming, decided when the first extra source ships).
+  -- MVP shipped: local README/model-card YAML frontmatter parsing,
+  gated by `[tool.pitloom] enrich` (default off). Code-level and
+  deterministic -- distinct from the agent-facing `sbom-enrich` Skill
+  above. Exposed across every generation surface (`loom enrich` CLI,
+  `--enrich`/`--no-enrich` flags, Hatchling build hook, GitHub Action
+  input). Still not started: OpenSSF Scorecard, Hugging Face Hub and
+  PyPI metadata sources, per-source enable/disable config.
   See [sbom-enrichment.md](sbom-enrichment.md).
 
 ## Medium-term
