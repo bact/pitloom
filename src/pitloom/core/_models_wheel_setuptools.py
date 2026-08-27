@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import tempfile
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -32,16 +32,16 @@ from typing import TYPE_CHECKING
 
 from pitloom.core._models_wheel_types import IncludedFile
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
-
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
     from setuptools.dist import Distribution
 
 log = logging.getLogger(__name__)
+
+# Serializes discovery calls that rely on the process-wide cwd (see
+# `_chdir`) -- concurrent `discover()` calls would otherwise race on
+# `os.chdir()`.
+_DISCOVERY_LOCK = threading.Lock()
 
 
 @contextmanager
@@ -57,18 +57,16 @@ def _chdir(project_dir: Path) -> Iterator[None]:
         os.chdir(original_cwd)
 
 
-def _has_setuptools_pyproject_config(pyproject_path: Path) -> bool:
-    """Whether *pyproject_path* declares static ``[tool.setuptools]``
-    config, as opposed to only ``[build-system]``."""
-    try:
-        with pyproject_path.open("rb") as handle:
-            data = tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError):
-        return False
-    return "setuptools" in data.get("tool", {})
+def _has_setuptools_pyproject_config(pyproject_data: dict[str, object]) -> bool:
+    """Whether the parsed ``pyproject.toml`` declares static
+    ``[tool.setuptools]`` config, as opposed to only ``[build-system]``."""
+    tool = pyproject_data.get("tool", {})
+    return isinstance(tool, dict) and "setuptools" in tool
 
 
-def _load_distribution(project_dir: Path) -> Distribution | None:
+def _load_distribution(
+    project_dir: Path, pyproject_data: dict[str, object] | None
+) -> Distribution | None:
     # pylint: disable=import-outside-toplevel
     from setuptools.config import pyprojecttoml, setupcfg
     from setuptools.dist import Distribution
@@ -79,7 +77,13 @@ def _load_distribution(project_dir: Path) -> Distribution | None:
     pyproject_path = project_dir / "pyproject.toml"
     setup_cfg_path = project_dir / "setup.cfg"
 
-    if pyproject_path.is_file() and _has_setuptools_pyproject_config(pyproject_path):
+    if pyproject_data is None and pyproject_path.is_file():
+        # pylint: disable-next=import-outside-toplevel
+        from pitloom.extract._setuptools import read_pyproject_toml
+
+        pyproject_data = read_pyproject_toml(project_dir)
+
+    if pyproject_data is not None and _has_setuptools_pyproject_config(pyproject_data):
         pyprojecttoml.apply_configuration(dist, str(pyproject_path))
         return dist
     if setup_cfg_path.is_file():
@@ -88,13 +92,21 @@ def _load_distribution(project_dir: Path) -> Distribution | None:
     return None
 
 
+def _distribution_path(package: str, filename: str) -> str:
+    """Build a wheel-relative distribution path for *filename* under
+    *package*, without a leading slash when *package* is the top-level
+    (empty) package -- e.g. top-level ``py_modules``/``package_data``."""
+    prefix = package.replace(".", "/")
+    return f"{prefix}/{filename}" if prefix else filename
+
+
 def _discover_module_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
     files: list[IncludedFile] = []
     # find_all_modules is inherited from distutils' build_py, which
     # types-setuptools doesn't stub.
     modules = build_py_cmd.find_all_modules()  # type: ignore[no-untyped-call]
     for package, _module, module_file in modules:
-        distribution_path = f"{package.replace('.', '/')}/{Path(module_file).name}"
+        distribution_path = _distribution_path(package, Path(module_file).name)
         files.append(
             IncludedFile(path=module_file, distribution_path=distribution_path)
         )
@@ -115,7 +127,7 @@ def _discover_data_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
         # pylint: disable-next=protected-access
         for package, src_dir, _build_dir, filenames in build_py_cmd._get_data_files():
             for filename in filenames:
-                distribution_path = f"{package.replace('.', '/')}/{filename}".replace(
+                distribution_path = _distribution_path(package, filename).replace(
                     "\\", "/"
                 )
                 physical_path = str(Path(src_dir, filename))
@@ -127,27 +139,45 @@ def _discover_data_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
         return files
 
 
-def discover(project_dir: Path) -> list[IncludedFile] | None:
+def _dedupe_by_distribution_path(files: list[IncludedFile]) -> list[IncludedFile]:
+    """Drop later entries that share a ``distribution_path`` with an
+    earlier one -- e.g. a ``package_data`` glob that also matches a
+    ``.py`` module already found by :func:`_discover_module_files`."""
+    seen: dict[str, IncludedFile] = {}
+    for included_file in files:
+        seen.setdefault(included_file.distribution_path, included_file)
+    return list(seen.values())
+
+
+def discover(
+    project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+) -> list[IncludedFile] | None:
     """Discover a setuptools wheel's file set from static config only.
 
     Returns ``None`` when there's no static ``[tool.setuptools]``/
     ``setup.cfg`` config to resolve from, or on any setuptools
     introspection failure -- both signal "fall back", not "found zero
     files".
+
+    *pyproject_data*, when given, is the already-parsed
+    ``pyproject.toml`` (see
+    :func:`pitloom.extract._setuptools.read_pyproject_toml`) -- pass it
+    when the caller already parsed the file, to avoid re-parsing it here.
     """
     # pylint: disable=import-outside-toplevel
     from setuptools.command.build_py import build_py
 
     try:
-        dist = _load_distribution(project_dir)
+        dist = _load_distribution(project_dir, pyproject_data)
         if dist is None:
             return None
 
-        with _chdir(project_dir):
+        with _DISCOVERY_LOCK, _chdir(project_dir):
             build_py_cmd = build_py(dist)
             build_py_cmd.finalize_options()
-            files = _discover_module_files(build_py_cmd) + _discover_data_files(
-                build_py_cmd
+            files = _dedupe_by_distribution_path(
+                _discover_module_files(build_py_cmd)
+                + _discover_data_files(build_py_cmd)
             )
             # Resolve to absolute paths while still inside project_dir --
             # matches Hatchling's IncludedFile.path contract ("the

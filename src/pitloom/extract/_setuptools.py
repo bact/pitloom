@@ -82,37 +82,68 @@ __all__ = [
     "_resolve_cfg_version",
     "_section_dict",
     "detect_build_backend",
+    "read_pyproject_toml",
     "read_setup_cfg",
     "read_setup_py",
     "read_setuptools",
 ]
 
 
-def detect_build_backend(project_dir: Path) -> str | None:
+def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
+    """Parse *project_dir*'s ``pyproject.toml``, or ``None`` if missing/invalid.
+
+    Callers that need more than one fact out of ``pyproject.toml`` (e.g.
+    the declared build backend and whether ``[tool.setuptools]`` is
+    present) should call this once and pass the result to
+    :func:`detect_build_backend` rather than each parsing the file
+    independently.
+    """
+    pyproject_path = project_dir / "pyproject.toml"
+    try:
+        with open(pyproject_path, "rb") as f:
+            return tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        log.debug("Failed to parse %s: %s", pyproject_path, exc)
+        return None
+
+
+def detect_build_backend(
+    project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+) -> str | None:
     """Detect the build backend declared in ``pyproject.toml``.
 
     Reads the ``[build-system] build-backend`` field and returns a
     lower-case identifier.  Falls back to ``"setuptools"`` when no
     ``pyproject.toml`` is present but ``setup.cfg`` or ``setup.py`` exists.
-    """
-    pyproject_path = project_dir / "pyproject.toml"
-    if not pyproject_path.exists():
-        if (project_dir / "setup.cfg").exists() or (project_dir / "setup.py").exists():
-            return "setuptools"
-        return None
 
-    try:
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-        build_backend: str = data.get("build-system", {}).get("build-backend", "")
-        for backend in ("setuptools", "hatchling", "flit", "poetry", "pdm"):
-            if backend in build_backend:
-                return backend
-        if build_backend:
-            return build_backend.split(".")[0].lower()
-    # pylint: disable=broad-exception-caught
-    except Exception as exc:
-        log.debug("Failed to detect build backend from %s: %s", pyproject_path, exc)
+    *pyproject_data*, when given, is used instead of re-reading and
+    re-parsing ``pyproject.toml`` -- pass the result of a prior
+    :func:`read_pyproject_toml` call when the caller already has one.
+    """
+    data = pyproject_data
+    if data is None:
+        pyproject_path = project_dir / "pyproject.toml"
+        if not pyproject_path.exists():
+            if (project_dir / "setup.cfg").exists() or (
+                project_dir / "setup.py"
+            ).exists():
+                return "setuptools"
+            return None
+        data = read_pyproject_toml(project_dir)
+        if data is None:
+            return None
+
+    build_system = data.get("build-system", {})
+    build_backend = ""
+    if isinstance(build_system, dict):
+        raw_backend = build_system.get("build-backend", "")
+        if isinstance(raw_backend, str):
+            build_backend = raw_backend
+    for backend in ("setuptools", "hatchling", "flit", "poetry", "pdm"):
+        if backend in build_backend:
+            return backend
+    if build_backend:
+        return build_backend.split(".")[0].lower()
     return None
 
 
