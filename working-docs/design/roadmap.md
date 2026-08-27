@@ -183,19 +183,20 @@ projects, implementation size, and reuse leverage across backends:
 | # | Backend | Track | Why this order |
 | :-- | :--- | :--- | :--- |
 | 1 | setuptools | A | Still the single most-installed backend, including plenty of legacy/established AI packages. Bounded but nontrivial effort (`packages.find`/`where`, `package_data`, `MANIFEST.in`). No reuse with anything else -- do it first because it's highest-value, not because it's cheap. |
-| 2 | `uv_build` | A | Explicitly designed to be Hatchling-like (zero-config, sensible defaults) -- almost certainly the cheapest Track A backend to add given `get_wheel_files()`'s existing Hatchling-shaped logic, and it's the fastest-growing default for new pure-Python projects on the back of `uv`'s adoption curve. High effort-to-value ratio. |
-| 3 | Poetry | A | Declarative `[tool.poetry]`/`packages`/`exclude` config, no build-time code execution to model. Pitloom already has a Poetry config reader (`src/pitloom/extract/_poetry.py`) to build on. Common in AI/ML research repos for reproducible environments. |
-| 4 | PDM-backend, Flit-core | A | Bundle together -- both are simple, PEP 621-native, declarative (Flit's default is literally "bundle whatever Git tracks"). Smaller install base than 1-3, but nearly free once the Track A discovery pattern exists from steps 1-3, and already share a metadata-extractor item ("PDM / Flit extractors" under Medium-term) worth doing in the same pass. |
-| 5 | Build-and-read fallback | (mechanism) | Not a backend -- the mechanism Track B requires. Medium effort, but the single highest-leverage item on this list: it's a prerequisite for all three Track B backends below, and a correctness safety net everywhere else. |
-| 6 | `maturin`, `scikit-build-core` | B | Tied -- both are surging in the AI/ML stack specifically (Rust-based tooling via PyO3 for `maturin`; CUDA/C++/Fortran extensions for `scikit-build-core`), both need exactly the build-and-read mechanism from step 5, and neither is meaningfully cheaper or more valuable than the other. |
+| 2 | Poetry | A | Declarative `[tool.poetry]`/`packages`/`exclude` config, no build-time code execution to model. Pitloom already has a Poetry config reader (`src/pitloom/extract/_poetry.py`) to build on. Common in AI/ML research repos for reproducible environments. Now the cheapest true rescan-based item on this list (see `uv_build` correction below). |
+| 3 | PDM-backend, Flit-core | A | Bundle together -- both are simple, PEP 621-native, declarative (Flit's default is literally "bundle whatever Git tracks"). Smaller install base than 1-2, but nearly free once the Track A discovery pattern exists from steps 1-2, and already share a metadata-extractor item ("PDM / Flit extractors" under Medium-term) worth doing in the same pass. |
+| 4 | Build-and-read fallback | (mechanism) | Not a backend -- the mechanism Track B requires. Moved up from its original slot (was 5): `uv_build` (next row) is now expected to consume this mechanism too, not just the three Track B backends, so it's a prerequisite for step 5 as well as steps 6-7. Medium effort, the single highest-leverage item on this list. |
+| 5 | `uv_build` | A (via build-and-read) | `uv_build` (PyPI package `uv_build`) is a thin PEP 517 shim that shells out to a compiled `uv-build` binary via subprocess, with no in-process introspection API comparable to Hatchling's `WheelBuilder`. No existing logic to adapt for a hand-rolled rescan, so the practical path is the build-and-read mechanism (step 4) rather than a Track A rescan, despite files existing pre-build in principle. Still the fastest-growing default for new pure-Python projects on `uv`'s adoption curve, so kept ahead of the Track B backends -- just moved behind the mechanism it now depends on, and behind the genuinely cheap Track A items (2-3). |
+| 6 | `maturin`, `scikit-build-core` | B | Tied -- both are surging in the AI/ML stack specifically (Rust-based tooling via PyO3 for `maturin`; CUDA/C++/Fortran extensions for `scikit-build-core`), both need exactly the build-and-read mechanism from step 4, and neither is meaningfully cheaper or more valuable than the other. |
 | 7 | `meson-python` | B | Same mechanism as step 6, but lower priority for Pitloom's own user base specifically: it's foundational to the AI/ML ecosystem (NumPy, SciPy) but those are far more often a Pitloom user's *dependency* than a project they're generating an SBOM for directly. |
 
 Caveat: the research behind this ranking (see the conversation this
 list came from) is qualitative, not install-count data -- re-validate
 popularity/AI-relevance claims against PyPI download stats or a
-dependency survey before treating the exact ordering as authoritative,
-especially for `uv_build` vs. Poetry vs. PDM/Flit-core, which are close
-enough that new data could reorder them.
+dependency survey before treating the exact ordering as authoritative.
+The `uv_build` correction above (2026-08-27) is a concrete example of
+this ranking shifting once real API/implementation research replaced
+the original qualitative assumption.
 
 ### Build backend improvements
 
