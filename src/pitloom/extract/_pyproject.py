@@ -370,8 +370,9 @@ def _read_version_from_file(file_path: Path) -> str | None:
     try:
         for line in file_path.read_text(encoding="utf-8").splitlines():
             if "__version__" in line and "=" in line:
-                # split(..., 1) on a line already confirmed to contain "="
-                # always yields exactly 2 parts.
+                # partition() on a line already confirmed to contain "="
+                # always finds the separator, so value is never the
+                # empty-string not-found case.
                 _, _, value = line.partition("=")
                 return value.strip().strip('"').strip("'")
     except (OSError, UnicodeDecodeError):
