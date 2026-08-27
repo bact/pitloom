@@ -24,13 +24,10 @@ and this project adheres to
 ### Added
 
 - Serialize every Annotation's `statement` via RFC 8785 (JSON
-  Canonicalization Scheme) instead of plain JSON, shrinking the output
-  and closing a spec-compliance gap
+  Canonicalization Scheme) ([#189])
 - Cap artifact-metadata `Annotation.statement` size via
   `[tool.pitloom.provenance] max-source-metadata-bytes` /
-  `--max-source-metadata-bytes`; truncates by dropping the largest
-  metadata keys first and marks the result with
-  `truncated`/`truncatedKeys`/`maxMetadataBytes`
+  `--max-source-metadata-bytes` ([#189])
 
 ### Changed
 
@@ -39,9 +36,13 @@ and this project adheres to
 ### Fixed
 
 - Prune two unreachable branches in `_setuptools_cfg.py` ([#188])
+- Only declare the `simpleLicensing` profile when a real license claim was
+  made ([#190])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188
+[#189]: https://github.com/bact/pitloom/pull/189
+[#190]: https://github.com/bact/pitloom/pull/190
 
 ## [0.16.4] - 2026-08-21
 
