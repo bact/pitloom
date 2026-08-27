@@ -168,7 +168,7 @@ def test_build_main_package_noassertion_license_when_undeclared() -> None:
     assert license_rels[0]["to"] == [noassertion["spdxId"]]
 
     spdx_docs = [e for e in graph if e.get("type") == "SpdxDocument"]
-    assert "simpleLicensing" in spdx_docs[0]["profileConformance"]
+    assert "simpleLicensing" not in spdx_docs[0]["profileConformance"]
 
 
 def test_generate_project_sbom_with_fragments() -> None:
