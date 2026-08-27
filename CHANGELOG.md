@@ -38,11 +38,13 @@ and this project adheres to
 - Prune two unreachable branches in `_setuptools_cfg.py` ([#188])
 - Only declare the `simpleLicensing` profile when a real license claim was
   made ([#190])
+- Prune two unreachable branches in `_pyproject.py` ([#195])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188
 [#189]: https://github.com/bact/pitloom/pull/189
 [#190]: https://github.com/bact/pitloom/pull/190
+[#195]: https://github.com/bact/pitloom/pull/195
 
 ## [0.16.4] - 2026-08-21
 

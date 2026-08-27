@@ -186,15 +186,15 @@ def _build_provenance(
 
     for field_key, source in _FIELD_PROVENANCE.items():
         if field_key == "license":
+            # license_prov_override, when truthy, always sets prov["license"]
+            # here -- nothing downstream can unset it, so no post-loop
+            # fallback is needed for that case.
             if license_prov_override:
                 prov["license"] = license_prov_override
             elif field_key in project_data:
                 prov["license"] = source
         elif field_key in project_data:
             prov[field_key] = source
-
-    if license_prov_override and "license" not in prov:
-        prov["license"] = license_prov_override
 
     if project_data.get("authors"):
         prov["copyright_text"] = (
@@ -370,9 +370,11 @@ def _read_version_from_file(file_path: Path) -> str | None:
     try:
         for line in file_path.read_text(encoding="utf-8").splitlines():
             if "__version__" in line and "=" in line:
-                parts = line.split("=", 1)
-                if len(parts) == 2:
-                    return parts[1].strip().strip('"').strip("'")
+                # partition() on a line already confirmed to contain "="
+                # always finds the separator, so value is never the
+                # empty-string not-found case.
+                _, _, value = line.partition("=")
+                return value.strip().strip('"').strip("'")
     except (OSError, UnicodeDecodeError):
         pass
     return None
