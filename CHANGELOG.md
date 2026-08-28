@@ -39,6 +39,12 @@ and this project adheres to
 - Reorganize Hugging Face tests ([#187])
 - Split `get_wheel_files()` into a per-backend discovery module + registry,
   ready for Poetry/PDM/Flit-core/`uv_build` ([#196])
+- **Setuptools projects**: the document UUID/spdxIds a Source SBOM gets are
+  content-addressed from the resolved file list, so they now differ from
+  SBOMs generated before this backend-aware fix (which used the less
+  accurate Hatchling heuristic) -- regenerate the base SBOM before merging
+  an enrichment fragment into a setuptools project's pre-upgrade SBOM
+  ([#196])
 
 ### Fixed
 
@@ -50,6 +56,10 @@ and this project adheres to
   distribution paths (e.g. `lib/pkg/...` instead of `pkg/...`) ([#196])
 - Unhandled build backends now log a warning instead of silently falling
   back to a possibly-inaccurate Hatchling-based file list ([#196])
+- `detect_build_backend()` now falls back for a malformed `pyproject.toml`,
+  not just an absent one ([#196])
+- Fix crash reading `pyproject.toml` with both an SPDX `license` string and
+  legacy classifiers ([#196])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188

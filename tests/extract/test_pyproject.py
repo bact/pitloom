@@ -13,6 +13,7 @@ behaviour, and test_hatch_hook_metadata.py for the Hatchling build-hook path.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,15 +21,17 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
-from pyproject_metadata import StandardMetadata
+from pyproject_metadata import ConfigurationError, StandardMetadata
 
 from pitloom.core._config_types import PitloomConfig
 from pitloom.extract._pyproject import (
     _build_provenance,
+    _drop_redundant_license_classifiers,
     _extract_and_detect_license,
     _extract_authors,
     _extract_dynamic_version,
     _extract_readme,
+    _is_license_classifier_conflict,
     _read_pyproject_fallback,
     _read_version_from_file,
     _resolve_license_hint,
@@ -121,6 +124,150 @@ def test_read_pyproject_invalid_metadata_raises_value_error() -> None:
 [project]
 name = "bad-version-pkg"
 version = "not-a-valid-version!!"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(content)
+        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+            read_pyproject(tmp_path / "pyproject.toml")
+
+
+# ---------------------------------------------------------------------------
+# read_pyproject -- PEP 639 SPDX-license/classifier transitional conflict
+# ---------------------------------------------------------------------------
+
+
+def test_read_pyproject_spdx_license_with_redundant_classifier_recovers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression, found validating against real PyPI packages (colorama,
+    redis-py, httpx, platformdirs, virtualenv all currently ship both): a
+    modern SPDX ``license`` string alongside a legacy ``License ::``
+    classifier is a hard error for ``pyproject-metadata``, but a common,
+    benign transitional state real projects are in mid-PEP-639-migration.
+    ``read_pyproject()`` must recover by dropping the redundant
+    classifier and keeping the SPDX expression -- with a ``WARNING:``,
+    not silently -- rather than failing the whole SBOM."""
+    content = """
+[project]
+name = "transitional-license-pkg"
+version = "1.0.0"
+license = "MIT"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+"""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(content)
+        with caplog.at_level(logging.WARNING):
+            metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+
+    assert metadata.name == "transitional-license-pkg"
+    assert metadata.license_name == "MIT"
+    assert "License ::" in caplog.text
+    assert "PEP 639 transitional state" in caplog.text
+
+
+def test_read_pyproject_retry_still_failing_raises_value_error() -> None:
+    """Regression: if the PEP 639 recovery retry itself still fails (a
+    genuinely unrecoverable error surfacing only on the second parse
+    attempt), it must still surface as ``ValueError`` -- not propagate
+    the raw underlying exception, and not be silently swallowed. Forces
+    this by patching ``_drop_redundant_license_classifiers`` to be a
+    no-op, so the retry hits the exact same classifier conflict again."""
+    content = """
+[project]
+name = "transitional-license-pkg"
+version = "1.0.0"
+license = "MIT"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
+"""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(content)
+        with patch(
+            "pitloom.extract._pyproject._drop_redundant_license_classifiers",
+            side_effect=lambda data: data,
+        ):
+            with pytest.raises(ValueError, match="Failed to parse project metadata"):
+                read_pyproject(tmp_path / "pyproject.toml")
+
+
+def test_drop_redundant_license_classifiers_ignores_non_list_classifiers() -> None:
+    """Defensive branch, not reachable through ``read_pyproject()`` itself
+    (pyproject-metadata's own ``validate()`` only raises the classifier-
+    conflict error this function recovers from when ``self.classifiers``
+    is already iterable-of-strings, so a genuinely non-list value never
+    gets this far in the real pipeline) -- exercised directly: a
+    malformed ``classifiers`` value is left untouched rather than
+    crashing the recovery path."""
+    data = {"project": {"name": "pkg", "classifiers": "not-a-list"}}
+    assert _drop_redundant_license_classifiers(data) == data
+
+
+def test_read_pyproject_non_configuration_error_still_raises() -> None:
+    """Regression: not every ``StandardMetadata.from_pyproject()``
+    failure is a ``ConfigurationError`` -- a malformed ``dynamic`` field
+    (a bare string instead of an array, a plausible real-world typo)
+    raises a raw ``AttributeError`` from inside pyproject-metadata. This
+    must still surface as ``ValueError``, via the sibling
+    ``except Exception`` clause, not propagate the raw exception."""
+    content = """
+[project]
+name = "bad-dynamic-pkg"
+version = "1.0.0"
+dynamic = "version"
+"""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(content)
+        with pytest.raises(ValueError, match="Failed to parse project metadata"):
+            read_pyproject(tmp_path / "pyproject.toml")
+
+
+def test_is_license_classifier_conflict_rejects_pre_spdx_metadata_version_error() -> (
+    None
+):
+    """Regression for a fragility documented but not directly exercised
+    elsewhere: pyproject-metadata raises ``ConfigurationError`` with
+    ``key == "project.license"`` for *two* distinct failures -- the
+    classifier conflict this module recovers from, and a separate error
+    for an SPDX license string paired with an explicit pre-2.4
+    ``metadata_version``. ``.key`` alone can't tell them apart, so
+    ``_is_license_classifier_conflict`` must also check the message.
+    This second case isn't reachable through ``read_pyproject()`` itself
+    (it never pins an explicit ``metadata_version``, and
+    ``auto_metadata_version`` always resolves to >= 2.4 when ``license``
+    is a string) -- exercised directly against ``StandardMetadata`` here
+    instead."""
+    with pytest.raises(ConfigurationError) as excinfo:
+        StandardMetadata.from_pyproject(
+            {"project": {"name": "pkg", "version": "1.0.0", "license": "MIT"}},
+            metadata_version="2.1",
+        )
+    exc = excinfo.value
+    assert exc.key == "project.license"
+    assert not _is_license_classifier_conflict(exc)
+
+
+def test_read_pyproject_genuine_license_error_still_raises() -> None:
+    """A ``project.license``-adjacent failure unrelated to the
+    classifier-conflict case (here: ``license-files`` combined with the
+    legacy dict-style ``license = {text = ...}``, a different
+    ``pyproject-metadata`` validation error with a different key) must
+    still surface as ``ValueError`` -- the transitional-state recovery
+    must not swallow every license-related error, only the one specific,
+    narrow case it's scoped to."""
+    content = """
+[project]
+name = "bad-license-pkg"
+version = "1.0.0"
+license = {text = "MIT"}
+license-files = ["LICENSE"]
 """
     with tempfile.TemporaryDirectory() as d:
         tmp_path = Path(d)

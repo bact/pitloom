@@ -65,6 +65,40 @@ def test_get_wheel_files_dispatches_setuptools_backend_to_its_module(
     assert [f.distribution_path for f in files] == ["pkg/a.py"]
 
 
+def test_get_wheel_files_sorts_files_regardless_of_discovery_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: the returned file list must be sorted by
+    distribution_path even when the backend discoverer returns files in
+    a different (e.g. filesystem-enumeration-dependent, unsorted) order
+    -- both runs of "the same project" must produce a bit-for-bit
+    identical SBOM regardless of discovery order."""
+    _make_backend_project(tmp_path, "setuptools.build_meta")
+    (tmp_path / "z.py").write_text("z = 1\n", encoding="utf-8")
+    (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
+    (tmp_path / "m.py").write_text("m = 1\n", encoding="utf-8")
+
+    def _unsorted_discover(
+        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile]:
+        del pyproject_data
+        # Deliberately not alphabetical -- a discoverer is not expected
+        # to sort its own output; get_wheel_files() must do it.
+        return [
+            IncludedFile(path=str(project_dir / "z.py"), distribution_path="z.py"),
+            IncludedFile(path=str(project_dir / "a.py"), distribution_path="a.py"),
+            IncludedFile(path=str(project_dir / "m.py"), distribution_path="m.py"),
+        ]
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover", _unsorted_discover
+    )
+
+    _root, files = get_wheel_files(tmp_path)
+
+    assert [f.distribution_path for f in files] == ["a.py", "m.py", "z.py"]
+
+
 def test_get_wheel_files_setuptools_no_static_config_falls_back_with_warning(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -107,7 +141,37 @@ def test_get_wheel_files_setuptools_no_pyproject_skips_doomed_hatchling_attempt(
 
     assert root is None
     assert not files
-    assert "no pyproject.toml present" in caplog.text
+    assert "no [project] table present" in caplog.text
+    assert "Hatchling" not in caplog.text
+
+
+def test_get_wheel_files_setuptools_build_system_only_skips_doomed_hatchling_attempt(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: a pyproject.toml with only [build-system] (metadata
+    and packages both declared imperatively in setup.py -- e.g. real-world
+    certifi) is *also* guaranteed to fail Hatchling's own discovery (it
+    requires a [project] table), same as no pyproject.toml at all --
+    the file-existence-only check previously missed this case, producing
+    a redundant, confusing "Hatchling"-branded error on top of the
+    setuptools warning."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "setup.py").write_text(
+        'from setuptools import setup\nsetup(name="pkg", version="1.0.0")\n',
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        root, files = get_wheel_files(tmp_path)
+
+    assert root is None
+    assert not files
+    assert "no [project] table present" in caplog.text
     assert "Hatchling" not in caplog.text
 
 

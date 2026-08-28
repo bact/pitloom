@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import zipfile
 from pathlib import Path
 
 from pitloom.core.project import PhantomDependency, ProjectFile
@@ -71,51 +69,5 @@ def find_phantom_dependencies(files: list[ProjectFile]) -> list[PhantomDependenc
                     version=None,
                 )
             )
-
-    return phantom_deps
-
-
-def extract_phantom_dependencies(wheel_path: Path | str) -> list[PhantomDependency]:
-    """Extract a list of bundled phantom dependencies from a wheel file.
-
-    Args:
-        wheel_path: Path to the .whl file to analyze.
-
-    Returns:
-        List of PhantomDependency objects.
-    """
-    phantom_deps: list[PhantomDependency] = []
-
-    with zipfile.ZipFile(wheel_path, "r") as zf:
-        for info in zf.infolist():
-            if info.is_dir():
-                continue
-
-            if _is_phantom_binary(info.filename):
-                # Calculate SHA-256 digest
-                hasher = hashlib.sha256()
-                with zf.open(info) as f:
-                    while chunk := f.read(8192):
-                        hasher.update(chunk)
-
-                digest = hasher.hexdigest()
-
-                # Derive a plausible name from the filename, e.g.
-                # libz-1.2.11.so -> name: libz. pathlib.Path.stem only
-                # strips the last extension, so a multi-dot name like
-                # libz.so.1.2 won't fully reduce to "libz" -- acceptable
-                # for a heuristic.
-                name = Path(info.filename).stem
-
-                phantom_deps.append(
-                    PhantomDependency(
-                        name=name,
-                        file_path=info.filename,
-                        digest_sha256=digest,
-                        # A version is not reliably parseable from the
-                        # filename across ecosystems, so it is left unset.
-                        version=None,
-                    )
-                )
 
     return phantom_deps

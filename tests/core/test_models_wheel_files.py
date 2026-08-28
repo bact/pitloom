@@ -407,3 +407,22 @@ def test_get_wheel_files_empty_and_external_path(
     assert len(files) == 1
     assert files[0].distribution_path == "pkg/external.py"
     assert files[0].physical_path == ext_file.as_posix()
+
+
+def test_get_wheel_files_returns_none_on_unexpected_discovery_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: any unexpected failure while discovering/hashing files
+    (a backend discoverer bug, a file that errors mid-read, etc.) must
+    not propagate out of get_wheel_files() -- it returns ``(None, [])``
+    rather than crashing the whole SBOM generation."""
+
+    def _broken_discover(_project_dir: Path) -> list[object]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel._discover_included_files", _broken_discover
+    )
+    root, files = get_wheel_files(tmp_path)
+    assert root is None
+    assert files == []

@@ -119,6 +119,17 @@ def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
         return None
 
 
+def _detect_setuptools_from_legacy_files(project_dir: Path) -> str | None:
+    """``"setuptools"`` when *project_dir* has a ``setup.cfg``/``setup.py``
+    to back it up, else ``None`` -- the shared fallback for every case
+    where no ``build-backend`` value is resolvable from ``pyproject.toml``
+    (absent, unparseable, or present but without a ``build-backend``
+    key)."""
+    if (project_dir / "setup.cfg").exists() or (project_dir / "setup.py").exists():
+        return "setuptools"
+    return None
+
+
 def detect_build_backend(
     project_dir: Path, *, pyproject_data: dict[str, object] | None = None
 ) -> str | None:
@@ -128,9 +139,12 @@ def detect_build_backend(
     lower-case identifier, matched on its top-level module name (the
     part before the first ``.``/``:``) -- not a substring match, so a
     backend like ``"my_setuptools_shim.api"`` is never misdetected as
-    ``"setuptools"``. Falls back to ``"setuptools"`` when no
-    ``pyproject.toml`` is present but ``setup.cfg`` or ``setup.py``
-    exists.
+    ``"setuptools"``. Falls back to ``"setuptools"`` when ``setup.cfg``
+    or ``setup.py`` exists and no ``build-backend`` value is resolvable
+    -- because ``pyproject.toml`` is entirely absent, because it exists
+    but is unparseable, or because it exists but has no
+    ``build-backend`` key (a legacy PEP 518-only ``[build-system]``
+    declaration, which is still a real setuptools project).
 
     *pyproject_data*, when given, is used instead of re-reading and
     re-parsing ``pyproject.toml`` -- pass the result of a prior
@@ -140,14 +154,10 @@ def detect_build_backend(
     data = pyproject_data
     if data is None:
         if not pyproject_path.exists():
-            if (project_dir / "setup.cfg").exists() or (
-                project_dir / "setup.py"
-            ).exists():
-                return "setuptools"
-            return None
+            return _detect_setuptools_from_legacy_files(project_dir)
         data = read_pyproject_toml(project_dir)
         if data is None:
-            return None
+            return _detect_setuptools_from_legacy_files(project_dir)
 
     build_system = data.get("build-system", {})
     build_backend = ""
@@ -156,7 +166,10 @@ def detect_build_backend(
         if isinstance(raw_backend, str):
             build_backend = raw_backend
     if not build_backend:
-        return None
+        # PEP 518-only pyproject.toml (no build-backend key) -- still a
+        # real setuptools project if setup.cfg/setup.py back it up, same
+        # fallback as when pyproject.toml is absent entirely.
+        return _detect_setuptools_from_legacy_files(project_dir)
     top_level = build_backend.split(":")[0].split(".")[0].lower()
     return _KNOWN_BACKEND_ALIASES.get(top_level, top_level)
 
@@ -197,7 +210,9 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     elif cfg_metadata is not None:
         metadata = cfg_metadata
     else:
-        if py_metadata is None:
+        if py_metadata is None:  # pragma: no cover
+            # Type-narrowing only: the guard above already proved that
+            # when cfg_metadata is None, py_metadata cannot also be None.
             raise RuntimeError("unreachable: py_metadata must be set here")
         metadata = py_metadata
         cfg_config = PitloomConfig()

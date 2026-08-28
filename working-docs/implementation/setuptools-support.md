@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-08-27
+Last-Modified: 2026-08-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -112,9 +112,9 @@ setup(
 
 ```python
 setup(
-    version=get_version(),      # ✗ function call
-    name=PKG_NAME,              # ✗ variable
-    install_requires=REQS,      # ✗ variable
+    version=get_version(),  # ✗ function call
+    name=PKG_NAME,  # ✗ variable
+    install_requires=REQS,  # ✗ variable
 )
 ```
 
@@ -187,14 +187,19 @@ artifact is left behind).
 **No static config at all** -- a `pyproject.toml` with only
 `[build-system]` (no `[project]`, no `[tool.setuptools]`) and no
 `setup.cfg`, meaning packages/data files are only resolvable by
-executing an imperative `setup.py` -- returns `None`, same "out of
-scope" boundary as `read_setup_py`'s literal-only AST parsing above --
-the facade then falls back to the Hatchling-based heuristic with a
-logged warning, same as any other backend without a dedicated
-discovery module. Files resolved from static config are also
-deduplicated by distribution path (a `package_data` glob can overlap a
-`.py` module already found by module discovery); each output entry is
-unique.
+executing an imperative `setup.py` -- returns `None` from this module,
+same "out of scope" boundary as `read_setup_py`'s literal-only AST
+parsing above. At the facade level (`_models_wheel.py`), when the
+`pyproject.toml` also has no `[project]` table at all (missing,
+unparseable, or `[build-system]`-only), Hatchling's own discovery is
+guaranteed to fail the same way, so the facade returns an empty file
+list directly with a logged warning -- it never attempts the
+Hatchling-branded heuristic for this case. Only a project whose
+`pyproject.toml` *does* have a `[project]` table falls back to the
+Hatchling-based heuristic when this module's own static config can't
+be resolved. Files resolved from static config are also deduplicated
+by distribution path (a `package_data` glob can overlap a `.py` module
+already found by module discovery); each output entry is unique.
 
 **Fixes the exact bug from `working-docs/design/roadmap.md`'s
 "Non-Hatchling file discovery" item**: a `where = ["lib"]`-style
@@ -273,8 +278,17 @@ in `setup.cfg`.
 | `attr:` with complex paths | Only `module.ATTR` (two-part) is resolved; deeper paths (e.g., `pkg.sub.module.ATTR`) fall back to `None`. |
 | Multiple authors in `setup.cfg` | `author` / `author_email` yield at most one entry; setuptools supports comma-separated lists but pitloom does not yet parse them. |
 | Optional / extras dependencies | `[options.extras_require]` is not extracted. |
-| Wheel file discovery, no static config | A setuptools project with no `[project]`/`[tool.setuptools]` in `pyproject.toml` and no `setup.cfg` (packages only resolvable via imperative `setup.py`) falls back to the Hatchling-based heuristic (logged warning) -- same static-only boundary as metadata extraction. |
+| Wheel file discovery, no static config | A setuptools project with no `[project]`/`[tool.setuptools]` in `pyproject.toml` and no `setup.cfg` (packages only resolvable via imperative `setup.py`) returns an empty file list -- the facade skips the Hatchling-based heuristic entirely for this case (logged warning), since it's guaranteed to fail Hatchling's own discovery too; same static-only boundary as metadata extraction. |
 | Build-time dynamic metadata | `version` set via Git tags, `importlib.metadata`, or other runtime mechanisms is not resolved statically.  See [working-docs/design/metadata-sources.md](../design/metadata-sources.md) for the planned PEP 517 approach. |
+| Wheel file discovery, `setup.py` overrides packaging imperatively | A project can look statically resolvable (a `setup.cfg`/zero-config auto-discovery finds *something*) while its real `setup.py` also passes `packages`/`package_data`/etc. imperatively -- silently dropping files (real-world boto3) or including spurious ones (real-world cffi's implicit-namespace-package guess for a non-package `src/c/` dir). Neither is fixable without executing `setup.py` (out of scope), so `discover()` AST-scans `setup.py` for these argument names and logs a `WARNING:` when present, rather than staying silent. See [backend-file-discovery-validation.md](backend-file-discovery-validation.md#findings). |
+
+## Real-world validation
+
+`discover()` is checked against real PyPI packages, not just the
+synthetic fixtures under `tests/fixtures/projects/` -- method, the
+current 10-package results, and findings now live in
+[backend-file-discovery-validation.md](backend-file-discovery-validation.md)
+(shared with the Hatchling backend's own validation).
 
 ## Planned enhancements
 

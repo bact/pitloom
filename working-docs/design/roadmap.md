@@ -151,6 +151,13 @@ are named as "also in the plan" without a committed version yet.
   backend-aware file-discovery layer (dispatch on the declared
   `build-backend`) rather than always defaulting to Hatchling's own
   heuristics.
+  **Real-world validation policy:** every backend's `discover()` (this
+  one and Hatchling's) is checked against at least 10 diverse real
+  PyPI packages -- not just synthetic fixtures -- before being
+  considered production-ready; see
+  [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
+  for the method and the setuptools/Hatchling results so far. Apply the
+  same bar to each backend below as it's implemented.
 
 #### Backend priority
 
@@ -335,6 +342,11 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   with dataset references; emit SPDX 3 relationship types (`trainedOn`,
   `testedOn`, `finetunedOn`, `validatedOn`, `pretrainedOn`).
   See [sbom-enrichment.md](sbom-enrichment.md).
+- [ ] **Croissant dataset size calculation** -- `dataset_DatasetSize` is
+  currently always `0` (see `_extract_croissant_core_fields()` in
+  `_croissant.py`); needs real logic summing `cr:totalItems` across
+  `cr:recordSet` entries (and handling the string-vs-int value variance
+  seen in real Croissant files).
 
 ### Metadata quality
 

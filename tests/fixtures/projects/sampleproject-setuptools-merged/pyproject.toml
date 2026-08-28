@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Contributes [tool.setuptools.package-data] -- packages/package_dir
+# come from setup.cfg instead (see setup.cfg in this directory).
+# Proves wheel file discovery consults both files together, not
+# mutually exclusively: the resolved file list only comes out right
+# when setup.cfg's packages AND this file's package-data are both
+# applied to the same Distribution.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sampleproject-setuptools-merged"
+version = "0.1.0"
+description = "A minimal sample project exercising setup.cfg + pyproject.toml merge."
+
+[tool.setuptools.package-data]
+sampleproject_setuptools_merged = ["*.txt"]

@@ -23,8 +23,10 @@ See also: :mod:`pitloom.core._models_wheel` (dispatch facade),
 
 from __future__ import annotations
 
+import ast
 import logging
 import os
+import sys
 import tempfile
 import threading
 from collections.abc import Iterator
@@ -39,6 +41,27 @@ if TYPE_CHECKING:
     from setuptools.dist import Distribution
 
 log = logging.getLogger(__name__)
+
+# setup() keyword arguments that decide which files end up in the
+# wheel. Static config (pyproject.toml/setup.cfg) can resolve a
+# Distribution without ever inspecting setup.py -- but if setup.py
+# *also* passes one of these imperatively (a plain literal, a
+# find_packages() call, anything), it silently takes precedence in a
+# real build. discover() never executes setup.py (see the module
+# docstring), so it has no way to know the real value; the best it can
+# do is warn that the statically-resolved file list may be incomplete
+# or wrong.
+_IMPERATIVE_PACKAGING_KWARGS = frozenset(
+    {
+        "packages",
+        "py_modules",
+        "package_dir",
+        "package_data",
+        "include_package_data",
+        "exclude_package_data",
+        "data_files",
+    }
+)
 
 # Serializes concurrent calls to this module's own `discover()` against
 # each other, so they don't race on `_chdir`'s process-wide `os.chdir()`.
@@ -61,6 +84,39 @@ def _chdir(project_dir: Path) -> Iterator[None]:
         yield
     finally:
         os.chdir(original_cwd)
+
+
+@contextmanager
+def _isolated_sys_modules(project_dir: Path) -> Iterator[None]:
+    """``[tool.setuptools.dynamic]``/``attr:`` resolution can fall back to
+    importing the target project's own module (when static AST-based
+    reading of the value fails), caching it in the process-global
+    ``sys.modules`` by module name only -- not by file path. Remove any
+    module newly imported *from beneath project_dir* during the wrapped
+    block once it's done, so a later ``discover()`` call for a
+    *different* project with a same-named module doesn't silently reuse
+    this project's cached module instead of importing its own. A module
+    imported as a side effect from outside *project_dir* (a third-party
+    dependency pulled in transitively) is left in place -- evicting it
+    has no benefit specific to this project and risks breaking a module
+    that isn't safe to import twice in one interpreter (some C
+    extensions)."""
+    before = set(sys.modules)
+    try:
+        yield
+    finally:
+        resolved_project_dir = project_dir.resolve()
+        for name in set(sys.modules) - before:
+            module = sys.modules.get(name)
+            module_file = getattr(module, "__file__", None)
+            if module_file is None:
+                continue
+            try:
+                in_project = resolved_project_dir in Path(module_file).resolve().parents
+            except (OSError, RuntimeError, ValueError):
+                in_project = False
+            if in_project:
+                del sys.modules[name]
 
 
 def _has_resolvable_pyproject_config(pyproject_data: dict[str, object]) -> bool:
@@ -126,6 +182,22 @@ def _load_distribution(
         setupcfg.apply_configuration(dist, str(setup_cfg_path))
     if has_pyproject:
         pyprojecttoml.apply_configuration(dist, str(pyproject_path))
+
+    # apply_configuration() only applies what's explicitly declared --
+    # setuptools' zero-config auto-discovery (flat-layout/src-layout
+    # package detection for a project with no `packages`/`py_modules`
+    # anywhere) is a *separate* mechanism, normally triggered by
+    # Distribution.run_command() before running a real command. Since
+    # discover() never runs a real command, it must be triggered
+    # explicitly here, or a genuine zero-config PEP 621 project (no
+    # `[tool.setuptools]` at all) resolves to no packages -- an empty
+    # file list, not the "fall back to Hatchling" `None` this module
+    # returns for a project with no config at all, so this must run
+    # before returning a Distribution as "resolvable".
+    # set_defaults is a ConfigDiscovery instance assigned in
+    # Distribution.__init__, not a class-level attribute -- types-setuptools
+    # doesn't stub it.
+    dist.set_defaults()  # type: ignore[attr-defined]
     return dist
 
 
@@ -188,6 +260,61 @@ def _dedupe_by_distribution_path(files: list[IncludedFile]) -> list[IncludedFile
     return list(seen.values())
 
 
+def _setup_py_packaging_kwargs(setup_py_path: Path) -> list[str]:
+    """Names of :data:`_IMPERATIVE_PACKAGING_KWARGS` passed to any
+    ``setup()``/``setuptools.setup()``-named call found in
+    *setup_py_path*, regardless of whether the value itself is a static
+    literal -- unlike metadata extraction, this only needs to know a
+    packaging-relevant argument was passed at all, not its value. Every
+    matching call is inspected, not just the first, so an unrelated
+    ``.setup()``-named call earlier in the file (e.g. ``logger.setup()``)
+    can't hide the real one. A ``**kwargs`` unpack in a matching call's
+    argument list is itself reported (as the literal string
+    ``"**kwargs"``) since its contents can't be inspected statically and
+    may hide a packaging-relevant argument. An empty list means no
+    ``setup.py``, no ``setup()``-named call, or none of these arguments
+    (or an unpack) present; never raises (a ``setup.py`` this module
+    can't even parse is not this function's problem to report)."""
+    # pylint: disable-next=import-outside-toplevel
+    from pitloom.extract._setuptools_py import iter_setup_calls
+
+    try:
+        tree = ast.parse(
+            setup_py_path.read_text(encoding="utf-8"), filename=str(setup_py_path)
+        )
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return []
+    found: set[str] = set()
+    for node in iter_setup_calls(tree):
+        for kw in node.keywords:
+            if kw.arg is None:
+                found.add("**kwargs")
+            elif kw.arg in _IMPERATIVE_PACKAGING_KWARGS:
+                found.add(kw.arg)
+    return sorted(found)
+
+
+def _warn_if_setup_py_overrides_packaging(project_dir: Path) -> None:
+    """Log a warning when *project_dir*'s ``setup.py`` passes any
+    file-selection argument imperatively. Static config can still
+    resolve *a* file list in this case (so :func:`discover` returns it,
+    not ``None``) -- but since ``setup.py`` is never executed, that list
+    may be silently incomplete or wrong relative to what a real build
+    would produce, and there is no way to tell without running it."""
+    setup_py_path = project_dir / "setup.py"
+    if not setup_py_path.is_file():
+        return
+    imperative_kwargs = _setup_py_packaging_kwargs(setup_py_path)
+    if imperative_kwargs:
+        log.warning(
+            "%s's setup.py passes %s imperatively -- the file list "
+            "resolved statically from pyproject.toml/setup.cfg alone "
+            "may be incomplete or inaccurate for this project",
+            project_dir,
+            ", ".join(imperative_kwargs),
+        )
+
+
 def discover(
     project_dir: Path, *, pyproject_data: dict[str, object] | None = None
 ) -> list[IncludedFile] | None:
@@ -206,9 +333,13 @@ def discover(
     # pylint: disable=import-outside-toplevel
     from setuptools.command.build_py import build_py
 
+    # pylint: disable-next=import-outside-toplevel
+    from setuptools.errors import PackageDiscoveryError
+
     try:
         with _DISCOVERY_LOCK, _chdir(project_dir):
-            dist = _load_distribution(project_dir, pyproject_data)
+            with _isolated_sys_modules(project_dir):
+                dist = _load_distribution(project_dir, pyproject_data)
             if dist is None:
                 return None
 
@@ -218,6 +349,7 @@ def discover(
                 _discover_module_files(build_py_cmd)
                 + _discover_data_files(build_py_cmd)
             )
+            _warn_if_setup_py_overrides_packaging(project_dir)
             # Resolve to absolute paths while still inside project_dir --
             # matches Hatchling's IncludedFile.path contract ("the
             # absolute path"), since the caller reads these after this
@@ -229,6 +361,16 @@ def discover(
                 )
                 for f in files
             ]
+    except PackageDiscoveryError as exc:
+        log.warning(
+            "%s: setuptools could not auto-discover packages unambiguously "
+            "(%s) -- specify `packages`/`py_modules` explicitly in "
+            "pyproject.toml or setup.cfg; falling back to Hatchling-based "
+            "heuristic",
+            project_dir,
+            exc,
+        )
+        return None
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning("Setuptools file discovery failed for %s: %s", project_dir, exc)

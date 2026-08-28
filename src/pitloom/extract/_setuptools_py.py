@@ -12,11 +12,30 @@ and :mod:`pitloom.extract._setuptools` (facade).
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+
+
+def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
+    """Yield every ``setup()``/``x.setup()``-named call in *tree*, in
+    ``ast.walk`` order -- matched on the callable's own name only (bound
+    to any object, e.g. ``setuptools.setup``), not on where it's
+    imported from. A caller that only wants the real setuptools call
+    among several matches (e.g. an unrelated ``logger.setup()`` earlier
+    in the file) must inspect the yielded calls itself; this generator
+    makes no such distinction."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if (isinstance(func, ast.Name) and func.id == "setup") or (
+            isinstance(func, ast.Attribute) and func.attr == "setup"
+        ):
+            yield node
 
 
 def _ast_literal(node: ast.expr) -> Any:
@@ -50,23 +69,16 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     Returns the first matching call's kwargs as a dict.  Non-literal values
     (variables, function calls) are omitted from the result.
     """
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        is_setup_call = (isinstance(func, ast.Name) and func.id == "setup") or (
-            isinstance(func, ast.Attribute) and func.attr == "setup"
-        )
-        if not is_setup_call:
-            continue
-        kwargs: dict[str, Any] = {}
-        for kw in node.keywords:
-            if kw.arg is not None:  # skip **expansion
-                value = _ast_literal(kw.value)
-                if value is not None:
-                    kwargs[kw.arg] = value
-        return kwargs
-    return {}
+    node = next(iter_setup_calls(tree), None)
+    if node is None:
+        return {}
+    kwargs: dict[str, Any] = {}
+    for kw in node.keywords:
+        if kw.arg is not None:  # skip **expansion
+            value = _ast_literal(kw.value)
+            if value is not None:
+                kwargs[kw.arg] = value
+    return kwargs
 
 
 def _parse_setup_keywords(kwargs: dict[str, Any]) -> list[str]:

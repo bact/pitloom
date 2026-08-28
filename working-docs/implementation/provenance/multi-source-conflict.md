@@ -80,12 +80,14 @@ with; now the independent scan always runs alongside it.
 
 `resolve_license_concluded` (also in `_license.py`) is the single, shared
 G2 entry point every project-metadata extractor calls — not just
-`_pyproject.py`'s `[project]` path. It exists because the four extraction
+`_pyproject.py`'s `[project]` path. It exists because the extraction
 paths (CLI's [`_pyproject.py`](../../../src/pitloom/extract/_pyproject.py)
-`read_pyproject`, the [`hatchling.py`](../../../src/pitloom/extract/hatchling.py)
-build-hook path, the poetry-only
-[`_poetry.py`](../../../src/pitloom/extract/_poetry.py) `read_poetry`, and the
-setuptools-only [`_setuptools.py`](../../../src/pitloom/extract/_setuptools.py)
+`read_pyproject` -- including its poetry-only fallback through
+[`_poetry.py`](../../../src/pitloom/extract/_poetry.py)
+`extract_poetry_metadata` -- the
+[`hatchling.py`](../../../src/pitloom/extract/hatchling.py) build-hook
+path, and the setuptools-only
+[`_setuptools.py`](../../../src/pitloom/extract/_setuptools.py)
 `read_setuptools`) were each written and evolving independently. G2 first
 shipped wired only into the CLI path; a later review found the Hatchling
 build hook called `detect_license_for_project` directly and never ran the

@@ -5,16 +5,8 @@
 
 """Tests for pitloom.extract.binary phantom-dependency detection."""
 
-import hashlib
-import zipfile
-from pathlib import Path
-
 from pitloom.core.project import ProjectFile
-from pitloom.extract.binary import (
-    _is_phantom_binary,
-    extract_phantom_dependencies,
-    find_phantom_dependencies,
-)
+from pitloom.extract.binary import _is_phantom_binary, find_phantom_dependencies
 
 
 def test_libs_directory_so_is_detected() -> None:
@@ -53,15 +45,6 @@ def test_non_binary_file_is_not_detected() -> None:
     assert _is_phantom_binary("mypkg/__init__.py") is False
 
 
-def _make_wheel_with_bundled_binary(tmp_path: Path) -> Path:
-    """Build a minimal .whl containing one auditwheel-style bundled .so."""
-    wheel_path = tmp_path / "pkg-1.0.0-py3-none-any.whl"
-    with zipfile.ZipFile(wheel_path, "w") as zf:
-        zf.writestr("pkg/__init__.py", "")
-        zf.writestr("pkg.libs/libfoo-abc123.so", b"\x7fELF fake binary content")
-    return wheel_path
-
-
 def test_find_phantom_dependencies_from_project_files() -> None:
     """find_phantom_dependencies() picks out only the bundled binary among a
     mix of ProjectFile entries."""
@@ -84,36 +67,3 @@ def test_find_phantom_dependencies_from_project_files() -> None:
     assert phantom_deps[0].name == "libfoo-abc123"
     assert phantom_deps[0].file_path == "pkg.libs/libfoo-abc123.so"
     assert phantom_deps[0].digest_sha256 == "b" * 64
-
-
-def test_extract_phantom_dependencies_end_to_end(tmp_path: Path) -> None:
-    """extract_phantom_dependencies() finds a bundled .libs/*.so inside a
-    real wheel zip and computes its SHA-256 digest."""
-    wheel_path = _make_wheel_with_bundled_binary(tmp_path)
-
-    phantom_deps = extract_phantom_dependencies(wheel_path)
-
-    assert len(phantom_deps) == 1
-    dep = phantom_deps[0]
-    assert dep.name == "libfoo-abc123"
-    assert dep.file_path == "pkg.libs/libfoo-abc123.so"
-    assert dep.version is None
-
-    expected_digest = hashlib.sha256(b"\x7fELF fake binary content").hexdigest()
-    assert dep.digest_sha256 == expected_digest
-
-
-def test_extract_phantom_dependencies_with_directory_entry(tmp_path: Path) -> None:
-    """extract_phantom_dependencies skips directory entries inside the wheel zip."""
-    wheel_path = tmp_path / "test_dir_entries-1.0-py3-none-any.whl"
-    with zipfile.ZipFile(wheel_path, "w") as zf:
-        zf.writestr("test_pkg/", "")
-        zf.writestr("test_pkg/module.py", "print('hello')\n")
-        zf.writestr("test_pkg/extension.pyd", b"fake pyd binary")
-        zf.writestr("test_pkg.libs/", "")
-        zf.writestr("test_pkg.libs/libbar.so", b"\x7fELF shared lib")
-
-    deps = extract_phantom_dependencies(wheel_path)
-    assert len(deps) == 1
-    assert deps[0].name == "libbar"
-    assert deps[0].file_path == "test_pkg.libs/libbar.so"

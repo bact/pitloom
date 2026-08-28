@@ -29,16 +29,14 @@ under `[tool.poetry]`.  Issue [#64].
 
 ## Extraction functions
 
-### `read_poetry(pyproject_path)`
-
-Public entry point.  Reads `pyproject.toml` from disk, extracts metadata from
-`[tool.poetry]`, and returns `(ProjectMetadata, PitloomConfig)`.
-`[tool.pitloom]` is still honoured for Pitloom-specific settings.
-
 ### `extract_poetry_metadata(data, project_dir)`
 
-Internal helper called by `read_pyproject()` to avoid reading the file twice.
-Accepts the pre-parsed TOML dict and returns only `ProjectMetadata`.
+The only entry point.  Accepts the pre-parsed TOML dict and returns
+`ProjectMetadata`; called by `read_pyproject()`'s `_try_read_poetry()`
+fallback so the file is only ever read/parsed once. There is no
+standalone "read a poetry pyproject.toml from disk" function -- that
+would just duplicate what `read_pyproject()` already does for every
+project regardless of build backend.
 
 ## Field mapping
 

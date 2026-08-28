@@ -112,15 +112,18 @@ def _discover_included_files(project_dir: Path) -> list[IncludedFile]:
             )
             if files is not None:
                 return files
-            if not (project_dir / "pyproject.toml").is_file():
+            if pyproject_data is None or "project" not in pyproject_data:
                 # Hatchling's WheelBuilder requires a pyproject.toml
-                # [project] table -- with none present at all, it is
-                # guaranteed to also fail, so skip the doomed attempt
-                # and its confusing "Hatchling"-branded error for a
-                # project that has nothing to do with Hatchling.
+                # [project] table -- with none present at all (missing
+                # file, unparseable file, or a pyproject.toml that only
+                # has [build-system], e.g. metadata declared imperatively
+                # in setup.py), it is guaranteed to also fail, so skip
+                # the doomed attempt and its confusing "Hatchling"-
+                # branded error for a project that has nothing to do
+                # with Hatchling.
                 log.warning(
                     "No static %s config resolvable in %s and no "
-                    "pyproject.toml present -- file discovery is "
+                    "[project] table present -- file discovery is "
                     "unsupported for this project (packages only "
                     "resolvable via an imperative setup.py build)",
                     backend,
@@ -219,7 +222,13 @@ def get_wheel_files(
     if not file_entries:
         return None, []
 
+    # Discovery order isn't guaranteed stable across runs/filesystems
+    # (e.g. setuptools' find_all_modules() uses glob.glob() with no
+    # sort) -- sort both the Merkle-root input and the returned file
+    # list by distribution_path so the SBOM is bit-for-bit identical
+    # across builds of the same, unchanged project.
     file_entries.sort(key=operator.itemgetter(0))
+    project_files.sort(key=lambda project_file: project_file.distribution_path)
     # pylint: disable-next=import-outside-toplevel,cyclic-import
     from pitloom.core.models import _build_merkle_tree
 

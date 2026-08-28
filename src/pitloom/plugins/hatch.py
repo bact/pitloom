@@ -35,6 +35,7 @@ from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.ids import resolve_registry
+from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
 
@@ -251,6 +252,11 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
                 determined, or predates 1.29.0 and can't embed the SBOM
                 (see :func:`_check_hatchling_sbom_support`).
         """
+        # This process's Python logging config is otherwise whatever
+        # pip/hatchling itself set up (or didn't) -- without this, a
+        # future log.warning() call here would print with no "WARNING: "
+        # prefix, unlike every other Pitloom entry point.
+        configure_logging()
         log.debug("Pitloom build hook: build variant %r", version)
 
         config = dict(self.config)

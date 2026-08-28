@@ -368,6 +368,112 @@ def test_detect_build_backend_empty_string() -> None:
         assert detect_build_backend(Path(d)) is None
 
 
+def test_detect_build_backend_pep518_only_falls_back_to_setuptools() -> None:
+    """A pyproject.toml with [build-system] but no build-backend key (a
+    legacy PEP 518-only declaration) is still detected as setuptools
+    when setup.cfg/setup.py back it up -- same fallback as when
+    pyproject.toml is absent entirely, not a silent None."""
+    content = '[build-system]\nrequires = ["setuptools"]\n'
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_build_backend_unparseable_pyproject_falls_back_to_setuptools() -> None:
+    """Regression: a ``pyproject.toml`` that exists but is unparseable
+    (malformed TOML) must fall back to the same setup.cfg/setup.py check
+    as the file-absent and no-build-backend-key branches -- not return
+    ``None`` outright just because the file happens to exist."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text("this is not [valid toml\n")
+        (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_build_backend_unparseable_pyproject_no_fallback_is_none() -> None:
+    """Same malformed-TOML case, but with no setup.cfg/setup.py to back
+    it up -- there is genuinely nothing to detect a backend from."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text("this is not [valid toml\n")
+        assert detect_build_backend(Path(d)) is None
+
+
+def test_detect_build_backend_non_dict_build_system_falls_back() -> None:
+    """Regression: a ``build-system`` key that isn't a table (e.g. a
+    stray top-level ``build-system = "..."`` scalar instead of a
+    ``[build-system]`` section -- valid TOML, just the wrong shape) must
+    not crash ``.get()`` on it -- treated the same as no build-backend
+    resolvable, falling back to the setup.cfg/setup.py check."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    content = 'build-system = "not-a-table"\n'
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_build_backend_non_string_build_backend_falls_back() -> None:
+    """Regression: a ``build-backend`` value that isn't a string (e.g. a
+    stray integer -- valid TOML, just the wrong type) must not crash on
+    string operations -- treated the same as no build-backend
+    resolvable, falling back to the setup.cfg/setup.py check."""
+    from pitloom.extract._setuptools import detect_build_backend
+
+    content = '[build-system]\nrequires = ["setuptools"]\nbuild-backend = 123\n'
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        (Path(d) / "setup.cfg").write_text("[metadata]\nname = pkg\n")
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
+def test_detect_build_backend_rejects_substring_lookalike() -> None:
+    """Regression: a build-backend whose top-level module merely
+    *contains* "setuptools" as a substring (but isn't setuptools) must
+    not be misdetected -- matching is on the top-level module name, not
+    substring containment."""
+    content = (
+        "[build-system]\n"
+        'requires = ["my-setuptools-shim"]\n'
+        'build-backend = "my_setuptools_shim.api"\n'
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "my_setuptools_shim"
+
+
+def test_detect_build_backend_flit_core_alias() -> None:
+    """flit's actual top-level module is flit_core, not flit -- still
+    detected as the canonical "flit" identifier pitloom uses elsewhere."""
+    content = (
+        "[build-system]\n"
+        'requires = ["flit_core"]\n'
+        'build-backend = "flit_core.buildapi"\n'
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "flit"
+
+
+def test_detect_build_backend_legacy_colon_suffix() -> None:
+    """A build-backend with a PEP 517 object-reference suffix
+    (``module:obj``) is still matched on its top-level module, ignoring
+    everything from the colon onward."""
+    content = (
+        "[build-system]\n"
+        'requires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta:__legacy__"\n'
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        assert detect_build_backend(Path(d)) == "setuptools"
+
+
 def test_resolve_setuptools_license_without_provenance(tmp_path: Path) -> None:
     """_resolve_setuptools_license handles detected license with None provenance."""
     from pitloom.core.project import ProjectMetadata
