@@ -85,7 +85,7 @@ def _safe_load_json(
 
         from huggingface_hub import hf_hub_download
 
-        local_path = hf_hub_download(  # nosec B615
+        local_path = hf_hub_download(
             repo_id=model_id,
             filename=filename,
             revision=revision,
@@ -204,7 +204,7 @@ def _detect_license_from_hf_files(
 
             from huggingface_hub import hf_hub_download
 
-            local_path = hf_hub_download(  # nosec B615
+            local_path = hf_hub_download(
                 repo_id=model_id,
                 filename=filename,
                 revision=revision,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-08-25
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -154,8 +154,15 @@ to declare:
 > and a second `software_Sbom` rooted at the merged `ai_AIPackage` added.
 > Cross-fragment id stability comes from the `loom-ids.json` registry
 > (`src/pitloom/ids.py`, `pitloom ids generate|import`), consulted by
-> `pitloom.loom`, the build hook, and the CLI. `SpdxDocument.imports`
-> and pre-ingestion validation remain open.
+> `pitloom.loom`, the build hook, and the CLI. `SpdxDocument.imports` is
+> now populated too (`_add_fragment_imports()`, one `ExternalMap` per
+> merged fragment's document id), and the merged graph's referential
+> integrity is checked afterward (`_raise_on_dangling_references()`,
+> raises `FragmentMergeError` on any `Relationship`/`Annotation` endpoint
+> that resolves to neither a local object nor a declared `imports` entry).
+> Pre-ingestion validation (checking a fragment file before merging, e.g.
+> schema/hash checks ahead of time rather than catching brokenness only
+> after the merge) remains open.
 
 The original gap description below is kept for context.
 `merge_fragments` iterated fragment object sets and called

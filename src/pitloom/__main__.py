@@ -7,37 +7,16 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 import typing
 
 from pitloom.cli.parser import _build_parser
-
-
-def _configure_logging() -> None:
-    """Prefix internal ``log.warning(...)`` output with ``WARNING: ``.
-
-    Without this, Python's last-resort handler prints library warnings
-    (``pitloom.ids``, ``pitloom.loom``, etc.) to stderr with no prefix at
-    all, breaking the CLI's shared grep-able ``LEVEL: <description>``
-    convention (see ``ERROR:``, used by this module's own ``print()``
-    calls). Reconfigures on every call rather than guarding with a
-    "configured once" flag, so repeated ``main()`` calls in the same
-    process (e.g. across tests) don't stack duplicate handlers.
-    Propagation to the root logger is left untouched, so ``pytest``'s
-    ``caplog`` fixture still captures these records.
-    """
-    logger = logging.getLogger("pitloom")
-    logger.handlers.clear()
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.WARNING)
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-    logger.addHandler(handler)
+from pitloom.logging_config import configure_logging
 
 
 def main() -> int:
     """Main entry point for the Pitloom CLI."""
-    _configure_logging()
+    configure_logging()
     parser = _build_parser()
     args = parser.parse_args()
 

@@ -131,7 +131,9 @@ def test_wheel_command_nonexistent_and_verbose(
 
 
 def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
-    """_report_embed_result prints removal and timestamp floored messages."""
+    """_report_embed_result prints the confirmation to stdout (this
+    command's primary result output) and the two INFO: side-effect lines
+    to stderr, matching every other INFO:/WARNING:/ERROR: line."""
     from pitloom.cli.commands.embed_wheel import _report_embed_result
 
     _report_embed_result(
@@ -140,7 +142,7 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
         ("old_sbom.spdx.json",),
         timestamp_floored=True,
     )
-    out = capsys.readouterr().out
-    assert "embedded sbom.spdx.json into pkg.whl" in out
-    assert "removed stale SBOM old_sbom.spdx.json" in out
-    assert "timestamp was before 1980" in out
+    captured = capsys.readouterr()
+    assert "embedded sbom.spdx.json into pkg.whl" in captured.out
+    assert "removed stale SBOM old_sbom.spdx.json" in captured.err
+    assert "timestamp was before 1980" in captured.err

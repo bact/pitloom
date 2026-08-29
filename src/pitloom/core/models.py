@@ -21,11 +21,8 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.core._models_wheel import (
-    _FileHeaderExtras,
-    _resolve_file_header_extras,
-    get_wheel_files,
-)
+from pitloom.core._models_wheel import _resolve_file_header_extras, get_wheel_files
+from pitloom.core._models_wheel_types import FileHeaderExtras
 
 # Fixed pitloom namespace UUID, stable across all versions.
 # Derived from: uuid5(NAMESPACE_URL, "https://github.com/bact/pitloom")
@@ -40,7 +37,7 @@ _ID_COUNTERS: dict[tuple[str, str], int] = {}
 
 __all__ = [
     "PITLOOM_NS",
-    "_FileHeaderExtras",
+    "FileHeaderExtras",
     "_ID_COUNTERS",
     "_build_merkle_tree",
     "_clear_doc_counters",

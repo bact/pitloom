@@ -23,6 +23,7 @@ from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.project import read_project
 from pitloom.ids import IdRegistry, resolve_registry
+from pitloom.logging_config import configure_logging
 
 
 def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
@@ -54,7 +55,19 @@ def _resolve_model_enrich_config(model_dir: Path) -> EnrichConfig:
 
 
 def _project_doc_identity(project_dir: Path) -> tuple[str, str]:
-    """Compute ``(doc_name, doc_uuid)`` for a project directory."""
+    """Compute ``(doc_name, doc_uuid)`` for a project directory.
+
+    ``doc_uuid`` is content-addressed via ``merkle_root`` (see
+    :func:`~pitloom.core.models.compute_doc_uuid`), so it changes
+    whenever :func:`~pitloom.core.models.get_wheel_files`'s resolved
+    file set changes for this project -- including when a backend's
+    file-discovery accuracy improves without any file on disk actually
+    changing. Callers merging an enrichment fragment against a
+    previously-generated SBOM should regenerate that base SBOM first
+    after a Pitloom upgrade that changes file discovery for this
+    project's backend, or the fragment's element references may not
+    match the base document's spdxIds.
+    """
     project_metadata, _pitloom_config, _config_path = read_project(project_dir)
     merkle_root, project_files = get_wheel_files(project_dir)
     project_metadata.files = project_files
@@ -81,6 +94,7 @@ def generate_model_sbom(
     enrich: bool | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository."""
+    configure_logging()
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
@@ -146,6 +160,7 @@ def enrich_model(
     registry: str | Path | IdRegistry | None = None,
 ) -> str:
     """Run enrichment only for a local model file."""
+    configure_logging()
     effective_pretty = False if pretty is None else pretty
     source_str = str(source)
     if is_huggingface_source(source_str):

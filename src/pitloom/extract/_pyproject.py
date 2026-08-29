@@ -12,11 +12,12 @@ When both are present, ``[project]`` values take precedence and
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
-from pyproject_metadata import StandardMetadata
+from pyproject_metadata import ConfigurationError, StandardMetadata
 
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.models import normalize_dependency_specifier
@@ -33,6 +34,8 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
+
+log = logging.getLogger(__name__)
 
 
 def _read_pyproject_fallback(
@@ -80,6 +83,44 @@ def _prepare_dynamic_version(
     return data, dynamic_fields, version_source
 
 
+def _is_license_classifier_conflict(exc: ConfigurationError) -> bool:
+    """Whether *exc* is pyproject-metadata's "SPDX license expression is
+    not compatible with 'License ::' classifiers" validation error --
+    the one specific, narrow case :func:`read_pyproject` relaxes, not a
+    stand-in for treating arbitrary ``project.license`` errors as
+    recoverable.
+
+    pyproject-metadata raises ``ConfigurationError`` with
+    ``key == "project.license"`` for *two* distinct validation failures
+    (this classifier conflict, and a separate pre-2.4-metadata-version
+    SPDX-string error) -- ``.key`` alone can't tell them apart, so this
+    also matches the full distinguishing phrase from the classifier-
+    conflict message specifically. pyproject-metadata exposes no more
+    stable discriminator than message text for this; if a future release
+    rewords the message, this check starts under-matching (silently
+    stops recovering the transitional state) and needs updating."""
+    return (
+        exc.key == "project.license"
+        and "not compatible with 'License ::' classifiers" in str(exc)
+    )
+
+
+def _drop_redundant_license_classifiers(data: dict[str, Any]) -> dict[str, Any]:
+    """Strip ``License ::`` trove classifiers from a parsed
+    ``pyproject.toml`` mapping, leaving every other classifier and
+    ``[project]`` field untouched."""
+    project_data: dict[str, Any] = data.get("project", {})
+    classifiers = project_data.get("classifiers", [])
+    if not isinstance(classifiers, list):
+        return data
+    kept = [
+        c
+        for c in classifiers
+        if not (isinstance(c, str) and c.startswith("License ::"))
+    ]
+    return {**data, "project": {**project_data, "classifiers": kept}}
+
+
 # pylint: disable-next=too-many-locals
 def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from a ``pyproject.toml`` file.
@@ -112,6 +153,37 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
             dynamic_metadata=dynamic_fields or None,
             allow_extra_keys=True,
         )
+    except ConfigurationError as exc:
+        if not _is_license_classifier_conflict(exc):
+            raise ValueError(f"Failed to parse project metadata: {exc}") from exc
+        # PEP 639 transitional state: a project declares both a modern
+        # SPDX `license` expression and legacy `License ::` trove
+        # classifiers -- pyproject-metadata treats the combination as a
+        # hard error. Real-world projects mid-migration commonly leave
+        # the old classifiers in place rather than deleting them the
+        # same release they add the SPDX field. Retry once with the
+        # redundant classifiers dropped, keeping the SPDX expression --
+        # the newer, more specific PEP 639 source -- as authoritative.
+        log.warning(
+            "%s declares both an SPDX `license` expression and legacy "
+            "`License ::` classifiers -- dropping the redundant "
+            "classifiers and keeping the SPDX expression (PEP 639 "
+            "transitional state)",
+            pyproject_path,
+        )
+        data = _drop_redundant_license_classifiers(data)
+        try:
+            std = StandardMetadata.from_pyproject(
+                data,
+                project_dir=str(pyproject_path.parent),
+                dynamic_metadata=dynamic_fields or None,
+                allow_extra_keys=True,
+            )
+        # pylint: disable-next=broad-exception-caught
+        except Exception as retry_exc:
+            raise ValueError(
+                f"Failed to parse project metadata: {retry_exc}"
+            ) from retry_exc
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         raise ValueError(f"Failed to parse project metadata: {exc}") from exc

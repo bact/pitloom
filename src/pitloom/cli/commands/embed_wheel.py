@@ -40,12 +40,16 @@ def _report_embed_result(
     """
     print(f"pitloom: embedded {arcname} into {wheel_name}")
     for stale_arcname in removed:
-        print(f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}")
+        print(
+            f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}",
+            file=sys.stderr,
+        )
     if timestamp_floored:
         print(
             f"INFO: {wheel_name}'s embedded SBOM entry timestamp was before "
             "1980 and was floored to 1980-01-01 (ZIP format limitation); "
-            "the SBOM's own 'created' field keeps the true value"
+            "the SBOM's own 'created' field keeps the true value",
+            file=sys.stderr,
         )
 
 

@@ -172,4 +172,4 @@ def test_scan_logs_warning_when_python_source_unreadable(
         result = scan_project_for_ai_models(tmp_path, files)
 
     assert result == []
-    assert any("Could not read text from" in r.message for r in caplog.records)
+    assert any("could not read for usage scanning" in r.message for r in caplog.records)

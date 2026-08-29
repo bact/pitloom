@@ -116,19 +116,6 @@ def _infer_dataset_types(data: dict[str, Any]) -> list[str]:
     return result
 
 
-def _extract_size(data: dict[str, Any]) -> int | None:
-    """Extract dataset size.
-    Still have to figure out the calculation logic here.
-
-    Returns ``None`` when data is empty or has no record sets.
-    Otherwise returns ``0`` for now.
-    """
-    if not data:
-        return None
-
-    return 0
-
-
 def _extract_croissant_core_fields(
     data: dict[str, Any], src_label: str, provenance: dict[str, str]
 ) -> tuple[

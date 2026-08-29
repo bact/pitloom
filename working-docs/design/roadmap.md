@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-27
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -104,12 +104,19 @@ are named as "also in the plan" without a committed version yet.
 ### Non-Hatchling file discovery (feature parity)
 
 - [ ] **`get_wheel_files()` file discovery is not backend-agnostic** --
-  despite its generic name, `get_wheel_files()`
-  (`src/pitloom/core/_models_wheel.py`) unconditionally instantiates
-  Hatchling's own `WheelBuilder` to discover a project's files,
-  regardless of the project's actual `[build-system] build-backend`.
-  This is not merely "returns `None` for non-Hatchling projects" (the
-  original framing of this item) -- confirmed by direct testing:
+  **partially fixed (2026-08-27):** `get_wheel_files()`
+  (`src/pitloom/core/_models_wheel.py`) is now a dispatch facade over
+  one discovery module per backend (`_models_wheel_hatchling.py`,
+  `_models_wheel_setuptools.py`), with any backend that doesn't have a
+  dedicated module yet (Poetry, PDM, Flit, `uv_build`, ...) falling
+  back to the Hatchling heuristic -- now with a logged warning instead
+  of silently risking an inaccurate result. Setuptools was the first
+  backend closed; the bug below (originally reported for setuptools)
+  still stands as documentation for every backend still on the
+  fallback path. See
+  [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
+  for the mechanism and why this stays a static-config read for every
+  backend, never a build. Confirmed by direct testing before the fix:
   - For a non-Hatchling project whose layout happens to match
     Hatchling's own auto-detection conventions (a single top-level
     package, or `src/<name>`, named after the normalized project name),
@@ -144,6 +151,13 @@ are named as "also in the plan" without a committed version yet.
   backend-aware file-discovery layer (dispatch on the declared
   `build-backend`) rather than always defaulting to Hatchling's own
   heuristics.
+  **Real-world validation policy:** every backend's `discover()` (this
+  one and Hatchling's) is checked against at least 10 diverse real
+  PyPI packages -- not just synthetic fixtures -- before being
+  considered production-ready; see
+  [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
+  for the method and the setuptools/Hatchling results so far. Apply the
+  same bar to each backend below as it's implemented.
 
 #### Backend priority
 
@@ -182,7 +196,7 @@ projects, implementation size, and reuse leverage across backends:
 
 | # | Backend | Track | Why this order |
 | :-- | :--- | :--- | :--- |
-| 1 | setuptools | A | Still the single most-installed backend, including plenty of legacy/established AI packages. Bounded but nontrivial effort (`packages.find`/`where`, `package_data`, `MANIFEST.in`). No reuse with anything else -- do it first because it's highest-value, not because it's cheap. |
+| 1 | setuptools | A | **Done (2026-08-27).** Was the single most-installed backend with no dedicated support; now resolved via `setuptools.config.pyprojecttoml`/`setupcfg` + `build_py` introspection (`src/pitloom/core/_models_wheel_setuptools.py`). See [setuptools-support.md](../implementation/setuptools-support.md). |
 | 2 | Poetry | A | Declarative `[tool.poetry]`/`packages`/`exclude` config, no build-time code execution to model. Pitloom already has a Poetry config reader (`src/pitloom/extract/_poetry.py`) to build on. Common in AI/ML research repos for reproducible environments. Now the cheapest true rescan-based item on this list (see `uv_build` correction below). |
 | 3 | PDM-backend, Flit-core | A | Bundle together -- both are simple, PEP 621-native, declarative (Flit's default is literally "bundle whatever Git tracks"). Smaller install base than 1-2, but nearly free once the Track A discovery pattern exists from steps 1-2, and already share a metadata-extractor item ("PDM / Flit extractors" under Medium-term) worth doing in the same pass. |
 | 4 | Build-and-read fallback | (mechanism) | Not a backend -- the mechanism Track B requires. Moved up from its original slot (was 5): `uv_build` (next row) is now expected to consume this mechanism too, not just the three Track B backends, so it's a prerequisite for step 5 as well as steps 6-7. Medium effort, the single highest-leverage item on this list. |
@@ -198,16 +212,27 @@ The `uv_build` correction above (2026-08-27) is a concrete example of
 this ranking shifting once real API/implementation research replaced
 the original qualitative assumption.
 
+**Architecture note (2026-08-27):** closing item #1 (setuptools) also
+restructured `get_wheel_files()` into a per-backend module + registry
+(`src/pitloom/core/_models_wheel.py` dispatches to
+`_models_wheel_<backend>.py` siblings, each exposing one `discover()`
+function). Items #2-5 (Poetry, PDM-backend, Flit-core, `uv_build`) are
+now: one new `_models_wheel_<backend>.py` module + one registry entry
+each -- no changes needed to the facade's dispatch logic, the shared
+per-file processing loop, or any of `get_wheel_files()`'s callers.
+
 ### Build backend improvements
 
 - [ ] **PEP 517 `prepare_metadata_for_build_wheel`** (opt-in) -- call the build
   backend in a subprocess to resolve dynamic metadata (Git-tag versions,
   computed deps) that static parsing cannot handle.
   See [metadata-sources.md](metadata-sources.md).
-- [ ] **Setuptools wheel file discovery** -- use setuptools' own file inclusion
-  logic for setuptools projects instead of Hatchling's `WheelBuilder`
-  (see "Non-Hatchling file discovery" above for the full scope of why
-  this is needed -- it's not just about the Merkle root).
+- [x] **Setuptools wheel file discovery** -- setuptools' own official
+  config-resolution API (`setuptools.config.pyprojecttoml`/`setupcfg`)
+  and `build_py` introspection now resolve a setuptools project's file
+  set from static config, instead of Hatchling's `WheelBuilder`. See
+  [setuptools-support.md](../implementation/setuptools-support.md) and
+  [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md).
 - [ ] **`get_wheel_files()` option to skip Merkle root computation** --
   `_build_sbom_from_project_and_wheel` (`src/pitloom/embed.py`) already
   discards `get_wheel_files()`'s own `merkle_root` return value in favor
@@ -313,10 +338,19 @@ the original qualitative assumption.
   - TensorFlow SavedModel and TensorFlow Lite
   - Scikit-learn (pickle/joblib; no single standard format -- complex)
   - See [model-metadata-extraction.md](model-metadata-extraction.md)
-- [ ] **Dataset-to-model relationship linking** -- extend `AiModelMetadata`
-  with dataset references; emit SPDX 3 relationship types (`trainedOn`,
-  `testedOn`, `finetunedOn`, `validatedOn`, `pretrainedOn`).
-  See [sbom-enrichment.md](sbom-enrichment.md).
+- [x] **Dataset-to-model relationship linking** -- `AiModelMetadata` carries
+  dataset references (`DatasetReference`, `pitloom.core.dataset_metadata`);
+  `add_datasets_for_model()` (`src/pitloom/assemble/spdx3/dataset.py`)
+  emits `trainedOn`/`testedOn` `Relationship`s natively, falling back to
+  `RelationshipType.other` + an explanatory comment for the three SPDX
+  3.0.1 lacks (`finetunedOn`, `validatedOn`, `pretrainedOn`). Wired in from
+  `assemble/spdx3/ai.py` and `_document_model.py`. See
+  [sbom-enrichment.md](sbom-enrichment.md).
+- [ ] **Croissant dataset size calculation** -- `dataset_DatasetSize` is
+  currently always `0` (see `_extract_croissant_core_fields()` in
+  `_croissant.py`); needs real logic summing `cr:totalItems` across
+  `cr:recordSet` entries (and handling the string-vs-int value variance
+  seen in real Croissant files).
 
 ### Metadata quality
 
@@ -335,6 +369,20 @@ the original qualitative assumption.
   input). Still not started: OpenSSF Scorecard, Hugging Face Hub and
   PyPI metadata sources, per-source enable/disable config.
   See [sbom-enrichment.md](sbom-enrichment.md).
+
+### Diagnostics / logging
+
+- [ ] **Surface `DEBUG:`-level output on request** -- `AGENTS.md`'s "CLI
+  output" convention documents `ERROR:`/`WARNING:`/`INFO:` reaching
+  stderr and `logging.debug()` staying suppressed by default (a
+  developer-only diagnostic). No opt-in path exists yet to actually see
+  it (no `--verbose`/env-var wiring into `configure_logging()`'s logger
+  level) -- `cli/verbose.py`'s existing `--verbose` flag does something
+  unrelated (a config-resolution diagnostics dump), so this needs either
+  reusing that flag for a second purpose or a new one. Deferred:
+  needs deciding the trigger (flag vs. env var), and whether DEBUG-level
+  messages across the codebase are actually written with an end-user
+  reading them in mind yet.
 
 ## Medium-term
 

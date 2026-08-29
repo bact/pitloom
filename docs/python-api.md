@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,11 +12,16 @@ Use this when you're calling Pitloom from Python code you control --
 a build script, a notebook, or a training/evaluation pipeline that wants
 to record its own provenance as it runs.
 
-Two different needs, two different entry points:
+Three different needs, three different entry points:
 
 - **[Generator functions](#generator-functions)** -- call `generate()` (or
   a target-specific function) to produce a full SBOM, the same output
   `loom project`/`loom model`/`loom env` produce on the [CLI](cli.md).
+- **[Standalone enrichment](#standalone-enrichment)** -- call
+  `enrich_model()` to fill AI-model metadata gaps (license, datasets) from
+  a local README/model-card's YAML frontmatter, writing a mergeable
+  fragment -- no code annotation needed, the Python equivalent of `loom
+  enrich`.
 - **[Tracking decorator](#tracking-decorator)** -- annotate a training or
   evaluation script with `@loom.run(...)` to emit a small SPDX fragment
   describing what that run produced, to be merged into the SBOM later.
@@ -119,6 +124,34 @@ these functions fall back to the same `pyproject.toml`
 `[[tool.pitloom.creator]]` / `[tool.pitloom.provenance]` settings the CLI
 reads.
 
+## Standalone enrichment
+
+The Python equivalent of `loom enrich`: parses a local
+`README.md`/`MODEL_CARD.md`'s YAML frontmatter only (no prose, no
+reasoning) and writes a standalone fragment -- fast, free, and always
+safe to run before anything else.
+
+```python
+from pathlib import Path
+from pitloom.assemble import enrich_model
+
+enrich_model(
+    Path("path/to/model.safetensors"),
+    output_path=Path("model.enrich.spdx3.json"),
+)
+```
+
+Pass `project_target=` when merging into a project-level (not
+single-model) base SBOM -- see the equivalent `--project-dir` note on the
+[Command line](cli.md#enrich-an-sbom) page: `--project-dir`'s document
+identity is derived from the resolved file list, so it changes whenever
+that file list changes for the same project. Pass `registry=` (a path, or
+an already-loaded `IdRegistry`) to reference a pinned entity id instead of
+one freshly computed from the model's own identity. Raises `ValueError`
+for a Hugging Face Hub source -- Hugging Face model cards are already
+parsed natively when generating the SBOM, so local enrichment doesn't
+apply there.
+
 ## Tracking decorator
 
 Annotate scripts or Jupyter notebooks to generate external SBOM fragments
@@ -205,6 +238,15 @@ files = ["fragments/train.json", "fragments/eval.json"]
 and build hook, via `creation_metadata=CreationMetadata(...)`. With none
 given, the fragment records the unattended-run default (Pitloom itself as
 both creator and tool). See [Creation metadata](creation-metadata.md).
+
+The merge itself (`pitloom.assemble.merge_fragments`, called internally
+by `generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`
+lists files) raises `pitloom.assemble.FragmentMergeError` if any element
+in the merged graph references an id that resolves to nothing -- most
+commonly a fragment recorded against a base SBOM whose element ids have
+since changed (e.g. after a Pitloom upgrade that affects file discovery).
+Regenerate the base SBOM and re-run the fragment-producing script before
+merging again. See [API reference](api.md#fragment-merging).
 
 ## See also
 

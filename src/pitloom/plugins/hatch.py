@@ -35,6 +35,7 @@ from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.ids import resolve_registry
+from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
 
@@ -149,6 +150,11 @@ def _build_document_model(
         detect_content_type=pitloom_config.content_type.enabled,
         content_type_method=pitloom_config.content_type.method,
         content_type_overrides=pitloom_config.content_type.overrides,
+        # This *is* the Hatchling build hook -- the backend is Hatchling
+        # by construction, so skip the pyproject.toml re-parse and
+        # backend-detection get_wheel_files would otherwise do to figure
+        # out what this call site already knows.
+        assume_backend="hatchling",
     )
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)
@@ -251,6 +257,11 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
                 determined, or predates 1.29.0 and can't embed the SBOM
                 (see :func:`_check_hatchling_sbom_support`).
         """
+        # This process's Python logging config is otherwise whatever
+        # pip/hatchling itself set up (or didn't) -- without this, a
+        # future log.warning() call here would print with no "WARNING: "
+        # prefix, unlike every other Pitloom entry point.
+        configure_logging()
         log.debug("Pitloom build hook: build variant %r", version)
 
         config = dict(self.config)

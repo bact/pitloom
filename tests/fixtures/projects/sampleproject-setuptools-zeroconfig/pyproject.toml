@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Bare PEP 621 setuptools project -- no [tool.setuptools] table at all.
+# Exercises setuptools' own zero-config auto-discovery
+# (Distribution.set_defaults() / ConfigDiscovery), distinct from the
+# explicit-config path sampleproject-setuptools/ and
+# sampleproject-setuptools-data/ exercise. The package directory name
+# matches the normalized project name, matching flat-layout
+# auto-discovery's heuristic for finding it.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sampleproject-setuptools-zeroconfig"
+version = "0.1.0"
+description = "A minimal zero-config sample project for testing setuptools auto-discovery."
