@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-29
+Last-Modified: 2026-08-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,19 +77,32 @@ full picture.
 - [ ] **Docker container action** (future) -- a `Dockerfile` +
   `action.yml` `using: docker` variant of the GitHub Action for hermetic
   or self-hosted-runner use.
-- [ ] **Surface `WARNING:`/`ERROR:` stderr as GitHub Actions annotations**
-  (future) -- `action.yml`'s composite "Generate SBOM" step captures
-  stdout only (`loom_stdout=$(loom "${loom_args[@]}" | tee /dev/stderr)`);
-  a `loom`-emitted `WARNING:`/`ERROR:` (e.g. artifact-metadata truncation,
-  see [metadata-provenance.md](../implementation/provenance/metadata-provenance.md))
-  goes to the raw job log only, not the workflow-run summary or PR
-  "Files changed" view (`::warning::`/`::error::` workflow commands).
-  A synchronous `2>`-redirect-to-file approach is race-free but drops
-  real-time log streaming; a `tee`-based approach needs a provably
-  race-free wait, not just bash's default process-substitution
-  behavior. Needs a design pass on that trade-off before implementing.
-  Already done for AI-agent Skills -- see
-  [agent-skill.md](../implementation/agent-skill.md#relaying-warningerror-stderr-to-the-user).
+- [ ] **SARIF output** (replaces the earlier `::warning::`/`::error::`
+  annotation idea below) -- emit a SARIF file as a build artifact,
+  uploaded via a separate `github/codeql-action/upload-sarif` step.
+  Sidesteps the streaming/race problem that stalled the
+  workflow-command approach entirely: SARIF is written synchronously
+  once `loom` finishes, then uploaded as its own step -- no `tee`/
+  process-substitution race to prove free of. Gets PR "Files changed"
+  inline annotations and a GitHub Security-tab view for free, no custom
+  UI work. Findings sources to map, once each exists:
+  - Every `WARNING:`/`ERROR:` a `loom` run emits today (e.g.
+    artifact-metadata truncation, see
+    [metadata-provenance.md](../implementation/provenance/metadata-provenance.md))
+    -- already done for AI-agent Skills, see
+    [agent-skill.md](../implementation/agent-skill.md#relaying-warningerror-stderr-to-the-user).
+  - OSV.dev vulnerability lookup (Near-term / Metadata quality, once
+    built) -- one SARIF `result` per CVE (`ruleId=CVE-xxxx`,
+    `level=`severity, location = the dependency's declaration line in
+    `pyproject.toml`).
+  - Declared-vs-detected license conflicts (already shipped, see
+    [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md),
+    [PR #121](https://github.com/bact/pitloom/pull/121)) -- currently a
+    warning message only, would become an inline PR annotation on the
+    license line.
+  Not an SBOM format -- SARIF is a diagnostics/findings interchange
+  format, unrelated to the CycloneDX assembler item (Medium-term);
+  the two don't overlap or compete.
 
 ## Near-term
 
@@ -369,6 +382,12 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   input). Still not started: OpenSSF Scorecard, Hugging Face Hub and
   PyPI metadata sources, per-source enable/disable config.
   See [sbom-enrichment.md](sbom-enrichment.md).
+- [ ] **OSV.dev vulnerability lookup** (`--enrich-cve` or similar) -- ping
+  [OSV.dev](https://osv.dev)'s API to append known vulnerabilities
+  against generated Python dependencies. Static enrichment only (no
+  exploitability judgement) -- see VEX generation under Medium-term for
+  the follow-on triage step. Needs a caching/rate-limit design per
+  "Resource efficiency" in `AGENTS.md` before landing.
 
 ### Diagnostics / logging
 
@@ -399,10 +418,75 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   "Non-Hatchling file discovery" under Near-term) in the same pass --
   metadata extraction and file discovery are separate concerns but the
   same backends.
+- [ ] **VEX (VEX/OpenVEX) generation** -- consumes the OSV.dev lookup
+  above (once it exists) to classify a component as affected/
+  not_affected/fixed/under_investigation, rather than just listing raw
+  CVE hits. Depends on the OSV enrichment item under Near-term /
+  Metadata quality landing first.
 
 ## Long-term
 
 - [ ] **PEP 740 attestations** -- cryptographic signing and provenance
   tracking for generated SBOMs.
+- [ ] **IETF SCITT integration** -- submit a generated SBOM as a signed
+  SCITT statement to a transparency service, receive a receipt back as
+  proof of registration; separately, verify a dependency's own SCITT
+  receipt when consuming its SBOM and feed the result into the
+  existing provenance role vocabulary (`externalReported` vs
+  `sbomAuthorSupplied`). See <https://scitt.io/>. Complementary to (not
+  a replacement for) the PEP 740 item above -- SCITT covers third-party
+  transparency-log attestation, PEP 740 covers index-hosted signing.
+  Related: [Issue #79](https://github.com/bact/pitloom/issues/79)
+  (Cisco `model-provenance-kit`) could layer on the same mechanism.
+  **Receipt placement (decided 2026-08-30): outside the wheel, not in
+  `.dist-info/sboms/`.** A receipt embeds a transparency-log
+  timestamp/index that varies per submission, so embedding it would
+  break wheel/SBOM reproducibility; obtaining it also requires a
+  network call to an external service, which a build hook shouldn't
+  block on. Sidecar file next to the built wheel (e.g.
+  `dist/<wheel>.receipt.cbor`), produced by a separate post-build step
+  (`loom scitt submit`) -- mirrors how PEP 740 itself keeps attestations
+  outside the artifact, served by the index rather than embedded.
+  **Pitloom's role is client-only, not log operator.** A receipt is
+  countersigned by the transparency service itself -- only the log can
+  issue one. Pitloom builds and signs the SCITT statement, submits it
+  to a transparency-service URL the user configures (self-hosted CCF
+  instance, DataTrails, etc.), and stores whatever receipt comes back;
+  it never runs a transparency service of its own.
+  **Tooling landscape checked 2026-08-30, thin:** DataTrails is the
+  main hosted, spec-compliant (draft-10) transparency service, with a
+  GitHub Action client but no general Python library; the reference
+  client/server, `scitt-api-emulator` (Python), is archived and
+  unmaintained since 2024-11-22. No mature OSS client library exists
+  yet, so this needs a from-scratch thin client -- `pyproject.toml` has
+  no signing/crypto dependency today (`pycose` or `cryptography` would
+  be new).
+  **Shape:**
+  ```
+  loom scitt submit dist/mypkg-1.0.0.whl
+    1. hash the SBOM, build a COSE_Sign1 statement
+       (issuer identity + sha256(sbom) payload)
+    2. sign it with the user's configured key
+    3. POST to the configured transparency-service URL
+    4. save the returned receipt as
+       dist/mypkg-1.0.0.whl.receipt.cbor
+
+  loom scitt verify <dependency-sbom> --receipt <file>
+    -- checks a third party's receipt when consuming their SBOM
+       as a dependency
+  ```
 - [ ] **Performance optimization** -- Rust backend for large-project
   log parsing; parallel file hashing for Merkle root computation.
+- [ ] **Agentic skill governance (guardrail mode)** -- extend the
+  existing AI-agent Skills (Adoption surfaces above) from "generate an
+  SBOM on request" to "veto/flag a coding agent's own action" -- e.g.
+  block or require override when an agent attempts to pull an unvetted
+  Hugging Face model. Distinct capability from the current Skills:
+  needs a hook into the calling agent's tool-use loop, not just a
+  callable Skill.
+- [ ] **Runtime reachability ("living SBOM")** -- evolve `loom env`
+  (currently a static environment graph, see Market signals above)
+  toward tracking which dependencies are actually loaded/executed at
+  runtime (`sys.modules` introspection or eBPF), to suppress
+  vulnerability noise from installed-but-unreachable code. Large scope
+  -- needs its own design doc before estimating.
