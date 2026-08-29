@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-27
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -125,6 +125,20 @@ See `skills/sbom-generate/references/examples.md`,
 `skills/sbom-enrich/references/examples.md`, and
 `skills/sbom-validate/references/examples.md` for the exact commands and
 a full worked fragment example.
+
+### Relaying `WARNING:`/`ERROR:` stderr to the user
+
+`sbom-generate` and `sbom-enrich` both run `loom` directly (`sbom-validate`
+only wraps the separate `spdx3-validate` CLI, so it is out of scope
+here). `loom` logs to stderr with a grep-able `WARNING:`/`ERROR:` prefix
+(e.g. artifact-metadata truncation -- see
+[metadata-provenance.md](provenance/metadata-provenance.md)) that doesn't
+always fail the command or show up in the output JSON. Both SKILL.md
+files instruct the agent to scan captured stderr for these prefixes
+after running `loom` and relay any hit to the user in plain language,
+rather than letting it pass by unmentioned just because the command
+exited 0. This is the AI-agent-Skill equivalent of the GitHub Actions
+gap tracked in [roadmap.md](../design/roadmap.md#adoption-surfaces).
 
 ## Also available as a Claude Code plugin
 

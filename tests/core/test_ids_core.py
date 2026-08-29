@@ -96,7 +96,7 @@ def test_find_ignores_invalid_registry_and_returns_none(
         result = IdRegistry.find(start=tmp_path)
 
     assert result is None
-    assert "Ignoring invalid registry" in caplog.text
+    assert "Registry: ignoring invalid file" in caplog.text
 
 
 def test_save_without_path_raises() -> None:

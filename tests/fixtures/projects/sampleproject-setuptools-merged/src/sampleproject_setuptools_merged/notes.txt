@@ -1,0 +1,2 @@
+Only discoverable if pyproject.toml's [tool.setuptools.package-data] is
+applied on top of setup.cfg's packages/package_dir -- proves the merge.

@@ -83,14 +83,23 @@ inputs:
       [tool.pitloom.content-type] method, which is "auto" by default.
     required: false
     default: ""
+  max-source-metadata-bytes:
+    description: >-
+      Cap the artifact-metadata preservation Annotation's serialized size
+      to this many UTF-8 bytes; truncates the largest metadata entries
+      first when exceeded. Empty (default) defers to
+      [tool.pitloom.provenance] max-source-metadata-bytes, which is 0
+      (unbounded) by default.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
     default: ""
   pitloom-version:
     description: >-
-      Pitloom version or version specifier to install, e.g. "0.16.4" or
-      ">=0.13,<1.0". Empty installs the latest release from PyPI.
+      Pitloom version or version specifier to install, e.g. "0.17.0" or
+      ">=0.17,<1.0". Empty installs the latest release from PyPI.
     required: false
     default: ""
   python-version:
@@ -141,10 +150,10 @@ runs:
           spec="${spec}[${PL_EXTRAS}]"
         fi
         if [ -n "${PL_VERSION}" ]; then
-          # pitloom-version accepts either a bare version ("0.16.4") or a
-          # full specifier (">=0.13,<1.0"). A leading comparison operator
+          # pitloom-version accepts either a bare version ("0.17.0") or a
+          # full specifier (">=0.17,<1.0"). A leading comparison operator
           # means it is already a specifier; only bare versions need "=="
-          # inserted, otherwise "pitloom==>=0.13,<1.0" is invalid.
+          # inserted, otherwise "pitloom==>=0.17,<1.0" is invalid.
           case "${PL_VERSION}" in
             [\<\>=!~]*) spec="${spec}${PL_VERSION}" ;;
             *) spec="${spec}==${PL_VERSION}" ;;
@@ -167,6 +176,7 @@ runs:
         PL_EXTRACT_FILE_HEADER: ${{ inputs.extract-file-header }}
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
+        PL_MAX_SOURCE_METADATA_BYTES: ${{ inputs.max-source-metadata-bytes }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -237,6 +247,9 @@ runs:
         if [ -n "${PL_CONTENT_TYPE_METHOD}" ]; then
           loom_args+=("--content-type-method" "${PL_CONTENT_TYPE_METHOD}")
         fi
+        if [ -n "${PL_MAX_SOURCE_METADATA_BYTES}" ]; then
+          loom_args+=("--max-source-metadata-bytes" "${PL_MAX_SOURCE_METADATA_BYTES}")
+        fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags
           # (e.g. '--creator-name "CI Bot"'), not a single token. Plain bash
@@ -253,8 +266,58 @@ runs:
 
         # Capture stdout (while still echoing it to the log) so a
         # loom-picked default filename can be recovered below when
-        # "output" was left empty.
-        loom_stdout=$(loom "${loom_args[@]}" | tee /dev/stderr)
+        # "output" was left empty. Capture stderr too (while still
+        # streaming it live) so its INFO:/WARNING:/ERROR: lines --
+        # AGENTS.md's "CLI output" convention, always at the start of the
+        # line -- can be re-emitted as ::notice::/::warning::/::error::
+        # workflow commands, giving them real GitHub Actions annotations
+        # (PR "Checks" tab, job summary) instead of just plain log text.
+        # -e is dropped around the call so a failing "loom" doesn't abort
+        # the script before its ERROR: line gets annotated; the exit code
+        # is re-checked and propagated explicitly afterward.
+        loom_stderr_file=$(mktemp)
+        set +e
+        loom_stdout=$(
+          loom "${loom_args[@]}" 2> >(tee "${loom_stderr_file}" >&2) \
+            | tee /dev/stderr
+        )
+        loom_exit=$?
+        wait
+        set -e
+
+        last_annotation_level=""
+        while IFS= read -r line; do
+          case "${line}" in
+            "ERROR: "*)
+              last_annotation_level="error"
+              echo "::error::${line#ERROR: }"
+              ;;
+            "WARNING: "*)
+              last_annotation_level="warning"
+              echo "::warning::${line#WARNING: }"
+              ;;
+            "INFO: "*)
+              last_annotation_level="notice"
+              echo "::notice::${line#INFO: }"
+              ;;
+            *)
+              # A continuation line of a multi-line LEVEL: message --
+              # AGENTS.md's convention doesn't forbid one, even though
+              # loom doesn't currently emit any. Re-annotate at the same
+              # level rather than silently dropping it from the
+              # PR-facing summary (it's still visible above via "tee"
+              # either way).
+              if [ -n "${last_annotation_level}" ]; then
+                echo "::${last_annotation_level}::${line}"
+              fi
+              ;;
+          esac
+        done < "${loom_stderr_file}"
+        rm -f "${loom_stderr_file}"
+
+        if [ "${loom_exit}" -ne 0 ]; then
+          exit "${loom_exit}"
+        fi
 
         if [ "${skip_output}" = false ]; then
           if [ -n "${PL_OUTPUT}" ]; then

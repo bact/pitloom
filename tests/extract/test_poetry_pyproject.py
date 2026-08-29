@@ -7,15 +7,14 @@
 fixture-based integration coverage, and G2 license fallback/conflict on the
 poetry-only path.
 
-See also: test_poetry_parsing.py for low-level [tool.poetry] parsing helper
-and read_poetry() tests.
+See also: test_poetry_parsing.py for low-level [tool.poetry] parsing helpers.
 """
 
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from pitloom.extract._poetry import extract_poetry_metadata, read_poetry
+from pitloom.extract._poetry import extract_poetry_metadata
 from pitloom.extract._pyproject import read_pyproject
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -127,48 +126,48 @@ keywords = ["extra"]
 
 
 def test_fixture_read_poetry_name_and_version() -> None:
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.name == "mistral_inference"
     assert metadata.version == "1.6.0"
 
 
 def test_fixture_read_poetry_description_empty() -> None:
     # mistral-inference has description = "" -- maps to None after stripping.
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.description is None
 
 
 def test_fixture_read_poetry_author() -> None:
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.authors == [{"name": "bam4d", "email": "bam4d@mistral.ai"}]
 
 
 def test_fixture_read_poetry_license_absent() -> None:
     # mistral-inference has no license field in [tool.poetry].
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.license_name is None
 
 
 def test_fixture_read_poetry_keywords_empty() -> None:
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert not metadata.keywords
 
 
 def test_fixture_read_poetry_urls_empty() -> None:
     # mistral-inference declares no homepage/repository/documentation.
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert not metadata.urls
 
 
 def test_fixture_read_poetry_requires_python() -> None:
     # python = "^3.9.10" -> >=3.9.10,<4.0.0
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert metadata.requires_python == ">=3.9.10,<4.0.0"
 
 
 def test_fixture_read_poetry_main_dependencies_only() -> None:
     # Only [tool.poetry.dependencies] (not group deps) end up in SBOM deps.
-    metadata, _ = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    metadata, _ = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     dep_names = {
         d.split(">=")[0].split("==")[0].split("<")[0] for d in metadata.dependencies
     }
@@ -186,7 +185,7 @@ def test_fixture_read_poetry_main_dependencies_only() -> None:
 
 def test_fixture_read_poetry_no_pitloom_section_defaults() -> None:
     # mistral-inference has no [tool.pitloom] -- all defaults apply.
-    _, config = read_poetry(POETRY_FIXTURE / "pyproject.toml")
+    _, config = read_pyproject(POETRY_FIXTURE / "pyproject.toml")
     assert config.sbom_basename is None
     assert config.pretty is False
     assert not config.creators
@@ -211,7 +210,7 @@ name = "Alice"
     with tempfile.TemporaryDirectory() as d:
         pyproject_path = Path(d) / "pyproject.toml"
         pyproject_path.write_text(content, encoding="utf-8")
-        _, config = read_poetry(pyproject_path)
+        _, config = read_pyproject(pyproject_path)
 
     assert [c.name for c in config.creators] == ["Acme Corp", "Alice"]
     assert config.creators[0].type == "organization"
@@ -266,13 +265,14 @@ def test_extract_poetry_metadata_license_conflict() -> None:
     assert "LICENSE" in (metadata.provenance.get("license_concluded") or "")
 
 
-def test_read_poetry_matches_read_pyproject_fallback_for_license_conflict() -> None:
-    """``read_poetry()`` (direct poetry-only entry point) and
-    ``read_pyproject()``'s own fallback-to-``[tool.poetry]`` branch (no
-    ``[project]`` section) must agree on G2 for the same project --
-    cross-path regression guard for the same "different extractor path,
-    same bug class" gap ``resolve_license_concluded()``'s docstring warns
-    about, applied to the poetry paths rather than Hatchling."""
+def test_read_pyproject_fallback_license_conflict_end_to_end() -> None:
+    """``read_pyproject()``'s fallback-to-``[tool.poetry]`` branch (no
+    ``[project]`` section) resolves G2 correctly end-to-end from a real
+    file -- not just via a direct :func:`extract_poetry_metadata` call
+    with a pre-parsed dict, which is what the other G2 tests in this
+    file exercise. Regression guard for the same "different extractor
+    path, same bug class" gap ``resolve_license_concluded()``'s
+    docstring warns about, applied to the poetry-fallback path."""
     content = """
 [tool.poetry]
 name = "poetry-pkg"
@@ -287,13 +287,10 @@ license = "MIT"
             "pitloom.extract._license.detect_license_from_text",
             return_value="Apache-2.0",
         ):
-            direct_meta, _ = read_poetry(tmp_path / "pyproject.toml")
-            fallback_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
+            metadata, _ = read_pyproject(tmp_path / "pyproject.toml")
 
-    assert direct_meta.license_name == "MIT"
-    assert fallback_meta.license_name == "MIT"
-    assert direct_meta.license_concluded == "Apache-2.0"
-    assert fallback_meta.license_concluded == direct_meta.license_concluded
+    assert metadata.license_name == "MIT"
+    assert metadata.license_concluded == "Apache-2.0"
 
 
 def test_extract_poetry_metadata_license_agrees() -> None:

@@ -312,3 +312,37 @@ def test_sanitize_for_json_orders_unsortable_elements_deterministically() -> Non
     set_a = {frozenset({1, 2}), frozenset({3, 4}), frozenset({5})}
     set_b = {frozenset({5}), frozenset({3, 4}), frozenset({1, 2})}
     assert _sanitize_for_json(set_a) == _sanitize_for_json(set_b)
+
+
+# ---------------------------------------------------------------------------
+# RFC 8785 (JCS) canonicalization of Annotation.statement
+# ---------------------------------------------------------------------------
+
+
+def test_build_json_annotation_uses_compact_rfc8785_separators() -> None:
+    """statement must have no insignificant whitespace (JCS, not plain
+    json.dumps' default ``': '``/``', '`` separators)."""
+    ci = _make_ci()
+    ann = build_unification_annotation(
+        "urn:doc#Package-1", "hash", ["urn:doc#a"], ["urn:doc#b"], ci, "urn:doc#Ann-1"
+    )
+    assert ann.statement is not None
+    assert ": " not in ann.statement
+    assert ", " not in ann.statement
+
+
+def test_sanitize_for_json_stringifies_unsupported_types() -> None:
+    """RFC 8785 has no default=str-style hook (unlike plain json.dumps) --
+    the sanitizer must stringify unrecognized types itself, matching the
+    previous default=str fallback's behavior."""
+    # pylint: disable=import-outside-toplevel
+    from decimal import Decimal
+
+    from pitloom.assemble.spdx3.provenance import _sanitize_for_json
+
+    class _Unrecognized:
+        def __str__(self) -> str:
+            return "unrecognized-value"
+
+    assert _sanitize_for_json(Decimal("1.5")) == "1.5"
+    assert _sanitize_for_json(_Unrecognized()) == "unrecognized-value"

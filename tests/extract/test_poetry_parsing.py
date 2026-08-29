@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for low-level [tool.poetry] parsing helpers and read_poetry().
+"""Tests for low-level [tool.poetry] parsing helpers.
 
 See also: test_poetry_pyproject.py for read_pyproject() poetry-fallback,
 fixture integration, and license-conflict tests.
@@ -20,7 +20,6 @@ from pitloom.extract._poetry import (
     _poetry_constraint_to_pep440,
     _poetry_dep_to_pep508,
     extract_poetry_metadata,
-    read_poetry,
 )
 
 # ---------------------------------------------------------------------------
@@ -300,40 +299,6 @@ def test_extract_provenance_sources() -> None:
     assert "tool.poetry.description" in metadata.provenance.get("description", "")
     assert "tool.poetry.authors" in metadata.provenance.get("authors", "")
     assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
-
-
-# ---------------------------------------------------------------------------
-# read_poetry -- file-based
-# ---------------------------------------------------------------------------
-
-
-def test_read_poetry_missing_file() -> None:
-    with tempfile.TemporaryDirectory() as d:
-        with pytest.raises(FileNotFoundError):
-            read_poetry(Path(d) / "pyproject.toml")
-
-
-def test_read_poetry_no_poetry_section() -> None:
-    content = "[project]\nname = 'pkg'\nversion = '1.0'\n"
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "pyproject.toml").write_text(content)
-        with pytest.raises(ValueError, match=r"\[tool\.poetry\]"):
-            read_poetry(Path(d) / "pyproject.toml")
-
-
-def test_read_poetry_returns_pitloom_config() -> None:
-    content = """
-[tool.poetry]
-name = "pkg"
-version = "1.0"
-
-[tool.pitloom]
-pretty = true
-"""
-    with tempfile.TemporaryDirectory() as d:
-        (Path(d) / "pyproject.toml").write_text(content)
-        _, config = read_poetry(Path(d) / "pyproject.toml")
-    assert config.pretty is True
 
 
 def test_convert_caret_and_tilde_edge_cases() -> None:

@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-19
+# Last-Modified: 2026-08-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -11,7 +11,8 @@ description: >-
   document, a software bill of materials, a dependency inventory, or an AI
   model bill of materials (AIBOM) -- for a Python project, an sdist archive,
   a built wheel, a standalone AI/ML model file (GGUF, ONNX, PyTorch,
-  Safetensors, Keras, HDF5, NumPy, fastText, or a Hugging Face Hub model), or an
+  PyTorch PT2/ExecuTorch, Safetensors, Keras, HDF5, NumPy, fastText, or a
+  Hugging Face Hub model), or an
   installed environment. Trigger phrasings include "generate an SBOM", "give
   me an SBOM", "gen SBOM of this model", "can we have SBOM of this project",
   "create an SPDX 3 document", "create a BOM", "make a software bill of
@@ -206,6 +207,23 @@ A quick `@graph`-presence sanity check is enough for most runs (see
 `references/examples.md`), but for a schema/shape-level conformance
 check, use the `sbom-validate` skill on the output.
 
+## Check stderr for INFO:/WARNING:/ERROR: lines
+
+Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
+prefix -- exactly one of the three, always at the start of the line
+(see `AGENTS.md`'s "CLI output" section for the full convention).
+`WARNING:` examples: "a config value was too small to be useful and got
+normalized instead", "a requested detector isn't installed". `INFO:`
+covers normal status the command wants a human to see, most importantly
+**generation being skipped or scoped down** -- e.g. a Hatchling build
+hook run that produced no SBOM because it's disabled or the target
+isn't `wheel`. These don't always fail the command or show up in the
+output JSON itself, so after running `loom`, scan the captured stderr
+for all three prefixes and mention any hit to the user in plain
+language -- don't let a real warning or an `INFO:` line saying
+generation was skipped pass by unmentioned just because the command
+exited 0 and (maybe) produced a file.
+
 ## Known limitations -- say so, don't paper over it
 
 Pitloom's dependency/supplier/license extraction is Python-packaging-native:
@@ -239,32 +257,35 @@ back a JSON file that looks complete but isn't:
   for "genuinely unknown" -- not a bug -- but worth naming when a user
   asks why a dependency's entry looks sparse.
 - **AI model formats**: broad but not universal coverage (GGUF, ONNX,
-  PyTorch, Safetensors, Keras, HDF5, NumPy, fastText, plus Hugging Face
-  Hub models). A model in some other serialization format isn't
+  PyTorch, PyTorch PT2/ExecuTorch, Safetensors, Keras, HDF5, NumPy,
+  fastText, plus Hugging Face Hub models). A model in some other
+  serialization format isn't
   recognized at all -- same "say so" rule applies rather than silently
   skipping it.
-- **Non-Hatchling build backend** for `loom project`/`loom generate`
-  against a project directory -- check `pyproject.toml`'s
-  `[build-system] build-backend` *before* generating, not after. If it
-  isn't `hatchling.build` (`setuptools.build_meta`,
-  `poetry.core.masonry.api`, `pdm.backend`, `flit_core.buildapi`,
-  `uv_build`, etc. -- or there's no `pyproject.toml` build-backend
-  declared at all, just a bare `setup.py`/`setup.cfg`), say so upfront,
-  don't wait for the user to ask why the SBOM looks off:
+- **Non-Hatchling, non-setuptools build backend** for `loom
+  project`/`loom generate` against a project directory -- check
+  `pyproject.toml`'s `[build-system] build-backend` *before* generating,
+  not after. Hatchling and setuptools (including `[tool.setuptools.packages.find]
+  where=`, `package_data`, `include_package_data`/`MANIFEST.in`) both get
+  accurate file-level discovery. Any other backend (`poetry.core.masonry.api`,
+  `pdm.backend`, `flit_core.buildapi`, `uv_build`, etc. -- or no
+  `pyproject.toml` build-backend declared at all, just a bare
+  `setup.py`/`setup.cfg`) falls back to a Hatchling-based heuristic and
+  logs a warning, say so upfront, don't wait for the user to ask why the
+  SBOM looks off:
 
-  > **Limitation notes:** While Pitloom can work with any Python
-  > project, it currently gathers more information from Hatchling
-  > project. More complete support for `setuptools` is planned for
-  > version 0.17.0. `uv_build`, `Poetry Core`, `PDM-Backend`, and
-  > `Flit-Core` are also in the plan. See full [limitation
+  > **Limitation notes:** File-level discovery is backend-aware for
+  > Hatchling and setuptools. For any other build backend, Pitloom falls
+  > back to a Hatchling-based heuristic that can be silently incomplete
+  > or mis-pathed. `uv_build`, Poetry Core, PDM-Backend, and Flit-Core
+  > are on the roadmap. See full [limitation
   > notes](https://bact.github.io/pitloom/cli/#usage-details).
 
   Project-level metadata (name, version, dependencies, license,
   authors) is unaffected by this -- it's read correctly regardless of
   backend. What's affected is the *file-level* inventory: which files
   are listed, their hashes, and the package's Merkle-root integrity
-  hash, which currently rely on Hatchling's own file-discovery
-  heuristics regardless of the declared backend.
+  hash, for any backend still on the Hatchling-based fallback.
 
 ## See also
 

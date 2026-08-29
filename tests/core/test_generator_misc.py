@@ -236,13 +236,17 @@ def test_generate_dispatches_huggingface_source(
     assert "enrich" in called
 
 
+@pytest.mark.parametrize("suffix", [".gguf", ".pt2"])
 def test_generate_dispatches_local_ai_model_file_by_extension(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str
 ) -> None:
     """A local file whose extension matches a known AI-model format
     dispatches to generate_model_sbom(), even though it is a real file
-    on disk (unlike the Hugging Face source string case above)."""
-    model_path = tmp_path / "weights.gguf"
+    on disk (unlike the Hugging Face source string case above). ``.pt2``
+    is a regression case: it was missing from generate()'s extension
+    tuple, so a PyTorch PT2/ExecuTorch file silently fell through to
+    project-SBOM generation instead."""
+    model_path = tmp_path / f"weights{suffix}"
     model_path.write_bytes(b"\x00")
 
     called: dict[str, object] = {}

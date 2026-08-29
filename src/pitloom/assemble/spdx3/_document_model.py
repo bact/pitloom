@@ -267,6 +267,7 @@ def build_model(
         ai_pkg,
         {},
         prov_cfg.preserve_source_metadata,
+        prov_cfg.max_source_metadata_bytes,
         spdx_ci,
         doc_name,
         doc_uuid,

@@ -20,6 +20,7 @@ from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _print_sbom_output_path,
     cli_error_handler,
+    resolve_effective_provenance,
 )
 from pitloom.cli.options import _resolve_creation_metadata
 from pitloom.core.config import PitloomConfig
@@ -39,12 +40,16 @@ def _report_embed_result(
     """
     print(f"pitloom: embedded {arcname} into {wheel_name}")
     for stale_arcname in removed:
-        print(f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}")
+        print(
+            f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}",
+            file=sys.stderr,
+        )
     if timestamp_floored:
         print(
             f"INFO: {wheel_name}'s embedded SBOM entry timestamp was before "
             "1980 and was floored to 1980-01-01 (ZIP format limitation); "
-            "the SBOM's own 'created' field keeps the true value"
+            "the SBOM's own 'created' field keeps the true value",
+            file=sys.stderr,
         )
 
 
@@ -103,7 +108,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         extract_file_header=args.extract_file_header,
         content_type=args.content_type,
         content_type_method=args.content_type_method,
-        provenance=pitloom_config.provenance,
+        provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline or None,
     )
     for wheel_path in unique_wheels:

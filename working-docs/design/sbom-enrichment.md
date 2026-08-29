@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-08-25
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -33,30 +33,37 @@ Pitloom maps extracted model metadata to SPDX 3 native AI profile fields on
 `ai_AIPackage` elements are linked to the main Python package via an SPDX
 `contains` relationship.
 
-## Planned: dataset-to-model relationship linking
+## Dataset-to-model relationship linking
 
-A current gap in Pitloom's SBOM output is that only the AI model itself is
-documented, not its associated training, evaluation, or fine-tuning datasets.
-
-SPDX 3 provides the `dataset_DatasetPackage` class and dedicated relationship
+**Shipped.** The AI model itself and its associated training/evaluation
+datasets are both documented, linked via SPDX 3's dedicated relationship
 types between `ai_AIPackage` and `dataset_DatasetPackage`:
 
-| SPDX 3 Relationship type | Meaning |
-| :---- | :---- |
-| `trainedOn` | Primary dataset used to train the model |
-| `testedOn` | Dataset(s) used to evaluate the trained model |
-| `finetunedOn` | Dataset used for fine-tuning a pre-trained model |
-| `validatedOn` | Dataset used for validation during training |
-| `pretrainedOn` | Dataset used to pre-train a foundation model |
+| SPDX 3 Relationship type | Meaning | Native in SPDX 3.0.1? |
+| :---- | :---- | :---- |
+| `trainedOn` | Primary dataset used to train the model | Yes |
+| `testedOn` | Dataset(s) used to evaluate the trained model | Yes |
+| `finetunedOn` | Dataset used for fine-tuning a pre-trained model | No -- `other` + comment |
+| `validatedOn` | Dataset used for validation during training | No -- `other` + comment |
+| `pretrainedOn` | Dataset used to pre-train a foundation model | No -- `other` + comment |
 
-### Implementation approach
+### Implementation
 
-1. Extend `AiModelMetadata` with a `datasets` field (list of `DatasetReference`
-   dataclass) carrying: role (trained/tested/etc.), name, URI, and license.
-2. Add `dataset_DatasetPackage` element creation to `pitloom.assemble.spdx3.ai`.
-3. Emit the appropriate relationship type for each dataset reference.
-4. Append `ProfileIdentifierType.dataset` to `profileConformance` when at least
-   one dataset element is present.
+- `AiModelMetadata.datasets` (`pitloom.core.ai_metadata`) is a
+  `list[DatasetReference]` (`pitloom.core.dataset_metadata`) carrying each
+  dataset's role, name, URI, and license -- populated today by the
+  README/model-card frontmatter enricher (`enrich/readme.py`) and the
+  Hugging Face extractor (`extract/_huggingface.py`).
+- `add_datasets_for_model()` (`src/pitloom/assemble/spdx3/dataset.py`)
+  creates the `dataset_DatasetPackage` element and emits the relationship,
+  mapping each role to its native SPDX 3.0.1 `RelationshipType` where one
+  exists, falling back to `RelationshipType.other` plus an explanatory
+  comment for the three roles SPDX 3.0.1 doesn't have a term for yet
+  (`_role_to_rel()` in the same module).
+- Called from `pitloom.assemble.spdx3.ai` and `_document_model.py`, which
+  also append `ProfileIdentifierType.dataset` to `profileConformance`
+  whenever at least one dataset element is present
+  (`pitloom.assemble.spdx3.document`).
 
 ### Dataset metadata sources
 
@@ -144,7 +151,12 @@ different value. A fragment built with the wrong one references an id
 that doesn't exist in the merged result: its dataset relationship and
 enrichment Annotation become silently dangling references, with no
 warning from `merge_fragments()` (found during independent review; see
-git history for the fix). **Always pass `loom enrich --project-dir
+git history for the fix). `merge_fragments()` now detects this class of
+bug generically (any dangling reference after a merge fails the merge,
+see `_raise_on_dangling_references()` in
+`src/pitloom/assemble/spdx3/fragments.py`), but getting the identity
+right in the first place is still the correct fix, not something to
+merge past. **Always pass `loom enrich --project-dir
 <dir>` (or `enrich_model(..., project_target=<dir>)`)** when the
 fragment is meant to merge into a project-level base document -- this
 resolves the project's own identity (see `_project_doc_identity()` in

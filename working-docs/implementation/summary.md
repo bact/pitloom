@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -83,7 +83,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
      (`[project.entry-points."hatch"]`)
    - Generates SBOM in `initialize()`, stages to a `TemporaryDirectory`
    - Appends staged path to `build_data["sbom_files"]` --
-     Hatchling 1.28.0+ places it at `.dist-info/sboms/<filename>`
+     Hatchling 1.29.0+ places it at `.dist-info/sboms/<filename>`
      (PEP 770) natively
    - `finalize()` cleans up the staging directory
    - Config: `[tool.hatch.build.hooks.pitloom] enabled` only; basename,

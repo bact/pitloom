@@ -64,6 +64,7 @@ def _emit_source_metadata(
     ai_pkg: spdx3.ai_AIPackage,
     file_spdx_ids: dict[str, str],
     preserve_source_metadata: str,
+    max_source_metadata_bytes: int,
     creation_info: spdx3.CreationInfo,
     doc_name: str,
     doc_uuid: str,
@@ -80,6 +81,7 @@ def _emit_source_metadata(
         creation_info=creation_info,
         doc_name=doc_name,
         doc_uuid=doc_uuid,
+        max_metadata_bytes=max_source_metadata_bytes,
     )
     if annotation is not None:
         exporter.add_annotation(annotation)

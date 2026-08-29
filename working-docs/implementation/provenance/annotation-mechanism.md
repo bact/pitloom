@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-08-26
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -88,8 +88,15 @@ PEP 508 `declared_constraint`.
 - `preserve-source-metadata = "auto" | "always" | "never"` — default
   `"auto"` (preserve an AI model's verbatim metadata only when the artifact is
   not shipped in the distribution and can't be re-extracted).
+- `max-source-metadata-bytes = <int>` — default `0` (unlimited). Byte
+  budget for the serialized artifact-metadata `Annotation.statement`
+  (2026-08-26); unlike its siblings, also has a `--max-source-metadata-bytes`
+  CLI flag / `action.yml` input, resolved at the CLI layer via
+  `cli/commands/utils.resolve_effective_provenance()` rather than a new
+  per-hop parameter — see "Size-bounded artifact-metadata preservation"
+  below.
 
-Both parsed/validated in `core/config.py` (`_read_provenance_settings`),
+All parsed/validated in `core/_config_parse.py` (`_read_provenance_settings`),
 threaded through `build`/`build_model` and the `generate_*` / hatch-hook
 entry points exactly as `provenance_format`/`schema` already were.
 
@@ -107,12 +114,71 @@ consumer can dispatch mechanically without pattern-matching prose:
 
 Compound JSON keys use `camelCase`, matching the surrounding SPDX 3
 JSON-LD style already used everywhere in the same document (`spdxId`,
-`creationInfo`, `annotationType`). None of the four current schemas ends
-up needing a compound key — G2's `candidates` list settled on flat,
+`creationInfo`, `annotationType`). G2's `candidates` list settled on flat,
 single-word fields (`value`/`role`/`source`/`ref`) once it moved to an
 open candidate-list design instead of fixed `declaredLicenseId`-style
-pairs — but the convention is stated explicitly so the next schema that
-*does* need one (E1/E2, whenever `enrich/` lands) doesn't have to
-re-derive it. Established retroactively across all four schemas this
-session (none had shipped in a release yet, so no compatibility
-constraint).
+pairs, so none of the original four schemas needed a compound key at
+first — but the convention was stated explicitly so the next schema that
+*does* need one doesn't have to re-derive it. P1 (artifact-metadata) is
+that schema: its optional truncation marker fields (`truncated`,
+`truncatedKeys`, `truncatedKeyCount`, `maxMetadataBytes`) are the first
+to use it, added 2026-08-26 — see below. Established retroactively
+across all four original schemas in an earlier session (none had shipped
+in a release yet, so no compatibility constraint).
+
+### Size-bounded artifact-metadata preservation (2026-08-26)
+
+P1's `Annotation.statement` embeds an AI model's raw metadata verbatim
+with no inherent size limit — a real GGUF model's tokenizer vocab array
+can inflate it into the multi-megabyte range (previously an open,
+unimplemented gap — `working-docs/design/provenance-enrichment-vocabulary.md`
+open question #7). `max-source-metadata-bytes` (`ProvenanceConfig` field
+`max_source_metadata_bytes`, default `0` = unlimited) caps this.
+
+Truncation happens at the dictionary level only — whole `metadata` keys
+are dropped, largest-serialized-size first, never a value cut
+mid-string (which would produce invalid JSON). This is implemented in
+`assemble/spdx3/provenance.py`'s `_truncate_metadata_for_budget()`,
+re-checking the real RFC 8785-serialized byte length of the candidate
+envelope after each drop rather than approximating it — cheap at the
+realistic key counts here (a model's own KV/metadata table: dozens of
+keys, not thousands). When triggered, the envelope gains
+`truncated: true`, `truncatedKeys` (sorted alphabetically, regardless of
+drop order), `truncatedKeyCount`, and `maxMetadataBytes` — an explicit,
+visible marker, never a silent size reduction. Two edge cases: if
+dropping every key still leaves the envelope's own fixed overhead
+(schema/kind/format/markers) over budget, no Annotation is emitted at
+all (`build_source_metadata_annotation()` returns `None`, same as
+today's "empty original metadata" case); if the overhead fits but every
+key had to go, the Annotation is emitted with `metadata: {}`. Both log a
+`WARNING`.
+
+A negative or too-small-to-hold-data value (below `_MIN_EFFECTIVE_
+MAX_SOURCE_METADATA_BYTES`, 8 bytes — the smallest possible JCS-encoded
+JSON object, e.g. `{"a":""}`) is normalized to `0` (unlimited) with a
+logged `WARNING`, via `core/provenance.normalize_max_source_metadata_bytes()`
+— called from both the TOML reader and the CLI-override path, so every
+construction route gets the same treatment.
+
+Unlike every other `[tool.pitloom.provenance]` key, this one also has a
+`--max-source-metadata-bytes` CLI flag and `action.yml` input — a byte
+cap is judged an operational knob worth overriding per-run, unlike the
+project-level policy choices the other keys represent. Resolved at the
+CLI layer (`cli/commands/utils.resolve_effective_provenance()`, composing
+a `dataclasses.replace()` onto the config-sourced `ProvenanceConfig`
+before it's ever passed into the assembly pipeline) rather than adding a
+new parameter at every hop the way `content_type_method` does — since
+`ProvenanceConfig` already flows through `generate_project_sbom()` →
+`build()` → `add_ai_models()` as one opaque object, no per-hop threading
+was needed.
+
+**Also 2026-08-26**: `_build_json_annotation()` (shared by all four
+schemas) switched from plain `json.dumps(..., sort_keys=True)` to true
+RFC 8785 (JCS) canonicalization (`rfc8785.dumps()`, already a project
+dependency, used for the outer document). Every `Annotation.statement`
+is now genuinely canonical, not just key-sorted — no insignificant
+whitespace, so every statement also shrank a little for free.
+`_sanitize_for_json()`'s fallback for unrecognized types (`np.float32`,
+`Decimal`, etc.) changed from relying on `json.dumps`'s `default=str`
+hook (which `rfc8785.dumps()` has no equivalent of) to stringifying them
+itself before the value ever reaches the serializer.

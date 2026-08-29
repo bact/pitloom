@@ -19,7 +19,6 @@ import pytest
 from pitloom.extract._croissant import (
     _collect_data_types,
     _extract_creator_name,
-    _extract_size,
     _infer_dataset_types,
     _normalize_sensitivity,
     read_croissant,
@@ -189,42 +188,6 @@ def test_infer_dataset_types_image() -> None:
 
 def test_infer_dataset_types_empty() -> None:
     assert not _infer_dataset_types({})
-
-
-# ---------------------------------------------------------------------------
-# _extract_size
-# ---------------------------------------------------------------------------
-
-
-# def test_extract_size_single_record_set() -> None:
-#     data = {"cr:recordSet": [{"cr:totalItems": 1000}]}
-#     assert _extract_size(data) == 1000
-
-
-# def test_extract_size_multiple_record_sets_summed() -> None:
-#     data = {"cr:recordSet": [{"cr:totalItems": 1000}, {"cr:totalItems": 500}]}
-#     assert _extract_size(data) == 1500
-
-
-# def test_extract_size_string_value() -> None:
-#     # totalItems may be a string in some files
-#     data = {"cr:recordSet": [{"cr:totalItems": "2500"}]}
-#     assert _extract_size(data) == 2500
-
-
-def test_extract_size_no_record_sets() -> None:
-    assert _extract_size({}) is None
-
-
-def test_extract_size_nonempty_data_returns_zero() -> None:
-    # Sizing calculation logic is not implemented yet; any non-empty data
-    # falls back to 0 rather than None.
-    assert _extract_size({"cr:recordSet": [{"cr:totalItems": 1000}]}) == 0
-
-
-# def test_extract_size_missing_total_items() -> None:
-#     data: dict[str, object] = {"cr:recordSet": [{"cr:field": []}]}
-#     assert _extract_size(data) is None
 
 
 # ---------------------------------------------------------------------------

@@ -58,49 +58,17 @@ See Also:
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
-
 # Matches "Name <email>", "Name", or "<email>"
 _AUTHOR_RE = re.compile(r"^(?P<name>[^<]*?)\s*(?:<(?P<email>[^>]+)>)?$")
-
-
-def read_poetry(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from ``[tool.poetry]`` in ``pyproject.toml``.
-
-    Args:
-        pyproject_path: Path to the ``pyproject.toml`` file.
-
-    Returns:
-        A 2-tuple of :class:`~pitloom.core.project.ProjectMetadata` and
-        :class:`~pitloom.core.config.PitloomConfig`.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If ``[tool.poetry]`` is absent or has no ``name``.
-    """
-    if not pyproject_path.exists():
-        raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
-
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
-
-    metadata = extract_poetry_metadata(data, pyproject_path.parent)
-    pitloom_config = parse_pitloom_config(data)
-    return metadata, pitloom_config
 
 
 def extract_poetry_metadata(

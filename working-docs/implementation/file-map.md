@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-08-25
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -124,7 +124,10 @@ pitloom/
 │       │   ├── _config_legacy.py   # Migration error checks and constants
 │       │   ├── _config_parse.py    # TOML parser for [tool.pitloom]
 │       │   ├── _config_types.py    # Configuration dataclasses and type definitions
-│       │   ├── _models_wheel.py    # Wheel file records and Merkle root calculation
+│       │   ├── _models_wheel.py    # Backend-dispatch facade + shared per-file processing loop
+│       │   ├── _models_wheel_hatchling.py  # Hatchling WheelBuilder-based discover()
+│       │   ├── _models_wheel_setuptools.py # setuptools static-config-based discover()
+│       │   ├── _models_wheel_types.py # IncludedFile, BackendDiscoverer protocol, shared helpers
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
 │       │   ├── config.py           # PitloomConfig facade and re-exports
 │       │   ├── content_type_config.py # [tool.pitloom.content-type] settings
@@ -184,14 +187,16 @@ pitloom/
 │       ├── _loom_active_run.py     # Active-run state machine
 │       ├── embed.py                # PEP 770 wheel embedding facade
 │       ├── ids.py                  # Loom ID registry facade (loom-ids.json)
+│       ├── logging_config.py       # Shared INFO:/WARNING:/ERROR: stderr formatting (configure_logging)
 │       ├── loom.py                 # ML tracking SDK facade (Run context manager / decorator)
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
-│   ├── assemble/                   # 29 files -- assemble/, embed.py, enrich/ coverage + conftest.py
-│   ├── cli/                        # 13 files -- one per src/pitloom/cli/ module, + shared.py
-│   ├── core/                       # 32 files -- core/, ids.py, loom.py, generator orchestration
-│   ├── extract/                    # 36 files, one per extractor
-│   │   └── huggingface/            # 33 files -- split by metadata category; mock patches in hf_patches/
+│   ├── assemble/                   # 35 files -- assemble/, embed.py, enrich/ coverage + conftest.py
+│   ├── cli/                        # 14 files -- one per src/pitloom/cli/ module, + shared.py
+│   ├── core/                       # 42 files -- core/, ids.py, loom.py, generator orchestration
+│   ├── extract/                    # 46 files, one per extractor
+│   │   └── huggingface/            # 20 files -- split by metadata category
+│   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── ids_shared.py               # Shared helpers for ids-registry tests

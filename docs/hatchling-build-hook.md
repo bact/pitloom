@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -24,7 +24,7 @@ only), as compact canonical JSON.
 
 ```toml
 [build-system]
-requires = ["hatchling>=1.32.0", "pitloom>=0.16.4"]
+requires = ["hatchling>=1.32.0", "pitloom>=0.17.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.pitloom]
@@ -35,7 +35,7 @@ That's all -- `hatch build` and `python -m build` now embed the SBOM.
 
 ## Installation
 
-Add `pitloom` as a build requirement (Hatchling **1.29.0+** required) and
+Add `pitloom` as a build requirement (Hatchling **1.32.0+** required) and
 add the `[tool.hatch.build.hooks.pitloom]` table to `pyproject.toml`
 (as shown above) -- both parts are required. Listing `pitloom` under
 `[build-system] requires` alone does not activate the hook: Hatchling
@@ -60,6 +60,12 @@ The table's `enabled` key defaults to `true`, so an empty
 `[tool.hatch.build.hooks.pitloom]` is enough. Set `enabled = false`
 inside it to skip generation for a particular build without removing
 the table.
+
+Status/skip/deviation messages the hook logs during a build follow the
+same grep-able `INFO:`/`WARNING:`/`ERROR:` stderr convention as the
+`loom` CLI (see [Command line](cli.md)) -- e.g. a merge failure (see
+[Merge fragments](cli.md#merge-fragments)) fails the build outright with
+an `ERROR:` line, and "generation skipped: hook disabled" is an `INFO:`.
 
 ## Configuration
 

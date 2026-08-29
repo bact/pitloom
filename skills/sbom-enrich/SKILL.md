@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-25
+# Last-Modified: 2026-08-26
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -103,6 +103,22 @@ Steps:
 
 1. Generate a base SBOM first, if not already done (use the
    `sbom-generate` skill).
+
+   **If a base SBOM already exists** and Pitloom was upgraded since it
+   was generated, regenerate it before merging any fragment against it
+   when the upgrade could have changed file discovery for this
+   project's build backend (check the CHANGELOG for the installed
+   version range). Element ids are content-addressed from the
+   resolved file set (`doc_uuid`, see
+   `_project_doc_identity()`'s docstring in
+   `src/pitloom/assemble/_model_generator.py`), so a more accurate
+   file list from the same unchanged source produces different ids --
+   a fragment built against the old base SBOM then merges with
+   references to ids the new base SBOM doesn't have. `merge_fragments()`
+   logs a `WARNING:` for any such dangling reference it finds, then
+   fails the merge outright (raises, so the CLI exits non-zero with an
+   `ERROR:` line) rather than silently producing a broken SBOM --
+   regenerate the base SBOM and re-run enrichment before merging again.
 2. **Run the deterministic pass first:** `loom enrich <model-file>` for
    each local AI model file in scope. This parses only YAML frontmatter
    (no prose, no reasoning) and writes a standalone fragment -- fast,
@@ -302,6 +318,23 @@ g. **Final report.** List which elements are now satisfied, which remain unknown
 `references/minimum-elements.md` also lists a manual, optional cross-check
 (`ntia-conformance-checker`) for NTIA/CISA targets -- not a required step, and not
 wired into this skill.
+
+## Check stderr for INFO:/WARNING:/ERROR: lines
+
+`loom enrich`/`loom project`/`loom generate`/`loom merge` log to stderr
+with a grep-able `INFO:`/`WARNING:`/`ERROR:` prefix -- exactly one of
+the three, always at the start of the line (see `AGENTS.md`'s "CLI
+output" section for the full convention). Relevant here in particular:
+merging a fragment against a base SBOM whose element ids no longer
+match it (see "If a base SBOM already exists" above) logs a
+`WARNING:` naming the dangling reference and fails the merge (non-zero
+exit, `ERROR:` line) -- regenerate the base SBOM and re-run enrichment
+rather than retrying the same merge. `INFO:` covers
+normal status worth surfacing too, e.g. a step being skipped. Scan the
+captured stderr for all three prefixes after running any of these
+commands and mention any hit to the user in plain language -- don't
+let a real warning pass by unmentioned just because the command exited
+0.
 
 ## See also
 

@@ -289,6 +289,7 @@ def test_pitloom_config_helper_properties() -> None:
         provenance_schema="spdx3",
         provenance_detail="full",
         provenance_preserve_source_metadata="always",
+        provenance_max_source_metadata_bytes=5000,
         content_type_enabled=True,
         content_type_method="magika",
         enrich_local=True,
@@ -303,6 +304,7 @@ def test_pitloom_config_helper_properties() -> None:
     assert prov.schema == "spdx3"
     assert prov.detail == "full"
     assert prov.preserve_source_metadata == "always"
+    assert prov.max_source_metadata_bytes == 5000
 
     ct = cfg.content_type
     assert ct.enabled is True

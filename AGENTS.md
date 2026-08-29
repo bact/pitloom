@@ -48,9 +48,40 @@ Unix philosophy. Consistent, predictable, parseable.
 
 - Default: line-delimited, one data point per line.
 - Key-value: `KEY=VALUE` -- uppercase KEY, no spaces around `=`.
-- Errors: `ERROR: <short description>` to stderr.
-- Warnings: `WARNING: <short description>` to stderr. Internal `logging.warning()` calls get this prefix automatically.
-- Messages get trimmed to essentials and share a literal, grep-able prefix.
+- Three levels reach stderr, every line starting with exactly one:
+  `ERROR: <short description>`, `WARNING: <short description>`,
+  `INFO: <short description>`. Nothing else is grep-able output -- a
+  message doesn't get a second competing tag, and isn't split across a
+  tagged line and an untagged continuation line.
+  - `ERROR:` -- via the CLI's own `print(..., file=sys.stderr)` calls
+    (`cli_error_handler` in `cli/commands/utils.py` adds it
+    automatically around any raised exception). Fatal to the current
+    operation.
+  - `WARNING:` -- a "no silent deviations" decision or a recovered,
+    non-fatal problem. Internal `logging.warning()` calls get this
+    prefix automatically.
+  - `INFO:` -- a normal status update worth a human seeing (e.g. "SBOM
+    generation skipped: hook disabled"), not an error or a deviation.
+    Internal `logging.info()` calls get this prefix automatically.
+  - `logging.debug()` stays a developer-only diagnostic -- never
+    prefixed, never reaches stderr in a normal invocation.
+  - All three are wired up once, identically, by
+    `pitloom.logging_config.configure_logging()` -- every CLI command,
+    the Hatchling build hook, and every public library-API entry point
+    (`generate_project_sbom()`, etc.) call it first, so the same
+    `log.warning(...)` call looks identical regardless of which one
+    invoked Pitloom. A new entry point that skips this call is a bug,
+    not a style choice.
+- Within one subsystem, prefer a shared, literal sub-prefix so its
+  messages are easy to compare/grep as a group (e.g. `Registry: ...` for
+  every `pitloom.ids`/`IdRegistry` warning, `FORMAT=%s FILE=%s: ...` for
+  per-model-file scanning warnings) -- match an existing sibling
+  message's wording before inventing a new phrasing for the same kind of
+  event. Not a single global schema across unrelated subsystems: forcing
+  one would make many messages read unnaturally for no parsing benefit
+  beyond the `LEVEL:` tag itself, which is the one prefix every consumer
+  (grep, `caplog`) actually keys on.
+- Messages get trimmed to essentials.
 
 ## Python
 

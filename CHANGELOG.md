@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-21
+Last-Modified: 2026-08-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,20 +17,65 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.16.4...v0.17.0>
 
-## [Unreleased]
+## [0.17.0] - 2026-08-30
+
+### Added
+
+- Serialize every Annotation's `statement` via RFC 8785 (JSON
+  Canonicalization Scheme) ([#189])
+- Cap artifact-metadata `Annotation.statement` size via
+  `[tool.pitloom.provenance] max-source-metadata-bytes` /
+  `--max-source-metadata-bytes` ([#189])
+- Setuptools wheel file discovery from static `pyproject.toml`/`setup.cfg`
+  config (`packages.find`, `package_data`, `include_package_data`/
+  `MANIFEST.in`) ([#196])
+- `setuptools>=70` is now a hard runtime dependency (needed to resolve the
+  above regardless of the scanned project's own build backend) ([#196])
 
 ### Changed
 
 - Reorganize Hugging Face tests ([#187])
+- Split `get_wheel_files()` into a per-backend discovery module + registry,
+  ready for Poetry/PDM/Flit-core/`uv_build` ([#196])
+- **Setuptools projects**: SBOM element ids shift vs. pre-upgrade output --
+  regenerate the base SBOM before merging fragments ([#196])
 
 ### Fixed
 
-- Prune two unreachable branches in `_setuptools_cfg.py` ([#188])
+- Prune unreachable branches in  `_pyproject.py`, `_setuptools_cfg.py`
+  ([#188], [#195])
+- Only declare the `simpleLicensing` profile when a real license claim was
+  made ([#190])
+- Setuptools `packages.find where=` layouts no longer report wrong
+  distribution paths (e.g. `lib/pkg/...` instead of `pkg/...`) ([#196])
+- Unhandled build backends now log a warning instead of silently falling
+  back to a possibly-inaccurate Hatchling-based file list ([#196])
+- `detect_build_backend()` now falls back for a malformed `pyproject.toml`,
+  not just an absent one ([#196])
+- Fix crash reading `pyproject.toml` with both an SPDX `license` string and
+  legacy classifiers ([#196])
+- `merge_fragments()` now warns on, and fails the merge for, a dangling
+  reference left after merging (e.g. a stale-`doc_uuid` fragment) instead of
+  silently producing a broken SBOM ([#196])
+- `INFO:`-level log messages (e.g. Hatchling build hook status) now actually
+  reach stderr ([#196])
+- `embed-wheel`/`wheel --embed` INFO: lines now go to stderr, not stdout
+  ([#196])
+- GitHub Action now surfaces loom's INFO:/WARNING:/ERROR: lines as
+  ::notice::/::warning::/::error:: annotations, including any continuation
+  lines of a multi-line message ([#196])
+- `generate()`'s smart entrypoint now recognizes `.pt2` (PyTorch
+  PT2/ExecuTorch) and routes it to model-SBOM generation instead of
+  falling through to project-SBOM ([#196])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188
+[#189]: https://github.com/bact/pitloom/pull/189
+[#190]: https://github.com/bact/pitloom/pull/190
+[#195]: https://github.com/bact/pitloom/pull/195
+[#196]: https://github.com/bact/pitloom/pull/196
 
 ## [0.16.4] - 2026-08-21
 
@@ -696,6 +741,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.17.0]: https://github.com/bact/pitloom/compare/v0.16.4...v0.17.0
 [0.16.4]: https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2

@@ -82,38 +82,117 @@ __all__ = [
     "_resolve_cfg_version",
     "_section_dict",
     "detect_build_backend",
+    "read_pyproject_toml",
     "read_setup_cfg",
     "read_setup_py",
     "read_setuptools",
 ]
 
 
-def detect_build_backend(project_dir: Path) -> str | None:
+# Top-level module name (the part before the first "." or ":" in
+# `build-backend`) -> canonical short identifier, for the handful of
+# well-known backends whose top-level module doesn't already match the
+# identifier pitloom uses for them elsewhere (e.g. "flit_core" for flit).
+_KNOWN_BACKEND_ALIASES = {
+    "setuptools": "setuptools",
+    "hatchling": "hatchling",
+    "flit_core": "flit",
+    "poetry": "poetry",
+    "pdm": "pdm",
+}
+
+
+def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
+    """Parse *project_dir*'s ``pyproject.toml``, or ``None`` if missing/invalid.
+
+    Callers that need more than one fact out of ``pyproject.toml`` (e.g.
+    both the declared build backend and setuptools' own static-config
+    resolvability) should call this once and pass the result to
+    :func:`detect_build_backend` rather than each re-parsing the file.
+    """
+    pyproject_path = project_dir / "pyproject.toml"
+    try:
+        with open(pyproject_path, "rb") as f:
+            return tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        log.debug("Failed to parse %s: %s", pyproject_path, exc)
+        return None
+
+
+def _detect_setuptools_from_legacy_files(project_dir: Path) -> str | None:
+    """``"setuptools"`` when *project_dir* has a ``setup.cfg``/``setup.py``
+    to back it up, else ``None`` -- the shared fallback for every case
+    where no ``build-backend`` value is resolvable from ``pyproject.toml``
+    (absent, unparseable, or present but without a ``build-backend``
+    key)."""
+    if (project_dir / "setup.cfg").exists() or (project_dir / "setup.py").exists():
+        return "setuptools"
+    return None
+
+
+# pylint: disable-next=too-few-public-methods
+class _NotGiven:
+    """Sentinel distinguishing "caller passed no ``pyproject_data`` at all,
+    please read the file yourself" from an explicit ``pyproject_data=None``
+    ("I already tried reading it and got nothing -- don't retry")."""
+
+    __slots__ = ()
+
+
+_NOT_GIVEN = _NotGiven()
+
+
+def detect_build_backend(
+    project_dir: Path,
+    *,
+    pyproject_data: dict[str, object] | None | _NotGiven = _NOT_GIVEN,
+) -> str | None:
     """Detect the build backend declared in ``pyproject.toml``.
 
     Reads the ``[build-system] build-backend`` field and returns a
-    lower-case identifier.  Falls back to ``"setuptools"`` when no
-    ``pyproject.toml`` is present but ``setup.cfg`` or ``setup.py`` exists.
+    lower-case identifier, matched on its top-level module name (the
+    part before the first ``.``/``:``) -- not a substring match, so a
+    backend like ``"my_setuptools_shim.api"`` is never misdetected as
+    ``"setuptools"``. Falls back to ``"setuptools"`` when ``setup.cfg``
+    or ``setup.py`` exists and no ``build-backend`` value is resolvable
+    -- because ``pyproject.toml`` is entirely absent, because it exists
+    but is unparseable, or because it exists but has no
+    ``build-backend`` key (a legacy PEP 518-only ``[build-system]``
+    declaration, which is still a real setuptools project).
+
+    *pyproject_data*, when omitted, is read and parsed here. Pass the
+    result of a prior :func:`read_pyproject_toml` call instead when the
+    caller already has one -- including an explicit ``None`` when that
+    prior call already failed (missing/unparseable file); passing the
+    already-``None`` result back avoids re-reading and re-parsing the
+    same broken file a second time for the same answer.
     """
     pyproject_path = project_dir / "pyproject.toml"
-    if not pyproject_path.exists():
-        if (project_dir / "setup.cfg").exists() or (project_dir / "setup.py").exists():
-            return "setuptools"
-        return None
+    data: dict[str, object] | None
+    if isinstance(pyproject_data, _NotGiven):
+        if not pyproject_path.exists():
+            return _detect_setuptools_from_legacy_files(project_dir)
+        data = read_pyproject_toml(project_dir)
+        if data is None:
+            return _detect_setuptools_from_legacy_files(project_dir)
+    else:
+        data = pyproject_data
+        if data is None:
+            return _detect_setuptools_from_legacy_files(project_dir)
 
-    try:
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-        build_backend: str = data.get("build-system", {}).get("build-backend", "")
-        for backend in ("setuptools", "hatchling", "flit", "poetry", "pdm"):
-            if backend in build_backend:
-                return backend
-        if build_backend:
-            return build_backend.split(".")[0].lower()
-    # pylint: disable=broad-exception-caught
-    except Exception as exc:
-        log.debug("Failed to detect build backend from %s: %s", pyproject_path, exc)
-    return None
+    build_system = data.get("build-system", {})
+    build_backend = ""
+    if isinstance(build_system, dict):
+        raw_backend = build_system.get("build-backend", "")
+        if isinstance(raw_backend, str):
+            build_backend = raw_backend
+    if not build_backend:
+        # PEP 518-only pyproject.toml (no build-backend key) -- still a
+        # real setuptools project if setup.cfg/setup.py back it up, same
+        # fallback as when pyproject.toml is absent entirely.
+        return _detect_setuptools_from_legacy_files(project_dir)
+    top_level = build_backend.split(":")[0].split(".")[0].lower()
+    return _KNOWN_BACKEND_ALIASES.get(top_level, top_level)
 
 
 def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
@@ -152,7 +231,9 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     elif cfg_metadata is not None:
         metadata = cfg_metadata
     else:
-        if py_metadata is None:
+        if py_metadata is None:  # pragma: no cover
+            # Type-narrowing only: the guard above already proved that
+            # when cfg_metadata is None, py_metadata cannot also be None.
             raise RuntimeError("unreachable: py_metadata must be set here")
         metadata = py_metadata
         cfg_config = PitloomConfig()

@@ -14,7 +14,11 @@ from typing import Any
 from pitloom.assemble import (
     generate_project_sbom,
 )
-from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
+from pitloom.cli.commands.utils import (
+    _print_sbom_output_path,
+    cli_error_handler,
+    resolve_effective_provenance,
+)
 from pitloom.cli.options import (
     _resolve_creation_metadata,
     _resolve_output_path,
@@ -62,7 +66,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
         pitloom_config=pitloom_config,
         registry=args.registry,
         update_registry=args.update_registry,
-        provenance=pitloom_config.provenance,
+        provenance=resolve_effective_provenance(pitloom_config, args),
         enrich=args.enrich,
         offline=args.offline or None,
         extract_file_header=args.extract_file_header,

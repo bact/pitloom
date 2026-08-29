@@ -71,22 +71,22 @@ checklist (N1-N6). G2's own implementation depth lives separately in
   which is itself evidence the role is "preserve what would otherwise be
   lost," not "hold a property."
 
-  **Known limitation (unbounded statement size):** the P1 blob embeds
-  `raw_metadata` verbatim with no size cap. Pitloom's own GGUF/safetensors
-  test fixtures are small ("vocab-only" stubs, ~4 KB statements), but a
-  production LLM's GGUF kv-store can carry a 32K–128K-entry tokenizer vocab
-  (plus parallel `scores`/`token_type` arrays) in the same field, which would
-  inflate a single `Annotation.statement` into the multi-megabyte range.
-  SPDX 3.0.1's `statement` is a plain `xsd:string` with no spec-mandated
-  limit, so this isn't a compliance violation, just a real scale gap not
-  exercised by the current test suite. No truncation heuristic is applied
-  here deliberately — silently cutting array data would make "verbatim
-  preservation" dishonest about what was actually preserved, which defeats
-  P1's purpose more than the size cost does. For large models, set
-  `preserve-source-metadata = "never"` (or leave the default `"auto"`, which
-  already skips preservation for any model that *is* shipped and thus
-  re-extractable). A future fix, if needed, should truncate with an explicit,
-  visible marker (e.g. `"_truncated": true`) rather than cutting silently.
+  **Statement size, bounded (2026-08-26, resolved):** the P1 blob embeds
+  `raw_metadata` verbatim, and a production LLM's GGUF kv-store can carry a
+  32K–128K-entry tokenizer vocab (plus parallel `scores`/`token_type`
+  arrays) in a single field — unbounded, that would inflate a single
+  `Annotation.statement` into the multi-megabyte range. SPDX 3.0.1's
+  `statement` is a plain `xsd:string` with no spec-mandated limit, so this
+  was never a compliance violation, just a real scale gap. `[tool.pitloom.
+  provenance] max-source-metadata-bytes` (default `0`, unlimited —
+  unchanged behavior for existing users) now caps it: whole `metadata`
+  keys are dropped, largest first, never a value cut mid-string, and the
+  result carries an explicit `truncated`/`truncatedKeys`/
+  `truncatedKeyCount`/`maxMetadataBytes` marker rather than silently
+  losing data — see [annotation-mechanism.md](annotation-mechanism.md)'s
+  "Size-bounded artifact-metadata preservation" section for the full
+  design. `preserve-source-metadata = "never"` (or the size cap set to a
+  small budget) both remain valid ways to keep a large model's SBOM small.
 
 ## Phase 2 (documented; built after this Annotation work): native-first backfill
 

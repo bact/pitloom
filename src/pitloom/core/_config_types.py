@@ -42,6 +42,7 @@ class PitloomConfig:
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
     provenance_detail: str = "minimal"
     provenance_preserve_source_metadata: str = "auto"
+    provenance_max_source_metadata_bytes: int = 0
     enrich_local: bool = False
     extract_file_header: bool = True
     content_type_enabled: bool = False
@@ -57,6 +58,7 @@ class PitloomConfig:
             schema=self.provenance_schema,
             detail=self.provenance_detail,
             preserve_source_metadata=self.provenance_preserve_source_metadata,
+            max_source_metadata_bytes=self.provenance_max_source_metadata_bytes,
         )
 
     @property

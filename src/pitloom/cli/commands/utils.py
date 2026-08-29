@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import argparse
+import dataclasses
 import glob
 import sys
 import traceback
@@ -14,6 +16,12 @@ from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
 from typing import Any
+
+from pitloom.core.config import PitloomConfig
+from pitloom.core.provenance import (
+    ProvenanceConfig,
+    normalize_max_source_metadata_bytes,
+)
 
 
 def cli_error_handler(
@@ -36,6 +44,25 @@ def cli_error_handler(
         return wrapper
 
     return decorator
+
+
+def resolve_effective_provenance(
+    pitloom_config: PitloomConfig, args: argparse.Namespace
+) -> ProvenanceConfig:
+    """Apply --max-source-metadata-bytes onto the config-sourced ProvenanceConfig.
+
+    Every [tool.pitloom.provenance] key besides this one is config-only (no
+    CLI flag); this one gets a flag since a byte cap is an operational knob
+    someone may want to override per-run without editing pyproject.toml.
+    """
+    provenance = pitloom_config.provenance
+    override = getattr(args, "max_source_metadata_bytes", None)
+    if override is not None:
+        provenance = dataclasses.replace(
+            provenance,
+            max_source_metadata_bytes=normalize_max_source_metadata_bytes(override),
+        )
+    return provenance
 
 
 def _print_sbom_output_path(output_path: Path | str) -> None:

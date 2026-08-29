@@ -12,6 +12,7 @@ creator/tool shapes, dependency-name canonicalization, and license
 concluded (G2) tests.
 """
 
+import logging
 import tempfile
 from pathlib import Path
 
@@ -250,6 +251,7 @@ version = "1.0.0"
         assert config.provenance_schema == "pitloom/1"
         assert config.provenance_detail == "minimal"
         assert config.provenance_preserve_source_metadata == "auto"
+        assert config.provenance_max_source_metadata_bytes == 0
 
 
 def test_extract_pitloom_provenance_settings_explicit() -> None:
@@ -263,6 +265,7 @@ format = "annotation"
 schema = "custom/1"
 detail = "full"
 preserve-source-metadata = "always"
+max-source-metadata-bytes = 5000
 """
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -276,6 +279,86 @@ preserve-source-metadata = "always"
         assert config.provenance_schema == "custom/1"
         assert config.provenance_detail == "full"
         assert config.provenance_preserve_source_metadata == "always"
+        assert config.provenance_max_source_metadata_bytes == 5000
+
+
+def test_max_source_metadata_bytes_underscore_spelling_accepted() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+max_source_metadata_bytes = 5000
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        _, config = read_pyproject(pyproject_path)
+
+        assert config.provenance_max_source_metadata_bytes == 5000
+
+
+@pytest.mark.parametrize("value", [-1, 1, 7])
+def test_max_source_metadata_bytes_too_small_collapses_to_zero(
+    value: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    pyproject_content = f"""
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+max-source-metadata-bytes = {value}
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with caplog.at_level(logging.WARNING):
+            _, config = read_pyproject(pyproject_path)
+
+        assert config.provenance_max_source_metadata_bytes == 0
+        assert "max-source-metadata-bytes" in caplog.text
+
+
+def test_max_source_metadata_bytes_bool_raises() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+max-source-metadata-bytes = true
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be an integer"):
+            read_pyproject(pyproject_path)
+
+
+def test_max_source_metadata_bytes_non_int_raises() -> None:
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+
+[tool.pitloom.provenance]
+max-source-metadata-bytes = "5000"
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        pyproject_path = tmppath / "pyproject.toml"
+        pyproject_path.write_text(pyproject_content)
+
+        with pytest.raises(ValueError, match="must be an integer"):
+            read_pyproject(pyproject_path)
 
 
 def test_creator_empty_name_raises() -> None:
