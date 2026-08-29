@@ -17,9 +17,9 @@ and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Full release notes: <https://github.com/bact/pitloom/releases>
-- Commit history: <https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4>
+- Commit history: <https://github.com/bact/pitloom/compare/v0.16.4...v0.17.0>
 
-## [Unreleased]
+## [0.17.0] - 2026-08-30
 
 ### Added
 
@@ -44,10 +44,10 @@ and this project adheres to
 
 ### Fixed
 
-- Prune two unreachable branches in `_setuptools_cfg.py` ([#188])
+- Prune unreachable branches in  `_pyproject.py`, `_setuptools_cfg.py`
+  ([#188], [#195])
 - Only declare the `simpleLicensing` profile when a real license claim was
   made ([#190])
-- Prune two unreachable branches in `_pyproject.py` ([#195])
 - Setuptools `packages.find where=` layouts no longer report wrong
   distribution paths (e.g. `lib/pkg/...` instead of `pkg/...`) ([#196])
 - Unhandled build backends now log a warning instead of silently falling
@@ -741,6 +741,7 @@ release because "Loom" and "Pyloom" were unavailable on PyPI.
 
 ---
 
+[0.17.0]: https://github.com/bact/pitloom/compare/v0.16.4...v0.17.0
 [0.16.4]: https://github.com/bact/pitloom/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/bact/pitloom/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/bact/pitloom/compare/v0.16.1...v0.16.2
