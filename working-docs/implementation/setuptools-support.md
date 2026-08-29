@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-08-28
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -164,9 +164,12 @@ consults both rather than treating them as mutually exclusive. A
 own zero-config auto-discovery applies there.
 
 `apply_configuration()` runs with the process cwd already set to the
-target project directory (`_chdir`, serialized by a module-level
-`threading.Lock` against concurrent `discover()` calls racing on the
-shared `os.chdir()` state): `[tool.setuptools.dynamic]`/`attr:`
+target project directory (`_chdir`, run under `_models_wheel.py`'s
+`_DiscoveryLock` in exclusive write mode -- a multi-reader/single-writer
+lock, not a plain `threading.Lock`, so this setuptools call is kept from
+overlapping any other backend's concurrent `discover()` call, including
+Hatchling's, without needlessly serializing two Hatchling-only calls
+against each other): `[tool.setuptools.dynamic]`/`attr:`
 resolution can import the target project's own modules, and running
 that import from the wrong cwd risks resolving it against an
 unrelated module reachable from Pitloom's own `sys.path` instead of

@@ -26,7 +26,8 @@ import hashlib
 import logging
 import operator
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,6 +36,7 @@ from pitloom.core._models_wheel_types import (
     BackendDiscoverer,
     FileHeaderExtras,
     IncludedFile,
+    has_resolvable_pyproject_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
@@ -44,14 +46,65 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Serializes every backend discoverer call against every other -- so a
-# setuptools discover() (which process-wide os.chdir()s for the duration
-# of its call) never overlaps with a concurrent Hatchling discover() (whose
-# WheelBuilder resolves paths against the process cwd too, but takes no
-# lock of its own). Held here, at the sole dispatch point every backend's
-# discover() funnels through, so a future backend module needs no lock of
-# its own to get the same guarantee.
-_DISCOVERY_LOCK = threading.Lock()
+
+class _DiscoveryLock:
+    """Multiple concurrent readers, or one exclusive writer -- never both.
+    Writer-priority: once a writer is waiting, no *new* reader is admitted
+    ahead of it, so a continuous stream of freshly-arriving readers can
+    never starve a writer out indefinitely -- it only ever waits for
+    readers already in flight at the moment it arrived.
+
+    A "writer" (currently only setuptools' ``discover()``) process-wide
+    ``os.chdir()``s for the duration of its call and must run with no
+    other discoverer -- reader or writer -- active. A "reader" (e.g.
+    Hatchling's ``discover()``) never touches cwd itself (``get_wheel_files``
+    always resolves *project_dir* to an absolute path first), so readers
+    never need to block each other -- only a concurrent writer. Held here,
+    at the sole dispatch point every backend's ``discover()`` funnels
+    through, so a future backend module needs no lock of its own to get
+    the same guarantee; a future *writer*-style backend should acquire
+    :meth:`write` the same way setuptools does.
+    """
+
+    def __init__(self) -> None:
+        self._cond = threading.Condition(threading.Lock())
+        self._readers = 0
+        self._writer_active = False
+        self._writers_waiting = 0
+
+    @contextmanager
+    def read(self) -> Iterator[None]:
+        with self._cond:
+            while self._writer_active or self._writers_waiting > 0:
+                self._cond.wait()
+            self._readers += 1
+        try:
+            yield
+        finally:
+            with self._cond:
+                self._readers -= 1
+                if self._readers == 0:
+                    self._cond.notify_all()
+
+    @contextmanager
+    def write(self) -> Iterator[None]:
+        with self._cond:
+            self._writers_waiting += 1
+            try:
+                while self._writer_active or self._readers > 0:
+                    self._cond.wait()
+            finally:
+                self._writers_waiting -= 1
+            self._writer_active = True
+        try:
+            yield
+        finally:
+            with self._cond:
+                self._writer_active = False
+                self._cond.notify_all()
+
+
+_DISCOVERY_LOCK = _DiscoveryLock()
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -114,7 +167,8 @@ def _skip_hatchling_fallback(
     introspection itself failed, not that nothing was declared at all --
     only changes the warning's wording, not this return value.
     """
-    if pyproject_data is not None and "project" in pyproject_data:
+    has_project_table = pyproject_data is not None and "project" in pyproject_data
+    if has_project_table:
         log.warning(
             "No static %s config resolvable in %s -- falling back to "
             "Hatchling-based heuristic, file list may be inaccurate",
@@ -123,8 +177,9 @@ def _skip_hatchling_fallback(
         )
         return False
 
-    tool = (pyproject_data or {}).get("tool", {})
-    if isinstance(tool, dict) and backend in tool:
+    if pyproject_data is not None and has_resolvable_pyproject_config(
+        pyproject_data, backend
+    ):
         log.warning(
             "%s's static config failed introspection in %s -- file "
             "discovery is unsupported for this project this run "
@@ -179,23 +234,31 @@ def _discover_included_files(
         pyproject_data = read_pyproject_toml(project_dir)
         backend = detect_build_backend(project_dir, pyproject_data=pyproject_data)
 
-    with _DISCOVERY_LOCK:
-        if backend not in (None, "hatchling"):
-            discoverer = backend_discoverers.get(backend)
-            if discoverer is None:
-                log.warning(
-                    "File discovery for build backend %r is not yet "
-                    "backend-aware -- using Hatchling-based heuristic, file "
-                    "list may be inaccurate for this project",
-                    backend,
-                )
-            else:
+    if backend not in (None, "hatchling"):
+        discoverer = backend_discoverers.get(backend)
+        if discoverer is None:
+            log.warning(
+                "File discovery for build backend %r is not yet "
+                "backend-aware -- using Hatchling-based heuristic, file "
+                "list may be inaccurate for this project",
+                backend,
+            )
+        else:
+            # Every currently-registered discoverer (setuptools) chdirs
+            # process-wide for its duration, so it needs _DISCOVERY_LOCK's
+            # exclusive write mode -- see the lock's own docstring.
+            with _DISCOVERY_LOCK.write():
                 files = discoverer(project_dir, pyproject_data=pyproject_data)
-                if files is not None:
-                    return files
-                if _skip_hatchling_fallback(backend, pyproject_data, project_dir):
-                    return []
+            if files is not None:
+                return files
+            if _skip_hatchling_fallback(backend, pyproject_data, project_dir):
+                return []
 
+    # Hatchling's discover() never touches cwd (project_dir is always
+    # already absolute here -- see get_wheel_files), so concurrent
+    # Hatchling calls only need to be kept out of a concurrent writer's
+    # chdir window, never out of each other's way.
+    with _DISCOVERY_LOCK.read():
         return _models_wheel_hatchling.discover(project_dir) or []
 
 

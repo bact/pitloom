@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 import pytest
 
@@ -62,3 +63,55 @@ def test_configure_logging_reentrant_no_duplicate_output(
 
     captured = capsys.readouterr()
     assert captured.err.count("only once") == 1
+
+
+def test_configure_logging_concurrent_calls_never_stack_handlers(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Regression: configure_logging() called from multiple threads at
+    once (e.g. a library consumer starting several public generator
+    functions concurrently) must never leave more than one handler
+    attached -- the clear-then-add swap is serialized by a lock."""
+    threads = [threading.Thread(target=configure_logging) for _ in range(16)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    logger = logging.getLogger("pitloom")
+    assert len(logger.handlers) == 1
+
+    _LOG.warning("only once, even after concurrent (re)configuration")
+    captured = capsys.readouterr()
+    assert captured.err.count("only once, even after concurrent") == 1
+
+
+def test_configure_logging_concurrent_reconfigure_never_drops_a_record(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Regression: a log record emitted on one thread while another
+    thread is mid-reconfigure must never be silently dropped. The old
+    ``handlers.clear()`` then ``addHandler()`` sequence had a window
+    where the handler list was briefly empty; a record logged in that
+    window vanished with no trace. The fix builds the new handler first
+    and swaps ``logger.handlers`` in one assignment, so a concurrent
+    record always sees either the fully-old or fully-new list."""
+    stop = threading.Event()
+
+    def _reconfigure_loop() -> None:
+        while not stop.is_set():
+            configure_logging()
+
+    reconfigurer = threading.Thread(target=_reconfigure_loop)
+    reconfigurer.start()
+
+    emitted = 200
+    for i in range(emitted):
+        _LOG.warning("record %d", i)
+
+    stop.set()
+    reconfigurer.join(timeout=5)
+
+    captured = capsys.readouterr()
+    seen = captured.err.count("WARNING: record ")
+    assert seen == emitted, f"expected {emitted} records, saw {seen} (some dropped)"

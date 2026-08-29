@@ -33,7 +33,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pitloom.core._models_wheel_types import IncludedFile
+from pitloom.core._models_wheel_types import (
+    IncludedFile,
+    has_resolvable_pyproject_config,
+)
 
 if TYPE_CHECKING:
     from setuptools.command.build_py import build_py as BuildPyCommand
@@ -65,15 +68,17 @@ _IMPERATIVE_PACKAGING_KWARGS = frozenset(
 
 @contextmanager
 def _chdir(project_dir: Path) -> Iterator[None]:
-    """Setuptools' ``Distribution``/``build_py`` resolve paths relative to
-    the current working directory, so discovery needs to run from
+    """Setuptools' :class:`~setuptools.dist.Distribution`/
+    :class:`~setuptools.command.build_py.build_py` resolve paths relative
+    to the current working directory, so discovery needs to run from
     *project_dir* for the duration of the call.
 
     This process-wide ``os.chdir()`` is only safe because
     :mod:`pitloom.core._models_wheel` -- the sole caller of
-    :func:`discover` -- serializes every backend's discovery call
-    (including Hatchling's, which also resolves paths against cwd)
-    through one shared lock; this module holds no lock of its own.
+    :func:`discover` -- runs every call to this function under its
+    read/write discovery lock's exclusive write mode, which keeps it
+    from overlapping any other backend's discovery call (Hatchling's
+    included); this module holds no lock of its own.
     """
     original_cwd = Path.cwd()
     os.chdir(project_dir)
@@ -116,24 +121,11 @@ def _isolated_sys_modules(project_dir: Path) -> Iterator[None]:
                 del sys.modules[name]
 
 
-def _has_resolvable_pyproject_config(pyproject_data: dict[str, object]) -> bool:
-    """Whether the parsed ``pyproject.toml`` declares enough for
-    setuptools to resolve packages from: a PEP 621 ``[project]`` table
-    (setuptools' own zero-config auto-discovery applies here even
-    without an explicit ``[tool.setuptools]`` table) or an explicit
-    ``[tool.setuptools]`` table. A ``pyproject.toml`` with only
-    ``[build-system]`` (e.g. packages declared imperatively in
-    ``setup.py`` instead) declares neither."""
-    tool = pyproject_data.get("tool", {})
-    return "project" in pyproject_data or (
-        "setuptools" in tool if isinstance(tool, dict) else False
-    )
-
-
 def _load_distribution(
     project_dir: Path, pyproject_data: dict[str, object] | None
 ) -> Distribution | None:
-    """Resolve a setuptools ``Distribution`` from static config only.
+    """Resolve a setuptools :class:`~setuptools.dist.Distribution` from
+    static config only.
 
     Must run with the process cwd already set to *project_dir* (see the
     ``_chdir`` caller in :func:`discover`): ``apply_configuration()`` is
@@ -165,8 +157,8 @@ def _load_distribution(
 
         pyproject_data = read_pyproject_toml(project_dir)
 
-    has_pyproject = pyproject_data is not None and _has_resolvable_pyproject_config(
-        pyproject_data
+    has_pyproject = pyproject_data is not None and has_resolvable_pyproject_config(
+        pyproject_data, "setuptools"
     )
     has_setup_cfg = setup_cfg_path.is_file()
     if not has_pyproject and not has_setup_cfg:

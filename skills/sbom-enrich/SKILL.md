@@ -115,10 +115,10 @@ Steps:
    file list from the same unchanged source produces different ids --
    a fragment built against the old base SBOM then merges with
    references to ids the new base SBOM doesn't have. `merge_fragments()`
-   logs a `WARNING:` for any such dangling reference it finds, but by
-   then the fragment's evidence has already failed to attach -- treat
-   that warning as a signal to regenerate the base SBOM and re-run
-   enrichment, not something to merge past.
+   logs a `WARNING:` for any such dangling reference it finds, then
+   fails the merge outright (raises, so the CLI exits non-zero with an
+   `ERROR:` line) rather than silently producing a broken SBOM --
+   regenerate the base SBOM and re-run enrichment before merging again.
 2. **Run the deterministic pass first:** `loom enrich <model-file>` for
    each local AI model file in scope. This parses only YAML frontmatter
    (no prose, no reasoning) and writes a standalone fragment -- fast,
@@ -327,9 +327,9 @@ the three, always at the start of the line (see `AGENTS.md`'s "CLI
 output" section for the full convention). Relevant here in particular:
 merging a fragment against a base SBOM whose element ids no longer
 match it (see "If a base SBOM already exists" above) logs a
-`WARNING:` naming the dangling reference, not a hard failure -- treat
-that as a signal the merge didn't actually attach the evidence, not
-something to ignore because the command exited 0. `INFO:` covers
+`WARNING:` naming the dangling reference and fails the merge (non-zero
+exit, `ERROR:` line) -- regenerate the base SBOM and re-run enrichment
+rather than retrying the same merge. `INFO:` covers
 normal status worth surfacing too, e.g. a step being skipped. Scan the
 captured stderr for all three prefixes after running any of these
 commands and mention any hit to the user in plain language -- don't

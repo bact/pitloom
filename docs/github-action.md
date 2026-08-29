@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-20
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -79,6 +79,16 @@ Pass extra raw CLI flags through with `args:` (shell-quoted, e.g. for
   with:
     args: '--creator-name "CI Bot" --creator-type software-agent'
 ```
+
+### Annotations
+
+`loom`'s `INFO:`/`WARNING:`/`ERROR:` stderr lines (see
+[Command line](cli.md)'s output convention) are re-emitted as native
+GitHub Actions annotations -- `::notice::`/`::warning::`/`::error::` --
+so they show up in the PR "Checks" tab and job summary, not just buried
+in the raw log. A failing `loom` invocation still fails the step/job
+(its `ERROR:` line is annotated first); this doesn't change the action's
+exit behavior.
 
 ## Persisting the Loom ID registry in CI
 

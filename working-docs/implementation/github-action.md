@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-14
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -100,6 +100,20 @@ the output file exists, parses as JSON-LD with an `@graph` array, and
 contains both the `pitloom` package and a `pkg:pypi/pitloom@...` PURL.
 Use the same assertions in your own CI if you want a smoke test beyond
 "the step did not fail".
+
+## Stderr-to-annotation translation
+
+The "Generate SBOM" step captures `loom`'s stderr into a temp file (while
+still streaming it live via `tee`), then re-emits each `INFO:`/
+`WARNING:`/`ERROR:` line (see `AGENTS.md`'s "CLI output" convention) as
+a `::notice::`/`::warning::`/`::error::` GitHub Actions workflow command
+-- giving them real annotations (PR "Checks" tab, job summary) instead of
+just plain log text. A continuation line of a multi-line message (none
+currently emitted by `loom`, but not forbidden by the convention) is
+re-annotated at the same level rather than silently dropped. `set +e`
+brackets the `loom` invocation so a failing run still gets its `ERROR:`
+line annotated before the step's exit code is re-checked and propagated
+explicitly.
 
 ## Design notes
 

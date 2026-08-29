@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-08-27
+Last-Modified: 2026-08-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -56,14 +56,19 @@ and this project adheres to
   not just an absent one ([#196])
 - Fix crash reading `pyproject.toml` with both an SPDX `license` string and
   legacy classifiers ([#196])
-- `merge_fragments()` now warns on a merged element referencing an id absent
-  from the base SBOM ([#196])
+- `merge_fragments()` now warns on, and fails the merge for, a dangling
+  reference left after merging (e.g. a stale-`doc_uuid` fragment) instead of
+  silently producing a broken SBOM ([#196])
 - `INFO:`-level log messages (e.g. Hatchling build hook status) now actually
   reach stderr ([#196])
 - `embed-wheel`/`wheel --embed` INFO: lines now go to stderr, not stdout
   ([#196])
 - GitHub Action now surfaces loom's INFO:/WARNING:/ERROR: lines as
-  ::notice::/::warning::/::error:: annotations ([#196])
+  ::notice::/::warning::/::error:: annotations, including any continuation
+  lines of a multi-line message ([#196])
+- `generate()`'s smart entrypoint now recognizes `.pt2` (PyTorch
+  PT2/ExecuTorch) and routes it to model-SBOM generation instead of
+  falling through to project-SBOM ([#196])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188

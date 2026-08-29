@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-25
-Last-Modified: 2026-08-28
+Last-Modified: 2026-08-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,9 +53,10 @@ the time `initialize()` runs, Hatchling has already:
   module), which canonicalizes via `packaging.utils.canonicalize_name()`.
 - When `[project]` is missing fields (`authors`, `keywords`, `urls`, ...),
   `metadata_from_hatchling()` reads the same `pyproject.toml` a second time
-  and reuses `read_pyproject()`'s own `_try_read_poetry()` /
-  `_merge_with_poetry()` helpers to fill the gaps from `[tool.poetry]`,
-  mirroring what `read_pyproject()` already does for the CLI path.
+  and reuses `_try_read_poetry()` (from `pitloom.extract._pyproject`) plus
+  the shared `merge_project_metadata()` (`pitloom.core.project`) to fill
+  the gaps from `[tool.poetry]`, mirroring what `read_pyproject()` already
+  does for the CLI path via the same shared merge helper.
 
 The build hook maps this object into Pitloom's format-neutral
 `ProjectMetadata` via
@@ -208,7 +209,12 @@ build hook.
 
 ## `build_data["sbom_files"]` API
 
-Hatchling 1.28.0 introduced native PEP 770 support.  The wheel builder
+Hatchling 1.29.0 introduced native PEP 770 support -- the release where
+Hatchling started reading `build_data["sbom_files"]` at all; older
+Hatchling accepts the mutated `build_data` silently and never embeds the
+file (see `_MIN_HATCHLING_SBOM_VERSION` in `src/pitloom/plugins/hatch.py`).
+Pitloom itself pins `hatchling>=1.32.0`, a stricter floor than this
+feature alone needs -- see below. The wheel builder
 initialises `build_data["sbom_files"]` as an empty list and, after all hook
 `initialize()` calls complete, copies every path in the list into
 `.dist-info/sboms/<basename>` inside the wheel.
@@ -289,7 +295,8 @@ Register the plugin via pluggy entry point:
 pitloom = "pitloom.plugins.hatch"
 ```
 
-Require Hatchling 1.28.0+ for native `sbom_files` support:
+Require Hatchling 1.32.0+ (native `sbom_files`/PEP 770 support itself only
+needs 1.29.0+; the higher floor is Pitloom's own pin -- see `pyproject.toml`):
 
 ```toml
 dependencies = [

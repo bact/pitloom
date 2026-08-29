@@ -11,7 +11,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom import loom
 from pitloom.assemble import generate_project_sbom
-from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
@@ -350,3 +350,81 @@ def test_merge_fragments_populates_spdx_document_imports(tmp_path: Path) -> None
     ]
     assert len(frag_imports) == 1
     assert frag_imports[0].get("locationHint") == "frag-import.spdx3.json"
+
+
+def test_merge_fragments_raises_on_dangling_reference(tmp_path: Path) -> None:
+    """A fragment whose Relationship references an id absent from the base
+    SBOM (the doc_uuid-staleness scenario) must fail the merge, not just
+    warn -- merge_fragments() must not silently produce a broken graph."""
+    frag_namespace = "https://spdx.org/spdxdocs/dangling-frag-test"
+    fragment = {
+        "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+        "@graph": [
+            {
+                "type": "CreationInfo",
+                "@id": "_:creationinfo0",
+                "specVersion": "3.0.1",
+                "created": "2026-01-01T00:00:00Z",
+                "createdBy": [f"{frag_namespace}#Agent-1"],
+            },
+            {
+                "type": "SoftwareAgent",
+                "spdxId": f"{frag_namespace}#Agent-1",
+                "creationInfo": "_:creationinfo0",
+                "name": "Pitloom",
+            },
+            {
+                "type": "Relationship",
+                "spdxId": f"{frag_namespace}#Relationship-1",
+                "creationInfo": "_:creationinfo0",
+                "from": "https://spdx.org/spdxdocs/main-doc#stale-package",
+                "to": ["https://spdx.org/spdxdocs/main-doc#also-stale"],
+                "relationshipType": "dependsOn",
+            },
+        ],
+    }
+    frag_path = tmp_path / "dangling-frag.spdx3.json"
+    frag_path.write_text(json.dumps(fragment))
+
+    ci = spdx3.CreationInfo(
+        _id="_:ci",
+        specVersion="3.0.1",
+        created=datetime.now(timezone.utc),
+        createdBy=["https://spdx.org/agent1"],
+    )
+    main_doc = spdx3.SpdxDocument(
+        spdxId="https://spdx.org/spdxdocs/main-doc",
+        name="main-doc",
+        creationInfo=ci,
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_document(main_doc)
+
+    with pytest.raises(FragmentMergeError, match="dangling reference"):
+        merge_fragments(tmp_path, ["dangling-frag.spdx3.json"], exporter)
+
+
+def test_merge_fragments_empty_fragment_list_skips_dangling_check(
+    tmp_path: Path,
+) -> None:
+    """An empty fragment list (or one where nothing could be ingested) must
+    not run the dangling-reference check at all -- a pre-existing, unrelated
+    dangling Relationship in the base document alone must not fail a merge
+    that never actually merged anything."""
+    ci = spdx3.CreationInfo(
+        _id="_:ci",
+        specVersion="3.0.1",
+        created=datetime.now(timezone.utc),
+        createdBy=["https://spdx.org/agent1"],
+    )
+    rel = spdx3.Relationship(
+        spdxId="https://spdx.org/spdxdocs/main-doc#Relationship-1",
+        from_="https://spdx.org/spdxdocs/main-doc#missing",
+        to=["https://spdx.org/spdxdocs/main-doc#also-missing"],
+        relationshipType=spdx3.RelationshipType.dependsOn,
+        creationInfo=ci,
+    )
+    exporter = Spdx3JsonExporter()
+    exporter.add_relationship(rel)
+
+    merge_fragments(tmp_path, [], exporter)

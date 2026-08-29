@@ -23,7 +23,7 @@ from pitloom.assemble._model_generator import (
     enrich_model,
     generate_model_sbom,
 )
-from pitloom.assemble.spdx3.fragments import merge_fragments
+from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import ConfigOverrides, embed_sbom_in_wheel, embed_wheel_sbom
@@ -32,6 +32,7 @@ from pitloom.ids import IdRegistry
 
 __all__ = [
     "ConfigOverrides",
+    "FragmentMergeError",
     "ProvenanceConfig",
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
@@ -114,6 +115,7 @@ def generate(
                 ".onnx",
                 ".pt",
                 ".pth",
+                ".pt2",
                 ".h5",
                 ".hdf5",
                 ".keras",

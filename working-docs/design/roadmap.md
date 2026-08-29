@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-27
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -338,10 +338,14 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   - TensorFlow SavedModel and TensorFlow Lite
   - Scikit-learn (pickle/joblib; no single standard format -- complex)
   - See [model-metadata-extraction.md](model-metadata-extraction.md)
-- [ ] **Dataset-to-model relationship linking** -- extend `AiModelMetadata`
-  with dataset references; emit SPDX 3 relationship types (`trainedOn`,
-  `testedOn`, `finetunedOn`, `validatedOn`, `pretrainedOn`).
-  See [sbom-enrichment.md](sbom-enrichment.md).
+- [x] **Dataset-to-model relationship linking** -- `AiModelMetadata` carries
+  dataset references (`DatasetReference`, `pitloom.core.dataset_metadata`);
+  `add_datasets_for_model()` (`src/pitloom/assemble/spdx3/dataset.py`)
+  emits `trainedOn`/`testedOn` `Relationship`s natively, falling back to
+  `RelationshipType.other` + an explanatory comment for the three SPDX
+  3.0.1 lacks (`finetunedOn`, `validatedOn`, `pretrainedOn`). Wired in from
+  `assemble/spdx3/ai.py` and `_document_model.py`. See
+  [sbom-enrichment.md](sbom-enrichment.md).
 - [ ] **Croissant dataset size calculation** -- `dataset_DatasetSize` is
   currently always `0` (see `_extract_croissant_core_fields()` in
   `_croissant.py`); needs real logic summing `cr:totalItems` across

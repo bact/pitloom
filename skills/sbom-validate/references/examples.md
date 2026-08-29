@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-10
-Last-Modified: 2026-08-10
+Last-Modified: 2026-08-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,8 +53,13 @@ spdx3-validate --json sbom.spdx3.json --spdx-version 3.0.1
 ## Validate from stdin
 
 ```bash
-loom project . | spdx3-validate --json -
+loom project . -o - | spdx3-validate --json -
 ```
+
+`-o -` is required: without an explicit output path, `loom project`
+writes the SBOM to a named file and prints only
+`PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout -- `-o -` is what makes it
+stream the SBOM itself to stdout instead.
 
 ## Interpreting the result
 

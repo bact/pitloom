@@ -285,11 +285,32 @@ runs:
         wait
         set -e
 
+        last_annotation_level=""
         while IFS= read -r line; do
           case "${line}" in
-            "ERROR: "*) echo "::error::${line#ERROR: }" ;;
-            "WARNING: "*) echo "::warning::${line#WARNING: }" ;;
-            "INFO: "*) echo "::notice::${line#INFO: }" ;;
+            "ERROR: "*)
+              last_annotation_level="error"
+              echo "::error::${line#ERROR: }"
+              ;;
+            "WARNING: "*)
+              last_annotation_level="warning"
+              echo "::warning::${line#WARNING: }"
+              ;;
+            "INFO: "*)
+              last_annotation_level="notice"
+              echo "::notice::${line#INFO: }"
+              ;;
+            *)
+              # A continuation line of a multi-line LEVEL: message --
+              # AGENTS.md's convention doesn't forbid one, even though
+              # loom doesn't currently emit any. Re-annotate at the same
+              # level rather than silently dropping it from the
+              # PR-facing summary (it's still visible above via "tee"
+              # either way).
+              if [ -n "${last_annotation_level}" ]; then
+                echo "::${last_annotation_level}::${line}"
+              fi
+              ;;
           esac
         done < "${loom_stderr_file}"
         rm -f "${loom_stderr_file}"

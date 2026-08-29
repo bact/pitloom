@@ -17,6 +17,11 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
+
+# Guards the handlers.clear()/addHandler() swap below -- see
+# configure_logging()'s docstring.
+_CONFIG_LOCK = threading.Lock()
 
 
 def configure_logging() -> None:
@@ -34,14 +39,28 @@ def configure_logging() -> None:
     Reconfigures on every call rather than guarding with a "configured
     once" flag, so repeated calls in the same process (e.g. across
     tests, or a build tool invoking the Hatchling hook more than once)
-    don't stack duplicate handlers. Propagation to the root logger is
-    left untouched, so ``pytest``'s ``caplog`` fixture still captures
-    these records.
+    don't stack duplicate handlers. The new handler is built first and
+    ``logger.handlers`` is replaced with a whole new list in one
+    assignment (never cleared-then-appended in place), so a concurrent
+    ``log.warning(...)``/``log.info(...)`` call on another thread always
+    sees either the fully-old or fully-new handler list -- never an
+    empty one mid-swap -- without needing to lock log emission itself.
+    A module-level lock still serializes the reconfiguration itself, so
+    two threads each calling this at once can't race on ``setLevel()``
+    or leave the logger in a state neither call intended. Propagation to
+    the root logger is left untouched, so ``pytest``'s ``caplog``
+    fixture still captures these records; a host application that
+    already configures its own root logging may then see pitloom's
+    ``INFO:``/``WARNING:`` lines twice (once via this handler, once via
+    its own root handler) -- disabling propagation would fix that but
+    silently break every test in this suite that captures pitloom's log
+    output via bare ``caplog.at_level(...)`` (implicitly root-scoped),
+    so it stays as a documented tradeoff rather than a silent one.
     """
     logger = logging.getLogger("pitloom")
-    logger.setLevel(logging.INFO)
-    logger.handlers.clear()
     handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(logging.INFO)
     handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-    logger.addHandler(handler)
+    with _CONFIG_LOCK:
+        logger.setLevel(logging.INFO)
+        logger.handlers = [handler]

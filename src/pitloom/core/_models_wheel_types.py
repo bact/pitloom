@@ -46,6 +46,28 @@ class BackendDiscoverer(Protocol):
     ) -> list[IncludedFile] | None: ...
 
 
+def has_resolvable_pyproject_config(
+    pyproject_data: dict[str, object], backend: str
+) -> bool:
+    """Whether the parsed ``pyproject.toml`` declares enough for *backend*
+    to resolve packages from: a PEP 621 ``[project]`` table (every
+    registered backend's own zero-config auto-discovery applies here,
+    even without an explicit ``[tool.<backend>]`` table) or an explicit
+    ``[tool.<backend>]`` table. A ``pyproject.toml`` with only
+    ``[build-system]`` (e.g. packages declared imperatively in
+    ``setup.py`` instead) declares neither.
+
+    Shared by :mod:`pitloom.core._models_wheel_setuptools` (deciding
+    whether to attempt static discovery at all) and
+    :mod:`pitloom.core._models_wheel` (deciding what a failed
+    discoverer's fallback ``WARNING:`` should say), so the two stay in
+    sync rather than re-deriving the same check independently."""
+    tool = pyproject_data.get("tool", {})
+    return "project" in pyproject_data or (
+        backend in tool if isinstance(tool, dict) else False
+    )
+
+
 class FileHeaderExtras(TypedDict):
     """Keyword arguments for :class:`~pitloom.core.project.ProjectFile`'s
     header/content-type fields."""

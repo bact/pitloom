@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-18
+Last-Modified: 2026-08-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,6 +25,8 @@ exact call signature.
 
 ::: pitloom.assemble.generate_env_sbom
 
+::: pitloom.assemble.enrich_model
+
 ## Wheel embedding
 
 ::: pitloom.embed.embed_wheel_sbom
@@ -32,6 +34,12 @@ exact call signature.
 ::: pitloom.embed.embed_sbom_in_wheel
 
 ::: pitloom.embed.ConfigOverrides
+
+## Fragment merging
+
+::: pitloom.assemble.merge_fragments
+
+::: pitloom.assemble.FragmentMergeError
 
 ## Tracking decorator
 
@@ -63,12 +71,24 @@ API](python-api.md#tracking-decorator) page.
 
 ::: pitloom.core.creation.Tool
 
+::: pitloom.core.creation.VALID_CREATOR_TYPES
+
+::: pitloom.core.creation.resolve_source_date_epoch
+
 ## Provenance configuration
 
 ::: pitloom.core.provenance.ProvenanceConfig
+
+::: pitloom.core.provenance.normalize_max_source_metadata_bytes
 
 ## ID registry
 
 ::: pitloom.ids.IdRegistry
 
 ::: pitloom.ids.resolve_registry
+
+::: pitloom.ids.EntityEntry
+
+::: pitloom.ids.FileEntry
+
+::: pitloom.ids.DEFAULT_REGISTRY_FILENAME

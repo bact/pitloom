@@ -86,6 +86,12 @@ loom project .
 loom project /path/to/project -o sbom.spdx3.json
 ```
 
+Works for any Python project; per-file discovery (which files, hashes,
+Merkle root) is backend-aware for Hatchling and setuptools, and falls
+back to a Hatchling-based heuristic with a warning for other backends --
+see [Command line](docs/cli.md#generate-an-sbom) for the full limitation
+note.
+
 Generate an **Analyzed SBOM** from a pre-built wheel
 (extracting bundled binaries as phantom dependencies):
 
@@ -103,7 +109,7 @@ Generate an **Analyzed SBOM** for a single AI model file,
 without a Python project directory
 (output written to the current working directory).
 Supported local formats: GGUF, ONNX, Safetensors, PyTorch (`.pt`/`.pth`),
-Keras, HDF5, NumPy, fastText:
+PyTorch PT2/ExecuTorch (`.pt2`), Keras, HDF5, NumPy, fastText:
 
 ```bash
 loom model path/to/model.safetensors -o model.spdx3.json
@@ -163,7 +169,7 @@ Pitloom can embed an SBOM automatically into every wheel you build, at
 `.dist-info/sboms/mypackage-1.0.0.spdx3.json`), per
 [PEP 770](https://peps.python.org/pep-0770/) (wheels only).
 
-Add `pitloom` as a build requirement (Hatchling **1.28.0+** required) and
+Add `pitloom` as a build requirement (Hatchling **1.29.0+** required) and
 register the hook:
 
 ```toml
