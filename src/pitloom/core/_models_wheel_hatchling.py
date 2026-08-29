@@ -19,7 +19,12 @@ from pitloom.core._models_wheel_types import IncludedFile
 log = logging.getLogger(__name__)
 
 
-def discover(project_dir: Path) -> list[IncludedFile] | None:
+def discover(
+    project_dir: Path,
+    *,
+    # pylint: disable-next=unused-argument
+    pyproject_data: dict[str, object] | None = None,
+) -> list[IncludedFile] | None:
     """Discover a wheel's file set using Hatchling's own ``WheelBuilder``.
 
     Uses :class:`~hatchling.builders.wheel.WheelBuilder` to walk
@@ -32,6 +37,10 @@ def discover(project_dir: Path) -> list[IncludedFile] | None:
 
     Returns ``None`` on any discovery failure (e.g. not a Hatchling
     project, malformed config) -- the caller falls back accordingly.
+
+    *pyproject_data* is accepted, not used, purely so this matches
+    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s shared
+    call signature -- ``WheelBuilder`` reads ``pyproject.toml`` itself.
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from hatchling.builders.wheel import WheelBuilder

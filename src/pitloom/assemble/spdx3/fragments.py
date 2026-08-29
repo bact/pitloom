@@ -62,6 +62,7 @@ __all__ = [
     "_dedupe_relationships",
     "_emit_unification_annotations",
     "_endpoint_id",
+    "_find_dangling_references",
     "_find_fragment_document_id",
     "_find_main_document",
     "_is_empty",
@@ -80,6 +81,7 @@ __all__ = [
     "_signature",
     "_stable_key",
     "_update_profile_conformance",
+    "_warn_about_dangling_references",
     "_warn_if_same_name_different_hash",
     "merge_fragments",
 ]
@@ -110,6 +112,55 @@ def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
 
     for dup in duplicates:
         exporter.object_set.objects.remove(dup)
+
+
+def _find_dangling_references(
+    exporter: Spdx3JsonExporter,
+) -> list[tuple[str, str, str]]:
+    """Return ``(referencing element id, property name, missing target id)``
+    for every ``Relationship``/``Annotation`` endpoint that doesn't resolve
+    to an object actually present in *exporter*'s merged graph.
+
+    Catches, among other causes, a fragment merged against a stale base
+    SBOM -- e.g. one generated before a Pitloom upgrade changed file
+    discovery for this project's backend (see
+    :func:`pitloom.assemble._model_generator._project_doc_identity`'s
+    docstring): the fragment's element references were minted against a
+    ``doc_uuid`` the current base document no longer uses, so they land
+    in the merged graph pointing at nothing.
+    """
+    known_ids = set(exporter.object_set.obj_by_id.keys())
+    dangling: list[tuple[str, str, str]] = []
+    for obj in exporter.object_set.objects:
+        obj_id = str(getattr(obj, "spdxId", None) or "<unknown>")
+        if isinstance(obj, spdx3.Relationship):
+            from_id = _endpoint_id(obj.from_)
+            if from_id is not None and from_id not in known_ids:
+                dangling.append((obj_id, "from", from_id))
+            for to in obj.to:
+                to_id = _endpoint_id(to)
+                if to_id is not None and to_id not in known_ids:
+                    dangling.append((obj_id, "to", to_id))
+        elif isinstance(obj, spdx3.Annotation):
+            subject_id = _endpoint_id(obj.subject)
+            if subject_id is not None and subject_id not in known_ids:
+                dangling.append((obj_id, "subject", subject_id))
+    return dangling
+
+
+def _warn_about_dangling_references(exporter: Spdx3JsonExporter) -> None:
+    """Log one ``WARNING:`` per dangling reference found by
+    :func:`_find_dangling_references`."""
+    for obj_id, prop, target_id in _find_dangling_references(exporter):
+        log.warning(
+            "%s's %s references %s, which isn't part of this document -- "
+            "likely a fragment merged against an outdated base SBOM "
+            "(regenerate the base SBOM, then re-run enrichment, before "
+            "merging again)",
+            obj_id,
+            prop,
+            target_id,
+        )
 
 
 def _find_main_document(object_set: spdx3.SHACLObjectSet) -> spdx3.SpdxDocument | None:
@@ -281,3 +332,5 @@ def merge_fragments(
         _add_fragment_imports(main_doc, fragment_imports)
         _emit_unification_annotations(events, main_doc, exporter)
         _add_model_sbom(main_doc, exporter)
+
+    _warn_about_dangling_references(exporter)

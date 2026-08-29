@@ -25,12 +25,17 @@ from __future__ import annotations
 import hashlib
 import logging
 import operator
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pitloom.core import _models_wheel_hatchling
-from pitloom.core._models_wheel_types import FileHeaderExtras, IncludedFile
+from pitloom.core._models_wheel_types import (
+    BackendDiscoverer,
+    FileHeaderExtras,
+    IncludedFile,
+)
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
 
@@ -38,6 +43,15 @@ if TYPE_CHECKING:
     from pitloom.extract._file_headers import FileHeaderMetadata
 
 log = logging.getLogger(__name__)
+
+# Serializes every backend discoverer call against every other -- so a
+# setuptools discover() (which process-wide os.chdir()s for the duration
+# of its call) never overlaps with a concurrent Hatchling discover() (whose
+# WheelBuilder resolves paths against the process cwd too, but takes no
+# lock of its own). Held here, at the sole dispatch point every backend's
+# discover() funnels through, so a future backend module needs no lock of
+# its own to get the same guarantee.
+_DISCOVERY_LOCK = threading.Lock()
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -81,7 +95,59 @@ def _resolve_file_header_extras(
     )
 
 
-def _discover_included_files(project_dir: Path) -> list[IncludedFile]:
+def _skip_hatchling_fallback(
+    backend: str, pyproject_data: dict[str, object] | None, project_dir: Path
+) -> bool:
+    """Log the right ``WARNING:`` for a backend discoverer giving up
+    (returning ``None``), and report whether the doomed Hatchling
+    fallback attempt should be skipped entirely (``True``) or still
+    tried (``False``).
+
+    Hatchling's ``WheelBuilder`` requires a ``pyproject.toml``
+    ``[project]`` table -- with none present at all, it is guaranteed to
+    also fail, so the confusing "Hatchling"-branded error for a project
+    that has nothing to do with Hatchling isn't worth it. Distinguishing
+    *why* the backend's own discoverer already gave up -- a
+    ``[tool.<backend>]`` table present (approximate but the best
+    available signal -- every currently-registered backend names its
+    config table after itself) means static config existed but
+    introspection itself failed, not that nothing was declared at all --
+    only changes the warning's wording, not this return value.
+    """
+    if pyproject_data is not None and "project" in pyproject_data:
+        log.warning(
+            "No static %s config resolvable in %s -- falling back to "
+            "Hatchling-based heuristic, file list may be inaccurate",
+            backend,
+            project_dir,
+        )
+        return False
+
+    tool = (pyproject_data or {}).get("tool", {})
+    if isinstance(tool, dict) and backend in tool:
+        log.warning(
+            "%s's static config failed introspection in %s -- file "
+            "discovery is unsupported for this project this run "
+            "(Hatchling's own WheelBuilder also requires a [project] "
+            "table, so that fallback would fail too)",
+            backend,
+            project_dir,
+        )
+    else:
+        log.warning(
+            "No static %s config resolvable in %s and no [project] "
+            "table present -- file discovery is unsupported for this "
+            "project (packages only resolvable via an imperative "
+            "setup.py build)",
+            backend,
+            project_dir,
+        )
+    return True
+
+
+def _discover_included_files(
+    project_dir: Path, *, assume_backend: str | None = None
+) -> list[IncludedFile]:
     """Resolve the wheel's file list via the project's build backend.
 
     Any backend other than Hatchling that doesn't have a dedicated
@@ -89,62 +155,48 @@ def _discover_included_files(project_dir: Path) -> list[IncludedFile]:
     back to the Hatchling-based heuristic, with a ``WARNING:`` since
     the result may not accurately reflect that backend's actual
     inclusion rules.
+
+    *assume_backend*, when given, skips reading ``pyproject.toml`` and
+    detecting the backend entirely and dispatches straight to that
+    backend -- for callers that already know it by construction (e.g.
+    the Hatchling build hook, which is definitionally always Hatchling).
     """
     # pylint: disable=import-outside-toplevel
     from pitloom.core._models_wheel_setuptools import discover as discover_setuptools
     from pitloom.extract._setuptools import detect_build_backend, read_pyproject_toml
 
-    backend_discoverers: dict[str, Callable[[Path], list[IncludedFile] | None]] = {
+    backend_discoverers: dict[str, BackendDiscoverer] = {
         "setuptools": discover_setuptools,
     }
 
-    # Parsed once and reused for backend detection and setuptools' own
-    # static-config check below -- both read the same pyproject.toml.
-    pyproject_data = read_pyproject_toml(project_dir)
-    backend = detect_build_backend(project_dir, pyproject_data=pyproject_data)
-    if backend not in (None, "hatchling"):
-        discoverer = backend_discoverers.get(backend)
-        if discoverer is not None:
-            files = (
-                discover_setuptools(project_dir, pyproject_data=pyproject_data)
-                if backend == "setuptools"
-                else discoverer(project_dir)
-            )
-            if files is not None:
-                return files
-            if pyproject_data is None or "project" not in pyproject_data:
-                # Hatchling's WheelBuilder requires a pyproject.toml
-                # [project] table -- with none present at all (missing
-                # file, unparseable file, or a pyproject.toml that only
-                # has [build-system], e.g. metadata declared imperatively
-                # in setup.py), it is guaranteed to also fail, so skip
-                # the doomed attempt and its confusing "Hatchling"-
-                # branded error for a project that has nothing to do
-                # with Hatchling.
-                log.warning(
-                    "No static %s config resolvable in %s and no "
-                    "[project] table present -- file discovery is "
-                    "unsupported for this project (packages only "
-                    "resolvable via an imperative setup.py build)",
-                    backend,
-                    project_dir,
-                )
-                return []
-            log.warning(
-                "No static %s config resolvable in %s -- falling back to "
-                "Hatchling-based heuristic, file list may be inaccurate",
-                backend,
-                project_dir,
-            )
-        else:
-            log.warning(
-                "File discovery for build backend %r is not yet "
-                "backend-aware -- using Hatchling-based heuristic, file "
-                "list may be inaccurate for this project",
-                backend,
-            )
+    pyproject_data: dict[str, object] | None
+    if assume_backend is not None:
+        backend: str | None = assume_backend
+        pyproject_data = None
+    else:
+        # Parsed once and reused for backend detection and setuptools' own
+        # static-config check below -- both read the same pyproject.toml.
+        pyproject_data = read_pyproject_toml(project_dir)
+        backend = detect_build_backend(project_dir, pyproject_data=pyproject_data)
 
-    return _models_wheel_hatchling.discover(project_dir) or []
+    with _DISCOVERY_LOCK:
+        if backend not in (None, "hatchling"):
+            discoverer = backend_discoverers.get(backend)
+            if discoverer is None:
+                log.warning(
+                    "File discovery for build backend %r is not yet "
+                    "backend-aware -- using Hatchling-based heuristic, file "
+                    "list may be inaccurate for this project",
+                    backend,
+                )
+            else:
+                files = discoverer(project_dir, pyproject_data=pyproject_data)
+                if files is not None:
+                    return files
+                if _skip_hatchling_fallback(backend, pyproject_data, project_dir):
+                    return []
+
+        return _models_wheel_hatchling.discover(project_dir) or []
 
 
 # pylint: disable=too-many-locals
@@ -155,6 +207,7 @@ def get_wheel_files(
     detect_content_type: bool = False,
     content_type_method: str = "auto",
     content_type_overrides: tuple[ContentTypeOverride, ...] = (),
+    assume_backend: str | None = None,
 ) -> tuple[str | None, list[ProjectFile]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
@@ -162,7 +215,18 @@ def get_wheel_files(
     :func:`_discover_included_files`), respecting that backend's own
     include/exclude/packages configuration, then hashes and extracts
     optional per-file metadata for each file.
+
+    *assume_backend* (e.g. ``"hatchling"``) skips backend detection
+    entirely -- pass it when the caller already knows the backend by
+    construction, to avoid a redundant ``pyproject.toml`` parse.
+
+    *project_dir* is resolved (canonicalized, symlinks followed) before
+    use, so a relative or symlink-containing path can't produce a
+    ``physical_path`` that diverges from *project_dir*'s own on-disk
+    identity -- see :class:`~pitloom.core.project.ProjectFile`'s
+    ``physical_path`` contract.
     """
+    project_dir = project_dir.resolve()
     parse_header = None
     if scan_file_headers:
         # pylint: disable-next=import-outside-toplevel
@@ -183,7 +247,9 @@ def get_wheel_files(
         detect_content = guess_content_type
 
     try:
-        included_files = _discover_included_files(project_dir)
+        included_files = _discover_included_files(
+            project_dir, assume_backend=assume_backend
+        )
         project_files: list[ProjectFile] = []
         file_entries: list[tuple[str, bytes]] = []
         for included_file in included_files:

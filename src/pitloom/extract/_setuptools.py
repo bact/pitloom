@@ -130,8 +130,22 @@ def _detect_setuptools_from_legacy_files(project_dir: Path) -> str | None:
     return None
 
 
+# pylint: disable-next=too-few-public-methods
+class _NotGiven:
+    """Sentinel distinguishing "caller passed no ``pyproject_data`` at all,
+    please read the file yourself" from an explicit ``pyproject_data=None``
+    ("I already tried reading it and got nothing -- don't retry")."""
+
+    __slots__ = ()
+
+
+_NOT_GIVEN = _NotGiven()
+
+
 def detect_build_backend(
-    project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    project_dir: Path,
+    *,
+    pyproject_data: dict[str, object] | None | _NotGiven = _NOT_GIVEN,
 ) -> str | None:
     """Detect the build backend declared in ``pyproject.toml``.
 
@@ -146,16 +160,23 @@ def detect_build_backend(
     ``build-backend`` key (a legacy PEP 518-only ``[build-system]``
     declaration, which is still a real setuptools project).
 
-    *pyproject_data*, when given, is used instead of re-reading and
-    re-parsing ``pyproject.toml`` -- pass the result of a prior
-    :func:`read_pyproject_toml` call when the caller already has one.
+    *pyproject_data*, when omitted, is read and parsed here. Pass the
+    result of a prior :func:`read_pyproject_toml` call instead when the
+    caller already has one -- including an explicit ``None`` when that
+    prior call already failed (missing/unparseable file); passing the
+    already-``None`` result back avoids re-reading and re-parsing the
+    same broken file a second time for the same answer.
     """
     pyproject_path = project_dir / "pyproject.toml"
-    data = pyproject_data
-    if data is None:
+    data: dict[str, object] | None
+    if isinstance(pyproject_data, _NotGiven):
         if not pyproject_path.exists():
             return _detect_setuptools_from_legacy_files(project_dir)
         data = read_pyproject_toml(project_dir)
+        if data is None:
+            return _detect_setuptools_from_legacy_files(project_dir)
+    else:
+        data = pyproject_data
         if data is None:
             return _detect_setuptools_from_legacy_files(project_dir)
 

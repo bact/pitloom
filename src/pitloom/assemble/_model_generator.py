@@ -23,6 +23,7 @@ from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.project import read_project
 from pitloom.ids import IdRegistry, resolve_registry
+from pitloom.logging_config import configure_logging
 
 
 def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
@@ -93,6 +94,7 @@ def generate_model_sbom(
     enrich: bool | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 AIBOM for a local model file or HF repository."""
+    configure_logging()
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
@@ -158,6 +160,7 @@ def enrich_model(
     registry: str | Path | IdRegistry | None = None,
 ) -> str:
     """Run enrichment only for a local model file."""
+    configure_logging()
     effective_pretty = False if pretty is None else pretty
     source_str = str(source)
     if is_huggingface_source(source_str):

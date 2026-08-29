@@ -12,7 +12,8 @@ See also: :mod:`pitloom.core._models_wheel` (dispatch facade),
 
 from __future__ import annotations
 
-from typing import NamedTuple, TypedDict
+from pathlib import Path
+from typing import NamedTuple, Protocol, TypedDict
 
 
 class IncludedFile(NamedTuple):
@@ -26,6 +27,23 @@ class IncludedFile(NamedTuple):
 
     path: str
     distribution_path: str
+
+
+# pylint: disable-next=too-few-public-methods
+class BackendDiscoverer(Protocol):
+    """Call signature every backend discovery module's ``discover()`` must
+    share, so the dispatch registry in :mod:`pitloom.core._models_wheel`
+    can call any of them uniformly -- adding a new backend is then one
+    module implementing this signature plus one registry entry, never a
+    special case at the call site. *pyproject_data*, when given, is the
+    already-parsed ``pyproject.toml`` (see
+    :func:`pitloom.extract._setuptools.read_pyproject_toml`); a backend
+    that doesn't need it (e.g. Hatchling, which re-reads config itself via
+    ``WheelBuilder``) still accepts and ignores the keyword."""
+
+    def __call__(
+        self, project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile] | None: ...
 
 
 class FileHeaderExtras(TypedDict):

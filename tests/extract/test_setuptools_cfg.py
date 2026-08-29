@@ -86,6 +86,22 @@ def test_detect_backend_malformed_pyproject_logs_and_returns_none(
     assert any("pyproject.toml" in r.message for r in caplog.records)
 
 
+def test_detect_backend_explicit_none_pyproject_data_skips_reread() -> None:
+    """Regression: a caller that already parsed ``pyproject.toml`` itself
+    and got ``None`` (missing/unparseable) should be able to pass that
+    ``None`` straight through -- ``detect_build_backend`` must not
+    re-open and re-parse the same file a second time for the same
+    answer, distinguishing this from simply omitting the argument
+    (which does mean "please read it for me")."""
+    content = "[build-system\nbroken toml"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        with patch("pitloom.extract._setuptools.read_pyproject_toml") as mock_read:
+            result = detect_build_backend(Path(d), pyproject_data=None)
+    mock_read.assert_not_called()
+    assert result is None
+
+
 def test_detect_backend_unknown_backend() -> None:
     """Returns the raw backend string for unrecognised build backends."""
     content = """

@@ -13,11 +13,14 @@ discovery module's own tests.
 """
 
 import logging
+import threading
+import time
 from pathlib import Path
 
 import pytest
 from hatchling.builders.wheel import WheelBuilder
 
+from pitloom.core._models_wheel_hatchling import discover as discover_hatchling
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.models import get_wheel_files
 
@@ -192,3 +195,158 @@ def test_get_wheel_files_unhandled_backend_falls_back_with_warning(
     assert not files
     assert "poetry" in caplog.text
     assert "Hatchling" in caplog.text
+
+
+def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: a project with a real ``[tool.setuptools]`` table (no
+    ``[project]``) is statically resolvable -- if setuptools' own
+    discover() still returns ``None`` (a genuine introspection failure,
+    not "nothing declared"), the warning must say so, not claim
+    "packages only resolvable via an imperative setup.py build" (false
+    here: static config *was* present, something else went wrong)."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n\n'
+        '[tool.setuptools]\npackages = ["pkg"]\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover",
+        lambda project_dir, *, pyproject_data=None: None,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        root, files = get_wheel_files(tmp_path)
+
+    assert root is None
+    assert not files
+    assert "failed introspection" in caplog.text
+    assert "packages only resolvable via an imperative setup.py build" not in (
+        caplog.text
+    )
+
+
+def test_get_wheel_files_hatchling_discover_accepts_pyproject_data_kwarg(
+    tmp_path: Path,
+) -> None:
+    """Interface-uniformity regression: every backend's ``discover()``
+    must share :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s
+    call signature so the dispatch registry never needs a per-backend
+    special case -- including Hatchling, which is the implicit
+    (non-registry) fallback and doesn't use the argument itself."""
+    # Raises TypeError if the signature ever drops the keyword again.
+    discover_hatchling(tmp_path, pyproject_data={"project": {"name": "pkg"}})
+
+
+def test_get_wheel_files_relative_project_dir_keeps_physical_path_relative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a relative *project_dir* (as the public library API
+    accepts -- ``generate_project_sbom("myproj")`` never resolves it)
+    must not leak an absolute, machine-local path into
+    ``ProjectFile.physical_path``. Before the fix, ``Path(source)
+    .relative_to(project_dir)`` always raises for an absolute *source*
+    against a relative *project_dir*, silently falling back to the
+    absolute form."""
+    _make_backend_project(tmp_path, "setuptools.build_meta")
+    (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
+
+    def _fake_discover(
+        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile]:
+        del pyproject_data
+        # Mirrors the real setuptools discover(): resolved, absolute paths.
+        return [
+            IncludedFile(
+                path=str((project_dir / "a.py").resolve()),
+                distribution_path="pkg/a.py",
+            )
+        ]
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover", _fake_discover
+    )
+    monkeypatch.chdir(tmp_path.parent)
+    relative_project_dir = Path(tmp_path.name)
+
+    _root, files = get_wheel_files(relative_project_dir)
+
+    assert len(files) == 1
+    assert not Path(files[0].physical_path).is_absolute()
+    assert files[0].physical_path == "a.py"
+
+
+def test_get_wheel_files_backend_discovery_is_serialized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: two concurrent ``get_wheel_files()`` calls (e.g. a
+    setuptools discovery, which process-wide ``os.chdir()``s for its
+    duration, racing a Hatchling discovery in another thread) must never
+    overlap -- both backend discoverers funnel through one shared lock
+    in the facade, so at most one is ever mid-flight at a time."""
+    _make_backend_project(tmp_path, "setuptools.build_meta")
+
+    concurrent_calls = 0
+    max_concurrent = 0
+    lock = threading.Lock()
+
+    def _slow_discover(
+        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile]:
+        nonlocal concurrent_calls, max_concurrent
+        del project_dir, pyproject_data
+        with lock:
+            concurrent_calls += 1
+            max_concurrent = max(max_concurrent, concurrent_calls)
+        time.sleep(0.05)
+        with lock:
+            concurrent_calls -= 1
+        return []
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_setuptools.discover", _slow_discover
+    )
+
+    threads = [
+        threading.Thread(target=get_wheel_files, args=(tmp_path,)) for _ in range(4)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert max_concurrent == 1
+
+
+def test_get_wheel_files_assume_backend_skips_detection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a caller that already knows the backend by
+    construction (e.g. the Hatchling build hook, which is always
+    Hatchling) can pass ``assume_backend`` to skip the
+    ``pyproject.toml`` parse and ``detect_build_backend()`` call
+    entirely, instead of paying for a redundant re-detection of
+    something already known."""
+    detect_calls: list[Path] = []
+    read_calls: list[Path] = []
+
+    def _spy_detect(project_dir: Path, **_kwargs: object) -> str | None:
+        detect_calls.append(project_dir)
+        return "hatchling"
+
+    def _spy_read(project_dir: Path) -> dict[str, object] | None:
+        read_calls.append(project_dir)
+        return None
+
+    monkeypatch.setattr("pitloom.extract._setuptools.detect_build_backend", _spy_detect)
+    monkeypatch.setattr("pitloom.extract._setuptools.read_pyproject_toml", _spy_read)
+    monkeypatch.setattr(WheelBuilder, "recurse_included_files", lambda _self: iter([]))
+
+    get_wheel_files(tmp_path, assume_backend="hatchling")
+
+    assert not detect_calls
+    assert not read_calls

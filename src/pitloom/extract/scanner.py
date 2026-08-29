@@ -95,7 +95,7 @@ def _scan_python_file_usages(
                 )
     # pylint: disable=broad-exception-caught
     except Exception as e:
-        log.warning("Could not read text from %s for usage scanning: %s", phys_path, e)
+        log.warning("FILE=%s: could not read for usage scanning; %s", phys_path, e)
 
 
 def scan_project_for_ai_models(

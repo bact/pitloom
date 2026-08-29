@@ -6,7 +6,7 @@
 """Tests for setuptools-backed wheel file discovery
 (:mod:`pitloom.core._models_wheel_setuptools`).
 
-See also: tests/core/test_models_wheel_files.py for the facade-level
+See also: tests/core/test_models_wheel_dispatch.py for the facade-level
 backend-dispatch/fallback-warning tests.
 """
 
@@ -134,17 +134,46 @@ def test_distribution_path_normalizes_backslashes() -> None:
     assert _distribution_path("foo\\bar", "x.py") == "foo/bar/x.py"
 
 
-def test_dedupe_by_distribution_path_drops_later_duplicate() -> None:
+def test_dedupe_by_distribution_path_drops_later_duplicate(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Regression: a ``package_data`` glob overlapping a ``.py`` module
     already found by module discovery must not produce two
     ``IncludedFile`` entries for the same ``distribution_path`` -- that
-    would corrupt the Merkle root (each leaf hash counted twice)."""
+    would corrupt the Merkle root (each leaf hash counted twice). Both
+    scans resolve physical paths from the same ``src_dir`` (see
+    ``_discover_module_files``/``_discover_data_files``), so a benign
+    overlap like this always shares the same source ``path`` too -- no
+    warning, since nothing is actually ambiguous here."""
     module_entry = IncludedFile(path="/src/pkg/x.py", distribution_path="pkg/x.py")
-    data_entry = IncludedFile(path="/build/pkg/x.py", distribution_path="pkg/x.py")
+    data_entry = IncludedFile(path="/src/pkg/x.py", distribution_path="pkg/x.py")
 
-    result = _dedupe_by_distribution_path([module_entry, data_entry])
+    with caplog.at_level(logging.WARNING):
+        result = _dedupe_by_distribution_path([module_entry, data_entry], Path("/proj"))
 
     assert result == [module_entry]
+    assert caplog.records == []
+
+
+def test_dedupe_by_distribution_path_warns_on_genuine_collision(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Two *different* source files resolving to the same
+    ``distribution_path`` (e.g. overlapping ``package_dir`` entries) is a
+    real misconfiguration silently shrinking the wheel's file set --
+    unlike the benign glob-overlap case, this must be logged."""
+    first = IncludedFile(path="/src/pkg_a/x.py", distribution_path="pkg/x.py")
+    second = IncludedFile(path="/src/pkg_b/x.py", distribution_path="pkg/x.py")
+
+    with caplog.at_level(logging.WARNING):
+        result = _dedupe_by_distribution_path([first, second], Path("/proj"))
+
+    assert result == [first]
+    assert len(caplog.records) == 1
+    message = caplog.records[0].getMessage()
+    assert "/src/pkg_a/x.py" in message
+    assert "/src/pkg_b/x.py" in message
+    assert "pkg/x.py" in message
 
 
 def test_setup_py_packaging_kwargs_detects_only_relevant_names(

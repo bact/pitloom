@@ -266,8 +266,37 @@ runs:
 
         # Capture stdout (while still echoing it to the log) so a
         # loom-picked default filename can be recovered below when
-        # "output" was left empty.
-        loom_stdout=$(loom "${loom_args[@]}" | tee /dev/stderr)
+        # "output" was left empty. Capture stderr too (while still
+        # streaming it live) so its INFO:/WARNING:/ERROR: lines --
+        # AGENTS.md's "CLI output" convention, always at the start of the
+        # line -- can be re-emitted as ::notice::/::warning::/::error::
+        # workflow commands, giving them real GitHub Actions annotations
+        # (PR "Checks" tab, job summary) instead of just plain log text.
+        # -e is dropped around the call so a failing "loom" doesn't abort
+        # the script before its ERROR: line gets annotated; the exit code
+        # is re-checked and propagated explicitly afterward.
+        loom_stderr_file=$(mktemp)
+        set +e
+        loom_stdout=$(
+          loom "${loom_args[@]}" 2> >(tee "${loom_stderr_file}" >&2) \
+            | tee /dev/stderr
+        )
+        loom_exit=$?
+        wait
+        set -e
+
+        while IFS= read -r line; do
+          case "${line}" in
+            "ERROR: "*) echo "::error::${line#ERROR: }" ;;
+            "WARNING: "*) echo "::warning::${line#WARNING: }" ;;
+            "INFO: "*) echo "::notice::${line#INFO: }" ;;
+          esac
+        done < "${loom_stderr_file}"
+        rm -f "${loom_stderr_file}"
+
+        if [ "${loom_exit}" -ne 0 ]; then
+          exit "${loom_exit}"
+        fi
 
         if [ "${skip_output}" = false ]; then
           if [ -n "${PL_OUTPUT}" ]; then

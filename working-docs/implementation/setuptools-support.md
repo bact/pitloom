@@ -35,7 +35,7 @@ initial setuptools support added in the `setuptools-support` branch.
 | `src/pitloom/core/_models_wheel.py` | Backend-dispatch facade for wheel file discovery (`get_wheel_files()`), shared per-file hashing/header loop |
 | `src/pitloom/core/_models_wheel_setuptools.py` | Setuptools wheel file discovery -- static config only, see below |
 | `src/pitloom/core/_models_wheel_hatchling.py`, `_models_wheel_types.py` | Hatchling discovery module and shared types, siblings of the facade above |
-| `tests/core/test_models_wheel_setuptools.py`, `test_models_wheel_files.py` | Wheel file discovery tests (setuptools-specific, and facade dispatch/fallback) |
+| `tests/core/test_models_wheel_setuptools.py`, `test_models_wheel_dispatch.py` | Wheel file discovery tests (setuptools-specific, and facade dispatch/fallback) |
 | `tests/fixtures/projects/sampleproject-setuptools-data/` | `package_data`/`include_package_data`/`MANIFEST.in` fixture for the manifest-analysis discovery path |
 
 ## Extraction functions

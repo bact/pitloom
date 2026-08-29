@@ -366,6 +366,20 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   PyPI metadata sources, per-source enable/disable config.
   See [sbom-enrichment.md](sbom-enrichment.md).
 
+### Diagnostics / logging
+
+- [ ] **Surface `DEBUG:`-level output on request** -- `AGENTS.md`'s "CLI
+  output" convention documents `ERROR:`/`WARNING:`/`INFO:` reaching
+  stderr and `logging.debug()` staying suppressed by default (a
+  developer-only diagnostic). No opt-in path exists yet to actually see
+  it (no `--verbose`/env-var wiring into `configure_logging()`'s logger
+  level) -- `cli/verbose.py`'s existing `--verbose` flag does something
+  unrelated (a config-resolution diagnostics dump), so this needs either
+  reusing that flag for a second purpose or a new one. Deferred:
+  needs deciding the trigger (flag vs. env var), and whether DEBUG-level
+  messages across the codebase are actually written with an end-user
+  reading them in mind yet.
+
 ## Medium-term
 
 - [ ] **CycloneDX assembler** -- add a CycloneDX serializer consuming the

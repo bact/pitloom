@@ -150,6 +150,11 @@ def _build_document_model(
         detect_content_type=pitloom_config.content_type.enabled,
         content_type_method=pitloom_config.content_type.method,
         content_type_overrides=pitloom_config.content_type.overrides,
+        # This *is* the Hatchling build hook -- the backend is Hatchling
+        # by construction, so skip the pyproject.toml re-parse and
+        # backend-detection get_wheel_files would otherwise do to figure
+        # out what this call site already knows.
+        assume_backend="hatchling",
     )
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)

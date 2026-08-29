@@ -147,7 +147,15 @@ def test_read_pyproject_spdx_license_with_redundant_classifier_recovers(
     benign transitional state real projects are in mid-PEP-639-migration.
     ``read_pyproject()`` must recover by dropping the redundant
     classifier and keeping the SPDX expression -- with a ``WARNING:``,
-    not silently -- rather than failing the whole SBOM."""
+    not silently -- rather than failing the whole SBOM.
+
+    Also the regression guard for `_is_license_classifier_conflict`'s
+    own documented fragility (it matches pyproject-metadata's exception
+    message verbatim, with no more stable discriminator available): this
+    exercises the *real*, installed pyproject-metadata, not a mocked
+    exception, so a future dependency bump that rewords the message
+    fails this test loudly (`ValueError` instead of a clean recovery)
+    rather than silently degrading in production."""
     content = """
 [project]
 name = "transitional-license-pkg"

@@ -206,16 +206,22 @@ A quick `@graph`-presence sanity check is enough for most runs (see
 `references/examples.md`), but for a schema/shape-level conformance
 check, use the `sbom-validate` skill on the output.
 
-## Check stderr for WARNING:/ERROR: lines
+## Check stderr for INFO:/WARNING:/ERROR: lines
 
-Pitloom logs to stderr with a grep-able `WARNING:`/`ERROR:` prefix (e.g.
-"a config value was too small to be useful and got normalized instead",
-"a requested detector isn't installed"). These don't always fail the
-command or show up in the output JSON itself, so after running `loom`,
-scan the captured stderr for these prefixes and mention any hit to the
-user in plain language -- don't let a real warning about the SBOM's own
-completeness or configuration pass by unmentioned just because the
-command exited 0 and produced a file.
+Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
+prefix -- exactly one of the three, always at the start of the line
+(see `AGENTS.md`'s "CLI output" section for the full convention).
+`WARNING:` examples: "a config value was too small to be useful and got
+normalized instead", "a requested detector isn't installed". `INFO:`
+covers normal status the command wants a human to see, most importantly
+**generation being skipped or scoped down** -- e.g. a Hatchling build
+hook run that produced no SBOM because it's disabled or the target
+isn't `wheel`. These don't always fail the command or show up in the
+output JSON itself, so after running `loom`, scan the captured stderr
+for all three prefixes and mention any hit to the user in plain
+language -- don't let a real warning or an `INFO:` line saying
+generation was skipped pass by unmentioned just because the command
+exited 0 and (maybe) produced a file.
 
 ## Known limitations -- say so, don't paper over it
 

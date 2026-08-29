@@ -28,7 +28,6 @@ import logging
 import os
 import sys
 import tempfile
-import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -63,21 +62,19 @@ _IMPERATIVE_PACKAGING_KWARGS = frozenset(
     }
 )
 
-# Serializes concurrent calls to this module's own `discover()` against
-# each other, so they don't race on `_chdir`'s process-wide `os.chdir()`.
-# Scoped to this module only -- it does not protect against unrelated
-# code elsewhere in the process that also changes the cwd. A future
-# backend module needing the same cwd-pinning trick (e.g. for its own
-# `attr:`-equivalent resolution) would need to coordinate through a
-# shared lock, not reuse this one.
-_DISCOVERY_LOCK = threading.Lock()
-
 
 @contextmanager
 def _chdir(project_dir: Path) -> Iterator[None]:
     """Setuptools' ``Distribution``/``build_py`` resolve paths relative to
     the current working directory, so discovery needs to run from
-    *project_dir* for the duration of the call."""
+    *project_dir* for the duration of the call.
+
+    This process-wide ``os.chdir()`` is only safe because
+    :mod:`pitloom.core._models_wheel` -- the sole caller of
+    :func:`discover` -- serializes every backend's discovery call
+    (including Hatchling's, which also resolves paths against cwd)
+    through one shared lock; this module holds no lock of its own.
+    """
     original_cwd = Path.cwd()
     os.chdir(project_dir)
     try:
@@ -250,13 +247,36 @@ def _discover_data_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:
         return files
 
 
-def _dedupe_by_distribution_path(files: list[IncludedFile]) -> list[IncludedFile]:
+def _dedupe_by_distribution_path(
+    files: list[IncludedFile], project_dir: Path
+) -> list[IncludedFile]:
     """Drop later entries that share a ``distribution_path`` with an
     earlier one -- e.g. a ``package_data`` glob that also matches a
-    ``.py`` module already found by :func:`_discover_module_files`."""
+    ``.py`` module already found by :func:`_discover_module_files`.
+
+    Silent when the colliding entries share the same source ``path``
+    too (the benign, common case above). Logs a ``WARNING:`` when they
+    don't: two *different* source files resolving to the same
+    ``distribution_path`` (e.g. overlapping ``package_dir`` entries) is
+    a real misconfiguration silently shrinking the wheel's file set --
+    only the first one found survives, with no other signal.
+    """
     seen: dict[str, IncludedFile] = {}
     for included_file in files:
-        seen.setdefault(included_file.distribution_path, included_file)
+        existing = seen.get(included_file.distribution_path)
+        if existing is None:
+            seen[included_file.distribution_path] = included_file
+        elif existing.path != included_file.path:
+            log.warning(
+                "%s: both %s and %s resolve to the same wheel path %s -- "
+                "keeping %s, dropping %s",
+                project_dir,
+                existing.path,
+                included_file.path,
+                included_file.distribution_path,
+                existing.path,
+                included_file.path,
+            )
     return list(seen.values())
 
 
@@ -337,7 +357,7 @@ def discover(
     from setuptools.errors import PackageDiscoveryError
 
     try:
-        with _DISCOVERY_LOCK, _chdir(project_dir):
+        with _chdir(project_dir):
             with _isolated_sys_modules(project_dir):
                 dist = _load_distribution(project_dir, pyproject_data)
             if dist is None:
@@ -347,7 +367,8 @@ def discover(
             build_py_cmd.finalize_options()
             files = _dedupe_by_distribution_path(
                 _discover_module_files(build_py_cmd)
-                + _discover_data_files(build_py_cmd)
+                + _discover_data_files(build_py_cmd),
+                project_dir,
             )
             _warn_if_setup_py_overrides_packaging(project_dir)
             # Resolve to absolute paths while still inside project_dir --

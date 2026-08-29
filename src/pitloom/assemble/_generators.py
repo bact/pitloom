@@ -35,6 +35,7 @@ from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
+from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
 
@@ -127,6 +128,7 @@ def generate_project_sbom(
     update_registry: bool | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive."""
+    configure_logging()
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:
         project_metadata, pitloom_config, _ = read_project(target_path)
@@ -235,6 +237,7 @@ def generate_wheel_sbom(
     update_registry: bool | None = None,
 ) -> str:
     """Generate an Analyzed SPDX 3 SBOM for a built Python wheel."""
+    configure_logging()
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship
@@ -289,6 +292,7 @@ def generate_env_sbom(
     update_registry: bool | None = None,
 ) -> str:
     """Generate a Deployed SPDX 3 SBOM for the current installed environment."""
+    configure_logging()
     effective_pretty = False if pretty is None else pretty
     effective_describe = (
         False if describe_relationship is None else describe_relationship

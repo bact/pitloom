@@ -39,12 +39,8 @@ and this project adheres to
 - Reorganize Hugging Face tests ([#187])
 - Split `get_wheel_files()` into a per-backend discovery module + registry,
   ready for Poetry/PDM/Flit-core/`uv_build` ([#196])
-- **Setuptools projects**: the document UUID/spdxIds a Source SBOM gets are
-  content-addressed from the resolved file list, so they now differ from
-  SBOMs generated before this backend-aware fix (which used the less
-  accurate Hatchling heuristic) -- regenerate the base SBOM before merging
-  an enrichment fragment into a setuptools project's pre-upgrade SBOM
-  ([#196])
+- **Setuptools projects**: SBOM element ids shift vs. pre-upgrade output --
+  regenerate the base SBOM before merging fragments ([#196])
 
 ### Fixed
 
@@ -60,6 +56,14 @@ and this project adheres to
   not just an absent one ([#196])
 - Fix crash reading `pyproject.toml` with both an SPDX `license` string and
   legacy classifiers ([#196])
+- `merge_fragments()` now warns on a merged element referencing an id absent
+  from the base SBOM ([#196])
+- `INFO:`-level log messages (e.g. Hatchling build hook status) now actually
+  reach stderr ([#196])
+- `embed-wheel`/`wheel --embed` INFO: lines now go to stderr, not stdout
+  ([#196])
+- GitHub Action now surfaces loom's INFO:/WARNING:/ERROR: lines as
+  ::notice::/::warning::/::error:: annotations ([#196])
 
 [#187]: https://github.com/bact/pitloom/pull/187
 [#188]: https://github.com/bact/pitloom/pull/188

@@ -120,7 +120,9 @@ class IdRegistry:
                 try:
                     return IdRegistry.load(candidate)
                 except (ValueError, OSError) as exc:
-                    log.warning("Ignoring invalid registry %s: %s", candidate, exc)
+                    log.warning(
+                        "Registry: ignoring invalid file %s: %s", candidate, exc
+                    )
                     return None
         return None
 
@@ -312,7 +314,7 @@ def resolve_registry(
         try:
             return IdRegistry.load(registry_path)
         except (FileNotFoundError, ValueError, OSError) as exc:
-            log.warning("Could not load registry %s: %s", registry_path, exc)
+            log.warning("Registry: could not load %s: %s", registry_path, exc)
             return None
     return IdRegistry.find(start=project_dir)
 
