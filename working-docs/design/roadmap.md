@@ -262,6 +262,18 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](metadata-sources.md).
+- [ ] **Lock files as a resolved-dependency source for Source SBOMs**
+  (`poetry.lock`, `Pipfile.lock`, `uv.lock`, pinned `requirements.txt`) --
+  `loom project` currently records only the declared version specifier from
+  `pyproject.toml [project] dependencies`
+  (`normalize_dependency_specifier`, `src/pitloom/extract/_pyproject.py:220`,
+  e.g. `requests>=2.0`), never a concrete resolved version. No lock file
+  or `requirements.txt` is read anywhere in `src/` today. Parsing one when
+  present would let a Source SBOM carry the actual pinned version a build
+  will use, not just the declared range -- closer to what CISA's Source
+  SBOM guidance expects. Needs a source-priority decision analogous to
+  `metadata-sources.md`'s existing tiering (which lock file wins if more
+  than one is present) and a provenance `method` tag per lock format.
 
 ### PEP 770 / embed-wheel
 
@@ -282,6 +294,20 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   <https://github.com/JPEWdev/spdx3-validate#using-as-a-library> --
   `--verify` could call it in-process instead of shelling out, avoiding a
   second subprocess/dependency-install step in CI.
+- [ ] **`embed_wheel_sbom(sbom_path=...)` name/version cross-check** --
+  when an externally-supplied SBOM is embedded (`--sbom-path`, bypassing
+  Pitloom's own generation), `embed_wheel_sbom`
+  (`src/pitloom/embed.py:195-235`) already reads the target wheel's own
+  `.dist-info/METADATA` (via `read_wheel`) but only uses it to derive a
+  default filename (`_derive_wheel_sbom_filename`,
+  `src/pitloom/_embed_wheel.py:171-182`) when `sbom_basename` is unset --
+  it never compares the supplied SBOM's own `name`/`version` against the
+  wheel's declared `name`/`version`. Wire up a check (warn or error,
+  configurable) so embedding an SBOM built for the wrong wheel doesn't
+  pass silently -- this is a genuine name/version reconciliation gap, not
+  covered by `--verify` above, which only checks the embedded file's
+  *location* and *schema*, not its *content's* correspondence to the
+  wheel it landed in.
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
@@ -367,6 +393,35 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
 
 ### Metadata quality
 
+- [ ] **Revise and publish the provenance/enrichment vocabulary reference**
+  -- [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md)
+  is currently "draft, parked for later review": a full-repo vocabulary
+  inventory (`method`/`role`/Annotation kinds/dataset relationship
+  roles/minimum-elements gap status) and a drafted `docs/vocabulary.md`
+  page were written, then reverted out of `docs/` per the user's request
+  (one independent bug fix kept -- see that file's "Already applied").
+  Revising the `role`/`method` taxonomies themselves is planned next;
+  once settled, publish the reference page and update every place that
+  currently documents this vocabulary ad hoc (`docs/metadata-provenance.md`,
+  the `sbom-enrich` Skill's own conventions, `working-docs/implementation/
+  provenance/annotation-provenance-full-plan.md`'s older/duplicate
+  taxonomy shape) so there is one canonical source instead of several
+  independently-maintained copies.
+- [ ] **Generalize multi-source conflict detection beyond license**
+  (priority) -- `build_conflict_annotation`
+  (`src/pitloom/assemble/spdx3/provenance.py:169`) is the only place the
+  `conflict` Annotation kind (Section 5.7/G2,
+  [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md))
+  is constructed, and it has exactly one caller:
+  `src/pitloom/assemble/spdx3/deps_license.py:256`. The independent-detection
+  vs. declared-value comparison mechanism this implements is general --
+  obtain a fact two independent ways, normalize, compare, emit `conflict`
+  only on genuine disagreement -- but today it exists for license only.
+  Dependency version (declared specifier vs. lock-file-resolved version,
+  once the lock file item above ships) is the most obvious next
+  candidate: the same "don't let two sources silently disagree" argument
+  applies, and the comparison/normalization scaffolding already built for
+  license is largely reusable.
 - [ ] **`[project.license-files]` support** -- PEP 639's glob-list field
   for bundling multiple license files (narrower remainder of the old
   "License expression support" item -- expression parsing/normalization
