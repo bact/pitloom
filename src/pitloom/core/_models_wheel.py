@@ -217,11 +217,13 @@ def _discover_included_files(
     the Hatchling build hook, which is definitionally always Hatchling).
     """
     # pylint: disable=import-outside-toplevel
+    from pitloom.core._models_wheel_poetry import discover as discover_poetry
     from pitloom.core._models_wheel_setuptools import discover as discover_setuptools
     from pitloom.extract._setuptools import detect_build_backend, read_pyproject_toml
 
     backend_discoverers: dict[str, BackendDiscoverer] = {
         "setuptools": discover_setuptools,
+        "poetry": discover_poetry,
     }
 
     pyproject_data: dict[str, object] | None

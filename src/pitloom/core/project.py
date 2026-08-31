@@ -107,6 +107,7 @@ class ProjectMetadata:
     authors: list[dict[str, str]] = field(default_factory=list)
     urls: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
+    locked_dependencies: list[str] = field(default_factory=list)
     provenance: dict[str, str] = field(default_factory=dict)
     files: list[ProjectFile] = field(default_factory=list)
 

@@ -262,23 +262,24 @@ back a JSON file that looks complete but isn't:
   serialization format isn't
   recognized at all -- same "say so" rule applies rather than silently
   skipping it.
-- **Non-Hatchling, non-setuptools build backend** for `loom
+- **Non-Hatchling, non-setuptools, non-Poetry build backend** for `loom
   project`/`loom generate` against a project directory -- check
   `pyproject.toml`'s `[build-system] build-backend` *before* generating,
-  not after. Hatchling and setuptools (including `[tool.setuptools.packages.find]
-  where=`, `package_data`, `include_package_data`/`MANIFEST.in`) both get
-  accurate file-level discovery. Any other backend (`poetry.core.masonry.api`,
-  `pdm.backend`, `flit_core.buildapi`, `uv_build`, etc. -- or no
-  `pyproject.toml` build-backend declared at all, just a bare
-  `setup.py`/`setup.cfg`) falls back to a Hatchling-based heuristic and
-  logs a warning, say so upfront, don't wait for the user to ask why the
-  SBOM looks off:
+  not after. Hatchling, setuptools (including `[tool.setuptools.packages.find]
+  where=`, `package_data`, `include_package_data`/`MANIFEST.in`), and
+  Poetry (including `[tool.poetry.packages]`'s `include`/`from`, and
+  `[tool.poetry]`'s own `include`/`exclude`) all get accurate file-level
+  discovery. Any other backend (`pdm.backend`, `flit_core.buildapi`,
+  `uv_build`, etc. -- or no `pyproject.toml` build-backend declared at
+  all, just a bare `setup.py`/`setup.cfg`) falls back to a
+  Hatchling-based heuristic and logs a warning, say so upfront, don't
+  wait for the user to ask why the SBOM looks off:
 
   > **Limitation notes:** File-level discovery is backend-aware for
-  > Hatchling and setuptools. For any other build backend, Pitloom falls
-  > back to a Hatchling-based heuristic that can be silently incomplete
-  > or mis-pathed. `uv_build`, Poetry Core, PDM-Backend, and Flit-Core
-  > are on the roadmap. See full [limitation
+  > Hatchling, setuptools, and Poetry. For any other build backend,
+  > Pitloom falls back to a Hatchling-based heuristic that can be
+  > silently incomplete or mis-pathed. `uv_build`, PDM-Backend, and
+  > Flit-Core are on the roadmap. See full [limitation
   > notes](https://bact.github.io/pitloom/cli/#usage-details).
 
   Project-level metadata (name, version, dependencies, license,
@@ -286,6 +287,11 @@ back a JSON file that looks complete but isn't:
   backend. What's affected is the *file-level* inventory: which files
   are listed, their hashes, and the package's Merkle-root integrity
   hash, for any backend still on the Hatchling-based fallback.
+
+  For a Poetry project, the dependency list additionally includes
+  `poetry.lock`-resolved `main`-group transitive dependencies when a
+  lock file is present next to `pyproject.toml`, on top of the direct
+  `[tool.poetry.dependencies]` constraints every backend gets.
 
 ## See also
 

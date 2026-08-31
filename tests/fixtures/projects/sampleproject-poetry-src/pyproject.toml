@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal Poetry project used as a fixture for testing Pitloom's Poetry
+# wheel file discovery (pitloom.core._models_wheel_poetry).
+#
+# Exercises the src/ layout via an explicit `packages = [{include = ...,
+# from = "src"}]` entry -- the physical_path/distribution_path divergence
+# every backend's discovery module must get right.
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "sampleproject-poetry-src"
+version = "0.1.0"
+description = "A minimal src-layout Poetry sample project for testing wheel file discovery."
+readme = "README.md"
+license = "CC0-1.0"
+keywords = ["sample", "test"]
+packages = [{ include = "sampleproject_poetry_src", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"

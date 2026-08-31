@@ -29,6 +29,7 @@ from pitloom.extract._license import (
     resolve_license_concluded,
 )
 from pitloom.extract._poetry import extract_poetry_metadata
+from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -456,10 +457,25 @@ def _try_read_poetry(
     data: dict[str, Any],
     project_dir: Path,
 ) -> ProjectMetadata | None:
-    """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``."""
+    """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``.
+
+    Also reads a sibling ``poetry.lock``, when present, for the resolved
+    transitive-dependency graph -- source-stage-only enrichment; see
+    :mod:`pitloom.extract._poetry_lock`'s module docstring for why this is
+    scoped to this exact call site (every ``read_pyproject()`` caller,
+    never the wheel/env paths, which construct :class:`ProjectMetadata`
+    through other functions entirely).
+    """
     if not data.get("tool", {}).get("poetry"):
         return None
     try:
-        return extract_poetry_metadata(data, project_dir)
+        metadata = extract_poetry_metadata(data, project_dir)
     except (ValueError, KeyError):
         return None
+    locked_dependencies = extract_poetry_lock_dependencies(project_dir)
+    if locked_dependencies:
+        metadata.locked_dependencies = locked_dependencies
+        metadata.provenance["locked_dependencies"] = (
+            "Source: poetry.lock | Method: resolved_lockfile"
+        )
+    return metadata

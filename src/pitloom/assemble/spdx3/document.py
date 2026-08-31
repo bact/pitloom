@@ -40,6 +40,7 @@ from pitloom.assemble.spdx3.deps import (
     add_dependencies,
     add_phantom_dependencies,
 )
+from pitloom.assemble.spdx3.deps_installed import _parse_dep_name
 from pitloom.assemble.spdx3.deps_license import (
     _add_license_noassertion,
     build_license_elements,
@@ -179,6 +180,7 @@ def build(
         version=metadata.version or "unknown",
         dependencies=metadata.dependencies,
         merkle_root=merkle_root,
+        locked_dependencies=metadata.locked_dependencies,
     )
     _clear_doc_counters(doc_uuid)
 
@@ -282,6 +284,35 @@ def build(
         encoder=encoder,
         content_type_method=content_type_method,
     )
+
+    # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
+    # Additive: only packages the lock resolved that aren't already a
+    # direct dependency above, so a package declared both directly and in
+    # the lock gets one edge, not two. See _try_read_poetry() in
+    # pitloom.extract._pyproject for why this is source-stage-only.
+    direct_names = {_parse_dep_name(dep) for dep in metadata.dependencies}
+    transitive_only = [
+        dep
+        for dep in metadata.locked_dependencies
+        if _parse_dep_name(dep) not in direct_names
+    ]
+    if transitive_only:
+        add_dependencies(
+            dependencies=transitive_only,
+            dep_provenance=metadata.provenance.get(
+                "locked_dependencies", "Source: poetry.lock | Method: resolved_lockfile"
+            ),
+            main_package_spdx_id=require_spdx_id(main_package),
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            offline=offline,
+            provenance_config=prov_cfg,
+            encoder=encoder,
+            content_type_method=content_type_method,
+            completeness=spdx3.RelationshipCompleteness.complete,
+        )
 
     # --- Files ---
     file_spdx_ids = _add_package_files(

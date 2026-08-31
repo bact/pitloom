@@ -15,10 +15,24 @@ build instructions.
 
 ## Poetry
 
-`sampleproject-poetry/` is a minimal Python package that exercises
-Pitloom's Poetry metadata extraction (`pitloom.extract.poetry`).
-It uses  metadata under ``[tool.poetry]`` and optionally
-``[tool.poetry.dependencies]`` in `pyproject.toml`.
+`sampleproject-poetry/` is a verbatim copy of a real project's
+(mistral-inference) `pyproject.toml`/`poetry.lock`, used to exercise
+Pitloom's Poetry metadata extraction (`pitloom.extract._poetry`). It has
+no `src/` package directory on disk -- metadata-only, not usable for wheel
+file discovery.
+
+`sampleproject-poetry-src/` is a minimal, complete `src/`-layout Poetry
+package that exercises Pitloom's Poetry wheel file discovery
+(`pitloom.core._models_wheel_poetry`) via an explicit
+`packages = [{include = ..., from = "src"}]` entry -- the
+`physical_path`/`distribution_path` divergence every backend's discovery
+module must get right.
+
+`sampleproject-poetry-include-exclude/` exercises the same discovery
+module's `include`/`exclude` glob handling: a file outside the
+auto-discovered package directory only appears because of `include`, and
+a file inside the package directory that would be included by default is
+dropped via `exclude`.
 
 ## Setuptools
 

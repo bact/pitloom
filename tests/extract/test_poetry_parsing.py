@@ -9,6 +9,7 @@ See also: test_poetry_pyproject.py for read_pyproject() poetry-fallback,
 fixture integration, and license-conflict tests.
 """
 
+import logging
 import tempfile
 from pathlib import Path
 
@@ -147,6 +148,38 @@ def test_dep_dict_path_returns_none() -> None:
 
 def test_dep_dict_git_returns_none() -> None:
     assert _poetry_dep_to_pep508("dev-pkg", {"git": "https://github.com/x/y"}) is None
+
+
+def test_dep_dict_url_returns_none() -> None:
+    assert (
+        _poetry_dep_to_pep508("remote-pkg", {"url": "https://example.com/x.whl"})
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "constraint", "source"),
+    [
+        ("local-pkg", {"path": "../local-pkg"}, "path"),
+        ("dev-pkg", {"git": "https://github.com/x/y"}, "git"),
+        ("remote-pkg", {"url": "https://example.com/x.whl"}, "url"),
+    ],
+)
+def test_dep_skip_logs_warning(
+    name: str,
+    constraint: dict[str, str],
+    source: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: skipping a path/git/url-sourced dependency must not be
+    silent -- CLAUDE.md's "no silent deviations" rule requires a WARNING:
+    explaining what was dropped and why."""
+    with caplog.at_level(logging.WARNING):
+        result = _poetry_dep_to_pep508(name, constraint)
+
+    assert result is None
+    assert name in caplog.text
+    assert source in caplog.text
 
 
 def test_parse_authors_unmatched_email_bracket_skipped() -> None:

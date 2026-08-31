@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal Poetry project used as a fixture for testing Pitloom's Poetry
+# wheel file discovery (pitloom.core._models_wheel_poetry).
+#
+# Exercises explicit `include`/`exclude` glob lists: `extra_data/` sits
+# outside the auto-discovered package directory and is only picked up
+# because of `include`; `data.json` sits inside the package directory
+# and would be picked up by default but is dropped because of `exclude`.
+#
+# A bare `include` string entry defaults to `format = ["sdist"]` only --
+# it must declare `format` explicitly to also apply to wheel builds, the
+# case this fixture exists to exercise.
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "sampleproject-poetry-include-exclude"
+version = "0.1.0"
+description = "A minimal Poetry sample project for testing include/exclude wheel file discovery."
+readme = "README.md"
+license = "CC0-1.0"
+keywords = ["sample", "test"]
+include = [{ path = "extra_data/**/*", format = ["sdist", "wheel"] }]
+exclude = ["sampleproject_poetry_include_exclude/data.json", "notes/**/*"]
+
+[tool.poetry.dependencies]
+python = "^3.10"

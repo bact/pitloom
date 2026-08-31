@@ -54,16 +54,23 @@ loom project /path/to/project -o sbom.spdx3.json
 > **Limitation:** the per-file inventory (which files are listed, their
 > hashes, and the package's Merkle-root integrity hash) is discovered
 > using each build backend's own file-inclusion rules where supported.
-> Hatchling and setuptools (including `[tool.setuptools.packages.find]
-> where=`, `package_data`, and `include_package_data`/`MANIFEST.in`)
-> are both accurate. For a Poetry, PDM, or Flit project, or any other
-> backend using its own inclusion rules Pitloom doesn't yet understand,
-> the discovery falls back to a Hatchling-based heuristic and logs a
-> warning -- the file list can be silently incomplete or mis-pathed for
-> those. Project-level metadata (name, version, dependencies, license,
-> authors) is unaffected -- it's read independently and isn't subject
-> to this limitation. Backend-aware support for the remaining backends
-> is tracked as a near-term roadmap priority.
+> Hatchling, setuptools (including `[tool.setuptools.packages.find]
+> where=`, `package_data`, and `include_package_data`/`MANIFEST.in`), and
+> Poetry (including `[tool.poetry.packages]`'s `include`/`from`, and
+> `[tool.poetry]`'s own `include`/`exclude`) are all accurate. For a PDM
+> or Flit project, or any other backend using its own inclusion rules
+> Pitloom doesn't yet understand, the discovery falls back to a
+> Hatchling-based heuristic and logs a warning -- the file list can be
+> silently incomplete or mis-pathed for those. Project-level metadata
+> (name, version, dependencies, license, authors) is unaffected -- it's
+> read independently and isn't subject to this limitation. Backend-aware
+> support for the remaining backends is tracked as a near-term roadmap
+> priority.
+>
+> For a Poetry project with a `poetry.lock` next to `pyproject.toml`,
+> the Source SBOM's dependency list also includes the lock's resolved
+> `main`-group transitive dependencies, in addition to the direct
+> `[tool.poetry.dependencies]` constraints.
 
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
 binaries as phantom dependencies):

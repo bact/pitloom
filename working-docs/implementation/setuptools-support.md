@@ -11,7 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 See also: [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for why
 wheel file discovery below stays a static-config read (never executes
 `setup.py`), and how this compares to the Hatchling backend and to
-`loom wheel`/`embed-wheel`'s build-stage path.
+`loom wheel`/`embed-wheel`'s build-stage path; [poetry-support.md](poetry-support.md)
+for the sibling Poetry backend's wheel-file discovery, which delegates
+to poetry-core's own builder instead of hand-rolling static-config
+resolution the way this file's setuptools discovery has to.
 
 ## Motivation
 

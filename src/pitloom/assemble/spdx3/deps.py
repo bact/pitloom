@@ -223,6 +223,7 @@ def add_dependencies(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     content_type_method: str = "auto",
+    completeness: Any | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -232,6 +233,12 @@ def add_dependencies(
     ``pyproject.toml`` extra, each split by a ``python_version`` marker --
     collapse into a single ``software_Package`` node. Their raw declared
     strings are preserved together in that node's provenance comment.
+
+    *completeness*, when given (e.g. ``spdx3.RelationshipCompleteness.complete``
+    for a lock-resolved transitive-dependency call), is set on every
+    ``dependsOn`` relationship this call creates. Omitted (the default)
+    leaves the relationship's ``completeness`` unset, unchanged from
+    before this parameter existed.
     """
     resolved = []
     for dep in dependencies:
@@ -295,6 +302,9 @@ def add_dependencies(
             encoder=encoder,
         )
 
+        rel_kwargs: dict[str, Any] = {}
+        if completeness is not None:
+            rel_kwargs["completeness"] = completeness
         dep_rel = build_relationship(
             from_id=main_package_spdx_id,
             to_ids=[require_spdx_id(dep_package)],
@@ -302,6 +312,7 @@ def add_dependencies(
             doc_name=doc_name,
             doc_uuid=doc_uuid,
             creation_info=creation_info,
+            **rel_kwargs,
         )
         if dep_rel:
             exporter.add_relationship(dep_rel)
