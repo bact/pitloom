@@ -261,7 +261,7 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
 - [ ] **Installed `.dist-info` / `.egg-info` as metadata source** -- treat
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
-  See [metadata-sources.md](metadata-sources.md).
+  See [metadata-sources.md](./metadata-sources.md).
 - [ ] **Lock files as a resolved-dependency source for Source SBOMs**
   (`poetry.lock`, `Pipfile.lock`, `uv.lock`, pinned `requirements.txt`) --
   `loom project` currently records only the declared version specifier from
@@ -274,6 +274,7 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   SBOM guidance expects. Needs a source-priority decision analogous to
   `metadata-sources.md`'s existing tiering (which lock file wins if more
   than one is present) and a provenance `method` tag per lock format.
+  See [lock-files.md](./lock-files.md)
 
 ### PEP 770 / embed-wheel
 
