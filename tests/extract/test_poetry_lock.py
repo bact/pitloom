@@ -17,7 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
+from pitloom.extract._poetry_lock import (
+    _pinned_dep_for_package,
+    extract_poetry_lock_dependencies,
+)
 from pitloom.extract._pyproject import read_pyproject
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
@@ -30,7 +33,7 @@ def _write_lock(tmp_dir: Path, content: str) -> None:
 
 def test_no_lock_file_returns_empty_list() -> None:
     with tempfile.TemporaryDirectory() as tmp:
-        assert extract_poetry_lock_dependencies(Path(tmp)) == []
+        assert not extract_poetry_lock_dependencies(Path(tmp))
 
 
 def test_malformed_toml_returns_empty_list_and_warns(
@@ -43,7 +46,7 @@ def test_malformed_toml_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
 
-        assert result == []
+        assert not result
         assert "Failed to parse" in caplog.text
 
 
@@ -68,7 +71,7 @@ def test_dev_only_group_package_excluded() -> None:
             '[[package]]\nname = "pytest"\nversion = "8.0.0"\ngroups = ["dev"]\n',
         )
 
-        assert extract_poetry_lock_dependencies(tmp_path) == []
+        assert not extract_poetry_lock_dependencies(tmp_path)
 
 
 def test_package_in_main_and_dev_groups_included() -> None:
@@ -93,6 +96,24 @@ def test_missing_groups_key_defaults_to_main() -> None:
         _write_lock(tmp_path, '[[package]]\nname = "legacy-pkg"\nversion = "1.0.0"\n')
 
         assert extract_poetry_lock_dependencies(tmp_path) == ["legacy-pkg==1.0.0"]
+
+
+def test_package_table_not_a_list_returns_empty_list() -> None:
+    """A ``poetry.lock`` where top-level ``package`` isn't an array of
+    tables (malformed/unexpected shape) must degrade to an empty list,
+    not raise."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, 'package = "not-a-list"\n')
+
+        assert not extract_poetry_lock_dependencies(tmp_path)
+
+
+def test_pinned_dep_for_package_non_dict_entry_returns_none() -> None:
+    """A ``[[package]]`` entry that isn't a table (defensive guard against
+    a malformed lock file) is skipped, not a crash."""
+    assert _pinned_dep_for_package("not-a-dict") is None
+    assert _pinned_dep_for_package(["still", "not", "a", "dict"]) is None
 
 
 def test_malformed_package_entry_skipped() -> None:

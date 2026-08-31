@@ -205,6 +205,56 @@ fixes:
   backend's build dependencies installed) -- a real trade-off `loom
   project` doesn't currently make.
 
+#### Dependency packaging strategy
+
+Decided 2026-08-31, after Poetry (item #2) shipped and raised the
+question directly: as the number of Track A/B backend libraries grows,
+should any become optional extras (mirroring the `ai`/`content-type`
+extras) instead of hard `dependencies`?
+
+Checked first: metadata extraction never imports the real
+`setuptools`/`poetry-core`/`hatchling` packages at all -- `_setuptools.py`,
+`_poetry.py`, and `hatchling.py` are self-contained TOML/AST parsers.
+Only the three file-discovery modules (`_models_wheel_setuptools.py`,
+`_models_wheel_poetry.py`, `_models_wheel_hatchling.py`) import the real
+libraries, and every one of those imports is already function-local/lazy.
+So the question is narrower than "make backend support optional" -- it's
+specifically about the libraries backing *file-discovery accuracy*,
+never metadata.
+
+- **Track A (setuptools, Poetry, and future PDM-backend/Flit-core)
+  stays mandatory for now.** Unlike `ai`/`content-type`, which gate
+  *opt-in* features a user explicitly requests, backend detection isn't
+  opt-in: `loom project .` inspects whatever `pyproject.toml` says, and
+  the user can't know in advance which backend a target project uses.
+  Making these optional would mean a bare `pip install pitloom`
+  silently degrades to the Hatchling-heuristic fallback (with a
+  `WARNING:`, not silently wrong -- but still a worse default) for a
+  large fraction of real-world targets, not a niche one. Each library
+  is also individually lightweight and low-risk (poetry-core is a
+  ~370KB pure-Python wheel; setuptools ships in most environments
+  already) -- nothing like `ai`'s heavy, mutually-exclusive ML
+  dependencies (numpy/onnx/safetensors/fasttext). Hatchling itself was
+  never a candidate either way: it's already required to build Pitloom
+  itself (`[build-system] requires`), so it's free regardless.
+  **Revisit if Track A's mandatory footprint grows enough to matter**
+  (more backends landing, or an individual library turning out heavier
+  than expected) -- if/when it's worth splitting, bundle them under one
+  umbrella extra (e.g. `pitloom[backends]`), not one extra per backend:
+  per-backend extras multiply combinatorially as Track A grows and cost
+  real install-instruction complexity for little benefit, since a user
+  scanning a mixed-backend fleet needs all of them anyway.
+- **Track B (`maturin`, `scikit-build-core`, `meson-python`,
+  build-and-read), once implemented, should be an optional extra from
+  the start.** These pull in real compiler toolchains (Rust for
+  `maturin`, CMake/Ninja-adjacent tooling for `scikit-build-core`,
+  Meson/Ninja for `meson-python`) -- a categorically heavier,
+  environment-specific dependency than Track A's static introspection,
+  much closer in kind to why `ai` was split out. This is already
+  implicit in the build-and-read trade-off noted above (item #4); this
+  decision makes explicit that the mechanism's dependencies, not just
+  its runtime behavior, should be opt-in.
+
 Priority order, weighing popularity, prevalence in AI/ML Python
 projects, implementation size, and reuse leverage across backends:
 

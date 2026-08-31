@@ -54,6 +54,11 @@ classifiers = [
     "Topic :: Security",
     "Typing :: Typed",
 ]
+# hatchling/setuptools/poetry-core: Track A backend libs, kept mandatory
+# (lightweight; gate file-discovery accuracy, not metadata). Revisit if
+# Track A grows. Track B (maturin/scikit-build-core/meson-python) should
+# be an optional extra when added -- see roadmap.md "Dependency packaging
+# strategy".
 dependencies = [
     "auditwheel>=6.8.1; sys_platform == 'linux'",
     "hatchling>=1.32.0",
