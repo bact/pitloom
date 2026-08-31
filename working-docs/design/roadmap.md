@@ -264,7 +264,7 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
 - [ ] **Installed `.dist-info` / `.egg-info` as metadata source** -- treat
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
-  See [metadata-sources.md](metadata-sources.md).
+  See [metadata-sources.md](./metadata-sources.md).
 - [x] **`poetry.lock`** -- done (2026-08-31): `loom project`/`loom generate`
   against a Poetry project now reads a sibling `poetry.lock` (when
   present) for its `main`-group resolved transitive dependencies
@@ -289,6 +289,7 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   scoping); needs a source-priority decision analogous to
   `metadata-sources.md`'s existing tiering (which lock file wins if more
   than one is present) and a provenance `method` tag per lock format.
+  See [lock-files.md](./lock-files.md)
 
 ### PEP 770 / embed-wheel
 
