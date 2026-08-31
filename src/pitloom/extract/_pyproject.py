@@ -450,23 +450,48 @@ def _read_version_from_file(file_path: Path) -> str | None:
 def _try_read_poetry(
     data: dict[str, Any],
     project_dir: Path,
+    *,
+    include_locked_dependencies: bool = True,
 ) -> ProjectMetadata | None:
     """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``.
 
-    Also reads a sibling ``poetry.lock``, when present, for the resolved
-    transitive-dependency graph -- source-stage-only enrichment; see
-    :mod:`pitloom.extract._poetry_lock`'s module docstring for why this is
-    scoped to this exact call site (every ``read_pyproject()`` caller,
-    never the wheel/env paths, which construct :class:`ProjectMetadata`
-    through other functions entirely).
+    When *include_locked_dependencies* is true (the default, used by every
+    ``read_pyproject()`` caller), also reads a sibling ``poetry.lock`` for
+    the resolved transitive-dependency graph -- source-stage-only
+    enrichment; see :mod:`pitloom.extract._poetry_lock`'s module docstring.
+    The Hatchling build hook's metadata gap-fill path
+    (:func:`pitloom.extract.hatchling._poetry_fallback_metadata`) passes
+    ``include_locked_dependencies=False``: that path runs at build/embed
+    time, where a stale or unrelated ``poetry.lock`` must never influence
+    the emitted SBOM.
+
+    A malformed ``[tool.poetry]`` section (e.g. missing ``name`` -- common
+    for a PEP 621 ``[project]``-primary layout that keeps ``[tool.poetry]``
+    only for non-metadata settings) does not, on its own, suppress
+    ``poetry.lock`` reading: the two are independent, and a project can
+    have a perfectly good lock file even when its ``[tool.poetry]`` gap-fill
+    metadata can't be extracted.
     """
     if not data.get("tool", {}).get("poetry"):
         return None
+    locked_dependencies = (
+        extract_poetry_lock_dependencies(project_dir)
+        if include_locked_dependencies
+        else []
+    )
     try:
         metadata = extract_poetry_metadata(data, project_dir)
-    except (ValueError, KeyError):
-        return None
-    locked_dependencies = extract_poetry_lock_dependencies(project_dir)
+    except (ValueError, KeyError) as exc:
+        if not locked_dependencies:
+            return None
+        log.warning(
+            "%s: [tool.poetry] metadata could not be parsed (%s) -- "
+            "skipping Poetry gap-fill, but still applying poetry.lock's "
+            "resolved dependencies",
+            project_dir,
+            exc,
+        )
+        metadata = ProjectMetadata(name="")
     if locked_dependencies:
         metadata.locked_dependencies = locked_dependencies
         metadata.provenance["locked_dependencies"] = (

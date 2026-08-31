@@ -11,18 +11,13 @@ from __future__ import annotations
 import email
 import hashlib
 import logging
-import sys
 import tarfile
 import zipfile
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.project import ProjectFile, ProjectMetadata
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import tomllib
 
 log = logging.getLogger(__name__)
 

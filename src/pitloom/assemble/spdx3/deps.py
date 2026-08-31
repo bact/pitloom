@@ -223,7 +223,7 @@ def add_dependencies(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     content_type_method: str = "auto",
-    completeness: Any | None = None,
+    completeness: str | None = None,
     release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
     | None = None,
 ) -> None:

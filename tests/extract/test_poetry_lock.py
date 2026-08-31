@@ -130,6 +130,73 @@ def test_malformed_package_entry_skipped() -> None:
         assert extract_poetry_lock_dependencies(tmp_path) == ["complete-pkg==2.0.0"]
 
 
+def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None:
+    """Regression: a malformed ``[[package]]`` entry (missing ``version``)
+    used to be dropped with zero logging, violating "no silent
+    deviations" -- it must now emit a ``WARNING:``."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, '[[package]]\nname = "incomplete"\n')
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "malformed" in caplog.text.lower()
+
+
+def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> None:
+    """Regression: a malformed top-level ``package`` key (not a list) used
+    to degrade to an empty list with zero logging."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, 'package = "not-a-list"\n')
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "expected a list" in caplog.text
+
+
+@pytest.mark.parametrize("source_type", ["directory", "file", "git", "url"])
+def test_non_pep508_sourced_package_excluded(
+    source_type: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: a poetry.lock entry resolved from a local path or VCS
+    has no meaningful PyPI version pin -- it must be excluded the same way
+    `_poetry_dep_to_pep508()` excludes it from direct dependencies, not
+    emitted as a misleading ``name==version`` PyPI pin."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "local-dep"\nversion = "0.1.0"\n'
+            f'[package.source]\ntype = "{source_type}"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "local-dep" in caplog.text
+
+
+def test_legacy_source_package_still_included() -> None:
+    """A package resolved from a private/secondary index (``source.type =
+    "legacy"``) still has a real, meaningful version pin -- unlike
+    directory/file/git/url sources, it must not be excluded."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "private-pkg"\nversion = "1.0.0"\n'
+            '[package.source]\ntype = "legacy"\nurl = "https://example.com/simple"\n',
+        )
+
+        assert extract_poetry_lock_dependencies(tmp_path) == ["private-pkg==1.0.0"]
+
+
 def test_fixture_lock_excludes_dev_group_dependency() -> None:
     """Real-world fixture: `pytest`/`mypy`/`ruff` live only in
     `[tool.poetry.group.dev.dependencies]` and must not appear."""
@@ -149,6 +216,37 @@ def test_read_pyproject_populates_locked_dependencies() -> None:
     assert metadata.provenance["locked_dependencies"] == (
         "Source: poetry.lock | Method: resolved_lockfile"
     )
+
+
+def test_read_pyproject_pep621_project_with_minimal_poetry_still_reads_lock(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: a PEP 621 ``[project]``-primary layout whose
+    ``[tool.poetry]`` section is present only for non-metadata settings
+    (no ``name`` -- a legitimate, encouraged modern style) used to raise
+    inside ``extract_poetry_metadata()``, which silently suppressed
+    ``poetry.lock`` reading entirely even though the two are unrelated."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "pkg"\nversion = "1.0.0"\n'
+            '[tool.poetry]\npackages = [{include = "pkg"}]\n',
+            encoding="utf-8",
+        )
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+
+        assert metadata.name == "pkg"
+        assert metadata.locked_dependencies == ["requests==2.31.0"]
+        assert metadata.provenance["locked_dependencies"] == (
+            "Source: poetry.lock | Method: resolved_lockfile"
+        )
+        assert "could not be parsed" in caplog.text
 
 
 def test_read_pyproject_no_lock_file_leaves_locked_dependencies_empty() -> None:

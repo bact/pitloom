@@ -59,6 +59,12 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
+        log.warning(
+            "%s: top-level 'package' key is %s, expected a list -- "
+            "ignoring poetry.lock",
+            lock_path,
+            type(packages).__name__,
+        )
         return []
 
     dependencies: list[str] = []
@@ -69,16 +75,48 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
     return dependencies
 
 
+_NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
+
+
 def _pinned_dep_for_package(pkg: Any) -> str | None:
     """Return ``name==version`` for one ``[[package]]`` table entry, or
-    ``None`` when it's malformed or not in the ``main`` group."""
+    ``None`` when it's malformed, not in the ``main`` group, or sourced
+    from a non-PyPI location that ``name==version`` can't represent.
+
+    Mirrors the skip policy :func:`pitloom.extract._poetry._poetry_dep_to_pep508`
+    already applies to direct ``[tool.poetry.dependencies]`` entries: a
+    package resolved from a local path or VCS has no meaningful PyPI
+    version pin, so including it here would misrepresent it as an
+    ordinary published release (wrong PURL, bogus PyPI enrichment lookup).
+    """
     if not isinstance(pkg, dict):
+        log.warning(
+            "Skipping malformed poetry.lock [[package]] entry: expected a "
+            "table, got %s",
+            type(pkg).__name__,
+        )
         return None
     name = pkg.get("name")
     version = pkg.get("version")
     if not isinstance(name, str) or not name or not isinstance(version, str):
+        log.warning(
+            "Skipping malformed poetry.lock [[package]] entry: missing or "
+            "non-string 'name'/'version' (name=%r, version=%r)",
+            name,
+            version,
+        )
         return None
     groups = pkg.get("groups", ["main"])
     if not isinstance(groups, list) or "main" not in groups:
+        return None
+    source = pkg.get("source")
+    source_type = source.get("type") if isinstance(source, dict) else None
+    if source_type in _NON_PEP508_SOURCE_TYPES:
+        log.warning(
+            "Skipping poetry.lock entry %r: %s-sourced dependencies cannot "
+            "be represented as a PEP 508 specifier",
+            name,
+            source_type,
+        )
         return None
     return f"{name}=={version}"

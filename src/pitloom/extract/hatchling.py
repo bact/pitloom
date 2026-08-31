@@ -43,12 +43,18 @@ def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
     from ``[tool.poetry]`` when ``[project]`` is incomplete. Returns ``None``
     when ``pyproject.toml`` is missing or has no usable ``[tool.poetry]``
     section.
+
+    Passes ``include_locked_dependencies=False``: this path runs from the
+    Hatchling build hook (build/embed stage), where ``poetry.lock`` --
+    a source-stage-only artifact never consulted by the real build -- must
+    not influence the emitted SBOM. See
+    :mod:`pitloom.extract._poetry_lock`'s module docstring.
     """
     pyproject_path = project_dir / "pyproject.toml"
     if not pyproject_path.exists():
         return None
     data: dict[str, Any] = load_toml_file(pyproject_path)
-    return _try_read_poetry(data, project_dir)
+    return _try_read_poetry(data, project_dir, include_locked_dependencies=False)
 
 
 def _authors_from_data(authors_data: dict[str, list[str]]) -> list[dict[str, str]]:

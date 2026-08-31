@@ -49,14 +49,18 @@ def _parse_dep_name(dep: str) -> str:
 
 
 def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
-    """Return ``(version_string, resolved_from)`` for a dependency."""
-    try:
-        return get_package_version(dep_name), (
-            "Version resolved: Build-time environment (importlib.metadata)"
-        )
-    except PackageNotFoundError:
-        pass
+    """Return ``(version_string, resolved_from)`` for a dependency.
 
+    An exact ``==``/``===`` pin already present in *dep* -- e.g. a resolved
+    ``poetry.lock`` entry, or any dependency the project itself pins
+    exactly -- is authoritative and checked first: it reflects a decision
+    already resolved by the dependency's own source and must never be
+    silently overridden by whatever happens to be installed in Pitloom's
+    own execution environment, which has no relationship to the target
+    project's environment. The installed-environment lookup is a fallback
+    for the common case where the constraint doesn't pin an exact version
+    (e.g. ``requests>=2.0``).
+    """
     try:
         pinned = [
             spec.version
@@ -64,12 +68,22 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
             if spec.operator in ("==", "===")
         ]
     except InvalidRequirement:
-        if "==" in dep:
-            return dep.split("==")[1].strip(), None
-        return "unknown", None
+        pinned = []
+        unparseable = True
+    else:
+        unparseable = False
     if pinned:
         return pinned[0], None
 
+    try:
+        return get_package_version(dep_name), (
+            "Version resolved: Build-time environment (importlib.metadata)"
+        )
+    except PackageNotFoundError:
+        pass
+
+    if unparseable and "==" in dep:
+        return dep.split("==")[1].strip(), None
     return "unknown", None
 
 

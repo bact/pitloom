@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-07
-Last-Modified: 2026-08-31
+Last-Modified: 2026-09-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ under `[tool.poetry]`.  Issue [#64].
 | `src/pitloom/extract/_pyproject.py` | Falls back to / merges Poetry metadata; wires in `poetry.lock` reading |
 | `src/pitloom/core/_models_wheel_poetry.py` | Wheel file discovery, delegating to poetry-core's own `WheelBuilder` |
 | `src/pitloom/assemble/spdx3/deps.py`, `document.py` | Additive locked-transitive-dependency `dependsOn` edges, `completeness` tagging |
-| `tests/extract/test_poetry_parsing.py`, `tests/extract/test_poetry_pyproject.py` | 51 unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these two files -- see `working-docs/design/cli-test-coverage-roadmap.md`) |
+| `tests/extract/test_poetry_parsing.py`, `tests/extract/test_poetry_pyproject.py` | Unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these two files -- see `working-docs/design/cli-test-coverage-roadmap.md`) |
 | `tests/extract/test_poetry_lock.py` | `poetry.lock` parsing unit and integration tests |
 | `tests/core/test_models_wheel_poetry.py` | Wheel file discovery unit tests |
 | `tests/assemble/test_deps_locked_dependencies.py` | Assemble-layer additive-edge/`completeness` tests |
@@ -188,10 +188,44 @@ it).
 `[[package]]` tables from a sibling `poetry.lock`, keeping only packages
 whose `groups` includes `"main"` (excluding dev/other-group-only
 packages, the same "not a runtime dependency" policy already applied to
-`[tool.poetry.group.*]` above), as exact-pin `name==version` strings.
-Wired into `_try_read_poetry()` so both `read_pyproject()` branches
-(Poetry-as-sole-source and Poetry-filling-gaps-for-`[project]`) get it
-automatically via `merge_project_metadata()`'s generic field iteration.
+`[tool.poetry.group.*]` above), as exact-pin `name==version` strings. A
+package resolved from a `directory`/`file`/`git`/`url` source (per
+`[package.source].type`) is excluded the same way
+`_poetry_dep_to_pep508()` excludes it from direct dependencies -- it has
+no meaningful PyPI version pin, so including it would misrepresent it as
+an ordinary published release. A malformed lock (an unparseable
+top-level `package` key, or an individual `[[package]]` entry missing
+`name`/`version`) is skipped with a `WARNING:`, not silently dropped, per
+this repo's "no silent deviations" rule.
+
+Wired into `_try_read_poetry()`, which takes an
+`include_locked_dependencies` keyword (default `true`): both
+`read_pyproject()` branches (Poetry-as-sole-source and
+Poetry-filling-gaps-for-`[project]`) get lock reading automatically via
+`merge_project_metadata()`'s generic field iteration, while
+`hatchling.py`'s `_poetry_fallback_metadata()` -- the Hatchling **build
+hook**'s `[tool.poetry]` gap-fill path -- passes
+`include_locked_dependencies=False` explicitly. This is load-bearing:
+before this flag existed, both call sites funneled through the same
+`_try_read_poetry()`, so a Hatchling-backed project with a leftover
+`[tool.poetry]` block and a stale `poetry.lock` would leak lock-derived
+transitive dependencies into a real `hatch build`'s embedded SBOM,
+directly contradicting the source-stage-only scoping this section
+argues for. Lock reading is also independent of whether
+`extract_poetry_metadata()` itself succeeds: a PEP 621 `[project]`-primary
+project with a minimal `[tool.poetry]` section (no `name` -- legitimate
+when `[project].name` already exists) used to raise inside
+`extract_poetry_metadata()`, which silently skipped lock reading too even
+though the two are unrelated; `_try_read_poetry()` now reads the lock
+regardless and only logs a `WARNING:` if the `[tool.poetry]` gap-fill
+itself couldn't be extracted.
+
+A locked package's exact-pin version is authoritative when resolving
+what to report in the SBOM -- `_resolve_version()`
+(`assemble/spdx3/deps_installed.py`) checks a dependency string's own
+`==`/`===` pin before falling back to introspecting whatever happens to
+be installed in Pitloom's own execution environment, which has no
+relationship to the target project's environment.
 
 In the assembled SPDX 3 graph, a locked package already covered by a
 direct `[tool.poetry.dependencies]` entry gets no duplicate edge --
@@ -235,7 +269,10 @@ case for Poetry support (issue [#62]).  It has:
 - **Path / git / URL dependencies** -- entries with `path`, `git`, or `url`
   sources are skipped because they cannot be expressed as PEP 508
   specifiers, logging a `WARNING:` naming the dependency and the source
-  kind (`_poetry_dep_to_pep508()` in `_poetry.py`).
+  kind (`_poetry_dep_to_pep508()` in `_poetry.py`). `poetry.lock` entries
+  resolved from the equivalent `directory`/`file`/`git`/`url` sources are
+  excluded from `locked_dependencies` for the same reason
+  (`_pinned_dep_for_package()` in `_poetry_lock.py`).
 - **`[tool.poetry.extras]`** -- optional extras are not yet mapped to
   `ProjectMetadata`. This is a schema-wide gap, not Poetry-specific:
   `ProjectMetadata` has no extras/optional-dependencies field for any

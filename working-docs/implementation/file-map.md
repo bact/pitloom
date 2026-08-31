@@ -170,6 +170,7 @@ pitloom/
 │       │   ├── _setuptools_cfg.py  # setup.cfg parser and [tool:pitloom] config extraction
 │       │   ├── _setuptools_py.py   # setup.py AST parser
 │       │   ├── _setuptools.py      # Setuptools extractor facade and backend detection
+│       │   ├── _toml_io.py         # Shared tomllib/tomli compat import + raw TOML-file read
 │       │   ├── ai_model.py         # AI model dispatcher + format detection (public entry point)
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── dataset.py          # Dataset metadata extraction public API (Croissant)

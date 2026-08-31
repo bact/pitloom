@@ -23,6 +23,7 @@ from pitloom.cli.options import (
     _resolve_creation_metadata,
     _resolve_output_path,
     _resolve_project_paths,
+    add_offline_argument,
 )
 from pitloom.cli.verbose import _print_verbose
 from pitloom.extract.project import read_project
@@ -93,14 +94,8 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         default=Path.cwd(),
         help="Path to project directory or sdist archive (.tar.gz, .zip).",
     )
-    proj_parser.add_argument(
-        "--offline",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Forbid network access -- skip PyPI lookup, no error "
-            "(local metadata already covers what it can). Defers to "
-            "[tool.pitloom] offline (off by default) when omitted."
-        ),
+    add_offline_argument(
+        proj_parser,
+        " -- skip PyPI lookup, no error (local metadata already covers what it can).",
     )
     proj_parser.set_defaults(func=_run_project_command)

@@ -22,7 +22,7 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
     resolve_effective_provenance,
 )
-from pitloom.cli.options import _resolve_creation_metadata
+from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
 
@@ -171,13 +171,5 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         metavar="NAME",
         help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",
     )
-    embed_parser.add_argument(
-        "--offline",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Forbid network access during SBOM generation. Defers to "
-            "[tool.pitloom] offline (off by default) when omitted."
-        ),
-    )
+    add_offline_argument(embed_parser, " during SBOM generation.")
     embed_parser.set_defaults(func=_run_embed_wheel_command)

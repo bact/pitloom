@@ -68,6 +68,30 @@ class _ResolvedCreationMetadata:
         )
 
 
+def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
+    """Add the shared ``--offline``/``--no-offline`` flag.
+
+    The mechanics (``BooleanOptionalAction``, ``default=None`` so the CLI
+    can defer to ``[tool.pitloom] offline`` when omitted) and the closing
+    "Defers to..." sentence are identical for every command that offers
+    this flag; only what "forbid network access" actually does differs by
+    command/target. *effect* is spliced in verbatim right after "Forbid
+    network access" (include its own leading punctuation and trailing
+    period, e.g. ``" -- skip PyPI lookup, no error (...)."``) so each
+    caller keeps its own accurate, command-specific wording instead of one
+    generic sentence that would misdescribe some commands' actual behaviour.
+    """
+    parser.add_argument(
+        "--offline",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            f"Forbid network access{effect} Defers to [tool.pitloom] "
+            "offline (off by default) when omitted."
+        ),
+    )
+
+
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()

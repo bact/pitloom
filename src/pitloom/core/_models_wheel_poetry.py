@@ -48,8 +48,14 @@ def discover(
 
     *pyproject_data* is accepted, not used, purely so this matches
     :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s shared
-    call signature -- poetry-core's ``Factory`` reads ``pyproject.toml``
-    itself.
+    call signature. Unlike the setuptools discoverer (which reuses the
+    caller's already-parsed dict), this one can't avoid a second read of
+    ``pyproject.toml``: poetry-core's ``Factory.create_poetry()`` is the
+    only public entry point into ``[tool.poetry]`` resolution and it always
+    re-reads the file from *project_dir* itself, with no variant that
+    accepts a pre-parsed mapping. A known, currently-unavoidable extra
+    disk read+parse per call given poetry-core's public API -- not a
+    missed optimization to fix locally.
     """
     # pylint: disable=import-outside-toplevel,cyclic-import
     from poetry.core.factory import Factory

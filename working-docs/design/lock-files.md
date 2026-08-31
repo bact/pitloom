@@ -76,13 +76,16 @@ from enum import Enum
 import uuid
 from datetime import datetime, timezone
 
+
 class Ecosystem(str, Enum):
     PYPI = "pypi"
     CONDA = "conda"
 
+
 class PackageHash(BaseModel):
     algorithm: str = Field(description="e.g., 'SHA-256'")
     value: str = Field(description="The cryptographic hash content")
+
 
 class Package(BaseModel):
     name: str
@@ -90,26 +93,27 @@ class Package(BaseModel):
     ecosystem: Ecosystem = Field(default=Ecosystem.PYPI)
     hashes: List[PackageHash] = Field(default_factory=list)
     dependencies: List[str] = Field(
-        default_factory=list, 
-        description="Names of direct dependency packages"
+        default_factory=list, description="Names of direct dependency packages"
     )
-    
+
     @computed_field
     @property
     def purl(self) -> str:
         """Generates standard Package URL used for CVE lookup."""
         return f"pkg:{self.ecosystem.value}/{self.name}@{self.version}"
 
+
 class ProjectMetadata(BaseModel):
     name: str
     version: str = "0.0.0"
 
+
 class NormalizedLockData(BaseModel):
     """Universal internal representation of a parsed lock file."""
+
     metadata: ProjectMetadata
     packages: Dict[str, Package] = Field(default_factory=dict)
     root_dependencies: List[str] = Field(default_factory=list)
-
 ```
 
 ---
@@ -135,42 +139,48 @@ class CycloneDX17Serializer:
         # 1. Build flat component list
         components = []
         for pkg in data.packages.values():
-            components.append({
-                "type": "library",
-                "name": pkg.name,
-                "version": pkg.version,
-                "purl": pkg.purl,
-                "bom-ref": pkg.purl, # Used for relationship mapping
-                "hashes": [
-                    {"alg": h.algorithm.upper(), "content": h.value}
-                    for h in pkg.hashes
-                ]
-            })
+            components.append(
+                {
+                    "type": "library",
+                    "name": pkg.name,
+                    "version": pkg.version,
+                    "purl": pkg.purl,
+                    "bom-ref": pkg.purl,  # Used for relationship mapping
+                    "hashes": [
+                        {"alg": h.algorithm.upper(), "content": h.value}
+                        for h in pkg.hashes
+                    ],
+                }
+            )
 
         # 2. Build dependency graph using PURLs as references
         dependencies = []
-        
+
         # Root project relationships
-        dependencies.append({
-            "ref": root_purl,
-            "dependsOn": [
-                data.packages[dep_name].purl 
-                for dep_name in data.root_dependencies 
-                if dep_name in data.packages
-            ]
-        })
-        
+        dependencies.append(
+            {
+                "ref": root_purl,
+                "dependsOn": [
+                    data.packages[dep_name].purl
+                    for dep_name in data.root_dependencies
+                    if dep_name in data.packages
+                ],
+            }
+        )
+
         # Package-to-package relationships
         for pkg in data.packages.values():
             if pkg.dependencies:
-                dependencies.append({
-                    "ref": pkg.purl,
-                    "dependsOn": [
-                        data.packages[dep_name].purl 
-                        for dep_name in pkg.dependencies 
-                        if dep_name in data.packages
-                    ]
-                })
+                dependencies.append(
+                    {
+                        "ref": pkg.purl,
+                        "dependsOn": [
+                            data.packages[dep_name].purl
+                            for dep_name in pkg.dependencies
+                            if dep_name in data.packages
+                        ],
+                    }
+                )
 
         # 3. Assemble CDX 1.7 specification
         return {
@@ -184,13 +194,12 @@ class CycloneDX17Serializer:
                     "type": "application",
                     "name": data.metadata.name,
                     "version": data.metadata.version,
-                    "bom-ref": root_purl
-                }
+                    "bom-ref": root_purl,
+                },
             },
             "components": components,
-            "dependencies": dependencies
+            "dependencies": dependencies,
         }
-
 ```
 
 ### SPDX 3.0 JSON-LD Serializer
@@ -206,7 +215,7 @@ class SPDX3Serializer:
         timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
         doc_spdx_id = f"SPDXRef-DOCUMENT"
         root_spdx_id = f"SPDXRef-RootPackage-{data.metadata.name}"
-        
+
         # Context and core elements
         graph = [
             {
@@ -215,29 +224,29 @@ class SPDX3Serializer:
                 "name": f"{data.metadata.name}-SBOM",
                 "creationInfo": {
                     "created": timestamp,
-                    "creators": ["Tool-YourPythonSBOMGen"]
-                }
+                    "creators": ["Tool-YourPythonSBOMGen"],
+                },
             },
             {
                 "type": "software_Package",
                 "spdxId": root_spdx_id,
                 "name": data.metadata.name,
                 "packageVersion": data.metadata.version,
-                "primaryPurpose": "APPLICATION"
+                "primaryPurpose": "APPLICATION",
             },
             {
                 "type": "Relationship",
                 "spdxId": f"SPDXRef-Rel-Doc-Root",
                 "from": doc_spdx_id,
                 "relationshipType": "DESCRIBES",
-                "to": [root_spdx_id]
-            }
+                "to": [root_spdx_id],
+            },
         ]
 
         # Define all packages
         for pkg in data.packages.values():
             pkg_id = f"SPDXRef-Package-{pkg.name}-{pkg.version}"
-            
+
             package_element = {
                 "type": "software_Package",
                 "spdxId": pkg_id,
@@ -248,9 +257,9 @@ class SPDX3Serializer:
                     {
                         "type": "ExternalIdentifier",
                         "externalIdentifierType": "purl",
-                        "identifier": pkg.purl
+                        "identifier": pkg.purl,
                     }
-                ]
+                ],
             }
 
             # Map hashes if present
@@ -259,11 +268,11 @@ class SPDX3Serializer:
                     {
                         "type": "Hash",
                         "algorithm": h.algorithm.lower(),
-                        "hashValue": h.value
+                        "hashValue": h.value,
                     }
                     for h in pkg.hashes
                 ]
-                
+
             graph.append(package_element)
 
             # Map dependencies (Library -> Library)
@@ -271,32 +280,37 @@ class SPDX3Serializer:
                 if dep_name in data.packages:
                     dep_pkg = data.packages[dep_name]
                     dep_id = f"SPDXRef-Package-{dep_pkg.name}-{dep_pkg.version}"
-                    
-                    graph.append({
-                        "type": "Relationship",
-                        "spdxId": f"SPDXRef-Rel-{pkg.name}-dependsOn-{dep_name}-{uuid.uuid4().hex[:8]}",
-                        "from": pkg_id,
-                        "relationshipType": "DEPENDS_ON",
-                        "to": [dep_id]
-                    })
+
+                    graph.append(
+                        {
+                            "type": "Relationship",
+                            "spdxId": f"SPDXRef-Rel-{pkg.name}-dependsOn-{dep_name}-{uuid.uuid4().hex[:8]}",
+                            "from": pkg_id,
+                            "relationshipType": "DEPENDS_ON",
+                            "to": [dep_id],
+                        }
+                    )
 
         # Map Root Dependencies
         for root_dep_name in data.root_dependencies:
             if root_dep_name in data.packages:
                 root_dep_pkg = data.packages[root_dep_name]
-                root_dep_id = f"SPDXRef-Package-{root_dep_pkg.name}-{root_dep_pkg.version}"
-                
-                graph.append({
-                    "type": "Relationship",
-                    "spdxId": f"SPDXRef-Rel-Root-dependsOn-{root_dep_name}-{uuid.uuid4().hex[:8]}",
-                    "from": root_spdx_id,
-                    "relationshipType": "DEPENDS_ON",
-                    "to": [root_dep_id]
-                })
+                root_dep_id = (
+                    f"SPDXRef-Package-{root_dep_pkg.name}-{root_dep_pkg.version}"
+                )
+
+                graph.append(
+                    {
+                        "type": "Relationship",
+                        "spdxId": f"SPDXRef-Rel-Root-dependsOn-{root_dep_name}-{uuid.uuid4().hex[:8]}",
+                        "from": root_spdx_id,
+                        "relationshipType": "DEPENDS_ON",
+                        "to": [root_dep_id],
+                    }
+                )
 
         return {
             "@context": "https://spdx.org/rdf/3.0.0/spdx-context.jsonld",
-            "@graph": graph
+            "@graph": graph,
         }
-
 ```

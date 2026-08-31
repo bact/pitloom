@@ -12,6 +12,13 @@ and the ``open()``/``tomllib.load()`` pair. Exception handling (which
 errors to log, at what level, and what to return) stays with each caller,
 since that policy differs per file (e.g. a missing ``pyproject.toml`` vs.
 a missing, purely-optional ``poetry.lock``).
+
+:mod:`pitloom.extract._sdist` parses TOML from in-memory archive-member
+bytes rather than a filesystem path, so :func:`load_toml_file` (which is
+hardwired to ``open(path, "rb")``) doesn't fit its case -- it instead
+imports the compat-resolved :data:`tomllib` module directly from here and
+calls ``tomllib.loads(...)`` itself, still sharing the one version-gated
+import this module resolves.
 """
 
 from __future__ import annotations
@@ -24,7 +31,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-__all__ = ["TOMLDecodeError", "load_toml_file"]
+__all__ = ["TOMLDecodeError", "load_toml_file", "tomllib"]
 
 TOMLDecodeError = tomllib.TOMLDecodeError
 

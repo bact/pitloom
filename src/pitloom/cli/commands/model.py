@@ -25,6 +25,7 @@ from pitloom.cli.options import (
     _resolve_common_options,
     _resolve_hf_output_path,
     _resolve_model_output_path,
+    add_offline_argument,
 )
 from pitloom.extract._huggingface import is_huggingface_source, parse_hf_model_id
 
@@ -92,15 +93,10 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         type=str,
         help="Path to local AI model file or Hugging Face URL / model ID.",
     )
-    model_parser.add_argument(
-        "--offline",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Forbid network access; effect depends on the resolved target -- "
-            "HF URL/ID: error, no fetch attempted (no local fallback exists). "
-            "local model file: no-op (no network path exists). "
-            "Defers to [tool.pitloom] offline (off by default) when omitted."
-        ),
+    add_offline_argument(
+        model_parser,
+        "; effect depends on the resolved target -- "
+        "HF URL/ID: error, no fetch attempted (no local fallback exists). "
+        "local model file: no-op (no network path exists).",
     )
     model_parser.set_defaults(func=_run_model_command)
