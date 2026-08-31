@@ -40,7 +40,7 @@ def _run_env_command(args: argparse.Namespace) -> int:
         registry=args.registry,
         update_registry=args.update_registry,
         provenance=pitloom_config.provenance,
-        offline=args.offline or None,
+        offline=args.offline,
     )
     _print_sbom_output_path(output_path)
     return 0
@@ -57,10 +57,12 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     env_parser.add_argument(
         "--offline",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Forbid network access -- skip PyPI lookup, no error "
-            "(local metadata already covers what it can)."
+            "(local metadata already covers what it can). Defers to "
+            "[tool.pitloom] offline (off by default) when omitted."
         ),
     )
     env_parser.set_defaults(func=_run_env_command)

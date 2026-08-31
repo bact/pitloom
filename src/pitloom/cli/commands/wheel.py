@@ -73,7 +73,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         registry=args.registry,
         update_registry=args.update_registry,
         provenance=resolve_effective_provenance(pitloom_config, args),
-        offline=args.offline or None,
+        offline=args.offline,
     )
 
     if embed:
@@ -107,10 +107,12 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     wheel_parser.add_argument(
         "--offline",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Forbid network access -- skip PyPI lookup, no error "
-            "(local metadata already covers what it can)."
+            "(local metadata already covers what it can). Defers to "
+            "[tool.pitloom] offline (off by default) when omitted."
         ),
     )
     wheel_parser.set_defaults(func=_run_wheel_command)

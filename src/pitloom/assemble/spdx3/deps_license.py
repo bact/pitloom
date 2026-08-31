@@ -97,6 +97,20 @@ def _build_license_relationship(
     doc_name: str,
     doc_uuid: str,
 ) -> spdx3.Relationship:
+    """Build a declared/concluded license ``dependsOn``-family relationship.
+
+    Unlike every other :func:`build_relationship` call site in this
+    codebase (``ai.py``, ``_document_files.py``, ``deps.py``, ...), which
+    treat a ``None`` result as expected -- their ``from_id`` often comes
+    from a raw, genuinely-``Optional`` ``.spdxId`` field access -- and
+    skip adding that relationship, this one raises. *package_spdx_id* is
+    typed ``str`` (not ``Optional``) and every caller sources it from
+    :func:`~pitloom.export.spdx3_json.require_spdx_id`, which itself
+    raises immediately if the element has no ``spdxId``. So a ``None``
+    here would mean that guarantee was silently violated somewhere else
+    -- a real internal bug, not an expected missing-data case -- and
+    fails fast instead of masking it as a silently-dropped license edge.
+    """
     rel = build_relationship(
         from_id=package_spdx_id,
         to_ids=[license_spdx_id],

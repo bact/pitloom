@@ -47,7 +47,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     )
     generate(
         args.target,
-        offline=args.offline or None,
+        offline=args.offline,
         output_path=args.output,
         creation_metadata=creation_metadata,
         pretty=pretty,
@@ -81,13 +81,15 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     gen_parser.add_argument(
         "--offline",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Forbid network access; effect depends on the resolved target -- "
             "HF URL/ID: error, no fetch attempted (no local fallback exists). "
             "project dir / .whl: skip PyPI lookup, no error (local metadata "
             "already covers what it can). "
-            "local model file: no-op (no network path exists)."
+            "local model file: no-op (no network path exists). "
+            "Defers to [tool.pitloom] offline (off by default) when omitted."
         ),
     )
     gen_parser.set_defaults(func=_run_generate_command)

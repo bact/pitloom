@@ -46,6 +46,7 @@ from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
+from pitloom.logging_config import configure_logging
 
 __all__ = [
     "ConfigOverrides",
@@ -205,6 +206,7 @@ def embed_wheel_sbom(
     overrides: ConfigOverrides | None = None,
 ) -> tuple[Path, str, str, tuple[str, ...], bool]:
     """Generate and embed a PEP 770 SBOM into a built Python wheel."""
+    configure_logging()
     wheel_obj = Path(wheel_path).resolve()
     wheel_metadata, _ = read_wheel(wheel_obj)
     eff_overrides = overrides if overrides is not None else ConfigOverrides()

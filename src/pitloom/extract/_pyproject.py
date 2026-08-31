@@ -13,7 +13,6 @@ When both are present, ``[project]`` values take precedence and
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -30,11 +29,7 @@ from pitloom.extract._license import (
 )
 from pitloom.extract._poetry import extract_poetry_metadata
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import load_toml_file
 
 log = logging.getLogger(__name__)
 
@@ -132,8 +127,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
 
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
+    data: dict[str, Any] = load_toml_file(pyproject_path)
 
     project_data: dict[str, Any] = data.get("project", {})
     pitloom_config = parse_pitloom_config(data)

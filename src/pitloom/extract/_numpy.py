@@ -80,6 +80,11 @@ def _read_npy_metadata(
     # equivalent, which is built via a loop and can be empty.
     inputs = [{"shape": list(arr.shape), "dtype": str(arr.dtype)}]
     provenance["inputs"] = f"{source} | Field: .npy header (shape, dtype)"
+    # np.memmap has no close() of its own -- drop the only reference now
+    # that shape/dtype are copied out, so the mapped file handle is
+    # released deterministically here rather than implicitly whenever the
+    # interpreter next collects this function's frame.
+    del arr
 
     return format_version, properties, inputs, provenance
 

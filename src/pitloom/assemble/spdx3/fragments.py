@@ -44,6 +44,7 @@ from pitloom.assemble.spdx3._fragments_unify import (
 )
 from pitloom.assemble.spdx3.provenance import build_unification_annotation
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
 
@@ -361,6 +362,7 @@ def merge_fragments(
     ingested, since there is then nothing new whose references could be
     dangling.
     """
+    configure_logging()
     index = _MergeIndex(exporter)
     events: _UnificationEvents = {}
     fragment_imports: list[spdx3.ExternalMap] = []

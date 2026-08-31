@@ -65,7 +65,7 @@ def _run_model_command(args: argparse.Namespace) -> int:
     )
     generate_model_sbom(
         model_target,
-        offline=args.offline or None,
+        offline=args.offline,
         output_path=output_path,
         creation_metadata=creation,
         pretty=effective_pretty,
@@ -94,11 +94,13 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     model_parser.add_argument(
         "--offline",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Forbid network access; effect depends on the resolved target -- "
             "HF URL/ID: error, no fetch attempted (no local fallback exists). "
-            "local model file: no-op (no network path exists)."
+            "local model file: no-op (no network path exists). "
+            "Defers to [tool.pitloom] offline (off by default) when omitted."
         ),
     )
     model_parser.set_defaults(func=_run_model_command)

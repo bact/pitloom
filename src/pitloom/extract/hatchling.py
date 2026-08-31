@@ -17,7 +17,6 @@ exclusively by the Hatchling build hook
 
 from __future__ import annotations
 
-import sys
 from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
@@ -29,11 +28,7 @@ from pitloom.extract._license import (
     resolve_license_concluded,
 )
 from pitloom.extract._pyproject import _try_read_poetry
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import load_toml_file
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 
@@ -52,8 +47,7 @@ def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
     pyproject_path = project_dir / "pyproject.toml"
     if not pyproject_path.exists():
         return None
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
+    data: dict[str, Any] = load_toml_file(pyproject_path)
     return _try_read_poetry(data, project_dir)
 
 

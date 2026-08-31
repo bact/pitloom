@@ -21,6 +21,7 @@ from pitloom.core.creation import (
     Tool,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.project import read_project
 
 
@@ -200,15 +201,8 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
     if config_path is None or config_path.name != "pyproject.toml":
         return {}
 
-    # pylint: disable=import-outside-toplevel
-
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomli as tomllib
-
     try:
-        raw_toml = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        raw_toml = load_toml_file(config_path)
         tool_section = raw_toml.get("tool")
         if not isinstance(tool_section, dict):
             return {}

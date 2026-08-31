@@ -16,6 +16,7 @@ from pathlib import Path
 
 from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.creation import CreationMetadata
+from pitloom.core.models import _clear_doc_counters
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.ids import IdRegistry
 
@@ -122,6 +123,13 @@ class Run(contextlib.ContextDecorator):
             # Generate the fragment only if the code block executed successfully
             if exc_type is None:
                 _active_run.finalize()
+            # This run's doc_uuid is a fresh uuid4 (_ActiveRun.__init__), never
+            # reused by a later run, so nothing will ever revisit this key to
+            # clear it the way a deterministic doc_uuid's build() call does
+            # (see compute_doc_uuid's docstring) -- clear explicitly here, on
+            # both the success and the exception path, or every _ID_COUNTERS
+            # entry this run minted leaks for the rest of the process.
+            _clear_doc_counters(_active_run.doc_uuid)
         _active_run = self.previous_run
 
 

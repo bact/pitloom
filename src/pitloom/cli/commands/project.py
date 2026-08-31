@@ -68,7 +68,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
         update_registry=args.update_registry,
         provenance=resolve_effective_provenance(pitloom_config, args),
         enrich=args.enrich,
-        offline=args.offline or None,
+        offline=args.offline,
         extract_file_header=args.extract_file_header,
         content_type=args.content_type,
         content_type_method=args.content_type_method,
@@ -95,10 +95,12 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     proj_parser.add_argument(
         "--offline",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help=(
             "Forbid network access -- skip PyPI lookup, no error "
-            "(local metadata already covers what it can)."
+            "(local metadata already covers what it can). Defers to "
+            "[tool.pitloom] offline (off by default) when omitted."
         ),
     )
     proj_parser.set_defaults(func=_run_project_command)

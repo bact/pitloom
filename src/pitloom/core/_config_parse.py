@@ -11,7 +11,6 @@ See also: :mod:`pitloom.core._config_types` and :mod:`pitloom.core.config`.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -27,11 +26,7 @@ from pitloom.core._config_types import (
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator, Tool
 from pitloom.core.provenance import normalize_max_source_metadata_bytes
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import load_toml_file
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
@@ -414,7 +409,6 @@ def read_pitloom_config(pyproject_path: Path) -> PitloomConfig:
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
 
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
+    data: dict[str, Any] = load_toml_file(pyproject_path)
 
     return parse_pitloom_config(data)

@@ -109,7 +109,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         content_type=args.content_type,
         content_type_method=args.content_type_method,
         provenance=resolve_effective_provenance(pitloom_config, args),
-        offline=args.offline or None,
+        offline=args.offline,
     )
     for wheel_path in unique_wheels:
         output_path = args.output if len(unique_wheels) == 1 else None
@@ -173,7 +173,11 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     embed_parser.add_argument(
         "--offline",
-        action="store_true",
-        help="Forbid network access during SBOM generation.",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Forbid network access during SBOM generation. Defers to "
+            "[tool.pitloom] offline (off by default) when omitted."
+        ),
     )
     embed_parser.set_defaults(func=_run_embed_wheel_command)
