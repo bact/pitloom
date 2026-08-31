@@ -339,7 +339,10 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   scoping); needs a source-priority decision analogous to
   `metadata-sources.md`'s existing tiering (which lock file wins if more
   than one is present) and a provenance `method` tag per lock format.
-  See [lock-files.md](./lock-files.md)
+  See [lock-files.md](./lock-files.md) for the broader multi-format
+  extraction-priority roadmap (PEP 751 `pylock.toml`, `uv.lock`,
+  `pixi.lock`, `conda-lock.yml`, `pdm.lock`, `Pipfile.lock`) this item
+  now defers to.
 
 ### PEP 770 / embed-wheel
 

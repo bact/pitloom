@@ -1,4 +1,37 @@
+---
+Created: 2026-08-31
+Last-Modified: 2026-08-31
+SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+SPDX-FileType: DOCUMENTATION
+SPDX-License-Identifier: CC0-1.0
+---
+
 # Parsing Python Lock Files: An SBOM Generation Roadmap for AI and PEP 751
+
+See also: [poetry-support.md](../implementation/poetry-support.md)'s
+"`poetry.lock` transitive dependencies" section -- `poetry.lock` support
+(Phase 3 in the table below) already shipped (2026-08-31), ahead of this
+roadmap's own priority order, as a scoped follow-on to Poetry wheel-file
+discovery rather than as part of a general lock-file initiative. Its
+design (source-stage-only scoping, direct/transitive dedup, additive
+`dependsOn` edges tagged `RelationshipCompleteness.complete`) came from
+[sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)'s source/build/deployed
+staging model, which this document's priority table doesn't use -- worth
+reconciling if the two priority framings diverge as more formats land.
+See `working-docs/design/roadmap.md`'s "Remaining lock formats as a
+resolved-dependency source" item for the up-to-date status of every
+other format below.
+
+**Illustrative code only, not a drop-in design.** The Pydantic models and
+hand-rolled `SPDXRef-*`/raw-dict SPDX 3 serializer below are a sketch,
+not shaped to this codebase: Pitloom uses stdlib dataclasses
+(`ProjectMetadata`/`ProjectFile`, not Pydantic), `spdx_python_model.bindings`
+plus `generate_spdx_id()`'s UUID5-namespaced scheme (not hand-built
+`SPDXRef-*` strings), `build_relationship()`, and per-field provenance
+tracking via `emit_provenance()` throughout. A real implementation for
+any format below should follow `_poetry_lock.py` (extraction) and
+`deps.py`/`document.py` (assembly)'s established pattern instead of
+adapting this sketch's shapes.
 
 Python's dependency ecosystem is fragmented, especially in AI pipelines where
 pure-Python packages mix with hardware-specific Conda binaries.
@@ -25,7 +58,7 @@ simply by asking users to run `[tool] export --format pylock`.
 | | `requirements.txt` | Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
 | **2: AI/ML Native Binary** | `pixi.lock` | Essential for AI: natively resolves both Python packages and system-level C/C++ CUDA/Conda binaries. |
 | | `conda-lock.yml` | Maps Conda data science packages alongside PyPI wheels. |
-| **3: Corporate Standards** | `poetry.lock` | Massive legacy and enterprise footprint in Data Engineering (Airflow, dbt). |
+| **3: Corporate Standards** | `poetry.lock` | **Done (2026-08-31)** -- see the "See also" note above. Massive legacy and enterprise footprint in Data Engineering (Airflow, dbt). |
 | **4: Legacy & Niche** | `pdm.lock` | PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
 | | `Pipfile.lock` | Largely legacy tooling. Low priority. |
 

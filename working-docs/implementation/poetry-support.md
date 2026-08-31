@@ -15,7 +15,10 @@ equivalent build-time hook -- see "Build-time hook: not attempted"
 below); [backend-file-discovery-validation.md](backend-file-discovery-validation.md)
 for the real-world validation results; `working-docs/design/roadmap.md`'s
 "Non-Hatchling file discovery" section for the backend-priority table
-this work closes item #2 of.
+this work closes item #2 of; [lock-files.md](../design/lock-files.md)
+for the broader multi-format lock-file roadmap (`pylock.toml`, `uv.lock`,
+`pixi.lock`, `conda-lock.yml`, `pdm.lock`, `Pipfile.lock`) this file's
+`poetry.lock` section is one already-shipped instance of.
 
 ## Motivation
 
