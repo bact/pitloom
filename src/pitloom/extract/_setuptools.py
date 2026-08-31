@@ -43,7 +43,6 @@ See Also:
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 
 from pitloom.core.config import PitloomConfig
@@ -65,11 +64,7 @@ from pitloom.extract._setuptools_py import (
     _extract_setup_kwargs,
     read_setup_py,
 )
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
 
 log = logging.getLogger(__name__)
 
@@ -112,9 +107,8 @@ def read_pyproject_toml(project_dir: Path) -> dict[str, object] | None:
     """
     pyproject_path = project_dir / "pyproject.toml"
     try:
-        with open(pyproject_path, "rb") as f:
-            return tomllib.load(f)
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return load_toml_file(pyproject_path)
+    except (OSError, TOMLDecodeError) as exc:
         log.debug("Failed to parse %s: %s", pyproject_path, exc)
         return None
 

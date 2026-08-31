@@ -24,14 +24,10 @@ source-stage path -- see ``working-docs/implementation/sbom-lifecycle-stages.md`
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
 
 log = logging.getLogger(__name__)
 
@@ -54,11 +50,10 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
     """
     lock_path = project_dir / "poetry.lock"
     try:
-        with open(lock_path, "rb") as f:
-            data = tomllib.load(f)
+        data = load_toml_file(lock_path)
     except FileNotFoundError:
         return []
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+    except (OSError, TOMLDecodeError) as exc:
         log.warning("Failed to parse %s: %s", lock_path, exc)
         return []
 

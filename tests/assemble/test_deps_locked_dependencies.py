@@ -125,6 +125,37 @@ def test_locked_dependencies_add_transitive_only_edges() -> None:
     assert depends_on[packages["idna"]["spdxId"]]["completeness"] == "complete"
 
 
+def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:
+    """A direct dependency declared with the author's own casing (e.g.
+    ``Django``) must still dedup against a lock-resolved entry that PEP
+    503-normalizes it (``django``) -- and dash/underscore variants must
+    dedup the same way. Regression test: comparing raw, unnormalized names
+    let a package declared both directly and in the lock double-emit as
+    two separate nodes/edges."""
+    project = ProjectMetadata(
+        name="main-project",
+        version="1.0.0",
+        dependencies=["Django>=4.0", "my_package>=1.0"],
+        locked_dependencies=["django==4.2.1", "my-package==1.0.0", "idna==3.7"],
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    package_names = [e["name"] for e in graph if e.get("type") == "software_Package"]
+    assert sorted(package_names) == ["Django", "idna", "main-project", "my_package"]
+
+    relationships = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship" and e["relationshipType"] == "dependsOn"
+    ]
+    main_id = next(e["spdxId"] for e in graph if e.get("name") == "main-project")
+    depends_on = [r for r in relationships if r["from"] == main_id]
+    assert len(depends_on) == 3  # Django, my_package, idna -- no duplicate edges
+
+
 def test_locked_dependencies_empty_adds_no_extra_edges() -> None:
     """No ``locked_dependencies`` (the default -- every non-Poetry project,
     and a Poetry project with no ``poetry.lock``) adds nothing beyond the

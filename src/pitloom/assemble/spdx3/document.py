@@ -21,6 +21,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._document_deployed import build_deployed
@@ -37,14 +38,16 @@ from pitloom.assemble.spdx3._document_model import (
 from pitloom.assemble.spdx3.ai import add_ai_models
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.deps import (
+    _parse_dep_name,
+    _resolve_version,
     add_dependencies,
     add_phantom_dependencies,
 )
-from pitloom.assemble.spdx3.deps_installed import _parse_dep_name
 from pitloom.assemble.spdx3.deps_license import (
     _add_license_noassertion,
     build_license_elements,
 )
+from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     emit_provenance,
@@ -57,6 +60,7 @@ from pitloom.core.models import (
     compute_doc_uuid,
     generate_spdx_id,
 )
+from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
@@ -144,6 +148,44 @@ def _build_main_package(
         ]
 
     return main_package
+
+
+def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]:
+    """Return *metadata*'s locked (e.g. ``poetry.lock``-resolved) dependencies
+    that aren't already a direct dependency, so a package declared both
+    directly and in the lock gets one ``dependsOn`` edge, not two.
+
+    Names are compared PEP 503-canonicalized (lowercased, ``-``/``_``/``.``
+    folded to ``-``) since a lock file's resolved package names are
+    normalized while the author's ``pyproject.toml`` spelling (e.g.
+    ``"Django"``) may not be -- comparing raw, unnormalized names would
+    treat those as different packages and double-emit the edge this
+    function exists to avoid. See ``_try_read_poetry()`` in
+    ``pitloom.extract._pyproject`` for why this is source-stage-only.
+    """
+    direct_names = {
+        canonicalize_name(_parse_dep_name(dep)) for dep in metadata.dependencies
+    }
+    return [
+        dep
+        for dep in metadata.locked_dependencies
+        if canonicalize_name(_parse_dep_name(dep)) not in direct_names
+    ]
+
+
+def _prefetch_combined_release_info(
+    dependencies: list[str], transitive_only: list[str]
+) -> dict[tuple[str, str | None], dict[str, Any] | None]:
+    """Prefetch PyPI release info once for every dependency a document will
+    emit -- direct and lock-resolved-transitive alike -- so the result can
+    be shared across both :func:`add_dependencies` calls in :func:`build`
+    instead of each call paying for its own network round-trip."""
+    name_version_pairs = []
+    for dep in (*dependencies, *transitive_only):
+        dep_name = _parse_dep_name(dep)
+        dep_version, _version_note = _resolve_version(dep_name, dep)
+        name_version_pairs.append((dep_name, dep_version))
+    return _prefetch_pypi_release_infos(name_version_pairs)
 
 
 # pylint: disable=too-many-locals
@@ -270,6 +312,14 @@ def build(
             encoder=encoder,
         )
 
+    # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
+    transitive_only = _locked_transitive_only_dependencies(metadata)
+    release_info_cache = (
+        None
+        if offline
+        else _prefetch_combined_release_info(metadata.dependencies, transitive_only)
+    )
+
     # --- Dependencies ---
     add_dependencies(
         dependencies=metadata.dependencies,
@@ -283,24 +333,14 @@ def build(
         provenance_config=prov_cfg,
         encoder=encoder,
         content_type_method=content_type_method,
+        release_info_cache=release_info_cache,
     )
 
-    # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
-    # Additive: only packages the lock resolved that aren't already a
-    # direct dependency above, so a package declared both directly and in
-    # the lock gets one edge, not two. See _try_read_poetry() in
-    # pitloom.extract._pyproject for why this is source-stage-only.
-    direct_names = {_parse_dep_name(dep) for dep in metadata.dependencies}
-    transitive_only = [
-        dep
-        for dep in metadata.locked_dependencies
-        if _parse_dep_name(dep) not in direct_names
-    ]
     if transitive_only:
         add_dependencies(
             dependencies=transitive_only,
             dep_provenance=metadata.provenance.get(
-                "locked_dependencies", "Source: poetry.lock | Method: resolved_lockfile"
+                "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
             ),
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,
@@ -311,6 +351,7 @@ def build(
             provenance_config=prov_cfg,
             encoder=encoder,
             content_type_method=content_type_method,
+            release_info_cache=release_info_cache,
             completeness=spdx3.RelationshipCompleteness.complete,
         )
 

@@ -76,6 +76,7 @@ def _project_doc_identity(project_dir: Path) -> tuple[str, str]:
         version=project_metadata.version or "unknown",
         dependencies=project_metadata.dependencies,
         merkle_root=merkle_root,
+        locked_dependencies=project_metadata.locked_dependencies,
     )
     return project_metadata.name, doc_uuid
 

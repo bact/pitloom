@@ -224,6 +224,8 @@ def add_dependencies(
     encoder: ProvenanceEncoder | None = None,
     content_type_method: str = "auto",
     completeness: Any | None = None,
+    release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
+    | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -239,19 +241,24 @@ def add_dependencies(
     ``dependsOn`` relationship this call creates. Omitted (the default)
     leaves the relationship's ``completeness`` unset, unchanged from
     before this parameter existed.
+
+    *release_info_cache*, when given, is used as-is instead of prefetching
+    PyPI release info for this call's own *dependencies* -- callers that
+    invoke :func:`add_dependencies` more than once for the same document
+    (e.g. direct dependencies, then lock-resolved transitive-only ones)
+    can prefetch a single combined batch up front and share it across
+    every call, instead of paying for one PyPI network round-trip per
+    call.
     """
     resolved = []
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
         dep_version, version_note = _resolve_version(dep_name, dep)
         resolved.append((dep, dep_name, dep_version, version_note))
-    release_info_cache = (
-        None
-        if offline
-        else _prefetch_pypi_release_infos(
+    if release_info_cache is None and not offline:
+        release_info_cache = _prefetch_pypi_release_infos(
             (dep_name, dep_version) for _dep, dep_name, dep_version, _note in resolved
         )
-    )
 
     grouped: dict[tuple[str, str], list[tuple[str, str | None]]] = {}
     for dep, dep_name, dep_version, version_note in resolved:
