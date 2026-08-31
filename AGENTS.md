@@ -27,6 +27,7 @@
 - The CLI (`pitloom.__main__`) and `generate_project_sbom()`'s default parsing path both resolve metadata via `pitloom.extract.project.read_project()`.
 - Both paths converge on `pitloom.assemble.spdx3.document.build()`.
 - **`physical_path` vs `distribution_path`**: on-disk project-root-relative path vs in-package/built path -- diverge for any `src/`-layout project. `software_File.name` in the SPDX graph always uses `distribution_path`. Any file-lookup/registry code keyed by path must check both, not just `physical_path`.
+- **Stage-scoped helpers must take an explicit stage flag**: a helper shared by both a source-stage caller (e.g. `read_pyproject()`) and a build-stage caller (e.g. the Hatchling hook's metadata gap-fill) must not rely on call-site discipline to stay stage-appropriate -- thread an explicit parameter (`include_locked_dependencies=False`-style) through it. A source-stage-only artifact (e.g. `poetry.lock`) silently leaking into a build-stage helper because both callers happened to share one function is the same class of bug the `physical_path`/`distribution_path` split above warns about.
 
 ## Design principles
 
@@ -34,6 +35,7 @@
 - **No silent deviations**: Always emit a clear `WARNING:` log or stderr message explaining what decision was made and why if deviating from instruction.
 - **Respect configuration hierarchy**: Always honor the configuration cascade (CLI flags > `pyproject.toml` > hardcoded defaults).
 - **Resource efficiency**: Prevent excessive network access (use caching and route optimization). Prevent memory spikes by streaming data for large structures. Never load entire files (like ML models or archives) into memory. Always use chunked reads (`read(8192)`), memory mapping, or native lazy header extraction (e.g., `np.lib.format` for NumPy, stream loading for fickling/pickle) to extract metadata.
+- **Explicit pin beats local environment**: when a dependency's version is explicitly pinned by its own data source (a lock file, an exact `==`/`===` in the spec), that pin is always authoritative -- never silently overridden by introspecting Pitloom's own execution environment, which has no relationship to the target project's environment. Environment introspection is a fallback signal only for the unpinned case.
 
 ## Code health and continuous refactoring
 
@@ -169,6 +171,7 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 - SPDX 3 JSON: follow canonical serialization and RFC 8785.
 - JSON-LD: follow RDF canonicalization.
 - Dates: ISO 8601. Timezone: UTC+0.
+- **`spdx3` vocabulary terms are plain `str`, not enum instances**: `spdx3.RelationshipType`/`RelationshipCompleteness`/etc. members (e.g. `spdx3.RelationshipCompleteness.complete`) are `str`-valued NamedIndividual IRIs, not instances of an enum type. Type a parameter accepting one as `str`, never as the class name -- `spdx3.RelationshipCompleteness | None` fails mypy since the actual runtime value is `str`.
 
 ## Writing style
 

@@ -22,7 +22,7 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
     resolve_effective_provenance,
 )
-from pitloom.cli.options import _resolve_creation_metadata
+from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
 
@@ -109,7 +109,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         content_type=args.content_type,
         content_type_method=args.content_type_method,
         provenance=resolve_effective_provenance(pitloom_config, args),
-        offline=args.offline or None,
+        offline=args.offline,
     )
     for wheel_path in unique_wheels:
         output_path = args.output if len(unique_wheels) == 1 else None
@@ -171,9 +171,5 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         metavar="NAME",
         help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",
     )
-    embed_parser.add_argument(
-        "--offline",
-        action="store_true",
-        help="Forbid network access during SBOM generation.",
-    )
+    add_offline_argument(embed_parser, " during SBOM generation.")
     embed_parser.set_defaults(func=_run_embed_wheel_command)

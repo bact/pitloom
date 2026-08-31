@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from pitloom.core.creation import resolve_source_date_epoch
+from pitloom.logging_config import configure_logging
 
 _SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
@@ -297,6 +298,7 @@ def embed_sbom_in_wheel(
     sbom_filename: str | None = None,
 ) -> tuple[Path, str, tuple[str, ...], bool]:
     """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770)."""
+    configure_logging()
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
         raise FileNotFoundError(f"Wheel file not found: {wheel_obj}")

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import tarfile
 import zipfile
 from pathlib import Path
@@ -251,10 +252,12 @@ def test_read_tar_sdist_pyproject_only_fallback(tmp_path: Path) -> None:
 
 
 def test_read_tar_sdist_pyproject_malformed_falls_back_to_unknown(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """No ``PKG-INFO`` and an unparsable ``pyproject.toml``: degrades to the
-    ``name="unknown"`` default rather than raising."""
+    ``name="unknown"`` default rather than raising -- and, unlike before,
+    logs the failure at debug level, matching every sibling extractor's
+    "log before degrading" convention (_setuptools.py, _hdf5.py, ...)."""
     sdist_path = tmp_path / "badpkg-1.0.tar.gz"
     bad_bytes = b"this is not valid toml [[["
     with tarfile.open(sdist_path, "w:gz") as tf:
@@ -262,9 +265,11 @@ def test_read_tar_sdist_pyproject_malformed_falls_back_to_unknown(
         ti.size = len(bad_bytes)
         tf.addfile(ti, io.BytesIO(bad_bytes))
 
-    metadata, files = read_sdist(sdist_path)
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._sdist"):
+        metadata, files = read_sdist(sdist_path)
     assert metadata.name == "unknown"
     assert len(files) == 1
+    assert "Failed to parse pyproject.toml" in caplog.text
 
 
 def test_read_tar_sdist_neither_pkg_info_nor_pyproject(tmp_path: Path) -> None:
@@ -323,17 +328,23 @@ def test_read_zip_sdist_pyproject_only_fallback(tmp_path: Path) -> None:
 
 
 def test_read_zip_sdist_pyproject_malformed_falls_back_to_unknown(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """No ``PKG-INFO`` and an unparsable ``pyproject.toml`` in the zip:
-    degrades to the ``name="unknown"`` default rather than raising."""
+    degrades to the ``name="unknown"`` default rather than raising -- and
+    logs the failure at debug level (regression test: the zip path used to
+    duplicate ``_parse_pyproject_bytes()``'s logic inline with no logging
+    at all, unlike the tar path, which already called the shared,
+    now-logging helper)."""
     sdist_path = tmp_path / "badpkg-1.0.zip"
     with zipfile.ZipFile(sdist_path, "w") as zf:
         zf.writestr("badpkg-1.0/pyproject.toml", "not [[[ valid toml")
 
-    metadata, files = read_sdist(sdist_path)
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._sdist"):
+        metadata, files = read_sdist(sdist_path)
     assert metadata.name == "unknown"
     assert len(files) == 1
+    assert "Failed to parse pyproject.toml" in caplog.text
 
 
 def test_read_zip_sdist_neither_pkg_info_nor_pyproject(tmp_path: Path) -> None:

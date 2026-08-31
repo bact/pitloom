@@ -24,7 +24,7 @@ from pitloom.cli.commands.utils import (
     resolve_effective_provenance,
 )
 from pitloom.cli.constants import _SPDX3_JSON_EXT
-from pitloom.cli.options import _resolve_common_options
+from pitloom.cli.options import _resolve_common_options, add_offline_argument
 
 
 @cli_error_handler("wheel command failed")
@@ -73,7 +73,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
         registry=args.registry,
         update_registry=args.update_registry,
         provenance=resolve_effective_provenance(pitloom_config, args),
-        offline=args.offline or None,
+        offline=args.offline,
     )
 
     if embed:
@@ -105,12 +105,8 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Embed the generated SBOM directly into the wheel archive (PEP 770).",
     )
-    wheel_parser.add_argument(
-        "--offline",
-        action="store_true",
-        help=(
-            "Forbid network access -- skip PyPI lookup, no error "
-            "(local metadata already covers what it can)."
-        ),
+    add_offline_argument(
+        wheel_parser,
+        " -- skip PyPI lookup, no error (local metadata already covers what it can).",
     )
     wheel_parser.set_defaults(func=_run_wheel_command)

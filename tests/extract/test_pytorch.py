@@ -192,16 +192,37 @@ def test_read_pytorch_is_zipfile_oserror(tmp_path: Path) -> None:
         assert meta.properties.get("format_detail") == "raw pickle"
 
 
+def test_read_pytorch_corrupt_zip_raises_value_error(tmp_path: Path) -> None:
+    """A file that passes the ``zipfile.is_zipfile()`` signature check but
+    fails to actually open (truncated/corrupt central directory) must
+    raise ValueError, not propagate a bare zipfile.BadZipFile -- the same
+    "Raises: ValueError" contract every sibling extractor honors for a
+    whole-file-open failure."""
+    fake_pt = tmp_path / "corrupt_zip.pt"
+    fake_pt.write_bytes(b"PK\x03\x04truncated")
+
+    with patch("zipfile.is_zipfile", return_value=True):
+        with patch(
+            "zipfile.ZipFile", side_effect=_zipfile.BadZipFile("truncated archive")
+        ):
+            with pytest.raises(ValueError, match="Failed to read PyTorch"):
+                read_pytorch(fake_pt)
+
+
 def test_read_pytorch_raw_pickle_open_oserror(tmp_path: Path) -> None:
-    """read_pytorch handles OSError when opening raw pickle file for inspection."""
+    """read_pytorch raises ValueError when the raw pickle file itself can't
+    be opened -- matching its own documented "Raises: ValueError: If the
+    file cannot be opened" contract, the same one every sibling extractor
+    (_hdf5.py, _numpy.py, ...) honors for a whole-file-open failure (as
+    opposed to a single field failing to extract, which degrades
+    gracefully instead)."""
     fake_pt = tmp_path / "unreadable.pt"
     fake_pt.write_bytes(b"dummy")
 
     with patch("zipfile.is_zipfile", return_value=False):
         with patch.object(Path, "open", side_effect=OSError("permission denied")):
-            meta = read_pytorch(fake_pt)
-            assert meta.format_info.model_format == AiModelFormat.PYTORCH
-            assert meta.type_of_model is None
+            with pytest.raises(ValueError, match="Failed to read PyTorch"):
+                read_pytorch(fake_pt)
 
 
 def test_dotted_name_unrecognized_ast_node() -> None:

@@ -172,8 +172,13 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
                 type_of_model = _fickling_get_top_class(fh)
             if type_of_model:
                 provenance["type_of_model"] = f"{source} | Field: raw pickle (fickling)"
-        except OSError:
-            pass
+        except OSError as exc:
+            # The file itself couldn't be opened (not just a single field
+            # failing to extract) -- same "Raises: ValueError" contract
+            # every sibling extractor (_hdf5.py, _numpy.py, ...) honors.
+            raise ValueError(
+                f"Failed to read PyTorch file {model_path}: {exc}"
+            ) from exc
         return AiModelMetadata(
             format_info=AiModelFormatInfo(
                 file_name=model_path.name,
@@ -185,8 +190,11 @@ def read_pytorch(model_path: Path) -> AiModelMetadata:
             provenance=provenance,
         )
 
-    with zipfile.ZipFile(str(model_path), "r") as zf:
-        type_of_model, properties, provenance = _read_pytorch_zip(zf, source)
+    try:
+        with zipfile.ZipFile(str(model_path), "r") as zf:
+            type_of_model, properties, provenance = _read_pytorch_zip(zf, source)
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ValueError(f"Failed to read PyTorch file {model_path}: {exc}") from exc
 
     return AiModelMetadata(
         format_info=AiModelFormatInfo(

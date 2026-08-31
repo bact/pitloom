@@ -53,6 +53,7 @@ def force_tomllib_branch(
     fake_tomllib = types.ModuleType("tomllib")
     fake_tomllib.load = tomli.load  # type: ignore[attr-defined]
     fake_tomllib.loads = tomli.loads  # type: ignore[attr-defined]
+    fake_tomllib.TOMLDecodeError = tomli.TOMLDecodeError  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "tomllib", fake_tomllib)
     monkeypatch.setattr(sys, "version_info", (3, 11, 0, "final", 0))
     try:

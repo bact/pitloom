@@ -21,6 +21,7 @@ from pitloom.core.creation import (
     Tool,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.project import read_project
 
 
@@ -65,6 +66,30 @@ class _ResolvedCreationMetadata:
             creation_datetime=self.creation_datetime.value,
             creation_comment=self.creation_comment.value,
         )
+
+
+def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
+    """Add the shared ``--offline``/``--no-offline`` flag.
+
+    The mechanics (``BooleanOptionalAction``, ``default=None`` so the CLI
+    can defer to ``[tool.pitloom] offline`` when omitted) and the closing
+    "Defers to..." sentence are identical for every command that offers
+    this flag; only what "forbid network access" actually does differs by
+    command/target. *effect* is spliced in verbatim right after "Forbid
+    network access" (include its own leading punctuation and trailing
+    period, e.g. ``" -- skip PyPI lookup, no error (...)."``) so each
+    caller keeps its own accurate, command-specific wording instead of one
+    generic sentence that would misdescribe some commands' actual behaviour.
+    """
+    parser.add_argument(
+        "--offline",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            f"Forbid network access{effect} Defers to [tool.pitloom] "
+            "offline (off by default) when omitted."
+        ),
+    )
 
 
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
@@ -200,15 +225,8 @@ def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:
     if config_path is None or config_path.name != "pyproject.toml":
         return {}
 
-    # pylint: disable=import-outside-toplevel
-
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomli as tomllib
-
     try:
-        raw_toml = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        raw_toml = load_toml_file(config_path)
         tool_section = raw_toml.get("tool")
         if not isinstance(tool_section, dict):
             return {}

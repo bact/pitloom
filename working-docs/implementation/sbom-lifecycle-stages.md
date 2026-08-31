@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-27
-Last-Modified: 2026-08-27
+Last-Modified: 2026-09-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,10 +8,11 @@ SPDX-License-Identifier: CC0-1.0
 
 # Source SBOM vs. build SBOM: lifecycle stages and per-backend mechanism
 
-See also: [setuptools-support.md](setuptools-support.md) for the
-setuptools-specific discovery implementation this doc justifies the
-scope of; `working-docs/design/roadmap.md`'s "Non-Hatchling file
-discovery" section for the backend-priority table this decision feeds.
+See also: [setuptools-support.md](setuptools-support.md) and
+[poetry-support.md](poetry-support.md) for the backend-specific
+discovery implementations this doc justifies the scope of;
+`working-docs/design/roadmap.md`'s "Non-Hatchling file discovery"
+section for the backend-priority table this decision feeds.
 
 ## Source SBOM vs. build SBOM
 
@@ -36,7 +37,8 @@ wheel-file-discovery paths map directly onto this:
 | `loom project`/`loom generate` (directory) | source tree | `get_wheel_files()` -> backend-specific in-process introspection | Source |
 | ...Hatchling backend | -- | `WheelBuilder.recurse_included_files()` (`src/pitloom/core/_models_wheel_hatchling.py`) -- a method distinct from `WheelBuilder.build()`; walks static `[tool.hatch.build...]` config only | Source |
 | ...setuptools backend | -- | `Distribution`/`build_py` introspection via `apply_configuration()` + `find_all_modules()`/`_get_data_files()` (`src/pitloom/core/_models_wheel_setuptools.py`) -- static config only, no `setup.py` execution | Source |
-| ...any other backend (Poetry, PDM, Flit-core, `uv_build`, ... until each lands) | -- | Falls back to the Hatchling heuristic, with a logged warning that the result may be inaccurate for that backend | Source (approximated) |
+| ...Poetry backend | -- | `poetry.core.masonry.builders.wheel.WheelBuilder.find_files_to_add()` (`src/pitloom/core/_models_wheel_poetry.py`) -- delegates to poetry-core's own declarative config resolution, no `[tool.poetry.build].script` execution; see [poetry-support.md](poetry-support.md)'s "Wheel file discovery" section | Source |
+| ...any other backend (PDM, Flit-core, `uv_build`, ... until each lands) | -- | Falls back to the Hatchling heuristic, with a logged warning that the result may be inaccurate for that backend | Source (approximated) |
 | `loom wheel` | built `.whl` file | `read_wheel()` reads the real artifact directly, backend-agnostic | Build |
 | `embed-wheel` (wheel-merge step) | built `.whl` file | Same `read_wheel()` path; `_merge_file_extras` treats it as ground truth, discarding `get_wheel_files()`'s own Merkle root in favor of one computed from the real wheel's hashes | Build |
 

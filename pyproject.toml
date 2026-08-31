@@ -21,6 +21,7 @@ keywords = [
     "spdx",
     "supply-chain-security",
     "hatchling",
+    "poetry",
     "bom",
     "aibom",
     "provenance",
@@ -53,11 +54,17 @@ classifiers = [
     "Topic :: Security",
     "Typing :: Typed",
 ]
+# hatchling/setuptools/poetry-core: Track A backend libs, kept mandatory
+# (lightweight; gate file-discovery accuracy, not metadata). Revisit if
+# Track A grows. Track B (maturin/scikit-build-core/meson-python) should
+# be an optional extra when added -- see roadmap.md "Dependency packaging
+# strategy".
 dependencies = [
     "auditwheel>=6.8.1; sys_platform == 'linux'",
     "hatchling>=1.32.0",
     "licenseid>=0.3.7",
     "pipdeptree>=4.2.0",
+    "poetry-core>=2.0.0",
     "py-spdx-license>=0.0.1,<1",
     "pyproject-metadata>=0.12.1",
     "pyyaml>=6.0.3,<7",

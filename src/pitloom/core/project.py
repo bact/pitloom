@@ -107,6 +107,7 @@ class ProjectMetadata:
     authors: list[dict[str, str]] = field(default_factory=list)
     urls: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
+    locked_dependencies: list[str] = field(default_factory=list)
     provenance: dict[str, str] = field(default_factory=dict)
     files: list[ProjectFile] = field(default_factory=list)
 
@@ -135,7 +136,15 @@ def merge_project_metadata(
     - ``provenance`` -- dict-merged, *primary*'s entries winning on key
       conflict, rather than replaced wholesale.
 
-    Every other field: *primary*'s value when truthy, else *secondary*'s.
+    Every other field: *primary*'s value when truthy, else *secondary*'s --
+    including every list-valued field (``dependencies``, ``locked_dependencies``,
+    ``keywords``, ``authors``, ``files``): a non-empty *primary* list replaces
+    *secondary*'s wholesale, it is never unioned with it. If a future
+    ``locked_dependencies`` source needs union-not-replace semantics (e.g.
+    combining two lock-derived dependency sets), that is a deliberate
+    deviation from every sibling list field here and belongs in a dedicated
+    merge step at the call site, not a silent special case in this
+    otherwise-uniform field-by-field loop.
     """
     merged = dataclasses.replace(primary)
     merged.provenance = {**secondary.provenance, **primary.provenance}

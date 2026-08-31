@@ -13,7 +13,6 @@ When both are present, ``[project]`` values take precedence and
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -29,11 +28,8 @@ from pitloom.extract._license import (
     resolve_license_concluded,
 )
 from pitloom.extract._poetry import extract_poetry_metadata
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
+from pitloom.extract._toml_io import load_toml_file
 
 log = logging.getLogger(__name__)
 
@@ -131,8 +127,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
 
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
+    data: dict[str, Any] = load_toml_file(pyproject_path)
 
     project_data: dict[str, Any] = data.get("project", {})
     pitloom_config = parse_pitloom_config(data)
@@ -455,11 +450,51 @@ def _read_version_from_file(file_path: Path) -> str | None:
 def _try_read_poetry(
     data: dict[str, Any],
     project_dir: Path,
+    *,
+    include_locked_dependencies: bool = True,
 ) -> ProjectMetadata | None:
-    """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``."""
+    """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``.
+
+    When *include_locked_dependencies* is true (the default, used by every
+    ``read_pyproject()`` caller), also reads a sibling ``poetry.lock`` for
+    the resolved transitive-dependency graph -- source-stage-only
+    enrichment; see :mod:`pitloom.extract._poetry_lock`'s module docstring.
+    The Hatchling build hook's metadata gap-fill path
+    (:func:`pitloom.extract.hatchling._poetry_fallback_metadata`) passes
+    ``include_locked_dependencies=False``: that path runs at build/embed
+    time, where a stale or unrelated ``poetry.lock`` must never influence
+    the emitted SBOM.
+
+    A malformed ``[tool.poetry]`` section (e.g. missing ``name`` -- common
+    for a PEP 621 ``[project]``-primary layout that keeps ``[tool.poetry]``
+    only for non-metadata settings) does not, on its own, suppress
+    ``poetry.lock`` reading: the two are independent, and a project can
+    have a perfectly good lock file even when its ``[tool.poetry]`` gap-fill
+    metadata can't be extracted.
+    """
     if not data.get("tool", {}).get("poetry"):
         return None
+    locked_dependencies = (
+        extract_poetry_lock_dependencies(project_dir)
+        if include_locked_dependencies
+        else []
+    )
     try:
-        return extract_poetry_metadata(data, project_dir)
-    except (ValueError, KeyError):
-        return None
+        metadata = extract_poetry_metadata(data, project_dir)
+    except (ValueError, KeyError) as exc:
+        if not locked_dependencies:
+            return None
+        log.warning(
+            "%s: [tool.poetry] metadata could not be parsed (%s) -- "
+            "skipping Poetry gap-fill, but still applying poetry.lock's "
+            "resolved dependencies",
+            project_dir,
+            exc,
+        )
+        metadata = ProjectMetadata(name="")
+    if locked_dependencies:
+        metadata.locked_dependencies = locked_dependencies
+        metadata.provenance["locked_dependencies"] = (
+            "Source: poetry.lock | Method: resolved_lockfile"
+        )
+    return metadata

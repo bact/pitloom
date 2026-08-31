@@ -62,3 +62,31 @@ def test_creator_email_action_returns_after_parser_error(
     parser = _build_parser()
     namespace = parser.parse_args(["project", ".", "--creator-email", "a@example.com"])
     assert namespace.creators is None
+
+
+@pytest.mark.parametrize(
+    ("command", "target_args"),
+    [
+        ("generate", ["."]),
+        ("project", ["."]),
+        ("wheel", ["dummy.whl"]),
+        ("embed-wheel", ["dummy.whl"]),
+        ("model", ["dummy.gguf"]),
+        ("env", []),
+    ],
+)
+def test_offline_flag_supports_three_states(
+    command: str, target_args: list[str]
+) -> None:
+    """``--offline`` must behave like every other boolean CLI flag
+    (``--enrich``, ``--pretty``, ...): unset by default (deferring to
+    ``[tool.pitloom] offline``), and explicitly overridable back to
+    ``False`` via ``--no-offline`` -- not just a one-way ``store_true``
+    with no way to force network access back on for a single run."""
+    from pitloom.cli.parser import _build_parser
+
+    parser = _build_parser()
+
+    assert parser.parse_args([command, *target_args]).offline is None
+    assert parser.parse_args([command, *target_args, "--offline"]).offline is True
+    assert parser.parse_args([command, *target_args, "--no-offline"]).offline is False

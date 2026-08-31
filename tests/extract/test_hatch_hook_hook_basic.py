@@ -123,6 +123,43 @@ def test_hook_finalize_cleans_up() -> None:
         assert hook._sbom_staging_path is None
 
 
+def test_hook_initialize_cleans_up_staging_dir_on_late_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If something after staging (build_data mutation, the final log
+    line) raises, initialize() must clean up the just-created staging
+    directory itself -- it cannot rely on finalize() to do it, since
+    Hatchling's own hook contract doesn't guarantee finalize() runs after
+    a failed initialize()."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+
+        cleanup_calls: list[str] = []
+        original_cleanup = tempfile.TemporaryDirectory.cleanup
+
+        def _tracking_cleanup(self: Any) -> None:
+            cleanup_calls.append(self.name)
+            original_cleanup(self)
+
+        monkeypatch.setattr(tempfile.TemporaryDirectory, "cleanup", _tracking_cleanup)
+        monkeypatch.setattr(
+            "pitloom.plugins.hatch.log.info",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            hook.initialize("standard", build_data)
+
+        assert len(cleanup_calls) == 1
+        assert not Path(cleanup_calls[0]).exists()
+        assert hook._staging_dir is None
+        assert hook._sbom_staging_path is None
+
+
 def test_hook_finalize_idempotent() -> None:
     """Calling finalize() twice must not raise."""
     with tempfile.TemporaryDirectory() as tmp:

@@ -19,6 +19,14 @@ and this project adheres to
 - Full release notes: <https://github.com/bact/pitloom/releases>
 - Commit history: <https://github.com/bact/pitloom/compare/v0.16.4...v0.17.0>
 
+## [Unreleased]
+
+### Added
+
+- Add Poetry backend wheel file discovery and lock parsing ([#198])
+
+[#198]: https://github.com/bact/pitloom/pull/198
+
 ## [0.17.0] - 2026-08-30
 
 ### Added

@@ -3,26 +3,23 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for sdist archive metadata extraction."""
-
-# pylint: disable=redefined-outer-name
+"""Extractor for Python project metadata from an sdist archive
+(``PKG-INFO``, falling back to ``pyproject.toml``)."""
 
 from __future__ import annotations
 
 import email
 import hashlib
-import sys
+import logging
 import tarfile
 import zipfile
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from pitloom.extract._toml_io import tomllib
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+log = logging.getLogger(__name__)
 
 
 def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
@@ -87,7 +84,8 @@ def _parse_pyproject_bytes(pyproject_content: bytes) -> ProjectMetadata:
             dependencies=proj.get("dependencies", []),
         )
     # pylint: disable=broad-exception-caught
-    except Exception:
+    except Exception as exc:
+        log.debug("Failed to parse pyproject.toml from sdist member: %s", exc)
         return ProjectMetadata(name="unknown")
 
 
@@ -211,20 +209,9 @@ def _read_zip_sdist(sdist_path: Path) -> tuple[ProjectMetadata, list[ProjectFile
         if pkg_info_content is not None:
             metadata = _parse_pkg_info(pkg_info_content, source_label)
         elif pyproject_content is not None:
-            try:
-                data = tomllib.loads(
-                    pyproject_content.decode("utf-8", errors="replace")
-                )
-                proj = data.get("project", {})
-                metadata = ProjectMetadata(
-                    name=proj.get("name", "unknown"),
-                    version=proj.get("version"),
-                    description=proj.get("description"),
-                    dependencies=proj.get("dependencies", []),
-                )
-            # pylint: disable=broad-exception-caught
-            except Exception:
-                metadata = ProjectMetadata(name="unknown")
+            metadata = _parse_pyproject_bytes(pyproject_content)
+        else:
+            metadata = ProjectMetadata(name="unknown")
 
     return metadata, project_files
 

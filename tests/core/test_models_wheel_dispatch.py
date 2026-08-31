@@ -9,12 +9,11 @@ behavior.
 See also: tests/core/test_models_wheel_files.py for file-header
 scanning and content-type detection tests;
 tests/core/test_models_wheel_setuptools.py for the setuptools
-discovery module's own tests.
+discovery module's own tests; tests/core/test_models_wheel_dispatch_lock.py
+for the discovery-lock concurrency tests split out of this file.
 """
 
 import logging
-import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -181,20 +180,64 @@ def test_get_wheel_files_setuptools_build_system_only_skips_doomed_hatchling_att
 def test_get_wheel_files_unhandled_backend_falls_back_with_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A backend with no dedicated discovery module (e.g. Poetry, ahead
-    of its own dedicated support landing) still gets a result via the
-    Hatchling heuristic, but now with an explicit warning instead of
+    """A backend with no dedicated discovery module (e.g. PDM-Backend,
+    ahead of its own dedicated support landing) still gets a result via
+    the Hatchling heuristic, but now with an explicit warning instead of
     silently risking an inaccurate file list -- closing the gap for
     every unhandled backend, not just setuptools."""
-    _make_backend_project(tmp_path, "poetry.core.masonry.api")
+    _make_backend_project(tmp_path, "pdm.backend")
 
     with caplog.at_level(logging.WARNING):
         root, files = get_wheel_files(tmp_path)
 
     assert root is None
     assert not files
-    assert "poetry" in caplog.text
+    assert "pdm" in caplog.text
     assert "Hatchling" in caplog.text
+
+
+def test_get_wheel_files_dispatches_poetry_backend_to_its_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A project whose backend is detected as ``poetry`` routes through
+    the Poetry discovery module, not the Hatchling heuristic."""
+    _make_backend_project(tmp_path, "poetry.core.masonry.api")
+
+    def _fake_discover(
+        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile]:
+        del project_dir, pyproject_data
+        return [IncludedFile(path=str(tmp_path / "a.py"), distribution_path="pkg/a.py")]
+
+    (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
+    monkeypatch.setattr("pitloom.core._models_wheel_poetry.discover", _fake_discover)
+    hatchling_called: list[Path] = []
+
+    def _fail_if_called(project_dir: Path) -> list[IncludedFile]:
+        hatchling_called.append(project_dir)
+        return []
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_hatchling.discover", _fail_if_called
+    )
+
+    _root, files = get_wheel_files(tmp_path)
+
+    assert not hatchling_called
+    assert [f.distribution_path for f in files] == ["pkg/a.py"]
+
+
+def test_get_wheel_files_poetry_discover_accepts_pyproject_data_kwarg(
+    tmp_path: Path,
+) -> None:
+    """Interface-uniformity regression: the Poetry discoverer must share
+    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
+    signature so the dispatch registry never needs a per-backend special
+    case. Raises ``TypeError`` if the signature ever drops the keyword."""
+    # pylint: disable-next=import-outside-toplevel
+    from pitloom.core._models_wheel_poetry import discover as discover_poetry
+
+    discover_poetry(tmp_path, pyproject_data={"tool": {"poetry": {"name": "pkg"}}})
 
 
 def test_get_wheel_files_setuptools_config_present_but_introspection_failed(
@@ -278,161 +321,6 @@ def test_get_wheel_files_relative_project_dir_keeps_physical_path_relative(
     assert len(files) == 1
     assert not Path(files[0].physical_path).is_absolute()
     assert files[0].physical_path == "a.py"
-
-
-def test_get_wheel_files_backend_discovery_is_serialized(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Regression: two concurrent ``get_wheel_files()`` calls (e.g. a
-    setuptools discovery, which process-wide ``os.chdir()``s for its
-    duration, racing a Hatchling discovery in another thread) must never
-    overlap -- both backend discoverers funnel through one shared lock
-    in the facade, so at most one is ever mid-flight at a time."""
-    _make_backend_project(tmp_path, "setuptools.build_meta")
-
-    concurrent_calls = 0
-    max_concurrent = 0
-    lock = threading.Lock()
-
-    def _slow_discover(
-        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
-    ) -> list[IncludedFile]:
-        nonlocal concurrent_calls, max_concurrent
-        del project_dir, pyproject_data
-        with lock:
-            concurrent_calls += 1
-            max_concurrent = max(max_concurrent, concurrent_calls)
-        time.sleep(0.05)
-        with lock:
-            concurrent_calls -= 1
-        return []
-
-    monkeypatch.setattr(
-        "pitloom.core._models_wheel_setuptools.discover", _slow_discover
-    )
-
-    threads = [
-        threading.Thread(target=get_wheel_files, args=(tmp_path,)) for _ in range(4)
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    assert max_concurrent == 1
-
-
-def test_get_wheel_files_hatchling_discovery_is_not_serialized(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Regression: concurrent ``get_wheel_files()`` calls that both
-    resolve to Hatchling (no chdir involved) must NOT serialize against
-    each other -- only a concurrent setuptools (write-mode) call needs
-    exclusive access. Guards the discovery lock's read/write split."""
-    concurrent_calls = 0
-    max_concurrent = 0
-    lock = threading.Lock()
-
-    def _slow_discover(project_dir: Path) -> list[IncludedFile]:
-        nonlocal concurrent_calls, max_concurrent
-        del project_dir
-        with lock:
-            concurrent_calls += 1
-            max_concurrent = max(max_concurrent, concurrent_calls)
-        time.sleep(0.05)
-        with lock:
-            concurrent_calls -= 1
-        return []
-
-    monkeypatch.setattr("pitloom.core._models_wheel_hatchling.discover", _slow_discover)
-
-    threads = [
-        threading.Thread(target=get_wheel_files, args=(tmp_path,)) for _ in range(4)
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    assert max_concurrent > 1
-
-
-def test_get_wheel_files_writer_not_starved_by_continuous_readers(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Regression: the discovery lock is writer-priority -- once a
-    setuptools (write-mode) call announces itself, new Hatchling
-    (read-mode) calls stop being admitted ahead of it, so it only waits
-    for readers already in flight when it arrived, never for a
-    continuous stream of freshly-arriving ones. Under a plain
-    reader-preference lock (readers count never sustained above zero by
-    a single caller, but easily sustained by a *pool* of overlapping
-    concurrent readers -- confirmed: a single sequential spammer isn't
-    enough, since it always has a gap between calls where the reader
-    count can transiently hit zero and let the writer slip in by luck),
-    that pool alone would starve the writer forever."""
-    _make_backend_project(tmp_path, "setuptools.build_meta")
-    hatchling_dir = tmp_path.parent / "hatchling_proj_starvation"
-    hatchling_dir.mkdir()
-
-    release_first_reader = threading.Event()
-    writer_done = threading.Event()
-    stop_spamming = threading.Event()
-
-    def _held_reader(project_dir: Path) -> list[IncludedFile]:
-        del project_dir
-        release_first_reader.wait(timeout=5)
-        return []
-
-    def _quick_reader(project_dir: Path) -> list[IncludedFile]:
-        del project_dir
-        time.sleep(0.005)
-        return []
-
-    def _writer(
-        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
-    ) -> list[IncludedFile]:
-        del project_dir, pyproject_data
-        writer_done.set()
-        return []
-
-    monkeypatch.setattr("pitloom.core._models_wheel_setuptools.discover", _writer)
-    monkeypatch.setattr("pitloom.core._models_wheel_hatchling.discover", _held_reader)
-
-    first_reader = threading.Thread(target=get_wheel_files, args=(hatchling_dir,))
-    first_reader.start()
-    time.sleep(0.05)  # let it register as an already-in-flight reader
-
-    writer_thread = threading.Thread(target=get_wheel_files, args=(tmp_path,))
-    writer_thread.start()
-    time.sleep(0.05)  # let the writer register as waiting
-
-    monkeypatch.setattr("pitloom.core._models_wheel_hatchling.discover", _quick_reader)
-
-    def _spam() -> None:
-        while not stop_spamming.is_set():
-            get_wheel_files(hatchling_dir)
-
-    # A *pool* of overlapping spammers, not just one -- with only one
-    # sequential caller, the reader count has a gap between each of its
-    # own calls where it can transiently hit zero, giving the writer a
-    # lucky chance to slip in even under the buggy reader-preference
-    # design this test guards against.
-    spammers = [threading.Thread(target=_spam) for _ in range(16)]
-    for t in spammers:
-        t.start()
-    time.sleep(0.05)  # let spamming ramp up before releasing the first reader
-
-    release_first_reader.set()
-    starved = not writer_done.wait(timeout=2)
-    stop_spamming.set()
-
-    for t in spammers:
-        t.join(timeout=5)
-    first_reader.join(timeout=5)
-    writer_thread.join(timeout=5)
-
-    assert not starved, "writer starved by continuously arriving readers"
 
 
 def test_get_wheel_files_assume_backend_skips_detection(

@@ -57,6 +57,7 @@ See Also:
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -66,6 +67,8 @@ from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
+
+log = logging.getLogger(__name__)
 
 # Matches "Name <email>", "Name", or "<email>"
 _AUTHOR_RE = re.compile(r"^(?P<name>[^<]*?)\s*(?:<(?P<email>[^>]+)>)?$")
@@ -347,7 +350,14 @@ def _poetry_dep_to_pep508(name: str, constraint: Any) -> str | None:
     Returns ``None`` when the entry cannot be represented.
     """
     if isinstance(constraint, dict):
-        if any(k in constraint for k in ("path", "git", "url")):
+        source = next((k for k in ("path", "git", "url") if k in constraint), None)
+        if source is not None:
+            log.warning(
+                "Skipping Poetry dependency %r: %s-sourced dependencies cannot "
+                "be represented as a PEP 508 specifier",
+                name,
+                source,
+            )
             return None
         constraint = constraint.get("version", "*")
 

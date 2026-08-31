@@ -314,21 +314,31 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         # the SPDX JSON Serialization Scheme.
         sbom_json = exporter.to_json(pretty=False)
 
+        staging_dir, sbom_staging_path = _stage_sbom_file(sbom_json, sbom_filename)
+        try:
+            # Hatchling 1.29.0+ places each path in sbom_files at
+            # .dist-info/sboms/<basename> inside the wheel (PEP 770).
+            build_data.setdefault("sbom_files", []).append(str(sbom_staging_path))
+
+            log.info(
+                "Pitloom: staged SBOM %s (%d fragment(s)); "
+                "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
+                sbom_filename,
+                len(pitloom_config.fragments),
+            )
+        except Exception:
+            # self._staging_dir is assigned only once every step below has
+            # succeeded (see finalize()) -- if Hatchling failed to accept
+            # build_data or a log handler raised, clean up here ourselves
+            # rather than depend on finalize() being called after a failed
+            # initialize(), which Hatchling's own hook contract doesn't
+            # guarantee.
+            staging_dir.cleanup()
+            raise
+
         self._sbom_filename = sbom_filename
-        self._staging_dir, self._sbom_staging_path = _stage_sbom_file(
-            sbom_json, sbom_filename
-        )
-
-        # Hatchling 1.29.0+ places each path in sbom_files at
-        # .dist-info/sboms/<basename> inside the wheel (PEP 770).
-        build_data.setdefault("sbom_files", []).append(str(self._sbom_staging_path))
-
-        log.info(
-            "Pitloom: staged SBOM %s (%d fragment(s)); "
-            "Hatchling will inject it into .dist-info/sboms/ in the wheel.",
-            sbom_filename,
-            len(pitloom_config.fragments),
-        )
+        self._staging_dir = staging_dir
+        self._sbom_staging_path = sbom_staging_path
 
     def finalize(
         self,

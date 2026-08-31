@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-08-29
+Last-Modified: 2026-08-31
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -126,6 +126,7 @@ pitloom/
 │       │   ├── _config_types.py    # Configuration dataclasses and type definitions
 │       │   ├── _models_wheel.py    # Backend-dispatch facade + shared per-file processing loop
 │       │   ├── _models_wheel_hatchling.py  # Hatchling WheelBuilder-based discover()
+│       │   ├── _models_wheel_poetry.py     # poetry-core WheelBuilder-based discover()
 │       │   ├── _models_wheel_setuptools.py # setuptools static-config-based discover()
 │       │   ├── _models_wheel_types.py # IncludedFile, BackendDiscoverer protocol, shared helpers
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
@@ -160,6 +161,7 @@ pitloom/
 │       │   ├── _numpy.py           # NumPy (.npy, .npz)
 │       │   ├── _onnx.py            # ONNX (.onnx)
 │       │   ├── _poetry.py          # [tool.poetry] extractor; Poetry -> PEP 440 conversion
+│       │   ├── _poetry_lock.py     # poetry.lock main-group transitive deps (source-stage only)
 │       │   ├── _pyproject.py       # pyproject.toml extractor ([project] + [tool.poetry] merge)
 │       │   ├── _pytorch.py         # PyTorch classic (.pt, .pth)
 │       │   ├── _pytorch_pt2.py     # PyTorch PT2 / ExecuTorch (.pt2)
@@ -168,6 +170,7 @@ pitloom/
 │       │   ├── _setuptools_cfg.py  # setup.cfg parser and [tool:pitloom] config extraction
 │       │   ├── _setuptools_py.py   # setup.py AST parser
 │       │   ├── _setuptools.py      # Setuptools extractor facade and backend detection
+│       │   ├── _toml_io.py         # Shared tomllib/tomli compat import + raw TOML-file read
 │       │   ├── ai_model.py         # AI model dispatcher + format detection (public entry point)
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── dataset.py          # Dataset metadata extraction public API (Croissant)

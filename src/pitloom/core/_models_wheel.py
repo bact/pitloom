@@ -47,6 +47,16 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+_WRITER_BACKENDS = frozenset({"setuptools"})
+"""Backend names whose ``discover()`` process-wide ``os.chdir()``s and must
+therefore run under :meth:`_DiscoveryLock.write` (see its docstring). Every
+backend NOT listed here -- Hatchling, Poetry, and any future addition to
+``backend_discoverers`` -- is assumed to be a "reader" and dispatches under
+:meth:`_DiscoveryLock.read` instead. Add a backend here only when its
+``discover()`` genuinely needs the working directory changed; the default
+for a new backend should be to stay off this set."""
+
+
 class _DiscoveryLock:
     """Multiple concurrent readers, or one exclusive writer -- never both.
     Writer-priority: once a writer is waiting, no *new* reader is admitted
@@ -54,16 +64,17 @@ class _DiscoveryLock:
     never starve a writer out indefinitely -- it only ever waits for
     readers already in flight at the moment it arrived.
 
-    A "writer" (currently only setuptools' ``discover()``) process-wide
-    ``os.chdir()``s for the duration of its call and must run with no
-    other discoverer -- reader or writer -- active. A "reader" (e.g.
-    Hatchling's ``discover()``) never touches cwd itself (``get_wheel_files``
+    A "writer" (a backend listed in :data:`_WRITER_BACKENDS`, currently
+    only setuptools' ``discover()``) process-wide ``os.chdir()``s for the
+    duration of its call and must run with no other discoverer -- reader or
+    writer -- active. A "reader" (every other backend, e.g. Hatchling's or
+    Poetry's ``discover()``) never touches cwd itself (``get_wheel_files``
     always resolves *project_dir* to an absolute path first), so readers
     never need to block each other -- only a concurrent writer. Held here,
     at the sole dispatch point every backend's ``discover()`` funnels
     through, so a future backend module needs no lock of its own to get
-    the same guarantee; a future *writer*-style backend should acquire
-    :meth:`write` the same way setuptools does.
+    the same guarantee; a future *writer*-style backend should add itself
+    to :data:`_WRITER_BACKENDS` the same way setuptools does.
     """
 
     def __init__(self) -> None:
@@ -217,11 +228,13 @@ def _discover_included_files(
     the Hatchling build hook, which is definitionally always Hatchling).
     """
     # pylint: disable=import-outside-toplevel
+    from pitloom.core._models_wheel_poetry import discover as discover_poetry
     from pitloom.core._models_wheel_setuptools import discover as discover_setuptools
     from pitloom.extract._setuptools import detect_build_backend, read_pyproject_toml
 
     backend_discoverers: dict[str, BackendDiscoverer] = {
         "setuptools": discover_setuptools,
+        "poetry": discover_poetry,
     }
 
     pyproject_data: dict[str, object] | None
@@ -244,10 +257,19 @@ def _discover_included_files(
                 backend,
             )
         else:
-            # Every currently-registered discoverer (setuptools) chdirs
-            # process-wide for its duration, so it needs _DISCOVERY_LOCK's
-            # exclusive write mode -- see the lock's own docstring.
-            with _DISCOVERY_LOCK.write():
+            # Only a "writer" backend (currently just setuptools) process-wide
+            # os.chdir()s for the duration of its call and needs
+            # _DISCOVERY_LOCK's exclusive write mode -- see the lock's own
+            # docstring and _WRITER_BACKENDS' definition. Every other backend
+            # (Poetry included: poetry-core's find_files_to_add() never
+            # touches cwd) is a "reader" and only needs to be kept out of a
+            # concurrent writer's chdir window, not out of each other's way.
+            lock_ctx = (
+                _DISCOVERY_LOCK.write()
+                if backend in _WRITER_BACKENDS
+                else _DISCOVERY_LOCK.read()
+            )
+            with lock_ctx:
                 files = discoverer(project_dir, pyproject_data=pyproject_data)
             if files is not None:
                 return files

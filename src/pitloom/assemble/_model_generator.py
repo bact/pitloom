@@ -76,6 +76,7 @@ def _project_doc_identity(project_dir: Path) -> tuple[str, str]:
         version=project_metadata.version or "unknown",
         dependencies=project_metadata.dependencies,
         merkle_root=merkle_root,
+        locked_dependencies=project_metadata.locked_dependencies,
     )
     return project_metadata.name, doc_uuid
 
@@ -173,6 +174,11 @@ def enrich_model(
     model_path = Path(source)
     model = read_ai_model(model_path)
     model_dir = model_path.parent
+    # Unlike generate_model_sbom()/generate_project_sbom(), [tool.pitloom]
+    # enrich is NOT consulted as an "off by default" gate here: calling
+    # enrich_model() at all is itself the opt-in (see
+    # test_enrich_model_writes_bare_graph_fragment's docstring). Only an
+    # explicit enrich=False turns it back off.
     enrich_config = dataclasses.replace(
         _resolve_model_enrich_config(model_dir), local=enrich is not False
     )

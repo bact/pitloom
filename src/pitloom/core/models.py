@@ -107,10 +107,23 @@ def compute_doc_uuid(
     version: str,
     dependencies: list[str],
     merkle_root: str | None = None,
+    locked_dependencies: list[str] | None = None,
 ) -> str:
-    """Compute a deterministic UUIDv5 for the SPDX document."""
+    """Compute a deterministic UUIDv5 for the SPDX document.
+
+    *locked_dependencies* (e.g. ``poetry.lock``-resolved transitive
+    dependencies), when given and non-empty, is folded into the seed too --
+    otherwise two documents with identical direct dependencies but
+    different lock-resolved graphs would collide on the same UUID despite
+    describing different dependency content. Omitted or empty leaves the
+    seed byte-identical to a document with no locked dependencies at all,
+    so every non-Poetry (and lock-less Poetry) document is unaffected.
+    """
     normalized_deps = sorted(_normalize_dep(dep) for dep in dependencies)
     seed = "\x00".join([name, version, "\x00".join(normalized_deps)])
+    if locked_dependencies:
+        normalized_locked = sorted(_normalize_dep(dep) for dep in locked_dependencies)
+        seed += "\x00" + "\x00".join(normalized_locked)
     if merkle_root is not None:
         seed += "\x00" + merkle_root
     return str(uuid5(PITLOOM_NS, seed))

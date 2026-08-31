@@ -134,6 +134,35 @@ def test_resolve_version_falls_back_to_naive_split_for_unparseable_dep() -> None
     assert note is None
 
 
+def test_resolve_version_exact_pin_wins_over_mismatched_installed_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: an exact ``==`` pin (e.g. a resolved ``poetry.lock``
+    entry) is authoritative even when a *different* version of the same
+    package happens to be installed in Pitloom's own execution
+    environment -- that environment has no relationship to the target
+    project's environment and must never silently override a real pin."""
+    monkeypatch.setattr(deps_mod, "get_package_version", lambda _name: "3.19")
+
+    version, note = _resolve_version("idna", "idna==3.7")
+
+    assert version == "3.7"
+    assert note is None
+
+
+def test_resolve_version_falls_back_to_installed_when_unpinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The installed-environment lookup still applies -- as a fallback --
+    for the common case where the constraint doesn't pin an exact version."""
+    monkeypatch.setattr(deps_mod, "get_package_version", lambda _name: "2.32.0")
+
+    version, note = _resolve_version("requests", "requests>=2.0")
+
+    assert version == "2.32.0"
+    assert note == "Version resolved: Build-time environment (importlib.metadata)"
+
+
 # ---------------------------------------------------------------------------
 # build_pypi_purl / add_dependencies -- PURL even without a resolved version
 # ---------------------------------------------------------------------------

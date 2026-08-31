@@ -191,6 +191,12 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
         provenance["format_version"] = prov_ver
 
     fields: dict[str, Any] = {k: _field_value(v) for k, v in reader.fields.items()}
+    # GGUFReader (the gguf package) memory-maps the whole file and exposes
+    # no close()/context-manager protocol of its own -- drop the only
+    # reference to it as soon as every field we need is copied out, so the
+    # mapping is released deterministically here rather than implicitly
+    # whenever the interpreter next collects this function's frame.
+    del reader
     (
         name,
         description,

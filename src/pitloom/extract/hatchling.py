@@ -17,7 +17,6 @@ exclusively by the Hatchling build hook
 
 from __future__ import annotations
 
-import sys
 from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
@@ -29,11 +28,7 @@ from pitloom.extract._license import (
     resolve_license_concluded,
 )
 from pitloom.extract._pyproject import _try_read_poetry
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+from pitloom.extract._toml_io import load_toml_file
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"
 
@@ -48,13 +43,18 @@ def _poetry_fallback_metadata(project_dir: Path) -> ProjectMetadata | None:
     from ``[tool.poetry]`` when ``[project]`` is incomplete. Returns ``None``
     when ``pyproject.toml`` is missing or has no usable ``[tool.poetry]``
     section.
+
+    Passes ``include_locked_dependencies=False``: this path runs from the
+    Hatchling build hook (build/embed stage), where ``poetry.lock`` --
+    a source-stage-only artifact never consulted by the real build -- must
+    not influence the emitted SBOM. See
+    :mod:`pitloom.extract._poetry_lock`'s module docstring.
     """
     pyproject_path = project_dir / "pyproject.toml"
     if not pyproject_path.exists():
         return None
-    with open(pyproject_path, "rb") as f:
-        data: dict[str, Any] = tomllib.load(f)
-    return _try_read_poetry(data, project_dir)
+    data: dict[str, Any] = load_toml_file(pyproject_path)
+    return _try_read_poetry(data, project_dir, include_locked_dependencies=False)
 
 
 def _authors_from_data(authors_data: dict[str, list[str]]) -> list[dict[str, str]]:
