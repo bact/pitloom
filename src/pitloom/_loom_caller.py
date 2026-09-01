@@ -21,7 +21,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.__about__ import __version__
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.ids import IdRegistry, resolve_registry
-from pitloom.logging_config import warn_once
+from pitloom.logging_config import field_loss_suffix, warn_once
 
 log = logging.getLogger("pitloom.loom")
 
@@ -67,9 +67,12 @@ def _get_caller_info() -> str:
         warn_once(
             log,
             "caller_info",
-            "Failed to determine caller info: %s | Field(s) affected "
-            "(degraded): provenance Source (falls back to 'unknown'; "
-            "Method: inspect_caller is still recorded)",
+            "Failed to determine caller info: %s"
+            + field_loss_suffix(
+                "degraded",
+                "provenance Source (falls back to 'unknown'; Method: "
+                "inspect_caller is still recorded)",
+            ),
             exc,
         )
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
@@ -99,8 +102,8 @@ def _get_caller_script_path() -> str | None:
         warn_once(
             log,
             "caller_script_path",
-            "Failed to determine caller script path: %s | Field(s) "
-            "affected (skipped): caller_script_path",
+            "Failed to determine caller script path: %s"
+            + field_loss_suffix("skipped", "caller_script_path"),
             exc,
         )
     return None

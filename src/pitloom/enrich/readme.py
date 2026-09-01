@@ -31,6 +31,7 @@ import yaml
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
+from pitloom.logging_config import field_loss_suffix
 
 log = logging.getLogger(__name__)
 
@@ -66,11 +67,10 @@ def _parse_frontmatter(text: str) -> dict[str, Any] | None:
     try:
         data = yaml.safe_load(parts[1])
     except yaml.YAMLError as exc:
-        log.warning(
-            "Failed to parse model-card frontmatter: %s | Field(s) "
-            "affected (skipped): license, datasets",
-            exc,
+        msg = "Failed to parse model-card frontmatter: %s" + field_loss_suffix(
+            "skipped", "license", "datasets"
         )
+        log.warning(msg, exc)
         return None
     return data if isinstance(data, dict) else None
 
@@ -94,12 +94,10 @@ class ReadmeEnricher:
         try:
             text = card_path.read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
-            log.warning(
-                "Failed to read model card %s: %s | Field(s) affected "
-                "(skipped): license, datasets",
-                card_path,
-                exc,
+            msg = "Failed to read model card %s: %s" + field_loss_suffix(
+                "skipped", "license", "datasets"
             )
+            log.warning(msg, card_path, exc)
             return EnrichmentResult(source_name=self.name)
 
         frontmatter = _parse_frontmatter(text)

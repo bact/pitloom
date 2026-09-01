@@ -175,3 +175,15 @@ def warn_once(log: logging.Logger, key: str, msg: str, *args: object) -> None:
         first_occurrence = dedup_key not in _WARNED_ONCE
         _WARNED_ONCE.add(dedup_key)
     log.log(logging.WARNING if first_occurrence else logging.DEBUG, msg, *args)
+
+
+def field_loss_suffix(status: str, *fields: str) -> str:
+    """Build the `` | Field(s) affected (<status>): <fields>`` suffix for
+    a WARNING logged when a failure drops or degrades SBOM/AIBOM data.
+
+    *status* is ``"skipped"`` (field ends up unset) or ``"degraded"`` (a
+    lower-quality value is still used). Each of *fields* is one field
+    name, joined with ``", "`` -- a field may carry its own parenthetical
+    note (e.g. ``"license (file-based detection)"``) when specific to it.
+    """
+    return f" | Field(s) affected ({status}): {', '.join(fields)}"

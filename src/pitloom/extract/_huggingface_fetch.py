@@ -21,6 +21,8 @@ import json
 import logging
 from typing import Any
 
+from pitloom.logging_config import field_loss_suffix
+
 log = logging.getLogger(__name__)
 
 # HF-specific license values that mean "non-standard / unknown" -
@@ -115,13 +117,16 @@ def _load_model_card(
         return card.text or None, card_data
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "Failed to load model card for %s: %s | Field(s) affected "
-            "(skipped): license, datasets, tags, base_model, library_name, "
+        msg = "Failed to load model card for %s: %s" + field_loss_suffix(
+            "skipped",
+            "license",
+            "datasets",
+            "tags",
+            "base_model",
+            "library_name",
             "language",
-            model_id,
-            exc,
         )
+        log.warning(msg, model_id, exc)
         return None, {}
 
 
@@ -159,13 +164,16 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         return result
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "Failed to load model_info() for %s: %s | Field(s) affected "
-            "(skipped): author, sha, created_at, last_modified, downloads, "
+        msg = "Failed to load model_info() for %s: %s" + field_loss_suffix(
+            "skipped",
+            "author",
+            "sha",
+            "created_at",
+            "last_modified",
+            "downloads",
             "tags",
-            model_id,
-            exc,
         )
+        log.warning(msg, model_id, exc)
         return {}
 
 
@@ -184,12 +192,10 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
         return [f for f in _HF_LICENSE_FILENAMES if f in existing]
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "Failed to list repo files for %s: %s | Field(s) affected "
-            "(skipped): license (file-based detection)",
-            model_id,
-            exc,
+        msg = "Failed to list repo files for %s: %s" + field_loss_suffix(
+            "skipped", "license (file-based detection)"
         )
+        log.warning(msg, model_id, exc)
         return []
 
 
@@ -234,13 +240,11 @@ def _detect_license_from_hf_files(
             )
         # pylint: disable=broad-exception-caught
         except Exception as exc:
-            log.warning(
-                "Failed to download/read license file %s for %s: %s | "
-                "Field(s) affected (skipped): license",
-                filename,
-                model_id,
-                exc,
+            msg = (
+                "Failed to download/read license file %s for %s: %s"
+                + field_loss_suffix("skipped", "license")
             )
+            log.warning(msg, filename, model_id, exc)
             continue
 
         if not text:
