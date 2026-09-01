@@ -25,9 +25,10 @@ and this project adheres to
 
 - Add Poetry backend wheel file discovery and lock parsing ([#198])
 - Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
-  library API; new `pitloom[validate]` optional extra
+  library API; new `pitloom[validate]` optional extra ([#200])
 
 [#198]: https://github.com/bact/pitloom/pull/198
+[#200]: https://github.com/bact/pitloom/pull/200
 
 ## [0.17.0] - 2026-08-30
 
