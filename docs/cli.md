@@ -283,6 +283,22 @@ default-naming logic picked it rather than an explicit `-o`. Scripts and
 CI can parse this line instead of re-deriving the default-naming logic
 themselves.
 
+## Debugging
+
+`--debug` is global -- unlike the flags above, it works before *any*
+subcommand, including `merge`/`fragment`/`ids`:
+
+```bash
+loom --debug project .
+```
+
+Surfaces `DEBUG:`-level diagnostics on stderr (e.g. why a metadata
+extraction step was skipped) that are otherwise suppressed. Setting the
+`PITLOOM_DEBUG` environment variable (`1`/`true`/`yes`/`on`,
+case-insensitive) has the same effect and also covers entry points that
+don't parse this flag themselves: the Hatchling build hook and every
+public library-API function (`generate_project_sbom()`, etc.).
+
 ## Configuration
 
 See [Configuration](configuration.md) for the full reference -- every

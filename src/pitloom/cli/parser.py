@@ -265,6 +265,17 @@ def _build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"Pitloom {__version__}",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help=(
+            "Surface DEBUG:-level diagnostics on stderr (developer detail, "
+            "e.g. why an extraction step was skipped). Same effect as "
+            "setting PITLOOM_DEBUG=1, which also covers entry points that "
+            "don't parse this flag (the Hatchling build hook, the library "
+            "API)."
+        ),
+    )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 

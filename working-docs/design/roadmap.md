@@ -515,17 +515,16 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
 
 ### Diagnostics / logging
 
-- [ ] **Surface `DEBUG:`-level output on request** -- `AGENTS.md`'s "CLI
-  output" convention documents `ERROR:`/`WARNING:`/`INFO:` reaching
-  stderr and `logging.debug()` staying suppressed by default (a
-  developer-only diagnostic). No opt-in path exists yet to actually see
-  it (no `--verbose`/env-var wiring into `configure_logging()`'s logger
-  level) -- `cli/verbose.py`'s existing `--verbose` flag does something
-  unrelated (a config-resolution diagnostics dump), so this needs either
-  reusing that flag for a second purpose or a new one. Deferred:
-  needs deciding the trigger (flag vs. env var), and whether DEBUG-level
-  messages across the codebase are actually written with an end-user
-  reading them in mind yet.
+- [x] **Surface `DEBUG:`-level output on request** -- shipped both
+  triggers rather than choosing one: a new top-level `--debug` flag
+  (parsed before the subcommand, like `-V`; `cli/verbose.py`'s existing
+  `--verbose` was left alone since it does something unrelated) and the
+  `PITLOOM_DEBUG` environment variable, which also covers entry points
+  that don't parse CLI flags themselves (the Hatchling build hook, every
+  public library-API generator). `configure_logging(debug=...)`
+  resolves `None` (every existing no-argument call site) against the
+  env var; an explicit `True`/`False` (the CLI's `--debug`) wins outright.
+  See `pitloom.logging_config`.
 
 ## Medium-term
 

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -31,6 +32,46 @@ def test_no_args_returns_error(
         __main__.main()
     assert excinfo.value.code == 2
     assert "the following arguments are required: command" in capsys.readouterr().err
+
+
+def test_debug_flag_raises_logger_to_debug_level(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """--debug (parsed on the top-level parser, before the subcommand)
+    reaches configure_logging() so DEBUG: records are no longer
+    suppressed, for any subcommand."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "--debug",
+            "ids",
+            "generate",
+            str(tmp_path),
+            "-o",
+            str(tmp_path / "r.json"),
+        ],
+    )
+    result = __main__.main()
+    assert result == 0
+    assert logging.getLogger("pitloom").getEffectiveLevel() == logging.DEBUG
+
+
+def test_no_debug_flag_leaves_logger_at_info_level(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv("PITLOOM_DEBUG", raising=False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "ids", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
+    )
+    result = __main__.main()
+    assert result == 0
+    assert logging.getLogger("pitloom").getEffectiveLevel() == logging.INFO
 
 
 def test_creator_type_action_returns_after_parser_error(

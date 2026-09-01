@@ -26,6 +26,9 @@ and this project adheres to
 - Add Poetry backend wheel file discovery and lock parsing ([#198])
 - Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
   library API; new `pitloom[validate]` optional extra ([#200])
+- Add `--debug` flag / `PITLOOM_DEBUG` env var to surface `DEBUG:`-level
+  diagnostics on stderr, opt-in across the CLI, Hatchling hook, and
+  library API
 
 [#198]: https://github.com/bact/pitloom/pull/198
 [#200]: https://github.com/bact/pitloom/pull/200

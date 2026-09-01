@@ -43,7 +43,63 @@ def test_configure_logging_prefixes_info(capsys: pytest.CaptureFixture[str]) -> 
 def test_configure_logging_leaves_debug_suppressed(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """DEBUG stays a developer-only diagnostic, never surfaced by default."""
+    """DEBUG stays a developer-only diagnostic, suppressed unless a
+    caller opts in via debug=True or PITLOOM_DEBUG."""
+    configure_logging()
+    _LOG.debug("internal diagnostic detail")
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+
+
+def test_configure_logging_debug_true_surfaces_debug_records(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_logging(debug=True)
+    _LOG.debug("internal diagnostic detail")
+
+    captured = capsys.readouterr()
+    assert captured.err.strip() == "DEBUG: internal diagnostic detail"
+
+
+def test_configure_logging_debug_false_overrides_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An explicit debug=False (e.g. --debug omitted on the CLI) is not
+    the same as debug=None -- only None consults PITLOOM_DEBUG."""
+    monkeypatch.setenv("PITLOOM_DEBUG", "1")
+    configure_logging(debug=False)
+    _LOG.debug("internal diagnostic detail")
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])
+def test_configure_logging_env_var_truthy_values_enable_debug(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    value: str,
+) -> None:
+    """debug=None (every call site that doesn't parse CLI flags itself --
+    the Hatchling hook, every public library-API generator) falls back
+    to PITLOOM_DEBUG."""
+    monkeypatch.setenv("PITLOOM_DEBUG", value)
+    configure_logging()
+    _LOG.debug("internal diagnostic detail")
+
+    captured = capsys.readouterr()
+    assert captured.err.strip() == "DEBUG: internal diagnostic detail"
+
+
+@pytest.mark.parametrize("value", ["0", "false", "no", "", "garbage"])
+def test_configure_logging_env_var_non_truthy_values_leave_debug_suppressed(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    value: str,
+) -> None:
+    monkeypatch.setenv("PITLOOM_DEBUG", value)
     configure_logging()
     _LOG.debug("internal diagnostic detail")
 
