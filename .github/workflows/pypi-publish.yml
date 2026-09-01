@@ -79,6 +79,11 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           wheels=(dist/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one wheel in dist/, found" \
+              "${#wheels[@]}: ${wheels[*]}"
+            exit 1
+          fi
           loom validate-wheel "${wheels[0]}" \
             --sbom-basename "$(basename "${SBOM_PATH}")"
 

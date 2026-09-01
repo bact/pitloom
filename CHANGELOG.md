@@ -29,11 +29,9 @@ and this project adheres to
 - Add `--debug`/`--no-debug` flags / `PITLOOM_DEBUG` env var to surface
   `DEBUG:`-level diagnostics on stderr, consistently across every
   subcommand ([#201])
-- Add `pitloom verify-wheel`/`pitloom validate-wheel` CLI commands and
-  `embed-wheel --verify`/`--validate` convenience flags -- check a
-  wheel's embedded SBOM is at the PEP 770 location with the recommended
-  extension (`verify-wheel`), and passes schema/SHACL validation
-  (`validate-wheel`) ([#202])
+- Add `pitloom verify-wheel`/`validate-wheel` CLI commands and
+  `embed-wheel --verify`/`--validate` flags to check a wheel's embedded
+  SBOM ([#202])
 
 ### Changed
 

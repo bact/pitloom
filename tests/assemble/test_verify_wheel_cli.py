@@ -130,6 +130,32 @@ def test_verify_wheel_ambiguous_without_basename_errors(
     assert "Multiple SBOMs found" in capsys.readouterr().err
 
 
+def test_verify_wheel_nested_sboms_entry_not_ambiguous(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A non-SBOM file nested under sboms/ (e.g. sboms/extra/notes.txt)
+    doesn't count as a second candidate -- only direct children of
+    sboms/ are SBOMs, so one real SBOM plus a nested entry isn't
+    ambiguous."""
+    wheel_path = _make_dummy_wheel(tmp_path, "nestedpkg", "1.0.0")
+    _embed_sbom(wheel_path, sbom_basename="nestedpkg-1.0.0.spdx3.json")
+    with zipfile.ZipFile(wheel_path) as zf:
+        dist_info = next(
+            n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
+        )
+    with zipfile.ZipFile(wheel_path, "a") as zf:
+        zf.writestr(f"{dist_info}/sboms/extra/notes.txt", "not an sbom")
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+    assert "Multiple SBOMs found" not in captured.err
+
+
 def test_verify_wheel_unrecognized_format_warns(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

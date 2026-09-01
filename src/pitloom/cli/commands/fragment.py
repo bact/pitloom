@@ -22,18 +22,18 @@ from pitloom.cli.commands.utils import (
 @cli_error_handler("fragment validate failed")
 def _run_fragment_validate(args: argparse.Namespace) -> int:
     """Run `pitloom fragment validate`."""
-    # Checked before the paths themselves: a missing optional dependency is
-    # the more fundamental blocker, and reporting it first (rather than
-    # after "file not found") matches what a user needs to fix first.
-    if _import_spdx3_validate() is None:
-        return 1
+    # Both checks run and report independently -- a user missing the
+    # optional dependency AND passing a bad path should see both ERROR:
+    # lines in one run, not just the first one, for one round trip.
+    dependency_ok = _import_spdx3_validate() is not None
 
     paths: list[Path] = args.paths
     not_files = [p for p in paths if not p.is_file()]
-    if not_files:
-        for p in not_files:
-            kind = "directory" if p.is_dir() else "file not found"
-            print(f"ERROR: {kind}: {p}", file=sys.stderr)
+    for p in not_files:
+        kind = "directory" if p.is_dir() else "file not found"
+        print(f"ERROR: {kind}: {p}", file=sys.stderr)
+
+    if not dependency_ok or not_files:
         return 1
 
     exit_code = _validate_spdx3_documents(

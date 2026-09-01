@@ -58,9 +58,13 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
 _RECOMMENDED_EXTENSIONS: dict[str, str] = {"spdx3-jsonld": SPDX3_JSONLD_EXTENSION}
 
 #: Formats `validate-wheel` has a registered schema/SHACL validator for.
-#: A future format's content-validation support is added here, not as a
-#: separate hardcoded literal at the `validate-wheel` call site.
-_VALIDATED_FORMATS: frozenset[str] = frozenset({"spdx3-jsonld"})
+#: Derived from `_RECOMMENDED_EXTENSIONS` rather than listed separately --
+#: every format recognized here has a validator today, so a second,
+#: independently-maintained collection would only risk drifting out of
+#: sync with the first. If a future format needs an extension convention
+#: without content validation (or vice versa), split this back into its
+#: own explicit literal rather than letting the two silently diverge.
+_VALIDATED_FORMATS: frozenset[str] = frozenset(_RECOMMENDED_EXTENSIONS)
 
 
 def _detect_sbom_format(data: bytes) -> str | None:

@@ -68,11 +68,21 @@ def find_embedded_sbom(
     (*sbom_basename* given but absent, or no ``sboms/`` entries at all).
 
     Raises:
-        ValueError: The wheel is malformed (see :func:`_find_dist_info_prefix`),
-            or *sbom_basename* is unset and more than one file exists under
+        ValueError: The wheel is malformed -- unreadable as a ZIP archive
+            (a corrupt/truncated ``.whl``, an ``OSError``/
+            :exc:`zipfile.BadZipFile` from opening it) or missing/ambiguous
+            ``.dist-info`` (see :func:`_find_dist_info_prefix`) -- or
+            *sbom_basename* is unset and more than one file exists under
             ``sboms/`` (ambiguous -- caller must disambiguate explicitly).
+            Every failure mode is normalized to ``ValueError`` here so
+            callers only need to catch one exception type.
     """
-    with zipfile.ZipFile(wheel_path, "r") as zf:
+    try:
+        zf_ctx = zipfile.ZipFile(wheel_path, "r")
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ValueError(f"Invalid wheel archive {wheel_path.name}: {exc}") from exc
+
+    with zf_ctx as zf:
         dist_info = _find_dist_info_prefix(zf, wheel_path)
         sboms_prefix = f"{dist_info}sboms/"
         if sbom_basename is not None:

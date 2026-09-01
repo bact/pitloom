@@ -362,3 +362,36 @@ def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
 
     with zipfile.ZipFile(wheel_path, "r") as zf:
         assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())
+
+
+def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--validate against an embedded SBOM with no registered validator
+    for its (unrecognized) format WARNs and skips -- that's not the same
+    as failing, so the command still exits 0."""
+    wheel_path = _make_dummy_wheel(tmp_path, "skipflag", "1.0.0")
+    sbom_file = tmp_path / "notspdx3.spdx3.json"
+    sbom_file.write_text('{"foo": "bar"}', encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--validate",
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert "WARNING:" in captured.err
+    assert "no validator registered" in captured.err
+    assert "ERROR:" not in captured.err

@@ -12,7 +12,6 @@ import dataclasses
 import glob
 import sys
 import traceback
-import zipfile
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -122,15 +121,15 @@ def _locate_embedded_sbom_or_report(
 
     Shared by ``verify-wheel`` and ``validate-wheel``'s per-wheel checks --
     same lookup, same malformed-wheel/ambiguous-match/missing-SBOM error
-    reporting, so the two commands can't drift in wording. Catches every
-    exception `find_embedded_sbom` can raise for a bad wheel (a malformed
-    ZIP, an unreadable/ambiguous ``.dist-info``), not just ``ValueError``,
-    so one bad wheel in a multi-wheel run gets reported per-wheel instead
-    of aborting the whole batch via the outer `cli_error_handler`.
+    reporting, so the two commands can't drift in wording. `find_embedded_sbom`
+    normalizes every bad-wheel failure (malformed ZIP, unreadable/ambiguous
+    ``.dist-info``) to ``ValueError``, so catching just that here is enough
+    to report one bad wheel in a multi-wheel run per-wheel instead of
+    aborting the whole batch via the outer `cli_error_handler`.
     """
     try:
         location = find_embedded_sbom(wheel_path, sbom_basename)
-    except (ValueError, OSError, zipfile.BadZipFile) as exc:
+    except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return None
 

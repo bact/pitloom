@@ -147,6 +147,26 @@ def test_validate_wheel_malformed_wheel_errors(
     assert "no .dist-info directory found" in captured.err
 
 
+def test_validate_wheel_corrupt_zip_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A file that isn't even a valid ZIP archive -> ERROR, exit 1.
+
+    Exercises find_embedded_sbom's OSError/BadZipFile -> ValueError
+    normalization directly (distinct from a well-formed ZIP that's
+    merely missing .dist-info, covered by the malformed-wheel test)."""
+    wheel_path = tmp_path / "notazip-1.0.0-py3-none-any.whl"
+    wheel_path.write_bytes(b"not a zip file at all")
+
+    monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR: Invalid wheel archive" in captured.err
+
+
 def test_validate_wheel_no_wheel_files_errors(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

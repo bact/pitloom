@@ -152,6 +152,25 @@ def test_fragment_validate_command_missing_dependency(
     assert 'pip install "pitloom[validate]"' in captured.err
 
 
+def test_fragment_validate_command_missing_dependency_and_bad_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Both problems are reported in one run -- a missing optional
+    dependency doesn't hide an unrelated bad-path error, or vice versa."""
+    missing_path = tmp_path / "missing.spdx3.json"
+
+    monkeypatch.setattr("sys.argv", ["loom", "fragment", "validate", str(missing_path)])
+    with patch.dict("sys.modules", {"spdx3_validate": None}):
+        result = __main__.main()
+    assert result == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR: the 'spdx3-validate' package is required" in captured.err
+    assert f"ERROR: file not found: {missing_path}" in captured.err
+
+
 @pytest.mark.pypi_network
 def test_fragment_validate_command_no_merge_flag(
     monkeypatch: pytest.MonkeyPatch,
