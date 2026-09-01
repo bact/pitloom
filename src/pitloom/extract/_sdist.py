@@ -85,7 +85,11 @@ def _parse_pyproject_bytes(pyproject_content: bytes) -> ProjectMetadata:
         )
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to parse pyproject.toml from sdist member: %s", exc)
+        log.warning(
+            "Failed to parse pyproject.toml from sdist member: %s | "
+            "Field(s) skipped: name, version, description, dependencies",
+            exc,
+        )
         return ProjectMetadata(name="unknown")
 
 

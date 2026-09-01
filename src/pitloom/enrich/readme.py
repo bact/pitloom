@@ -66,7 +66,11 @@ def _parse_frontmatter(text: str) -> dict[str, Any] | None:
     try:
         data = yaml.safe_load(parts[1])
     except yaml.YAMLError as exc:
-        log.debug("Failed to parse model-card frontmatter: %s", exc)
+        log.warning(
+            "Failed to parse model-card frontmatter: %s | Field(s) "
+            "skipped: license, datasets",
+            exc,
+        )
         return None
     return data if isinstance(data, dict) else None
 
@@ -90,7 +94,12 @@ class ReadmeEnricher:
         try:
             text = card_path.read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
-            log.debug("Failed to read model card %s: %s", card_path, exc)
+            log.warning(
+                "Failed to read model card %s: %s | Field(s) skipped: "
+                "license, datasets",
+                card_path,
+                exc,
+            )
             return EnrichmentResult(source_name=self.name)
 
         frontmatter = _parse_frontmatter(text)

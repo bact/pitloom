@@ -53,7 +53,11 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
         pkl = Pickled.load(cast(BinaryIO, pkl_file))
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("fickling failed to parse pickle bytes: %s", exc)
+        log.warning(
+            "fickling failed to parse pickle bytes: %s | Field(s) skipped: "
+            "type_of_model",
+            exc,
+        )
         return None
 
     try:
@@ -67,7 +71,8 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "fickling parsed pickle but AST walk failed, type_of_model unavailable: %s",
+            "fickling parsed pickle but AST walk failed: %s | Field(s) "
+            "skipped: type_of_model",
             exc,
         )
         return None
@@ -116,7 +121,12 @@ def _read_pytorch_zip(
                 )
         # pylint: disable=broad-exception-caught
         except Exception as exc:
-            log.debug("Failed to inspect %s in %s: %s", pkl_entry, source, exc)
+            log.warning(
+                "Failed to inspect %s in %s: %s | Field(s) skipped: type_of_model",
+                pkl_entry,
+                source,
+                exc,
+            )
 
     return type_of_model, properties, provenance
 

@@ -59,7 +59,11 @@ def _get_caller_info() -> str:
                 )
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to determine caller info: %s", exc)
+        log.warning(
+            "Failed to determine caller info: %s | Field(s) degraded: "
+            "provenance source (falls back to 'unknown')",
+            exc,
+        )
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
 
 
@@ -84,7 +88,11 @@ def _get_caller_script_path() -> str | None:
                 return path.as_posix()
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to determine caller script path: %s", exc)
+        log.warning(
+            "Failed to determine caller script path: %s | Field(s) "
+            "skipped: caller_script_path",
+            exc,
+        )
     return None
 
 

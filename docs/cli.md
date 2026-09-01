@@ -299,6 +299,11 @@ case-insensitive) has the same effect and also covers entry points that
 don't parse this flag themselves: the Hatchling build hook and every
 public library-API function (`generate_project_sbom()`, etc.).
 
+`--no-debug` overrides an ambient `PITLOOM_DEBUG=1` back off for one
+run -- useful when it's set globally (a shell profile, CI) and a
+specific invocation should stay quiet. Omitting `--debug` entirely
+(neither flag given) leaves `PITLOOM_DEBUG` as found, ambient or not.
+
 ## Configuration
 
 See [Configuration](configuration.md) for the full reference -- every

@@ -24,6 +24,11 @@ import threading
 # configure_logging()'s docstring.
 _CONFIG_LOCK = threading.Lock()
 
+# The environment variable a bare configure_logging() (debug=None)
+# falls back to -- see apply_debug_override()'s docstring for why every
+# no-argument call site needs to agree on the same source of truth.
+PITLOOM_DEBUG_ENV_VAR = "PITLOOM_DEBUG"
+
 # Truthy values for the PITLOOM_DEBUG opt-in below; anything else
 # (including unset) leaves DEBUG suppressed.
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
@@ -37,7 +42,39 @@ def _debug_requested(debug: bool | None) -> bool:
     the opt-in for free."""
     if debug is not None:
         return debug
-    return os.environ.get("PITLOOM_DEBUG", "").strip().lower() in _TRUTHY
+    return os.environ.get(PITLOOM_DEBUG_ENV_VAR, "").strip().lower() in _TRUTHY
+
+
+def apply_debug_override(debug: bool | None) -> None:
+    """Normalize an explicit debug choice (the CLI's ``--debug``/
+    ``--no-debug``) into the ``PITLOOM_DEBUG`` environment variable, so
+    it stays the effective choice for the rest of the process.
+
+    Every public generator (``generate_project_sbom()`` and friends, the
+    Hatchling build hook, ``merge_fragments()``) calls bare
+    ``configure_logging()`` internally -- ``debug=None`` -- to (re)apply
+    the shared ``INFO:``/``WARNING:``/``ERROR:`` formatting before doing
+    its own work. Each of those calls independently falls back to
+    ``PITLOOM_DEBUG`` (see :func:`_debug_requested`); without this
+    function, a CLI-only ``debug=True`` passed to the *first*
+    ``configure_logging()`` call (in ``__main__.main()``) would be
+    silently discarded by the *next* one, reverting to ``INFO`` unless
+    ``PITLOOM_DEBUG`` also happened to be set -- ``loom --debug
+    project .`` would look like it worked (the top-level logger briefly
+    goes to ``DEBUG``) but produce no ``DEBUG:`` output once
+    ``generate_project_sbom()`` reconfigures it. Routing the CLI's
+    choice through the same environment variable every call site already
+    consults makes every subsequent bare ``configure_logging()`` agree,
+    with no signature changes needed at any of those call sites.
+    ``debug=None`` (``--debug`` omitted) leaves ``PITLOOM_DEBUG`` as the
+    caller found it -- an ambient environment setting is respected, not
+    overwritten with an implicit "off"."""
+    if debug is None:
+        return
+    if debug:
+        os.environ[PITLOOM_DEBUG_ENV_VAR] = "1"
+    else:
+        os.environ.pop(PITLOOM_DEBUG_ENV_VAR, None)
 
 
 def configure_logging(*, debug: bool | None = None) -> None:

@@ -54,7 +54,11 @@ def _read_pt2_meta_entry(
                 return name, f"{source} | Field: {meta_entry}.{field_name}"
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to parse PT2 metadata entry %s: %s", meta_entry, exc)
+        log.warning(
+            "Failed to parse PT2 metadata entry %s: %s | Field(s) skipped: name",
+            meta_entry,
+            exc,
+        )
     return None, None
 
 
@@ -122,6 +126,16 @@ def _read_pt2_extra_files(
     version: str | None = None
     license_expr: str | None = None
 
+    _EXTRA_FILE_FIELD: dict[str, str] = {
+        "extra/name": "name",
+        "extra/description": "description",
+        "extra/model_version": "version",
+        "extra/version": "version",
+        "extra/license": "license",
+        "extra/author": "properties.author",
+        "extra/tags": "properties.tags",
+    }
+
     def _read_text(rel_path: str) -> str | None:
         full = f"{prefix}{rel_path}"
         if full in file_list:
@@ -129,7 +143,12 @@ def _read_pt2_extra_files(
                 return zf.read(full).decode("utf-8", errors="replace").strip() or None
             # pylint: disable=broad-exception-caught
             except Exception as exc:
-                log.debug("Failed to read PT2 extra file %s: %s", full, exc)
+                log.warning(
+                    "Failed to read PT2 extra file %s: %s | Field(s) skipped: %s",
+                    full,
+                    exc,
+                    _EXTRA_FILE_FIELD.get(rel_path, rel_path),
+                )
         return None
 
     name = _read_text("extra/name")
@@ -165,7 +184,11 @@ def _read_pt2_extra_files(
                 properties["tags"] = tags_raw
         # pylint: disable=broad-exception-caught
         except Exception as exc:
-            log.debug("Failed to parse PT2 extra/tags as JSON: %s", exc)
+            log.warning(
+                "Failed to parse PT2 extra/tags as JSON: %s | Field(s) "
+                "degraded: properties.tags (kept as raw string)",
+                exc,
+            )
             properties["tags"] = tags_raw
         provenance["properties.tags"] = f"{source} | Field: extra/tags"
 
@@ -208,7 +231,12 @@ def _read_pt2_graph_io(
         data = json.loads(zf.read(model_json_path))
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to parse PT2 model graph %s: %s", model_json_path, exc)
+        log.warning(
+            "Failed to parse PT2 model graph %s: %s | Field(s) skipped: "
+            "inputs, outputs",
+            model_json_path,
+            exc,
+        )
         return [], []
 
     graph = (data.get("graph_module") or {}).get("graph") or {}
@@ -247,7 +275,12 @@ def _read_pt2_format_version(
                 return arch_ver, f"{source} | Field: {prefix}archive_version"
         # pylint: disable=broad-exception-caught
         except Exception as exc:
-            log.debug("Failed to read PT2 %sarchive_version: %s", prefix, exc)
+            log.warning(
+                "Failed to read PT2 %sarchive_version: %s | Field(s) "
+                "skipped: version (archive_version fallback)",
+                prefix,
+                exc,
+            )
     return None, None
 
 

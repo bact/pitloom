@@ -8,11 +8,16 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 
 import pytest
 
-from pitloom.logging_config import configure_logging
+from pitloom.logging_config import (
+    PITLOOM_DEBUG_ENV_VAR,
+    apply_debug_override,
+    configure_logging,
+)
 
 _LOG = logging.getLogger("pitloom.test_logging_config")
 
@@ -105,6 +110,65 @@ def test_configure_logging_env_var_non_truthy_values_leave_debug_suppressed(
 
     captured = capsys.readouterr()
     assert captured.err == ""
+
+
+def test_apply_debug_override_true_sets_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # setenv (not delenv) even for a "start absent" baseline: only setenv
+    # unconditionally records a teardown-restore entry (delenv/delitem
+    # only records one when the name is already present) -- otherwise
+    # apply_debug_override(True)'s direct os.environ[...] = "1" write
+    # below would leak PITLOOM_DEBUG=1 into every later test in this
+    # process, exactly the class of bug this function exists to fix.
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0")
+    apply_debug_override(True)
+    assert os.environ[PITLOOM_DEBUG_ENV_VAR] == "1"
+
+
+def test_apply_debug_override_false_clears_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "1")
+    apply_debug_override(False)
+    assert PITLOOM_DEBUG_ENV_VAR not in os.environ
+
+
+def test_apply_debug_override_none_leaves_env_var_untouched(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "yes")
+    apply_debug_override(None)
+    assert os.environ[PITLOOM_DEBUG_ENV_VAR] == "yes"
+
+    monkeypatch.delenv(PITLOOM_DEBUG_ENV_VAR, raising=False)
+    apply_debug_override(None)
+    assert PITLOOM_DEBUG_ENV_VAR not in os.environ
+
+
+def test_apply_debug_override_survives_a_second_bare_configure_logging(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Regression for the exact bug this exists to fix: a CLI-level
+    debug=True passed straight to configure_logging() (instead of routed
+    through PITLOOM_DEBUG first) was silently discarded by a second,
+    argument-less configure_logging() call downstream -- exactly what
+    every generate_*_sbom() function does. Simulates that call sequence
+    directly rather than only via the CLI-level test in
+    tests/cli/test_cli_parser.py, to pin the mechanism, not just the
+    end-to-end outcome."""
+    # setenv, not delenv -- see test_apply_debug_override_true_sets_env_var.
+    monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "0")
+
+    apply_debug_override(True)  # what __main__.main() does for --debug
+    configure_logging()  # __main__.main()'s own call
+
+    configure_logging()  # e.g. generate_project_sbom()'s internal call
+    _LOG.debug("internal diagnostic detail")
+
+    captured = capsys.readouterr()
+    assert captured.err.strip() == "DEBUG: internal diagnostic detail"
 
 
 def test_configure_logging_reentrant_no_duplicate_output(

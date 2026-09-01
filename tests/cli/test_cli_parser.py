@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
+from tests.cli.shared import _make_simple_project
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -41,6 +42,13 @@ def test_debug_flag_raises_logger_to_debug_level(
     """--debug (parsed on the top-level parser, before the subcommand)
     reaches configure_logging() so DEBUG: records are no longer
     suppressed, for any subcommand."""
+    # setenv, not delenv: --debug's apply_debug_override(True) writes
+    # os.environ["PITLOOM_DEBUG"] directly, and only setenv unconditionally
+    # records a teardown-restore entry -- delenv on an already-absent name
+    # records nothing, which would leak PITLOOM_DEBUG=1 into every later
+    # test in this process (see tests/test_logging_config.py's equivalent
+    # comment for the mechanism).
+    monkeypatch.setenv("PITLOOM_DEBUG", "0")
     monkeypatch.setattr(
         sys,
         "argv",
@@ -59,7 +67,38 @@ def test_debug_flag_raises_logger_to_debug_level(
     assert logging.getLogger("pitloom").getEffectiveLevel() == logging.DEBUG
 
 
-def test_no_debug_flag_leaves_logger_at_info_level(
+def test_debug_flag_survives_a_generator_reconfiguring_logging(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Regression: unlike `ids generate`, `project` dispatches into
+    generate_project_sbom(), which calls bare configure_logging() itself
+    (debug=None) before doing its own work. Without routing --debug
+    through PITLOOM_DEBUG, that second call silently reverted the
+    logger to INFO, discarding the CLI's --debug -- this is the case
+    that matters, since every SBOM-writing subcommand
+    (project/generate/wheel/embed-wheel/model/enrich/env) reconfigures
+    logging this way, unlike merge/fragment/ids."""
+    monkeypatch.setenv("PITLOOM_DEBUG", "0")  # see setenv-not-delenv note above
+    project_dir = _make_simple_project(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "--debug",
+            "project",
+            str(project_dir),
+            "-o",
+            str(tmp_path / "sbom.json"),
+        ],
+    )
+    result = __main__.main()
+    assert result == 0
+    assert logging.getLogger("pitloom").getEffectiveLevel() == logging.DEBUG
+
+
+def test_debug_flag_omitted_leaves_logger_at_info_level(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -68,6 +107,50 @@ def test_no_debug_flag_leaves_logger_at_info_level(
         sys,
         "argv",
         ["loom", "ids", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
+    )
+    result = __main__.main()
+    assert result == 0
+    assert logging.getLogger("pitloom").getEffectiveLevel() == logging.INFO
+
+
+def test_debug_flag_omitted_respects_ambient_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """--debug/--no-debug both omitted must not clobber an ambient
+    PITLOOM_DEBUG=1 -- apply_debug_override(None) is a no-op."""
+    monkeypatch.delenv("PITLOOM_DEBUG", raising=False)
+    monkeypatch.setenv("PITLOOM_DEBUG", "1")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "ids", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
+    )
+    result = __main__.main()
+    assert result == 0
+    assert logging.getLogger("pitloom").getEffectiveLevel() == logging.DEBUG
+
+
+def test_no_debug_flag_overrides_ambient_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """--no-debug forces the logger back to INFO for this run even when
+    PITLOOM_DEBUG=1 is set in the environment."""
+    monkeypatch.delenv("PITLOOM_DEBUG", raising=False)
+    monkeypatch.setenv("PITLOOM_DEBUG", "1")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "--no-debug",
+            "ids",
+            "generate",
+            str(tmp_path),
+            "-o",
+            str(tmp_path / "r.json"),
+        ],
     )
     result = __main__.main()
     assert result == 0
