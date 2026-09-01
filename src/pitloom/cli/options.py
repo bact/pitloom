@@ -109,9 +109,9 @@ def add_debug_argument(parser: argparse.ArgumentParser) -> None:
             "Surface DEBUG:-level diagnostics on stderr (developer detail, "
             "e.g. why an extraction step was skipped). Same effect as "
             "setting PITLOOM_DEBUG=1; --no-debug overrides an ambient "
-            "PITLOOM_DEBUG back off for one run. Covers entry points that "
-            "don't parse this flag (the Hatchling build hook, the library "
-            "API) either way."
+            "PITLOOM_DEBUG back off for this invocation. Covers entry "
+            "points that don't parse this flag (the Hatchling build hook, "
+            "the library API) either way."
         ),
     )
 

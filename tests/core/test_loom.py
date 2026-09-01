@@ -31,7 +31,8 @@ def test_get_caller_info_exception_logs_and_returns_fallback(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """When inspect.stack() itself raises, _get_caller_info() catches it,
-    logs at debug level, and returns the same fallback."""
+    logs via warn_once() (WARNING the first time in this process, DEBUG
+    after), and returns the same fallback."""
     with patch(
         "pitloom._loom_caller.inspect.stack", side_effect=RuntimeError("no frames")
     ):

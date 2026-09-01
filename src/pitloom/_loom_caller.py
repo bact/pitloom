@@ -19,8 +19,9 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom.extract._extract_utils import sanitize_provenance_text, warn_once
+from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.ids import IdRegistry, resolve_registry
+from pitloom.logging_config import warn_once
 
 log = logging.getLogger("pitloom.loom")
 

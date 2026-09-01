@@ -185,13 +185,14 @@ def test_caller_script_path_edge_cases(tmp_path: Path) -> None:
 
 def test_caller_info_warns_once_then_downgrades_to_debug(
     caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A persistent inspect.stack() failure (e.g. a sandboxed interpreter)
     logs WARNING once per process, then DEBUG on every later call --
     prevents a per-loom-call check from spamming stderr in a training
-    loop where the underlying condition never clears."""
-    monkeypatch.setattr("pitloom.extract._extract_utils._WARNED_ONCE", set())
+    loop where the underlying condition never clears. The autouse
+    `_reset_warn_once_state` fixture (tests/conftest.py) clears warn_once's
+    dedup state before this test runs, so it's isolated from any earlier
+    test's warn_once() calls."""
     with patch("pitloom._loom_caller.inspect.stack", side_effect=RuntimeError("fail")):
         with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
             # pylint: disable=protected-access

@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from pitloom.extract._license import _get_matcher
+from pitloom.logging_config import _WARNED_ONCE
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -40,6 +41,14 @@ def _reset_license_matcher_cache() -> None:
     """Clear the cached ``AggregatedLicenseMatcher`` before each test, so a
     mock from one test can't leak into the next via ``_get_matcher``'s cache."""
     _get_matcher.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_warn_once_state() -> None:
+    """Clear ``warn_once()``'s per-process dedup state before each test, so
+    one test's WARNING->DEBUG downgrade can't leak into the next and hide a
+    real warn_once regression."""
+    _WARNED_ONCE.clear()
 
 
 @pytest.fixture(autouse=True)
