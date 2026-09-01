@@ -61,7 +61,7 @@ def _get_caller_info() -> str:
     except Exception as exc:
         log.warning(
             "Failed to determine caller info: %s | Field(s) degraded: "
-            "provenance source (falls back to 'unknown')",
+            "provenance Source (falls back to 'unknown')",
             exc,
         )
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"

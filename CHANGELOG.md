@@ -38,13 +38,7 @@ and this project adheres to
   (model card, `model_info()`, license files), PyTorch/PT2
   pickle/graph/metadata parse failures, fastText args/labels reads,
   README enrichment frontmatter, sdist `pyproject.toml` fallback
-  parsing, and `pitloom.loom` caller-provenance detection. Failures
-  that already surface loudly via a raised exception
-  (ONNX/Keras/NumPy/HDF5/Safetensors/GGUF file-open errors), that fall
-  back to an equally-populated field (GGUF quantization name, magika
-  content-type detection), or that fire on a legitimately-absent
-  optional file (`config.json`/`tokenizer_config.json`/
-  `generation_config.json` fetch) stay at `DEBUG:`. Each promoted
+  parsing, and `pitloom.loom` caller-provenance detection. Each promoted
   message names the affected SBOM field(s) (`... | Field(s) skipped:
   <name>`), reusing the existing `Source: ... | Field: ...` provenance
   string shape ([#201])
