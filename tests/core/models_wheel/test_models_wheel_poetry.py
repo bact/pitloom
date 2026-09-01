@@ -6,10 +6,10 @@
 """Tests for Poetry-backed wheel file discovery
 (:mod:`pitloom.core._models_wheel_poetry`).
 
-See also: tests/core/test_models_wheel_dispatch.py for the facade-level
-backend-dispatch/fallback-warning tests; tests/core/test_models_wheel_setuptools.py
-for the setuptools discovery module's own tests, which this file mirrors
-in shape.
+See also: tests/core/models_wheel/test_models_wheel_dispatch.py for
+the facade-level backend-dispatch/fallback-warning tests;
+tests/core/models_wheel/test_models_wheel_setuptools.py for the
+setuptools discovery module's own tests, which this file mirrors in shape.
 """
 
 import logging
@@ -19,7 +19,7 @@ import pytest
 
 from pitloom.core._models_wheel_poetry import discover
 
-FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
+FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "projects"
 SRC_LAYOUT_FIXTURE = FIXTURES / "sampleproject-poetry-src"
 INCLUDE_EXCLUDE_FIXTURE = FIXTURES / "sampleproject-poetry-include-exclude"
 

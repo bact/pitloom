@@ -7,10 +7,11 @@
 enrichment and license-conflict-detection (G2: declared-vs-detected
 disagreement).
 
-See also: tests/core/test_generator_project.py for basic generation,
-main-package PURL, output path, creation comment/tool summary, and
-createdBy creator-type handling. tests/core/test_generator_project_structure.py
-for creator/tool multiplicity, sentimentdemo structure, dependency-name
+See also: tests/core/generator/test_generator_project.py for basic
+generation, main-package PURL, output path, creation comment/tool summary,
+and createdBy creator-type handling.
+tests/core/generator/test_generator_project_structure.py for
+creator/tool multiplicity, sentimentdemo structure, dependency-name
 parsing, fragments, setup.cfg, and preparsed-metadata tests.
 """
 
@@ -25,7 +26,7 @@ from unittest.mock import patch
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata
 
-from .conftest import _AI_MODEL_ROOT, _license_relationships
+from ..conftest import _AI_MODEL_ROOT, _license_relationships
 
 
 def test_generate_project_sbom_enrichment_end_to_end() -> None:

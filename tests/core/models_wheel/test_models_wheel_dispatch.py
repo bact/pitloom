@@ -6,11 +6,12 @@
 """Tests for get_wheel_files() backend dispatch and fallback-warning
 behavior.
 
-See also: tests/core/test_models_wheel_files.py for file-header
-scanning and content-type detection tests;
-tests/core/test_models_wheel_setuptools.py for the setuptools
-discovery module's own tests; tests/core/test_models_wheel_dispatch_lock.py
-for the discovery-lock concurrency tests split out of this file.
+See also: tests/core/models_wheel/test_models_wheel_files.py for
+file-header scanning and content-type detection tests;
+tests/core/models_wheel/test_models_wheel_setuptools.py for the
+setuptools discovery module's own tests;
+tests/core/models_wheel/test_models_wheel_dispatch_lock.py for the
+discovery-lock concurrency tests split out of this file.
 """
 
 import logging

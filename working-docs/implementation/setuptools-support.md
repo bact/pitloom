@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-24
-Last-Modified: 2026-08-31
+Last-Modified: 2026-09-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,7 +38,7 @@ initial setuptools support added in the `setuptools-support` branch.
 | `src/pitloom/core/_models_wheel.py` | Backend-dispatch facade for wheel file discovery (`get_wheel_files()`), shared per-file hashing/header loop |
 | `src/pitloom/core/_models_wheel_setuptools.py` | Setuptools wheel file discovery -- static config only, see below |
 | `src/pitloom/core/_models_wheel_hatchling.py`, `_models_wheel_types.py` | Hatchling discovery module and shared types, siblings of the facade above |
-| `tests/core/test_models_wheel_setuptools.py`, `test_models_wheel_dispatch.py` | Wheel file discovery tests (setuptools-specific, and facade dispatch/fallback) |
+| `tests/core/models_wheel/test_models_wheel_setuptools.py`, `test_models_wheel_dispatch.py` (same directory) | Wheel file discovery tests (setuptools-specific, and facade dispatch/fallback) |
 | `tests/fixtures/projects/sampleproject-setuptools-data/` | `package_data`/`include_package_data`/`MANIFEST.in` fixture for the manifest-analysis discovery path |
 
 ## Extraction functions

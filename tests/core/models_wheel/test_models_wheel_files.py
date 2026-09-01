@@ -8,8 +8,8 @@ detection.
 
 See also: tests/core/test_models.py for dependency normalization,
 doc-uuid, and SPDX-id generation tests;
-tests/core/test_models_wheel_dispatch.py for backend dispatch and
-fallback-warning behavior tests.
+tests/core/models_wheel/test_models_wheel_dispatch.py for backend
+dispatch and fallback-warning behavior tests.
 """
 
 import sys
@@ -25,7 +25,7 @@ from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.models import get_wheel_files
 from pitloom.extract._file_headers import _get_magika
 
-from .test_models import _FakeIncludedFile
+from ..test_models import _FakeIncludedFile
 
 # ---------------------------------------------------------------------------
 # get_wheel_files: scan_file_headers / detect_content_type

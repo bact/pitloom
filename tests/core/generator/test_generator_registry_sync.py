@@ -32,7 +32,7 @@ from pitloom.assemble._generators import _sync_registry
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.ids import IdRegistry
 
-from .conftest import _find_file_element, _make_wheel, _write_smoke_project
+from ..conftest import _find_file_element, _make_wheel, _write_smoke_project
 
 
 def _exporter_with_one_package() -> Spdx3JsonExporter:

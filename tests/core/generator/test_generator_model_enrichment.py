@@ -7,9 +7,10 @@
 handling, external identifiers, dataset-creator attribution, and README
 enrichment variants.
 
-See also: tests/core/test_generator_model.py for registry-based id reuse
-in the assembler/build_deployed(). tests/core/test_generator_model_fragments.py
-for enrich_model() fragment tests, id-consistency, and base-model lineage.
+See also: tests/core/generator/test_generator_model.py for
+registry-based id reuse in the assembler/build_deployed().
+tests/core/generator/test_generator_model_fragments.py for
+enrich_model() fragment tests, id-consistency, and base-model lineage.
 """
 
 # ruff: noqa: F403, F405
@@ -29,7 +30,7 @@ from pitloom.core.dataset_metadata import DatasetMetadata, DatasetReference
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
 
-from .conftest import (
+from ..conftest import (
     _AI_LICENSE_CASES,
     _AI_MODEL_ROOT,
     _BUILD_MODEL_LICENSE_CASES,

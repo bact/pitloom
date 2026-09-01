@@ -6,8 +6,8 @@
 """Tests for setuptools-backed wheel file discovery
 (:mod:`pitloom.core._models_wheel_setuptools`).
 
-See also: tests/core/test_models_wheel_dispatch.py for the facade-level
-backend-dispatch/fallback-warning tests.
+See also: tests/core/models_wheel/test_models_wheel_dispatch.py for
+the facade-level backend-dispatch/fallback-warning tests.
 """
 
 import logging
@@ -27,7 +27,7 @@ from pitloom.core._models_wheel_setuptools import (
 )
 from pitloom.core._models_wheel_types import IncludedFile
 
-FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
+FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "projects"
 PACKAGES_FIND_FIXTURE = FIXTURES / "sampleproject-setuptools"
 PACKAGE_DATA_FIXTURE = FIXTURES / "sampleproject-setuptools-data"
 ZEROCONFIG_FIXTURE = FIXTURES / "sampleproject-setuptools-zeroconfig"

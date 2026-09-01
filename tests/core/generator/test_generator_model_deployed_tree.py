@@ -10,9 +10,10 @@ dependsOn) and their edge cases (a package entry missing a "key", a
 package that is both a dependency and depended upon), plus the
 simpleLicensing profileConformance branch.
 
-See also: tests/core/test_generator_model.py, which covers build_deployed()
-registry-based id reuse -- basic AI-model assembly and usage-file lifecycle
-scoping live there too. tests/core/test_generator_model_enrichment.py for
+See also: tests/core/generator/test_generator_model.py, which
+covers build_deployed() registry-based id reuse -- basic AI-model
+assembly and usage-file lifecycle scoping live there too.
+tests/core/generator/test_generator_model_enrichment.py for
 license handling on regular (non-deployed) assembler paths.
 """
 

@@ -7,9 +7,12 @@
 generation, main-package PURL, output path, and content-type method validation.
 
 See also:
-- :mod:`tests.core.test_generator_project_creators` for creators and tool handling.
-- :mod:`tests.core.test_generator_project_structure` for structure and dependencies.
-- :mod:`tests.core.test_generator_project_enrichment` for project-level enrichment.
+- :mod:`tests.core.generator.test_generator_project_creators` for
+  creators and tool handling.
+- :mod:`tests.core.generator.test_generator_project_structure` for
+  structure and dependencies.
+- :mod:`tests.core.generator.test_generator_project_enrichment` for
+  project-level enrichment.
 """
 
 from __future__ import annotations
