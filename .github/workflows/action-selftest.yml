@@ -50,9 +50,9 @@ jobs:
         # Self-test runs project mode and embed-wheel mode.
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e ".[validate]"
           pip install build==1.5.0 check-wheel-contents==0.6.3 \
-            installer==1.0.1 spdx3-validate==0.0.7
+            installer==1.0.1
 
       - name: Build licenseid database
         run: licenseid update
@@ -120,9 +120,9 @@ jobs:
           print(f"SBOM OK: {len(graph)} graph elements, packages={names[:5]}...")
           EOF
 
-      - name: Validate SBOM with spdx3-validate (best-effort)
+      - name: Validate SBOM with pitloom fragment validate (best-effort)
         run: |
-          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
+          pitloom fragment validate "${{ steps.pitloom.outputs.sbom-path }}"
         continue-on-error: true
 
       - name: Run Pitloom action with default output (project mode)
@@ -207,8 +207,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1. spdx3-validate
-          spdx3-validate --json "${{ steps.pitloom-embed.outputs.sbom-path }}"
+          # 1. pitloom fragment validate (spdx3-validate's library API)
+          pitloom fragment validate "${{ steps.pitloom-embed.outputs.sbom-path }}"
 
           # 2. PyPA installer (RECORD verification)
           python -c '

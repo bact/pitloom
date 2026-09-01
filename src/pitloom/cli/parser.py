@@ -15,6 +15,7 @@ from pitloom.__about__ import __version__
 from pitloom.cli.commands.embed_wheel import add_parser as add_embed_wheel
 from pitloom.cli.commands.enrich import add_parser as add_enrich
 from pitloom.cli.commands.env import add_parser as add_env
+from pitloom.cli.commands.fragment import add_parser as add_fragment
 from pitloom.cli.commands.generate import add_parser as add_generate
 from pitloom.cli.commands.merge import add_parser as add_merge
 from pitloom.cli.commands.model import add_parser as add_model
@@ -275,6 +276,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_enrich(subparsers, parent_parser)
     add_env(subparsers, parent_parser)
     add_merge(subparsers, parent_parser)
+    add_fragment(subparsers, parent_parser)
     add_ids(subparsers, parent_parser)
 
     return parser

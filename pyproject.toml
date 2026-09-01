@@ -102,6 +102,7 @@ numpy = [
 onnx = ["onnx>=1.22.0"]
 pytorch = ["fickling>=0.1.12"]
 safetensors = ["safetensors[numpy]>=0.8.0"]
+validate = ["spdx3-validate>=0.0.7"]
 
 [project.scripts]
 loom = "pitloom.__main__:main"    # default command-line entry point
@@ -292,10 +293,15 @@ markers = [
 # OpenSSF Best Practices "warnings_strict": promote every runtime warning
 # (DeprecationWarning, ResourceWarning, pytest's own internal warnings,
 # etc.) to a hard test failure instead of a silently-printed summary line.
-# Currently zero warnings fire across the suite; a specific, scoped
-# "ignore" entry (not a blanket one) is the fix if a genuine
-# can't-avoid-it warning shows up later.
-filterwarnings = ["error"]
+# A specific, scoped "ignore" entry (not a blanket one) is the fix for a
+# genuine can't-avoid-it warning.
+filterwarnings = [
+    "error",
+    # rdflib's own JSON-LD parser (invoked by spdx3-validate, exercised by
+    # `pitloom fragment validate`'s tests) instantiates the deprecated
+    # ConjunctiveGraph internally; nothing Pitloom-side to fix.
+    "ignore:ConjunctiveGraph is deprecated:DeprecationWarning:rdflib.plugins.parsers.jsonld",
+]
 
 [tool.pylint.messages_control]
 disable = [
