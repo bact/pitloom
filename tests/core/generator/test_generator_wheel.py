@@ -10,7 +10,7 @@ from pitloom.assemble import (
     generate_wheel_sbom,
 )
 
-from .conftest import (
+from ..conftest import (
     _make_wheel,
 )
 

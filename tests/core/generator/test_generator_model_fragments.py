@@ -7,9 +7,10 @@
 generate_model_sbom()/generate_project_sbom(), registry-pinned ids, and
 build_model() base-model lineage.
 
-See also: tests/core/test_generator_model.py for registry-based id reuse
-in the assembler/build_deployed(). tests/core/test_generator_model_enrichment.py
-for license handling, external identifiers, and README enrichment
+See also: tests/core/generator/test_generator_model.py for
+registry-based id reuse in the assembler/build_deployed().
+tests/core/generator/test_generator_model_enrichment.py for
+license handling, external identifiers, and README enrichment
 variants.
 """
 
@@ -28,7 +29,7 @@ from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.ids import IdRegistry
 
-from .conftest import _AI_MODEL_ROOT, _write_smoke_project
+from ..conftest import _AI_MODEL_ROOT, _write_smoke_project
 
 
 def test_enrich_model_writes_bare_graph_fragment() -> None:

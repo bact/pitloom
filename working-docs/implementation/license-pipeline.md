@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-08-17
+Last-Modified: 2026-09-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -305,8 +305,8 @@ For each package with a known licence, the JSON-LD graph contains:
   `tests/assemble/test_license_normalization.py` | Unit tests for
   `_license.py` utilities (originally `tests/test_license.py`, later
   split -- see `cli-test-coverage-roadmap.md`) |
-| `tests/core/test_generator_project_enrichment.py`,
-  `tests/core/test_generator_project_structure.py` | End-to-end
+| `tests/core/generator/test_generator_project_enrichment.py`,
+  `tests/core/generator/test_generator_project_structure.py` | End-to-end
   licence export tests with fixture files (originally
   `tests/test_generator.py`, since split by generation target and
   further by section -- see `cli-test-coverage-roadmap.md`) |

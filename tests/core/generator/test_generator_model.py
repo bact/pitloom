@@ -7,10 +7,10 @@
 basic AI-model assembly, usage-file lifecycle scoping, and registry-based
 id reuse for the assembler and Deployed SBOMs.
 
-See also: tests/core/test_generator_model_enrichment.py for license
+See also: tests/core/generator/test_generator_model_enrichment.py for license
 handling, external identifiers, dataset-creator attribution, and
 generate_model_sbom() enrichment variants.
-tests/core/test_generator_model_fragments.py for enrich_model() fragment
+tests/core/generator/test_generator_model_fragments.py for enrich_model() fragment
 tests, id-consistency, and base-model lineage.
 """
 

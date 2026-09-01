@@ -6,10 +6,10 @@
 """Tests for get_wheel_files()'s discovery-lock concurrency behavior
 (``_DiscoveryLock``'s reader/writer split and writer-priority guarantee).
 
-See also: tests/core/test_models_wheel_dispatch.py for backend-routing and
-fallback-warning tests -- split out of that file once it crossed the
-~400-500 line soft limit; this half shares its ``_make_backend_project``
-helper rather than duplicating it.
+See also: tests/core/models_wheel/test_models_wheel_dispatch.py for
+backend-routing and fallback-warning tests -- split out of that file once
+it crossed the ~400-500 line soft limit; this half shares its
+``_make_backend_project`` helper rather than duplicating it.
 """
 
 import threading

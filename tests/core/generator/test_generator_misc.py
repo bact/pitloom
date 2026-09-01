@@ -27,7 +27,7 @@ from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract.ai_model import read_ai_model
 
-from .conftest import (
+from ..conftest import (
     _AI_MODEL_FIXTURES,
     _AI_MODEL_ROOT,
     _check_license_relationships,

@@ -44,7 +44,6 @@ and this project adheres to
 
 ### Changed
 
-- Reorganize Hugging Face tests ([#187])
 - Split `get_wheel_files()` into a per-backend discovery module + registry,
   ready for Poetry/PDM/Flit-core/`uv_build` ([#196])
 - **Setuptools projects**: SBOM element ids shift vs. pre-upgrade output --
@@ -52,8 +51,6 @@ and this project adheres to
 
 ### Fixed
 
-- Prune unreachable branches in  `_pyproject.py`, `_setuptools_cfg.py`
-  ([#188], [#195])
 - Only declare the `simpleLicensing` profile when a real license claim was
   made ([#190])
 - Setuptools `packages.find where=` layouts no longer report wrong
@@ -78,11 +75,8 @@ and this project adheres to
   PT2/ExecuTorch) and routes it to model-SBOM generation instead of
   falling through to project-SBOM ([#196])
 
-[#187]: https://github.com/bact/pitloom/pull/187
-[#188]: https://github.com/bact/pitloom/pull/188
 [#189]: https://github.com/bact/pitloom/pull/189
 [#190]: https://github.com/bact/pitloom/pull/190
-[#195]: https://github.com/bact/pitloom/pull/195
 [#196]: https://github.com/bact/pitloom/pull/196
 
 ## [0.16.4] - 2026-08-21

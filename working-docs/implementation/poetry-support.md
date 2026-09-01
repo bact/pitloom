@@ -41,7 +41,7 @@ under `[tool.poetry]`.  Issue [#64].
 | `src/pitloom/assemble/spdx3/deps.py`, `document.py` | Additive locked-transitive-dependency `dependsOn` edges, `completeness` tagging |
 | `tests/extract/test_poetry_parsing.py`, `tests/extract/test_poetry_pyproject.py` | Unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these two files -- see `working-docs/design/cli-test-coverage-roadmap.md`) |
 | `tests/extract/test_poetry_lock.py` | `poetry.lock` parsing unit and integration tests |
-| `tests/core/test_models_wheel_poetry.py` | Wheel file discovery unit tests |
+| `tests/core/models_wheel/test_models_wheel_poetry.py` | Wheel file discovery unit tests |
 | `tests/assemble/test_deps_locked_dependencies.py` | Assemble-layer additive-edge/`completeness` tests |
 | `tests/fixtures/projects/sampleproject-poetry/` | Real-world metadata fixture (mistral-inference; no `src/` package dir, not usable for file discovery) |
 | `tests/fixtures/projects/sampleproject-poetry-src/`, `sampleproject-poetry-include-exclude/` | Synthetic file-discovery fixtures (`src/`-layout, `include`/`exclude` globs) |

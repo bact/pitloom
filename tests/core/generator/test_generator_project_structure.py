@@ -7,9 +7,12 @@
 dependency-name parsing, external SBOM fragments, setup.cfg, and preparsed metadata.
 
 See also:
-- :mod:`tests.core.test_generator_project` for basic generation and PURL.
-- :mod:`tests.core.test_generator_project_creators` for creators and tools.
-- :mod:`tests.core.test_generator_project_enrichment` for project-level enrichment.
+- :mod:`tests.core.generator.test_generator_project` for basic
+  generation and PURL.
+- :mod:`tests.core.generator.test_generator_project_creators` for
+  creators and tools.
+- :mod:`tests.core.generator.test_generator_project_enrichment` for
+  project-level enrichment.
 """
 
 from __future__ import annotations

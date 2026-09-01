@@ -9,7 +9,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.ids import FileEntry, IdRegistry
 
-from .conftest import (
+from ..conftest import (
     _annotation_fields_for,
     _build_graph_for_files,
     _find_file_element,

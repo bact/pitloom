@@ -5,8 +5,8 @@
 
 """Tests for SPDX 3 core models.
 
-See also: tests/core/test_models_wheel_files.py for get_wheel_files()
-file-header scanning and content-type detection tests.
+See also: tests/core/models_wheel/test_models_wheel_files.py for
+get_wheel_files() file-header scanning and content-type detection tests.
 """
 
 from collections.abc import Callable, Iterator

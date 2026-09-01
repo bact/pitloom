@@ -6,7 +6,7 @@
 """Tests for pitloom.assemble.generate_project_sbom creation metadata, tools,
 and creators handling.
 
-See also: :mod:`tests.core.test_generator_project`.
+See also: :mod:`tests.core.generator.test_generator_project`.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pitloom.__about__ import __version__
 from pitloom.assemble import generate_project_sbom
 from pitloom.core.creation import CreationMetadata, Creator, Tool
 
-from .conftest import _creation_agents
+from ..conftest import _creation_agents
 
 
 def test_generate_project_sbom_creation_comment_and_no_tool() -> None:
