@@ -346,23 +346,22 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
 
 ### PEP 770 / embed-wheel
 
-- [ ] **`loom embed-wheel --verify`** -- check that a wheel's embedded SBOM
-  is at the correct `.dist-info/sboms/<basename>` location and passes
-  schema/SHACL validation, as a single CLI command. Right now
-  `.github/workflows/pypi-publish.yml`'s "Check SBOM is at the PEP 770
-  location" step hand-rolls this in bash (`unzip -Z1` + a glob match)
-  against the same path convention `pitloom._embed_wheel._plan_embed`
-  already encodes in Python, plus a separate `spdx3-validate` call -- two
-  independently-maintained representations of one convention that could
-  drift if `_plan_embed`'s layout ever changes. A `--verify` flag would
-  consolidate both checks into the tool itself, reusable by any CI
-  pipeline (not just this repo's own release workflow) without
-  reimplementing the path convention.
-  Since `spdx3-validate` 0.0.7, it's usable as a Python library, not just
-  a CLI -- see
-  <https://github.com/JPEWdev/spdx3-validate#using-as-a-library> --
-  `--verify` could call it in-process instead of shelling out, avoiding a
-  second subprocess/dependency-install step in CI.
+- [x] **`loom verify-wheel` / `loom validate-wheel`** -- check that a
+  wheel's embedded SBOM is at the correct `.dist-info/sboms/<basename>`
+  location and, separately, passes schema/SHACL validation. Shipped as
+  two flat subcommands rather than the `--verify` flag originally sketched
+  here: `verify-wheel` (structural, format-neutral -- location +
+  recommended-extension check) and `validate-wheel` (content, SPDX3-only
+  today -- schema/SHACL via `spdx3-validate`'s library API), reusing
+  `pitloom._embed_wheel.find_embedded_sbom()` for the shared location
+  logic and `pitloom.cli.commands.utils._validate_spdx3_documents()`
+  (also now backing `pitloom fragment validate`) for the shared validation
+  path. `embed-wheel` gained `--verify`/`--validate` convenience flags
+  that run the same checks against the wheel just embedded, mirroring how
+  `wheel --embed` already chains into a shared function rather than
+  duplicating logic. Replaces `.github/workflows/pypi-publish.yml`'s
+  hand-rolled bash `unzip -Z1` + glob-match location check and its
+  separate `spdx3-validate --json` shell-out.
 - [ ] **`embed_wheel_sbom(sbom_path=...)` name/version cross-check** --
   when an externally-supplied SBOM is embedded (`--sbom-path`, bypassing
   Pitloom's own generation), `embed_wheel_sbom`
@@ -374,9 +373,9 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   wheel's declared `name`/`version`. Wire up a check (warn or error,
   configurable) so embedding an SBOM built for the wrong wheel doesn't
   pass silently -- this is a genuine name/version reconciliation gap, not
-  covered by `--verify` above, which only checks the embedded file's
-  *location* and *schema*, not its *content's* correspondence to the
-  wheel it landed in.
+  covered by `verify-wheel`/`validate-wheel` above, which only check the
+  embedded file's *location*, *extension*, and *schema*, not its
+  *content's* correspondence to the wheel it landed in.
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 

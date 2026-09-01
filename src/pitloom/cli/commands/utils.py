@@ -111,3 +111,46 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     if had_error:
         return []
     return list(dict.fromkeys(wheel_paths))
+
+
+def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
+    """Validate SPDX 3 JSON document(s) against schema and SHACL rules.
+
+    Shared by ``pitloom fragment validate`` and ``pitloom validate-wheel``
+    -- same underlying `spdx3_validate.validate()` call, same install-hint
+    on missing dependency, same per-violation ``ERROR:`` line handling.
+    Returns the CLI exit code (0 valid, 1 otherwise); prints nothing on
+    success -- callers print their own success message.
+    """
+    try:
+        # pylint: disable=import-outside-toplevel
+        import spdx3_validate
+    except ImportError:
+        print(
+            "ERROR: the 'spdx3-validate' package is required for SPDX 3 "
+            'validation. Install it with: pip install "pitloom[validate]"',
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        result = spdx3_validate.validate(paths, check_merged=check_merged)
+    except spdx3_validate.SpdxValidateError as exc:
+        # A document can't even be loaded/parsed (bad JSON, unrecognized
+        # @context, incompatible versions across paths) -- distinct from a
+        # ValidationResult carrying schema/SHACL findings below, but still
+        # a validation failure the caller should report cleanly, not an
+        # unhandled exception.
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    if not result:
+        for err in result.errors:
+            # err.message can itself be multi-line (e.g. a SHACL violation's
+            # Severity/Source Shape/Focus Node breakdown) -- tag every line
+            # with ERROR: so no continuation line is left ungrep-able.
+            header = f"{err.source}: [{err.kind}] {err.message}"
+            for line in header.splitlines():
+                print(f"ERROR: {line}", file=sys.stderr)
+        return 1
+    return 0

@@ -15,6 +15,11 @@ from typing import Any
 import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+# Pitloom's own file-naming convention for this exporter's output -- SPDX 3
+# itself doesn't mandate an extension. Canonical home for every module that
+# needs to name or recognize an SPDX3 JSON-LD SBOM file.
+SPDX3_JSONLD_EXTENSION = ".spdx3.json"
+
 # Lower value = earlier in @graph. Types not listed here get priority 4.
 # Order rationale:
 #   0 CreationInfo  -- blank node referenced by every element; must resolve first

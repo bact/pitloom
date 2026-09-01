@@ -16,8 +16,8 @@ from pitloom.assemble import (
     generate_env_sbom,
 )
 from pitloom.cli.commands.utils import _print_sbom_output_path, cli_error_handler
-from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.cli.options import _resolve_common_options, add_offline_argument
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 
 @cli_error_handler("deployed SBOM generation failed")
@@ -26,7 +26,9 @@ def _run_env_command(args: argparse.Namespace) -> int:
     pitloom_config, creation, effective_pretty, effective_describe = (
         _resolve_common_options(args, load_project=False)
     )
-    output_path = args.output or (Path.cwd() / f"deployed-environment{_SPDX3_JSON_EXT}")
+    output_path = args.output or (
+        Path.cwd() / f"deployed-environment{SPDX3_JSONLD_EXTENSION}"
+    )
 
     if args.verbose:
         print(f"Pitloom version : {__version__}")

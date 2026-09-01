@@ -12,24 +12,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.cli.commands.utils import cli_error_handler
+from pitloom.cli.commands.utils import _validate_spdx3_documents, cli_error_handler
 
 
 @cli_error_handler("fragment validate failed")
 def _run_fragment_validate(args: argparse.Namespace) -> int:
     """Run `pitloom fragment validate`."""
-    try:
-        # pylint: disable=import-outside-toplevel
-        import spdx3_validate
-    except ImportError:
-        print(
-            "ERROR: the 'spdx3-validate' package is required for "
-            "'pitloom fragment validate'. Install it with: "
-            'pip install "pitloom[validate]"',
-            file=sys.stderr,
-        )
-        return 1
-
     paths: list[Path] = args.paths
     not_files = [p for p in paths if not p.is_file()]
     if not_files:
@@ -38,22 +26,12 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
             print(f"ERROR: {kind}: {p}", file=sys.stderr)
         return 1
 
-    result = spdx3_validate.validate(
-        [str(p) for p in paths],
-        check_merged=not args.no_merge,
+    exit_code = _validate_spdx3_documents(
+        [str(p) for p in paths], check_merged=not args.no_merge
     )
-    if not result:
-        for err in result.errors:
-            # err.message can itself be multi-line (e.g. a SHACL violation's
-            # Severity/Source Shape/Focus Node breakdown) -- tag every line
-            # with ERROR: so no continuation line is left ungrep-able.
-            header = f"{err.source}: [{err.kind}] {err.message}"
-            for line in header.splitlines():
-                print(f"ERROR: {line}", file=sys.stderr)
-        return 1
-
-    print(f"pitloom fragment validate: {len(paths)} document(s) valid")
-    return 0
+    if exit_code == 0:
+        print(f"pitloom fragment validate: {len(paths)} document(s) valid")
+    return exit_code
 
 
 def _run_fragment_command(args: argparse.Namespace) -> int:

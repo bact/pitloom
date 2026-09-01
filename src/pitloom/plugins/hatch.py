@@ -31,6 +31,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
@@ -39,7 +40,6 @@ from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
 
-_SPDX3_JSON_EXT = ".spdx3.json"
 
 #: Hatchling only started reading build_data["sbom_files"] -- the mechanism
 #: this hook relies on to place a build-time-generated SBOM at
@@ -230,7 +230,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         super().__init__(*args, **kwargs)
         self._staging_dir: tempfile.TemporaryDirectory[str] | None = None
         self._sbom_staging_path: Path | None = None
-        self._sbom_filename: str = f"sbom{_SPDX3_JSON_EXT}"
+        self._sbom_filename: str = f"sbom{SPDX3_JSONLD_EXTENSION}"
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Generate the SBOM and register it for injection into the wheel.
@@ -290,7 +290,7 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
         sbom_basename = pitloom_config.sbom_basename or _default_sbom_basename(
             self.metadata
         )
-        sbom_filename: str = f"{sbom_basename}{_SPDX3_JSON_EXT}"
+        sbom_filename: str = f"{sbom_basename}{SPDX3_JSONLD_EXTENSION}"
 
         document, merkle_root, enrichment_results_by_model = _build_document_model(
             project_dir, self.metadata, pitloom_config

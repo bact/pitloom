@@ -23,8 +23,8 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
     resolve_effective_provenance,
 )
-from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.cli.options import _resolve_common_options, add_offline_argument
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 
 @cli_error_handler("wheel command failed")
@@ -56,7 +56,7 @@ def _run_wheel_command(args: argparse.Namespace) -> int:
     output_path = (
         args.output
         if embed
-        else args.output or (Path.cwd() / f"{wheel_path.name}{_SPDX3_JSON_EXT}")
+        else args.output or (Path.cwd() / f"{wheel_path.name}{SPDX3_JSONLD_EXTENSION}")
     )
 
     if args.verbose:

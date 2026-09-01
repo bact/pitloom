@@ -22,6 +22,8 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
     resolve_effective_provenance,
 )
+from pitloom.cli.commands.validate_wheel import _validate_one_wheel
+from pitloom.cli.commands.verify_wheel import _check_one_wheel
 from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
@@ -51,6 +53,23 @@ def _report_embed_result(
             "the SBOM's own 'created' field keeps the true value",
             file=sys.stderr,
         )
+
+
+def _run_post_embed_checks(
+    args: argparse.Namespace, embedded_wheel_path: Path, arcname: str
+) -> bool:
+    """Run --verify/--validate against the wheel embed_wheel_sbom() just
+    modified. Same functions verify-wheel/validate-wheel use standalone,
+    chained here like `wheel --embed` chains into the same embed function.
+    """
+    embedded_basename = arcname.rsplit("/", 1)[-1]
+    verify_ok = not args.verify or _check_one_wheel(
+        embedded_wheel_path, embedded_basename
+    )
+    validate_ok = not args.validate or _validate_one_wheel(
+        embedded_wheel_path, embedded_basename
+    )
+    return verify_ok and validate_ok
 
 
 @cli_error_handler("wheel SBOM embedding failed")
@@ -111,9 +130,10 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline,
     )
+    all_ok = True
     for wheel_path in unique_wheels:
         output_path = args.output if len(unique_wheels) == 1 else None
-        _, arcname, _, removed, floored = embed_wheel_sbom(
+        embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(
             wheel_path,
             project_dir=project_dir,
             pitloom_config=pitloom_config,
@@ -127,7 +147,10 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         _report_embed_result(arcname, wheel_path.name, removed, floored)
         if output_path is not None:
             _print_sbom_output_path(output_path)
-    return 0
+
+        if not _run_post_embed_checks(args, embedded_wheel_path, arcname):
+            all_ok = False
+    return 0 if all_ok else 1
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
@@ -170,6 +193,22 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="NAME",
         help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",
+    )
+    embed_parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=(
+            "After embedding, also run 'verify-wheel' against the result "
+            "(PEP 770 location + recommended-extension check)."
+        ),
+    )
+    embed_parser.add_argument(
+        "--validate",
+        action="store_true",
+        help=(
+            "After embedding, also run 'validate-wheel' against the result "
+            "(schema/SHACL content validation)."
+        ),
     )
     add_offline_argument(embed_parser, " during SBOM generation.")
     embed_parser.set_defaults(func=_run_embed_wheel_command)

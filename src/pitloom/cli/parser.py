@@ -20,6 +20,8 @@ from pitloom.cli.commands.generate import add_parser as add_generate
 from pitloom.cli.commands.merge import add_parser as add_merge
 from pitloom.cli.commands.model import add_parser as add_model
 from pitloom.cli.commands.project import add_parser as add_project
+from pitloom.cli.commands.validate_wheel import add_parser as add_validate_wheel
+from pitloom.cli.commands.verify_wheel import add_parser as add_verify_wheel
 from pitloom.cli.commands.wheel import add_parser as add_wheel
 from pitloom.cli.ids import add_parser as add_ids
 from pitloom.cli.options import add_debug_argument
@@ -274,6 +276,8 @@ def _build_parser() -> argparse.ArgumentParser:
     add_project(subparsers, parent_parser)
     add_wheel(subparsers, parent_parser)
     add_embed_wheel(subparsers, parent_parser)
+    add_verify_wheel(subparsers, parent_parser)
+    add_validate_wheel(subparsers, parent_parser)
     add_model(subparsers, parent_parser)
     add_enrich(subparsers, parent_parser)
     add_env(subparsers, parent_parser)

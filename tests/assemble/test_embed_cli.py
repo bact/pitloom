@@ -293,3 +293,72 @@ def test_cli_embed_wheel_project_dir_without_metadata(
     assert __main__.main() == 1
     err = capsys.readouterr().err
     assert "No pyproject.toml" in err
+
+
+def test_cli_embed_wheel_verify_flag_passes_on_happy_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--verify runs verify-wheel's own check against the freshly embedded
+    wheel -- no WARNING/ERROR since embed-wheel always uses the
+    recommended extension, exit stays 0."""
+    wheel_path = _make_dummy_wheel(tmp_path, "verifyflag", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--verify",
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert "WARNING:" not in captured.err
+    assert "ERROR:" not in captured.err
+
+
+def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--validate runs validate-wheel's own check against the just-embedded
+    wheel. A malformed --sbom still embeds successfully, but --validate
+    catches the problem afterwards and the command exits 1 -- embedding
+    already happened and isn't rolled back."""
+    wheel_path = _make_dummy_wheel(tmp_path, "validateflag", "1.0.0")
+    sbom_file = tmp_path / "bad.spdx3.json"
+    # @context present (so it's detected as spdx3-jsonld and actually
+    # reaches spdx3_validate.validate()) but unrecognized -> UnknownVersionError.
+    sbom_file.write_text('{"@context": "bogus", "@graph": []}', encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--validate",
+        ],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert "ERROR:" in captured.err
+
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())

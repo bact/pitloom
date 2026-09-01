@@ -58,6 +58,13 @@ jobs:
           artifact-name: "sbom"
 
       - name: Check SBOM is at the PEP 770 location
+        # loom verify-wheel replaces the previous hand-rolled `unzip -Z1`
+        # + bash glob match -- same PEP 770 path convention, now checked
+        # by the tool itself instead of a second, independently
+        # maintained representation of it. Output is ERROR:/WARNING:
+        # tagged text, not a `::error::` GitHub annotation -- see
+        # roadmap.md's SARIF item for turning these into inline PR
+        # annotations generally, not just here.
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
         run: |
@@ -69,32 +76,15 @@ jobs:
               "${#wheels[@]}: ${wheels[*]}"
             exit 1
           fi
-          whl="${wheels[0]}"
-          sbom_basename=$(basename "${SBOM_PATH}")
-
-          # Match the exact embedded basename, not just "any .spdx3.json
-          # exists". Bash glob, not grep -E, so dots/dashes in the
-          # basename stay literal.
-          matched=""
-          while IFS= read -r entry; do
-            case "${entry}" in
-              *.dist-info/sboms/"${sbom_basename}")
-                matched="${entry}"
-                break
-                ;;
-            esac
-          done < <(unzip -Z1 "${whl}")
-
-          if [ -z "${matched}" ]; then
-            echo "::error::${sbom_basename} not found under" \
-              "*.dist-info/sboms/ in ${whl}"
-            exit 1
-          fi
-          echo "Found: ${matched}"
+          loom verify-wheel "${wheels[0]}" \
+            --sbom-basename "$(basename "${SBOM_PATH}")"
 
       - name: Validate SBOM
+        # loom validate-wheel replaces the previous standalone
+        # `spdx3-validate --json` shell-out -- same underlying
+        # spdx3-validate library call, run in-process via Pitloom's CLI.
         run: |
-          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
+          loom validate-wheel dist/*.whl
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

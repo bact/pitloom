@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-18
+Last-Modified: 2026-09-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,8 +57,10 @@ wheel directly:
       API publishes for that file.
 - [ ] Unzip it and inspect `pitloom-<version>.dist-info/sboms/pitloom-<version>.spdx3.json`
       directly -- the actual bytes a consumer gets, not a regenerated copy.
-- [ ] Confirm PEP 770 location, run schema + SHACL validation
-      (`spdx3_validate` or the `sbom-validate` Skill), recompute every
+- [ ] Confirm PEP 770 location and recommended extension
+      (`loom verify-wheel <downloaded.whl> --sbom-basename
+      pitloom-<version>.spdx3.json`), run schema + SHACL validation
+      (`loom validate-wheel <downloaded.whl>`), recompute every
       `software_File`'s SHA-256 from the extracted bytes and cross-check
       against the wheel's own `RECORD`, and confirm the main package's
       PURL/license relationships/creator identity are as expected.

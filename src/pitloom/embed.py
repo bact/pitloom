@@ -19,11 +19,9 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom._embed_wheel import (
     _DEFAULT_FILE_ATTR,
     _INVALID_FILENAME_CHARS,
-    _SPDX3_JSON_EXT,
     _ZIP_EPOCH_FLOOR,
     _calculate_record_hash,
     _derive_wheel_sbom_filename,
-    _find_dist_info_prefix,
     _looks_like_pitloom_sbom,
     _plan_embed,
     _resolve_zip_timestamp,
@@ -31,6 +29,12 @@ from pitloom._embed_wheel import (
     _update_record_lines,
     _validate_sbom_filename,
     embed_sbom_in_wheel,
+)
+from pitloom._sbom_format import _RECOMMENDED_EXTENSIONS, _detect_sbom_format
+from pitloom._wheel_sbom_location import (
+    EmbeddedSbomLocation,
+    _find_dist_info_prefix,
+    find_embedded_sbom,
 )
 from pitloom.assemble.spdx3.document import build as assemble_spdx3
 from pitloom.assemble.spdx3.fragments import merge_fragments
@@ -41,6 +45,7 @@ from pitloom.core.models import _build_merkle_tree, get_wheel_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.scanner import scan_project_for_ai_models
@@ -50,15 +55,17 @@ from pitloom.logging_config import configure_logging
 
 __all__ = [
     "ConfigOverrides",
+    "EmbeddedSbomLocation",
     "_DEFAULT_FILE_ATTR",
     "_INVALID_FILENAME_CHARS",
-    "_SPDX3_JSON_EXT",
+    "_RECOMMENDED_EXTENSIONS",
     "_ZIP_EPOCH_FLOOR",
     "_apply_config_overrides",
     "_build_sbom_from_project_and_wheel",
     "_build_sbom_standalone_wheel",
     "_calculate_record_hash",
     "_derive_wheel_sbom_filename",
+    "_detect_sbom_format",
     "_find_dist_info_prefix",
     "_generate_embed_sbom_json",
     "_looks_like_pitloom_sbom",
@@ -69,6 +76,7 @@ __all__ = [
     "_validate_sbom_filename",
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
+    "find_embedded_sbom",
 ]
 
 
@@ -222,7 +230,7 @@ def embed_wheel_sbom(
         overrides=eff_overrides,
     )
     target_filename = (
-        f"{eff_basename.removesuffix(_SPDX3_JSON_EXT)}{_SPDX3_JSON_EXT}"
+        f"{eff_basename.removesuffix(SPDX3_JSONLD_EXTENSION)}{SPDX3_JSONLD_EXTENSION}"
         if eff_basename
         else None
     )

@@ -17,8 +17,8 @@ from pitloom.assemble import (
     enrich_model,
 )
 from pitloom.cli.commands.utils import cli_error_handler
-from pitloom.cli.constants import _SPDX3_JSON_EXT
 from pitloom.cli.options import _resolve_common_options
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 
 @cli_error_handler("enrichment fragment generation failed")
@@ -35,7 +35,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
     _, creation, effective_pretty, _ = _resolve_common_options(args, load_project=False)
 
     output_path = args.output or (
-        Path.cwd() / f"{model_path.name}.enrich{_SPDX3_JSON_EXT}"
+        Path.cwd() / f"{model_path.name}.enrich{SPDX3_JSONLD_EXTENSION}"
     )
 
     if args.verbose:

@@ -14,8 +14,7 @@ from typing import Any
 
 from pitloom.assemble import merge_fragments
 from pitloom.cli.commands.utils import cli_error_handler
-from pitloom.cli.constants import _SPDX3_JSON_EXT
-from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION, Spdx3JsonExporter
 
 
 def _write_merge_output(sbom_json: str, output_path: Path) -> None:
@@ -80,7 +79,7 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         "-o",
         "--output",
         type=Path,
-        default=Path.cwd() / f"merged{_SPDX3_JSON_EXT}",
+        default=Path.cwd() / f"merged{SPDX3_JSONLD_EXTENSION}",
         help="Output JSON-LD path.",
     )
     merge_parser.add_argument(
