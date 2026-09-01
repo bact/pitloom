@@ -68,7 +68,7 @@ def _parse_frontmatter(text: str) -> dict[str, Any] | None:
     except yaml.YAMLError as exc:
         log.warning(
             "Failed to parse model-card frontmatter: %s | Field(s) "
-            "skipped: license, datasets",
+            "affected (skipped): license, datasets",
             exc,
         )
         return None
@@ -95,8 +95,8 @@ class ReadmeEnricher:
             text = card_path.read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
             log.warning(
-                "Failed to read model card %s: %s | Field(s) skipped: "
-                "license, datasets",
+                "Failed to read model card %s: %s | Field(s) affected "
+                "(skipped): license, datasets",
                 card_path,
                 exc,
             )

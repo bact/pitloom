@@ -183,6 +183,29 @@ def test_caller_script_path_edge_cases(tmp_path: Path) -> None:
         assert _loom_caller._get_caller_script_path() is None
 
 
+def test_caller_info_warns_once_then_downgrades_to_debug(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A persistent inspect.stack() failure (e.g. a sandboxed interpreter)
+    logs WARNING once per process, then DEBUG on every later call --
+    prevents a per-loom-call check from spamming stderr in a training
+    loop where the underlying condition never clears."""
+    monkeypatch.setattr("pitloom.extract._extract_utils._WARNED_ONCE", set())
+    with patch("pitloom._loom_caller.inspect.stack", side_effect=RuntimeError("fail")):
+        with caplog.at_level(logging.DEBUG, logger="pitloom.loom"):
+            # pylint: disable=protected-access
+            _loom_caller._get_caller_info()
+            _loom_caller._get_caller_info()
+
+    matching = [
+        r for r in caplog.records if "Failed to determine caller info" in r.message
+    ]
+    assert len(matching) == 2
+    assert matching[0].levelname == "WARNING"
+    assert matching[1].levelname == "DEBUG"
+
+
 def test_hash_and_registry_lookup_content_changed_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

@@ -12,6 +12,7 @@ References:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -19,18 +20,6 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.extract._extract_utils import sanitize_provenance_text
 
 log = logging.getLogger(__name__)
-
-#: Maps each ``extra/`` file's relative path to the SBOM field it populates,
-#: for WARNING messages when that file exists but fails to read.
-_EXTRA_FILE_FIELD: dict[str, str] = {
-    "extra/name": "name",
-    "extra/description": "description",
-    "extra/model_version": "version",
-    "extra/version": "version",
-    "extra/license": "license",
-    "extra/author": "properties.author",
-    "extra/tags": "properties.tags",
-}
 
 
 def _read_pt2_meta_entry(
@@ -67,11 +56,26 @@ def _read_pt2_meta_entry(
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "Failed to parse PT2 metadata entry %s: %s | Field(s) skipped: name",
+            "Failed to parse PT2 metadata entry %s: %s | Field(s) affected "
+            "(skipped): name",
             meta_entry,
             exc,
         )
     return None, None
+
+
+def _resolve_pt2_version(
+    read_text: Callable[[str, str], str | None],
+) -> tuple[str | None, str]:
+    """Resolve the ``extra/`` version value, preferring ``model_version``
+    over ``version``. Each candidate is read at most once -- reusing the
+    result to pick the provenance key, rather than re-reading
+    ``extra/model_version`` a second time, avoids logging the same read
+    failure's WARNING twice."""
+    version = read_text("extra/model_version", "version")
+    if version is not None:
+        return version, "model_version"
+    return read_text("extra/version", "version"), "version"
 
 
 def _detect_root_prefix(file_list: list[str]) -> str:
@@ -138,7 +142,7 @@ def _read_pt2_extra_files(
     version: str | None = None
     license_expr: str | None = None
 
-    def _read_text(rel_path: str) -> str | None:
+    def _read_text(rel_path: str, field: str) -> str | None:
         full = f"{prefix}{rel_path}"
         if full in file_list:
             try:
@@ -146,37 +150,36 @@ def _read_pt2_extra_files(
             # pylint: disable=broad-exception-caught
             except Exception as exc:
                 log.warning(
-                    "Failed to read PT2 extra file %s: %s | Field(s) skipped: %s",
+                    "Failed to read PT2 extra file %s: %s | Field(s) "
+                    "affected (skipped): %s",
                     full,
                     exc,
-                    _EXTRA_FILE_FIELD.get(rel_path, rel_path),
+                    field,
                 )
         return None
 
-    name = _read_text("extra/name")
+    name = _read_text("extra/name", "name")
     if name:
         provenance["name"] = f"{source} | Field: extra/name"
 
-    description = _read_text("extra/description")
+    description = _read_text("extra/description", "description")
     if description:
         provenance["description"] = f"{source} | Field: extra/description"
 
-    # model_version takes precedence over version
-    version = _read_text("extra/model_version") or _read_text("extra/version")
+    version, version_key = _resolve_pt2_version(_read_text)
     if version:
-        key = "model_version" if _read_text("extra/model_version") else "version"
-        provenance["version"] = f"{source} | Field: extra/{key}"
+        provenance["version"] = f"{source} | Field: extra/{version_key}"
 
-    license_expr = _read_text("extra/license")
+    license_expr = _read_text("extra/license", "license")
     if license_expr:
         provenance["license"] = f"{source} | Field: extra/license"
 
-    author = _read_text("extra/author")
+    author = _read_text("extra/author", "properties.author")
     if author:
         properties["author"] = author
         provenance["properties.author"] = f"{source} | Field: extra/author"
 
-    tags_raw = _read_text("extra/tags")
+    tags_raw = _read_text("extra/tags", "properties.tags")
     if tags_raw:
         try:
             tags_list = json.loads(tags_raw)
@@ -188,7 +191,7 @@ def _read_pt2_extra_files(
         except Exception as exc:
             log.warning(
                 "Failed to parse PT2 extra/tags as JSON: %s | Field(s) "
-                "degraded: properties.tags (kept as raw string)",
+                "affected (degraded): properties.tags (kept as raw string)",
                 exc,
             )
             properties["tags"] = tags_raw
@@ -234,8 +237,8 @@ def _read_pt2_graph_io(
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "Failed to parse PT2 model graph %s: %s | Field(s) skipped: "
-            "inputs, outputs",
+            "Failed to parse PT2 model graph %s: %s | Field(s) affected "
+            "(skipped): inputs, outputs",
             model_json_path,
             exc,
         )
@@ -279,7 +282,7 @@ def _read_pt2_format_version(
         except Exception as exc:
             log.warning(
                 "Failed to read PT2 %sarchive_version: %s | Field(s) "
-                "skipped: version (archive_version fallback)",
+                "affected (skipped): version (archive_version fallback)",
                 prefix,
                 exc,
             )

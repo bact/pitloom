@@ -22,6 +22,7 @@ from pitloom.cli.commands.model import add_parser as add_model
 from pitloom.cli.commands.project import add_parser as add_project
 from pitloom.cli.commands.wheel import add_parser as add_wheel
 from pitloom.cli.ids import add_parser as add_ids
+from pitloom.cli.options import add_debug_argument
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS
 from pitloom.core.creation import (
     VALID_CREATOR_TYPES,
@@ -265,19 +266,7 @@ def _build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"Pitloom {__version__}",
     )
-    parser.add_argument(
-        "--debug",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=(
-            "Surface DEBUG:-level diagnostics on stderr (developer detail, "
-            "e.g. why an extraction step was skipped). Same effect as "
-            "setting PITLOOM_DEBUG=1; --no-debug overrides an ambient "
-            "PITLOOM_DEBUG back off for one run. Covers entry points that "
-            "don't parse this flag (the Hatchling build hook, the library "
-            "API) either way."
-        ),
-    )
+    add_debug_argument(parser)
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 

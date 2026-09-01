@@ -126,12 +126,15 @@ def test_apply_debug_override_true_sets_env_var(
     assert os.environ[PITLOOM_DEBUG_ENV_VAR] == "1"
 
 
-def test_apply_debug_override_false_clears_env_var(
+def test_apply_debug_override_false_sets_explicit_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Sets "0" rather than unsetting -- distinguishable from "never
+    # configured" for anything downstream (a subprocess, another
+    # PITLOOM_DEBUG reader) that treats the two states differently.
     monkeypatch.setenv(PITLOOM_DEBUG_ENV_VAR, "1")
     apply_debug_override(False)
-    assert PITLOOM_DEBUG_ENV_VAR not in os.environ
+    assert os.environ[PITLOOM_DEBUG_ENV_VAR] == "0"
 
 
 def test_apply_debug_override_none_leaves_env_var_untouched(

@@ -68,13 +68,23 @@ def apply_debug_override(debug: bool | None) -> None:
     with no signature changes needed at any of those call sites.
     ``debug=None`` (``--debug`` omitted) leaves ``PITLOOM_DEBUG`` as the
     caller found it -- an ambient environment setting is respected, not
-    overwritten with an implicit "off"."""
+    overwritten with an implicit "off". ``debug=False`` (``--no-debug``)
+    sets the variable to ``"0"`` rather than unsetting it, so it stays
+    distinguishable from "never configured" for anything downstream (a
+    subprocess pitloom shells out to, another `PITLOOM_DEBUG` reader) that
+    treats the two states differently.
+
+    This mutates ``os.environ`` for the remaining lifetime of the current
+    process -- correct for the CLI, which runs once per process and exits.
+    A caller that invokes :func:`pitloom.__main__.main` or a public
+    generator more than once in one long-lived process (a wrapper script,
+    a test harness) should call ``apply_debug_override(False)`` between
+    invocations to restore the "no override" state, or set/restore
+    ``PITLOOM_DEBUG`` itself, rather than relying on this function to
+    reset anything on its own -- it never does."""
     if debug is None:
         return
-    if debug:
-        os.environ[PITLOOM_DEBUG_ENV_VAR] = "1"
-    else:
-        os.environ.pop(PITLOOM_DEBUG_ENV_VAR, None)
+    os.environ[PITLOOM_DEBUG_ENV_VAR] = "1" if debug else "0"
 
 
 def configure_logging(*, debug: bool | None = None) -> None:
@@ -88,12 +98,21 @@ def configure_logging(*, debug: bool | None = None) -> None:
     <description>`` convention (see ``ERROR:``, used by the CLI's own
     ``print()`` calls) documented in ``CLAUDE.md``'s "CLI output"
     section. ``DEBUG`` stays suppressed unless opted into: pass
-    ``debug=True`` (the CLI's ``--debug`` flag does this), or leave
-    ``debug`` at its default ``None`` to fall back to the
-    ``PITLOOM_DEBUG`` environment variable (``1``/``true``/``yes``/``on``,
-    case-insensitive) -- the only way entry points that don't parse CLI
-    flags (the Hatchling build hook, every public library-API generator,
-    all of which call this with no arguments) can opt in. When enabled,
+    ``debug=True``/``debug=False`` for an explicit choice made by the
+    caller itself, or leave ``debug`` at its default ``None`` to fall
+    back to the ``PITLOOM_DEBUG`` environment variable
+    (``1``/``true``/``yes``/``on``, case-insensitive). The CLI itself
+    always calls this with no arguments -- ``__main__.main()`` records
+    ``--debug``/``--no-debug`` via :func:`apply_debug_override` (which
+    writes ``PITLOOM_DEBUG`` rather than passing ``debug=`` here
+    directly) *before* this call, precisely so that every *other*
+    ``configure_logging()`` call downstream in the same run -- the
+    Hatchling build hook, every public library-API generator, all of
+    which call this with no arguments -- falls back to the same choice
+    instead of silently reverting to ``INFO``. Passing ``debug=`` directly
+    is for a caller that owns the whole process and doesn't need later
+    bare calls to agree (see :func:`apply_debug_override`'s docstring for
+    why the CLI doesn't do that). When enabled,
     ``log.debug(...)`` records get the same ``%(levelname)s: `` prefix as
     ``INFO``/``WARNING``, i.e. ``DEBUG: <message>`` -- still a developer
     diagnostic, not one of ``CLAUDE.md``'s three normal-invocation

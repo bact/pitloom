@@ -9,11 +9,30 @@ from __future__ import annotations
 
 import http.client
 import json
+import logging
 import urllib.request
 from collections.abc import Iterable
 from importlib.metadata import PackageMetadata
 from pathlib import Path
 from typing import Any
+
+#: Keys already surfaced once via :func:`warn_once` in this process.
+_WARNED_ONCE: set[str] = set()
+
+
+def warn_once(log: logging.Logger, key: str, msg: str, *args: object) -> None:
+    """Log *msg* at WARNING the first time *key* fires in this process,
+    DEBUG on every later occurrence.
+
+    Protects a caller that runs the same fallible check on every iteration
+    of a loop (e.g. once per :func:`pitloom.loom` call in a training run)
+    from flooding stderr when the underlying condition is persistent rather
+    than one-off -- the event still reaches a human once, without repeating
+    on every subsequent call.
+    """
+    level = logging.DEBUG if key in _WARNED_ONCE else logging.WARNING
+    _WARNED_ONCE.add(key)
+    log.log(level, msg, *args)
 
 
 def sanitize_provenance_text(text: str) -> str:

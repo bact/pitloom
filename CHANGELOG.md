@@ -39,9 +39,8 @@ and this project adheres to
   pickle/graph/metadata parse failures, fastText args/labels reads,
   README enrichment frontmatter, sdist `pyproject.toml` fallback
   parsing, and `pitloom.loom` caller-provenance detection. Each promoted
-  message names the affected SBOM field(s) (`... | Field(s) skipped:
-  <name>`), reusing the existing `Source: ... | Field: ...` provenance
-  string shape ([#201])
+  message names the affected SBOM field(s) via one grep-able shape,
+  `... | Field(s) affected (skipped|degraded): <name>` ([#201])
 
 [#198]: https://github.com/bact/pitloom/pull/198
 [#200]: https://github.com/bact/pitloom/pull/200

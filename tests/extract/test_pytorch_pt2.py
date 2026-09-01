@@ -251,6 +251,32 @@ def test_read_pt2_extra_files_read_failure_logs_and_returns_none(
     assert any("extra/name" in r.message for r in caplog.records)
 
 
+def test_read_pt2_extra_files_model_version_read_failure_logs_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A ZIP member listed as extra/model_version that fails to read is
+    logged exactly once, not twice -- regression test for a bug where
+    version resolution re-read extra/model_version a second time (to pick
+    the provenance key), re-triggering the same read failure and its
+    WARNING a second time for one underlying failure."""
+    mock_zf = MagicMock()
+    mock_zf.namelist.return_value = ["extra/model_version"]
+    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+
+    properties: dict[str, str] = {}
+    provenance: dict[str, str] = {}
+    with caplog.at_level(logging.DEBUG, logger="pitloom.extract._pytorch_pt2"):
+        _, _, version, _ = _read_pt2_extra_files(
+            mock_zf, "", "Source: model.pt2", properties, provenance
+        )
+
+    assert version is None
+    assert "version" not in provenance
+    matching = [r for r in caplog.records if "extra/model_version" in r.message]
+    assert len(matching) == 1
+    assert mock_zf.read.call_count == 1
+
+
 def test_read_pt2_zip_archive_version_read_failure_logs_and_continues(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

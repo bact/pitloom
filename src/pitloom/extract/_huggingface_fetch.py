@@ -116,8 +116,9 @@ def _load_model_card(
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "Failed to load model card for %s: %s | Field(s) skipped: "
-            "license, datasets, tags, base_model, library_name, language",
+            "Failed to load model card for %s: %s | Field(s) affected "
+            "(skipped): license, datasets, tags, base_model, library_name, "
+            "language",
             model_id,
             exc,
         )
@@ -159,8 +160,9 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "Failed to load model_info() for %s: %s | Field(s) skipped: "
-            "author, sha, created_at, last_modified, downloads, tags",
+            "Failed to load model_info() for %s: %s | Field(s) affected "
+            "(skipped): author, sha, created_at, last_modified, downloads, "
+            "tags",
             model_id,
             exc,
         )
@@ -183,8 +185,8 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "Failed to list repo files for %s: %s | Field(s) skipped: "
-            "license (file-based detection)",
+            "Failed to list repo files for %s: %s | Field(s) affected "
+            "(skipped): license (file-based detection)",
             model_id,
             exc,
         )
@@ -234,11 +236,10 @@ def _detect_license_from_hf_files(
         except Exception as exc:
             log.warning(
                 "Failed to download/read license file %s for %s: %s | "
-                "Field(s) skipped: license (candidate file %s)",
+                "Field(s) affected (skipped): license",
                 filename,
                 model_id,
                 exc,
-                filename,
             )
             continue
 

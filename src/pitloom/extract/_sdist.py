@@ -87,7 +87,8 @@ def _parse_pyproject_bytes(pyproject_content: bytes) -> ProjectMetadata:
     except Exception as exc:
         log.warning(
             "Failed to parse pyproject.toml from sdist member: %s | "
-            "Field(s) skipped: name, version, description, dependencies",
+            "Field(s) affected (skipped): name, version, description, "
+            "dependencies",
             exc,
         )
         return ProjectMetadata(name="unknown")

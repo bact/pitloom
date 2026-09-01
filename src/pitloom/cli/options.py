@@ -92,6 +92,30 @@ def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
     )
 
 
+def add_debug_argument(parser: argparse.ArgumentParser) -> None:
+    """Add the shared ``--debug``/``--no-debug`` flag.
+
+    Same ``BooleanOptionalAction``/``default=None`` mechanics as
+    :func:`add_offline_argument` -- ``None`` (the flag omitted) means
+    "no explicit choice", letting :func:`pitloom.logging_config.apply_debug_override`
+    leave an ambient ``PITLOOM_DEBUG`` as it found it, rather than the CLI
+    silently forcing debug output off.
+    """
+    parser.add_argument(
+        "--debug",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Surface DEBUG:-level diagnostics on stderr (developer detail, "
+            "e.g. why an extraction step was skipped). Same effect as "
+            "setting PITLOOM_DEBUG=1; --no-debug overrides an ambient "
+            "PITLOOM_DEBUG back off for one run. Covers entry points that "
+            "don't parse this flag (the Hatchling build hook, the library "
+            "API) either way."
+        ),
+    )
+
+
 def _resolve_project_paths(args: argparse.Namespace) -> tuple[Path | None, Path | None]:
     """Resolve and validate project directory or sdist archive path."""
     project_dir = args.project_dir.resolve()

@@ -75,7 +75,8 @@ def _extract_fasttext_args(
     except Exception as exc:
         log.warning(
             "Failed to read fastText model.f.getArgs(): %s | Field(s) "
-            "skipped: hyperparameters, properties.lossName, type_of_model",
+            "affected (skipped): hyperparameters, properties.lossName, "
+            "type_of_model",
             exc,
         )
         return hyperparameters, properties, type_of_model
@@ -111,8 +112,8 @@ def _extract_fasttext_outputs(
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         log.warning(
-            "Failed to read fastText model labels: %s | Field(s) skipped: "
-            "properties.labels, outputs",
+            "Failed to read fastText model labels: %s | Field(s) affected "
+            "(skipped): properties.labels, outputs",
             exc,
         )
         return properties, outputs

@@ -19,7 +19,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.extract._extract_utils import sanitize_provenance_text, warn_once
 from pitloom.ids import IdRegistry, resolve_registry
 
 log = logging.getLogger("pitloom.loom")
@@ -59,9 +59,16 @@ def _get_caller_info() -> str:
                 )
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "Failed to determine caller info: %s | Field(s) degraded: "
-            "provenance Source (falls back to 'unknown')",
+        # WARNING once per process, DEBUG after -- inspect.stack() failing
+        # is a per-process environment condition (sandboxed/frozen
+        # interpreter), not a one-off, so it would otherwise repeat on
+        # every loom call in a training loop.
+        warn_once(
+            log,
+            "caller_info",
+            "Failed to determine caller info: %s | Field(s) affected "
+            "(degraded): provenance Source (falls back to 'unknown'; "
+            "Method: inspect_caller is still recorded)",
             exc,
         )
     return "Source: unknown | Method: inspect_caller (tool: pitloom.loom)"
@@ -88,9 +95,11 @@ def _get_caller_script_path() -> str | None:
                 return path.as_posix()
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.warning(
+        warn_once(
+            log,
+            "caller_script_path",
             "Failed to determine caller script path: %s | Field(s) "
-            "skipped: caller_script_path",
+            "affected (skipped): caller_script_path",
             exc,
         )
     return None
