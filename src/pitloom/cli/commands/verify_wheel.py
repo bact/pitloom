@@ -22,9 +22,9 @@ from pitloom.cli.commands.utils import (
 log = logging.getLogger(__name__)
 
 
-def _check_one_wheel(wheel_path: Path, sbom_basename: str | None) -> bool:
+def _check_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool:
     """Verify one wheel's embedded SBOM location/extension. Returns success."""
-    location = _locate_embedded_sbom_or_report(wheel_path, sbom_basename)
+    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
     if location is None:
         return False
 
@@ -62,7 +62,7 @@ def _run_verify_wheel_command(args: argparse.Namespace) -> int:
 
     all_ok = True
     for wheel_path in wheel_paths:
-        if not _check_one_wheel(wheel_path, args.sbom_basename):
+        if not _check_one_wheel(wheel_path, args.sbom_filename):
             all_ok = False
 
     if all_ok:
@@ -86,10 +86,10 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         help="Path(s) or glob pattern(s) of built .whl file(s) to check.",
     )
     verify_parser.add_argument(
-        "--sbom-basename",
+        "--sbom-filename",
         type=str,
         default=None,
         metavar="NAME",
-        help="Expect this exact basename under .dist-info/sboms/.",
+        help="Expect this exact filename under .dist-info/sboms/.",
     )
     verify_parser.set_defaults(func=_run_verify_wheel_command)

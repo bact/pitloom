@@ -122,12 +122,12 @@ format-neutral, doesn't inspect content:
 
 ```bash
 loom verify-wheel dist/*.whl
-loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl --sbom-basename mypackage-1.0.0.spdx3.json
+loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl --sbom-filename mypackage-1.0.0.spdx3.json
 ```
 
 A missing SBOM is an `ERROR:` (exit 1); a present-but-non-conventional
 extension is a `WARNING:` only -- not fatal, still exit 0. Multiple
-`sboms/` entries need `--sbom-basename` to pick one, else it's an
+`sboms/` entries need `--sbom-filename` to pick one, else it's an
 `ERROR:`.
 
 Validate a wheel's embedded SBOM content against its format's schema and

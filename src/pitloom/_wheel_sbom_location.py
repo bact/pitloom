@@ -79,19 +79,19 @@ class EmbeddedSbomLocation:
 
 
 def find_embedded_sbom(
-    wheel_path: Path, sbom_basename: str | None = None
+    wheel_path: Path, sbom_filename: str | None = None
 ) -> EmbeddedSbomLocation | None:
     """Locate the SBOM embedded in *wheel_path* under ``.dist-info/sboms/``.
 
     Format-neutral: only checks the PEP 770 packaging location, not the
     embedded file's content. Returns ``None`` when nothing is found
-    (*sbom_basename* given but absent, or no ``sboms/`` entries at all).
+    (*sbom_filename* given but absent, or no ``sboms/`` entries at all).
 
     Raises:
         ValueError: The wheel's *content* is bad -- not a valid ZIP archive
             or an unparseable one (see :func:`_open_wheel_zip`), missing/
             ambiguous ``.dist-info`` (see :func:`_find_dist_info_prefix`),
-            or *sbom_basename* is unset and more than one file exists
+            or *sbom_filename* is unset and more than one file exists
             under ``sboms/`` (ambiguous -- caller must disambiguate
             explicitly).
         OSError: An *environment* problem reading *wheel_path* (missing
@@ -103,8 +103,8 @@ def find_embedded_sbom(
     with _open_wheel_zip(wheel_path) as zf:
         dist_info = _find_dist_info_prefix(zf, wheel_path)
         sboms_prefix = f"{dist_info}sboms/"
-        if sbom_basename is not None:
-            arcname = f"{sboms_prefix}{sbom_basename}"
+        if sbom_filename is not None:
+            arcname = f"{sboms_prefix}{sbom_filename}"
             if arcname not in zf.namelist():
                 return None
             return EmbeddedSbomLocation(arcname=arcname, data=zf.read(arcname))
@@ -124,7 +124,7 @@ def find_embedded_sbom(
         if len(candidates) > 1:
             raise ValueError(
                 f"Multiple SBOMs found under {sboms_prefix} in {wheel_path.name} "
-                f"({sorted(candidates)}) -- pass --sbom-basename to disambiguate"
+                f"({sorted(candidates)}) -- pass --sbom-filename to disambiguate"
             )
         arcname = candidates[0]
         return EmbeddedSbomLocation(arcname=arcname, data=zf.read(arcname))

@@ -115,7 +115,7 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
 
 
 def _locate_embedded_sbom_or_report(
-    wheel_path: Path, sbom_basename: str | None
+    wheel_path: Path, sbom_filename: str | None
 ) -> EmbeddedSbomLocation | None:
     """Locate *wheel_path*'s embedded SBOM, reporting ``ERROR:`` on failure.
 
@@ -131,7 +131,7 @@ def _locate_embedded_sbom_or_report(
     whole batch via the outer `cli_error_handler`.
     """
     try:
-        location = find_embedded_sbom(wheel_path, sbom_basename)
+        location = find_embedded_sbom(wheel_path, sbom_filename)
     except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return None
@@ -139,7 +139,7 @@ def _locate_embedded_sbom_or_report(
     if location is None:
         print(
             f"ERROR: no SBOM found under .dist-info/sboms/ in {wheel_path.name}"
-            + (f" matching {sbom_basename!r}" if sbom_basename else ""),
+            + (f" matching {sbom_filename!r}" if sbom_filename else ""),
             file=sys.stderr,
         )
     return location

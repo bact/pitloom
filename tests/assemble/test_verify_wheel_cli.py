@@ -71,7 +71,7 @@ def test_verify_wheel_wrong_extension_warns(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "verify-wheel", str(wheel_path), "--sbom-basename", "sbom.json"],
+        ["loom", "verify-wheel", str(wheel_path), "--sbom-filename", "sbom.json"],
     )
     assert __main__.main() == 0
 
@@ -96,12 +96,12 @@ def test_verify_wheel_missing_sbom_errors(
     assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
 
 
-def test_verify_wheel_sbom_basename_exact_match(
+def test_verify_wheel_sbom_filename_exact_match(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Two ambiguous SBOMs are fine when --sbom-basename disambiguates."""
+    """Two ambiguous SBOMs are fine when --sbom-filename disambiguates."""
     wheel_path = _make_dummy_wheel(tmp_path, "ambigpkg", "1.0.0")
     _embed_sbom(wheel_path, sbom_basename="a.spdx3.json")
     _embed_sbom(wheel_path, sbom_basename="b.spdx3.json")
@@ -109,18 +109,18 @@ def test_verify_wheel_sbom_basename_exact_match(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "verify-wheel", str(wheel_path), "--sbom-basename", "a.spdx3.json"],
+        ["loom", "verify-wheel", str(wheel_path), "--sbom-filename", "a.spdx3.json"],
     )
     assert __main__.main() == 0
     assert "pitloom verify-wheel: 1 wheel(s) OK" in capsys.readouterr().out
 
 
-def test_verify_wheel_ambiguous_without_basename_errors(
+def test_verify_wheel_ambiguous_without_filename_errors(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Multiple SBOMs with no --sbom-basename to disambiguate -> ERROR."""
+    """Multiple SBOMs with no --sbom-filename to disambiguate -> ERROR."""
     wheel_path = _make_dummy_wheel(tmp_path, "ambigpkg2", "1.0.0")
     _embed_sbom(wheel_path, sbom_basename="a.spdx3.json")
     _embed_sbom(wheel_path, sbom_basename="b.spdx3.json")
@@ -180,12 +180,12 @@ def test_verify_wheel_unrecognized_format_warns(
     assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
 
 
-def test_verify_wheel_sbom_basename_not_found_errors(
+def test_verify_wheel_sbom_filename_not_found_errors(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """--sbom-basename given but no matching entry exists -> ERROR, exit 1."""
+    """--sbom-filename given but no matching entry exists -> ERROR, exit 1."""
     wheel_path = _make_dummy_wheel(tmp_path, "nomatchpkg", "1.0.0")
 
     monkeypatch.setattr(
@@ -195,7 +195,7 @@ def test_verify_wheel_sbom_basename_not_found_errors(
             "loom",
             "verify-wheel",
             str(wheel_path),
-            "--sbom-basename",
+            "--sbom-filename",
             "missing.spdx3.json",
         ],
     )

@@ -25,14 +25,14 @@ from pitloom.cli.commands.utils import (
 log = logging.getLogger(__name__)
 
 
-def _validate_one_wheel(wheel_path: Path, sbom_basename: str | None) -> bool | None:
+def _validate_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool | None:
     """Validate one wheel's embedded SBOM content.
 
     Returns ``True``/``False`` for validated/invalid, or ``None`` when no
     validator is registered for the detected format -- skipped, not a
     failure, but also not something the caller should report as "valid".
     """
-    location = _locate_embedded_sbom_or_report(wheel_path, sbom_basename)
+    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
     if location is None:
         return False
 
@@ -75,7 +75,7 @@ def _run_validate_wheel_command(args: argparse.Namespace) -> int:
     all_valid = True
     skipped = 0
     for wheel_path in wheel_paths:
-        result = _validate_one_wheel(wheel_path, args.sbom_basename)
+        result = _validate_one_wheel(wheel_path, args.sbom_filename)
         if result is None:
             skipped += 1
         elif not result:
@@ -106,10 +106,10 @@ def add_parser(subparsers: Any, _parent_parser: argparse.ArgumentParser) -> None
         help="Path(s) or glob pattern(s) of built .whl file(s) to validate.",
     )
     validate_parser.add_argument(
-        "--sbom-basename",
+        "--sbom-filename",
         type=str,
         default=None,
         metavar="NAME",
-        help="Expect this exact basename under .dist-info/sboms/.",
+        help="Expect this exact filename under .dist-info/sboms/.",
     )
     validate_parser.set_defaults(func=_run_validate_wheel_command)
