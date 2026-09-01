@@ -7,12 +7,14 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from pitloom import __main__
+from pitloom.cli.commands.fragment import _run_fragment_command
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
@@ -88,6 +90,14 @@ def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
     assert len(lines) > 1  # a genuine multi-line SHACL violation
     for line in lines:
         assert line.startswith("ERROR: ")
+
+
+def test_fragment_cli_invalid_command() -> None:
+    # argparse catches this normally; test `_run_fragment_command` directly
+    # for the fallback branch (mirrors test_cli_ids.py's equivalent check).
+    args = argparse.Namespace(fragment_command="invalid")
+    result = _run_fragment_command(args)
+    assert result == 1
 
 
 def test_fragment_validate_command_directory_path(
