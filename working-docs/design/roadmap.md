@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-08-31
+Last-Modified: 2026-09-01
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -524,7 +524,15 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   public library-API generator). `configure_logging(debug=...)`
   resolves `None` (every existing no-argument call site) against the
   env var; an explicit `True`/`False` (the CLI's `--debug`) wins outright.
-  See `pitloom.logging_config`.
+  See `pitloom.logging_config`. ([PR #201](https://github.com/bact/pitloom/pull/201))
+- [x] **Promote silent-data-loss `DEBUG:` messages to `WARNING:`** --
+  18 messages across the HF Hub, PyTorch/PT2, fastText, README
+  enrichment, and sdist extractors, plus `pitloom.loom` caller-provenance
+  detection, now surface by default (not just under `--debug`) when a
+  failure drops or degrades an SBOM/AIBOM field. Each names the affected
+  field(s) via one shared, grep-able helper, `field_loss_suffix()`
+  (`pitloom.logging_config`), instead of hand-duplicated suffix text per
+  call site. ([PR #201](https://github.com/bact/pitloom/pull/201))
 
 ## Medium-term
 
