@@ -20,6 +20,18 @@ from pitloom.extract._extract_utils import sanitize_provenance_text
 
 log = logging.getLogger(__name__)
 
+#: Maps each ``extra/`` file's relative path to the SBOM field it populates,
+#: for WARNING messages when that file exists but fails to read.
+_EXTRA_FILE_FIELD: dict[str, str] = {
+    "extra/name": "name",
+    "extra/description": "description",
+    "extra/model_version": "version",
+    "extra/version": "version",
+    "extra/license": "license",
+    "extra/author": "properties.author",
+    "extra/tags": "properties.tags",
+}
+
 
 def _read_pt2_meta_entry(
     zf: ZipFile,
@@ -125,16 +137,6 @@ def _read_pt2_extra_files(
     description: str | None = None
     version: str | None = None
     license_expr: str | None = None
-
-    _EXTRA_FILE_FIELD: dict[str, str] = {
-        "extra/name": "name",
-        "extra/description": "description",
-        "extra/model_version": "version",
-        "extra/version": "version",
-        "extra/license": "license",
-        "extra/author": "properties.author",
-        "extra/tags": "properties.tags",
-    }
 
     def _read_text(rel_path: str) -> str | None:
         full = f"{prefix}{rel_path}"
