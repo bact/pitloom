@@ -84,7 +84,12 @@ def find_embedded_sbom(
         candidates = [
             name
             for name in zf.namelist()
-            if name.startswith(sboms_prefix) and name != sboms_prefix
+            if name.startswith(sboms_prefix)
+            and name != sboms_prefix
+            # Direct children of sboms/ only -- a nested entry like
+            # sboms/extra/notes.txt isn't itself an embedded SBOM and
+            # shouldn't trigger a false "multiple SBOMs" ambiguity.
+            and "/" not in name[len(sboms_prefix) :]
         ]
         if not candidates:
             return None

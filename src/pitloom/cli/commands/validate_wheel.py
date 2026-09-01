@@ -8,45 +8,44 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import _detect_sbom_format, find_embedded_sbom
+from pitloom.assemble import _VALIDATED_FORMATS, _detect_sbom_format
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
+    _locate_embedded_sbom_or_report,
     _validate_spdx3_documents,
     cli_error_handler,
 )
 
+log = logging.getLogger(__name__)
 
-def _validate_one_wheel(wheel_path: Path, sbom_basename: str | None) -> bool:
-    """Validate one wheel's embedded SBOM content. Returns success."""
-    try:
-        location = find_embedded_sbom(wheel_path, sbom_basename)
-    except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return False
 
+def _validate_one_wheel(wheel_path: Path, sbom_basename: str | None) -> bool | None:
+    """Validate one wheel's embedded SBOM content.
+
+    Returns ``True``/``False`` for validated/invalid, or ``None`` when no
+    validator is registered for the detected format -- skipped, not a
+    failure, but also not something the caller should report as "valid".
+    """
+    location = _locate_embedded_sbom_or_report(wheel_path, sbom_basename)
     if location is None:
-        print(
-            f"ERROR: no SBOM found under .dist-info/sboms/ in {wheel_path.name}"
-            + (f" matching {sbom_basename!r}" if sbom_basename else ""),
-            file=sys.stderr,
-        )
         return False
 
     sbom_format = _detect_sbom_format(location.data)
-    if sbom_format != "spdx3-jsonld":
-        print(
-            f"WARNING: {wheel_path.name}: no validator registered for "
-            f"{location.arcname}'s format ({sbom_format or 'unrecognized'}); "
+    if sbom_format not in _VALIDATED_FORMATS:
+        log.warning(
+            "%s: no validator registered for %s's format (%s); "
             "skipping content validation",
-            file=sys.stderr,
+            wheel_path.name,
+            location.arcname,
+            sbom_format or "unrecognized",
         )
-        return True
+        return None
 
     # delete=False + manual cleanup: on Windows, spdx3_validate can't reopen
     # the file by path while our own handle still holds it open (see
@@ -74,12 +73,23 @@ def _run_validate_wheel_command(args: argparse.Namespace) -> int:
         return 1
 
     all_valid = True
+    skipped = 0
     for wheel_path in wheel_paths:
-        if not _validate_one_wheel(wheel_path, args.sbom_basename):
+        result = _validate_one_wheel(wheel_path, args.sbom_basename)
+        if result is None:
+            skipped += 1
+        elif not result:
             all_valid = False
 
     if all_valid:
-        print(f"pitloom validate-wheel: {len(wheel_paths)} wheel(s) valid")
+        validated = len(wheel_paths) - skipped
+        if skipped:
+            print(
+                f"pitloom validate-wheel: {validated} wheel(s) valid, "
+                f"{skipped} skipped (no validator for their format)"
+            )
+        else:
+            print(f"pitloom validate-wheel: {validated} wheel(s) valid")
     return 0 if all_valid else 1
 
 

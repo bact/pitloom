@@ -73,8 +73,14 @@ jobs:
             --sbom-basename "$(basename "${SBOM_PATH}")"
 
       - name: Validate SBOM
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
         run: |
-          loom validate-wheel dist/*.whl
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          loom validate-wheel "${wheels[0]}" \
+            --sbom-basename "$(basename "${SBOM_PATH}")"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

@@ -30,7 +30,11 @@ from pitloom._embed_wheel import (
     _validate_sbom_filename,
     embed_sbom_in_wheel,
 )
-from pitloom._sbom_format import _RECOMMENDED_EXTENSIONS, _detect_sbom_format
+from pitloom._sbom_format import (
+    _RECOMMENDED_EXTENSIONS,
+    _VALIDATED_FORMATS,
+    _detect_sbom_format,
+)
 from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
     _find_dist_info_prefix,
@@ -59,6 +63,7 @@ __all__ = [
     "_DEFAULT_FILE_ATTR",
     "_INVALID_FILENAME_CHARS",
     "_RECOMMENDED_EXTENSIONS",
+    "_VALIDATED_FORMATS",
     "_ZIP_EPOCH_FLOOR",
     "_apply_config_overrides",
     "_build_sbom_from_project_and_wheel",

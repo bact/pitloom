@@ -130,6 +130,71 @@ def test_verify_wheel_ambiguous_without_basename_errors(
     assert "Multiple SBOMs found" in capsys.readouterr().err
 
 
+def test_verify_wheel_unrecognized_format_warns(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A non-JSON-LD embedded file has no detected format -> WARNING,
+    not ERROR -- unrecognized isn't the same as a location problem."""
+    wheel_path = _make_dummy_wheel(tmp_path, "otherpkg", "1.0.0")
+    with zipfile.ZipFile(wheel_path) as zf:
+        dist_info = next(
+            n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
+        )
+    with zipfile.ZipFile(wheel_path, "a") as zf:
+        zf.writestr(f"{dist_info}/sboms/otherpkg-1.0.0.spdx3.json", "not valid json")
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "WARNING: " in captured.err
+    assert "unrecognized SBOM format" in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_sbom_basename_not_found_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--sbom-basename given but no matching entry exists -> ERROR, exit 1."""
+    wheel_path = _make_dummy_wheel(tmp_path, "nomatchpkg", "1.0.0")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "verify-wheel",
+            str(wheel_path),
+            "--sbom-basename",
+            "missing.spdx3.json",
+        ],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
+    assert "matching 'missing.spdx3.json'" in captured.err
+
+
+def test_verify_wheel_no_wheel_files_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """No wheel file matches the given path -> ERROR, exit 1, before any check."""
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "verify-wheel", str(tmp_path / "nope.whl")]
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR: wheel file not found" in captured.err
+
+
 def test_verify_wheel_multiple_wheels_mixed_pass_fail(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

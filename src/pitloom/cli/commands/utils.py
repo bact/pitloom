@@ -12,11 +12,13 @@ import dataclasses
 import glob
 import sys
 import traceback
+import zipfile
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
 from typing import Any
 
+from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.core.provenance import (
     ProvenanceConfig,
@@ -113,14 +115,42 @@ def _collect_wheel_paths(patterns: list[str]) -> list[Path]:
     return list(dict.fromkeys(wheel_paths))
 
 
-def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
-    """Validate SPDX 3 JSON document(s) against schema and SHACL rules.
+def _locate_embedded_sbom_or_report(
+    wheel_path: Path, sbom_basename: str | None
+) -> EmbeddedSbomLocation | None:
+    """Locate *wheel_path*'s embedded SBOM, reporting ``ERROR:`` on failure.
 
-    Shared by ``pitloom fragment validate`` and ``pitloom validate-wheel``
-    -- same underlying `spdx3_validate.validate()` call, same install-hint
-    on missing dependency, same per-violation ``ERROR:`` line handling.
-    Returns the CLI exit code (0 valid, 1 otherwise); prints nothing on
-    success -- callers print their own success message.
+    Shared by ``verify-wheel`` and ``validate-wheel``'s per-wheel checks --
+    same lookup, same malformed-wheel/ambiguous-match/missing-SBOM error
+    reporting, so the two commands can't drift in wording. Catches every
+    exception `find_embedded_sbom` can raise for a bad wheel (a malformed
+    ZIP, an unreadable/ambiguous ``.dist-info``), not just ``ValueError``,
+    so one bad wheel in a multi-wheel run gets reported per-wheel instead
+    of aborting the whole batch via the outer `cli_error_handler`.
+    """
+    try:
+        location = find_embedded_sbom(wheel_path, sbom_basename)
+    except (ValueError, OSError, zipfile.BadZipFile) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return None
+
+    if location is None:
+        print(
+            f"ERROR: no SBOM found under .dist-info/sboms/ in {wheel_path.name}"
+            + (f" matching {sbom_basename!r}" if sbom_basename else ""),
+            file=sys.stderr,
+        )
+    return location
+
+
+def _import_spdx3_validate() -> Any | None:
+    """Import ``spdx3_validate``, printing an install-hint ``ERROR:`` if missing.
+
+    Split out of :func:`_validate_spdx3_documents` so ``fragment validate``
+    can check for the dependency before its own path-existence check (the
+    dependency is more fundamental than any one path being wrong) while
+    :func:`_validate_spdx3_documents` still does the same check internally
+    for callers, like ``validate-wheel``, that don't need to sequence it.
     """
     try:
         # pylint: disable=import-outside-toplevel
@@ -131,6 +161,21 @@ def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
             'validation. Install it with: pip install "pitloom[validate]"',
             file=sys.stderr,
         )
+        return None
+    return spdx3_validate
+
+
+def _validate_spdx3_documents(paths: list[str], *, check_merged: bool) -> int:
+    """Validate SPDX 3 JSON document(s) against schema and SHACL rules.
+
+    Shared by ``pitloom fragment validate`` and ``pitloom validate-wheel``
+    -- same underlying `spdx3_validate.validate()` call, same install-hint
+    on missing dependency, same per-violation ``ERROR:`` line handling.
+    Returns the CLI exit code (0 valid, 1 otherwise); prints nothing on
+    success -- callers print their own success message.
+    """
+    spdx3_validate = _import_spdx3_validate()
+    if spdx3_validate is None:
         return 1
 
     try:

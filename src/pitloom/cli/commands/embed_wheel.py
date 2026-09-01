@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,8 @@ from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
 
+log = logging.getLogger(__name__)
+
 
 def _report_embed_result(
     arcname: str,
@@ -42,16 +45,13 @@ def _report_embed_result(
     """
     print(f"pitloom: embedded {arcname} into {wheel_name}")
     for stale_arcname in removed:
-        print(
-            f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}",
-            file=sys.stderr,
-        )
+        log.info("removed stale SBOM %s from %s", stale_arcname, wheel_name)
     if timestamp_floored:
-        print(
-            f"INFO: {wheel_name}'s embedded SBOM entry timestamp was before "
-            "1980 and was floored to 1980-01-01 (ZIP format limitation); "
-            "the SBOM's own 'created' field keeps the true value",
-            file=sys.stderr,
+        log.info(
+            "%s's embedded SBOM entry timestamp was before 1980 and was "
+            "floored to 1980-01-01 (ZIP format limitation); the SBOM's own "
+            "'created' field keeps the true value",
+            wheel_name,
         )
 
 
@@ -66,8 +66,11 @@ def _run_post_embed_checks(
     verify_ok = not args.verify or _check_one_wheel(
         embedded_wheel_path, embedded_basename
     )
-    validate_ok = not args.validate or _validate_one_wheel(
-        embedded_wheel_path, embedded_basename
+    # _validate_one_wheel returns None for "no validator registered" -- a
+    # skip, not a failure, so only an explicit False fails this check.
+    validate_ok = (
+        not args.validate
+        or _validate_one_wheel(embedded_wheel_path, embedded_basename) is not False
     )
     return verify_ok and validate_ok
 

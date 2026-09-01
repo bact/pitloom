@@ -57,6 +57,11 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
 #:   SPDX 3 RDF/XML    .spdx3.rdf
 _RECOMMENDED_EXTENSIONS: dict[str, str] = {"spdx3-jsonld": SPDX3_JSONLD_EXTENSION}
 
+#: Formats `validate-wheel` has a registered schema/SHACL validator for.
+#: A future format's content-validation support is added here, not as a
+#: separate hardcoded literal at the `validate-wheel` call site.
+_VALIDATED_FORMATS: frozenset[str] = frozenset({"spdx3-jsonld"})
+
 
 def _detect_sbom_format(data: bytes) -> str | None:
     """Return a short format id for *data*, or ``None`` if unrecognized."""

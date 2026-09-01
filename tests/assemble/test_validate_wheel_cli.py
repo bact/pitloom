@@ -129,6 +129,39 @@ def test_validate_wheel_missing_sbom_errors(
     assert "ERROR: no SBOM found under .dist-info/sboms/" in captured.err
 
 
+def test_validate_wheel_malformed_wheel_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A wheel with no .dist-info directory at all -> ERROR, exit 1."""
+    wheel_path = tmp_path / "malformed-1.0.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        zf.writestr("not_a_dist_info/file.txt", "content")
+
+    monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR: Invalid wheel archive" in captured.err
+    assert "no .dist-info directory found" in captured.err
+
+
+def test_validate_wheel_no_wheel_files_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """No wheel file matches the given path -> ERROR, exit 1, before any check."""
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "validate-wheel", str(tmp_path / "nope.whl")]
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR: wheel file not found" in captured.err
+
+
 def test_validate_wheel_unrecognized_format_warns_not_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -145,4 +178,7 @@ def test_validate_wheel_unrecognized_format_warns_not_fails(
     captured = capsys.readouterr()
     assert "WARNING: " in captured.err
     assert "no validator registered" in captured.err
-    assert "pitloom validate-wheel: 1 wheel(s) valid" in captured.out
+    assert (
+        "pitloom validate-wheel: 0 wheel(s) valid, 1 skipped "
+        "(no validator for their format)" in captured.out
+    )

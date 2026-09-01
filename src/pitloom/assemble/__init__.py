@@ -28,6 +28,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import (
     _RECOMMENDED_EXTENSIONS,
+    _VALIDATED_FORMATS,
     ConfigOverrides,
     EmbeddedSbomLocation,
     _detect_sbom_format,
@@ -44,6 +45,7 @@ __all__ = [
     "FragmentMergeError",
     "ProvenanceConfig",
     "_RECOMMENDED_EXTENSIONS",
+    "_VALIDATED_FORMATS",
     "_detect_sbom_format",
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
