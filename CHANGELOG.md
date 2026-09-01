@@ -27,11 +27,11 @@ and this project adheres to
 - Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
   library API; new `pitloom[validate]` optional extra ([#200])
 - Add `--debug` flag / `PITLOOM_DEBUG` env var to surface `DEBUG:`-level
-  diagnostics on stderr, opt-in across the CLI, Hatchling hook, and
-  library API
+  diagnostics on stderr ([#201])
 
 [#198]: https://github.com/bact/pitloom/pull/198
 [#200]: https://github.com/bact/pitloom/pull/200
+[#201]: https://github.com/bact/pitloom/pull/201
 
 ## [0.17.0] - 2026-08-30
 
