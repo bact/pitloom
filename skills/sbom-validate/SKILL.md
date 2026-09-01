@@ -60,23 +60,35 @@ See `references/examples.md` for copy-paste recipes.
 ## Run the validator
 
 ```bash
-pip install spdx3-validate  # if not already installed
-spdx3-validate --json <sbom-file>
+pip install "pitloom[validate]"  # if not already installed
+pitloom fragment validate <sbom-file>
 ```
 
+Works on any SPDX 3 JSON document, Pitloom-generated or not -- despite
+the `fragment` grouping (shared with `pitloom merge`), the underlying
+`spdx3-validate` check has no dependency on Pitloom's own output.
+
 Exit code `0` means valid; a non-zero exit code means at least one
-schema or SHACL error, printed to stdout with the failing JSON path.
+schema or SHACL error, printed to stderr with every line `ERROR:`-tagged
+(a SHACL violation's Severity/Source Shape/Focus Node breakdown spans
+several `ERROR:` lines, not just one).
 
 To validate several related documents (e.g. a base SBOM plus a fragment
 that references it via `ExternalMap`) and additionally check the *merged*
-graph, pass `--json` more than once:
+graph, pass more than one path:
 
 ```bash
-spdx3-validate --json base.spdx3.json --json fragment.spdx3.json
+pitloom fragment validate base.spdx3.json fragment.spdx3.json
 ```
 
 Add `--no-merge` to skip the merged-graph check and validate each
 document only in isolation.
+
+(The standalone `spdx3-validate --json <file>` CLI checks the same rules
+and uses the same exit code convention, if `pitloom[validate]` isn't the
+preferred install path in a given context -- but it writes its report to
+*stdout*, not stderr, and doesn't `ERROR:`-tag lines the way `pitloom
+fragment validate` does.)
 
 ## Report the result
 

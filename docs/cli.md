@@ -40,6 +40,13 @@ Install with extra content type detection:
 pip install "pitloom[content-type]"
 ```
 
+Install with SPDX 3 schema/SHACL validation support (`pitloom fragment
+validate`):
+
+```bash
+pip install "pitloom[validate]"
+```
+
 ## Usage details
 
 ### Generate an SBOM
@@ -198,11 +205,29 @@ id absent from the merge -- most commonly a fragment merged against a
 stale base SBOM (see the note above). Regenerate the base SBOM and
 re-run the fragment-producing step before merging again.
 
-`merge` and `ids` each take only their own small flag set, not the
-common options below -- e.g. `--offline`/`-v`/`--registry`/`--enrich`
-don't apply to either. `merge`'s own `--pretty` also defaults to `True`
-(pretty-printed), the opposite of every other subcommand's compact
-default.
+`merge`, `fragment`, and `ids` each take only their own small flag set,
+not the common options below -- e.g. `--offline`/`-v`/`--registry`/
+`--enrich` don't apply to any of them. `merge`'s own `--pretty` also
+defaults to `True` (pretty-printed), the opposite of every other
+subcommand's compact default.
+
+### Validate fragments
+
+```bash
+pitloom fragment validate combined.spdx3.json
+pitloom fragment validate base.spdx3.json fragment.spdx3.json  # + merged-graph check
+```
+
+Checks JSON Schema and SHACL conformance via
+[`spdx3-validate`](https://pypi.org/project/spdx3-validate/)'s library
+API (requires the `validate` extra above). Works on any SPDX 3 JSON
+document, not just Pitloom's own output. Passing more than one path also
+validates the graph formed by merging them, which catches type errors
+across `ExternalMap` references -- pass `--no-merge` to skip that and
+check each document only in isolation. Non-zero exit reports every
+finding to stderr with every line `ERROR:`-tagged -- a SHACL violation's
+Severity/Source Shape/Focus Node breakdown spans several `ERROR:` lines,
+not just one.
 
 ### Pin ids across fragments
 
@@ -230,7 +255,7 @@ for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
 ## Useful flags
 
 Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
-(not `merge`/`ids`, see above), unless noted otherwise:
+(not `merge`/`fragment`/`ids`, see above), unless noted otherwise:
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--pretty` -- indent the JSON for human reading (default: compact).
