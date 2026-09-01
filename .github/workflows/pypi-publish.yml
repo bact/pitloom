@@ -44,6 +44,26 @@ jobs:
           # overwrites this copy in the published wheel.
           python -m build --no-isolation
 
+      - name: Resolve the built wheel
+        # Computed here, before the embed step below, so an ambiguous
+        # dist/*.whl is caught at its source instead of after
+        # embed-wheel's own glob has already silently absorbed it (its
+        # multi-match handling skips embedding rather than failing --
+        # see attach-release-sbom's "if:" comment below). Every
+        # downstream step (embed, verify, validate) trusts this single
+        # resolved path instead of re-deriving and re-validating it.
+        id: wheel
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one wheel in dist/, found" \
+              "${#wheels[@]}: ${wheels[*]}"
+            exit 1
+          fi
+          echo "path=${wheels[0]}" >> "$GITHUB_OUTPUT"
+
       - name: Regenerate and embed SBOM
         # uses: ./ + install: false runs this commit's own Action/CLI
         # (reusing the checkout installed above) against the release wheel,
@@ -51,7 +71,7 @@ jobs:
         id: pitloom
         uses: ./
         with:
-          embed-wheel: "dist/*.whl"
+          embed-wheel: ${{ steps.wheel.outputs.path }}
           install: "false"
           content-type: "true"
           upload-artifact: "true"
@@ -60,31 +80,19 @@ jobs:
       - name: Check SBOM is at the PEP 770 location
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          wheels=(dist/*.whl)
-          if [ "${#wheels[@]}" -ne 1 ]; then
-            echo "::error::expected exactly one wheel in dist/, found" \
-              "${#wheels[@]}: ${wheels[*]}"
-            exit 1
-          fi
-          loom verify-wheel "${wheels[0]}" \
+          loom verify-wheel "${WHEEL_PATH}" \
             --sbom-basename "$(basename "${SBOM_PATH}")"
 
       - name: Validate SBOM
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          wheels=(dist/*.whl)
-          if [ "${#wheels[@]}" -ne 1 ]; then
-            echo "::error::expected exactly one wheel in dist/, found" \
-              "${#wheels[@]}: ${wheels[*]}"
-            exit 1
-          fi
-          loom validate-wheel "${wheels[0]}" \
+          loom validate-wheel "${WHEEL_PATH}" \
             --sbom-basename "$(basename "${SBOM_PATH}")"
 
       - name: Upload distribution artifacts
@@ -119,8 +127,8 @@ jobs:
     # - build.result == 'success': skip if "Validate SBOM" failed in "build".
     # - publish.result == 'success': skip if PyPI publish failed, so the
     #   release never carries an SBOM for a package that wasn't published.
-    # - sbom-path != '': skip if "build" produced no standalone SBOM
-    #   (embed-wheel matched more than one wheel), since no "sbom"
+    # - sbom-path != '': skip if "build" produced no standalone SBOM (the
+    #   embed-wheel Action step failed to write one), since no "sbom"
     #   artifact was uploaded for this job to download.
     if: |
       needs.build.result == 'success' && needs.publish.result == 'success' &&

@@ -29,9 +29,8 @@ and this project adheres to
 - Add `--debug`/`--no-debug` flags / `PITLOOM_DEBUG` env var to surface
   `DEBUG:`-level diagnostics on stderr, consistently across every
   subcommand ([#201])
-- Add `pitloom verify-wheel`/`validate-wheel` CLI commands and
-  `embed-wheel --verify`/`--validate` flags to check a wheel's embedded
-  SBOM ([#202])
+- Add `pitloom verify-wheel`/`validate-wheel` CLI commands and matching
+  `embed-wheel --verify`/`--validate` flags ([#202])
 
 ### Changed
 

@@ -154,9 +154,11 @@ def test_validate_wheel_corrupt_zip_errors(
 ) -> None:
     """A file that isn't even a valid ZIP archive -> ERROR, exit 1.
 
-    Exercises find_embedded_sbom's OSError/BadZipFile -> ValueError
-    normalization directly (distinct from a well-formed ZIP that's
-    merely missing .dist-info, covered by the malformed-wheel test)."""
+    Exercises find_embedded_sbom's BadZipFile -> ValueError normalization
+    directly (distinct from a well-formed ZIP that's merely missing
+    .dist-info, covered by the malformed-wheel test). OSError is
+    deliberately NOT normalized (see _open_wheel_zip) -- not this test's
+    concern."""
     wheel_path = tmp_path / "notazip-1.0.0-py3-none-any.whl"
     wheel_path.write_bytes(b"not a zip file at all")
 

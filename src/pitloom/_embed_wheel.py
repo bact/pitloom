@@ -28,7 +28,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pitloom._wheel_sbom_location import _find_dist_info_prefix
+from pitloom._wheel_sbom_location import _find_dist_info_prefix, _open_wheel_zip
 from pitloom.core.creation import resolve_source_date_epoch
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
@@ -278,7 +278,18 @@ def embed_sbom_in_wheel(
     *,
     sbom_filename: str | None = None,
 ) -> tuple[Path, str, tuple[str, ...], bool]:
-    """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770)."""
+    """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
+
+    Raises:
+        FileNotFoundError: *wheel_path* doesn't exist.
+        ValueError: *sbom_content* is empty, or the wheel's content is bad
+            (not a valid ZIP, or missing/ambiguous ``.dist-info`` -- see
+            :func:`pitloom._wheel_sbom_location._open_wheel_zip`).
+        OSError: An environment problem opening *wheel_path* (permission
+            denied, a transient I/O error) -- kept as its own exception
+            type, not folded into ``ValueError`` (see
+            :func:`pitloom._wheel_sbom_location._open_wheel_zip`).
+    """
     configure_logging()
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
@@ -292,7 +303,7 @@ def embed_sbom_in_wheel(
 
     orig_mode = wheel_obj.stat().st_mode if wheel_obj.exists() else None
 
-    with zipfile.ZipFile(wheel_obj, "r") as original_zf:
+    with _open_wheel_zip(wheel_obj) as original_zf:
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj)
         plan = _plan_embed(original_zf, dist_info, sbom_filename, sbom_bytes)
         temp_path = _rewrite_wheel_archive(

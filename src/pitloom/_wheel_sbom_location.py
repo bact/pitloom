@@ -22,6 +22,26 @@ import zipfile
 from pathlib import Path
 
 
+def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
+    """Open *wheel_path* for reading as a ZIP archive.
+
+    Any non-``OSError`` exception (bad ZIP, unsupported feature) is
+    normalized to ``ValueError`` -- caught generically so a future
+    ``zipfile`` failure mode is normalized too, not left to leak its own
+    type. ``OSError`` (missing file, permission denied, transient I/O)
+    propagates unchanged, so a caller can retry it without string-matching
+    a folded-in message. Scoped to this constructor call only -- an error
+    from reading an entry afterward keeps its own exception type.
+    """
+    try:
+        return zipfile.ZipFile(wheel_path, "r")
+    except OSError:
+        raise
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        raise ValueError(f"Invalid wheel archive {wheel_path.name}: {exc}") from exc
+
+
 def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
     """Find the single .dist-info directory prefix in the wheel ZIP archive."""
     dist_infos: set[str] = set()
@@ -68,21 +88,19 @@ def find_embedded_sbom(
     (*sbom_basename* given but absent, or no ``sboms/`` entries at all).
 
     Raises:
-        ValueError: The wheel is malformed -- unreadable as a ZIP archive
-            (a corrupt/truncated ``.whl``, an ``OSError``/
-            :exc:`zipfile.BadZipFile` from opening it) or missing/ambiguous
-            ``.dist-info`` (see :func:`_find_dist_info_prefix`) -- or
-            *sbom_basename* is unset and more than one file exists under
-            ``sboms/`` (ambiguous -- caller must disambiguate explicitly).
-            Every failure mode is normalized to ``ValueError`` here so
-            callers only need to catch one exception type.
+        ValueError: The wheel's *content* is bad -- not a valid ZIP archive
+            or an unparseable one (see :func:`_open_wheel_zip`), missing/
+            ambiguous ``.dist-info`` (see :func:`_find_dist_info_prefix`),
+            or *sbom_basename* is unset and more than one file exists
+            under ``sboms/`` (ambiguous -- caller must disambiguate
+            explicitly).
+        OSError: An *environment* problem reading *wheel_path* (missing
+            file, permission denied, a transient I/O error) -- kept as
+            its own exception type rather than folded into ``ValueError``
+            (see :func:`_open_wheel_zip`), so a caller can distinguish
+            "this wheel is bad" from "try again."
     """
-    try:
-        zf_ctx = zipfile.ZipFile(wheel_path, "r")
-    except (OSError, zipfile.BadZipFile) as exc:
-        raise ValueError(f"Invalid wheel archive {wheel_path.name}: {exc}") from exc
-
-    with zf_ctx as zf:
+    with _open_wheel_zip(wheel_path) as zf:
         dist_info = _find_dist_info_prefix(zf, wheel_path)
         sboms_prefix = f"{dist_info}sboms/"
         if sbom_basename is not None:

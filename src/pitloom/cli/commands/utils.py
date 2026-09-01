@@ -122,14 +122,17 @@ def _locate_embedded_sbom_or_report(
     Shared by ``verify-wheel`` and ``validate-wheel``'s per-wheel checks --
     same lookup, same malformed-wheel/ambiguous-match/missing-SBOM error
     reporting, so the two commands can't drift in wording. `find_embedded_sbom`
-    normalizes every bad-wheel failure (malformed ZIP, unreadable/ambiguous
-    ``.dist-info``) to ``ValueError``, so catching just that here is enough
-    to report one bad wheel in a multi-wheel run per-wheel instead of
-    aborting the whole batch via the outer `cli_error_handler`.
+    raises ``ValueError`` for a bad wheel's *content* (malformed ZIP,
+    missing/ambiguous ``.dist-info``) and ``OSError`` for an environment
+    problem reading it (missing file, permission denied) -- the CLI
+    doesn't need to distinguish those the way a library caller might, so
+    both are caught here and reported the same way, letting one bad wheel
+    in a multi-wheel run get reported per-wheel instead of aborting the
+    whole batch via the outer `cli_error_handler`.
     """
     try:
         location = find_embedded_sbom(wheel_path, sbom_basename)
-    except ValueError as exc:
+    except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return None
 
