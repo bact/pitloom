@@ -35,6 +35,29 @@ from .conftest import (
 pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
 
 
+def test_hook_initialize_honors_pitloom_debug_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: initialize() calls bare configure_logging() before
+    its own work, same as the CLI's `project` subcommand (see
+    test_cli_parser.py's test_debug_flag_survives_a_generator_reconfiguring_logging).
+    The hook has no --debug flag; PITLOOM_DEBUG is its only lever."""
+    # setenv, not delenv: avoids leaking PITLOOM_DEBUG=1 into later tests
+    # (see tests/test_logging_config.py for the mechanism).
+    monkeypatch.setenv("PITLOOM_DEBUG", "1")
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        write_pyproject(tmp_path)
+
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+
+        assert logging.getLogger("pitloom").getEffectiveLevel() == logging.DEBUG
+
+        hook.finalize("standard", build_data, "")
+
+
 def test_hook_initialize_stages_sbom() -> None:
     """initialize() must stage the SBOM file and store its path."""
     with tempfile.TemporaryDirectory() as tmp:

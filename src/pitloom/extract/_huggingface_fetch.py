@@ -21,6 +21,8 @@ import json
 import logging
 from typing import Any
 
+from pitloom.logging_config import field_loss_suffix
+
 log = logging.getLogger(__name__)
 
 # HF-specific license values that mean "non-standard / unknown" -
@@ -94,6 +96,9 @@ def _safe_load_json(
             return json.load(fh)  # type: ignore[no-any-return]
     # pylint: disable=broad-exception-caught
     except Exception as exc:
+        # File may legitimately not exist (e.g. non-generative models lack
+        # generation_config.json) -- hf_hub_download raises for that same
+        # as for a genuine failure, so this can't be promoted to WARNING.
         log.debug("Failed to load %s for %s: %s", filename, model_id, exc)
         return None
 
@@ -112,7 +117,16 @@ def _load_model_card(
         return card.text or None, card_data
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to load model card for %s: %s", model_id, exc)
+        msg = "Failed to load model card for %s: %s" + field_loss_suffix(
+            "skipped",
+            "license",
+            "datasets",
+            "tags",
+            "base_model",
+            "library_name",
+            "language",
+        )
+        log.warning(msg, model_id, exc)
         return None, {}
 
 
@@ -150,7 +164,16 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         return result
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to load model_info() for %s: %s", model_id, exc)
+        msg = "Failed to load model_info() for %s: %s" + field_loss_suffix(
+            "skipped",
+            "author",
+            "sha",
+            "created_at",
+            "last_modified",
+            "downloads",
+            "tags",
+        )
+        log.warning(msg, model_id, exc)
         return {}
 
 
@@ -169,7 +192,10 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
         return [f for f in _HF_LICENSE_FILENAMES if f in existing]
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to list repo files for %s: %s", model_id, exc)
+        msg = "Failed to list repo files for %s: %s" + field_loss_suffix(
+            "skipped", "license (file-based detection)"
+        )
+        log.warning(msg, model_id, exc)
         return []
 
 
@@ -214,12 +240,11 @@ def _detect_license_from_hf_files(
             )
         # pylint: disable=broad-exception-caught
         except Exception as exc:
-            log.debug(
-                "Failed to download/read license file %s for %s: %s",
-                filename,
-                model_id,
-                exc,
+            msg = (
+                "Failed to download/read license file %s for %s: %s"
+                + field_loss_suffix("skipped", "license")
             )
+            log.warning(msg, filename, model_id, exc)
             continue
 
         if not text:

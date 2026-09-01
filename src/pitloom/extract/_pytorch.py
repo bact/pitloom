@@ -20,6 +20,7 @@ from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.logging_config import field_loss_suffix
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +54,10 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
         pkl = Pickled.load(cast(BinaryIO, pkl_file))
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("fickling failed to parse pickle bytes: %s", exc)
+        msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
+            "skipped", "type_of_model"
+        )
+        log.warning(msg, exc)
         return None
 
     try:
@@ -66,10 +70,10 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
                         return name
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "fickling parsed pickle but AST walk failed, type_of_model unavailable: %s",
-            exc,
+        msg = "fickling parsed pickle but AST walk failed: %s" + field_loss_suffix(
+            "skipped", "type_of_model"
         )
+        log.warning(msg, exc)
         return None
 
     return None
@@ -116,7 +120,10 @@ def _read_pytorch_zip(
                 )
         # pylint: disable=broad-exception-caught
         except Exception as exc:
-            log.debug("Failed to inspect %s in %s: %s", pkl_entry, source, exc)
+            msg = "Failed to inspect %s in %s: %s" + field_loss_suffix(
+                "skipped", "type_of_model"
+            )
+            log.warning(msg, pkl_entry, source, exc)
 
     return type_of_model, properties, provenance
 

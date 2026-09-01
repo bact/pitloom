@@ -26,9 +26,25 @@ and this project adheres to
 - Add Poetry backend wheel file discovery and lock parsing ([#198])
 - Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
   library API; new `pitloom[validate]` optional extra ([#200])
+- Add `--debug`/`--no-debug` flags / `PITLOOM_DEBUG` env var to surface
+  `DEBUG:`-level diagnostics on stderr, consistently across every
+  subcommand ([#201])
+
+### Changed
+
+- Promote 18 log messages from `DEBUG:` to `WARNING:` (shown by
+  default, not just under `--debug`) where a failure silently drops
+  data from the generated SBOM/AIBOM: Hugging Face Hub fetch failures
+  (model card, `model_info()`, license files), PyTorch/PT2
+  pickle/graph/metadata parse failures, fastText args/labels reads,
+  README enrichment frontmatter, sdist `pyproject.toml` fallback
+  parsing, and `pitloom.loom` caller-provenance detection. Each promoted
+  message names the affected SBOM field(s) via one grep-able shape,
+  `... | Field(s) affected (skipped|degraded): <name>` ([#201])
 
 [#198]: https://github.com/bact/pitloom/pull/198
 [#200]: https://github.com/bact/pitloom/pull/200
+[#201]: https://github.com/bact/pitloom/pull/201
 
 ## [0.17.0] - 2026-08-30
 

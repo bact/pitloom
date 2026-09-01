@@ -16,6 +16,7 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.logging_config import field_loss_suffix
 
 log = logging.getLogger(__name__)
 
@@ -73,7 +74,10 @@ def _extract_fasttext_args(
         args = model.f.getArgs()
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read fastText model.f.getArgs(): %s", exc)
+        msg = "Failed to read fastText model.f.getArgs(): %s" + field_loss_suffix(
+            "skipped", "hyperparameters", "properties.lossName", "type_of_model"
+        )
+        log.warning(msg, exc)
         return hyperparameters, properties, type_of_model
 
     for attr, param_key in _FASTTEXT_ARGS_HYPERPARAMS:
@@ -106,7 +110,10 @@ def _extract_fasttext_outputs(
         labels = get_labels()
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to read fastText model labels: %s", exc)
+        msg = "Failed to read fastText model labels: %s" + field_loss_suffix(
+            "skipped", "properties.labels", "outputs"
+        )
+        log.warning(msg, exc)
         return properties, outputs
 
     if labels:

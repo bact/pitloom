@@ -283,6 +283,34 @@ default-naming logic picked it rather than an explicit `-o`. Scripts and
 CI can parse this line instead of re-deriving the default-naming logic
 themselves.
 
+## Debugging
+
+`--debug` is global -- unlike the flags above, it works before *any*
+subcommand, including `merge`/`fragment`/`ids`:
+
+```bash
+loom --debug project .
+```
+
+Surfaces `DEBUG:`-level diagnostics on stderr (e.g. why a metadata
+extraction step was skipped) that are otherwise suppressed. Setting the
+`PITLOOM_DEBUG` environment variable (`1`/`true`/`yes`/`on`,
+case-insensitive) has the same effect and also covers entry points that
+don't parse this flag themselves: the Hatchling build hook and every
+public library-API function (`generate_project_sbom()`, etc.).
+
+`--no-debug` overrides an ambient `PITLOOM_DEBUG=1` back off for this
+invocation -- useful when it's set globally (a shell profile, CI) and a
+specific invocation should stay quiet. Omitting `--debug` entirely
+(neither flag given) leaves `PITLOOM_DEBUG` as found, ambient or not.
+Under the hood, `--no-debug` sets `PITLOOM_DEBUG=0` in the process
+environment for the rest of the run; this only looks scoped to "one
+run" because the CLI process exits afterward. A script embedding
+Pitloom's library API and calling it more than once in one long-lived
+process should not rely on `--no-debug`/`apply_debug_override(False)`
+to reset itself between calls -- see `apply_debug_override()`'s
+docstring in `pitloom/logging_config.py`.
+
 ## Configuration
 
 See [Configuration](configuration.md) for the full reference -- every

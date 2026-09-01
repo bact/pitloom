@@ -18,6 +18,7 @@ from typing import Any
 
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract._toml_io import tomllib
+from pitloom.logging_config import field_loss_suffix
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +86,13 @@ def _parse_pyproject_bytes(pyproject_content: bytes) -> ProjectMetadata:
         )
     # pylint: disable=broad-exception-caught
     except Exception as exc:
-        log.debug("Failed to parse pyproject.toml from sdist member: %s", exc)
+        msg = (
+            "Failed to parse pyproject.toml from sdist member: %s"
+            + field_loss_suffix(
+                "skipped", "name", "version", "description", "dependencies"
+            )
+        )
+        log.warning(msg, exc)
         return ProjectMetadata(name="unknown")
 
 
