@@ -69,8 +69,9 @@ the `fragment` grouping (shared with `pitloom merge`), the underlying
 `spdx3-validate` check has no dependency on Pitloom's own output.
 
 Exit code `0` means valid; a non-zero exit code means at least one
-schema or SHACL error, each printed to stderr as its own `ERROR:` line
-with the failing document and JSON path.
+schema or SHACL error, printed to stderr with every line `ERROR:`-tagged
+(a SHACL violation's Severity/Source Shape/Focus Node breakdown spans
+several `ERROR:` lines, not just one).
 
 To validate several related documents (e.g. a base SBOM plus a fragment
 that references it via `ExternalMap`) and additionally check the *merged*
@@ -83,9 +84,11 @@ pitloom fragment validate base.spdx3.json fragment.spdx3.json
 Add `--no-merge` to skip the merged-graph check and validate each
 document only in isolation.
 
-(The standalone `spdx3-validate --json <file>` CLI works the same way,
-if `pitloom[validate]` isn't the preferred install path in a given
-context.)
+(The standalone `spdx3-validate --json <file>` CLI checks the same rules
+and uses the same exit code convention, if `pitloom[validate]` isn't the
+preferred install path in a given context -- but it writes its report to
+*stdout*, not stderr, and doesn't `ERROR:`-tag lines the way `pitloom
+fragment validate` does.)
 
 ## Report the result
 

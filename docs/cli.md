@@ -224,8 +224,10 @@ API (requires the `validate` extra above). Works on any SPDX 3 JSON
 document, not just Pitloom's own output. Passing more than one path also
 validates the graph formed by merging them, which catches type errors
 across `ExternalMap` references -- pass `--no-merge` to skip that and
-check each document only in isolation. Non-zero exit reports each
-finding as its own `ERROR:` line.
+check each document only in isolation. Non-zero exit reports every
+finding to stderr with every line `ERROR:`-tagged -- a SHACL violation's
+Severity/Source Shape/Focus Node breakdown spans several `ERROR:` lines,
+not just one.
 
 ### Pin ids across fragments
 

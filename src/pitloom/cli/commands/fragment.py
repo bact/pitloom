@@ -31,10 +31,11 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
         return 1
 
     paths: list[Path] = args.paths
-    missing = [p for p in paths if not p.exists()]
-    if missing:
-        for p in missing:
-            print(f"ERROR: file not found: {p}", file=sys.stderr)
+    not_files = [p for p in paths if not p.is_file()]
+    if not_files:
+        for p in not_files:
+            kind = "directory" if p.is_dir() else "file not found"
+            print(f"ERROR: {kind}: {p}", file=sys.stderr)
         return 1
 
     result = spdx3_validate.validate(
@@ -43,7 +44,12 @@ def _run_fragment_validate(args: argparse.Namespace) -> int:
     )
     if not result:
         for err in result.errors:
-            print(f"ERROR: {err.source}: [{err.kind}] {err.message}", file=sys.stderr)
+            # err.message can itself be multi-line (e.g. a SHACL violation's
+            # Severity/Source Shape/Focus Node breakdown) -- tag every line
+            # with ERROR: so no continuation line is left ungrep-able.
+            header = f"{err.source}: [{err.kind}] {err.message}"
+            for line in header.splitlines():
+                print(f"ERROR: {line}", file=sys.stderr)
         return 1
 
     print(f"pitloom fragment validate: {len(paths)} document(s) valid")

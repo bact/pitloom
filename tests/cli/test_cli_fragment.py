@@ -16,6 +16,7 @@ from pitloom import __main__
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
+CONFLICTING_FRAGMENT = FIXTURE_DIR / "fragments" / "training-run-fragment.spdx3.json"
 
 
 @pytest.mark.pypi_network
@@ -55,6 +56,56 @@ def test_fragment_validate_command_invalid_document(
     captured = capsys.readouterr()
     for line in captured.err.splitlines():
         assert line.startswith("ERROR: ")
+
+
+@pytest.mark.pypi_network
+def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A SHACL violation's message embeds newlines (Severity/Source
+    Shape/Focus Node breakdown); every resulting stderr line must carry
+    its own ERROR: tag, not just the finding's first line.
+
+    Needs a live socket: spdx3-validate fetches its JSON Schema from
+    schema_url rather than shipping it bundled.
+    """
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "loom",
+            "fragment",
+            "validate",
+            str(VALID_FRAGMENT),
+            str(CONFLICTING_FRAGMENT),
+        ],
+    )
+    result = __main__.main()
+    assert result == 1
+
+    captured = capsys.readouterr()
+    lines = captured.err.splitlines()
+    assert len(lines) > 1  # a genuine multi-line SHACL violation
+    for line in lines:
+        assert line.startswith("ERROR: ")
+
+
+def test_fragment_validate_command_directory_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A directory PATH is rejected with a clear ERROR:, not an opaque
+    IsADirectoryError from deep inside spdx3-validate."""
+    directory = tmp_path / "somedir"
+    directory.mkdir()
+
+    monkeypatch.setattr("sys.argv", ["loom", "fragment", "validate", str(directory)])
+    result = __main__.main()
+    assert result == 1
+
+    captured = capsys.readouterr()
+    assert f"ERROR: directory: {directory}" in captured.err
 
 
 def test_fragment_validate_command_file_not_found(
