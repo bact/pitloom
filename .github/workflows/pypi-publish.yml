@@ -58,13 +58,6 @@ jobs:
           artifact-name: "sbom"
 
       - name: Check SBOM is at the PEP 770 location
-        # loom verify-wheel replaces the previous hand-rolled `unzip -Z1`
-        # + bash glob match -- same PEP 770 path convention, now checked
-        # by the tool itself instead of a second, independently
-        # maintained representation of it. Output is ERROR:/WARNING:
-        # tagged text, not a `::error::` GitHub annotation -- see
-        # roadmap.md's SARIF item for turning these into inline PR
-        # annotations generally, not just here.
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
         run: |
@@ -80,9 +73,6 @@ jobs:
             --sbom-basename "$(basename "${SBOM_PATH}")"
 
       - name: Validate SBOM
-        # loom validate-wheel replaces the previous standalone
-        # `spdx3-validate --json` shell-out -- same underlying
-        # spdx3-validate library call, run in-process via Pitloom's CLI.
         run: |
           loom validate-wheel dist/*.whl
 
