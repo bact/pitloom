@@ -29,6 +29,7 @@ from pitloom.extract._license import (
 )
 from pitloom.extract._poetry import extract_poetry_metadata
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
+from pitloom.extract._pylock import extract_pylock_dependencies
 from pitloom.extract._toml_io import load_toml_file
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ def _read_pyproject_fallback(
     """Handle fallback when [project] section is absent or missing a name."""
     poetry_meta = _try_read_poetry(data, pyproject_path.parent)
     if poetry_meta is not None:
+        _apply_pylock_dependencies(poetry_meta, pyproject_path.parent)
         return poetry_meta, pitloom_config
     license_name, license_prov = detect_license_for_project(pyproject_path.parent)
     prov: dict[str, str] = {}
@@ -50,10 +52,9 @@ def _read_pyproject_fallback(
         prov["name"] = "Source: pyproject.toml | Field: project.name"
     if license_prov:
         prov["license"] = license_prov
-    return (
-        ProjectMetadata(name=name, license_name=license_name, provenance=prov),
-        pitloom_config,
-    )
+    metadata = ProjectMetadata(name=name, license_name=license_name, provenance=prov)
+    _apply_pylock_dependencies(metadata, pyproject_path.parent)
+    return metadata, pitloom_config
 
 
 def _prepare_dynamic_version(
@@ -220,6 +221,8 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     poetry_meta = _try_read_poetry(data, pyproject_path.parent)
     if poetry_meta is not None:
         metadata = merge_project_metadata(metadata, poetry_meta)
+
+    _apply_pylock_dependencies(metadata, pyproject_path.parent)
 
     return metadata, pitloom_config
 
@@ -498,3 +501,34 @@ def _try_read_poetry(
             "Source: poetry.lock | Method: resolved_lockfile"
         )
     return metadata
+
+
+def _apply_pylock_dependencies(metadata: ProjectMetadata, project_dir: Path) -> None:
+    """Overlay a sibling PEP 751 ``pylock.toml``'s resolved dependencies
+    onto *metadata* in place, when one is present.
+
+    Unlike ``poetry.lock``, ``pylock.toml`` isn't tied to any one build
+    backend, so it's checked unconditionally for every ``read_pyproject()``
+    call rather than gated behind ``[tool.poetry]`` detection -- see
+    :mod:`pitloom.extract._pylock`'s module docstring for why this is
+    source-stage-only, the same as ``poetry.lock``.
+
+    When a ``poetry.lock``-resolved set is already present (from
+    ``_try_read_poetry()``), ``pylock.toml`` -- the more authoritative,
+    tool-agnostic interoperability standard -- takes priority and replaces
+    it, with a ``WARNING:`` naming the override so it's never a silent
+    deviation.
+    """
+    pylock_dependencies = extract_pylock_dependencies(project_dir)
+    if not pylock_dependencies:
+        return
+    if metadata.locked_dependencies:
+        log.warning(
+            "%s: both a poetry.lock-resolved dependency set and pylock.toml "
+            "are present -- pylock.toml (PEP 751) takes priority",
+            project_dir,
+        )
+    metadata.locked_dependencies = pylock_dependencies
+    metadata.provenance["locked_dependencies"] = (
+        "Source: pylock.toml | Method: resolved_lockfile"
+    )
