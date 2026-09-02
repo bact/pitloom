@@ -12,6 +12,7 @@ test_models_wheel_pdm.py for the sibling wheel-discovery module.
 """
 
 import logging
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,50 @@ def test_resolve_pdm_dynamic_version_no_config() -> None:
     version, source = resolve_pdm_dynamic_version(PDM_FIXTURE, {}, ["version"])
     assert version is None
     assert source is None
+
+
+def test_resolve_pdm_dynamic_version_scm_with_write_to(tmp_path: Path) -> None:
+    """Regression: ``source = "scm"`` combined with ``write_to`` (a
+    common, documented PDM idiom for auto-embedding a ``_version.py``)
+    must still resolve the version correctly -- previously failed with
+    ``AttributeError: 'Builder' object has no attribute 'target'``
+    because the plain ``Builder`` base class never sets ``target``,
+    which ``resolve_version_from_scm()``'s write path reads. Also
+    verifies no file is written to disk: this is a metadata *read*, so
+    ``write_to`` must never actually create the file it names."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["pdm-backend"]\n'
+        'build-backend = "pdm.backend"\n\n'
+        '[project]\nname = "pkg"\ndynamic = ["version"]\n',
+        encoding="utf-8",
+    )
+    (project_dir / "pkg").mkdir()
+    (project_dir / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    for cmd in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "user.name", "test"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "-m", "init"],
+        ["git", "tag", "v1.0.0"],
+    ):
+        subprocess.run(cmd, cwd=project_dir, check=True)
+
+    data = {
+        "tool": {
+            "pdm": {
+                "version": {"source": "scm", "write_to": "pkg/_version.py"},
+            }
+        }
+    }
+    version, source = resolve_pdm_dynamic_version(project_dir, data, ["version"])
+
+    assert version == "1.0.0"
+    assert source == "Source: pyproject.toml | Method: pdm_dynamic_version(scm)"
+    assert not (project_dir / ".pdm-build").exists()
+    assert not (project_dir / "pkg" / "_version.py").exists()
 
 
 def test_resolve_pdm_dynamic_version_call_source_unresolved(

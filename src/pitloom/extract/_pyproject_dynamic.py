@@ -153,8 +153,15 @@ def _extract_setuptools_dynamic_version(
 
     file_list = version_directive.get("file")
     if file_list:
-        # setuptools accepts either a single path or a list here; only
-        # the first is used, matching setuptools' own behavior.
+        # setuptools accepts either a single path or a list here. A real
+        # setuptools build concatenates every listed file's content with
+        # "\n" (setuptools.config.expand.read_files) -- reproducing that
+        # exactly isn't worth it here: _resolve_cfg_version_file_directive
+        # already rejects multi-line content as unresolvable, so a
+        # genuine multi-file list would fail there too either way. Only
+        # reading the first path is deliberately out of scope for the
+        # multi-file case (falls through to the generic candidate scan
+        # below), not an attempt to match setuptools' own behavior.
         path = file_list[0] if isinstance(file_list, list) else file_list
         return _resolve_cfg_version_file_directive(path, project_dir)
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -97,6 +98,16 @@ def discover(
     ``metadata["version"]``), so skipping ``initialize()`` changes
     nothing about the returned file set either -- only avoids the write.
 
+    ``context.build_dir`` points at a fresh, empty temporary directory,
+    never *project_dir* / ``.pdm-build`` itself: the base ``Builder``'s
+    ``get_files()`` unconditionally globs ``build_dir`` for extra files
+    via ``_collect_build_files()``, so pointing it at the project's own
+    ``.pdm-build/`` would leak any *stale* content left over from a real
+    ``pdm build`` the user ran previously (that directory is normally
+    only gitignored, not cleaned up) straight into the returned file
+    list -- a static rescan must reflect the source tree, not whatever
+    a past build happened to leave on disk.
+
     Returns ``None`` on any discovery failure (e.g. not a PDM project,
     malformed config) -- the caller falls back accordingly.
 
@@ -111,10 +122,13 @@ def discover(
     from pdm.backend.wheel import WheelBuilder
 
     try:
-        with _chdir(project_dir):
+        with _chdir(project_dir), tempfile.TemporaryDirectory() as scratch_dir:
             builder = WheelBuilder(project_dir)
             context = Context(
-                build_dir=project_dir / ".pdm-build",
+                # Never-created subpath: guarantees _collect_build_files()'s
+                # `if not context.build_dir.exists()` guard short-circuits,
+                # so it can never pick up stale build output (see docstring).
+                build_dir=Path(scratch_dir) / "unused-build-dir",
                 dist_dir=project_dir,
                 kwargs={},
                 builder=builder,

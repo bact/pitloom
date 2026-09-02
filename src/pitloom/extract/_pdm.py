@@ -86,12 +86,22 @@ def resolve_pdm_dynamic_version(
         return None, None
 
     # pylint: disable=import-outside-toplevel
-    from pdm.backend.base import Builder
     from pdm.backend.hooks.base import Context
     from pdm.backend.hooks.version import DynamicVersionBuildHook
+    from pdm.backend.wheel import WheelBuilder
 
     try:
-        builder = Builder(project_dir)
+        # WheelBuilder, not the plain Builder base: Builder never sets
+        # its own `target` class attribute (no default at all), and
+        # resolve_version_from_scm()'s write path (see options-stripping
+        # below) reads context.target -- accessing it on a plain Builder
+        # raises AttributeError, silently losing the resolved version
+        # for any project using `source = "scm"` together with
+        # `write_to` (a common, documented PDM idiom for auto-embedding
+        # a _version.py). WheelBuilder sets target = "wheel", same as
+        # the sibling _models_wheel_pdm.py discovery module already
+        # uses, so this attribute is always defined.
+        builder = WheelBuilder(project_dir)
         # A plain Context, never through Builder.build_context() -- that
         # helper mkdir()s dist_dir as a build-time side effect. Neither
         # resolve_version_from_file nor resolve_version_from_scm reads
@@ -104,6 +114,18 @@ def resolve_pdm_dynamic_version(
             builder=builder,
         )
         options = {k: v for k, v in version_config.items() if k != "source"}
+        if source == "scm":
+            # resolve_version_from_scm() unconditionally writes the
+            # resolved version to context.build_dir when write_to is
+            # set -- a real disk write this pure metadata read must
+            # never trigger (the same side effect
+            # _models_wheel_pdm.py's discover() avoids by skipping
+            # initialize() entirely). Stripping write_to/write_template
+            # here still resolves the version correctly; it only
+            # suppresses the file write pdm-backend does as a side
+            # effect of resolving it.
+            options.pop("write_to", None)
+            options.pop("write_template", None)
         method = getattr(DynamicVersionBuildHook(), f"resolve_version_from_{source}")
         version = str(method(context, **options))
     # pylint: disable-next=broad-exception-caught

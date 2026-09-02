@@ -81,6 +81,36 @@ def test_discover_never_writes_to_disk(tmp_path: Path) -> None:
     assert not (project_dir / ".pdm-build").exists()
 
 
+def test_discover_ignores_stale_pdm_build_directory(tmp_path: Path) -> None:
+    """Regression: the base ``Builder.get_files()`` unconditionally globs
+    ``context.build_dir`` for extra files via ``_collect_build_files()``.
+    If that pointed at *project_dir* / ``.pdm-build`` (left behind,
+    typically only gitignored not cleaned up, by a real ``pdm build`` the
+    user ran previously), stale content from that earlier build would
+    leak into the returned file list -- a static rescan must reflect only
+    the source tree, not a past build's output."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["pdm-backend"]\n'
+        'build-backend = "pdm.backend"\n\n'
+        '[project]\nname = "pkg"\nversion = "0.1.0"\n',
+        encoding="utf-8",
+    )
+    (project_dir / "pkg").mkdir()
+    (project_dir / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    stale_build_dir = project_dir / ".pdm-build"
+    (stale_build_dir / "pkg").mkdir(parents=True)
+    (stale_build_dir / "pkg" / "_version.py").write_text("stale", encoding="utf-8")
+    (stale_build_dir / "stale_metadata.txt").write_text("stale", encoding="utf-8")
+
+    result = discover(project_dir)
+
+    assert result is not None
+    distribution_paths = {f.distribution_path for f in result}
+    assert distribution_paths == {"pkg/__init__.py"}
+
+
 def test_discover_never_writes_scm_version_to_disk(tmp_path: Path) -> None:
     """Regression: ``[tool.pdm.version] source = "scm"`` combined with a
     ``write_to`` option makes pdm-backend's own
