@@ -55,10 +55,8 @@ def _read_pyproject_fallback(
         prov["name"] = "Source: pyproject.toml | Field: project.name"
     if license_prov:
         prov["license"] = license_prov
-    return (
-        ProjectMetadata(name=name, license_name=license_name, provenance=prov),
-        pitloom_config,
-    )
+    metadata = ProjectMetadata(name=name, license_name=license_name, provenance=prov)
+    return metadata, pitloom_config
 
 
 def _is_license_classifier_conflict(exc: ConfigurationError) -> bool:

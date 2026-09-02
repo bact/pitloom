@@ -155,24 +155,32 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   `main`-group resolved transitive dependencies, additive to the
   direct constraints, source-stage-only. See
   [poetry-support.md](../implementation/poetry-support.md).
+- [x] **`pylock.toml` (PEP 751)** -- done (2026-09-04): `loom project`/
+  `loom generate` reads a sibling `pylock.toml`, when present, for its
+  resolved `[[packages]]` set, reusing `ProjectMetadata.locked_dependencies`
+  and the same additive `dependsOn`/`RelationshipCompleteness.complete`
+  wiring as `poetry.lock`. Build-backend-agnostic, so it's checked
+  unconditionally rather than gated behind `[tool.poetry]` detection.
+  See [pep751-pylock-support.md](../implementation/pep751-pylock-support.md)
+  and [lock-file-cascade.md](../implementation/lock-file-cascade.md) for
+  the shared priority mechanism across all lock formats.
 - [ ] **Remaining lock formats as a resolved-dependency source**
-  (`Pipfile.lock`, `uv.lock`, pinned `requirements.txt`) -- `loom
-  project` still records only the declared version specifier from
-  `pyproject.toml [project] dependencies`
+  (`uv.lock`, `pixi.lock`, `conda-lock.yml`, `pdm.lock`, `Pipfile.lock`,
+  pinned `requirements.txt`) -- `loom project` still records only the
+  declared version specifier from `pyproject.toml [project] dependencies`
   (`normalize_dependency_specifier`, `src/pitloom/extract/_pyproject.py:220`,
-  e.g. `requests>=2.0`) for every non-Poetry project, never a concrete
-  resolved version. Parsing one when present would let a Source SBOM
-  carry the actual pinned version a build will use, not just the
-  declared range -- closer to what CISA's Source SBOM guidance expects.
-  The `poetry.lock` case above establishes the pattern (additive
-  transitive-only edges, `completeness` tagging, source-stage-only
-  scoping); needs a source-priority decision analogous to
-  `metadata-sources.md`'s existing tiering (which lock file wins if more
-  than one is present) and a provenance `method` tag per lock format.
-  See [lock-files.md](./lock-files.md) for the broader multi-format
-  extraction-priority roadmap (PEP 751 `pylock.toml`, `uv.lock`,
-  `pixi.lock`, `conda-lock.yml`, `pdm.lock`, `Pipfile.lock`) this item
-  now defers to.
+  e.g. `requests>=2.0`) for a project with none of `poetry.lock`/
+  `pylock.toml` present, never a concrete resolved version. Parsing one
+  when present would let a Source SBOM carry the actual pinned version a
+  build will use, not just the declared range -- closer to what CISA's
+  Source SBOM guidance expects. The `poetry.lock`/`pylock.toml` cases
+  above establish the pattern (additive transitive-only edges,
+  `completeness` tagging, source-stage-only scoping, `pylock.toml`
+  overriding `poetry.lock` when both are present); each further format
+  added needs its own slot in that same priority order and a provenance
+  `method` tag. See [lock-files.md](./lock-files.md) for the broader
+  multi-format extraction-priority roadmap (`uv.lock`, `pixi.lock`,
+  `conda-lock.yml`, `pdm.lock`, `Pipfile.lock`) this item now defers to.
 
 ### PEP 770 / embed-wheel
 
