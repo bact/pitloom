@@ -309,11 +309,11 @@ def merge_fragments(
 The Pitloom CLI (`python -m pitloom`) gains a `fragment` subcommand group:
 
 ```text
-pitloom fragment init   --role ai --output fragments/model.spdx3.json
-pitloom fragment validate  fragments/model.spdx3.json
-pitloom fragment merge  --dry-run          # preview merge without building
+pitloom fragment init --role ai --output fragments/model.spdx3.json
+pitloom fragment validate fragments/model.spdx3.json
+pitloom fragment merge --dry-run            # preview merge without building
 pitloom fragment list                       # list configured fragments + status
-pitloom fragment sign   fragments/model.spdx3.json   # compute SHA-256 + write to config
+pitloom fragment sign fragments/model.spdx3.json   # compute SHA-256 + write to config
 ```
 
 | Command | Purpose |

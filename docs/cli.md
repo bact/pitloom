@@ -41,7 +41,7 @@ pip install "pitloom[content-type]"
 ```
 
 Install with SPDX 3 schema/SHACL validation support (`pitloom fragment
-validate`):
+validate`, `pitloom validate-wheel`):
 
 ```bash
 pip install "pitloom[validate]"
@@ -115,6 +115,42 @@ derived from the wheel's own name/version, `<name>-<version>.spdx3.json`).
 `-o`/`--output` names the modified wheel's own output path and is
 rejected with an `ERROR:` when more than one wheel is passed -- ambiguous
 without a per-wheel naming scheme; omit it to modify each wheel in place.
+
+Check a wheel's embedded SBOM is at the correct PEP 770 location
+(`.dist-info/sboms/`) and uses its format's recommended extension --
+format-neutral, doesn't inspect content:
+
+```bash
+loom verify-wheel dist/*.whl
+loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl --sbom-filename mypackage-1.0.0.spdx3.json
+```
+
+A missing SBOM is an `ERROR:` (exit 1); a present-but-non-conventional
+extension is a `WARNING:` only -- not fatal, still exit 0. Multiple
+`sboms/` entries need `--sbom-filename` to pick one, else it's an
+`ERROR:`.
+
+Validate a wheel's embedded SBOM content against its format's schema and
+SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`
+library used by [`pitloom fragment validate`](#validate-fragments) --
+needs `pip install "pitloom[validate]"`):
+
+```bash
+loom validate-wheel dist/*.whl
+```
+
+An embedded file in an unrecognized format prints a `WARNING:` and skips
+validation (exit 0) rather than failing -- unsupported isn't the same as
+invalid. `embed-wheel` itself takes `--verify`/`--validate` as convenience
+flags that run these same checks against the wheel just embedded:
+
+```bash
+loom embed-wheel dist/*.whl --project-dir . --verify --validate
+```
+
+Embedding and the post-embed check are independent steps -- a `--verify`/
+`--validate` failure is reported and affects the exit code, but the
+embed itself isn't rolled back.
 
 Or use `--embed` directly on `loom wheel`:
 

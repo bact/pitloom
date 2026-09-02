@@ -11,6 +11,9 @@ this directory:
 
 - ``_FakeMetadata`` -- from ``test_deps_enrichment.py``.
 - ``_make_dummy_wheel`` / ``_SAMPLE_SPDX3_JSON`` -- from ``test_embed.py``.
+- ``_embed_sbom_entry`` -- previously near-identical ``_embed_sbom``/
+  ``_embed_raw`` helpers in ``test_verify_wheel_cli.py`` and
+  ``test_validate_wheel_cli.py``.
 - ``_DOC_NAME`` / ``_DOC_UUID`` / ``_make_ci`` -- previously byte-for-byte
   duplicated (bar one comment) between ``test_annotation_provenance.py``
   and ``test_spdx3_dataset.py``.
@@ -31,6 +34,7 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._wheel_sbom_location import _find_dist_info_prefix
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -145,6 +149,29 @@ _SAMPLE_SPDX3_JSON = json.dumps(
         ],
     }
 )
+
+
+def _embed_sbom_entry(
+    wheel_path: Path, sbom_basename: str, content: str = _SAMPLE_SPDX3_JSON
+) -> None:
+    """Add a ``.dist-info/sboms/<sbom_basename>`` entry to *wheel_path*
+    with arbitrary *content* (defaults to the standard sample fixture).
+
+    Unlike `embed-wheel` itself (which always appends `.spdx3.json`), this
+    writes whatever basename/content is given verbatim -- needed by
+    `test_verify_wheel_cli.py`/`test_validate_wheel_cli.py` to construct
+    deliberately non-conventional-extension or invalid-content fixtures
+    that `embed-wheel`'s own self-correction makes otherwise unreachable.
+
+    Reuses production's own `_find_dist_info_prefix` (rather than a
+    second, test-only dist-info-detection algorithm) so this fixture
+    can't silently diverge from what `find_embedded_sbom` actually looks
+    for -- a single append-mode ZipFile handle can both read the
+    existing namelist and write the new entry.
+    """
+    with zipfile.ZipFile(wheel_path, "a") as zf:
+        dist_info = _find_dist_info_prefix(zf, wheel_path)
+        zf.writestr(f"{dist_info}sboms/{sbom_basename}", content)
 
 
 def _make_dummy_wheel(

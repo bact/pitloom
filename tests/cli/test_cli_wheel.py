@@ -135,6 +135,13 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     command's primary result output) and the two INFO: side-effect lines
     to stderr, matching every other INFO:/WARNING:/ERROR: line."""
     from pitloom.cli.commands.embed_wheel import _report_embed_result
+    from pitloom.logging_config import configure_logging
+
+    # The two side-effect lines go through logging (see CLAUDE.md's "CLI
+    # output" section), unlike the confirmation line above them -- calling
+    # this function directly, without going through __main__.main(), skips
+    # the configure_logging() call that normally wires INFO: up to stderr.
+    configure_logging()
 
     _report_embed_result(
         "sbom.spdx.json",

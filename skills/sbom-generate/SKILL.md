@@ -146,6 +146,19 @@ for the full flag reference, including `--output` (rejected when more
 than one wheel matches, since a single standalone copy would be
 ambiguous) and `--sbom-basename`.
 
+To check a wheel's embedded SBOM afterwards, either pass `--verify`/
+`--validate` to `embed-wheel` itself, or run the standalone commands
+against an already-embedded wheel:
+
+```bash
+loom embed-wheel dist/*.whl --verify --validate
+loom verify-wheel dist/*.whl     # PEP 770 location + recommended extension
+loom validate-wheel dist/*.whl   # schema/SHACL content validation
+```
+
+See the `sbom-validate` skill for `validate-wheel`'s content-validation
+counterpart against standalone (non-embedded) SPDX 3 documents.
+
 ## Useful flags
 
 - `-o FILE` / `--output FILE` -- explicit output path.

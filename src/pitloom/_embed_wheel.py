@@ -5,7 +5,11 @@
 
 """ZIP archive manipulation and PEP 770 embedding for wheel files.
 
-See also: :mod:`pitloom.embed` for full SBOM generation and embed coordination.
+See also:
+- :mod:`pitloom.embed` for full SBOM generation and embed coordination.
+- :mod:`pitloom._wheel_sbom_location` for locating an *already*-embedded
+  SBOM (read-only, shared with `verify-wheel`/`validate-wheel`) -- this
+  module is about *writing* a new one.
 """
 
 from __future__ import annotations
@@ -24,41 +28,14 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from pitloom._wheel_sbom_location import _find_dist_info_prefix, _open_wheel_zip
 from pitloom.core.creation import resolve_source_date_epoch
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
 
-_SPDX3_JSON_EXT = ".spdx3.json"
 _DEFAULT_FILE_ATTR = 0o644 << 16
 _ZIP_EPOCH_FLOOR = datetime(1980, 1, 1, tzinfo=timezone.utc)
 _INVALID_FILENAME_CHARS = frozenset({"/", "\\", "\x00"})
-
-
-def _find_dist_info_prefix(zf: zipfile.ZipFile, wheel_path: Path) -> str:
-    """Find the single .dist-info directory prefix in the wheel ZIP archive."""
-    dist_infos: set[str] = set()
-    for name in zf.namelist():
-        parts = name.split("/")
-        if len(parts) >= 2 and parts[0].endswith(".dist-info"):
-            dist_infos.add(f"{parts[0]}/")
-
-    if not dist_infos:
-        raise ValueError(
-            f"Invalid wheel archive {wheel_path.name}: no .dist-info directory found"
-        )
-    if len(dist_infos) > 1:
-        stem_prefix = wheel_path.stem.split("-")[0]
-        matching = [
-            d
-            for d in dist_infos
-            if d.startswith(f"{stem_prefix}-") or d == f"{stem_prefix}.dist-info/"
-        ]
-        if len(matching) == 1:
-            return matching[0]
-        raise ValueError(
-            f"Invalid wheel archive {wheel_path.name}: multiple .dist-info "
-            f"directories found ({sorted(dist_infos)})"
-        )
-    return next(iter(dist_infos))
 
 
 def _resolve_zip_timestamp(
@@ -180,9 +157,13 @@ def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
         meta_name = msg.get("Name")
         meta_version = msg.get("Version")
     if meta_name and meta_version:
-        return f"{meta_name}-{meta_version}{_SPDX3_JSON_EXT}"
+        return f"{meta_name}-{meta_version}{SPDX3_JSONLD_EXTENSION}"
     prefix = dist_info.rstrip("/").removesuffix(".dist-info")
-    return f"{prefix}{_SPDX3_JSON_EXT}" if prefix else f"sbom{_SPDX3_JSON_EXT}"
+    return (
+        f"{prefix}{SPDX3_JSONLD_EXTENSION}"
+        if prefix
+        else f"sbom{SPDX3_JSONLD_EXTENSION}"
+    )
 
 
 def _plan_embed(
@@ -205,7 +186,7 @@ def _plan_embed(
         name
         for name in original_zf.namelist()
         if name.startswith(sboms_prefix)
-        and name.endswith(_SPDX3_JSON_EXT)
+        and name.endswith(SPDX3_JSONLD_EXTENSION)
         and name != sbom_arcname
         and _looks_like_pitloom_sbom(original_zf.read(name))
     )
@@ -297,7 +278,18 @@ def embed_sbom_in_wheel(
     *,
     sbom_filename: str | None = None,
 ) -> tuple[Path, str, tuple[str, ...], bool]:
-    """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770)."""
+    """Embed an SPDX 3 SBOM into a built wheel archive (PEP 770).
+
+    Raises:
+        FileNotFoundError: *wheel_path* doesn't exist.
+        ValueError: *sbom_content* is empty, or the wheel's content is bad
+            (not a valid ZIP, or missing/ambiguous ``.dist-info`` -- see
+            :func:`pitloom._wheel_sbom_location._open_wheel_zip`).
+        OSError: An environment problem opening *wheel_path* (permission
+            denied, a transient I/O error) -- kept as its own exception
+            type, not folded into ``ValueError`` (see
+            :func:`pitloom._wheel_sbom_location._open_wheel_zip`).
+    """
     configure_logging()
     wheel_obj = Path(wheel_path).resolve()
     if not wheel_obj.exists():
@@ -311,7 +303,7 @@ def embed_sbom_in_wheel(
 
     orig_mode = wheel_obj.stat().st_mode if wheel_obj.exists() else None
 
-    with zipfile.ZipFile(wheel_obj, "r") as original_zf:
+    with _open_wheel_zip(wheel_obj) as original_zf:
         dist_info = _find_dist_info_prefix(original_zf, wheel_obj)
         plan = _plan_embed(original_zf, dist_info, sbom_filename, sbom_bytes)
         temp_path = _rewrite_wheel_archive(

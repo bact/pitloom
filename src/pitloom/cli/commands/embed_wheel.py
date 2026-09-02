@@ -8,23 +8,26 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    ConfigOverrides,
-    embed_wheel_sbom,
-)
+from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
+    _locate_and_detect,
     _print_sbom_output_path,
     cli_error_handler,
     resolve_effective_provenance,
 )
+from pitloom.cli.commands.validate_wheel import _validate_location
+from pitloom.cli.commands.verify_wheel import _check_location
 from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
+
+log = logging.getLogger(__name__)
 
 
 def _report_embed_result(
@@ -40,17 +43,57 @@ def _report_embed_result(
     """
     print(f"pitloom: embedded {arcname} into {wheel_name}")
     for stale_arcname in removed:
-        print(
-            f"INFO: removed stale SBOM {stale_arcname} from {wheel_name}",
-            file=sys.stderr,
-        )
+        log.info("removed stale SBOM %s from %s", stale_arcname, wheel_name)
     if timestamp_floored:
-        print(
-            f"INFO: {wheel_name}'s embedded SBOM entry timestamp was before "
-            "1980 and was floored to 1980-01-01 (ZIP format limitation); "
-            "the SBOM's own 'created' field keeps the true value",
-            file=sys.stderr,
+        log.info(
+            "%s's embedded SBOM entry timestamp was before 1980 and was "
+            "floored to 1980-01-01 (ZIP format limitation); the SBOM's own "
+            "'created' field keeps the true value",
+            wheel_name,
         )
+
+
+def _run_post_embed_checks(
+    args: argparse.Namespace, embedded_wheel_path: Path, arcname: str
+) -> bool:
+    """Run --verify/--validate against the wheel embed_wheel_sbom() just
+    modified. Same checks verify-wheel/validate-wheel use standalone,
+    chained here like `wheel --embed` chains into the same embed function.
+
+    Deliberately re-reads *embedded_wheel_path* from disk rather than
+    checking the pre-write `sbom_json` string generation produced: the
+    whole point of `--verify`/`--validate` is confirming what actually
+    landed in the wheel, not what Pitloom intended to write -- an
+    in-memory shortcut would silently narrow that guarantee for exactly
+    the command whose job is to catch that kind of drift.
+
+    Locates the SBOM from disk and detects its format exactly ONCE (via
+    `_locate_and_detect`, shared with `_check_one_wheel`/`_validate_one_wheel`)
+    and passes both to `_check_location`/`_validate_location` when both
+    flags are given, rather than each check re-locating/re-detecting
+    independently -- still one genuine disk read, just not duplicated.
+    """
+    if not args.verify and not args.validate:
+        return True
+
+    embedded_filename = arcname.rsplit("/", 1)[-1]
+    located = _locate_and_detect(embedded_wheel_path, embedded_filename)
+    if located is None:
+        return False
+    location, sbom_format = located
+
+    # `is not False` (not plain truthiness) on both, even though
+    # _check_location only ever returns bool: _validate_location returns
+    # None for "no validator registered" (a skip, not a failure), and
+    # matching idioms here keeps the two checks symmetric so a future
+    # third check copy-pasted from either line stays correct by default.
+    verify_ok = not args.verify or (
+        _check_location(embedded_wheel_path, location, sbom_format) is not False
+    )
+    validate_ok = not args.validate or (
+        _validate_location(embedded_wheel_path, location, sbom_format) is not False
+    )
+    return verify_ok and validate_ok
 
 
 @cli_error_handler("wheel SBOM embedding failed")
@@ -111,9 +154,10 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline,
     )
+    all_ok = True
     for wheel_path in unique_wheels:
         output_path = args.output if len(unique_wheels) == 1 else None
-        _, arcname, _, removed, floored = embed_wheel_sbom(
+        embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(
             wheel_path,
             project_dir=project_dir,
             pitloom_config=pitloom_config,
@@ -127,7 +171,10 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         _report_embed_result(arcname, wheel_path.name, removed, floored)
         if output_path is not None:
             _print_sbom_output_path(output_path)
-    return 0
+
+        if not _run_post_embed_checks(args, embedded_wheel_path, arcname):
+            all_ok = False
+    return 0 if all_ok else 1
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
@@ -170,6 +217,22 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="NAME",
         help="Custom basename for the embedded SBOM inside .dist-info/sboms/.",
+    )
+    embed_parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=(
+            "After embedding, also run 'verify-wheel' against the result "
+            "(PEP 770 location + recommended-extension check)."
+        ),
+    )
+    embed_parser.add_argument(
+        "--validate",
+        action="store_true",
+        help=(
+            "After embedding, also run 'validate-wheel' against the result "
+            "(schema/SHACL content validation)."
+        ),
     )
     add_offline_argument(embed_parser, " during SBOM generation.")
     embed_parser.set_defaults(func=_run_embed_wheel_command)

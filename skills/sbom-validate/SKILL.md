@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-08-11
+# Last-Modified: 2026-09-02
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -89,6 +89,20 @@ and uses the same exit code convention, if `pitloom[validate]` isn't the
 preferred install path in a given context -- but it writes its report to
 *stdout*, not stderr, and doesn't `ERROR:`-tag lines the way `pitloom
 fragment validate` does.)
+
+## Validate a wheel's embedded SBOM
+
+For "is this wheel's SBOM valid" rather than a standalone document, use
+`validate-wheel` instead -- it locates the embedded SBOM under
+`.dist-info/sboms/` (PEP 770) and runs the same schema/SHACL check:
+
+```bash
+pitloom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl
+```
+
+See the `sbom-generate` skill's "Embed an SBOM into a wheel" section for
+`verify-wheel` (PEP 770 location/extension only, no content check) and
+`embed-wheel --verify`/`--validate`.
 
 ## Report the result
 

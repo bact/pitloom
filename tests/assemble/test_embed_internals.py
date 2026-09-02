@@ -117,6 +117,18 @@ def test_embed_sbom_file_not_found(tmp_path: Path) -> None:
         embed_sbom_in_wheel(missing_wheel, "{}")
 
 
+def test_embed_sbom_in_wheel_corrupt_zip_raises_value_error(tmp_path: Path) -> None:
+    """A wheel that isn't a valid ZIP -> ValueError, not zipfile.BadZipFile.
+
+    embed_sbom_in_wheel shares _open_wheel_zip with find_embedded_sbom
+    (see test_validate_wheel_corrupt_zip_errors), so it inherits the same
+    BadZipFile -> ValueError normalization."""
+    corrupt_wheel = tmp_path / "notazip-1.0.0-py3-none-any.whl"
+    corrupt_wheel.write_bytes(b"not a zip file at all")
+    with pytest.raises(ValueError, match="Invalid wheel archive"):
+        embed_sbom_in_wheel(corrupt_wheel, "{}")
+
+
 def test_embed_sbom_without_existing_record(tmp_path: Path) -> None:
     """Test embed_sbom_in_wheel handles a wheel archive with no RECORD entry."""
     wheel_path = tmp_path / "norec-1.0.0-py3-none-any.whl"

@@ -44,22 +44,15 @@ jobs:
           # overwrites this copy in the published wheel.
           python -m build --no-isolation
 
-      - name: Regenerate and embed SBOM
-        # uses: ./ + install: false runs this commit's own Action/CLI
-        # (reusing the checkout installed above) against the release wheel,
-        # and also writes a standalone copy for the steps below.
-        id: pitloom
-        uses: ./
-        with:
-          embed-wheel: "dist/*.whl"
-          install: "false"
-          content-type: "true"
-          upload-artifact: "true"
-          artifact-name: "sbom"
-
-      - name: Check SBOM is at the PEP 770 location
-        env:
-          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+      - name: Resolve the built wheel
+        # Computed here, before the embed step below, so an ambiguous
+        # dist/*.whl is caught at its source instead of after
+        # embed-wheel's own glob has already silently absorbed it (its
+        # multi-match handling skips embedding rather than failing --
+        # see attach-release-sbom's "if:" comment below). Every
+        # downstream step (embed, verify, validate) trusts this single
+        # resolved path instead of re-deriving and re-validating it.
+        id: wheel
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -69,32 +62,38 @@ jobs:
               "${#wheels[@]}: ${wheels[*]}"
             exit 1
           fi
-          whl="${wheels[0]}"
-          sbom_basename=$(basename "${SBOM_PATH}")
+          echo "path=${wheels[0]}" >> "$GITHUB_OUTPUT"
 
-          # Match the exact embedded basename, not just "any .spdx3.json
-          # exists". Bash glob, not grep -E, so dots/dashes in the
-          # basename stay literal.
-          matched=""
-          while IFS= read -r entry; do
-            case "${entry}" in
-              *.dist-info/sboms/"${sbom_basename}")
-                matched="${entry}"
-                break
-                ;;
-            esac
-          done < <(unzip -Z1 "${whl}")
+      - name: Regenerate and embed SBOM
+        # uses: ./ + install: false runs this commit's own Action/CLI
+        # (reusing the checkout installed above) against the release wheel,
+        # and also writes a standalone copy for the steps below.
+        id: pitloom
+        uses: ./
+        with:
+          embed-wheel: ${{ steps.wheel.outputs.path }}
+          install: "false"
+          content-type: "true"
+          upload-artifact: "true"
+          artifact-name: "sbom"
 
-          if [ -z "${matched}" ]; then
-            echo "::error::${sbom_basename} not found under" \
-              "*.dist-info/sboms/ in ${whl}"
-            exit 1
-          fi
-          echo "Found: ${matched}"
+      - name: Check SBOM is at the PEP 770 location
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
+        run: |
+          set -euo pipefail
+          loom verify-wheel "${WHEEL_PATH}" \
+            --sbom-filename "$(basename "${SBOM_PATH}")"
 
       - name: Validate SBOM
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
         run: |
-          spdx3-validate --json "${{ steps.pitloom.outputs.sbom-path }}"
+          set -euo pipefail
+          loom validate-wheel "${WHEEL_PATH}" \
+            --sbom-filename "$(basename "${SBOM_PATH}")"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
@@ -128,8 +127,8 @@ jobs:
     # - build.result == 'success': skip if "Validate SBOM" failed in "build".
     # - publish.result == 'success': skip if PyPI publish failed, so the
     #   release never carries an SBOM for a package that wasn't published.
-    # - sbom-path != '': skip if "build" produced no standalone SBOM
-    #   (embed-wheel matched more than one wheel), since no "sbom"
+    # - sbom-path != '': skip if "build" produced no standalone SBOM (the
+    #   embed-wheel Action step failed to write one), since no "sbom"
     #   artifact was uploaded for this job to download.
     if: |
       needs.build.result == 'success' && needs.publish.result == 'success' &&

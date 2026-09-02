@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pitloom.cli.constants import _PROJECT_PYPROJECT_SOURCE, _SPDX3_JSON_EXT
+from pitloom.cli.constants import _PROJECT_PYPROJECT_SOURCE
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import (
     CreationMetadata,
@@ -21,6 +21,7 @@ from pitloom.core.creation import (
     Tool,
 )
 from pitloom.core.project import ProjectMetadata
+from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.project import read_project
 
@@ -320,21 +321,21 @@ def _resolve_output_path(
     if explicit is not None:
         return explicit
     if pitloom_config.sbom_basename:
-        return Path(f"{pitloom_config.sbom_basename}{_SPDX3_JSON_EXT}")
+        return Path(f"{pitloom_config.sbom_basename}{SPDX3_JSONLD_EXTENSION}")
     parts = [metadata.name] if metadata.name else ["sbom"]
     if metadata.version:
         parts.append(metadata.version)
-    return Path("-".join(parts) + _SPDX3_JSON_EXT)
+    return Path("-".join(parts) + SPDX3_JSONLD_EXTENSION)
 
 
 def _resolve_model_output_path(explicit: Path | None, model_path: Path) -> Path:
     if explicit is not None:
         return explicit
-    return Path.cwd() / (model_path.name + _SPDX3_JSON_EXT)
+    return Path.cwd() / (model_path.name + SPDX3_JSONLD_EXTENSION)
 
 
 def _resolve_hf_output_path(explicit: Path | None, model_id: str) -> Path:
     if explicit is not None:
         return explicit
     stem = model_id.split("/")[-1]
-    return Path.cwd() / (stem + _SPDX3_JSON_EXT)
+    return Path.cwd() / (stem + SPDX3_JSONLD_EXTENSION)

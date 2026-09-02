@@ -26,17 +26,31 @@ from pitloom.assemble._model_generator import (
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.embed import ConfigOverrides, embed_sbom_in_wheel, embed_wheel_sbom
+from pitloom.embed import (
+    RECOMMENDED_EXTENSIONS,
+    VALIDATED_FORMATS,
+    ConfigOverrides,
+    EmbeddedSbomLocation,
+    detect_sbom_format,
+    embed_sbom_in_wheel,
+    embed_wheel_sbom,
+    find_embedded_sbom,
+)
 from pitloom.extract._huggingface import is_huggingface_source
 from pitloom.ids import IdRegistry
 
 __all__ = [
     "ConfigOverrides",
+    "EmbeddedSbomLocation",
     "FragmentMergeError",
     "ProvenanceConfig",
+    "RECOMMENDED_EXTENSIONS",
+    "VALIDATED_FORMATS",
+    "detect_sbom_format",
     "embed_sbom_in_wheel",
     "embed_wheel_sbom",
     "enrich_model",
+    "find_embedded_sbom",
     "generate",
     "generate_env_sbom",
     "generate_model_sbom",
