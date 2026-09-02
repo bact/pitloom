@@ -629,6 +629,48 @@ def test_cli_embed_wheel_sbom_name_mismatch_aborts_before_write(
     assert wheel_path.read_bytes() == original_bytes
 
 
+def test_cli_embed_wheel_sbom_mismatch_one_wheel_does_not_abort_batch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A --sbom mismatch on one wheel in a multi-wheel embed reports that
+    wheel's failure and continues to the next wheel, instead of the
+    ValueError propagating out of the loop and aborting the whole batch
+    (which would silently skip every wheel after the failing one)."""
+    dist_dir = tmp_path / "dist"
+    bad_wheel = _make_dummy_wheel(dist_dir, "badpkg", "1.0.0")
+    good_wheel = _make_dummy_wheel(dist_dir, "goodpkg", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    # Matches good_wheel's name/version, not bad_wheel's.
+    sbom_file.write_text(_spdx3_json_with_subject("goodpkg", "1.0.0"), encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(bad_wheel),
+            str(good_wheel),
+            "--sbom",
+            str(sbom_file),
+        ],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR:" in captured.err
+    assert "badpkg" in captured.err
+    assert "pitloom: embedded" in captured.out
+    assert "goodpkg-1.0.0-py3-none-any.whl" in captured.out
+
+    with zipfile.ZipFile(bad_wheel) as zf:
+        assert not any(n.endswith(".spdx3.json") for n in zf.namelist())
+    with zipfile.ZipFile(good_wheel) as zf:
+        assert any(n.endswith(".spdx3.json") for n in zf.namelist())
+
+
 def test_cli_embed_wheel_sbom_mismatch_allow_mismatch_embeds_anyway(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

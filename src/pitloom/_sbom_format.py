@@ -103,6 +103,14 @@ def _parse_jsonld_graph(data: bytes) -> list[Any] | None:
     return graph if isinstance(graph, list) else None
 
 
+#: Node types this extractor accepts as an SBOM's actual subject, once the
+#: SpdxDocument/software_Sbom hop(s) above are resolved. Deliberately an
+#: allowlist, not "anything with a name field" -- a SoftwareAgent/Person/
+#: CreationInfo node can carry a `name` too, and treating one of those as
+#: the subject would silently cross-check against the wrong identity.
+_SUBJECT_TYPES: frozenset[str] = frozenset({"software_Package", "ai_AIPackage"})
+
+
 def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
     """Extract the subject package's ``name``/``software_packageVersion``
     from an SPDX 3 JSON-LD SBOM's ``@graph``.
@@ -119,12 +127,18 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
       with no intermediate ``software_Sbom`` wrapper; SPDX 3 doesn't
       require one.
 
+    Either way, the resolved subject node's ``type`` must be in
+    `_SUBJECT_TYPES` -- a non-package node (e.g. a `SoftwareAgent` that
+    happens to carry a `name` field) is rejected with an error rather
+    than silently mined for `name`/`software_packageVersion`.
+
     Returns ``None`` if *data* isn't even recognizable JSON-LD (callers
     should already have checked via `detect_sbom_format`); returns an
     `_SbomSubjectIdentity` with a non-``None`` `.error` and both fields
     ``None`` if the graph shape doesn't match what's expected (missing
-    `SpdxDocument` node, empty/dangling `rootElement`, etc.) -- callers
-    must treat that as "skip the check, warn why," not as a mismatch.
+    `SpdxDocument` node, empty/dangling `rootElement`, a resolved subject
+    of the wrong type, etc.) -- callers must treat that as "skip the
+    check, warn why," not as a mismatch.
 
     Only the first element of each ``rootElement`` list is followed --
     production code (`document.py`) always constructs single-element
@@ -172,6 +186,14 @@ def extract_spdx3_subject_identity(data: bytes) -> _SbomSubjectIdentity | None:
             )
         subject = by_id[sbom_root[0]]
 
+    subject_type = subject.get("type")
+    if subject_type not in _SUBJECT_TYPES:
+        return _SbomSubjectIdentity(
+            None,
+            None,
+            f"SBOM subject is a {subject_type!r} node, not a recognized package type",
+        )
+
     name = subject.get("name")
     version = subject.get("software_packageVersion")
     return _SbomSubjectIdentity(
@@ -200,10 +222,11 @@ def compare_name_version(
     Returns ``(mismatches, warnings)`` as human-readable fragments (no
     wheel-name prefix, no `WARNING:`/`ERROR:` tag) -- callers decide how
     to log/report them and at what severity. An unparseable version on
-    either side, or a missing name/version on the SBOM side, yields a
+    either side, or a missing name/version on *either* side, yields a
     `warnings` fragment (skip that half of the check) rather than a
     `mismatches` one -- "can't compare" is a different finding from
-    "compared and differs."
+    "compared and differs," and is never silently dropped: a missing
+    wheel-side value warns exactly like a missing SBOM-side one.
     """
     mismatches: list[str] = []
     warnings: list[str] = []
@@ -213,8 +236,8 @@ def compare_name_version(
             mismatches.append(
                 f"name: wheel declares {wheel_name!r}, SBOM declares {sbom_name!r}"
             )
-    elif sbom_name is None:
-        warnings.append("SBOM subject has no name to cross-check")
+    else:
+        warnings.append(_missing_side_warning("name", wheel_name, sbom_name))
 
     if wheel_version and sbom_version:
         wheel_v = _try_parse_version(wheel_version)
@@ -234,10 +257,34 @@ def compare_name_version(
                 f"version: wheel declares {wheel_version!r}, SBOM declares "
                 f"{sbom_version!r}"
             )
-    elif sbom_version is None:
-        warnings.append("SBOM subject has no version to cross-check")
+    else:
+        warnings.append(_missing_side_warning("version", wheel_version, sbom_version))
 
     return mismatches, warnings
+
+
+def _missing_side_warning(
+    field: str, wheel_value: str | None, sbom_value: str | None
+) -> str:
+    """Build the "can't compare" warning fragment for `field` ("name" or
+    "version") when at least one of *wheel_value*/*sbom_value* is falsy --
+    names which side(s) are missing so a skip is never unexplained."""
+    if not wheel_value and not sbom_value:
+        return f"neither the wheel nor the SBOM subject has a {field} to cross-check"
+    if not wheel_value:
+        return f"wheel METADATA has no {field} to cross-check"
+    return f"SBOM subject has no {field} to cross-check"
+
+
+def format_name_version_mismatch(subject: str, mismatches: list[str]) -> str:
+    """Format `compare_name_version`/`check_spdx3_name_version`'s
+    `mismatches` list into one human-readable line prefixed with
+    *subject* (typically a wheel filename) -- the shared wording both
+    `verify-wheel` (`cli/commands/verify_wheel.py`) and `embed-wheel`
+    (`embed.py`'s pre-embed enforcement) log/raise, so a wording tweak
+    can't silently diverge between the two.
+    """
+    return f"{subject}: SBOM/wheel " + "; ".join(mismatches)
 
 
 def check_spdx3_name_version(

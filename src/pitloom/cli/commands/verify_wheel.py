@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom._sbom_format import check_spdx3_name_version
+from pitloom._sbom_format import check_spdx3_name_version, format_name_version_mismatch
 from pitloom._wheel_sbom_location import (
     _find_dist_info_prefix,
     _open_wheel_zip,
@@ -87,6 +87,15 @@ def _check_name_version(
     always non-fatal `WARNING:`s regardless of *fail_on_mismatch* --
     "couldn't check" is a different finding than "checked and it's
     wrong," and shouldn't be escalated by a flag meant for the latter.
+
+    Two sibling severity policies exist for this same comparison, each
+    deliberately different because the risk profile differs -- see
+    :func:`pitloom.embed._enforce_sbom_name_version` (fatal by default,
+    since it runs *before* a wheel is written and refuses to write a
+    known-wrong SBOM) and
+    :func:`pitloom.cli.commands.embed_wheel._warn_on_name_version_mismatch`
+    (always non-fatal, since it runs *after* an embed that either already
+    passed this same pre-write check or was explicitly forced past it).
     """
     mismatches, warnings = check_spdx3_name_version(
         wheel_name, wheel_version, location.data, sbom_format
@@ -97,7 +106,7 @@ def _check_name_version(
     if not mismatches:
         return True
 
-    message = f"{wheel_path.name}: SBOM/wheel " + "; ".join(mismatches)
+    message = format_name_version_mismatch(wheel_path.name, mismatches)
     if fail_on_mismatch:
         log.error(message)
         return False

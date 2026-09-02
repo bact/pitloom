@@ -79,6 +79,22 @@ class EmbeddedSbomLocation:
     data: bytes
 
 
+def name_version_from_email_message(
+    msg: email.message.Message,
+) -> tuple[str | None, str | None]:
+    """Pull ``Name``/``Version`` out of an already-parsed METADATA message.
+
+    The single source of truth for "what does the wheel declare as its own
+    name/version" -- shared by :func:`read_wheel_name_version` below and by
+    :func:`pitloom.extract.wheel._populate_metadata_from_email`, so the two
+    can't silently disagree on this specific extraction (they still differ
+    on what a *missing* header defaults to downstream: this function always
+    returns ``None``, while `ProjectMetadata.name` separately defaults to
+    the sentinel ``"unknown"`` when nothing overwrites it).
+    """
+    return msg.get("Name"), msg.get("Version")
+
+
 def read_wheel_name_version(
     zf: zipfile.ZipFile, dist_info: str
 ) -> tuple[str | None, str | None]:
@@ -95,7 +111,7 @@ def read_wheel_name_version(
         return None, None
     content = zf.read(metadata_path).decode("utf-8", errors="replace")
     msg = email.message_from_string(content)
-    return msg.get("Name"), msg.get("Version")
+    return name_version_from_email_message(msg)
 
 
 def find_embedded_sbom(

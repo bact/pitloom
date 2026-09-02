@@ -165,6 +165,40 @@ def test_embed_wheel_sbom_with_pregenerated_sbom(tmp_path: Path) -> None:
         wf.validate_record()
 
 
+def test_embed_wheel_sbom_missing_metadata_name_does_not_false_mismatch(
+    tmp_path: Path,
+) -> None:
+    """A wheel whose METADATA has no Name: header must not be compared
+    against the SBOM using the "unknown" sentinel `ProjectMetadata.name`
+    otherwise defaults to -- that would either report a bogus mismatch
+    or silently "match" any SBOM literally named "unknown". The
+    cross-check must treat a missing header as "can't compare" (WARNING,
+    non-fatal), same as verify-wheel's own path, not as a false mismatch
+    against a placeholder value."""
+    wheel_path = tmp_path / "noname-1.0.0-py3-none-any.whl"
+    dist_info = "noname-1.0.0.dist-info"
+    with zipfile.ZipFile(wheel_path, "w") as zf:
+        # No "Name:" header at all -- read_wheel()'s ProjectMetadata.name
+        # would otherwise stay at its "unknown" sentinel default.
+        zf.writestr(f"{dist_info}/METADATA", "Metadata-Version: 2.1\nVersion: 1.0.0\n")
+        zf.writestr(
+            f"{dist_info}/WHEEL",
+            "Wheel-Version: 1.0\nGenerator: test\nRoot-Is-Purelib: true\n"
+            "Tag: py3-none-any\n",
+        )
+        zf.writestr(f"{dist_info}/RECORD", "")
+
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")  # subject: demo_pkg
+
+    # Must not raise -- a missing wheel-side name is "can't compare", not
+    # a mismatch against the SBOM's real "demo_pkg" name.
+    embed_wheel_sbom(wheel_path, sbom_path=sbom_file)
+
+    with zipfile.ZipFile(wheel_path) as zf:
+        assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())
+
+
 def test_embed_wheel_sbom_with_project_fixture(tmp_path: Path) -> None:
     """Test embed_wheel_sbom using a project fixture directory."""
     fixture_dir = (

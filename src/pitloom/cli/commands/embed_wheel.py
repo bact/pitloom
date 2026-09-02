@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import logging
 import sys
 from pathlib import Path
@@ -31,6 +32,7 @@ from pitloom.cli.commands.validate_wheel import _validate_location
 from pitloom.cli.commands.verify_wheel import _check_location, _check_name_version
 from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
+from pitloom.core.creation import CreationMetadata
 from pitloom.extract.project import read_project
 
 log = logging.getLogger(__name__)
@@ -75,10 +77,15 @@ def _run_post_embed_checks(
 
     Locates the SBOM from disk and detects its format exactly ONCE (via
     `_locate_and_detect`, shared with `_check_one_wheel`/`_validate_one_wheel`)
-    and passes both to `_check_location`/`_check_name_version`/
-    `_validate_location` when the relevant flags are given, rather than
-    each check re-locating/re-detecting independently -- still one
-    genuine disk read, just not duplicated.
+    and passes both to `_check_location`/`_validate_location` when the
+    relevant flags are given, rather than each check re-locating/
+    re-detecting independently -- one genuine disk read for the SBOM
+    entry itself, not duplicated. `--verify`'s name/version half
+    (`_warn_on_name_version_mismatch` below) is a SEPARATE disk read of
+    its own -- it needs `.dist-info/METADATA`, not the SBOM entry, so it
+    isn't covered by the SBOM-specific dedup above; not worth threading a
+    third return value through `_locate_and_detect` to avoid one small
+    extra read on what's normally a small archive.
 
     `--verify`'s name/version half is always non-fatal here (`WARNING:`
     only, no `--fail-on-mismatch` equivalent on `embed-wheel` itself) --
@@ -140,6 +147,42 @@ def _warn_on_name_version_mismatch(
     )
 
 
+def _resolve_project_dir_and_config(
+    project_dir: Path | None,
+) -> tuple[Path | None, PitloomConfig] | None:
+    """Resolve *project_dir* (from ``--project-dir``, or cwd if unset)
+    into ``(project_dir, PitloomConfig)``.
+
+    Returns ``None`` (already printed an ``ERROR:``) if an *explicit*
+    ``--project-dir`` doesn't exist or has no ``pyproject.toml``/
+    ``setup.cfg`` -- that's a user mistake worth failing on. Falling back
+    to cwd with no project file there is not an error (a standalone-wheel
+    embed with no project directory is a legitimate use), so that case
+    silently returns the default config with `project_dir=None`.
+    """
+    if project_dir is None:
+        try:
+            _, pitloom_config, _ = read_project(Path.cwd())
+            return Path.cwd(), pitloom_config
+        except FileNotFoundError:
+            return None, PitloomConfig()
+
+    proj_path = Path(project_dir).resolve()
+    if not proj_path.exists():
+        print(f"ERROR: project directory not found: {proj_path}", file=sys.stderr)
+        return None
+    try:
+        _, pitloom_config, _ = read_project(proj_path)
+    except FileNotFoundError:
+        print(
+            "ERROR: No pyproject.toml or setup.cfg found "
+            f"in project directory: {proj_path}",
+            file=sys.stderr,
+        )
+        return None
+    return proj_path, pitloom_config
+
+
 @cli_error_handler("wheel SBOM embedding failed")
 def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
@@ -161,35 +204,12 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         )
         return 1
 
-    project_dir = args.project_dir
-    pitloom_config = PitloomConfig()
-    if project_dir is not None:
-        proj_path = Path(project_dir).resolve()
-        if not proj_path.exists():
-            print(
-                f"ERROR: project directory not found: {proj_path}",
-                file=sys.stderr,
-            )
-            return 1
-        try:
-            _, pitloom_config, _ = read_project(proj_path)
-            project_dir = proj_path
-        except FileNotFoundError:
-            print(
-                "ERROR: No pyproject.toml or setup.cfg found "
-                f"in project directory: {proj_path}",
-                file=sys.stderr,
-            )
-            return 1
-    else:
-        try:
-            _, pitloom_config, _ = read_project(Path.cwd())
-            project_dir = Path.cwd()
-        except FileNotFoundError:
-            pass
+    resolved = _resolve_project_dir_and_config(args.project_dir)
+    if resolved is None:
+        return 1
+    project_dir, pitloom_config = resolved
 
     creation = _resolve_creation_metadata(args, pitloom_config)
-
     overrides = ConfigOverrides(
         enrich=args.enrich,
         extract_file_header=args.extract_file_header,
@@ -198,28 +218,77 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline,
     )
+    batch = _EmbedBatchContext(
+        project_dir=project_dir,
+        pitloom_config=pitloom_config,
+        creation_metadata=creation.to_creation_metadata(),
+        overrides=overrides,
+    )
+
     all_ok = True
     for wheel_path in unique_wheels:
         output_path = args.output if len(unique_wheels) == 1 else None
-        embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(
-            wheel_path,
-            project_dir=project_dir,
-            pitloom_config=pitloom_config,
-            sbom_path=args.sbom,
-            output_path=output_path,
-            sbom_basename=args.sbom_basename,
-            creation_metadata=creation.to_creation_metadata(),
-            registry=args.registry,
-            overrides=overrides,
-            allow_mismatch=args.allow_mismatch,
-        )
-        _report_embed_result(arcname, wheel_path.name, removed, floored)
+        embedded = _try_embed_one_wheel(wheel_path, output_path, batch, args)
+        if embedded is None:
+            all_ok = False
+            continue
+        embedded_wheel_path, arcname = embedded
         if output_path is not None:
             _print_sbom_output_path(output_path)
-
         if not _run_post_embed_checks(args, embedded_wheel_path, arcname):
             all_ok = False
     return 0 if all_ok else 1
+
+
+@dataclasses.dataclass(frozen=True)
+class _EmbedBatchContext:
+    """The per-run values every wheel in a batch embeds with -- resolved
+    once in :func:`_run_embed_wheel_command`, not per-wheel, and bundled
+    here so :func:`_try_embed_one_wheel` stays under the arg-count limit."""
+
+    project_dir: Path | None
+    pitloom_config: PitloomConfig
+    creation_metadata: CreationMetadata
+    overrides: ConfigOverrides
+
+
+def _try_embed_one_wheel(
+    wheel_path: Path,
+    output_path: Path | None,
+    batch: _EmbedBatchContext,
+    args: argparse.Namespace,
+) -> tuple[Path, str] | None:
+    """Embed into *wheel_path*, report the result, and return
+    ``(embedded_wheel_path, arcname)`` -- or ``None`` on a per-wheel
+    failure that's already been reported as an ``ERROR:``.
+
+    ValueError/OSError here mean *this* wheel failed (bad archive, bad
+    ``--sbom-basename``, or a ``--sbom`` name/version mismatch that
+    wasn't ``--allow-mismatch``'d) -- the same per-wheel-failure contract
+    `find_embedded_sbom()`/`_open_wheel_zip()` already document. Caught
+    here (not left to the outer `cli_error_handler`) so one bad wheel in
+    a multi-wheel batch doesn't abort the others, matching how a failing
+    `--verify`/`--validate` on one wheel already doesn't stop the loop
+    in :func:`_run_embed_wheel_command`.
+    """
+    try:
+        embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(
+            wheel_path,
+            project_dir=batch.project_dir,
+            pitloom_config=batch.pitloom_config,
+            sbom_path=args.sbom,
+            output_path=output_path,
+            sbom_basename=args.sbom_basename,
+            creation_metadata=batch.creation_metadata,
+            registry=args.registry,
+            overrides=batch.overrides,
+            allow_mismatch=args.allow_mismatch,
+        )
+    except (ValueError, OSError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return None
+    _report_embed_result(arcname, wheel_path.name, removed, floored)
+    return embedded_wheel_path, arcname
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
