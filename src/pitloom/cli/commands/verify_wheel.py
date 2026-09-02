@@ -12,14 +12,10 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    RECOMMENDED_EXTENSIONS,
-    EmbeddedSbomLocation,
-    detect_sbom_format,
-)
+from pitloom.assemble import RECOMMENDED_EXTENSIONS, EmbeddedSbomLocation
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
-    _locate_embedded_sbom_or_report,
+    _locate_and_detect,
     cli_error_handler,
 )
 
@@ -68,10 +64,11 @@ def _check_location(
 
 def _check_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool:
     """Verify one wheel's embedded SBOM location/extension. Returns success."""
-    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
-    if location is None:
+    located = _locate_and_detect(wheel_path, sbom_filename)
+    if located is None:
         return False
-    return _check_location(wheel_path, location, detect_sbom_format(location.data))
+    location, sbom_format = located
+    return _check_location(wheel_path, location, sbom_format)
 
 
 @cli_error_handler("wheel SBOM verification failed")

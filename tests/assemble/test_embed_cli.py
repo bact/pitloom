@@ -451,19 +451,13 @@ def test_cli_embed_wheel_verify_validate_share_one_format_detection(
         call_count += 1
         return real_detect_sbom_format(data)
 
-    # Each of embed_wheel.py/verify_wheel.py/validate_wheel.py holds its own
-    # `from pitloom.assemble import detect_sbom_format` binding -- patch all
-    # three, not just embed_wheel.py's, so a regression that reintroduces a
-    # duplicate call inside _check_location/_validate_location themselves
-    # (not just embed_wheel.py's own dedup call) is actually caught.
-    for module in (
-        "pitloom.cli.commands.embed_wheel",
-        "pitloom.cli.commands.verify_wheel",
-        "pitloom.cli.commands.validate_wheel",
-    ):
-        monkeypatch.setattr(
-            f"{module}.detect_sbom_format", _counting_detect_sbom_format
-        )
+    # embed_wheel.py/verify_wheel.py/validate_wheel.py all locate+detect via
+    # the single shared `_locate_and_detect()` in cli/commands/utils.py, so
+    # patching its one `detect_sbom_format` binding catches a regression
+    # anywhere in that shared path, not just embed_wheel.py's own call.
+    monkeypatch.setattr(
+        "pitloom.cli.commands.utils.detect_sbom_format", _counting_detect_sbom_format
+    )
 
     wheel_path = _make_dummy_wheel(tmp_path, "sharedformat", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"

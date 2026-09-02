@@ -13,14 +13,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import (
-    ConfigOverrides,
-    detect_sbom_format,
-    embed_wheel_sbom,
-)
+from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
-    _locate_embedded_sbom_or_report,
+    _locate_and_detect,
     _print_sbom_output_path,
     cli_error_handler,
     resolve_effective_provenance,
@@ -71,21 +67,20 @@ def _run_post_embed_checks(
     in-memory shortcut would silently narrow that guarantee for exactly
     the command whose job is to catch that kind of drift.
 
-    Locates the SBOM from disk exactly ONCE and passes it to both checks
-    (`_check_location`/`_validate_location`) when both flags are given,
-    rather than each check re-locating it independently -- still one
-    genuine disk read, just not duplicated. Same for format detection:
-    both checks otherwise call `detect_sbom_format()` on the identical
-    bytes, so it's detected once here and passed to both.
+    Locates the SBOM from disk and detects its format exactly ONCE (via
+    `_locate_and_detect`, shared with `_check_one_wheel`/`_validate_one_wheel`)
+    and passes both to `_check_location`/`_validate_location` when both
+    flags are given, rather than each check re-locating/re-detecting
+    independently -- still one genuine disk read, just not duplicated.
     """
     if not args.verify and not args.validate:
         return True
 
     embedded_filename = arcname.rsplit("/", 1)[-1]
-    location = _locate_embedded_sbom_or_report(embedded_wheel_path, embedded_filename)
-    if location is None:
+    located = _locate_and_detect(embedded_wheel_path, embedded_filename)
+    if located is None:
         return False
-    sbom_format = detect_sbom_format(location.data)
+    location, sbom_format = located
 
     # `is not False` (not plain truthiness) on both, even though
     # _check_location only ever returns bool: _validate_location returns

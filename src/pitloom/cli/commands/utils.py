@@ -17,7 +17,11 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
+from pitloom.assemble import (
+    EmbeddedSbomLocation,
+    detect_sbom_format,
+    find_embedded_sbom,
+)
 from pitloom.core.config import PitloomConfig
 from pitloom.core.provenance import (
     ProvenanceConfig,
@@ -143,6 +147,20 @@ def _locate_embedded_sbom_or_report(
             file=sys.stderr,
         )
     return location
+
+
+def _locate_and_detect(
+    wheel_path: Path, sbom_filename: str | None
+) -> tuple[EmbeddedSbomLocation, str | None] | None:
+    """`_locate_embedded_sbom_or_report()` plus `detect_sbom_format()` on
+    the result, since every caller of the former immediately needs the
+    latter too. Returns ``None`` (having already reported the ``ERROR:``)
+    when no SBOM is found, same as `_locate_embedded_sbom_or_report()`.
+    """
+    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
+    if location is None:
+        return None
+    return location, detect_sbom_format(location.data)
 
 
 def _import_spdx3_validate() -> Any | None:
