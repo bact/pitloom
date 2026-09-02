@@ -273,7 +273,21 @@ class IdRegistry:
 
 def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
     """Return *object_set*'s objects sorted by ``spdxId`` for deterministic
-    iteration (``SHACLObjectSet.objects`` is an unordered set)."""
+    iteration (``SHACLObjectSet.objects`` is an unordered set).
+
+    Not canonical for SBOM output: this order never feeds hashed or
+    serialized SBOM content -- unlike
+    :func:`pitloom.assemble.spdx3._fragments_unify._canonical_merge_key`,
+    whose order does determine SBOM output content. It is still
+    load-bearing for :class:`IdRegistry` bookkeeping, though: when an
+    imported SBOM carries more than one ``SpdxDocument`` element,
+    :meth:`IdRegistry.import_sbom` takes the first one in this order as
+    ``self.namespace`` (see its loop over ``sorted_objects``), and that
+    namespace is itself persisted by :meth:`IdRegistry.save`. Changing
+    this key is safe for the common single-document case, but can change
+    which namespace gets picked -- and persisted -- for a multi-document
+    input.
+    """
     return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
 
 

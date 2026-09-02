@@ -147,6 +147,8 @@ def _emit_file_header_metadata(
         )
 
     if summary_entries:
+        # Canonical: feeds package_entry.summary, an SBOM output field
+        # (see docstring above) -- not cosmetic iteration order.
         summary_entries.sort()
         package_entry.summary = "; ".join(f"{k}: {v}" for k, v in summary_entries)
 

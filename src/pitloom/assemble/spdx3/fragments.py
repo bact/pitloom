@@ -23,6 +23,7 @@ from pitloom.assemble.spdx3._fragments_unify import (
     _SKIP_MERGE_PROPS,
     _STRUCTURAL_TYPES,
     _as_element,
+    _canonical_merge_key,
     _class_properties,
     _is_empty,
     _merge_comment,
@@ -38,7 +39,6 @@ from pitloom.assemble.spdx3._fragments_unify import (
     _remap_object_refs,
     _sha256_hash,
     _signature,
-    _stable_key,
     _UnificationEvents,
     _warn_if_same_name_different_hash,
 )
@@ -84,7 +84,7 @@ __all__ = [
     "_remap_object_refs",
     "_sha256_hash",
     "_signature",
-    "_stable_key",
+    "_canonical_merge_key",
     "_update_profile_conformance",
     "_warn_if_same_name_different_hash",
     "FragmentMergeError",
@@ -112,7 +112,7 @@ def _dedupe_relationships(exporter: Spdx3JsonExporter) -> None:
     seen: set[tuple[Any, Any, frozenset[Any]]] = set()
     duplicates: list[spdx3.Relationship] = []
 
-    for obj in sorted(exporter.object_set.objects, key=_stable_key):
+    for obj in sorted(exporter.object_set.objects, key=_canonical_merge_key):
         if not isinstance(obj, spdx3.Relationship):
             continue
         from_id = _endpoint_id(obj.from_)

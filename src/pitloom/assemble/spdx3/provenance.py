@@ -146,6 +146,9 @@ def build_unification_annotation(
         "schema": UNIFICATION_SCHEMA_URL,
         "kind": "unification",
         "criterion": criterion,
+        # Canonical: RFC 8785 (JCS) canonicalizes JSON *object* member
+        # order but not *array* order, so these sorts are load-bearing
+        # for output determinism, not redundant with _canonical_bytes().
         "unified": sorted(unified_ids),
         "fragments": sorted(fragments),
     }
@@ -227,6 +230,8 @@ def _artifact_metadata_envelope(
     }
     if dropped_keys:
         statement["truncated"] = True
+        # Canonical: RFC 8785 doesn't reorder JSON arrays (see
+        # build_unification_annotation above) -- this sort is load-bearing.
         statement["truncatedKeys"] = sorted(dropped_keys)
         statement["truncatedKeyCount"] = len(dropped_keys)
         statement["maxMetadataBytes"] = max_metadata_bytes
@@ -266,6 +271,10 @@ def _truncate_metadata_for_budget(
         key: len(_canonical_bytes(key)) + 1 + len(_canonical_bytes(value))
         for key, value in sanitized.items()
     }
+    # Canonical: this order (largest entry first, key as tiebreak) decides
+    # *which* keys get dropped when the budget is tight, not just their
+    # order -- content-affecting, not cosmetic. Final truncatedKeys order
+    # is re-sorted alphabetically above regardless.
     drop_order = sorted(sanitized, key=lambda key: (-entry_bytes[key], key))
 
     kept = dict(sanitized)

@@ -183,8 +183,7 @@ and this project adheres to
 - Reorganize configuration parsing architecture: move INI-to-dictionary adapter
   logic entirely into `setuptools.py` ([#152])
 - Restructure CLI architecture: decentralize parser configuration into
-  individual command modules, and replace `__main__.py` static dispatch
-  with dynamic `args.func` routing ([#153])
+  individual command modules ([#153])
 - Split monolithic test files into domain-scoped folders
   (`cli/`, `core/`, `extract/`, `assemble/`) with `conftest.py`
   ([#153], [#155], [#161])
