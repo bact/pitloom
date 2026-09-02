@@ -34,6 +34,7 @@ from typing import Any, cast
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom._wheel_sbom_location import _find_dist_info_prefix
 from pitloom.core.dataset_metadata import DatasetMetadata
 from pitloom.core.models import compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -161,13 +162,16 @@ def _embed_sbom_entry(
     `test_verify_wheel_cli.py`/`test_validate_wheel_cli.py` to construct
     deliberately non-conventional-extension or invalid-content fixtures
     that `embed-wheel`'s own self-correction makes otherwise unreachable.
+
+    Reuses production's own `_find_dist_info_prefix` (rather than a
+    second, test-only dist-info-detection algorithm) so this fixture
+    can't silently diverge from what `find_embedded_sbom` actually looks
+    for -- a single append-mode ZipFile handle can both read the
+    existing namelist and write the new entry.
     """
-    with zipfile.ZipFile(wheel_path) as zf:
-        dist_info = next(
-            n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
-        )
     with zipfile.ZipFile(wheel_path, "a") as zf:
-        zf.writestr(f"{dist_info}/sboms/{sbom_basename}", content)
+        dist_info = _find_dist_info_prefix(zf, wheel_path)
+        zf.writestr(f"{dist_info}sboms/{sbom_basename}", content)
 
 
 def _make_dummy_wheel(

@@ -348,9 +348,9 @@ def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
     sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
 
     def _wrong_extension(
-        wheel_path_arg: Path, sbom_basename: str | None = None
+        wheel_path_arg: Path, sbom_filename: str | None = None
     ) -> EmbeddedSbomLocation | None:
-        location = find_embedded_sbom(wheel_path_arg, sbom_basename)
+        location = find_embedded_sbom(wheel_path_arg, sbom_filename)
         if location is None:
             return None
         return dataclasses.replace(location, arcname="on-disk-value.txt")
@@ -392,11 +392,11 @@ def test_cli_embed_wheel_verify_validate_share_one_disk_lookup(
     real_find_embedded_sbom = find_embedded_sbom
 
     def _counting_find_embedded_sbom(
-        wheel_path_arg: Path, sbom_basename: str | None = None
+        wheel_path_arg: Path, sbom_filename: str | None = None
     ) -> EmbeddedSbomLocation | None:
         nonlocal call_count
         call_count += 1
-        return real_find_embedded_sbom(wheel_path_arg, sbom_basename)
+        return real_find_embedded_sbom(wheel_path_arg, sbom_filename)
 
     monkeypatch.setattr(
         "pitloom.cli.commands.utils.find_embedded_sbom", _counting_find_embedded_sbom
