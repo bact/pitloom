@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 def _check_location(
     wheel_path: Path,
     location: EmbeddedSbomLocation,
-    sbom_format: str | None = None,
+    sbom_format: str | None,
 ) -> bool:
     """Verify an *already disk-read* embedded SBOM's extension. Always
     succeeds (location/format problems are WARNING:, not a failure) --
@@ -41,12 +41,13 @@ def _check_location(
     `_run_post_embed_checks`: this split exists so `--verify --validate`
     together share ONE disk read, not to avoid the read).
 
-    *sbom_format* lets a caller that already ran `detect_sbom_format()`
-    (e.g. `_run_post_embed_checks` sharing it with `_validate_location`)
-    pass the result through instead of re-parsing the same JSON bytes.
+    *sbom_format* is `detect_sbom_format(location.data)`'s result,
+    computed by the caller -- required, not optional-with-a-lazy-fallback,
+    because `None` is itself a valid detection result (unrecognized
+    format): a `sbom_format is None` fallback couldn't tell "caller didn't
+    detect it yet" from "caller detected it as unrecognized" and would
+    silently re-detect on every unrecognized-format wheel.
     """
-    if sbom_format is None:
-        sbom_format = detect_sbom_format(location.data)
     recommended = RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
     if recommended is None:
         log.warning(
@@ -70,7 +71,7 @@ def _check_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool:
     location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
     if location is None:
         return False
-    return _check_location(wheel_path, location)
+    return _check_location(wheel_path, location, detect_sbom_format(location.data))
 
 
 @cli_error_handler("wheel SBOM verification failed")

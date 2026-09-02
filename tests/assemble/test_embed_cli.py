@@ -429,6 +429,69 @@ def test_cli_embed_wheel_verify_validate_share_one_disk_lookup(
     assert call_count == 1
 
 
+def test_cli_embed_wheel_verify_validate_share_one_format_detection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--verify --validate together detect the embedded SBOM's format
+    exactly ONCE, not once per check -- same dedup as the disk-lookup
+    sharing above (see test_cli_embed_wheel_verify_validate_share_one_
+    disk_lookup), but for `detect_sbom_format()` instead of the disk read
+    itself. Without this, a future split of `_run_post_embed_checks` back
+    into two independent calls would silently reintroduce the double
+    parse with no test failing."""
+    from pitloom import _sbom_format
+
+    call_count = 0
+    real_detect_sbom_format = _sbom_format.detect_sbom_format
+
+    def _counting_detect_sbom_format(data: bytes) -> str | None:
+        nonlocal call_count
+        call_count += 1
+        return real_detect_sbom_format(data)
+
+    # Each of embed_wheel.py/verify_wheel.py/validate_wheel.py holds its own
+    # `from pitloom.assemble import detect_sbom_format` binding -- patch all
+    # three, not just embed_wheel.py's, so a regression that reintroduces a
+    # duplicate call inside _check_location/_validate_location themselves
+    # (not just embed_wheel.py's own dedup call) is actually caught.
+    for module in (
+        "pitloom.cli.commands.embed_wheel",
+        "pitloom.cli.commands.verify_wheel",
+        "pitloom.cli.commands.validate_wheel",
+    ):
+        monkeypatch.setattr(
+            f"{module}.detect_sbom_format", _counting_detect_sbom_format
+        )
+
+    wheel_path = _make_dummy_wheel(tmp_path, "sharedformat", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    # Unrecognized format so --validate WARN-and-skips rather than reaching
+    # spdx3_validate's network-dependent schema fetch -- this test is about
+    # the shared-detection property, not content validation.
+    sbom_file.write_text("not valid spdx3 json-ld", encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--verify",
+            "--validate",
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert call_count == 1
+
+
 def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
