@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-29
+Last-Modified: 2026-09-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -198,7 +198,8 @@ Inputs (all optional):
 | `extract-file-header` | *(empty)* | `true`/`false` to force per-file SPDX header scanning on or off; empty defers to `[tool.pitloom] extract-file-header` (on by default). |
 | `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.content-type] enabled` (off by default). |
 | `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
-| `args` | *(empty)* | Extra raw flags passed through to the `loom` command. |
+| `max-source-metadata-bytes` | *(empty)* | Cap the artifact-metadata preservation Annotation's serialized size to this many UTF-8 bytes, truncating the largest entries first when exceeded; empty defers to `[tool.pitloom.provenance] max-source-metadata-bytes` (unbounded by default). |
+| `args` | *(empty)* | Extra raw flags passed through to the `loom` command, e.g. `--verify --validate` when `embed-wheel` is set. |
 | `pitloom-version` | *(empty)* | Pitloom version/specifier to install, e.g. `0.17.0` or `>=0.13,<1.0`. Empty installs the latest release. |
 | `python-version` | `3.x` | Python version passed to `actions/setup-python`. |
 | `install` | `true` | Set `false` to skip installing Python/Pitloom and assume `loom` is already on `PATH`. |
