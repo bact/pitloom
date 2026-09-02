@@ -18,6 +18,7 @@ in hand.
 from __future__ import annotations
 
 import dataclasses
+import email
 import zipfile
 from pathlib import Path
 
@@ -76,6 +77,59 @@ class EmbeddedSbomLocation:
 
     arcname: str
     data: bytes
+
+
+def name_version_from_email_message(
+    msg: email.message.Message,
+) -> tuple[str | None, str | None]:
+    """Pull ``Name``/``Version`` out of an already-parsed METADATA message.
+
+    The single source of truth for "what does the wheel declare as its own
+    name/version" -- shared by :func:`read_wheel_name_version` below and by
+    :func:`pitloom.extract.wheel._populate_metadata_from_email`, so the two
+    can't silently disagree on this specific extraction (they still differ
+    on what a *missing* header defaults to downstream: this function always
+    returns ``None``, while `ProjectMetadata.name` separately defaults to
+    the sentinel ``"unknown"`` when nothing overwrites it).
+    """
+    return msg.get("Name"), msg.get("Version")
+
+
+def read_wheel_name_version(
+    zf: zipfile.ZipFile, dist_info: str
+) -> tuple[str | None, str | None]:
+    """Read ``Name``/``Version`` from *dist_info*'s ``METADATA`` entry.
+
+    Returns ``(None, None)`` if the entry is absent; either element may
+    independently be ``None`` if the corresponding header is missing.
+    Shared by :func:`pitloom._embed_wheel._derive_wheel_sbom_filename`
+    (default-filename derivation) and `verify-wheel`'s name/version
+    cross-check, so the two parses can't silently diverge.
+    """
+    metadata_path = f"{dist_info}METADATA"
+    if metadata_path not in zf.namelist():
+        return None, None
+    content = zf.read(metadata_path).decode("utf-8", errors="replace")
+    msg = email.message_from_string(content)
+    return name_version_from_email_message(msg)
+
+
+def read_wheel_name_version_from_path(
+    wheel_path: Path,
+) -> tuple[str | None, str | None]:
+    """Open *wheel_path*, resolve its ``.dist-info`` prefix, and read
+    ``Name``/``Version`` from its ``METADATA`` entry -- the "just tell me
+    the wheel's declared name/version" convenience both `verify-wheel`
+    (`_check_one_wheel`) and `embed-wheel --verify`
+    (`_warn_on_name_version_mismatch`) need, so the
+    open/resolve-dist-info/read triplet isn't hand-copied at each call
+    site. See :func:`read_wheel_name_version` for the lower-level,
+    already-open-``ZipFile`` variant this wraps (used where a caller
+    already has one open for another reason, e.g. `find_embedded_sbom`).
+    """
+    with _open_wheel_zip(wheel_path) as zf:
+        dist_info = _find_dist_info_prefix(zf, wheel_path)
+        return read_wheel_name_version(zf, dist_info)
 
 
 def find_embedded_sbom(

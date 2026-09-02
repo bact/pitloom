@@ -17,7 +17,6 @@ from __future__ import annotations
 import base64
 import csv
 import dataclasses
-import email
 import hashlib
 import io
 import json
@@ -28,7 +27,11 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pitloom._wheel_sbom_location import _find_dist_info_prefix, _open_wheel_zip
+from pitloom._wheel_sbom_location import (
+    _find_dist_info_prefix,
+    _open_wheel_zip,
+    read_wheel_name_version,
+)
 from pitloom.core.creation import resolve_source_date_epoch
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.logging_config import configure_logging
@@ -148,14 +151,7 @@ def _validate_sbom_filename(filename: str) -> None:
 
 def _derive_wheel_sbom_filename(zf: zipfile.ZipFile, dist_info: str) -> str:
     """Derive default SBOM filename from wheel METADATA."""
-    meta_name: str | None = None
-    meta_version: str | None = None
-    metadata_path = f"{dist_info}METADATA"
-    if metadata_path in zf.namelist():
-        content = zf.read(metadata_path).decode("utf-8", errors="replace")
-        msg = email.message_from_string(content)
-        meta_name = msg.get("Name")
-        meta_version = msg.get("Version")
+    meta_name, meta_version = read_wheel_name_version(zf, dist_info)
     if meta_name and meta_version:
         return f"{meta_name}-{meta_version}{SPDX3_JSONLD_EXTENSION}"
     prefix = dist_info.rstrip("/").removesuffix(".dist-info")

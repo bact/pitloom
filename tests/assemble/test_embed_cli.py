@@ -9,6 +9,8 @@ See also:
 - :mod:`tests.assemble.test_embed_overrides` for overrides and standalone build path.
 - :mod:`tests.assemble.test_embed_core` for core embed logic.
 - :mod:`tests.assemble.test_embed_internals` for low-level ZIP manipulation.
+- :mod:`tests.assemble.test_embed_wheel_mismatch` for `--sbom`'s pre-embed
+  name/version cross-check and `--allow-mismatch`.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from installer.sources import WheelFile
 from pitloom import __main__
 from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
 
-from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
+from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
 
 def test_cli_embed_wheel_absolute_glob(
@@ -162,7 +164,9 @@ def test_cli_embed_wheel_pregenerated_sbom(
     """Test CLI embedding a pregenerated SBOM file with --sbom."""
     wheel_path = _make_dummy_wheel(tmp_path, "pregenpkg", "1.0.0")
     sbom_file = tmp_path / "custom_sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("pregenpkg", "1.0.0"), encoding="utf-8"
+    )
 
     monkeypatch.setattr(
         sys,
@@ -307,7 +311,9 @@ def test_cli_embed_wheel_verify_flag_passes_on_happy_path(
     recommended extension, exit stays 0."""
     wheel_path = _make_dummy_wheel(tmp_path, "verifyflag", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("verifyflag", "1.0.0"), encoding="utf-8"
+    )
 
     monkeypatch.setattr(
         sys,
@@ -341,7 +347,9 @@ def test_cli_embed_wheel_verify_reports_when_post_embed_lookup_fails(
     success, even though the embed itself already succeeded."""
     wheel_path = _make_dummy_wheel(tmp_path, "lookupfailpkg", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("lookupfailpkg", "1.0.0"), encoding="utf-8"
+    )
 
     monkeypatch.setattr(
         "pitloom.cli.commands.embed_wheel._locate_and_detect", lambda *a, **k: None
@@ -380,7 +388,9 @@ def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
     genuinely exercised, not bypassed with in-memory data."""
     wheel_path = _make_dummy_wheel(tmp_path, "rereadpkg", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("rereadpkg", "1.0.0"), encoding="utf-8"
+    )
 
     def _wrong_extension(
         wheel_path_arg: Path, sbom_filename: str | None = None

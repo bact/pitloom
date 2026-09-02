@@ -31,6 +31,11 @@ and this project adheres to
   subcommand ([#201])
 - Add `pitloom verify-wheel`/`validate-wheel` CLI commands and matching
   `embed-wheel --verify`/`--validate` flags ([#202])
+- Add SBOM name/version cross-check to `verify-wheel`, with
+  `--fail-on-mismatch` to make a mismatch fatal ([#204])
+- `embed-wheel --sbom` now cross-checks the SBOM's name/version against
+  the wheel's METADATA before writing; aborts on mismatch unless
+  `--allow-mismatch` ([#204])
 
 ### Changed
 
@@ -48,6 +53,7 @@ and this project adheres to
 [#200]: https://github.com/bact/pitloom/pull/200
 [#201]: https://github.com/bact/pitloom/pull/201
 [#202]: https://github.com/bact/pitloom/pull/202
+[#204]: https://github.com/bact/pitloom/pull/204
 
 ## [0.17.0] - 2026-08-30
 

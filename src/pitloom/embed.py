@@ -11,6 +11,7 @@ See also: :mod:`pitloom._embed_wheel` for ZIP archive manipulation and RECORD up
 from __future__ import annotations
 
 import dataclasses
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +34,9 @@ from pitloom._embed_wheel import (
 from pitloom._sbom_format import (
     RECOMMENDED_EXTENSIONS,
     VALIDATED_FORMATS,
+    check_spdx3_name_version,
     detect_sbom_format,
+    format_name_version_mismatch,
 )
 from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
@@ -56,6 +59,8 @@ from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "ConfigOverrides",
@@ -204,6 +209,52 @@ class ConfigOverrides:
     offline: bool | None = None
 
 
+def _enforce_sbom_name_version(
+    wheel_filename: str,
+    wheel_name: str | None,
+    wheel_version: str | None,
+    sbom_json: str,
+    *,
+    allow_mismatch: bool,
+) -> None:
+    """Cross-check an externally-supplied ``--sbom``'s declared subject
+    name/version against the target wheel's own METADATA, *before*
+    anything is written to the wheel.
+
+    Raises ``ValueError`` on a genuine mismatch unless *allow_mismatch* --
+    the embed is refused outright rather than writing a known-wrong SBOM
+    and relying on a later `verify-wheel`/`--verify` to catch it, since
+    nothing is on disk yet to roll back. *allow_mismatch* downgrades a
+    mismatch to a `WARNING:` and lets the embed proceed (for CI/automation
+    that wants best-effort embedding). Extraction failures (unsupported
+    format, unexpected graph shape) are always a non-fatal `WARNING:`,
+    regardless of *allow_mismatch* -- "couldn't check" is never escalated
+    to "refused."
+
+    Fatal-by-default here, unlike `verify-wheel`'s own WARNING-by-default
+    (:func:`pitloom.cli.commands.verify_wheel._check_name_version`) --
+    intentional, not an inconsistency: this runs *before* a wheel is
+    written, so refusing is cheap (nothing to roll back), whereas
+    verify-wheel inspects an already-built wheel after the fact.
+    """
+    sbom_data = sbom_json.encode("utf-8")
+    sbom_format = detect_sbom_format(sbom_data)
+    mismatches, warnings = check_spdx3_name_version(
+        wheel_name, wheel_version, sbom_data, sbom_format
+    )
+    for warning in warnings:
+        log.warning("%s: %s", wheel_filename, warning)
+
+    if not mismatches:
+        return
+
+    message = format_name_version_mismatch(wheel_filename, mismatches)
+    if allow_mismatch:
+        log.warning(message)
+        return
+    raise ValueError(message)
+
+
 # pylint: disable=too-many-arguments
 # pylint: disable-next=too-many-locals
 def embed_wheel_sbom(
@@ -217,8 +268,18 @@ def embed_wheel_sbom(
     creation_metadata: CreationMetadata | None = None,
     registry: str | Path | IdRegistry | None = None,
     overrides: ConfigOverrides | None = None,
+    allow_mismatch: bool = False,
 ) -> tuple[Path, str, str, tuple[str, ...], bool]:
-    """Generate and embed a PEP 770 SBOM into a built Python wheel."""
+    """Generate and embed a PEP 770 SBOM into a built Python wheel.
+
+    When *sbom_path* supplies an externally-generated SBOM, its declared
+    subject name/version is cross-checked against the wheel's own
+    ``.dist-info/METADATA`` before anything is written -- see
+    :func:`_enforce_sbom_name_version`. A genuine mismatch raises
+    ``ValueError`` unless *allow_mismatch*. A Pitloom-generated SBOM
+    (*sbom_path* unset) is never checked -- it's built from this same
+    *wheel_metadata*, so it can't diverge.
+    """
     configure_logging()
     wheel_obj = Path(wheel_path).resolve()
     wheel_metadata, _ = read_wheel(wheel_obj)
@@ -234,6 +295,29 @@ def embed_wheel_sbom(
         registry=registry,
         overrides=eff_overrides,
     )
+    if sbom_path is not None:
+        # wheel_metadata.name defaults to the sentinel "unknown" (never
+        # None) when METADATA has no Name header -- comparing that
+        # placeholder against the SBOM would either report a bogus
+        # mismatch or silently "match" an SBOM literally named "unknown".
+        # `provenance` only gains a "name"/"version" key when a real
+        # header was found (see `_populate_metadata_from_email`), so it's
+        # the correct signal for "was this field actually present" --
+        # the same real-None-on-missing semantics `read_wheel_name_version`
+        # (verify-wheel's own path) already has.
+        wheel_name = (
+            wheel_metadata.name if "name" in wheel_metadata.provenance else None
+        )
+        wheel_version = (
+            wheel_metadata.version if "version" in wheel_metadata.provenance else None
+        )
+        _enforce_sbom_name_version(
+            wheel_obj.name,
+            wheel_name,
+            wheel_version,
+            sbom_json,
+            allow_mismatch=allow_mismatch,
+        )
     target_filename = (
         f"{eff_basename.removesuffix(SPDX3_JSONLD_EXTENSION)}{SPDX3_JSONLD_EXTENSION}"
         if eff_basename

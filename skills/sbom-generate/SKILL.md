@@ -125,7 +125,10 @@ loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
 loom embed-wheel dist/*.whl --project-dir .   # multiple wheels, Build SBOM
 ```
 
-Or embed an already-generated SBOM file directly:
+Or embed an already-generated SBOM file directly -- its declared subject
+name/version is cross-checked against the wheel's own METADATA before
+anything is written; a mismatch aborts the embed (`--allow-mismatch` to
+downgrade to a warning and embed anyway):
 
 ```bash
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
@@ -152,7 +155,7 @@ against an already-embedded wheel:
 
 ```bash
 loom embed-wheel dist/*.whl --verify --validate
-loom verify-wheel dist/*.whl     # PEP 770 location + recommended extension
+loom verify-wheel dist/*.whl     # PEP 770 location, extension, name/version cross-check
 loom validate-wheel dist/*.whl   # schema/SHACL content validation
 ```
 

@@ -12,6 +12,7 @@ import hashlib
 import zipfile
 from pathlib import Path
 
+from pitloom._wheel_sbom_location import name_version_from_email_message
 from pitloom.core.project import ProjectFile, ProjectMetadata
 
 
@@ -65,11 +66,12 @@ def _populate_metadata_from_email(
     source: str,
 ) -> None:
     """Populate ProjectMetadata and provenance from parsed METADATA msg."""
-    if msg.get("Name"):
-        metadata.name = msg["Name"]
+    name, version = name_version_from_email_message(msg)
+    if name:
+        metadata.name = name
         provenance["name"] = source
-    if msg.get("Version"):
-        metadata.version = msg["Version"]
+    if version:
+        metadata.version = version
         provenance["version"] = source
     if msg.get("Summary"):
         metadata.description = msg["Summary"]
