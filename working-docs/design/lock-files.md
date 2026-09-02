@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-31
-Last-Modified: 2026-08-31
+Last-Modified: 2026-09-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,6 +18,18 @@ design (source-stage-only scoping, direct/transitive dedup, additive
 [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)'s source/build/deployed
 staging model, which this document's priority table doesn't use -- worth
 reconciling if the two priority framings diverge as more formats land.
+
+[pep751-pylock-support.md](../implementation/pep751-pylock-support.md) --
+`pylock.toml` (PEP 751, Phase 1's headline item) support shipped
+(2026-09-02), reusing `poetry.lock`'s established shape
+(`ProjectMetadata.locked_dependencies`, additive `dependsOn` edges,
+`completeness` tagging, source-stage-only scoping) rather than this
+document's illustrative Pydantic/CycloneDX sketch. It also settles the
+"which lock file wins" question this document's intro previously left
+open for the two-lock-files case: `pylock.toml` overrides an
+already-applied `poetry.lock`-resolved set, since it's the
+build-backend-agnostic interoperability standard.
+
 See `working-docs/design/roadmap.md`'s "Remaining lock formats as a
 resolved-dependency source" item for the up-to-date status of every
 other format below.
@@ -52,7 +64,7 @@ simply by asking users to run `[tool] export --format pylock`.
 
 | Phase | Target Format | Why It Matters for AI/ML & Python |
 | --- | --- | --- |
-| **1: The Universal Core** | `pylock.toml` (PEP 751) | The official Python interoperability standard. Universal fallback. |
+| **1: The Universal Core** | `pylock.toml` (PEP 751) | **Done (2026-09-02)** -- see the "See also" note above. The official Python interoperability standard. Universal fallback. |
 | | `pyproject.toml` | Standard project metadata (PEP 621) to define the root SBOM component. |
 | | `uv.lock` | The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
 | | `requirements.txt` | Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |

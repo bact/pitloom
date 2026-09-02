@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-01
+Last-Modified: 2026-09-02
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -31,6 +31,9 @@ and this project adheres to
   subcommand ([#201])
 - Add `pitloom verify-wheel`/`validate-wheel` CLI commands and matching
   `embed-wheel --verify`/`--validate` flags ([#202])
+- Add PEP 751 `pylock.toml` resolved-dependency parsing for `loom
+  project`/`loom generate`, taking priority over `poetry.lock` when both
+  are present
 
 ### Changed
 
