@@ -329,6 +329,41 @@ def test_cli_embed_wheel_verify_flag_passes_on_happy_path(
     assert "ERROR:" not in captured.err
 
 
+def test_cli_embed_wheel_verify_reports_when_post_embed_lookup_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--verify's post-embed re-lookup can itself fail to find what was
+    just embedded (`_locate_and_detect` returning `None`, which already
+    printed its own ERROR:) -- `_run_post_embed_checks` must surface that
+    as an overall failure (exit 1) rather than silently treating it as
+    success, even though the embed itself already succeeded."""
+    wheel_path = _make_dummy_wheel(tmp_path, "lookupfailpkg", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+
+    monkeypatch.setattr(
+        "pitloom.cli.commands.embed_wheel._locate_and_detect", lambda *a, **k: None
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--verify",
+        ],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+
+
 def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
