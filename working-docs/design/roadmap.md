@@ -363,20 +363,33 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   duplicating logic. Replaces `.github/workflows/pypi-publish.yml`'s
   hand-rolled bash `unzip -Z1` + glob-match location check and its
   separate `spdx3-validate --json` shell-out.
-- [ ] **`embed_wheel_sbom(sbom_path=...)` name/version cross-check** --
-  when an externally-supplied SBOM is embedded (`--sbom-path`, bypassing
-  Pitloom's own generation), `embed_wheel_sbom`
-  (`src/pitloom/embed.py:195-235`) already reads the target wheel's own
-  `.dist-info/METADATA` (via `read_wheel`) but only uses it to derive a
-  default filename (`_derive_wheel_sbom_filename`,
-  `src/pitloom/_embed_wheel.py:171-182`) when `sbom_basename` is unset --
-  it never compares the supplied SBOM's own `name`/`version` against the
-  wheel's declared `name`/`version`. Wire up a check (warn or error,
-  configurable) so embedding an SBOM built for the wrong wheel doesn't
-  pass silently -- this is a genuine name/version reconciliation gap, not
-  covered by `verify-wheel`/`validate-wheel` above, which only check the
-  embedded file's *location*, *extension*, and *schema*, not its
-  *content's* correspondence to the wheel it landed in.
+- [x] **`verify-wheel` name/version cross-check** -- an embedded SBOM's
+  declared subject `name`/`software_packageVersion` (SPDX3 JSON-LD only)
+  is now cross-checked against the wheel's own `.dist-info/METADATA`
+  `Name`/`Version`, PEP 503/440-normalized. Lives in `verify-wheel`
+  (`src/pitloom/cli/commands/verify_wheel.py`) rather than
+  `embed_wheel_sbom`, since it covers every embedding path, not just
+  `--sbom`-supplied SBOMs. Default severity `WARNING:` (exit 0); the new
+  `--fail-on-mismatch` flag makes it `ERROR:` (exit 1). Shared helpers:
+  `read_wheel_name_version` (`src/pitloom/_wheel_sbom_location.py`, also
+  now used by `_derive_wheel_sbom_filename`,
+  `src/pitloom/_embed_wheel.py:149-166`, replacing its previously-inlined
+  METADATA parse), `extract_spdx3_subject_identity`, and
+  `check_spdx3_name_version` (both `src/pitloom/_sbom_format.py`).
+- [x] **`embed-wheel --sbom` pre-embed name/version enforcement** --
+  building on the `verify-wheel` cross-check above (which only catches
+  a mismatch post-hoc, and only if someone runs it), `embed_wheel_sbom()`
+  (`src/pitloom/embed.py`, `_enforce_sbom_name_version`) now cross-checks
+  an externally-supplied `--sbom`'s declared name/version against the
+  target wheel's own METADATA *before* anything is written. A mismatch
+  raises `ValueError` and aborts the embed (exit 1, nothing written) by
+  default; the new `--allow-mismatch` flag downgrades it to `WARNING:`
+  and embeds anyway (CI/best-effort use case). A Pitloom-generated SBOM
+  (no `--sbom`) is never checked -- it's built from the same wheel
+  metadata, so it can't diverge. `embed-wheel --verify` was also fixed to
+  actually run the name/version check (it previously called
+  `_check_location` directly, bypassing it entirely) -- always
+  non-fatal there, matching `--verify`'s existing severity contract.
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 

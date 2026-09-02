@@ -110,6 +110,14 @@ Or inject an existing pre-generated SBOM into built wheels:
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
 ```
 
+`sbom.spdx3.json`'s declared subject name/version (PEP 503/440-normalized)
+is cross-checked against the target wheel's own `.dist-info/METADATA`
+*before* anything is written: a mismatch is an `ERROR:` that aborts the
+embed (exit 1, nothing written); pass `--allow-mismatch` to downgrade it
+to a `WARNING:` and embed anyway (useful for CI/automation that wants
+best-effort embedding). A Pitloom-generated SBOM (no `--sbom`) is never
+checked -- it's built from the same wheel metadata, so it can't diverge.
+
 `--sbom-basename NAME` overrides the embedded file's basename (default:
 derived from the wheel's own name/version, `<name>-<version>.spdx3.json`).
 `-o`/`--output` names the modified wheel's own output path and is
@@ -117,18 +125,24 @@ rejected with an `ERROR:` when more than one wheel is passed -- ambiguous
 without a per-wheel naming scheme; omit it to modify each wheel in place.
 
 Check a wheel's embedded SBOM is at the correct PEP 770 location
-(`.dist-info/sboms/`) and uses its format's recommended extension --
-format-neutral, doesn't inspect content:
+(`.dist-info/sboms/`), uses its format's recommended extension, and its
+declared subject name/version (PEP 503/440-normalized) match the wheel's
+own `.dist-info/METADATA`:
 
 ```bash
 loom verify-wheel dist/*.whl
 loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl --sbom-filename mypackage-1.0.0.spdx3.json
+loom verify-wheel dist/*.whl --fail-on-mismatch
 ```
 
 A missing SBOM is an `ERROR:` (exit 1); a present-but-non-conventional
 extension is a `WARNING:` only -- not fatal, still exit 0. Multiple
 `sboms/` entries need `--sbom-filename` to pick one, else it's an
-`ERROR:`.
+`ERROR:`. A name/version mismatch is a `WARNING:` by default (exit 0);
+pass `--fail-on-mismatch` to make it an `ERROR:` (exit 1) instead. When
+the SBOM's subject name/version can't be extracted at all (unsupported
+format, or SPDX3 with an unexpected graph shape), the cross-check is
+skipped with a `WARNING:` naming why, regardless of `--fail-on-mismatch`.
 
 Validate a wheel's embedded SBOM content against its format's schema and
 SHACL rules (currently SPDX3 JSON-LD only, via the same `spdx3-validate`

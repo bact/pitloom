@@ -24,7 +24,7 @@ from installer.sources import WheelFile
 from pitloom import __main__
 from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
 
-from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
+from .conftest import _make_dummy_wheel, _spdx3_json_with_subject
 
 
 def test_cli_embed_wheel_absolute_glob(
@@ -162,7 +162,9 @@ def test_cli_embed_wheel_pregenerated_sbom(
     """Test CLI embedding a pregenerated SBOM file with --sbom."""
     wheel_path = _make_dummy_wheel(tmp_path, "pregenpkg", "1.0.0")
     sbom_file = tmp_path / "custom_sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("pregenpkg", "1.0.0"), encoding="utf-8"
+    )
 
     monkeypatch.setattr(
         sys,
@@ -307,7 +309,9 @@ def test_cli_embed_wheel_verify_flag_passes_on_happy_path(
     recommended extension, exit stays 0."""
     wheel_path = _make_dummy_wheel(tmp_path, "verifyflag", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("verifyflag", "1.0.0"), encoding="utf-8"
+    )
 
     monkeypatch.setattr(
         sys,
@@ -341,7 +345,9 @@ def test_cli_embed_wheel_verify_reports_when_post_embed_lookup_fails(
     success, even though the embed itself already succeeded."""
     wheel_path = _make_dummy_wheel(tmp_path, "lookupfailpkg", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("lookupfailpkg", "1.0.0"), encoding="utf-8"
+    )
 
     monkeypatch.setattr(
         "pitloom.cli.commands.embed_wheel._locate_and_detect", lambda *a, **k: None
@@ -380,7 +386,9 @@ def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
     genuinely exercised, not bypassed with in-memory data."""
     wheel_path = _make_dummy_wheel(tmp_path, "rereadpkg", "1.0.0")
     sbom_file = tmp_path / "sbom.spdx3.json"
-    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+    sbom_file.write_text(
+        _spdx3_json_with_subject("rereadpkg", "1.0.0"), encoding="utf-8"
+    )
 
     def _wrong_extension(
         wheel_path_arg: Path, sbom_filename: str | None = None
@@ -589,3 +597,131 @@ def test_cli_embed_wheel_validate_flag_skips_unrecognized_format(
     assert "WARNING:" in captured.err
     assert "no validator registered" in captured.err
     assert "ERROR:" not in captured.err
+
+
+def test_cli_embed_wheel_sbom_name_mismatch_aborts_before_write(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A --sbom whose declared name doesn't match the wheel's own
+    METADATA aborts the embed before anything is written -- no
+    .dist-info/sboms/ entry ends up in the wheel, and the command exits
+    1 with an ERROR:, not a WARNING:."""
+    wheel_path = _make_dummy_wheel(tmp_path, "realname", "1.0.0")
+    original_bytes = wheel_path.read_bytes()
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(
+        _spdx3_json_with_subject("wrongname", "1.0.0"), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "--sbom", str(sbom_file)],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR:" in captured.err
+    assert "name: wheel declares 'realname', SBOM declares 'wrongname'" in captured.err
+    assert "pitloom: embedded" not in captured.out
+    assert wheel_path.read_bytes() == original_bytes
+
+
+def test_cli_embed_wheel_sbom_mismatch_allow_mismatch_embeds_anyway(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--allow-mismatch downgrades the same mismatch to a WARNING and lets
+    the embed proceed -- for CI/automation that wants best-effort
+    embedding instead of a hard refusal."""
+    wheel_path = _make_dummy_wheel(tmp_path, "realname2", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(
+        _spdx3_json_with_subject("wrongname2", "1.0.0"), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--allow-mismatch",
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "WARNING:" in captured.err
+    assert (
+        "name: wheel declares 'realname2', SBOM declares 'wrongname2'" in captured.err
+    )
+    assert "pitloom: embedded" in captured.out
+
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        assert any(n.endswith(".spdx3.json") and "/sboms/" in n for n in zf.namelist())
+
+
+def test_cli_embed_wheel_sbom_matching_name_version_no_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A --sbom whose declared name/version matches the wheel's METADATA
+    embeds cleanly with no WARNING/ERROR at all."""
+    wheel_path = _make_dummy_wheel(tmp_path, "matchingpkg", "2.3.4")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(
+        _spdx3_json_with_subject("matchingpkg", "2.3.4"), encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "--sbom", str(sbom_file)],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "pitloom: embedded" in captured.out
+
+
+def test_cli_embed_wheel_no_sbom_flag_skips_cross_check(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Pitloom-generated SBOM (no --sbom) is never cross-checked -- it's
+    built from the same wheel METADATA, so it can't diverge; the check
+    only applies to an externally-supplied --sbom."""
+    fixture_dir = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "projects"
+        / "sampleproject-hatchling"
+    )
+    wheel_path = _make_dummy_wheel(tmp_path, "genpkg", "1.0.0")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--project-dir",
+            str(fixture_dir),
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert "SBOM/wheel" not in captured.err

@@ -151,6 +151,47 @@ _SAMPLE_SPDX3_JSON = json.dumps(
 )
 
 
+def _spdx3_json_with_subject(
+    name: str | None, version: str | None, *, subject_type: str = "software_Package"
+) -> str:
+    """Render a minimal valid SPDX3 JSON-LD ``SpdxDocument`` ->
+    ``software_Sbom`` -> subject-package id-chain, with a controllable
+    subject *name*/*version* -- unlike `_SAMPLE_SPDX3_JSON`, which is
+    hardcoded to ``demo_pkg``/``1.0.0``. Used by
+    `test_verify_wheel_cli.py`'s name/version cross-check tests.
+
+    *name*/*version* of ``None`` omit that field from the subject node
+    entirely (e.g. to model an `ai_AIPackage`-shaped subject with no
+    `software_packageVersion`).
+    """
+    subject: dict[str, Any] = {
+        "type": subject_type,
+        "spdxId": "https://spdx.org/spdxdocs/sample-doc-123/subject",
+    }
+    if name is not None:
+        subject["name"] = name
+    if version is not None:
+        subject["software_packageVersion"] = version
+    return json.dumps(
+        {
+            "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+            "@graph": [
+                {
+                    "type": "SpdxDocument",
+                    "spdxId": "https://spdx.org/spdxdocs/sample-doc-123",
+                    "rootElement": ["https://spdx.org/spdxdocs/sample-doc-123/sbom"],
+                },
+                {
+                    "type": "software_Sbom",
+                    "spdxId": "https://spdx.org/spdxdocs/sample-doc-123/sbom",
+                    "rootElement": [subject["spdxId"]],
+                },
+                subject,
+            ],
+        }
+    )
+
+
 def _embed_sbom_entry(
     wheel_path: Path, sbom_basename: str, content: str = _SAMPLE_SPDX3_JSON
 ) -> None:

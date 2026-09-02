@@ -23,7 +23,7 @@ import pytest
 
 from pitloom import __main__
 
-from .conftest import _embed_sbom_entry, _make_dummy_wheel
+from .conftest import _embed_sbom_entry, _make_dummy_wheel, _spdx3_json_with_subject
 
 
 def test_verify_wheel_correct_extension_ok(
@@ -33,7 +33,11 @@ def test_verify_wheel_correct_extension_ok(
 ) -> None:
     """A recommended-extension SBOM passes with no WARNING, exit 0."""
     wheel_path = _make_dummy_wheel(tmp_path, "okpkg", "1.0.0")
-    _embed_sbom_entry(wheel_path, sbom_basename="okpkg-1.0.0.spdx3.json")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="okpkg-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("okpkg", "1.0.0"),
+    )
 
     monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
     assert __main__.main() == 0
@@ -252,3 +256,212 @@ def test_verify_wheel_multiple_wheels_mixed_pass_fail(
     assert "bad-1.0.0-py3-none-any.whl" in captured.err
     # No success summary when any wheel failed.
     assert "wheel(s) OK" not in captured.out
+
+
+def test_verify_wheel_name_version_match_no_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """SBOM subject name/version matching the wheel's METADATA -> no
+    mismatch WARNING, exit 0."""
+    wheel_path = _make_dummy_wheel(tmp_path, "matchpkg", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="matchpkg-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("matchpkg", "1.0.0"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_name_mismatch_warns_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A differing SBOM subject name WARNs by default, exit 0 (non-fatal)."""
+    wheel_path = _make_dummy_wheel(tmp_path, "realpkg", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="realpkg-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("otherpkg", "1.0.0"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "WARNING:" in captured.err
+    assert "name: wheel declares 'realpkg', SBOM declares 'otherpkg'" in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_name_mismatch_fails_with_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The same mismatch becomes an ERROR + exit 1 with --fail-on-mismatch."""
+    wheel_path = _make_dummy_wheel(tmp_path, "realpkg2", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="realpkg2-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("otherpkg2", "1.0.0"),
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "verify-wheel", str(wheel_path), "--fail-on-mismatch"],
+    )
+    assert __main__.main() == 1
+
+    captured = capsys.readouterr()
+    assert "ERROR:" in captured.err
+    assert "name: wheel declares 'realpkg2', SBOM declares 'otherpkg2'" in captured.err
+    assert "wheel(s) OK" not in captured.out
+
+
+def test_verify_wheel_version_mismatch_warns(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A differing SBOM subject version WARNs by default, exit 0."""
+    wheel_path = _make_dummy_wheel(tmp_path, "verpkg", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="verpkg-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("verpkg", "2.0.0"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "WARNING:" in captured.err
+    assert "version: wheel declares '1.0.0', SBOM declares '2.0.0'" in captured.err
+
+
+def test_verify_wheel_pep503_pep440_equivalent_no_false_positive(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """PEP 503-equivalent name (My-Package vs my_package) and PEP
+    440-equivalent version (1.0 vs 1.0.0, release-segment padding) must
+    NOT trigger a mismatch WARNING -- the false-positive guard."""
+    wheel_path = _make_dummy_wheel(tmp_path, "My-Package", "1.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="My-Package-1.0.spdx3.json",
+        content=_spdx3_json_with_subject("my_package", "1.0.0"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "SBOM/wheel" not in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_sbom_subject_unextractable_warns_and_skips(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Valid JSON-LD (passes format detection) but no SpdxDocument node ->
+    WARNING naming why, no crash, exit 0 -- not treated as a mismatch."""
+    wheel_path = _make_dummy_wheel(tmp_path, "brokenpkg", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="brokenpkg-1.0.0.spdx3.json",
+        content='{"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", '
+        '"@graph": [{"type": "CreationInfo", "spdxId": "_:ci1"}]}',
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "WARNING:" in captured.err
+    assert "cannot cross-check SBOM name/version" in captured.err
+    assert "no SpdxDocument node found" in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_sbom_missing_version_field_skips_version_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An ai_AIPackage-shaped subject (name only, no
+    software_packageVersion) checks name normally and skips the version
+    half with its own WARNING -- not counted as a mismatch."""
+    wheel_path = _make_dummy_wheel(tmp_path, "aipkg", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="aipkg-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("aipkg", None, subject_type="ai_AIPackage"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "SBOM subject has no version to cross-check" in captured.err
+    assert "SBOM/wheel" not in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_invalid_wheel_version_skips_with_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An unparseable wheel METADATA version skips the version half with
+    its own WARNING -- not a crash, not a false mismatch."""
+    wheel_path = _make_dummy_wheel(tmp_path, "badverpkg", "not-a-version")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="badverpkg-not-a-version.spdx3.json",
+        content=_spdx3_json_with_subject("badverpkg", "1.0.0"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "wheel METADATA version 'not-a-version' isn't a valid" in captured.err
+    assert "SBOM/wheel" not in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out
+
+
+def test_verify_wheel_invalid_sbom_version_skips_with_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An unparseable SBOM subject version skips the version half with its
+    own WARNING -- not a crash, not a false mismatch."""
+    wheel_path = _make_dummy_wheel(tmp_path, "badsbomverpkg", "1.0.0")
+    _embed_sbom_entry(
+        wheel_path,
+        sbom_basename="badsbomverpkg-1.0.0.spdx3.json",
+        content=_spdx3_json_with_subject("badsbomverpkg", "not-a-version"),
+    )
+
+    monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "SBOM subject version 'not-a-version' isn't a valid" in captured.err
+    assert "SBOM/wheel" not in captured.err
+    assert "pitloom verify-wheel: 1 wheel(s) OK" in captured.out

@@ -18,6 +18,7 @@ in hand.
 from __future__ import annotations
 
 import dataclasses
+import email
 import zipfile
 from pathlib import Path
 
@@ -76,6 +77,25 @@ class EmbeddedSbomLocation:
 
     arcname: str
     data: bytes
+
+
+def read_wheel_name_version(
+    zf: zipfile.ZipFile, dist_info: str
+) -> tuple[str | None, str | None]:
+    """Read ``Name``/``Version`` from *dist_info*'s ``METADATA`` entry.
+
+    Returns ``(None, None)`` if the entry is absent; either element may
+    independently be ``None`` if the corresponding header is missing.
+    Shared by :func:`pitloom._embed_wheel._derive_wheel_sbom_filename`
+    (default-filename derivation) and `verify-wheel`'s name/version
+    cross-check, so the two parses can't silently diverge.
+    """
+    metadata_path = f"{dist_info}METADATA"
+    if metadata_path not in zf.namelist():
+        return None, None
+    content = zf.read(metadata_path).decode("utf-8", errors="replace")
+    msg = email.message_from_string(content)
+    return msg.get("Name"), msg.get("Version")
 
 
 def find_embedded_sbom(

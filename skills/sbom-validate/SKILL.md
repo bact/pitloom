@@ -101,8 +101,8 @@ pitloom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl
 ```
 
 See the `sbom-generate` skill's "Embed an SBOM into a wheel" section for
-`verify-wheel` (PEP 770 location/extension only, no content check) and
-`embed-wheel --verify`/`--validate`.
+`verify-wheel` (PEP 770 location/extension/name-version, no schema/SHACL
+content check) and `embed-wheel --verify`/`--validate`.
 
 ## Report the result
 

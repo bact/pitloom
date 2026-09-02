@@ -146,7 +146,7 @@ def test_embed_sbom_missing_dist_info_raises(tmp_path: Path) -> None:
 
 def test_embed_wheel_sbom_with_pregenerated_sbom(tmp_path: Path) -> None:
     """Test embed_wheel_sbom with a pre-generated SBOM path."""
-    wheel_path = _make_dummy_wheel(tmp_path, "pregen_pkg", "0.5.0")
+    wheel_path = _make_dummy_wheel(tmp_path, "demo_pkg", "1.0.0")
     sbom_file = tmp_path / "custom.spdx3.json"
     sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
     out_file = tmp_path / "extracted_sbom.json"
@@ -157,7 +157,7 @@ def test_embed_wheel_sbom_with_pregenerated_sbom(tmp_path: Path) -> None:
         output_path=out_file,
     )
     assert res_path == wheel_path
-    assert arcname.endswith(".dist-info/sboms/pregen_pkg-0.5.0.spdx3.json")
+    assert arcname.endswith(".dist-info/sboms/demo_pkg-1.0.0.spdx3.json")
     assert sbom_json == _SAMPLE_SPDX3_JSON
     assert out_file.read_text(encoding="utf-8") == _SAMPLE_SPDX3_JSON
 
