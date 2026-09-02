@@ -16,9 +16,7 @@ from typing import Any
 
 from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
-    _find_dist_info_prefix,
-    _open_wheel_zip,
-    read_wheel_name_version,
+    read_wheel_name_version_from_path,
 )
 from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
 from pitloom.cli.commands.utils import (
@@ -134,9 +132,7 @@ def _warn_on_name_version_mismatch(
     generated SBOM -- `embed-wheel` shouldn't fail its own exit code on
     either.
     """
-    with _open_wheel_zip(embedded_wheel_path) as zf:
-        dist_info = _find_dist_info_prefix(zf, embedded_wheel_path)
-        wheel_name, wheel_version = read_wheel_name_version(zf, dist_info)
+    wheel_name, wheel_version = read_wheel_name_version_from_path(embedded_wheel_path)
     _check_name_version(
         embedded_wheel_path,
         wheel_name,

@@ -13,11 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom._sbom_format import check_spdx3_name_version, format_name_version_mismatch
-from pitloom._wheel_sbom_location import (
-    _find_dist_info_prefix,
-    _open_wheel_zip,
-    read_wheel_name_version,
-)
+from pitloom._wheel_sbom_location import read_wheel_name_version_from_path
 from pitloom.assemble import RECOMMENDED_EXTENSIONS, EmbeddedSbomLocation
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
@@ -125,10 +121,7 @@ def _check_one_wheel(
         return False
     location, sbom_format = located
     location_ok = _check_location(wheel_path, location, sbom_format)
-
-    with _open_wheel_zip(wheel_path) as zf:
-        dist_info = _find_dist_info_prefix(zf, wheel_path)
-        wheel_name, wheel_version = read_wheel_name_version(zf, dist_info)
+    wheel_name, wheel_version = read_wheel_name_version_from_path(wheel_path)
 
     version_ok = _check_name_version(
         wheel_path,

@@ -114,6 +114,24 @@ def read_wheel_name_version(
     return name_version_from_email_message(msg)
 
 
+def read_wheel_name_version_from_path(
+    wheel_path: Path,
+) -> tuple[str | None, str | None]:
+    """Open *wheel_path*, resolve its ``.dist-info`` prefix, and read
+    ``Name``/``Version`` from its ``METADATA`` entry -- the "just tell me
+    the wheel's declared name/version" convenience both `verify-wheel`
+    (`_check_one_wheel`) and `embed-wheel --verify`
+    (`_warn_on_name_version_mismatch`) need, so the
+    open/resolve-dist-info/read triplet isn't hand-copied at each call
+    site. See :func:`read_wheel_name_version` for the lower-level,
+    already-open-``ZipFile`` variant this wraps (used where a caller
+    already has one open for another reason, e.g. `find_embedded_sbom`).
+    """
+    with _open_wheel_zip(wheel_path) as zf:
+        dist_info = _find_dist_info_prefix(zf, wheel_path)
+        return read_wheel_name_version(zf, dist_info)
+
+
 def find_embedded_sbom(
     wheel_path: Path, sbom_filename: str | None = None
 ) -> EmbeddedSbomLocation | None:
