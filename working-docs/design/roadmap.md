@@ -346,15 +346,16 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
 
 ### PEP 770 / embed-wheel
 
-- [x] **`loom verify-wheel` / `loom validate-wheel`** -- check that a
-  wheel's embedded SBOM is at the correct `.dist-info/sboms/<basename>`
-  location and, separately, passes schema/SHACL validation. Shipped as
-  two flat subcommands rather than the `--verify` flag originally sketched
-  here: `verify-wheel` (structural, format-neutral -- location +
-  recommended-extension check) and `validate-wheel` (content, SPDX3-only
-  today -- schema/SHACL via `spdx3-validate`'s library API), reusing
-  `pitloom._embed_wheel.find_embedded_sbom()` for the shared location
-  logic and `pitloom.cli.commands.utils._validate_spdx3_documents()`
+- [x] **`loom verify-wheel` / `loom validate-wheel`** ([#202](https://github.com/bact/pitloom/pull/202))
+  -- check that a wheel's embedded SBOM is at the correct
+  `.dist-info/sboms/<basename>` location and, separately, passes
+  schema/SHACL validation. Shipped as two flat subcommands rather than the
+  `--verify` flag originally sketched here: `verify-wheel` (structural,
+  format-neutral -- location + recommended-extension check) and
+  `validate-wheel` (content, SPDX3-only today -- schema/SHACL via
+  `spdx3-validate`'s library API), reusing
+  `pitloom._wheel_sbom_location.find_embedded_sbom()` for the shared
+  location logic and `pitloom.cli.commands.utils._validate_spdx3_documents()`
   (also now backing `pitloom fragment validate`) for the shared validation
   path. `embed-wheel` gained `--verify`/`--validate` convenience flags
   that run the same checks against the wheel just embedded, mirroring how
