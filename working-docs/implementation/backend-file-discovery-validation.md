@@ -470,3 +470,37 @@ handling needed either way, just a regression test
     dynamic-version resolution all already worked correctly through the
     existing generic `StandardMetadata.from_pyproject()`/`discover()`
     paths.
+
+## pipenv (1 package, 2026-09-03)
+
+Large, mature, real-world setuptools package -- also the reference
+implementation for PEP 751 (`pipenv/utils/pylock.py`), though pipenv's
+own packaging doesn't use PEP 751 for itself.
+
+| Package | Version | Config style | Result |
+| :--- | :--- | :--- | :--- |
+| pypa/pipenv | 2026.8.0 | `license = {text = "MIT License (MIT)"}`, 4.5MB sdist (vendors its own dependencies under `pipenv/vendor/`/`pipenv/patched/`) | Perfect match after fix -- see Findings |
+
+### Findings
+
+- **`license = {text = "MIT License (MIT)"}` was fuzzy-matched to the
+  wrong SPDX ID.**
+  - `read_project()` resolved `license_name = "AML"` -- not MIT, not
+    even a plausible near-miss.
+  - Why: `"MIT License (MIT)"` is a short *label* (18 characters), not
+    real license *text*. `detect_license_from_text()`
+    (`_license.py`) ran `licenseid`'s similarity matcher on it anyway,
+    with no minimum-length guard, and a short string can spuriously
+    score above the 0.85 threshold against an equally short reference
+    text in the database.
+  - **Fixed**: added `_MIN_LICENSE_TEXT_LENGTH = 100` to
+    `detect_license_from_text()` -- text shorter than that returns
+    `None` immediately, before any fuzzy match is attempted. Every real
+    SPDX license body is far longer than 100 characters (0BSD, the
+    shortest, is ~500), so this only ever excludes non-license-body
+    input like pipenv's label.
+  - After the fix: `read_project()` now falls back to the raw declared
+    string `"MIT License (MIT)"` as `license_name` -- not a clean SPDX
+    ID, but honest and traceable, instead of confidently wrong.
+  - See `test_detect_license_from_text_rejects_short_label` in
+    `tests/assemble/test_license_normalization.py`.

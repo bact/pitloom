@@ -50,6 +50,9 @@ and this project adheres to
 - `[tool.setuptools.dynamic] version = {attr = "..."}`/`{file = "..."}`
   now resolves even when a `[project]` table is present (previously
   silently left `version=None`)
+- `detect_license_from_text()` no longer fuzzy-matches license labels
+  under 100 characters (e.g. `"MIT License (MIT)"`), which could
+  previously score a false-positive match against an unrelated SPDX ID
 
 ### Changed
 
