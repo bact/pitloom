@@ -15,6 +15,7 @@ from typing import Any
 
 from pitloom.assemble import (
     ConfigOverrides,
+    detect_sbom_format,
     embed_wheel_sbom,
 )
 from pitloom.cli.commands.utils import (
@@ -73,7 +74,9 @@ def _run_post_embed_checks(
     Locates the SBOM from disk exactly ONCE and passes it to both checks
     (`_check_location`/`_validate_location`) when both flags are given,
     rather than each check re-locating it independently -- still one
-    genuine disk read, just not duplicated.
+    genuine disk read, just not duplicated. Same for format detection:
+    both checks otherwise call `detect_sbom_format()` on the identical
+    bytes, so it's detected once here and passed to both.
     """
     if not args.verify and not args.validate:
         return True
@@ -82,6 +85,7 @@ def _run_post_embed_checks(
     location = _locate_embedded_sbom_or_report(embedded_wheel_path, embedded_filename)
     if location is None:
         return False
+    sbom_format = detect_sbom_format(location.data)
 
     # `is not False` (not plain truthiness) on both, even though
     # _check_location only ever returns bool: _validate_location returns
@@ -89,10 +93,10 @@ def _run_post_embed_checks(
     # matching idioms here keeps the two checks symmetric so a future
     # third check copy-pasted from either line stays correct by default.
     verify_ok = not args.verify or (
-        _check_location(embedded_wheel_path, location) is not False
+        _check_location(embedded_wheel_path, location, sbom_format) is not False
     )
     validate_ok = not args.validate or (
-        _validate_location(embedded_wheel_path, location) is not False
+        _validate_location(embedded_wheel_path, location, sbom_format) is not False
     )
     return verify_ok and validate_ok
 

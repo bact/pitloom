@@ -26,7 +26,11 @@ from pitloom.cli.commands.utils import (
 log = logging.getLogger(__name__)
 
 
-def _check_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool:
+def _check_location(
+    wheel_path: Path,
+    location: EmbeddedSbomLocation,
+    sbom_format: str | None = None,
+) -> bool:
     """Verify an *already disk-read* embedded SBOM's extension. Always
     succeeds (location/format problems are WARNING:, not a failure) --
     returns ``bool`` only for symmetry with :func:`_check_one_wheel`.
@@ -36,8 +40,13 @@ def _check_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool:
     pre-write data to skip that read (see `embed_wheel.py`'s
     `_run_post_embed_checks`: this split exists so `--verify --validate`
     together share ONE disk read, not to avoid the read).
+
+    *sbom_format* lets a caller that already ran `detect_sbom_format()`
+    (e.g. `_run_post_embed_checks` sharing it with `_validate_location`)
+    pass the result through instead of re-parsing the same JSON bytes.
     """
-    sbom_format = detect_sbom_format(location.data)
+    if sbom_format is None:
+        sbom_format = detect_sbom_format(location.data)
     recommended = RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
     if recommended is None:
         log.warning(

@@ -29,7 +29,11 @@ from pitloom.cli.commands.utils import (
 log = logging.getLogger(__name__)
 
 
-def _validate_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool | None:
+def _validate_location(
+    wheel_path: Path,
+    location: EmbeddedSbomLocation,
+    sbom_format: str | None = None,
+) -> bool | None:
     """Validate an *already disk-read* embedded SBOM's content.
 
     Returns ``True``/``False`` for validated/invalid, or ``None`` when no
@@ -41,8 +45,13 @@ def _validate_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool
     pre-write data to skip that read (see `embed_wheel.py`'s
     `_run_post_embed_checks`: this split exists so `--verify --validate`
     together share ONE disk read, not to avoid the read).
+
+    *sbom_format* lets a caller that already ran `detect_sbom_format()`
+    (e.g. `_run_post_embed_checks` sharing it with `_check_location`) pass
+    the result through instead of re-parsing the same JSON bytes.
     """
-    sbom_format = detect_sbom_format(location.data)
+    if sbom_format is None:
+        sbom_format = detect_sbom_format(location.data)
     if sbom_format not in VALIDATED_FORMATS:
         log.warning(
             "%s: no validator registered for %s's format (%s); "
