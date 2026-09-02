@@ -55,19 +55,19 @@ def _looks_like_spdx3_jsonld(data: bytes) -> bool:
 #:   SPDX RDF/XML      .spdx.rdf
 #:   SPDX 3 JSON       .spdx3.json
 #:   SPDX 3 RDF/XML    .spdx3.rdf
-_RECOMMENDED_EXTENSIONS: dict[str, str] = {"spdx3-jsonld": SPDX3_JSONLD_EXTENSION}
+RECOMMENDED_EXTENSIONS: dict[str, str] = {"spdx3-jsonld": SPDX3_JSONLD_EXTENSION}
 
 #: Formats `validate-wheel` has a registered schema/SHACL validator for.
-#: Deliberately its OWN literal, NOT derived from `_RECOMMENDED_EXTENSIONS`
+#: Deliberately its OWN literal, NOT derived from `RECOMMENDED_EXTENSIONS`
 #: above -- a future format can get an extension-convention entry long
 #: before this project has a validator for it, so deriving one from the
 #: other would silently mark that format "validated" the moment its
 #: extension entry is added. Add a format here only when
 #: `validate_wheel.py` actually has a validator wired up for it.
-_VALIDATED_FORMATS: frozenset[str] = frozenset({"spdx3-jsonld"})
+VALIDATED_FORMATS: frozenset[str] = frozenset({"spdx3-jsonld"})
 
 
-def _detect_sbom_format(data: bytes) -> str | None:
+def detect_sbom_format(data: bytes) -> str | None:
     """Return a short format id for *data*, or ``None`` if unrecognized."""
     if _looks_like_spdx3_jsonld(data):
         return "spdx3-jsonld"

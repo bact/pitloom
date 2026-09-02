@@ -148,7 +148,10 @@ def test_fragment_validate_command_missing_dependency(
     assert result == 1
 
     captured = capsys.readouterr()
-    assert "ERROR: the 'spdx3-validate' package is required" in captured.err
+    assert (
+        "ERROR: the 'spdx3-validate' package is required for SPDX 3 "
+        "validation" in captured.err
+    )
     assert 'pip install "pitloom[validate]"' in captured.err
 
 

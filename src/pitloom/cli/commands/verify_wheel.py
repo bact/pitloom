@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import (
-    _RECOMMENDED_EXTENSIONS,
+    RECOMMENDED_EXTENSIONS,
     EmbeddedSbomLocation,
-    _detect_sbom_format,
+    detect_sbom_format,
 )
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
@@ -37,8 +37,8 @@ def _check_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool:
     `_run_post_embed_checks`: this split exists so `--verify --validate`
     together share ONE disk read, not to avoid the read).
     """
-    sbom_format = _detect_sbom_format(location.data)
-    recommended = _RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
+    sbom_format = detect_sbom_format(location.data)
+    recommended = RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
     if recommended is None:
         log.warning(
             "%s: unrecognized SBOM format for %s; cannot check the "

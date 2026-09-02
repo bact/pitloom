@@ -41,7 +41,7 @@ pip install "pitloom[content-type]"
 ```
 
 Install with SPDX 3 schema/SHACL validation support (`pitloom fragment
-validate`):
+validate`, `pitloom validate-wheel`):
 
 ```bash
 pip install "pitloom[validate]"

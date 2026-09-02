@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.assemble import (
-    _VALIDATED_FORMATS,
+    VALIDATED_FORMATS,
     EmbeddedSbomLocation,
-    _detect_sbom_format,
+    detect_sbom_format,
 )
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
@@ -42,8 +42,8 @@ def _validate_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool
     `_run_post_embed_checks`: this split exists so `--verify --validate`
     together share ONE disk read, not to avoid the read).
     """
-    sbom_format = _detect_sbom_format(location.data)
-    if sbom_format not in _VALIDATED_FORMATS:
+    sbom_format = detect_sbom_format(location.data)
+    if sbom_format not in VALIDATED_FORMATS:
         log.warning(
             "%s: no validator registered for %s's format (%s); "
             "skipping content validation",
