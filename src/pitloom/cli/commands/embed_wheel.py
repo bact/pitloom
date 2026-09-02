@@ -19,12 +19,13 @@ from pitloom.assemble import (
 )
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
+    _locate_embedded_sbom_or_report,
     _print_sbom_output_path,
     cli_error_handler,
     resolve_effective_provenance,
 )
-from pitloom.cli.commands.validate_wheel import _validate_one_wheel
-from pitloom.cli.commands.verify_wheel import _check_one_wheel
+from pitloom.cli.commands.validate_wheel import _validate_location
+from pitloom.cli.commands.verify_wheel import _check_location
 from pitloom.cli.options import _resolve_creation_metadata, add_offline_argument
 from pitloom.core.config import PitloomConfig
 from pitloom.extract.project import read_project
@@ -59,28 +60,39 @@ def _run_post_embed_checks(
     args: argparse.Namespace, embedded_wheel_path: Path, arcname: str
 ) -> bool:
     """Run --verify/--validate against the wheel embed_wheel_sbom() just
-    modified. Same functions verify-wheel/validate-wheel use standalone,
+    modified. Same checks verify-wheel/validate-wheel use standalone,
     chained here like `wheel --embed` chains into the same embed function.
 
-    Deliberately re-reads *embedded_wheel_path* from disk (via
-    `_check_one_wheel`/`_validate_one_wheel`) rather than checking the
-    pre-write `sbom_json` string generation produced: the whole point of
-    `--verify`/`--validate` is confirming what actually landed in the
-    wheel, not what Pitloom intended to write -- an in-memory shortcut
-    would silently narrow that guarantee for exactly the command whose
-    job is to catch that kind of drift.
+    Deliberately re-reads *embedded_wheel_path* from disk rather than
+    checking the pre-write `sbom_json` string generation produced: the
+    whole point of `--verify`/`--validate` is confirming what actually
+    landed in the wheel, not what Pitloom intended to write -- an
+    in-memory shortcut would silently narrow that guarantee for exactly
+    the command whose job is to catch that kind of drift.
+
+    Locates the SBOM from disk exactly ONCE and passes it to both checks
+    (`_check_location`/`_validate_location`) when both flags are given,
+    rather than each check re-locating it independently -- still one
+    genuine disk read, just not duplicated.
     """
+    if not args.verify and not args.validate:
+        return True
+
     embedded_filename = arcname.rsplit("/", 1)[-1]
+    location = _locate_embedded_sbom_or_report(embedded_wheel_path, embedded_filename)
+    if location is None:
+        return False
+
     # `is not False` (not plain truthiness) on both, even though
-    # _check_one_wheel only ever returns bool: _validate_one_wheel returns
+    # _check_location only ever returns bool: _validate_location returns
     # None for "no validator registered" (a skip, not a failure), and
     # matching idioms here keeps the two checks symmetric so a future
     # third check copy-pasted from either line stays correct by default.
     verify_ok = not args.verify or (
-        _check_one_wheel(embedded_wheel_path, embedded_filename) is not False
+        _check_location(embedded_wheel_path, location) is not False
     )
     validate_ok = not args.validate or (
-        _validate_one_wheel(embedded_wheel_path, embedded_filename) is not False
+        _validate_location(embedded_wheel_path, location) is not False
     )
     return verify_ok and validate_ok
 

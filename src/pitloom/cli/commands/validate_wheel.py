@@ -14,7 +14,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import _VALIDATED_FORMATS, _detect_sbom_format
+from pitloom.assemble import (
+    _VALIDATED_FORMATS,
+    EmbeddedSbomLocation,
+    _detect_sbom_format,
+)
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_embedded_sbom_or_report,
@@ -25,17 +29,19 @@ from pitloom.cli.commands.utils import (
 log = logging.getLogger(__name__)
 
 
-def _validate_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool | None:
-    """Validate one wheel's embedded SBOM content.
+def _validate_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool | None:
+    """Validate an *already disk-read* embedded SBOM's content.
 
     Returns ``True``/``False`` for validated/invalid, or ``None`` when no
     validator is registered for the detected format -- skipped, not a
     failure, but also not something the caller should report as "valid".
-    """
-    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
-    if location is None:
-        return False
 
+    *location* must come from a real `_locate_embedded_sbom_or_report`
+    call against the wheel on disk -- never construct one from in-memory,
+    pre-write data to skip that read (see `embed_wheel.py`'s
+    `_run_post_embed_checks`: this split exists so `--verify --validate`
+    together share ONE disk read, not to avoid the read).
+    """
     sbom_format = _detect_sbom_format(location.data)
     if sbom_format not in _VALIDATED_FORMATS:
         log.warning(
@@ -57,6 +63,19 @@ def _validate_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool | N
         return _validate_spdx3_documents([tmp_path], check_merged=False) == 0
     finally:
         os.unlink(tmp_path)
+
+
+def _validate_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool | None:
+    """Validate one wheel's embedded SBOM content.
+
+    Returns ``True``/``False`` for validated/invalid, or ``None`` when no
+    validator is registered for the detected format -- skipped, not a
+    failure, but also not something the caller should report as "valid".
+    """
+    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
+    if location is None:
+        return False
+    return _validate_location(wheel_path, location)
 
 
 @cli_error_handler("wheel SBOM validation failed")

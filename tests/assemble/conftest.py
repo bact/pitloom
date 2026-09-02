@@ -11,6 +11,9 @@ this directory:
 
 - ``_FakeMetadata`` -- from ``test_deps_enrichment.py``.
 - ``_make_dummy_wheel`` / ``_SAMPLE_SPDX3_JSON`` -- from ``test_embed.py``.
+- ``_embed_sbom_entry`` -- previously near-identical ``_embed_sbom``/
+  ``_embed_raw`` helpers in ``test_verify_wheel_cli.py`` and
+  ``test_validate_wheel_cli.py``.
 - ``_DOC_NAME`` / ``_DOC_UUID`` / ``_make_ci`` -- previously byte-for-byte
   duplicated (bar one comment) between ``test_annotation_provenance.py``
   and ``test_spdx3_dataset.py``.
@@ -145,6 +148,26 @@ _SAMPLE_SPDX3_JSON = json.dumps(
         ],
     }
 )
+
+
+def _embed_sbom_entry(
+    wheel_path: Path, sbom_basename: str, content: str = _SAMPLE_SPDX3_JSON
+) -> None:
+    """Add a ``.dist-info/sboms/<sbom_basename>`` entry to *wheel_path*
+    with arbitrary *content* (defaults to the standard sample fixture).
+
+    Unlike `embed-wheel` itself (which always appends `.spdx3.json`), this
+    writes whatever basename/content is given verbatim -- needed by
+    `test_verify_wheel_cli.py`/`test_validate_wheel_cli.py` to construct
+    deliberately non-conventional-extension or invalid-content fixtures
+    that `embed-wheel`'s own self-correction makes otherwise unreachable.
+    """
+    with zipfile.ZipFile(wheel_path) as zf:
+        dist_info = next(
+            n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
+        )
+    with zipfile.ZipFile(wheel_path, "a") as zf:
+        zf.writestr(f"{dist_info}/sboms/{sbom_basename}", content)
 
 
 def _make_dummy_wheel(

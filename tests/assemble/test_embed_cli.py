@@ -378,6 +378,57 @@ def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
     assert "on-disk-value.txt doesn't use the recommended" in captured.err
 
 
+def test_cli_embed_wheel_verify_validate_share_one_disk_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--verify --validate together locate the embedded SBOM from disk
+    exactly ONCE, not once per check -- still a genuine disk read (unlike
+    the abandoned in-memory shortcut, see test_cli_embed_wheel_verify_
+    rereads_wheel_from_disk above), just not duplicated across the two
+    checks."""
+    call_count = 0
+    real_find_embedded_sbom = find_embedded_sbom
+
+    def _counting_find_embedded_sbom(
+        wheel_path_arg: Path, sbom_basename: str | None = None
+    ) -> EmbeddedSbomLocation | None:
+        nonlocal call_count
+        call_count += 1
+        return real_find_embedded_sbom(wheel_path_arg, sbom_basename)
+
+    monkeypatch.setattr(
+        "pitloom.cli.commands.utils.find_embedded_sbom", _counting_find_embedded_sbom
+    )
+
+    wheel_path = _make_dummy_wheel(tmp_path, "sharedlookup", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    # Unrecognized format so --validate WARN-and-skips rather than reaching
+    # spdx3_validate's network-dependent schema fetch -- this test is about
+    # the shared-lookup property, not content validation.
+    sbom_file.write_text("not valid spdx3 json-ld", encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--verify",
+            "--validate",
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert call_count == 1
+
+
 def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

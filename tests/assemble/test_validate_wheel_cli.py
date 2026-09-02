@@ -22,7 +22,7 @@ import pytest
 
 from pitloom import __main__
 
-from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
+from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 # _SAMPLE_SPDX3_JSON (below) is well-formed but not fully SHACL-valid
@@ -31,16 +31,6 @@ FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 # document that's actually valid end-to-end. Same fixture
 # test_cli_fragment.py's own network-dependent success test uses.
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
-
-
-def _embed_raw(wheel_path: Path, sbom_basename: str, content: str) -> None:
-    """Add a `sboms/` entry with arbitrary *content*, any basename."""
-    with zipfile.ZipFile(wheel_path) as zf:
-        dist_info = next(
-            n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
-        )
-    with zipfile.ZipFile(wheel_path, "a") as zf:
-        zf.writestr(f"{dist_info}/sboms/{sbom_basename}", content)
 
 
 @pytest.mark.pypi_network
@@ -56,7 +46,7 @@ def test_validate_wheel_valid_sbom_ok(
     equivalent note).
     """
     wheel_path = _make_dummy_wheel(tmp_path, "validpkg", "1.0.0")
-    _embed_raw(
+    _embed_sbom_entry(
         wheel_path,
         "validpkg-1.0.0.spdx3.json",
         VALID_FRAGMENT.read_text(encoding="utf-8"),
@@ -83,7 +73,7 @@ def test_validate_wheel_invalid_sbom_errors(
     doc = json.loads(_SAMPLE_SPDX3_JSON)
     doc["@graph"][0]["type"] = "NotARealType"
     wheel_path = _make_dummy_wheel(tmp_path, "badpkg", "1.0.0")
-    _embed_raw(wheel_path, "badpkg-1.0.0.spdx3.json", json.dumps(doc))
+    _embed_sbom_entry(wheel_path, "badpkg-1.0.0.spdx3.json", json.dumps(doc))
 
     monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
     result = __main__.main()
@@ -102,7 +92,7 @@ def test_validate_wheel_missing_dependency(
 ) -> None:
     """Reports a clear ERROR when 'spdx3-validate' isn't installed."""
     wheel_path = _make_dummy_wheel(tmp_path, "nodeppkg", "1.0.0")
-    _embed_raw(wheel_path, "nodeppkg-1.0.0.spdx3.json", _SAMPLE_SPDX3_JSON)
+    _embed_sbom_entry(wheel_path, "nodeppkg-1.0.0.spdx3.json", _SAMPLE_SPDX3_JSON)
 
     monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
     with patch.dict("sys.modules", {"spdx3_validate": None}):
@@ -192,7 +182,9 @@ def test_validate_wheel_unrecognized_format_warns_not_fails(
     """A non-SPDX3-shaped embedded file has no registered validator ->
     WARNING, not ERROR -- unsupported is not the same as invalid."""
     wheel_path = _make_dummy_wheel(tmp_path, "otherpkg", "1.0.0")
-    _embed_raw(wheel_path, "otherpkg-1.0.0.cdx.json", '{"bomFormat": "CycloneDX"}')
+    _embed_sbom_entry(
+        wheel_path, "otherpkg-1.0.0.cdx.json", '{"bomFormat": "CycloneDX"}'
+    )
 
     monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
     assert __main__.main() == 0

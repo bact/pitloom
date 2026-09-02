@@ -12,7 +12,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.assemble import _RECOMMENDED_EXTENSIONS, _detect_sbom_format
+from pitloom.assemble import (
+    _RECOMMENDED_EXTENSIONS,
+    EmbeddedSbomLocation,
+    _detect_sbom_format,
+)
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_embedded_sbom_or_report,
@@ -22,12 +26,17 @@ from pitloom.cli.commands.utils import (
 log = logging.getLogger(__name__)
 
 
-def _check_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool:
-    """Verify one wheel's embedded SBOM location/extension. Returns success."""
-    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
-    if location is None:
-        return False
+def _check_location(wheel_path: Path, location: EmbeddedSbomLocation) -> bool:
+    """Verify an *already disk-read* embedded SBOM's extension. Always
+    succeeds (location/format problems are WARNING:, not a failure) --
+    returns ``bool`` only for symmetry with :func:`_check_one_wheel`.
 
+    *location* must come from a real `_locate_embedded_sbom_or_report`
+    call against the wheel on disk -- never construct one from in-memory,
+    pre-write data to skip that read (see `embed_wheel.py`'s
+    `_run_post_embed_checks`: this split exists so `--verify --validate`
+    together share ONE disk read, not to avoid the read).
+    """
     sbom_format = _detect_sbom_format(location.data)
     recommended = _RECOMMENDED_EXTENSIONS.get(sbom_format) if sbom_format else None
     if recommended is None:
@@ -45,6 +54,14 @@ def _check_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool:
             recommended,
         )
     return True
+
+
+def _check_one_wheel(wheel_path: Path, sbom_filename: str | None) -> bool:
+    """Verify one wheel's embedded SBOM location/extension. Returns success."""
+    location = _locate_embedded_sbom_or_report(wheel_path, sbom_filename)
+    if location is None:
+        return False
+    return _check_location(wheel_path, location)
 
 
 @cli_error_handler("wheel SBOM verification failed")

@@ -23,23 +23,7 @@ import pytest
 
 from pitloom import __main__
 
-from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
-
-
-def _embed_sbom(wheel_path: Path, *, sbom_basename: str) -> None:
-    """Add a `sboms/` entry to *wheel_path* under an exact basename.
-
-    Unlike `embed-wheel` itself (which always appends `.spdx3.json`), this
-    writes whatever basename is given verbatim -- needed to construct a
-    deliberately non-conventional-extension fixture that `embed-wheel`'s
-    own self-correction makes otherwise unreachable.
-    """
-    with zipfile.ZipFile(wheel_path) as zf:
-        dist_info = next(
-            n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
-        )
-    with zipfile.ZipFile(wheel_path, "a") as zf:
-        zf.writestr(f"{dist_info}/sboms/{sbom_basename}", _SAMPLE_SPDX3_JSON)
+from .conftest import _embed_sbom_entry, _make_dummy_wheel
 
 
 def test_verify_wheel_correct_extension_ok(
@@ -49,7 +33,7 @@ def test_verify_wheel_correct_extension_ok(
 ) -> None:
     """A recommended-extension SBOM passes with no WARNING, exit 0."""
     wheel_path = _make_dummy_wheel(tmp_path, "okpkg", "1.0.0")
-    _embed_sbom(wheel_path, sbom_basename="okpkg-1.0.0.spdx3.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="okpkg-1.0.0.spdx3.json")
 
     monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
     assert __main__.main() == 0
@@ -66,7 +50,7 @@ def test_verify_wheel_wrong_extension_warns(
 ) -> None:
     """A non-recommended extension WARNs but still exits 0 -- not fatal."""
     wheel_path = _make_dummy_wheel(tmp_path, "warnpkg", "1.0.0")
-    _embed_sbom(wheel_path, sbom_basename="sbom.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="sbom.json")
 
     monkeypatch.setattr(
         sys,
@@ -103,8 +87,8 @@ def test_verify_wheel_sbom_filename_exact_match(
 ) -> None:
     """Two ambiguous SBOMs are fine when --sbom-filename disambiguates."""
     wheel_path = _make_dummy_wheel(tmp_path, "ambigpkg", "1.0.0")
-    _embed_sbom(wheel_path, sbom_basename="a.spdx3.json")
-    _embed_sbom(wheel_path, sbom_basename="b.spdx3.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="a.spdx3.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="b.spdx3.json")
 
     monkeypatch.setattr(
         sys,
@@ -122,8 +106,8 @@ def test_verify_wheel_ambiguous_without_filename_errors(
 ) -> None:
     """Multiple SBOMs with no --sbom-filename to disambiguate -> ERROR."""
     wheel_path = _make_dummy_wheel(tmp_path, "ambigpkg2", "1.0.0")
-    _embed_sbom(wheel_path, sbom_basename="a.spdx3.json")
-    _embed_sbom(wheel_path, sbom_basename="b.spdx3.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="a.spdx3.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="b.spdx3.json")
 
     monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(wheel_path)])
     assert __main__.main() == 1
@@ -140,7 +124,7 @@ def test_verify_wheel_nested_sboms_entry_not_ambiguous(
     sboms/ are SBOMs, so one real SBOM plus a nested entry isn't
     ambiguous."""
     wheel_path = _make_dummy_wheel(tmp_path, "nestedpkg", "1.0.0")
-    _embed_sbom(wheel_path, sbom_basename="nestedpkg-1.0.0.spdx3.json")
+    _embed_sbom_entry(wheel_path, sbom_basename="nestedpkg-1.0.0.spdx3.json")
     with zipfile.ZipFile(wheel_path) as zf:
         dist_info = next(
             n.split("/")[0] for n in zf.namelist() if n.endswith(".dist-info/METADATA")
@@ -257,7 +241,7 @@ def test_verify_wheel_multiple_wheels_mixed_pass_fail(
     good wheel's result isn't silently dropped from the run."""
     dist_dir = tmp_path / "dist"
     good = _make_dummy_wheel(dist_dir, "good", "1.0.0")
-    _embed_sbom(good, sbom_basename="good-1.0.0.spdx3.json")
+    _embed_sbom_entry(good, sbom_basename="good-1.0.0.spdx3.json")
     bad = _make_dummy_wheel(dist_dir, "bad", "1.0.0")
 
     monkeypatch.setattr(sys, "argv", ["loom", "verify-wheel", str(good), str(bad)])
