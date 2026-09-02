@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-01
+Last-Modified: 2026-09-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,6 +23,8 @@ and this project adheres to
 
 ### Added
 
+- Add PDM-backend and Flit-core metadata extraction and wheel file
+  discovery
 - Add Poetry backend wheel file discovery and lock parsing ([#198])
 - Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
   library API; new `pitloom[validate]` optional extra ([#200])
@@ -36,6 +38,18 @@ and this project adheres to
 - `embed-wheel --sbom` now cross-checks the SBOM's name/version against
   the wheel's METADATA before writing; aborts on mismatch unless
   `--allow-mismatch` ([#204])
+
+### Fixed
+
+- `read_project()` no longer silently returns empty (nameless,
+  versionless) metadata for a project whose `pyproject.toml` declares
+  only `[build-system]` (a custom/legacy build backend, no `[project]`
+  or `[tool.poetry]`) when `setup.cfg`/`setup.py` hold the real
+  metadata -- now falls back to setuptools extraction, with a
+  `WARNING:`
+- `[tool.setuptools.dynamic] version = {attr = "..."}`/`{file = "..."}`
+  now resolves even when a `[project]` table is present (previously
+  silently left `version=None`)
 
 ### Changed
 

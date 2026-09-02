@@ -54,15 +54,17 @@ classifiers = [
     "Topic :: Security",
     "Typing :: Typed",
 ]
-# hatchling/setuptools/poetry-core: Track A backend libs, kept mandatory
-# (lightweight; gate file-discovery accuracy, not metadata). Revisit if
-# Track A grows. Track B (maturin/scikit-build-core/meson-python) should
-# be an optional extra when added -- see roadmap.md "Dependency packaging
-# strategy".
+# hatchling/setuptools/poetry-core/flit_core/pdm-backend: Track A backend
+# libs, kept mandatory (lightweight; gate file-discovery accuracy, not
+# metadata). Revisit if Track A grows. Track B
+# (maturin/scikit-build-core/meson-python) should be an optional extra
+# when added -- see roadmap.md "Dependency packaging strategy".
 dependencies = [
     "auditwheel>=6.8.2; sys_platform == 'linux'",
+    "flit_core>=3.9",
     "hatchling>=1.32.0",
     "licenseid>=0.3.7",
+    "pdm-backend>=2.4.1",
     "pipdeptree>=4.2.3",
     "poetry-core>=2.4.1",
     "py-spdx-license>=0.0.1,<1",
@@ -226,6 +228,10 @@ module = "fickling.*"
 
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
+module = ["flit_core", "flit_core.*"]
+
+[[tool.mypy.overrides]]
+ignore_missing_imports = true
 module = "h5py.*"
 
 [[tool.mypy.overrides]]
@@ -301,6 +307,20 @@ filterwarnings = [
     # `pitloom fragment validate`'s tests) instantiates the deprecated
     # ConjunctiveGraph internally; nothing Pitloom-side to fix.
     "ignore:ConjunctiveGraph is deprecated:DeprecationWarning:rdflib.plugins.parsers.jsonld",
+    # setuptools' own pyproject.toml applier (invoked by
+    # _models_wheel_setuptools.discover(), a real-library-delegation
+    # module that reads a target *project's* pyproject.toml, not
+    # Pitloom's own) warns -- never raises outside pytest -- on legacy
+    # pre-PEP-639 metadata forms a real-world project may still use
+    # (`project.license` as a TOML table, `tool.setuptools.license-files`,
+    # `License ::` trove classifiers). Nothing Pitloom-side to fix: this
+    # is the *target* project's own metadata style, not something
+    # discover() emits. No message component -- multiple distinct
+    # deprecation messages come from this one module for this one class
+    # of legacy metadata, and pinning to setuptools' verbose, multi-line
+    # message text would be far more brittle than scoping to the
+    # category+module setuptools itself uses for exactly this warning.
+    "ignore::setuptools.warnings.SetuptoolsDeprecationWarning:setuptools.config._apply_pyprojecttoml",
 ]
 
 [tool.pylint.messages_control]

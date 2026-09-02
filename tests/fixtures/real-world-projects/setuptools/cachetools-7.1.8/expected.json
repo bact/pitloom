@@ -1,0 +1,25 @@
+{
+  "source": "https://github.com/tkem/cachetools",
+  "pypi_package": "cachetools",
+  "pypi_version": "7.1.8",
+  "license": "MIT",
+  "build_backend": "setuptools",
+  "sdist_filename": "cachetools-7.1.8.tar.gz",
+  "wheel_filename": "cachetools-7.1.8-py3-none-any.whl",
+  "wheel_files": [
+    "cachetools-7.1.8.dist-info/METADATA",
+    "cachetools-7.1.8.dist-info/RECORD",
+    "cachetools-7.1.8.dist-info/WHEEL",
+    "cachetools-7.1.8.dist-info/licenses/LICENSE",
+    "cachetools-7.1.8.dist-info/top_level.txt",
+    "cachetools/__init__.py",
+    "cachetools/__init__.pyi",
+    "cachetools/_cached.py",
+    "cachetools/_cachedmethod.py",
+    "cachetools/func.py",
+    "cachetools/func.pyi",
+    "cachetools/keys.py",
+    "cachetools/keys.pyi",
+    "cachetools/py.typed"
+  ]
+}

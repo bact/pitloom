@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal Flit-core project used as a fixture for testing Pitloom's Flit
+# metadata extraction (pitloom.extract._flit) and wheel file discovery
+# (pitloom.core._models_wheel_flit).
+#
+# Exercises the src/ layout (flit_core.common.Module's own `src/<name>`
+# search path) plus dynamic version/description resolved from the
+# module's `__version__` assignment and docstring -- the
+# physical_path/distribution_path divergence every backend's discovery
+# module must get right, and the dynamic-field resolution gap the
+# generic StandardMetadata path can't close on its own.
+
+[build-system]
+requires = ["flit_core>=3.9"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "sampleproject-flit"
+dynamic = ["version", "description"]
+readme = "README.md"
+license = "CC0-1.0"
+keywords = ["sample", "test"]
+requires-python = ">=3.10"

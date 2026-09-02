@@ -29,14 +29,16 @@ from pitloom.extract._pyproject import (
     _drop_redundant_license_classifiers,
     _extract_and_detect_license,
     _extract_authors,
-    _extract_dynamic_version,
     _extract_readme,
     _is_license_classifier_conflict,
     _read_pyproject_fallback,
-    _read_version_from_file,
     _resolve_license_hint,
     _try_read_poetry,
     read_pyproject,
+)
+from pitloom.extract._pyproject_dynamic import (
+    _extract_dynamic_version,
+    _read_version_from_file,
 )
 
 # ---------------------------------------------------------------------------
@@ -338,6 +340,43 @@ def test_extract_readme_no_file_no_text() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_read_pyproject_license_toml_dotted_key_matches_inline_table(
+    tmp_path: Path,
+) -> None:
+    """PEP 621's TOML dotted-key license form (``license.text = "..."``,
+    as seen in apple/tree-sitter-pkl's real ``pyproject.toml`` -- see
+    ``tests/fixtures/projects/sampleproject-setuptools-license-dotted/``)
+    parses identically to the more common inline-table form (``license =
+    {text = "..."}``) -- both produce the same nested dict once read by
+    any TOML library, so ``read_pyproject()`` needs no special handling
+    for either. Regression: constructs both forms and asserts they
+    resolve to the same ``license_name``."""
+    dotted_fixture = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "projects"
+        / "sampleproject-setuptools-license-dotted"
+        / "pyproject.toml"
+    )
+    dotted_metadata, _ = read_pyproject(dotted_fixture)
+
+    inline_dir = tmp_path / "inline"
+    inline_dir.mkdir()
+    inline_pyproject = inline_dir / "pyproject.toml"
+    inline_pyproject.write_text(
+        '[build-system]\nrequires = ["setuptools>=42"]\n'
+        'build-backend = "setuptools.build_meta"\n\n'
+        "[project]\n"
+        'name = "sampleproject-setuptools-license-dotted"\n'
+        'version = "0.1.0"\n'
+        'license = {text = "Apache-2.0"}\n',
+        encoding="utf-8",
+    )
+    inline_metadata, _ = read_pyproject(inline_pyproject)
+
+    assert dotted_metadata.license_name == inline_metadata.license_name
+
+
 def test_resolve_license_hint_text_object() -> None:
     """A License object exposing ``.text`` (PEP 639 inline license text)."""
     license_obj = SimpleNamespace(text="Some custom license text.")
@@ -470,8 +509,73 @@ def test_extract_authors_skips_empty_entries() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _extract_dynamic_version -- Hatchling version-path and fallback candidates
+# _extract_dynamic_version -- [tool.setuptools.dynamic], Hatchling
+# version-path, and fallback candidates
 # ---------------------------------------------------------------------------
+
+
+def test_extract_dynamic_version_setuptools_dynamic_attr(tmp_path: Path) -> None:
+    """Regression: ``[tool.setuptools.dynamic] version = {attr =
+    "pkg.__version__"}`` -- setuptools' own dynamic-version directive --
+    must resolve even when a ``[project]`` table is present (found via
+    real-world fixture netcal 1.4.0, which uses exactly this pattern;
+    `StandardMetadata`'s backend-agnostic parsing has no concept of this
+    setuptools-specific table, so nothing else on this path resolved it
+    before this fix)."""
+    pyproject_data = {
+        "project": {"name": "pkg", "dynamic": ["version"]},
+        "tool": {"setuptools": {"dynamic": {"version": {"attr": "pkg.__version__"}}}},
+    }
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text(
+        '__version__ = "1.4.0"\n', encoding="utf-8"
+    )
+
+    version, source = _extract_dynamic_version(tmp_path, pyproject_data)
+
+    assert version == "1.4.0"
+    assert source is not None
+    assert "attr_directive" in source
+
+
+def test_extract_dynamic_version_setuptools_dynamic_file(tmp_path: Path) -> None:
+    """``[tool.setuptools.dynamic] version = {file = "VERSION"}`` -- the
+    file-directive variant of the same setuptools-specific table."""
+    pyproject_data = {
+        "project": {"name": "pkg", "dynamic": ["version"]},
+        "tool": {"setuptools": {"dynamic": {"version": {"file": "VERSION"}}}},
+    }
+    (tmp_path / "VERSION").write_text("2.0.0", encoding="utf-8")
+
+    version, source = _extract_dynamic_version(tmp_path, pyproject_data)
+
+    assert version == "2.0.0"
+    assert source is not None
+    assert "file_directive" in source
+
+
+def test_extract_dynamic_version_setuptools_dynamic_missing_falls_through(
+    tmp_path: Path,
+) -> None:
+    """When ``[tool.setuptools.dynamic] version``'s ``attr:`` target
+    doesn't resolve to anything, extraction falls through to the
+    generic Hatchling/candidate-file scan rather than giving up."""
+    pyproject_data = {
+        "project": {"name": "pkg", "dynamic": ["version"]},
+        "tool": {
+            "setuptools": {"dynamic": {"version": {"attr": "nonexistent.__version__"}}}
+        },
+    }
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__about__.py").write_text(
+        '__version__ = "9.9.9"\n', encoding="utf-8"
+    )
+
+    version, source = _extract_dynamic_version(tmp_path, pyproject_data)
+
+    assert version == "9.9.9"
+    assert source is not None
+    assert "dynamic_extraction" in source
 
 
 def test_extract_dynamic_version_hatch_path_missing_file() -> None:

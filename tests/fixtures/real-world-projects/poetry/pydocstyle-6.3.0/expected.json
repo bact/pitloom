@@ -1,0 +1,27 @@
+{
+  "source": "https://github.com/PyCQA/pydocstyle",
+  "pypi_package": "pydocstyle",
+  "pypi_version": "6.3.0",
+  "license": "MIT",
+  "build_backend": "poetry",
+  "sdist_filename": "pydocstyle-6.3.0.tar.gz",
+  "wheel_filename": "pydocstyle-6.3.0-py3-none-any.whl",
+  "wheel_files": [
+    "pydocstyle-6.3.0.dist-info/METADATA",
+    "pydocstyle-6.3.0.dist-info/RECORD",
+    "pydocstyle-6.3.0.dist-info/WHEEL",
+    "pydocstyle-6.3.0.dist-info/entry_points.txt",
+    "pydocstyle/__init__.py",
+    "pydocstyle/__main__.py",
+    "pydocstyle/_version.py",
+    "pydocstyle/checker.py",
+    "pydocstyle/cli.py",
+    "pydocstyle/config.py",
+    "pydocstyle/data/imperatives.txt",
+    "pydocstyle/data/imperatives_blacklist.txt",
+    "pydocstyle/parser.py",
+    "pydocstyle/utils.py",
+    "pydocstyle/violations.py",
+    "pydocstyle/wordlists.py"
+  ]
+}

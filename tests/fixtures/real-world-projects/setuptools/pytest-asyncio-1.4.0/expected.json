@@ -1,0 +1,20 @@
+{
+  "source": "https://github.com/pytest-dev/pytest-asyncio",
+  "pypi_package": "pytest-asyncio",
+  "pypi_version": "1.4.0",
+  "license": "Apache-2.0",
+  "build_backend": "setuptools",
+  "sdist_filename": "pytest_asyncio-1.4.0.tar.gz",
+  "wheel_filename": "pytest_asyncio-1.4.0-py3-none-any.whl",
+  "wheel_files": [
+    "pytest_asyncio-1.4.0.dist-info/METADATA",
+    "pytest_asyncio-1.4.0.dist-info/RECORD",
+    "pytest_asyncio-1.4.0.dist-info/WHEEL",
+    "pytest_asyncio-1.4.0.dist-info/entry_points.txt",
+    "pytest_asyncio-1.4.0.dist-info/licenses/LICENSE",
+    "pytest_asyncio-1.4.0.dist-info/top_level.txt",
+    "pytest_asyncio/__init__.py",
+    "pytest_asyncio/plugin.py",
+    "pytest_asyncio/py.typed"
+  ]
+}

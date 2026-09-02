@@ -35,6 +35,16 @@ is not kept in sync with post-ship changes.
 - [x] Poetry support -- initial implementation
   (`src/pitloom/extract/_poetry.py`; `read_pyproject()` falls back to
   `[tool.poetry]` when `[project]` is absent, merges both when present)
+- [x] **PDM-backend and Flit-core support** -- metadata extraction
+  (`src/pitloom/extract/_pdm.py`, `_flit.py`: dynamic `version`/
+  `description` resolved via each backend's own logic --
+  `[tool.pdm.version]`'s `file`/`scm` sources, Flit's module
+  `__version__`/docstring convention) and wheel file discovery
+  (`src/pitloom/core/_models_wheel_pdm.py`, `_models_wheel_flit.py`),
+  wired into `read_pyproject()` and `_models_wheel.py`'s
+  `backend_discoverers` registry. See
+  [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)'s
+  Flit-core/PDM-backend round.
 - [x] **Multiple creators / tools per `CreationInfo` record** -- `Creator`/
   `Tool` dataclasses, repeatable `--creator-name`/`--creation-tool`,
   array-of-tables config. See [creation-metadata.md](../../docs/creation-metadata.md).
@@ -109,10 +119,10 @@ full picture.
 **Next up:**
 [Non-Hatchling file discovery](#non-hatchling-file-discovery-feature-parity)
 below -- a major feature-parity gap affecting the accuracy of `loom
-project`'s file inventory for any non-Hatchling project. Setuptools and
-Poetry support (priorities 1-2 below) are done; `uv_build`, PDM-backend,
-and Flit-core are named as "also in the plan" without a committed
-version yet.
+project`'s file inventory for any non-Hatchling project. Setuptools,
+Poetry, PDM-backend, and Flit-core support (priorities 1-3 below) are
+done; `uv_build` is next, named as "also in the plan" without a
+committed version yet.
 
 ### Non-Hatchling file discovery (feature parity)
 
@@ -222,8 +232,8 @@ So the question is narrower than "make backend support optional" -- it's
 specifically about the libraries backing *file-discovery accuracy*,
 never metadata.
 
-- **Track A (setuptools, Poetry, and future PDM-backend/Flit-core)
-  stays mandatory for now.** Unlike `ai`/`content-type`, which gate
+- **Track A (setuptools, Poetry, PDM-backend, Flit-core) stays mandatory
+  for now.** Unlike `ai`/`content-type`, which gate
   *opt-in* features a user explicitly requests, backend detection isn't
   opt-in: `loom project .` inspects whatever `pyproject.toml` says, and
   the user can't know in advance which backend a target project uses.
@@ -262,7 +272,7 @@ projects, implementation size, and reuse leverage across backends:
 | :-- | :--- | :--- | :--- |
 | 1 | setuptools | A | **Done (2026-08-27).** Was the single most-installed backend with no dedicated support; now resolved via `setuptools.config.pyprojecttoml`/`setupcfg` + `build_py` introspection (`src/pitloom/core/_models_wheel_setuptools.py`). See [setuptools-support.md](../implementation/setuptools-support.md). |
 | 2 | Poetry | A | **Done (2026-08-31).** Declarative `[tool.poetry]`/`packages`/`exclude` config, no build-time code execution to model -- resolved by delegating to poetry-core's own `WheelBuilder.find_files_to_add()` (`src/pitloom/core/_models_wheel_poetry.py`), the same delegate-to-the-real-library pattern as Hatchling's module (poetry-core is fully declarative, unlike setuptools). Also gained `poetry.lock`-resolved transitive dependencies (source-stage only) as an additional parity item beyond the original file-discovery scope. |
-| 3 | PDM-backend, Flit-core | A | Bundle together -- both are simple, PEP 621-native, declarative (Flit's default is literally "bundle whatever Git tracks"). Smaller install base than 1-2, but nearly free once the Track A discovery pattern exists from steps 1-2, and already share a metadata-extractor item ("PDM / Flit extractors" under Medium-term) worth doing in the same pass. |
+| 3 | PDM-backend, Flit-core | A | **Done (2026-09-02).** Both PEP 621-native and declarative -- resolved via `Builder.get_files()`/`WheelBuilder._collect_files()` for PDM-backend (`src/pitloom/core/_models_wheel_pdm.py`) and `flit_core.common.Module.iter_files()` for Flit-core (`src/pitloom/core/_models_wheel_flit.py`), the same delegate-to-the-real-library pattern as Poetry's module. Also closed the paired "PDM / Flit extractors" metadata item from Medium-term in the same pass (`pitloom.extract._pdm`/`_flit`, dynamic `version`/`description` resolution). See [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)'s Flit-core/PDM-backend round. |
 | 4 | Build-and-read fallback | (mechanism) | Not a backend -- the mechanism Track B requires. Moved up from its original slot (was 5): `uv_build` (next row) is now expected to consume this mechanism too, not just the three Track B backends, so it's a prerequisite for step 5 as well as steps 6-7. Medium effort, the single highest-leverage item on this list. |
 | 5 | `uv_build` | A (via build-and-read) | `uv_build` (PyPI package `uv_build`) is a thin PEP 517 shim that shells out to a compiled `uv-build` binary via subprocess, with no in-process introspection API comparable to Hatchling's `WheelBuilder`. No existing logic to adapt for a hand-rolled rescan, so the practical path is the build-and-read mechanism (step 4) rather than a Track A rescan, despite files existing pre-build in principle. Still the fastest-growing default for new pure-Python projects on `uv`'s adoption curve, so kept ahead of the Track B backends -- just moved behind the mechanism it now depends on, and behind the genuinely cheap Track A items (2-3). |
 | 6 | `maturin`, `scikit-build-core` | B | Tied -- both are surging in the AI/ML stack specifically (Rust-based tooling via PyO3 for `maturin`; CUDA/C++/Fortran extensions for `scikit-build-core`), both need exactly the build-and-read mechanism from step 4, and neither is meaningfully cheaper or more valuable than the other. |
@@ -282,10 +292,16 @@ restructured `get_wheel_files()` into a per-backend module + registry
 `_models_wheel_<backend>.py` siblings, each exposing one `discover()`
 function). Item #2 (Poetry) confirmed the pattern holds for a
 delegate-to-the-real-library backend too, not just setuptools'
-hand-rolled one. Items #3-5 (PDM-backend, Flit-core, `uv_build`) are
-now: one new `_models_wheel_<backend>.py` module + one registry entry
-each -- no changes needed to the facade's dispatch logic, the shared
-per-file processing loop, or any of `get_wheel_files()`'s callers.
+hand-rolled one. Item #3 (PDM-backend, Flit-core) confirmed it again
+for two more delegate-to-the-real-library backends -- one new
+`_models_wheel_<backend>.py` module + one registry entry each, no
+changes needed to the facade's dispatch logic, the shared per-file
+processing loop, or any of `get_wheel_files()`'s callers. PDM-backend
+was the first backend since setuptools to need `_WRITER_BACKENDS`'
+process-wide `os.chdir()` (its own package auto-discovery globs
+relative to the process cwd, not the `Builder`'s `location`). `uv_build`
+(item #5) still needs the build-and-read mechanism (item #4) rather
+than this pattern.
 
 ### Build backend improvements
 
@@ -561,13 +577,6 @@ per-file processing loop, or any of `get_wheel_files()`'s callers.
   `DocumentModel`.
 - [ ] **Build log extraction** -- capture compiled dependencies, linker flags,
   and bundled libraries from build output logs.
-- [ ] **PDM / Flit extractors** -- extend `detect_build_backend()` and
-  add per-backend extractor functions following the same
-  `read_X() -> (ProjectMetadata, PitloomConfig)` pattern. Worth pairing
-  with PDM/Flit-core's Track A file-discovery work (see
-  "Non-Hatchling file discovery" under Near-term) in the same pass --
-  metadata extraction and file discovery are separate concerns but the
-  same backends.
 - [ ] **VEX (VEX/OpenVEX) generation** -- consumes the OSV.dev lookup
   above (once it exists) to classify a component as affected/
   not_affected/fixed/under_investigation, rather than just listing raw

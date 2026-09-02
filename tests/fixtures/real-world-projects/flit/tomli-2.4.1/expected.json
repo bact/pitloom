@@ -1,0 +1,34 @@
+{
+  "source": "https://github.com/hukkin/tomli",
+  "pypi_package": "tomli",
+  "pypi_version": "2.4.1",
+  "license": "MIT",
+  "build_backend": "flit",
+  "sdist_filename": "tomli-2.4.1.tar.gz",
+  "wheel_filename": "tomli-2.4.1-cp311-cp311-macosx_10_9_x86_64.whl",
+  "wheel_files": [
+    "ddc459050edb75a05942__mypyc.cpython-311-darwin.so",
+    "tomli-2.4.1.dist-info/METADATA",
+    "tomli-2.4.1.dist-info/RECORD",
+    "tomli-2.4.1.dist-info/WHEEL",
+    "tomli-2.4.1.dist-info/licenses/LICENSE",
+    "tomli-2.4.1.dist-info/top_level.txt",
+    "tomli/__init__.cpython-311-darwin.so",
+    "tomli/__init__.py",
+    "tomli/_parser.cpython-311-darwin.so",
+    "tomli/_parser.py",
+    "tomli/_re.cpython-311-darwin.so",
+    "tomli/_re.py",
+    "tomli/_types.cpython-311-darwin.so",
+    "tomli/_types.py",
+    "tomli/py.typed"
+  ],
+  "known_gaps": [
+    "ddc459050edb75a05942__mypyc.cpython-311-darwin.so",
+    "tomli/__init__.cpython-311-darwin.so",
+    "tomli/_parser.cpython-311-darwin.so",
+    "tomli/_re.cpython-311-darwin.so",
+    "tomli/_types.cpython-311-darwin.so"
+  ],
+  "known_gaps_note": "mypyc-compiled extension modules (.so) built by a separate CI step outside flit_core itself -- do not exist as source files, outside what static discovery can ever see (same category as black's mypyc build below)."
+}

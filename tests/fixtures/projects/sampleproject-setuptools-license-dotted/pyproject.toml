@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal setuptools project used as a fixture for testing Pitloom's
+# handling of PEP 621's TOML dotted-key license form
+# (`license.text = "..."`), as seen in apple/tree-sitter-pkl's real
+# pyproject.toml (not published on PyPI, so vendored as a small
+# synthetic fixture here instead of a real sdist -- see
+# tests/fixtures/real-world-projects/README.md).
+#
+# `license.text = "..."` and `license = {text = "..."}` parse to an
+# identical Python dict once read by any TOML library (dotted keys just
+# build up a nested table) -- this fixture exists to document that
+# equivalence explicitly, not because Pitloom needs separate handling
+# for it.
+
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sampleproject-setuptools-license-dotted"
+version = "0.1.0"
+description = "A minimal sample project exercising PEP 621's TOML dotted-key license form."
+license.text = "Apache-2.0"
+requires-python = ">=3.10"

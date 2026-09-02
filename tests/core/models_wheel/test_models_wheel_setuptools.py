@@ -105,6 +105,44 @@ def test_discover_zero_config_pep621_auto_discovery() -> None:
     assert distribution_paths == {"sampleproject_setuptools_zeroconfig/__init__.py"}
 
 
+def test_discover_succeeds_on_legacy_table_form_license(tmp_path: Path) -> None:
+    """Regression: a project using PEP 621's original ``project.license``
+    TOML-table form (``{text = "..."}``), a ``tool.setuptools.license-files``
+    key, and a legacy ``License ::`` trove classifier -- all superseded by
+    PEP 639 but still common in real, unmigrated projects (e.g. requests
+    2.34.2, see ``tests/fixtures/real-world-projects/setuptools/``) --
+    must still resolve successfully.
+
+    setuptools>=77 warns (never raises outside pytest's own
+    ``filterwarnings = ["error"]``) on each of these forms during
+    ``apply_configuration()``; without the scoped
+    ``SetuptoolsDeprecationWarning`` ignore entry in this project's own
+    pytest config, this test fails even though real (non-pytest) usage
+    of ``discover()`` never did."""
+    (tmp_path / "pyproject.toml").write_text(
+        "[build-system]\n"
+        'requires = ["setuptools"]\n'
+        'build-backend = "setuptools.build_meta"\n\n'
+        "[project]\n"
+        'name = "pkg"\n'
+        'version = "0.1.0"\n'
+        'license = {text = "Apache-2.0"}\n'
+        'classifiers = ["License :: OSI Approved :: Apache Software License"]\n\n'
+        "[tool.setuptools]\n"
+        'license-files = ["LICENSE"]\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "LICENSE").write_text("Apache-2.0\n", encoding="utf-8")
+    pkg_dir = tmp_path / "pkg"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").write_text("", encoding="utf-8")
+
+    result = discover(tmp_path)
+
+    assert result is not None
+    assert {f.distribution_path for f in result} == {"pkg/__init__.py"}
+
+
 def test_discover_merges_setup_cfg_and_pyproject_toml() -> None:
     """Regression: ``packages``/``package_dir`` from ``setup.cfg`` and
     ``package-data`` from ``pyproject.toml``'s ``[tool.setuptools]`` are

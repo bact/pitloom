@@ -22,3 +22,7 @@ SPDX-License-Identifier: CC0-1.0
 5. Croissant fixtures (`croissant/`)
     - For Dataset metadata extraction testing
     - [Details](./croissant/README.md)
+6. Real-world project fixtures (`real-world-projects/`)
+    - Vendored sdist archives of real, published PyPI packages, one per
+      build backend, for wheel-file-discovery regression testing
+    - [Details](./real-world-projects/README.md)

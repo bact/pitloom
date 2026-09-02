@@ -1,0 +1,24 @@
+{
+  "source": "https://github.com/python-trio/sniffio",
+  "pypi_package": "sniffio",
+  "pypi_version": "1.3.1",
+  "license": "MIT OR Apache-2.0",
+  "build_backend": "setuptools",
+  "sdist_filename": "sniffio-1.3.1.tar.gz",
+  "wheel_filename": "sniffio-1.3.1-py3-none-any.whl",
+  "wheel_files": [
+    "sniffio-1.3.1.dist-info/LICENSE",
+    "sniffio-1.3.1.dist-info/LICENSE.APACHE2",
+    "sniffio-1.3.1.dist-info/LICENSE.MIT",
+    "sniffio-1.3.1.dist-info/METADATA",
+    "sniffio-1.3.1.dist-info/RECORD",
+    "sniffio-1.3.1.dist-info/WHEEL",
+    "sniffio-1.3.1.dist-info/top_level.txt",
+    "sniffio/__init__.py",
+    "sniffio/_impl.py",
+    "sniffio/_tests/__init__.py",
+    "sniffio/_tests/test_sniffio.py",
+    "sniffio/_version.py",
+    "sniffio/py.typed"
+  ]
+}
