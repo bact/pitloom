@@ -25,7 +25,7 @@ verification) -- run it for every release, not just the ones below that
 happened to prompt a closer look.
 
 As of 2026-09-01, the location and schema checks below are automatable
-via `loom verify-wheel <whl> --sbom-basename <name>` and `loom
+via `loom verify-wheel <whl> --sbom-filename <name>` and `loom
 validate-wheel <whl>` (see [roadmap.md](../design/roadmap.md)'s "PEP 770 /
 embed-wheel" section) -- the manual method documented per-release below
 still applies to a published PyPI wheel specifically (download + run

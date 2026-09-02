@@ -58,7 +58,7 @@ wheel directly:
 - [ ] Unzip it and inspect `pitloom-<version>.dist-info/sboms/pitloom-<version>.spdx3.json`
       directly -- the actual bytes a consumer gets, not a regenerated copy.
 - [ ] Confirm PEP 770 location and recommended extension
-      (`loom verify-wheel <downloaded.whl> --sbom-basename
+      (`loom verify-wheel <downloaded.whl> --sbom-filename
       pitloom-<version>.spdx3.json`), run schema + SHACL validation
       (`loom validate-wheel <downloaded.whl>`), recompute every
       `software_File`'s SHA-256 from the extracted bytes and cross-check

@@ -61,6 +61,14 @@ def _run_post_embed_checks(
     """Run --verify/--validate against the wheel embed_wheel_sbom() just
     modified. Same functions verify-wheel/validate-wheel use standalone,
     chained here like `wheel --embed` chains into the same embed function.
+
+    Deliberately re-reads *embedded_wheel_path* from disk (via
+    `_check_one_wheel`/`_validate_one_wheel`) rather than checking the
+    pre-write `sbom_json` string generation produced: the whole point of
+    `--verify`/`--validate` is confirming what actually landed in the
+    wheel, not what Pitloom intended to write -- an in-memory shortcut
+    would silently narrow that guarantee for exactly the command whose
+    job is to catch that kind of drift.
     """
     embedded_filename = arcname.rsplit("/", 1)[-1]
     # `is not False` (not plain truthiness) on both, even though

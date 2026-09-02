@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           loom verify-wheel "${WHEEL_PATH}" \
-            --sbom-basename "$(basename "${SBOM_PATH}")"
+            --sbom-filename "$(basename "${SBOM_PATH}")"
 
       - name: Validate SBOM
         env:
@@ -93,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           loom validate-wheel "${WHEEL_PATH}" \
-            --sbom-basename "$(basename "${SBOM_PATH}")"
+            --sbom-filename "$(basename "${SBOM_PATH}")"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1

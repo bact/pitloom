@@ -13,6 +13,7 @@ See also:
 
 from __future__ import annotations
 
+import dataclasses
 import sys
 import zipfile
 from pathlib import Path
@@ -21,6 +22,7 @@ import pytest
 from installer.sources import WheelFile
 
 from pitloom import __main__
+from pitloom.assemble import EmbeddedSbomLocation, find_embedded_sbom
 
 from .conftest import _SAMPLE_SPDX3_JSON, _make_dummy_wheel
 
@@ -325,6 +327,55 @@ def test_cli_embed_wheel_verify_flag_passes_on_happy_path(
     assert "pitloom: embedded" in captured.out
     assert "WARNING:" not in captured.err
     assert "ERROR:" not in captured.err
+
+
+def test_cli_embed_wheel_verify_rereads_wheel_from_disk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """--verify genuinely re-reads the just-written wheel from disk (via
+    find_embedded_sbom) rather than trusting the pre-write SBOM string --
+    the whole point of --verify/--validate is confirming what actually
+    landed in the wheel, not what Pitloom intended to write.
+
+    Proven by patching find_embedded_sbom to return a location with a
+    deliberately wrong extension: the WARNING reflects that patched
+    on-disk value, which could only happen if the disk-lookup path is
+    genuinely exercised, not bypassed with in-memory data."""
+    wheel_path = _make_dummy_wheel(tmp_path, "rereadpkg", "1.0.0")
+    sbom_file = tmp_path / "sbom.spdx3.json"
+    sbom_file.write_text(_SAMPLE_SPDX3_JSON, encoding="utf-8")
+
+    def _wrong_extension(
+        wheel_path_arg: Path, sbom_basename: str | None = None
+    ) -> EmbeddedSbomLocation | None:
+        location = find_embedded_sbom(wheel_path_arg, sbom_basename)
+        if location is None:
+            return None
+        return dataclasses.replace(location, arcname="on-disk-value.txt")
+
+    monkeypatch.setattr(
+        "pitloom.cli.commands.utils.find_embedded_sbom", _wrong_extension
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "embed-wheel",
+            str(wheel_path),
+            "--sbom",
+            str(sbom_file),
+            "--verify",
+        ],
+    )
+    assert __main__.main() == 0
+
+    captured = capsys.readouterr()
+    assert "pitloom: embedded" in captured.out
+    assert "on-disk-value.txt doesn't use the recommended" in captured.err
 
 
 def test_cli_embed_wheel_validate_flag_fails_on_invalid_sbom(
