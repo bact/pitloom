@@ -14,7 +14,10 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pitloom.core._models_wheel_types import IncludedFile
+from pitloom.core._models_wheel_types import (
+    IncludedFile,
+    to_posix_distribution_path,
+)
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +53,9 @@ def discover(
         return [
             IncludedFile(
                 path=included_file.path,
-                distribution_path=included_file.distribution_path.replace("\\", "/"),
+                distribution_path=to_posix_distribution_path(
+                    included_file.distribution_path
+                ),
             )
             for included_file in builder.recurse_included_files()
         ]

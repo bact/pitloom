@@ -169,12 +169,11 @@ def _resolve_project_dir_and_config(
         return None
     try:
         _, pitloom_config, _ = read_project(proj_path)
-    except FileNotFoundError:
-        print(
-            "ERROR: No pyproject.toml or setup.cfg found "
-            f"in project directory: {proj_path}",
-            file=sys.stderr,
-        )
+    except FileNotFoundError as exc:
+        # read_project()'s own message already names the specific reason
+        # (no config file at all, vs. a config file present but resolving
+        # to no usable metadata) -- relay it instead of a fixed guess.
+        print(f"ERROR: {exc}", file=sys.stderr)
         return None
     return proj_path, pitloom_config
 

@@ -13,6 +13,7 @@ mirrors in shape.
 """
 
 import logging
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -78,6 +79,67 @@ def test_discover_never_writes_to_disk(tmp_path: Path) -> None:
 
     assert result is not None
     assert not (project_dir / ".pdm-build").exists()
+
+
+def test_discover_never_writes_scm_version_to_disk(tmp_path: Path) -> None:
+    """Regression: ``[tool.pdm.version] source = "scm"`` combined with a
+    ``write_to`` option makes pdm-backend's own
+    ``DynamicVersionBuildHook.pdm_build_initialize()`` write the resolved
+    version string to a real file under ``.pdm-build/`` as a side effect
+    of resolving the version -- ``discover()`` must never trigger this
+    (it doesn't need the resolved version at all to list files), the
+    same "static rescan, never a build" contract
+    ``test_discover_never_writes_to_disk`` already covers for the
+    ``_get_metadata_files()`` case.
+
+    Needs a real git repo with a tag -- pdm-backend's SCM version
+    resolution only reaches the disk-writing step (``_write_version``)
+    once it has actually resolved a version from SCM; a non-git
+    directory fails earlier (``ConfigError: Cannot find the version
+    from SCM``), which would pass this test for the wrong reason."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["pdm-backend"]\n'
+        'build-backend = "pdm.backend"\n\n'
+        '[project]\nname = "pkg"\ndynamic = ["version"]\n\n'
+        '[tool.pdm.version]\nsource = "scm"\nwrite_to = "pkg/_version.py"\n',
+        encoding="utf-8",
+    )
+    (project_dir / "pkg").mkdir()
+    (project_dir / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    for cmd in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "user.name", "test"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "-m", "init"],
+        ["git", "tag", "v1.0.0"],
+    ):
+        subprocess.run(cmd, cwd=project_dir, check=True)
+
+    result = discover(project_dir)
+
+    assert result is not None
+    assert not (project_dir / ".pdm-build").exists()
+
+
+def test_discover_restores_cwd_when_discovery_fails(tmp_path: Path) -> None:
+    """Regression: ``_chdir``'s ``os.chdir()`` back to the original
+    directory must happen even when ``discover()`` fails *inside* the
+    ``with _chdir(...)`` block (here: a project with no ``[project]``
+    table, failing during ``WheelBuilder(project_dir)``/
+    ``Config.from_pyproject()``) -- not just on the success path."""
+    original_cwd = Path.cwd()
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["pdm-backend"]\nbuild-backend = "pdm.backend"\n',
+        encoding="utf-8",
+    )
+
+    result = discover(tmp_path)
+
+    assert result is None
+    assert Path.cwd() == original_cwd
 
 
 def test_discover_accepts_pyproject_data_kwarg() -> None:

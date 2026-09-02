@@ -92,7 +92,16 @@ def read_project(
                 "instead of an empty pyproject.toml-only result",
                 pyproject_path,
             )
-            metadata, pitloom_config = read_setuptools(project_path)
+            metadata, setuptools_pitloom_config = read_setuptools(project_path)
+            # [tool.pitloom] always lives in pyproject.toml, never
+            # setup.cfg/setup.py -- keep the one read_pyproject() already
+            # resolved from the real pyproject.toml unless it's untouched
+            # defaults, in which case fall back to whatever read_setuptools()
+            # found (its own setup.cfg-based [tool:pitloom] parsing, if any).
+            # Never silently drop a real [tool.pitloom] section just because
+            # metadata itself had to come from setup.cfg/setup.py instead.
+            if pitloom_config == PitloomConfig():
+                pitloom_config = setuptools_pitloom_config
             config_path = setup_cfg if setup_cfg.exists() else setup_py
             return metadata, pitloom_config, config_path
         return metadata, pitloom_config, pyproject_path

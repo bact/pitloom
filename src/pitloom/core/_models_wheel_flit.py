@@ -20,7 +20,10 @@ import logging
 import os
 from pathlib import Path
 
-from pitloom.core._models_wheel_types import IncludedFile
+from pitloom.core._models_wheel_types import (
+    IncludedFile,
+    to_posix_distribution_path,
+)
 
 log = logging.getLogger(__name__)
 
@@ -69,8 +72,8 @@ def discover(
         files = [
             IncludedFile(
                 path=full_path,
-                distribution_path=os.path.relpath(full_path, source_dir).replace(
-                    "\\", "/"
+                distribution_path=to_posix_distribution_path(
+                    os.path.relpath(full_path, source_dir)
                 ),
             )
             for full_path in module.iter_files()
@@ -84,8 +87,8 @@ def discover(
                 files.append(
                     IncludedFile(
                         path=full_path,
-                        distribution_path=f"{dist_name}.data/data/{rel_path}".replace(
-                            "\\", "/"
+                        distribution_path=to_posix_distribution_path(
+                            f"{dist_name}.data/data/{rel_path}"
                         ),
                     )
                 )

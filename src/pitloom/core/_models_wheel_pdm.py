@@ -85,6 +85,18 @@ def discover(
     *project_dir* itself (already on disk, never written to by anything
     called here) instead of a build output directory.
 
+    Never calls ``builder.initialize(context)`` either: that runs
+    ``DynamicVersionBuildHook.pdm_build_initialize()``, which -- for a
+    project declaring ``[tool.pdm.version] source = "scm"`` together
+    with a ``write_to`` option -- writes the resolved version string to
+    a real file under ``context.build_dir`` (``.pdm-build/<write_to>``)
+    as a side effect of resolving the version, the same kind of
+    build-time write ``_get_metadata_files()`` was already excluded
+    for above. File discovery never needs the resolved version at all
+    (``_collect_files()``/``_get_wheel_data()`` don't read
+    ``metadata["version"]``), so skipping ``initialize()`` changes
+    nothing about the returned file set either -- only avoids the write.
+
     Returns ``None`` on any discovery failure (e.g. not a PDM project,
     malformed config) -- the caller falls back accordingly.
 
@@ -107,7 +119,6 @@ def discover(
                 kwargs={},
                 builder=builder,
             )
-            builder.initialize(context)
             files = list(PDMBuilder.get_files(builder, context))
             # pylint: disable-next=protected-access
             files.extend(builder._get_wheel_data(context))

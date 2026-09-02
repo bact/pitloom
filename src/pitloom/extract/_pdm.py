@@ -37,7 +37,7 @@ the existing Poetry/Hatchling delegation precedent, not a new exception.
 
 See also: :mod:`pitloom.core._models_wheel_pdm` (the sibling wheel
 file-discovery module, sharing this same ``Builder``/``Context``
-construction pattern); :mod:`pitloom.extract._pyproject` (the caller).
+construction pattern); :mod:`pitloom.extract._pyproject_dynamic` (the caller).
 """
 
 from __future__ import annotations

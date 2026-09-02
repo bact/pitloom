@@ -68,17 +68,18 @@ class _DiscoveryLock:
     never starve a writer out indefinitely -- it only ever waits for
     readers already in flight at the moment it arrived.
 
-    A "writer" (a backend listed in :data:`_WRITER_BACKENDS`, currently
-    only setuptools' ``discover()``) process-wide ``os.chdir()``s for the
+    A "writer" (a backend listed in :data:`_WRITER_BACKENDS` -- currently
+    setuptools and PDM-backend) process-wide ``os.chdir()``s for the
     duration of its call and must run with no other discoverer -- reader or
-    writer -- active. A "reader" (every other backend, e.g. Hatchling's or
-    Poetry's ``discover()``) never touches cwd itself (``get_wheel_files``
-    always resolves *project_dir* to an absolute path first), so readers
-    never need to block each other -- only a concurrent writer. Held here,
-    at the sole dispatch point every backend's ``discover()`` funnels
-    through, so a future backend module needs no lock of its own to get
-    the same guarantee; a future *writer*-style backend should add itself
-    to :data:`_WRITER_BACKENDS` the same way setuptools does.
+    writer -- active. A "reader" (every other backend, e.g. Hatchling's,
+    Poetry's, or Flit's ``discover()``) never touches cwd itself
+    (``get_wheel_files`` always resolves *project_dir* to an absolute path
+    first), so readers never need to block each other -- only a concurrent
+    writer. Held here, at the sole dispatch point every backend's
+    ``discover()`` funnels through, so a future backend module needs no
+    lock of its own to get the same guarantee; a future *writer*-style
+    backend should add itself to :data:`_WRITER_BACKENDS` the same way
+    setuptools/PDM-backend do.
     """
 
     def __init__(self) -> None:

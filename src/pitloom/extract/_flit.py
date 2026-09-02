@@ -16,8 +16,8 @@ alongside the generic path, just for a narrower field set.
 
 See also: :mod:`pitloom.core._models_wheel_flit` (the sibling wheel
 file-discovery module, sharing the same ``flit_core.config.read_flit_config``
-+ ``flit_core.common.Module`` lookup); :mod:`pitloom.extract._pyproject`
-(the caller, ``_prepare_dynamic_fields``).
++ ``flit_core.common.Module`` lookup); :mod:`pitloom.extract._pyproject_dynamic`
+(the caller, ``prepare_dynamic_version``).
 """
 
 from __future__ import annotations

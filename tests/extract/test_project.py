@@ -69,6 +69,33 @@ def test_read_project_falls_back_past_build_system_only_pyproject(
     assert "no usable [project] table" in caplog.text
 
 
+def test_read_project_fallback_preserves_pyproject_pitloom_config(
+    tmp_path: Path,
+) -> None:
+    """Regression: falling back to ``read_setuptools()`` for metadata
+    (previous test) must not also discard a real ``[tool.pitloom]``
+    section already resolved from ``pyproject.toml`` -- ``[tool.pitloom]``
+    always lives there, never in ``setup.cfg``/``setup.py``, regardless
+    of which source supplies the project metadata itself."""
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "custom_pep517_wrapper"\n\n'
+        "[tool.pitloom]\n"
+        'sbom-basename = "custom-name"\n',
+        encoding="utf-8",
+    )
+    setup_cfg = tmp_path / "setup.cfg"
+    setup_cfg.write_text(
+        "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
+    )
+
+    metadata, pitloom_config, _config_path = read_project(tmp_path)
+
+    assert metadata.name == "real-pkg"
+    assert pitloom_config.sbom_basename == "custom-name"
+
+
 def test_read_project_build_system_only_pyproject_no_setuptools_fallback(
     tmp_path: Path,
 ) -> None:
