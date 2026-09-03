@@ -278,36 +278,19 @@ back a JSON file that looks complete but isn't:
   serialization format isn't
   recognized at all -- same "say so" rule applies rather than silently
   skipping it.
-- **Non-Hatchling, non-setuptools, non-Poetry build backend** for `loom
-  project`/`loom generate` against a project directory -- check
-  `pyproject.toml`'s `[build-system] build-backend` *before* generating,
-  not after. Hatchling, setuptools (including `[tool.setuptools.packages.find]
-  where=`, `package_data`, `include_package_data`/`MANIFEST.in`), and
-  Poetry (including `[tool.poetry.packages]`'s `include`/`from`, and
-  `[tool.poetry]`'s own `include`/`exclude`) all get accurate file-level
-  discovery. Any other backend (`pdm.backend`, `flit_core.buildapi`,
-  `uv_build`, etc. -- or no `pyproject.toml` build-backend declared at
-  all, just a bare `setup.py`/`setup.cfg`) falls back to a
-  Hatchling-based heuristic and logs a warning, say so upfront, don't
-  wait for the user to ask why the SBOM looks off:
-
-  > **Limitation notes:** File-level discovery is backend-aware for
-  > Hatchling, setuptools, and Poetry. For any other build backend,
-  > Pitloom falls back to a Hatchling-based heuristic that can be
-  > silently incomplete or mis-pathed. `uv_build`, PDM-Backend, and
-  > Flit-Core are on the roadmap. See full [limitation
-  > notes](https://bact.github.io/pitloom/cli/#usage-details).
-
-  Project-level metadata (name, version, dependencies, license,
-  authors) is unaffected by this -- it's read correctly regardless of
-  backend. What's affected is the *file-level* inventory: which files
-  are listed, their hashes, and the package's Merkle-root integrity
-  hash, for any backend still on the Hatchling-based fallback.
-
-  For a Poetry project, the dependency list additionally includes
-  `poetry.lock`-resolved `main`-group transitive dependencies when a
-  lock file is present next to `pyproject.toml`, on top of the direct
-  `[tool.poetry.dependencies]` constraints every backend gets.
+- **Unsupported build backend** for `loom project`/`loom generate`
+  against a project directory -- check `pyproject.toml`'s
+  `[build-system] build-backend` *before* generating, not after.
+  Hatchling, setuptools, Poetry, PDM-backend, and Flit-core get
+  accurate file-level discovery (which files, hashes, Merkle root);
+  any other backend (`uv_build`, etc.) falls back to a Hatchling-based
+  heuristic and logs a `WARNING:` that the file list can be silently
+  incomplete or mis-pathed. Project-level metadata (name, version,
+  dependencies, license, authors) is read independently and unaffected
+  either way. Say this upfront when you see an unsupported backend,
+  don't wait for the user to ask why the SBOM looks off -- full detail
+  in [docs/cli.md's Generate an SBOM
+  section](https://bact.github.io/pitloom/cli/#generate-an-sbom).
 
 ## See also
 

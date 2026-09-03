@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     has_resolvable_pyproject_config,
+    to_posix_distribution_path,
 )
 
 if TYPE_CHECKING:
@@ -199,7 +200,7 @@ def _distribution_path(package: str, filename: str) -> str:
     Windows-style *filename* from setuptools' own file enumeration)."""
     prefix = package.replace(".", "/")
     path = f"{prefix}/{filename}" if prefix else filename
-    return path.replace("\\", "/")
+    return to_posix_distribution_path(path)
 
 
 def _discover_module_files(build_py_cmd: BuildPyCommand) -> list[IncludedFile]:

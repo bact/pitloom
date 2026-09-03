@@ -65,3 +65,32 @@ auto-discovery is never triggered.
 in `pyproject.toml` and `packages`/`package_dir` in `setup.cfg` --
 proves both files are consulted together (not mutually exclusive) for
 wheel file discovery, matching how a real setuptools build treats them.
+
+`sampleproject-setuptools-license-dotted/` exercises PEP 621's TOML
+dotted-key license form (`license.text = "..."`, as seen in
+apple/tree-sitter-pkl's real `pyproject.toml` -- not published on PyPI,
+so vendored here as a small synthetic fixture instead of a real sdist,
+see `tests/fixtures/real-world-projects/README.md`), confirming it
+parses identically to the more common inline-table form (`license =
+{text = "..."}`).
+
+## Flit
+
+`sampleproject-flit/` is a minimal `src/`-layout Flit-core package that
+exercises Pitloom's Flit metadata extraction (`pitloom.extract._flit`)
+and wheel file discovery (`pitloom.core._models_wheel_flit`):
+`version`/`description` are PEP 621 `dynamic` fields resolved from the
+module's `__version__` assignment and docstring (flit-core's own
+convention), and the `src/` layout exercises the same
+`physical_path`/`distribution_path` divergence Poetry's `-src` fixture
+does.
+
+## PDM
+
+`sampleproject-pdm/` is a minimal `src/`-layout PDM-backend package that
+exercises Pitloom's PDM metadata extraction (`pitloom.extract._pdm`) and
+wheel file discovery (`pitloom.core._models_wheel_pdm`): `version` is a
+PEP 621 `dynamic` field resolved via `[tool.pdm.version] source =
+"file"`, and `[tool.pdm.build] package-dir = "src"` exercises the same
+`physical_path`/`distribution_path` divergence as the Flit/Poetry `-src`
+fixtures.

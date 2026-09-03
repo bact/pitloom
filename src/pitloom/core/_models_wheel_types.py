@@ -68,6 +68,18 @@ def has_resolvable_pyproject_config(
     )
 
 
+def to_posix_distribution_path(path: str) -> str:
+    """Normalize *path* to forward-slash separators for use as an
+    ``IncludedFile.distribution_path`` -- a wheel's internal paths are
+    always ``/``-separated regardless of the platform Pitloom runs on.
+
+    Shared so this one-line normalization doesn't keep getting
+    hand-copied per backend discovery module (setuptools, Hatchling,
+    Poetry, Flit each needed it independently) -- see CLAUDE.md's note
+    that a pattern repeated across 3+ call sites drifts."""
+    return path.replace("\\", "/")
+
+
 class FileHeaderExtras(TypedDict):
     """Keyword arguments for :class:`~pitloom.core.project.ProjectFile`'s
     header/content-type fields."""

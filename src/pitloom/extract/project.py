@@ -13,6 +13,7 @@ project metadata the same way.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pitloom.core.config import PitloomConfig
@@ -20,6 +21,8 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.extract._pyproject import read_pyproject
 from pitloom.extract._sdist import read_sdist
 from pitloom.extract._setuptools import read_setuptools
+
+log = logging.getLogger(__name__)
 
 _SDIST_EXTENSIONS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip")
 
@@ -67,13 +70,42 @@ def read_project(
         metadata.files = files
         return metadata, PitloomConfig(), project_path
 
+    setup_cfg = project_path / "setup.cfg"
+    setup_py = project_path / "setup.py"
+
     pyproject_path = project_path / "pyproject.toml"
     if pyproject_path.exists():
         metadata, pitloom_config = read_pyproject(pyproject_path)
+        if not metadata.name and (setup_cfg.exists() or setup_py.exists()):
+            # pyproject.toml exists but resolved no usable metadata --
+            # no [project] table (e.g. a custom/legacy build backend
+            # declaring only [build-system]) and no [tool.poetry]
+            # fallback either -- while setup.cfg/setup.py hold the
+            # project's real metadata. Prefer that over the otherwise
+            # nameless/versionless stub read_pyproject() returns; the
+            # same shape _models_wheel.py's file-discovery dispatch
+            # already treats as "no static pyproject.toml config" (see
+            # has_resolvable_pyproject_config()).
+            log.warning(
+                "%s has no usable [project] table and no [tool.poetry] "
+                "fallback -- falling back to setup.cfg/setup.py metadata "
+                "instead of an empty pyproject.toml-only result",
+                pyproject_path,
+            )
+            metadata, setuptools_pitloom_config = read_setuptools(project_path)
+            # [tool.pitloom] always lives in pyproject.toml, never
+            # setup.cfg/setup.py -- keep the one read_pyproject() already
+            # resolved from the real pyproject.toml unless it's untouched
+            # defaults, in which case fall back to whatever read_setuptools()
+            # found (its own setup.cfg-based [tool:pitloom] parsing, if any).
+            # Never silently drop a real [tool.pitloom] section just because
+            # metadata itself had to come from setup.cfg/setup.py instead.
+            if pitloom_config == PitloomConfig():
+                pitloom_config = setuptools_pitloom_config
+            config_path = setup_cfg if setup_cfg.exists() else setup_py
+            return metadata, pitloom_config, config_path
         return metadata, pitloom_config, pyproject_path
 
-    setup_cfg = project_path / "setup.cfg"
-    setup_py = project_path / "setup.py"
     if setup_cfg.exists() or setup_py.exists():
         metadata, pitloom_config = read_setuptools(project_path)
         config_path = setup_cfg if setup_cfg.exists() else setup_py

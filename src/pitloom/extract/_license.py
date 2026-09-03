@@ -101,11 +101,23 @@ def _looks_like_spdx_license_expression(value: str) -> bool:
     return bool(_SPDX_LICENSE_EXPR_KEYWORDS_RE.search(stripped))
 
 
+_MIN_LICENSE_TEXT_LENGTH = 100
+"""Below this length, *text* is a short label (e.g. ``"MIT License
+(MIT)"``, seen in real-world ``[project.license].text`` values), not an
+actual license body -- similarity-matching it against ``licenseid``'s
+database is unreliable at this length and can score a coincidental
+false positive above the match threshold. Every real SPDX license
+text is well over this length (0BSD, the shortest, is ~500 characters),
+so this only ever excludes non-license-body input, never a genuine
+short license."""
+
+
 def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     """Detect SPDX License ID from *text* using the licenseid library.
 
     Returns the top-ranked SPDX License ID when its score meets *threshold*, or
-    ``None`` when the database is not populated or no match exceeds the threshold.
+    ``None`` when the database is not populated, *text* is too short to be a
+    real license body, or no match exceeds the threshold.
     """
     try:
         matcher = _get_matcher()
@@ -114,6 +126,8 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
                 "licenseid database appears empty -- "
                 "run 'licenseid update' to enable license text detection"
             )
+            return None
+        if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
             return None
         results = matcher.match(text)
         filtered = [r for r in results if r["score"] >= threshold]

@@ -155,6 +155,20 @@ def test_cli_embed_wheel_project_dir(
     out = capsys.readouterr().out
     assert "pitloom: embedded" in out
 
+    # 3. Existing directory with no pyproject.toml/setup.cfg/setup.py at
+    # all -- relays read_project()'s own FileNotFoundError message
+    # (naming the real reason) rather than a fixed generic guess.
+    empty_dir = tmp_path / "empty_proj_dir"
+    empty_dir.mkdir()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "embed-wheel", str(wheel_path), "--project-dir", str(empty_dir)],
+    )
+    assert __main__.main() == 1
+    err = capsys.readouterr().err
+    assert "ERROR: No pyproject.toml, setup.cfg, or setup.py found" in err
+
 
 def test_cli_embed_wheel_pregenerated_sbom(
     monkeypatch: pytest.MonkeyPatch,

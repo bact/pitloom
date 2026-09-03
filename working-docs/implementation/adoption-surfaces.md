@@ -32,8 +32,10 @@ That convergence is a design intent, not an automatic guarantee: the
 project-metadata extraction step upstream of `DocumentModel` still has one
 implementation per surface family (`_pyproject.py`'s `[project]` path for
 the CLI/library, `hatchling.py` for the build hook, `_poetry.py` and
-`_setuptools.py` for the poetry-only/setuptools-only fallback paths), and
-each has drifted out of sync with the others before -- see
+`_setuptools.py` for the poetry-only/setuptools-only fallback paths, and
+`_pdm.py`/`_flit.py` for those two backends' own dynamic-field
+resolution within the `[project]` path), and each has drifted out of
+sync with the others before -- see
 [design/adoption-surfaces.md](../design/adoption-surfaces.md)'s "Keeping
 surfaces consistent" section. Treat "identical regardless of surface" as
 the thing to keep re-verifying, not a property that, once true, stays

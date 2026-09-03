@@ -8,6 +8,10 @@
 Supports ``[project]`` (PEP 517/518/621) and ``[tool.poetry]`` sections.
 When both are present, ``[project]`` values take precedence and
 ``[tool.poetry]`` fills any gaps.
+
+See also: :mod:`pitloom.extract._pyproject_dynamic` for PEP 621
+``dynamic`` field resolution (``prepare_dynamic_version()``, called from
+:func:`read_pyproject` below).
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from pitloom.extract._license import (
 )
 from pitloom.extract._poetry import extract_poetry_metadata
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
+from pitloom.extract._pyproject_dynamic import prepare_dynamic_version
 from pitloom.extract._toml_io import load_toml_file
 
 log = logging.getLogger(__name__)
@@ -54,29 +59,6 @@ def _read_pyproject_fallback(
         ProjectMetadata(name=name, license_name=license_name, provenance=prov),
         pitloom_config,
     )
-
-
-def _prepare_dynamic_version(
-    data: dict[str, Any],
-    project_data: dict[str, Any],
-    pyproject_path: Path,
-) -> tuple[dict[str, Any], list[str], str | None]:
-    """Resolve dynamic version in project metadata if declared."""
-    dynamic_fields = list(project_data.get("dynamic", []))
-    version_source: str | None = None
-    if "version" in dynamic_fields:
-        version, version_source = _extract_dynamic_version(pyproject_path.parent, data)
-        if version:
-            data = {
-                **data,
-                "project": {
-                    **project_data,
-                    "version": version,
-                    "dynamic": [f for f in dynamic_fields if f != "version"],
-                },
-            }
-            dynamic_fields = [f for f in dynamic_fields if f != "version"]
-    return data, dynamic_fields, version_source
 
 
 def _is_license_classifier_conflict(exc: ConfigurationError) -> bool:
@@ -136,7 +118,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     if not project_data or not name:
         return _read_pyproject_fallback(data, pyproject_path, name, pitloom_config)
 
-    data, dynamic_fields, version_source = _prepare_dynamic_version(
+    data, dynamic_fields, version_source, description_source = prepare_dynamic_version(
         data, project_data, pyproject_path
     )
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
@@ -196,7 +178,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     )
 
     provenance = _build_provenance(
-        data.get("project", {}), version_source, license_prov
+        data.get("project", {}), version_source, license_prov, description_source
     )
     if license_concluded and license_concluded_prov:
         provenance["license_concluded"] = license_concluded_prov
@@ -241,6 +223,7 @@ def _build_provenance(
     project_data: dict[str, Any],
     version_source: str | None,
     license_prov_override: str | None = None,
+    description_source: str | None = None,
 ) -> dict[str, str]:
     """Build the provenance dict from the raw project section data."""
     prov: dict[str, str] = {
@@ -252,7 +235,9 @@ def _build_provenance(
         prov["version"] = "Source: pyproject.toml | Field: project.version"
 
     for field_key, source in _FIELD_PROVENANCE.items():
-        if field_key == "license":
+        if field_key == "description" and description_source:
+            prov["description"] = description_source
+        elif field_key == "license":
             # license_prov_override, when truthy, always sets prov["license"]
             # here -- nothing downstream can unset it, so no post-loop
             # fallback is needed for that case.
@@ -384,67 +369,6 @@ def _extract_authors(std: StandardMetadata) -> list[dict[str, str]]:
         if entry:
             result.append(entry)
     return result
-
-
-def _extract_dynamic_version(
-    project_dir: Path,
-    pyproject_data: dict[str, Any],
-) -> tuple[str | None, str | None]:
-    """Resolve a dynamic version from Hatchling config or common file paths.
-
-    Returns ``(version, provenance_source)`` or ``(None, None)`` if not found.
-    """
-    hatch_version_path = (
-        pyproject_data.get("tool", {}).get("hatch", {}).get("version", {}).get("path")
-    )
-    if hatch_version_path:
-        p = project_dir / hatch_version_path
-        if p.exists():
-            version = _read_version_from_file(p)
-            if version:
-                return (
-                    version,
-                    f"Source: {p.relative_to(project_dir).as_posix()}"
-                    " | Method: dynamic_extraction",
-                )
-
-    package_name = pyproject_data.get("project", {}).get("name", "").replace("-", "_")
-    candidates = [
-        project_dir / "src" / package_name / "__about__.py",
-        project_dir / "src" / package_name / "__version__.py",
-        project_dir / "src" / "__about__.py",
-        project_dir / "src" / "__version__.py",
-        project_dir / package_name / "__about__.py",
-        project_dir / package_name / "__version__.py",
-        project_dir / "__about__.py",
-        project_dir / "__version__.py",
-    ]
-    for p in candidates:
-        if p.exists():
-            version = _read_version_from_file(p)
-            if version:
-                return (
-                    version,
-                    f"Source: {p.relative_to(project_dir).as_posix()}"
-                    " | Method: dynamic_extraction",
-                )
-
-    return None, None
-
-
-def _read_version_from_file(file_path: Path) -> str | None:
-    """Extract ``__version__ = "x.y.z"`` from a Python source file."""
-    try:
-        for line in file_path.read_text(encoding="utf-8").splitlines():
-            if "__version__" in line and "=" in line:
-                # partition() on a line already confirmed to contain "="
-                # always finds the separator, so value is never the
-                # empty-string not-found case.
-                _, _, value = line.partition("=")
-                return value.strip().strip('"').strip("'")
-    except (OSError, UnicodeDecodeError):
-        pass
-    return None
 
 
 def _try_read_poetry(

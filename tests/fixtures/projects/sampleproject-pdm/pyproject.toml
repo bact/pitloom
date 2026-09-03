@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-License-Identifier: CC0-1.0
+
+# Minimal PDM-backend project used as a fixture for testing Pitloom's PDM
+# metadata extraction (pitloom.extract._pdm) and wheel file discovery
+# (pitloom.core._models_wheel_pdm).
+#
+# Exercises the src/ layout via [tool.pdm.build] package-dir = "src" --
+# the physical_path/distribution_path divergence every backend's
+# discovery module must get right -- plus a dynamic version resolved
+# from [tool.pdm.version] source = "file", the gap the generic
+# StandardMetadata path can't close on its own.
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "sampleproject-pdm"
+dynamic = ["version"]
+description = "A minimal src-layout PDM-backend sample project for testing wheel file discovery."
+readme = "README.md"
+license = "CC0-1.0"
+keywords = ["sample", "test"]
+requires-python = ">=3.10"
+
+[tool.pdm.build]
+package-dir = "src"
+
+[tool.pdm.version]
+source = "file"
+path = "src/sampleproject_pdm/__init__.py"

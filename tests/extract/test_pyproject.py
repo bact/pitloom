@@ -4,11 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for read_pyproject()'s [project]-focused parsing paths and its
-private helpers (dynamic version resolution, license hint resolution,
-readme/author extraction, provenance building).
+private helpers (license hint resolution, readme/author extraction,
+provenance building).
 
-See also: test_poetry_pyproject.py for the [tool.poetry] fallback/override
-behaviour, and test_hatch_hook_metadata.py for the Hatchling build-hook path.
+See also: test_pyproject_dynamic.py for PEP 621 ``dynamic`` field
+resolution (:mod:`pitloom.extract._pyproject_dynamic`); test_poetry_pyproject.py
+for the [tool.poetry] fallback/override behaviour; test_hatch_hook_metadata.py
+for the Hatchling build-hook path.
 """
 
 from __future__ import annotations
@@ -29,11 +31,9 @@ from pitloom.extract._pyproject import (
     _drop_redundant_license_classifiers,
     _extract_and_detect_license,
     _extract_authors,
-    _extract_dynamic_version,
     _extract_readme,
     _is_license_classifier_conflict,
     _read_pyproject_fallback,
-    _read_version_from_file,
     _resolve_license_hint,
     _try_read_poetry,
     read_pyproject,
@@ -338,6 +338,43 @@ def test_extract_readme_no_file_no_text() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_read_pyproject_license_toml_dotted_key_matches_inline_table(
+    tmp_path: Path,
+) -> None:
+    """PEP 621's TOML dotted-key license form (``license.text = "..."``,
+    as seen in apple/tree-sitter-pkl's real ``pyproject.toml`` -- see
+    ``tests/fixtures/projects/sampleproject-setuptools-license-dotted/``)
+    parses identically to the more common inline-table form (``license =
+    {text = "..."}``) -- both produce the same nested dict once read by
+    any TOML library, so ``read_pyproject()`` needs no special handling
+    for either. Regression: constructs both forms and asserts they
+    resolve to the same ``license_name``."""
+    dotted_fixture = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "projects"
+        / "sampleproject-setuptools-license-dotted"
+        / "pyproject.toml"
+    )
+    dotted_metadata, _ = read_pyproject(dotted_fixture)
+
+    inline_dir = tmp_path / "inline"
+    inline_dir.mkdir()
+    inline_pyproject = inline_dir / "pyproject.toml"
+    inline_pyproject.write_text(
+        '[build-system]\nrequires = ["setuptools>=42"]\n'
+        'build-backend = "setuptools.build_meta"\n\n'
+        "[project]\n"
+        'name = "sampleproject-setuptools-license-dotted"\n'
+        'version = "0.1.0"\n'
+        'license = {text = "Apache-2.0"}\n',
+        encoding="utf-8",
+    )
+    inline_metadata, _ = read_pyproject(inline_pyproject)
+
+    assert dotted_metadata.license_name == inline_metadata.license_name
+
+
 def test_resolve_license_hint_text_object() -> None:
     """A License object exposing ``.text`` (PEP 639 inline license text)."""
     license_obj = SimpleNamespace(text="Some custom license text.")
@@ -467,98 +504,6 @@ def test_extract_authors_skips_empty_entries() -> None:
     std = SimpleNamespace(authors=[("", ""), ("Bob", ""), ("", "carol@example.com")])
     result = _extract_authors(cast(StandardMetadata, std))
     assert result == [{"name": "Bob"}, {"email": "carol@example.com"}]
-
-
-# ---------------------------------------------------------------------------
-# _extract_dynamic_version -- Hatchling version-path and fallback candidates
-# ---------------------------------------------------------------------------
-
-
-def test_extract_dynamic_version_hatch_path_missing_file() -> None:
-    """``[tool.hatch.version].path`` is declared but the file does not
-    exist: falls through to the candidate-file scan (line 336->345)."""
-    pyproject_data = {
-        "project": {"name": "pkg"},
-        "tool": {"hatch": {"version": {"path": "src/pkg/__about__.py"}}},
-    }
-    with tempfile.TemporaryDirectory() as d:
-        version, source = _extract_dynamic_version(Path(d), pyproject_data)
-    assert version is None
-    assert source is None
-
-
-def test_extract_dynamic_version_hatch_path_exists_no_version_line() -> None:
-    """The Hatchling version file exists but has no ``__version__`` line:
-    falls through to the candidate-file scan (line 338->345)."""
-    pyproject_data = {
-        "project": {"name": "pkg"},
-        "tool": {"hatch": {"version": {"path": "VERSION.py"}}},
-    }
-    with tempfile.TemporaryDirectory() as d:
-        tmp_path = Path(d)
-        (tmp_path / "VERSION.py").write_text("# no version here\n", encoding="utf-8")
-        version, source = _extract_dynamic_version(tmp_path, pyproject_data)
-    assert version is None
-    assert source is None
-
-
-def test_extract_dynamic_version_candidate_exists_without_version() -> None:
-    """A candidate file (``__about__.py``) exists but has no ``__version__``
-    line: the loop continues past it (line 359->356) and ultimately
-    reports nothing found (line 366)."""
-    pyproject_data = {"project": {"name": "pkg"}}
-    with tempfile.TemporaryDirectory() as d:
-        tmp_path = Path(d)
-        (tmp_path / "__about__.py").write_text("# empty\n", encoding="utf-8")
-        version, source = _extract_dynamic_version(tmp_path, pyproject_data)
-    assert version is None
-    assert source is None
-
-
-def test_extract_dynamic_version_no_hatch_no_candidates() -> None:
-    """Nothing declared and nothing found on disk: plain ``(None, None)``
-    (line 366)."""
-    with tempfile.TemporaryDirectory() as d:
-        version, source = _extract_dynamic_version(Path(d), {"project": {}})
-    assert version is None
-    assert source is None
-
-
-def test_extract_dynamic_version_finds_about_file() -> None:
-    """Sanity check the successful candidate-scan path still works
-    alongside the new failure-path coverage above."""
-    pyproject_data = {"project": {"name": "pkg"}}
-    with tempfile.TemporaryDirectory() as d:
-        tmp_path = Path(d)
-        (tmp_path / "pkg").mkdir()
-        (tmp_path / "pkg" / "__about__.py").write_text(
-            '__version__ = "4.5.6"\n', encoding="utf-8"
-        )
-        version, source = _extract_dynamic_version(tmp_path, pyproject_data)
-    assert version == "4.5.6"
-    assert source is not None
-    assert "dynamic_extraction" in source
-
-
-# ---------------------------------------------------------------------------
-# _read_version_from_file -- error handling
-# ---------------------------------------------------------------------------
-
-
-def test_read_version_from_file_missing_file_returns_none() -> None:
-    """A nonexistent path raises ``FileNotFoundError`` (an ``OSError``
-    subclass), caught and turned into ``None`` (lines 377-379)."""
-    with tempfile.TemporaryDirectory() as d:
-        result = _read_version_from_file(Path(d) / "does-not-exist.py")
-    assert result is None
-
-
-def test_read_version_from_file_directory_path_returns_none() -> None:
-    """Passing a directory (``IsADirectoryError``, also an ``OSError``
-    subclass) is likewise caught and turned into ``None``."""
-    with tempfile.TemporaryDirectory() as d:
-        result = _read_version_from_file(Path(d))
-    assert result is None
 
 
 # ---------------------------------------------------------------------------

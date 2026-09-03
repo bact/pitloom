@@ -181,20 +181,108 @@ def test_get_wheel_files_setuptools_build_system_only_skips_doomed_hatchling_att
 def test_get_wheel_files_unhandled_backend_falls_back_with_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A backend with no dedicated discovery module (e.g. PDM-Backend,
+    """A backend with no dedicated discovery module (e.g. ``uv_build``,
     ahead of its own dedicated support landing) still gets a result via
     the Hatchling heuristic, but now with an explicit warning instead of
     silently risking an inaccurate file list -- closing the gap for
     every unhandled backend, not just setuptools."""
-    _make_backend_project(tmp_path, "pdm.backend")
+    _make_backend_project(tmp_path, "uv_build")
 
     with caplog.at_level(logging.WARNING):
         root, files = get_wheel_files(tmp_path)
 
     assert root is None
     assert not files
-    assert "pdm" in caplog.text
+    assert "uv_build" in caplog.text
     assert "Hatchling" in caplog.text
+
+
+def test_get_wheel_files_dispatches_flit_backend_to_its_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A project whose backend is detected as ``flit`` routes through
+    the Flit discovery module, not the Hatchling heuristic."""
+    _make_backend_project(tmp_path, "flit_core.buildapi")
+
+    def _fake_discover(
+        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile]:
+        del project_dir, pyproject_data
+        return [IncludedFile(path=str(tmp_path / "a.py"), distribution_path="pkg/a.py")]
+
+    (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
+    monkeypatch.setattr("pitloom.core._models_wheel_flit.discover", _fake_discover)
+    hatchling_called: list[Path] = []
+
+    def _fail_if_called(project_dir: Path) -> list[IncludedFile]:
+        hatchling_called.append(project_dir)
+        return []
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_hatchling.discover", _fail_if_called
+    )
+
+    _root, files = get_wheel_files(tmp_path)
+
+    assert not hatchling_called
+    assert [f.distribution_path for f in files] == ["pkg/a.py"]
+
+
+def test_get_wheel_files_flit_discover_accepts_pyproject_data_kwarg(
+    tmp_path: Path,
+) -> None:
+    """Interface-uniformity regression: the Flit discoverer must share
+    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
+    signature so the dispatch registry never needs a per-backend special
+    case. Raises ``TypeError`` if the signature ever drops the keyword."""
+    # pylint: disable-next=import-outside-toplevel
+    from pitloom.core._models_wheel_flit import discover as discover_flit
+
+    discover_flit(tmp_path, pyproject_data={"tool": {"flit": {}}})
+
+
+def test_get_wheel_files_dispatches_pdm_backend_to_its_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A project whose backend is detected as ``pdm`` routes through
+    the PDM discovery module, not the Hatchling heuristic."""
+    _make_backend_project(tmp_path, "pdm.backend")
+
+    def _fake_discover(
+        project_dir: Path, *, pyproject_data: dict[str, object] | None = None
+    ) -> list[IncludedFile]:
+        del project_dir, pyproject_data
+        return [IncludedFile(path=str(tmp_path / "a.py"), distribution_path="pkg/a.py")]
+
+    (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
+    monkeypatch.setattr("pitloom.core._models_wheel_pdm.discover", _fake_discover)
+    hatchling_called: list[Path] = []
+
+    def _fail_if_called(project_dir: Path) -> list[IncludedFile]:
+        hatchling_called.append(project_dir)
+        return []
+
+    monkeypatch.setattr(
+        "pitloom.core._models_wheel_hatchling.discover", _fail_if_called
+    )
+
+    _root, files = get_wheel_files(tmp_path)
+
+    assert not hatchling_called
+    assert [f.distribution_path for f in files] == ["pkg/a.py"]
+
+
+def test_get_wheel_files_pdm_discover_accepts_pyproject_data_kwarg(
+    tmp_path: Path,
+) -> None:
+    """Interface-uniformity regression: the PDM discoverer must share
+    :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s call
+    signature so the dispatch registry never needs a per-backend special
+    case. Raises ``TypeError`` if the signature ever drops the keyword."""
+    # pylint: disable-next=import-outside-toplevel
+    from pitloom.core._models_wheel_pdm import discover as discover_pdm
+
+    discover_pdm(tmp_path, pyproject_data={"tool": {"pdm": {}}})
 
 
 def test_get_wheel_files_dispatches_poetry_backend_to_its_module(

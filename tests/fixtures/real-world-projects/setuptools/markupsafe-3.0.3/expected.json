@@ -1,0 +1,27 @@
+{
+  "source": "https://github.com/pallets/markupsafe",
+  "pypi_package": "MarkupSafe",
+  "pypi_version": "3.0.3",
+  "license": "BSD-3-Clause",
+  "build_backend": "setuptools",
+  "sdist_filename": "markupsafe-3.0.3.tar.gz",
+  "wheel_filename": "markupsafe-3.0.3-cp310-cp310-macosx_10_9_x86_64.whl",
+  "wheel_files": [
+    "markupsafe-3.0.3.dist-info/METADATA",
+    "markupsafe-3.0.3.dist-info/RECORD",
+    "markupsafe-3.0.3.dist-info/WHEEL",
+    "markupsafe-3.0.3.dist-info/licenses/LICENSE.txt",
+    "markupsafe-3.0.3.dist-info/top_level.txt",
+    "markupsafe/__init__.py",
+    "markupsafe/_native.py",
+    "markupsafe/_speedups.c",
+    "markupsafe/_speedups.cpython-310-darwin.so",
+    "markupsafe/_speedups.pyi",
+    "markupsafe/py.typed"
+  ],
+  "known_gaps": [
+    "markupsafe/_speedups.c",
+    "markupsafe/_speedups.cpython-310-darwin.so"
+  ],
+  "known_gaps_note": "MarkupSafe's C accelerator (_speedups.c, compiled by build_ext into _speedups.cpython-*.so) is outside discover()'s static scope by design -- it only models build_py's file-copying, never runs a compiler. Both the C source and the compiled extension ship in the published wheel; neither is reachable via package_data/MANIFEST.in-style static analysis the way _speedups.pyi (a plain type stub) is."
+}

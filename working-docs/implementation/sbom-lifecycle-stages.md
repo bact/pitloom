@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-27
-Last-Modified: 2026-09-01
+Last-Modified: 2026-09-03
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,7 +38,9 @@ wheel-file-discovery paths map directly onto this:
 | ...Hatchling backend | -- | `WheelBuilder.recurse_included_files()` (`src/pitloom/core/_models_wheel_hatchling.py`) -- a method distinct from `WheelBuilder.build()`; walks static `[tool.hatch.build...]` config only | Source |
 | ...setuptools backend | -- | `Distribution`/`build_py` introspection via `apply_configuration()` + `find_all_modules()`/`_get_data_files()` (`src/pitloom/core/_models_wheel_setuptools.py`) -- static config only, no `setup.py` execution | Source |
 | ...Poetry backend | -- | `poetry.core.masonry.builders.wheel.WheelBuilder.find_files_to_add()` (`src/pitloom/core/_models_wheel_poetry.py`) -- delegates to poetry-core's own declarative config resolution, no `[tool.poetry.build].script` execution; see [poetry-support.md](poetry-support.md)'s "Wheel file discovery" section | Source |
-| ...any other backend (PDM, Flit-core, `uv_build`, ... until each lands) | -- | Falls back to the Hatchling heuristic, with a logged warning that the result may be inaccurate for that backend | Source (approximated) |
+| ...PDM-backend | -- | `Builder.get_files()` (via `WheelBuilder`'s overridden `_collect_files()` for `src/`-layout prefix-stripping) + `_get_wheel_data()` (`src/pitloom/core/_models_wheel_pdm.py`) -- static config only; never calls `initialize()`/`_get_metadata_files()`, both of which write to disk as a pdm-backend side effect | Source |
+| ...Flit-core backend | -- | `flit_core.common.Module.iter_files()` + `walk_data_dir()` (`src/pitloom/core/_models_wheel_flit.py`) -- static config only; a dynamic `version`/`description` is resolved via an AST-only scan (`get_docstring_and_version_via_ast()`), never by importing the target module | Source |
+| ...any other backend (`uv_build`, ... until it lands) | -- | Falls back to the Hatchling heuristic, with a logged warning that the result may be inaccurate for that backend | Source (approximated) |
 | `loom wheel` | built `.whl` file | `read_wheel()` reads the real artifact directly, backend-agnostic | Build |
 | `embed-wheel` (wheel-merge step) | built `.whl` file | Same `read_wheel()` path; `_merge_file_extras` treats it as ground truth, discarding `get_wheel_files()`'s own Merkle root in favor of one computed from the real wheel's hashes | Build |
 

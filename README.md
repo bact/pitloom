@@ -87,9 +87,10 @@ loom project /path/to/project -o sbom.spdx3.json
 ```
 
 Works for any Python project; per-file discovery (which files, hashes,
-Merkle root) is backend-aware for Hatchling and setuptools, and falls
-back to a Hatchling-based heuristic with a warning for other backends --
-see [Command line](docs/cli.md#generate-an-sbom) for the full limitation
+Merkle root) is backend-aware for Hatchling, setuptools, Poetry,
+PDM-backend, and Flit-core, and falls back to a Hatchling-based
+heuristic with a warning for other backends -- see
+[Command line](docs/cli.md#generate-an-sbom) for the full limitation
 note.
 
 Generate an **Analyzed SBOM** from a pre-built wheel
