@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -98,15 +99,15 @@ def discover(
     ``metadata["version"]``), so skipping ``initialize()`` changes
     nothing about the returned file set either -- only avoids the write.
 
-    ``context.build_dir`` points at a fresh, empty temporary directory,
-    never *project_dir* / ``.pdm-build`` itself: the base ``Builder``'s
-    ``get_files()`` unconditionally globs ``build_dir`` for extra files
-    via ``_collect_build_files()``, so pointing it at the project's own
-    ``.pdm-build/`` would leak any *stale* content left over from a real
-    ``pdm build`` the user ran previously (that directory is normally
-    only gitignored, not cleaned up) straight into the returned file
-    list -- a static rescan must reflect the source tree, not whatever
-    a past build happened to leave on disk.
+    ``context.build_dir`` points at a path guaranteed never to exist on
+    disk, never *project_dir* / ``.pdm-build`` itself: the base
+    ``Builder``'s ``get_files()`` unconditionally globs ``build_dir`` for
+    extra files via ``_collect_build_files()``, so pointing it at the
+    project's own ``.pdm-build/`` would leak any *stale* content left
+    over from a real ``pdm build`` the user ran previously (that
+    directory is normally only gitignored, not cleaned up) straight into
+    the returned file list -- a static rescan must reflect the source
+    tree, not whatever a past build happened to leave on disk.
 
     Returns ``None`` on any discovery failure (e.g. not a PDM project,
     malformed config) -- the caller falls back accordingly.
@@ -122,13 +123,25 @@ def discover(
     from pdm.backend.wheel import WheelBuilder
 
     try:
-        with _chdir(project_dir), tempfile.TemporaryDirectory() as scratch_dir:
+        with _chdir(project_dir):
             builder = WheelBuilder(project_dir)
             context = Context(
-                # Never-created subpath: guarantees _collect_build_files()'s
-                # `if not context.build_dir.exists()` guard short-circuits,
-                # so it can never pick up stale build output (see docstring).
-                build_dir=Path(scratch_dir) / "unused-build-dir",
+                # A path guaranteed never to exist on disk (a random
+                # UUID under the system temp root, never created) --
+                # guarantees _collect_build_files()'s `if not
+                # context.build_dir.exists()` guard short-circuits, so
+                # it can never pick up stale build output (see
+                # docstring). Deliberately not tempfile.TemporaryDirectory():
+                # that actually creates the directory on disk (a real
+                # mkdtemp()/cleanup round trip) purely to prove
+                # non-existence, which a plain unused path already
+                # guarantees without touching the filesystem -- this
+                # call runs under the discovery dispatcher's exclusive
+                # write lock (see _chdir's docstring), so avoiding the
+                # extra I/O here also shortens how long every other
+                # discoverer is blocked.
+                build_dir=Path(tempfile.gettempdir())
+                / f"pitloom-unused-{uuid.uuid4().hex}",
                 dist_dir=project_dir,
                 kwargs={},
                 builder=builder,

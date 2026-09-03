@@ -43,6 +43,8 @@ construction pattern); :mod:`pitloom.extract._pyproject_dynamic` (the caller).
 from __future__ import annotations
 
 import logging
+import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -107,8 +109,18 @@ def resolve_pdm_dynamic_version(
         # resolve_version_from_file nor resolve_version_from_scm reads
         # dist_dir, so pointing it at project_dir (already on disk, never
         # written to) keeps this a pure declarative read.
+        #
+        # build_dir, unlike dist_dir, is never read here either (only
+        # written to by resolve_version_from_scm's write_to option,
+        # which is stripped below) -- pointed at a path guaranteed never
+        # to exist on disk, not project_dir / ".pdm-build" itself, so a
+        # future pdm-backend change that starts *reading* build_dir
+        # (e.g. caching) can't pick up stale content from a real build
+        # the same way the sibling _models_wheel_pdm.py discovery
+        # module's build_dir is already guarded against.
         context = Context(
-            build_dir=project_dir / ".pdm-build",
+            build_dir=Path(tempfile.gettempdir())
+            / f"pitloom-unused-{uuid.uuid4().hex}",
             dist_dir=project_dir,
             kwargs={},
             builder=builder,

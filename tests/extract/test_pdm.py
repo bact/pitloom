@@ -41,6 +41,36 @@ def test_resolve_pdm_dynamic_version_from_file() -> None:
     assert source == "Source: pyproject.toml | Method: pdm_dynamic_version(file)"
 
 
+def test_resolve_pdm_dynamic_version_write_to_stripping_scoped_to_scm(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: the ``write_to``/``write_template`` stripping added
+    for ``source = "scm"`` must not also apply to ``source = "file"`` --
+    ``resolve_version_from_file()`` doesn't accept those keywords at
+    all, so a misconfigured ``write_to`` under ``source = "file"``
+    should surface as a normal resolution failure (a ``WARNING:``, not
+    a crash), the same way a real PDM build would reject it -- not be
+    silently stripped and hidden."""
+    data = {
+        "tool": {
+            "pdm": {
+                "version": {
+                    "source": "file",
+                    "path": "src/sampleproject_pdm/__init__.py",
+                    "write_to": "should_not_be_used.py",
+                }
+            }
+        }
+    }
+
+    with caplog.at_level(logging.WARNING):
+        version, source = resolve_pdm_dynamic_version(PDM_FIXTURE, data, ["version"])
+
+    assert version is None
+    assert source is None
+    assert "unexpected keyword argument 'write_to'" in caplog.text
+
+
 def test_resolve_pdm_dynamic_version_not_requested() -> None:
     """``"version"`` absent from *dynamic_fields* short-circuits before
     any ``[tool.pdm.version]`` lookup."""

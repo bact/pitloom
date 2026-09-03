@@ -66,6 +66,45 @@ def test_resolve_flit_dynamic_metadata_warns_on_missing_module(
     assert "Flit dynamic metadata resolution failed" in caplog.text
 
 
+def test_resolve_flit_dynamic_metadata_never_executes_project_code(
+    tmp_path: Path,
+) -> None:
+    """Regression: a ``dynamic = ["version"]`` whose ``__version__`` is a
+    function call (not an AST-resolvable literal) must never be resolved
+    by importing -- executing -- the target module. flit-core's own
+    ``make_metadata()``/``get_info_from_module()`` falls back to import
+    in exactly this case; this resolver must stop at the AST-only scan
+    and leave ``version`` unresolved instead, matching the identical
+    fix already applied to the sibling
+    ``pitloom.core._models_wheel_flit`` discovery module."""
+    pkg_dir = tmp_path / "evilpkg"
+    pkg_dir.mkdir()
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["flit_core>=3.9"]\n'
+        'build-backend = "flit_core.buildapi"\n\n'
+        '[project]\nname = "evilpkg"\n'
+        'dynamic = ["version", "description"]\n',
+        encoding="utf-8",
+    )
+    marker = tmp_path / "imported.marker"
+    (pkg_dir / "__init__.py").write_text(
+        '"""docstring."""\n'
+        "from pathlib import Path\n\n"
+        "def _compute():\n"
+        f'    Path(r"{marker}").write_text("imported")\n'
+        '    return "9.9.9"\n\n'
+        "__version__ = _compute()\n",
+        encoding="utf-8",
+    )
+
+    result = resolve_flit_dynamic_metadata(
+        tmp_path / "pyproject.toml", ["version", "description"]
+    )
+
+    assert not marker.exists(), "resolver imported (executed) the project's module"
+    assert "version" not in result
+
+
 def test_read_pyproject_resolves_flit_dynamic_fields() -> None:
     """End-to-end: ``read_pyproject()`` on a real Flit fixture resolves
     both dynamic fields and tags their provenance distinctly from a

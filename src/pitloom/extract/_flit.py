@@ -33,33 +33,44 @@ def resolve_flit_dynamic_metadata(
 ) -> dict[str, str]:
     """Resolve Flit's dynamic ``version``/``description`` fields.
 
-    Delegates entirely to flit-core's own ``read_flit_config()`` +
-    ``Module`` + ``make_metadata()`` -- the same functions flit-core's
-    real build uses to resolve these fields (AST-parses the target
-    module for a ``__version__`` assignment and its docstring, falling
-    back to importing the module only if the AST scan comes up empty,
-    exactly like a real Flit build would). Never hand-rolled here, to
-    avoid drifting from flit-core's actual resolution rules.
+    Uses flit-core's own ``read_flit_config()`` + ``Module`` +
+    ``get_docstring_and_version_via_ast()`` -- an AST-only scan for a
+    ``__version__`` assignment and the module's docstring, matching
+    flit-core's exact resolution rules for the literal-value case.
+
+    Deliberately does **not** call flit-core's own ``make_metadata()``/
+    ``get_info_from_module()``: those fall back to *importing* --
+    executing -- the target module whenever the AST scan can't find a
+    literal ``__version__``/docstring (e.g. a version computed by a
+    function call). That fallback is out of scope here for the same
+    reason :mod:`pitloom.extract._setuptools` never executes
+    ``setup.py`` -- matching the same no-execution guarantee
+    :mod:`pitloom.core._models_wheel_flit`'s ``discover()`` already
+    implements for the identical data. A dynamic field that isn't
+    AST-resolvable is left unresolved (falls through to the caller's
+    generic heuristic) rather than resolved by running project code.
 
     Returns a ``{field: value}`` mapping for whichever of ``"version"``/
     ``"description"`` were both requested (in *dynamic_fields*) and
-    successfully resolved -- an empty dict on any failure (not a Flit
-    project, malformed config, module not found), logged as a
-    ``WARNING:`` rather than raised, since the caller falls back to its
-    own generic dynamic-version heuristic either way.
+    successfully resolved via the AST scan -- an empty dict on any
+    failure (not a Flit project, malformed config, module not found, or
+    an AST-unresolvable dynamic field), logged as a ``WARNING:`` rather
+    than raised, since the caller falls back to its own generic
+    dynamic-version heuristic either way.
     """
     wanted = [f for f in ("version", "description") if f in dynamic_fields]
     if not wanted:
         return {}
 
     # pylint: disable=import-outside-toplevel
-    from flit_core.common import Module, make_metadata
+    from flit_core.common import Module, get_docstring_and_version_via_ast
     from flit_core.config import read_flit_config
+    from flit_core.versionno import normalise_version
 
     try:
         loaded_cfg = read_flit_config(pyproject_path)
         module = Module(loaded_cfg.module, pyproject_path.parent)
-        metadata = make_metadata(module, loaded_cfg)
+        docstring, version = get_docstring_and_version_via_ast(module)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.warning(
@@ -68,8 +79,8 @@ def resolve_flit_dynamic_metadata(
         return {}
 
     result: dict[str, str] = {}
-    if "version" in wanted and metadata.version:
-        result["version"] = str(metadata.version)
-    if "description" in wanted and metadata.summary:
-        result["description"] = str(metadata.summary)
+    if "version" in wanted and version:
+        result["version"] = normalise_version(version)
+    if "description" in wanted and docstring and docstring.strip():
+        result["description"] = docstring.lstrip().splitlines()[0]
     return result

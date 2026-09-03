@@ -46,6 +46,37 @@ def test_discover_resolves_absolute_physical_paths() -> None:
         assert Path(included_file.path).is_absolute()
 
 
+def test_discover_includes_external_data_with_static_version(tmp_path: Path) -> None:
+    """The common, happy-path case: ``[tool.flit.external-data]`` with a
+    plain, non-dynamic version must still resolve the external-data
+    files correctly -- proves the static-metadata fast path (reading
+    ``loaded_cfg.metadata`` directly, no AST scan needed) produces the
+    same ``<dist>.data/data/...`` result a real Flit build would,
+    alongside the coverage for the dynamic/unresolvable case above."""
+    pkg_dir = tmp_path / "mypkg"
+    pkg_dir.mkdir()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["flit_core>=3.9"]\n'
+        'build-backend = "flit_core.buildapi"\n\n'
+        '[project]\nname = "mypkg"\nversion = "1.0.0"\ndescription = "hi"\n\n'
+        '[tool.flit.external-data]\ndirectory = "data"\n',
+        encoding="utf-8",
+    )
+    (pkg_dir / "__init__.py").write_text("", encoding="utf-8")
+    (data_dir / "file.txt").write_text("hello", encoding="utf-8")
+
+    result = discover(tmp_path)
+
+    assert result is not None
+    distribution_paths = {f.distribution_path for f in result}
+    assert distribution_paths == {
+        "mypkg/__init__.py",
+        "mypkg-1.0.0.data/data/file.txt",
+    }
+
+
 def test_discover_accepts_pyproject_data_kwarg() -> None:
     """Interface-uniformity regression: matches
     :class:`~pitloom.core._models_wheel_types.BackendDiscoverer`'s shared
