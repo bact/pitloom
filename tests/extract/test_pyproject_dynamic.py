@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from pitloom.extract._pyproject_dynamic import (
@@ -248,7 +249,9 @@ def test_extract_setuptools_dynamic_version_directive_without_attr_or_file(
 ) -> None:
     """``[tool.setuptools.dynamic] version = {}`` -- a dict directive with
     neither ``attr`` nor ``file`` -- resolves to nothing."""
-    pyproject_data = {"tool": {"setuptools": {"dynamic": {"version": {}}}}}
+    pyproject_data: dict[str, Any] = {
+        "tool": {"setuptools": {"dynamic": {"version": {}}}}
+    }
     version, source = _extract_setuptools_dynamic_version(tmp_path, pyproject_data)
     assert version is None
     assert source is None
