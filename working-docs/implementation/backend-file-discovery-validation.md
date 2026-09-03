@@ -297,13 +297,17 @@ README for their own notes.
 
 ### Findings
 
-- **8/8 perfect matches.**
-  - Every config style available in a real PDM/Flit-core package --
-    self-hosting, plain PEP 621, a compiled-extension package --
-    resolved to exactly the real wheel's file set (`.dist-info/*`
-    excluded, as every discoverer excludes it).
-  - Neither `discover()` needed a code change after the two
-    implementation-time findings below were addressed.
+- **8/8 perfect matches** against every vendored fixture's real wheel
+  file list -- self-hosting, plain PEP 621, a compiled-extension
+  package all resolved to exactly the real wheel's file set
+  (`.dist-info/*` excluded, as every discoverer excludes it).
+  - This is a statement about the *file-list-diffing* validation
+    method specifically (`wheel - project` / `project - wheel`, see
+    Method above) -- it does not mean no further code changes were
+    needed. Three more real bugs (two code-execution risks, two
+    disk-write side effects) surfaced afterward via a code-review pass
+    over this same PDM/Flit-core work -- see the three findings below,
+    added after this round's initial pass.
   - The requests case below needed a test-suite-only fix, not a
     `discover()` change.
 - **`pdm.backend.wheel.WheelBuilder.get_files()` writes to disk as a
@@ -356,6 +360,53 @@ README for their own notes.
     in `tests/core/models_wheel/test_models_wheel_setuptools.py`,
     covering all three forms in one synthetic fixture. Confirmed to
     fail without the filter and pass with it.
+- **PDM discovery wrote to disk in two more cases**, found by a
+  code-review pass over this round's own PDM/Flit work, not by the
+  fixture-diffing method above (neither vendored fixture triggers
+  either case).
+  - `[tool.pdm.version] source = "scm"` with a `write_to` option (a
+    common, documented PDM idiom for auto-embedding a `_version.py`)
+    made `discover()` write the resolved version to
+    `.pdm-build/<write_to>` via pdm-backend's own
+    `DynamicVersionBuildHook.pdm_build_initialize()`. **Fixed**: stop
+    calling `builder.initialize(context)` at all -- file discovery
+    never needs the resolved version, so skipping it changes nothing
+    about the returned file set.
+  - The base `Builder.get_files()`'s `_collect_build_files()`
+    unconditionally globs `context.build_dir` -- pointing it at the
+    project's real `.pdm-build/` meant a directory left over from a
+    prior real `pdm build` (normally only gitignored, not cleaned up)
+    leaked its stale contents into the returned file list. **Fixed**:
+    `build_dir` now points at a path guaranteed never to exist on disk.
+  - See `test_discover_never_writes_scm_version_to_disk` and
+    `test_discover_ignores_stale_pdm_build_directory` in
+    `tests/core/models_wheel/test_models_wheel_pdm.py`; both confirmed
+    to fail without their respective fix and pass with it.
+- **Flit metadata/discovery could execute project code to resolve a
+  non-literal dynamic field**, also found by code review, in two
+  places:
+  - `pitloom.core._models_wheel_flit.discover()`'s
+    `[tool.flit.external-data]` handling called flit-core's own
+    `make_metadata()`, which falls back to *importing* (executing) the
+    target module whenever a dynamic `version`/`description` isn't an
+    AST-resolvable literal (e.g. computed by a function call).
+  - `pitloom.extract._flit.resolve_flit_dynamic_metadata()` had the
+    identical exposure via the same `make_metadata()` call, for the
+    same reason.
+  - **Fixed**: both now call flit-core's
+    `get_docstring_and_version_via_ast()` directly and stop there --
+    never falling back to import -- matching the same no-execution
+    stance `pitloom.extract._setuptools` already takes for `setup.py`.
+    A dynamic field that isn't AST-resolvable is left unresolved (with
+    a `WARNING:` from the discovery side) rather than resolved by
+    running project code.
+  - Confirmed via a live marker-file reproduction (the module's
+    top-level code wrote a marker file when imported): the marker was
+    written by the old code and never written after the fix. See
+    `test_discover_external_data_never_executes_project_code`
+    (`tests/core/models_wheel/test_models_wheel_flit.py`) and
+    `test_resolve_flit_dynamic_metadata_never_executes_project_code`
+    (`tests/extract/test_flit.py`).
 
 ## Setuptools license-form diversity (6 packages, 2026-09-03)
 

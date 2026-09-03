@@ -24,7 +24,7 @@ and this project adheres to
 ### Added
 
 - Add PDM-backend and Flit-core metadata extraction and wheel file
-  discovery
+  discovery ([#205])
 - Add Poetry backend wheel file discovery and lock parsing ([#198])
 - Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
   library API; new `pitloom[validate]` optional extra ([#200])
@@ -41,18 +41,22 @@ and this project adheres to
 
 ### Fixed
 
-- `read_project()` no longer silently returns empty (nameless,
-  versionless) metadata for a project whose `pyproject.toml` declares
-  only `[build-system]` (a custom/legacy build backend, no `[project]`
-  or `[tool.poetry]`) when `setup.cfg`/`setup.py` hold the real
-  metadata -- now falls back to setuptools extraction, with a
-  `WARNING:`
+- `read_project()` no longer returns empty metadata for a
+  `[build-system]`-only `pyproject.toml` when `setup.cfg`/`setup.py`
+  hold the real metadata; no longer drops a `[tool.pitloom]` section
+  already resolved from `pyproject.toml` in that case ([#205])
 - `[tool.setuptools.dynamic] version = {attr = "..."}`/`{file = "..."}`
-  now resolves even when a `[project]` table is present (previously
-  silently left `version=None`)
+  now resolves when a `[project]` table is present ([#205])
 - `detect_license_from_text()` no longer fuzzy-matches license labels
-  under 100 characters (e.g. `"MIT License (MIT)"`), which could
-  previously score a false-positive match against an unrelated SPDX ID
+  under 100 characters ([#205])
+- Flit metadata/wheel-discovery no longer execute project code to
+  resolve a computed `version`/`description` ([#205])
+- PDM wheel discovery no longer writes to disk for
+  `[tool.pdm.version] source = "scm"` with `write_to`, and no longer
+  leaks stale `.pdm-build/` content into the discovered file list
+  ([#205])
+- `embed-wheel --project-dir` now shows the real reason when project
+  metadata can't be resolved ([#205])
 
 ### Changed
 
@@ -71,6 +75,7 @@ and this project adheres to
 [#201]: https://github.com/bact/pitloom/pull/201
 [#202]: https://github.com/bact/pitloom/pull/202
 [#204]: https://github.com/bact/pitloom/pull/204
+[#205]: https://github.com/bact/pitloom/pull/205
 
 ## [0.17.0] - 2026-08-30
 

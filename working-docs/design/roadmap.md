@@ -130,12 +130,13 @@ committed version yet.
   **partially fixed (2026-08-27):** `get_wheel_files()`
   (`src/pitloom/core/_models_wheel.py`) is now a dispatch facade over
   one discovery module per backend (`_models_wheel_hatchling.py`,
-  `_models_wheel_setuptools.py`, `_models_wheel_poetry.py`), with any
-  backend that doesn't have a dedicated module yet (PDM, Flit,
-  `uv_build`, ...) falling back to the Hatchling heuristic -- now with
-  a logged warning instead of silently risking an inaccurate result.
-  Setuptools and Poetry were the first two backends closed; the bug
-  below (originally reported for setuptools) still stands as
+  `_models_wheel_setuptools.py`, `_models_wheel_poetry.py`,
+  `_models_wheel_pdm.py`, `_models_wheel_flit.py`), with any backend
+  that doesn't have a dedicated module yet (`uv_build`, ...) falling
+  back to the Hatchling heuristic -- now with a logged warning instead
+  of silently risking an inaccurate result. Setuptools, Poetry,
+  PDM-backend, and Flit-core are closed (see priority #3 below); the
+  bug below (originally reported for setuptools) still stands as
   documentation for every backend still on the fallback path. See
   [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
   for the mechanism and why this stays a static-config read for every
@@ -153,10 +154,10 @@ committed version yet.
     `lib/mypkg/__init__.py` as the distribution path (plus spurious
     directory-shaped entries) instead of the `mypkg/__init__.py` the
     actual wheel would contain.
-  - The same applied to Poetry (now closed -- see below) and still
-    applies to PDM and Flit projects with their own inclusion config --
-    this affects **any non-Hatchling backend** without a dedicated
-    module, not setuptools specifically.
+  - The same applied to Poetry, PDM-backend, and Flit-core (all now
+    closed -- see below) and still applies to `uv_build` projects with
+    their own inclusion config -- this affects **any non-Hatchling
+    backend** without a dedicated module, not setuptools specifically.
   - Impact differs by command: `loom project`/`loom generate` (Source
     SBOM, directory target) has no wheel to fall back on, so the wrong
     file list, hashes, and Merkle-root integrity hash go straight into
