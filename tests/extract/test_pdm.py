@@ -41,6 +41,27 @@ def test_resolve_pdm_dynamic_version_from_file() -> None:
     assert source == "Source: pyproject.toml | Method: pdm_dynamic_version(file)"
 
 
+def test_resolve_pdm_dynamic_version_source_inferred_from_path() -> None:
+    """No explicit ``source`` key: inferred as ``"file"`` when ``path``
+    names a file that exists on disk (pdm-backend's own documented
+    default when ``source`` is omitted)."""
+    data = {"tool": {"pdm": {"version": {"path": "src/sampleproject_pdm/__init__.py"}}}}
+    version, source = resolve_pdm_dynamic_version(PDM_FIXTURE, data, ["version"])
+
+    assert version == "0.1.0"
+    assert source == "Source: pyproject.toml | Method: pdm_dynamic_version(file)"
+
+
+def test_resolve_pdm_dynamic_version_source_unresolvable_without_path() -> None:
+    """No explicit ``source`` and no (or a nonexistent) ``path``: source
+    can't be inferred, left unresolved rather than guessed."""
+    data = {"tool": {"pdm": {"version": {"path": "does/not/exist.py"}}}}
+    version, source = resolve_pdm_dynamic_version(PDM_FIXTURE, data, ["version"])
+
+    assert version is None
+    assert source is None
+
+
 def test_resolve_pdm_dynamic_version_write_to_stripping_scoped_to_scm(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

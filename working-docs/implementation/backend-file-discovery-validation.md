@@ -510,7 +510,7 @@ handling needed either way, just a regression test
     lives in `_pyproject_dynamic.py`, keeping the parent module from
     growing into a dumping ground.)
   - See `test_extract_dynamic_version_setuptools_dynamic_attr`/`_file`/
-    `_missing_falls_through` in `tests/extract/test_pyproject.py`.
+    `_missing_falls_through` in `tests/extract/test_pyproject_dynamic.py`.
 - **Every other license style in this round needed no code changes.**
   - Covered: PEP 639 strings, compound expressions, classifier-only, a
     table-header `[project.license]` section, `setuptools_scm`-driven
