@@ -47,7 +47,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._lock_common import index_packages_by_name, load_lock_toml
+from packaging.utils import canonicalize_name
+
+from pitloom.extract._lock_common import (
+    find_first_present_key,
+    index_packages_by_name,
+    load_lock_toml,
+)
 
 log = logging.getLogger(__name__)
 
@@ -56,25 +62,62 @@ __all__ = ["extract_uv_lock_dependencies"]
 #: uv.lock ``source`` keys that mark a package as not resolvable to a
 #: meaningful PyPI version pin -- mirrors ``poetry.lock``'s
 #: ``directory``/``file``/``git``/``url`` skip and ``pylock.toml``'s
-#: ``vcs``/``directory``/``archive`` skip.
-_NON_REGISTRY_SOURCE_KEYS = ("git", "path", "directory", "editable", "virtual")
+#: ``vcs``/``directory``/``archive`` skip. ``url`` is uv's direct
+#: remote-wheel/sdist source (per uv's docs: source types are
+#: Index/Git/URL/Path/Directory/Editable/Virtual) -- without it, a
+#: url-sourced package would be emitted as an ordinary registry pin.
+_NON_REGISTRY_SOURCE_KEYS = ("git", "url", "path", "directory", "editable", "virtual")
 
 #: ``source`` keys identifying the project's own package entry (a local
 #: root/workspace member, not a PyPI download).
 _ROOT_SOURCE_KEYS = ("editable", "virtual")
 
 
-def _find_root_package(packages: list[Any]) -> dict[str, Any] | None:
-    """Return the first ``[[package]]`` entry that is the project's own
+def _find_root_package(
+    packages: list[Any], expected_name: str | None
+) -> dict[str, Any] | None:
+    """Return the ``[[package]]`` entry that is the project's own
     (identified by an ``editable``/``virtual`` ``source``), or ``None``
-    if none is found."""
-    for pkg in packages:
-        if not isinstance(pkg, dict):
-            continue
-        source = pkg.get("source")
-        if isinstance(source, dict) and any(key in source for key in _ROOT_SOURCE_KEYS):
-            return pkg
-    return None
+    if none is found.
+
+    A shared ``uv.lock`` (a uv workspace) can list more than one such
+    entry -- one per local workspace member. When *expected_name* (the
+    calling project's own declared name, from its ``pyproject.toml``) is
+    given, it's used to pick the matching entry among candidates rather
+    than blindly taking the first one, which would silently attribute a
+    *different* workspace member's dependencies to this project. Falls
+    back to the sole candidate when there's exactly one and none named
+    *expected_name* matched (e.g. the name is unreadable, or differs
+    only in normalization); with more than one candidate and no match,
+    returns ``None`` rather than guess.
+    """
+    candidates = [
+        pkg
+        for pkg in packages
+        if isinstance(pkg, dict)
+        and isinstance(pkg.get("source"), dict)
+        and any(key in pkg["source"] for key in _ROOT_SOURCE_KEYS)
+    ]
+    if not candidates:
+        return None
+
+    if expected_name is not None:
+        expected = canonicalize_name(expected_name)
+        for pkg in candidates:
+            name = pkg.get("name")
+            if isinstance(name, str) and canonicalize_name(name) == expected:
+                return pkg
+
+    if len(candidates) > 1:
+        log.warning(
+            "%d candidate local/workspace package entries found in "
+            "uv.lock but none named %r -- can't determine which is this "
+            "project's own; ignoring uv.lock",
+            len(candidates),
+            expected_name,
+        )
+        return None
+    return candidates[0]
 
 
 def _pinned_dep_for_root_dependency(
@@ -136,9 +179,7 @@ def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
     name = pkg["name"]
     source = pkg.get("source")
     if isinstance(source, dict):
-        non_registry_source = next(
-            (key for key in _NON_REGISTRY_SOURCE_KEYS if key in source), None
-        )
+        non_registry_source = find_first_present_key(source, _NON_REGISTRY_SOURCE_KEYS)
         if non_registry_source is not None:
             log.warning(
                 "Skipping uv.lock entry %r: %s-sourced dependencies cannot "
@@ -155,6 +196,19 @@ def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
         )
         return None
     return f"{name}=={version}"
+
+
+def _expected_project_name(project_dir: Path) -> str | None:
+    """Read the bare ``[project].name`` from *project_dir*'s
+    ``pyproject.toml``, or ``None`` if it's absent/unreadable -- used
+    only to disambiguate a shared uv workspace lock's multiple local
+    package entries, not as a metadata-resolution path in its own right
+    (that's :func:`pitloom.extract._pyproject.read_pyproject`'s job)."""
+    data = load_lock_toml(project_dir / "pyproject.toml")
+    if data is None:
+        return None
+    name = data.get("project", {}).get("name")
+    return name if isinstance(name, str) and name else None
 
 
 def extract_uv_lock_dependencies(project_dir: Path) -> list[str]:
@@ -180,7 +234,7 @@ def extract_uv_lock_dependencies(project_dir: Path) -> list[str]:
         )
         return []
 
-    root = _find_root_package(packages)
+    root = _find_root_package(packages, _expected_project_name(project_dir))
     if root is None:
         log.warning(
             "%s: no project package found (no 'editable'/'virtual' "

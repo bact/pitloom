@@ -156,7 +156,7 @@ def test_missing_version_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> 
         assert "missing" in caplog.text.lower()
 
 
-@pytest.mark.parametrize("source_key", ["git", "path"])
+@pytest.mark.parametrize("source_key", ["git", "url", "path"])
 def test_non_registry_sourced_package_excluded(
     source_key: str, caplog: pytest.LogCaptureFixture
 ) -> None:

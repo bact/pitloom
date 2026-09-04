@@ -14,7 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract._lock_common import index_packages_by_name, load_lock_toml
+from pitloom.extract._lock_common import (
+    find_first_present_key,
+    index_packages_by_name,
+    load_lock_toml,
+)
 
 
 def test_load_lock_toml_missing_file_returns_none() -> None:
@@ -79,3 +83,23 @@ def test_index_packages_by_name_ignores_entries_with_missing_or_bad_name() -> No
 
 def test_index_packages_by_name_empty_list_returns_empty_dict() -> None:
     assert not index_packages_by_name([])
+
+
+def test_find_first_present_key_returns_first_match_in_key_order() -> None:
+    """Order is determined by *keys*, not by the mapping's own key
+    order -- callers rely on this to report a stable, predictable
+    non-registry-source name even when the mapping has multiple such
+    keys (shouldn't normally happen, but the tie-break must be
+    deterministic)."""
+    mapping = {"path": "x", "git": "y"}
+
+    assert find_first_present_key(mapping, ("git", "path")) == "git"
+    assert find_first_present_key(mapping, ("path", "git")) == "path"
+
+
+def test_find_first_present_key_returns_none_when_no_key_present() -> None:
+    assert find_first_present_key({"registry": "x"}, ("git", "path")) is None
+
+
+def test_find_first_present_key_empty_mapping_returns_none() -> None:
+    assert find_first_present_key({}, ("git", "path")) is None

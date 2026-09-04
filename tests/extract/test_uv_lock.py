@@ -244,13 +244,24 @@ def test_ambiguous_multi_version_dependency_skipped_and_warns(
 
 
 @pytest.mark.parametrize(
-    "source_key", ["git", "path", "directory", "editable", "virtual"]
+    "source_key", ["git", "url", "path", "directory", "editable", "virtual"]
 )
 def test_non_registry_sourced_dependency_excluded(
     source_key: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
+        # A real pyproject.toml (matching _ROOT_HEADER's "demo") is
+        # needed here specifically for the "editable"/"virtual"
+        # source_key cases: without it, "local-dep" (also
+        # editable/virtual-sourced by this test's own parametrization)
+        # would be a second candidate root package indistinguishable
+        # from "demo", and _find_root_package() would correctly refuse
+        # to guess between them -- unrelated to what this test checks
+        # (that a non-registry-sourced *dependency* is excluded).
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
+        )
         _write_lock(
             tmp_path,
             _ROOT_HEADER + 'dependencies = [{ name = "local-dep" }]\n\n'
@@ -300,7 +311,7 @@ def test_dependency_with_no_source_table_still_included() -> None:
 
 
 def test_find_root_package_returns_none_for_empty_list() -> None:
-    assert _find_root_package([]) is None
+    assert _find_root_package([], None) is None
 
 
 def test_find_root_package_ignores_malformed_entries() -> None:
@@ -314,7 +325,52 @@ def test_find_root_package_ignores_malformed_entries() -> None:
         {"name": "requests", "version": "2.31.0"},
     ]
 
-    assert _find_root_package(packages) is None
+    assert _find_root_package(packages, None) is None
+
+
+def test_find_root_package_single_candidate_used_even_without_name_match() -> None:
+    """With exactly one editable/virtual candidate, it's used even when
+    it doesn't match `expected_name` (or `expected_name` is unavailable)
+    -- there's no ambiguity about *which* entry, only whether the name
+    happens to match, so guessing wrong here isn't the workspace-mixup
+    risk multiple candidates pose."""
+    packages: list[object] = [
+        {"name": "actual-name", "source": {"editable": "."}},
+    ]
+
+    assert _find_root_package(packages, "different-name") == packages[0]
+    assert _find_root_package(packages, None) == packages[0]
+
+
+def test_find_root_package_prefers_name_match_among_multiple_candidates() -> None:
+    packages: list[object] = [
+        {"name": "pkg-a", "source": {"editable": "."}},
+        {"name": "pkg-b", "source": {"editable": "."}},
+    ]
+
+    assert _find_root_package(packages, "pkg-b") == packages[1]
+    assert _find_root_package(packages, "Pkg_B") == packages[1]  # canonicalized
+
+
+def test_find_root_package_multiple_candidates_no_name_match_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A shared uv workspace lock listing more than one local member,
+    where none matches the project actually being scanned, must not
+    silently attribute the wrong member's dependencies -- this is the
+    regression case: picking `packages[0]` unconditionally here would
+    misattribute `pkg-a`'s (or `pkg-b`'s) dependencies to `pkg-c`."""
+    packages: list[object] = [
+        {"name": "pkg-a", "source": {"editable": "."}},
+        {"name": "pkg-b", "source": {"editable": "."}},
+    ]
+
+    with caplog.at_level(logging.WARNING):
+        result = _find_root_package(packages, "pkg-c")
+
+    assert result is None
+    assert "2 candidate" in caplog.text
+    assert "pkg-c" in caplog.text
 
 
 def test_pinned_dep_for_package_returns_none_when_source_not_a_dict() -> None:
@@ -406,6 +462,36 @@ def test_read_project_pylock_takes_priority_over_uv_lock() -> None:
         assert metadata.provenance["locked_dependencies"] == (
             "Source: pylock.toml | Method: resolved_lockfile"
         )
+
+
+def test_read_project_uv_workspace_picks_matching_member_by_name() -> None:
+    """Regression: a shared uv.lock listing more than one local
+    workspace member must resolve the *scanned* project's own
+    dependencies, identified by matching `pyproject.toml`'s declared
+    name -- not whichever editable entry happens to be listed first in
+    the lock file."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "pkg-b"\nversion = "1.0.0"\n', encoding="utf-8"
+        )
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "pkg-a"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "pkg-b"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "httpx" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n\n'
+            '[[package]]\nname = "httpx"\nversion = "0.27.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        metadata, _config, _path = read_project(tmp_path)
+
+        assert metadata.locked_dependencies == ["httpx==0.27.0"]
 
 
 # --- real-world fixtures ---------------------------------------------------

@@ -227,7 +227,7 @@ def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid(
 def test_locked_dependencies_provenance_omitted_matches_empty_string() -> None:
     """Omitting ``locked_dependencies_provenance`` (every pre-existing
     call site) must produce the same UUID as every caller that predates
-    this parameter -- purely additive, no behavior change for callers
+    this parameter -- purely additive, no behaviour change for callers
     that don't know about it."""
     omitted = compute_doc_uuid(
         "pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=["idna==3.7"]

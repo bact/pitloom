@@ -223,3 +223,27 @@ def test_read_project_include_locked_dependencies_false_skips_cascade(
 
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
+
+
+def test_read_project_include_locked_dependencies_false_also_skips_poetry_lock(
+    tmp_path: Path,
+) -> None:
+    """Regression: `include_locked_dependencies=False` used to only gate
+    the pylock.toml/uv.lock/pdm.lock cascade -- `poetry.lock` was still
+    read and attached to `locked_dependencies` regardless, since
+    `read_pyproject()` never forwarded the flag to `_try_read_poetry()`.
+    One flag must gate every lock source, `poetry.lock` included."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance

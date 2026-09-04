@@ -42,7 +42,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._lock_common import index_packages_by_name, load_lock_toml
+from pitloom.extract._lock_common import (
+    find_first_present_key,
+    index_packages_by_name,
+    load_lock_toml,
+)
 
 log = logging.getLogger(__name__)
 
@@ -54,8 +58,13 @@ _DEFAULT_GROUP = "default"
 
 #: ``pdm.lock`` keys, present directly on a ``[[package]]`` table (no
 #: nested ``source`` table, unlike ``uv.lock``), that mark a package as
-#: not resolvable to a meaningful PyPI version pin.
-_NON_REGISTRY_KEYS = ("git", "path")
+#: not resolvable to a meaningful PyPI version pin. ``url`` records a
+#: direct file-server/URL-sourced package (PDM's ``static_urls`` lock
+#: strategy, or a plain ``pdm add <url>``) -- confirmed absent from
+#: every ordinary registry-resolved entry in this repo's two real
+#: pdm.lock fixtures, so including it here doesn't risk excluding a
+#: normal package.
+_NON_REGISTRY_KEYS = ("git", "url", "path")
 
 
 def _default_group_package_or_none(pkg: Any) -> dict[str, Any] | None:
@@ -84,7 +93,7 @@ def _default_group_package_or_none(pkg: Any) -> dict[str, Any] | None:
     if not isinstance(groups, list) or _DEFAULT_GROUP not in groups:
         return None
 
-    non_registry_key = next((key for key in _NON_REGISTRY_KEYS if key in pkg), None)
+    non_registry_key = find_first_present_key(pkg, _NON_REGISTRY_KEYS)
     if non_registry_key is not None:
         log.warning(
             "Skipping pdm.lock entry %r: %s-sourced dependencies cannot be "

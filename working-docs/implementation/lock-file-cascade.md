@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Lock/pin format priority cascade -- implementation notes
 
 This is implementation reference for maintainers -- what the code does
-and why. For the user-facing behavior (what shows up in a generated
+and why. For the user-facing behaviour (what shows up in a generated
 SBOM, which lock file wins, which commands use lock files at all), see
 [docs/dependency-sources.md](../../docs/dependency-sources.md) instead;
 this page assumes that one as background and doesn't restate it.
@@ -113,7 +113,7 @@ first resolves the rank of whatever source (if any) already populated
 reaches an entry ranked *below* that already-set source, since nothing
 from there on could legitimately win. `tests/extract/test_pdm_lock.py::test_read_project_pdm_lock_never_overrides_poetry_lock`
 is the regression test for this; `test_read_project_uv_lock_still_overrides_pdm_lock`
-confirms the higher-ranked entries' behavior didn't change.
+confirms the higher-ranked entries' behaviour didn't change.
 
 **Any future format ranked below `poetry.lock` (`Pipfile.lock`, pinned
 `requirements.txt`) needs no extra code for this** -- the same generic

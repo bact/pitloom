@@ -56,20 +56,27 @@ def read_project(
     some lock formats (``Pipfile.lock``, pinned ``requirements.txt``)
     pair with a bare ``setup.py`` in real projects, never ``pyproject.toml``.
 
-    ``include_locked_dependencies``, mirroring
-    :func:`pitloom.extract._pyproject._try_read_poetry`'s
-    ``poetry.lock``-specific flag of the same name, lets a build-stage or
-    config-only caller (e.g. ``embed-wheel``, or a shared CLI helper that
-    only wants ``[tool.pitloom]`` settings and discards the metadata)
-    explicitly opt out -- source-stage lock/pin data must never leak into
-    a build-stage SBOM, and skipping the cascade here also skips its file
-    I/O for a caller that would discard the result anyway.
+    ``include_locked_dependencies`` lets a build-stage or config-only
+    caller (e.g. ``embed-wheel``, or a shared CLI helper that only wants
+    ``[tool.pitloom]`` settings and discards the metadata) explicitly opt
+    out of *every* lock/pin source -- source-stage lock/pin data must
+    never leak into a build-stage SBOM, and skipping this also skips its
+    file I/O for a caller that would discard the result anyway. It's
+    forwarded to :func:`pitloom.extract._pyproject.read_pyproject` (which
+    forwards it again to
+    :func:`pitloom.extract._pyproject._try_read_poetry` for
+    ``poetry.lock``, gated by that function's own identically-named
+    parameter) *and* used directly here to gate
+    :func:`pitloom.extract._locked_dependencies.apply_locked_dependencies`
+    for every other format -- one flag controls both, not two
+    independently-set ones that happen to share a name.
 
     Args:
         project_path: Project root directory or sdist archive path.
-        include_locked_dependencies: Whether to overlay a sibling lock/pin
-            file's resolved dependencies (default ``True``). Pass
-            ``False`` from any build-stage or metadata-discarding caller.
+        include_locked_dependencies: Whether to read any lock/pin file's
+            resolved dependencies at all -- ``poetry.lock`` included
+            (default ``True``). Pass ``False`` from any build-stage or
+            metadata-discarding caller.
 
     Returns:
         A 3-tuple of:
@@ -99,7 +106,9 @@ def read_project(
     config_path: Path | None
     pyproject_path = project_path / "pyproject.toml"
     if pyproject_path.exists():
-        metadata, pitloom_config = read_pyproject(pyproject_path)
+        metadata, pitloom_config = read_pyproject(
+            pyproject_path, include_locked_dependencies=include_locked_dependencies
+        )
         if not metadata.name and (setup_cfg.exists() or setup_py.exists()):
             # pyproject.toml exists but resolved no usable metadata --
             # no [project] table (e.g. a custom/legacy build backend

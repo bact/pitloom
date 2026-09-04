@@ -36,6 +36,7 @@ from pathlib import Path
 
 from pitloom.assemble.spdx3._provenance_encoders import parse_provenance_value
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._lock_common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
 from pitloom.extract._pylock import extract_pylock_dependencies
 from pitloom.extract._uv_lock import extract_uv_lock_dependencies
@@ -60,7 +61,7 @@ _LockExtractor = Callable[[Path], list[str]]
 _LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
     ("pylock.toml", extract_pylock_dependencies, "resolved_lockfile"),
     ("uv.lock", extract_uv_lock_dependencies, "resolved_lockfile"),
-    ("poetry.lock", None, None),
+    (POETRY_LOCK_SOURCE_NAME, None, None),
     ("pdm.lock", extract_pdm_lock_dependencies, "resolved_lockfile"),
 ]
 

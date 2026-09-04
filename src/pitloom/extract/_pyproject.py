@@ -31,6 +31,7 @@ from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
+from pitloom.extract._lock_common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract._poetry import extract_poetry_metadata
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
 from pitloom.extract._pyproject_dynamic import prepare_dynamic_version
@@ -44,9 +45,15 @@ def _read_pyproject_fallback(
     pyproject_path: Path,
     name: str,
     pitloom_config: PitloomConfig,
+    *,
+    include_locked_dependencies: bool,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
     """Handle fallback when [project] section is absent or missing a name."""
-    poetry_meta = _try_read_poetry(data, pyproject_path.parent)
+    poetry_meta = _try_read_poetry(
+        data,
+        pyproject_path.parent,
+        include_locked_dependencies=include_locked_dependencies,
+    )
     if poetry_meta is not None:
         return poetry_meta, pitloom_config
     license_name, license_prov = detect_license_for_project(pyproject_path.parent)
@@ -165,11 +172,21 @@ def _parse_standard_metadata_with_retry(
 
 
 # pylint: disable-next=too-many-locals
-def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
+def read_pyproject(
+    pyproject_path: Path,
+    *,
+    include_locked_dependencies: bool = True,
+) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from a ``pyproject.toml`` file.
 
     Parses the ``[project]`` section via ``pyproject-metadata``, resolves
     dynamic versions, and reads Pitloom-specific settings from ``[tool.pitloom]``.
+
+    ``include_locked_dependencies`` is forwarded to :func:`_try_read_poetry`
+    -- see its own docstring for why a build-stage caller must pass
+    ``False``. Defaults to ``True`` so every existing call site (the
+    source-stage path via :func:`pitloom.extract.project.read_project`)
+    keeps its current behaviour unless it explicitly opts out.
     """
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
@@ -181,7 +198,13 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
 
     name: str = (project_data.get("name") or "").strip()
     if not project_data or not name:
-        return _read_pyproject_fallback(data, pyproject_path, name, pitloom_config)
+        return _read_pyproject_fallback(
+            data,
+            pyproject_path,
+            name,
+            pitloom_config,
+            include_locked_dependencies=include_locked_dependencies,
+        )
 
     data, dynamic_fields, version_source, description_source = prepare_dynamic_version(
         data, project_data, pyproject_path
@@ -232,7 +255,11 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     )
 
     # Fill any remaining gaps from [tool.poetry] (project fields win).
-    poetry_meta = _try_read_poetry(data, pyproject_path.parent)
+    poetry_meta = _try_read_poetry(
+        data,
+        pyproject_path.parent,
+        include_locked_dependencies=include_locked_dependencies,
+    )
     if poetry_meta is not None:
         metadata = merge_project_metadata(metadata, poetry_meta)
 
@@ -452,6 +479,6 @@ def _try_read_poetry(
     if locked_dependencies:
         metadata.locked_dependencies = locked_dependencies
         metadata.provenance["locked_dependencies"] = (
-            "Source: poetry.lock | Method: resolved_lockfile"
+            f"Source: {POETRY_LOCK_SOURCE_NAME} | Method: resolved_lockfile"
         )
     return metadata
