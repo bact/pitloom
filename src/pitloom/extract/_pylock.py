@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
@@ -89,7 +88,7 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str]:
     return dependencies
 
 
-def _pinned_dep_for_package(pkg: Any) -> str | None:
+def _pinned_dep_for_package(pkg: object) -> str | None:
     """Return ``name==version`` for one ``[[packages]]`` table entry, or
     ``None`` when it's malformed or sourced from a location that
     ``name==version`` can't represent.

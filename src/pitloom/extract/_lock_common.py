@@ -22,7 +22,7 @@ import json
 import logging
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
@@ -107,7 +107,9 @@ def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
     return data
 
 
-def index_packages_by_name(packages: list[Any]) -> dict[str, list[dict[str, Any]]]:
+def index_packages_by_name(
+    packages: Iterable[object],
+) -> dict[str, list[dict[str, Any]]]:
     """Group every well-formed entry of *packages* (a lock format's flat
     ``[[package]]``-style list) by its ``name`` field, preserving file
     order both across and within names.
@@ -136,13 +138,19 @@ def index_packages_by_name(packages: list[Any]) -> dict[str, list[dict[str, Any]
     return by_name
 
 
-def is_usable_version(version: Any) -> bool:
+def is_usable_version(version: object) -> TypeGuard[str]:
     """Return whether *version* is a non-empty string -- the "can this
     become a real ``name==version`` pin" check every lock/pin extractor
     applies to a ``[[package]]`` entry's ``version`` field before using
     it. Each call site still logs its own ``WARNING:`` when this returns
     ``False``, since the message wording (which field, which format) is
     genuinely format-specific.
+
+    Typed as a :class:`typing.TypeGuard`\\ [``str``] so a caller's usual
+    ``if not is_usable_version(version): return None`` early-return
+    narrows *version* to ``str`` for the rest of the function, instead
+    of needing its own redundant ``isinstance`` check before passing
+    *version* to something that requires ``str``.
     """
     return isinstance(version, str) and bool(version)
 
@@ -222,7 +230,7 @@ def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None
 
 
 def find_first_present_key(
-    mapping: Mapping[str, Any], keys: Iterable[str]
+    mapping: Mapping[str, object], keys: Iterable[str]
 ) -> str | None:
     """Return the first of *keys* (in order) that's a key of *mapping*,
     or ``None`` if none are.

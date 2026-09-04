@@ -68,7 +68,7 @@ _DEFAULT_GROUP = "default"
 _NON_REGISTRY_KEYS = ("git", "url", "path")
 
 
-def _default_group_package_or_none(pkg: Any) -> dict[str, Any] | None:
+def _default_group_package_or_none(pkg: object) -> dict[str, Any] | None:
     """Return *pkg* itself when it's a well-formed, default-group,
     registry-sourced, versioned ``[[package]]`` entry -- ``None``
     otherwise (with a ``WARNING:`` for anything malformed or

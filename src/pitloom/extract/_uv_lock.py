@@ -44,6 +44,7 @@ An ambiguous (multiple-version) or marker-conditional (inline
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -76,7 +77,7 @@ _ROOT_SOURCE_KEYS = ("editable", "virtual")
 
 
 def _find_root_package(
-    packages: list[Any], expected_name: str | None
+    packages: Iterable[object], expected_name: str | None
 ) -> dict[str, Any] | None:
     """Return the ``[[package]]`` entry that is the project's own
     (identified by an ``editable``/``virtual`` ``source``), or ``None``
@@ -123,7 +124,7 @@ def _find_root_package(
 
 
 def _pinned_dep_for_root_dependency(
-    dep_ref: Any, by_name: dict[str, list[dict[str, Any]]]
+    dep_ref: object, by_name: dict[str, list[dict[str, Any]]]
 ) -> str | None:
     """Return ``name==version`` for one entry of the root package's own
     ``dependencies`` list, or ``None`` when it can't be resolved to a

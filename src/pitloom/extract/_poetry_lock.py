@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from pitloom.extract._lock_common import (
     is_usable_version,
@@ -78,7 +77,7 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
 _NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
 
 
-def _pinned_dep_for_package(pkg: Any) -> str | None:
+def _pinned_dep_for_package(pkg: object) -> str | None:
     """Return ``name==version`` for one ``[[package]]`` table entry, or
     ``None`` when it's malformed, not in the ``main`` group, or sourced
     from a non-PyPI location that ``name==version`` can't represent.
@@ -111,7 +110,7 @@ def _pinned_dep_for_package(pkg: Any) -> str | None:
         return None
     source = pkg.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None
-    if source_type in _NON_PEP508_SOURCE_TYPES:
+    if isinstance(source_type, str) and source_type in _NON_PEP508_SOURCE_TYPES:
         warn_non_registry_source("poetry.lock", name, source_type)
         return None
     return f"{name}=={version}"

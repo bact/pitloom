@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
@@ -96,7 +95,7 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str]:
     return dependencies
 
 
-def _pinned_dep_for_package(name: Any, entry: Any) -> str | None:
+def _pinned_dep_for_package(name: object, entry: object) -> str | None:
     """Return ``name==version`` for one ``"default"``-section entry, or
     ``None`` when it's malformed, non-registry-sourced, or its
     ``version`` isn't a single exact ``==`` specifier."""
@@ -124,7 +123,7 @@ def _pinned_dep_for_package(name: Any, entry: Any) -> str | None:
     return f"{name}=={pinned_version}"
 
 
-def _exact_pinned_version(name: str, version: Any) -> str | None:
+def _exact_pinned_version(name: str, version: object) -> str | None:
     """Return the bare version string when *version* is a single exact
     ``==`` PEP 440 specifier with no wildcard (e.g. ``"==2.31.0"`` ->
     ``"2.31.0"``), or ``None`` (with a ``WARNING:``) when it's missing,

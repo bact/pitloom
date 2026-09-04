@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -184,7 +184,8 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   URL-based line disqualifies the whole file too, even one that looks
   like a tagged release; see [lock-file-cascade.md](../implementation/lock-file-cascade.md)
   for the PEP 508/440 reasoning). This closes out
-  **"Remaining lock formats as a resolved-dependency source"**:
+  **"Remaining lock formats as a resolved-dependency source"**
+  ([#208](https://github.com/bact/pitloom/pull/208)):
   `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned
   `requirements.txt` all now feed `ProjectMetadata.locked_dependencies`
   via one shared priority cascade. See
