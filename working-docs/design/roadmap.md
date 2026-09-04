@@ -178,23 +178,19 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   dispatch path, not just the `pyproject.toml` one, since `Pipfile.lock`
   predates PEP 621 almost entirely in real projects. See
   [lock-file-cascade.md](../implementation/lock-file-cascade.md).
-- [ ] **Remaining lock formats as a resolved-dependency source**
-  (`pixi.lock`, `conda-lock.yml`, pinned `requirements.txt`) -- `loom
-  project` still records only the declared version specifier from
-  `pyproject.toml [project] dependencies`
-  (`normalize_dependency_specifier`, `src/pitloom/extract/_pyproject.py:220`,
-  e.g. `requests>=2.0`) for a project with none of the five already-shipped
-  lock formats present, never a concrete resolved version. Parsing one
-  when present would let a Source SBOM carry the actual pinned version a
-  build will use, not just the declared range -- closer to what CISA's
-  Source SBOM guidance expects. `pylock.toml`/`uv.lock`/`poetry.lock`/
-  `pdm.lock`/`Pipfile.lock` establish the pattern (additive
-  transitive-only edges, `completeness` tagging, source-stage-only
-  scoping, one shared priority cascade); each further format added
-  needs its own slot in that same priority order and a provenance
-  `method` tag. See [lock-files.md](./lock-files.md) for the broader
-  multi-format extraction-priority roadmap (`pixi.lock`,
-  `conda-lock.yml`) this item now defers to.
+- [x] **pinned `requirements.txt`** -- done (2026-09-05): the lowest-
+  ranked cascade entry, and the only one that isn't a real lock file --
+  used only when *every* real line is already an exact `==` pin (a
+  URL-based line disqualifies the whole file too, even one that looks
+  like a tagged release; see [lock-file-cascade.md](../implementation/lock-file-cascade.md)
+  for the PEP 508/440 reasoning). This closes out
+  **"Remaining lock formats as a resolved-dependency source"**:
+  `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned
+  `requirements.txt` all now feed `ProjectMetadata.locked_dependencies`
+  via one shared priority cascade. See
+  [lock-file-cascade.md](../implementation/lock-file-cascade.md) and
+  [lock-files.md](./lock-files.md) (`pixi.lock`/`conda-lock.yml` remain
+  future work there, Phase 2).
 
 ### PEP 770 / embed-wheel
 

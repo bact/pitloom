@@ -30,7 +30,12 @@ Each `<format>/<project>-<version>/` directory holds:
   or `requirements.txt`), committed as plain text.
 - Occasionally a third file the metadata file itself references (e.g.
   `snowflake-cli`'s `LICENSE`, required because its `pyproject.toml`
-  declares `license = { file = "LICENSE" }`).
+  declares `license = { file = "LICENSE" }`; `home-assistant-core`'s
+  `LICENSE.md` and `homeassistant/backports/LICENSE.Python`, required
+  because its `pyproject.toml` declares two
+  `project.license-files` glob patterns that
+  `StandardMetadata.from_pyproject()` validates actually match a real
+  file, unrelated to what this fixture is testing).
 
 No sdist archive, no `.git` history, no source code -- these fixtures
 exist only to exercise `pitloom.extract.project.read_project()`'s lock
@@ -119,6 +124,20 @@ artifact.
   lock has several real instances of this (`httpx`, `coverage`,
   `mkdocstrings`, `hishel`); `unearth`'s doesn't, so together they cover
   both the dedup path and the plain case.
+- **`home-assistant-core`'s `requirements.txt` is the reject case, not
+  the accept case.** Its real root `requirements.txt` mixes exact pins
+  (`aiodns==4.0.4`) with range specifiers (`certifi>=2021.5.30`) and a
+  leading `-c homeassistant/package_constraints.txt` option line --
+  either alone disqualifies the whole file under
+  `extract_pinned_requirements_dependencies()`'s all-or-nothing policy,
+  so `locked_dependencies` resolves to `[]` for this fixture, on
+  purpose. No real, cleanly-licensed, fully-`==`-pinned root
+  `requirements.txt` was found during research (see
+  `working-docs/implementation/lock-file-cascade.md` for the candidates
+  checked and ruled out) -- the accept path is instead covered by small,
+  synthetic, inline content in `tests/extract/test_requirements_txt.py`
+  itself, per this directory's own "synthetic content isn't vendored
+  here" convention (see the top of this file).
 
 ## Fixtures
 
@@ -137,7 +156,4 @@ artifact.
 | `pdm.lock` | [frostming/unearth](https://github.com/frostming/unearth) | 0.18.3 | MIT | GitHub tag `0.18.3` | GitHub tag `0.18.3` |
 | `Pipfile.lock` | [psf/requests-html](https://github.com/psf/requests-html) | 0.10.0 | MIT | GitHub tag `v0.10.0` (`setup.py`) | GitHub tag `v0.10.0` |
 | `Pipfile.lock` | [kennethreitz/responder](https://github.com/kennethreitz/responder) | 2.0.0 | Apache-2.0 | GitHub tag `v2.0.0` (`setup.py`) | GitHub tag `v2.0.0` |
-
-Pinned `requirements.txt` fixtures land in their own follow-up change,
-alongside its extractor -- see `working-docs/design/roadmap.md`'s
-"Remaining lock formats as a resolved-dependency source" item.
+| `requirements.txt` (reject case) | [home-assistant/core](https://github.com/home-assistant/core) | 2026.9.0 | Apache-2.0 | GitHub tag `2026.9.0` | GitHub tag `2026.9.0` |

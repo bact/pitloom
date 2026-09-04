@@ -42,9 +42,21 @@ exactly-pinned entries.
 | 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` dev/extra groups). |
 | 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only. |
 | 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`). A package whose resolved `version` isn't a single exact `==` pin is skipped, not guessed at. |
+| 6 (lowest) | -- | pinned `requirements.txt` | Not a real lock file -- only used when *every* line in the file is already an exact `==` pin. If even one line is unpinned, ranged, a pip option (`-e`, `-r`, `--hash`, ...), a URL-based requirement (even one that looks like it points at a tagged release), or one package name is pinned to two conflicting versions, the **whole file** is skipped, not just that line -- see below. |
 
-Support for a fully pinned `requirements.txt` is planned, ranked below
-the formats above.
+`requirements.txt`'s entry is tagged `Method: pinned_requirements` in
+its provenance annotation (see "How to tell which source was used"
+below), not `Method: resolved_lockfile` like every format above it --
+it's the one source here that isn't a real lock file, just a list of
+lines that happen to already be fully pinned.
+
+**A URL-based `requirements.txt` line is never treated as a version
+pin, even when the URL looks like it points at a tagged release** (e.g.
+`name @ https://github.com/org/repo/archive/refs/tags/v2.31.0.zip`). A
+git tag or release filename is an arbitrary string with no guaranteed
+relationship to the package's real, normalized version -- Pitloom
+doesn't fetch the URL to check, so a line like that disqualifies the
+whole file the same as an unpinned or ranged one would.
 
 **Only the single highest-priority lock file present is used.** If more
 than one lock file exists in the same project directory (uncommon, but

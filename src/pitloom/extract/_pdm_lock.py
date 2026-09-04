@@ -29,11 +29,10 @@ different versions" case. The same package name *can* still appear more
 than once, but only to record separate per-extra variants (e.g. a bare
 ``httpx`` entry alongside an ``httpx`` entry with ``extras = ["socks"]``)
 that always agree on ``version`` -- collapsed here via
-:func:`pitloom.extract._lock_common.index_packages_by_name`, the same
-helper ``_uv_lock.py`` uses for its (genuinely ambiguous) case. Only a
-name whose entries actually *disagree* on version is treated as
-ambiguous and skipped, matching ``uv.lock``'s "don't guess" policy for
-that case.
+:func:`pitloom.extract._lock_common.group_versions_by_canonical_name`,
+also shared with :mod:`pitloom.extract._requirements_txt`. Only a name
+whose entries actually *disagree* on version is treated as ambiguous and
+skipped, matching ``uv.lock``'s "don't guess" policy for that case.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ from typing import Any
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
-    index_packages_by_name,
+    group_versions_by_canonical_name,
     is_usable_version,
     load_lock_toml,
     warn_non_registry_source,
@@ -137,17 +136,18 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str]:
         if pkg is not None
     ]
 
+    pairs = [(pkg["name"], pkg["version"]) for pkg in default_group_packages]
+
     dependencies: list[str] = []
-    for name, entries in index_packages_by_name(default_group_packages).items():
-        versions = {entry["version"] for entry in entries}
-        if len(versions) > 1:
+    for group in group_versions_by_canonical_name(pairs).values():
+        name, version = group[0]
+        conflicting_versions = {v for _, v in group}
+        if len(conflicting_versions) > 1:
             log.warning(
-                "Skipping pdm.lock entry %r: %d conflicting resolved "
-                "versions present (%s)",
+                "Skipping pdm.lock entry %r: pinned to conflicting versions (%s)",
                 name,
-                len(versions),
-                ", ".join(sorted(versions)),
+                ", ".join(sorted(conflicting_versions)),
             )
             continue
-        dependencies.append(f"{name}=={entries[0]['version']}")
+        dependencies.append(f"{name}=={version}")
     return dependencies

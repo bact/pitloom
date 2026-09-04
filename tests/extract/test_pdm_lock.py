@@ -193,6 +193,43 @@ def test_same_name_same_version_duplicate_entries_deduped() -> None:
         assert extract_pdm_lock_dependencies(tmp_path) == ["httpx==0.28.1"]
 
 
+def test_same_name_different_casing_same_version_deduped() -> None:
+    """Grouping compares PEP 503-canonicalized names, so a name that
+    happens to be spelled differently across entries still collapses
+    when the versions agree."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "Httpx"\nversion = "0.28.1"\n'
+            'groups = ["default"]\n\n'
+            '[[package]]\nname = "httpx"\nversion = "0.28.1"\n'
+            'groups = ["default"]\n',
+        )
+
+        assert extract_pdm_lock_dependencies(tmp_path) == ["Httpx==0.28.1"]
+
+
+def test_same_name_different_casing_conflicting_versions_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "Httpx"\nversion = "1.0.0"\n'
+            'groups = ["default"]\n\n'
+            '[[package]]\nname = "httpx"\nversion = "2.0.0"\n'
+            'groups = ["default"]\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pdm_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "pinned to conflicting versions" in caplog.text
+
+
 def test_same_name_conflicting_versions_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -212,7 +249,7 @@ def test_same_name_conflicting_versions_skipped_and_warns(
             result = extract_pdm_lock_dependencies(tmp_path)
 
         assert not result
-        assert "2 conflicting resolved versions" in caplog.text
+        assert "pinned to conflicting versions" in caplog.text
 
 
 # --- read_project() cascade integration -----------------------------------

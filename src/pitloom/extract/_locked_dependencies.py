@@ -40,6 +40,7 @@ from pitloom.extract._lock_common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
 from pitloom.extract._pipfile_lock import extract_pipfile_lock_dependencies
 from pitloom.extract._pylock import extract_pylock_dependencies
+from pitloom.extract._requirements_txt import extract_pinned_requirements_dependencies
 from pitloom.extract._uv_lock import extract_uv_lock_dependencies
 
 log = logging.getLogger(__name__)
@@ -92,6 +93,11 @@ _LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
         "Pipfile.lock",
         _ignore_expected_name(extract_pipfile_lock_dependencies),
         "resolved_lockfile",
+    ),
+    (
+        "requirements.txt",
+        _ignore_expected_name(extract_pinned_requirements_dependencies),
+        "pinned_requirements",
     ),
 ]
 

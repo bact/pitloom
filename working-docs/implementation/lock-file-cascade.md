@@ -30,10 +30,11 @@ bespoke "extract, check if a result is already set, override with a
 `_apply_pylock_dependencies()`, since deleted, for the latter). That
 pattern doesn't scale to `uv.lock`, `pdm.lock`, `Pipfile.lock`, and
 pinned `requirements.txt` landing on top -- five near-identical
-bespoke functions is exactly the "pattern hand-copied across 3+ call
-sites drifts" problem this repo's own conventions warn about. This
-module (`src/pitloom/extract/_locked_dependencies.py`) replaces every
-new format's would-be bespoke function with one shared, ordered cascade.
+bespoke functions would have been exactly the "pattern hand-copied
+across 3+ call sites drifts" problem this repo's own conventions warn
+about. This module (`src/pitloom/extract/_locked_dependencies.py`)
+replaces every new format's would-be bespoke function with one shared,
+ordered cascade -- all six formats now registered in it.
 
 ## The cascade
 
@@ -58,8 +59,11 @@ _LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
         _ignore_expected_name(extract_pipfile_lock_dependencies),
         "resolved_lockfile",
     ),
-    # pinned requirements.txt lands here as its own extractor ships --
-    # see roadmap.md.
+    (
+        "requirements.txt",
+        _ignore_expected_name(extract_pinned_requirements_dependencies),
+        "pinned_requirements",
+    ),
 ]
 
 
@@ -80,6 +84,14 @@ of them has. `apply_locked_dependencies()` tries each extractor-bearing
 entry in priority order (highest first) and applies the first non-empty
 result, in place, onto `metadata.locked_dependencies` and
 `metadata.provenance["locked_dependencies"]`.
+
+Every entry's `Method` tag is `"resolved_lockfile"` except
+`requirements.txt`'s own `"pinned_requirements"` -- it's not a real
+lock file (no resolver metadata, no hashes guaranteed), so its
+provenance string reads differently on purpose, letting a reader of the
+generated SBOM tell "a resolver actually produced this" from "this
+merely happened to already be a fully pinned list" -- see
+[docs/dependency-sources.md](../../docs/dependency-sources.md).
 
 **`poetry.lock` has no extractor here (`None`, `None`), but it *is* in
 the table.** It's still applied earlier, gated inside
@@ -106,9 +118,9 @@ beats tool-specific; a real resolver lock beats a merely-pinned file):
 3. `poetry.lock` (via `_try_read_poetry()`, not this cascade -- see above)
 4. `pdm.lock`
 5. `Pipfile.lock` -- JSON, not TOML; see its own notes below.
-6. pinned `requirements.txt` -- weakest signal; only usable when every
-   line is an exact `==` pin (see that format's own implementation
-   notes once it lands).
+6. pinned `requirements.txt` -- weakest signal, lowest rank; not a real
+   lock file at all, only usable when every line is already an exact
+   `==` pin. See its own notes below.
 
 ## Why `poetry.lock` needs a fixed rank, not just "runs first"
 
@@ -136,11 +148,11 @@ confirms the higher-ranked entries' behaviour didn't change.
 
 **Any format ranked below `poetry.lock` needs no extra code for this**
 -- the same generic rank check covers it once it's added to
-`_LOCK_SOURCES` at its documented position; `pdm.lock` and
-`Pipfile.lock` both confirmed this when they landed, and pinned
-`requirements.txt` (rank 6, lowest) will too. Only a format that would
-need to be inserted *around* an existing entry (unlikely, given the
-order above is already settled) would need to re-verify this logic.
+`_LOCK_SOURCES` at its documented position; `pdm.lock`, `Pipfile.lock`,
+and pinned `requirements.txt` (rank 6, lowest) all confirmed this when
+they landed. Only a format that would need to be inserted *around* an
+existing entry (unlikely, given the order above is already settled)
+would need to re-verify this logic.
 
 ## Per-format extraction notes
 
@@ -180,8 +192,9 @@ one entry" shape, but for a different, harmless reason: PDM records a
 separate `[[package]]` entry per requested extra variant of a package
 (e.g. a bare `httpx` entry alongside one with `extras = ["socks"]`),
 always agreeing on `version` -- unlike `uv.lock`'s genuinely conflicting
-duplicates. It reuses `index_packages_by_name()` (see the next section)
-to group entries by name, then only treats a name as ambiguous (skip,
+duplicates. It uses `group_versions_by_canonical_name()` (see "Sharing
+code across formats" below) to group its `(name, version)` pairs by
+PEP 503-canonicalized name, then only treats a name as ambiguous (skip,
 `WARNING:`) when its entries actually *disagree* on `version`; entries
 that agree are collapsed to one `name==version`, not two.
 
@@ -199,6 +212,59 @@ an unparseable string) is skipped with a `WARNING:`, the same
 `groups`-style per-package tag the way `poetry.lock`/`pdm.lock` do;
 instead the whole top level splits into `"default"` (included) and
 `"develop"` (excluded) sections.
+
+`_requirements_txt.py` is the one format that isn't a real lock file at
+all -- a `requirements.txt` is just lines a human or `pip freeze` wrote,
+with no resolver metadata guaranteed. Its policy is **all-or-nothing**:
+every real dependency line must already be a single exact `==` pin, or
+the *entire file* is ignored with one `WARNING:` naming the first
+disqualifying line (an option line like `-e`/`-r`/`--hash`, an unpinned
+or ranged specifier, or a malformed line) -- never partially included,
+since a subset of a `requirements.txt` carries no more confidence than
+the subset itself would on its own. This is why it's ranked lowest and
+tagged `"pinned_requirements"` rather than `"resolved_lockfile"` (see
+above). Unlike `pdm.lock`/`uv.lock`, there's no `[[package]]`-style
+table to group by name -- so the extractor collects every line's
+`(name, version)` pair first, then feeds them to the same
+`group_versions_by_canonical_name()` helper `_pdm_lock.py` uses, once
+all lines have parsed: a name repeating with agreeing versions
+collapses to one entry, a genuine conflict rejects the whole file. The
+grouping compares PEP 503-canonicalized names, not the literal spelling
+on each line -- a hand-written file mixing `Flask==1.0` and
+`flask==2.0` is a real conflict between two spellings of one PyPI
+package, not two different packages.
+
+Two pip file-format quirks are handled before per-line parsing, both
+matching pip's own preprocessing: a leading UTF-8 BOM (`encoding=
+"utf-8-sig"` instead of `"utf-8"`) and backslash line-continuation
+(`_join_continuation_lines()` merges a physical line ending in `\` with
+the next before splitting on `#`). Continuation-joining doesn't extend
+to `pip-compile --generate-hashes` output specifically -- a joined line
+still carries `--hash=...` tokens, which aren't valid PEP 508 syntax
+and correctly disqualify the file the same as any other malformed
+line, just for that reason instead of failing on the raw backslash.
+
+**A URL-based requirement line (`name @ https://...`, or the legacy
+`git+https://...#egg=name` pip also accepts) always disqualifies, even
+one that looks like it points at a tagged release** (e.g.
+`.../archive/refs/tags/v2.31.0.zip`). This was an explicit design
+question, not an oversight: PEP 508 defines a URL requirement as a
+*direct reference*, a wholly separate concept from a PEP 440 version
+specifier -- neither spec defines how to derive a normalized version
+from a URL. A git tag or filename that merely looks version-shaped is
+an arbitrary string the maintainer chose, with no guarantee it
+round-trips to a real PEP 440 version (capitalization, a leading `v`,
+a non-version tag like `stable`, ...). Confirming the real version
+would mean fetching the URL and inspecting the installed package's own
+metadata -- against this repo's "prevent excessive network access"
+principle -- and every sibling lock format already skips its own
+VCS/path/URL-sourced entries the same way, never guessing from context.
+So this format doesn't special-case a release-shaped URL either.
+`packaging.requirements.Requirement.url` being non-`None` catches the
+PEP 508 `name @ url` form directly; the legacy `git+...`/bare-URL forms
+pip also accepts aren't valid PEP 508 at all, so `Requirement()` itself
+raises `InvalidRequirement` for them -- caught the same way as any other
+malformed line, still disqualifying, just via a different message.
 
 ## Sharing code across formats (`_lock_common.py`)
 
@@ -218,10 +284,13 @@ similar in spirit:
   `WARNING:`, the one shape TOML's grammar rules out for
   `load_lock_toml()` but JSON doesn't), different underlying
   `json`/`tomllib` call.
-- **Grouping a flat package list by name.** First written for
-  `_uv_lock.py`'s ambiguity check, then reused as-is by `_pdm_lock.py`'s
-  own (milder) version of the same check -- see above. Lives as
-  `pitloom.extract._lock_common.index_packages_by_name()`.
+- **Grouping a flat package list by name.** `_uv_lock.py`'s ambiguity
+  check groups full `[[package]]` table entries by their raw `name`
+  field -- `pitloom.extract._lock_common.index_packages_by_name()`.
+  `_pdm_lock.py` and `_requirements_txt.py` need the narrower "group
+  just a `(name, version)` pair by *canonicalized* name" shape instead
+  (their conflict check has to treat `Flask`/`flask` as the same
+  package) -- `pitloom.extract._lock_common.group_versions_by_canonical_name()`.
 - **Validating a `version` field is a non-empty string.** `not
   isinstance(version, str) or not version` existed independently in all
   five extractors before being factored into
@@ -232,11 +301,25 @@ similar in spirit:
 - **The non-registry-source `WARNING:` message.** `"Skipping <lock
   file> entry %r: %s-sourced dependencies cannot be represented as a
   PEP 508 specifier"` was copy-pasted, wording-identical, into all five
-  extractors before being factored into
+  extractors that have this concept (every format except
+  `requirements.txt`, whose URL check is shaped differently -- see
+  above) before being factored into
   `pitloom.extract._lock_common.warn_non_registry_source(lock_file,
   name, source_key)`. Each extractor still does its own lookup of
   *which* key triggered it (see below) and only calls this once it has
   the answer.
+- **Judging whether a specifier is a single exact `==` pin.**
+  `_pipfile_lock.py` and `_requirements_txt.py` both need this --
+  Pipfile.lock's `version` field and a `requirements.txt` line's
+  specifier are both full PEP 440 specifier strings, not bare version
+  numbers the way every TOML-based format's `version` field is. Lives
+  as `pitloom.extract._lock_common.single_exact_pin(specifier_set)`,
+  taking an already-built `SpecifierSet` rather than a raw string --
+  each caller parses the raw string itself (`SpecifierSet(...)` for
+  Pipfile.lock, `Requirement(...).specifier` for `requirements.txt`)
+  and catches its own parse failure with its own `WARNING:` wording,
+  since the two call sites want different messages for "unparseable" vs.
+  "parseable but not a single exact pin."
 
 What's deliberately **not** shared: the per-entry lookup for which key
 marks a non-registry source, and what the `groups`/`dependencies`
@@ -263,9 +346,10 @@ project checked while sourcing test fixtures for this cascade
 (`requests-html`, `responder` pre-`v3.0.0`) is `setup.py`-only, no
 `pyproject.toml` -- so a cascade wired only inside `read_pyproject()`
 would never run for the realistic case those two formats actually show
-up in. Confirmed once `Pipfile.lock` actually landed:
+up in. Confirmed once both landed:
 `tests/extract/test_pipfile_lock.py::test_read_project_populates_locked_dependencies_from_setup_py_only`
-exercises exactly this path against a `setup.py`-only project directory.
+and `tests/extract/test_requirements_txt.py::test_read_project_populates_locked_dependencies_from_setup_py_only`
+each exercise this path against a `setup.py`-only project directory.
 
 `apply_locked_dependencies()` is called once, right before each of
 `read_project()`'s three directory-based `return` statements (the
@@ -299,9 +383,8 @@ uniformly regardless of which metadata source won.
 
 `compute_doc_uuid()` (`src/pitloom/core/models.py`) folds
 `locked_dependencies` (the resolved dependency *content*) into its seed,
-but originally not *which source produced it*. With five lock/pin
-formats now cascading instead of two (a sixth, pinned
-`requirements.txt`, still to come), two different formats resolving
+but originally not *which source produced it*. With six lock/pin
+formats now cascading instead of two, two different formats resolving
 to an identical dependency set for a small project became a real,
 checkable collision risk: two runs -- one with only `poetry.lock`
 present, one with only `pylock.toml` present -- that happen to resolve
@@ -323,9 +406,11 @@ unaffected -- purely additive.
    malformed or non-registry-sourced. Use `_lock_common.load_lock_toml()`
    to load the file (or `_lock_common.load_lock_json()` for a JSON-format
    lock file -- `_pipfile_lock.py` is the precedent), and (if the format
-   can resolve the same name more than once, the way `uv.lock`/`pdm.lock`
-   can) `_lock_common.index_packages_by_name()` to group entries before
-   deciding whether that's ambiguous. Only add a second parameter to the
+   can resolve the same name more than once, the way `uv.lock`/`pdm.lock`/
+   `requirements.txt` can) `_lock_common.index_packages_by_name()` (full
+   `[[package]]`-style entries) or `_lock_common.group_versions_by_canonical_name()`
+   (bare `(name, version)` pairs) to group entries before deciding
+   whether that's ambiguous. Only add a second parameter to the
    extractor itself if it genuinely needs `expected_name` for
    disambiguation the way `uv.lock` does (see the cascade code block
    above) -- otherwise keep the simpler single-`project_dir` signature

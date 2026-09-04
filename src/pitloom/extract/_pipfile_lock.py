@@ -48,6 +48,7 @@ from pitloom.extract._lock_common import (
     find_first_present_key,
     is_usable_version,
     load_lock_json,
+    single_exact_pin,
     warn_non_registry_source,
 )
 
@@ -139,7 +140,7 @@ def _exact_pinned_version(name: str, version: Any) -> str | None:
         )
         return None
     try:
-        specifiers = list(SpecifierSet(version))
+        specifier_set = SpecifierSet(version)
     except InvalidSpecifier:
         log.warning(
             "Skipping Pipfile.lock entry %r: %r isn't a valid PEP 440 specifier",
@@ -147,11 +148,8 @@ def _exact_pinned_version(name: str, version: Any) -> str | None:
             version,
         )
         return None
-    if (
-        len(specifiers) != 1
-        or specifiers[0].operator != "=="
-        or "*" in specifiers[0].version
-    ):
+    pinned_version = single_exact_pin(specifier_set)
+    if pinned_version is None:
         log.warning(
             "Skipping Pipfile.lock entry %r: 'version' %r isn't a single "
             "exact '==' pin",
@@ -159,4 +157,4 @@ def _exact_pinned_version(name: str, version: Any) -> str | None:
             version,
         )
         return None
-    return specifiers[0].version
+    return pinned_version

@@ -6,17 +6,14 @@
 """Shared helpers for lock/pin file extractors
 (:mod:`pitloom.extract._poetry_lock`, :mod:`pitloom.extract._pylock`,
 :mod:`pitloom.extract._uv_lock`, :mod:`pitloom.extract._pdm_lock`,
-:mod:`pitloom.extract._pipfile_lock`, and future formats registered in
+:mod:`pitloom.extract._pipfile_lock`, :mod:`pitloom.extract._requirements_txt`,
+and future formats registered in
 :mod:`pitloom.extract._locked_dependencies`).
 
-Factored out once the same two steps -- "load the lock file, handling
-absence/parse errors the same way every format does" and "group a
-lock's flat package-entry list by name, to detect a name resolved to
-more than one version" -- started being hand-copied into each new
-extractor. Per this repo's "a pattern hand-copied across 3+ call sites
-drifts" convention, this module is the one place both now live; only
-extraction logic genuinely specific to one format (its own field names,
-its own group/source-key conventions) stays in that format's own module.
+Every extraction step genuinely specific to one format (its own field
+names, its own group/source-key conventions) stays in that format's own
+module; only what's shared across two or more formats -- loading the
+lock file, grouping entries by name, judging a specifier -- lives here.
 """
 
 from __future__ import annotations
@@ -27,6 +24,9 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
+from packaging.specifiers import SpecifierSet
+from packaging.utils import canonicalize_name
+
 from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
 
 log = logging.getLogger(__name__)
@@ -34,10 +34,12 @@ log = logging.getLogger(__name__)
 __all__ = [
     "POETRY_LOCK_SOURCE_NAME",
     "find_first_present_key",
+    "group_versions_by_canonical_name",
     "index_packages_by_name",
     "is_usable_version",
     "load_lock_json",
     "load_lock_toml",
+    "single_exact_pin",
     "warn_non_registry_source",
 ]
 
@@ -137,16 +139,67 @@ def index_packages_by_name(packages: list[Any]) -> dict[str, list[dict[str, Any]
 def is_usable_version(version: Any) -> bool:
     """Return whether *version* is a non-empty string -- the "can this
     become a real ``name==version`` pin" check every lock/pin extractor
-    (``poetry.lock``, ``pylock.toml``, ``uv.lock``, ``pdm.lock``) applies
-    to a ``[[package]]`` entry's ``version`` field before using it.
-    Factored out once four independent copies of ``not
-    isinstance(version, str) or not version`` existed, per this repo's
-    "a pattern hand-copied across 3+ call sites drifts" convention --
-    each call site still logs its own ``WARNING:`` when this returns
+    applies to a ``[[package]]`` entry's ``version`` field before using
+    it. Each call site still logs its own ``WARNING:`` when this returns
     ``False``, since the message wording (which field, which format) is
     genuinely format-specific.
     """
     return isinstance(version, str) and bool(version)
+
+
+def group_versions_by_canonical_name(
+    pairs: Iterable[tuple[str, str]],
+) -> dict[str, list[tuple[str, str]]]:
+    """Group ``(name, version)`` pairs by PEP 503-canonicalized *name*,
+    preserving each pair's original literal name/version and file order
+    both across and within groups.
+
+    Comparing canonicalized (lowercased, ``-``/``_``/``.``-folded) names
+    is required, not optional: ``Flask==1.0`` and ``flask==2.0`` name the
+    same PyPI package under PEP 503, so a caller checking "does this name
+    resolve to more than one version" must group them together or the
+    check silently never fires for a mixed-case duplicate.
+
+    A caller decides what a multi-entry group means for its own format:
+    :mod:`pitloom.extract._pdm_lock` collapses a group to one entry when
+    every version agrees (its per-extra duplicate records always do) and
+    skips just that name otherwise; :mod:`pitloom.extract._requirements_txt`
+    treats any group with more than one distinct version as disqualifying
+    its whole file, since it has no per-format definition of "expected
+    duplication" the way an extra-variant lock entry does.
+    """
+    by_canonical: dict[str, list[tuple[str, str]]] = {}
+    for name, version in pairs:
+        by_canonical.setdefault(canonicalize_name(name), []).append((name, version))
+    return by_canonical
+
+
+def single_exact_pin(specifier_set: SpecifierSet) -> str | None:
+    """Return the bare version when *specifier_set* contains exactly one
+    non-wildcard ``==`` specifier (e.g. ``SpecifierSet("==2.31.0")`` ->
+    ``"2.31.0"``), or ``None`` for anything looser than one exact pin --
+    a range, more than one specifier, or a prefix-match wildcard like
+    ``"==2.31.*"`` (``packaging.specifiers.Specifier`` reports that as
+    operator ``"=="`` too, but it pins a *range* of versions, not one
+    exact release).
+
+    Doesn't itself construct *specifier_set* from a raw string --
+    :mod:`pitloom.extract._pipfile_lock` and
+    :mod:`pitloom.extract._requirements_txt` both need a raw-string
+    parse step first, and each wants different ``WARNING:`` wording for
+    "unparseable" vs. "parseable but not a single exact pin" -- so
+    parsing (and catching ``packaging.specifiers.InvalidSpecifier``)
+    stays the caller's job; this function only judges an already-built
+    ``SpecifierSet``.
+    """
+    specifiers = list(specifier_set)
+    if (
+        len(specifiers) != 1
+        or specifiers[0].operator != "=="
+        or "*" in specifiers[0].version
+    ):
+        return None
+    return specifiers[0].version
 
 
 def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None:
@@ -154,12 +207,10 @@ def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None
     (VCS, local path, archive/URL -- anything a bare ``name==version``
     pin can't represent), naming *lock_file* (e.g. ``"uv.lock"``),
     *name* (the package), and *source_key* (which non-registry marker
-    was found).
-
-    The exact wording was hand-copied identically into every extractor
-    (`_poetry_lock.py`, `_pylock.py`, `_uv_lock.py`, `_pdm_lock.py`,
-    `_pipfile_lock.py`) before being factored out here, per this repo's
-    "a pattern hand-copied across 3+ call sites drifts" convention.
+    was found). Shared by every extractor that has a non-registry-source
+    concept (`_poetry_lock.py`, `_pylock.py`, `_uv_lock.py`,
+    `_pdm_lock.py`, `_pipfile_lock.py`) so the wording stays identical
+    across formats.
     """
     log.warning(
         "Skipping %s entry %r: %s-sourced dependencies cannot be "

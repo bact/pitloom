@@ -16,6 +16,7 @@ import pytest
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
+    group_versions_by_canonical_name,
     index_packages_by_name,
     load_lock_toml,
 )
@@ -83,6 +84,32 @@ def test_index_packages_by_name_ignores_entries_with_missing_or_bad_name() -> No
 
 def test_index_packages_by_name_empty_list_returns_empty_dict() -> None:
     assert not index_packages_by_name([])
+
+
+def test_group_versions_by_canonical_name_groups_case_and_separator_variants() -> None:
+    """PEP 503 canonicalization folds case AND ``-``/``_``/``.`` runs --
+    both must land in the same group, not just a case-insensitive match."""
+    pairs = [
+        ("Flask", "2.0"),
+        ("flask", "2.0"),
+        ("python_dateutil", "2.9.0"),
+        ("python-dateutil", "2.9.0"),
+        ("idna", "3.7"),
+    ]
+
+    result = group_versions_by_canonical_name(pairs)
+
+    assert list(result.keys()) == ["flask", "python-dateutil", "idna"]
+    assert result["flask"] == [("Flask", "2.0"), ("flask", "2.0")]
+    assert result["python-dateutil"] == [
+        ("python_dateutil", "2.9.0"),
+        ("python-dateutil", "2.9.0"),
+    ]
+    assert result["idna"] == [("idna", "3.7")]
+
+
+def test_group_versions_by_canonical_name_empty_input_returns_empty_dict() -> None:
+    assert not group_versions_by_canonical_name([])
 
 
 def test_find_first_present_key_returns_first_match_in_key_order() -> None:

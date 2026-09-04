@@ -42,8 +42,8 @@ and this project adheres to
   file gets a `software_File` element at the real wheel's
   `.dist-info/licenses/` path and a `hasDeclaredLicense` relationship ([#207])
 - Add resolved-dependency parsing for `loom project`/`loom generate`
-  from `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, and
-  `Pipfile.lock`, more planned -- see [Dependency sources and
+  from `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`,
+  and a fully pinned `requirements.txt` -- see [Dependency sources and
   precedence](docs/dependency-sources.md)
 
 ### Fixed
