@@ -4,6 +4,7 @@
 
 - SBOM generator targeting Python/Hatchling ecosystem, outputting SPDX 3 JSON-LD.
 - Design docs: `working-docs/design/` -- future work, plans, sketches; may be discarded, not yet built.
+- **`roadmap.md` stays a summary, not a duplicate**: once a roadmap item's design/open-questions detail grows enough to warrant its own file under `working-docs/design/`, move the detail there and trim the `roadmap.md` bullet back to one-to-two lines plus a `See [doc.md](doc.md)` link. Don't leave full detail in both places -- one will drift from the other unnoticed.
 - Implementation docs and progress reports: `working-docs/implementation/` -- record of what WAS built: decisions made, why things are the way they are, paths considered and rejected in service of something that did get built, revisions. Not a user manual.
 - Rejected paths: `working-docs/archive/` -- evaluations of something wholesale rejected.
 - Test fixtures: `tests/fixtures/README.md`

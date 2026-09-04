@@ -562,12 +562,10 @@ than this pattern.
   input). Still not started: OpenSSF Scorecard, Hugging Face Hub and
   PyPI metadata sources, per-source enable/disable config.
   See [sbom-enrichment.md](sbom-enrichment.md).
-- [ ] **OSV.dev vulnerability lookup** (`--enrich-cve` or similar) -- ping
-  [OSV.dev](https://osv.dev)'s API to append known vulnerabilities
-  against generated Python dependencies. Static enrichment only (no
-  exploitability judgement) -- see VEX generation under Medium-term for
-  the follow-on triage step. Needs a caching/rate-limit design per
-  "Resource efficiency" in `AGENTS.md` before landing.
+- [ ] **OSV.dev vulnerability lookup** (`--enrich-cve` or similar) -- static
+  enrichment only (no exploitability judgement); VEX generation under
+  Medium-term is the follow-on triage step. See
+  [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md).
 
 ### Diagnostics / logging
 
