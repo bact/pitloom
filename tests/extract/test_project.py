@@ -128,6 +128,43 @@ def test_read_project_fallback_still_applies_lock_cascade(tmp_path: Path) -> Non
     )
 
 
+def test_read_project_fallback_preserves_already_resolved_poetry_lock(
+    tmp_path: Path,
+) -> None:
+    """Regression: `_try_read_poetry()` can resolve `poetry.lock`'s data
+    onto a name-less `ProjectMetadata` when `[tool.poetry]` itself fails
+    to parse (its own "skipping Poetry gap-fill, but still applying
+    poetry.lock's resolved dependencies" path). That empty name then
+    triggers this same setup.cfg/setup.py fallback branch, which used to
+    replace `metadata` wholesale via `read_setuptools()` -- silently
+    discarding poetry.lock's already-resolved `locked_dependencies` and
+    letting a lower-priority format (here `pdm.lock`) win the cascade in
+    its place with no "supersedes" note. The prior result must survive
+    the metadata swap."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.poetry]\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "setup.cfg").write_text(
+        "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
+    )
+    (tmp_path / "pdm.lock").write_text(
+        '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(tmp_path)
+
+    assert metadata.name == "real-pkg"
+    assert metadata.locked_dependencies == ["requests==2.31.0"]
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: poetry.lock | Method: resolved_lockfile"
+    )
+
+
 def test_read_project_build_system_only_pyproject_no_setuptools_fallback(
     tmp_path: Path,
 ) -> None:

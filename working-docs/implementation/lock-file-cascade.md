@@ -38,7 +38,7 @@ new format's would-be bespoke function with one shared, ordered cascade.
 ## The cascade
 
 ```python
-_LockExtractor = Callable[[Path], list[str]]
+_LockExtractor = Callable[[Path, str | None], list[str]]
 
 _LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
     ("pylock.toml", extract_pylock_dependencies, "resolved_lockfile"),
@@ -54,9 +54,17 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     ...
 ```
 
-Each entry pairs a source name, an extractor (`project_dir -> list[str]`
-of exact-pin PEP 508 strings, empty when absent/unusable -- the same
-signature convention `_poetry_lock.py`/`_pylock.py` already established),
+Each entry pairs a source name, an extractor matching the uniform
+`_LockExtractor` shape (`(project_dir, expected_name) -> list[str]` of
+exact-pin PEP 508 strings, empty when absent/unusable), and a
+provenance `Method` tag. Only `uv.lock`'s own extractor uses
+*expected_name* (to disambiguate a shared workspace lock's multiple
+local package entries without re-reading `pyproject.toml` a second
+time); `pylock.toml`'s and `pdm.lock`'s extractors keep their simpler,
+single-`project_dir` signature and are wrapped with
+`_ignore_expected_name()` when registered in `_LOCK_SOURCES` below,
+rather than widening every format's own signature for a need only one
+of them has,
 and a provenance `Method` tag. `apply_locked_dependencies()` tries each
 extractor-bearing entry in priority order (highest first) and applies
 the first non-empty result, in place, onto `metadata.locked_dependencies`

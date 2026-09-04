@@ -31,7 +31,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._lock_common import find_first_present_key, load_lock_toml
+from pitloom.extract._lock_common import (
+    find_first_present_key,
+    is_usable_version,
+    load_lock_toml,
+)
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +127,7 @@ def _pinned_dep_for_package(pkg: Any) -> str | None:
         )
         return None
     version = pkg.get("version")
-    if not isinstance(version, str) or not version:
+    if not is_usable_version(version):
         log.warning(
             "Skipping pylock.toml entry %r: missing or non-string 'version'",
             name,

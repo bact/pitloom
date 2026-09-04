@@ -45,6 +45,7 @@ from typing import Any
 from pitloom.extract._lock_common import (
     find_first_present_key,
     index_packages_by_name,
+    is_usable_version,
     load_lock_toml,
 )
 
@@ -104,7 +105,7 @@ def _default_group_package_or_none(pkg: Any) -> dict[str, Any] | None:
         return None
 
     version = pkg.get("version")
-    if not isinstance(version, str) or not version:
+    if not is_usable_version(version):
         log.warning(
             "Skipping pdm.lock entry %r: missing or non-string 'version'",
             name,

@@ -17,7 +17,7 @@ import logging
 from pathlib import Path
 
 from pitloom.core.config import PitloomConfig
-from pitloom.core.project import ProjectMetadata
+from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._locked_dependencies import apply_locked_dependencies
 from pitloom.extract._pyproject import read_pyproject
 from pitloom.extract._sdist import read_sdist
@@ -125,7 +125,32 @@ def read_project(
                 "instead of an empty pyproject.toml-only result",
                 pyproject_path,
             )
+            # read_pyproject() may have already resolved locked_dependencies
+            # from poetry.lock -- via _try_read_poetry()'s own "[tool.poetry]
+            # couldn't be parsed, but still apply poetry.lock's resolved
+            # dependencies" path, the exact case that leads here (an empty
+            # name with real poetry.lock data already attached). Never
+            # silently drop a real result just because metadata itself had
+            # to come from setup.cfg/setup.py instead: without this, a
+            # lower-priority lock/pin format could also silently win the
+            # cascade below in poetry.lock's place, since
+            # apply_locked_dependencies() would see no prior result at all
+            # on the replaced metadata.
+            #
+            # merge_project_metadata() (not a hand-rolled per-field
+            # carry-over) does this generically for every ProjectMetadata
+            # field, `name` always primary's (read_setuptools()'s -- the
+            # real resolved name) and `locked_dependencies`/`provenance`
+            # falling back to secondary's (the pre-swap `metadata`) when
+            # primary's own is empty -- the same mechanism already used
+            # for the analogous [tool.pitloom]-config carry-over just
+            # below, generalized so a future field needing the same
+            # treatment doesn't need a third hand-copied carry-over here.
+            pre_setuptools_metadata = metadata
             metadata, setuptools_pitloom_config = read_setuptools(project_path)
+            metadata = merge_project_metadata(
+                primary=metadata, secondary=pre_setuptools_metadata
+            )
             # [tool.pitloom] always lives in pyproject.toml, never
             # setup.cfg/setup.py -- keep the one read_pyproject() already
             # resolved from the real pyproject.toml unless it's untouched

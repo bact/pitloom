@@ -34,6 +34,7 @@ __all__ = [
     "POETRY_LOCK_SOURCE_NAME",
     "find_first_present_key",
     "index_packages_by_name",
+    "is_usable_version",
     "load_lock_toml",
 ]
 
@@ -97,20 +98,38 @@ def index_packages_by_name(packages: list[Any]) -> dict[str, list[dict[str, Any]
     return by_name
 
 
+def is_usable_version(version: Any) -> bool:
+    """Return whether *version* is a non-empty string -- the "can this
+    become a real ``name==version`` pin" check every lock/pin extractor
+    (``poetry.lock``, ``pylock.toml``, ``uv.lock``, ``pdm.lock``) applies
+    to a ``[[package]]`` entry's ``version`` field before using it.
+    Factored out once four independent copies of ``not
+    isinstance(version, str) or not version`` existed, per this repo's
+    "a pattern hand-copied across 3+ call sites drifts" convention --
+    each call site still logs its own ``WARNING:`` when this returns
+    ``False``, since the message wording (which field, which format) is
+    genuinely format-specific.
+    """
+    return isinstance(version, str) and bool(version)
+
+
 def find_first_present_key(
     mapping: Mapping[str, Any], keys: Iterable[str]
 ) -> str | None:
     """Return the first of *keys* (in order) that's a key of *mapping*,
     or ``None`` if none are.
 
-    Every non-registry-source check (``poetry.lock``'s ``source.type``
-    values, ``pylock.toml``'s top-level ``vcs``/``directory``/``archive``
-    keys, ``uv.lock``'s nested ``source.{key}``, ``pdm.lock``'s flat
-    ``git``/``path``/``url`` keys) reduces to this same "which
-    non-registry marker, if any, is present" lookup once the caller has
-    the right mapping and key tuple for its own format -- factored out so
-    a shared key list update (e.g. adding a newly-noticed key like
-    ``"url"``) can be a one-line change in one format's own key tuple
-    without also re-deriving this lookup itself at each call site.
+    Every *key-presence* non-registry-source check (``pylock.toml``'s
+    top-level ``vcs``/``directory``/``archive`` keys, ``uv.lock``'s
+    nested ``source.{key}``, ``pdm.lock``'s flat ``git``/``path``/``url``
+    keys) reduces to this same "which non-registry marker, if any, is
+    present" lookup once the caller has the right mapping and key tuple
+    for its own format -- factored out so a shared key list update (e.g.
+    adding a newly-noticed key like ``"url"``) can be a one-line change
+    in one format's own key tuple without also re-deriving this lookup
+    itself at each call site. ``poetry.lock``'s own non-registry check is
+    a different shape (single-field *value* membership on
+    ``source.type``, not presence of any of several keys) and doesn't
+    use this helper.
     """
     return next((key for key in keys if key in mapping), None)

@@ -27,7 +27,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._lock_common import load_lock_toml
+from pitloom.extract._lock_common import is_usable_version, load_lock_toml
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ def _pinned_dep_for_package(pkg: Any) -> str | None:
         return None
     name = pkg.get("name")
     version = pkg.get("version")
-    if not isinstance(name, str) or not name or not isinstance(version, str):
+    if not isinstance(name, str) or not name or not is_usable_version(version):
         log.warning(
             "Skipping malformed poetry.lock [[package]] entry: missing or "
             "non-string 'name'/'version' (name=%r, version=%r)",

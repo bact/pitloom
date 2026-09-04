@@ -148,6 +148,22 @@ def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None
         assert "malformed" in caplog.text.lower()
 
 
+def test_malformed_package_entry_empty_version_skipped() -> None:
+    """Regression: an entry with ``version = ""`` (a string, but empty)
+    used to pass the ``isinstance(version, str)`` check and produce an
+    invalid ``name==`` pin -- parity with ``_pylock.py``/``_uv_lock.py``/
+    ``_pdm_lock.py``, which all also reject an empty-string version."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "broken"\nversion = ""\n\n'
+            '[[package]]\nname = "complete-pkg"\nversion = "2.0.0"\n',
+        )
+
+        assert extract_poetry_lock_dependencies(tmp_path) == ["complete-pkg==2.0.0"]
+
+
 def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> None:
     """Regression: a malformed top-level ``package`` key (not a list) used
     to degrade to an empty list with zero logging."""

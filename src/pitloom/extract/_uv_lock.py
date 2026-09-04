@@ -52,6 +52,7 @@ from packaging.utils import canonicalize_name
 from pitloom.extract._lock_common import (
     find_first_present_key,
     index_packages_by_name,
+    is_usable_version,
     load_lock_toml,
 )
 
@@ -96,7 +97,7 @@ def _find_root_package(
         for pkg in packages
         if isinstance(pkg, dict)
         and isinstance(pkg.get("source"), dict)
-        and any(key in pkg["source"] for key in _ROOT_SOURCE_KEYS)
+        and find_first_present_key(pkg["source"], _ROOT_SOURCE_KEYS) is not None
     ]
     if not candidates:
         return None
@@ -189,7 +190,7 @@ def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
             )
             return None
     version = pkg.get("version")
-    if not isinstance(version, str) or not version:
+    if not is_usable_version(version):
         log.warning(
             "Skipping uv.lock entry %r: missing or non-string 'version'",
             name,
@@ -207,14 +208,27 @@ def _expected_project_name(project_dir: Path) -> str | None:
     data = load_lock_toml(project_dir / "pyproject.toml")
     if data is None:
         return None
-    name = data.get("project", {}).get("name")
+    project_table = data.get("project", {})
+    if not isinstance(project_table, dict):
+        return None
+    name = project_table.get("name")
     return name if isinstance(name, str) and name else None
 
 
-def extract_uv_lock_dependencies(project_dir: Path) -> list[str]:
+def extract_uv_lock_dependencies(
+    project_dir: Path, expected_name: str | None = None
+) -> list[str]:
     """Read ``uv.lock`` next to ``pyproject.toml`` and return the
     project's own main/runtime dependencies as exact-pin PEP 508
     strings.
+
+    *expected_name* disambiguates a shared uv workspace lock's multiple
+    local package entries (see :func:`_find_root_package`) -- pass the
+    caller's already-resolved :attr:`~pitloom.core.project.ProjectMetadata.name`
+    (``apply_locked_dependencies()`` always does) to avoid re-parsing
+    ``pyproject.toml`` a second time just for this. When omitted (e.g. a
+    caller invoking this extractor directly, outside the cascade), falls
+    back to reading it via :func:`_expected_project_name`.
 
     Returns an empty list when no ``uv.lock`` is present, it can't be
     parsed, or the project's own package entry can't be identified --
@@ -234,7 +248,9 @@ def extract_uv_lock_dependencies(project_dir: Path) -> list[str]:
         )
         return []
 
-    root = _find_root_package(packages, _expected_project_name(project_dir))
+    if expected_name is None:
+        expected_name = _expected_project_name(project_dir)
+    root = _find_root_package(packages, expected_name)
     if root is None:
         log.warning(
             "%s: no project package found (no 'editable'/'virtual' "

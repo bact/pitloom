@@ -45,7 +45,23 @@ log = logging.getLogger(__name__)
 
 __all__ = ["apply_locked_dependencies"]
 
-_LockExtractor = Callable[[Path], list[str]]
+_LockExtractor = Callable[[Path, str | None], list[str]]
+
+
+def _ignore_expected_name(extractor: Callable[[Path], list[str]]) -> _LockExtractor:
+    """Adapt a single-argument extractor to :data:`_LockExtractor`'s
+    uniform ``(project_dir, expected_name)`` shape.
+
+    Only ``uv.lock``'s extractor actually needs *expected_name* (to
+    disambiguate a shared workspace lock's multiple local package
+    entries -- see :func:`pitloom.extract._uv_lock.extract_uv_lock_dependencies`).
+    Rather than widen every extractor's own signature with a parameter
+    only one format uses, this adapter localizes the cascade's uniform-
+    call requirement to this one module, keeping each format's own
+    extractor signature as simple as its actual needs.
+    """
+    return lambda project_dir, _expected_name: extractor(project_dir)
+
 
 #: Full priority order (highest first) across every lock/pin source,
 #: including ``poetry.lock`` even though it has no extractor here (see
@@ -59,10 +75,18 @@ _LockExtractor = Callable[[Path], list[str]]
 #: for why this order was chosen (build-backend-agnostic and universal
 #: beats tool-specific; a real resolver lock beats a merely-pinned file).
 _LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
-    ("pylock.toml", extract_pylock_dependencies, "resolved_lockfile"),
+    (
+        "pylock.toml",
+        _ignore_expected_name(extract_pylock_dependencies),
+        "resolved_lockfile",
+    ),
     ("uv.lock", extract_uv_lock_dependencies, "resolved_lockfile"),
     (POETRY_LOCK_SOURCE_NAME, None, None),
-    ("pdm.lock", extract_pdm_lock_dependencies, "resolved_lockfile"),
+    (
+        "pdm.lock",
+        _ignore_expected_name(extract_pdm_lock_dependencies),
+        "resolved_lockfile",
+    ),
 ]
 
 
@@ -79,6 +103,16 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     format (``pdm.lock`` ranks below ``poetry.lock``) must never
     silently clobber a higher-priority result just because it happens
     to run later in this function's own loop.
+
+    Every extractor is called uniformly as ``extractor(project_dir,
+    metadata.name)`` -- ``metadata.name`` is already fully resolved by
+    the time this runs (see :func:`pitloom.extract.project.read_project`),
+    so passing it lets an extractor that needs it (currently only
+    ``uv.lock``'s workspace-root disambiguation) skip re-reading and
+    re-parsing ``pyproject.toml`` a second time just for that. Extractors
+    that don't need it (``pylock.toml``, ``pdm.lock``) keep their
+    simpler single-``project_dir`` signature and are wrapped with
+    :func:`_ignore_expected_name` in :data:`_LOCK_SOURCES` above instead.
 
     If *metadata* already carries a ``locked_dependencies`` result and a
     higher-or-equal-priority source here wins, that source replaces it
@@ -100,6 +134,20 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         ),
         None,
     )
+    if previous is not None and previous_rank is None:
+        # previous_source doesn't match any _LOCK_SOURCES entry -- a
+        # provenance-string source name has drifted from this table (a
+        # bug, not a real absence of a prior result). Without this,
+        # every remaining rank's override-guard below would silently
+        # never fire, letting even the lowest-priority format overwrite
+        # an unrecognized-but-real prior result with no warning at all.
+        log.warning(
+            "%s: previously-resolved locked_dependencies source %r doesn't "
+            "match any known lock source -- can't rank it, so any "
+            "cascade-tried format may override it",
+            project_dir,
+            previous_source,
+        )
 
     for rank, (source_name, extractor, method) in enumerate(_LOCK_SOURCES):
         if extractor is None:
@@ -109,7 +157,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             # none of them can win, so stop instead of scanning further.
             break
 
-        dependencies = extractor(project_dir)
+        dependencies = extractor(project_dir, metadata.name)
         if not dependencies:
             continue
 
