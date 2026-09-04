@@ -108,6 +108,7 @@ def compute_doc_uuid(
     dependencies: list[str],
     merkle_root: str | None = None,
     locked_dependencies: list[str] | None = None,
+    locked_dependencies_provenance: str | None = None,
 ) -> str:
     """Compute a deterministic UUIDv5 for the SPDX document.
 
@@ -118,12 +119,29 @@ def compute_doc_uuid(
     describing different dependency content. Omitted or empty leaves the
     seed byte-identical to a document with no locked dependencies at all,
     so every non-Poetry (and lock-less Poetry) document is unaffected.
+
+    *locked_dependencies_provenance* (the resolved
+    ``ProjectMetadata.provenance["locked_dependencies"]`` string, e.g.
+    ``"Source: pylock.toml | Method: resolved_lockfile"``) is folded in
+    too, alongside *locked_dependencies* itself: as more lock/pin formats
+    land in ``pitloom.extract._locked_dependencies``'s cascade, two
+    different formats can plausibly resolve to the identical dependency
+    set for a small
+    project -- e.g. a ``poetry.lock``-only run and a ``pylock.toml``-only
+    run of the same project landing on the same pins. Seeding on
+    dependency content alone would collide those two documents' UUIDs
+    despite their generated ``provenance["locked_dependencies"]`` fields
+    (and any override note) differing -- a real content difference the
+    seed is supposed to guard against. Omitted or empty leaves the seed
+    unaffected, same as *locked_dependencies*.
     """
     normalized_deps = sorted(_normalize_dep(dep) for dep in dependencies)
     seed = "\x00".join([name, version, "\x00".join(normalized_deps)])
     if locked_dependencies:
         normalized_locked = sorted(_normalize_dep(dep) for dep in locked_dependencies)
         seed += "\x00" + "\x00".join(normalized_locked)
+        if locked_dependencies_provenance:
+            seed += "\x00" + locked_dependencies_provenance
     if merkle_root is not None:
         seed += "\x00" + merkle_root
     return str(uuid5(PITLOOM_NS, seed))

@@ -25,6 +25,9 @@ from pitloom.extract._pyproject import read_pyproject
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
 POETRY_FIXTURE = FIXTURES / "sampleproject-poetry"
+REAL_WORLD_LOCKS = (
+    Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "poetry"
+)
 
 
 def _write_lock(tmp_dir: Path, content: str) -> None:
@@ -264,3 +267,59 @@ def test_read_pyproject_no_lock_file_leaves_locked_dependencies_empty() -> None:
 
         assert metadata.locked_dependencies == []
         assert "locked_dependencies" not in metadata.provenance
+
+
+def test_real_world_pendulum_hybrid_project_and_tool_poetry_tables() -> None:
+    """`pendulum` declares both `[project]` (PEP 621) and `[tool.poetry]`
+    -- confirms the hybrid shape resolves name/version via `[project]`
+    while `poetry.lock` reading still runs."""
+    metadata, _config = read_pyproject(
+        REAL_WORLD_LOCKS / "pendulum-3.2.0" / "pyproject.toml"
+    )
+
+    assert metadata.name == "pendulum"
+    assert metadata.locked_dependencies
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: poetry.lock | Method: resolved_lockfile"
+    )
+
+
+def test_real_world_cleo_tool_poetry_only() -> None:
+    """`cleo` has `[tool.poetry]` only, no `[project]` table at all."""
+    metadata, _config = read_pyproject(
+        REAL_WORLD_LOCKS / "cleo-2.1.0" / "pyproject.toml"
+    )
+
+    assert metadata.name == "cleo"
+    assert metadata.locked_dependencies
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: poetry.lock | Method: resolved_lockfile"
+    )
+
+
+def test_real_world_pastel_tool_poetry_only() -> None:
+    metadata, _config = read_pyproject(
+        REAL_WORLD_LOCKS / "pastel-0.2.1" / "pyproject.toml"
+    )
+
+    assert metadata.name == "pastel"
+    assert metadata.locked_dependencies
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: poetry.lock | Method: resolved_lockfile"
+    )
+
+
+def test_real_world_tomlkit_has_no_main_group_dependencies() -> None:
+    """`tomlkit` is a standalone TOML library with no runtime
+    dependencies -- every entry in its `poetry.lock` belongs to the
+    `dev`/docs/test groups, none to `main`. A real, valid "empty
+    resolved set" case: `read_pyproject()` still succeeds, but leaves
+    `locked_dependencies` empty and sets no provenance for it, same as
+    the no-lock-file case."""
+    metadata, _config = read_pyproject(
+        REAL_WORLD_LOCKS / "tomlkit-0.15.1" / "pyproject.toml"
+    )
+
+    assert metadata.name == "tomlkit"
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance

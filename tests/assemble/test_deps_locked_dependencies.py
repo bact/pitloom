@@ -188,6 +188,61 @@ def test_locked_dependencies_change_doc_uuid() -> None:
     assert len({base, with_lock_a, with_lock_b}) == 3
 
 
+def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid() -> (
+    None
+):
+    """Two documents with an *identical* resolved dependency set but from
+    different lock sources (e.g. a ``poetry.lock``-only run and a
+    ``pylock.toml``-only run of the same project happening to resolve to
+    the same pins) must not collide on the same doc UUID either -- their
+    ``provenance["locked_dependencies"]`` strings (and any override note)
+    differ, which is a real content difference in the generated document
+    that seeding on dependency content alone would miss."""
+    same_content = ["idna==3.7"]
+    from_poetry = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=same_content,
+        locked_dependencies_provenance=(
+            "Source: poetry.lock | Method: resolved_lockfile"
+        ),
+    )
+    from_pylock = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=same_content,
+        locked_dependencies_provenance=(
+            "Source: pylock.toml | Method: resolved_lockfile"
+        ),
+    )
+    unattributed = compute_doc_uuid(
+        "pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=same_content
+    )
+
+    assert len({from_poetry, from_pylock, unattributed}) == 3
+
+
+def test_locked_dependencies_provenance_omitted_matches_empty_string() -> None:
+    """Omitting ``locked_dependencies_provenance`` (every pre-existing
+    call site) must produce the same UUID as every caller that predates
+    this parameter -- purely additive, no behavior change for callers
+    that don't know about it."""
+    omitted = compute_doc_uuid(
+        "pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=["idna==3.7"]
+    )
+    explicit_none = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=["idna==3.7"],
+        locked_dependencies_provenance=None,
+    )
+
+    assert omitted == explicit_none
+
+
 def test_locked_dependencies_omitted_matches_empty_list() -> None:
     """Omitting ``locked_dependencies`` entirely (every pre-existing call
     site) must produce the same UUID as passing an empty list -- the new

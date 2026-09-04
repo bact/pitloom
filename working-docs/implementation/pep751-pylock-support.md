@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-02
-Last-Modified: 2026-09-02
+Last-Modified: 2026-09-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -13,11 +13,16 @@ transitive dependencies" section -- this feature reuses that shape
 almost unchanged; [lock-files.md](../design/lock-files.md) for the
 broader multi-format lock-file roadmap this closes Phase 1's headline
 item of; [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md) for the
-source/build/deployed staging model that makes this source-stage-only.
+source/build/deployed staging model that makes this source-stage-only;
+[lock-file-cascade.md](lock-file-cascade.md) for the shared priority
+mechanism this format's wiring was generalized into once `uv.lock`,
+`pdm.lock`, `Pipfile.lock`, and pinned `requirements.txt` needed the
+same shape -- the "Wiring" and "Priority" sections below describe that
+current, generalized mechanism, not this format's original bespoke one.
 
 ## Motivation
 
-[PEP 751] standardizes `pylock.toml` as a build-backend-agnostic,
+[PEP 751] standardises `pylock.toml` as a build-backend-agnostic,
 fully resolved dependency snapshot -- produced by `uv export --format
 pylock.toml`, `pdm lock --format pylock`, `poetry export
 --format=pylock.toml`, and similar, consumed only by installers. Per
@@ -33,8 +38,9 @@ project regardless of build backend, unlike the already-shipped
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/_pylock.py` | `pylock.toml` resolved-dependency extraction (source-stage only) |
-| `src/pitloom/extract/_pyproject.py` | Wires `pylock.toml` reading into `read_pyproject()`, unconditionally |
+| `src/pitloom/extract/_locked_dependencies.py` | Cascade wiring `pylock.toml` (and every other lock format) into `read_project()` -- see [lock-file-cascade.md](lock-file-cascade.md) |
 | `tests/extract/test_pylock.py` | `pylock.toml` parsing unit and integration tests |
+| `tests/extract/test_locked_dependencies.py` | Cascade mechanism tests (priority ordering, override note, `setup.py`-only wiring) |
 
 No changes were needed in `src/pitloom/assemble/spdx3/deps.py` or
 `document.py` -- both already operate on the generic
@@ -77,42 +83,25 @@ mirrors `poetry.lock`'s equivalent `directory`/`file`/`git`/`url` skip
 in `_poetry_lock.py`. A package sourced via `sdist`/`wheels` (or with no
 source table at all) is included whenever it has a version.
 
-## Wiring into `read_pyproject()`
+## Wiring and priority
 
-`_apply_pylock_dependencies()` is called unconditionally at the end of
-every `read_pyproject()` code path (both the `[project]`-primary path
-and the `[tool.poetry]`/no-`[project]` fallback path), overlaying
-`pylock.toml`'s resolved dependencies onto `ProjectMetadata` in place
-when a `pylock.toml` is present.
+`pylock.toml` is one entry (the highest-priority one) in the shared
+lock/pin cascade -- see [lock-file-cascade.md](lock-file-cascade.md) for
+the mechanism, priority order, provenance recording, and why the
+cascade is called from `read_project()` rather than
+`read_pyproject()`. Two points specific to `pylock.toml` itself:
 
-This differs from `poetry.lock`'s wiring in one deliberate way:
-`poetry.lock` reading is gated behind `[tool.poetry]` detection inside
-`_try_read_poetry()`, since `poetry.lock` only makes sense for a Poetry
-project. `pylock.toml` is build-backend-agnostic -- a plain PEP 621
-project with no Poetry involvement at all can have one -- so it's
-checked unconditionally in `read_pyproject()` itself, independent of
-which metadata-extraction branch ran.
-
-No `include_locked_dependencies`-style build-stage guard was needed
-here: unlike `poetry.lock` (whose gap-fill helper `_try_read_poetry()`
-is also called directly by the Hatchling build hook's
-`_poetry_fallback_metadata()`, which must pass
-`include_locked_dependencies=False` to avoid leaking a source-stage
-artifact into a build-stage SBOM), `read_pyproject()` itself is never
-called from the Hatchling build hook -- only from
-`pitloom.extract.project.read_project()`, the CLI/library source-stage
-path. So the unconditional call is already scoped correctly without
-needing an extra parameter.
-
-## Priority when both `poetry.lock` and `pylock.toml` are present
-
-This is [lock-files.md](../design/lock-files.md)'s previously-open
-"which lock file wins" question for the two-lock-files case:
-`pylock.toml` -- the newer, build-backend-agnostic interoperability
-standard -- always overrides an already-applied `poetry.lock`-resolved
-set. `_apply_pylock_dependencies()` logs a `WARNING:` naming the
-override whenever both are present, per this repo's "no silent
-deviations" rule; it never merges the two sets.
+- It's build-backend-agnostic -- a plain PEP 621 project with no Poetry
+  involvement at all can have one -- unlike `poetry.lock`, which is
+  gated behind `[tool.poetry]` detection.
+- No `include_locked_dependencies`-style build-stage guard was ever
+  needed for it: unlike `poetry.lock` (whose gap-fill helper
+  `_try_read_poetry()` is also called directly by the Hatchling build
+  hook's `_poetry_fallback_metadata()`, which must pass
+  `include_locked_dependencies=False` to avoid leaking a source-stage
+  artifact into a build-stage SBOM), `read_project()`'s cascade call is
+  never reached from the Hatchling build hook at all -- only from the
+  CLI/library source-stage path.
 
 ## Known limitations
 

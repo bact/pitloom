@@ -223,6 +223,7 @@ def build(
         dependencies=metadata.dependencies,
         merkle_root=merkle_root,
         locked_dependencies=metadata.locked_dependencies,
+        locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
     )
     _clear_doc_counters(doc_uuid)
 

@@ -194,10 +194,13 @@ exclude = [
     "tests/fixtures/croissant/*.json",
     "tests/fixtures/fragments/*.json",
     "tests/fixtures/huggingface-hub/*.txt",
+    "tests/fixtures/real-world-projects/",
+    "tests/fixtures/real-world-locks/",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pitloom"]
+exclude = ["tests/fixtures/"]
 
 [tool.hatch.version]
 path = "src/pitloom/__about__.py"

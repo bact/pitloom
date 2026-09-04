@@ -8,10 +8,10 @@
 See also: :mod:`pitloom.extract._poetry_lock` (the ``poetry.lock``
 extractor this module mirrors in shape -- same source-stage-only scoping,
 same ``name==version`` output, same "no silent deviations" warning
-policy) and :func:`pitloom.extract._pyproject._apply_pylock_dependencies`
-(the call site that overlays this module's output onto
-``ProjectMetadata.locked_dependencies``, taking priority over any
-``poetry.lock``-resolved set already present).
+policy) and :mod:`pitloom.extract._locked_dependencies` (the cascade
+module that calls this extractor and overlays its output onto
+``ProjectMetadata.locked_dependencies``, in priority order against every
+other lock format).
 
 ``pylock.toml`` (PEP 751) is the build-backend-agnostic Python
 interoperability standard for recording a fully resolved dependency set --

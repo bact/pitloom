@@ -18,6 +18,7 @@ from pathlib import Path
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._locked_dependencies import apply_locked_dependencies
 from pitloom.extract._pyproject import read_pyproject
 from pitloom.extract._sdist import read_sdist
 from pitloom.extract._setuptools import read_setuptools
@@ -37,6 +38,8 @@ def _is_sdist_archive(path: Path) -> bool:
 
 def read_project(
     project_path: Path,
+    *,
+    include_locked_dependencies: bool = True,
 ) -> tuple[ProjectMetadata, PitloomConfig, Path | None]:
     """Resolve project metadata and Pitloom config from *project_path*.
 
@@ -45,8 +48,28 @@ def read_project(
     Otherwise, treats *project_path* as a directory and tries
     ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``.
 
+    For every directory-based resolution (not the sdist-archive case),
+    also overlays a sibling lock/pin file's resolved dependencies onto
+    the result via a single, shared call to
+    :func:`pitloom.extract._locked_dependencies.apply_locked_dependencies`
+    -- applied uniformly regardless of which metadata source won, since
+    some lock formats (``Pipfile.lock``, pinned ``requirements.txt``)
+    pair with a bare ``setup.py`` in real projects, never ``pyproject.toml``.
+
+    ``include_locked_dependencies``, mirroring
+    :func:`pitloom.extract._pyproject._try_read_poetry`'s
+    ``poetry.lock``-specific flag of the same name, lets a build-stage or
+    config-only caller (e.g. ``embed-wheel``, or a shared CLI helper that
+    only wants ``[tool.pitloom]`` settings and discards the metadata)
+    explicitly opt out -- source-stage lock/pin data must never leak into
+    a build-stage SBOM, and skipping the cascade here also skips its file
+    I/O for a caller that would discard the result anyway.
+
     Args:
         project_path: Project root directory or sdist archive path.
+        include_locked_dependencies: Whether to overlay a sibling lock/pin
+            file's resolved dependencies (default ``True``). Pass
+            ``False`` from any build-stage or metadata-discarding caller.
 
     Returns:
         A 3-tuple of:
@@ -73,6 +96,7 @@ def read_project(
     setup_cfg = project_path / "setup.cfg"
     setup_py = project_path / "setup.py"
 
+    config_path: Path | None
     pyproject_path = project_path / "pyproject.toml"
     if pyproject_path.exists():
         metadata, pitloom_config = read_pyproject(pyproject_path)
@@ -103,17 +127,19 @@ def read_project(
             if pitloom_config == PitloomConfig():
                 pitloom_config = setuptools_pitloom_config
             config_path = setup_cfg if setup_cfg.exists() else setup_py
-            return metadata, pitloom_config, config_path
-        return metadata, pitloom_config, pyproject_path
-
-    if setup_cfg.exists() or setup_py.exists():
+        else:
+            config_path = pyproject_path
+    elif setup_cfg.exists() or setup_py.exists():
         metadata, pitloom_config = read_setuptools(project_path)
         config_path = setup_cfg if setup_cfg.exists() else setup_py
-        return metadata, pitloom_config, config_path
+    else:
+        raise FileNotFoundError(
+            f"No pyproject.toml, setup.cfg, or setup.py found in {project_path}"
+        )
 
-    raise FileNotFoundError(
-        f"No pyproject.toml, setup.cfg, or setup.py found in {project_path}"
-    )
+    if include_locked_dependencies:
+        apply_locked_dependencies(metadata, project_path)
+    return metadata, pitloom_config, config_path
 
 
 __all__ = ["read_project"]

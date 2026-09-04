@@ -5,10 +5,13 @@
 
 """Tests for PEP 751 ``pylock.toml`` dependency parsing
 (:mod:`pitloom.extract._pylock`) and its overlay onto
-``ProjectMetadata.locked_dependencies`` via ``read_pyproject()``.
+``ProjectMetadata.locked_dependencies`` via ``read_project()``'s lock
+cascade (:mod:`pitloom.extract._locked_dependencies`).
 
 See also: test_poetry_lock.py for the sibling ``poetry.lock`` extractor
-this module's tests mirror in shape.
+this module's tests mirror in shape; test_locked_dependencies.py for the
+cascade mechanism's own tests (priority ordering, the ``setup.py``-only
+wiring, the override provenance note).
 """
 
 import logging
@@ -18,9 +21,13 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract._pylock import _pinned_dep_for_package, extract_pylock_dependencies
-from pitloom.extract._pyproject import read_pyproject
+from pitloom.extract.project import read_project
 
 _LOCK_VERSION = 'lock-version = "1.0"\ncreated-by = "test"\n'
+
+REAL_WORLD_LOCKS = (
+    Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "pylock"
+)
 
 
 def _write_lock(tmp_dir: Path, packages: str = "") -> None:
@@ -156,10 +163,11 @@ def test_sdist_sourced_package_included() -> None:
         assert extract_pylock_dependencies(tmp_path) == ["requests==2.31.0"]
 
 
-def test_read_pyproject_populates_locked_dependencies() -> None:
-    """Integration: `read_pyproject()` overlays `pylock.toml` parsing onto
-    `ProjectMetadata.locked_dependencies` with its own provenance entry,
-    for a plain PEP 621 project (no `[tool.poetry]` involved)."""
+def test_read_project_populates_locked_dependencies() -> None:
+    """Integration: `read_project()`'s lock cascade overlays `pylock.toml`
+    parsing onto `ProjectMetadata.locked_dependencies` with its own
+    provenance entry, for a plain PEP 621 project (no `[tool.poetry]`
+    involved)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(
@@ -167,7 +175,7 @@ def test_read_pyproject_populates_locked_dependencies() -> None:
         )
         _write_lock(tmp_path, '[[packages]]\nname = "requests"\nversion = "2.31.0"\n')
 
-        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+        metadata, _config, _path = read_project(tmp_path)
 
         assert metadata.locked_dependencies == ["requests==2.31.0"]
         assert metadata.provenance["locked_dependencies"] == (
@@ -175,25 +183,25 @@ def test_read_pyproject_populates_locked_dependencies() -> None:
         )
 
 
-def test_read_pyproject_no_lock_file_leaves_locked_dependencies_empty() -> None:
+def test_read_project_no_lock_file_leaves_locked_dependencies_empty() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(
             '[project]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
         )
 
-        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+        metadata, _config, _path = read_project(tmp_path)
 
         assert metadata.locked_dependencies == []
         assert "locked_dependencies" not in metadata.provenance
 
 
-def test_read_pyproject_pylock_takes_priority_over_poetry_lock(
+def test_read_project_pylock_takes_priority_over_poetry_lock(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Regression: when both a `poetry.lock` and a `pylock.toml` are
     present, PEP 751's `pylock.toml` wins -- and the override is never
-    silent."""
+    silent: it's both logged and recorded in the provenance string."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pyproject.toml").write_text(
@@ -206,10 +214,38 @@ def test_read_pyproject_pylock_takes_priority_over_poetry_lock(
         _write_lock(tmp_path, '[[packages]]\nname = "httpx"\nversion = "0.27.0"\n')
 
         with caplog.at_level(logging.WARNING):
-            metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+            metadata, _config, _path = read_project(tmp_path)
 
         assert metadata.locked_dependencies == ["httpx==0.27.0"]
         assert metadata.provenance["locked_dependencies"] == (
-            "Source: pylock.toml | Method: resolved_lockfile"
+            "Source: pylock.toml | Method: resolved_lockfile "
+            "| Note: supersedes poetry.lock"
         )
-        assert "pylock.toml (PEP 751) takes priority" in caplog.text
+        assert "poetry.lock and pylock.toml" in caplog.text
+        assert "pylock.toml takes priority" in caplog.text
+
+
+def test_real_world_snowflake_cli() -> None:
+    """`snowflakedb/snowflake-cli` -- a real, committed `pylock.toml` at
+    the GitHub tag matching its PyPI release (not in the sdist itself;
+    see tests/fixtures/real-world-locks/README.md)."""
+    metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "snowflake-cli-3.26.0")
+
+    assert metadata.name == "snowflake-cli"
+    assert metadata.locked_dependencies
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: pylock.toml | Method: resolved_lockfile"
+    )
+
+
+def test_real_world_pipenv() -> None:
+    """`pypa/pipenv` -- PEP 751's own reference implementation
+    (`pipenv/utils/pylock.py`), and a real, committed `pylock.toml` at
+    the GitHub tag matching its PyPI release."""
+    metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "pipenv-2026.8.0")
+
+    assert metadata.name == "pipenv"
+    assert metadata.locked_dependencies
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: pylock.toml | Method: resolved_lockfile"
+    )

@@ -96,6 +96,38 @@ def test_read_project_fallback_preserves_pyproject_pitloom_config(
     assert pitloom_config.sbom_basename == "custom-name"
 
 
+def test_read_project_fallback_still_applies_lock_cascade(tmp_path: Path) -> None:
+    """Regression: the pyproject.toml-with-no-usable-metadata ->
+    setup.cfg/setup.py fallback branch (previous two tests) must still
+    get `apply_locked_dependencies()`'s cascade applied to the
+    setuptools-resolved metadata, not skip it or apply it to a stale
+    pre-fallback object -- this is the one of `read_project()`'s three
+    directory-based resolution paths that had no dedicated coverage for
+    the lock cascade."""
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "custom_pep517_wrapper"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "setup.cfg").write_text(
+        "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
+    )
+    (tmp_path / "pylock.toml").write_text(
+        'lock-version = "1.0"\ncreated-by = "test"\n'
+        '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(tmp_path)
+
+    assert metadata.name == "real-pkg"
+    assert metadata.locked_dependencies == ["requests==2.31.0"]
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: pylock.toml | Method: resolved_lockfile"
+    )
+
+
 def test_read_project_build_system_only_pyproject_no_setuptools_fallback(
     tmp_path: Path,
 ) -> None:
@@ -166,3 +198,28 @@ creator-name = 123
 
     with pytest.raises(ValueError):
         read_project(tmp_path)
+
+
+def test_read_project_include_locked_dependencies_false_skips_cascade(
+    tmp_path: Path,
+) -> None:
+    """`include_locked_dependencies=False` (used by build-stage/config-only
+    callers like `embed-wheel` and the shared CLI options helper) must
+    skip the lock/pin cascade entirely, not just discard its result --
+    a sibling `pylock.toml` is present but must never reach
+    `locked_dependencies`."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "pylock.toml").write_text(
+        'lock-version = "1.0"\ncreated-by = "test"\n'
+        '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance
