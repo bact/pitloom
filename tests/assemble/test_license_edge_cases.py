@@ -218,6 +218,42 @@ def test_resolve_license_file_entries_unresolved_version_skips_with_warning(
     assert "version could not be resolved" in caplog.text
 
 
+def test_resolve_license_file_entries_dedups_repeated_path(
+    tmp_path: Path,
+) -> None:
+    """A ``license_files`` list with the same path declared twice (e.g. two
+    overlapping glob patterns both matching ``LICENSE``) must produce exactly
+    one ``ProjectFile``, not a duplicate ``software_File`` element downstream."""
+    (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+
+    entries = resolve_license_file_entries(
+        tmp_path, "pkg", "1.0.0", ["LICENSE", "LICENSE"]
+    )
+
+    assert len(entries) == 1
+    assert entries[0].physical_path == "LICENSE"
+
+
+def test_resolve_license_file_entries_unreadable_file_skips_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A declared entry that can't be read (e.g. it's a directory, not a
+    file) must be skipped with a `WARNING:` naming the entry, and must not
+    stop the remaining entries from being processed."""
+    (tmp_path / "LICENSE").mkdir()
+    (tmp_path / "NOTICE").write_text("Copyright notice", encoding="utf-8")
+
+    with caplog.at_level("WARNING", logger="pitloom.extract._license"):
+        entries = resolve_license_file_entries(
+            tmp_path, "pkg", "1.0.0", ["LICENSE", "NOTICE"]
+        )
+
+    assert len(entries) == 1
+    assert entries[0].physical_path == "NOTICE"
+    assert "LICENSE" in caplog.text
+    assert "could not read declared license-files entry" in caplog.text
+
+
 def test_detect_independent_license_loop_continuation() -> None:
     """detect_independent_license skips unrecognized text candidates until match."""
     with tempfile.TemporaryDirectory() as tmpdir:

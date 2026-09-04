@@ -12,7 +12,10 @@ from hatchling.plugin.manager import PluginManager  # noqa: E402
 
 from pitloom.core.models import compute_doc_uuid  # noqa: E402
 from pitloom.extract._pyproject import read_pyproject  # noqa: E402
-from pitloom.extract.hatchling import metadata_from_hatchling  # noqa: E402
+from pitloom.extract.hatchling import (  # noqa: E402
+    _resolve_hatchling_license_files,
+    metadata_from_hatchling,
+)
 from pitloom.plugins.hatch import (  # noqa: E402
     _check_hatchling_sbom_support,
 )
@@ -115,6 +118,24 @@ def test_metadata_from_hatchling_declared_license_files_with_real_core(
     assert metadata.provenance["license_files"] == (
         "Source: Hatchling build backend | Field: project.license-files"
     )
+
+
+def test_resolve_hatchling_license_files_tolerates_oserror() -> None:
+    """A declared ``license-files`` field whose ``core.license_files``
+    property access raises ``OSError`` must degrade to an empty list, not
+    propagate -- mirroring every other ``core.X`` property read in this
+    module (readme, license), each of which is lazily evaluated by
+    Hatchling and can raise a bare ``OSError`` for the same class of
+    reason (e.g. a filesystem error resolving a referenced path)."""
+
+    class _RaisingCore:
+        config = {"license-files": ["LICENSE"]}
+
+        @property
+        def license_files(self) -> list[str]:
+            raise OSError("simulated filesystem error")
+
+    assert _resolve_hatchling_license_files(_RaisingCore()) == []
 
 
 def test_metadata_from_hatchling_canonicalises_dependency_markers() -> None:
