@@ -73,6 +73,7 @@ def _emit_file_header_metadata(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     *,
+    project_license_id: str | None = None,
     provenance_config: ProvenanceConfig | None,
     encoder: ProvenanceEncoder | None,
 ) -> None:
@@ -100,6 +101,10 @@ def _emit_file_header_metadata(
     entry, unlike the dependency-completeness ``NOASSERTION`` policy in
     :mod:`pitloom.assemble.spdx3.deps`, which applies to a handful of
     packages, not every source file.
+
+    *project_license_id* is forwarded to
+    :func:`_emit_file_license_relationship` for the
+    ``[project.license-files]`` (PEP 639) case -- see its docstring.
     """
     file_path = package_file.physical_path
     field_provenance: dict[str, str] = {}
@@ -164,20 +169,70 @@ def _emit_file_header_metadata(
             encoder=encoder,
         )
 
+    _emit_file_license_relationship(
+        package_entry,
+        package_file,
+        file_path,
+        spdx_ci,
+        doc_name,
+        doc_uuid,
+        exporter,
+        project_license_id=project_license_id,
+        provenance_config=provenance_config,
+        encoder=encoder,
+    )
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _emit_file_license_relationship(
+    package_entry: spdx3.software_File,
+    package_file: ProjectFile,
+    file_path: str,
+    spdx_ci: spdx3.CreationInfo,
+    doc_name: str,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    project_license_id: str | None,
+    provenance_config: ProvenanceConfig | None,
+    encoder: ProvenanceEncoder | None,
+) -> None:
+    """Build *package_entry*'s ``hasDeclaredLicense`` relationship, if any.
+
+    Two, mutually exclusive sources, in priority order:
+
+    1. The file's own ``SPDX-License-Identifier:`` header tag
+       (``package_file.spdx_license_identifier``).
+    2. A ``[project.license-files]`` (PEP 639) entry
+       (``package_file.is_license_file``) -- unlike case 1, the file
+       carries no license tag of its own, it *is* the license text backing
+       the project's own declared license (*project_license_id*), so that's
+       the value asserted here instead. Only reached when case 1 doesn't
+       apply, to avoid asserting two different declared-license values for
+       the same file.
+    """
     if package_file.spdx_license_identifier:
-        exporter.add_relationship(
-            build_file_declared_license(
-                package_file.spdx_license_identifier,
-                require_spdx_id(package_entry),
-                f"Source: {file_path} | Field: SPDX-License-Identifier",
-                spdx_ci,
-                doc_name,
-                doc_uuid,
-                exporter,
-                provenance_config=provenance_config,
-                encoder=encoder,
-            )
+        license_id = package_file.spdx_license_identifier
+        license_provenance = f"Source: {file_path} | Field: SPDX-License-Identifier"
+    elif package_file.is_license_file and project_license_id:
+        license_id = project_license_id
+        license_provenance = "Source: pyproject.toml | Field: project.license-files"
+    else:
+        return
+
+    exporter.add_relationship(
+        build_file_declared_license(
+            license_id,
+            require_spdx_id(package_entry),
+            license_provenance,
+            spdx_ci,
+            doc_name,
+            doc_uuid,
+            exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
         )
+    )
 
 
 # pylint: disable=too-many-locals
@@ -285,6 +340,7 @@ def _add_package_files(
             metadata.name,
             doc_uuid,
             exporter,
+            project_license_id=metadata.license_name,
             provenance_config=provenance_config,
             encoder=encoder,
         )

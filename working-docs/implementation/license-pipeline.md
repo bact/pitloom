@@ -1,6 +1,6 @@
 ---
 Created: 2026-05-10
-Last-Modified: 2026-09-01
+Last-Modified: 2026-09-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -260,6 +260,160 @@ For each package with a known licence, the JSON-LD graph contains:
 }
 ```
 
+## License-files bundling (PEP 639)
+
+`[project.license-files]` is a separate, narrower PEP 639 field from
+`[project.license]` above: a glob list naming one or more license *text
+files* to bundle alongside the package (e.g. `LICENSE`, or
+`LICENSES/*.txt` for a multi-license project), rather than the SPDX
+expression string itself.
+
+### Extraction
+
+Neither `_pyproject.py` nor `hatchling.py` re-implements PEP 639's glob
+matching -- both read an already-resolved, project-root-relative path
+list from their respective metadata libraries, and both resolve to an
+empty list unless `[project.license-files]` was **explicitly declared**:
+
+- `_pyproject.py`: `pyproject_metadata.StandardMetadata.license_files`
+  (`list[pathlib.Path] | None`), converted to POSIX strings. This
+  library has no implicit default -- absent the key, it's `None`.
+- `hatchling.py`: `_resolve_hatchling_license_files()` checks
+  `"license-files" in core.config` (the raw, unprocessed `[project]`
+  table) *before* reading `core.license_files`. This check is required,
+  not cosmetic: `core.license_files` itself has its own default-glob
+  fallback (`LICEN[CS]E*`/`COPYING*`/`NOTICE*`/`AUTHORS*`, the same
+  convention `setuptools`' `_finalize_license_files()` and the `wheel`
+  package document) when the field is absent, so reading it
+  unconditionally would misreport an auto-discovered LICENSE file as an
+  explicit declaration and silently diverge from `_pyproject.py` for
+  any project that has a root LICENSE file but never declared the
+  field -- i.e. nearly every Hatchling project. Confirmed with a
+  regression test against real Hatchling `CoreMetadata` (not a mock,
+  which can't reproduce this lazy, config-driven default):
+  `tests/extract/test_hatch_hook_metadata.py::test_metadata_from_hatchling_no_license_files_with_real_core`.
+  Whether Pitloom should ever replicate that ecosystem-wide default
+  itself (for *both* paths, with its own distinct provenance) is a
+  separate, not-yet-scoped roadmap item -- see
+  [roadmap.md](../design/roadmap.md)'s Metadata quality section.
+
+Both feed `ProjectMetadata.license_files`, provenance key
+`"license_files"` (`"Source: pyproject.toml | Field: project.license-files"` /
+the Hatchling-hook equivalent). The legacy, pre-PEP-639
+`[tool.setuptools] license-files` key is a distinct, setuptools-specific
+mechanism that neither metadata library resolves as part of the standard
+`[project]` table -- `license_files` stays empty for a project using only
+that form (see `requests-2.34.2` in the real-world fixtures below).
+
+### The static-discovery gap
+
+Pitloom's file discovery (`get_wheel_files()` /
+`_discover_included_files()`, used by both `generate_project_sbom()` and
+the Hatchling build hook) is a static, config-driven file-*selection*
+walk -- never a real wheel build. A real build's
+`WheelBuilder.add_licenses()` step is what actually copies
+`[project.license-files]` matches into
+`<name>-<version>.dist-info/licenses/<path>` inside the wheel; Pitloom's
+discoverer never runs that step, for any backend, so those entries never
+show up in `ProjectMetadata.files` on their own (confirmed for every
+vendored real-world fixture by
+`tests/core/models_wheel/test_models_wheel_real_world.py`, which excludes
+`.dist-info/*` from its discovery-parity comparison for exactly this
+reason).
+
+`resolve_license_file_entries()` (`src/pitloom/extract/_license.py`)
+fills this gap directly: given `project_dir`, the resolved
+`license_files` list, and the project's name/version, it reads each file
+from disk, hashes it, and returns one `ProjectFile` per entry with
+`distribution_path` set to the same `<name>-<version>.dist-info/licenses/<path>`
+convention a real build would produce, and `is_license_file=True`.
+
+The `<name>` segment is escaped per the *current* [Binary Distribution
+Format spec's "Escaping and
+Unicode"](https://packaging.python.org/en/latest/specifications/binary-distribution-format/#escaping-and-unicode)
+rule -- regular name normalization (PEP 503,
+`packaging.utils.canonicalize_name`) followed by replacing every `-`
+with `_` -- via `canonicalize_name(name).replace("-", "_")`. This is
+**not** the same as PEP 503 normalization alone (which keeps hyphens):
+an earlier version of this function used
+`hatchling.metadata.utils.normalize_project_name()` (PEP 503 only) and
+silently produced a wrong path for every hyphenated package name (e.g.
+`pytest-asyncio-1.4.0.dist-info/...` instead of the real
+`pytest_asyncio-1.4.0.dist-info/...`) -- caught by
+`tests/assemble/test_license_edge_cases.py::test_resolve_license_file_entries_escapes_hyphenated_name`,
+verified against the real published wheel filename. Also see this
+page's own note: the escaping rule was *revised in 2021* to match real
+tooling, so PEP 427 alone (the wheel format's originating PEP) is stale
+on this specific point -- the spec page is authoritative, per
+[resources.md](../../docs/resources.md)'s PEP-staleness note.
+
+When `version` is `None` (a dynamic/SCM-resolved version that failed to
+resolve, e.g. an sdist extracted outside a git checkout), there is no
+real wheel filename to build a path from -- every declared entry is
+skipped with a `WARNING:` naming the package and entry count, rather
+than fabricating a placeholder version. An earlier version of this
+function used `version or "0"`, which silently produced a plausible-
+looking but fictional path (e.g. `pytest-asyncio-0.dist-info/...`) with
+no warning at all -- a "no silent deviations" violation caught the same
+way, via `test_resolve_license_file_entries_unresolved_version_skips_with_warning`.
+
+Both `generate_project_sbom()` (`pitloom.assemble._generators`) and the
+Hatchling build hook (`pitloom.plugins.hatch`) call
+`resolve_license_file_entries()` and merge the result into
+`project_files` *before* their `metadata.files = project_files`
+assignment, so the entries survive that overwrite. Out of scope for now:
+the sdist-archive target path (`read_project()` on a `.tar.gz`/`.zip`) --
+`_sdist.py`'s metadata extraction doesn't resolve `license_files` at all
+(a pre-existing, separate limitation of that shallower path, not
+introduced by this feature); and `embed-wheel --project-dir`, whose
+merge path (`_build_sbom_from_project_and_wheel()` in
+`src/pitloom/embed.py`) sources its `ProjectMetadata` from the already-
+built wheel's own `read_wheel()` result, not from `read_project()`, so
+it never calls `resolve_license_file_entries()` at all -- a real wheel's
+`.dist-info/licenses/*` entries land in the SBOM's file list either way
+(via `read_wheel()`'s normal archive scan), just without the
+`hasDeclaredLicense` relationship this feature adds elsewhere. Wiring
+`embed-wheel` up is a candidate follow-up, not attempted here.
+
+### Assembly
+
+`_add_package_files()`
+(`src/pitloom/assemble/spdx3/_document_files.py`) processes these
+entries exactly like any other discovered file -- same directory-
+containment relationships, same `software_File` element construction.
+The only license-files-specific step is in
+`_emit_file_license_relationship()`: a file with `is_license_file=True`
+and no `SPDX-License-Identifier:` header tag of its own (it wouldn't have
+one -- it *is* the license text, not source code) gets a
+`hasDeclaredLicense` relationship built from the *project's* declared
+license (`metadata.license_name`) instead. `build_file_declared_license()`
+dedups by license-id string, so this reuses the same
+`SimpleLicensingText` element the package-level `hasDeclaredLicense`
+relationship already points to -- never a second license element for the
+same license.
+
+### Real-world validation
+
+`tests/fixtures/real-world-projects/setuptools/{cachetools-7.1.8,markupsafe-3.0.3}`
+(vendored real sdists using the proper `[project.license-files]` form)
+and `.../requests-2.34.2` (the legacy `[tool.setuptools]` form, confirmed
+to correctly resolve to an empty `license_files` -- documents the
+boundary, see `tests/assemble/test_license_files_bundling.py`) exercise
+this end-to-end, including asserting the produced `distribution_path`
+matches each fixture's `expected.json`-recorded real wheel path exactly.
+
+A broader one-off sweep across every vendored real-world fixture (every
+backend: `flit`, `hatchling`, `pdm`, `poetry`, `setuptools`, `uv_build`)
+found every produced `.dist-info/licenses/<path>` entry matches its
+fixture's real recorded wheel path exactly -- including
+`pdm/pdm-backend-2.4.9` (`pdm_backend-2.4.9.dist-info/...`, a hyphenated
+name, confirming the escaping fix generalizes beyond the one dedicated
+regression test) -- and that `hatchling/black-26.5.1` and
+`setuptools/pytest-asyncio-1.4.0` (both `hatch-vcs`/`setuptools_scm`
+dynamic-versioned, unresolvable outside their real git history) cleanly
+skip with the expected `WARNING:` instead of producing a fabricated
+path.
+
 ## Limitations and future work
 
 - `hasDeclaredLicense` and `hasConcludedLicense` currently point to the
@@ -273,15 +427,24 @@ For each package with a known licence, the JSON-LD graph contains:
 - `licenseid` text detection is probabilistic (threshold 0.85). Unusual
   licence texts or heavily modified standard licences may not be
   detected. Always verify the concluded licence in the SBOM.
+- `[project.license-files]` bundling (above) is not resolved for an
+  sdist-archive generation target, and does not resolve the legacy
+  `[tool.setuptools] license-files` key.
 
 ## Related source files
 
 | File | Role |
 | :--- | :--- |
 | `src/pitloom/extract/_license.py` | `detect_license_from_text()`,
-  `find_license_files()`, `detect_license_for_project()` |
+  `find_license_files()`, `detect_license_for_project()`,
+  `resolve_license_file_entries()` |
 | `src/pitloom/extract/_pyproject.py` | Python project licence
-  extraction and detection |
+  extraction and detection, including `[project.license-files]` |
+| `src/pitloom/extract/hatchling.py` | Hatchling build-hook licence
+  extraction, including `[project.license-files]` |
+| `src/pitloom/assemble/_generators.py`,
+  `src/pitloom/plugins/hatch.py` | Merge `resolve_license_file_entries()`
+  results into `project_files` before the file list is finalized |
 | `src/pitloom/extract/_setuptools.py` | setuptools project licence
   extraction |
 | `src/pitloom/extract/_poetry.py` | Poetry project licence extraction |
@@ -289,12 +452,14 @@ For each package with a known licence, the JSON-LD graph contains:
   and file-based detection |
 | `src/pitloom/extract/_pytorch_pt2.py` | PT2 archive `extra/license`
   entry |
-| `src/pitloom/core/project.py` | `ProjectMetadata.license_name`
-  field |
+| `src/pitloom/core/project.py` | `ProjectMetadata.license_name`,
+  `ProjectMetadata.license_files`, `ProjectFile.is_license_file` fields |
 | `src/pitloom/core/ai_metadata.py` | `AiModelMetadata.license`
   field |
-| `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`
-  shared helper |
+| `src/pitloom/assemble/spdx3/deps_license.py` | `build_license_elements()`,
+  `build_file_declared_license()` shared helpers |
+| `src/pitloom/assemble/spdx3/_document_files.py` | `_add_package_files()`,
+  `_emit_file_license_relationship()` -- file-level licence wiring |
 | `src/pitloom/assemble/spdx3/document.py` | `build()` -- licence wiring
   (`build_model()` moved to `_document_model.py`, re-exported here) |
 | `src/pitloom/assemble/spdx3/ai.py` | `add_ai_models()` -- AI model
@@ -310,3 +475,9 @@ For each package with a known licence, the JSON-LD graph contains:
   licence export tests with fixture files (originally
   `tests/test_generator.py`, since split by generation target and
   further by section -- see `cli-test-coverage-roadmap.md`) |
+| `tests/extract/test_pyproject.py`,
+  `tests/extract/test_hatch_hook_metadata.py` | `license_files`
+  extraction tests (`_pyproject.py`/`hatchling.py` paths) |
+| `tests/assemble/test_license_files_bundling.py` | End-to-end
+  `[project.license-files]` bundling tests against the vendored
+  real-world fixtures |

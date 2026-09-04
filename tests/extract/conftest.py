@@ -87,6 +87,7 @@ _FAKE_CORE_DEFAULTS: dict[str, Any] = {
     "requires_python": "",
     "license": "",
     "license_expression": "",
+    "license_files": [],
     "keywords": [],
     "authors_data": {"name": [], "email": []},
     "urls": {},
@@ -106,10 +107,21 @@ def _fake_hatch_metadata(
     *core* overrides individual ``_FAKE_CORE_DEFAULTS`` fields (including
     ``raw_name``, which defaults to *name*), e.g.
     ``_fake_hatch_metadata(core={"license_expression": "MIT"})``.
+
+    The fake ``core.config`` (the raw, unprocessed ``[project]`` table --
+    see :func:`pitloom.extract.hatchling._resolve_hatchling_license_files`)
+    gets a ``"license-files"`` key exactly when *core* explicitly overrides
+    ``license_files``, mirroring how a real declared field would show up in
+    both places at once.
     """
     merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
+    config: dict[str, Any] = {}
+    if core is not None and "license_files" in core:
+        config["license-files"] = merged_core["license_files"]
     return SimpleNamespace(
-        name=name, version=version, core=SimpleNamespace(**merged_core)
+        name=name,
+        version=version,
+        core=SimpleNamespace(config=config, **merged_core),
     )
 
 

@@ -29,6 +29,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.env import read_environment
 from pitloom.extract.project import read_project
@@ -175,6 +176,20 @@ def generate_project_sbom(
             detect_content_type=effective_content_type,
             content_type_method=effective_content_type_method,
             content_type_overrides=pitloom_config.content_type.overrides,
+        )
+        # Pitloom's file discovery is a static config-driven walk, never a
+        # real wheel build -- it never reproduces the
+        # `.dist-info/licenses/...` entries a real build would add for
+        # `[project.license-files]`. Resolve those directly so they still
+        # show up in the SBOM's file list. Must happen before the
+        # `project_metadata.files = project_files` assignment below, since
+        # that overwrite is the only place `project_files` becomes the
+        # metadata's authoritative file list for this (directory) target.
+        project_files = project_files + resolve_license_file_entries(
+            target_path,
+            project_metadata.name,
+            project_metadata.version,
+            project_metadata.license_files,
         )
         project_metadata.files = project_files
         search_root = target_path
