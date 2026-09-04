@@ -41,9 +41,9 @@ and this project adheres to
 - Add PEP 639 `[project.license-files]` support: each declared license
   file gets a `software_File` element at the real wheel's
   `.dist-info/licenses/` path and a `hasDeclaredLicense` relationship ([#207])
-- Add PEP 751 `pylock.toml` resolved-dependency parsing for `loom
-  project`/`loom generate`, taking priority over `poetry.lock` when both
-  are present
+- Add resolved-dependency parsing for `loom project`/`loom generate`
+  from `pylock.toml` (PEP 751), `uv.lock`, and `pdm.lock`, more planned
+  -- see [Dependency sources and precedence](docs/dependency-sources.md)
 
 ### Fixed
 

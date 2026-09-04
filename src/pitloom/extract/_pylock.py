@@ -31,7 +31,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
+from pitloom.extract._lock_common import load_lock_toml
 
 log = logging.getLogger(__name__)
 
@@ -54,12 +54,8 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str]:
     entry is taken as-is.
     """
     lock_path = project_dir / "pylock.toml"
-    try:
-        data = load_toml_file(lock_path)
-    except FileNotFoundError:
-        return []
-    except (OSError, TOMLDecodeError) as exc:
-        log.warning("Failed to parse %s: %s", lock_path, exc)
+    data = load_lock_toml(lock_path)
+    if data is None:
         return []
 
     if not isinstance(data.get("lock-version"), str):

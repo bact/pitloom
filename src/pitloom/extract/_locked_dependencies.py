@@ -16,14 +16,16 @@ pinned ``requirements.txt``) predate PEP 621 almost entirely and pair
 with a bare ``setup.py`` in real projects, never a ``pyproject.toml``,
 so a cascade wired only inside ``read_pyproject()`` would never see them.
 
-``poetry.lock`` is *not* one of the sources listed here: it stays gated
-inside :func:`pitloom.extract._pyproject._try_read_poetry`'s
+``poetry.lock`` has no extractor entry in :data:`_LOCK_SOURCES` -- it
+stays gated inside
+:func:`pitloom.extract._pyproject._try_read_poetry`'s
 ``include_locked_dependencies`` build-stage flag, since it only ever
 makes sense alongside a ``[tool.poetry]`` table, which requires
-``pyproject.toml`` to exist regardless. This cascade runs *after* that
-poetry.lock resolution, so a higher-priority format here can still
-override an already-set poetry.lock result -- see
-:data:`_LOCK_SOURCES`'s ordering.
+``pyproject.toml`` to exist regardless, so it's applied earlier, before
+this cascade runs. It *is* still listed in :data:`_LOCK_SOURCES`, as a
+placeholder entry with no extractor, purely to fix its rank in the one
+priority order every source (cascade-tried or not) is compared against
+-- see :func:`apply_locked_dependencies`.
 """
 
 from __future__ import annotations
@@ -34,7 +36,9 @@ from pathlib import Path
 
 from pitloom.assemble.spdx3._provenance_encoders import parse_provenance_value
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
 from pitloom.extract._pylock import extract_pylock_dependencies
+from pitloom.extract._uv_lock import extract_uv_lock_dependencies
 
 log = logging.getLogger(__name__)
 
@@ -42,16 +46,22 @@ __all__ = ["apply_locked_dependencies"]
 
 _LockExtractor = Callable[[Path], list[str]]
 
-#: Priority-ordered (highest first) lock/pin sources this cascade
-#: chooses among. Each entry is ``(source filename, extractor function,
-#: provenance Method tag)``. The extractor always takes a project
-#: directory and returns exact-pin PEP 508 strings, or an empty list
-#: when the source is absent/unusable. See
+#: Full priority order (highest first) across every lock/pin source,
+#: including ``poetry.lock`` even though it has no extractor here (see
+#: the module docstring). Each entry is ``(source name, extractor or
+#: ``None``, provenance Method tag or ``None``)``. This is the single
+#: place the *complete* order is declared -- both which extractors this
+#: cascade tries, and where ``poetry.lock``'s already-applied result
+#: ranks relative to them -- so the two can never drift apart the way
+#: two independently-maintained lists could. See
 #: ``working-docs/design/roadmap.md``'s "Remaining lock formats" item
 #: for why this order was chosen (build-backend-agnostic and universal
 #: beats tool-specific; a real resolver lock beats a merely-pinned file).
-_LOCK_SOURCES: list[tuple[str, _LockExtractor, str]] = [
+_LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
     ("pylock.toml", extract_pylock_dependencies, "resolved_lockfile"),
+    ("uv.lock", extract_uv_lock_dependencies, "resolved_lockfile"),
+    ("poetry.lock", None, None),
+    ("pdm.lock", extract_pdm_lock_dependencies, "resolved_lockfile"),
 ]
 
 
@@ -59,28 +69,52 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     """Overlay the highest-priority available lock/pin source's resolved
     dependencies onto *metadata*, in place.
 
-    Tries each entry of :data:`_LOCK_SOURCES` in priority order; the
-    first one that yields a non-empty result wins and every lower
-    priority source is left unconsidered. If *metadata* already carries
-    a ``locked_dependencies`` result (from an already-applied
-    ``poetry.lock``, or nothing at all), a winning source here replaces
-    it and a ``WARNING:`` names the override -- and, per this repo's "no
+    Tries each extractor-bearing entry of :data:`_LOCK_SOURCES` in
+    priority order; the first one that yields a non-empty result wins.
+    Crucially, this respects *every* source's rank, not just the ones
+    this cascade itself tries: once the already-applied source (e.g.
+    ``poetry.lock``, applied earlier by ``_try_read_poetry()``) outranks
+    every remaining untried entry, the loop stops -- a lower-priority
+    format (``pdm.lock`` ranks below ``poetry.lock``) must never
+    silently clobber a higher-priority result just because it happens
+    to run later in this function's own loop.
+
+    If *metadata* already carries a ``locked_dependencies`` result and a
+    higher-or-equal-priority source here wins, that source replaces it
+    and a ``WARNING:`` names the override -- and, per this repo's "no
     silent deviations" principle, the fact that a source was superseded
     is also recorded in the resulting ``provenance["locked_dependencies"]``
     string itself (as a trailing ``| Note: supersedes <name>``), not only
     logged, so a reader of the generated SBOM can see it too.
     """
-    for source_name, extractor, method in _LOCK_SOURCES:
+    previous = metadata.provenance.get("locked_dependencies")
+    previous_source = (
+        parse_provenance_value(previous).get("source") if previous is not None else None
+    )
+    previous_rank = next(
+        (
+            rank
+            for rank, (name, _, _) in enumerate(_LOCK_SOURCES)
+            if name == previous_source
+        ),
+        None,
+    )
+
+    for rank, (source_name, extractor, method) in enumerate(_LOCK_SOURCES):
+        if extractor is None:
+            continue  # e.g. poetry.lock: applied earlier, not tried here
+        if previous_rank is not None and rank > previous_rank:
+            # Every remaining entry ranks below whatever's already set --
+            # none of them can win, so stop instead of scanning further.
+            break
+
         dependencies = extractor(project_dir)
         if not dependencies:
             continue
 
         provenance = f"Source: {source_name} | Method: {method}"
-        previous = metadata.provenance.get("locked_dependencies")
         if previous is not None:
-            superseded = parse_provenance_value(previous).get(
-                "source", "unknown source"
-            )
+            superseded = previous_source or "unknown source"
             log.warning(
                 "%s: both %s and %s resolved-dependency data are present -- "
                 "%s takes priority",
