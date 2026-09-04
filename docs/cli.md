@@ -66,8 +66,9 @@ loom project /path/to/project -o sbom.spdx3.json
 > Project-level metadata (name, version, dependencies, license,
 > authors) is read independently and unaffected either way.
 
-If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, or `pdm.lock`)
-is present next to `pyproject.toml`, its resolved transitive
+If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`, or
+`Pipfile.lock`) is present next to `pyproject.toml` (or `setup.py`, for
+`Pipfile.lock`), its resolved transitive
 dependencies are added to the Source SBOM's dependency list too -- see
 [Dependency sources and precedence](dependency-sources.md) for which
 one wins when more than one is present, and what counts as "resolved"

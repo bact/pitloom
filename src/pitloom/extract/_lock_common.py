@@ -5,8 +5,8 @@
 
 """Shared helpers for lock/pin file extractors
 (:mod:`pitloom.extract._poetry_lock`, :mod:`pitloom.extract._pylock`,
-:mod:`pitloom.extract._uv_lock`, :mod:`pitloom.extract._pdm_lock`, and
-future formats registered in
+:mod:`pitloom.extract._uv_lock`, :mod:`pitloom.extract._pdm_lock`,
+:mod:`pitloom.extract._pipfile_lock`, and future formats registered in
 :mod:`pitloom.extract._locked_dependencies`).
 
 Factored out once the same two steps -- "load the lock file, handling
@@ -21,6 +21,7 @@ its own group/source-key conventions) stays in that format's own module.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -35,7 +36,9 @@ __all__ = [
     "find_first_present_key",
     "index_packages_by_name",
     "is_usable_version",
+    "load_lock_json",
     "load_lock_toml",
+    "warn_non_registry_source",
 ]
 
 #: The literal ``Source:`` name written into
@@ -67,6 +70,39 @@ def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
     except (OSError, TOMLDecodeError) as exc:
         log.warning("Failed to parse %s: %s", lock_path, exc)
         return None
+
+
+def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
+    """Read and parse *lock_path* as JSON, returning ``None`` (after a
+    ``WARNING:`` for a parse/read or shape failure, silently for a
+    simply-absent file) instead of raising -- the JSON-format
+    counterpart of :func:`load_lock_toml`, for ``Pipfile.lock`` (JSON,
+    unlike every other lock/pin format this module serves, which are
+    TOML).
+
+    Unlike TOML (whose grammar guarantees a table at the document root,
+    so this can't happen to :func:`load_lock_toml`), JSON's top level
+    can legally be an array, string, number, or ``null`` -- rejected
+    here with a ``WARNING:`` so every caller can rely on this function's
+    declared ``dict[str, Any] | None`` return type without its own
+    defensive `isinstance` check.
+    """
+    try:
+        with open(lock_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError) as exc:
+        log.warning("Failed to parse %s: %s", lock_path, exc)
+        return None
+    if not isinstance(data, dict):
+        log.warning(
+            "%s: top-level JSON value is %s, expected an object",
+            lock_path,
+            type(data).__name__,
+        )
+        return None
+    return data
 
 
 def index_packages_by_name(packages: list[Any]) -> dict[str, list[dict[str, Any]]]:
@@ -111,6 +147,27 @@ def is_usable_version(version: Any) -> bool:
     genuinely format-specific.
     """
     return isinstance(version, str) and bool(version)
+
+
+def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None:
+    """Log the standard ``WARNING:`` for a non-registry-sourced entry
+    (VCS, local path, archive/URL -- anything a bare ``name==version``
+    pin can't represent), naming *lock_file* (e.g. ``"uv.lock"``),
+    *name* (the package), and *source_key* (which non-registry marker
+    was found).
+
+    The exact wording was hand-copied identically into every extractor
+    (`_poetry_lock.py`, `_pylock.py`, `_uv_lock.py`, `_pdm_lock.py`,
+    `_pipfile_lock.py`) before being factored out here, per this repo's
+    "a pattern hand-copied across 3+ call sites drifts" convention.
+    """
+    log.warning(
+        "Skipping %s entry %r: %s-sourced dependencies cannot be "
+        "represented as a PEP 508 specifier",
+        lock_file,
+        name,
+        source_key,
+    )
 
 
 def find_first_present_key(

@@ -47,6 +47,7 @@ from pitloom.extract._lock_common import (
     index_packages_by_name,
     is_usable_version,
     load_lock_toml,
+    warn_non_registry_source,
 )
 
 log = logging.getLogger(__name__)
@@ -96,12 +97,7 @@ def _default_group_package_or_none(pkg: Any) -> dict[str, Any] | None:
 
     non_registry_key = find_first_present_key(pkg, _NON_REGISTRY_KEYS)
     if non_registry_key is not None:
-        log.warning(
-            "Skipping pdm.lock entry %r: %s-sourced dependencies cannot be "
-            "represented as a PEP 508 specifier",
-            name,
-            non_registry_key,
-        )
+        warn_non_registry_source("pdm.lock", name, non_registry_key)
         return None
 
     version = pkg.get("version")

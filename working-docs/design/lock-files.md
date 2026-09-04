@@ -72,7 +72,7 @@ simply by asking users to run `[tool] export --format pylock`.
 | | `conda-lock.yml` | Maps Conda data science packages alongside PyPI wheels. |
 | **3: Corporate Standards** | `poetry.lock` | **Done (2026-08-31)** -- see the "See also" note above. Massive legacy and enterprise footprint in Data Engineering (Airflow, dbt). |
 | **4: Legacy & Niche** | `pdm.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
-| | `Pipfile.lock` | Largely legacy tooling. Low priority. |
+| | `Pipfile.lock` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Largely legacy tooling. |
 
 ---
 

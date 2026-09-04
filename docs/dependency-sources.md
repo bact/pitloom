@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,9 +41,10 @@ exactly-pinned entries.
 | 2 | uv | `uv.lock` | Your project's own main/runtime dependencies (not `optional-dependencies` extras or `dev-dependencies` groups). A dependency pinned to more than one version for different Python versions is skipped, not guessed at -- see below. |
 | 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` dev/extra groups). |
 | 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only. |
+| 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`). A package whose resolved `version` isn't a single exact `==` pin is skipped, not guessed at. |
 
-Support for `Pipfile.lock` (Pipenv) and a fully pinned `requirements.txt`
-is planned, ranked below the formats above.
+Support for a fully pinned `requirements.txt` is planned, ranked below
+the formats above.
 
 **Only the single highest-priority lock file present is used.** If more
 than one lock file exists in the same project directory (uncommon, but

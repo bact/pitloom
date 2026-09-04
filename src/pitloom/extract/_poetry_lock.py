@@ -27,7 +27,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from pitloom.extract._lock_common import is_usable_version, load_lock_toml
+from pitloom.extract._lock_common import (
+    is_usable_version,
+    load_lock_toml,
+    warn_non_registry_source,
+)
 
 log = logging.getLogger(__name__)
 
@@ -108,11 +112,6 @@ def _pinned_dep_for_package(pkg: Any) -> str | None:
     source = pkg.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None
     if source_type in _NON_PEP508_SOURCE_TYPES:
-        log.warning(
-            "Skipping poetry.lock entry %r: %s-sourced dependencies cannot "
-            "be represented as a PEP 508 specifier",
-            name,
-            source_type,
-        )
+        warn_non_registry_source("poetry.lock", name, source_type)
         return None
     return f"{name}=={version}"

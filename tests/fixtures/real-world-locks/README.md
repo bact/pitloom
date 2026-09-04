@@ -72,6 +72,15 @@ artifact.
   `real-world-projects/README.md`) -- so `metadata.name` won't resolve
   for either. Tests against these two fixtures assert on
   `locked_dependencies`/`provenance`, not `metadata.name`.
+- **`responder`'s `Pipfile.lock` has a self-referential entry.** Its
+  `default` section includes `"responder": {"editable": true, "path":
+  "."}` -- the package's own local checkout, resolved into its own lock
+  file by `pipenv`. `extract_pipfile_lock_dependencies()`'s non-registry-
+  source skip excludes it (no `version` to pin against, `editable`/`path`
+  present) the same way it would any other local-path dependency --
+  `requests-html`'s equivalent self-entry lives in `develop` instead, so
+  it's already excluded by the `default`-only filter and doesn't
+  exercise this path.
 - **`pipenv`'s `pylock.toml` fixture reuses a version already vendored
   elsewhere.** `pypa/pipenv` `2026.8.0` is the same release already
   vendored as a full sdist in
@@ -126,8 +135,9 @@ artifact.
 | `uv.lock` | [pypa/abi3audit](https://github.com/pypa/abi3audit) | 0.0.26 | MIT | GitHub tag `v0.0.26` | GitHub tag `v0.0.26` |
 | `pdm.lock` | [pdm-project/pdm](https://github.com/pdm-project/pdm) | 2.29.0 | MIT | GitHub tag `2.29.0` | GitHub tag `2.29.0` |
 | `pdm.lock` | [frostming/unearth](https://github.com/frostming/unearth) | 0.18.3 | MIT | GitHub tag `0.18.3` | GitHub tag `0.18.3` |
+| `Pipfile.lock` | [psf/requests-html](https://github.com/psf/requests-html) | 0.10.0 | MIT | GitHub tag `v0.10.0` (`setup.py`) | GitHub tag `v0.10.0` |
+| `Pipfile.lock` | [kennethreitz/responder](https://github.com/kennethreitz/responder) | 2.0.0 | Apache-2.0 | GitHub tag `v2.0.0` (`setup.py`) | GitHub tag `v2.0.0` |
 
-`Pipfile.lock` and pinned `requirements.txt` fixtures land in their own
-follow-up changes, alongside each format's own extractor -- see
-`working-docs/design/roadmap.md`'s "Remaining lock formats as a
-resolved-dependency source" item.
+Pinned `requirements.txt` fixtures land in their own follow-up change,
+alongside its extractor -- see `working-docs/design/roadmap.md`'s
+"Remaining lock formats as a resolved-dependency source" item.

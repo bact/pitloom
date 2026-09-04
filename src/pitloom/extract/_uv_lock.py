@@ -54,6 +54,7 @@ from pitloom.extract._lock_common import (
     index_packages_by_name,
     is_usable_version,
     load_lock_toml,
+    warn_non_registry_source,
 )
 
 log = logging.getLogger(__name__)
@@ -182,12 +183,7 @@ def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
     if isinstance(source, dict):
         non_registry_source = find_first_present_key(source, _NON_REGISTRY_SOURCE_KEYS)
         if non_registry_source is not None:
-            log.warning(
-                "Skipping uv.lock entry %r: %s-sourced dependencies cannot "
-                "be represented as a PEP 508 specifier",
-                name,
-                non_registry_source,
-            )
+            warn_non_registry_source("uv.lock", name, non_registry_source)
             return None
     version = pkg.get("version")
     if not is_usable_version(version):
