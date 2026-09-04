@@ -102,8 +102,9 @@ def _resolve_hatchling_readme(core: Any) -> str | None:
 
 def _resolve_hatchling_license(
     core: Any, project_dir: Path, provenance: dict[str, str]
-) -> tuple[str | None, str | None]:
-    """Extract declared/detected license and concluded license from Hatchling core."""
+) -> tuple[str | None, str | None, list[str]]:
+    """Extract declared/detected license, concluded license, and declared
+    license files from Hatchling core."""
     try:
         license_hint = core.license_expression or core.license or None
     except OSError:
@@ -121,7 +122,38 @@ def _resolve_hatchling_license(
     if license_concluded and license_concluded_prov:
         provenance["license_concluded"] = license_concluded_prov
 
-    return license_name, license_concluded
+    license_files = _resolve_hatchling_license_files(core)
+    if license_files:
+        provenance["license_files"] = _field_provenance("license-files")
+
+    return license_name, license_concluded, license_files
+
+
+def _resolve_hatchling_license_files(core: Any) -> list[str]:
+    """Return declared ``[project.license-files]`` entries only.
+
+    ``core.license_files`` itself is not a reliable proxy for "the user
+    declared this field": absent an explicit ``license-files`` key,
+    Hatchling's own property (mirroring the same convention `setuptools`
+    and the `wheel` package use) falls back to auto-discovering
+    ``LICEN[CS]E*``/``COPYING*``/``NOTICE*``/``AUTHORS*`` at the project
+    root -- real files a build *will* bundle, but not something
+    ``project.license-files`` actually said. Reading the property
+    unconditionally would misreport that auto-discovered default as an
+    explicit declaration (wrong provenance) and diverge from
+    :mod:`pitloom.extract._pyproject`, which -- via
+    ``pyproject_metadata.StandardMetadata.license_files`` -- has no such
+    default and returns ``None``/empty when the field is absent. Checking
+    ``core.config`` (the raw, unprocessed ``[project]`` table) first keeps
+    both extraction paths agreeing on exactly the same "was this
+    declared" question.
+    """
+    try:
+        if "license-files" not in core.config:
+            return []
+        return list(core.license_files or [])
+    except OSError:
+        return []
 
 
 def metadata_from_hatchling(
@@ -160,7 +192,7 @@ def metadata_from_hatchling(
     if dependencies:
         provenance["dependencies"] = _field_provenance("dependencies")
 
-    license_name, license_concluded = _resolve_hatchling_license(
+    license_name, license_concluded, license_files = _resolve_hatchling_license(
         core, project_dir, provenance
     )
 
@@ -172,6 +204,7 @@ def metadata_from_hatchling(
         requires_python=requires_python,
         license_name=license_name,
         license_concluded=license_concluded,
+        license_files=license_files,
         keywords=list(core.keywords or []),
         authors=authors,
         urls=urls,

@@ -18,6 +18,8 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import pitloom.extract._license as _license_module
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
@@ -25,6 +27,7 @@ from pitloom.extract._license import (
     canonicalize_license_id,
     detect_independent_license,
     detect_license_from_text,
+    resolve_license_file_entries,
     tag_license_normalization,
 )
 from pitloom.extract._license_detect import (
@@ -157,6 +160,62 @@ def test_collect_license_candidates_skips_blank_file_and_continues() -> None:
         candidates = collect_license_candidates(p)
         assert len(candidates) == 1
         assert candidates[0][0] == "MIT License text"
+
+
+def test_resolve_license_file_entries_escapes_hyphenated_name(
+    tmp_path: Path,
+) -> None:
+    """`distribution_path` must match real wheel dist-info naming: PEP 503
+    normalize then replace ``-`` with ``_`` (the current Binary Distribution
+    Format spec's escaping rule, which superseded PEP 427's on this point in
+    2021) -- not PEP 503 normalization alone, which would leave the hyphen
+    in place and never match a real wheel's `.dist-info/` directory name.
+    Regression test: verified against the real published wheel filename for
+    `pytest-asyncio` (`pytest_asyncio-1.4.0.dist-info/...`)."""
+    (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+
+    entries = resolve_license_file_entries(
+        tmp_path, "pytest-asyncio", "1.4.0", ["LICENSE"]
+    )
+
+    assert len(entries) == 1
+    assert entries[0].distribution_path == (
+        "pytest_asyncio-1.4.0.dist-info/licenses/LICENSE"
+    )
+
+
+def test_resolve_license_file_entries_uppercase_name_lowercased(
+    tmp_path: Path,
+) -> None:
+    """A mixed-case declared name (e.g. `MarkupSafe`) must lowercase in the
+    dist-info path, matching the real published wheel
+    (`markupsafe-3.0.3.dist-info/...`, not `MarkupSafe-3.0.3.dist-info/...`)."""
+    (tmp_path / "LICENSE.txt").write_text("BSD-3-Clause", encoding="utf-8")
+
+    entries = resolve_license_file_entries(
+        tmp_path, "MarkupSafe", "3.0.3", ["LICENSE.txt"]
+    )
+
+    assert len(entries) == 1
+    assert entries[0].distribution_path == (
+        "markupsafe-3.0.3.dist-info/licenses/LICENSE.txt"
+    )
+
+
+def test_resolve_license_file_entries_unresolved_version_skips_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An unresolved (``None``) version has no real wheel filename to derive
+    a `.dist-info/` path from -- every declared entry must be skipped with a
+    `WARNING:`, never fabricated (e.g. as a placeholder version)."""
+    (tmp_path / "LICENSE").write_text("MIT", encoding="utf-8")
+
+    with caplog.at_level("WARNING", logger="pitloom.extract._license"):
+        entries = resolve_license_file_entries(tmp_path, "pkg", None, ["LICENSE"])
+
+    assert entries == []
+    assert "pkg" in caplog.text
+    assert "version could not be resolved" in caplog.text
 
 
 def test_detect_independent_license_loop_continuation() -> None:

@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-03
+Last-Modified: 2026-09-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -38,6 +38,9 @@ and this project adheres to
 - `embed-wheel --sbom` now cross-checks the SBOM's name/version against
   the wheel's METADATA before writing; aborts on mismatch unless
   `--allow-mismatch` ([#204])
+- Add PEP 639 `[project.license-files]` support: each declared license
+  file gets a `software_File` element at the real wheel's
+  `.dist-info/licenses/` path and a `hasDeclaredLicense` relationship ([#207])
 
 ### Fixed
 
@@ -76,6 +79,7 @@ and this project adheres to
 [#202]: https://github.com/bact/pitloom/pull/202
 [#204]: https://github.com/bact/pitloom/pull/204
 [#205]: https://github.com/bact/pitloom/pull/205
+[#207]: https://github.com/bact/pitloom/pull/207
 
 ## [0.17.0] - 2026-08-30
 

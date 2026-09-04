@@ -176,12 +176,17 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     license_concluded, license_concluded_prov = resolve_license_concluded(
         bool(std.license), pyproject_path.parent
     )
+    license_files = [p.as_posix() for p in (std.license_files or [])]
 
     provenance = _build_provenance(
         data.get("project", {}), version_source, license_prov, description_source
     )
     if license_concluded and license_concluded_prov:
         provenance["license_concluded"] = license_concluded_prov
+    if license_files:
+        provenance["license_files"] = (
+            "Source: pyproject.toml | Field: project.license-files"
+        )
 
     metadata = ProjectMetadata(
         name=std.name,
@@ -191,6 +196,7 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
         requires_python=str(std.requires_python) if std.requires_python else None,
         license_name=license_name,
         license_concluded=license_concluded,
+        license_files=license_files,
         keywords=std.keywords or [],
         authors=_extract_authors(std),
         urls=std.urls or {},

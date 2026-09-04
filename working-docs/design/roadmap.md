@@ -50,11 +50,15 @@ is not kept in sync with post-ship changes.
   array-of-tables config. See [creation-metadata.md](../../docs/creation-metadata.md).
 - [x] **SPDX license expression normalization and declared-vs-detected
   conflict detection (G2)** -- via [`py-spdx-license`](https://github.com/JPEWdev/py-spdx-license).
-  Remaining, narrower scope: `[project.license-files]` (PEP 639 glob-list
-  for bundling multiple license files) not specifically parsed -- tracked
-  under Metadata quality below.
   See [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md)
   ([PR #121](https://github.com/bact/pitloom/pull/121)).
+- [x] **`[project.license-files]` support** -- PEP 639's glob-list field
+  for bundling multiple license files. `ProjectMetadata.license_files`
+  (resolved by `pyproject_metadata`/Hatchling, not re-globbed by Pitloom);
+  each entry gets a `software_File` element at the real wheel's
+  `<name>-<version>.dist-info/licenses/<path>` and a `hasDeclaredLicense`
+  relationship, deduped against the package-level license element. See
+  [license-pipeline.md](../implementation/license-pipeline.md#license-files-bundling-pep-639).
 - [x] **Auto-sync the Loom ID registry after SBOM generation** -- `loom
   project`/`wheel`/`env` harvest newly-minted ids back into the resolved
   registry after each run. `ai_AIPackage`/`dataset_DatasetPackage`
@@ -527,12 +531,28 @@ than this pattern.
   candidate: the same "don't let two sources silently disagree" argument
   applies, and the comparison/normalization scaffolding already built for
   license is largely reusable.
-- [ ] **`[project.license-files]` support** -- PEP 639's glob-list field
-  for bundling multiple license files (narrower remainder of the old
-  "License expression support" item -- expression parsing/normalization
-  and conflict detection shipped, see Completed above).
 - [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
   extras, development dependencies.
+- [ ] **Auto-discover default license files when `[project.license-files]`
+  is undeclared** -- setuptools' `_finalize_license_files()` and
+  Hatchling's `CoreMetadata.license_files` both fall back to the same
+  glob (`LICEN[CS]E*`, `COPYING*`, `NOTICE*`, `AUTHORS*`, citing the
+  `wheel` package's own documented convention) and bundle whatever
+  matches into a real wheel's `.dist-info/licenses/`, even with no
+  explicit field. Pitloom's `resolve_license_file_entries()`
+  (`src/pitloom/extract/_license.py`) deliberately does *not* replicate
+  this today -- both extraction paths only trust an explicit
+  `[project.license-files]` declaration (see
+  [license-pipeline.md](../implementation/license-pipeline.md)'s
+  "License-files bundling" section) --
+  because the default glob is a build-backend auto-bundling convenience,
+  not something PEP 639 itself defines, and because `NOTICE`/`AUTHORS`
+  matches don't obviously belong under a `hasDeclaredLicense` relationship
+  the way `LICENSE`/`COPYING` do. If this is picked up, it needs its own
+  design pass: which stems to trust, whether it holds for every backend
+  (only setuptools and Hatchling are confirmed so far), and a provenance
+  label that clearly distinguishes "inferred default" from "explicitly
+  declared."
 - [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
   -- MVP shipped: local README/model-card YAML frontmatter parsing,
   gated by `[tool.pitloom] enrich` (default off). Code-level and

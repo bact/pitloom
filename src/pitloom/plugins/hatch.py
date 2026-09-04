@@ -32,6 +32,7 @@ from pitloom.core.models import get_wheel_files
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
+from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.hatchling import metadata_from_hatchling
 from pitloom.extract.scanner import scan_project_for_ai_models
@@ -155,6 +156,13 @@ def _build_document_model(
         # backend-detection get_wheel_files would otherwise do to figure
         # out what this call site already knows.
         assume_backend="hatchling",
+    )
+    # Same static-walk-vs-real-build gap as generate_project_sbom() (see
+    # pitloom.assemble._generators) -- get_wheel_files() never reproduces
+    # the `.dist-info/licenses/...` entries a real build's
+    # WheelBuilder.add_licenses() would add for `[project.license-files]`.
+    project_files = project_files + resolve_license_file_entries(
+        project_dir, metadata.name, metadata.version, metadata.license_files
     )
     metadata.files = project_files
     ai_models = scan_project_for_ai_models(project_dir, project_files)

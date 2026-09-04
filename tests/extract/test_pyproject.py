@@ -62,6 +62,39 @@ def test_read_pyproject_no_project_no_poetry_detects_license_from_dir() -> None:
     assert "license" in metadata.provenance
 
 
+def test_read_pyproject_resolves_license_files() -> None:
+    """PEP 639 ``[project.license-files]`` resolves to a project-root-relative
+    path list, mirroring real-world usage (see
+    ``tests/fixtures/real-world-projects/setuptools/cachetools-7.1.8``)."""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "pkg"\nversion = "1.0.0"\n'
+            'license = "MIT"\nlicense-files = ["LICENSE"]\n',
+            encoding="utf-8",
+        )
+        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+    assert metadata.license_files == ["LICENSE"]
+    assert metadata.provenance["license_files"] == (
+        "Source: pyproject.toml | Field: project.license-files"
+    )
+
+
+def test_read_pyproject_no_license_files_declared() -> None:
+    """No ``[project.license-files]`` key: resolves to an empty list, not
+    ``None`` or a missing field."""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "pkg"\nversion = "1.0.0"\nlicense = "MIT"\n',
+            encoding="utf-8",
+        )
+        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+    assert not metadata.license_files
+    assert "license_files" not in metadata.provenance
+
+
 def test_read_pyproject_no_project_no_poetry_no_license_found() -> None:
     """No ``[project]``, no ``[tool.poetry]``, and nothing in the directory
     that looks like a license: ``license_prov`` stays falsy."""

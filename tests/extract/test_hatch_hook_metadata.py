@@ -19,6 +19,7 @@ from pitloom.plugins.hatch import (  # noqa: E402
 
 from .conftest import (
     CONFLICT_PYPROJECT,
+    MINIMAL_PYPROJECT,
     MISSING_LICENSE_FILE_PYPROJECT,
     MISSING_README_PYPROJECT,
     POETRY_GAP_FILL_PYPROJECT,
@@ -45,6 +46,74 @@ def test_metadata_from_hatchling_maps_dependencies() -> None:
     assert metadata.dependencies == ["requests>=2.0", "click"]
     assert metadata.provenance["dependencies"] == (
         "Source: Hatchling build backend | Field: project.dependencies"
+    )
+
+
+def test_metadata_from_hatchling_maps_license_files() -> None:
+    """PEP 639 ``[project.license-files]`` -- resolved by Hatchling itself
+    to a root-relative path list -- must be carried over verbatim."""
+    hatch_meta = _fake_hatch_metadata(
+        core={"license_expression": "MIT", "license_files": ["LICENSE"]}
+    )
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.license_files == ["LICENSE"]
+    assert metadata.provenance["license_files"] == (
+        "Source: Hatchling build backend | Field: project.license-files"
+    )
+
+
+def test_metadata_from_hatchling_no_license_files() -> None:
+    """Absent ``[project.license-files]`` must resolve to an empty list, not
+    ``None`` or a missing field."""
+    hatch_meta = _fake_hatch_metadata(core={"license_expression": "MIT"})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.license_files == []
+    assert "license_files" not in metadata.provenance
+
+
+def test_metadata_from_hatchling_no_license_files_with_real_core(
+    tmp_path: Path,
+) -> None:
+    """Regression test against real Hatchling ``CoreMetadata`` (not the
+    ``_fake_hatch_metadata`` mock): its ``license_files`` property has its
+    own default-glob fallback (``LICEN[CS]E*``/``COPYING*``/``NOTICE*``/
+    ``AUTHORS*``, the same convention `setuptools` and the `wheel` package
+    document) when ``[project.license-files]`` is entirely absent -- a
+    mock's ``_FAKE_CORE_DEFAULTS`` can't reproduce that lazy, config-driven
+    behavior. A project with a root ``LICENSE`` file but no declared
+    ``license-files`` key must still resolve to an empty list -- treating
+    Hatchling's auto-bundling default as an explicit declaration would
+    diverge from ``read_pyproject()``'s ``pyproject_metadata``-based
+    extraction, which has no such default (see
+    ``_resolve_hatchling_license_files``'s docstring)."""
+    write_pyproject(tmp_path)
+    (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
+
+    hatch_pm = hatchling_metadata_core.ProjectMetadata(str(tmp_path), PluginManager())
+    metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+
+    assert metadata.license_files == []
+    assert "license_files" not in metadata.provenance
+
+
+def test_metadata_from_hatchling_declared_license_files_with_real_core(
+    tmp_path: Path,
+) -> None:
+    """Companion to the "no license-files" real-core regression test above:
+    an explicitly declared ``[project.license-files]`` must still resolve
+    correctly through real Hatchling ``CoreMetadata``."""
+    write_pyproject(
+        tmp_path,
+        MINIMAL_PYPROJECT + '\nlicense = "MIT"\nlicense-files = ["LICENSE"]\n',
+    )
+    (tmp_path / "LICENSE").write_text("MIT License", encoding="utf-8")
+
+    hatch_pm = hatchling_metadata_core.ProjectMetadata(str(tmp_path), PluginManager())
+    metadata = metadata_from_hatchling(hatch_pm, tmp_path)
+
+    assert metadata.license_files == ["LICENSE"]
+    assert metadata.provenance["license_files"] == (
+        "Source: Hatchling build backend | Field: project.license-files"
     )
 
 

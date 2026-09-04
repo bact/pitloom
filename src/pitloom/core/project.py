@@ -42,6 +42,13 @@ class ProjectFile:
         content_type_method: ``"magika"``, ``"extension_guess"``, or
             ``"config_override"`` -- which tool (or config match)
             resolved ``content_type``.
+        is_license_file: ``True`` when this entry was resolved from
+            ``[project.license-files]`` (PEP 639) rather than discovered by
+            normal package file selection -- see
+            ``pitloom.extract._license.resolve_license_file_entries``. Tells
+            the assembler to emit a file-level ``hasDeclaredLicense``
+            relationship using the project's declared license, since this
+            file carries no ``SPDX-License-Identifier:`` header of its own.
     """
 
     physical_path: str
@@ -54,6 +61,7 @@ class ProjectFile:
     spdx_license_identifier: str | None = None
     content_type: str | None = None
     content_type_method: str | None = None
+    is_license_file: bool = False
 
 
 @dataclass
@@ -103,6 +111,7 @@ class ProjectMetadata:
     requires_python: str | None = None
     license_name: str | None = None
     license_concluded: str | None = None
+    license_files: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     authors: list[dict[str, str]] = field(default_factory=list)
     urls: dict[str, str] = field(default_factory=dict)

@@ -20,6 +20,7 @@ See Also:
 from __future__ import annotations
 
 import functools
+import hashlib
 import logging
 import re
 from importlib.metadata import PackageNotFoundError
@@ -27,9 +28,11 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from licenseid import AggregatedLicenseMatcher
+from packaging.utils import canonicalize_name
 from py_spdx_license import ParseError as SpdxExpressionParseError
 from py_spdx_license import parse as parse_spdx_expression
 
+from pitloom.core.project import ProjectFile
 from pitloom.extract._license_detect import (
     _LICENSE_STEMS,
     _LICENSE_SUFFIXES,
@@ -74,6 +77,7 @@ __all__ = [
     "find_license_files",
     "normalize_license_expression",
     "resolve_license_concluded",
+    "resolve_license_file_entries",
     "tag_license_normalization",
 ]
 
@@ -233,3 +237,80 @@ def detect_license_for_project(
         return license_hint.strip(), None
 
     return None, None
+
+
+def resolve_license_file_entries(
+    project_dir: Path,
+    name: str,
+    version: str | None,
+    license_files: list[str],
+) -> list[ProjectFile]:
+    """Build a :class:`~pitloom.core.project.ProjectFile` for each PEP 639
+    ``[project.license-files]`` entry, ready to merge into
+    :attr:`~pitloom.core.project.ProjectMetadata.files`.
+
+    Pitloom's file discovery (``get_wheel_files()`` /
+    ``_discover_included_files()``) is a static, config-driven file-selection
+    walk, never a real wheel build -- so it never reproduces the
+    ``<name>-<version>.dist-info/licenses/<path>`` entries a real build's
+    ``WheelBuilder.add_licenses()`` would add. This fills that gap directly:
+    called by the CLI/library generation path
+    (:mod:`pitloom.assemble._generators`) and the Hatchling build hook
+    (:mod:`pitloom.plugins.hatch`) after they've resolved ``project_dir`` and
+    ``metadata.license_files``, so the resulting entries survive those call
+    sites' ``metadata.files = project_files`` overwrite instead of being
+    built too late for it.
+
+    ``distribution_path`` uses the same name/version escaping every wheel
+    build produces for its ``dist-info`` directory, per the current
+    `Binary Distribution Format spec
+    <https://packaging.python.org/en/latest/specifications/binary-distribution-format/#escaping-and-unicode>`_:
+    regular name normalization (PEP 503, :func:`packaging.utils.canonicalize_name`)
+    followed by replacing every ``-`` with ``_`` -- independent of which
+    build backend actually produced *license_files*. A path that can't be
+    read (already deleted, a broken glob match) is skipped with a warning
+    rather than raising, since a project's SBOM generation should not
+    hard-fail over one missing license file. A *version* that can't be
+    resolved (e.g. a dynamic/SCM version outside a git checkout) is
+    likewise a skip-with-warning for every entry, rather than fabricating
+    one -- there is no real wheel filename to reproduce a path from.
+    """
+    if not license_files:
+        return []
+    if version is None:
+        _logger.warning(
+            "NAME=%s: project version could not be resolved -- skipping %d "
+            "declared license-files entr%s (no real `.dist-info/licenses/` "
+            "path to reproduce without a version)",
+            name,
+            len(license_files),
+            "y" if len(license_files) == 1 else "ies",
+        )
+        return []
+    escaped_name = canonicalize_name(name).replace("-", "_")
+    dist_info_prefix = f"{escaped_name}-{version}.dist-info"
+    entries: list[ProjectFile] = []
+    seen: set[str] = set()
+    for rel_path in license_files:
+        if rel_path in seen:
+            continue
+        seen.add(rel_path)
+        source = project_dir / rel_path
+        try:
+            raw_bytes = source.read_bytes()
+        except OSError as exc:
+            _logger.warning(
+                "FILE=%s: could not read declared license-files entry; %s",
+                rel_path,
+                exc,
+            )
+            continue
+        entries.append(
+            ProjectFile(
+                physical_path=rel_path,
+                distribution_path=f"{dist_info_prefix}/licenses/{rel_path}",
+                digest_sha256=hashlib.sha256(raw_bytes).hexdigest(),
+                is_license_file=True,
+            )
+        )
+    return entries
