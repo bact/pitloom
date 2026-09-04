@@ -99,6 +99,73 @@ def _drop_redundant_license_classifiers(data: dict[str, Any]) -> dict[str, Any]:
     return {**data, "project": {**project_data, "classifiers": kept}}
 
 
+def _parse_standard_metadata_with_retry(
+    data: dict[str, Any],
+    pyproject_path: Path,
+    dynamic_fields: list[str],
+) -> tuple[StandardMetadata, dict[str, Any]]:
+    """Parse *data* via ``StandardMetadata.from_pyproject()``, retrying once
+    if the failure is the PEP 639 transitional classifier conflict.
+
+    Returns ``(std, data)`` -- *data* is returned too since the retry path
+    rewrites it (:func:`_drop_redundant_license_classifiers`), and
+    :func:`read_pyproject` needs that rewritten mapping for its own later
+    ``data.get("project", {})``/``_try_read_poetry()`` calls, not the
+    original.
+
+    Split out of :func:`read_pyproject` specifically to keep that function's
+    cognitive complexity under the repo's ``.flake8`` ceiling -- this nested
+    try/except was its single largest contributor.
+    """
+    try:
+        return (
+            StandardMetadata.from_pyproject(
+                data,
+                project_dir=str(pyproject_path.parent),
+                dynamic_metadata=dynamic_fields or None,
+                allow_extra_keys=True,
+            ),
+            data,
+        )
+    except ConfigurationError as exc:
+        if not _is_license_classifier_conflict(exc):
+            raise ValueError(f"Failed to parse project metadata: {exc}") from exc
+        # PEP 639 transitional state: a project declares both a modern
+        # SPDX `license` expression and legacy `License ::` trove
+        # classifiers -- pyproject-metadata treats the combination as a
+        # hard error. Real-world projects mid-migration commonly leave
+        # the old classifiers in place rather than deleting them the
+        # same release they add the SPDX field. Retry once with the
+        # redundant classifiers dropped, keeping the SPDX expression --
+        # the newer, more specific PEP 639 source -- as authoritative.
+        log.warning(
+            "%s declares both an SPDX `license` expression and legacy "
+            "`License ::` classifiers -- dropping the redundant "
+            "classifiers and keeping the SPDX expression (PEP 639 "
+            "transitional state)",
+            pyproject_path,
+        )
+        data = _drop_redundant_license_classifiers(data)
+        try:
+            return (
+                StandardMetadata.from_pyproject(
+                    data,
+                    project_dir=str(pyproject_path.parent),
+                    dynamic_metadata=dynamic_fields or None,
+                    allow_extra_keys=True,
+                ),
+                data,
+            )
+        # pylint: disable-next=broad-exception-caught
+        except Exception as retry_exc:
+            raise ValueError(
+                f"Failed to parse project metadata: {retry_exc}"
+            ) from retry_exc
+    # pylint: disable=broad-exception-caught
+    except Exception as exc:
+        raise ValueError(f"Failed to parse project metadata: {exc}") from exc
+
+
 # pylint: disable-next=too-many-locals
 def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from a ``pyproject.toml`` file.
@@ -123,47 +190,9 @@ def read_pyproject(pyproject_path: Path) -> tuple[ProjectMetadata, PitloomConfig
     )
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
 
-    try:
-        std = StandardMetadata.from_pyproject(
-            data,
-            project_dir=str(pyproject_path.parent),
-            dynamic_metadata=dynamic_fields or None,
-            allow_extra_keys=True,
-        )
-    except ConfigurationError as exc:
-        if not _is_license_classifier_conflict(exc):
-            raise ValueError(f"Failed to parse project metadata: {exc}") from exc
-        # PEP 639 transitional state: a project declares both a modern
-        # SPDX `license` expression and legacy `License ::` trove
-        # classifiers -- pyproject-metadata treats the combination as a
-        # hard error. Real-world projects mid-migration commonly leave
-        # the old classifiers in place rather than deleting them the
-        # same release they add the SPDX field. Retry once with the
-        # redundant classifiers dropped, keeping the SPDX expression --
-        # the newer, more specific PEP 639 source -- as authoritative.
-        log.warning(
-            "%s declares both an SPDX `license` expression and legacy "
-            "`License ::` classifiers -- dropping the redundant "
-            "classifiers and keeping the SPDX expression (PEP 639 "
-            "transitional state)",
-            pyproject_path,
-        )
-        data = _drop_redundant_license_classifiers(data)
-        try:
-            std = StandardMetadata.from_pyproject(
-                data,
-                project_dir=str(pyproject_path.parent),
-                dynamic_metadata=dynamic_fields or None,
-                allow_extra_keys=True,
-            )
-        # pylint: disable-next=broad-exception-caught
-        except Exception as retry_exc:
-            raise ValueError(
-                f"Failed to parse project metadata: {retry_exc}"
-            ) from retry_exc
-    # pylint: disable=broad-exception-caught
-    except Exception as exc:
-        raise ValueError(f"Failed to parse project metadata: {exc}") from exc
+    std, data = _parse_standard_metadata_with_retry(
+        data, pyproject_path, dynamic_fields
+    )
 
     license_name, license_prov = _extract_and_detect_license(std, pyproject_path.parent)
 
