@@ -308,6 +308,51 @@ def test_default_group_package_included_alongside_excluded_dev_group() -> None:
         assert extract_pylock_dependencies(tmp_path) == []
 
 
+def test_marker_operator_precedence_and_binds_tighter_than_or() -> None:
+    """Regression: PEP 508 gives `and` higher precedence than `or`, but
+    `Marker()._markers` doesn't nest same-precedence terms to reflect
+    that -- an unparenthesized `A or B and C` is one flat list, not
+    `[A, "or", [B, "and", C]]`. A naive left-to-right fold over that flat
+    list would compute `(A or B) and C` instead of the correct
+    `A or (B and C)`. Here `A` is an unevaluated (unknown) environment
+    condition, `B` is a *true* group-membership clause (the group IS
+    active), and `C` is a *false* ordinary condition -- correct PEP 508
+    semantics (`A or (B and C)`) is `unknown or (True and False)` =
+    `unknown or False` = unknown, so the package must still be included
+    (unknown means "can't prove excluded"). The buggy left-fold instead
+    computes `(unknown or True) and False` = `True and False` = False,
+    wrongly excluding it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default", "dev"]\n'
+            '[[packages]]\nname = "precedence-test"\nversion = "1.0.0"\n'
+            "marker = \"python_version >= '3.99' or "
+            "'dev' in dependency_groups and python_version < '2.0'\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["precedence-test==1.0.0"]
+
+
+def test_marker_operator_precedence_still_excludes_when_no_or_clause_is_true() -> None:
+    """The precedence fix must not become "always include": when every
+    `or`-separated group provably evaluates `False` from the known
+    group/extras clauses alone (no unknown clause anywhere), the package
+    is still excluded."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "still-excluded"\nversion = "1.0.0"\n'
+            "marker = \"'dev' in dependency_groups or "
+            "'test' in dependency_groups\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == []
+
+
 def test_package_with_no_marker_included_regardless_of_default_groups() -> None:
     """A package with no `marker` field at all is an ordinary,
     always-active runtime dependency -- unaffected by `default-groups`

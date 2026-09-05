@@ -212,19 +212,20 @@ def _evaluate_group_leaf(
     return member if op == "in" else not member
 
 
-def _combine_group_results(
-    operator: str, left: bool | None, right: bool | None
-) -> bool | None:
-    """3-valued ``and``/``or`` combination of two
-    :func:`_evaluate_group_leaf`-shaped results (``None`` meaning
-    "unknown", not a real true/false)."""
-    if operator == "and":
-        if left is False or right is False:
-            return False
-        return None if left is None or right is None else True
-    if left is True or right is True:
+def _all3(values: list[bool | None]) -> bool | None:
+    """3-valued ``all()``: ``False`` if any value is ``False``, else
+    ``None`` if any value is ``None``, else ``True``."""
+    if any(v is False for v in values):
+        return False
+    return None if any(v is None for v in values) else True
+
+
+def _any3(values: list[bool | None]) -> bool | None:
+    """3-valued ``any()``: ``True`` if any value is ``True``, else
+    ``None`` if any value is ``None``, else ``False``."""
+    if any(v is True for v in values):
         return True
-    return None if left is None or right is None else False
+    return None if any(v is None for v in values) else False
 
 
 def _evaluate_group_node(
@@ -233,14 +234,29 @@ def _evaluate_group_node(
     """Recursively evaluate one node of a parsed
     ``packaging.markers.Marker``'s tree (a leaf tuple, or a list of
     nodes interleaved with ``"and"``/``"or"`` operator strings) using
-    3-valued group/extras-only logic -- see :func:`_group_marker_excludes`."""
+    3-valued group/extras-only logic -- see :func:`_group_marker_excludes`.
+
+    PEP 508 gives ``and`` higher precedence than ``or``, but
+    ``Marker()._markers`` doesn't nest same-precedence-level terms to
+    reflect that -- an unparenthesized ``A or B and C`` is one flat list
+    ``[A, "or", B, "and", C]``, not ``[A, "or", [B, "and", C]]``. A plain
+    left-to-right fold over that list would compute ``(A or B) and C``
+    instead of the correct ``A or (B and C)``. Grouping every term at
+    each ``"or"`` boundary into its own list -- mirroring
+    ``packaging.markers._evaluate_markers()``'s own ``groups``
+    algorithm, just with 3-valued ``all``/``any`` instead of Python's
+    real ones -- restores that precedence regardless of how flat or
+    nested the parsed tree is.
+    """
     if isinstance(node, tuple):
         return _evaluate_group_leaf(node, environment)
-    result = _evaluate_group_node(node[0], environment)
-    for index in range(1, len(node), 2):
-        other = _evaluate_group_node(node[index + 1], environment)
-        result = _combine_group_results(node[index], result, other)
-    return result
+    groups: list[list[bool | None]] = [[]]
+    for item in node:
+        if item == "or":
+            groups.append([])
+        elif item != "and":
+            groups[-1].append(_evaluate_group_node(item, environment))
+    return _any3([_all3(group) for group in groups])
 
 
 def _group_marker_excludes(

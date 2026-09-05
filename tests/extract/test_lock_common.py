@@ -19,6 +19,7 @@ from pitloom.extract._lock_common import (
     group_versions_by_canonical_name,
     index_packages_by_name,
     is_usable_version,
+    load_lock_json,
     load_lock_toml,
 )
 
@@ -48,6 +49,42 @@ def test_load_lock_toml_valid_file_returns_data() -> None:
         lock_path.write_text('key = "value"\n', encoding="utf-8")
 
         assert load_lock_toml(lock_path) == {"key": "value"}
+
+
+def test_load_lock_toml_invalid_utf8_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: tomllib/tomli's decode step raises a bare
+    ``UnicodeDecodeError`` (not its own ``TOMLDecodeError``) for invalid
+    UTF-8 bytes -- must still degrade to ``None`` with a ``WARNING:``,
+    not propagate out and abort the whole cascade."""
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.lock"
+        lock_path.write_bytes(b'name = "\xff\xfebad"\n')
+
+        with caplog.at_level(logging.WARNING):
+            result = load_lock_toml(lock_path)
+
+        assert result is None
+        assert "Failed to parse" in caplog.text
+
+
+def test_load_lock_json_invalid_utf8_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: reading invalid UTF-8 bytes in text mode raises a
+    bare ``UnicodeDecodeError`` (not ``json.JSONDecodeError``) -- must
+    still degrade to ``None`` with a ``WARNING:``, not propagate out and
+    abort the whole cascade."""
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.json"
+        lock_path.write_bytes(b'{"name": "\xff\xfebad"}')
+
+        with caplog.at_level(logging.WARNING):
+            result = load_lock_json(lock_path)
+
+        assert result is None
+        assert "Failed to parse" in caplog.text
 
 
 def test_index_packages_by_name_groups_by_name_preserving_order() -> None:

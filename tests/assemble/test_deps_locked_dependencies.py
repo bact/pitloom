@@ -245,10 +245,43 @@ def test_locked_dependencies_provenance_omitted_matches_empty_string() -> None:
 
 def test_locked_dependencies_omitted_matches_empty_list() -> None:
     """Omitting ``locked_dependencies`` entirely (every pre-existing call
-    site) must produce the same UUID as passing an empty list -- the new
-    parameter is purely additive, never a behavior change for callers that
-    don't know about it."""
+    site) must produce the same UUID as passing an empty list *with no
+    provenance* -- the new parameter is purely additive, never a
+    behavior change for callers that don't know about it."""
     omitted = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"])
     empty = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=[])
 
     assert omitted == empty
+
+
+def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_lock() -> (
+    None
+):
+    """Regression: a real, successfully-resolved lock file that legitimately
+    has zero runtime dependencies still carries its own distinct
+    ``provenance["locked_dependencies"]`` string -- gating the UUID seed's
+    locked-dependencies contribution on `locked_dependencies` being
+    *non-empty* (rather than on either it or the provenance string being
+    given) would silently collide such a document with both (a) a document
+    with no lock present at all, and (b) a different lock source that also
+    happened to resolve to zero dependencies -- three genuinely different
+    provenance outcomes must not share one UUID."""
+    no_lock_at_all = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"])
+    empty_from_pylock = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=[],
+        locked_dependencies_provenance=(
+            "Source: pylock.toml | Method: resolved_lockfile"
+        ),
+    )
+    empty_from_uv = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=[],
+        locked_dependencies_provenance=("Source: uv.lock | Method: resolved_lockfile"),
+    )
+
+    assert len({no_lock_at_all, empty_from_pylock, empty_from_uv}) == 3

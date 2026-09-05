@@ -377,11 +377,15 @@ up in. Confirmed once both landed:
 and `tests/extract/test_requirements_txt.py::test_read_project_populates_locked_dependencies_from_setup_py_only`
 each exercise this path against a `setup.py`-only project directory.
 
-`apply_locked_dependencies()` is called once, right before each of
-`read_project()`'s three directory-based `return` statements (the
-sdist-archive branch is skipped -- there's no sibling directory to
-check for a lock file against a single archive file), so it runs
-uniformly regardless of which metadata source won.
+`apply_locked_dependencies()` is called once, at the single point where
+`read_project()`'s three directory-based branches (`pyproject.toml`,
+the `setup.cfg`/`setup.py` fallback, and `setup.cfg`/`setup.py` alone)
+have already converged onto one shared `metadata`/`pitloom_config`
+before its one `return` statement -- the sdist-archive branch returns
+separately, earlier, and is skipped entirely (there's no sibling
+directory to check for a lock file against a single archive file). One
+call site covers every directory-based metadata source uniformly,
+rather than one call per branch.
 
 ## Provenance recording
 

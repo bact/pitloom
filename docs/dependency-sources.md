@@ -108,10 +108,17 @@ either.
 
 Every SBOM element built from a lock-resolved dependency carries a
 provenance annotation naming the file and method Pitloom used, e.g.
-`Source: pylock.toml | Method: resolved_lockfile`. If a lower-priority
-lock file was present but ignored in favor of a higher-priority one,
-the annotation also says so, e.g. `Source: pylock.toml | Method:
-resolved_lockfile | Note: supersedes poetry.lock`. See [Metadata
+`Source: pylock.toml | Method: resolved_lockfile`. The cascade stops at
+the first usable source it tries, so it doesn't itself check whether a
+still-lower-priority lock file is *also* present on disk -- the one
+case it does detect and annotate is `poetry.lock`, since that one is
+resolved earlier, before the cascade runs, and the cascade can see its
+already-set result: if a higher-priority format then wins over it, the
+annotation adds a note, e.g. `Source: pylock.toml | Method:
+resolved_lockfile | Note: supersedes poetry.lock`. Two lock files that
+are both tried by the cascade itself (e.g. `pdm.lock` and `Pipfile.lock`
+both present) never produce this note -- only the single winning
+source's own annotation appears. See [Metadata
 provenance](metadata-provenance.md) for how to read these annotations
 in the generated SBOM.
 

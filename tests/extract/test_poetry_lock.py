@@ -171,7 +171,10 @@ def test_malformed_package_entry_skipped() -> None:
 def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None:
     """Regression: a malformed ``[[package]]`` entry (missing ``version``)
     used to be dropped with zero logging, violating "no silent
-    deviations" -- it must now emit a ``WARNING:``."""
+    deviations" -- it must now emit a ``WARNING:``, matching the same
+    ``missing or non-string 'version'`` wording every sibling format's
+    own version check uses
+    (:func:`pitloom.extract._lock_common.warn_missing_version`)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(tmp_path, '[[package]]\nname = "incomplete"\n')
@@ -180,7 +183,24 @@ def test_malformed_package_entry_warns(caplog: pytest.LogCaptureFixture) -> None
             result = extract_poetry_lock_dependencies(tmp_path)
 
         assert not result
-        assert "malformed" in caplog.text.lower()
+        assert "missing or non-string 'version'" in caplog.text
+
+
+def test_missing_name_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> None:
+    """A ``[[package]]`` entry missing ``name`` is validated and warned
+    about separately from a missing ``version`` -- matching every
+    sibling format's own split name-then-version check ordering
+    (:func:`pitloom.extract._lock_common.warn_missing_name`, tried
+    before ``version`` is ever read)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, '[[package]]\nversion = "1.0.0"\n')
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "missing or non-string 'name'" in caplog.text
 
 
 def test_malformed_package_entry_empty_version_skipped() -> None:

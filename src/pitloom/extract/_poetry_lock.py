@@ -25,11 +25,14 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from pitloom.extract._lock_common import (
     is_usable_version,
     load_lock_toml,
     warn_malformed_entry_not_table,
+    warn_missing_name,
+    warn_missing_version,
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
@@ -79,6 +82,29 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
 _NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
 
 
+def _shape_validated_package(pkg: object) -> dict[str, Any] | None:
+    """Return *pkg* itself when it's a well-formed, versioned
+    ``[[package]]`` table -- ``None`` (with a ``WARNING:``) for a
+    non-table entry, or one with a missing/non-string ``name`` or
+    missing/unparseable ``version``. Split out of
+    :func:`_pinned_dep_for_package` purely to keep each function's own
+    return-statement count under this repo's complexity ceiling, the
+    same split :func:`pitloom.extract._pdm_lock._shape_validated_package`
+    already uses for the analogous check."""
+    if not isinstance(pkg, dict):
+        warn_malformed_entry_not_table("poetry.lock", "[[package]]", pkg)
+        return None
+    name = pkg.get("name")
+    if not isinstance(name, str) or not name:
+        warn_missing_name("Skipping malformed poetry.lock [[package]] entry", name)
+        return None
+    version = pkg.get("version")
+    if not is_usable_version(version):
+        warn_missing_version("poetry.lock", name)
+        return None
+    return pkg
+
+
 def _pinned_dep_for_package(pkg: object) -> str | None:
     """Return ``name==version`` for one ``[[package]]`` table entry, or
     ``None`` when it's malformed, not in the ``main`` group, or sourced
@@ -90,20 +116,13 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
     version pin, so including it here would misrepresent it as an
     ordinary published release (wrong PURL, bogus PyPI enrichment lookup).
     """
-    if not isinstance(pkg, dict):
-        warn_malformed_entry_not_table("poetry.lock", "[[package]]", pkg)
+    validated = _shape_validated_package(pkg)
+    if validated is None:
         return None
-    name = pkg.get("name")
-    version = pkg.get("version")
-    if not isinstance(name, str) or not name or not is_usable_version(version):
-        log.warning(
-            "Skipping malformed poetry.lock [[package]] entry: missing or "
-            "non-string 'name'/'version' (name=%r, version=%r)",
-            name,
-            version,
-        )
-        return None
-    groups = pkg.get("groups", ["main"])
+    name = validated["name"]
+    version = validated["version"]
+
+    groups = validated.get("groups", ["main"])
     if not isinstance(groups, list):
         log.warning(
             "Skipping malformed poetry.lock [[package]] entry %r: 'groups' "
@@ -114,7 +133,7 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
         return None
     if "main" not in groups:
         return None
-    source = pkg.get("source")
+    source = validated.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None
     if isinstance(source_type, str) and source_type in _NON_PEP508_SOURCE_TYPES:
         warn_non_registry_source("poetry.lock", name, source_type)

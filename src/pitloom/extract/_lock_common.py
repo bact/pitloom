@@ -74,7 +74,11 @@ def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
         return load_toml_file(lock_path)
     except FileNotFoundError:
         return None
-    except (OSError, TOMLDecodeError) as exc:
+    except (OSError, TOMLDecodeError, UnicodeDecodeError) as exc:
+        # tomllib/tomli's underlying decode step raises a bare
+        # UnicodeDecodeError (not its own TOMLDecodeError) for invalid
+        # UTF-8 bytes -- still just a malformed/unparseable file, not a
+        # reason to abort the whole cascade.
         log.warning("Failed to parse %s: %s", lock_path, exc)
         return None
 
@@ -99,7 +103,11 @@ def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
             data = json.load(f)
     except FileNotFoundError:
         return None
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        # Invalid UTF-8 bytes raise a bare UnicodeDecodeError from the
+        # text-mode read itself, not json.JSONDecodeError -- still just
+        # a malformed/unparseable file, not a reason to abort the whole
+        # cascade.
         log.warning("Failed to parse %s: %s", lock_path, exc)
         return None
     if not isinstance(data, dict):

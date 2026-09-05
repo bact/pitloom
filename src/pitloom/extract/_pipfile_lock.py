@@ -47,6 +47,7 @@ from pitloom.extract._lock_common import (
     find_first_present_key,
     load_lock_json,
     single_exact_pin,
+    warn_missing_name,
     warn_missing_version,
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
@@ -100,11 +101,7 @@ def _pinned_dep_for_package(name: object, entry: object) -> str | None:
     ``None`` when it's malformed, non-registry-sourced, or its
     ``version`` isn't a single exact ``==`` specifier."""
     if not isinstance(name, str) or not name:
-        log.warning(
-            "Skipping malformed Pipfile.lock entry: non-string or empty "
-            "package name (name=%r)",
-            name,
-        )
+        warn_missing_name("Skipping malformed Pipfile.lock entry", name)
         return None
     if not isinstance(entry, dict):
         log.warning(

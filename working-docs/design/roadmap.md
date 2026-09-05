@@ -150,48 +150,20 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](./metadata-sources.md).
-- [x] **`poetry.lock`** -- done (2026-08-31): `loom project`/`loom generate`
-  against a Poetry project reads a sibling `poetry.lock` for
-  `main`-group resolved transitive dependencies, additive to the
-  direct constraints, source-stage-only. See
-  [poetry-support.md](../implementation/poetry-support.md).
-- [x] **`pylock.toml` (PEP 751)** -- done (2026-09-04): `loom project`/
-  `loom generate` reads a sibling `pylock.toml`, when present, for its
-  resolved `[[packages]]` set, reusing `ProjectMetadata.locked_dependencies`
-  and the same additive `dependsOn`/`RelationshipCompleteness.complete`
-  wiring as `poetry.lock`. Build-backend-agnostic, so it's checked
-  unconditionally rather than gated behind `[tool.poetry]` detection.
-  See [pep751-pylock-support.md](../implementation/pep751-pylock-support.md)
-  and [lock-file-cascade.md](../implementation/lock-file-cascade.md) for
-  the shared priority mechanism across all lock formats.
-- [x] **`uv.lock`** -- done (2026-09-04): reads a sibling `uv.lock`'s
-  resolved main/runtime dependencies, ranked below `pylock.toml` and
-  above `poetry.lock` in the shared priority cascade. See
-  [lock-file-cascade.md](../implementation/lock-file-cascade.md).
-- [x] **`pdm.lock`** -- done (2026-09-04): reads a sibling `pdm.lock`'s
-  resolved `default`-group dependencies, ranked below `poetry.lock`.
-  See [lock-file-cascade.md](../implementation/lock-file-cascade.md).
-- [x] **`Pipfile.lock`** -- done (2026-09-05): reads a sibling
-  `Pipfile.lock`'s resolved `default`-section dependencies (JSON, not
-  TOML -- the one format that isn't), ranked below `pdm.lock`, lowest
-  cascade priority. Reached via `read_project()`'s `setup.py`-only
-  dispatch path, not just the `pyproject.toml` one, since `Pipfile.lock`
-  predates PEP 621 almost entirely in real projects. See
-  [lock-file-cascade.md](../implementation/lock-file-cascade.md).
-- [x] **pinned `requirements.txt`** -- done (2026-09-05): the lowest-
-  ranked cascade entry, and the only one that isn't a real lock file --
-  used only when *every* real line is already an exact `==` pin (a
-  URL-based line disqualifies the whole file too, even one that looks
-  like a tagged release; see [lock-file-cascade.md](../implementation/lock-file-cascade.md)
-  for the PEP 508/440 reasoning). This closes out
+- [x] **Lock/pin formats as a resolved-dependency source** -- done
+  (2026-08-31 through 2026-09-05): `poetry.lock`, `pylock.toml` (PEP
+  751), `uv.lock`, `pdm.lock`, `Pipfile.lock`, and pinned
+  `requirements.txt` all feed `ProjectMetadata.locked_dependencies`
+  via one shared priority cascade, closing
   **"Remaining lock formats as a resolved-dependency source"**
-  ([#208](https://github.com/bact/pitloom/pull/208)):
-  `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned
-  `requirements.txt` all now feed `ProjectMetadata.locked_dependencies`
-  via one shared priority cascade. See
-  [lock-file-cascade.md](../implementation/lock-file-cascade.md) and
-  [lock-files.md](./lock-files.md) (`pixi.lock`/`conda-lock.yml` remain
-  future work there, Phase 2).
+  ([#208](https://github.com/bact/pitloom/pull/208)). See
+  [lock-file-cascade.md](../implementation/lock-file-cascade.md) (the
+  cascade, priority order, and per-format details) and
+  [poetry-support.md](../implementation/poetry-support.md)/
+  [pep751-pylock-support.md](../implementation/pep751-pylock-support.md)
+  for the two formats with their own dedicated doc.
+  [lock-files.md](./lock-files.md) (`pixi.lock`/`conda-lock.yml`
+  remain future work there, Phase 2).
 
 ### PEP 770 / embed-wheel
 

@@ -113,12 +113,13 @@ def compute_doc_uuid(
     """Compute a deterministic UUIDv5 for the SPDX document.
 
     *locked_dependencies* (e.g. ``poetry.lock``-resolved transitive
-    dependencies), when given and non-empty, is folded into the seed too --
-    otherwise two documents with identical direct dependencies but
-    different lock-resolved graphs would collide on the same UUID despite
-    describing different dependency content. Omitted or empty leaves the
-    seed byte-identical to a document with no locked dependencies at all,
-    so every non-Poetry (and lock-less Poetry) document is unaffected.
+    dependencies) is folded into the seed too, whenever either it or
+    *locked_dependencies_provenance* is given -- otherwise two documents
+    with identical direct dependencies but different lock-resolved
+    graphs would collide on the same UUID despite describing different
+    dependency content. Both omitted leaves the seed byte-identical to a
+    document with no locked dependencies at all, so every non-Poetry
+    (and lock-less Poetry) document is unaffected.
 
     *locked_dependencies_provenance* (the resolved
     ``ProjectMetadata.provenance["locked_dependencies"]`` string, e.g.
@@ -132,13 +133,29 @@ def compute_doc_uuid(
     dependency content alone would collide those two documents' UUIDs
     despite their generated ``provenance["locked_dependencies"]`` fields
     (and any override note) differing -- a real content difference the
-    seed is supposed to guard against. Omitted or empty leaves the seed
-    unaffected, same as *locked_dependencies*.
+    seed is supposed to guard against.
+
+    Deliberately keyed on *either* argument being given, not just
+    *locked_dependencies* being non-empty: a real, successfully-resolved
+    lock file that legitimately has zero runtime dependencies still
+    carries its own distinct provenance string, which must still
+    distinguish that document from one with no lock present at all, or
+    from a different lock source that also happened to resolve to zero
+    dependencies -- gating on non-empty *locked_dependencies* alone would
+    silently collide all three onto the same UUID.
     """
     normalized_deps = sorted(_normalize_dep(dep) for dep in dependencies)
     seed = "\x00".join([name, version, "\x00".join(normalized_deps)])
-    if locked_dependencies:
-        normalized_locked = sorted(_normalize_dep(dep) for dep in locked_dependencies)
+    if locked_dependencies or locked_dependencies_provenance:
+        # A real, valid lock resolving to zero dependencies still has a
+        # *provenance* string that differs from "no lock at all" (and
+        # from a different lock source that also resolved to empty) --
+        # gating this whole block on `locked_dependencies` being
+        # non-empty would fold in neither, silently colliding an
+        # empty-but-real lock's UUID with a lockless document's.
+        normalized_locked = sorted(
+            _normalize_dep(dep) for dep in (locked_dependencies or [])
+        )
         seed += "\x00" + "\x00".join(normalized_locked)
         if locked_dependencies_provenance:
             seed += "\x00" + locked_dependencies_provenance
