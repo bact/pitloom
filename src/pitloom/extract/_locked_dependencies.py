@@ -109,8 +109,10 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     dependencies onto *metadata*, in place.
 
     Tries each extractor-bearing entry of :data:`_LOCK_SOURCES` in
-    priority order; the first one that yields a non-empty result wins.
-    Crucially, this respects *every* source's rank, not just the ones
+    priority order; the first one that yields a result at all (a
+    ``list[str]``, even an empty one -- see the "no silent deviations"
+    paragraph below) wins. Crucially, this respects *every* source's
+    rank, not just the ones
     this cascade itself tries: once the already-applied source (e.g.
     ``poetry.lock``, applied earlier by ``_try_read_poetry()``) outranks
     every remaining untried entry, the loop stops -- a lower-priority

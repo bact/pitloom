@@ -171,6 +171,54 @@ def test_develop_section_excluded() -> None:
         assert "pytest" not in " ".join(result)
 
 
+def test_same_name_different_casing_same_version_deduped() -> None:
+    """Grouping compares PEP 503-canonicalized names, so a name that
+    happens to be spelled differently across entries still collapses
+    when the versions agree."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "Flask": {"version": "==3.0.0"},
+                    "flask": {"version": "==3.0.0"},
+                }
+            },
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == ["Flask==3.0.0"]
+
+
+def test_same_name_different_casing_conflicting_versions_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: `Pipfile.lock`'s `"default"` section is a JSON object
+    keyed directly by literal name -- unlike every sibling format, this
+    extractor previously had no PEP 503 canonicalization step, so a
+    `Pipfile.lock` with both a `"Flask"` and a `"flask"` key (schema-legal
+    JSON) would silently emit two conflicting dependency lines instead of
+    being flagged like every other lock format's own duplicate-name
+    case."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "Flask": {"version": "==3.0.0"},
+                    "flask": {"version": "==2.0.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "pinned to conflicting versions" in caplog.text
+
+
 def test_malformed_entry_not_a_dict_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

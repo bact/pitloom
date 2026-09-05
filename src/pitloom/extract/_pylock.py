@@ -35,11 +35,9 @@ from packaging.markers import InvalidMarker, Marker
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
-    is_usable_version,
+    group_versions_by_canonical_name,
     load_lock_toml,
-    warn_malformed_entry_not_table,
-    warn_missing_name,
-    warn_missing_version,
+    shape_validated_package,
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
@@ -157,11 +155,24 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
         return None
 
     environment = _default_group_environment(lock_path, data)
+    pairs = [
+        pair
+        for pair in (_pinned_pair_for_package(pkg, environment) for pkg in packages)
+        if pair is not None
+    ]
+
     dependencies: list[str] = []
-    for pkg in packages:
-        dep = _pinned_dep_for_package(pkg, environment)
-        if dep is not None:
-            dependencies.append(dep)
+    for group in group_versions_by_canonical_name(pairs).values():
+        name, version = group[0]
+        conflicting_versions = {v for _, v in group}
+        if len(conflicting_versions) > 1:
+            log.warning(
+                "Skipping pylock.toml entry %r: pinned to conflicting versions (%s)",
+                name,
+                ", ".join(sorted(conflicting_versions)),
+            )
+            continue
+        dependencies.append(f"{name}=={version}")
     return dependencies
 
 
@@ -297,10 +308,10 @@ def _group_marker_excludes(
     return _evaluate_group_node(tree, environment) is False
 
 
-def _pinned_dep_for_package(
+def _pinned_pair_for_package(
     pkg: object, environment: dict[str, frozenset[str]]
-) -> str | None:
-    """Return ``name==version`` for one ``[[packages]]`` table entry, or
+) -> tuple[str, str] | None:
+    """Return ``(name, version)`` for one ``[[packages]]`` table entry, or
     ``None`` when it's malformed or sourced from a location that
     ``name==version`` can't represent.
 
@@ -312,23 +323,27 @@ def _pinned_dep_for_package(
     skip in :func:`pitloom.extract._poetry_lock._pinned_dep_for_package`.
     A registry-resolved package sourced via ``sdist``/``wheels`` (or with
     no source table at all) is always included when it has a version.
+
+    Returning the raw pair (not the formatted ``name==version`` string)
+    lets the caller group same-name entries via
+    :func:`pitloom.extract._lock_common.group_versions_by_canonical_name`
+    and skip a name that resolves to more than one distinct version --
+    reachable here specifically because this extractor's marker handling
+    only evaluates ``extras``/``dependency_groups`` clauses (see
+    :func:`_group_marker_excludes`), so two entries for the same package
+    gated on different, unevaluated ``python_version``/``sys_platform``
+    markers can both survive to this point.
     """
-    if not isinstance(pkg, dict):
-        warn_malformed_entry_not_table("pylock.toml", "[[packages]]", pkg)
+    validated = shape_validated_package(pkg, "pylock.toml", "[[packages]]")
+    if validated is None:
         return None
-    name = pkg.get("name")
-    if not isinstance(name, str) or not name:
-        warn_missing_name("Skipping malformed pylock.toml [[packages]] entry", name)
-        return None
-    version = pkg.get("version")
-    if not is_usable_version(version):
-        warn_missing_version("pylock.toml", name)
-        return None
-    marker = pkg.get("marker")
+    name = validated["name"]
+    version = validated["version"]
+    marker = validated.get("marker")
     if isinstance(marker, str) and _group_marker_excludes(marker, environment, name):
         return None
-    non_registry_source = find_first_present_key(pkg, _NON_REGISTRY_SOURCE_KEYS)
+    non_registry_source = find_first_present_key(validated, _NON_REGISTRY_SOURCE_KEYS)
     if non_registry_source is not None:
         warn_non_registry_source("pylock.toml", name, non_registry_source)
         return None
-    return f"{name}=={version}"
+    return name, version

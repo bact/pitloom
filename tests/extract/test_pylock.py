@@ -23,12 +23,15 @@ from pathlib import Path
 
 import pytest
 
-from pitloom.extract._pylock import _pinned_dep_for_package, extract_pylock_dependencies
+from pitloom.extract._pylock import (
+    _pinned_pair_for_package,
+    extract_pylock_dependencies,
+)
 from pitloom.extract.project import read_project
 
 _LOCK_VERSION = 'lock-version = "1.0"\ncreated-by = "test"\n'
 #: The "no extras, no default-groups active" environment --
-#: `_pinned_dep_for_package()`'s second argument, built by
+#: `_pinned_pair_for_package()`'s second argument, built by
 #: `extract_pylock_dependencies()` itself in normal use via
 #: `_default_group_environment()`; unit tests calling the helper
 #: directly supply it explicitly instead.
@@ -164,6 +167,48 @@ def test_package_included() -> None:
         assert extract_pylock_dependencies(tmp_path) == ["requests==2.31.0"]
 
 
+def test_same_name_same_version_duplicate_entries_deduped() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[packages]]\nname = "httpx"\nversion = "0.28.1"\n\n'
+            '[[packages]]\nname = "httpx"\nversion = "0.28.1"\n',
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["httpx==0.28.1"]
+
+
+def test_same_name_conflicting_versions_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: this extractor only evaluates `extras`/
+    `dependency_groups` markers -- every other PEP 508 marker variable
+    (`python_version`, `sys_platform`, ...) is deliberately left
+    unevaluated, so a `pylock.toml` built from a multi-platform/
+    multi-Python-version resolve can legitimately contain the same
+    package name twice at different versions, distinguished only by an
+    unevaluated marker. Both entries must not silently pass through as
+    two conflicting `name==version` lines -- skip and warn instead, the
+    same "don't guess" policy `pdm.lock`/`requirements.txt` already
+    apply to their own duplicate-name case."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[packages]]\nname = "conflicted"\nversion = "1.0.0"\n'
+            "marker = \"python_version < '3.10'\"\n\n"
+            '[[packages]]\nname = "conflicted"\nversion = "2.0.0"\n'
+            "marker = \"python_version >= '3.10'\"\n",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert not result
+        assert "pinned to conflicting versions" in caplog.text
+
+
 def test_packages_key_not_a_list_returns_empty_list_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -178,10 +223,10 @@ def test_packages_key_not_a_list_returns_empty_list_and_warns(
         assert "expected a list" in caplog.text
 
 
-def test_pinned_dep_for_package_non_dict_entry_returns_none() -> None:
-    assert _pinned_dep_for_package("not-a-dict", _NO_GROUPS_ENV) is None
+def test_pinned_pair_for_package_non_dict_entry_returns_none() -> None:
+    assert _pinned_pair_for_package("not-a-dict", _NO_GROUPS_ENV) is None
     assert (
-        _pinned_dep_for_package(["still", "not", "a", "dict"], _NO_GROUPS_ENV) is None
+        _pinned_pair_for_package(["still", "not", "a", "dict"], _NO_GROUPS_ENV) is None
     )
 
 

@@ -102,6 +102,9 @@ def test_locked_dependencies_add_transitive_only_edges() -> None:
         version="1.0.0",
         dependencies=["requests>=2.0"],
         locked_dependencies=["requests==2.31.0", "urllib3==2.2.0", "idna==3.7"],
+        provenance={
+            "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
+        },
     )
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
@@ -163,11 +166,14 @@ def test_pinned_requirements_transitive_edges_leave_completeness_unset() -> None
 
 def test_locked_dependencies_completeness_by_method() -> None:
     """Unit-level coverage of `_locked_dependencies_completeness()`'s
-    three branches: `resolved_lockfile` (a real resolver lock) is
-    `complete`; `pinned_requirements` is unset (`None`); an unrecognized
-    future `Method` tag defaults to unset too, the same conservative
-    "don't claim completeness we can't back up" choice as the pinned-
-    requirements case, rather than assuming it's resolver-grade."""
+    branches: `resolved_lockfile` (a real resolver lock) is `complete`;
+    everything else -- `pinned_requirements`, an unrecognized future
+    `Method` tag, and no provenance recorded at all -- is unset (`None`),
+    the same conservative "don't claim completeness we can't back up"
+    choice, via a positive inclusion check rather than an exclusion
+    check (so a future lock source that forgets to set its own `Method`
+    tag fails safe to unset instead of silently defaulting to
+    `complete`)."""
     resolved = ProjectMetadata(
         name="pkg",
         locked_dependencies=["idna==3.7"],
@@ -199,10 +205,7 @@ def test_locked_dependencies_completeness_by_method() -> None:
     )
     assert _locked_dependencies_completeness(pinned) is None
     assert _locked_dependencies_completeness(unrecognized) is None
-    assert (
-        _locked_dependencies_completeness(no_provenance)
-        == spdx3.RelationshipCompleteness.complete
-    )
+    assert _locked_dependencies_completeness(no_provenance) is None
 
 
 def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:

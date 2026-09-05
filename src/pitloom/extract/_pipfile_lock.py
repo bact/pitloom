@@ -45,6 +45,7 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
+    group_versions_by_canonical_name,
     has_required_top_level_table,
     load_lock_json,
     single_exact_pin,
@@ -96,18 +97,45 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
         )
         return None
 
+    pairs = [
+        pair
+        for pair in (
+            _pinned_pair_for_package(name, entry)
+            for name, entry in default_section.items()
+        )
+        if pair is not None
+    ]
+
     dependencies: list[str] = []
-    for name, entry in default_section.items():
-        dep = _pinned_dep_for_package(name, entry)
-        if dep is not None:
-            dependencies.append(dep)
+    for group in group_versions_by_canonical_name(pairs).values():
+        name, version = group[0]
+        conflicting_versions = {v for _, v in group}
+        if len(conflicting_versions) > 1:
+            log.warning(
+                "Skipping Pipfile.lock entry %r: pinned to conflicting versions (%s)",
+                name,
+                ", ".join(sorted(conflicting_versions)),
+            )
+            continue
+        dependencies.append(f"{name}=={version}")
     return dependencies
 
 
-def _pinned_dep_for_package(name: object, entry: object) -> str | None:
-    """Return ``name==version`` for one ``"default"``-section entry, or
+def _pinned_pair_for_package(name: object, entry: object) -> tuple[str, str] | None:
+    """Return ``(name, version)`` for one ``"default"``-section entry, or
     ``None`` when it's malformed, non-registry-sourced, or its
-    ``version`` isn't a single exact ``==`` specifier."""
+    ``version`` isn't a single exact ``==`` specifier.
+
+    Returning the raw pair (not the formatted ``name==version`` string)
+    lets the caller group same-canonical-name entries via
+    :func:`pitloom.extract._lock_common.group_versions_by_canonical_name`
+    and skip a name that resolves to more than one distinct version --
+    unlike every sibling format, this extractor's input is a JSON object
+    keyed directly by literal (not canonicalized) name, so a hand-edited
+    or foreign-tool-produced ``Pipfile.lock`` could otherwise legally
+    carry both a ``"Flask"`` and a ``"flask"`` key and silently emit two
+    conflicting dependency lines for the same real package.
+    """
     if not isinstance(name, str) or not name:
         warn_missing_name("Skipping malformed Pipfile.lock entry", name)
         return None
@@ -136,7 +164,7 @@ def _pinned_dep_for_package(name: object, entry: object) -> str | None:
     pinned_version = _exact_pinned_version(name, entry.get("version"))
     if pinned_version is None:
         return None
-    return f"{name}=={pinned_version}"
+    return name, pinned_version
 
 
 def _exact_pinned_version(name: str, version: object) -> str | None:

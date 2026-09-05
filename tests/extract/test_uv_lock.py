@@ -209,7 +209,7 @@ def test_malformed_top_level_package_entry_warns(
 def test_non_table_top_level_package_entry_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The other half of `_warn_malformed_packages()`'s check: a
+    """The other half of `_scan_packages()`'s malformed-entry check: a
     top-level `package` array entry that isn't a table at all (not just
     one missing `name`), e.g. a bare string slipped in alongside genuine
     `[[package]]` tables -- must also warn, matching every sibling

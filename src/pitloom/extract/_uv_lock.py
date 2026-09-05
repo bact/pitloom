@@ -53,7 +53,6 @@ from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
-    index_packages_by_name,
     is_usable_version,
     load_lock_toml,
     warn_malformed_entry_not_table,
@@ -81,14 +80,24 @@ _NON_REGISTRY_SOURCE_KEYS = ("git", "url", "path", "directory", "editable", "vir
 _ROOT_SOURCE_KEYS = ("editable", "virtual")
 
 
-def _warn_malformed_packages(packages: Iterable[object]) -> None:
-    """Log a ``WARNING:`` for each top-level ``[[package]]`` entry that
-    :func:`_index_by_canonical_name` and :func:`_find_root_package`
-    silently exclude (a non-table entry, or a table with a
-    missing/non-string/empty ``name``) -- every sibling lock format's
-    own package-list loop warns on this same shape of malformed entry,
-    so a corrupted ``uv.lock`` package doesn't
-    disappear from extraction with no diagnostic at all."""
+def _scan_packages(
+    packages: Iterable[object],
+) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
+    """Single pass over the top-level ``[[package]]`` list, returning
+    the canonical-name index :func:`_collect_transitive_dependencies`
+    needs and the local/workspace-root candidates :func:`_find_root_package`
+    needs -- folded into one scan instead of three independent ones,
+    since building the index and finding root candidates only need to
+    look at each entry once.
+
+    Warns (the same way every sibling lock format's own package-list
+    loop does) on a non-table entry or a table with a
+    missing/non-string/empty ``name``, then excludes it from both
+    results -- it can never be the target of a real dependency reference
+    by name, nor a real root-package candidate.
+    """
+    by_name: dict[str, list[dict[str, Any]]] = {}
+    root_candidates: list[dict[str, Any]] = []
     for pkg in packages:
         if not isinstance(pkg, dict):
             warn_malformed_entry_not_table("uv.lock", "[[package]]", pkg)
@@ -96,14 +105,31 @@ def _warn_malformed_packages(packages: Iterable[object]) -> None:
         name = pkg.get("name")
         if not isinstance(name, str) or not name:
             warn_missing_name("Skipping malformed uv.lock [[package]] entry", name)
+            continue
+        # uv itself normalizes every ``name`` field it writes, but a
+        # dependency *reference* and the package's own top-level entry
+        # are two separately literal strings in the file -- grouping by
+        # canonical name (as ``_collect_transitive_dependencies``'s
+        # ``visited`` set already does) keeps lookup consistent with a
+        # name that differs only in case/``-``/``_``/``.`` folding,
+        # instead of a literal-string mismatch silently causing a
+        # resolvable dependency to be reported as "not found".
+        by_name.setdefault(canonicalize_name(name), []).append(pkg)
+        source = pkg.get("source")
+        if (
+            isinstance(source, dict)
+            and find_first_present_key(source, _ROOT_SOURCE_KEYS) is not None
+        ):
+            root_candidates.append(pkg)
+    return by_name, root_candidates
 
 
 def _find_root_package(
-    packages: Iterable[object], expected_name: str | None
+    candidates: list[dict[str, Any]], expected_name: str | None
 ) -> dict[str, Any] | None:
-    """Return the ``[[package]]`` entry that is the project's own
-    (identified by an ``editable``/``virtual`` ``source``), or ``None``
-    if none is found.
+    """Return the entry in *candidates* (every ``editable``/``virtual``-
+    sourced ``[[package]]`` entry, from :func:`_scan_packages`) that is
+    the project's own, or ``None`` if none is found.
 
     A shared ``uv.lock`` (a uv workspace) can list more than one such
     entry -- one per local workspace member. When *expected_name* (the
@@ -116,13 +142,6 @@ def _find_root_package(
     only in normalization); with more than one candidate and no match,
     returns ``None`` rather than guess.
     """
-    candidates = [
-        pkg
-        for pkg in packages
-        if isinstance(pkg, dict)
-        and isinstance(pkg.get("source"), dict)
-        and find_first_present_key(pkg["source"], _ROOT_SOURCE_KEYS) is not None
-    ]
     if not candidates:
         return None
 
@@ -308,7 +327,7 @@ def extract_uv_lock_dependencies(
             lock_path, "package", packages, "a list", "uv.lock"
         )
         return None
-    _warn_malformed_packages(packages)
+    by_name, root_candidates = _scan_packages(packages)
 
     if not expected_name:
         # `ProjectMetadata.name` is typed `str`, never `None` -- a
@@ -320,7 +339,7 @@ def extract_uv_lock_dependencies(
         # have done for an explicit `None` -- an empty name could never
         # usefully match a real workspace member's name anyway.
         expected_name = _expected_project_name(project_dir)
-    root = _find_root_package(packages, expected_name)
+    root = _find_root_package(root_candidates, expected_name)
     if root is None:
         log.warning(
             "%s: no project package found (no 'editable'/'virtual' "
@@ -339,15 +358,4 @@ def extract_uv_lock_dependencies(
         )
         return None
 
-    # uv itself normalizes every ``name`` field it writes, but a
-    # dependency *reference* and the package's own top-level entry are
-    # two separately literal strings in the file -- grouping by
-    # canonical name (as ``_collect_transitive_dependencies``'s
-    # ``visited`` set already does) keeps lookup consistent with a name
-    # that differs only in case/``-``/``_``/``.`` folding, instead of a
-    # literal-string mismatch silently causing a resolvable dependency
-    # to be reported as "not found". A non-table entry, or one with a
-    # missing/non-string/empty ``name``, is excluded here -- see
-    # ``_warn_malformed_packages`` for the diagnostic on those.
-    by_name = index_packages_by_name(packages, key=canonicalize_name)
     return _collect_transitive_dependencies(root_dependencies, by_name)

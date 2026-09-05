@@ -13,14 +13,24 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from packaging.specifiers import SpecifierSet
 
 from pitloom.extract._lock_common import (
+    default_group_included,
     find_first_present_key,
     group_versions_by_canonical_name,
+    has_required_top_level_table,
     index_packages_by_name,
     is_usable_version,
     load_lock_json,
     load_lock_toml,
+    shape_validated_package,
+    single_exact_pin,
+    warn_malformed_entry_not_table,
+    warn_missing_name,
+    warn_missing_version,
+    warn_non_registry_source,
+    warn_top_level_key_wrong_type,
 )
 
 
@@ -186,3 +196,167 @@ def test_is_usable_version_rejects_non_pep440_values(version: object) -> None:
     produce an invalid ``name==<garbage>`` dependency/PURL instead of
     being warned and skipped."""
     assert not is_usable_version(version)
+
+
+def test_has_required_top_level_table_valid_type_returns_true() -> None:
+    assert has_required_top_level_table(
+        {"metadata": {"lock-version": "2.0"}}, "metadata", "lock-version", str
+    )
+
+
+def test_has_required_top_level_table_missing_table_returns_false() -> None:
+    assert not has_required_top_level_table({}, "metadata", "lock-version", str)
+
+
+def test_has_required_top_level_table_table_not_a_dict_returns_false() -> None:
+    assert not has_required_top_level_table(
+        {"metadata": "not-a-table"}, "metadata", "lock-version", str
+    )
+
+
+def test_has_required_top_level_table_missing_key_returns_false() -> None:
+    assert not has_required_top_level_table(
+        {"metadata": {}}, "metadata", "lock-version", str
+    )
+
+
+def test_has_required_top_level_table_wrong_value_type_returns_false() -> None:
+    """Regression: a present key with the wrong-shaped value (e.g. an
+    int where the format's own identifying field is always a string)
+    must be rejected exactly like the key being absent -- not treated
+    as a looser pass than outright absence."""
+    assert not has_required_top_level_table(
+        {"metadata": {"lock-version": 2}}, "metadata", "lock-version", str
+    )
+
+
+def test_shape_validated_package_valid_entry_returned_unchanged() -> None:
+    pkg = {"name": "requests", "version": "2.31.0"}
+    assert shape_validated_package(pkg, "poetry.lock") is pkg
+
+
+def test_shape_validated_package_not_a_dict_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        result = shape_validated_package("not-a-dict", "poetry.lock")
+
+    assert result is None
+    assert "expected a table" in caplog.text
+
+
+def test_shape_validated_package_missing_name_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        result = shape_validated_package({"version": "1.0.0"}, "poetry.lock")
+
+    assert result is None
+    assert "missing or non-string 'name'" in caplog.text
+
+
+def test_shape_validated_package_missing_version_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        result = shape_validated_package({"name": "requests"}, "poetry.lock")
+
+    assert result is None
+    assert "missing or non-string 'version'" in caplog.text
+
+
+def test_default_group_included_defaults_when_groups_absent() -> None:
+    assert default_group_included(
+        {"name": "requests"}, "poetry.lock", "main", "requests"
+    )
+
+
+def test_default_group_included_true_when_present_in_list() -> None:
+    assert default_group_included(
+        {"groups": ["main", "dev"]}, "poetry.lock", "main", "requests"
+    )
+
+
+def test_default_group_included_false_when_absent_from_list() -> None:
+    assert not default_group_included(
+        {"groups": ["dev"]}, "poetry.lock", "main", "requests"
+    )
+
+
+def test_default_group_included_not_a_list_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        result = default_group_included(
+            {"groups": "main"}, "poetry.lock", "main", "requests"
+        )
+
+    assert result is None
+    assert "'groups' is str, expected a list" in caplog.text
+
+
+@pytest.mark.parametrize("operator", ["==", "==="])
+def test_single_exact_pin_accepts_exact_operators(operator: str) -> None:
+    assert single_exact_pin(SpecifierSet(f"{operator}2.31.0")) == "2.31.0"
+
+
+def test_single_exact_pin_rejects_wildcard() -> None:
+    assert single_exact_pin(SpecifierSet("==2.31.*")) is None
+
+
+def test_single_exact_pin_rejects_range() -> None:
+    assert single_exact_pin(SpecifierSet(">=2.31.0")) is None
+
+
+def test_single_exact_pin_rejects_multiple_specifiers() -> None:
+    assert single_exact_pin(SpecifierSet(">=2.31.0,<3.0.0")) is None
+
+
+def test_warn_non_registry_source_logs_expected_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        warn_non_registry_source("uv.lock", "requests", "git")
+
+    assert "uv.lock" in caplog.text
+    assert "'requests'" in caplog.text
+    assert "git-sourced" in caplog.text
+
+
+def test_warn_top_level_key_wrong_type_logs_expected_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        warn_top_level_key_wrong_type(
+            Path("Pipfile.lock"), "default", "not-a-table", "a table", "Pipfile.lock"
+        )
+
+    assert "top-level 'default' key is str, expected a table" in caplog.text
+
+
+def test_warn_missing_version_logs_expected_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        warn_missing_version("poetry.lock", "requests")
+
+    assert "missing or non-string 'version'" in caplog.text
+    assert "'requests'" in caplog.text
+
+
+def test_warn_malformed_entry_not_table_logs_expected_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        warn_malformed_entry_not_table("uv.lock", "[[package]]", "not-a-table")
+
+    assert "expected a table, got str" in caplog.text
+
+
+def test_warn_missing_name_logs_expected_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        warn_missing_name("Skipping malformed poetry.lock entry", None)
+
+    assert "missing or non-string 'name'" in caplog.text

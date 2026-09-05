@@ -249,14 +249,22 @@ def group_versions_by_canonical_name(
     return by_canonical
 
 
+#: PEP 440 operators that pin to exactly one release: ``==`` (the
+#: ordinary case) and ``===`` (arbitrary-equality, for a legacy/
+#: non-normalizable version string a resolver would otherwise reject --
+#: rare in practice, but just as exact a pin as ``==`` once present).
+_EXACT_PIN_OPERATORS = frozenset({"==", "==="})
+
+
 def single_exact_pin(specifier_set: SpecifierSet) -> str | None:
     """Return the bare version when *specifier_set* contains exactly one
-    non-wildcard ``==`` specifier (e.g. ``SpecifierSet("==2.31.0")`` ->
-    ``"2.31.0"``), or ``None`` for anything looser than one exact pin --
-    a range, more than one specifier, or a prefix-match wildcard like
-    ``"==2.31.*"`` (``packaging.specifiers.Specifier`` reports that as
-    operator ``"=="`` too, but it pins a *range* of versions, not one
-    exact release).
+    non-wildcard exact-pin specifier (``==`` or PEP 440's arbitrary-
+    equality ``===``, e.g. ``SpecifierSet("==2.31.0")`` -> ``"2.31.0"``),
+    or ``None`` for anything looser than one exact pin -- a range, more
+    than one specifier, or a prefix-match wildcard like ``"==2.31.*"``
+    (``packaging.specifiers.Specifier`` reports that as operator ``"=="``
+    too, but it pins a *range* of versions, not one exact release --
+    ``===`` has no wildcard form, so this check only matters for ``==``).
 
     Doesn't itself construct *specifier_set* from a raw string --
     :mod:`pitloom.extract._pipfile_lock` and
@@ -270,7 +278,7 @@ def single_exact_pin(specifier_set: SpecifierSet) -> str | None:
     specifiers = list(specifier_set)
     if (
         len(specifiers) != 1
-        or specifiers[0].operator != "=="
+        or specifiers[0].operator not in _EXACT_PIN_OPERATORS
         or "*" in specifiers[0].version
     ):
         return None

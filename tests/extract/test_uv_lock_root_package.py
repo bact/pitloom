@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for ``uv.lock``'s root/workspace-member package selection
-(:func:`pitloom.extract._uv_lock._find_root_package`) and single-entry
-pin resolution (:func:`pitloom.extract._uv_lock._pinned_dep_for_package`).
+(:func:`pitloom.extract._uv_lock._scan_packages`'s root-candidate
+collection and :func:`pitloom.extract._uv_lock._find_root_package`'s
+selection among them) and single-entry pin resolution
+(:func:`pitloom.extract._uv_lock._pinned_dep_for_package`).
 
 See also: test_uv_lock.py (extraction correctness this module's tests
 were split from -- see that module's own docstring for the split
@@ -16,6 +18,7 @@ regression exercised through the full ``read_project()`` cascade).
 import logging
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -23,6 +26,7 @@ from pitloom.extract._uv_lock import (
     _expected_project_name,
     _find_root_package,
     _pinned_dep_for_package,
+    _scan_packages,
 )
 
 
@@ -43,18 +47,23 @@ def test_expected_project_name_returns_none_when_project_table_not_a_dict() -> N
         assert _expected_project_name(tmp_path) is None
 
 
-def test_find_root_package_ignores_malformed_entries() -> None:
-    """A malformed top-level `[[package]]` entry (not a table) is
-    silently skipped while searching for the root package -- see
-    test_lock_common.py for the equivalent `index_packages_by_name()`
-    coverage this and `_uv_lock.py`'s own extraction share."""
+def test_scan_packages_ignores_malformed_entries_when_collecting_root_candidates() -> (
+    None
+):
+    """A malformed top-level `[[package]]` entry (not a table, or
+    missing/non-string `name`) is silently excluded from
+    `_scan_packages()`'s root-candidate list (the same list
+    `_find_root_package()` then searches) -- see test_lock_common.py for
+    the equivalent `index_packages_by_name()` coverage this shares."""
     packages: list[object] = [
         "not-a-dict",
         {"version": "1.0.0"},  # missing name, still not editable/virtual
         {"name": "requests", "version": "2.31.0"},
     ]
 
-    assert _find_root_package(packages, None) is None
+    _by_name, root_candidates = _scan_packages(packages)
+
+    assert _find_root_package(root_candidates, None) is None
 
 
 def test_find_root_package_single_candidate_used_even_without_name_match() -> None:
@@ -63,7 +72,7 @@ def test_find_root_package_single_candidate_used_even_without_name_match() -> No
     -- there's no ambiguity about *which* entry, only whether the name
     happens to match, so guessing wrong here isn't the workspace-mixup
     risk multiple candidates pose."""
-    packages: list[object] = [
+    packages: list[dict[str, Any]] = [
         {"name": "actual-name", "source": {"editable": "."}},
     ]
 
@@ -72,7 +81,7 @@ def test_find_root_package_single_candidate_used_even_without_name_match() -> No
 
 
 def test_find_root_package_prefers_name_match_among_multiple_candidates() -> None:
-    packages: list[object] = [
+    packages: list[dict[str, Any]] = [
         {"name": "pkg-a", "source": {"editable": "."}},
         {"name": "pkg-b", "source": {"editable": "."}},
     ]
@@ -89,7 +98,7 @@ def test_find_root_package_multiple_candidates_no_name_match_returns_none_and_wa
     silently attribute the wrong member's dependencies -- this is the
     regression case: picking `packages[0]` unconditionally here would
     misattribute `pkg-a`'s (or `pkg-b`'s) dependencies to `pkg-c`."""
-    packages: list[object] = [
+    packages: list[dict[str, Any]] = [
         {"name": "pkg-a", "source": {"editable": "."}},
         {"name": "pkg-b", "source": {"editable": "."}},
     ]

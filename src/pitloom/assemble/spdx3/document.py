@@ -191,19 +191,22 @@ def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
     A real resolver lock (`poetry.lock`, `pylock.toml`, `uv.lock`,
     `pdm.lock`, `Pipfile.lock` -- every cascade entry tagged
     `Method: resolved_lockfile`) genuinely proves the full transitive
-    dependency closure, so its edges are marked `complete`. Pinned
-    `requirements.txt` (tagged `Method: pinned_requirements`) is
-    different: it's just a list of exact-pin lines a human or `pip
+    dependency closure, so its edges are marked `complete`. Every other
+    case -- pinned `requirements.txt` (tagged `Method:
+    pinned_requirements`, just a list of exact-pin lines a human or `pip
     freeze` wrote, with no resolver guarantee that every real transitive
-    dependency is actually present -- marking those edges `complete`
-    would overstate what the file actually proves, so this returns
-    `None` (unset) for that one source instead.
+    dependency is actually present), an unrecognized future `Method` tag,
+    or no provenance recorded at all -- returns `None` (unset) instead:
+    an inclusion check (only the one tag known to prove completeness
+    claims it) rather than an exclusion check, so a future lock source
+    that forgets to record its own `Method` tag fails safe to "unset"
+    rather than silently defaulting to overstating completeness.
     """
     provenance = metadata.provenance.get("locked_dependencies")
     method = parse_provenance_value(provenance).get("method") if provenance else None
-    if method is not None and method != _RESOLVED_LOCKFILE_METHOD:
-        return None
-    return spdx3.RelationshipCompleteness.complete
+    if method == _RESOLVED_LOCKFILE_METHOD:
+        return spdx3.RelationshipCompleteness.complete
+    return None
 
 
 def _prefetch_combined_release_info(
