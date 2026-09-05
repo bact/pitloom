@@ -163,6 +163,27 @@ def test_resolve_version_falls_back_to_installed_when_unpinned(
     assert note == "Version resolved: Build-time environment (importlib.metadata)"
 
 
+def test_resolve_version_uses_locked_version_over_installed_when_unpinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Per GEMINI.md ("Explicit pin beats local environment"): when a lock
+    file pins an exact version for a dependency declared with a range,
+    the lock pin is authoritative and Pitloom's host environment is never
+    consulted."""
+    monkeypatch.setattr(
+        deps_mod,
+        "get_package_version",
+        lambda _name: pytest.fail("host environment should not be consulted"),
+    )
+
+    version, note = _resolve_version(
+        "requests", "requests>=2.0", locked_version="2.31.0"
+    )
+
+    assert version == "2.31.0"
+    assert note is None
+
+
 # ---------------------------------------------------------------------------
 # build_pypi_purl / add_dependencies -- PURL even without a resolved version
 # ---------------------------------------------------------------------------

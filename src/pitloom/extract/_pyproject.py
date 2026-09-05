@@ -276,6 +276,7 @@ _FIELD_PROVENANCE = {
     "dependencies": "Source: pyproject.toml | Field: project.dependencies",
     "authors": "Source: pyproject.toml | Field: project.authors",
     "license": "Source: pyproject.toml | Field: project.license",
+    "keywords": "Source: pyproject.toml | Field: project.keywords",
 }
 
 

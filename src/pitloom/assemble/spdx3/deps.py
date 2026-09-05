@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps_installed import (
@@ -226,6 +227,7 @@ def add_dependencies(
     completeness: str | None = None,
     release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
     | None = None,
+    locked_versions: dict[str, str] | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -249,11 +251,24 @@ def add_dependencies(
     can prefetch a single combined batch up front and share it across
     every call, instead of paying for one PyPI network round-trip per
     call.
+
+    *locked_versions*, when given, maps PEP 503-canonicalized package names
+    to exact version strings resolved from a project lock file. A direct
+    dependency declared with a version range (e.g. ``requests>=2.0``)
+    resolves to this locked version rather than falling back to host
+    environment introspection.
     """
     resolved = []
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
-        dep_version, version_note = _resolve_version(dep_name, dep)
+        locked_ver = (
+            locked_versions.get(canonicalize_name(dep_name))
+            if locked_versions is not None
+            else None
+        )
+        dep_version, version_note = _resolve_version(
+            dep_name, dep, locked_version=locked_ver
+        )
         resolved.append((dep, dep_name, dep_version, version_note))
     if release_info_cache is None and not offline:
         release_info_cache = _prefetch_pypi_release_infos(

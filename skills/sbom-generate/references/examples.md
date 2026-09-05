@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-14
+Last-Modified: 2026-09-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -17,6 +17,14 @@ adapted with minimal edits.
 uvx pitloom project . -o sbom.spdx3.json --pretty
 # or sdist archive
 uvx pitloom project dist/mypackage-1.0.0.tar.gz -o sbom.spdx3.json
+```
+
+## Project SBOM with lock file (resolved transitive dependencies)
+
+```bash
+# Automatically discovers pylock.toml, uv.lock, poetry.lock, pdm.lock,
+# Pipfile.lock, or pinned requirements.txt in the project directory:
+loom project . -o sbom.spdx3.json --pretty
 ```
 
 ## Project SBOM, already-installed Pitloom

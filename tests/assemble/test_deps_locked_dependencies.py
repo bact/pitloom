@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.document import _locked_dependencies_completeness, build
 from pitloom.core.creation import CreationMetadata
@@ -368,3 +370,36 @@ def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_loc
     )
 
     assert len({no_lock_at_all, empty_from_pylock, empty_from_uv}) == 3
+
+
+def test_direct_dependency_range_resolves_to_locked_version_over_host_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Per GEMINI.md ("Explicit pin beats local environment"): when
+    metadata.dependencies declares a range (requests>=2.0) and
+    metadata.locked_dependencies has an exact pin (requests==2.31.0),
+    the assembled Package node must use the locked version (2.31.0),
+    never introspecting Pitloom's host environment."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_package_version",
+        lambda _name: pytest.fail("host environment should not be consulted"),
+    )
+
+    project = ProjectMetadata(
+        name="main-project",
+        version="1.0.0",
+        dependencies=["requests>=2.0"],
+        locked_dependencies=["requests==2.31.0", "urllib3==2.2.0"],
+        provenance={
+            "locked_dependencies": "Source: pylock.toml | Method: resolved_lockfile"
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+    packages = {e["name"]: e for e in graph if e.get("type") == "software_Package"}
+
+    assert packages["requests"]["software_packageVersion"] == "2.31.0"
+    assert packages["urllib3"]["software_packageVersion"] == "2.2.0"

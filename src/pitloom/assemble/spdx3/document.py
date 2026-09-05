@@ -209,15 +209,44 @@ def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
     return None
 
 
+def _extract_locked_version_map(locked_dependencies: list[str]) -> dict[str, str]:
+    """Map canonical package names to their exact locked version string.
+
+    Enables direct dependencies declared as ranges (e.g. ``requests>=2.0``)
+    to resolve to their authoritative locked version rather than falling back
+    to introspecting Pitloom's host environment.
+    """
+    result: dict[str, str] = {}
+    for dep in locked_dependencies:
+        dep_name = _parse_dep_name(dep)
+        version, _ = _resolve_version(dep_name, dep)
+        if version != "unknown":
+            result[canonicalize_name(dep_name)] = version
+    return result
+
+
 def _prefetch_combined_release_info(
-    dependencies: list[str], transitive_only: list[str]
+    dependencies: list[str],
+    transitive_only: list[str],
+    locked_versions: dict[str, str] | None = None,
 ) -> dict[tuple[str, str | None], dict[str, Any] | None]:
     """Prefetch PyPI release info once for every dependency a document will
     emit -- direct and lock-resolved-transitive alike -- so the result can
     be shared across both :func:`add_dependencies` calls in :func:`build`
     instead of each call paying for its own network round-trip."""
     name_version_pairs = []
-    for dep in (*dependencies, *transitive_only):
+    for dep in dependencies:
+        dep_name = _parse_dep_name(dep)
+        locked_ver = (
+            locked_versions.get(canonicalize_name(dep_name))
+            if locked_versions is not None
+            else None
+        )
+        dep_version, _version_note = _resolve_version(
+            dep_name, dep, locked_version=locked_ver
+        )
+        name_version_pairs.append((dep_name, dep_version))
+    for dep in transitive_only:
         dep_name = _parse_dep_name(dep)
         dep_version, _version_note = _resolve_version(dep_name, dep)
         name_version_pairs.append((dep_name, dep_version))
@@ -351,10 +380,13 @@ def build(
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
     transitive_only = _locked_transitive_only_dependencies(metadata)
+    locked_versions = _extract_locked_version_map(metadata.locked_dependencies)
     release_info_cache = (
         None
         if offline
-        else _prefetch_combined_release_info(metadata.dependencies, transitive_only)
+        else _prefetch_combined_release_info(
+            metadata.dependencies, transitive_only, locked_versions=locked_versions
+        )
     )
 
     # --- Dependencies ---
@@ -371,6 +403,7 @@ def build(
         encoder=encoder,
         content_type_method=content_type_method,
         release_info_cache=release_info_cache,
+        locked_versions=locked_versions,
     )
 
     if transitive_only:

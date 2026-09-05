@@ -121,11 +121,22 @@ class ProjectMetadata:
     files: list[ProjectFile] = field(default_factory=list)
 
 
+#: Maps a :class:`ProjectMetadata` field name to the literal provenance key
+#: its extractors actually record it under, for the one known case where
+#: they differ -- every ``license_name`` producer (``_pyproject.py``,
+#: ``_setuptools_py.py``, ``_setuptools_cfg.py``) writes
+#: ``provenance["license"]``, never ``provenance["license_name"]``. Consulted
+#: by :func:`merge_project_metadata`'s "explicitly declared" check so it
+#: looks up the key extractors actually use instead of a field name that's
+#: never present in *provenance*.
+_PROVENANCE_KEY_ALIASES: dict[str, str] = {"license_name": "license"}
+
+
 def merge_project_metadata(
     primary: ProjectMetadata, secondary: ProjectMetadata
 ) -> ProjectMetadata:
     """Merge two :class:`ProjectMetadata` instances, *primary* winning
-    field-by-field; *secondary* fills gaps where *primary*'s value is falsy.
+    field-by-field; *secondary* fills gaps where *primary*'s value is absent.
 
     Iterates :func:`dataclasses.fields` instead of hand-listing every field,
     so a newly added :class:`ProjectMetadata` field (like ``license_concluded``,
@@ -137,7 +148,7 @@ def merge_project_metadata(
     in sync by hand; ``license_concluded`` was missing from one of them until
     this fix, precisely because that discipline had already lapsed once.
 
-    Two fields are special-cased rather than "primary if truthy else
+    Two fields are special-cased rather than "primary when present else
     secondary":
 
     - ``name`` -- always *primary*'s, even if empty (a project's own name is
@@ -145,15 +156,25 @@ def merge_project_metadata(
     - ``provenance`` -- dict-merged, *primary*'s entries winning on key
       conflict, rather than replaced wholesale.
 
-    Every other field: *primary*'s value when truthy, else *secondary*'s --
-    including every list-valued field (``dependencies``, ``locked_dependencies``,
-    ``keywords``, ``authors``, ``files``): a non-empty *primary* list replaces
-    *secondary*'s wholesale, it is never unioned with it. If a future
+    Every other field: *primary*'s value when present, else *secondary*'s.
+    An empty container (``dependencies``, ``keywords``, ``urls``, etc.)
+    with provenance confirming it was explicitly declared in *primary* is
+    authoritative and preserved. Default-constructed empty containers (absent
+    from *primary*'s provenance) or ``None`` values are treated as absent and
+    filled from *secondary*. A non-empty *primary* list replaces *secondary*'s
+    wholesale, it is never unioned with it. If a future
     ``locked_dependencies`` source needs union-not-replace semantics (e.g.
     combining two lock-derived dependency sets), that is a deliberate
     deviation from every sibling list field here and belongs in a dedicated
     merge step at the call site, not a silent special case in this
     otherwise-uniform field-by-field loop.
+
+    The "explicitly declared" check looks up *provenance* by the field's own
+    name (e.g. ``provenance["keywords"]``) -- except ``license_name``, whose
+    extractors have historically recorded its provenance under the literal
+    key ``"license"`` (see ``_pyproject.py``/``_setuptools_py.py``/
+    ``_setuptools_cfg.py``), not ``"license_name"``; :data:`_PROVENANCE_KEY_ALIASES`
+    maps that one known mismatch so the same presence check still finds it.
     """
     merged = dataclasses.replace(primary)
     merged.provenance = {**secondary.provenance, **primary.provenance}
@@ -161,6 +182,9 @@ def merge_project_metadata(
         if f.name in ("name", "provenance"):
             continue
         primary_value = getattr(primary, f.name)
-        if not primary_value:
+        provenance_key = _PROVENANCE_KEY_ALIASES.get(f.name, f.name)
+        if primary_value is None or (
+            not primary_value and provenance_key not in primary.provenance
+        ):
             setattr(merged, f.name, getattr(secondary, f.name))
     return merged

@@ -48,18 +48,22 @@ def _parse_dep_name(dep: str) -> str:
     return dep.strip()
 
 
-def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
+def _resolve_version(
+    dep_name: str, dep: str, locked_version: str | None = None
+) -> tuple[str, str | None]:
     """Return ``(version_string, resolved_from)`` for a dependency.
 
     An exact ``==``/``===`` pin already present in *dep* -- e.g. a resolved
     ``poetry.lock`` entry, or any dependency the project itself pins
-    exactly -- is authoritative and checked first: it reflects a decision
-    already resolved by the dependency's own source and must never be
-    silently overridden by whatever happens to be installed in Pitloom's
-    own execution environment, which has no relationship to the target
-    project's environment. The installed-environment lookup is a fallback
-    for the common case where the constraint doesn't pin an exact version
-    (e.g. ``requests>=2.0``).
+    exactly -- is authoritative and checked first. Likewise, a *locked_version*
+    provided by a project lock file (PEP 751 ``pylock.toml``, ``uv.lock``,
+    ``poetry.lock``, etc.) for a direct dependency declared as a range (e.g.
+    ``requests>=2.0``) is authoritative over the host environment. Both reflect
+    a decision resolved by the dependency's own data sources and must never be
+    silently overridden by whatever happens to be installed in Pitloom's own
+    execution environment, which has no relationship to the target project's
+    environment. The installed-environment lookup is a fallback for the case
+    where neither pins an exact version.
     """
     try:
         pinned = [
@@ -74,6 +78,9 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
         unparseable = False
     if pinned:
         return pinned[0], None
+
+    if locked_version is not None:
+        return locked_version, None
 
     try:
         return get_package_version(dep_name), (
