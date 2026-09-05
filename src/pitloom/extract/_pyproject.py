@@ -461,12 +461,12 @@ def _try_read_poetry(
     locked_dependencies = (
         extract_poetry_lock_dependencies(project_dir)
         if include_locked_dependencies
-        else []
+        else None
     )
     try:
         metadata = extract_poetry_metadata(data, project_dir)
     except (ValueError, KeyError) as exc:
-        if not locked_dependencies:
+        if locked_dependencies is None:
             return None
         log.warning(
             "%s: [tool.poetry] metadata could not be parsed (%s) -- "
@@ -476,7 +476,7 @@ def _try_read_poetry(
             exc,
         )
         metadata = ProjectMetadata(name="")
-    if locked_dependencies:
+    if locked_dependencies is not None:
         metadata.locked_dependencies = locked_dependencies
         metadata.provenance["locked_dependencies"] = (
             f"Source: {POETRY_LOCK_SOURCE_NAME} | Method: resolved_lockfile"

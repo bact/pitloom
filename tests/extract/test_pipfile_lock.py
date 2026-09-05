@@ -32,9 +32,12 @@ def _write_lock(tmp_dir: Path, data: dict[str, object]) -> None:
     (tmp_dir / "Pipfile.lock").write_text(json.dumps(data), encoding="utf-8")
 
 
-def test_no_lock_file_returns_empty_list() -> None:
+def test_no_lock_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
     with tempfile.TemporaryDirectory() as tmp:
-        assert not extract_pipfile_lock_dependencies(Path(tmp))
+        assert extract_pipfile_lock_dependencies(Path(tmp)) is None
 
 
 def test_malformed_json_returns_empty_list_and_warns(
@@ -65,14 +68,16 @@ def test_default_section_not_a_dict_returns_empty_list_and_warns(
         assert "expected a table" in caplog.text
 
 
-def test_no_default_section_returns_empty_list() -> None:
+def test_no_default_section_returns_empty_list_not_none() -> None:
     """A Pipfile.lock with no `default` key at all (unusual but not
-    invalid) is treated as zero runtime dependencies, not an error."""
+    invalid) is treated as zero runtime dependencies, not an error --
+    and must return `[]`, not `None`, so the cascade treats this lock as
+    a real, winning (if empty) answer rather than "not present"."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(tmp_path, {"develop": {"pytest": {"version": "==8.0.0"}}})
 
-        assert not extract_pipfile_lock_dependencies(tmp_path)
+        assert extract_pipfile_lock_dependencies(tmp_path) == []
 
 
 def test_simple_dependency_resolved() -> None:
@@ -109,6 +114,7 @@ def test_develop_section_excluded() -> None:
 
         result = extract_pipfile_lock_dependencies(tmp_path)
 
+        assert result is not None
         assert result == ["requests==2.31.0"]
         assert "pytest" not in " ".join(result)
 
@@ -366,6 +372,7 @@ def test_real_world_requests_html() -> None:
         REAL_WORLD_LOCKS / "requests-html-0.10.0"
     )
 
+    assert dependencies is not None
     names = {dep.split("==", maxsplit=1)[0] for dep in dependencies}
     assert "requests" in names
     assert "beautifulsoup4" in names
@@ -383,6 +390,7 @@ def test_real_world_responder() -> None:
         REAL_WORLD_LOCKS / "responder-2.0.0"
     )
 
+    assert dependencies is not None
     names = {dep.split("==", maxsplit=1)[0] for dep in dependencies}
     assert "requests" in names
     assert "responder" not in names  # self-referential, editable/path-sourced

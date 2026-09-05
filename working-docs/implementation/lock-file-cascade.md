@@ -71,19 +71,30 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
 ```
 
 Each entry pairs a source name, an extractor matching the uniform
-`_LockExtractor` shape (`(project_dir, expected_name) -> list[str]` of
-exact-pin PEP 508 strings, empty when absent/unusable), and a
-provenance `Method` tag. Only `uv.lock`'s own extractor uses
-*expected_name* (to disambiguate a shared workspace lock's multiple
-local package entries without re-reading `pyproject.toml` a second
-time); `pylock.toml`'s, `pdm.lock`'s, and `Pipfile.lock`'s extractors
-keep their simpler, single-`project_dir` signature and are wrapped with
-`_ignore_expected_name()` when registered in `_LOCK_SOURCES` above,
-rather than widening every format's own signature for a need only one
-of them has. `apply_locked_dependencies()` tries each extractor-bearing
-entry in priority order (highest first) and applies the first non-empty
-result, in place, onto `metadata.locked_dependencies` and
-`metadata.provenance["locked_dependencies"]`.
+`_LockExtractor` shape (`(project_dir, expected_name) -> list[str] | None`
+of exact-pin PEP 508 strings), and a provenance `Method` tag. Only
+`uv.lock`'s own extractor uses *expected_name* (to disambiguate a shared
+workspace lock's multiple local package entries without re-reading
+`pyproject.toml` a second time); `pylock.toml`'s, `pdm.lock`'s, and
+`Pipfile.lock`'s extractors keep their simpler, single-`project_dir`
+signature and are wrapped with `_ignore_expected_name()` when registered
+in `_LOCK_SOURCES` above, rather than widening every format's own
+signature for a need only one of them has. `apply_locked_dependencies()`
+tries each extractor-bearing entry in priority order (highest first) and
+applies the first result that isn't `None`, in place, onto
+`metadata.locked_dependencies` and `metadata.provenance["locked_dependencies"]`.
+
+**`None` and `[]` mean different things, and the distinction matters.**
+`None` means this source doesn't apply here at all (absent, unparseable,
+or otherwise unusable) -- try the next source in priority order. `[]`
+means this source *does* apply, and is a real, authoritative answer: a
+successfully-parsed lock that genuinely resolves to zero runtime
+dependencies. The cascade treats `[]` as a win like any other -- it stops
+and does *not* fall through to a lower-priority source, since that would
+let a lower-priority, less-authoritative source add dependencies the
+winning lock says don't exist. Every extractor in `_LOCK_SOURCES`
+(and `poetry.lock`'s own `_try_read_poetry()` gate) follows this same
+contract.
 
 Every entry's `Method` tag is `"resolved_lockfile"` except
 `requirements.txt`'s own `"pinned_requirements"` -- it's not a real
@@ -172,14 +183,23 @@ a real environment, `_uv_lock.py`:
    `source.virtual` marker -- how uv distinguishes "this is the local
    project" from a PyPI download) instead of scanning every
    `[[package]]` entry directly.
-2. Reads only that entry's own `dependencies` list (main/runtime --
-   `optional-dependencies`/`dev-dependencies` are extras and dev
-   groups, excluded the same way `poetry.lock`'s non-`main` groups are).
+2. Breadth-first walks the dependency graph starting from that entry's
+   own `dependencies` list (main/runtime -- `optional-dependencies`/
+   `dev-dependencies` are extras and dev groups, excluded the same way
+   `poetry.lock`'s non-`main` groups are), in `_collect_transitive_dependencies()`.
+   This isn't just the root's *immediate* dependencies: each resolved
+   package's own `dependencies` list is walked too, since the installed
+   set is the closure over that graph, not just its first layer (e.g. a
+   CLI tool's direct dependency on a web framework that itself pulls in
+   several more packages). PEP 503-canonicalized names guard against
+   revisiting the same package twice (a diamond dependency shared by two
+   branches) or looping on a cycle.
 3. Resolves each referenced name against the flat table only when
    exactly one candidate exists for that name; an ambiguous
    (multiple-version) or marker-conditional (inline `version` on the
    dependency reference itself) name is skipped with a `WARNING:`, not
-   guessed. See `tests/fixtures/real-world-locks/README.md`'s `flask`
+   guessed, and nothing depending only on that skipped name is walked
+   into either. See `tests/fixtures/real-world-locks/README.md`'s `flask`
    entry for a real fixture exercising this (its `click` dependency is
    deliberately absent from `locked_dependencies`).
 
@@ -291,13 +311,19 @@ similar in spirit:
   just a `(name, version)` pair by *canonicalized* name" shape instead
   (their conflict check has to treat `Flask`/`flask` as the same
   package) -- `pitloom.extract._lock_common.group_versions_by_canonical_name()`.
-- **Validating a `version` field is a non-empty string.** `not
-  isinstance(version, str) or not version` existed independently in all
-  five extractors before being factored into
-  `pitloom.extract._lock_common.is_usable_version()`. `_pipfile_lock.py`
-  calls it too, as the first of two checks -- its own `version`
-  validation is strictly larger (a full PEP 440 exact-`==`-specifier
-  parse on top), not a replacement for the shared non-empty-string check.
+- **Validating a `version` field is a usable PEP 440 version.**
+  `pitloom.extract._lock_common.is_usable_version()` checks a field is a
+  non-empty string *and* parses as a valid `packaging.version.Version`
+  -- rejecting not just non-strings but a syntactically-string-yet-not-a-
+  version value too (a wildcard like `"*"`, whitespace, arbitrary text),
+  which a bare non-empty-string check would let through into an invalid
+  `name==<garbage>` pin. Shared by `_poetry_lock.py`, `_pylock.py`,
+  `_uv_lock.py`, and `_pdm_lock.py`, whose `version` fields are plain
+  version numbers. `_pipfile_lock.py` does **not** use it: its own
+  `version` field is already a full PEP 440 *specifier* string (e.g.
+  `"==2.31.0"`), not a bare version, so it does its own
+  `isinstance`/non-empty check directly before parsing that specifier
+  with `packaging.specifiers.SpecifierSet` and `single_exact_pin()`.
 - **The non-registry-source `WARNING:` message.** `"Skipping <lock
   file> entry %r: %s-sourced dependencies cannot be represented as a
   PEP 508 specifier"` was copy-pasted, wording-identical, into all five
@@ -399,10 +425,12 @@ unaffected -- purely additive.
 
 ## Adding a new format to the cascade
 
-1. Write `extract_<format>_dependencies(project_dir: Path) -> list[str]`
+1. Write `extract_<format>_dependencies(project_dir: Path) -> list[str] | None`
    in its own `src/pitloom/extract/_<format>.py`, following
-   `_pylock.py`'s shape: exact-pin PEP 508 strings, empty list when
-   absent/unusable, `WARNING:` (never a silent drop) for anything
+   `_pylock.py`'s shape: exact-pin PEP 508 strings, `None` when
+   absent/unusable (as opposed to a valid-but-empty `[]` -- see the
+   "`None` and `[]` mean different things" note above), `WARNING:`
+   (never a silent drop) for anything
    malformed or non-registry-sourced. Use `_lock_common.load_lock_toml()`
    to load the file (or `_lock_common.load_lock_json()` for a JSON-format
    lock file -- `_pipfile_lock.py` is the precedent), and (if the format

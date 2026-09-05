@@ -14,14 +14,33 @@ regression exercised through the full ``read_project()`` cascade).
 """
 
 import logging
+import tempfile
+from pathlib import Path
 
 import pytest
 
-from pitloom.extract._uv_lock import _find_root_package, _pinned_dep_for_package
+from pitloom.extract._uv_lock import (
+    _expected_project_name,
+    _find_root_package,
+    _pinned_dep_for_package,
+)
 
 
 def test_find_root_package_returns_none_for_empty_list() -> None:
     assert _find_root_package([], None) is None
+
+
+def test_expected_project_name_returns_none_when_project_table_not_a_dict() -> None:
+    """A malformed `[project]` value (e.g. a bare string instead of a
+    table) can't carry a `name` -- treated as "can't determine", not a
+    parse error."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pyproject.toml").write_text(
+            'project = "not-a-table"\n', encoding="utf-8"
+        )
+
+        assert _expected_project_name(tmp_path) is None
 
 
 def test_find_root_package_ignores_malformed_entries() -> None:

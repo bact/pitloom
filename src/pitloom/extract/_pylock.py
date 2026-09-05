@@ -43,13 +43,39 @@ __all__ = ["extract_pylock_dependencies"]
 
 _NON_REGISTRY_SOURCE_KEYS = ("vcs", "directory", "archive")
 
+#: The highest ``lock-version`` this extractor understands, as
+#: ``(major, minor)``. PEP 751 defines only ``"1.0"`` to date. A
+#: consumer must reject a different *major* version outright (a future
+#: 2.x could change the schema incompatibly) but may still read a newer
+#: *minor* version within the same major (additive, backward-compatible
+#: fields only, per PEP 751) -- with a warning that some of its content
+#: may go unrecognized.
+_SUPPORTED_LOCK_FILE_VERSION = (1, 0)
 
-def extract_pylock_dependencies(project_dir: Path) -> list[str]:
+
+def _parse_lock_version(lock_version: str) -> tuple[int, int] | None:
+    """Parse a ``lock-version`` string as ``(major, minor)``, or
+    ``None`` if it isn't a plain ``major.minor`` pair of non-negative
+    integers -- PEP 751's own grammar for this field, rejecting a value
+    like ``"2"``, ``"1.0.0"``, or ``"garbage"`` that isn't shaped like a
+    version at all."""
+    parts = lock_version.split(".")
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        return None
+    return int(parts[0]), int(parts[1])
+
+
+def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``pylock.toml`` next to ``pyproject.toml`` and return its
     resolved packages as exact-pin PEP 508 strings.
 
-    Returns an empty list when no ``pylock.toml`` is present, or when it
-    can't be parsed -- this is optional enrichment, never a requirement.
+    Returns ``None`` when no ``pylock.toml`` is present, it can't be
+    parsed, or its declared ``lock-version`` is unsupported -- this is
+    optional enrichment, never a requirement, and ``None`` (as opposed
+    to a valid-but-empty ``[]``) tells :mod:`pitloom.extract._locked_dependencies`'s
+    cascade this source doesn't apply here, so a lower-priority source
+    can still be tried, rather than a genuinely dependency-free lock
+    file being confused with an absent/unusable one.
 
     Unlike ``poetry.lock``, PEP 751 has no ``groups``-style per-package
     membership to filter on: a ``pylock.toml`` is already the flattened,
@@ -60,15 +86,45 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str]:
     lock_path = project_dir / "pylock.toml"
     data = load_lock_toml(lock_path)
     if data is None:
-        return []
+        return None
 
-    if not isinstance(data.get("lock-version"), str):
+    raw_lock_version = data.get("lock-version")
+    parsed_version = (
+        _parse_lock_version(raw_lock_version)
+        if isinstance(raw_lock_version, str)
+        else None
+    )
+    if parsed_version is None:
         log.warning(
-            "%s: missing or non-string top-level 'lock-version' key -- "
-            "ignoring pylock.toml",
+            "%s: missing or malformed top-level 'lock-version' key "
+            "(%r, expected a 'major.minor' string) -- ignoring pylock.toml",
             lock_path,
+            raw_lock_version,
         )
-        return []
+        return None
+    major, minor = parsed_version
+    supported_major, supported_minor = _SUPPORTED_LOCK_FILE_VERSION
+    if major != supported_major:
+        log.warning(
+            "%s: 'lock-version' %r is major version %d, but this Pitloom "
+            "release only understands major version %d -- ignoring "
+            "pylock.toml",
+            lock_path,
+            raw_lock_version,
+            major,
+            supported_major,
+        )
+        return None
+    if minor > supported_minor:
+        log.warning(
+            "%s: 'lock-version' %r is newer than the %d.%d schema this "
+            "Pitloom release knows -- reading it anyway (PEP 751 minor "
+            "versions are additive), but newer fields may be ignored",
+            lock_path,
+            raw_lock_version,
+            supported_major,
+            supported_minor,
+        )
 
     packages = data.get("packages", [])
     if not isinstance(packages, list):
@@ -78,7 +134,7 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str]:
             lock_path,
             type(packages).__name__,
         )
-        return []
+        return None
 
     dependencies: list[str] = []
     for pkg in packages:

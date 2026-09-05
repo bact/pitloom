@@ -34,9 +34,23 @@ def _write_lock(tmp_dir: Path, content: str) -> None:
     (tmp_dir / "poetry.lock").write_text(content, encoding="utf-8")
 
 
-def test_no_lock_file_returns_empty_list() -> None:
+def test_no_lock_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
     with tempfile.TemporaryDirectory() as tmp:
-        assert not extract_poetry_lock_dependencies(Path(tmp))
+        assert extract_poetry_lock_dependencies(Path(tmp)) is None
+
+
+def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
+    """A `poetry.lock` with zero packages is a real, valid answer -- must
+    be `[]`, not `None`, so the cascade treats it as a winning (if empty)
+    result rather than "not present"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, "")
+
+        assert extract_poetry_lock_dependencies(tmp_path) == []
 
 
 def test_malformed_toml_returns_empty_list_and_warns(
@@ -221,6 +235,7 @@ def test_fixture_lock_excludes_dev_group_dependency() -> None:
     `[tool.poetry.group.dev.dependencies]` and must not appear."""
     result = extract_poetry_lock_dependencies(POETRY_FIXTURE)
 
+    assert result is not None
     names = {dep.split("==", maxsplit=1)[0] for dep in result}
     assert "pytest" not in names
     assert "numpy" in names
@@ -328,14 +343,19 @@ def test_real_world_pastel_tool_poetry_only() -> None:
 def test_real_world_tomlkit_has_no_main_group_dependencies() -> None:
     """`tomlkit` is a standalone TOML library with no runtime
     dependencies -- every entry in its `poetry.lock` belongs to the
-    `dev`/docs/test groups, none to `main`. A real, valid "empty
-    resolved set" case: `read_pyproject()` still succeeds, but leaves
-    `locked_dependencies` empty and sets no provenance for it, same as
-    the no-lock-file case."""
+    `dev`/docs/test groups, none to `main`. A real, valid "empty resolved
+    set" case: `read_pyproject()` still succeeds, leaves
+    `locked_dependencies` empty, but *does* record provenance for it --
+    a real, parsed ``poetry.lock`` that authoritatively resolves to zero
+    ``main``-group packages is a genuine answer, not the same as no lock
+    file being present at all (see ``_locked_dependencies.py``'s
+    None-vs-``[]`` extractor contract)."""
     metadata, _config = read_pyproject(
         REAL_WORLD_LOCKS / "tomlkit-0.15.1" / "pyproject.toml"
     )
 
     assert metadata.name == "tomlkit"
     assert metadata.locked_dependencies == []
-    assert "locked_dependencies" not in metadata.provenance
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: poetry.lock | Method: resolved_lockfile"
+    )

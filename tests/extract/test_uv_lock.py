@@ -36,9 +36,12 @@ def _write_lock(tmp_dir: Path, body: str = "") -> None:
     (tmp_dir / "uv.lock").write_text(_LOCK_HEADER + body, encoding="utf-8")
 
 
-def test_no_lock_file_returns_empty_list() -> None:
+def test_no_lock_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
     with tempfile.TemporaryDirectory() as tmp:
-        assert not extract_uv_lock_dependencies(Path(tmp))
+        assert extract_uv_lock_dependencies(Path(tmp)) is None
 
 
 def test_malformed_toml_returns_empty_list_and_warns(
@@ -108,13 +111,15 @@ def test_root_dependencies_not_a_list_returns_empty_list_and_warns(
         assert "expected a list" in caplog.text
 
 
-def test_root_with_no_dependencies_key_returns_empty_list() -> None:
-    """A project with zero runtime dependencies is valid, not an error."""
+def test_root_with_no_dependencies_key_returns_empty_list_not_none() -> None:
+    """A project with zero runtime dependencies is valid, not an error --
+    and must return `[]`, not `None`, so the cascade treats this lock as
+    a real, winning (if empty) answer rather than "not present"."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(tmp_path, _ROOT_HEADER)
 
-        assert not extract_uv_lock_dependencies(tmp_path)
+        assert extract_uv_lock_dependencies(tmp_path) == []
 
 
 def test_simple_dependency_resolved() -> None:
@@ -288,6 +293,83 @@ def test_dependency_missing_version_skipped_and_warns(
 
         assert not result
         assert "missing" in caplog.text.lower()
+
+
+def test_transitive_dependency_of_a_direct_dependency_is_included() -> None:
+    """The root's own `dependencies` list is only the first layer -- a
+    package it depends on can itself have further dependencies, and
+    those must be walked too, not just the root's immediate list."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            'dependencies = [{ name = "urllib3" }, { name = "certifi" }]\n\n'
+            '[[package]]\nname = "urllib3"\nversion = "2.2.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n\n'
+            '[[package]]\nname = "certifi"\nversion = "2024.2.2"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result is not None
+        assert set(result) == {
+            "requests==2.31.0",
+            "urllib3==2.2.0",
+            "certifi==2024.2.2",
+        }
+
+
+def test_diamond_dependency_visited_only_once() -> None:
+    """Two of the root's direct dependencies sharing a common transitive
+    dependency must not cause that shared package to be processed (or
+    emitted) twice."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "pkg-a" }, { name = "pkg-b" }]\n\n'
+            '[[package]]\nname = "pkg-a"\nversion = "1.0.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            'dependencies = [{ name = "shared" }]\n\n'
+            '[[package]]\nname = "pkg-b"\nversion = "1.0.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            'dependencies = [{ name = "shared" }]\n\n'
+            '[[package]]\nname = "shared"\nversion = "0.1.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result is not None
+        assert result.count("shared==0.1.0") == 1
+
+
+def test_nested_dependencies_not_a_list_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A resolved package's own `dependencies` key, if present at all,
+    must be a list -- a malformed non-list value (but still truthy, so
+    distinct from a missing key) is warned and simply not walked into
+    further, not treated as a parse error for the whole file."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            'dependencies = "not-a-list"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "nested 'dependencies'" in caplog.text
 
 
 def test_dependency_with_no_source_table_still_included() -> None:

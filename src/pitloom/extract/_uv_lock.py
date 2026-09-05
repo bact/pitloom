@@ -123,12 +123,14 @@ def _find_root_package(
     return candidates[0]
 
 
-def _pinned_dep_for_root_dependency(
+def _resolved_package_for_dependency(
     dep_ref: object, by_name: dict[str, list[dict[str, Any]]]
-) -> str | None:
-    """Return ``name==version`` for one entry of the root package's own
-    ``dependencies`` list, or ``None`` when it can't be resolved to a
-    single, unambiguous, registry-sourced pin."""
+) -> dict[str, Any] | None:
+    """Return the single, unambiguous ``[[package]]`` entry that one
+    ``dependencies``-list reference resolves to -- the root package's
+    own, or one already-visited package's own nested reference during
+    the transitive walk in :func:`_collect_transitive_dependencies` --
+    or ``None`` when it can't be resolved that way."""
     if not isinstance(dep_ref, dict):
         log.warning(
             "Skipping malformed uv.lock dependency reference: expected a table, got %s",
@@ -150,8 +152,7 @@ def _pinned_dep_for_root_dependency(
         # environment, which this extractor deliberately doesn't do.
         log.warning(
             "Skipping uv.lock dependency %r: marker-conditional version "
-            "on the root package's own dependency reference (no marker "
-            "evaluation)",
+            "on its own dependency reference (no marker evaluation)",
             name,
         )
         return None
@@ -173,7 +174,57 @@ def _pinned_dep_for_root_dependency(
         )
         return None
 
-    return _pinned_dep_for_package(candidates[0])
+    return candidates[0]
+
+
+def _collect_transitive_dependencies(
+    root_dependencies: list[object], by_name: dict[str, list[dict[str, Any]]]
+) -> list[str]:
+    """Breadth-first walk of the resolved dependency graph starting from
+    the project root package's own ``dependencies`` list, returning
+    every reachable package (not just the root's immediate dependencies)
+    as exact-pin PEP 508 strings.
+
+    A ``uv.lock``'s flat ``[[package]]`` table records each package's
+    *own* ``dependencies`` list once, keyed by name -- the actual
+    installed set is the closure of that graph, not just its first
+    layer (e.g. a CLI tool's own root dependency on a framework that
+    itself pulls in several more packages). PEP 503-canonicalized names
+    guard against revisiting the same package twice (a diamond
+    dependency shared by two branches) or looping on a cycle; a name
+    that fails to resolve unambiguously (see
+    :func:`_resolved_package_for_dependency`) is skipped and not walked
+    into further, the same "don't guess" policy the root-level case
+    already applied.
+    """
+    dependencies: dict[str, str] = {}
+    visited: set[str] = set()
+    queue: list[object] = list(root_dependencies)
+    while queue:
+        dep_ref = queue.pop(0)
+        pkg = _resolved_package_for_dependency(dep_ref, by_name)
+        if pkg is None:
+            continue
+        canonical_name = canonicalize_name(pkg["name"])
+        if canonical_name in visited:
+            continue
+        visited.add(canonical_name)
+
+        pin = _pinned_dep_for_package(pkg)
+        if pin is not None:
+            dependencies[canonical_name] = pin
+
+        nested = pkg.get("dependencies", [])
+        if isinstance(nested, list):
+            queue.extend(nested)
+        elif nested:
+            log.warning(
+                "Skipping uv.lock entry %r nested 'dependencies': "
+                "expected a list, got %s",
+                pkg["name"],
+                type(nested).__name__,
+            )
+    return list(dependencies.values())
 
 
 def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
@@ -214,10 +265,11 @@ def _expected_project_name(project_dir: Path) -> str | None:
 
 def extract_uv_lock_dependencies(
     project_dir: Path, expected_name: str | None = None
-) -> list[str]:
+) -> list[str] | None:
     """Read ``uv.lock`` next to ``pyproject.toml`` and return the
-    project's own main/runtime dependencies as exact-pin PEP 508
-    strings.
+    project's own transitive main/runtime dependencies (the root
+    package's own ``dependencies``, plus everything *they* in turn
+    depend on) as exact-pin PEP 508 strings.
 
     *expected_name* disambiguates a shared uv workspace lock's multiple
     local package entries (see :func:`_find_root_package`) -- pass the
@@ -227,14 +279,16 @@ def extract_uv_lock_dependencies(
     caller invoking this extractor directly, outside the cascade), falls
     back to reading it via :func:`_expected_project_name`.
 
-    Returns an empty list when no ``uv.lock`` is present, it can't be
-    parsed, or the project's own package entry can't be identified --
-    this is optional enrichment, never a requirement.
+    Returns ``None`` when no ``uv.lock`` is present, it can't be parsed,
+    or the project's own package entry can't be identified -- this is
+    optional enrichment, never a requirement. ``None`` (as opposed to a
+    valid-but-empty ``[]``) distinguishes an absent/unusable lock from a
+    real one whose root package simply has zero runtime dependencies.
     """
     lock_path = project_dir / "uv.lock"
     data = load_lock_toml(lock_path)
     if data is None:
-        return []
+        return None
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
@@ -243,7 +297,7 @@ def extract_uv_lock_dependencies(
             lock_path,
             type(packages).__name__,
         )
-        return []
+        return None
 
     if expected_name is None:
         expected_name = _expected_project_name(project_dir)
@@ -254,7 +308,7 @@ def extract_uv_lock_dependencies(
             "source entry) -- ignoring uv.lock",
             lock_path,
         )
-        return []
+        return None
 
     root_dependencies = root.get("dependencies", [])
     if not isinstance(root_dependencies, list):
@@ -264,12 +318,7 @@ def extract_uv_lock_dependencies(
             lock_path,
             type(root_dependencies).__name__,
         )
-        return []
+        return None
 
     by_name = index_packages_by_name(packages)
-    dependencies: list[str] = []
-    for dep_ref in root_dependencies:
-        dep = _pinned_dep_for_root_dependency(dep_ref, by_name)
-        if dep is not None:
-            dependencies.append(dep)
-    return dependencies
+    return _collect_transitive_dependencies(root_dependencies, by_name)

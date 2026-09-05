@@ -78,29 +78,32 @@ _COMMENT_RE = re.compile(r"(?:^|\s)#.*$")
 _OPTION_LINE_PREFIX = "-"
 
 
-def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str]:
+def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``requirements.txt`` next to ``pyproject.toml``/``setup.py``
     and return every dependency as an exact-pin PEP 508 string, but only
     when *every* real line in the file is already an exact ``==`` pin.
 
-    Returns an empty list when no ``requirements.txt`` is present, it
-    can't be read/decoded, or any line disqualifies the whole file (an
-    option line, a URL-based requirement, an unpinned/ranged specifier,
-    a malformed line, or one name pinned to two conflicting versions) --
+    Returns ``None`` when no ``requirements.txt`` is present, it can't be
+    read/decoded, or any line disqualifies the whole file (an option
+    line, a URL-based requirement, an unpinned/ranged specifier, a
+    malformed line, or one name pinned to two conflicting versions) --
     see the module docstring for why this is all-or-nothing rather than
-    including only the pinned lines. A leading UTF-8 BOM (common from
-    Windows editors) and pip's backslash line-continuation syntax are
-    both handled the same as pip itself handles them, not treated as
+    including only the pinned lines. ``None`` (as opposed to a
+    valid-but-empty ``[]``) distinguishes an absent/unusable file from a
+    real, fully-pinned one that simply lists zero dependencies (e.g. all
+    comments/blank lines). A leading UTF-8 BOM (common from Windows
+    editors) and pip's backslash line-continuation syntax are both
+    handled the same as pip itself handles them, not treated as
     malformed.
     """
     lock_path = project_dir / "requirements.txt"
     if not lock_path.exists():
-        return []
+        return None
     try:
         raw_text = lock_path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError) as exc:
         log.warning("Failed to read %s: %s", lock_path, exc)
-        return []
+        return None
 
     pins: list[tuple[str, str]] = []
     for lineno, joined_line in _join_continuation_lines(raw_text):
@@ -109,7 +112,7 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str]:
             continue
         pin = _pinned_name_version_for_line(lock_path, lineno, line)
         if pin is None:
-            return []
+            return None
         pins.append(pin)
     return _collapse_or_none(lock_path, pins)
 
@@ -147,10 +150,10 @@ def _join_continuation_lines(raw_text: str) -> list[tuple[int, str]]:
     return logical_lines
 
 
-def _collapse_or_none(lock_path: Path, pins: list[tuple[str, str]]) -> list[str]:
+def _collapse_or_none(lock_path: Path, pins: list[tuple[str, str]]) -> list[str] | None:
     """Collapse *pins* to one ``name==version`` entry per PEP
     503-canonicalized name, preserving first-seen literal name and file
-    order -- or ``[]`` (with a ``WARNING:`` naming the name and both
+    order -- or ``None`` (with a ``WARNING:`` naming the name and both
     versions) the moment one canonicalized name repeats with two
     *different* versions. A plain repeated line (same name, same
     version) is silently collapsed to one entry.
@@ -168,7 +171,7 @@ def _collapse_or_none(lock_path: Path, pins: list[tuple[str, str]]) -> list[str]
                 version,
                 conflicting,
             )
-            return []
+            return None
         result.append(f"{name}=={version}")
     return result
 

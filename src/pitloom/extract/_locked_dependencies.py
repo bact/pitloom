@@ -47,10 +47,12 @@ log = logging.getLogger(__name__)
 
 __all__ = ["apply_locked_dependencies"]
 
-_LockExtractor = Callable[[Path, str | None], list[str]]
+_LockExtractor = Callable[[Path, str | None], list[str] | None]
 
 
-def _ignore_expected_name(extractor: Callable[[Path], list[str]]) -> _LockExtractor:
+def _ignore_expected_name(
+    extractor: Callable[[Path], list[str] | None],
+) -> _LockExtractor:
     """Adapt a single-argument extractor to :data:`_LockExtractor`'s
     uniform ``(project_dir, expected_name)`` shape.
 
@@ -133,6 +135,14 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     is also recorded in the resulting ``provenance["locked_dependencies"]``
     string itself (as a trailing ``| Note: supersedes <name>``), not only
     logged, so a reader of the generated SBOM can see it too.
+
+    Each extractor returns ``None`` (not applicable here: absent,
+    unparseable, or otherwise unusable -- try the next source) or a
+    ``list[str]`` (this source *does* apply, even when that list is
+    empty: a real lock resolving to zero runtime dependencies is a
+    genuine, authoritative answer, and must win outright rather than
+    being conflated with "no lock here" and letting a lower-priority
+    source add dependencies the winning lock says don't exist).
     """
     previous = metadata.provenance.get("locked_dependencies")
     previous_source = (
@@ -170,7 +180,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             break
 
         dependencies = extractor(project_dir, metadata.name)
-        if not dependencies:
+        if dependencies is None:
             continue
 
         provenance = f"Source: {source_name} | Method: {method}"

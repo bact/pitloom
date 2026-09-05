@@ -38,7 +38,7 @@ exactly-pinned entries.
 | Priority | Format | File | What's included |
 | :---: | :--- | :--- | :--- |
 | 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records. |
-| 2 | uv | `uv.lock` | Your project's own main/runtime dependencies (not `optional-dependencies` extras or `dev-dependencies` groups). A dependency pinned to more than one version for different Python versions is skipped, not guessed at -- see below. |
+| 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on) -- not `optional-dependencies` extras or `dev-dependencies` groups. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
 | 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` dev/extra groups). |
 | 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only. |
 | 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`). A package whose resolved `version` isn't a single exact `==` pin is skipped, not guessed at. |
@@ -62,7 +62,11 @@ whole file the same as an unpinned or ranged one would.
 than one lock file exists in the same project directory (uncommon, but
 possible after a build-tool migration), Pitloom picks the one highest in
 the table above and ignores the rest entirely -- it never merges two
-lock files' resolutions together.
+lock files' resolutions together. This holds even when the
+highest-priority lock resolves to *zero* dependencies: a real,
+successfully-parsed lock file that legitimately has nothing to add is
+still a definitive answer, and a lower-priority lock present alongside
+it is still ignored, not used to fill in what looks like a gap.
 
 **A lock entry that can't be resolved to one exact version is left out,
 not guessed.** `uv.lock` in particular can record the same package

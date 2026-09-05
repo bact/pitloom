@@ -45,7 +45,6 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
-    is_usable_version,
     load_lock_json,
     single_exact_pin,
     warn_non_registry_source,
@@ -63,19 +62,21 @@ __all__ = ["extract_pipfile_lock_dependencies"]
 _NON_REGISTRY_KEYS = ("git", "hg", "bzr", "svn", "path", "file", "editable")
 
 
-def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str]:
+def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``Pipfile.lock`` next to ``Pipfile``/``setup.py`` and return
     its resolved ``"default"``-section packages as exact-pin PEP 508
     strings.
 
-    Returns an empty list when no ``Pipfile.lock`` is present, or when
-    it can't be parsed -- this is optional enrichment, never a
-    requirement.
+    Returns ``None`` when no ``Pipfile.lock`` is present, or when it
+    can't be parsed -- this is optional enrichment, never a requirement.
+    ``None`` (as opposed to a valid-but-empty ``[]``) distinguishes an
+    absent/unusable lock from a real one that simply resolves to zero
+    ``"default"``-section packages.
     """
     lock_path = project_dir / "Pipfile.lock"
     data = load_lock_json(lock_path)
     if data is None:
-        return []
+        return None
 
     default_section = data.get("default", {})
     if not isinstance(default_section, dict):
@@ -85,7 +86,7 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str]:
             lock_path,
             type(default_section).__name__,
         )
-        return []
+        return None
 
     dependencies: list[str] = []
     for name, entry in default_section.items():
@@ -132,7 +133,13 @@ def _exact_pinned_version(name: str, version: object) -> str | None:
     ``packaging.specifiers.Specifier`` also reports as operator ``"=="``
     but which pins a *range* of versions, not one exact release.
     """
-    if not is_usable_version(version):
+    if not isinstance(version, str) or not version:
+        # Unlike every sibling format, this field is already a PEP 440
+        # *specifier* string (e.g. "==2.31.0"), not a plain version --
+        # is_usable_version()'s stricter `packaging.version.Version`
+        # check doesn't apply here (a specifier isn't a bare version and
+        # would always fail it); SpecifierSet()/single_exact_pin() below
+        # already validate it's a genuine, single, exact pin.
         log.warning(
             "Skipping Pipfile.lock entry %r: missing or non-string 'version'",
             name,

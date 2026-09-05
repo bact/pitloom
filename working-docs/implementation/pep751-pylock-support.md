@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-02
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -55,8 +55,11 @@ already covers that layer generically and needed no changes either.
 
 Reads `pylock.toml` next to `pyproject.toml` and returns its resolved
 `[[packages]]` entries as exact-pin `name==version` PEP 508 strings.
-Returns an empty list when no `pylock.toml` is present or it can't be
-parsed -- optional enrichment, never a requirement.
+Returns `None` when no `pylock.toml` is present or it can't be parsed --
+optional enrichment, never a requirement. `None` (as opposed to a
+valid-but-empty `[]`) tells the cascade this source doesn't apply here,
+so a lower-priority source can still be tried, rather than a genuinely
+dependency-free lock file being confused with an absent/unusable one.
 
 Unlike `poetry.lock`, PEP 751 has no `groups`-style per-package
 membership tag to filter on: a `pylock.toml` is already the flattened,
@@ -66,11 +69,19 @@ tool that generated it was asked to include (`dependency-groups`/
 per-package "which group requested me" marker). So every `[[packages]]`
 entry is taken as-is, with no group-based filtering.
 
-A malformed lock (missing/non-string top-level `lock-version`, a
-`packages` key that isn't a list, or an individual `[[packages]]` entry
-missing/non-string `name`/`version`) is skipped with a `WARNING:`, not
-silently dropped, per this repo's "no silent deviations" rule --
-mirrors `poetry.lock`'s equivalent malformed-entry handling.
+A malformed lock (a `packages` key that isn't a list, or an individual
+`[[packages]]` entry missing/non-string `name`/`version`) is skipped
+with a `WARNING:`, not silently dropped, per this repo's "no silent
+deviations" rule -- mirrors `poetry.lock`'s equivalent malformed-entry
+handling. The top-level `lock-version` field is validated more strictly
+than a bare presence check: it must parse as a `major.minor` pair
+(rejecting e.g. `"garbage"` or `"1.0.0"`), and a *major* version other
+than the one this Pitloom release understands (`1`) is rejected
+outright -- PEP 751 may define an incompatible schema under a future
+major version. A newer *minor* version within the known major (e.g.
+`"1.5"` when this release only knows `"1.0"`) is still read, per PEP
+751's additive-minor-versions policy, but with a `WARNING:` that some
+content may go unrecognized.
 
 ## Non-registry sources
 

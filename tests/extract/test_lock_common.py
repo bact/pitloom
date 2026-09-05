@@ -18,6 +18,7 @@ from pitloom.extract._lock_common import (
     find_first_present_key,
     group_versions_by_canonical_name,
     index_packages_by_name,
+    is_usable_version,
     load_lock_toml,
 )
 
@@ -130,3 +131,21 @@ def test_find_first_present_key_returns_none_when_no_key_present() -> None:
 
 def test_find_first_present_key_empty_mapping_returns_none() -> None:
     assert find_first_present_key({}, ("git", "path")) is None
+
+
+@pytest.mark.parametrize("version", ["2.31.0", "1.0", "0.1.0a1", "2024.1.1", "1!2.0"])
+def test_is_usable_version_accepts_valid_pep440_versions(version: str) -> None:
+    assert is_usable_version(version)
+
+
+@pytest.mark.parametrize(
+    "version",
+    [None, 1, 2.0, [], {}, "", "*", "not a version", "  ", "2.31.*", "latest"],
+)
+def test_is_usable_version_rejects_non_pep440_values(version: object) -> None:
+    """A value that's the wrong type, empty, or a syntactically-string
+    but not-a-version value (a wildcard, whitespace, arbitrary text) must
+    all be rejected -- otherwise a malformed lock entry would silently
+    produce an invalid ``name==<garbage>`` dependency/PURL instead of
+    being warned and skipped."""
+    assert not is_usable_version(version)

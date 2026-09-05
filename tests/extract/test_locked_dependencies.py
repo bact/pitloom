@@ -93,6 +93,67 @@ def test_apply_locked_dependencies_overrides_prior_source_with_note(
         assert "pylock.toml takes priority" in caplog.text
 
 
+def test_apply_locked_dependencies_unrecognized_previous_source_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A `provenance["locked_dependencies"]` source name that doesn't
+    match any entry in `_LOCK_SOURCES` (a bug, e.g. after a future rename
+    drifts the two apart) can't be ranked -- warn, rather than silently
+    letting every cascade-tried format skip the override check."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_pylock(tmp_path, "requests", "2.31.0")
+        metadata = ProjectMetadata(
+            name="pkg",
+            locked_dependencies=["mystery==1.0.0"],
+            provenance={
+                "locked_dependencies": (
+                    "Source: mystery-tool | Method: resolved_lockfile"
+                )
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            apply_locked_dependencies(metadata, tmp_path)
+
+        assert "doesn't match any known lock source" in caplog.text
+        assert metadata.locked_dependencies == ["requests==2.31.0"]
+
+
+def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority() -> (
+    None
+):
+    """Regression: a valid, higher-priority lock that resolves to zero
+    runtime dependencies must still win outright over a lower-priority
+    source that *does* have dependencies -- an empty result is a real,
+    authoritative answer ("this lock says there are none"), not the same
+    as "this source doesn't apply here". Without distinguishing the two,
+    the lower-priority ``uv.lock`` here would incorrectly add dependencies
+    the winning ``pylock.toml`` says don't exist."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "1.0"\ncreated-by = "test"\n', encoding="utf-8"
+        )
+        (tmp_path / "uv.lock").write_text(
+            'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
+            '[[package]]\nname = "demo"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+            encoding="utf-8",
+        )
+        metadata = ProjectMetadata(name="demo")
+
+        apply_locked_dependencies(metadata, tmp_path)
+
+        assert metadata.locked_dependencies == []
+        assert metadata.provenance["locked_dependencies"] == (
+            "Source: pylock.toml | Method: resolved_lockfile"
+        )
+
+
 def test_read_project_applies_cascade_for_setup_py_only_project() -> None:
     """Regression: a project with no `pyproject.toml` at all -- just a
     bare `setup.py`, the realistic pairing for `Pipfile.lock`/pinned

@@ -109,17 +109,20 @@ def _default_group_package_or_none(pkg: object) -> dict[str, Any] | None:
     return pkg
 
 
-def extract_pdm_lock_dependencies(project_dir: Path) -> list[str]:
+def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``pdm.lock`` next to ``pyproject.toml`` and return its
     resolved ``default``-group packages as exact-pin PEP 508 strings.
 
-    Returns an empty list when no ``pdm.lock`` is present, or when it
-    can't be parsed -- this is optional enrichment, never a requirement.
+    Returns ``None`` when no ``pdm.lock`` is present, or when it can't be
+    parsed -- this is optional enrichment, never a requirement. ``None``
+    (as opposed to a valid-but-empty ``[]``) distinguishes an
+    absent/unusable lock from a real one that simply resolves to zero
+    ``default``-group packages.
     """
     lock_path = project_dir / "pdm.lock"
     data = load_lock_toml(lock_path)
     if data is None:
-        return []
+        return None
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
@@ -128,7 +131,7 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str]:
             lock_path,
             type(packages).__name__,
         )
-        return []
+        return None
 
     default_group_packages = [
         pkg

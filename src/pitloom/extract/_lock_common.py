@@ -26,6 +26,7 @@ from typing import Any, TypeGuard
 
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
 
@@ -139,12 +140,18 @@ def index_packages_by_name(
 
 
 def is_usable_version(version: object) -> TypeGuard[str]:
-    """Return whether *version* is a non-empty string -- the "can this
-    become a real ``name==version`` pin" check every lock/pin extractor
-    applies to a ``[[package]]`` entry's ``version`` field before using
-    it. Each call site still logs its own ``WARNING:`` when this returns
-    ``False``, since the message wording (which field, which format) is
-    genuinely format-specific.
+    """Return whether *version* is a non-empty string that parses as a
+    valid PEP 440 version -- the "can this become a real
+    ``name==version`` pin" check every lock/pin extractor applies to a
+    ``[[package]]`` entry's ``version`` field before using it. Rejects
+    not just non-strings but a syntactically-string-yet-not-a-version
+    value too (whitespace, ``"*"``, ``"not a version"``) -- without this,
+    a malformed lock entry would silently produce an invalid
+    ``name==<garbage>`` dependency/PURL instead of being warned and
+    skipped like every other malformed-field case. Each call site still
+    logs its own ``WARNING:`` when this returns ``False``, since the
+    message wording (which field, which format) is genuinely
+    format-specific.
 
     Typed as a :class:`typing.TypeGuard`\\ [``str``] so a caller's usual
     ``if not is_usable_version(version): return None`` early-return
@@ -152,7 +159,13 @@ def is_usable_version(version: object) -> TypeGuard[str]:
     of needing its own redundant ``isinstance`` check before passing
     *version* to something that requires ``str``.
     """
-    return isinstance(version, str) and bool(version)
+    if not isinstance(version, str) or not version:
+        return False
+    try:
+        Version(version)
+    except InvalidVersion:
+        return False
+    return True
 
 
 def group_versions_by_canonical_name(

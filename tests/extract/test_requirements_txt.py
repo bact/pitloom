@@ -32,9 +32,24 @@ def _write_requirements(tmp_dir: Path, content: str) -> None:
     (tmp_dir / "requirements.txt").write_text(content, encoding="utf-8")
 
 
-def test_no_file_returns_empty_list() -> None:
+def test_no_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
     with tempfile.TemporaryDirectory() as tmp:
-        assert not extract_pinned_requirements_dependencies(Path(tmp))
+        assert extract_pinned_requirements_dependencies(Path(tmp)) is None
+
+
+def test_all_comments_and_blank_lines_returns_empty_list_not_none() -> None:
+    """A `requirements.txt` with no real dependency lines at all is a
+    real, valid, fully-pinned (vacuously) file -- must be `[]`, not
+    `None`, so the cascade treats it as a winning (if empty) result
+    rather than "not present"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_requirements(tmp_path, "# just a comment\n\n")
+
+        assert extract_pinned_requirements_dependencies(tmp_path) == []
 
 
 def test_all_pinned_lines_included() -> None:
@@ -195,6 +210,20 @@ def test_backslash_continuation_joined_before_parsing() -> None:
         result = extract_pinned_requirements_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0", "idna==3.7"]
+
+
+def test_dangling_continuation_at_end_of_file_still_joined() -> None:
+    """A file whose very last physical line ends in a backslash (no
+    further line follows it at all) must still flush that buffered,
+    still-unterminated logical line -- not silently drop it -- exercising
+    the end-of-file flush branch distinct from the normal per-line join."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_requirements(tmp_path, "requests==2.31.0 \\")
+
+        result = extract_pinned_requirements_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
 
 
 def test_hash_annotated_continuation_still_disqualifies_whole_file(

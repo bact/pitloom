@@ -33,9 +33,23 @@ def _write_lock(tmp_dir: Path, body: str = "") -> None:
     (tmp_dir / "pdm.lock").write_text(body, encoding="utf-8")
 
 
-def test_no_lock_file_returns_empty_list() -> None:
+def test_no_lock_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
     with tempfile.TemporaryDirectory() as tmp:
-        assert not extract_pdm_lock_dependencies(Path(tmp))
+        assert extract_pdm_lock_dependencies(Path(tmp)) is None
+
+
+def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
+    """A `pdm.lock` with zero packages is a real, valid answer -- must be
+    `[]`, not `None`, so the cascade treats it as a winning (if empty)
+    result rather than "not present"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, "")
+
+        assert extract_pdm_lock_dependencies(tmp_path) == []
 
 
 def test_malformed_toml_returns_empty_list_and_warns(

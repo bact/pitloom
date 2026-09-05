@@ -34,9 +34,23 @@ def _write_lock(tmp_dir: Path, packages: str = "") -> None:
     (tmp_dir / "pylock.toml").write_text(_LOCK_VERSION + packages, encoding="utf-8")
 
 
-def test_no_lock_file_returns_empty_list() -> None:
+def test_no_lock_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
     with tempfile.TemporaryDirectory() as tmp:
-        assert not extract_pylock_dependencies(Path(tmp))
+        assert extract_pylock_dependencies(Path(tmp)) is None
+
+
+def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
+    """A `pylock.toml` with zero resolved packages is a real, valid
+    answer -- must be `[]`, not `None`, so the cascade treats it as a
+    winning (if empty) result rather than "not present"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path)
+
+        assert extract_pylock_dependencies(tmp_path) == []
 
 
 def test_malformed_toml_returns_empty_list_and_warns(
@@ -70,6 +84,64 @@ def test_missing_lock_version_returns_empty_list_and_warns(
 
         assert not result
         assert "lock-version" in caplog.text
+
+
+@pytest.mark.parametrize("lock_version", ["garbage", "1", "1.0.0", "not.a.version"])
+def test_malformed_lock_version_returns_none_and_warns(
+    lock_version: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            f'lock-version = "{lock_version}"\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result is None
+        assert "lock-version" in caplog.text
+
+
+def test_unsupported_major_lock_version_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "2.0"\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result is None
+        assert "major version" in caplog.text
+
+
+def test_newer_minor_lock_version_still_parsed_with_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A newer *minor* version within the same major is forward-compatible
+    per PEP 751 -- read anyway, just with a warning that some content may
+    be unrecognized."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "1.5"\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "newer" in caplog.text.lower()
 
 
 def test_package_included() -> None:

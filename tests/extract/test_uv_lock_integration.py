@@ -147,7 +147,9 @@ def test_real_world_flask() -> None:
     """`pallets/flask` -- `uv.lock` ships in the PyPI sdist itself (the
     only fixture where that's true, per real-world-locks/README.md).
     Has multiple marker-conditional duplicate names (e.g. `click`),
-    exercising the ambiguity-skip path against real data."""
+    exercising the ambiguity-skip path against real data. Transitive
+    walk adds `zipp` (a dependency of `importlib-metadata`, not a direct
+    Flask dependency) beyond the root's own immediate dependency list."""
     metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "flask-3.1.3")
 
     assert metadata.name == "Flask"
@@ -159,6 +161,7 @@ def test_real_world_flask() -> None:
         "jinja2",
         "markupsafe",
         "werkzeug",
+        "zipp",
     }
     assert "click" not in names  # ambiguous (ships two marker-conditional versions)
     assert metadata.provenance["locked_dependencies"] == (
@@ -167,25 +170,59 @@ def test_real_world_flask() -> None:
 
 
 def test_real_world_fastapi_cli() -> None:
+    """Transitive walk pulls in `typer`'s and `uvicorn`'s own
+    dependencies (`click`, `rich`, `h11`, etc.), not just the root's four
+    immediate dependencies."""
     metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "fastapi-cli-0.0.32")
 
     assert metadata.name == "fastapi-cli"
     names = {dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies}
-    assert names == {"rich-toolkit", "tomli", "typer", "uvicorn"}
+    assert names == {
+        "annotated-doc",
+        "click",
+        "colorama",
+        "h11",
+        "markdown-it-py",
+        "mdurl",
+        "pygments",
+        "rich",
+        "rich-toolkit",
+        "shellingham",
+        "tomli",
+        "typer",
+        "typing-extensions",
+        "uvicorn",
+    }
 
 
 def test_real_world_abi3audit() -> None:
+    """Transitive walk pulls in `requests`'/`requests-cache`'s/`rich`'s
+    own dependencies (`urllib3`, `certifi`, `cattrs`, etc.), not just the
+    root's eight immediate dependencies."""
     metadata, _config, _path = read_project(REAL_WORLD_LOCKS / "abi3audit-0.0.26")
 
     assert metadata.name == "abi3audit"
     names = {dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies}
     assert names == {
         "abi3info",
+        "attrs",
+        "cattrs",
+        "certifi",
+        "charset-normalizer",
+        "exceptiongroup",
+        "idna",
         "kaitaistruct",
+        "markdown-it-py",
+        "mdurl",
         "packaging",
         "pefile",
+        "platformdirs",
         "pyelftools",
+        "pygments",
         "requests",
         "requests-cache",
         "rich",
+        "typing-extensions",
+        "url-normalize",
+        "urllib3",
     }

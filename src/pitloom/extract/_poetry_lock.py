@@ -37,13 +37,16 @@ log = logging.getLogger(__name__)
 __all__ = ["extract_poetry_lock_dependencies"]
 
 
-def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
+def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``poetry.lock`` next to ``pyproject.toml`` and return its
     resolved ``main``-group packages as exact-pin PEP 508 strings.
 
-    Returns an empty list when no ``poetry.lock`` is present, or when it
+    Returns ``None`` when no ``poetry.lock`` is present, or when it
     can't be parsed -- this is optional enrichment on top of
-    ``[tool.poetry.dependencies]``, never a requirement.
+    ``[tool.poetry.dependencies]``, never a requirement. ``None`` (as
+    opposed to a valid-but-empty ``[]``) distinguishes an absent/unusable
+    lock from a real one that simply resolves to zero ``main``-group
+    packages.
 
     Packages belonging only to a non-``main`` group (``[tool.poetry.group.dev]``
     and similar) are excluded, matching the same "not a runtime dependency
@@ -54,7 +57,7 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
     lock_path = project_dir / "poetry.lock"
     data = load_lock_toml(lock_path)
     if data is None:
-        return []
+        return None
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
@@ -64,7 +67,7 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str]:
             lock_path,
             type(packages).__name__,
         )
-        return []
+        return None
 
     dependencies: list[str] = []
     for pkg in packages:
