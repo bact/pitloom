@@ -117,7 +117,7 @@ def compute_doc_uuid(
     *locked_dependencies_provenance* is given -- otherwise two documents
     with identical direct dependencies but different lock-resolved
     graphs would collide on the same UUID despite describing different
-    dependency content. Both omitted leaves the seed byte-identical to a
+    dependency content. Both omitted leave the seed byte-identical to a
     document with no locked dependencies at all, so every non-Poetry
     (and lock-less Poetry) document is unaffected.
 
