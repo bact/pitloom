@@ -250,14 +250,11 @@ def warn_top_level_key_wrong_type(
     lock_path: Path, key: str, value: object, expected: str, lock_file: str
 ) -> None:
     """Log the shared ``"<path>: top-level '<key>' key is <type>,
-    expected <shape> -- ignoring <lock file>"`` warning every
-    extractor's own top-level-shape check produces (a ``packages``/
-    ``package`` key that isn't a list, a ``default`` key that isn't a
-    table) -- four-plus formats retyped this identically modulo the key
-    name, expected shape, and lock-file name before this was factored
-    out, the same "pattern hand-copied across 3+ call sites drifts"
-    concern :func:`warn_non_registry_source` already addresses for the
-    non-registry-source case.
+    expected <shape> -- ignoring <lock file>"`` warning for a top-level
+    lock-file key of the wrong shape (a ``packages``/``package`` key
+    that isn't a list, a ``default`` key that isn't a table) -- shared
+    across formats the same way :func:`warn_non_registry_source` is
+    shared for the non-registry-source case.
     """
     log.warning(
         "%s: top-level '%s' key is %s, expected %s -- ignoring %s",
@@ -284,10 +281,9 @@ def warn_malformed_entry_not_table(
     lock_file: str, entry_label: str, value: object
 ) -> None:
     """Log the shared ``"Skipping malformed <lock file> <entry label>
-    entry: expected a table, got <type>"`` warning -- the identical
-    shape ``poetry.lock``'s, ``pylock.toml``'s, and ``pdm.lock``'s own
-    ``[[package]]``/``[[packages]]`` malformed-entry checks each retyped
-    independently before this was factored out."""
+    entry: expected a table, got <type>"`` warning for a top-level
+    ``[[package]]``/``[[packages]]``-style entry that isn't a table --
+    shared across every format with this malformed-entry shape."""
     log.warning(
         "Skipping malformed %s %s entry: expected a table, got %s",
         lock_file,

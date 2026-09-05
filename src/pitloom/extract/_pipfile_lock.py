@@ -114,14 +114,18 @@ def _pinned_dep_for_package(name: object, entry: object) -> str | None:
         )
         return None
     non_registry_key = find_first_present_key(entry, _NON_REGISTRY_KEYS)
-    if non_registry_key is not None and entry[non_registry_key] is not False:
+    if non_registry_key is not None and (
+        non_registry_key != "editable" or entry[non_registry_key] is not False
+    ):
         # Every non-registry key except 'editable' is presence-is-enough
-        # (a git/hg/bzr/svn/path/file URL string). 'editable' is the
-        # schema's one boolean-valued key -- an explicit
-        # `"editable": false` (schema-legal, just uncommon) must not be
-        # mistaken for a real editable/VCS source the same way a
-        # present-but-falsy key would be for every other format's
-        # presence-only check.
+        # (a git/hg/bzr/svn/path/file URL string) -- an explicit falsy
+        # value there (e.g. a malformed `"git": false`) is not a real
+        # exemption and still disqualifies the entry. 'editable' is the
+        # schema's one genuinely boolean-valued key -- only there does an
+        # explicit `"editable": false` (schema-legal, just uncommon) need
+        # to be read as "not editable" rather than mistaken for a real
+        # editable/VCS source the way a present-but-falsy key would be
+        # for every other format's presence-only check.
         warn_non_registry_source("Pipfile.lock", name, non_registry_key)
         return None
     pinned_version = _exact_pinned_version(name, entry.get("version"))

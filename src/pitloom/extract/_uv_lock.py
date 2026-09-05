@@ -53,7 +53,6 @@ from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
-    index_packages_by_name,
     is_usable_version,
     load_lock_toml,
     warn_malformed_entry_not_table,
@@ -81,13 +80,13 @@ _NON_REGISTRY_SOURCE_KEYS = ("git", "url", "path", "directory", "editable", "vir
 _ROOT_SOURCE_KEYS = ("editable", "virtual")
 
 
-def _warn_malformed_packages(lock_path: Path, packages: Iterable[object]) -> None:
+def _warn_malformed_packages(packages: Iterable[object]) -> None:
     """Log a ``WARNING:`` for each top-level ``[[package]]`` entry that
-    :func:`pitloom.extract._lock_common.index_packages_by_name` and
-    :func:`_find_root_package` silently exclude (a non-table entry, or a
-    table with a missing/non-string/empty ``name``) -- every sibling
-    lock format's own package-list loop warns on this same shape of
-    malformed entry, so a corrupted ``uv.lock`` package doesn't
+    :func:`_index_by_canonical_name` and :func:`_find_root_package`
+    silently exclude (a non-table entry, or a table with a
+    missing/non-string/empty ``name``) -- every sibling lock format's
+    own package-list loop warns on this same shape of malformed entry,
+    so a corrupted ``uv.lock`` package doesn't
     disappear from extraction with no diagnostic at all."""
     for pkg in packages:
         if not isinstance(pkg, dict):
@@ -95,9 +94,7 @@ def _warn_malformed_packages(lock_path: Path, packages: Iterable[object]) -> Non
             continue
         name = pkg.get("name")
         if not isinstance(name, str) or not name:
-            warn_missing_name(
-                f"{lock_path}: skipping malformed [[package]] entry", name
-            )
+            warn_missing_name("Skipping malformed uv.lock [[package]] entry", name)
 
 
 def _find_root_package(
@@ -310,7 +307,7 @@ def extract_uv_lock_dependencies(
             lock_path, "package", packages, "a list", "uv.lock"
         )
         return None
-    _warn_malformed_packages(lock_path, packages)
+    _warn_malformed_packages(packages)
 
     if not expected_name:
         # `ProjectMetadata.name` is typed `str`, never `None` -- a
@@ -348,8 +345,10 @@ def extract_uv_lock_dependencies(
 def _index_by_canonical_name(
     packages: Iterable[object],
 ) -> dict[str, list[dict[str, Any]]]:
-    """PEP 503-canonicalized variant of
-    :func:`pitloom.extract._lock_common.index_packages_by_name`: uv
+    """Group every well-formed ``[[package]]`` entry by its PEP
+    503-canonicalized ``name`` (a non-table entry, or one with a
+    missing/non-string/empty ``name``, is excluded here -- see
+    :func:`_warn_malformed_packages` for the diagnostic on those). uv
     itself normalizes every ``name`` field it writes, but a dependency
     *reference* and the package's own top-level entry are two separately
     literal strings in the file -- grouping by canonical name (as
@@ -359,6 +358,10 @@ def _index_by_canonical_name(
     silently causing a resolvable dependency to be reported as
     "not found"."""
     by_name: dict[str, list[dict[str, Any]]] = {}
-    for name, entries in index_packages_by_name(packages).items():
-        by_name.setdefault(canonicalize_name(name), []).extend(entries)
+    for pkg in packages:
+        if not isinstance(pkg, dict):
+            continue
+        name = pkg.get("name")
+        if isinstance(name, str) and name:
+            by_name.setdefault(canonicalize_name(name), []).append(pkg)
     return by_name

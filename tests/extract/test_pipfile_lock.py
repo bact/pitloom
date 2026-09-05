@@ -206,6 +206,22 @@ def test_editable_false_not_treated_as_non_registry_source() -> None:
         assert extract_pipfile_lock_dependencies(tmp_path) == ["requests==2.31.0"]
 
 
+def test_git_false_still_treated_as_non_registry_source() -> None:
+    """Regression: the falsy-value exemption above is `editable`-specific,
+    not blanket. Every other non-registry key (`git`/`hg`/`bzr`/`svn`/
+    `path`/`file`) is a string when it means anything at all -- a
+    malformed `"git": false` must still disqualify the entry, not be
+    read as "no git source" the way `"editable": false` correctly is."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {"default": {"sneaky": {"version": "==1.0.0", "git": False}}},
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == []
+
+
 def test_invalid_specifier_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

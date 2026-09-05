@@ -212,6 +212,29 @@ def test_missing_version_skipped_and_warns(caplog: pytest.LogCaptureFixture) -> 
         assert "missing" in caplog.text.lower()
 
 
+def test_version_validated_even_when_group_marker_excludes_package(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A malformed `version` on a non-default-group (marker-excluded)
+    package still warns -- version validation must not be short-circuited
+    by the group/marker filter, matching poetry.lock's/pdm.lock's own
+    unconditional name/version check ordering."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "dev-only"\n'
+            "marker = \"'dev' in dependency_groups\"\n",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert not result
+        assert "missing or non-string 'version'" in caplog.text
+
+
 @pytest.mark.parametrize("source_key", ["vcs", "directory", "archive"])
 def test_non_registry_sourced_package_excluded(
     source_key: str, caplog: pytest.LogCaptureFixture

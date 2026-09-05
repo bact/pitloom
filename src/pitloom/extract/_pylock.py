@@ -304,15 +304,15 @@ def _pinned_dep_for_package(
     if not isinstance(name, str) or not name:
         warn_missing_name("Skipping malformed pylock.toml [[packages]] entry", name)
         return None
+    version = pkg.get("version")
+    if not is_usable_version(version):
+        warn_missing_version("pylock.toml", name)
+        return None
     marker = pkg.get("marker")
     if isinstance(marker, str) and _group_marker_excludes(marker, environment, name):
         return None
     non_registry_source = find_first_present_key(pkg, _NON_REGISTRY_SOURCE_KEYS)
     if non_registry_source is not None:
         warn_non_registry_source("pylock.toml", name, non_registry_source)
-        return None
-    version = pkg.get("version")
-    if not is_usable_version(version):
-        warn_missing_version("pylock.toml", name)
         return None
     return f"{name}=={version}"
