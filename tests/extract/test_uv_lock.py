@@ -93,6 +93,33 @@ def test_no_root_package_returns_empty_list_and_warns(
         assert "no project package found" in caplog.text
 
 
+def test_empty_string_expected_name_falls_back_to_pyproject_toml() -> None:
+    """`ProjectMetadata.name` is typed `str`, never `None` -- a caller
+    whose own name resolution failed passes `""`, not `None`. This must
+    still trigger the same `_expected_project_name()` re-read fallback
+    an explicit `None` gets, not be treated as a real (if unmatched)
+    workspace-member name."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
+        )
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "demo"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "other-member"\nversion = "1.0.0"\n'
+            'source = { editable = "./other" }\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        assert extract_uv_lock_dependencies(tmp_path, expected_name="") == [
+            "requests==2.31.0"
+        ]
+
+
 def test_root_dependencies_not_a_list_returns_empty_list_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -150,6 +177,73 @@ def test_dependency_with_marker_but_no_inline_version_still_resolved() -> None:
         )
 
         assert extract_uv_lock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
+def test_malformed_top_level_package_entry_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A corrupted top-level `[[package]]` entry (not a table, or
+    missing/non-string `name`) must warn like every sibling lock
+    format's own malformed-entry check -- even when nothing in the
+    resolved dependency graph ever references it by name, so it can't
+    silently vanish with zero diagnostic."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + "dependencies = []\n\n"
+            '[[package]]\nversion = "9.9.9"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == []
+        assert "malformed" in caplog.text.lower()
+
+
+def test_non_table_top_level_package_entry_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The other half of `_warn_malformed_packages()`'s check: a
+    top-level `package` array entry that isn't a table at all (not just
+    one missing `name`), e.g. a bare string slipped in alongside genuine
+    `[[package]]` tables -- must also warn, matching every sibling
+    format's own "expected a table, got %s" malformed-entry check."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "uv.lock").write_text(
+            _LOCK_HEADER + 'package = ["not-a-table", '
+            '{ name = "demo", version = "1.0.0", '
+            'source = { editable = "." }, dependencies = [] }]\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == []
+        assert "malformed" in caplog.text.lower()
+        assert "expected a table" in caplog.text.lower()
+
+
+def test_dependency_resolved_across_name_case_difference() -> None:
+    """A dependency reference and the package's own top-level entry are
+    two separately-literal strings in the file -- resolution must
+    compare them PEP 503-canonicalized, the same as the `visited`-set
+    dedup guard already does, so a differently-cased/`-`-vs-`_` name
+    still resolves instead of spuriously reporting "not found"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "My_Package" }]\n\n'
+            '[[package]]\nname = "my-package"\nversion = "1.2.3"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        assert extract_uv_lock_dependencies(tmp_path) == ["my-package==1.2.3"]
 
 
 def test_malformed_dependency_reference_skipped_and_warns(

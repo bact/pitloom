@@ -24,6 +24,15 @@ from pitloom.extract._pylock import _pinned_dep_for_package, extract_pylock_depe
 from pitloom.extract.project import read_project
 
 _LOCK_VERSION = 'lock-version = "1.0"\ncreated-by = "test"\n'
+#: The "no extras, no default-groups active" environment --
+#: `_pinned_dep_for_package()`'s second argument, built by
+#: `extract_pylock_dependencies()` itself in normal use via
+#: `_default_group_environment()`; unit tests calling the helper
+#: directly supply it explicitly instead.
+_NO_GROUPS_ENV: dict[str, frozenset[str]] = {
+    "dependency_groups": frozenset(),
+    "extras": frozenset(),
+}
 
 REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "pylock"
@@ -167,8 +176,10 @@ def test_packages_key_not_a_list_returns_empty_list_and_warns(
 
 
 def test_pinned_dep_for_package_non_dict_entry_returns_none() -> None:
-    assert _pinned_dep_for_package("not-a-dict") is None
-    assert _pinned_dep_for_package(["still", "not", "a", "dict"]) is None
+    assert _pinned_dep_for_package("not-a-dict", _NO_GROUPS_ENV) is None
+    assert (
+        _pinned_dep_for_package(["still", "not", "a", "dict"], _NO_GROUPS_ENV) is None
+    )
 
 
 def test_malformed_package_entry_skipped_and_warns(
@@ -233,6 +244,153 @@ def test_sdist_sourced_package_included() -> None:
         )
 
         assert extract_pylock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
+def test_non_default_group_package_excluded() -> None:
+    """Regression: a package needed only for a non-default
+    dependency-group (e.g. `dev`), tagged via PEP 751's `marker` field
+    referencing the `dependency_groups` pseudo-environment variable, must
+    not leak into `locked_dependencies` as an ordinary runtime pin --
+    the same "main"/"default"-group-only policy `poetry.lock`/`pdm.lock`
+    already apply, here expressed as a marker instead of a per-package
+    field."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "pytz"\nversion = "2026.1"\n\n'
+            '[[packages]]\nname = "pytest"\nversion = "8.0.0"\n'
+            "marker = \"'dev' in dependency_groups\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["pytz==2026.1"]
+
+
+def test_default_group_package_included_alongside_excluded_dev_group() -> None:
+    """A package whose marker combines a non-default group check with an
+    ordinary (unevaluated) environment condition is still excluded on the
+    group check alone -- the 3-valued evaluator doesn't need to know the
+    real Python version/platform to prove the group clause is false."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "black"\nversion = "26.1.0"\n'
+            "marker = \"('dev' in dependency_groups) and "
+            "(python_version >= '3.10')\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == []
+
+
+def test_package_with_no_marker_included_regardless_of_default_groups() -> None:
+    """A package with no `marker` field at all is an ordinary,
+    always-active runtime dependency -- unaffected by `default-groups`
+    filtering."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = []\n[[packages]]\nname = "pytz"\nversion = "2026.1"\n',
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["pytz==2026.1"]
+
+
+def test_default_groups_not_a_list_warns_and_treated_as_empty(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = "default"\n'
+            '[[packages]]\nname = "pytest"\nversion = "8.0.0"\n'
+            "marker = \"'default' in dependency_groups\"\n",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result == []
+        assert "'default-groups'" in caplog.text
+
+
+def test_or_combined_group_clauses_evaluated() -> None:
+    """The `or` branch of the 3-valued combiner
+    (`_combine_group_results`) is exercised alongside the `and` branch
+    tested above -- a package needed for *either* of two non-default
+    groups is still excluded when neither is active."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "black"\nversion = "26.1.0"\n'
+            "marker = \"'dev' in dependency_groups or 'test' in dependency_groups\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == []
+
+
+def test_or_combined_group_clauses_true_when_one_group_active() -> None:
+    """The `or` combiner's `True` result (at least one side proven
+    true) alongside the `False` case tested above -- a package needed
+    for either of two groups is included once one of them is active."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default", "test"]\n'
+            '[[packages]]\nname = "black"\nversion = "26.1.0"\n'
+            "marker = \"'dev' in dependency_groups or 'test' in dependency_groups\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["black==26.1.0"]
+
+
+def test_reversed_operand_group_clause_evaluated() -> None:
+    """PEP 751 always writes the group/extras variable on the *right* of
+    `in` (e.g. `"'dev' in dependency_groups"`) in real output, but PEP
+    508 grammar allows either operand order -- `_evaluate_group_leaf`'s
+    `elif lhs_str in _GROUP_MARKER_VARIABLES` branch (variable on the
+    left) must still be reachable and correct, not just the more common
+    literal-on-left form tested elsewhere."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["dev"]\n'
+            '[[packages]]\nname = "black"\nversion = "26.1.0"\n'
+            "marker = \"dependency_groups in 'dev'\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["black==26.1.0"]
+
+
+def test_malformed_marker_string_included_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An unparseable `marker` string can't prove group membership either
+    way -- treated as the same marker-blind "include" default every
+    other non-group marker gets, but with a `WARNING:` (not a crash, not
+    a silent unconditional include) rather than raising `InvalidMarker`
+    out of the extractor."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[packages]]\nname = "broken"\nversion = "1.0.0"\n'
+            'marker = "not a valid marker (("\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result == ["broken==1.0.0"]
+        assert "'marker'" in caplog.text
 
 
 def test_read_project_populates_locked_dependencies() -> None:

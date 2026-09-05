@@ -115,6 +115,27 @@ def test_missing_groups_key_defaults_to_main() -> None:
         assert extract_poetry_lock_dependencies(tmp_path) == ["legacy-pkg==1.0.0"]
 
 
+def test_malformed_groups_field_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A `groups` field present but not a list (a bare string, say) is a
+    malformed entry, not ordinary "not in main group" filtering -- must
+    warn like every other malformed-field case, not silently disappear
+    the same way a routine non-main-group package does."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "odd-pkg"\nversion = "1.0.0"\ngroups = "main"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "'groups'" in caplog.text
+
+
 def test_package_table_not_a_list_returns_empty_list() -> None:
     """A ``poetry.lock`` where top-level ``package`` isn't an array of
     tables (malformed/unexpected shape) must degrade to an empty list,

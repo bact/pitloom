@@ -47,7 +47,9 @@ from pitloom.extract._lock_common import (
     find_first_present_key,
     load_lock_json,
     single_exact_pin,
+    warn_missing_version,
     warn_non_registry_source,
+    warn_top_level_key_wrong_type,
 )
 
 log = logging.getLogger(__name__)
@@ -80,11 +82,8 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
 
     default_section = data.get("default", {})
     if not isinstance(default_section, dict):
-        log.warning(
-            "%s: top-level 'default' key is %s, expected a table -- "
-            "ignoring Pipfile.lock",
-            lock_path,
-            type(default_section).__name__,
+        warn_top_level_key_wrong_type(
+            lock_path, "default", default_section, "a table", "Pipfile.lock"
         )
         return None
 
@@ -115,7 +114,14 @@ def _pinned_dep_for_package(name: object, entry: object) -> str | None:
         )
         return None
     non_registry_key = find_first_present_key(entry, _NON_REGISTRY_KEYS)
-    if non_registry_key is not None:
+    if non_registry_key is not None and entry[non_registry_key] is not False:
+        # Every non-registry key except 'editable' is presence-is-enough
+        # (a git/hg/bzr/svn/path/file URL string). 'editable' is the
+        # schema's one boolean-valued key -- an explicit
+        # `"editable": false` (schema-legal, just uncommon) must not be
+        # mistaken for a real editable/VCS source the same way a
+        # present-but-falsy key would be for every other format's
+        # presence-only check.
         warn_non_registry_source("Pipfile.lock", name, non_registry_key)
         return None
     pinned_version = _exact_pinned_version(name, entry.get("version"))
@@ -140,10 +146,7 @@ def _exact_pinned_version(name: str, version: object) -> str | None:
         # check doesn't apply here (a specifier isn't a bare version and
         # would always fail it); SpecifierSet()/single_exact_pin() below
         # already validate it's a genuine, single, exact pin.
-        log.warning(
-            "Skipping Pipfile.lock entry %r: missing or non-string 'version'",
-            name,
-        )
+        warn_missing_version("Pipfile.lock", name)
         return None
     try:
         specifier_set = SpecifierSet(version)

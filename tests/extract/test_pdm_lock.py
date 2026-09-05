@@ -125,6 +125,47 @@ def test_missing_groups_key_defaults_to_default_group() -> None:
         assert extract_pdm_lock_dependencies(tmp_path) == ["legacy-pkg==1.0.0"]
 
 
+def test_malformed_groups_field_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A `groups` field present but not a list is a malformed entry, not
+    ordinary "not in default group" filtering -- must warn like every
+    other malformed-field case (parity with poetry.lock's equivalent
+    check)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "odd-pkg"\nversion = "1.0.0"\ngroups = "default"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pdm_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "'groups'" in caplog.text
+
+
+def test_version_validated_even_when_not_in_default_group(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A malformed `version` on a non-default-group package still warns
+    -- version validation must not be short-circuited by the group
+    filter, matching poetry.lock's unconditional name/version check."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "dev-only"\ngroups = ["dev"]\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pdm_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "missing or non-string 'version'" in caplog.text
+
+
 def test_malformed_package_entry_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

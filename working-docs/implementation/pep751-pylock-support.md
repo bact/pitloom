@@ -62,12 +62,23 @@ so a lower-priority source can still be tried, rather than a genuinely
 dependency-free lock file being confused with an absent/unusable one.
 
 Unlike `poetry.lock`, PEP 751 has no `groups`-style per-package
-membership tag to filter on: a `pylock.toml` is already the flattened,
-fully resolved package set for whichever extras/dependency-groups the
-tool that generated it was asked to include (`dependency-groups`/
-`default-groups`/`extras` are file-level generation inputs, not a
-per-package "which group requested me" marker). So every `[[packages]]`
-entry is taken as-is, with no group-based filtering.
+membership *field*: a `pylock.toml` can bundle more than one
+dependency-group's packages in a single flattened `[[packages]]` list,
+distinguished only by an optional per-package `marker` string
+referencing the pseudo-environment variables `extras`/
+`dependency_groups` (e.g. `"'dev' in dependency_groups"`). This
+extractor filters to the file's own declared `default-groups` (no
+extras) the same way `poetry.lock`/`pdm.lock` filter to their
+`main`/`default` group: `_default_group_environment()` builds a
+`{"dependency_groups": frozenset(default-groups), "extras":
+frozenset()}` environment, and `_group_marker_excludes()` evaluates
+each package's `marker` against it with 3-valued logic -- a clause
+testing `extras`/`dependency_groups` membership gets a real
+`True`/`False`, every other PEP 508 marker variable (`python_version`,
+`sys_platform`, etc.) evaluates to "unknown" rather than a real
+environment reading (see "Known limitations" below), and a package is
+excluded only when the tree provably evaluates `False` from the known
+group/extras clauses alone.
 
 A malformed lock (a `packages` key that isn't a list, or an individual
 `[[packages]]` entry missing/non-string `name`/`version`) is skipped
@@ -125,12 +136,18 @@ cascade is called from `read_project()` rather than
   `dependsOn` edge straight from the main package
   (`_locked_transitive_only_dependencies()` in `document.py`), the same
   as `poetry.lock`.
-- **No marker evaluation.** A `pylock.toml` entry may carry a `marker`
-  (environment marker) restricting when it applies (e.g. a
-  platform-specific package). This extractor doesn't evaluate markers
-  against any particular environment -- every `[[packages]]` entry is
-  included regardless, the same simplification `poetry.lock` parsing
-  already makes for direct dependency constraints.
+- **No non-group marker evaluation.** A `pylock.toml` entry's `marker`
+  can also carry ordinary PEP 508 conditions (`python_version`,
+  `sys_platform`, etc.) alongside or instead of a group/extras clause.
+  Only the `extras`/`dependency_groups` portion is evaluated (see
+  above, for group filtering); every other variable is treated as
+  unknown and never evaluated against a real environment -- a
+  platform-specific package's marker still lets it through regardless
+  of platform, the same simplification `poetry.lock` parsing already
+  makes for direct dependency constraints. Evaluating those against
+  Pitloom's own running interpreter/platform would make the SBOM's
+  contents depend on which machine generated it, which this repo's
+  determinism requirement rules out.
 - **`pylock.<name>.toml` named locks are not discovered.** PEP 751
   allows a `pylock.<name>.toml` naming convention (e.g.
   `pylock.dev.toml`) for multiple named locks in one project; only the

@@ -29,7 +29,9 @@ from pathlib import Path
 from pitloom.extract._lock_common import (
     is_usable_version,
     load_lock_toml,
+    warn_malformed_entry_not_table,
     warn_non_registry_source,
+    warn_top_level_key_wrong_type,
 )
 
 log = logging.getLogger(__name__)
@@ -61,11 +63,8 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
-        log.warning(
-            "%s: top-level 'package' key is %s, expected a list -- "
-            "ignoring poetry.lock",
-            lock_path,
-            type(packages).__name__,
+        warn_top_level_key_wrong_type(
+            lock_path, "package", packages, "a list", "poetry.lock"
         )
         return None
 
@@ -92,11 +91,7 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
     ordinary published release (wrong PURL, bogus PyPI enrichment lookup).
     """
     if not isinstance(pkg, dict):
-        log.warning(
-            "Skipping malformed poetry.lock [[package]] entry: expected a "
-            "table, got %s",
-            type(pkg).__name__,
-        )
+        warn_malformed_entry_not_table("poetry.lock", "[[package]]", pkg)
         return None
     name = pkg.get("name")
     version = pkg.get("version")
@@ -109,7 +104,15 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
         )
         return None
     groups = pkg.get("groups", ["main"])
-    if not isinstance(groups, list) or "main" not in groups:
+    if not isinstance(groups, list):
+        log.warning(
+            "Skipping malformed poetry.lock [[package]] entry %r: 'groups' "
+            "is %s, expected a list",
+            name,
+            type(groups).__name__,
+        )
+        return None
+    if "main" not in groups:
         return None
     source = pkg.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None

@@ -44,6 +44,7 @@ An ambiguous (multiple-version) or marker-conditional (inline
 from __future__ import annotations
 
 import logging
+from collections import deque
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -55,7 +56,11 @@ from pitloom.extract._lock_common import (
     index_packages_by_name,
     is_usable_version,
     load_lock_toml,
+    warn_malformed_entry_not_table,
+    warn_missing_name,
+    warn_missing_version,
     warn_non_registry_source,
+    warn_top_level_key_wrong_type,
 )
 
 log = logging.getLogger(__name__)
@@ -74,6 +79,25 @@ _NON_REGISTRY_SOURCE_KEYS = ("git", "url", "path", "directory", "editable", "vir
 #: ``source`` keys identifying the project's own package entry (a local
 #: root/workspace member, not a PyPI download).
 _ROOT_SOURCE_KEYS = ("editable", "virtual")
+
+
+def _warn_malformed_packages(lock_path: Path, packages: Iterable[object]) -> None:
+    """Log a ``WARNING:`` for each top-level ``[[package]]`` entry that
+    :func:`pitloom.extract._lock_common.index_packages_by_name` and
+    :func:`_find_root_package` silently exclude (a non-table entry, or a
+    table with a missing/non-string/empty ``name``) -- every sibling
+    lock format's own package-list loop warns on this same shape of
+    malformed entry, so a corrupted ``uv.lock`` package doesn't
+    disappear from extraction with no diagnostic at all."""
+    for pkg in packages:
+        if not isinstance(pkg, dict):
+            warn_malformed_entry_not_table("uv.lock", "[[package]]", pkg)
+            continue
+        name = pkg.get("name")
+        if not isinstance(name, str) or not name:
+            warn_missing_name(
+                f"{lock_path}: skipping malformed [[package]] entry", name
+            )
 
 
 def _find_root_package(
@@ -132,18 +156,11 @@ def _resolved_package_for_dependency(
     the transitive walk in :func:`_collect_transitive_dependencies` --
     or ``None`` when it can't be resolved that way."""
     if not isinstance(dep_ref, dict):
-        log.warning(
-            "Skipping malformed uv.lock dependency reference: expected a table, got %s",
-            type(dep_ref).__name__,
-        )
+        warn_malformed_entry_not_table("uv.lock", "dependency reference", dep_ref)
         return None
     name = dep_ref.get("name")
     if not isinstance(name, str) or not name:
-        log.warning(
-            "Skipping malformed uv.lock dependency reference: missing or "
-            "non-string 'name' (name=%r)",
-            name,
-        )
+        warn_missing_name("Skipping malformed uv.lock dependency reference", name)
         return None
     if "version" in dep_ref:
         # An inline version on the reference itself means this
@@ -157,7 +174,7 @@ def _resolved_package_for_dependency(
         )
         return None
 
-    candidates = by_name.get(name, [])
+    candidates = by_name.get(canonicalize_name(name), [])
     if not candidates:
         log.warning(
             "Skipping uv.lock dependency %r: referenced but not found in "
@@ -199,9 +216,9 @@ def _collect_transitive_dependencies(
     """
     dependencies: dict[str, str] = {}
     visited: set[str] = set()
-    queue: list[object] = list(root_dependencies)
+    queue: deque[object] = deque(root_dependencies)
     while queue:
-        dep_ref = queue.pop(0)
+        dep_ref = queue.popleft()
         pkg = _resolved_package_for_dependency(dep_ref, by_name)
         if pkg is None:
             continue
@@ -239,10 +256,7 @@ def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:
             return None
     version = pkg.get("version")
     if not is_usable_version(version):
-        log.warning(
-            "Skipping uv.lock entry %r: missing or non-string 'version'",
-            name,
-        )
+        warn_missing_version("uv.lock", name)
         return None
     return f"{name}=={version}"
 
@@ -292,14 +306,21 @@ def extract_uv_lock_dependencies(
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
-        log.warning(
-            "%s: top-level 'package' key is %s, expected a list -- ignoring uv.lock",
-            lock_path,
-            type(packages).__name__,
+        warn_top_level_key_wrong_type(
+            lock_path, "package", packages, "a list", "uv.lock"
         )
         return None
+    _warn_malformed_packages(lock_path, packages)
 
-    if expected_name is None:
+    if not expected_name:
+        # `ProjectMetadata.name` is typed `str`, never `None` -- a
+        # cascade caller whose own name resolution failed (e.g. a
+        # `setup.py`-only project with a dynamic, AST-unresolvable
+        # `name=`) passes `""`, not `None`. Falling back here on any
+        # falsy value (not just `None`) keeps that case from silently
+        # skipping the same re-read `_expected_project_name()` would
+        # have done for an explicit `None` -- an empty name could never
+        # usefully match a real workspace member's name anyway.
         expected_name = _expected_project_name(project_dir)
     root = _find_root_package(packages, expected_name)
     if root is None:
@@ -320,5 +341,24 @@ def extract_uv_lock_dependencies(
         )
         return None
 
-    by_name = index_packages_by_name(packages)
+    by_name = _index_by_canonical_name(packages)
     return _collect_transitive_dependencies(root_dependencies, by_name)
+
+
+def _index_by_canonical_name(
+    packages: Iterable[object],
+) -> dict[str, list[dict[str, Any]]]:
+    """PEP 503-canonicalized variant of
+    :func:`pitloom.extract._lock_common.index_packages_by_name`: uv
+    itself normalizes every ``name`` field it writes, but a dependency
+    *reference* and the package's own top-level entry are two separately
+    literal strings in the file -- grouping by canonical name (as
+    :func:`_collect_transitive_dependencies`'s ``visited`` set already
+    does) keeps lookup consistent with a name that differs only in
+    case/``-``/``_``/``.`` folding, instead of a literal-string mismatch
+    silently causing a resolvable dependency to be reported as
+    "not found"."""
+    by_name: dict[str, list[dict[str, Any]]] = {}
+    for name, entries in index_packages_by_name(packages).items():
+        by_name.setdefault(canonicalize_name(name), []).extend(entries)
+    return by_name

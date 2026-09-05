@@ -41,7 +41,11 @@ __all__ = [
     "load_lock_json",
     "load_lock_toml",
     "single_exact_pin",
+    "warn_malformed_entry_not_table",
+    "warn_missing_name",
+    "warn_missing_version",
     "warn_non_registry_source",
+    "warn_top_level_key_wrong_type",
 ]
 
 #: The literal ``Source:`` name written into
@@ -240,6 +244,65 @@ def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None
         name,
         source_key,
     )
+
+
+def warn_top_level_key_wrong_type(
+    lock_path: Path, key: str, value: object, expected: str, lock_file: str
+) -> None:
+    """Log the shared ``"<path>: top-level '<key>' key is <type>,
+    expected <shape> -- ignoring <lock file>"`` warning every
+    extractor's own top-level-shape check produces (a ``packages``/
+    ``package`` key that isn't a list, a ``default`` key that isn't a
+    table) -- four-plus formats retyped this identically modulo the key
+    name, expected shape, and lock-file name before this was factored
+    out, the same "pattern hand-copied across 3+ call sites drifts"
+    concern :func:`warn_non_registry_source` already addresses for the
+    non-registry-source case.
+    """
+    log.warning(
+        "%s: top-level '%s' key is %s, expected %s -- ignoring %s",
+        lock_path,
+        key,
+        type(value).__name__,
+        expected,
+        lock_file,
+    )
+
+
+def warn_missing_version(lock_file: str, name: str) -> None:
+    """Log the shared ``"Skipping <lock file> entry '<name>': missing or
+    non-string 'version'"`` warning -- identical across every format
+    that validates its ``version`` field via :func:`is_usable_version`."""
+    log.warning(
+        "Skipping %s entry %r: missing or non-string 'version'",
+        lock_file,
+        name,
+    )
+
+
+def warn_malformed_entry_not_table(
+    lock_file: str, entry_label: str, value: object
+) -> None:
+    """Log the shared ``"Skipping malformed <lock file> <entry label>
+    entry: expected a table, got <type>"`` warning -- the identical
+    shape ``poetry.lock``'s, ``pylock.toml``'s, and ``pdm.lock``'s own
+    ``[[package]]``/``[[packages]]`` malformed-entry checks each retyped
+    independently before this was factored out."""
+    log.warning(
+        "Skipping malformed %s %s entry: expected a table, got %s",
+        lock_file,
+        entry_label,
+        type(value).__name__,
+    )
+
+
+def warn_missing_name(context: str, name: object) -> None:
+    """Log the shared ``"<context>: missing or non-string 'name'
+    (name=<name>)"`` warning tail -- *context* supplies each call site's
+    own lead-in (which format, which kind of entry) since that part
+    genuinely differs per site, while the recurring "missing or
+    non-string 'name'" wording itself doesn't."""
+    log.warning("%s: missing or non-string 'name' (name=%r)", context, name)
 
 
 def find_first_present_key(

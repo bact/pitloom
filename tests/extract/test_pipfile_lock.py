@@ -188,6 +188,24 @@ def test_non_registry_sourced_dependency_excluded(
         assert "local-dep" in caplog.text
 
 
+def test_editable_false_not_treated_as_non_registry_source() -> None:
+    """`editable` is Pipfile.lock's one boolean-valued non-registry key
+    (every other one -- `git`/`hg`/`bzr`/`svn`/`path`/`file` -- is a
+    string, so mere presence means non-registry). An explicit
+    `"editable": false` (schema-legal, just uncommon) is a normal,
+    ordinary registry-resolved pin, not a local/editable source -- unlike
+    a *truthy* `editable` value, which the parametrized test above
+    already covers as correctly excluded."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {"default": {"requests": {"version": "==2.31.0", "editable": False}}},
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
 def test_invalid_specifier_skipped_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

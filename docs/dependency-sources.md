@@ -37,7 +37,7 @@ exactly-pinned entries.
 
 | Priority | Format | File | What's included |
 | :---: | :--- | :--- | :--- |
-| 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records. |
+| 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records for its declared `default-groups` (a package needed only for a non-default dependency-group/extra, per its own `marker` field, is excluded). |
 | 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on) -- not `optional-dependencies` extras or `dev-dependencies` groups. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
 | 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` dev/extra groups). |
 | 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only. |

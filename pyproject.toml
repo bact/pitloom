@@ -64,6 +64,7 @@ dependencies = [
     "flit_core>=3.9",
     "hatchling>=1.32.0",
     "licenseid>=0.3.7",
+    "packaging>=24.0",
     "pdm-backend>=2.4.1",
     "pipdeptree>=4.2.3",
     "poetry-core>=2.4.1",

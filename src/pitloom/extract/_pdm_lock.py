@@ -46,7 +46,11 @@ from pitloom.extract._lock_common import (
     group_versions_by_canonical_name,
     is_usable_version,
     load_lock_toml,
+    warn_malformed_entry_not_table,
+    warn_missing_name,
+    warn_missing_version,
     warn_non_registry_source,
+    warn_top_level_key_wrong_type,
 )
 
 log = logging.getLogger(__name__)
@@ -68,6 +72,30 @@ _DEFAULT_GROUP = "default"
 _NON_REGISTRY_KEYS = ("git", "url", "path")
 
 
+def _shape_validated_package(pkg: object) -> dict[str, Any] | None:
+    """Return *pkg* itself when it's a well-formed, versioned
+    ``[[package]]`` table -- ``None`` (with a ``WARNING:``) for a
+    non-table entry, or one with a missing/non-string ``name`` or
+    missing/unparseable ``version``. Split out of
+    :func:`_default_group_package_or_none` purely to keep each
+    function's own return-statement count under this repo's complexity
+    ceiling; the two checks it doesn't cover (group membership,
+    non-registry source) stay there since they need this function's own
+    early-exit to already have happened first."""
+    if not isinstance(pkg, dict):
+        warn_malformed_entry_not_table("pdm.lock", "[[package]]", pkg)
+        return None
+    name = pkg.get("name")
+    if not isinstance(name, str) or not name:
+        warn_missing_name("Skipping malformed pdm.lock [[package]] entry", name)
+        return None
+    version = pkg.get("version")
+    if not is_usable_version(version):
+        warn_missing_version("pdm.lock", name)
+        return None
+    return pkg
+
+
 def _default_group_package_or_none(pkg: object) -> dict[str, Any] | None:
     """Return *pkg* itself when it's a well-formed, default-group,
     registry-sourced, versioned ``[[package]]`` entry -- ``None``
@@ -75,38 +103,27 @@ def _default_group_package_or_none(pkg: object) -> dict[str, Any] | None:
     non-registry-sourced; silent for a package that's simply not in the
     default group, the same "expected filtering" as ``poetry.lock``'s
     non-``main`` group exclusion)."""
-    if not isinstance(pkg, dict):
-        log.warning(
-            "Skipping malformed pdm.lock [[package]] entry: expected a table, got %s",
-            type(pkg).__name__,
-        )
+    validated = _shape_validated_package(pkg)
+    if validated is None:
         return None
-    name = pkg.get("name")
-    if not isinstance(name, str) or not name:
+    name = validated["name"]
+
+    groups = validated.get("groups", [_DEFAULT_GROUP])
+    if not isinstance(groups, list):
         log.warning(
-            "Skipping malformed pdm.lock [[package]] entry: missing or "
-            "non-string 'name' (name=%r)",
+            "Skipping malformed pdm.lock entry %r: 'groups' is %s, expected a list",
             name,
+            type(groups).__name__,
         )
         return None
-
-    groups = pkg.get("groups", [_DEFAULT_GROUP])
-    if not isinstance(groups, list) or _DEFAULT_GROUP not in groups:
+    if _DEFAULT_GROUP not in groups:
         return None
 
-    non_registry_key = find_first_present_key(pkg, _NON_REGISTRY_KEYS)
+    non_registry_key = find_first_present_key(validated, _NON_REGISTRY_KEYS)
     if non_registry_key is not None:
         warn_non_registry_source("pdm.lock", name, non_registry_key)
         return None
-
-    version = pkg.get("version")
-    if not is_usable_version(version):
-        log.warning(
-            "Skipping pdm.lock entry %r: missing or non-string 'version'",
-            name,
-        )
-        return None
-    return pkg
+    return validated
 
 
 def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
@@ -126,10 +143,8 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
 
     packages = data.get("package", [])
     if not isinstance(packages, list):
-        log.warning(
-            "%s: top-level 'package' key is %s, expected a list -- ignoring pdm.lock",
-            lock_path,
-            type(packages).__name__,
+        warn_top_level_key_wrong_type(
+            lock_path, "package", packages, "a list", "pdm.lock"
         )
         return None
 
