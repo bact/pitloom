@@ -92,15 +92,24 @@ def test_missing_metadata_table_returns_none_and_warns(
         assert "doesn't look like a genuine poetry.lock" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "metadata_body",
+    [
+        pytest.param('content-hash = "abc123"\n', id="missing"),
+        pytest.param("lock-version = 2\n", id="non-string"),
+    ],
+)
 def test_metadata_table_missing_lock_version_returns_none_and_warns(
-    caplog: pytest.LogCaptureFixture,
+    metadata_body: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A `[metadata]` table present but missing/non-string `lock-version`
-    is just as ambiguous as no `[metadata]` table at all."""
+    is just as ambiguous as no `[metadata]` table at all -- a present but
+    wrong-shaped value (e.g. an int instead of a string) must not pass
+    more easily than the key being absent entirely."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "poetry.lock").write_text(
-            '[metadata]\ncontent-hash = "abc123"\n', encoding="utf-8"
+            f"[metadata]\n{metadata_body}", encoding="utf-8"
         )
 
         with caplog.at_level(logging.WARNING):

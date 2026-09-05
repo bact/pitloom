@@ -433,7 +433,8 @@ def test_read_project_pipfile_lock_takes_priority_over_requirements_txt() -> Non
             encoding="utf-8",
         )
         (tmp_path / "Pipfile.lock").write_text(
-            '{"default": {"httpx": {"version": "==0.27.0"}}}',
+            '{"_meta": {"pipfile-spec": 6}, '
+            '"default": {"httpx": {"version": "==0.27.0"}}}',
             encoding="utf-8",
         )
         _write_requirements(tmp_path, "requests==2.31.0\n")

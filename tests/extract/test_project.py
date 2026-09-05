@@ -153,7 +153,8 @@ def test_read_project_fallback_preserves_already_resolved_poetry_lock(
         "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
     )
     (tmp_path / "pdm.lock").write_text(
-        '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n',
+        '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n'
+        '[metadata]\nlock_version = "4.5.1"\n',
         encoding="utf-8",
     )
 

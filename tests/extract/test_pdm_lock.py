@@ -28,9 +28,15 @@ REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "pdm"
 )
 
+#: Every genuine `pdm.lock` carries this table -- appended to *body* by
+#: default so tests that aren't specifically about the genuineness check
+#: itself don't need to repeat it.
+_METADATA = '[metadata]\nlock_version = "4.5.1"\n'
 
-def _write_lock(tmp_dir: Path, body: str = "") -> None:
-    (tmp_dir / "pdm.lock").write_text(body, encoding="utf-8")
+
+def _write_lock(tmp_dir: Path, body: str = "", include_metadata: bool = True) -> None:
+    content = body + _METADATA if include_metadata else body
+    (tmp_dir / "pdm.lock").write_text(content, encoding="utf-8")
 
 
 def test_no_lock_file_returns_none() -> None:
@@ -50,6 +56,52 @@ def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
         _write_lock(tmp_path, "")
 
         assert extract_pdm_lock_dependencies(tmp_path) == []
+
+
+def test_missing_metadata_table_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An empty/unrelated-but-parseable TOML file with no `[metadata]`
+    table (this repo's `None`-vs-`[]` recurring bug pattern) must not be
+    treated as "a real, empty pdm.lock" -- it could otherwise silently
+    win the cascade over a genuinely usable lower-priority lock."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, "", include_metadata=False)
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pdm_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine pdm.lock" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "metadata_body",
+    [
+        pytest.param('strategy = ["inherit_metadata"]\n', id="missing"),
+        pytest.param("lock_version = 4\n", id="non-string"),
+    ],
+)
+def test_metadata_table_missing_lock_version_returns_none_and_warns(
+    metadata_body: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A present but wrong-shaped `lock_version` (e.g. an int instead of
+    a string) must not pass more easily than the key being absent
+    entirely."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            f"[metadata]\n{metadata_body}",
+            include_metadata=False,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pdm_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine pdm.lock" in caplog.text
 
 
 def test_malformed_toml_returns_empty_list_and_warns(

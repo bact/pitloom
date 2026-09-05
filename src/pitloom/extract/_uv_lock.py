@@ -53,6 +53,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
+    index_packages_by_name,
     is_usable_version,
     load_lock_toml,
     warn_malformed_entry_not_table,
@@ -338,30 +339,15 @@ def extract_uv_lock_dependencies(
         )
         return None
 
-    by_name = _index_by_canonical_name(packages)
+    # uv itself normalizes every ``name`` field it writes, but a
+    # dependency *reference* and the package's own top-level entry are
+    # two separately literal strings in the file -- grouping by
+    # canonical name (as ``_collect_transitive_dependencies``'s
+    # ``visited`` set already does) keeps lookup consistent with a name
+    # that differs only in case/``-``/``_``/``.`` folding, instead of a
+    # literal-string mismatch silently causing a resolvable dependency
+    # to be reported as "not found". A non-table entry, or one with a
+    # missing/non-string/empty ``name``, is excluded here -- see
+    # ``_warn_malformed_packages`` for the diagnostic on those.
+    by_name = index_packages_by_name(packages, key=canonicalize_name)
     return _collect_transitive_dependencies(root_dependencies, by_name)
-
-
-def _index_by_canonical_name(
-    packages: Iterable[object],
-) -> dict[str, list[dict[str, Any]]]:
-    """Group every well-formed ``[[package]]`` entry by its PEP
-    503-canonicalized ``name`` (a non-table entry, or one with a
-    missing/non-string/empty ``name``, is excluded here -- see
-    :func:`_warn_malformed_packages` for the diagnostic on those). uv
-    itself normalizes every ``name`` field it writes, but a dependency
-    *reference* and the package's own top-level entry are two separately
-    literal strings in the file -- grouping by canonical name (as
-    :func:`_collect_transitive_dependencies`'s ``visited`` set already
-    does) keeps lookup consistent with a name that differs only in
-    case/``-``/``_``/``.`` folding, instead of a literal-string mismatch
-    silently causing a resolvable dependency to be reported as
-    "not found"."""
-    by_name: dict[str, list[dict[str, Any]]] = {}
-    for pkg in packages:
-        if not isinstance(pkg, dict):
-            continue
-        name = pkg.get("name")
-        if isinstance(name, str) and name:
-            by_name.setdefault(canonicalize_name(name), []).append(pkg)
-    return by_name

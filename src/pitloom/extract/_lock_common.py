@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, TypeGuard
 
@@ -34,12 +34,15 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "POETRY_LOCK_SOURCE_NAME",
+    "default_group_included",
     "find_first_present_key",
     "group_versions_by_canonical_name",
+    "has_required_top_level_table",
     "index_packages_by_name",
     "is_usable_version",
     "load_lock_json",
     "load_lock_toml",
+    "shape_validated_package",
     "single_exact_pin",
     "warn_malformed_entry_not_table",
     "warn_missing_name",
@@ -120,12 +123,51 @@ def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
     return data
 
 
+def has_required_top_level_table(
+    data: dict[str, Any],
+    table_key: str,
+    required_key: str,
+    value_type: type | tuple[type, ...] = object,
+) -> bool:
+    """Return whether *data* has a top-level table *table_key* containing
+    key *required_key* with a value that's an instance of *value_type* --
+    the "does this look like a genuine file of this format" shape check
+    every TOML/JSON-based lock extractor needs before treating an empty
+    ``[[package]]``-style list as an authoritative, zero-dependency
+    result.
+
+    A format-defining key absent entirely is ambiguous on its own -- the
+    shape is identical whether the lock genuinely resolves to zero
+    packages (rare, but every genuine lock-writer tool still emits its
+    own identifying top-level structure for that case) or the file is
+    some unrelated, syntactically-valid document that merely happens to
+    be named/found as this format's lock file (e.g. truncated,
+    hand-edited, or from an unrelated tool). Checking for the format's
+    own marker distinguishes "genuinely this format, zero dependencies"
+    from "not actually this format", so the latter can't silently win
+    the cascade over a genuinely usable lower-priority lock format via a
+    spurious authoritative-empty result -- e.g. ``poetry.lock``'s
+    string-valued ``metadata.lock-version``, ``pdm.lock``'s
+    string-valued ``metadata.lock_version``, ``Pipfile.lock``'s
+    int-valued ``_meta.pipfile-spec`` (each caller passes its own
+    format's real value type as *value_type*; a key present with a value
+    of the wrong shape is exactly as ambiguous as the key being absent
+    entirely, so it isn't treated as a looser pass than outright
+    absence).
+    """
+    table = data.get(table_key)
+    return isinstance(table, dict) and isinstance(table.get(required_key), value_type)
+
+
 def index_packages_by_name(
     packages: Iterable[object],
+    key: Callable[[str], str] = str,
 ) -> dict[str, list[dict[str, Any]]]:
     """Group every well-formed entry of *packages* (a lock format's flat
-    ``[[package]]``-style list) by its ``name`` field, preserving file
-    order both across and within names.
+    ``[[package]]``-style list) by its ``name`` field (passed through
+    *key*, e.g. :func:`packaging.utils.canonicalize_name` when a caller
+    needs PEP 503-canonicalized grouping instead of the literal name),
+    preserving file order both across and within names.
 
     A non-table entry, or a table with a missing/non-string/empty
     ``name``, is silently excluded -- it can never be the target of a
@@ -147,7 +189,7 @@ def index_packages_by_name(
             continue
         name = pkg.get("name")
         if isinstance(name, str) and name:
-            by_name.setdefault(name, []).append(pkg)
+            by_name.setdefault(key(name), []).append(pkg)
     return by_name
 
 
@@ -329,3 +371,58 @@ def find_first_present_key(
     use this helper.
     """
     return next((key for key in keys if key in mapping), None)
+
+
+def shape_validated_package(
+    pkg: object, lock_file: str, entry_label: str = "[[package]]"
+) -> dict[str, Any] | None:
+    """Return *pkg* itself when it's a well-formed, versioned
+    list-of-tables entry -- ``None`` (with a ``WARNING:``) for a
+    non-table entry, or one with a missing/non-string ``name`` or
+    missing/unparseable ``version``.
+
+    Shared by every lock format whose per-package entries are a flat
+    table with a plain ``name``/``version`` pair (``poetry.lock``,
+    ``pdm.lock``) -- factored out of two independently-drifting,
+    near-identical per-format copies so a wording/behavior change to
+    this check lands once instead of needing to be repeated at each
+    format's own call site.
+    """
+    if not isinstance(pkg, dict):
+        warn_malformed_entry_not_table(lock_file, entry_label, pkg)
+        return None
+    name = pkg.get("name")
+    if not isinstance(name, str) or not name:
+        warn_missing_name(f"Skipping malformed {lock_file} {entry_label} entry", name)
+        return None
+    version = pkg.get("version")
+    if not is_usable_version(version):
+        warn_missing_version(lock_file, name)
+        return None
+    return pkg
+
+
+def default_group_included(
+    validated: Mapping[str, object], lock_file: str, default_group: str, name: str
+) -> bool | None:
+    """Return whether *validated* (an already shape-validated package
+    entry) belongs to *default_group* per its ``groups`` list -- ``None``
+    (with a ``WARNING:``) when ``groups`` is present but not a list.
+
+    Shared by every lock format whose per-package group membership is a
+    flat ``groups`` list defaulting to a single-element list naming the
+    format's own default group (``poetry.lock``'s ``"main"``,
+    ``pdm.lock``'s ``"default"``) -- factored out of two
+    independently-drifting, near-identical per-format copies the same
+    way :func:`shape_validated_package` was.
+    """
+    groups = validated.get("groups", [default_group])
+    if not isinstance(groups, list):
+        log.warning(
+            "Skipping malformed %s entry %r: 'groups' is %s, expected a list",
+            lock_file,
+            name,
+            type(groups).__name__,
+        )
+        return None
+    return default_group in groups

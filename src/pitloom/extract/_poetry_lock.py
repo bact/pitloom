@@ -25,14 +25,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from pitloom.extract._lock_common import (
-    is_usable_version,
+    default_group_included,
+    has_required_top_level_table,
     load_lock_toml,
-    warn_malformed_entry_not_table,
-    warn_missing_name,
-    warn_missing_version,
+    shape_validated_package,
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
@@ -41,25 +39,7 @@ log = logging.getLogger(__name__)
 
 __all__ = ["extract_poetry_lock_dependencies"]
 
-
-def _has_poetry_metadata(data: dict[str, Any]) -> bool:
-    """Return whether *data* has poetry.lock's own identifying
-    structure: a top-level ``[metadata]`` table with a string
-    ``lock-version`` key.
-
-    A ``package`` key absent entirely is ambiguous on its own -- it's
-    the same shape whether the lock genuinely resolves to zero packages
-    (rare, but poetry itself still always writes ``[metadata]`` for
-    that case) or the file is some unrelated, syntactically-valid TOML
-    document that merely happens to be named/found as ``poetry.lock``
-    (e.g. truncated, hand-edited, or from an unrelated tool). Every real
-    ``poetry lock``-generated file, empty or not, always carries this
-    ``[metadata]`` table -- checking for it distinguishes "genuinely
-    poetry.lock, zero dependencies" from "not actually a poetry.lock",
-    so the latter can't silently win the cascade over a genuinely usable
-    lower-priority lock format via a spurious authoritative-empty result."""
-    metadata = data.get("metadata")
-    return isinstance(metadata, dict) and isinstance(metadata.get("lock-version"), str)
+_DEFAULT_GROUP = "main"
 
 
 def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
@@ -83,7 +63,7 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
     data = load_lock_toml(lock_path)
     if data is None:
         return None
-    if not _has_poetry_metadata(data):
+    if not has_required_top_level_table(data, "metadata", "lock-version", str):
         log.warning(
             "%s: no top-level 'metadata' table with a 'lock-version' key -- "
             "doesn't look like a genuine poetry.lock, ignoring",
@@ -109,29 +89,6 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
 _NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
 
 
-def _shape_validated_package(pkg: object) -> dict[str, Any] | None:
-    """Return *pkg* itself when it's a well-formed, versioned
-    ``[[package]]`` table -- ``None`` (with a ``WARNING:``) for a
-    non-table entry, or one with a missing/non-string ``name`` or
-    missing/unparseable ``version``. Split out of
-    :func:`_pinned_dep_for_package` purely to keep each function's own
-    return-statement count under this repo's complexity ceiling, the
-    same split :func:`pitloom.extract._pdm_lock._shape_validated_package`
-    already uses for the analogous check."""
-    if not isinstance(pkg, dict):
-        warn_malformed_entry_not_table("poetry.lock", "[[package]]", pkg)
-        return None
-    name = pkg.get("name")
-    if not isinstance(name, str) or not name:
-        warn_missing_name("Skipping malformed poetry.lock [[package]] entry", name)
-        return None
-    version = pkg.get("version")
-    if not is_usable_version(version):
-        warn_missing_version("poetry.lock", name)
-        return None
-    return pkg
-
-
 def _pinned_dep_for_package(pkg: object) -> str | None:
     """Return ``name==version`` for one ``[[package]]`` table entry, or
     ``None`` when it's malformed, not in the ``main`` group, or sourced
@@ -143,22 +100,13 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
     version pin, so including it here would misrepresent it as an
     ordinary published release (wrong PURL, bogus PyPI enrichment lookup).
     """
-    validated = _shape_validated_package(pkg)
+    validated = shape_validated_package(pkg, "poetry.lock")
     if validated is None:
         return None
     name = validated["name"]
     version = validated["version"]
 
-    groups = validated.get("groups", ["main"])
-    if not isinstance(groups, list):
-        log.warning(
-            "Skipping malformed poetry.lock [[package]] entry %r: 'groups' "
-            "is %s, expected a list",
-            name,
-            type(groups).__name__,
-        )
-        return None
-    if "main" not in groups:
+    if not default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name):
         return None
     source = validated.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None

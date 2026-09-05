@@ -28,8 +28,17 @@ REAL_WORLD_LOCKS = (
 )
 
 
-def _write_lock(tmp_dir: Path, data: dict[str, object]) -> None:
-    (tmp_dir / "Pipfile.lock").write_text(json.dumps(data), encoding="utf-8")
+#: Every genuine `Pipfile.lock` carries this key -- merged into *data* by
+#: default so tests that aren't specifically about the genuineness check
+#: itself don't need to repeat it.
+_META = {"pipfile-spec": 6}
+
+
+def _write_lock(
+    tmp_dir: Path, data: dict[str, object], include_meta: bool = True
+) -> None:
+    full_data = {"_meta": _META, **data} if include_meta else data
+    (tmp_dir / "Pipfile.lock").write_text(json.dumps(full_data), encoding="utf-8")
 
 
 def test_no_lock_file_returns_none() -> None:
@@ -52,6 +61,49 @@ def test_malformed_json_returns_empty_list_and_warns(
 
         assert not result
         assert "Failed to parse" in caplog.text
+
+
+def test_missing_meta_key_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An empty/unrelated-but-parseable JSON object with no top-level
+    `_meta` key (this repo's `None`-vs-`[]` recurring bug pattern) must
+    not be treated as "a real, empty Pipfile.lock" -- it could otherwise
+    silently win the cascade over a genuinely usable lower-priority
+    lock."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, {}, include_meta=False)
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine Pipfile.lock" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "meta",
+    [
+        pytest.param({"requires": {}}, id="missing"),
+        pytest.param({"pipfile-spec": "6"}, id="non-int"),
+    ],
+)
+def test_meta_missing_pipfile_spec_returns_none_and_warns(
+    meta: dict[str, object], caplog: pytest.LogCaptureFixture
+) -> None:
+    """A present but wrong-shaped `pipfile-spec` (e.g. a string instead
+    of an int) must not pass more easily than the key being absent
+    entirely."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, {"_meta": meta}, include_meta=False)
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine Pipfile.lock" in caplog.text
 
 
 def test_default_section_not_a_dict_returns_empty_list_and_warns(
@@ -372,7 +424,8 @@ def test_read_project_pdm_lock_takes_priority_over_pipfile_lock() -> None:
             '[project]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
         )
         (tmp_path / "pdm.lock").write_text(
-            '[[package]]\nname = "httpx"\nversion = "0.27.0"\ngroups = ["default"]\n',
+            '[[package]]\nname = "httpx"\nversion = "0.27.0"\ngroups = ["default"]\n'
+            '[metadata]\nlock_version = "4.5.1"\n',
             encoding="utf-8",
         )
         _write_lock(tmp_path, {"default": {"requests": {"version": "==2.31.0"}}})

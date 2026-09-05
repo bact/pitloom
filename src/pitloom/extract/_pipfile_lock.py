@@ -45,6 +45,7 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
+    has_required_top_level_table,
     load_lock_json,
     single_exact_pin,
     warn_missing_name,
@@ -79,6 +80,13 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
     lock_path = project_dir / "Pipfile.lock"
     data = load_lock_json(lock_path)
     if data is None:
+        return None
+    if not has_required_top_level_table(data, "_meta", "pipfile-spec", int):
+        log.warning(
+            "%s: no top-level '_meta' object with a 'pipfile-spec' key -- "
+            "doesn't look like a genuine Pipfile.lock, ignoring",
+            lock_path,
+        )
         return None
 
     default_section = data.get("default", {})
