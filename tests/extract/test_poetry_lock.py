@@ -30,8 +30,22 @@ REAL_WORLD_LOCKS = (
 )
 
 
+#: Every real ``poetry lock``-generated file carries this table --
+#: `extract_poetry_lock_dependencies()` uses its presence to distinguish
+#: a genuine (if empty) poetry.lock from an unrelated/truncated TOML
+#: document that merely happens to be named ``poetry.lock``. Prepended
+#: by `_write_lock()` below so every other test in this file, which
+#: exercises `package`-list handling rather than this check itself, does
+#: not need to repeat it.
+_METADATA = '[metadata]\nlock-version = "2.1"\n'
+
+
 def _write_lock(tmp_dir: Path, content: str) -> None:
-    (tmp_dir / "poetry.lock").write_text(content, encoding="utf-8")
+    # Appended, not prepended: a bare top-level `key = value` line in
+    # *content* (e.g. a malformed `package = "not-a-list"` test fixture)
+    # would otherwise land inside the `[metadata]` table itself if
+    # `_METADATA`'s `[metadata]` header came first in the file.
+    (tmp_dir / "poetry.lock").write_text(content + _METADATA, encoding="utf-8")
 
 
 def test_no_lock_file_returns_none() -> None:
@@ -43,14 +57,57 @@ def test_no_lock_file_returns_none() -> None:
 
 
 def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
-    """A `poetry.lock` with zero packages is a real, valid answer -- must
-    be `[]`, not `None`, so the cascade treats it as a winning (if empty)
-    result rather than "not present"."""
+    """A `poetry.lock` with zero packages is a real, valid answer (its
+    `[metadata]` table -- always present in a genuine poetry.lock, even
+    an empty one -- proves it's not just some unrelated/truncated TOML
+    file) -- must be `[]`, not `None`, so the cascade treats it as a
+    winning (if empty) result rather than "not present"."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(tmp_path, "")
 
         assert extract_poetry_lock_dependencies(tmp_path) == []
+
+
+def test_missing_metadata_table_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: a syntactically valid but empty/truncated file with no
+    `[metadata]` table at all is ambiguous -- it could be a genuine
+    zero-dependency poetry.lock, or it could be some unrelated TOML
+    document (hand-edited, from a different tool, truncated by a bad
+    write) that merely happens to be found as `poetry.lock`. Without
+    this check, the latter would be silently treated as an authoritative
+    empty lock and block a genuinely usable lower-priority source (e.g.
+    `pdm.lock`) in the cascade -- must return `None` instead, so a lower-
+    priority source can still be tried."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "poetry.lock").write_text("", encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine poetry.lock" in caplog.text
+
+
+def test_metadata_table_missing_lock_version_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A `[metadata]` table present but missing/non-string `lock-version`
+    is just as ambiguous as no `[metadata]` table at all."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "poetry.lock").write_text(
+            '[metadata]\ncontent-hash = "abc123"\n', encoding="utf-8"
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine poetry.lock" in caplog.text
 
 
 def test_malformed_toml_returns_empty_list_and_warns(

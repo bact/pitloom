@@ -67,7 +67,8 @@ def test_read_project_uv_lock_takes_priority_over_poetry_lock(
             '[tool.poetry]\nname = "demo"\nversion = "1.0.0"\n', encoding="utf-8"
         )
         (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            '[metadata]\nlock-version = "2.1"\n',
             encoding="utf-8",
         )
         _write_lock(

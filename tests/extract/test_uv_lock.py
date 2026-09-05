@@ -466,6 +466,31 @@ def test_nested_dependencies_not_a_list_skipped_and_warns(
         assert "nested 'dependencies'" in caplog.text
 
 
+def test_nested_dependencies_falsy_non_list_silently_skipped(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A falsy non-list `dependencies` value (e.g. `false` -- TOML has
+    no `null`, so this is the practical malformed-but-empty shape)
+    behaves like a missing/empty key, not like the truthy-malformed case
+    above -- no `WARNING:`, and nothing to walk into, but the package's
+    own pin is still resolved."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "dependencies = false\n",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "nested 'dependencies'" not in caplog.text
+
+
 def test_dependency_with_no_source_table_still_included() -> None:
     """A package entry with no `source` key at all (unusual but not
     invalid) is treated the same as a registry source -- only an

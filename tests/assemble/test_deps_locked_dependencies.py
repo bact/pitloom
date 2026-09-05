@@ -21,7 +21,7 @@ import json
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps import add_dependencies
-from pitloom.assemble.spdx3.document import build
+from pitloom.assemble.spdx3.document import _locked_dependencies_completeness, build
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
@@ -123,6 +123,86 @@ def test_locked_dependencies_add_transitive_only_edges() -> None:
     assert "completeness" not in depends_on[packages["requests"]["spdxId"]]
     assert depends_on[packages["urllib3"]["spdxId"]]["completeness"] == "complete"
     assert depends_on[packages["idna"]["spdxId"]]["completeness"] == "complete"
+
+
+def test_pinned_requirements_transitive_edges_leave_completeness_unset() -> None:
+    """Regression: pinned `requirements.txt` is just a list of exact-pin
+    lines a human or `pip freeze` wrote, with no resolver guarantee that
+    every real transitive dependency is present -- unlike a real
+    resolver lock (`poetry.lock`, `pylock.toml`, `uv.lock`, `pdm.lock`,
+    `Pipfile.lock`), its locked-only `dependsOn` edges must NOT be
+    tagged `complete`, which would overstate what the file actually
+    proves."""
+    project = ProjectMetadata(
+        name="main-project",
+        version="1.0.0",
+        dependencies=["requests>=2.0"],
+        locked_dependencies=["requests==2.31.0", "urllib3==2.2.0"],
+        provenance={
+            "locked_dependencies": (
+                "Source: requirements.txt | Method: pinned_requirements"
+            )
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = {e["name"]: e for e in graph if e.get("type") == "software_Package"}
+    relationships = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship" and e["relationshipType"] == "dependsOn"
+    ]
+    main_id = packages["main-project"]["spdxId"]
+    depends_on = {r["to"][0]: r for r in relationships if r["from"] == main_id}
+
+    assert "completeness" not in depends_on[packages["urllib3"]["spdxId"]]
+
+
+def test_locked_dependencies_completeness_by_method() -> None:
+    """Unit-level coverage of `_locked_dependencies_completeness()`'s
+    three branches: `resolved_lockfile` (a real resolver lock) is
+    `complete`; `pinned_requirements` is unset (`None`); an unrecognized
+    future `Method` tag defaults to unset too, the same conservative
+    "don't claim completeness we can't back up" choice as the pinned-
+    requirements case, rather than assuming it's resolver-grade."""
+    resolved = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["idna==3.7"],
+        provenance={
+            "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
+        },
+    )
+    pinned = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["idna==3.7"],
+        provenance={
+            "locked_dependencies": (
+                "Source: requirements.txt | Method: pinned_requirements"
+            )
+        },
+    )
+    unrecognized = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["idna==3.7"],
+        provenance={
+            "locked_dependencies": "Source: mystery.lock | Method: future_method"
+        },
+    )
+    no_provenance = ProjectMetadata(name="pkg", locked_dependencies=["idna==3.7"])
+
+    assert (
+        _locked_dependencies_completeness(resolved)
+        == spdx3.RelationshipCompleteness.complete
+    )
+    assert _locked_dependencies_completeness(pinned) is None
+    assert _locked_dependencies_completeness(unrecognized) is None
+    assert (
+        _locked_dependencies_completeness(no_provenance)
+        == spdx3.RelationshipCompleteness.complete
+    )
 
 
 def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:

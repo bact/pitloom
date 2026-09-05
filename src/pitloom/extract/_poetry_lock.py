@@ -42,6 +42,26 @@ log = logging.getLogger(__name__)
 __all__ = ["extract_poetry_lock_dependencies"]
 
 
+def _has_poetry_metadata(data: dict[str, Any]) -> bool:
+    """Return whether *data* has poetry.lock's own identifying
+    structure: a top-level ``[metadata]`` table with a string
+    ``lock-version`` key.
+
+    A ``package`` key absent entirely is ambiguous on its own -- it's
+    the same shape whether the lock genuinely resolves to zero packages
+    (rare, but poetry itself still always writes ``[metadata]`` for
+    that case) or the file is some unrelated, syntactically-valid TOML
+    document that merely happens to be named/found as ``poetry.lock``
+    (e.g. truncated, hand-edited, or from an unrelated tool). Every real
+    ``poetry lock``-generated file, empty or not, always carries this
+    ``[metadata]`` table -- checking for it distinguishes "genuinely
+    poetry.lock, zero dependencies" from "not actually a poetry.lock",
+    so the latter can't silently win the cascade over a genuinely usable
+    lower-priority lock format via a spurious authoritative-empty result."""
+    metadata = data.get("metadata")
+    return isinstance(metadata, dict) and isinstance(metadata.get("lock-version"), str)
+
+
 def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``poetry.lock`` next to ``pyproject.toml`` and return its
     resolved ``main``-group packages as exact-pin PEP 508 strings.
@@ -62,6 +82,13 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
     lock_path = project_dir / "poetry.lock"
     data = load_lock_toml(lock_path)
     if data is None:
+        return None
+    if not _has_poetry_metadata(data):
+        log.warning(
+            "%s: no top-level 'metadata' table with a 'lock-version' key -- "
+            "doesn't look like a genuine poetry.lock, ignoring",
+            lock_path,
+        )
         return None
 
     packages = data.get("package", [])

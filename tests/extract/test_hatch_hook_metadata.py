@@ -447,7 +447,8 @@ def test_metadata_from_hatchling_does_not_leak_poetry_lock_dependencies() -> Non
         tmp_path = Path(tmp)
         write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
         (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            '[metadata]\nlock-version = "2.1"\n',
             encoding="utf-8",
         )
 

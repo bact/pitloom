@@ -54,6 +54,68 @@ Pitloom is invoked from several usage surfaces (CLI, the Hatchling build hook, t
 - **Consolidate Patterns**: Extract duplicated logic into shared utilities, constants files, or decorators immediately. Don't copy-paste code.
 - **Enforce File Size Limits**: Strictly obey the ~400-500 lines soft limit. Split files *before* they become a problem.
 
+## Recurring bug patterns
+
+General-purpose failure modes that have recurred across more than one
+subsystem -- worth checking for by name in any code that resembles the
+shape described, not just the module where each was first found.
+
+- **`None` vs `[]`/`{}` (empty-but-present) is a distinct signal, not two
+  spellings of the same thing.** In a cascade/fallback/gap-fill chain,
+  `None` (or "absent key") means "this source doesn't apply here, try
+  the next one"; an empty-but-real container means "this source is
+  valid and authoritative, with zero results -- stop looking." Confusing
+  them has recurred in unrelated places: a truthiness check
+  (`if some_list:`) used where "was a result produced at all" was
+  needed, silently colliding two cases that should stay distinct; a
+  `dict.get(key, [])`-style default that treated "key legitimately
+  absent" the same as "key present with an empty value"; a source-
+  priority cascade that couldn't tell "this source is real but empty"
+  from "this source doesn't apply." Before writing `x or default`,
+  `dict.get(key, [])`, or `if some_container:`, ask whether the empty
+  case and the absent case are supposed to behave the same -- they
+  usually aren't.
+- **Compare domain identifiers the way the ecosystem/spec does, not as
+  raw strings.** A raw `==`/dict-key comparison silently fails to match
+  values that a spec treats as equivalent (e.g. PEP 503 package-name
+  canonicalization: case-fold, `-`/`_`/`.` treated as interchangeable).
+  Whenever two identifiers of the same kind are compared or one is used
+  as a dict key, canonicalize both sides first per the format/spec that
+  defines them, rather than assuming byte-for-byte equality is enough.
+- **A private third-party API (`obj._attr`) does not owe you any
+  structural guarantee beyond what it happens to return today.** E.g.
+  `packaging.markers.Marker()._markers` does not pre-group same-
+  precedence-level boolean terms -- an unparenthesized `A or B and C`
+  parses to the flat list `[A, 'or', B, 'and', C]`, and the spec's real
+  precedence has to be reconstructed by the caller, not assumed from the
+  shape of the list. When consuming a private/internal structure,
+  verify its actual shape interactively before writing logic that folds
+  over it, and prefer mirroring that same library's own *public*
+  algorithm for the equivalent operation over inventing a new one.
+- **Warning/error/log wording drifts across sibling modules that perform
+  the same kind of check.** When several modules of the same family
+  (e.g. one per supported file format) each need to warn about the same
+  handful of malformed-input shapes, factor the shared message into one
+  helper/constant and have every sibling call it, instead of hand-
+  rolling a similarly-worded message per module. When adding a new check
+  to one sibling, check whether the others need the identical check
+  too.
+- **A decode/parse helper that only catches the format-specific
+  exception can still crash on a lower-level encoding failure.**
+  `tomllib`/`tomli`, `json`, and text-mode `open(..., encoding="utf-8")`
+  all raise a bare `UnicodeDecodeError` for invalid bytes -- separate
+  from `TOMLDecodeError`/`json.JSONDecodeError`. A "load and gracefully
+  degrade on bad input" helper needs to catch the encoding-level
+  exception alongside the format-level one, or a bad-encoding file
+  crashes instead of degrading like every other malformed-input case.
+- **A doc/docstring claim about "how this mechanism decides" needs to be
+  re-verified against the actual code before being trusted or restated**
+  (see the `physical_path`/`distribution_path` and "how surface X does
+  Y" rules above -- the same failure mode recurs in any doc describing
+  a cascade, fallback, or precedence order: re-read the current
+  implementation before repeating or extending a prior description of
+  its behavior, rather than assuming an existing doc still matches it).
+
 ## CLI output
 
 Unix philosophy. Consistent, predictable, parseable.

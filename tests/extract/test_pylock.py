@@ -353,6 +353,34 @@ def test_marker_operator_precedence_still_excludes_when_no_or_clause_is_true() -
         assert extract_pylock_dependencies(tmp_path) == []
 
 
+def test_extras_gated_package_excluded_by_default() -> None:
+    """PEP 751 supports both single-use lockfiles (one fixed purpose, no
+    group/extras complexity -- every package is simply included, as the
+    other tests in this file already cover via `default-groups`) and
+    multi-use lockfiles, which bundle multiple installable
+    configurations into one file via per-package `marker` clauses on
+    *both* pseudo-environment variables PEP 751 defines for this:
+    `dependency_groups` (covered above) and `extras`. A package gated on
+    `'<name>' in extras` must be excluded from the default resolved set
+    the same way one gated on `dependency_groups` is -- Pitloom's SBOM
+    represents the base/default install with no extras requested,
+    consistent with every sibling format excluding optional-dependencies/
+    extras from its own default resolved set (`poetry.lock`'s `main`-only
+    group, `uv.lock`'s runtime-only `dependencies`, `pdm.lock`'s
+    `default`-only group)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'extras = ["security"]\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n\n'
+            '[[packages]]\nname = "pyopenssl"\nversion = "24.0.0"\n'
+            "marker = \"'security' in extras\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
 def test_package_with_no_marker_included_regardless_of_default_groups() -> None:
     """A package with no `marker` field at all is an ordinary,
     always-active runtime dependency -- unaffected by `default-groups`
@@ -506,7 +534,8 @@ def test_read_project_pylock_takes_priority_over_poetry_lock(
             '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
         )
         (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            '[metadata]\nlock-version = "2.1"\n',
             encoding="utf-8",
         )
         _write_lock(tmp_path, '[[packages]]\nname = "httpx"\nversion = "0.27.0"\n')

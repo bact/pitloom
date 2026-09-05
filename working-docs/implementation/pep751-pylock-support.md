@@ -94,6 +94,44 @@ major version. A newer *minor* version within the known major (e.g.
 751's additive-minor-versions policy, but with a `WARNING:` that some
 content may go unrecognized.
 
+## Single-use vs multi-use lockfiles
+
+PEP 751 explicitly supports two shapes of `pylock.toml`, and this
+extractor handles both without needing to detect which one it's
+looking at:
+
+- **Single-use** -- like `requirements.txt`, one file serves one fixed
+  purpose (e.g. a production-only or dev-only export). No package
+  carries a group/extras-referencing `marker`, since there's no second
+  configuration to distinguish from; every `[[packages]]` entry is
+  simply included, `default-groups` filtering is a no-op (nothing to
+  filter), and `_group_marker_excludes()` never has anything to
+  evaluate. `tests/fixtures/real-world-locks/pylock/snowflake-cli-3.26.0/`
+  is this shape in practice: its packages' own `marker` fields are
+  ordinary `python_version`/`sys_platform` conditions only, never
+  `dependency_groups`/`extras`.
+- **Multi-use** -- one file bundles more than one installable
+  configuration (e.g. base + a `dev` dependency-group) to avoid
+  duplicating packages shared between them, distinguishing membership
+  per package via a `marker` referencing the `dependency_groups`/
+  `extras` pseudo-environment variables (e.g. `"'dev' in
+  dependency_groups"`, `"'security' in extras"`). This extractor
+  resolves *both* variables against a fixed "no extras, only the file's
+  own `default-groups`" environment (see above) -- Pitloom's SBOM
+  always represents the base/default install, the same policy already
+  applied to `poetry.lock`'s `main`-only group, `pdm.lock`'s
+  `default`-only group, and `uv.lock`'s runtime-only (non-optional)
+  dependencies. `tests/fixtures/real-world-locks/pylock/pipenv-2026.8.0/`
+  is this shape: `dependency-groups = ["dev"]`, `default-groups =
+  ["default"]`, and its `dev`-only packages (`alabaster`, `arpeggio`,
+  etc.) are correctly excluded from `locked_dependencies`.
+
+Both shapes are covered by dedicated tests in `tests/extract/test_pylock.py`
+(`test_non_default_group_package_excluded`,
+`test_extras_gated_package_excluded_by_default`,
+`test_package_with_no_marker_included_regardless_of_default_groups`),
+not just incidentally by the two real-world fixtures.
+
 ## Non-registry sources
 
 A package pinned via PEP 751's `vcs`, `directory`, or `archive` source

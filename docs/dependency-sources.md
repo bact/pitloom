@@ -58,15 +58,20 @@ relationship to the package's real, normalized version -- Pitloom
 doesn't fetch the URL to check, so a line like that disqualifies the
 whole file the same as an unpinned or ranged one would.
 
-**Only the single highest-priority lock file present is used.** If more
-than one lock file exists in the same project directory (uncommon, but
-possible after a build-tool migration), Pitloom picks the one highest in
-the table above and ignores the rest entirely -- it never merges two
-lock files' resolutions together. This holds even when the
-highest-priority lock resolves to *zero* dependencies: a real,
-successfully-parsed lock file that legitimately has nothing to add is
-still a definitive answer, and a lower-priority lock present alongside
-it is still ignored, not used to fill in what looks like a gap.
+**Only the single highest-priority *usable* lock file present is used.**
+If more than one lock file exists in the same project directory
+(uncommon, but possible after a build-tool migration), Pitloom picks the
+highest-ranked one in the table above that it can actually read and
+parse, and ignores every other one entirely -- it never merges two lock
+files' resolutions together. "Usable" matters: a higher-priority lock
+file that's absent, unparseable, or otherwise not a genuine file of its
+claimed format doesn't win by merely being *present* -- Pitloom moves on
+to the next-highest-priority source instead, the same as if that file
+weren't there at all. This holds even when the winning lock resolves to
+*zero* dependencies: a real, successfully-parsed lock file that
+legitimately has nothing to add is still a definitive answer, and a
+lower-priority lock present alongside it is still ignored, not used to
+fill in what looks like a gap.
 
 **A lock entry that can't be resolved to one exact version is left out,
 not guessed.** `uv.lock` in particular can record the same package
