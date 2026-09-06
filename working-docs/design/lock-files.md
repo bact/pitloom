@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-31
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,9 +30,9 @@ open for the two-lock-files case: `pylock.toml` overrides an
 already-applied `poetry.lock`-resolved set, since it's the
 build-backend-agnostic interoperability standard.
 
-See `working-docs/design/roadmap.md`'s "Remaining lock formats as a
-resolved-dependency source" item for the up-to-date status of every
-other format below.
+See [lock-file-cascade.md](../implementation/lock-file-cascade.md) for the
+implemented formats and current cascade; the remaining formats below
+continue to describe future work.
 
 **Illustrative code only, not a drop-in design.** The Pydantic models and
 hand-rolled `SPDXRef-*`/raw-dict SPDX 3 serializer below are a sketch,
