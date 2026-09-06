@@ -26,6 +26,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import zipfile
 from collections.abc import Iterator
 from datetime import datetime, timezone
@@ -249,11 +250,27 @@ def _make_dummy_wheel(
         f"{dist_info}/RECORD,,",
     ]
     record_content = "\n".join(records).encode("utf-8") + b"\n"
+    fixed_time = (2026, 1, 1, 0, 0, 0)
+    raw_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if raw_epoch:
+        try:
+            ts = int(raw_epoch)
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            if dt.year >= 1980:
+                fixed_time = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+        except (ValueError, OverflowError):
+            pass
 
     with zipfile.ZipFile(wheel_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"{name}/__init__.py", init_code)
-        zf.writestr(f"{dist_info}/METADATA", metadata_content)
-        zf.writestr(f"{dist_info}/WHEEL", wheel_content)
-        zf.writestr(f"{dist_info}/RECORD", record_content)
+        for arcname, payload in (
+            (f"{name}/__init__.py", init_code),
+            (f"{dist_info}/METADATA", metadata_content),
+            (f"{dist_info}/WHEEL", wheel_content),
+            (f"{dist_info}/RECORD", record_content),
+        ):
+            zinfo = zipfile.ZipInfo(arcname, date_time=fixed_time)
+            zinfo.compress_type = zipfile.ZIP_DEFLATED
+            zinfo.external_attr = 0o600 << 16
+            zf.writestr(zinfo, payload)
 
     return wheel_path
