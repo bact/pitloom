@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from pitloom.extract._poetry_lock import (
-    _pinned_dep_for_package,
+    _main_group_package_or_none,
     extract_poetry_lock_dependencies,
 )
 from pitloom.extract._pyproject import read_pyproject
@@ -119,7 +119,7 @@ def test_metadata_table_missing_lock_version_returns_none_and_warns(
         assert "doesn't look like a genuine poetry.lock" in caplog.text
 
 
-def test_malformed_toml_returns_empty_list_and_warns(
+def test_malformed_toml_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -129,7 +129,7 @@ def test_malformed_toml_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "Failed to parse" in caplog.text
 
 
@@ -202,22 +202,45 @@ def test_malformed_groups_field_skipped_and_warns(
         assert "'groups'" in caplog.text
 
 
-def test_package_table_not_a_list_returns_empty_list() -> None:
-    """A ``poetry.lock`` where top-level ``package`` isn't an array of
-    tables (malformed/unexpected shape) must degrade to an empty list,
-    not raise."""
+def test_optional_package_excluded() -> None:
+    """A package with optional = true is an extra, not a default runtime
+    dependency -- must be excluded."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path, 'package = "not-a-list"\n')
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'optional = true\ngroups = ["main"]\n',
+        )
 
         assert not extract_poetry_lock_dependencies(tmp_path)
 
 
-def test_pinned_dep_for_package_non_dict_entry_returns_none() -> None:
+def test_conflicting_versions_for_same_package_warns_and_excludes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When a package is locked at multiple conflicting versions under main group,
+    warn_conflicting_versions is emitted and the package is skipped."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.32.0"\ngroups = ["main"]\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "conflicting versions" in caplog.text
+
+
+def test_main_group_package_or_none_non_dict_entry_returns_none() -> None:
     """A ``[[package]]`` entry that isn't a table (defensive guard against
     a malformed lock file) is skipped, not a crash."""
-    assert _pinned_dep_for_package("not-a-dict") is None
-    assert _pinned_dep_for_package(["still", "not", "a", "dict"]) is None
+    assert _main_group_package_or_none("not-a-dict") is None
+    assert _main_group_package_or_none(["still", "not", "a", "dict"]) is None
 
 
 def test_malformed_package_entry_skipped() -> None:
@@ -295,7 +318,7 @@ def test_package_table_not_a_list_warns(caplog: pytest.LogCaptureFixture) -> Non
         with caplog.at_level(logging.WARNING):
             result = extract_poetry_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "expected a list" in caplog.text
 
 

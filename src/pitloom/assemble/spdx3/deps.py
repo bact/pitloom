@@ -80,7 +80,7 @@ def _enrich_from_pypi(
     """Best-effort PyPI JSON API fallback for originator, license, and hash."""
     version = dep_version if dep_version != "unknown" else None
     release_info = (
-        release_info_cache.get((dep_name, version))
+        release_info_cache.get((canonicalize_name(dep_name), version))
         if release_info_cache is not None
         else _fetch_pypi_release_info(dep_name, version)
     )
@@ -275,13 +275,15 @@ def add_dependencies(
             (dep_name, dep_version) for _dep, dep_name, dep_version, _note in resolved
         )
 
-    grouped: dict[tuple[str, str], list[tuple[str, str | None]]] = {}
+    grouped: dict[tuple[str, str], list[tuple[str, str, str | None]]] = {}
     for dep, dep_name, dep_version, version_note in resolved:
-        grouped.setdefault((dep_name, dep_version), []).append((dep, version_note))
+        canon_key = (canonicalize_name(dep_name), dep_version)
+        grouped.setdefault(canon_key, []).append((dep, dep_name, version_note))
 
-    for (dep_name, dep_version), declared in grouped.items():
-        declared_constraints = [dep for dep, _note in declared]
-        version_note = next((note for _dep, note in declared if note), None)
+    for (_canon_name, dep_version), declared in grouped.items():
+        display_dep_name = declared[0][1]
+        declared_constraints = [dep for dep, _raw_name, _note in declared]
+        version_note = next((note for _dep, _raw_name, note in declared if note), None)
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
             "declared_constraint": " | ".join(declared_constraints),
@@ -291,14 +293,14 @@ def add_dependencies(
 
         dep_package = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
-            name=dep_name,
+            name=display_dep_name,
             creationInfo=creation_info,
         )
         dep_package.software_packageVersion = dep_version
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
 
         _finish_dependency_enrichment(
-            dep_name,
+            display_dep_name,
             dep_version,
             dep_package,
             creation_info,

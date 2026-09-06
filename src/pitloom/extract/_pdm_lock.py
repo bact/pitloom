@@ -48,7 +48,9 @@ from pitloom.extract._lock_common import (
     has_required_top_level_table,
     load_lock_toml,
     shape_validated_package,
+    warn_conflicting_versions,
     warn_non_registry_source,
+    warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
 
@@ -108,11 +110,7 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
     if data is None:
         return None
     if not has_required_top_level_table(data, "metadata", "lock_version", str):
-        log.warning(
-            "%s: no top-level 'metadata' table with a 'lock_version' key -- "
-            "doesn't look like a genuine pdm.lock, ignoring",
-            lock_path,
-        )
+        warn_not_genuine_lock_file(lock_path, "metadata", "lock_version", "pdm.lock")
         return None
 
     packages = data.get("package", [])
@@ -135,11 +133,7 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
         name, version = group[0]
         conflicting_versions = {v for _, v in group}
         if len(conflicting_versions) > 1:
-            log.warning(
-                "Skipping pdm.lock entry %r: pinned to conflicting versions (%s)",
-                name,
-                ", ".join(sorted(conflicting_versions)),
-            )
+            warn_conflicting_versions("pdm.lock", name, conflicting_versions)
             continue
         dependencies.append(f"{name}=={version}")
     return dependencies

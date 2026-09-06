@@ -68,7 +68,7 @@ def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
         assert extract_pylock_dependencies(tmp_path) == []
 
 
-def test_malformed_toml_returns_empty_list_and_warns(
+def test_malformed_toml_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -80,11 +80,11 @@ def test_malformed_toml_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pylock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "Failed to parse" in caplog.text
 
 
-def test_missing_lock_version_returns_empty_list_and_warns(
+def test_missing_lock_version_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -97,7 +97,7 @@ def test_missing_lock_version_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pylock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "lock-version" in caplog.text
 
 
@@ -209,7 +209,7 @@ def test_same_name_conflicting_versions_skipped_and_warns(
         assert "pinned to conflicting versions" in caplog.text
 
 
-def test_packages_key_not_a_list_returns_empty_list_and_warns(
+def test_packages_key_not_a_list_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -219,8 +219,31 @@ def test_packages_key_not_a_list_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pylock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "expected a list" in caplog.text
+
+
+def test_pathological_nested_marker_does_not_crash_and_defaults_to_included(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A deeply nested or pathological marker must not cause a RecursionError or crash,
+    and should safely degrade to treating the package as included with a warning."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        nested = "'default' in dependency_groups"
+        for _ in range(300):
+            nested = f"({nested} and 'default' in dependency_groups)"
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "deep-marker-pkg"\nversion = "1.0.0"\n'
+            f'marker = "{nested}"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result == ["deep-marker-pkg==1.0.0"]
 
 
 def test_pinned_pair_for_package_non_dict_entry_returns_none() -> None:

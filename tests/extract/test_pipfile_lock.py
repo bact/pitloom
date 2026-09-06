@@ -42,7 +42,7 @@ def test_no_lock_file_returns_none() -> None:
         assert extract_pipfile_lock_dependencies(Path(tmp)) is None
 
 
-def test_malformed_json_returns_empty_list_and_warns(
+def test_malformed_json_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -52,7 +52,7 @@ def test_malformed_json_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pipfile_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "Failed to parse" in caplog.text
 
 
@@ -99,7 +99,7 @@ def test_meta_missing_pipfile_spec_returns_none_and_warns(
         assert "doesn't look like a genuine Pipfile.lock" in caplog.text
 
 
-def test_default_section_not_a_dict_returns_empty_list_and_warns(
+def test_default_section_not_a_dict_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -109,7 +109,7 @@ def test_default_section_not_a_dict_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pipfile_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "expected a table" in caplog.text
 
 

@@ -287,3 +287,64 @@ def test_read_project_include_locked_dependencies_false_also_skips_poetry_lock(
 
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
+
+
+@pytest.mark.parametrize(
+    ("lock_file", "content"),
+    [
+        (
+            "poetry.lock",
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            '[metadata]\nlock-version = "2.1"\n',
+        ),
+        (
+            "pylock.toml",
+            'lock-version = "1.0"\ncreated-by = "test"\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        ),
+        (
+            "uv.lock",
+            'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
+            '[[package]]\nname = "pkg"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        ),
+        (
+            "pdm.lock",
+            '[metadata]\nlock_version = "4.5.1"\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'groups = ["default"]\n',
+        ),
+        (
+            "Pipfile.lock",
+            '{"_meta": {"pipfile-spec": 6}, '
+            '"default": {"requests": {"version": "==2.31.0"}}}',
+        ),
+        (
+            "requirements.txt",
+            "requests==2.31.0\n",
+        ),
+    ],
+)
+def test_read_project_include_locked_dependencies_false_skips_all_lock_formats(
+    tmp_path: Path, lock_file: str, content: str
+) -> None:
+    """`include_locked_dependencies=False` must skip every supported lock format."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / lock_file).write_text(content, encoding="utf-8")
+
+    metadata, _pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance
+
+    # Companion assertion: with include_locked_dependencies enabled (the default),
+    # the lock file is discovered and resolved -- guarding against a vacuous pass.
+    normal_metadata, _, _ = read_project(tmp_path)
+    assert normal_metadata.locked_dependencies == ["requests==2.31.0"]

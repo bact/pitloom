@@ -233,6 +233,7 @@ def _collect_transitive_dependencies(
     """
     dependencies: dict[str, str] = {}
     visited: set[str] = set()
+    visited_extras: set[tuple[str, str]] = set()
     queue: deque[object] = deque(root_dependencies)
     while queue:
         dep_ref = queue.popleft()
@@ -240,25 +241,60 @@ def _collect_transitive_dependencies(
         if pkg is None:
             continue
         canonical_name = canonicalize_name(pkg["name"])
-        if canonical_name in visited:
-            continue
-        visited.add(canonical_name)
+        if canonical_name not in visited:
+            visited.add(canonical_name)
 
-        pin = _pinned_dep_for_package(pkg)
-        if pin is not None:
-            dependencies[canonical_name] = pin
+            pin = _pinned_dep_for_package(pkg)
+            if pin is not None:
+                dependencies[canonical_name] = pin
 
-        nested = pkg.get("dependencies", [])
-        if isinstance(nested, list):
-            queue.extend(nested)
-        elif nested:
-            log.warning(
-                "Skipping uv.lock entry %r nested 'dependencies': "
-                "expected a list, got %s",
-                pkg["name"],
-                type(nested).__name__,
+            nested = pkg.get("dependencies", [])
+            if isinstance(nested, list):
+                queue.extend(nested)
+            elif nested:
+                log.warning(
+                    "Skipping uv.lock entry %r nested 'dependencies': "
+                    "expected a list, got %s",
+                    pkg["name"],
+                    type(nested).__name__,
+                )
+
+        if isinstance(dep_ref, dict):
+            _enqueue_requested_extras(
+                dep_ref, pkg, canonical_name, visited_extras, queue
             )
     return list(dependencies.values())
+
+
+def _enqueue_requested_extras(
+    dep_ref: dict[str, Any],
+    pkg: dict[str, Any],
+    canonical_name: str,
+    visited_extras: set[tuple[str, str]],
+    queue: deque[object],
+) -> None:
+    """Enqueue dependencies from *pkg*'s ``optional-dependencies`` table
+    for any extra requested by *dep_ref*, skipping already-visited extras
+    to guard against cycles."""
+    extra_val = dep_ref.get("extra") or dep_ref.get("extras")
+    if not extra_val:
+        return
+    requested_extras = (
+        [extra_val]
+        if isinstance(extra_val, str)
+        else [e for e in extra_val if isinstance(e, str)]
+    )
+    opt_deps_map = pkg.get("optional-dependencies", {})
+    if not isinstance(opt_deps_map, dict):
+        return
+    for extra_name in requested_extras:
+        extra_key = (canonical_name, extra_name)
+        if extra_key in visited_extras:
+            continue
+        visited_extras.add(extra_key)
+        extra_deps = opt_deps_map.get(extra_name, [])
+        if isinstance(extra_deps, list):
+            queue.extend(extra_deps)
 
 
 def _pinned_dep_for_package(pkg: dict[str, Any]) -> str | None:

@@ -16,6 +16,7 @@ from pitloom.extract.hatchling import (  # noqa: E402
     _resolve_hatchling_license_files,
     metadata_from_hatchling,
 )
+from pitloom.extract.project import read_project  # noqa: E402
 from pitloom.plugins.hatch import (  # noqa: E402
     _check_hatchling_sbom_support,
 )
@@ -435,22 +436,56 @@ def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
         assert metadata.keywords == ["from-poetry", "gap-fill"]
 
 
-def test_metadata_from_hatchling_does_not_leak_poetry_lock_dependencies() -> None:
-    """Regression: ``poetry.lock`` is a source-stage-only artifact (see
-    ``pitloom.extract._poetry_lock``'s module docstring) -- the real wheel
-    Hatchling builds never consults it, so the build hook's ``[tool.poetry]``
-    gap-fill path must never populate ``locked_dependencies`` from a
-    ``poetry.lock`` sitting next to a Hatchling-backed project, even though
-    ``read_pyproject()`` (the CLI/source-stage path) legitimately does.
-    """
+@pytest.mark.parametrize(
+    ("lock_file", "content"),
+    [
+        (
+            "poetry.lock",
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            '[metadata]\nlock-version = "2.1"\n',
+        ),
+        (
+            "pylock.toml",
+            'lock-version = "1.0"\ncreated-by = "test"\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        ),
+        (
+            "uv.lock",
+            'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
+            '[[package]]\nname = "testpkg"\nversion = "0.1.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        ),
+        (
+            "pdm.lock",
+            '[metadata]\nlock_version = "4.5.1"\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'groups = ["default"]\n',
+        ),
+        (
+            "Pipfile.lock",
+            '{"_meta": {"pipfile-spec": 6}, '
+            '"default": {"requests": {"version": "==2.31.0"}}}',
+        ),
+        (
+            "requirements.txt",
+            "requests==2.31.0\n",
+        ),
+    ],
+)
+def test_metadata_from_hatchling_does_not_leak_lock_dependencies(
+    lock_file: str, content: str
+) -> None:
+    """Lock files are source-stage-only artifacts -- the real wheel Hatchling
+    builds never consults them, so the build hook's gap-fill path must never
+    populate locked_dependencies from any lock file sitting next to a
+    Hatchling-backed project."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
-        (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
-            '[metadata]\nlock-version = "2.1"\n',
-            encoding="utf-8",
-        )
+        (tmp_path / lock_file).write_text(content, encoding="utf-8")
 
         hatch_pm = hatchling_metadata_core.ProjectMetadata(
             str(tmp_path), PluginManager()
@@ -460,9 +495,11 @@ def test_metadata_from_hatchling_does_not_leak_poetry_lock_dependencies() -> Non
         assert metadata.locked_dependencies == []
         assert "locked_dependencies" not in metadata.provenance
 
-        # The CLI/source-stage path, by contrast, legitimately picks it up.
-        cli_metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
-        assert cli_metadata.locked_dependencies == ["requests==2.31.0"]
+        # Companion assertion: absent the isolation boundary (via read_project's
+        # default path), the same directory DOES resolve the lock file -- guards
+        # against a vacuous pass where the lock fixture is broken or not found.
+        direct, _, _ = read_project(tmp_path)
+        assert direct.locked_dependencies == ["requests==2.31.0"]
 
 
 def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:

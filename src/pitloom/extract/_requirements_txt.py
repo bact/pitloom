@@ -102,7 +102,7 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | N
     try:
         raw_text = lock_path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError) as exc:
-        log.warning("Failed to read %s: %s", lock_path, exc)
+        log.warning("Failed to parse %s: %s", lock_path, exc)
         return None
 
     pins: list[tuple[str, str]] = []
@@ -183,12 +183,13 @@ def _pinned_name_version_for_line(
     non-URL requirement *line*, or ``None`` (having already logged the
     single ``WARNING:`` naming why) when it disqualifies the whole file."""
     if line.startswith(_OPTION_LINE_PREFIX):
+        option = line.split()[0]
         log.warning(
-            "%s:%d: option line %r means this file isn't fully pinned -- "
+            "%s:%d: option %r means this file isn't fully pinned -- "
             "ignoring requirements.txt",
             lock_path,
             lineno,
-            line,
+            option,
         )
         return None
     try:

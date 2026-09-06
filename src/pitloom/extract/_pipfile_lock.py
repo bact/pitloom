@@ -49,9 +49,11 @@ from pitloom.extract._lock_common import (
     has_required_top_level_table,
     load_lock_json,
     single_exact_pin,
+    warn_conflicting_versions,
     warn_missing_name,
     warn_missing_version,
     warn_non_registry_source,
+    warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
 
@@ -83,10 +85,8 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
     if data is None:
         return None
     if not has_required_top_level_table(data, "_meta", "pipfile-spec", int):
-        log.warning(
-            "%s: no top-level '_meta' object with a 'pipfile-spec' key -- "
-            "doesn't look like a genuine Pipfile.lock, ignoring",
-            lock_path,
+        warn_not_genuine_lock_file(
+            lock_path, "_meta", "pipfile-spec", "Pipfile.lock", container_type="object"
         )
         return None
 
@@ -111,11 +111,7 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
         name, version = group[0]
         conflicting_versions = {v for _, v in group}
         if len(conflicting_versions) > 1:
-            log.warning(
-                "Skipping Pipfile.lock entry %r: pinned to conflicting versions (%s)",
-                name,
-                ", ".join(sorted(conflicting_versions)),
-            )
+            warn_conflicting_versions("Pipfile.lock", name, conflicting_versions)
             continue
         dependencies.append(f"{name}=={version}")
     return dependencies

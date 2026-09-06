@@ -10,6 +10,7 @@ See also: :mod:`pitloom.assemble.spdx3.deps` for the public facade and PyPI enri
 
 from __future__ import annotations
 
+import logging
 from importlib.metadata import PackageMetadata, PackageNotFoundError
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
@@ -35,6 +36,8 @@ _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
 _DOWNLOAD_LABELS = ("download",)
 
+log = logging.getLogger(__name__)
+
 
 def _parse_dep_name(dep: str) -> str:
     """Return the bare package name from a PEP 508 dependency specifier."""
@@ -55,32 +58,57 @@ def _resolve_version(
 
     An exact ``==``/``===`` pin already present in *dep* -- e.g. a resolved
     ``poetry.lock`` entry, or any dependency the project itself pins
-    exactly -- is authoritative and checked first. Likewise, a *locked_version*
-    provided by a project lock file (PEP 751 ``pylock.toml``, ``uv.lock``,
-    ``poetry.lock``, etc.) for a direct dependency declared as a range (e.g.
-    ``requests>=2.0``) is authoritative over the host environment. Both reflect
-    a decision resolved by the dependency's own data sources and must never be
-    silently overridden by whatever happens to be installed in Pitloom's own
-    execution environment, which has no relationship to the target project's
-    environment. The installed-environment lookup is a fallback for the case
-    where neither pins an exact version.
+    exactly -- is authoritative and checked first: it reflects a decision
+    already resolved by the dependency's own source and must never be
+    silently overridden by whatever happens to be installed in Pitloom's
+    own execution environment or a conflicting lock file entry.
+
+    Likewise, a *locked_version* provided by a project lock file (PEP 751
+    ``pylock.toml``, ``uv.lock``, ``poetry.lock``, etc.) for a direct dependency
+    declared as a range or unpinned (e.g. ``requests>=2.0``) is authoritative
+    over the host environment. When it does not satisfy the declared constraint
+    in *dep*, a warning is emitted.
+
+    The installed-environment lookup is a fallback for the case where neither
+    pins an exact version.
     """
+    req: Requirement | None = None
     try:
-        pinned = [
-            spec.version
-            for spec in Requirement(dep).specifier
-            if spec.operator in ("==", "===")
-        ]
+        req = Requirement(dep)
     except InvalidRequirement:
-        pinned = []
         unparseable = True
     else:
         unparseable = False
-    if pinned:
-        return pinned[0], None
+
+    if req is not None:
+        pinned = [
+            spec.version for spec in req.specifier if spec.operator in ("==", "===")
+        ]
+        if pinned:
+            if locked_version is not None and locked_version != pinned[0]:
+                log.warning(
+                    "Locked version %r for dependency %r conflicts with declared"
+                    " exact pin %r -- using declared pin",
+                    locked_version,
+                    dep_name,
+                    pinned[0],
+                )
+            return pinned[0], None
 
     if locked_version is not None:
-        return locked_version, None
+        if (
+            req is not None
+            and req.specifier
+            and not req.specifier.contains(locked_version, prereleases=True)
+        ):
+            log.warning(
+                "Locked version %r for dependency %r does not satisfy declared"
+                " constraint %r -- using locked version",
+                locked_version,
+                dep_name,
+                dep,
+            )
+        return locked_version, "Version resolved: Project lock file"
 
     try:
         return get_package_version(dep_name), (

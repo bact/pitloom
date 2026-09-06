@@ -104,7 +104,7 @@ def test_metadata_table_missing_lock_version_returns_none_and_warns(
         assert "doesn't look like a genuine pdm.lock" in caplog.text
 
 
-def test_malformed_toml_returns_empty_list_and_warns(
+def test_malformed_toml_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -114,11 +114,11 @@ def test_malformed_toml_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pdm_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "Failed to parse" in caplog.text
 
 
-def test_package_key_not_a_list_returns_empty_list_and_warns(
+def test_package_key_not_a_list_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -128,7 +128,7 @@ def test_package_key_not_a_list_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pdm_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "expected a list" in caplog.text
 
 

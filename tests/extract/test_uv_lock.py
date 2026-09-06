@@ -47,7 +47,7 @@ def test_no_lock_file_returns_none() -> None:
         assert extract_uv_lock_dependencies(Path(tmp)) is None
 
 
-def test_malformed_toml_returns_empty_list_and_warns(
+def test_malformed_toml_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -57,11 +57,11 @@ def test_malformed_toml_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_uv_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "Failed to parse" in caplog.text
 
 
-def test_package_key_not_a_list_returns_empty_list_and_warns(
+def test_package_key_not_a_list_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -71,11 +71,11 @@ def test_package_key_not_a_list_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_uv_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "expected a list" in caplog.text
 
 
-def test_no_root_package_returns_empty_list_and_warns(
+def test_no_root_package_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A uv.lock with no `editable`/`virtual`-sourced entry has no
@@ -92,7 +92,7 @@ def test_no_root_package_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_uv_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "no project package found" in caplog.text
 
 
@@ -123,7 +123,7 @@ def test_empty_string_expected_name_falls_back_to_pyproject_toml() -> None:
         ]
 
 
-def test_root_dependencies_not_a_list_returns_empty_list_and_warns(
+def test_root_dependencies_not_a_list_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -137,7 +137,7 @@ def test_root_dependencies_not_a_list_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_uv_lock_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "expected a list" in caplog.text
 
 
@@ -163,6 +163,28 @@ def test_simple_dependency_resolved() -> None:
         )
 
         assert extract_uv_lock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
+def test_dependency_with_extra_traverses_optional_dependencies() -> None:
+    """When a dependency specifies an extra (e.g. coverage[toml]), dependencies
+    under pkg['optional-dependencies'][extra] are traversed and resolved."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER
+            + 'dependencies = [{ name = "coverage", extra = ["toml"] }]\n\n'
+            '[[package]]\nname = "coverage"\nversion = "7.5.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "[package.optional-dependencies]\n"
+            'toml = [{ name = "tomli" }]\n\n'
+            '[[package]]\nname = "tomli"\nversion = "2.0.1"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+
+        assert sorted(result or []) == ["coverage==7.5.0", "tomli==2.0.1"]
 
 
 def test_dependency_with_marker_but_no_inline_version_still_resolved() -> None:

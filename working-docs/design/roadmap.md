@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-05
+Last-Modified: 2026-09-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -164,6 +164,16 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   for the two formats with their own dedicated doc.
   [lock-files.md](./lock-files.md) (`pixi.lock`/`conda-lock.yml`
   remain future work there, Phase 2).
+- [ ] **CLI option `--no-locked-dependencies`** -- opt-out flag and
+  `[tool.pitloom] locked-dependencies = false` configuration allowing users
+  and CI pipelines to disable automatic lock file discovery, falling back to
+  direct dependencies and environment introspection. Wire across CLI,
+  library API, and build backend hooks.
+- [ ] **Preserve lockfile hashes in `--offline` mode** -- retain package
+  SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
+  `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3
+  `verifiedUsing` integrity checksums without requiring online PyPI JSON API
+  enrichment lookups.
 
 ### PEP 770 / embed-wheel
 

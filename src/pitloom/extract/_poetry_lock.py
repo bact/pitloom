@@ -25,13 +25,17 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from pitloom.extract._lock_common import (
     default_group_included,
+    group_versions_by_canonical_name,
     has_required_top_level_table,
     load_lock_toml,
     shape_validated_package,
+    warn_conflicting_versions,
     warn_non_registry_source,
+    warn_not_genuine_lock_file,
     warn_top_level_key_wrong_type,
 )
 
@@ -54,21 +58,16 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
     packages.
 
     Packages belonging only to a non-``main`` group (``[tool.poetry.group.dev]``
-    and similar) are excluded, matching the same "not a runtime dependency
-    of the package" policy already applied to direct dependencies -- see
-    "Dependency groups" in ``working-docs/implementation/poetry-support.md``.
-    A package listed under both ``main`` and another group still counts.
+    and similar) or marked ``optional = true`` (optional/extras dependencies)
+    are excluded from the base runtime dependency set. A package listed under
+    both ``main`` and another group still counts.
     """
     lock_path = project_dir / "poetry.lock"
     data = load_lock_toml(lock_path)
     if data is None:
         return None
     if not has_required_top_level_table(data, "metadata", "lock-version", str):
-        log.warning(
-            "%s: no top-level 'metadata' table with a 'lock-version' key -- "
-            "doesn't look like a genuine poetry.lock, ignoring",
-            lock_path,
-        )
+        warn_not_genuine_lock_file(lock_path, "metadata", "lock-version", "poetry.lock")
         return None
 
     packages = data.get("package", [])
@@ -78,21 +77,31 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
         )
         return None
 
+    main_group_packages = [
+        pkg
+        for pkg in (_main_group_package_or_none(raw) for raw in packages)
+        if pkg is not None
+    ]
+
+    pairs = [(pkg["name"], pkg["version"]) for pkg in main_group_packages]
+
     dependencies: list[str] = []
-    for pkg in packages:
-        dep = _pinned_dep_for_package(pkg)
-        if dep is not None:
-            dependencies.append(dep)
+    for group in group_versions_by_canonical_name(pairs).values():
+        name, version = group[0]
+        conflicting_versions = {v for _, v in group}
+        if len(conflicting_versions) > 1:
+            warn_conflicting_versions("poetry.lock", name, conflicting_versions)
+            continue
+        dependencies.append(f"{name}=={version}")
     return dependencies
 
 
 _NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
 
 
-def _pinned_dep_for_package(pkg: object) -> str | None:
-    """Return ``name==version`` for one ``[[package]]`` table entry, or
-    ``None`` when it's malformed, not in the ``main`` group, or sourced
-    from a non-PyPI location that ``name==version`` can't represent.
+def _main_group_package_or_none(pkg: object) -> dict[str, Any] | None:
+    """Return *pkg* when it's a well-formed, non-optional, main-group,
+    registry-sourced entry -- ``None`` otherwise.
 
     Mirrors the skip policy :func:`pitloom.extract._poetry._poetry_dep_to_pep508`
     already applies to direct ``[tool.poetry.dependencies]`` entries: a
@@ -104,8 +113,9 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
     if validated is None:
         return None
     name = validated["name"]
-    version = validated["version"]
 
+    if validated.get("optional") is True:
+        return None
     if not default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name):
         return None
     source = validated.get("source")
@@ -113,4 +123,4 @@ def _pinned_dep_for_package(pkg: object) -> str | None:
     if isinstance(source_type, str) and source_type in _NON_PEP508_SOURCE_TYPES:
         warn_non_registry_source("poetry.lock", name, source_type)
         return None
-    return f"{name}=={version}"
+    return validated

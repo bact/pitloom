@@ -16,16 +16,11 @@ pinned ``requirements.txt``) predate PEP 621 almost entirely and pair
 with a bare ``setup.py`` in real projects, never a ``pyproject.toml``,
 so a cascade wired only inside ``read_pyproject()`` would never see them.
 
-``poetry.lock`` has no extractor entry in :data:`_LOCK_SOURCES` -- it
-stays gated inside
-:func:`pitloom.extract._pyproject._try_read_poetry`'s
-``include_locked_dependencies`` build-stage flag, since it only ever
-makes sense alongside a ``[tool.poetry]`` table, which requires
-``pyproject.toml`` to exist regardless, so it's applied earlier, before
-this cascade runs. It *is* still listed in :data:`_LOCK_SOURCES`, as a
-placeholder entry with no extractor, purely to fix its rank in the one
-priority order every source (cascade-tried or not) is compared against
--- see :func:`apply_locked_dependencies`.
+``poetry.lock`` is registered in :data:`_LOCK_SOURCES` with an extractor so
+that Poetry 2.0+ PEP 621 projects (which lack a ``[tool.poetry]`` table) and
+``setup.py`` projects discover ``poetry.lock`` through this cascade. When
+``_try_read_poetry()`` already applied ``poetry.lock`` during pyproject reading,
+this cascade preserves that result without redundant re-extraction.
 """
 
 from __future__ import annotations
@@ -39,6 +34,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.extract._lock_common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
 from pitloom.extract._pipfile_lock import extract_pipfile_lock_dependencies
+from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
 from pitloom.extract._pylock import extract_pylock_dependencies
 from pitloom.extract._requirements_txt import extract_pinned_requirements_dependencies
 from pitloom.extract._uv_lock import extract_uv_lock_dependencies
@@ -85,7 +81,11 @@ _LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
         "resolved_lockfile",
     ),
     ("uv.lock", extract_uv_lock_dependencies, "resolved_lockfile"),
-    (POETRY_LOCK_SOURCE_NAME, None, None),
+    (
+        POETRY_LOCK_SOURCE_NAME,
+        _ignore_expected_name(extract_poetry_lock_dependencies),
+        "resolved_lockfile",
+    ),
     (
         "pdm.lock",
         _ignore_expected_name(extract_pdm_lock_dependencies),
@@ -175,7 +175,10 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
 
     for rank, (source_name, extractor, method) in enumerate(_LOCK_SOURCES):
         if extractor is None:
-            continue  # e.g. poetry.lock: applied earlier, not tried here
+            continue
+        if previous_source == source_name:
+            # Already extracted and set (e.g. by _try_read_poetry); keep it.
+            return
         if previous_rank is not None and rank > previous_rank:
             # Every remaining entry ranks below whatever's already set --
             # none of them can win, so stop instead of scanning further.

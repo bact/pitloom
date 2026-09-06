@@ -300,6 +300,11 @@ def test_single_exact_pin_accepts_exact_operators(operator: str) -> None:
     assert single_exact_pin(SpecifierSet(f"{operator}2.31.0")) == "2.31.0"
 
 
+def test_single_exact_pin_accepts_arbitrary_equality_non_pep440_version() -> None:
+    """The === operator explicitly supports non-PEP 440 version strings."""
+    assert single_exact_pin(SpecifierSet("===2021.01.01-legacy")) == "2021.01.01-legacy"
+
+
 def test_single_exact_pin_rejects_wildcard() -> None:
     assert single_exact_pin(SpecifierSet("==2.31.*")) is None
 

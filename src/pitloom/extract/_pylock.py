@@ -38,6 +38,7 @@ from pitloom.extract._lock_common import (
     group_versions_by_canonical_name,
     load_lock_toml,
     shape_validated_package,
+    warn_conflicting_versions,
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
@@ -166,11 +167,7 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
         name, version = group[0]
         conflicting_versions = {v for _, v in group}
         if len(conflicting_versions) > 1:
-            log.warning(
-                "Skipping pylock.toml entry %r: pinned to conflicting versions (%s)",
-                name,
-                ", ".join(sorted(conflicting_versions)),
-            )
+            warn_conflicting_versions("pylock.toml", name, conflicting_versions)
             continue
         dependencies.append(f"{name}=={version}")
     return dependencies
@@ -296,7 +293,8 @@ def _group_marker_excludes(
     try:
         # pylint: disable=protected-access
         tree = Marker(marker_str)._markers  # noqa: SLF001
-    except InvalidMarker as exc:
+        return _evaluate_group_node(tree, environment) is False
+    except (InvalidMarker, RecursionError, TypeError, ValueError) as exc:
         log.warning(
             "Skipping pylock.toml entry %r's 'marker' %r: %s -- treating "
             "as an unconstrained (included) marker",
@@ -305,7 +303,6 @@ def _group_marker_excludes(
             exc,
         )
         return False
-    return _evaluate_group_node(tree, environment) is False
 
 
 def _pinned_pair_for_package(

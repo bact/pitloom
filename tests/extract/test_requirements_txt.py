@@ -122,7 +122,7 @@ def test_duplicate_name_conflicting_versions_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "conflicting versions" in caplog.text
         assert "requests" in caplog.text
 
@@ -151,11 +151,11 @@ def test_duplicate_name_different_casing_conflicting_versions_disqualifies_whole
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "conflicting versions" in caplog.text
 
 
-def test_undecodable_file_returns_empty_list_and_warns(
+def test_undecodable_file_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -165,8 +165,8 @@ def test_undecodable_file_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
-        assert "Failed to read" in caplog.text
+        assert result is None
+        assert "Failed to parse" in caplog.text
 
 
 def test_three_way_duplicate_conflicting_versions_disqualifies_whole_file(
@@ -181,7 +181,7 @@ def test_three_way_duplicate_conflicting_versions_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "conflicting versions" in caplog.text
 
 
@@ -243,7 +243,7 @@ def test_hash_annotated_continuation_still_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "malformed requirement line" in caplog.text
 
 
@@ -257,7 +257,7 @@ def test_unpinned_bare_name_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "isn't pinned to a single exact version" in caplog.text
 
 
@@ -274,7 +274,7 @@ def test_ranged_specifier_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "isn't pinned to a single exact version" in caplog.text
 
 
@@ -288,7 +288,7 @@ def test_prefix_match_specifier_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "isn't pinned to a single exact version" in caplog.text
 
 
@@ -314,7 +314,7 @@ def test_url_requirement_disqualifies_whole_file_even_when_tag_shaped(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "direct URL reference" in caplog.text
 
 
@@ -332,8 +332,30 @@ def test_option_line_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "isn't fully pinned" in caplog.text
+
+
+def test_option_line_with_credentials_redacts_line_in_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Option lines containing credentials (e.g. basic auth in --extra-index-url)
+    must only log the option token, never the URL or credentials."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_requirements(
+            tmp_path,
+            "idna==3.7\n"
+            "--extra-index-url https://user:secret_token@custom-pypi.org/simple\n",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pinned_requirements_dependencies(tmp_path)
+
+        assert result is None
+        assert "--extra-index-url" in caplog.text
+        assert "secret_token" not in caplog.text
+        assert "user" not in caplog.text
 
 
 def test_bare_url_and_legacy_vcs_syntax_disqualify_as_malformed(
@@ -353,7 +375,7 @@ def test_bare_url_and_legacy_vcs_syntax_disqualify_as_malformed(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "malformed requirement line" in caplog.text
 
 
@@ -367,7 +389,7 @@ def test_malformed_requirement_line_disqualifies_whole_file(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
+        assert result is None
         assert "malformed requirement line" in caplog.text
 
 
@@ -385,7 +407,7 @@ def test_first_disqualifying_line_named_in_warning(
         assert "urllib3" not in caplog.text
 
 
-def test_unreadable_file_returns_empty_list_and_warns(
+def test_unreadable_file_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp:
@@ -396,8 +418,8 @@ def test_unreadable_file_returns_empty_list_and_warns(
         with caplog.at_level(logging.WARNING):
             result = extract_pinned_requirements_dependencies(tmp_path)
 
-        assert not result
-        assert "Failed to read" in caplog.text
+        assert result is None
+        assert "Failed to parse" in caplog.text
 
 
 # --- read_project() cascade integration -------------------------------

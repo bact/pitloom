@@ -180,12 +180,18 @@ def test_real_world_fastapi_cli() -> None:
     names = {dep.split("==", maxsplit=1)[0] for dep in metadata.locked_dependencies}
     assert names == {
         "annotated-doc",
+        "anyio",
         "click",
         "colorama",
+        "exceptiongroup",
         "h11",
+        "httptools",
+        "idna",
         "markdown-it-py",
         "mdurl",
         "pygments",
+        "python-dotenv",
+        "pyyaml",
         "rich",
         "rich-toolkit",
         "shellingham",
@@ -193,6 +199,9 @@ def test_real_world_fastapi_cli() -> None:
         "typer",
         "typing-extensions",
         "uvicorn",
+        "uvloop",
+        "watchfiles",
+        "websockets",
     }
 
 

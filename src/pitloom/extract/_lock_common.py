@@ -44,10 +44,12 @@ __all__ = [
     "load_lock_toml",
     "shape_validated_package",
     "single_exact_pin",
+    "warn_conflicting_versions",
     "warn_malformed_entry_not_table",
     "warn_missing_name",
     "warn_missing_version",
     "warn_non_registry_source",
+    "warn_not_genuine_lock_file",
     "warn_top_level_key_wrong_type",
 ]
 
@@ -283,6 +285,39 @@ def single_exact_pin(specifier_set: SpecifierSet) -> str | None:
     ):
         return None
     return specifiers[0].version
+
+
+def warn_conflicting_versions(
+    lock_file: str, name: str, conflicting_versions: Iterable[str]
+) -> None:
+    """Log the standard ``WARNING:`` when multiple variants of a package disagree
+    on version in a lock file."""
+    log.warning(
+        "Skipping %s entry %r: pinned to conflicting versions (%s)",
+        lock_file,
+        name,
+        ", ".join(sorted(conflicting_versions)),
+    )
+
+
+def warn_not_genuine_lock_file(
+    lock_path: Path,
+    table_key: str,
+    required_key: str,
+    lock_file: str,
+    container_type: str = "table",
+) -> None:
+    """Log the standard ``WARNING:`` when a lock file lacks required top-level
+    metadata."""
+    log.warning(
+        "%s: no top-level %r %s with a %r key -- "
+        "doesn't look like a genuine %s, ignoring",
+        lock_path,
+        table_key,
+        container_type,
+        required_key,
+        lock_file,
+    )
 
 
 def warn_non_registry_source(lock_file: str, name: str, source_key: str) -> None:
