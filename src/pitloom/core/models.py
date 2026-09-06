@@ -64,7 +64,7 @@ def normalize_dependency_specifier(dep: str) -> str:
 def build_pypi_purl(name: str, version: str | None) -> str:
     """Return a canonical ``pkg:pypi/<name>[@<version>]`` Package URL."""
     base = f"pkg:pypi/{canonicalize_name(name)}"
-    return f"{base}@{version}" if version else base
+    return f"{base}@{version}" if version and version != "unknown" else base
 
 
 def _clear_doc_counters(doc_uuid: str) -> None:

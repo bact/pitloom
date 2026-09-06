@@ -39,6 +39,7 @@ __all__ = [
     "group_versions_by_canonical_name",
     "has_required_top_level_table",
     "index_packages_by_name",
+    "is_same_version",
     "is_usable_version",
     "load_lock_json",
     "load_lock_toml",
@@ -258,15 +259,32 @@ def group_versions_by_canonical_name(
 _EXACT_PIN_OPERATORS = frozenset({"==", "==="})
 
 
-def single_exact_pin(specifier_set: SpecifierSet) -> str | None:
-    """Return the bare version when *specifier_set* contains exactly one
-    non-wildcard exact-pin specifier (``==`` or PEP 440's arbitrary-
-    equality ``===``, e.g. ``SpecifierSet("==2.31.0")`` -> ``"2.31.0"``),
-    or ``None`` for anything looser than one exact pin -- a range, more
-    than one specifier, or a prefix-match wildcard like ``"==2.31.*"``
-    (``packaging.specifiers.Specifier`` reports that as operator ``"=="``
-    too, but it pins a *range* of versions, not one exact release --
-    ``===`` has no wildcard form, so this check only matters for ``==``).
+def is_same_version(v1: str, v2: str) -> bool:
+    """Return whether two version strings represent the same release.
+
+    Uses :class:`packaging.version.Version` comparison so PEP 440
+    equivalences (e.g. ``"1.0" == "1.0.0"``) compare equal rather than
+    triggering spurious version-conflict warnings. Falls back to exact
+    string comparison when either string is not a valid PEP 440 version
+    (e.g. arbitrary-equality ``===`` strings).
+    """
+    try:
+        return Version(v1) == Version(v2)
+    except InvalidVersion:
+        return v1 == v2
+
+
+def single_exact_pin(specifier_set: SpecifierSet) -> tuple[str, str] | None:
+    """Return ``(operator, version)`` when *specifier_set* contains exactly
+    one non-wildcard exact-pin specifier (``==`` or PEP 440's arbitrary-
+    equality ``===``, e.g. ``SpecifierSet("==2.31.0")`` ->
+    ``("==", "2.31.0")``, ``SpecifierSet("===2021.01.01-legacy")`` ->
+    ``("===", "2021.01.01-legacy")``), or ``None`` for anything looser than
+    one exact pin -- a range, more than one specifier, or a prefix-match
+    wildcard like ``"==2.31.*"`` (``packaging.specifiers.Specifier`` reports
+    that as operator ``"=="`` too, but it pins a *range* of versions, not
+    one exact release -- ``===`` has no wildcard form, so this check only
+    matters for ``==``).
 
     Doesn't itself construct *specifier_set* from a raw string --
     :mod:`pitloom.extract._pipfile_lock` and
@@ -284,7 +302,7 @@ def single_exact_pin(specifier_set: SpecifierSet) -> str | None:
         or "*" in specifiers[0].version
     ):
         return None
-    return specifiers[0].version
+    return specifiers[0].operator, specifiers[0].version
 
 
 def warn_conflicting_versions(

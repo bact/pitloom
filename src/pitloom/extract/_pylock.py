@@ -49,9 +49,9 @@ __all__ = ["extract_pylock_dependencies"]
 
 _NON_REGISTRY_SOURCE_KEYS = ("vcs", "directory", "archive")
 
-#: PEP 751 pseudo-environment marker variables naming which
-#: extras/dependency-groups are active for a given consumption -- the
-#: only two this extractor's marker handling understands (see
+#: PEP 751 and PEP 508 marker variables naming which extras/
+#: dependency-groups are active for a given consumption -- the only ones
+#: this extractor's marker handling understands (see
 #: :func:`_group_marker_excludes`). Every other PEP 508 marker variable
 #: (``python_version``, ``sys_platform``, etc.) is deliberately left
 #: unevaluated, the same "no marker evaluation" limitation this format
@@ -59,7 +59,7 @@ _NON_REGISTRY_SOURCE_KEYS = ("vcs", "directory", "archive")
 #: Pitloom's own running interpreter/platform would make the SBOM's
 #: contents depend on which machine generated it, violating this repo's
 #: determinism requirement.
-_GROUP_MARKER_VARIABLES = frozenset({"extras", "dependency_groups"})
+_GROUP_MARKER_VARIABLES = frozenset({"extra", "extras", "dependency_groups"})
 
 #: The highest ``lock-version`` this extractor understands, as
 #: ``(major, minor)``. PEP 751 defines only ``"1.0"`` to date. A
@@ -201,13 +201,13 @@ def _evaluate_group_leaf(
     node: tuple[Any, Any, Any], environment: dict[str, frozenset[str]]
 ) -> bool | None:
     """Evaluate one marker leaf ``(lhs, op, rhs)`` against *environment*,
-    or ``None`` ("unknown") when it isn't an ``in``/``not in`` clause
-    naming a ``extras``/``dependency_groups`` variable -- see
-    :func:`_group_marker_excludes` for why every other PEP 508 marker
+    or ``None`` ("unknown") when it isn't an ``in``/``not in``/``==``/``!=``
+    clause naming an ``extra``/``extras``/``dependency_groups`` variable --
+    see :func:`_group_marker_excludes` for why every other PEP 508 marker
     variable is treated as unknown rather than really evaluated."""
     lhs, raw_op, rhs = node
     op = str(raw_op)
-    if op not in ("in", "not in"):
+    if op not in ("in", "not in", "==", "!="):
         return None
     lhs_str, rhs_str = str(lhs), str(rhs)
     if rhs_str in _GROUP_MARKER_VARIABLES:
@@ -216,8 +216,13 @@ def _evaluate_group_leaf(
         variable, literal = lhs_str, rhs_str
     else:
         return None
-    member = literal in environment[variable]
-    return member if op == "in" else not member
+
+    env_key = "extras" if variable == "extra" else variable
+    active_set = environment.get(env_key, frozenset())
+    member = literal in active_set
+    if op in ("in", "=="):
+        return member
+    return not member
 
 
 def _all3(values: list[bool | None]) -> bool | None:

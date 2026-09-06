@@ -153,6 +153,11 @@ def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority()
             "Source: pylock.toml | Method: resolved_lockfile"
         )
 
+        (tmp_path / "pylock.toml").unlink()
+        metadata_uv = ProjectMetadata(name="demo")
+        apply_locked_dependencies(metadata_uv, tmp_path)
+        assert metadata_uv.locked_dependencies == ["requests==2.31.0"]
+
 
 def test_read_project_applies_cascade_for_setup_py_only_project() -> None:
     """Regression: a project with no `pyproject.toml` at all -- just a

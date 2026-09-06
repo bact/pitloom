@@ -125,7 +125,9 @@ def _scan_packages(
 
 
 def _find_root_package(
-    candidates: list[dict[str, Any]], expected_name: str | None
+    candidates: list[dict[str, Any]],
+    expected_name: str | None,
+    lock_path: Path | None = None,
 ) -> dict[str, Any] | None:
     """Return the entry in *candidates* (every ``editable``/``virtual``-
     sourced ``[[package]]`` entry, from :func:`_scan_packages`) that is
@@ -153,10 +155,12 @@ def _find_root_package(
                 return pkg
 
     if len(candidates) > 1:
+        prefix = f"{lock_path}: " if lock_path is not None else ""
         log.warning(
-            "%d candidate local/workspace package entries found in "
+            "%s%d candidate local/workspace package entries found in "
             "uv.lock but none named %r -- can't determine which is this "
             "project's own; ignoring uv.lock",
+            prefix,
             len(candidates),
             expected_name,
         )
@@ -288,11 +292,21 @@ def _enqueue_requested_extras(
     if not isinstance(opt_deps_map, dict):
         return
     for extra_name in requested_extras:
-        extra_key = (canonical_name, extra_name)
+        extra_canon = canonicalize_name(extra_name)
+        extra_key = (canonical_name, extra_canon)
         if extra_key in visited_extras:
             continue
         visited_extras.add(extra_key)
-        extra_deps = opt_deps_map.get(extra_name, [])
+        extra_deps = opt_deps_map.get(extra_name)
+        if extra_deps is None:
+            extra_deps = next(
+                (
+                    v
+                    for k, v in opt_deps_map.items()
+                    if canonicalize_name(k) == extra_canon
+                ),
+                [],
+            )
         if isinstance(extra_deps, list):
             queue.extend(extra_deps)
 
@@ -375,7 +389,7 @@ def extract_uv_lock_dependencies(
         # have done for an explicit `None` -- an empty name could never
         # usefully match a real workspace member's name anyway.
         expected_name = _expected_project_name(project_dir)
-    root = _find_root_package(root_candidates, expected_name)
+    root = _find_root_package(root_candidates, expected_name, lock_path=lock_path)
     if root is None:
         log.warning(
             "%s: no project package found (no 'editable'/'virtual' "

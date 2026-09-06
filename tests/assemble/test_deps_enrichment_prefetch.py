@@ -89,6 +89,32 @@ def test_prefetch_pypi_release_infos_dedupes_same_name_version(
     assert call_count == 1
 
 
+def test_prefetch_pypi_release_infos_dedupes_canonical_name_variants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_count = 0
+    requested_names: list[str] = []
+
+    def _counting_fetch(name: str, _version: str | None) -> dict[str, Any]:
+        nonlocal call_count
+        call_count += 1
+        requested_names.append(name)
+        return {"info": {}}
+
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _counting_fetch)
+
+    _prefetch_pypi_release_infos(
+        [
+            ("Flask", "1.0.0"),
+            ("flask", "1.0.0"),
+            ("pydantic-core", "2.0.0"),
+            ("pydantic_core", "2.0.0"),
+        ]
+    )
+    assert call_count == 2
+    assert set(requested_names) == {"flask", "pydantic-core"}
+
+
 def test_prefetch_pypi_release_infos_normalizes_unknown_to_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

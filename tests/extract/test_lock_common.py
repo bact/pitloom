@@ -21,6 +21,7 @@ from pitloom.extract._lock_common import (
     group_versions_by_canonical_name,
     has_required_top_level_table,
     index_packages_by_name,
+    is_same_version,
     is_usable_version,
     load_lock_json,
     load_lock_toml,
@@ -297,12 +298,27 @@ def test_default_group_included_not_a_list_returns_none_and_warns(
 
 @pytest.mark.parametrize("operator", ["==", "==="])
 def test_single_exact_pin_accepts_exact_operators(operator: str) -> None:
-    assert single_exact_pin(SpecifierSet(f"{operator}2.31.0")) == "2.31.0"
+    assert single_exact_pin(SpecifierSet(f"{operator}2.31.0")) == (operator, "2.31.0")
 
 
 def test_single_exact_pin_accepts_arbitrary_equality_non_pep440_version() -> None:
     """The === operator explicitly supports non-PEP 440 version strings."""
-    assert single_exact_pin(SpecifierSet("===2021.01.01-legacy")) == "2021.01.01-legacy"
+    assert single_exact_pin(SpecifierSet("===2021.01.01-legacy")) == (
+        "===",
+        "2021.01.01-legacy",
+    )
+
+
+def test_is_same_version_pep440_equivalences() -> None:
+    assert is_same_version("1.0", "1.0.0")
+    assert is_same_version("1.0.0", "1.0")
+    assert is_same_version("2.31.0", "2.31.0")
+    assert not is_same_version("1.0", "1.1")
+
+
+def test_is_same_version_non_pep440_fallback() -> None:
+    assert is_same_version("2021.01.01-legacy", "2021.01.01-legacy")
+    assert not is_same_version("2021.01.01-legacy", "2021.01.02-legacy")
 
 
 def test_single_exact_pin_rejects_wildcard() -> None:

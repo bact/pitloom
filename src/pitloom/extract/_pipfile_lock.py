@@ -42,11 +42,12 @@ import logging
 from pathlib import Path
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
-    group_versions_by_canonical_name,
     has_required_top_level_table,
+    is_same_version,
     load_lock_json,
     single_exact_pin,
     warn_conflicting_versions,
@@ -106,21 +107,30 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
         if pair is not None
     ]
 
+    by_canonical: dict[str, list[tuple[str, str, str]]] = {}
+    for name, op, version in pairs:
+        by_canonical.setdefault(canonicalize_name(name), []).append((name, op, version))
+
     dependencies: list[str] = []
-    for group in group_versions_by_canonical_name(pairs).values():
-        name, version = group[0]
-        conflicting_versions = {v for _, v in group}
-        if len(conflicting_versions) > 1:
-            warn_conflicting_versions("Pipfile.lock", name, conflicting_versions)
+    for group in by_canonical.values():
+        name, op, version = group[0]
+        conflicting_versions = {
+            v for _, _, v in group if not is_same_version(v, version)
+        }
+        if conflicting_versions:
+            all_versions = {v for _, _, v in group}
+            warn_conflicting_versions("Pipfile.lock", name, all_versions)
             continue
-        dependencies.append(f"{name}=={version}")
+        dependencies.append(f"{name}{op}{version}")
     return dependencies
 
 
-def _pinned_pair_for_package(name: object, entry: object) -> tuple[str, str] | None:
-    """Return ``(name, version)`` for one ``"default"``-section entry, or
+def _pinned_pair_for_package(
+    name: object, entry: object
+) -> tuple[str, str, str] | None:
+    """Return ``(name, op, version)`` for one ``"default"``-section entry, or
     ``None`` when it's malformed, non-registry-sourced, or its
-    ``version`` isn't a single exact ``==`` specifier.
+    ``version`` isn't a single exact specifier.
 
     Returning the raw pair (not the formatted ``name==version`` string)
     lets the caller group same-canonical-name entries via
@@ -157,16 +167,17 @@ def _pinned_pair_for_package(name: object, entry: object) -> tuple[str, str] | N
         # for every other format's presence-only check.
         warn_non_registry_source("Pipfile.lock", name, non_registry_key)
         return None
-    pinned_version = _exact_pinned_version(name, entry.get("version"))
-    if pinned_version is None:
+    pin = _exact_pinned_version(name, entry.get("version"))
+    if pin is None:
         return None
-    return name, pinned_version
+    op, pinned_version = pin
+    return name, op, pinned_version
 
 
-def _exact_pinned_version(name: str, version: object) -> str | None:
-    """Return the bare version string when *version* is a single exact
-    ``==`` PEP 440 specifier with no wildcard (e.g. ``"==2.31.0"`` ->
-    ``"2.31.0"``), or ``None`` (with a ``WARNING:``) when it's missing,
+def _exact_pinned_version(name: str, version: object) -> tuple[str, str] | None:
+    """Return ``(operator, version)`` when *version* is a single exact
+    ``==`` or ``===`` specifier with no wildcard (e.g. ``"==2.31.0"`` ->
+    ``("==", "2.31.0")``), or ``None`` (with a ``WARNING:``) when it's missing,
     unparseable, or anything looser than one exact pin -- including a
     prefix-match specifier like ``"==2.31.*"``, which
     ``packaging.specifiers.Specifier`` also reports as operator ``"=="``
@@ -190,13 +201,12 @@ def _exact_pinned_version(name: str, version: object) -> str | None:
             version,
         )
         return None
-    pinned_version = single_exact_pin(specifier_set)
-    if pinned_version is None:
+    pin = single_exact_pin(specifier_set)
+    if pin is None:
         log.warning(
-            "Skipping Pipfile.lock entry %r: 'version' %r isn't a single "
-            "exact '==' pin",
+            "Skipping Pipfile.lock entry %r: 'version' %r isn't a single exact pin",
             name,
             version,
         )
         return None
-    return pinned_version
+    return pin

@@ -70,7 +70,7 @@ _DEFAULT_GROUP = "default"
 #: every ordinary registry-resolved entry in this repo's two real
 #: pdm.lock fixtures, so including it here doesn't risk excluding a
 #: normal package.
-_NON_REGISTRY_KEYS = ("git", "url", "path")
+_NON_REGISTRY_KEYS = ("git", "hg", "svn", "bzr", "url", "path")
 
 
 def _default_group_package_or_none(pkg: object) -> dict[str, Any] | None:

@@ -133,26 +133,27 @@ def _prefetch_pypi_release_infos(
     semantics -- so two dependencies that both have an unresolved version
     share a single fetch instead of one per occurrence.
     """
-    canon_to_name: dict[tuple[str, str | None], tuple[str, str | None]] = {}
-    for name, version in name_versions:
-        norm_version = version if version != "unknown" else None
-        canon_key: tuple[str, str | None] = (
-            str(canonicalize_name(name)),
-            norm_version,
-        )
-        if canon_key not in canon_to_name:
-            canon_to_name[canon_key] = (name, norm_version)
-
-    if not canon_to_name:
+    canon_keys: set[tuple[str, str | None]] = {
+        (str(canonicalize_name(name)), version if version != "unknown" else None)
+        for name, version in name_versions
+    }
+    if not canon_keys:
         return {}
     results: dict[tuple[str, str | None], dict[str, Any] | None] = {}
     with ThreadPoolExecutor(
-        max_workers=min(_PYPI_MAX_CONCURRENT_FETCHES, len(canon_to_name))
+        max_workers=min(_PYPI_MAX_CONCURRENT_FETCHES, len(canon_keys))
     ) as pool:
         futures = {
-            pool.submit(_fetch_pypi_release_info, orig_name, norm_ver): k
-            for k, (orig_name, norm_ver) in canon_to_name.items()
+            pool.submit(_fetch_pypi_release_info, canon_name, norm_ver): (
+                canon_name,
+                norm_ver,
+            )
+            for canon_name, norm_ver in canon_keys
         }
         for future, k in futures.items():
-            results[k] = future.result()
+            try:
+                results[k] = future.result()
+            # pylint: disable-next=broad-exception-caught
+            except Exception:
+                results[k] = None
     return results

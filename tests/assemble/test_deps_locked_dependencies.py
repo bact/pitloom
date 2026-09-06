@@ -23,7 +23,11 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3.deps import add_dependencies
-from pitloom.assemble.spdx3.document import _locked_dependencies_completeness, build
+from pitloom.assemble.spdx3.document import (
+    _extract_locked_version_map,
+    _locked_dependencies_completeness,
+    build,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
@@ -403,3 +407,27 @@ def test_direct_dependency_range_resolves_to_locked_version_over_host_environmen
 
     assert packages["requests"]["software_packageVersion"] == "2.31.0"
     assert packages["urllib3"]["software_packageVersion"] == "2.2.0"
+
+
+def test_extract_locked_version_map_unpinned_does_not_leak_host_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_extract_locked_version_map must only extract exact pins from lock
+    entries, never falling back to host environment importlib.metadata."""
+    monkeypatch.setattr(deps_installed, "get_package_version", lambda _name: "9.9.9")
+
+    locked_map = _extract_locked_version_map(["unpinned-pkg", "range-dep>=1.0"])
+    assert locked_map == {}
+
+    pinned_map = _extract_locked_version_map(
+        [
+            "pinned-pkg==2.0.0",
+            "custom-pkg===legacy.1",
+            "unparseable-pkg===legacy.2; invalid @ marker",
+        ]
+    )
+    assert pinned_map == {
+        "pinned-pkg": "2.0.0",
+        "custom-pkg": "legacy.1",
+        "unparseable-pkg": "legacy.2",
+    }

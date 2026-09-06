@@ -336,7 +336,15 @@ def test_option_line_disqualifies_whole_file(
         assert "isn't fully pinned" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "option_line",
+    [
+        "--extra-index-url https://user:secret_token@custom-pypi.org/simple",
+        "--extra-index-url=https://user:secret_token@custom-pypi.org/simple",
+    ],
+)
 def test_option_line_with_credentials_redacts_line_in_log(
+    option_line: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Option lines containing credentials (e.g. basic auth in --extra-index-url)
@@ -345,8 +353,7 @@ def test_option_line_with_credentials_redacts_line_in_log(
         tmp_path = Path(tmp)
         _write_requirements(
             tmp_path,
-            "idna==3.7\n"
-            "--extra-index-url https://user:secret_token@custom-pypi.org/simple\n",
+            f"idna==3.7\n{option_line}\n",
         )
 
         with caplog.at_level(logging.WARNING):
@@ -356,6 +363,31 @@ def test_option_line_with_credentials_redacts_line_in_log(
         assert "--extra-index-url" in caplog.text
         assert "secret_token" not in caplog.text
         assert "user" not in caplog.text
+
+
+def test_malformed_url_with_credentials_redacts_credentials_in_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """URL requirements with basic auth must not leak passwords in logs."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_requirements(
+            tmp_path,
+            "https://user:secret_pass@example.com/pkg-1.0.whl\n",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pinned_requirements_dependencies(tmp_path)
+
+        assert result is None
+        assert "secret_pass" not in caplog.text
+        assert "://***:***@" in caplog.text
+
+
+def test_arbitrary_equality_operator_preserved_in_requirements(tmp_path: Path) -> None:
+    _write_requirements(tmp_path, "custom-pkg===2021.01.01-legacy\n")
+    result = extract_pinned_requirements_dependencies(tmp_path)
+    assert result == ["custom-pkg===2021.01.01-legacy"]
 
 
 def test_bare_url_and_legacy_vcs_syntax_disqualify_as_malformed(
@@ -472,13 +504,17 @@ def test_read_project_pipfile_lock_takes_priority_over_requirements_txt() -> Non
 # --- real-world fixtures -------------------------------------------------
 
 
-def test_real_world_home_assistant_core_rejects_partially_pinned_file() -> None:
-    """`home-assistant/core`'s real root `requirements.txt` mixes exact
-    pins with range specifiers -- the whole-file all-or-nothing policy
-    must reject it entirely, not partially include the pinned lines."""
-    metadata, _config, _path = read_project(
-        REAL_WORLD_LOCKS / "home-assistant-core-2026.9.0"
-    )
+def test_real_world_home_assistant_core_rejects_partially_pinned_file(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`home-assistant/core`'s real root `requirements.txt` contains
+    constraint-file options (`-c`) and mixed pins -- the whole-file
+    all-or-nothing policy must reject it entirely."""
+    with caplog.at_level(logging.WARNING):
+        metadata, _config, _path = read_project(
+            REAL_WORLD_LOCKS / "home-assistant-core-2026.9.0"
+        )
 
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
+    assert "option '-c' means this file isn't fully pinned" in caplog.text

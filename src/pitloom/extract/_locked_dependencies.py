@@ -63,18 +63,14 @@ def _ignore_expected_name(
     return lambda project_dir, _expected_name: extractor(project_dir)
 
 
-#: Full priority order (highest first) across every lock/pin source,
-#: including ``poetry.lock`` even though it has no extractor here (see
-#: the module docstring). Each entry is ``(source name, extractor or
-#: ``None``, provenance Method tag or ``None``)``. This is the single
+#: Full priority order (highest first) across every lock/pin source.
+#: Each entry is ``(source name, extractor, provenance Method tag)``.
+#: ``poetry.lock`` is registered with an extractor for Poetry 2.0+ and
+#: non-Poetry build backends, but bypassed when ``_try_read_poetry()``
+#: already extracted it during pyproject parsing. This is the single
 #: place the *complete* order is declared -- both which extractors this
-#: cascade tries, and where ``poetry.lock``'s already-applied result
-#: ranks relative to them -- so the two can never drift apart the way
-#: two independently-maintained lists could. See
-#: ``working-docs/design/roadmap.md``'s "Remaining lock formats" item
-#: for why this order was chosen (build-backend-agnostic and universal
-#: beats tool-specific; a real resolver lock beats a merely-pinned file).
-_LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
+#: cascade tries, and where ``poetry.lock`` ranks relative to them.
+_LOCK_SOURCES: list[tuple[str, _LockExtractor, str]] = [
     (
         "pylock.toml",
         _ignore_expected_name(extract_pylock_dependencies),
@@ -173,17 +169,10 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
             previous_source,
         )
 
-    for rank, (source_name, extractor, method) in enumerate(_LOCK_SOURCES):
-        if extractor is None:
-            continue
-        if previous_source == source_name:
-            # Already extracted and set (e.g. by _try_read_poetry); keep it.
-            return
-        if previous_rank is not None and rank > previous_rank:
-            # Every remaining entry ranks below whatever's already set --
-            # none of them can win, so stop instead of scanning further.
-            break
-
+    sources_to_try = (
+        _LOCK_SOURCES if previous_rank is None else _LOCK_SOURCES[:previous_rank]
+    )
+    for source_name, extractor, method in sources_to_try:
         dependencies = extractor(project_dir, metadata.name)
         if dependencies is None:
             continue

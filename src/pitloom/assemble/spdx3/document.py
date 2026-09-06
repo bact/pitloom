@@ -18,7 +18,7 @@ this module.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from packaging.utils import canonicalize_name
@@ -44,6 +44,7 @@ from pitloom.assemble.spdx3.deps import (
     add_dependencies,
     add_phantom_dependencies,
 )
+from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
 from pitloom.assemble.spdx3.deps_license import (
     _add_license_noassertion,
     build_license_elements,
@@ -115,7 +116,12 @@ def _build_main_package(
         main_package.software_downloadLocation = download_location
     if metadata.urls.get("Homepage"):
         main_package.software_homePage = metadata.urls.get("Homepage")
-    main_package.software_copyrightText = f"Copyright (c) {datetime.now().year} " + (
+    created = spdx_ci.created
+    if isinstance(created, datetime):
+        created_year = created.year
+    else:
+        created_year = datetime.now(timezone.utc).year
+    main_package.software_copyrightText = f"Copyright (c) {created_year} " + (
         metadata.authors[0].get("name", metadata.name)
         if metadata.authors
         else metadata.name
@@ -219,9 +225,9 @@ def _extract_locked_version_map(locked_dependencies: list[str]) -> dict[str, str
     result: dict[str, str] = {}
     for dep in locked_dependencies:
         dep_name = _parse_dep_name(dep)
-        version, _ = _resolve_version(dep_name, dep)
-        if version != "unknown":
-            result[canonicalize_name(dep_name)] = version
+        _req, pinned = _extract_exact_pin(dep)
+        if pinned is not None:
+            result[canonicalize_name(dep_name)] = pinned
     return result
 
 
@@ -410,7 +416,7 @@ def build(
         add_dependencies(
             dependencies=transitive_only,
             dep_provenance=metadata.provenance.get(
-                "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
+                "locked_dependencies", "Source: lock file"
             ),
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,

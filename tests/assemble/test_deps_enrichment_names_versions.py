@@ -134,6 +134,12 @@ def test_resolve_version_falls_back_to_naive_split_for_unparseable_dep() -> None
     assert version == "2.0"
     assert note is None
 
+    version_arb, note_arb = _resolve_version(
+        "not installed", "not installed===2021.01.01-legacy"
+    )
+    assert version_arb == "2021.01.01-legacy"
+    assert note_arb is None
+
 
 def test_resolve_version_exact_pin_wins_over_mismatched_installed_version(
     monkeypatch: pytest.MonkeyPatch,
@@ -380,6 +386,51 @@ def test_add_dependencies_dedupes_case_insensitive_name() -> None:
     django_packages = [p for p in packages if p.name in ("Django", "django")]
     assert len(django_packages) == 1
     assert django_packages[0].name == "Django"
+
+
+def test_add_dependencies_dedupes_separator_canonicalization() -> None:
+    """Dependencies declared with differing separators (e.g. pydantic-core vs
+    pydantic_core) at the same version must collapse into a single
+    software_Package node, preserving the first-seen raw name."""
+    doc_uuid = compute_doc_uuid("sepcanonical", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="sepcanonical", doc_uuid=doc_uuid),
+        name="sepcanonical",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["pydantic-core==1.0.0", "pydantic_core==1.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "sepcanonical",
+        doc_uuid,
+        exporter,
+        offline=True,
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    pydantic_packages = [
+        p for p in packages if p.name in ("pydantic-core", "pydantic_core")
+    ]
+    assert len(pydantic_packages) == 1
+    assert pydantic_packages[0].name == "pydantic-core"
+
+    depends_on_rels = [
+        o
+        for o in exporter.object_set.objects
+        if isinstance(o, spdx3.Relationship)
+        and o.relationshipType == spdx3.RelationshipType.dependsOn
+        and require_spdx_id(pydantic_packages[0]) in o.to
+    ]
+    assert len(depends_on_rels) == 1
 
 
 # ---------------------------------------------------------------------------

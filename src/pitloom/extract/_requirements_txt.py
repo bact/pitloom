@@ -53,9 +53,10 @@ import re
 from pathlib import Path
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
-    group_versions_by_canonical_name,
+    is_same_version,
     single_exact_pin,
 )
 
@@ -105,7 +106,7 @@ def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | N
         log.warning("Failed to parse %s: %s", lock_path, exc)
         return None
 
-    pins: list[tuple[str, str]] = []
+    pins: list[tuple[str, str, str]] = []
     for lineno, joined_line in _join_continuation_lines(raw_text):
         line = _COMMENT_RE.sub("", joined_line).strip()
         if not line:
@@ -150,18 +151,31 @@ def _join_continuation_lines(raw_text: str) -> list[tuple[int, str]]:
     return logical_lines
 
 
-def _collapse_or_none(lock_path: Path, pins: list[tuple[str, str]]) -> list[str] | None:
-    """Collapse *pins* to one ``name==version`` entry per PEP
+def _sanitize_credentials(text: str) -> str:
+    """Redact username and password from URLs in *text*."""
+    return re.sub(r"://([^:@/\s]+)(?::[^@/\s]*)?@", r"://***:***@", text)
+
+
+def _collapse_or_none(
+    lock_path: Path, pins: list[tuple[str, str, str]]
+) -> list[str] | None:
+    """Collapse *pins* to one ``name<op>version`` entry per PEP
     503-canonicalized name, preserving first-seen literal name and file
     order -- or ``None`` (with a ``WARNING:`` naming the name and both
     versions) the moment one canonicalized name repeats with two
     *different* versions. A plain repeated line (same name, same
     version) is silently collapsed to one entry.
     """
+    by_canonical: dict[str, list[tuple[str, str, str]]] = {}
+    for name, op, version in pins:
+        by_canonical.setdefault(canonicalize_name(name), []).append((name, op, version))
+
     result: list[str] = []
-    for group in group_versions_by_canonical_name(pins).values():
-        name, version = group[0]
-        conflicting = next((v for _, v in group if v != version), None)
+    for group in by_canonical.values():
+        name, op, version = group[0]
+        conflicting = next(
+            (v for _, _, v in group if not is_same_version(v, version)), None
+        )
         if conflicting is not None:
             log.warning(
                 "%s: %r pinned to conflicting versions (%s, %s) -- "
@@ -172,18 +186,18 @@ def _collapse_or_none(lock_path: Path, pins: list[tuple[str, str]]) -> list[str]
                 conflicting,
             )
             return None
-        result.append(f"{name}=={version}")
+        result.append(f"{name}{op}{version}")
     return result
 
 
 def _pinned_name_version_for_line(
     lock_path: Path, lineno: int, line: str
-) -> tuple[str, str] | None:
-    """Return ``(name, version)`` for a well-formed, exactly-pinned,
+) -> tuple[str, str, str] | None:
+    """Return ``(name, op, version)`` for a well-formed, exactly-pinned,
     non-URL requirement *line*, or ``None`` (having already logged the
     single ``WARNING:`` naming why) when it disqualifies the whole file."""
     if line.startswith(_OPTION_LINE_PREFIX):
-        option = line.split()[0]
+        option = line.split()[0].split("=")[0]
         log.warning(
             "%s:%d: option %r means this file isn't fully pinned -- "
             "ignoring requirements.txt",
@@ -195,11 +209,12 @@ def _pinned_name_version_for_line(
     try:
         requirement = Requirement(line)
     except InvalidRequirement as exc:
+        exc_msg = _sanitize_credentials(str(exc))
         log.warning(
             "%s:%d: malformed requirement line: %s -- ignoring requirements.txt",
             lock_path,
             lineno,
-            exc,
+            exc_msg,
         )
         return None
     if requirement.url is not None:
@@ -211,8 +226,8 @@ def _pinned_name_version_for_line(
             requirement.name,
         )
         return None
-    pinned_version = single_exact_pin(requirement.specifier)
-    if pinned_version is None:
+    pinned = single_exact_pin(requirement.specifier)
+    if pinned is None:
         log.warning(
             "%s:%d: %r isn't pinned to a single exact version -- "
             "ignoring requirements.txt",
@@ -221,4 +236,5 @@ def _pinned_name_version_for_line(
             requirement.name,
         )
         return None
-    return requirement.name, pinned_version
+    op, version = pinned
+    return requirement.name, op, version

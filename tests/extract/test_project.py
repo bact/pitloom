@@ -263,6 +263,9 @@ def test_read_project_include_locked_dependencies_false_skips_cascade(
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
 
+    normal_metadata, _, _ = read_project(tmp_path)
+    assert normal_metadata.locked_dependencies == ["requests==2.31.0"]
+
 
 def test_read_project_include_locked_dependencies_false_also_skips_poetry_lock(
     tmp_path: Path,
@@ -287,6 +290,9 @@ def test_read_project_include_locked_dependencies_false_also_skips_poetry_lock(
 
     assert metadata.locked_dependencies == []
     assert "locked_dependencies" not in metadata.provenance
+
+    normal_metadata, _, _ = read_project(tmp_path)
+    assert normal_metadata.locked_dependencies == ["requests==2.31.0"]
 
 
 @pytest.mark.parametrize(

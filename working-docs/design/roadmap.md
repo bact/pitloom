@@ -67,6 +67,11 @@ is not kept in sync with post-ship changes.
   Open follow-ups: [AI model id stability](#ai-model-id-stability-follow-up-to-178),
   [Sort-order canonicalization](#sort-order-canonicalization-follow-up-to-178)
   below. ([PR #178](https://github.com/bact/pitloom/pull/178))
+- [x] **Lock/pin formats as a resolved-dependency source** -- `poetry.lock`,
+  `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`, and pinned
+  `requirements.txt` feed `locked_dependencies` via one shared cascade
+  ([#208](https://github.com/bact/pitloom/pull/208)). See
+  [lock-file-cascade.md](../implementation/lock-file-cascade.md).
 
 ## Adoption surfaces
 
@@ -150,26 +155,12 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](./metadata-sources.md).
-- [x] **Lock/pin formats as a resolved-dependency source** -- done
-  (2026-08-31 through 2026-09-05): `poetry.lock`, `pylock.toml` (PEP
-  751), `uv.lock`, `pdm.lock`, `Pipfile.lock`, and pinned
-  `requirements.txt` all feed `ProjectMetadata.locked_dependencies`
-  via one shared priority cascade, closing
-  **"Remaining lock formats as a resolved-dependency source"**
-  ([#208](https://github.com/bact/pitloom/pull/208)). See
-  [lock-file-cascade.md](../implementation/lock-file-cascade.md) (the
-  cascade, priority order, and per-format details) and
-  [poetry-support.md](../implementation/poetry-support.md)/
-  [pep751-pylock-support.md](../implementation/pep751-pylock-support.md)
-  for the two formats with their own dedicated doc.
-  [lock-files.md](./lock-files.md) (`pixi.lock`/`conda-lock.yml`
-  remain future work there, Phase 2).
 - [ ] **CLI option `--no-locked-dependencies`** -- opt-out flag and
   `[tool.pitloom] locked-dependencies = false` configuration allowing users
   and CI pipelines to disable automatic lock file discovery, falling back to
   direct dependencies and environment introspection. Wire across CLI,
   library API, and build backend hooks.
-- [ ] **Preserve lockfile hashes in `--offline` mode** -- retain package
+- [ ] **Preserve lock file hashes in `--offline` mode** -- retain package
   SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
   `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3
   `verifiedUsing` integrity checksums without requiring online PyPI JSON API
