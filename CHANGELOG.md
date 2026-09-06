@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -41,6 +41,10 @@ and this project adheres to
 - Add PEP 639 `[project.license-files]` support: each declared license
   file gets a `software_File` element at the real wheel's
   `.dist-info/licenses/` path and a `hasDeclaredLicense` relationship ([#207])
+- Add resolved-dependency parsing for `loom project`/`loom generate`
+  from `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`,
+  and a fully pinned `requirements.txt` -- see [Dependency sources and
+  precedence](docs/dependency-sources.md) ([#208])
 
 ### Fixed
 
@@ -80,6 +84,7 @@ and this project adheres to
 [#204]: https://github.com/bact/pitloom/pull/204
 [#205]: https://github.com/bact/pitloom/pull/205
 [#207]: https://github.com/bact/pitloom/pull/207
+[#208]: https://github.com/bact/pitloom/pull/208
 
 ## [0.17.0] - 2026-08-30
 

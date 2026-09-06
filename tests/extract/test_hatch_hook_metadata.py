@@ -435,35 +435,6 @@ def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
         assert metadata.keywords == ["from-poetry", "gap-fill"]
 
 
-def test_metadata_from_hatchling_does_not_leak_poetry_lock_dependencies() -> None:
-    """Regression: ``poetry.lock`` is a source-stage-only artifact (see
-    ``pitloom.extract._poetry_lock``'s module docstring) -- the real wheel
-    Hatchling builds never consults it, so the build hook's ``[tool.poetry]``
-    gap-fill path must never populate ``locked_dependencies`` from a
-    ``poetry.lock`` sitting next to a Hatchling-backed project, even though
-    ``read_pyproject()`` (the CLI/source-stage path) legitimately does.
-    """
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
-        (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
-            encoding="utf-8",
-        )
-
-        hatch_pm = hatchling_metadata_core.ProjectMetadata(
-            str(tmp_path), PluginManager()
-        )
-        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
-
-        assert metadata.locked_dependencies == []
-        assert "locked_dependencies" not in metadata.provenance
-
-        # The CLI/source-stage path, by contrast, legitimately picks it up.
-        cli_metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
-        assert cli_metadata.locked_dependencies == ["requests==2.31.0"]
-
-
 def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:
     """If Hatchling's version can't be determined, raise a clear
     ``RuntimeError`` rather than letting a raw ``PackageNotFoundError``

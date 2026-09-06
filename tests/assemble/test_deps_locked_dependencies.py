@@ -18,10 +18,16 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3.deps import add_dependencies
-from pitloom.assemble.spdx3.document import build
+from pitloom.assemble.spdx3.document import (
+    _extract_locked_version_map,
+    _locked_dependencies_completeness,
+    build,
+)
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid
@@ -95,13 +101,16 @@ def test_add_dependencies_omitted_completeness_leaves_field_unset() -> None:
 
 def test_locked_dependencies_add_transitive_only_edges() -> None:
     """A locked (poetry.lock-resolved) package not already a direct
-    dependency gets an additive ``dependsOn`` edge tagged ``complete``;
-    the direct dependency's own edge is untouched (no ``completeness``)."""
+    dependency gets an additive ``dependsOn`` edge; completeness is
+    conservatively left unset to avoid overstating completeness."""
     project = ProjectMetadata(
         name="main-project",
         version="1.0.0",
         dependencies=["requests>=2.0"],
         locked_dependencies=["requests==2.31.0", "urllib3==2.2.0", "idna==3.7"],
+        provenance={
+            "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
+        },
     )
     doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
 
@@ -121,8 +130,79 @@ def test_locked_dependencies_add_transitive_only_edges() -> None:
 
     assert len(depends_on) == 3  # one edge per package, no duplicate for requests
     assert "completeness" not in depends_on[packages["requests"]["spdxId"]]
-    assert depends_on[packages["urllib3"]["spdxId"]]["completeness"] == "complete"
-    assert depends_on[packages["idna"]["spdxId"]]["completeness"] == "complete"
+    assert "completeness" not in depends_on[packages["urllib3"]["spdxId"]]
+    assert "completeness" not in depends_on[packages["idna"]["spdxId"]]
+
+
+def test_pinned_requirements_transitive_edges_leave_completeness_unset() -> None:
+    """Regression: pinned `requirements.txt` is just a list of exact-pin
+    lines a human or `pip freeze` wrote, with no resolver guarantee that
+    every real transitive dependency is present -- unlike a real
+    resolver lock (`poetry.lock`, `pylock.toml`, `uv.lock`, `pdm.lock`,
+    `Pipfile.lock`), its locked-only `dependsOn` edges must NOT be
+    tagged `complete`, which would overstate what the file actually
+    proves."""
+    project = ProjectMetadata(
+        name="main-project",
+        version="1.0.0",
+        dependencies=["requests>=2.0"],
+        locked_dependencies=["requests==2.31.0", "urllib3==2.2.0"],
+        provenance={
+            "locked_dependencies": (
+                "Source: requirements.txt | Method: pinned_requirements"
+            )
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = {e["name"]: e for e in graph if e.get("type") == "software_Package"}
+    relationships = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship" and e["relationshipType"] == "dependsOn"
+    ]
+    main_id = packages["main-project"]["spdxId"]
+    depends_on = {r["to"][0]: r for r in relationships if r["from"] == main_id}
+
+    assert "completeness" not in depends_on[packages["urllib3"]["spdxId"]]
+
+
+def test_locked_dependencies_completeness_by_method() -> None:
+    """Unit-level coverage of `_locked_dependencies_completeness()`:
+    conservatively returns None (unset) for all cases to avoid overstating
+    completeness on partial lock closures."""
+    resolved = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["idna==3.7"],
+        provenance={
+            "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
+        },
+    )
+    pinned = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["idna==3.7"],
+        provenance={
+            "locked_dependencies": (
+                "Source: requirements.txt | Method: pinned_requirements"
+            )
+        },
+    )
+    unrecognized = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["idna==3.7"],
+        provenance={
+            "locked_dependencies": "Source: mystery.lock | Method: future_method"
+        },
+    )
+    no_provenance = ProjectMetadata(name="pkg", locked_dependencies=["idna==3.7"])
+
+    assert _locked_dependencies_completeness(resolved) is None
+    assert _locked_dependencies_completeness(pinned) is None
+    assert _locked_dependencies_completeness(unrecognized) is None
+    assert _locked_dependencies_completeness(no_provenance) is None
 
 
 def test_locked_dependencies_dedup_is_case_and_separator_insensitive() -> None:
@@ -188,12 +268,157 @@ def test_locked_dependencies_change_doc_uuid() -> None:
     assert len({base, with_lock_a, with_lock_b}) == 3
 
 
+def test_locked_dependencies_same_content_different_provenance_changes_doc_uuid() -> (
+    None
+):
+    """Two documents with an *identical* resolved dependency set but from
+    different lock sources (e.g. a ``poetry.lock``-only run and a
+    ``pylock.toml``-only run of the same project happening to resolve to
+    the same pins) must not collide on the same doc UUID either -- their
+    ``provenance["locked_dependencies"]`` strings (and any override note)
+    differ, which is a real content difference in the generated document
+    that seeding on dependency content alone would miss."""
+    same_content = ["idna==3.7"]
+    from_poetry = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=same_content,
+        locked_dependencies_provenance=(
+            "Source: poetry.lock | Method: resolved_lockfile"
+        ),
+    )
+    from_pylock = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=same_content,
+        locked_dependencies_provenance=(
+            "Source: pylock.toml | Method: resolved_lockfile"
+        ),
+    )
+    unattributed = compute_doc_uuid(
+        "pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=same_content
+    )
+
+    assert len({from_poetry, from_pylock, unattributed}) == 3
+
+
+def test_locked_dependencies_provenance_omitted_matches_empty_string() -> None:
+    """Omitting ``locked_dependencies_provenance`` (every pre-existing
+    call site) must produce the same UUID as every caller that predates
+    this parameter -- purely additive, no behaviour change for callers
+    that don't know about it."""
+    omitted = compute_doc_uuid(
+        "pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=["idna==3.7"]
+    )
+    explicit_none = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=["idna==3.7"],
+        locked_dependencies_provenance=None,
+    )
+
+    assert omitted == explicit_none
+
+
 def test_locked_dependencies_omitted_matches_empty_list() -> None:
     """Omitting ``locked_dependencies`` entirely (every pre-existing call
-    site) must produce the same UUID as passing an empty list -- the new
-    parameter is purely additive, never a behavior change for callers that
-    don't know about it."""
+    site) must produce the same UUID as passing an empty list *with no
+    provenance* -- the new parameter is purely additive, never a
+    behavior change for callers that don't know about it."""
     omitted = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"])
     empty = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"], locked_dependencies=[])
 
     assert omitted == empty
+
+
+def test_valid_empty_lock_does_not_collide_with_no_lock_or_a_different_empty_lock() -> (
+    None
+):
+    """Regression: a real, successfully-resolved lock file that legitimately
+    has zero runtime dependencies still carries its own distinct
+    ``provenance["locked_dependencies"]`` string -- gating the UUID seed's
+    locked-dependencies contribution on `locked_dependencies` being
+    *non-empty* (rather than on either it or the provenance string being
+    given) would silently collide such a document with both (a) a document
+    with no lock present at all, and (b) a different lock source that also
+    happened to resolve to zero dependencies -- three genuinely different
+    provenance outcomes must not share one UUID."""
+    no_lock_at_all = compute_doc_uuid("pkg", "1.0.0", ["requests>=2.0"])
+    empty_from_pylock = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=[],
+        locked_dependencies_provenance=(
+            "Source: pylock.toml | Method: resolved_lockfile"
+        ),
+    )
+    empty_from_uv = compute_doc_uuid(
+        "pkg",
+        "1.0.0",
+        ["requests>=2.0"],
+        locked_dependencies=[],
+        locked_dependencies_provenance=("Source: uv.lock | Method: resolved_lockfile"),
+    )
+
+    assert len({no_lock_at_all, empty_from_pylock, empty_from_uv}) == 3
+
+
+def test_direct_dependency_range_resolves_to_locked_version_over_host_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Per GEMINI.md ("Explicit pin beats local environment"): when
+    metadata.dependencies declares a range (requests>=2.0) and
+    metadata.locked_dependencies has an exact pin (requests==2.31.0),
+    the assembled Package node must use the locked version (2.31.0),
+    never introspecting Pitloom's host environment."""
+    monkeypatch.setattr(
+        deps_installed,
+        "get_package_version",
+        lambda _name: pytest.fail("host environment should not be consulted"),
+    )
+
+    project = ProjectMetadata(
+        name="main-project",
+        version="1.0.0",
+        dependencies=["requests>=2.0"],
+        locked_dependencies=["requests==2.31.0", "urllib3==2.2.0"],
+        provenance={
+            "locked_dependencies": "Source: pylock.toml | Method: resolved_lockfile"
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+    packages = {e["name"]: e for e in graph if e.get("type") == "software_Package"}
+
+    assert packages["requests"]["software_packageVersion"] == "2.31.0"
+    assert packages["urllib3"]["software_packageVersion"] == "2.2.0"
+
+
+def test_extract_locked_version_map_unpinned_does_not_leak_host_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_extract_locked_version_map must only extract exact pins from lock
+    entries, never falling back to host environment importlib.metadata."""
+    monkeypatch.setattr(deps_installed, "get_package_version", lambda _name: "9.9.9")
+
+    locked_map = _extract_locked_version_map(["unpinned-pkg", "range-dep>=1.0"])
+    assert locked_map == {}
+
+    pinned_map = _extract_locked_version_map(
+        [
+            "pinned-pkg==2.0.0",
+            "custom-pkg===legacy.1",
+            "unparseable-pkg===legacy.2; invalid @ marker",
+        ]
+    )
+    assert pinned_map == {
+        "pinned-pkg": "2.0.0",
+        "custom-pkg": "legacy.1",
+        "unparseable-pkg": "legacy.2",
+    }

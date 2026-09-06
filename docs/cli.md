@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-31
+Last-Modified: 2026-09-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -66,10 +66,14 @@ loom project /path/to/project -o sbom.spdx3.json
 > Project-level metadata (name, version, dependencies, license,
 > authors) is read independently and unaffected either way.
 
-A Poetry project with a `poetry.lock` next to `pyproject.toml` also gets
-the lock's resolved `main`-group transitive dependencies added to the
-Source SBOM's dependency list, on top of the direct
-`[tool.poetry.dependencies]` constraints.
+If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
+`Pipfile.lock`, or a fully pinned `requirements.txt`) is present next
+to `pyproject.toml` (or `setup.py`, for `Pipfile.lock`/`requirements.txt`),
+its resolved transitive dependencies are added to the Source SBOM's
+dependency list too -- see
+[Dependency sources and precedence](dependency-sources.md) for which
+one wins when more than one is present, and what counts as "resolved"
+for each.
 
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
 binaries as phantom dependencies):

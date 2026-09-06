@@ -96,6 +96,77 @@ def test_read_project_fallback_preserves_pyproject_pitloom_config(
     assert pitloom_config.sbom_basename == "custom-name"
 
 
+def test_read_project_fallback_still_applies_lock_cascade(tmp_path: Path) -> None:
+    """Regression: the pyproject.toml-with-no-usable-metadata ->
+    setup.cfg/setup.py fallback branch (previous two tests) must still
+    get `apply_locked_dependencies()`'s cascade applied to the
+    setuptools-resolved metadata, not skip it or apply it to a stale
+    pre-fallback object -- this is the one of `read_project()`'s three
+    directory-based resolution paths that had no dedicated coverage for
+    the lock cascade."""
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(
+        '[build-system]\nrequires = ["setuptools"]\n'
+        'build-backend = "custom_pep517_wrapper"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "setup.cfg").write_text(
+        "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
+    )
+    (tmp_path / "pylock.toml").write_text(
+        'lock-version = "1.0"\ncreated-by = "test"\n'
+        '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(tmp_path)
+
+    assert metadata.name == "real-pkg"
+    assert metadata.locked_dependencies == ["requests==2.31.0"]
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: pylock.toml | Method: resolved_lockfile"
+    )
+
+
+def test_read_project_fallback_preserves_already_resolved_poetry_lock(
+    tmp_path: Path,
+) -> None:
+    """Regression: `_try_read_poetry()` can resolve `poetry.lock`'s data
+    onto a name-less `ProjectMetadata` when `[tool.poetry]` itself fails
+    to parse (its own "skipping Poetry gap-fill, but still applying
+    poetry.lock's resolved dependencies" path). That empty name then
+    triggers this same setup.cfg/setup.py fallback branch, which used to
+    replace `metadata` wholesale via `read_setuptools()` -- silently
+    discarding poetry.lock's already-resolved `locked_dependencies` and
+    letting a lower-priority format (here `pdm.lock`) win the cascade in
+    its place with no "supersedes" note. The prior result must survive
+    the metadata swap."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.poetry]\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+        '[metadata]\nlock-version = "2.1"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "setup.cfg").write_text(
+        "[metadata]\nname = real-pkg\nversion = 1.2.3\n", encoding="utf-8"
+    )
+    (tmp_path / "pdm.lock").write_text(
+        '[[package]]\nname = "httpx"\nversion = "0.28.1"\ngroups = ["default"]\n'
+        '[metadata]\nlock_version = "4.5.1"\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(tmp_path)
+
+    assert metadata.name == "real-pkg"
+    assert metadata.locked_dependencies == ["requests==2.31.0"]
+    assert metadata.provenance["locked_dependencies"] == (
+        "Source: poetry.lock | Method: resolved_lockfile"
+    )
+
+
 def test_read_project_build_system_only_pyproject_no_setuptools_fallback(
     tmp_path: Path,
 ) -> None:
@@ -166,3 +237,120 @@ creator-name = 123
 
     with pytest.raises(ValueError):
         read_project(tmp_path)
+
+
+def test_read_project_include_locked_dependencies_false_skips_cascade(
+    tmp_path: Path,
+) -> None:
+    """`include_locked_dependencies=False` (used by build-stage/config-only
+    callers like `embed-wheel` and the shared CLI options helper) must
+    skip the lock/pin cascade entirely, not just discard its result --
+    a sibling `pylock.toml` is present but must never reach
+    `locked_dependencies`."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "pylock.toml").write_text(
+        'lock-version = "1.0"\ncreated-by = "test"\n'
+        '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance
+
+    normal_metadata, _, _ = read_project(tmp_path)
+    assert normal_metadata.locked_dependencies == ["requests==2.31.0"]
+
+
+def test_read_project_include_locked_dependencies_false_also_skips_poetry_lock(
+    tmp_path: Path,
+) -> None:
+    """Regression: `include_locked_dependencies=False` used to only gate
+    the pylock.toml/uv.lock/pdm.lock cascade -- `poetry.lock` was still
+    read and attached to `locked_dependencies` regardless, since
+    `read_pyproject()` never forwarded the flag to `_try_read_poetry()`.
+    One flag must gate every lock source, `poetry.lock` included."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+        '[metadata]\nlock-version = "2.1"\n',
+        encoding="utf-8",
+    )
+
+    metadata, _pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance
+
+    normal_metadata, _, _ = read_project(tmp_path)
+    assert normal_metadata.locked_dependencies == ["requests==2.31.0"]
+
+
+@pytest.mark.parametrize(
+    ("lock_file", "content"),
+    [
+        (
+            "poetry.lock",
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            '[metadata]\nlock-version = "2.1"\n',
+        ),
+        (
+            "pylock.toml",
+            'lock-version = "1.0"\ncreated-by = "test"\n'
+            '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
+        ),
+        (
+            "uv.lock",
+            'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
+            '[[package]]\nname = "pkg"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        ),
+        (
+            "pdm.lock",
+            '[metadata]\nlock_version = "4.5.1"\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'groups = ["default"]\n',
+        ),
+        (
+            "Pipfile.lock",
+            '{"_meta": {"pipfile-spec": 6}, '
+            '"default": {"requests": {"version": "==2.31.0"}}}',
+        ),
+        (
+            "requirements.txt",
+            "requests==2.31.0\n",
+        ),
+    ],
+)
+def test_read_project_include_locked_dependencies_false_skips_all_lock_formats(
+    tmp_path: Path, lock_file: str, content: str
+) -> None:
+    """`include_locked_dependencies=False` must skip every supported lock format."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / lock_file).write_text(content, encoding="utf-8")
+
+    metadata, _pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+
+    assert metadata.locked_dependencies == []
+    assert "locked_dependencies" not in metadata.provenance
+
+    # Companion assertion: with include_locked_dependencies enabled (the default),
+    # the lock file is discovered and resolved -- guarding against a vacuous pass.
+    normal_metadata, _, _ = read_project(tmp_path)
+    assert normal_metadata.locked_dependencies == ["requests==2.31.0"]

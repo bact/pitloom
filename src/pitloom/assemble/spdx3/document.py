@@ -18,7 +18,7 @@ this module.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from packaging.utils import canonicalize_name
@@ -43,6 +43,7 @@ from pitloom.assemble.spdx3.deps import (
     add_dependencies,
     add_phantom_dependencies,
 )
+from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
 from pitloom.assemble.spdx3.deps_license import (
     _add_license_noassertion,
     build_license_elements,
@@ -114,7 +115,12 @@ def _build_main_package(
         main_package.software_downloadLocation = download_location
     if metadata.urls.get("Homepage"):
         main_package.software_homePage = metadata.urls.get("Homepage")
-    main_package.software_copyrightText = f"Copyright (c) {datetime.now().year} " + (
+    created = spdx_ci.created
+    if isinstance(created, datetime):
+        created_year = created.year
+    else:
+        created_year = datetime.now(timezone.utc).year
+    main_package.software_copyrightText = f"Copyright (c) {created_year} " + (
         metadata.authors[0].get("name", metadata.name)
         if metadata.authors
         else metadata.name
@@ -173,15 +179,61 @@ def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]
     ]
 
 
+# pylint: disable=useless-return
+def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
+    """Return the `RelationshipCompleteness` value for the locked-only
+    `dependsOn` edges :func:`_locked_transitive_only_dependencies`
+    produces, or `None` to leave it unset.
+
+    Conservatively returns ``None`` (unset): while a resolver lock represents
+    a resolved dependency graph, extractors may legitimately omit
+    unrepresentable dependencies (such as VCS/path sources, non-default groups,
+    or marker-ambiguous variants). Asserting ``complete`` would overstate
+    completeness for partial closures, so leaving it unset makes no
+    unverifiable claim.
+    """
+    del metadata
+    return None
+
+
+def _extract_locked_version_map(locked_dependencies: list[str]) -> dict[str, str]:
+    """Map canonical package names to their exact locked version string.
+
+    Enables direct dependencies declared as ranges (e.g. ``requests>=2.0``)
+    to resolve to their authoritative locked version rather than falling back
+    to introspecting Pitloom's host environment.
+    """
+    result: dict[str, str] = {}
+    for dep in locked_dependencies:
+        dep_name = _parse_dep_name(dep)
+        _req, pinned = _extract_exact_pin(dep)
+        if pinned is not None:
+            result[canonicalize_name(dep_name)] = pinned
+    return result
+
+
 def _prefetch_combined_release_info(
-    dependencies: list[str], transitive_only: list[str]
+    dependencies: list[str],
+    transitive_only: list[str],
+    locked_versions: dict[str, str] | None = None,
 ) -> dict[tuple[str, str | None], dict[str, Any] | None]:
     """Prefetch PyPI release info once for every dependency a document will
     emit -- direct and lock-resolved-transitive alike -- so the result can
     be shared across both :func:`add_dependencies` calls in :func:`build`
     instead of each call paying for its own network round-trip."""
     name_version_pairs = []
-    for dep in (*dependencies, *transitive_only):
+    for dep in dependencies:
+        dep_name = _parse_dep_name(dep)
+        locked_ver = (
+            locked_versions.get(canonicalize_name(dep_name))
+            if locked_versions is not None
+            else None
+        )
+        dep_version, _version_note = _resolve_version(
+            dep_name, dep, locked_version=locked_ver
+        )
+        name_version_pairs.append((dep_name, dep_version))
+    for dep in transitive_only:
         dep_name = _parse_dep_name(dep)
         dep_version, _version_note = _resolve_version(dep_name, dep)
         name_version_pairs.append((dep_name, dep_version))
@@ -223,6 +275,7 @@ def build(
         dependencies=metadata.dependencies,
         merkle_root=merkle_root,
         locked_dependencies=metadata.locked_dependencies,
+        locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
     )
     _clear_doc_counters(doc_uuid)
 
@@ -314,10 +367,13 @@ def build(
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
     transitive_only = _locked_transitive_only_dependencies(metadata)
+    locked_versions = _extract_locked_version_map(metadata.locked_dependencies)
     release_info_cache = (
         None
         if offline
-        else _prefetch_combined_release_info(metadata.dependencies, transitive_only)
+        else _prefetch_combined_release_info(
+            metadata.dependencies, transitive_only, locked_versions=locked_versions
+        )
     )
 
     # --- Dependencies ---
@@ -334,13 +390,14 @@ def build(
         encoder=encoder,
         content_type_method=content_type_method,
         release_info_cache=release_info_cache,
+        locked_versions=locked_versions,
     )
 
     if transitive_only:
         add_dependencies(
             dependencies=transitive_only,
             dep_provenance=metadata.provenance.get(
-                "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
+                "locked_dependencies", "Source: lock file"
             ),
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,
@@ -352,7 +409,7 @@ def build(
             encoder=encoder,
             content_type_method=content_type_method,
             release_info_cache=release_info_cache,
-            completeness=spdx3.RelationshipCompleteness.complete,
+            completeness=_locked_dependencies_completeness(metadata),
         )
 
     # --- Files ---

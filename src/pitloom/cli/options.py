@@ -220,7 +220,13 @@ def _resolve_common_options(
             lookup_dir = lookup_dir.parent
 
         try:
-            _, pitloom_config, _ = read_project(lookup_dir)
+            # Only [tool.pitloom] config is used here, shared across every
+            # subcommand (including build-stage ones like embed-wheel) --
+            # skip the lock/pin cascade so it never runs for a caller that
+            # would discard the result anyway.
+            _, pitloom_config, _ = read_project(
+                lookup_dir, include_locked_dependencies=False
+            )
         except FileNotFoundError:
             pitloom_config = PitloomConfig()
     else:

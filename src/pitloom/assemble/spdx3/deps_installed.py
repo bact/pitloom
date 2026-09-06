@@ -10,11 +10,14 @@ See also: :mod:`pitloom.assemble.spdx3.deps` for the public facade and PyPI enri
 
 from __future__ import annotations
 
+import logging
 from importlib.metadata import PackageMetadata, PackageNotFoundError
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps_license import _apply_license
@@ -30,10 +33,13 @@ from pitloom.core.models import build_pypi_purl
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._extract_utils import pkg_meta_get
+from pitloom.extract._lock_common import is_same_version, single_exact_pin
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
 _DOWNLOAD_LABELS = ("download",)
+
+log = logging.getLogger(__name__)
 
 
 def _parse_dep_name(dep: str) -> str:
@@ -48,7 +54,63 @@ def _parse_dep_name(dep: str) -> str:
     return dep.strip()
 
 
-def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
+def _extract_pin_from_unparseable(dep: str) -> str | None:
+    """Extract an exact pin (== or ===) from an unparseable requirement string."""
+    dep_spec = dep.split(";", 1)[0] if ";" in dep else dep
+    for op in ("===", "=="):
+        if op not in dep_spec:
+            continue
+        pin_part = dep_spec.split(op, 1)[1].strip()
+        if not pin_part or "*" in pin_part or "," in pin_part:
+            return None
+        try:
+            exact = single_exact_pin(SpecifierSet(f"{op}{pin_part}"))
+            if exact is not None:
+                return exact[1]
+        except InvalidSpecifier:
+            if op == "===":
+                return pin_part
+        return None
+    return None
+
+
+def _extract_exact_pin(dep: str) -> tuple[Requirement | None, str | None]:
+    """Parse *dep* into a Requirement and extract any single exact pin (== or ===)."""
+    try:
+        req = Requirement(dep)
+        exact = single_exact_pin(req.specifier)
+        return (req, exact[1]) if exact is not None else (req, None)
+    except InvalidRequirement:
+        return None, _extract_pin_from_unparseable(dep)
+
+
+def _is_exact_pin_conflict(
+    req: Requirement | None, pinned: str, locked_version: str
+) -> bool:
+    """Return True if locked_version conflicts with declared exact pin."""
+    if req is not None and req.specifier:
+        try:
+            return not req.specifier.contains(locked_version, prereleases=True)
+        # pylint: disable-next=broad-exception-caught
+        except (InvalidVersion, Exception):
+            pass
+    return not is_same_version(locked_version, pinned)
+
+
+def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool:
+    """Return True if locked_version satisfies req.specifier."""
+    if req is None or not req.specifier:
+        return True
+    try:
+        return req.specifier.contains(locked_version, prereleases=True)
+    # pylint: disable-next=broad-exception-caught
+    except (InvalidVersion, Exception):
+        return False
+
+
+def _resolve_version(
+    dep_name: str, dep: str, locked_version: str | None = None
+) -> tuple[str, str | None]:
     """Return ``(version_string, resolved_from)`` for a dependency.
 
     An exact ``==``/``===`` pin already present in *dep* -- e.g. a resolved
@@ -56,24 +118,41 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
     exactly -- is authoritative and checked first: it reflects a decision
     already resolved by the dependency's own source and must never be
     silently overridden by whatever happens to be installed in Pitloom's
-    own execution environment, which has no relationship to the target
-    project's environment. The installed-environment lookup is a fallback
-    for the common case where the constraint doesn't pin an exact version
-    (e.g. ``requests>=2.0``).
+    own execution environment or a conflicting lock file entry.
+
+    Likewise, a *locked_version* provided by a project lock file (PEP 751
+    ``pylock.toml``, ``uv.lock``, ``poetry.lock``, etc.) for a direct dependency
+    declared as a range or unpinned (e.g. ``requests>=2.0``) is authoritative
+    over the host environment. When it does not satisfy the declared constraint
+    in *dep*, a warning is emitted.
+
+    The installed-environment lookup is a fallback for the case where neither
+    pins an exact version.
     """
-    try:
-        pinned = [
-            spec.version
-            for spec in Requirement(dep).specifier
-            if spec.operator in ("==", "===")
-        ]
-    except InvalidRequirement:
-        pinned = []
-        unparseable = True
-    else:
-        unparseable = False
-    if pinned:
-        return pinned[0], None
+    req, pinned = _extract_exact_pin(dep)
+    if pinned is not None:
+        if locked_version is not None and _is_exact_pin_conflict(
+            req, pinned, locked_version
+        ):
+            log.warning(
+                "Locked version %r for dependency %r conflicts with declared"
+                " exact pin %r -- using declared pin",
+                locked_version,
+                dep_name,
+                pinned,
+            )
+        return pinned, None
+
+    if locked_version is not None:
+        if not _satisfies_constraint(req, locked_version):
+            log.warning(
+                "Locked version %r for dependency %r does not satisfy declared"
+                " constraint %r -- using locked version",
+                locked_version,
+                dep_name,
+                dep,
+            )
+        return locked_version, "Version resolved: Project lock file"
 
     try:
         return get_package_version(dep_name), (
@@ -82,8 +161,6 @@ def _resolve_version(dep_name: str, dep: str) -> tuple[str, str | None]:
     except PackageNotFoundError:
         pass
 
-    if unparseable and "==" in dep:
-        return dep.split("==")[1].strip(), None
     return "unknown", None
 
 
@@ -97,6 +174,7 @@ def _enrich_from_installed(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     *,
+    expected_version: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     offline: bool = False,
@@ -106,6 +184,16 @@ def _enrich_from_installed(
     try:
         pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
+        return set()
+
+    installed_version = pkg_meta_get(pkg_meta, "Version")
+    target_version = expected_version or dep_package.software_packageVersion
+    if (
+        installed_version
+        and target_version
+        and target_version != "unknown"
+        and not is_same_version(installed_version, target_version)
+    ):
         return set()
 
     filled: set[str] = set()

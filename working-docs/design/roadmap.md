@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,6 +67,11 @@ is not kept in sync with post-ship changes.
   Open follow-ups: [AI model id stability](#ai-model-id-stability-follow-up-to-178),
   [Sort-order canonicalization](#sort-order-canonicalization-follow-up-to-178)
   below. ([PR #178](https://github.com/bact/pitloom/pull/178))
+- [x] **Lock/pin formats as a resolved-dependency source** -- `poetry.lock`,
+  `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`, and pinned
+  `requirements.txt` feed `locked_dependencies` via one shared cascade
+  ([#208](https://github.com/bact/pitloom/pull/208)). See
+  [lock-file-cascade.md](../implementation/lock-file-cascade.md).
 
 ## Adoption surfaces
 
@@ -150,29 +155,16 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](./metadata-sources.md).
-- [x] **`poetry.lock`** -- done (2026-08-31): `loom project`/`loom generate`
-  against a Poetry project reads a sibling `poetry.lock` for
-  `main`-group resolved transitive dependencies, additive to the
-  direct constraints, source-stage-only. See
-  [poetry-support.md](../implementation/poetry-support.md).
-- [ ] **Remaining lock formats as a resolved-dependency source**
-  (`Pipfile.lock`, `uv.lock`, pinned `requirements.txt`) -- `loom
-  project` still records only the declared version specifier from
-  `pyproject.toml [project] dependencies`
-  (`normalize_dependency_specifier`, `src/pitloom/extract/_pyproject.py:220`,
-  e.g. `requests>=2.0`) for every non-Poetry project, never a concrete
-  resolved version. Parsing one when present would let a Source SBOM
-  carry the actual pinned version a build will use, not just the
-  declared range -- closer to what CISA's Source SBOM guidance expects.
-  The `poetry.lock` case above establishes the pattern (additive
-  transitive-only edges, `completeness` tagging, source-stage-only
-  scoping); needs a source-priority decision analogous to
-  `metadata-sources.md`'s existing tiering (which lock file wins if more
-  than one is present) and a provenance `method` tag per lock format.
-  See [lock-files.md](./lock-files.md) for the broader multi-format
-  extraction-priority roadmap (PEP 751 `pylock.toml`, `uv.lock`,
-  `pixi.lock`, `conda-lock.yml`, `pdm.lock`, `Pipfile.lock`) this item
-  now defers to.
+- [ ] **CLI option `--no-locked-dependencies`** -- opt-out flag and
+  `[tool.pitloom] locked-dependencies = false` configuration allowing users
+  and CI pipelines to disable automatic lock file discovery, falling back to
+  direct dependencies and environment introspection. Wire across CLI,
+  library API, and build backend hooks.
+- [ ] **Preserve lock file hashes in `--offline` mode** -- retain package
+  SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
+  `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3
+  `verifiedUsing` integrity checksums without requiring online PyPI JSON API
+  enrichment lookups.
 
 ### PEP 770 / embed-wheel
 

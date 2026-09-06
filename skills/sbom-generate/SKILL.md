@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-31
+# Last-Modified: 2026-09-06
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -113,6 +113,30 @@ loom env -o env.spdx3.json
 # 5. Fragment Merging
 loom merge .spdx3-fragments/ -o combined.spdx3.json
 ```
+
+### Automatic lock file discovery & resolved dependencies
+
+When generating an SBOM for a project directory (`loom project .` or
+`loom generate .`), Pitloom automatically inspects the project root for lock
+files to discover exact, pinned dependency versions and transitive
+dependencies.
+
+Supported lock formats in priority order:
+1. `pylock.toml` (PEP 751 standard lock file)
+2. `uv.lock` (uv workspace/resolver)
+3. `poetry.lock` (Poetry resolver)
+4. `pdm.lock` (PDM resolver)
+5. `Pipfile.lock` (Pipenv resolver)
+6. `requirements.txt` (Strictly fully-pinned requirement file)
+
+When a lock file is present:
+- Direct dependencies declared with version ranges (e.g. `requests>=2.0`)
+  automatically resolve to their exact locked version rather than falling
+  back to host environment introspection.
+- Transitive dependencies from the lock file are emitted as SPDX 3
+  `software_Package` elements connected via `dependsOn` relationships.
+- For resolver lock files (formats 1–5), relationships are marked with
+  `completeness: complete`.
 
 ## Embed an SBOM into a wheel (PEP 770)
 

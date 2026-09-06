@@ -155,10 +155,17 @@ def _resolve_project_dir_and_config(
     to cwd with no project file there is not an error (a standalone-wheel
     embed with no project directory is a legitimate use), so that case
     silently returns the default config with `project_dir=None`.
+
+    Only ``[tool.pitloom]`` config is used here; ``read_project()``'s
+    lock/pin cascade is skipped (``include_locked_dependencies=False``)
+    -- ``embed-wheel`` is build-stage, and a source-stage lock file's
+    resolved dependencies must never leak into a wheel-embedded SBOM.
     """
     if project_dir is None:
         try:
-            _, pitloom_config, _ = read_project(Path.cwd())
+            _, pitloom_config, _ = read_project(
+                Path.cwd(), include_locked_dependencies=False
+            )
             return Path.cwd(), pitloom_config
         except FileNotFoundError:
             return None, PitloomConfig()
@@ -168,7 +175,9 @@ def _resolve_project_dir_and_config(
         print(f"ERROR: project directory not found: {proj_path}", file=sys.stderr)
         return None
     try:
-        _, pitloom_config, _ = read_project(proj_path)
+        _, pitloom_config, _ = read_project(
+            proj_path, include_locked_dependencies=False
+        )
     except FileNotFoundError as exc:
         # read_project()'s own message already names the specific reason
         # (no config file at all, vs. a config file present but resolving

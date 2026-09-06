@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-09
+Last-Modified: 2026-09-04
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -67,6 +67,10 @@ not needed to just generate one:
 
 - [Configuration](configuration.md) -- every `[tool.pitloom]` setting,
   its default, and how to reach it from each surface.
+- [Dependency sources and precedence](dependency-sources.md) -- what
+  shows up in a Source SBOM's dependency list, which lock file wins
+  when more than one is present, and which commands use lock files at
+  all.
 - [Creation metadata](creation-metadata.md) -- who/what/when/how every
   Pitloom-generated element records about its own creation.
 - [Metadata provenance](metadata-provenance.md) -- how Pitloom tracks the

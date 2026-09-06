@@ -33,7 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 # pylint: disable=wrong-import-position
-from pitloom.extract._gguf import read_gguf
+from pitloom.extract._gguf import read_gguf  # noqa: E402
 
 _FUZZ_INPUT_PATH = Path(tempfile.gettempdir()) / "pitloom-fuzz-gguf-input.gguf"
 
@@ -52,7 +52,8 @@ def _run_one(data: bytes) -> None:
         pass  # Expected: read_gguf's own "not a valid GGUF file" signal.
 
 
-def TestOneInput(data: bytes) -> None:  # noqa: N802 -- atheris/libFuzzer entrypoint name
+# atheris/libFuzzer entrypoint name:
+def TestOneInput(data: bytes) -> None:  # noqa: N802
     _run_one(data)
 
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-31
-Last-Modified: 2026-08-31
+Last-Modified: 2026-09-06
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,9 +18,21 @@ design (source-stage-only scoping, direct/transitive dedup, additive
 [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)'s source/build/deployed
 staging model, which this document's priority table doesn't use -- worth
 reconciling if the two priority framings diverge as more formats land.
-See `working-docs/design/roadmap.md`'s "Remaining lock formats as a
-resolved-dependency source" item for the up-to-date status of every
-other format below.
+
+[pep751-pylock-support.md](../implementation/pep751-pylock-support.md) --
+`pylock.toml` (PEP 751, Phase 1's headline item) support shipped
+(2026-09-02), reusing `poetry.lock`'s established shape
+(`ProjectMetadata.locked_dependencies`, additive `dependsOn` edges,
+`completeness` tagging, source-stage-only scoping) rather than this
+document's illustrative Pydantic/CycloneDX sketch. It also settles the
+"which lock file wins" question this document's intro previously left
+open for the two-lock-files case: `pylock.toml` overrides an
+already-applied `poetry.lock`-resolved set, since it's the
+build-backend-agnostic interoperability standard.
+
+See [lock-file-cascade.md](../implementation/lock-file-cascade.md) for the
+implemented formats and current cascade; the remaining formats below
+continue to describe future work.
 
 **Illustrative code only, not a drop-in design.** The Pydantic models and
 hand-rolled `SPDXRef-*`/raw-dict SPDX 3 serializer below are a sketch,
@@ -52,15 +64,15 @@ simply by asking users to run `[tool] export --format pylock`.
 
 | Phase | Target Format | Why It Matters for AI/ML & Python |
 | --- | --- | --- |
-| **1: The Universal Core** | `pylock.toml` (PEP 751) | The official Python interoperability standard. Universal fallback. |
+| **1: The Universal Core** | `pylock.toml` (PEP 751) | **Done (2026-09-02)** -- see the "See also" note above. The official Python interoperability standard. Universal fallback. |
 | | `pyproject.toml` | Standard project metadata (PEP 621) to define the root SBOM component. |
-| | `uv.lock` | The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
-| | `requirements.txt` | Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
+| | `uv.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. The dominant lock file for modern, high-performance ML inference stacks (vLLM, FastAPI). |
+| | `requirements.txt` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Ubiquitous in ML research Dockerfiles, PyTorch deployments, and Hugging Face spaces. |
 | **2: AI/ML Native Binary** | `pixi.lock` | Essential for AI: natively resolves both Python packages and system-level C/C++ CUDA/Conda binaries. |
 | | `conda-lock.yml` | Maps Conda data science packages alongside PyPI wheels. |
 | **3: Corporate Standards** | `poetry.lock` | **Done (2026-08-31)** -- see the "See also" note above. Massive legacy and enterprise footprint in Data Engineering (Airflow, dbt). |
-| **4: Legacy & Niche** | `pdm.lock` | PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
-| | `Pipfile.lock` | Largely legacy tooling. Low priority. |
+| **4: Legacy & Niche** | `pdm.lock` | **Done (2026-09-04)** -- see `working-docs/implementation/lock-file-cascade.md`. PDM leads PEP standard compliance, but `pylock.toml` export handles most PDM use cases. |
+| | `Pipfile.lock` | **Done (2026-09-05)** -- see `working-docs/implementation/lock-file-cascade.md`. Largely legacy tooling. |
 
 ---
 

@@ -16,6 +16,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.parse import quote as url_quote
 
+from packaging.utils import canonicalize_name
+
 from pitloom.assemble.spdx3.deps_originator import _extract_name_email_pairs
 from pitloom.extract._extract_utils import fetch_json
 
@@ -121,8 +123,8 @@ def _prefetch_pypi_release_infos(
     name_versions: Iterable[tuple[str, str]],
 ) -> dict[tuple[str, str | None], dict[str, Any] | None]:
     """Concurrently fetch PyPI JSON API release info for each distinct
-    ``(name, version)`` pair, so N dependencies cost roughly one network
-    round-trip's worth of wall time instead of N sequential ones (each
+    ``(canonicalize_name(name), version)`` pair, so N dependencies cost roughly
+    one network round-trip's worth of wall time instead of N sequential ones (each
     with its own TCP+TLS handshake and up to a
     :data:`_PYPI_TIMEOUT_SECONDS` timeout on failure).
 
@@ -131,20 +133,27 @@ def _prefetch_pypi_release_infos(
     semantics -- so two dependencies that both have an unresolved version
     share a single fetch instead of one per occurrence.
     """
-    keys = {
-        (name, version if version != "unknown" else None)
+    canon_keys: set[tuple[str, str | None]] = {
+        (str(canonicalize_name(name)), version if version != "unknown" else None)
         for name, version in name_versions
     }
-    if not keys:
+    if not canon_keys:
         return {}
     results: dict[tuple[str, str | None], dict[str, Any] | None] = {}
     with ThreadPoolExecutor(
-        max_workers=min(_PYPI_MAX_CONCURRENT_FETCHES, len(keys))
+        max_workers=min(_PYPI_MAX_CONCURRENT_FETCHES, len(canon_keys))
     ) as pool:
         futures = {
-            pool.submit(_fetch_pypi_release_info, name, version): (name, version)
-            for name, version in keys
+            pool.submit(_fetch_pypi_release_info, canon_name, norm_ver): (
+                canon_name,
+                norm_ver,
+            )
+            for canon_name, norm_ver in canon_keys
         }
-        for future, key in futures.items():
-            results[key] = future.result()
+        for future, k in futures.items():
+            try:
+                results[k] = future.result()
+            # pylint: disable-next=broad-exception-caught
+            except Exception:
+                results[k] = None
     return results

@@ -120,7 +120,11 @@ def test_read_pyproject_fallback_records_name_provenance() -> None:
         pyproject_path = tmp_path / "pyproject.toml"
         pyproject_path.write_text("[build-system]\n")
         metadata, _config = _read_pyproject_fallback(
-            {}, pyproject_path, "mypkg", PitloomConfig()
+            {},
+            pyproject_path,
+            "mypkg",
+            PitloomConfig(),
+            include_locked_dependencies=True,
         )
     assert metadata.name == "mypkg"
     assert metadata.provenance["name"] == "Source: pyproject.toml | Field: project.name"

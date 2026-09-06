@@ -64,7 +64,7 @@ def normalize_dependency_specifier(dep: str) -> str:
 def build_pypi_purl(name: str, version: str | None) -> str:
     """Return a canonical ``pkg:pypi/<name>[@<version>]`` Package URL."""
     base = f"pkg:pypi/{canonicalize_name(name)}"
-    return f"{base}@{version}" if version else base
+    return f"{base}@{version}" if version and version != "unknown" else base
 
 
 def _clear_doc_counters(doc_uuid: str) -> None:
@@ -108,22 +108,57 @@ def compute_doc_uuid(
     dependencies: list[str],
     merkle_root: str | None = None,
     locked_dependencies: list[str] | None = None,
+    locked_dependencies_provenance: str | None = None,
 ) -> str:
     """Compute a deterministic UUIDv5 for the SPDX document.
 
     *locked_dependencies* (e.g. ``poetry.lock``-resolved transitive
-    dependencies), when given and non-empty, is folded into the seed too --
-    otherwise two documents with identical direct dependencies but
-    different lock-resolved graphs would collide on the same UUID despite
-    describing different dependency content. Omitted or empty leaves the
-    seed byte-identical to a document with no locked dependencies at all,
-    so every non-Poetry (and lock-less Poetry) document is unaffected.
+    dependencies) is folded into the seed too, whenever either it or
+    *locked_dependencies_provenance* is given -- otherwise two documents
+    with identical direct dependencies but different lock-resolved
+    graphs would collide on the same UUID despite describing different
+    dependency content. Both omitted leave the seed byte-identical to a
+    document with no locked dependencies at all, so every non-Poetry
+    (and lock-less Poetry) document is unaffected.
+
+    *locked_dependencies_provenance* (the resolved
+    ``ProjectMetadata.provenance["locked_dependencies"]`` string, e.g.
+    ``"Source: pylock.toml | Method: resolved_lockfile"``) is folded in
+    too, alongside *locked_dependencies* itself: as more lock/pin formats
+    land in ``pitloom.extract._locked_dependencies``'s cascade, two
+    different formats can plausibly resolve to the identical dependency
+    set for a small
+    project -- e.g. a ``poetry.lock``-only run and a ``pylock.toml``-only
+    run of the same project landing on the same pins. Seeding on
+    dependency content alone would collide those two documents' UUIDs
+    despite their generated ``provenance["locked_dependencies"]`` fields
+    (and any override note) differing -- a real content difference the
+    seed is supposed to guard against.
+
+    Deliberately keyed on *either* argument being given, not just
+    *locked_dependencies* being non-empty: a real, successfully-resolved
+    lock file that legitimately has zero runtime dependencies still
+    carries its own distinct provenance string, which must still
+    distinguish that document from one with no lock present at all, or
+    from a different lock source that also happened to resolve to zero
+    dependencies -- gating on non-empty *locked_dependencies* alone would
+    silently collide all three onto the same UUID.
     """
     normalized_deps = sorted(_normalize_dep(dep) for dep in dependencies)
     seed = "\x00".join([name, version, "\x00".join(normalized_deps)])
-    if locked_dependencies:
-        normalized_locked = sorted(_normalize_dep(dep) for dep in locked_dependencies)
+    if locked_dependencies or locked_dependencies_provenance:
+        # A real, valid lock resolving to zero dependencies still has a
+        # *provenance* string that differs from "no lock at all" (and
+        # from a different lock source that also resolved to empty) --
+        # gating this whole block on `locked_dependencies` being
+        # non-empty would fold in neither, silently colliding an
+        # empty-but-real lock's UUID with a lockless document's.
+        normalized_locked = sorted(
+            _normalize_dep(dep) for dep in (locked_dependencies or [])
+        )
         seed += "\x00" + "\x00".join(normalized_locked)
+        if locked_dependencies_provenance:
+            seed += "\x00" + locked_dependencies_provenance
     if merkle_root is not None:
         seed += "\x00" + merkle_root
     return str(uuid5(PITLOOM_NS, seed))

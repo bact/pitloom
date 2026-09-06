@@ -26,6 +26,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import zipfile
 from collections.abc import Iterator
 from datetime import datetime, timezone
@@ -192,6 +193,25 @@ def _spdx3_json_with_subject(
     )
 
 
+def _resolve_zip_time() -> tuple[int, int, int, int, int, int]:
+    """Return a deterministic (year, month, day, hour, min, sec) for ZipInfo.
+
+    Honours SOURCE_DATE_EPOCH when set, clamping pre-1980 timestamps to the
+    ZIP-format minimum (1980, 1, 1, 0, 0, 0).
+    """
+    raw_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if raw_epoch:
+        try:
+            ts = int(raw_epoch)
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            if dt.year >= 1980:
+                return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+            return (1980, 1, 1, 0, 0, 0)
+        except (ValueError, OverflowError, OSError):
+            pass
+    return (2026, 1, 1, 0, 0, 0)
+
+
 def _embed_sbom_entry(
     wheel_path: Path, sbom_basename: str, content: str = _SAMPLE_SPDX3_JSON
 ) -> None:
@@ -212,7 +232,12 @@ def _embed_sbom_entry(
     """
     with zipfile.ZipFile(wheel_path, "a") as zf:
         dist_info = _find_dist_info_prefix(zf, wheel_path)
-        zf.writestr(f"{dist_info}sboms/{sbom_basename}", content)
+        zinfo = zipfile.ZipInfo(
+            f"{dist_info}sboms/{sbom_basename}", date_time=_resolve_zip_time()
+        )
+        zinfo.compress_type = zipfile.ZIP_DEFLATED
+        zinfo.external_attr = 0o600 << 16
+        zf.writestr(zinfo, content)
 
 
 def _make_dummy_wheel(
@@ -249,11 +274,18 @@ def _make_dummy_wheel(
         f"{dist_info}/RECORD,,",
     ]
     record_content = "\n".join(records).encode("utf-8") + b"\n"
+    fixed_time = _resolve_zip_time()
 
     with zipfile.ZipFile(wheel_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(f"{name}/__init__.py", init_code)
-        zf.writestr(f"{dist_info}/METADATA", metadata_content)
-        zf.writestr(f"{dist_info}/WHEEL", wheel_content)
-        zf.writestr(f"{dist_info}/RECORD", record_content)
+        for arcname, payload in (
+            (f"{name}/__init__.py", init_code),
+            (f"{dist_info}/METADATA", metadata_content),
+            (f"{dist_info}/WHEEL", wheel_content),
+            (f"{dist_info}/RECORD", record_content),
+        ):
+            zinfo = zipfile.ZipInfo(arcname, date_time=fixed_time)
+            zinfo.compress_type = zipfile.ZIP_DEFLATED
+            zinfo.external_attr = 0o600 << 16
+            zf.writestr(zinfo, payload)
 
     return wheel_path

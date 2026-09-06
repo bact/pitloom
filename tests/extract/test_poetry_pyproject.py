@@ -95,6 +95,30 @@ keywords = ["from-poetry"]
     assert metadata.keywords == ["from-poetry"]
 
 
+def test_read_pyproject_explicit_empty_keywords_not_filled_from_poetry() -> None:
+    """Regression: `[project] keywords = []` is an explicit declaration of
+    zero keywords, not an omission -- `[tool.poetry] keywords` must not
+    silently fill it back in via `merge_project_metadata()`'s
+    empty-container gap-fill (see `_FIELD_PROVENANCE`'s `"keywords"` entry,
+    which records this explicit-declaration provenance)."""
+    content = """
+[project]
+name = "project-name"
+version = "1.0.0"
+keywords = []
+
+[tool.poetry]
+name = "project-name"
+version = "1.0.0"
+keywords = ["from-poetry"]
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "pyproject.toml").write_text(content)
+        metadata, _ = read_pyproject(Path(d) / "pyproject.toml")
+
+    assert metadata.keywords == []
+
+
 def test_read_pyproject_poetry_fills_missing_project_fields() -> None:
     content = """
 [project]

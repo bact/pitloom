@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-26
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-05
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,6 +52,10 @@ each with a short note on what SBOM metadata it feeds:
 - [PEP 639][pep-639] – Improving License Clarity with Better Package
   Metadata: SPDX license expression and `license-files` bundling → the
   SBOM's declared-license and license-file elements.
+- [PEP 751][pep-751] – A file format to record Python dependencies for
+  installation reproducibility: `pylock.toml`, the highest-priority
+  resolved-dependency source in the lock-file cascade (see
+  [Dependency sources](dependency-sources.md)).
 - [PEP 770][pep-770] – Improving measurability of Python packages with
   Software Bill-of-Materials: defines `.dist-info/sboms/`, where
   Pitloom embeds/locates a wheel's own SBOM.
@@ -67,6 +71,7 @@ each with a short note on what SBOM metadata it feeds:
 [pep-518]: https://peps.python.org/pep-0518/
 [pep-621]: https://peps.python.org/pep-0621/
 [pep-639]: https://peps.python.org/pep-0639/
+[pep-751]: https://peps.python.org/pep-0751/
 [pep-770]: https://peps.python.org/pep-0770/
 [packaging-peps]: https://peps.python.org/topic/packaging/
 

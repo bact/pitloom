@@ -20,6 +20,7 @@ silently-discarded license relationship.
 
 from __future__ import annotations
 
+import logging
 from importlib.metadata import PackageNotFoundError
 
 import pytest
@@ -133,6 +134,12 @@ def test_resolve_version_falls_back_to_naive_split_for_unparseable_dep() -> None
     assert version == "2.0"
     assert note is None
 
+    version_arb, note_arb = _resolve_version(
+        "not installed", "not installed===2021.01.01-legacy"
+    )
+    assert version_arb == "2021.01.01-legacy"
+    assert note_arb is None
+
 
 def test_resolve_version_exact_pin_wins_over_mismatched_installed_version(
     monkeypatch: pytest.MonkeyPatch,
@@ -161,6 +168,75 @@ def test_resolve_version_falls_back_to_installed_when_unpinned(
 
     assert version == "2.32.0"
     assert note == "Version resolved: Build-time environment (importlib.metadata)"
+
+
+def test_resolve_version_uses_locked_version_over_installed_when_unpinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Per GEMINI.md ("Explicit pin beats local environment"): when a lock
+    file pins an exact version for a dependency declared with a range,
+    the lock pin is authoritative and Pitloom's host environment is never
+    consulted."""
+    monkeypatch.setattr(
+        deps_mod,
+        "get_package_version",
+        lambda _name: pytest.fail("host environment should not be consulted"),
+    )
+
+    version, note = _resolve_version(
+        "requests", "requests>=2.0", locked_version="2.31.0"
+    )
+
+    assert version == "2.31.0"
+    assert note == "Version resolved: Project lock file"
+
+
+def test_resolve_version_warns_when_locked_version_violates_declared_constraint(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When a lock file's pinned version does not satisfy the declared constraint,
+    a warning is logged explaining the lockfile version overrides the constraint."""
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version(
+            "requests", "requests<2.0", locked_version="2.31.0"
+        )
+
+    assert version == "2.31.0"
+    assert note == "Version resolved: Project lock file"
+    assert "does not satisfy declared constraint" in caplog.text
+    assert "requests<2.0" in caplog.text
+
+
+def test_resolve_version_exact_pin_wins_over_conflicting_locked_version(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When a dependency declares an exact pin (requests==2.30.0), that pin
+    is authoritative and wins outright over a conflicting locked version (2.31.0),
+    emitting a warning about the conflict."""
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version(
+            "requests", "requests==2.30.0", locked_version="2.31.0"
+        )
+
+    assert version == "2.30.0"
+    assert note is None
+    assert "conflicts with declared exact pin '2.30.0'" in caplog.text
+    assert "'2.31.0'" in caplog.text
+
+
+def test_resolve_version_exact_pin_matching_locked_version_emits_no_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When a dependency's exact pin matches the locked version, no conflict warning
+    is emitted."""
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version(
+            "requests", "requests==2.30.0", locked_version="2.30.0"
+        )
+
+    assert version == "2.30.0"
+    assert note is None
+    assert "conflicts with declared exact pin" not in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +352,85 @@ def test_add_dependencies_dedupes_same_resolved_name_and_version() -> None:
     assert dep_comment is not None
     assert dep_comment.count("extra == 'ai'") == 2
     assert dep_comment.count("extra == 'numpy'") == 2
+
+
+def test_add_dependencies_dedupes_case_insensitive_name() -> None:
+    """Dependencies declared with differing case (e.g. Django vs django)
+    at the same version must collapse into a single software_Package node,
+    preserving the first-seen raw name."""
+    doc_uuid = compute_doc_uuid("casetest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="casetest", doc_uuid=doc_uuid),
+        name="casetest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["Django==4.2.1", "django==4.2.1"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "casetest",
+        doc_uuid,
+        exporter,
+        offline=True,
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    django_packages = [p for p in packages if p.name in ("Django", "django")]
+    assert len(django_packages) == 1
+    assert django_packages[0].name == "Django"
+
+
+def test_add_dependencies_dedupes_separator_canonicalization() -> None:
+    """Dependencies declared with differing separators (e.g. pydantic-core vs
+    pydantic_core) at the same version must collapse into a single
+    software_Package node, preserving the first-seen raw name."""
+    doc_uuid = compute_doc_uuid("sepcanonical", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="sepcanonical", doc_uuid=doc_uuid),
+        name="sepcanonical",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["pydantic-core==1.0.0", "pydantic_core==1.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "sepcanonical",
+        doc_uuid,
+        exporter,
+        offline=True,
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    pydantic_packages = [
+        p for p in packages if p.name in ("pydantic-core", "pydantic_core")
+    ]
+    assert len(pydantic_packages) == 1
+    assert pydantic_packages[0].name == "pydantic-core"
+
+    depends_on_rels = [
+        o
+        for o in exporter.object_set.objects
+        if isinstance(o, spdx3.Relationship)
+        and o.relationshipType == spdx3.RelationshipType.dependsOn
+        and require_spdx_id(pydantic_packages[0]) in o.to
+    ]
+    assert len(depends_on_rels) == 1
 
 
 # ---------------------------------------------------------------------------
