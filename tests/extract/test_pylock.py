@@ -63,9 +63,62 @@ def test_valid_lock_with_no_packages_returns_empty_list_not_none() -> None:
     winning (if empty) result rather than "not present"."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        _write_lock(tmp_path)
+        _write_lock(tmp_path, "packages = []\n")
 
         assert extract_pylock_dependencies(tmp_path) == []
+
+
+def test_missing_created_by_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "1.0"\npackages = []\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result is None
+        assert "created-by" in caplog.text
+
+
+def test_empty_created_by_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "1.0"\ncreated-by = "   "\npackages = []\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result is None
+        assert "created-by" in caplog.text
+
+
+def test_missing_packages_key_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A file with only lock-version and created-by is truncated, not a valid
+    empty lockfile -- must return None and warn so fallback cascades continue."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "1.0"\ncreated-by = "test"\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result is None
+        assert "packages" in caplog.text
 
 
 def test_malformed_toml_returns_none_and_warns(
@@ -127,6 +180,7 @@ def test_unsupported_major_lock_version_returns_none_and_warns(
         tmp_path = Path(tmp)
         (tmp_path / "pylock.toml").write_text(
             'lock-version = "2.0"\n'
+            'created-by = "test"\n'
             '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
             encoding="utf-8",
         )
@@ -148,6 +202,7 @@ def test_newer_minor_lock_version_still_parsed_with_warning(
         tmp_path = Path(tmp)
         (tmp_path / "pylock.toml").write_text(
             'lock-version = "1.5"\n'
+            'created-by = "test"\n'
             '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
             encoding="utf-8",
         )
@@ -177,6 +232,18 @@ def test_same_name_same_version_duplicate_entries_deduped() -> None:
         )
 
         assert extract_pylock_dependencies(tmp_path) == ["httpx==0.28.1"]
+
+
+def test_same_name_equivalent_versions_not_conflicted() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[packages]]\nname = "pkg"\nversion = "1.0"\n\n'
+            '[[packages]]\nname = "pkg"\nversion = "1.0.0"\n',
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == ["pkg==1.0"]
 
 
 def test_same_name_conflicting_versions_skipped_and_warns(

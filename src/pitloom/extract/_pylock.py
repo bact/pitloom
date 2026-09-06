@@ -32,10 +32,12 @@ from pathlib import Path
 from typing import Any
 
 from packaging.markers import InvalidMarker, Marker
+from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
     group_versions_by_canonical_name,
+    is_same_version,
     load_lock_toml,
     shape_validated_package,
     warn_conflicting_versions,
@@ -83,33 +85,10 @@ def _parse_lock_version(lock_version: str) -> tuple[int, int] | None:
     return int(parts[0]), int(parts[1])
 
 
-def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
-    """Read ``pylock.toml`` next to ``pyproject.toml`` and return its
-    resolved packages as exact-pin PEP 508 strings.
-
-    Returns ``None`` when no ``pylock.toml`` is present, it can't be
-    parsed, or its declared ``lock-version`` is unsupported -- this is
-    optional enrichment, never a requirement, and ``None`` (as opposed
-    to a valid-but-empty ``[]``) tells :mod:`pitloom.extract._locked_dependencies`'s
-    cascade this source doesn't apply here, so a lower-priority source
-    can still be tried, rather than a genuinely dependency-free lock
-    file being confused with an absent/unusable one.
-
-    Unlike ``poetry.lock``, PEP 751 has no ``groups``-style per-package
-    membership *field*: a ``pylock.toml`` can bundle more than one
-    dependency-group's packages in a single flattened ``[[packages]]``
-    list, distinguished only by an optional per-package ``marker`` string
-    referencing the pseudo-environment variables ``extras``/
-    ``dependency_groups`` (e.g. ``"'dev' in dependency_groups"``). This
-    extractor filters to the file's own declared ``default-groups`` (no
-    extras) the same way ``poetry.lock``/``pdm.lock`` filter to their
-    ``main``/``default`` group -- see :func:`_group_marker_excludes`.
-    """
-    lock_path = project_dir / "pylock.toml"
-    data = load_lock_toml(lock_path)
-    if data is None:
-        return None
-
+def _extract_validated_packages(
+    lock_path: Path, data: dict[str, Any]
+) -> list[object] | None:
+    """Validate top-level PEP 751 keys and return the packages list, or None."""
     raw_lock_version = data.get("lock-version")
     parsed_version = (
         _parse_lock_version(raw_lock_version)
@@ -148,14 +127,65 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
             supported_minor,
         )
 
-    packages = data.get("packages", [])
+    created_by = data.get("created-by")
+    if not isinstance(created_by, str) or not created_by.strip():
+        log.warning(
+            "%s: missing or malformed top-level 'created-by' key "
+            "(expected a non-empty string) -- ignoring pylock.toml",
+            lock_path,
+        )
+        return None
+
+    if "packages" not in data:
+        log.warning(
+            "%s: missing top-level 'packages' key (expected a list) -- "
+            "ignoring pylock.toml",
+            lock_path,
+        )
+        return None
+
+    packages = data["packages"]
     if not isinstance(packages, list):
         warn_top_level_key_wrong_type(
             lock_path, "packages", packages, "a list", "pylock.toml"
         )
         return None
+    return packages
+
+
+def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
+    """Read ``pylock.toml`` next to ``pyproject.toml`` and return its
+    resolved packages as exact-pin PEP 508 strings.
+
+    Returns ``None`` when no ``pylock.toml`` is present, it can't be
+    parsed, or its declared ``lock-version`` is unsupported -- this is
+    optional enrichment, never a requirement, and ``None`` (as opposed
+    to a valid-but-empty ``[]``) tells :mod:`pitloom.extract._locked_dependencies`'s
+    cascade this source doesn't apply here, so a lower-priority source
+    can still be tried, rather than a genuinely dependency-free lock
+    file being confused with an absent/unusable one.
+
+    Unlike ``poetry.lock``, PEP 751 has no ``groups``-style per-package
+    membership *field*: a ``pylock.toml`` can bundle more than one
+    dependency-group's packages in a single flattened ``[[packages]]``
+    list, distinguished only by an optional per-package ``marker`` string
+    referencing the pseudo-environment variables ``extras``/
+    ``dependency_groups`` (e.g. ``"'dev' in dependency_groups"``). This
+    extractor filters to the file's own declared ``default-groups`` (no
+    extras) the same way ``poetry.lock``/``pdm.lock`` filter to their
+    ``main``/``default`` group -- see :func:`_group_marker_excludes`.
+    """
+    lock_path = project_dir / "pylock.toml"
+    data = load_lock_toml(lock_path)
+    if data is None:
+        return None
+
+    packages = _extract_validated_packages(lock_path, data)
+    if packages is None:
+        return None
 
     environment = _default_group_environment(lock_path, data)
+
     pairs = [
         pair
         for pair in (_pinned_pair_for_package(pkg, environment) for pkg in packages)
@@ -165,9 +195,10 @@ def extract_pylock_dependencies(project_dir: Path) -> list[str] | None:
     dependencies: list[str] = []
     for group in group_versions_by_canonical_name(pairs).values():
         name, version = group[0]
-        conflicting_versions = {v for _, v in group}
-        if len(conflicting_versions) > 1:
-            warn_conflicting_versions("pylock.toml", name, conflicting_versions)
+        conflicting_versions = {v for _, v in group if not is_same_version(v, version)}
+        if conflicting_versions:
+            all_versions = {v for _, v in group}
+            warn_conflicting_versions("pylock.toml", name, all_versions)
             continue
         dependencies.append(f"{name}=={version}")
     return dependencies
@@ -194,7 +225,10 @@ def _default_group_environment(
             default_groups,
         )
         default_groups = []
-    return {"dependency_groups": frozenset(default_groups), "extras": frozenset()}
+    return {
+        "dependency_groups": frozenset(canonicalize_name(g) for g in default_groups),
+        "extras": frozenset(),
+    }
 
 
 def _evaluate_group_leaf(
@@ -219,7 +253,7 @@ def _evaluate_group_leaf(
 
     env_key = "extras" if variable == "extra" else variable
     active_set = environment.get(env_key, frozenset())
-    member = literal in active_set
+    member = canonicalize_name(literal) in active_set
     if op in ("in", "=="):
         return member
     return not member
@@ -342,8 +376,17 @@ def _pinned_pair_for_package(
     name = validated["name"]
     version = validated["version"]
     marker = validated.get("marker")
-    if isinstance(marker, str) and _group_marker_excludes(marker, environment, name):
-        return None
+    if marker is not None:
+        if not isinstance(marker, str):
+            log.warning(
+                "Skipping malformed pylock.toml [[packages]] entry %r: "
+                "'marker' is %s, expected a string",
+                name,
+                type(marker).__name__,
+            )
+            return None
+        if _group_marker_excludes(marker, environment, name):
+            return None
     non_registry_source = find_first_present_key(validated, _NON_REGISTRY_SOURCE_KEYS)
     if non_registry_source is not None:
         warn_non_registry_source("pylock.toml", name, non_registry_source)

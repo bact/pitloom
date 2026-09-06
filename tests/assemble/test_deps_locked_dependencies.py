@@ -422,3 +422,29 @@ def test_extract_locked_version_map_unpinned_does_not_leak_host_environment(
         "custom-pkg": "legacy.1",
         "unparseable-pkg": "legacy.2",
     }
+
+
+def test_add_dependencies_groups_pep440_equivalent_versions() -> None:
+    """Declared dependencies with PEP 440 equivalent versions (e.g. 2.31 and 2.31.0)
+    must group under the same Package node rather than creating duplicate nodes."""
+    doc_uuid = compute_doc_uuid("equiv-versions", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+
+    add_dependencies(
+        ["requests==2.31", "requests==2.31.0"],
+        "Source: pyproject.toml",
+        "http://spdx.org/spdxdocs/main-pkg",
+        ci,
+        "equiv-versions",
+        doc_uuid,
+        exporter,
+        offline=True,
+    )
+
+    pkg_nodes = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    assert len(pkg_nodes) == 1
+    assert pkg_nodes[0].name == "requests"

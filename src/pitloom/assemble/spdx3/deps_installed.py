@@ -57,11 +57,13 @@ def _parse_dep_name(dep: str) -> str:
 def _extract_pin_from_unparseable(dep: str) -> str | None:
     """Extract an exact pin (== or ===) from an unparseable requirement string."""
     dep_spec = dep.split(";", 1)[0] if ";" in dep else dep
+    if not dep_spec or "," in dep_spec:
+        return None
     for op in ("===", "=="):
         if op not in dep_spec:
             continue
         pin_part = dep_spec.split(op, 1)[1].strip()
-        if not pin_part or "*" in pin_part or "," in pin_part:
+        if not pin_part or "*" in pin_part:
             return None
         try:
             exact = single_exact_pin(SpecifierSet(f"{op}{pin_part}"))
@@ -109,16 +111,18 @@ def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool:
 
 
 def _resolve_version(
-    dep_name: str, dep: str, locked_version: str | None = None
+    dep_name: str,
+    dep: str,
+    *,
+    locked_version: str | None = None,
+    warn: bool = True,
 ) -> tuple[str, str | None]:
-    """Return ``(version_string, resolved_from)`` for a dependency.
+    """Resolve the authoritative version string and provenance note for *dep*.
 
-    An exact ``==``/``===`` pin already present in *dep* -- e.g. a resolved
-    ``poetry.lock`` entry, or any dependency the project itself pins
-    exactly -- is authoritative and checked first: it reflects a decision
-    already resolved by the dependency's own source and must never be
-    silently overridden by whatever happens to be installed in Pitloom's
-    own execution environment or a conflicting lock file entry.
+    Honours the "explicit pin beats local environment" rule: an exact pin
+    (``==`` or ``===``) declared directly on the dependency is authoritative;
+    it cannot be silently overridden by whatever happens to be installed in
+    Pitloom's own execution environment or a conflicting lock file entry.
 
     Likewise, a *locked_version* provided by a project lock file (PEP 751
     ``pylock.toml``, ``uv.lock``, ``poetry.lock``, etc.) for a direct dependency
@@ -131,8 +135,10 @@ def _resolve_version(
     """
     req, pinned = _extract_exact_pin(dep)
     if pinned is not None:
-        if locked_version is not None and _is_exact_pin_conflict(
-            req, pinned, locked_version
+        if (
+            warn
+            and locked_version is not None
+            and _is_exact_pin_conflict(req, pinned, locked_version)
         ):
             log.warning(
                 "Locked version %r for dependency %r conflicts with declared"
@@ -144,7 +150,7 @@ def _resolve_version(
         return pinned, None
 
     if locked_version is not None:
-        if not _satisfies_constraint(req, locked_version):
+        if warn and not _satisfies_constraint(req, locked_version):
             log.warning(
                 "Locked version %r for dependency %r does not satisfy declared"
                 " constraint %r -- using locked version",

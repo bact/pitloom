@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-31
-Last-Modified: 2026-09-06
+Last-Modified: 2026-09-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,7 @@ See also: [poetry-support.md](../implementation/poetry-support.md)'s
 roadmap's own priority order, as a scoped follow-on to Poetry wheel-file
 discovery rather than as part of a general lock-file initiative. Its
 design (source-stage-only scoping, direct/transitive dedup, additive
-`dependsOn` edges tagged `RelationshipCompleteness.complete`) came from
+`dependsOn` edges with `RelationshipCompleteness` left conservatively unset) came from
 [sbom-lifecycle-stages.md](sbom-lifecycle-stages.md)'s source/build/deployed
 staging model, which this document's priority table doesn't use -- worth
 reconciling if the two priority framings diverge as more formats land.
@@ -23,7 +23,7 @@ reconciling if the two priority framings diverge as more formats land.
 `pylock.toml` (PEP 751, Phase 1's headline item) support shipped
 (2026-09-02), reusing `poetry.lock`'s established shape
 (`ProjectMetadata.locked_dependencies`, additive `dependsOn` edges,
-`completeness` tagging, source-stage-only scoping) rather than this
+conservative unset `completeness`, source-stage-only scoping) rather than this
 document's illustrative Pydantic/CycloneDX sketch. It also settles the
 "which lock file wins" question this document's intro previously left
 open for the two-lock-files case: `pylock.toml` overrides an

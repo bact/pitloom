@@ -78,6 +78,11 @@ def test_extract_exact_pin_unparseable_requirements() -> None:
     _, pin_multi = _extract_exact_pin("unparseable-pkg==1.0,<=2.0; invalid @ marker")
     assert pin_multi is None
 
+    _, pin_multi_rev = _extract_exact_pin(
+        "unparseable-pkg<=2.0,==1.0; invalid @ marker"
+    )
+    assert pin_multi_rev is None
+
 
 def test_resolve_version_wildcard_prefix_defers_to_locked_version(
     caplog: pytest.LogCaptureFixture,
@@ -233,3 +238,25 @@ def test_enrich_from_installed_accepts_matching_or_equivalent_version(
     assert "originator" in filled or "license" in filled or dep_package.description
     assert dep_package.description == "Installed matching summary"
     assert dep_package.software_homePage == "https://matching.example.com"
+
+
+def test_prefetch_suppresses_conflict_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """During online prefetch, version resolution must not duplicate conflict
+    warnings that the later dependency emission pass will log."""
+    from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
+
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.document._prefetch_pypi_release_infos",
+        lambda pairs: {},
+    )
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        _prefetch_combined_release_info(
+            ["requests==1.0"], [], locked_versions={"requests": "2.0.0"}
+        )
+
+    assert "conflicts with declared exact pin" not in caplog.text

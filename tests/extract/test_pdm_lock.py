@@ -359,6 +359,20 @@ def test_same_name_conflicting_versions_skipped_and_warns(
         assert "pinned to conflicting versions" in caplog.text
 
 
+def test_same_name_equivalent_versions_not_conflicted() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "pkg"\nversion = "1.0"\n'
+            'groups = ["default"]\n\n'
+            '[[package]]\nname = "pkg"\nversion = "1.0.0"\n'
+            'groups = ["default"]\n',
+        )
+
+        assert extract_pdm_lock_dependencies(tmp_path) == ["pkg==1.0"]
+
+
 # --- read_project() cascade integration -----------------------------------
 
 

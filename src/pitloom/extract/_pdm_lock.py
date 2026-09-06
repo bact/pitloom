@@ -46,6 +46,7 @@ from pitloom.extract._lock_common import (
     find_first_present_key,
     group_versions_by_canonical_name,
     has_required_top_level_table,
+    is_same_version,
     load_lock_toml,
     shape_validated_package,
     warn_conflicting_versions,
@@ -131,9 +132,10 @@ def extract_pdm_lock_dependencies(project_dir: Path) -> list[str] | None:
     dependencies: list[str] = []
     for group in group_versions_by_canonical_name(pairs).values():
         name, version = group[0]
-        conflicting_versions = {v for _, v in group}
-        if len(conflicting_versions) > 1:
-            warn_conflicting_versions("pdm.lock", name, conflicting_versions)
+        conflicting_versions = {v for _, v in group if not is_same_version(v, version)}
+        if conflicting_versions:
+            all_versions = {v for _, v in group}
+            warn_conflicting_versions("pdm.lock", name, all_versions)
             continue
         dependencies.append(f"{name}=={version}")
     return dependencies

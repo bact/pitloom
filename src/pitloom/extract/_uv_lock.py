@@ -283,14 +283,22 @@ def _enqueue_requested_extras(
     extra_val = dep_ref.get("extra") or dep_ref.get("extras")
     if not extra_val:
         return
-    requested_extras = (
-        [extra_val]
-        if isinstance(extra_val, str)
-        else [e for e in extra_val if isinstance(e, str)]
-    )
+    if isinstance(extra_val, str):
+        requested_extras = [extra_val]
+    elif isinstance(extra_val, list):
+        requested_extras = [e for e in extra_val if isinstance(e, str)]
+    else:
+        log.warning(
+            "Skipping uv.lock entry %r requested 'extra'/'extras': "
+            "expected a string or list, got %s",
+            pkg.get("name", canonical_name),
+            type(extra_val).__name__,
+        )
+        return
     opt_deps_map = pkg.get("optional-dependencies", {})
     if not isinstance(opt_deps_map, dict):
         return
+
     for extra_name in requested_extras:
         extra_canon = canonicalize_name(extra_name)
         extra_key = (canonical_name, extra_canon)

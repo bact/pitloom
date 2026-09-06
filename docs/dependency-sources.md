@@ -114,9 +114,12 @@ either.
 
 ## How to tell which source was used
 
-Every SBOM element built from a lock-resolved dependency carries a
+Every transitive SBOM package introduced by a lock file carries a
 provenance annotation naming the file and method Pitloom used, e.g.
-`Source: pylock.toml | Method: resolved_lockfile`. The cascade stops at
+`Source: pylock.toml | Method: resolved_lockfile`. Direct dependencies
+retain their declared source (e.g. `Source: pyproject.toml`), with
+`Version resolved: Project lock file` noting when a declared range was
+resolved to an exact version by the lock file. The cascade stops at
 the first usable source it tries, so it doesn't itself check whether a
 still-lower-priority lock file is *also* present on disk -- the one
 case it does detect and annotate is `poetry.lock`, since that one is

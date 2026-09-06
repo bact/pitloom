@@ -133,7 +133,8 @@ def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority()
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "pylock.toml").write_text(
-            'lock-version = "1.0"\ncreated-by = "test"\n', encoding="utf-8"
+            'lock-version = "1.0"\ncreated-by = "test"\npackages = []\n',
+            encoding="utf-8",
         )
         (tmp_path / "uv.lock").write_text(
             'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
@@ -157,6 +158,37 @@ def test_apply_locked_dependencies_valid_empty_source_wins_over_lower_priority()
         metadata_uv = ProjectMetadata(name="demo")
         apply_locked_dependencies(metadata_uv, tmp_path)
         assert metadata_uv.locked_dependencies == ["requests==2.31.0"]
+
+
+def test_apply_locked_dependencies_truncated_pylock_falls_back_to_lower_priority(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A truncated pylock.toml (e.g. missing 'packages') is not a valid empty lock;
+    it must warn and let the cascade fall back to lower-priority sources."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pylock.toml").write_text(
+            'lock-version = "1.0"\ncreated-by = "test"\n', encoding="utf-8"
+        )
+        (tmp_path / "uv.lock").write_text(
+            'version = 1\nrevision = 1\nrequires-python = ">=3.10"\n'
+            '[[package]]\nname = "demo"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n'
+            'dependencies = [{ name = "requests" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+            encoding="utf-8",
+        )
+        metadata = ProjectMetadata(name="demo")
+
+        with caplog.at_level(logging.WARNING):
+            apply_locked_dependencies(metadata, tmp_path)
+
+        assert metadata.locked_dependencies == ["requests==2.31.0"]
+        assert metadata.provenance["locked_dependencies"] == (
+            "Source: uv.lock | Method: resolved_lockfile"
+        )
+        assert "missing top-level 'packages' key" in caplog.text
 
 
 def test_read_project_applies_cascade_for_setup_py_only_project() -> None:

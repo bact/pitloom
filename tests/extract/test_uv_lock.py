@@ -412,3 +412,24 @@ def test_dependency_missing_version_skipped_and_warns(
 
         assert not result
         assert "missing" in caplog.text.lower()
+
+
+def test_dependency_with_malformed_scalar_extra_warns_and_skips(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A malformed truthy scalar such as extra = 1 must not crash with TypeError;
+    it should log a warning and skip the invalid extra reference."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "coverage", extra = 1 }]\n\n'
+            '[[package]]\nname = "coverage"\nversion = "7.5.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == ["coverage==7.5.0"]
+        assert "expected a string or list" in caplog.text

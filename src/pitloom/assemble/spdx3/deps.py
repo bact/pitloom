@@ -43,6 +43,7 @@ from pitloom.core.models import build_pypi_purl, build_relationship, generate_sp
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.extract._lock_common import is_same_version
 
 __all__ = [
     "_DOWNLOAD_LABELS",
@@ -278,7 +279,18 @@ def add_dependencies(
 
     grouped: dict[tuple[str, str], list[tuple[str, str, str | None]]] = {}
     for dep, dep_name, dep_version, version_note in resolved:
-        canon_key = (canonicalize_name(dep_name), dep_version)
+        canon_name = canonicalize_name(dep_name)
+        matched_key = next(
+            (
+                (k_name, k_ver)
+                for k_name, k_ver in grouped
+                if k_name == canon_name and is_same_version(k_ver, dep_version)
+            ),
+            None,
+        )
+        canon_key = (
+            matched_key if matched_key is not None else (canon_name, dep_version)
+        )
         grouped.setdefault(canon_key, []).append((dep, dep_name, version_note))
 
     for (_canon_name, dep_version), declared in grouped.items():

@@ -230,13 +230,14 @@ def _prefetch_combined_release_info(
             else None
         )
         dep_version, _version_note = _resolve_version(
-            dep_name, dep, locked_version=locked_ver
+            dep_name, dep, locked_version=locked_ver, warn=False
         )
         name_version_pairs.append((dep_name, dep_version))
     for dep in transitive_only:
         dep_name = _parse_dep_name(dep)
-        dep_version, _version_note = _resolve_version(dep_name, dep)
+        dep_version, _version_note = _resolve_version(dep_name, dep, warn=False)
         name_version_pairs.append((dep_name, dep_version))
+
     return _prefetch_pypi_release_infos(name_version_pairs)
 
 

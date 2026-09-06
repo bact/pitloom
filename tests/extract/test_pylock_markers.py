@@ -247,3 +247,44 @@ def test_malformed_marker_string_included_and_warns(
 
         assert result == ["broken==1.0.0"]
         assert "'marker'" in caplog.text
+
+
+def test_default_group_canonicalized_name_matching() -> None:
+    """Under PEP 735 / PEP 503, dependency group and extra names are
+    case-insensitive and treat '-', '_', and '.' as equivalent.
+    Verifies that 'main_deps' matches 'main-deps' and 'Dev_Group'
+    matches 'dev-group'."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["main-deps", "Dev_Group"]\n'
+            '[[packages]]\nname = "pkg1"\nversion = "1.0.0"\n'
+            "marker = \"'main_deps' in dependency_groups\"\n\n"
+            '[[packages]]\nname = "pkg2"\nversion = "2.0.0"\n'
+            "marker = \"'dev-group' in dependency_groups\"\n\n"
+            '[[packages]]\nname = "pkg3"\nversion = "3.0.0"\n'
+            "marker = \"'other-group' in dependency_groups\"\n",
+        )
+
+        assert extract_pylock_dependencies(tmp_path) == [
+            "pkg1==1.0.0",
+            "pkg2==2.0.0",
+        ]
+
+
+def test_malformed_non_string_marker_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[packages]]\nname = "broken"\nversion = "1.0.0"\nmarker = 123\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert result == []
+        assert "'marker' is int" in caplog.text

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-05
+Last-Modified: 2026-09-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,16 +39,20 @@ ordered cascade -- all six formats now registered in it.
 ## The cascade
 
 ```python
-_LockExtractor = Callable[[Path, str | None], list[str]]
+_LockExtractor = Callable[[Path, str | None], list[str] | None]
 
-_LOCK_SOURCES: list[tuple[str, _LockExtractor | None, str | None]] = [
+_LOCK_SOURCES: list[tuple[str, _LockExtractor, str]] = [
     (
         "pylock.toml",
         _ignore_expected_name(extract_pylock_dependencies),
         "resolved_lockfile",
     ),
     ("uv.lock", extract_uv_lock_dependencies, "resolved_lockfile"),
-    ("poetry.lock", None, None),
+    (
+        "poetry.lock",
+        _ignore_expected_name(extract_poetry_lock_dependencies),
+        "resolved_lockfile",
+    ),
     (
         "pdm.lock",
         _ignore_expected_name(extract_pdm_lock_dependencies),
@@ -75,8 +79,8 @@ Each entry pairs a source name, an extractor matching the uniform
 of exact-pin PEP 508 strings), and a provenance `Method` tag. Only
 `uv.lock`'s own extractor uses *expected_name* (to disambiguate a shared
 workspace lock's multiple local package entries without re-reading
-`pyproject.toml` a second time); `pylock.toml`'s, `pdm.lock`'s, and
-`Pipfile.lock`'s extractors keep their simpler, single-`project_dir`
+`pyproject.toml` a second time); `pylock.toml`'s, `poetry.lock`'s, `pdm.lock`'s,
+and `Pipfile.lock`'s extractors keep their simpler, single-`project_dir`
 signature and are wrapped with `_ignore_expected_name()` when registered
 in `_LOCK_SOURCES` above, rather than widening every format's own
 signature for a need only one of them has. `apply_locked_dependencies()`
@@ -104,34 +108,31 @@ generated SBOM tell "a resolver actually produced this" from "this
 merely happened to already be a fully pinned list" -- see
 [docs/dependency-sources.md](../../docs/dependency-sources.md).
 
-**`poetry.lock` has no extractor here (`None`, `None`), but it *is* in
-the table.** It's still applied earlier, gated inside
-`_try_read_poetry()`'s `include_locked_dependencies` build-stage flag,
-since `poetry.lock` only ever makes sense alongside a `[tool.poetry]`
-table -- which requires `pyproject.toml` to exist regardless, so it
-needs no `read_project()`-level generalization of its own. What changed
-once a format *below* `poetry.lock` in the priority order (`pdm.lock`)
-joined the cascade: `poetry.lock` needed a fixed rank in the *same*
-list, not just an informal "runs before this cascade" note -- see the
-next section for why.
+**`poetry.lock` is registered with an extractor in the cascade table.**
+When `pyproject.toml` is a Poetry 1.x project, `_try_read_poetry()` extracts
+it earlier during project parsing; when the cascade runs, the deduplication
+guard recognizes that `poetry.lock` was already extracted and avoids re-parsing
+it. For standard PEP 621 or non-Poetry projects accompanied by a `poetry.lock`,
+the cascade's registered extractor parses it directly.
 
 ## Priority order
 
 Same order [docs/dependency-sources.md](../../docs/dependency-sources.md)
 documents for users, restated here as the exact rank list
 `_LOCK_SOURCES` must match. Highest to lowest, per
-`working-docs/design/roadmap.md`'s "Remaining lock formats" item and
+`working-docs/design/roadmap.md`'s completed "Lock/pin formats" item and
 `lock-files.md`'s phase reasoning (build-backend-agnostic and universal
 beats tool-specific; a real resolver lock beats a merely-pinned file):
 
 1. `pylock.toml` (PEP 751) -- the interoperability standard.
 2. `uv.lock`
-3. `poetry.lock` (via `_try_read_poetry()`, not this cascade -- see above)
+3. `poetry.lock`
 4. `pdm.lock`
 5. `Pipfile.lock` -- JSON, not TOML; see its own notes below.
 6. pinned `requirements.txt` -- weakest signal, lowest rank; not a real
    lock file at all, only usable when every line is already an exact
    `==` pin. See its own notes below.
+
 
 ## Why `poetry.lock` needs a fixed rank, not just "runs first"
 
@@ -145,12 +146,11 @@ and `uv.lock`, ranks 1-2), but silently wrong the moment an entry ranks
 `poetry.lock`'s already-applied result, even though `pdm.lock` is
 supposed to lose that comparison.
 
-The fix: `poetry.lock` is a real entry in `_LOCK_SOURCES` (extractor
-`None`, since it's applied elsewhere), so its rank is looked up the same
-way as everything else instead of being assumed. `apply_locked_dependencies()`
-first resolves the rank of whatever source (if any) already populated
-`metadata.provenance["locked_dependencies"]` -- today that can only be
-`poetry.lock`, via `_try_read_poetry()`, which runs before this cascade
+The fix: `poetry.lock` is a real entry in `_LOCK_SOURCES`, so its rank is
+looked up the same way as everything else instead of being assumed.
+`apply_locked_dependencies()` first resolves the rank of whatever source
+(if any) already populated `metadata.provenance["locked_dependencies"]`
+(such as `poetry.lock` via `_try_read_poetry()` for Poetry 1.x projects)
 -- then, walking `_LOCK_SOURCES` in order, stops (`break`) the moment it
 reaches an entry ranked *below* that already-set source, since nothing
 from there on could legitimately win. `tests/extract/test_pdm_lock.py::test_read_project_pdm_lock_never_overrides_poetry_lock`

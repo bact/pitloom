@@ -253,6 +253,19 @@ def test_conflicting_versions_for_same_package_warns_and_excludes(
         assert "conflicting versions" in caplog.text
 
 
+def test_equivalent_versions_for_same_package_not_conflicted() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "requests"\nversion = "2.31"\ngroups = ["main"]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
+        )
+
+        result = extract_poetry_lock_dependencies(tmp_path)
+        assert result == ["requests==2.31"]
+
+
 def test_main_group_package_or_none_non_dict_entry_returns_none() -> None:
     """A ``[[package]]`` entry that isn't a table (defensive guard against
     a malformed lock file) is skipped, not a crash."""
