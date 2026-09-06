@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-05
+Last-Modified: 2026-09-07
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -25,13 +25,16 @@ additionally reads its exact resolved versions and adds any dependency
 they introduce that your declared list doesn't already name -- your
 project's *transitive* dependencies, pinned exactly (e.g. `idna==3.7`).
 
-**A direct dependency already in your declared list keeps its declared
-range in the SBOM, even when a lock file has resolved it to an exact
-version.** For example, if `pyproject.toml` declares `requests>=2.0` and
-your lock file resolved it to `2.31.0`, the SBOM still shows
-`requests>=2.0` for that entry -- only dependencies *not already
-declared* (the ones the lock file alone reveals) get added, as new,
-exactly-pinned entries.
+**When a direct dependency is declared with a version range and a lock
+file is present, Pitloom uses the lock file's exact resolved version
+for the emitted SBOM package.** For example, if `pyproject.toml`
+declares `requests>=2.0` and your lock file resolved it to `2.31.0`, the
+package's `software_packageVersion` and PyPI PURL become `2.31.0` (with
+enrichment fetching metadata for that exact release), while the
+original declared range is preserved in the element's
+`declared_constraint` provenance annotation. Transitive dependencies
+revealed only by the lock file (e.g. `idna==3.7`) are added as new,
+additive entries.
 
 ## Supported lock formats, and what counts as "resolved"
 

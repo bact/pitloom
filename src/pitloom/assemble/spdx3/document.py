@@ -35,7 +35,6 @@ from pitloom.assemble.spdx3._document_model import (
     build_enrichment_fragment,
     build_model,
 )
-from pitloom.assemble.spdx3._provenance_encoders import parse_provenance_value
 from pitloom.assemble.spdx3.ai import add_ai_models
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.deps import (
@@ -180,38 +179,20 @@ def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]
     ]
 
 
-#: `locked_dependencies` provenance `Method` tags that represent a real
-#: resolver's output -- a full, hash-verifiable transitive closure, not
-#: just a list of exact pins someone happened to write down. Every
-#: format in `pitloom.extract._locked_dependencies`'s cascade uses this
-#: tag except pinned `requirements.txt`, whose own `"pinned_requirements"`
-#: tag is deliberately excluded below.
-_RESOLVED_LOCKFILE_METHOD = "resolved_lockfile"
-
-
+# pylint: disable=useless-return
 def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
     """Return the `RelationshipCompleteness` value for the locked-only
     `dependsOn` edges :func:`_locked_transitive_only_dependencies`
     produces, or `None` to leave it unset.
 
-    A real resolver lock (`poetry.lock`, `pylock.toml`, `uv.lock`,
-    `pdm.lock`, `Pipfile.lock` -- every cascade entry tagged
-    `Method: resolved_lockfile`) genuinely proves the full transitive
-    dependency closure, so its edges are marked `complete`. Every other
-    case -- pinned `requirements.txt` (tagged `Method:
-    pinned_requirements`, just a list of exact-pin lines a human or `pip
-    freeze` wrote, with no resolver guarantee that every real transitive
-    dependency is actually present), an unrecognized future `Method` tag,
-    or no provenance recorded at all -- returns `None` (unset) instead:
-    an inclusion check (only the one tag known to prove completeness
-    claims it) rather than an exclusion check, so a future lock source
-    that forgets to record its own `Method` tag fails safe to "unset"
-    rather than silently defaulting to overstating completeness.
+    Conservatively returns ``None`` (unset): while a resolver lock represents
+    a resolved dependency graph, extractors may legitimately omit
+    unrepresentable dependencies (such as VCS/path sources, non-default groups,
+    or marker-ambiguous variants). Asserting ``complete`` would overstate
+    completeness for partial closures, so leaving it unset makes no
+    unverifiable claim.
     """
-    provenance = metadata.provenance.get("locked_dependencies")
-    method = parse_provenance_value(provenance).get("method") if provenance else None
-    if method == _RESOLVED_LOCKFILE_METHOD:
-        return spdx3.RelationshipCompleteness.complete
+    del metadata
     return None
 
 

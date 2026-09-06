@@ -99,6 +99,20 @@ def extract_poetry_lock_dependencies(project_dir: Path) -> list[str] | None:
 _NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
 
 
+def _is_main_group(validated: dict[str, Any], name: str) -> bool:
+    """Return True if package belongs to the main/default group."""
+    if "groups" in validated:
+        return (
+            default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name)
+            is True
+        )
+    if "category" in validated:
+        return validated.get("category") == _DEFAULT_GROUP
+    return (
+        default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name) is True
+    )
+
+
 def _main_group_package_or_none(pkg: object) -> dict[str, Any] | None:
     """Return *pkg* when it's a well-formed, non-optional, main-group,
     registry-sourced entry -- ``None`` otherwise.
@@ -114,9 +128,7 @@ def _main_group_package_or_none(pkg: object) -> dict[str, Any] | None:
         return None
     name = validated["name"]
 
-    if validated.get("optional") is True:
-        return None
-    if not default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name):
+    if validated.get("optional") is True or not _is_main_group(validated, name):
         return None
     source = validated.get("source")
     source_type = source.get("type") if isinstance(source, dict) else None

@@ -16,6 +16,7 @@ from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -32,6 +33,7 @@ from pitloom.core.models import build_pypi_purl
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._extract_utils import pkg_meta_get
+from pitloom.extract._lock_common import is_same_version, single_exact_pin
 
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
@@ -52,24 +54,58 @@ def _parse_dep_name(dep: str) -> str:
     return dep.strip()
 
 
+def _extract_pin_from_unparseable(dep: str) -> str | None:
+    """Extract an exact pin (== or ===) from an unparseable requirement string."""
+    dep_spec = dep.split(";", 1)[0] if ";" in dep else dep
+    for op in ("===", "=="):
+        if op not in dep_spec:
+            continue
+        pin_part = dep_spec.split(op, 1)[1].strip()
+        if not pin_part or "*" in pin_part or "," in pin_part:
+            return None
+        try:
+            exact = single_exact_pin(SpecifierSet(f"{op}{pin_part}"))
+            if exact is not None:
+                return exact[1]
+        except InvalidSpecifier:
+            if op == "===":
+                return pin_part
+        return None
+    return None
+
+
 def _extract_exact_pin(dep: str) -> tuple[Requirement | None, str | None]:
-    """Parse *dep* into a Requirement and extract any exact pin (== or ===)."""
+    """Parse *dep* into a Requirement and extract any single exact pin (== or ===)."""
     try:
         req = Requirement(dep)
+        exact = single_exact_pin(req.specifier)
+        return (req, exact[1]) if exact is not None else (req, None)
     except InvalidRequirement:
-        dep_spec = dep.split(";", 1)[0] if ";" in dep else dep
-        for op in ("===", "=="):
-            if op in dep_spec:
-                pin = dep_spec.split(op)[1].strip()
-                if pin:
-                    return None, pin
-                break
-        return None, None
+        return None, _extract_pin_from_unparseable(dep)
 
-    pinned = [spec.version for spec in req.specifier if spec.operator in ("==", "===")]
-    if pinned:
-        return req, pinned[0]
-    return req, None
+
+def _is_exact_pin_conflict(
+    req: Requirement | None, pinned: str, locked_version: str
+) -> bool:
+    """Return True if locked_version conflicts with declared exact pin."""
+    if req is not None and req.specifier:
+        try:
+            return not req.specifier.contains(locked_version, prereleases=True)
+        # pylint: disable-next=broad-exception-caught
+        except (InvalidVersion, Exception):
+            pass
+    return not is_same_version(locked_version, pinned)
+
+
+def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool:
+    """Return True if locked_version satisfies req.specifier."""
+    if req is None or not req.specifier:
+        return True
+    try:
+        return req.specifier.contains(locked_version, prereleases=True)
+    # pylint: disable-next=broad-exception-caught
+    except (InvalidVersion, Exception):
+        return False
 
 
 def _resolve_version(
@@ -95,7 +131,9 @@ def _resolve_version(
     """
     req, pinned = _extract_exact_pin(dep)
     if pinned is not None:
-        if locked_version is not None and locked_version != pinned:
+        if locked_version is not None and _is_exact_pin_conflict(
+            req, pinned, locked_version
+        ):
             log.warning(
                 "Locked version %r for dependency %r conflicts with declared"
                 " exact pin %r -- using declared pin",
@@ -106,21 +144,14 @@ def _resolve_version(
         return pinned, None
 
     if locked_version is not None:
-        if req is not None and req.specifier:
-            satisfies = True
-            try:
-                satisfies = req.specifier.contains(locked_version, prereleases=True)
-            # pylint: disable-next=broad-exception-caught
-            except (InvalidVersion, Exception):
-                satisfies = False
-            if not satisfies:
-                log.warning(
-                    "Locked version %r for dependency %r does not satisfy declared"
-                    " constraint %r -- using locked version",
-                    locked_version,
-                    dep_name,
-                    dep,
-                )
+        if not _satisfies_constraint(req, locked_version):
+            log.warning(
+                "Locked version %r for dependency %r does not satisfy declared"
+                " constraint %r -- using locked version",
+                locked_version,
+                dep_name,
+                dep,
+            )
         return locked_version, "Version resolved: Project lock file"
 
     try:
@@ -143,6 +174,7 @@ def _enrich_from_installed(
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
     *,
+    expected_version: str | None = None,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     offline: bool = False,
@@ -152,6 +184,16 @@ def _enrich_from_installed(
     try:
         pkg_meta: PackageMetadata = get_pkg_metadata(dep_name)
     except PackageNotFoundError:
+        return set()
+
+    installed_version = pkg_meta_get(pkg_meta, "Version")
+    target_version = expected_version or dep_package.software_packageVersion
+    if (
+        installed_version
+        and target_version
+        and target_version != "unknown"
+        and not is_same_version(installed_version, target_version)
+    ):
         return set()
 
     filled: set[str] = set()

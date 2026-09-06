@@ -172,6 +172,7 @@ def _finish_dependency_enrichment(
         doc_name,
         doc_uuid,
         exporter,
+        expected_version=dep_version,
         provenance_config=provenance_config,
         encoder=encoder,
         offline=offline,

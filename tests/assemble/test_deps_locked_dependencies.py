@@ -101,8 +101,8 @@ def test_add_dependencies_omitted_completeness_leaves_field_unset() -> None:
 
 def test_locked_dependencies_add_transitive_only_edges() -> None:
     """A locked (poetry.lock-resolved) package not already a direct
-    dependency gets an additive ``dependsOn`` edge tagged ``complete``;
-    the direct dependency's own edge is untouched (no ``completeness``)."""
+    dependency gets an additive ``dependsOn`` edge; completeness is
+    conservatively left unset to avoid overstating completeness."""
     project = ProjectMetadata(
         name="main-project",
         version="1.0.0",
@@ -130,8 +130,8 @@ def test_locked_dependencies_add_transitive_only_edges() -> None:
 
     assert len(depends_on) == 3  # one edge per package, no duplicate for requests
     assert "completeness" not in depends_on[packages["requests"]["spdxId"]]
-    assert depends_on[packages["urllib3"]["spdxId"]]["completeness"] == "complete"
-    assert depends_on[packages["idna"]["spdxId"]]["completeness"] == "complete"
+    assert "completeness" not in depends_on[packages["urllib3"]["spdxId"]]
+    assert "completeness" not in depends_on[packages["idna"]["spdxId"]]
 
 
 def test_pinned_requirements_transitive_edges_leave_completeness_unset() -> None:
@@ -171,15 +171,9 @@ def test_pinned_requirements_transitive_edges_leave_completeness_unset() -> None
 
 
 def test_locked_dependencies_completeness_by_method() -> None:
-    """Unit-level coverage of `_locked_dependencies_completeness()`'s
-    branches: `resolved_lockfile` (a real resolver lock) is `complete`;
-    everything else -- `pinned_requirements`, an unrecognized future
-    `Method` tag, and no provenance recorded at all -- is unset (`None`),
-    the same conservative "don't claim completeness we can't back up"
-    choice, via a positive inclusion check rather than an exclusion
-    check (so a future lock source that forgets to set its own `Method`
-    tag fails safe to unset instead of silently defaulting to
-    `complete`)."""
+    """Unit-level coverage of `_locked_dependencies_completeness()`:
+    conservatively returns None (unset) for all cases to avoid overstating
+    completeness on partial lock closures."""
     resolved = ProjectMetadata(
         name="pkg",
         locked_dependencies=["idna==3.7"],
@@ -205,10 +199,7 @@ def test_locked_dependencies_completeness_by_method() -> None:
     )
     no_provenance = ProjectMetadata(name="pkg", locked_dependencies=["idna==3.7"])
 
-    assert (
-        _locked_dependencies_completeness(resolved)
-        == spdx3.RelationshipCompleteness.complete
-    )
+    assert _locked_dependencies_completeness(resolved) is None
     assert _locked_dependencies_completeness(pinned) is None
     assert _locked_dependencies_completeness(unrecognized) is None
     assert _locked_dependencies_completeness(no_provenance) is None

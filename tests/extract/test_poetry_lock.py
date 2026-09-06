@@ -202,6 +202,23 @@ def test_malformed_groups_field_skipped_and_warns(
         assert "'groups'" in caplog.text
 
 
+def test_legacy_poetry_category_main_and_dev() -> None:
+    """Poetry 1.x locks use category = "main"|"dev" instead of groups.
+    category = "main" must be included, while category = "dev" must be excluded."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "runtime-pkg"\nversion = "1.0.0"\n'
+            'category = "main"\n\n'
+            '[[package]]\nname = "dev-pkg"\nversion = "2.0.0"\n'
+            'category = "dev"\n',
+        )
+
+        result = extract_poetry_lock_dependencies(tmp_path)
+        assert result == ["runtime-pkg==1.0.0"]
+
+
 def test_optional_package_excluded() -> None:
     """A package with optional = true is an extra, not a default runtime
     dependency -- must be excluded."""
@@ -459,12 +476,14 @@ def test_real_world_cleo_tool_poetry_only() -> None:
 
 
 def test_real_world_pastel_tool_poetry_only() -> None:
+    """`pastel` uses legacy Poetry 1.x `category = "dev"` for all entries;
+    verifies dev dependencies are excluded and locked_dependencies is empty."""
     metadata, _config = read_pyproject(
         REAL_WORLD_LOCKS / "pastel-0.2.1" / "pyproject.toml"
     )
 
     assert metadata.name == "pastel"
-    assert metadata.locked_dependencies
+    assert metadata.locked_dependencies == []
     assert metadata.provenance["locked_dependencies"] == (
         "Source: poetry.lock | Method: resolved_lockfile"
     )
