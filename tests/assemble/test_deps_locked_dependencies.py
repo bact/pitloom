@@ -26,6 +26,7 @@ from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.document import (
     _extract_locked_version_map,
     _locked_dependencies_completeness,
+    _locked_transitive_only_dependencies,
     build,
 )
 from pitloom.core.creation import CreationMetadata
@@ -448,3 +449,20 @@ def test_add_dependencies_groups_pep440_equivalent_versions() -> None:
     ]
     assert len(pkg_nodes) == 1
     assert pkg_nodes[0].name == "requests"
+
+
+def test_extract_locked_version_map_warns_on_conflicting_duplicates(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Conflicting duplicate package entries in locked_dependencies must warn."""
+    caplog.set_level("WARNING")
+    locked_map = _extract_locked_version_map(["requests==2.31.0", "requests==2.28.0"])
+    assert locked_map["requests"] == "2.28.0"
+    assert "pinned to conflicting versions" in caplog.text
+
+
+def test_locked_transitive_only_dependencies_handles_none_locked() -> None:
+    """None locked_dependencies must safely return empty list without TypeError."""
+    meta = ProjectMetadata(name="testpkg", dependencies=["requests>=2.0"])
+    meta.locked_dependencies = None  # type: ignore[assignment]
+    assert _locked_transitive_only_dependencies(meta) == []

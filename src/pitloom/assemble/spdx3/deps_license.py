@@ -22,6 +22,7 @@ from pitloom.assemble.spdx3.provenance import (
     parse_provenance_value,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
+from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._license import (
@@ -403,3 +404,77 @@ def _add_license_noassertion(
             doc_uuid,
         )
     )
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def attach_main_package_license(
+    metadata: ProjectMetadata,
+    main_package: spdx3.software_Package,
+    spdx_ci: spdx3.CreationInfo,
+    spdx_doc: spdx3.SpdxDocument,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> None:
+    """Attach declared and/or concluded license elements and relationships for
+    the main Python project package."""
+    if metadata.license_name:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+        rel_declared, rel_concluded = build_license_elements(
+            license_id=metadata.license_name,
+            package_spdx_id=require_spdx_id(main_package),
+            license_provenance=metadata.provenance.get(
+                "license", "Source: pyproject.toml | Field: project.license"
+            ),
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            concluded_license_id=metadata.license_concluded,
+            concluded_license_provenance=metadata.provenance.get("license_concluded"),
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
+    elif metadata.license_concluded:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+        _add_license_noassertion(
+            main_package,
+            spdx_ci,
+            metadata.name,
+            doc_uuid,
+            exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+        _rel_dec, rel_concluded = build_license_elements(
+            license_id=metadata.license_concluded,
+            package_spdx_id=require_spdx_id(main_package),
+            license_provenance=metadata.provenance.get(
+                "license_concluded",
+                "Source: LICENSE | Method: licenseid_detection",
+            ),
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
+    else:
+        _add_license_noassertion(
+            main_package,
+            spdx_ci,
+            metadata.name,
+            doc_uuid,
+            exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )

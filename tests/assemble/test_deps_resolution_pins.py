@@ -11,12 +11,16 @@ version resolution tests; this file covers specifier operator nuances (==, ===,
 wildcards, multi-specifiers) and installed metadata version mismatch isolation.
 """
 
+# pylint: disable=protected-access
+
 from __future__ import annotations
 
 import logging
+from unittest.mock import MagicMock
 
 import pytest
 from packaging.requirements import Requirement
+from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 import pitloom.assemble.spdx3.deps_installed as deps_installed_mod
@@ -25,6 +29,7 @@ from pitloom.assemble.spdx3.deps_installed import (
     _extract_exact_pin,
     _resolve_version,
 )
+from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter
 
@@ -246,8 +251,6 @@ def test_prefetch_suppresses_conflict_warnings(
 ) -> None:
     """During online prefetch, version resolution must not duplicate conflict
     warnings that the later dependency emission pass will log."""
-    from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
-
     monkeypatch.setattr(
         "pitloom.assemble.spdx3.document._prefetch_pypi_release_infos",
         lambda pairs: {},
@@ -260,3 +263,141 @@ def test_prefetch_suppresses_conflict_warnings(
         )
 
     assert "conflicts with declared exact pin" not in caplog.text
+
+
+def test_extract_exact_pin_unparseable_invalid_specifier_returns_none() -> None:
+    """When an unparseable requirement has == with an invalid specifier, return None."""
+    _, pin = _extract_exact_pin("invalid name @ == bad-version")
+    assert pin is None
+
+
+def test_extract_exact_pin_unparseable_arbitrary_equality_invalid_specifier() -> None:
+    """When an unparseable requirement has === with an invalid specifier containing
+    whitespace, it must return None to avoid polluting SBOM with invalid versions."""
+    _, pin = _extract_exact_pin("invalid name @ === foo bar")
+    assert pin is None
+
+
+def test_is_exact_pin_conflict_invalid_version_in_contains() -> None:
+    """When req.specifier.contains raises InvalidVersion, fall through to
+    is_same_version."""
+    mock_req = MagicMock(spec=Requirement)
+    mock_req.specifier = MagicMock()
+    mock_req.specifier.contains.side_effect = InvalidVersion("invalid version")
+
+    assert not deps_installed_mod._is_exact_pin_conflict(mock_req, "1.0", "1.0")
+    assert deps_installed_mod._is_exact_pin_conflict(mock_req, "1.0", "2.0")
+
+
+def test_satisfies_constraint_req_none_or_empty_specifier() -> None:
+    """_satisfies_constraint returns True when req is None or has no specifier."""
+    assert deps_installed_mod._satisfies_constraint(None, "1.0.0")
+    req_no_spec = Requirement("requests")
+    assert deps_installed_mod._satisfies_constraint(req_no_spec, "1.0.0")
+
+
+def test_satisfies_constraint_invalid_version_returns_false() -> None:
+    """When req.specifier.contains raises InvalidVersion, return False."""
+    mock_req = MagicMock(spec=Requirement)
+    mock_req.specifier = MagicMock()
+    mock_req.specifier.contains.side_effect = InvalidVersion("invalid version")
+    assert not deps_installed_mod._satisfies_constraint(
+        mock_req, "not-a-pep440-version"
+    )
+
+
+def test_resolve_version_warn_false_suppresses_unsatisfied_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When warn=False, locked version conflict with specifier must not warn."""
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version(
+            "requests", "requests>=2.0", locked_version="1.0", warn=False
+        )
+    assert version == "1.0"
+    assert note == "Version resolved: Project lock file"
+    assert "does not satisfy declared constraint" not in caplog.text
+
+
+def test_resolve_version_warn_true_logs_unsatisfied_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When warn=True, locked version conflict with specifier logs warning."""
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version(
+            "requests", "requests>=2.0", locked_version="1.0", warn=True
+        )
+    assert version == "1.0"
+    assert note == "Version resolved: Project lock file"
+    assert "does not satisfy declared constraint" in caplog.text
+
+
+def test_parse_dep_name_unparseable_without_operators() -> None:
+    """_parse_dep_name returns stripped string when no operator is present."""
+    assert deps_installed_mod._parse_dep_name("  invalid package name  ") == (
+        "invalid package name"
+    )
+
+
+def test_extract_pin_from_unparseable_no_exact_operators() -> None:
+    """_extract_pin_from_unparseable returns None when neither == nor === is present."""
+    assert (
+        deps_installed_mod._extract_pin_from_unparseable("invalid pkg >= 1.0") is None
+    )
+
+
+def test_extract_pin_from_unparseable_compound_operator_without_comma() -> None:
+    """Requirement containing multiple operators without commas is rejected."""
+    assert (
+        deps_installed_mod._extract_pin_from_unparseable("invalid pkg > 1.0 == 2.0")
+        is None
+    )
+
+
+def test_is_exact_pin_conflict_none_req() -> None:
+    """_is_exact_pin_conflict with req=None falls back to is_same_version."""
+    assert not deps_installed_mod._is_exact_pin_conflict(None, "1.0", "1.0")
+    assert deps_installed_mod._is_exact_pin_conflict(None, "1.0", "2.0")
+
+
+def test_enrich_from_installed_download_url_and_unknown_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_enrich_from_installed sets downloadLocation when present and handles
+    unknown version."""
+    fake_meta = _FakeMetadata(
+        {
+            "Version": "1.0",
+            "Download-URL": "https://example.com/download.tar.gz",
+        }
+    )
+    monkeypatch.setattr(deps_installed_mod, "get_pkg_metadata", lambda name: fake_meta)
+
+    doc_uuid = compute_doc_uuid("dl-test", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    dep_package = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="dl-test", doc_uuid=doc_uuid),
+        name="foo",
+        creationInfo=ci,
+    )
+    dep_package.software_packageVersion = "unknown"
+    exporter.add_package(dep_package)
+
+    _enrich_from_installed(
+        "foo",
+        dep_package,
+        ci,
+        "dl-test",
+        doc_uuid,
+        exporter,
+        expected_version="1.0",
+    )
+
+    assert (
+        dep_package.software_downloadLocation == "https://example.com/download.tar.gz"
+    )
+    assert not getattr(dep_package, "software_packageUrl", None)

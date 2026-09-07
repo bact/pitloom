@@ -294,25 +294,54 @@ def test_extract_pypi_license_absent_returns_none() -> None:
 
 
 def test_extract_release_hash_prefers_wheel() -> None:
+    sdist_hash = "a" * 64
+    wheel_hash = "b" * 64
     release_info = {
         "urls": [
-            {"packagetype": "sdist", "digests": {"sha256": "sdist-hash"}},
-            {"packagetype": "bdist_wheel", "digests": {"sha256": "wheel-hash"}},
+            {"packagetype": "sdist", "digests": {"sha256": sdist_hash}},
+            {"packagetype": "bdist_wheel", "digests": {"sha256": wheel_hash}},
         ]
     }
-    assert _extract_release_hash(release_info) == "wheel-hash"
+    assert _extract_release_hash(release_info) == wheel_hash
 
 
 def test_extract_release_hash_falls_back_to_sdist() -> None:
+    sdist_hash = "a" * 64
     release_info = {
-        "urls": [{"packagetype": "sdist", "digests": {"sha256": "sdist-hash"}}]
+        "urls": [{"packagetype": "sdist", "digests": {"sha256": sdist_hash}}]
     }
-    assert _extract_release_hash(release_info) == "sdist-hash"
+    assert _extract_release_hash(release_info) == sdist_hash
+
+
+def test_extract_release_hash_falls_back_to_first_url() -> None:
+    egg_hash = "c" * 64
+    release_info = {
+        "urls": [{"packagetype": "bdist_egg", "digests": {"sha256": egg_hash}}]
+    }
+    assert _extract_release_hash(release_info) == egg_hash
 
 
 def test_extract_release_hash_no_urls_returns_none() -> None:
     assert _extract_release_hash({"urls": []}) is None
     assert _extract_release_hash({}) is None
+
+
+def test_extract_release_hash_validates_hex_sha256() -> None:
+    # Non-dict digests
+    assert _extract_release_hash({"urls": [{"digests": "not-a-dict"}]}) is None
+    assert _extract_release_hash({"urls": [{"digests": [1, 2, 3]}]}) is None
+    assert _extract_release_hash({"urls": [{"digests": 123}]}) is None
+    # Invalid length or characters
+    assert (
+        _extract_release_hash({"urls": [{"digests": {"sha256": "too-short"}}]}) is None
+    )
+    assert _extract_release_hash({"urls": [{"digests": {"sha256": "g" * 64}}]}) is None
+    # Uppercase normalized to lowercase
+    upper_hash = ("A" * 32) + ("B" * 32)
+    assert (
+        _extract_release_hash({"urls": [{"digests": {"sha256": upper_hash}}]})
+        == upper_hash.lower()
+    )
 
 
 # ---------------------------------------------------------------------------

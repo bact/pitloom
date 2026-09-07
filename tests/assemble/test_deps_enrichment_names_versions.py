@@ -250,6 +250,7 @@ def test_build_pypi_purl_omits_version_when_none() -> None:
 
 def test_build_pypi_purl_includes_version_when_known() -> None:
     assert build_pypi_purl("auditwheel", "6.7.0") == "pkg:pypi/auditwheel@6.7.0"
+    assert build_pypi_purl("torch", "2.0.0+cpu") == "pkg:pypi/torch@2.0.0%2Bcpu"
 
 
 def test_add_dependencies_sets_name_only_purl_for_unresolved_version(

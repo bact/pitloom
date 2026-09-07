@@ -35,6 +35,7 @@ from pitloom.assemble.spdx3.deps_pypi import (
     _fetch_pypi_release_info,
     _prefetch_pypi_release_infos,
 )
+from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -354,3 +355,45 @@ def test_resolve_remote_authors_file_success_and_branches(
         content_type_method="auto",
     )
     assert locator == "https://github.com/foo"
+
+
+def test_prefetch_pypi_release_infos_worker_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_prefetch_pypi_release_infos safely captures exceptions from worker threads."""
+
+    def _fail_fetch(name: str, version: str | None) -> dict[str, Any] | None:
+        raise RuntimeError("Worker thread error")
+
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _fail_fetch)
+    results = _prefetch_pypi_release_infos([("requests", "2.31.0")])
+    assert results == {("requests", "2.31.0"): None}
+
+
+def test_prefetch_combined_release_info_with_transitive_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_prefetch_combined_release_info resolves and prefetches transitive-only deps."""
+    calls: list[tuple[str, str]] = []
+
+    def _mock_prefetch(pairs: Any) -> dict[Any, Any]:
+        calls.extend(pairs)
+        return {}
+
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.document._prefetch_pypi_release_infos",
+        _mock_prefetch,
+    )
+    _prefetch_combined_release_info(
+        ["requests>=2.0"], ["urllib3==2.0.0"], locked_versions={"requests": "2.31.0"}
+    )
+    assert ("requests", "2.31.0") in calls
+    assert ("urllib3", "2.0.0") in calls
+
+    # Also test locked_versions=None branch
+    calls.clear()
+    _prefetch_combined_release_info(
+        ["requests==2.31.0"], ["urllib3==2.0.0"], locked_versions=None
+    )
+    assert ("requests", "2.31.0") in calls
+    assert ("urllib3", "2.0.0") in calls

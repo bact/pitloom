@@ -111,7 +111,7 @@ merely happened to already be a fully pinned list" -- see
 **`poetry.lock` is registered with an extractor in the cascade table.**
 When `pyproject.toml` is a Poetry 1.x project, `_try_read_poetry()` extracts
 it earlier during project parsing; when the cascade runs, the deduplication
-guard recognizes that `poetry.lock` was already extracted and avoids re-parsing
+guard recognises that `poetry.lock` was already extracted and avoids re-parsing
 it. For standard PEP 621 or non-Poetry projects accompanied by a `poetry.lock`,
 the cascade's registered extractor parses it directly.
 

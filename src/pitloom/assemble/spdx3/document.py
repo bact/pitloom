@@ -44,10 +44,7 @@ from pitloom.assemble.spdx3.deps import (
     add_phantom_dependencies,
 )
 from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
-from pitloom.assemble.spdx3.deps_license import (
-    _add_license_noassertion,
-    build_license_elements,
-)
+from pitloom.assemble.spdx3.deps_license import attach_main_package_license
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
@@ -65,6 +62,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.extract._lock_common import is_same_version, warn_conflicting_versions
 from pitloom.ids import IdRegistry
 
 __all__ = [
@@ -174,7 +172,7 @@ def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]
     }
     return [
         dep
-        for dep in metadata.locked_dependencies
+        for dep in (metadata.locked_dependencies or [])
         if canonicalize_name(_parse_dep_name(dep)) not in direct_names
     ]
 
@@ -196,7 +194,9 @@ def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
     return None
 
 
-def _extract_locked_version_map(locked_dependencies: list[str]) -> dict[str, str]:
+def _extract_locked_version_map(
+    locked_dependencies: list[str] | None,
+) -> dict[str, str]:
     """Map canonical package names to their exact locked version string.
 
     Enables direct dependencies declared as ranges (e.g. ``requests>=2.0``)
@@ -204,11 +204,18 @@ def _extract_locked_version_map(locked_dependencies: list[str]) -> dict[str, str
     to introspecting Pitloom's host environment.
     """
     result: dict[str, str] = {}
-    for dep in locked_dependencies:
+    for dep in locked_dependencies or []:
         dep_name = _parse_dep_name(dep)
         _req, pinned = _extract_exact_pin(dep)
         if pinned is not None:
-            result[canonicalize_name(dep_name)] = pinned
+            canon = canonicalize_name(dep_name)
+            if canon in result and not is_same_version(result[canon], pinned):
+                warn_conflicting_versions(
+                    "locked dependencies",
+                    dep_name,
+                    [result[canon], pinned],
+                )
+            result[canon] = pinned
     return result
 
 
@@ -327,44 +334,16 @@ def build(
     )
 
     # --- License ---
-    if metadata.license_name:
-        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
-        rel_declared, rel_concluded = build_license_elements(
-            license_id=metadata.license_name,
-            package_spdx_id=require_spdx_id(main_package),
-            license_provenance=metadata.provenance.get(
-                "license", "Source: pyproject.toml | Field: project.license"
-            ),
-            creation_info=spdx_ci,
-            doc_name=metadata.name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            # G2: only the pyproject.toml [project]-path extractor populates
-            # license_concluded (independent directory scan) -- None here for
-            # any other backend, which keeps this the original single-value
-            # behavior unchanged.
-            concluded_license_id=metadata.license_concluded,
-            concluded_license_provenance=metadata.provenance.get("license_concluded"),
-            provenance_config=prov_cfg,
-            encoder=encoder,
-        )
-        if rel_declared:
-            exporter.add_relationship(rel_declared)
-        if rel_concluded:
-            exporter.add_relationship(rel_concluded)
-    else:
-        # No license declared anywhere pitloom looked -- assert that
-        # explicitly rather than silently omitting the field; see
-        # add_dependencies' identical NOASSERTION policy for dependencies.
-        _add_license_noassertion(
-            main_package,
-            spdx_ci,
-            metadata.name,
-            doc_uuid,
-            exporter,
-            provenance_config=prov_cfg,
-            encoder=encoder,
-        )
+    attach_main_package_license(
+        metadata=metadata,
+        main_package=main_package,
+        spdx_ci=spdx_ci,
+        spdx_doc=spdx_doc,
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        provenance_config=prov_cfg,
+        encoder=encoder,
+    )
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
     transitive_only = _locked_transitive_only_dependencies(metadata)
@@ -465,5 +444,11 @@ def build(
             encoder=encoder,
             enrichment_results_by_model=enrichment_results_by_model,
         )
+
+    if (
+        spdx3.ProfileIdentifierType.simpleLicensing not in spdx_doc.profileConformance
+        and exporter.has_licenses
+    ):
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
 
     return exporter

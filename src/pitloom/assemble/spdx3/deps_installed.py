@@ -62,17 +62,17 @@ def _extract_pin_from_unparseable(dep: str) -> str | None:
     for op in ("===", "=="):
         if op not in dep_spec:
             continue
-        pin_part = dep_spec.split(op, 1)[1].strip()
+        prefix, pin_part = dep_spec.split(op, 1)
+        if any(other in prefix for other in _VERSION_OPERATORS):
+            return None
+        pin_part = pin_part.strip()
         if not pin_part or "*" in pin_part:
             return None
         try:
             exact = single_exact_pin(SpecifierSet(f"{op}{pin_part}"))
-            if exact is not None:
-                return exact[1]
+            return exact[1] if exact is not None else None
         except InvalidSpecifier:
-            if op == "===":
-                return pin_part
-        return None
+            return None
     return None
 
 

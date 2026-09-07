@@ -112,11 +112,20 @@ def _extract_release_hash(release_info: dict[str, Any]) -> str | None:
     by_type = {u.get("packagetype"): u for u in urls if isinstance(u, dict)}
     entry = by_type.get("bdist_wheel") or by_type.get("sdist")
     if entry is None and urls:
-        entry = urls[0]
+        entry = next((u for u in urls if isinstance(u, dict)), None)
     if entry is None:
         return None
-    digest = (entry.get("digests") or {}).get("sha256")
-    return digest or None
+    digests = entry.get("digests")
+    if not isinstance(digests, dict):
+        return None
+    digest = digests.get("sha256")
+    if (
+        isinstance(digest, str)
+        and len(digest) == 64
+        and all(c in "0123456789abcdefABCDEF" for c in digest)
+    ):
+        return digest.lower()
+    return None
 
 
 def _prefetch_pypi_release_infos(

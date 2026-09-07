@@ -39,6 +39,8 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
 from .conftest import _make_ci
 
+_real_fetch_pypi = deps_pypi._fetch_pypi_release_info
+
 # ---------------------------------------------------------------------------
 # _resolve_metadata_url -- deterministic label priority, not hash-order
 # ---------------------------------------------------------------------------
@@ -310,7 +312,6 @@ def test_add_license_noassertion_is_deduped() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.pypi_network
 def test_fetch_pypi_release_info_versioned_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -321,34 +322,37 @@ def test_fetch_pypi_release_info_versioned_url(
         captured["timeout"] = timeout
         return {"info": {}}
 
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _real_fetch_pypi)
     monkeypatch.setattr(deps_pypi, "fetch_json", _fake_fetch_json)
     result = deps_pypi._fetch_pypi_release_info("requests", "2.31.0")
     assert captured["url"] == "https://pypi.org/pypi/requests/2.31.0/json"
     assert result == {"info": {}}
 
 
-@pytest.mark.pypi_network
 def test_fetch_pypi_release_info_unversioned_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
 
     def _fake_fetch_json(url: str, *, timeout: float) -> dict[str, object]:
+        del timeout
         captured["url"] = url
         return {"info": {}}
 
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _real_fetch_pypi)
     monkeypatch.setattr(deps_pypi, "fetch_json", _fake_fetch_json)
     deps_pypi._fetch_pypi_release_info("requests", None)
     assert captured["url"] == "https://pypi.org/pypi/requests/json"
 
 
-@pytest.mark.pypi_network
 def test_fetch_pypi_release_info_returns_none_on_value_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def _raise(url: str, *, timeout: float) -> dict[str, object]:
+        del url, timeout
         raise ValueError("network error")
 
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _real_fetch_pypi)
     monkeypatch.setattr(deps_pypi, "fetch_json", _raise)
     assert deps_pypi._fetch_pypi_release_info("requests", None) is None
 

@@ -317,6 +317,11 @@ class Spdx3JsonExporter:
         """
         return self._license_index.get(license_id)
 
+    @property
+    def has_licenses(self) -> bool:
+        """Return True if any real (non-NOASSERTION) license text has been added."""
+        return any(k != "NOASSERTION" for k in self._license_index)
+
     def add_license(
         self, simple_licensing_text: spdx3.simplelicensing_SimpleLicensingText
     ) -> None:

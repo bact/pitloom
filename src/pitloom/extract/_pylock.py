@@ -38,9 +38,12 @@ from pitloom.extract._lock_common import (
     find_first_present_key,
     group_versions_by_canonical_name,
     is_same_version,
+    is_usable_version,
     load_lock_toml,
-    shape_validated_package,
     warn_conflicting_versions,
+    warn_malformed_entry_not_table,
+    warn_missing_name,
+    warn_missing_version,
     warn_non_registry_source,
     warn_top_level_key_wrong_type,
 )
@@ -241,22 +244,33 @@ def _evaluate_group_leaf(
     variable is treated as unknown rather than really evaluated."""
     lhs, raw_op, rhs = node
     op = str(raw_op)
-    if op not in ("in", "not in", "==", "!="):
-        return None
     lhs_str, rhs_str = str(lhs), str(rhs)
     if rhs_str in _GROUP_MARKER_VARIABLES:
         variable, literal = rhs_str, lhs_str
+        is_reversed = False
     elif lhs_str in _GROUP_MARKER_VARIABLES:
         variable, literal = lhs_str, rhs_str
+        is_reversed = True
     else:
         return None
 
-    env_key = "extras" if variable == "extra" else variable
-    active_set = environment.get(env_key, frozenset())
+    if variable in ("dependency_groups", "extras"):
+        # Under PEP 751, dependency_groups and extras are sets of strings.
+        # Membership is tested strictly via `literal in variable` or
+        # `literal not in variable` (set membership). Set-to-string equality
+        # (`!=` / `==`) and reversed `set in string` are not membership.
+        if is_reversed or op not in ("in", "not in"):
+            return None
+        active_set = environment.get(variable, frozenset())
+        member = canonicalize_name(literal) in active_set
+        return member if op == "in" else not member
+
+    # variable == "extra" (PEP 508 singular string variable)
+    if op not in ("==", "!=", "in", "not in"):
+        return None
+    active_set = environment.get("extras", frozenset())
     member = canonicalize_name(literal) in active_set
-    if op in ("in", "=="):
-        return member
-    return not member
+    return member if op in ("==", "in") else not member
 
 
 def _all3(values: list[bool | None]) -> bool | None:
@@ -344,6 +358,21 @@ def _group_marker_excludes(
         return False
 
 
+def _is_marker_excluded(
+    marker: Any, environment: dict[str, frozenset[str]], name: str
+) -> bool:
+    """Return True if marker is non-string (malformed) or excludes the entry."""
+    if not isinstance(marker, str):
+        log.warning(
+            "Skipping malformed pylock.toml [[packages]] entry %r: "
+            "'marker' is %s, expected a string",
+            name,
+            type(marker).__name__,
+        )
+        return True
+    return _group_marker_excludes(marker, environment, name)
+
+
 def _pinned_pair_for_package(
     pkg: object, environment: dict[str, frozenset[str]]
 ) -> tuple[str, str] | None:
@@ -370,25 +399,22 @@ def _pinned_pair_for_package(
     gated on different, unevaluated ``python_version``/``sys_platform``
     markers can both survive to this point.
     """
-    validated = shape_validated_package(pkg, "pylock.toml", "[[packages]]")
-    if validated is None:
+    if not isinstance(pkg, dict):
+        warn_malformed_entry_not_table("pylock.toml", "[[packages]]", pkg)
         return None
-    name = validated["name"]
-    version = validated["version"]
-    marker = validated.get("marker")
-    if marker is not None:
-        if not isinstance(marker, str):
-            log.warning(
-                "Skipping malformed pylock.toml [[packages]] entry %r: "
-                "'marker' is %s, expected a string",
-                name,
-                type(marker).__name__,
-            )
-            return None
-        if _group_marker_excludes(marker, environment, name):
-            return None
-    non_registry_source = find_first_present_key(validated, _NON_REGISTRY_SOURCE_KEYS)
+    name = pkg.get("name")
+    if not isinstance(name, str) or not name.strip():
+        warn_missing_name("Skipping malformed pylock.toml [[packages]] entry", name)
+        return None
+    non_registry_source = find_first_present_key(pkg, _NON_REGISTRY_SOURCE_KEYS)
     if non_registry_source is not None:
         warn_non_registry_source("pylock.toml", name, non_registry_source)
+        return None
+    version = pkg.get("version")
+    if not is_usable_version(version):
+        warn_missing_version("pylock.toml", name)
+        return None
+    marker = pkg.get("marker")
+    if marker is not None and _is_marker_excluded(marker, environment, name):
         return None
     return name, version

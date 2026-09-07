@@ -191,7 +191,7 @@ def generate_project_sbom(
             project_metadata.version,
             project_metadata.license_files,
         )
-        project_metadata.files = project_files
+        project_metadata = dataclasses.replace(project_metadata, files=project_files)
         search_root = target_path
 
     ai_models = (

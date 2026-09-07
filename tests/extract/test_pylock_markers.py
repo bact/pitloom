@@ -207,23 +207,20 @@ def test_or_combined_group_clauses_true_when_one_group_active() -> None:
         assert extract_pylock_dependencies(tmp_path) == ["black==26.1.0"]
 
 
-def test_reversed_operand_group_clause_evaluated() -> None:
-    """PEP 751 always writes the group/extras variable on the *right* of
-    `in` (e.g. `"'dev' in dependency_groups"`) in real output, but PEP
-    508 grammar allows either operand order -- `_evaluate_group_leaf`'s
-    `elif lhs_str in _GROUP_MARKER_VARIABLES` branch (variable on the
-    left) must still be reachable and correct, not just the more common
-    literal-on-left form tested elsewhere."""
+def test_reversed_operand_extra_clause_evaluated() -> None:
+    """PEP 508 allows either operand order for extra comparisons --
+    `'dev' == extra` (variable on the right) must evaluate identically to
+    `extra == 'dev'`, and both are correctly excluded when extras is empty."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
             tmp_path,
-            'default-groups = ["dev"]\n'
+            'default-groups = ["default"]\n'
             '[[packages]]\nname = "black"\nversion = "26.1.0"\n'
-            "marker = \"dependency_groups in 'dev'\"\n",
+            "marker = \"'dev' == extra\"\n",
         )
 
-        assert extract_pylock_dependencies(tmp_path) == ["black==26.1.0"]
+        assert extract_pylock_dependencies(tmp_path) == []
 
 
 def test_malformed_marker_string_included_and_warns(
@@ -288,3 +285,45 @@ def test_malformed_non_string_marker_skipped_and_warns(
 
         assert result == []
         assert "'marker' is int" in caplog.text
+
+
+def test_marker_not_in_and_not_equal_operators() -> None:
+    """Markers using 'not in' and '!=' operators must evaluate correctly against
+    the active environment."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "included-not-in"\nversion = "1.0.0"\n'
+            "marker = \"'dev' not in dependency_groups\"\n\n"
+            '[[packages]]\nname = "excluded-not-in"\nversion = "1.0.0"\n'
+            "marker = \"'default' not in dependency_groups\"\n\n"
+            '[[packages]]\nname = "included-not-equal"\nversion = "1.0.0"\n'
+            "marker = \"extra != 'dev'\"\n\n"
+            '[[packages]]\nname = "excluded-equal"\nversion = "1.0.0"\n'
+            "marker = \"extra == 'dev'\"\n",
+        )
+
+        deps = extract_pylock_dependencies(tmp_path)
+        assert deps is not None
+        assert set(deps) == {"included-not-in==1.0.0", "included-not-equal==1.0.0"}
+
+
+def test_marker_invalid_operators_treated_as_unknown() -> None:
+    """Clauses with invalid operators on dependency_groups (e.g. ==) or extra
+    (e.g. >=) return None ("unknown") and do not exclude the package."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "group-eq"\nversion = "1.0.0"\n'
+            "marker = \"dependency_groups == 'default'\"\n\n"
+            '[[packages]]\nname = "extra-gte"\nversion = "1.0.0"\n'
+            "marker = \"extra >= '1.0'\"\n",
+        )
+
+        deps = extract_pylock_dependencies(tmp_path)
+        assert deps is not None
+        assert set(deps) == {"group-eq==1.0.0", "extra-gte==1.0.0"}

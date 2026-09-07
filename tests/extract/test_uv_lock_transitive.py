@@ -112,14 +112,12 @@ def test_nested_dependencies_not_a_list_skipped_and_warns(
         assert "nested 'dependencies'" in caplog.text
 
 
-def test_nested_dependencies_falsy_non_list_silently_skipped(
+def test_nested_dependencies_falsy_non_list_warns_and_skipped(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A falsy non-list `dependencies` value (e.g. `false` -- TOML has
-    no `null`, so this is the practical malformed-but-empty shape)
-    behaves like a missing/empty key, not like the truthy-malformed case
-    above -- no `WARNING:`, and nothing to walk into, but the package's
-    own pin is still resolved."""
+    """A falsy non-list `dependencies` value (e.g. `false`) is malformed
+    schema -- emits a `WARNING:` and skips walking it, but resolves the
+    package's own pin."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
@@ -134,7 +132,7 @@ def test_nested_dependencies_falsy_non_list_silently_skipped(
             result = extract_uv_lock_dependencies(tmp_path)
 
         assert result == ["requests==2.31.0"]
-        assert "nested 'dependencies'" not in caplog.text
+        assert "nested 'dependencies'" in caplog.text
 
 
 def test_dependency_with_no_source_table_still_included() -> None:
@@ -150,3 +148,100 @@ def test_dependency_with_no_source_table_still_included() -> None:
         )
 
         assert extract_uv_lock_dependencies(tmp_path) == ["no-source==1.2.3"]
+
+
+def test_transitive_walk_extra_scalar_string() -> None:
+    """A scalar string `extra = 'socks'` is handled properly and enqueues
+    optional deps."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "requests", extra = "socks" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "[package.optional-dependencies]\n"
+            'socks = [{ name = "PySocks" }]\n\n'
+            '[[package]]\nname = "PySocks"\nversion = "1.7.1"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+        assert result is not None
+        assert set(result) == {"requests==2.31.0", "PySocks==1.7.1"}
+
+
+def test_transitive_walk_optional_dependencies_non_dict() -> None:
+    """When package.optional-dependencies is not a table, it is ignored safely."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "requests", extra = "socks" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            'optional-dependencies = "not-a-table"\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+        assert result == ["requests==2.31.0"]
+
+
+def test_transitive_walk_extra_already_visited_cycle_prevention() -> None:
+    """Duplicate/cyclic extra requests must be skipped via visited_extras check."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + "dependencies = [\n"
+            '    { name = "requests", extra = "socks" },\n'
+            '    { name = "requests", extra = "socks" },\n'
+            "]\n\n"
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "[package.optional-dependencies]\n"
+            'socks = [{ name = "PySocks" }]\n\n'
+            '[[package]]\nname = "PySocks"\nversion = "1.7.1"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+        assert result is not None
+        assert set(result) == {"requests==2.31.0", "PySocks==1.7.1"}
+
+
+def test_transitive_walk_extra_name_canonicalization() -> None:
+    """Extra names differing in casing or punctuation (- vs _) match canonically."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "pkg", extra = "foo_bar" }]\n\n'
+            '[[package]]\nname = "pkg"\nversion = "1.0.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "[package.optional-dependencies]\n"
+            '"foo-bar" = [{ name = "dep" }]\n\n'
+            '[[package]]\nname = "dep"\nversion = "1.0.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+        assert result is not None
+        assert set(result) == {"pkg==1.0.0", "dep==1.0.0"}
+
+
+def test_transitive_walk_extra_deps_non_list() -> None:
+    """When an entry in optional-dependencies is not a list, it is not queued."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "pkg", extra = "socks" }]\n\n'
+            '[[package]]\nname = "pkg"\nversion = "1.0.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "[package.optional-dependencies]\n"
+            'socks = "not-a-list"\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+        assert result == ["pkg==1.0.0"]

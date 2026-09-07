@@ -374,17 +374,18 @@ def test_version_validated_even_when_group_marker_excludes_package(
 
 
 @pytest.mark.parametrize("source_key", ["vcs", "directory", "archive"])
+@pytest.mark.parametrize("has_version", [True, False])
 def test_non_registry_sourced_package_excluded(
-    source_key: str, caplog: pytest.LogCaptureFixture
+    source_key: str, has_version: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     """A package pinned via `vcs`/`directory`/`archive` has no meaningful
-    PyPI version pin -- excluded the same way poetry.lock's equivalent
-    non-registry sources are excluded."""
+    PyPI version pin -- excluded whether a version is present or omitted."""
+    version_line = 'version = "0.1.0"\n' if has_version else ""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         _write_lock(
             tmp_path,
-            '[[packages]]\nname = "local-dep"\nversion = "0.1.0"\n'
+            f'[[packages]]\nname = "local-dep"\n{version_line}'
             f'[packages.{source_key}]\nurl = "https://example.com"\n',
         )
 
@@ -393,6 +394,7 @@ def test_non_registry_sourced_package_excluded(
 
         assert not result
         assert "local-dep" in caplog.text
+        assert "cannot be represented as a PEP 508 specifier" in caplog.text
 
 
 def test_sdist_sourced_package_included() -> None:

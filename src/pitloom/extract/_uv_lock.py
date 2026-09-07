@@ -169,16 +169,13 @@ def _find_root_package(
 
 
 def _resolved_package_for_dependency(
-    dep_ref: object, by_name: dict[str, list[dict[str, Any]]]
+    dep_ref: dict[str, Any], by_name: dict[str, list[dict[str, Any]]]
 ) -> dict[str, Any] | None:
     """Return the single, unambiguous ``[[package]]`` entry that one
     ``dependencies``-list reference resolves to -- the root package's
     own, or one already-visited package's own nested reference during
     the transitive walk in :func:`_collect_transitive_dependencies` --
     or ``None`` when it can't be resolved that way."""
-    if not isinstance(dep_ref, dict):
-        warn_malformed_entry_not_table("uv.lock", "dependency reference", dep_ref)
-        return None
     name = dep_ref.get("name")
     if not isinstance(name, str) or not name:
         warn_missing_name("Skipping malformed uv.lock dependency reference", name)
@@ -241,6 +238,9 @@ def _collect_transitive_dependencies(
     queue: deque[object] = deque(root_dependencies)
     while queue:
         dep_ref = queue.popleft()
+        if not isinstance(dep_ref, dict):
+            warn_malformed_entry_not_table("uv.lock", "dependency reference", dep_ref)
+            continue
         pkg = _resolved_package_for_dependency(dep_ref, by_name)
         if pkg is None:
             continue
@@ -252,10 +252,10 @@ def _collect_transitive_dependencies(
             if pin is not None:
                 dependencies[canonical_name] = pin
 
-            nested = pkg.get("dependencies", [])
+            nested = pkg.get("dependencies")
             if isinstance(nested, list):
                 queue.extend(nested)
-            elif nested:
+            elif nested is not None:
                 log.warning(
                     "Skipping uv.lock entry %r nested 'dependencies': "
                     "expected a list, got %s",
@@ -263,10 +263,7 @@ def _collect_transitive_dependencies(
                     type(nested).__name__,
                 )
 
-        if isinstance(dep_ref, dict):
-            _enqueue_requested_extras(
-                dep_ref, pkg, canonical_name, visited_extras, queue
-            )
+        _enqueue_requested_extras(dep_ref, pkg, canonical_name, visited_extras, queue)
     return list(dependencies.values())
 
 
