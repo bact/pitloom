@@ -31,7 +31,8 @@ policy. Each entry's own ``"version"`` field is already a PEP 440
 specifier string (typically ``"==x.y.z"``, since ``pipenv lock``
 resolves to an exact pin) rather than a bare version number the way
 every other format's ``version`` field is -- this extractor validates
-it's a single exact ``==`` specifier with no wildcard before using it,
+it's a single exact ``==``/``===`` specifier with no wildcard before
+using it (see :func:`pitloom.extract._lock_common.single_exact_pin`),
 not a range, a prefix-match specifier like ``"==x.y.*"``, or a
 malformed string coerced into looking like one.
 """
@@ -42,10 +43,10 @@ import logging
 from pathlib import Path
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
-from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
+    group_pin_triples_by_canonical_name,
     has_required_top_level_table,
     is_same_version,
     load_lock_json,
@@ -107,12 +108,8 @@ def extract_pipfile_lock_dependencies(project_dir: Path) -> list[str] | None:
         if pair is not None
     ]
 
-    by_canonical: dict[str, list[tuple[str, str, str]]] = {}
-    for name, op, version in pairs:
-        by_canonical.setdefault(canonicalize_name(name), []).append((name, op, version))
-
     dependencies: list[str] = []
-    for group in by_canonical.values():
+    for group in group_pin_triples_by_canonical_name(pairs).values():
         name, op, version = group[0]
         conflicting_versions = {
             v for _, _, v in group if not is_same_version(v, version)

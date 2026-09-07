@@ -30,9 +30,12 @@ than once, but only to record separate per-extra variants (e.g. a bare
 ``httpx`` entry alongside an ``httpx`` entry with ``extras = ["socks"]``)
 that always agree on ``version`` -- collapsed here via
 :func:`pitloom.extract._lock_common.group_versions_by_canonical_name`,
-also shared with :mod:`pitloom.extract._requirements_txt`. Only a name
-whose entries actually *disagree* on version is treated as ambiguous and
-skipped, matching ``uv.lock``'s "don't guess" policy for that case.
+also shared with :mod:`pitloom.extract._poetry_lock` and
+:mod:`pitloom.extract._pylock`. Only a name whose entries actually
+*disagree* on version (compared via
+:func:`pitloom.extract._lock_common.is_same_version`'s PEP 440
+equality, not raw string equality) is treated as ambiguous and skipped,
+matching ``uv.lock``'s "don't guess" policy for that case.
 """
 
 from __future__ import annotations

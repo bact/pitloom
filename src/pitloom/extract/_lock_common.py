@@ -36,6 +36,7 @@ __all__ = [
     "POETRY_LOCK_SOURCE_NAME",
     "default_group_included",
     "find_first_present_key",
+    "group_pin_triples_by_canonical_name",
     "group_versions_by_canonical_name",
     "has_required_top_level_table",
     "index_packages_by_name",
@@ -241,14 +242,39 @@ def group_versions_by_canonical_name(
     A caller decides what a multi-entry group means for its own format:
     :mod:`pitloom.extract._pdm_lock` collapses a group to one entry when
     every version agrees (its per-extra duplicate records always do) and
-    skips just that name otherwise; :mod:`pitloom.extract._requirements_txt`
-    treats any group with more than one distinct version as disqualifying
-    its whole file, since it has no per-format definition of "expected
-    duplication" the way an extra-variant lock entry does.
+    skips just that name otherwise. See :func:`group_pin_triples_by_canonical_name`
+    for the sibling version used where the pin's operator (``==`` vs ``===``)
+    also needs to survive grouping.
     """
     by_canonical: dict[str, list[tuple[str, str]]] = {}
     for name, version in pairs:
         by_canonical.setdefault(canonicalize_name(name), []).append((name, version))
+    return by_canonical
+
+
+def group_pin_triples_by_canonical_name(
+    triples: Iterable[tuple[str, str, str]],
+) -> dict[str, list[tuple[str, str, str]]]:
+    """Group ``(name, operator, version)`` pins by PEP 503-canonicalized
+    *name*, preserving file order both across and within groups -- the
+    ``===``-aware sibling of :func:`group_versions_by_canonical_name`,
+    for :mod:`pitloom.extract._pipfile_lock` and
+    :mod:`pitloom.extract._requirements_txt`, whose ``version`` field is
+    already a PEP 440 specifier that can carry either exact-pin operator
+    and must keep it through to the formatted ``name<op>version`` output.
+
+    A caller decides what a multi-entry group means for its own format:
+    :mod:`pitloom.extract._pipfile_lock` skips just the conflicting name
+    and keeps the rest; :mod:`pitloom.extract._requirements_txt` treats
+    any group with more than one distinct version as disqualifying its
+    whole file, since it has no per-format definition of "expected
+    duplication" the way an extra-variant lock entry does.
+    """
+    by_canonical: dict[str, list[tuple[str, str, str]]] = {}
+    for name, operator, version in triples:
+        by_canonical.setdefault(canonicalize_name(name), []).append(
+            (name, operator, version)
+        )
     return by_canonical
 
 

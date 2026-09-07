@@ -186,17 +186,25 @@ it).
 
 `_poetry_lock.py`'s `extract_poetry_lock_dependencies()` reads
 `[[package]]` tables from a sibling `poetry.lock`, keeping only packages
-whose `groups` includes `"main"` (excluding dev/other-group-only
-packages, the same "not a runtime dependency" policy already applied to
-`[tool.poetry.group.*]` above), as exact-pin `name==version` strings. A
-package resolved from a `directory`/`file`/`git`/`url` source (per
-`[package.source].type`) is excluded the same way
-`_poetry_dep_to_pep508()` excludes it from direct dependencies -- it has
-no meaningful PyPI version pin, so including it would misrepresent it as
-an ordinary published release. A malformed lock (an unparseable
-top-level `package` key, or an individual `[[package]]` entry missing
-`name`/`version`) is skipped with a `WARNING:`, not silently dropped, per
-this repo's "no silent deviations" rule.
+in the main/default group -- `groups` includes `"main"` (Poetry
+1.2+'s dependency-groups feature) or, for a legacy Poetry 1.x lock with
+no `groups` field at all, `category == "main"` -- and not marked
+`optional = true` (an extra, not a default runtime dependency). This
+excludes dev/other-group-only and extras packages, the same "not a
+runtime dependency" policy already applied to `[tool.poetry.group.*]`
+above, as exact-pin `name==version` (or `name===version` for a legacy
+non-normalizable pin) strings. A package resolved from a
+`directory`/`file`/`git`/`url` source (per `[package.source].type`) is
+excluded the same way `_poetry_dep_to_pep508()` excludes it from direct
+dependencies -- it has no meaningful PyPI version pin, so including it
+would misrepresent it as an ordinary published release. A malformed
+lock (an unparseable top-level `package` key, or an individual
+`[[package]]` entry missing `name`/`version`) is skipped with a
+`WARNING:`, not silently dropped, per this repo's "no silent
+deviations" rule; two `[[package]]` entries for the same
+PEP 503-canonicalized name that disagree on version (compared under
+PEP 440 equality, not raw string equality) are skipped with a
+`WARNING:` too, rather than one silently overwriting the other.
 
 Wired into `_try_read_poetry()`, which takes an
 `include_locked_dependencies` keyword (default `true`): both
@@ -223,9 +231,14 @@ itself couldn't be extracted.
 A locked package's exact-pin version is authoritative when resolving
 what to report in the SBOM -- `_resolve_version()`
 (`assemble/spdx3/deps_installed.py`) checks a dependency string's own
-`==`/`===` pin before falling back to introspecting whatever happens to
-be installed in Pitloom's own execution environment, which has no
-relationship to the target project's environment.
+`==`/`===` pin first (winning outright, with a `WARNING:` if it
+disagrees with a locked version), then any locked version for a
+direct dependency declared as a range, before falling back to
+introspecting whatever happens to be installed in Pitloom's own
+execution environment, which has no relationship to the target
+project's environment. This priority order is generic across every
+lock format, not `poetry.lock`-specific -- see
+[lock-file-cascade.md](lock-file-cascade.md).
 
 In the assembled SPDX 3 graph, a locked package already covered by a
 direct `[tool.poetry.dependencies]` entry gets no duplicate edge --
@@ -270,9 +283,10 @@ case for Poetry support (issue [#62]).  It has:
   sources are skipped because they cannot be expressed as PEP 508
   specifiers, logging a `WARNING:` naming the dependency and the source
   kind (`_poetry_dep_to_pep508()` in `_poetry.py`). `poetry.lock` entries
-  resolved from the equivalent `directory`/`file`/`git`/`url` sources are
-  excluded from `locked_dependencies` for the same reason
-  (`_pinned_dep_for_package()` in `_poetry_lock.py`).
+  resolved from the equivalent `directory`/`file`/`git`/`url` sources, or
+  marked `optional = true` (an extra, not a default runtime dependency),
+  are excluded from `locked_dependencies` for the same reason
+  (`_main_group_package_or_none()` in `_poetry_lock.py`).
 - **`[tool.poetry.extras]`** -- optional extras are not yet mapped to
   `ProjectMetadata`. This is a schema-wide gap, not Poetry-specific:
   `ProjectMetadata` has no extras/optional-dependencies field for any

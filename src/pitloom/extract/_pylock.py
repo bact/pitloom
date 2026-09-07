@@ -385,7 +385,7 @@ def _pinned_pair_for_package(
     including it here would misrepresent it as an ordinary published
     release (wrong PURL, bogus PyPI enrichment lookup) -- mirrors
     ``poetry.lock``'s equivalent ``directory``/``file``/``git``/``url``
-    skip in :func:`pitloom.extract._poetry_lock._pinned_dep_for_package`.
+    skip in :func:`pitloom.extract._poetry_lock._main_group_package_or_none`.
     A registry-resolved package sourced via ``sdist``/``wheels`` (or with
     no source table at all) is always included when it has a version.
 

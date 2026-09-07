@@ -150,10 +150,11 @@ The fix: `poetry.lock` is a real entry in `_LOCK_SOURCES`, so its rank is
 looked up the same way as everything else instead of being assumed.
 `apply_locked_dependencies()` first resolves the rank of whatever source
 (if any) already populated `metadata.provenance["locked_dependencies"]`
-(such as `poetry.lock` via `_try_read_poetry()` for Poetry 1.x projects)
--- then, walking `_LOCK_SOURCES` in order, stops (`break`) the moment it
-reaches an entry ranked *below* that already-set source, since nothing
-from there on could legitimately win. `tests/extract/test_pdm_lock.py::test_read_project_pdm_lock_never_overrides_poetry_lock`
+(such as `poetry.lock` via `_try_read_poetry()` for Poetry 1.x projects),
+then only tries the entries strictly above that rank
+(`sources_to_try = _LOCK_SOURCES[:previous_rank]`) -- nothing at or
+below the already-set source's rank could legitimately win, so it's
+never even called. `tests/extract/test_pdm_lock.py::test_read_project_pdm_lock_never_overrides_poetry_lock`
 is the regression test for this; `test_read_project_uv_lock_still_overrides_pdm_lock`
 confirms the higher-ranked entries' behaviour didn't change.
 
@@ -184,16 +185,24 @@ a real environment, `_uv_lock.py`:
    project" from a PyPI download) instead of scanning every
    `[[package]]` entry directly.
 2. Breadth-first walks the dependency graph starting from that entry's
-   own `dependencies` list (main/runtime -- `optional-dependencies`/
-   `dev-dependencies` are extras and dev groups, excluded the same way
-   `poetry.lock`'s non-`main` groups are), in `_collect_transitive_dependencies()`.
-   This isn't just the root's *immediate* dependencies: each resolved
-   package's own `dependencies` list is walked too, since the installed
-   set is the closure over that graph, not just its first layer (e.g. a
-   CLI tool's direct dependency on a web framework that itself pulls in
-   several more packages). PEP 503-canonicalized names guard against
-   revisiting the same package twice (a diamond dependency shared by two
-   branches) or looping on a cycle.
+   own `dependencies` list (main/runtime only -- the *root* package's
+   own `optional-dependencies` and `dev-dependencies` groups are the
+   project's own extras/dev groups, excluded the same way `poetry.lock`'s
+   non-`main` groups are, and never seed the walk), in
+   `_collect_transitive_dependencies()`. This isn't just the root's
+   *immediate* dependencies: each resolved package's own `dependencies`
+   list is walked too, since the installed set is the closure over that
+   graph, not just its first layer (e.g. a CLI tool's direct dependency
+   on a web framework that itself pulls in several more packages). A
+   dependency reference that names a specific `extra`/`extras` on the
+   package it points at (e.g. `uvicorn[standard]`) additionally walks
+   *that package's own* `optional-dependencies[extra]` list --
+   `_enqueue_requested_extras()` -- since an extra requested by a real
+   dependency (not the root project's own, unrequested extras) is part
+   of what actually gets installed. PEP 503-canonicalized names guard
+   against revisiting the same package twice (a diamond dependency
+   shared by two branches) or looping on a cycle; a separate
+   `(name, extra)` set guards the extras walk the same way.
 3. Resolves each referenced name against the flat table only when
    exactly one candidate exists for that name; an ambiguous
    (multiple-version) or marker-conditional (inline `version` on the
@@ -307,10 +316,20 @@ similar in spirit:
 - **Grouping a flat package list by name.** `_uv_lock.py`'s ambiguity
   check groups full `[[package]]` table entries by their raw `name`
   field -- `pitloom.extract._lock_common.index_packages_by_name()`.
-  `_pdm_lock.py` and `_requirements_txt.py` need the narrower "group
-  just a `(name, version)` pair by *canonicalized* name" shape instead
-  (their conflict check has to treat `Flask`/`flask` as the same
-  package) -- `pitloom.extract._lock_common.group_versions_by_canonical_name()`.
+  Every format whose conflict check only needs a `(name, version)`
+  pair grouped by *canonicalized* name (`Flask`/`flask` must count as
+  the same package) uses
+  `pitloom.extract._lock_common.group_versions_by_canonical_name()`
+  instead: `_poetry_lock.py`, `_pdm_lock.py`, and `_pylock.py`.
+  `_pipfile_lock.py` and `_requirements_txt.py` need the pin's operator
+  (`==` vs `===`) to survive grouping too, since their `version` field
+  is a full specifier rather than a bare version number (see below) --
+  they use the `(name, operator, version)` sibling,
+  `pitloom.extract._lock_common.group_pin_triples_by_canonical_name()`.
+  Every one of these groupings compares versions with
+  `pitloom.extract._lock_common.is_same_version()` (PEP 440 equality,
+  e.g. `"1.0"` == `"1.0.0"`), not raw string equality, so two spellings
+  of the same release never trigger a false-positive conflict warning.
 - **Validating a `version` field is a usable PEP 440 version.**
   `pitloom.extract._lock_common.is_usable_version()` checks a field is a
   non-empty string *and* parses as a valid `packaging.version.Version`
@@ -334,7 +353,7 @@ similar in spirit:
   name, source_key)`. Each extractor still does its own lookup of
   *which* key triggered it (see below) and only calls this once it has
   the answer.
-- **Judging whether a specifier is a single exact `==` pin.**
+- **Judging whether a specifier is a single exact `==`/`===` pin.**
   `_pipfile_lock.py` and `_requirements_txt.py` both need this --
   Pipfile.lock's `version` field and a `requirements.txt` line's
   specifier are both full PEP 440 specifier strings, not bare version
@@ -345,7 +364,12 @@ similar in spirit:
   Pipfile.lock, `Requirement(...).specifier` for `requirements.txt`)
   and catches its own parse failure with its own `WARNING:` wording,
   since the two call sites want different messages for "unparseable" vs.
-  "parseable but not a single exact pin."
+  "parseable but not a single exact pin." Returns `(operator, version)`,
+  not just `version` -- `===` (PEP 440 arbitrary-equality, for a legacy
+  version string that doesn't parse as a normal `Version` at all) is as
+  valid a single exact pin as `==`, and the caller needs the operator
+  back to format `f"{name}{operator}{version}"` rather than assuming
+  `==`.
 
 What's deliberately **not** shared: the per-entry lookup for which key
 marks a non-registry source, and what the `groups`/`dependencies`
@@ -450,9 +474,11 @@ unaffected -- purely additive.
 2. Add one entry to `_LOCK_SOURCES` in `_locked_dependencies.py`, at the
    priority position from the table above -- **including if it ranks
    below `poetry.lock`** (pinned `requirements.txt`, rank 6, does).
-   No extra code is needed for that case: the rank check in
-   `apply_locked_dependencies()` already treats every entry in
-   `_LOCK_SOURCES` (poetry.lock's placeholder included) uniformly.
+   No extra code is needed for that case: `apply_locked_dependencies()`
+   slices `_LOCK_SOURCES` down to whatever rank is already resolved
+   (`sources_to_try = _LOCK_SOURCES[:previous_rank]`), so every entry --
+   `poetry.lock` included -- is treated uniformly regardless of where
+   it sits in the table.
 3. No changes needed anywhere else -- `read_project()`'s wiring,
    provenance formatting, the override note, and UUID seeding are all
    already generic across every entry in the table.

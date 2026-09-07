@@ -41,11 +41,11 @@ additive entries.
 | Priority | Format | File | What's included |
 | :---: | :--- | :--- | :--- |
 | 1 (highest) | PEP 751 | `pylock.toml` | Every resolved package the file records for its declared `default-groups` (a package needed only for a non-default dependency-group/extra, per its own `marker` field, is excluded). |
-| 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on) -- not `optional-dependencies` extras or `dev-dependencies` groups. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
+| 2 | uv | `uv.lock` | Your project's own main/runtime dependencies, walked transitively (dependencies of dependencies, and so on), including any extra a real dependency requests on another package (e.g. `uvicorn[standard]` pulls in `uvicorn`'s own `standard` extra). Your project's *own* `optional-dependencies`/`dev-dependencies` groups (the ones a user would have to opt into, e.g. `pip install yourpkg[dev]`) are not included. A dependency pinned to more than one version for different Python versions is skipped, not guessed at, and nothing depending only on it is walked into either -- see below. |
 | 3 | Poetry | `poetry.lock` | Packages in the `main` dependency group only (not `[tool.poetry.group.*]` dev/extra groups). |
 | 4 | PDM | `pdm.lock` | Packages in the `default` dependency group only. |
-| 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`). A package whose resolved `version` isn't a single exact `==` pin is skipped, not guessed at. |
-| 6 (lowest) | -- | pinned `requirements.txt` | Not a real lock file -- only used when *every* line in the file is already an exact `==` pin. If even one line is unpinned, ranged, a pip option (`-e`, `-r`, `--hash`, ...), a URL-based requirement (even one that looks like it points at a tagged release), or one package name is pinned to two conflicting versions, the **whole file** is skipped, not just that line -- see below. |
+| 5 | Pipenv | `Pipfile.lock` | Packages in the `default` section only (not `develop`). A package whose resolved `version` isn't a single exact `==`/`===` pin is skipped, not guessed at. |
+| 6 (lowest) | -- | pinned `requirements.txt` | Not a real lock file -- only used when *every* line in the file is already a single exact `==`/`===` pin. If even one line is unpinned, ranged, a pip option (`-e`, `-r`, `--hash`, ...), a URL-based requirement (even one that looks like it points at a tagged release), or one package name is pinned to two conflicting versions, the **whole file** is skipped, not just that line -- see below. |
 
 `requirements.txt`'s entry is tagged `Method: pinned_requirements` in
 its provenance annotation (see "How to tell which source was used"
@@ -84,6 +84,39 @@ such a dependency is simply omitted from the additional (transitive)
 list rather than added with a possibly-wrong version. Check stderr for a
 `WARNING:` naming the skipped package if a dependency you expected is
 missing.
+
+## Version comparison: PEP 440, not SemVer
+
+**Pitloom compares dependency versions using [PEP 440][pep-440] equality,
+not SemVer.** "Same version" means the two version strings normalize to
+the identical release under PEP 440 -- trailing-zero components are
+padded and compared, so `1.0`, `1.0.0`, and `1.0.0.0` are all the same
+version. It does **not** mean "the latest release compatible with 1.0"
+or any other range/caret-style resolution: `1.0` and `1.0.1` are
+different versions under this comparison, exactly as they'd differ under
+strict string equality, even though a SemVer-style `^1.0.0` range would
+consider `1.0.1` compatible.
+
+This comparison is what decides whether two version strings for the same
+package are treated as agreeing or genuinely conflicting. It shows up in
+two places:
+
+- **A lock file's own duplicate entries.** If one lock file records the
+  same package name more than once (e.g. a platform-specific variant),
+  entries that normalize to the same PEP 440 release are silently
+  collapsed into one; entries that don't get a `WARNING:` naming both
+  versions, and that package is left out of the transitive list
+  entirely rather than guessed at.
+- **A declared range vs. the lock file's resolved version.** When a
+  direct dependency is unpinned or declared as a range, the lock file's
+  resolved version is used (see above). When it's already pinned
+  exactly (e.g. `requests==2.31.0`) and the lock file separately
+  resolved it to a version that doesn't normalize the same way (e.g.
+  `2.31.1`), Pitloom logs a `WARNING:` but keeps the *declared* pin --
+  the lock's differing value never silently overrides an exact pin the
+  project itself declared.
+
+[pep-440]: https://peps.python.org/pep-0440/
 
 ## Which commands use lock files at all
 

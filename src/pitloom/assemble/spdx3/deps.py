@@ -235,10 +235,13 @@ def add_dependencies(
     dependencies.
 
     Multiple declared dependency strings that resolve to the same
-    ``(name, version)`` -- e.g. the same package listed under more than one
-    ``pyproject.toml`` extra, each split by a ``python_version`` marker --
-    collapse into a single ``software_Package`` node. Their raw declared
-    strings are preserved together in that node's provenance comment.
+    package -- same PEP 503-canonicalized name (``Django``/``django``) and
+    the same PEP 440 version (``"1.0"``/``"1.0.0"``), e.g. the same
+    package listed under more than one ``pyproject.toml`` extra, each
+    split by a ``python_version`` marker -- collapse into a single
+    ``software_Package`` node, keeping the first-seen literal name for
+    display. Their raw declared strings are preserved together in that
+    node's provenance comment.
 
     *completeness*, when given (e.g. ``spdx3.RelationshipCompleteness.complete``
     for a lock-resolved transitive-dependency call), is set on every

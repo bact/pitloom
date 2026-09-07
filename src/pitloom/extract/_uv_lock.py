@@ -32,13 +32,18 @@ would misrepresent the resolved set, so this extractor doesn't guess:
 it reads the *project's own* ``[[package]]`` entry (identified by
 ``source.editable``/``source.virtual``, uv's markers for "this is a
 local project, not a PyPI download") and only its ``dependencies`` list
-(main/runtime only -- ``optional-dependencies``/``dev-dependencies`` are
-extras and dev groups, excluded the same way ``poetry.lock``'s
-non-``main`` groups are), then resolves each referenced name against
-the flat table *only* when exactly one candidate exists for that name.
-An ambiguous (multiple-version) or marker-conditional (inline
-``version`` on the dependency reference itself) name is skipped with a
-``WARNING:``, not guessed.
+(main/runtime only -- the project's *own* ``optional-dependencies``/
+``dev-dependencies`` groups are extras and dev groups a user would have
+to opt into, excluded the same way ``poetry.lock``'s non-``main`` groups
+are), then resolves each referenced name against the flat table *only*
+when exactly one candidate exists for that name. An ambiguous
+(multiple-version) or marker-conditional (inline ``version`` on the
+dependency reference itself) name is skipped with a ``WARNING:``, not
+guessed. A dependency reference that names a specific extra on the
+package it points at (e.g. ``uvicorn[standard]``) still walks *that
+package's own* ``optional-dependencies[extra]`` list, since an extra a
+real dependency requests is part of what actually gets installed -- see
+:func:`_enqueue_requested_extras`.
 """
 
 from __future__ import annotations

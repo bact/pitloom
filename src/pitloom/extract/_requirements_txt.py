@@ -24,16 +24,19 @@ the cascade is a resolver-generated artifact carrying real resolution
 metadata (often hashes); a plain ``requirements.txt`` is just a list of
 lines a human or ``pip freeze`` wrote, with no such guarantee. Pitloom
 only trusts it as a resolved-dependency source when it can prove, line
-by line, that *every* real dependency line is already an exact ``==``
-pin -- if even one line isn't, the **entire file** is ignored with one
+by line, that *every* real dependency line is already a single exact
+``==``/``===`` pin (see :func:`pitloom.extract._lock_common.single_exact_pin`)
+-- if even one line isn't, the **entire file** is ignored with one
 ``WARNING:`` naming the first disqualifying line, never partially
 included. The same whole-file rejection applies if one name (compared
 PEP 503-canonicalized, so ``Flask`` and ``flask`` count as the same
-name) repeats with two different pinned versions; a repeat with the
-same version is silently collapsed to one entry. Its provenance
-``Method`` tag is ``"pinned_requirements"``, distinct from
-every other source's ``"resolved_lockfile"``, so a reader of the
-generated SBOM can tell the two kinds of evidence apart.
+name) repeats with two versions that don't compare equal under PEP 440
+(see :func:`pitloom.extract._lock_common.is_same_version`, e.g.
+``"1.0"``/``"1.0.0"`` don't conflict but ``"1.0"``/``"1.0.1"`` do); a
+repeat with the same PEP 440 version is silently collapsed to one
+entry. Its provenance ``Method`` tag is ``"pinned_requirements"``,
+distinct from every other source's ``"resolved_lockfile"``, so a
+reader of the generated SBOM can tell the two kinds of evidence apart.
 
 **A URL-based line (``name @ https://...`` or ``git+https://...``) is a
 PEP 508 direct reference, not a PEP 440 version specifier, and always
@@ -53,9 +56,9 @@ import re
 from pathlib import Path
 
 from packaging.requirements import InvalidRequirement, Requirement
-from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
+    group_pin_triples_by_canonical_name,
     is_same_version,
     single_exact_pin,
 )
@@ -82,7 +85,8 @@ _OPTION_LINE_PREFIX = "-"
 def extract_pinned_requirements_dependencies(project_dir: Path) -> list[str] | None:
     """Read ``requirements.txt`` next to ``pyproject.toml``/``setup.py``
     and return every dependency as an exact-pin PEP 508 string, but only
-    when *every* real line in the file is already an exact ``==`` pin.
+    when *every* real line in the file is already a single exact
+    ``==``/``===`` pin.
 
     Returns ``None`` when no ``requirements.txt`` is present, it can't be
     read/decoded, or any line disqualifies the whole file (an option
@@ -166,12 +170,8 @@ def _collapse_or_none(
     *different* versions. A plain repeated line (same name, same
     version) is silently collapsed to one entry.
     """
-    by_canonical: dict[str, list[tuple[str, str, str]]] = {}
-    for name, op, version in pins:
-        by_canonical.setdefault(canonicalize_name(name), []).append((name, op, version))
-
     result: list[str] = []
-    for group in by_canonical.values():
+    for group in group_pin_triples_by_canonical_name(pins).values():
         name, op, version = group[0]
         conflicting = next(
             (v for _, _, v in group if not is_same_version(v, version)), None
