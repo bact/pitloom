@@ -61,6 +61,31 @@ def test_malformed_toml_returns_none_and_warns(
         assert "Failed to parse" in caplog.text
 
 
+def test_missing_top_level_version_key_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A TOML file with no top-level `version` int is missing uv.lock's
+    own format marker -- doesn't look genuine, matching poetry.lock's/
+    pdm.lock's own genuineness check (`has_required_top_level_table`),
+    adapted to uv.lock's flat (non-nested) marker key. Without this
+    check, an unrelated/hand-edited TOML file could silently win the
+    cascade over a genuinely usable lower-priority lock format via a
+    spurious authoritative-empty `[[package]]` list."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "uv.lock").write_text(
+            '[[package]]\nname = "demo"\nversion = "1.0.0"\n'
+            'source = { editable = "." }\n',
+            encoding="utf-8",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine uv.lock" in caplog.text
+
+
 def test_package_key_not_a_list_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -360,6 +385,28 @@ def test_ambiguous_multi_version_dependency_skipped_and_warns(
 
         assert not result
         assert "2 resolved versions" in caplog.text
+
+
+def test_same_name_agreeing_version_candidates_collapsed() -> None:
+    """Two `[[package]]` entries for the same name from different
+    `resolution-markers` branches that happen to pin the *same* PEP 440
+    version aren't ambiguous -- the resolved output is identical
+    regardless of which marker branch applies, so this collapses to one
+    entry instead of being skipped like a genuine version conflict."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "click" }]\n\n'
+            '[[package]]\nname = "click"\nversion = "8.1.8"\n'
+            'source = { registry = "https://pypi.org/simple" }\n\n'
+            '[[package]]\nname = "click"\nversion = "8.1.8.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n',
+        )
+
+        result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == ["click==8.1.8"]
 
 
 @pytest.mark.parametrize(

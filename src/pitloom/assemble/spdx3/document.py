@@ -295,7 +295,7 @@ def build(
         add_dependencies(
             dependencies=transitive_only,
             dep_provenance=metadata.provenance.get(
-                "locked_dependencies", "Source: lock file"
+                "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
             ),
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,

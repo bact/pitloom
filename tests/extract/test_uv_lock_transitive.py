@@ -230,6 +230,33 @@ def test_transitive_walk_extra_name_canonicalization() -> None:
         assert set(result) == {"pkg==1.0.0", "dep==1.0.0"}
 
 
+def test_transitive_walk_requested_extra_not_declared_warns_and_skips(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A requested extra that the referenced package's own
+    `optional-dependencies` table doesn't declare at all (stale/hand-
+    edited lock, or an extra renamed/removed since resolution) must warn
+    -- silently yielding nothing is a deviation like any other
+    unresolvable reference in this module."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            _ROOT_HEADER + 'dependencies = [{ name = "requests", extra = "socks" }]\n\n'
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'source = { registry = "https://pypi.org/simple" }\n'
+            "[package.optional-dependencies]\n"
+            'security = [{ name = "PySocks" }]\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_uv_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "not found" in caplog.text
+        assert "socks" in caplog.text
+
+
 def test_transitive_walk_extra_deps_non_list() -> None:
     """When an entry in optional-dependencies is not a list, it is not queued."""
     with tempfile.TemporaryDirectory() as tmp:

@@ -58,6 +58,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.extract._lock_common import (
     find_first_present_key,
+    is_same_version,
     is_usable_version,
     load_lock_toml,
     warn_malformed_entry_not_table,
@@ -206,13 +207,26 @@ def _resolved_package_for_dependency(
         )
         return None
     if len(candidates) > 1:
-        log.warning(
-            "Skipping uv.lock dependency %r: %d resolved versions present "
-            "(marker-conditional) -- no marker evaluation",
-            name,
-            len(candidates),
-        )
-        return None
+        versions = [c.get("version") for c in candidates]
+        first_version = versions[0]
+        if not all(
+            isinstance(v, str)
+            and isinstance(first_version, str)
+            and is_same_version(v, first_version)
+            for v in versions
+        ):
+            log.warning(
+                "Skipping uv.lock dependency %r: %d resolved versions present "
+                "(marker-conditional) -- no marker evaluation",
+                name,
+                len(candidates),
+            )
+            return None
+        # Every candidate agrees on version (PEP 440) -- the marker
+        # branches they come from don't change the resolved output, so
+        # there's nothing ambiguous to guess about; same "agreeing
+        # duplicates collapse" rule every sibling lock format already
+        # applies (see e.g. `_poetry_lock.py`'s `is_same_version` check).
 
     return candidates[0]
 
@@ -315,8 +329,22 @@ def _enqueue_requested_extras(
                     for k, v in opt_deps_map.items()
                     if canonicalize_name(k) == extra_canon
                 ),
-                [],
+                None,
             )
+        if extra_deps is None:
+            # Requested but not declared by the package's own
+            # `optional-dependencies` table (stale/hand-edited lock, or
+            # an extra renamed/removed since resolution) -- a deviation
+            # worth a WARNING, same as every other unresolvable
+            # reference in this module, not a silent no-op.
+            log.warning(
+                "uv.lock: %r requested extra %r not found in %r's "
+                "optional-dependencies -- skipping",
+                dep_ref.get("name", canonical_name),
+                extra_name,
+                pkg.get("name", canonical_name),
+            )
+            continue
         if isinstance(extra_deps, list):
             queue.extend(extra_deps)
 
@@ -379,6 +407,19 @@ def extract_uv_lock_dependencies(
     lock_path = project_dir / "uv.lock"
     data = load_lock_toml(lock_path)
     if data is None:
+        return None
+    # uv.lock's own format marker is a flat top-level `version` (int),
+    # not nested in a sub-table like poetry.lock's `metadata.lock-version`
+    # or pdm.lock's `metadata.lock_version` -- same genuineness check as
+    # those two siblings, adapted to this format's actual shape, so an
+    # unrelated/hand-edited TOML file can't silently win the cascade via
+    # a spurious authoritative-empty `[[package]]` list.
+    if not isinstance(data.get("version"), int):
+        log.warning(
+            "%s: no top-level 'version' key (int) -- doesn't look like a "
+            "genuine uv.lock, ignoring",
+            lock_path,
+        )
         return None
 
     packages = data.get("package", [])

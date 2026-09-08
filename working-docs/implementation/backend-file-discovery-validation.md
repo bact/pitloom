@@ -437,7 +437,7 @@ PyPI) covering PEP 621's TOML dotted-key license form (`license.text =
 the inline-table form (`license = {text = "..."}`) -- no code-level
 handling needed either way, just a regression test
 (`test_read_pyproject_license_toml_dotted_key_matches_inline_table` in
-`tests/extract/test_pyproject.py`) documenting the equivalence.
+`tests/extract/test_pyproject_license.py`) documenting the equivalence.
 
 ### Findings
 

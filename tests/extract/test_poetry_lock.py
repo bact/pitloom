@@ -157,6 +157,31 @@ def test_dev_only_group_package_excluded() -> None:
         assert not extract_poetry_lock_dependencies(tmp_path)
 
 
+def test_dev_only_group_non_registry_sourced_package_is_silent(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A package that is both dev-only-group and non-registry-sourced
+    must be dropped with no warning at all -- it's excluded either way,
+    and warning about a source type that's being discarded regardless
+    is noise. Regression for the exact filter-ordering bug class found
+    and fixed in `_pylock.py`'s equivalent
+    (`test_marker_excluded_non_registry_sourced_package_is_silent`),
+    checked here for `_main_group_package_or_none`'s own ordering."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "dev-only-vcs"\nversion = "0.1.0"\n'
+            'groups = ["dev"]\n[package.source]\ntype = "git"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert not result
+        assert caplog.text == ""
+
+
 def test_package_in_main_and_dev_groups_included() -> None:
     """A package listed under both `main` and another group still counts
     -- only *exclusively* non-main packages are dropped."""

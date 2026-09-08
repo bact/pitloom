@@ -39,7 +39,7 @@ under `[tool.poetry]`.  Issue [#64].
 | `src/pitloom/extract/_pyproject.py` | Falls back to / merges Poetry metadata; wires in `poetry.lock` reading |
 | `src/pitloom/core/_models_wheel_poetry.py` | Wheel file discovery, delegating to poetry-core's own `WheelBuilder` |
 | `src/pitloom/assemble/spdx3/deps.py`, `document.py` | Additive locked-transitive-dependency `dependsOn` edges, `completeness` tagging |
-| `tests/extract/test_poetry_parsing.py`, `tests/extract/test_poetry_pyproject.py` | Unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these two files -- see `working-docs/design/cli-test-coverage-roadmap.md`) |
+| `tests/extract/test_poetry_parsing.py`, `tests/extract/test_poetry_extract.py`, `tests/extract/test_poetry_pyproject.py` | Unit and integration tests for metadata extraction (originally `tests/test_poetry.py`, later split into these files -- see `working-docs/design/cli-test-coverage-roadmap.md`; `test_poetry_extract.py` holds `extract_poetry_metadata()` tests, split out of `test_poetry_parsing.py` to stay under the file-size soft limit) |
 | `tests/extract/test_poetry_lock.py` | `poetry.lock` parsing unit and integration tests |
 | `tests/core/models_wheel/test_models_wheel_poetry.py` | Wheel file discovery unit tests |
 | `tests/assemble/test_deps_locked_dependencies.py` | Assemble-layer additive-edge/`completeness` tests |
