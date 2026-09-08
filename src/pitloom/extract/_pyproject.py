@@ -25,6 +25,7 @@ from pyproject_metadata import ConfigurationError, StandardMetadata
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     _looks_like_spdx_license_expression,
     _looks_like_spdx_license_id,
@@ -239,7 +240,7 @@ def read_pyproject(
     # must not silently fill in from a lower-priority source, the same
     # None-vs-[] distinction _build_provenance() already applies to its
     # own fields.
-    if "license-files" in project_data:
+    if field_declared(project_data, "license-files"):
         provenance["license_files"] = (
             "Source: pyproject.toml | Field: project.license-files"
         )
@@ -298,7 +299,7 @@ def _build_provenance(
     }
     if version_source:
         prov["version"] = version_source
-    elif "version" in project_data:
+    elif field_declared(project_data, "version"):
         prov["version"] = "Source: pyproject.toml | Field: project.version"
 
     for field_key, source in _FIELD_PROVENANCE.items():
@@ -310,9 +311,9 @@ def _build_provenance(
             # fallback is needed for that case.
             if license_prov_override:
                 prov["license"] = license_prov_override
-            elif field_key in project_data:
+            elif field_declared(project_data, field_key):
                 prov["license"] = source
-        elif field_key in project_data:
+        elif field_declared(project_data, field_key):
             prov[field_key] = source
 
     if project_data.get("authors"):

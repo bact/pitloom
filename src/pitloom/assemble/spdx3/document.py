@@ -8,10 +8,11 @@
 Public entry point / facade: the project-SBOM assembly (:func:`build`) and
 its two shared helpers (:func:`_build_creation_bundle`,
 :func:`_build_main_package`) live here; file-element assembly, single-model
-assembly, and deployed-environment assembly are split into
-:mod:`pitloom.assemble.spdx3._document_files`,
-:mod:`pitloom.assemble.spdx3._document_model`, and
-:mod:`pitloom.assemble.spdx3._document_deployed` respectively, and
+assembly, deployed-environment assembly, and locked-dependency handling are
+split into :mod:`pitloom.assemble.spdx3._document_files`,
+:mod:`pitloom.assemble.spdx3._document_model`,
+:mod:`pitloom.assemble.spdx3._document_deployed`, and
+:mod:`pitloom.assemble.spdx3._document_locked_deps` respectively, and
 re-exported below so every previously-public name is still importable from
 this module.
 """
@@ -21,7 +22,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._document_deployed import build_deployed
@@ -30,6 +30,14 @@ from pitloom.assemble.spdx3._document_files import (
     _emit_file_header_metadata,
     _magika_version,
 )
+from pitloom.assemble.spdx3._document_locked_deps import (
+    _dedup_and_locked_versions,
+    _deduplicated_locked_dependencies,
+    _extract_locked_version_map,
+    _locked_dependencies_completeness,
+    _locked_transitive_only_dependencies,
+    _prefetch_combined_release_info,
+)
 from pitloom.assemble.spdx3._document_model import (
     _ai_model_identity,
     build_enrichment_fragment,
@@ -37,15 +45,8 @@ from pitloom.assemble.spdx3._document_model import (
 )
 from pitloom.assemble.spdx3.ai import add_ai_models
 from pitloom.assemble.spdx3.creation_info import build_creation_info
-from pitloom.assemble.spdx3.deps import (
-    _parse_dep_name,
-    _resolve_version,
-    add_dependencies,
-    add_phantom_dependencies,
-)
-from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
+from pitloom.assemble.spdx3.deps import add_dependencies, add_phantom_dependencies
 from pitloom.assemble.spdx3.deps_license import attach_main_package_license
-from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     emit_provenance,
@@ -58,18 +59,21 @@ from pitloom.core.models import (
     compute_doc_uuid,
     generate_spdx_id,
 )
-from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.extract._lock_common import is_same_version, warn_conflicting_versions
 from pitloom.ids import IdRegistry
 
 __all__ = [
     "_ai_model_identity",
     "_add_package_files",
+    "_deduplicated_locked_dependencies",
     "_emit_file_header_metadata",
+    "_extract_locked_version_map",
+    "_locked_dependencies_completeness",
+    "_locked_transitive_only_dependencies",
     "_magika_version",
+    "_prefetch_combined_release_info",
     "build",
     "build_deployed",
     "build_enrichment_fragment",
@@ -152,188 +156,6 @@ def _build_main_package(
         ]
 
     return main_package
-
-
-def _deduplicated_locked_dependencies(
-    locked_dependencies: list[str] | None,
-) -> list[str]:
-    """Collapse *locked_dependencies* to one entry per PEP 503-canonicalized
-    name among its exact-pinned entries, preserving order.
-
-    A canonical name whose *pinned* entries disagree on PEP 440 version is
-    a genuine conflict (e.g. two lock formats layered by hand into the
-    same ``ProjectMetadata``, or a future extractor that forgets to
-    dedupe before returning) -- warned via :func:`warn_conflicting_versions`
-    and excluded entirely, the same "skip the ambiguous name, don't guess"
-    policy every extractor already applies to its own duplicate entries.
-    Neither of this function's two callers (:func:`_extract_locked_version_map`,
-    :func:`_locked_transitive_only_dependencies`) could otherwise safely
-    pick a winner between two conflicting entries on its own -- and picking
-    different winners in each would silently emit the ambiguous package
-    twice, once per winner, into the assembled SPDX graph.
-
-    An entry with no exact pin at all (unpinned, ranged, or unparseable --
-    every shipped extractor always emits an exact pin, but this guards a
-    future one that doesn't) has no version to compare and passes through
-    unfiltered: only :func:`_extract_locked_version_map` needs a pin, and
-    it already discards a pin-less entry on its own via
-    :func:`_extract_exact_pin`'s own ``None`` return. A passthrough entry
-    is dropped, though, when its canonical name also has a pinned entry
-    elsewhere in *locked_dependencies* -- the pin is strictly more
-    informative, and keeping both would double-emit the same package
-    (one from the pinned entry, one from the passthrough one).
-    """
-    by_canonical: dict[str, list[tuple[str, str]]] = {}
-    for dep in locked_dependencies or []:
-        _req, pinned = _extract_exact_pin(dep)
-        if pinned is None:
-            continue
-        canon = canonicalize_name(_parse_dep_name(dep))
-        by_canonical.setdefault(canon, []).append((dep, pinned))
-
-    excluded: set[str] = set()
-    resolved: dict[str, str] = {}
-    for group_canon, group in by_canonical.items():
-        dep, version = group[0]
-        conflicting_versions = {v for _, v in group if not is_same_version(v, version)}
-        if conflicting_versions:
-            warn_conflicting_versions(
-                "locked dependencies", _parse_dep_name(dep), {v for _, v in group}
-            )
-            excluded.add(group_canon)
-        else:
-            resolved[group_canon] = dep
-
-    deduplicated: list[str] = []
-    emitted: set[str] = set()
-    for dep in locked_dependencies or []:
-        canon = canonicalize_name(_parse_dep_name(dep))
-        if canon in excluded:
-            continue
-        if canon in resolved:
-            if canon in emitted:
-                continue
-            emitted.add(canon)
-            deduplicated.append(resolved[canon])
-            continue
-        # No pinned entry anywhere for this canonical name -- pass
-        # through as-is, at its own original position.
-        deduplicated.append(dep)
-    return deduplicated
-
-
-def _locked_transitive_only_dependencies(
-    metadata: ProjectMetadata,
-    *,
-    deduplicated_locked: list[str] | None = None,
-) -> list[str]:
-    """Return *metadata*'s locked (e.g. ``poetry.lock``-resolved) dependencies
-    that aren't already a direct dependency, so a package declared both
-    directly and in the lock gets one ``dependsOn`` edge, not two.
-
-    Names are compared PEP 503-canonicalized (lowercased, ``-``/``_``/``.``
-    folded to ``-``) since a lock file's resolved package names are
-    normalized while the author's ``pyproject.toml`` spelling (e.g.
-    ``"Django"``) may not be -- comparing raw, unnormalized names would
-    treat those as different packages and double-emit the edge this
-    function exists to avoid. See ``_try_read_poetry()`` in
-    ``pitloom.extract._pyproject`` for why this is source-stage-only.
-
-    *deduplicated_locked*, when given, is used as-is instead of calling
-    :func:`_deduplicated_locked_dependencies` again -- :func:`build` computes
-    it once and shares it with :func:`_extract_locked_version_map` so a
-    genuine name/version conflict in ``locked_dependencies`` only logs
-    :func:`warn_conflicting_versions`'s warning once per document, not once
-    per caller.
-    """
-    direct_names = {
-        canonicalize_name(_parse_dep_name(dep)) for dep in metadata.dependencies
-    }
-    locked = (
-        deduplicated_locked
-        if deduplicated_locked is not None
-        else _deduplicated_locked_dependencies(metadata.locked_dependencies)
-    )
-    return [
-        dep
-        for dep in locked
-        if canonicalize_name(_parse_dep_name(dep)) not in direct_names
-    ]
-
-
-# pylint: disable=useless-return
-def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
-    """Return the `RelationshipCompleteness` value for the locked-only
-    `dependsOn` edges :func:`_locked_transitive_only_dependencies`
-    produces, or `None` to leave it unset.
-
-    Conservatively returns ``None`` (unset): while a resolver lock represents
-    a resolved dependency graph, extractors may legitimately omit
-    unrepresentable dependencies (such as VCS/path sources, non-default groups,
-    or marker-ambiguous variants). Asserting ``complete`` would overstate
-    completeness for partial closures, so leaving it unset makes no
-    unverifiable claim.
-    """
-    del metadata
-    return None
-
-
-def _extract_locked_version_map(
-    locked_dependencies: list[str] | None,
-    *,
-    deduplicated: list[str] | None = None,
-) -> dict[str, str]:
-    """Map canonical package names to their exact locked version string.
-
-    Enables direct dependencies declared as ranges (e.g. ``requests>=2.0``)
-    to resolve to their authoritative locked version rather than falling back
-    to introspecting Pitloom's host environment.
-
-    *deduplicated*, when given, is used as-is instead of calling
-    :func:`_deduplicated_locked_dependencies` again -- see
-    :func:`_locked_transitive_only_dependencies`'s matching parameter for why.
-    """
-    result: dict[str, str] = {}
-    locked = (
-        deduplicated
-        if deduplicated is not None
-        else _deduplicated_locked_dependencies(locked_dependencies)
-    )
-    for dep in locked:
-        dep_name = _parse_dep_name(dep)
-        _req, pinned = _extract_exact_pin(dep)
-        if pinned is not None:
-            result[canonicalize_name(dep_name)] = pinned
-    return result
-
-
-def _prefetch_combined_release_info(
-    dependencies: list[str],
-    transitive_only: list[str],
-    locked_versions: dict[str, str] | None = None,
-) -> dict[tuple[str, str | None], dict[str, Any] | None]:
-    """Prefetch PyPI release info once for every dependency a document will
-    emit -- direct and lock-resolved-transitive alike -- so the result can
-    be shared across both :func:`add_dependencies` calls in :func:`build`
-    instead of each call paying for its own network round-trip."""
-    name_version_pairs = []
-    for dep in dependencies:
-        dep_name = _parse_dep_name(dep)
-        locked_ver = (
-            locked_versions.get(canonicalize_name(dep_name))
-            if locked_versions is not None
-            else None
-        )
-        dep_version, _version_note = _resolve_version(
-            dep_name, dep, locked_version=locked_ver, warn=False
-        )
-        name_version_pairs.append((dep_name, dep_version))
-    for dep in transitive_only:
-        dep_name = _parse_dep_name(dep)
-        dep_version, _version_note = _resolve_version(dep_name, dep, warn=False)
-        name_version_pairs.append((dep_name, dep_version))
-
-    return _prefetch_pypi_release_infos(name_version_pairs)
 
 
 # pylint: disable=too-many-locals
@@ -436,15 +258,13 @@ def build(
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
     # Deduplicated once and shared below: a genuine name/version conflict
     # in metadata.locked_dependencies must warn exactly once per document,
-    # not once per function that would otherwise recompute it.
-    deduplicated_locked = _deduplicated_locked_dependencies(
+    # not once per function that would otherwise recompute it, and each
+    # entry's pin is parsed once, not once per consumer.
+    deduplicated_locked, locked_versions = _dedup_and_locked_versions(
         metadata.locked_dependencies
     )
     transitive_only = _locked_transitive_only_dependencies(
         metadata, deduplicated_locked=deduplicated_locked
-    )
-    locked_versions = _extract_locked_version_map(
-        metadata.locked_dependencies, deduplicated=deduplicated_locked
     )
     release_info_cache = (
         None

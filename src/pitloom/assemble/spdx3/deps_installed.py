@@ -166,7 +166,7 @@ def _resolve_version(
         return pinned, None
 
     if locked_version is not None:
-        satisfies = _satisfies_constraint(req, locked_version)
+        satisfies = warn and _satisfies_constraint(req, locked_version)
         if warn and satisfies is None:
             log.warning(
                 "Dependency %r declared as %r couldn't be parsed -- its"

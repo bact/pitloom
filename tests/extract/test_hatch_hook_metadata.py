@@ -65,6 +65,18 @@ def test_metadata_from_hatchling_maps_license_files() -> None:
     )
 
 
+def test_metadata_from_hatchling_empty_declared_dependencies_gets_provenance() -> None:
+    """An explicitly declared but empty ``[project.dependencies]`` must
+    still record provenance -- merge_project_metadata() relies on that
+    presence to treat the empty list as authoritative, not absent. Guards
+    _hatchling_field_declared() against regressing to a truthiness check
+    (``if dependencies:``) on the resolved list."""
+    hatch_meta = _fake_hatch_metadata(core={"dependencies": []})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.dependencies == []
+    assert "dependencies" in metadata.provenance
+
+
 def test_metadata_from_hatchling_no_license_files() -> None:
     """Absent ``[project.license-files]`` must resolve to an empty list, not
     ``None`` or a missing field."""

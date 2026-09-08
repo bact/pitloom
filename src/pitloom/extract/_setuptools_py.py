@@ -18,6 +18,7 @@ from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._extract_utils import field_declared
 
 
 def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
@@ -225,12 +226,14 @@ def read_setup_py(
         has_description=bool(description),
         has_readme=bool(readme),
         has_license=bool(license_name),
-        has_authors="author" in kwargs or "author_email" in kwargs,
+        has_authors=field_declared(kwargs, "author")
+        or field_declared(kwargs, "author_email"),
         authors=authors,
-        has_urls="url" in kwargs or "project_urls" in kwargs,
-        has_dependencies="install_requires" in kwargs,
+        has_urls=field_declared(kwargs, "url")
+        or field_declared(kwargs, "project_urls"),
+        has_dependencies=field_declared(kwargs, "install_requires"),
         has_requires_python=bool(requires_python),
-        has_keywords="keywords" in kwargs,
+        has_keywords=field_declared(kwargs, "keywords"),
     )
 
     project_metadata = ProjectMetadata(

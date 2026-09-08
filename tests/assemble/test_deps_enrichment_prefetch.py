@@ -381,7 +381,7 @@ def test_prefetch_combined_release_info_with_transitive_only(
         return {}
 
     monkeypatch.setattr(
-        "pitloom.assemble.spdx3.document._prefetch_pypi_release_infos",
+        "pitloom.assemble.spdx3._document_locked_deps._prefetch_pypi_release_infos",
         _mock_prefetch,
     )
     _prefetch_combined_release_info(

@@ -397,6 +397,32 @@ def test_non_registry_sourced_package_excluded(
         assert "cannot be represented as a PEP 508 specifier" in caplog.text
 
 
+@pytest.mark.parametrize("source_key", ["vcs", "directory", "archive"])
+def test_marker_excluded_non_registry_sourced_package_is_silent(
+    source_key: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A package that is both marker-excluded (e.g. dev-only) and
+    non-registry-sourced must be dropped with no warning at all -- it's
+    excluded either way, and warning about a source type that's being
+    discarded regardless is noise, matching poetry.lock's/pdm.lock's
+    equivalents, which check group membership before source type."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "dev-only-vcs"\n'
+            "marker = \"'dev' in dependency_groups\"\n"
+            f'[packages.{source_key}]\nurl = "https://example.com"\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pylock_dependencies(tmp_path)
+
+        assert not result
+        assert caplog.text == ""
+
+
 def test_sdist_sourced_package_included() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)

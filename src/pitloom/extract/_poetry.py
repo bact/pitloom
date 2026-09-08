@@ -63,6 +63,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
@@ -140,18 +141,21 @@ def extract_poetry_metadata(
     # genuine, authoritative "zero" that merge_project_metadata() must not
     # silently fill in from a lower-priority source, the same None-vs-[]
     # distinction _pyproject.py's [project]-table path already applies.
-    if "authors" in poetry:
+    if field_declared(poetry, "authors"):
         prov["authors"] = "Source: pyproject.toml | Field: tool.poetry.authors"
         if authors:
             prov["copyright_text"] = (
                 "Source: Pitloom generator | Method: inferred_from_authors"
             )
-    if any(key in poetry for key in ("homepage", "repository", "documentation")):
+    if any(
+        field_declared(poetry, key)
+        for key in ("homepage", "repository", "documentation")
+    ):
         prov["urls"] = (
             "Source: pyproject.toml"
             " | Field: tool.poetry.homepage/repository/documentation"
         )
-    if "dependencies" in poetry:
+    if field_declared(poetry, "dependencies"):
         prov["dependencies"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies"
         )
@@ -167,7 +171,7 @@ def extract_poetry_metadata(
         prov["requires_python"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
         )
-    if "keywords" in poetry:
+    if field_declared(poetry, "keywords"):
         prov["keywords"] = "Source: pyproject.toml | Field: tool.poetry.keywords"
 
     return ProjectMetadata(

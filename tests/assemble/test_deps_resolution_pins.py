@@ -288,7 +288,7 @@ def test_prefetch_suppresses_conflict_warnings(
     """During online prefetch, version resolution must not duplicate conflict
     warnings that the later dependency emission pass will log."""
     monkeypatch.setattr(
-        "pitloom.assemble.spdx3.document._prefetch_pypi_release_infos",
+        "pitloom.assemble.spdx3._document_locked_deps._prefetch_pypi_release_infos",
         lambda pairs: {},
     )
 

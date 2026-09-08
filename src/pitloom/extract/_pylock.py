@@ -405,6 +405,16 @@ def _pinned_pair_for_package(
     :func:`_group_marker_excludes`), so two entries for the same package
     gated on different, unevaluated ``python_version``/``sys_platform``
     markers can both survive to this point.
+
+    A marker-excluded entry that's *also* non-registry-sourced is dropped
+    silently, with no ``non-registry source`` warning: it's excluded
+    either way, and warning about a source type that's about to be
+    discarded regardless would be noise a maintainer can't act on --
+    mirrors ``poetry.lock``'s/``pdm.lock``'s equivalents, which check
+    group membership before the source type for the same reason. A
+    malformed ``version`` is still reported even for a marker-excluded
+    entry, though: unlike the source-type check, that's a data-quality
+    problem in the lock file itself, not a consequence of exclusion.
     """
     if not isinstance(pkg, dict):
         warn_malformed_entry_not_table("pylock.toml", "[[packages]]", pkg)
@@ -413,15 +423,17 @@ def _pinned_pair_for_package(
     if not isinstance(name, str) or not name.strip():
         warn_missing_name("Skipping malformed pylock.toml [[packages]] entry", name)
         return None
+    marker = pkg.get("marker")
+    marker_excluded = marker is not None and _is_marker_excluded(
+        marker, environment, name
+    )
     non_registry_source = find_first_present_key(pkg, _NON_REGISTRY_SOURCE_KEYS)
     if non_registry_source is not None:
-        warn_non_registry_source("pylock.toml", name, non_registry_source)
+        if not marker_excluded:
+            warn_non_registry_source("pylock.toml", name, non_registry_source)
         return None
     version = pkg.get("version")
     if not is_usable_version(version):
         warn_missing_version("pylock.toml", name)
         return None
-    marker = pkg.get("marker")
-    if marker is not None and _is_marker_excluded(marker, environment, name):
-        return None
-    return name, version
+    return None if marker_excluded else (name, version)

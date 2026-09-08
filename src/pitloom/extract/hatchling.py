@@ -23,6 +23,7 @@ from typing import Any
 
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
+from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
@@ -100,12 +101,15 @@ def _hatchling_field_declared(core: Any, project_key: str) -> bool:
     genuine, authoritative zero) from "not declared at all" (fall back to
     a lower-priority source in :func:`pitloom.core.project.merge_project_metadata`).
     ``core.config`` access can raise ``OSError`` the same way the
-    property accessors it backs can (see :func:`_resolve_hatchling_readme`).
+    property accessors it backs can (see :func:`_resolve_hatchling_readme`),
+    so the lookup goes through :func:`field_declared` rather than a bare
+    ``in`` check.
     """
     try:
-        return project_key in core.config
+        config = core.config
     except OSError:
         return False
+    return field_declared(config, project_key)
 
 
 def _resolve_hatchling_readme(core: Any) -> str | None:
