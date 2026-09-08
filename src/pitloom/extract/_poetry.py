@@ -155,10 +155,15 @@ def extract_poetry_metadata(
         prov["dependencies"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies"
         )
-    if (
-        isinstance(poetry.get("dependencies"), dict)
-        and "python" in poetry["dependencies"]
-    ):
+    # requires_python is a scalar (str | None), not a container -- unlike
+    # keywords/urls/dependencies/authors above, there's no "explicitly
+    # declared but empty" state worth preserving: `python = "*"` means
+    # "no constraint", which is correctly None, and provenance must
+    # follow that resolved value (truthy-gated), not the raw key's mere
+    # presence -- otherwise a `python = "*"` entry sets provenance for a
+    # field that stays None, which can misattribute a real value a
+    # lower-priority source supplies later via merge_project_metadata().
+    if requires_python:
         prov["requires_python"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
         )

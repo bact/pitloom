@@ -358,6 +358,28 @@ def test_extract_provenance_empty_declared_dependencies() -> None:
     assert "requires_python" in metadata.provenance
 
 
+def test_extract_provenance_wildcard_python_leaves_requires_python_unset() -> None:
+    """`python = "*"` (no real constraint) resolves requires_python to
+    None -- unlike the container fields, provenance must follow that
+    resolved value, not the raw `python` key's mere presence, or a
+    misattributed provenance tag could survive a later
+    merge_project_metadata() call that fills requires_python from a
+    different, real source."""
+    data = {
+        "tool": {
+            "poetry": {
+                "name": "my-pkg",
+                "version": "1.0.0",
+                "dependencies": {"python": "*"},
+            }
+        }
+    }
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
+    assert metadata.requires_python is None
+    assert "requires_python" not in metadata.provenance
+
+
 def test_convert_caret_and_tilde_edge_cases() -> None:
     """_convert_caret and _convert_tilde handle zero/short/invalid versions."""
     from pitloom.extract._poetry import (

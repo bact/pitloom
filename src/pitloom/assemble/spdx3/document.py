@@ -184,33 +184,49 @@ def _deduplicated_locked_dependencies(
     (one from the pinned entry, one from the passthrough one).
     """
     by_canonical: dict[str, list[tuple[str, str]]] = {}
-    passthrough: list[str] = []
     for dep in locked_dependencies or []:
         _req, pinned = _extract_exact_pin(dep)
         if pinned is None:
-            passthrough.append(dep)
             continue
         canon = canonicalize_name(_parse_dep_name(dep))
         by_canonical.setdefault(canon, []).append((dep, pinned))
 
-    deduplicated: list[str] = [
-        dep
-        for dep in passthrough
-        if canonicalize_name(_parse_dep_name(dep)) not in by_canonical
-    ]
-    for group in by_canonical.values():
+    excluded: set[str] = set()
+    resolved: dict[str, str] = {}
+    for group_canon, group in by_canonical.items():
         dep, version = group[0]
         conflicting_versions = {v for _, v in group if not is_same_version(v, version)}
         if conflicting_versions:
             warn_conflicting_versions(
                 "locked dependencies", _parse_dep_name(dep), {v for _, v in group}
             )
+            excluded.add(group_canon)
+        else:
+            resolved[group_canon] = dep
+
+    deduplicated: list[str] = []
+    emitted: set[str] = set()
+    for dep in locked_dependencies or []:
+        canon = canonicalize_name(_parse_dep_name(dep))
+        if canon in excluded:
             continue
+        if canon in resolved:
+            if canon in emitted:
+                continue
+            emitted.add(canon)
+            deduplicated.append(resolved[canon])
+            continue
+        # No pinned entry anywhere for this canonical name -- pass
+        # through as-is, at its own original position.
         deduplicated.append(dep)
     return deduplicated
 
 
-def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]:
+def _locked_transitive_only_dependencies(
+    metadata: ProjectMetadata,
+    *,
+    deduplicated_locked: list[str] | None = None,
+) -> list[str]:
     """Return *metadata*'s locked (e.g. ``poetry.lock``-resolved) dependencies
     that aren't already a direct dependency, so a package declared both
     directly and in the lock gets one ``dependsOn`` edge, not two.
@@ -222,13 +238,25 @@ def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]
     treat those as different packages and double-emit the edge this
     function exists to avoid. See ``_try_read_poetry()`` in
     ``pitloom.extract._pyproject`` for why this is source-stage-only.
+
+    *deduplicated_locked*, when given, is used as-is instead of calling
+    :func:`_deduplicated_locked_dependencies` again -- :func:`build` computes
+    it once and shares it with :func:`_extract_locked_version_map` so a
+    genuine name/version conflict in ``locked_dependencies`` only logs
+    :func:`warn_conflicting_versions`'s warning once per document, not once
+    per caller.
     """
     direct_names = {
         canonicalize_name(_parse_dep_name(dep)) for dep in metadata.dependencies
     }
+    locked = (
+        deduplicated_locked
+        if deduplicated_locked is not None
+        else _deduplicated_locked_dependencies(metadata.locked_dependencies)
+    )
     return [
         dep
-        for dep in _deduplicated_locked_dependencies(metadata.locked_dependencies)
+        for dep in locked
         if canonicalize_name(_parse_dep_name(dep)) not in direct_names
     ]
 
@@ -252,15 +280,26 @@ def _locked_dependencies_completeness(metadata: ProjectMetadata) -> str | None:
 
 def _extract_locked_version_map(
     locked_dependencies: list[str] | None,
+    *,
+    deduplicated: list[str] | None = None,
 ) -> dict[str, str]:
     """Map canonical package names to their exact locked version string.
 
     Enables direct dependencies declared as ranges (e.g. ``requests>=2.0``)
     to resolve to their authoritative locked version rather than falling back
     to introspecting Pitloom's host environment.
+
+    *deduplicated*, when given, is used as-is instead of calling
+    :func:`_deduplicated_locked_dependencies` again -- see
+    :func:`_locked_transitive_only_dependencies`'s matching parameter for why.
     """
     result: dict[str, str] = {}
-    for dep in _deduplicated_locked_dependencies(locked_dependencies):
+    locked = (
+        deduplicated
+        if deduplicated is not None
+        else _deduplicated_locked_dependencies(locked_dependencies)
+    )
+    for dep in locked:
         dep_name = _parse_dep_name(dep)
         _req, pinned = _extract_exact_pin(dep)
         if pinned is not None:
@@ -395,8 +434,18 @@ def build(
     )
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
-    transitive_only = _locked_transitive_only_dependencies(metadata)
-    locked_versions = _extract_locked_version_map(metadata.locked_dependencies)
+    # Deduplicated once and shared below: a genuine name/version conflict
+    # in metadata.locked_dependencies must warn exactly once per document,
+    # not once per function that would otherwise recompute it.
+    deduplicated_locked = _deduplicated_locked_dependencies(
+        metadata.locked_dependencies
+    )
+    transitive_only = _locked_transitive_only_dependencies(
+        metadata, deduplicated_locked=deduplicated_locked
+    )
+    locked_versions = _extract_locked_version_map(
+        metadata.locked_dependencies, deduplicated=deduplicated_locked
+    )
     release_info_cache = (
         None
         if offline

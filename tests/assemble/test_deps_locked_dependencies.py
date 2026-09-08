@@ -24,6 +24,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3 import deps_installed
 from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.document import (
+    _deduplicated_locked_dependencies,
     _extract_locked_version_map,
     _locked_dependencies_completeness,
     _locked_transitive_only_dependencies,
@@ -493,6 +494,48 @@ def test_locked_transitive_only_dependencies_keeps_unpinned_entries() -> None:
         "range-dep>=1.0",
         "pinned==1.0",
     }
+
+
+def test_deduplicated_locked_dependencies_preserves_original_order() -> None:
+    """The docstring promises 'preserving order' -- a deduplicated pinned
+    entry must land at its first occurrence's original position, not be
+    moved to the end (or the front) relative to unrelated entries."""
+    assert _deduplicated_locked_dependencies(["foo==1.0", "bar", "baz==2.0"]) == [
+        "foo==1.0",
+        "bar",
+        "baz==2.0",
+    ]
+    # A name repeated later (agreeing pin) still resolves at its FIRST
+    # occurrence's position, not its last.
+    assert _deduplicated_locked_dependencies(["foo==1.0", "bar", "foo==1.0.0"]) == [
+        "foo==1.0",
+        "bar",
+    ]
+
+
+def test_build_warns_conflicting_locked_duplicates_only_once(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """build() shares one _deduplicated_locked_dependencies() result between
+    _locked_transitive_only_dependencies() and _extract_locked_version_map()
+    instead of each recomputing it -- a genuine conflict must log
+    'pinned to conflicting versions' exactly once per document, not once
+    per caller."""
+    project = ProjectMetadata(
+        name="main-project",
+        version="1.0.0",
+        dependencies=["requests>=2.0"],
+        locked_dependencies=["bar==1.0", "bar==2.0", "requests==2.31.0"],
+        provenance={
+            "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+
+    caplog.set_level("WARNING")
+    build(doc, offline=True)
+
+    assert caplog.text.count("pinned to conflicting versions") == 1
 
 
 def test_locked_transitive_only_dependencies_handles_none_locked() -> None:
