@@ -372,7 +372,16 @@ def test_build_concluded_license_without_declared_license() -> None:
     spdx_doc = next(e for e in graph if e.get("type") == "SpdxDocument")
     assert "simpleLicensing" in spdx_doc["profileConformance"]
 
-    rels = [e for e in graph if e.get("type") == "Relationship"]
+    main_package_ids = {
+        e["spdxId"]
+        for e in graph
+        if e.get("type") == "software_Package" and e.get("name") == "concluded-only"
+    }
+    rels = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship" and e.get("from") in main_package_ids
+    ]
     concluded_rels = [
         r for r in rels if r.get("relationshipType") == "hasConcludedLicense"
     ]

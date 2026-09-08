@@ -129,6 +129,33 @@ def test_build_license_elements_single_candidate_transparent_source_is_declared(
     assert rel_declared.relationshipType == spdx3.RelationshipType.hasDeclaredLicense
 
 
+def test_build_license_elements_empty_string_concluded_id_is_single_candidate() -> None:
+    """An empty-string concluded_license_id (never a meaningful license id,
+    unlike a field like requires_python where "" can mean "explicitly no
+    constraint") must dispatch to single-candidate mode exactly like None
+    -- not silently enter two-candidate mode with a spurious empty second
+    candidate."""
+    doc_uuid = compute_doc_uuid("empty-concluded", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+
+    rel_declared, rel_concluded = build_license_elements(
+        license_id="MIT",
+        package_spdx_id="https://example.com/Package-1",
+        license_provenance="Source: pyproject.toml | Field: project.license",
+        creation_info=ci,
+        doc_name="empty-concluded",
+        doc_uuid=doc_uuid,
+        exporter=exporter,
+        concluded_license_id="",
+    )
+
+    assert rel_concluded is None
+    assert rel_declared is not None
+    assert rel_declared.relationshipType == spdx3.RelationshipType.hasDeclaredLicense
+
+
 def test_build_license_relationship_raises_when_relationship_build_fails() -> None:
     """``build_relationship`` returns ``None`` when ``from_id`` is ``None``;
     ``_build_license_relationship`` must fail loudly rather than silently

@@ -143,7 +143,7 @@ def build_license_elements(
     """Get or create SimpleLicensingText element(s) and build declared/concluded
     license relationships.
 
-    Single-candidate mode (*concluded_license_id* omitted, the default):
+    Single-candidate mode (*concluded_license_id* falsy, the default):
     unchanged behavior -- one element, classified as declared XOR concluded
     via :func:`_is_license_concluded` on *license_provenance*.
 
@@ -156,8 +156,12 @@ def build_license_elements(
     license element. When they disagree, an additional G2 conflict Annotation
     is emitted on *package_spdx_id* recording both candidates; see
     :func:`~pitloom.assemble.spdx3.provenance.build_conflict_annotation`.
+
+    Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
+    a license id is never meaningfully ``""``, so that must not route into
+    two-candidate mode with a spurious empty second candidate.
     """
-    if concluded_license_id is None:
+    if not concluded_license_id:
         license_spdx_id = _get_or_create_license_element(
             license_id,
             license_provenance,
@@ -422,7 +426,7 @@ def attach_main_package_license(
     the main Python project package.
 
     ``metadata.license_name`` truthy does not guarantee two-candidate mode:
-    when ``metadata.license_concluded`` is unset, :func:`build_license_elements`
+    when ``metadata.license_concluded`` is falsy, :func:`build_license_elements`
     still runs single-candidate on ``license_name``'s own provenance, which
     can classify it as concluded (``rel_declared is None``) -- see the
     comment on the ``elif`` branch below for why that branch, unlike this

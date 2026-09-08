@@ -46,10 +46,12 @@ trip review attention:
   411, `export/spdx3_json.py` 401).
 - **`tests/`** (excluding `tests/extract/huggingface/` mock fixture
   catalogs): 9 files exceed 415 lines, worst is `test_hdf5.py` at 552
-  (`test_deps_enrichment_pypi_fallback.py` 460, `test_pytorch_pt2.py` 459,
-  `test_assembly_edge_cases.py` 456, `test_annotation_provenance_emit.py`
-  449, `test_pyproject.py` 436, `test_cli_options.py` 429,
-  `test_setuptools_cfg.py` 426, `test_gguf.py` 423).
+  (`test_pytorch_pt2.py` 459, `test_assembly_edge_cases.py` 456,
+  `test_annotation_provenance_emit.py` 449, `test_pyproject.py` 436,
+  `test_cli_options.py` 429, `test_gguf.py` 423 --
+  `test_deps_enrichment_pypi_fallback.py` and `test_setuptools_cfg.py` have
+  since been split under this limit, see `test_deps_license.py` and
+  `test_setuptools_cfg_backend.py`).
 
 None have crossed the 800-line hard cap, so nothing is currently broken --
 but per AGENTS.md, a file should be split *before* crossing the soft
