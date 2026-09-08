@@ -39,11 +39,22 @@ def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
             yield node
 
 
+#: Sentinel for "not a resolvable literal" (a variable, function call,
+#: f-string, ...), distinct from a genuine literal ``None`` constant
+#: (``Constant(value=None)``) -- conflating the two would make a real
+#: ``[None]`` list element indistinguishable from an unresolvable one, and
+#: (via :func:`_extract_setup_kwargs`) would make a kwarg whose value
+#: couldn't be resolved indistinguishable from a kwarg never written at
+#: all.
+_UNRESOLVABLE = object()
+
+
 def _ast_literal(node: ast.expr) -> Any:
     """Extract a Python literal value from an AST expression.
 
-    Returns ``None`` for non-literal expressions (variables, function calls,
-    f-strings, etc.) rather than raising.
+    Returns :data:`_UNRESOLVABLE` for non-literal expressions (variables,
+    function calls, f-strings, etc.) rather than raising -- never ``None``
+    for that case, so a genuine literal ``None`` stays distinguishable.
     """
     if isinstance(node, ast.Constant):
         return node.value
@@ -53,10 +64,11 @@ def _ast_literal(node: ast.expr) -> Any:
         # `install_requires=[SOME_CONSTANT]` as the literal empty list
         # `[]` -- a "no dependencies" claim indistinguishable from a
         # genuinely empty `install_requires=[]`, which downstream
-        # presence-based provenance treats as authoritative. `None` here
-        # correctly propagates as "not a resolvable literal" instead.
+        # presence-based provenance treats as authoritative.
+        # `_UNRESOLVABLE` here correctly propagates "not a resolvable
+        # literal" instead, without colliding with a real `None` element.
         values = [_ast_literal(elt) for elt in node.elts]
-        return None if any(v is None for v in values) else values
+        return _UNRESOLVABLE if any(v is _UNRESOLVABLE for v in values) else values
     if isinstance(node, ast.Dict):
         result: dict[str, Any] = {}
         for key, value in zip(node.keys, node.values, strict=False):
@@ -65,16 +77,22 @@ def _ast_literal(node: ast.expr) -> Any:
             k = _ast_literal(key)
             v = _ast_literal(value)
             if isinstance(k, str):
-                result[k] = v
+                result[k] = None if v is _UNRESOLVABLE else v
         return result
-    return None
+    return _UNRESOLVABLE
 
 
 def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     """Extract keyword arguments from a ``setup()`` or ``setuptools.setup()`` call.
 
-    Returns the first matching call's kwargs as a dict.  Non-literal values
-    (variables, function calls) are omitted from the result.
+    Returns the first matching call's kwargs as a dict. A kwarg whose value
+    isn't a resolvable literal (a variable, function call, ...) is still
+    present in the result, with value ``None`` -- only the unresolved
+    *value* is dropped, never the key's presence. Keeping the key lets a
+    presence check (:func:`pitloom.extract._extract_utils.field_declared`)
+    correctly tell "explicitly declared, but not statically resolvable"
+    apart from "never mentioned at all" -- collapsing the two would silently
+    lose provenance for a kwarg like ``install_requires=SOME_VARIABLE``.
     """
     node = next(iter_setup_calls(tree), None)
     if node is None:
@@ -83,8 +101,7 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     for kw in node.keywords:
         if kw.arg is not None:  # skip **expansion
             value = _ast_literal(kw.value)
-            if value is not None:
-                kwargs[kw.arg] = value
+            kwargs[kw.arg] = None if value is _UNRESOLVABLE else value
     return kwargs
 
 

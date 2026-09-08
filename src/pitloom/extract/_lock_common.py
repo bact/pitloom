@@ -49,6 +49,7 @@ __all__ = [
     "POETRY_LOCK_SOURCE_NAME",
     "default_group_included",
     "find_first_present_key",
+    "group_by_canonical_name",
     "group_pin_triples_by_canonical_name",
     "group_versions_by_canonical_name",
     "has_required_top_level_table",
@@ -242,7 +243,7 @@ def is_usable_version(version: object) -> TypeGuard[str]:
 _CanonicalGroupT = TypeVar("_CanonicalGroupT", bound=tuple[str, ...])
 
 
-def _group_by_canonical_name(
+def group_by_canonical_name(
     items: Iterable[_CanonicalGroupT],
 ) -> dict[str, list[_CanonicalGroupT]]:
     """Group tuples by PEP 503-canonicalized *name* (each tuple's first
@@ -255,9 +256,13 @@ def _group_by_canonical_name(
     check silently never fires for a mixed-case duplicate.
 
     Generic over tuple arity so :func:`group_versions_by_canonical_name`'s
-    ``(name, version)`` pairs and :func:`group_pin_triples_by_canonical_name`'s
-    ``(name, operator, version)`` triples share one implementation instead
-    of two copies of the same loop.
+    ``(name, version)`` pairs, :func:`group_pin_triples_by_canonical_name`'s
+    ``(name, operator, version)`` triples, and any other caller's own
+    ``(name, ...)`` tuple shape share one implementation instead of a
+    per-caller copy of the same loop -- public (no leading underscore)
+    since :mod:`pitloom.assemble.spdx3._document_locked_deps` groups a
+    third, differently-shaped ``(name, dep, pinned)`` triple that fits
+    neither typed wrapper below.
     """
     by_canonical: dict[str, list[_CanonicalGroupT]] = {}
     for item in items:
@@ -269,7 +274,7 @@ def group_versions_by_canonical_name(
     pairs: Iterable[tuple[str, str]],
 ) -> dict[str, list[tuple[str, str]]]:
     """Group ``(name, version)`` pairs by PEP 503-canonicalized *name* --
-    see :func:`_group_by_canonical_name`.
+    see :func:`group_by_canonical_name`.
 
     A caller decides what a multi-entry group means for its own format:
     :mod:`pitloom.extract._pdm_lock` collapses a group to one entry when
@@ -278,14 +283,14 @@ def group_versions_by_canonical_name(
     for the sibling used where the pin's operator (``==`` vs ``===``) also
     needs to survive grouping.
     """
-    return _group_by_canonical_name(pairs)
+    return group_by_canonical_name(pairs)
 
 
 def group_pin_triples_by_canonical_name(
     triples: Iterable[tuple[str, str, str]],
 ) -> dict[str, list[tuple[str, str, str]]]:
     """Group ``(name, operator, version)`` pins by PEP 503-canonicalized
-    *name* -- see :func:`_group_by_canonical_name`. The ``===``-aware
+    *name* -- see :func:`group_by_canonical_name`. The ``===``-aware
     sibling of :func:`group_versions_by_canonical_name`, for
     :mod:`pitloom.extract._pipfile_lock` and
     :mod:`pitloom.extract._requirements_txt`, whose ``version`` field is
@@ -299,7 +304,7 @@ def group_pin_triples_by_canonical_name(
     whole file, since it has no per-format definition of "expected
     duplication" the way an extra-variant lock entry does.
     """
-    return _group_by_canonical_name(triples)
+    return group_by_canonical_name(triples)
 
 
 #: PEP 440 operators that pin to exactly one release: ``==`` (the

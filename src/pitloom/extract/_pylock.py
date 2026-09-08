@@ -413,8 +413,12 @@ def _pinned_pair_for_package(
     mirrors ``poetry.lock``'s/``pdm.lock``'s equivalents, which check
     group membership before the source type for the same reason. A
     malformed ``version`` is still reported even for a marker-excluded
-    entry, though: unlike the source-type check, that's a data-quality
-    problem in the lock file itself, not a consequence of exclusion.
+    entry that has *no* non-registry source, though: unlike the
+    source-type check, that's a data-quality problem in the lock file
+    itself, not a consequence of exclusion. When a non-registry source
+    *is* present, the version is never checked at all -- a non-registry
+    pin has no meaningful version regardless, so there's nothing to
+    validate.
     """
     if not isinstance(pkg, dict):
         warn_malformed_entry_not_table("pylock.toml", "[[packages]]", pkg)

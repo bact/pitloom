@@ -166,24 +166,25 @@ def _resolve_version(
         return pinned, None
 
     if locked_version is not None:
-        satisfies = warn and _satisfies_constraint(req, locked_version)
-        if warn and satisfies is None:
-            log.warning(
-                "Dependency %r declared as %r couldn't be parsed -- its"
-                " constraint (if any) can't be verified against locked"
-                " version %r, using it anyway",
-                dep_name,
-                dep,
-                locked_version,
-            )
-        elif warn and not satisfies:
-            log.warning(
-                "Locked version %r for dependency %r does not satisfy declared"
-                " constraint %r -- using locked version",
-                locked_version,
-                dep_name,
-                dep,
-            )
+        if warn:
+            satisfies = _satisfies_constraint(req, locked_version)
+            if satisfies is None:
+                log.warning(
+                    "Dependency %r declared as %r couldn't be parsed -- its"
+                    " constraint (if any) can't be verified against locked"
+                    " version %r, using it anyway",
+                    dep_name,
+                    dep,
+                    locked_version,
+                )
+            elif not satisfies:
+                log.warning(
+                    "Locked version %r for dependency %r does not satisfy declared"
+                    " constraint %r -- using locked version",
+                    locked_version,
+                    dep_name,
+                    dep,
+                )
         return locked_version, "Version resolved: Project lock file"
 
     try:

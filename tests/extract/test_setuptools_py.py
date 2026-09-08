@@ -164,6 +164,25 @@ def test_read_setup_py_empty_install_requires_gets_provenance() -> None:
     assert "dependencies" in metadata.provenance
 
 
+def test_read_setup_py_unresolvable_install_requires_still_gets_provenance() -> None:
+    """A declared but statically-unresolvable install_requires (a module-
+    level variable, not a literal) must still record provenance -- the
+    kwarg was genuinely written, even though its value can't be resolved
+    by AST parsing alone. Dropping the key entirely (as an earlier bug
+    did) would make this indistinguishable from install_requires never
+    being mentioned at all."""
+    content = (
+        "from setuptools import setup\n"
+        "DEPS = ['requests']\n"
+        "setup(name='pkg', version='1.0', install_requires=DEPS)\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert metadata.dependencies == []
+    assert "dependencies" in metadata.provenance
+
+
 def test_read_setup_py_returns_default_pitloom_config() -> None:
     """setup.py provides no pitloom config -- defaults are returned."""
     content = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"
@@ -206,6 +225,22 @@ def test_read_setup_py_long_description_and_tuples() -> None:
     assert metadata.readme == "A detailed description"
     assert metadata.dependencies == ["dep1", "dep2"]
     assert "readme" in metadata.provenance
+
+
+def test_ast_literal_distinguishes_none_element_from_unresolvable() -> None:
+    """A literal `None` list element must resolve to the list `[None]`,
+    not be treated the same as an unresolvable element (a Name/Call node)
+    -- both used to collapse to the same `None` return, silently
+    invalidating a list that happens to contain a real `None`."""
+    import ast  # pylint: disable=import-outside-toplevel
+
+    from pitloom.extract._setuptools_py import _UNRESOLVABLE, _ast_literal
+
+    literal_none_list = ast.parse("[None]", mode="eval").body
+    assert _ast_literal(literal_none_list) == [None]
+
+    unresolvable_list = ast.parse("[SOME_VAR]", mode="eval").body
+    assert _ast_literal(unresolvable_list) is _UNRESOLVABLE
 
 
 def test_ast_literal_dict_unpacking_and_calls() -> None:

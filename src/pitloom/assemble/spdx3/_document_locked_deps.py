@@ -26,10 +26,35 @@ from pitloom.assemble.spdx3.deps_installed import _extract_exact_pin
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._lock_common import (
-    _group_by_canonical_name,
+    group_by_canonical_name,
     is_same_version,
     warn_conflicting_versions,
 )
+
+
+def _canon_names_and_pins(
+    locked_dependencies: list[str] | None,
+) -> tuple[dict[str, str], list[tuple[str, str, str]]]:
+    """Parse every entry in *locked_dependencies* exactly once, returning
+    each dep string's PEP 503-canonicalized name (``canon_by_dep``,
+    keyed by the original dep string) alongside the ``(name, dep, pinned)``
+    triples for entries that carry an exact pin.
+
+    Split out of :func:`_dedup_and_locked_versions` only to keep that
+    function's local-variable count under this repo's complexity ceiling.
+    """
+    canon_by_dep: dict[str, str] = {}
+    pinned_triples: list[tuple[str, str, str]] = []
+    for dep in locked_dependencies or []:
+        req, pinned = _extract_exact_pin(dep)
+        # req.name is already resolved by _extract_exact_pin's own parse --
+        # only fall back to re-parsing via _parse_dep_name for a dep string
+        # that Requirement() itself couldn't parse (req is None).
+        name = req.name if req is not None else _parse_dep_name(dep)
+        canon_by_dep[dep] = canonicalize_name(name)
+        if pinned is not None:
+            pinned_triples.append((name, dep, pinned))
+    return canon_by_dep, pinned_triples
 
 
 def _dedup_and_locked_versions(
@@ -38,7 +63,8 @@ def _dedup_and_locked_versions(
     """Collapse *locked_dependencies* to one entry per PEP 503-canonicalized
     name among its exact-pinned entries (preserving order), and map each
     surviving canonical name to its pinned version -- computed together so
-    :func:`_extract_exact_pin` parses each entry's pin only once.
+    each entry is parsed via :func:`_extract_exact_pin` only once, and its
+    canonical name derived from that same parse rather than re-parsed.
 
     A canonical name whose *pinned* entries disagree on PEP 440 version is
     a genuine conflict (e.g. two lock formats layered by hand into the
@@ -64,12 +90,8 @@ def _dedup_and_locked_versions(
     more informative, and keeping both would double-emit the same package
     (one from the pinned entry, one from the passthrough one).
     """
-    pinned_triples: list[tuple[str, str, str]] = []
-    for dep in locked_dependencies or []:
-        _req, pinned = _extract_exact_pin(dep)
-        if pinned is not None:
-            pinned_triples.append((_parse_dep_name(dep), dep, pinned))
-    by_canonical = _group_by_canonical_name(pinned_triples)
+    canon_by_dep, pinned_triples = _canon_names_and_pins(locked_dependencies)
+    by_canonical = group_by_canonical_name(pinned_triples)
 
     excluded: set[str] = set()
     resolved: dict[str, str] = {}
@@ -91,7 +113,7 @@ def _dedup_and_locked_versions(
     deduplicated: list[str] = []
     emitted: set[str] = set()
     for dep in locked_dependencies or []:
-        canon = canonicalize_name(_parse_dep_name(dep))
+        canon = canon_by_dep[dep]
         if canon in excluded:
             continue
         if canon in resolved:
