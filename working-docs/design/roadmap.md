@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-06
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -305,11 +305,16 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   `DocumentModel`.
 - [ ] **Build log extraction** -- capture compiled dependencies, linker flags,
   and bundled libraries from build output logs.
-- [ ] **VEX (VEX/OpenVEX) generation** -- consumes the OSV.dev lookup
+- [ ] **VEX (CSAF/OpenVEX) generation** -- consumes the OSV.dev lookup
   above (once it exists) to classify a component as affected/
   not_affected/fixed/under_investigation, rather than just listing raw
   CVE hits. Depends on the OSV enrichment item under Near-term /
-  Metadata quality landing first.
+  Metadata quality landing first. Open question: CSAF v2.0
+  (ISO/IEC 20153:2025, OASIS-standardized, heavier, product-tree
+  formalism, vendor-advisory-oriented) vs. OpenVEX (lighter JSON, the
+  more common choice for tool-generated, non-vendor VEX) as the output
+  format -- see
+  [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md#relationship-to-csafvex).
 
 ## Long-term
 
