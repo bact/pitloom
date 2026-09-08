@@ -151,6 +151,17 @@ shape described, not just the module where each was first found.
     compatibility terms. See "Version comparison: PEP 440, not SemVer"
     in `docs/dependency-sources.md` for the user-facing version of this
     same distinction.
+  - **The same PEP 440-not-raw-string rule applies to detecting version
+    *conflicts*, not just equality checks in prose.** A duplicate-name
+    entry across a lock file's own `[[package]]` list (the same
+    canonical name appearing more than once, e.g. once per marker
+    branch) needs `is_same_version()` before being treated as a real
+    conflict -- `"1.0"` and `"1.0.0"` from two different branches are the
+    same release, not a conflict to warn about and drop. A sibling that
+    skips this check (comparing the raw version strings, or dropping
+    every duplicate name outright regardless of whether the versions
+    agree) both over-warns on non-conflicts and under-reports a real,
+    agreeing dependency that every other sibling format would have kept.
 - **A private third-party API (`obj._attr`) does not owe you any
   structural guarantee beyond what it happens to return today.** E.g.
   `packaging.markers.Marker()._markers` does not pre-group same-
@@ -223,6 +234,38 @@ shape described, not just the module where each was first found.
   is correct. When broadening a check across several fields, broaden the
   fixture that backs its tests across the same fields in the same change,
   or the new branches go untested despite "the tests pass."
+- **A source that can legitimately resolve to zero entries needs its own
+  "is this genuinely a file of this format" check, or an empty result
+  becomes indistinguishable from a wrong file.** In a priority cascade
+  (e.g. `_locked_dependencies.py` picking among `poetry.lock`/`pdm.lock`/
+  `pylock.toml`/`uv.lock`/`Pipfile.lock`/`requirements.txt`), a resolver
+  that genuinely produces zero packages must still look different from an
+  unrelated/truncated/hand-edited file that merely happens to be found
+  under that format's filename -- otherwise the latter silently wins the
+  cascade over a real, lower-priority lock file via a spurious
+  authoritative-empty result. Check for the format's own identifying
+  top-level marker (`poetry.lock`'s string `metadata.lock-version`,
+  `pdm.lock`'s string `metadata.lock_version`, `Pipfile.lock`'s int
+  `_meta.pipfile-spec`, `uv.lock`'s flat int `version`) before trusting an
+  empty package list as real, not just when it's non-empty. This was
+  missed for `uv.lock` well after the identical check had already been
+  added to three sibling formats -- when a new source joins an existing
+  cascade/fallback family, check whether it needs the same class of guard
+  every existing sibling already has, not just the guards relevant to
+  the bug that prompted adding the new source.
+- **A presence-only check (`find_first_present_key()`-style: "is any of
+  these keys present at all") silently misfires the moment one key in
+  the set is genuinely boolean-valued instead of presence-implies-true.**
+  `Pipfile.lock`'s non-registry-source keys are almost all presence-only
+  (a `"git"`/`"path"`/`"url"` string means "non-registry, full stop"),
+  but `"editable"` is schema-legal as an explicit `false` -- a naive
+  presence check would misread `"editable": false` as "editable source,
+  exclude" instead of "not editable, no exemption needed here." Before
+  reusing a presence-only helper across a whole key set, check each key's
+  real schema: a key that can legitimately carry a meaningful `false` (or
+  any other falsy-but-real value) needs its own value check, not just a
+  presence check, even when every other key in the same set is fine with
+  presence alone.
 
 ## CLI output
 
