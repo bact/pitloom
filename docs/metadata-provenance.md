@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-26
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,7 +85,7 @@ vocabulary) into a single `Annotation.statement`. For a real model this
 can be large -- a 32K-128K-entry vocab array easily reaches multi-megabyte
 territory. `max-source-metadata-bytes` (also `--max-source-metadata-bytes`
 on the CLI, or the Action's `max-source-metadata-bytes` input) caps the
-serialized `Annotation.statement`'s size in UTF-8 bytes; `0` (the default)
+serialised `Annotation.statement`'s size in UTF-8 bytes; `0` (the default)
 means unlimited.
 
 When the budget is exceeded, whole metadata entries are dropped --
@@ -116,7 +116,7 @@ claims a budget its own overhead violates would be worse than omitting
 it. A budget that forces every key to be dropped, but still fits the
 marker overhead, is emitted with `metadata: {}` and a `WARNING`.
 
-The `Annotation.statement` value is itself serialized via RFC 8785 (JSON
+The `Annotation.statement` value is itself serialised via RFC 8785 (JSON
 Canonicalization Scheme, JCS) -- the same canonicalization the whole SBOM
 document uses -- so it has no insignificant whitespace and a
 deterministic key order; byte-for-byte comparing or hashing this blob
@@ -160,11 +160,11 @@ declared value was already found. A `CITATION.cff`/`codemeta.json` value
 that's already a bare SPDX id is used as-is; anything else (typically a
 `LICENSE` file's full text) is matched against known SPDX licenses via
 `licenseid` (`method: licenseid_detection`). Either way counts as
-Pitloom's own independent-detection procedure. Both sides are normalized
+Pitloom's own independent-detection procedure. Both sides are normalised
 before comparison -- not just casing (a declared `"mit"` and a detected
-`"MIT"` are recognized as the same license), but also equivalent compound
+`"MIT"` are recognised as the same license), but also equivalent compound
 expressions written differently (`"MIT AND MIT"` and plain `"MIT"`;
-`"MIT OR Apache-2.0"` and `"Apache-2.0 OR MIT"` all normalize to the same
+`"MIT OR Apache-2.0"` and `"Apache-2.0 OR MIT"` all normalise to the same
 value) -- so none of these are misreported as a conflict.
 
 - If only one of the two exists, only that one is recorded, as
@@ -207,3 +207,5 @@ value) -- so none of these are misreported as a conflict.
 point -- see [Command line](cli.md#configuration), [Hatchling build
 hook](hatchling-build-hook.md), and [Python API](python-api.md) for where
 to set it.
+- [Dependency sources and precedence](dependency-sources.md) -- how
+  resolved lock files feed into Source SBOM dependencies and provenance.

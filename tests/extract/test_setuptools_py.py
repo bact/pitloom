@@ -20,6 +20,8 @@ import pytest
 
 from pitloom.extract._setuptools import read_setup_py
 
+from .conftest import assert_declared_empty_authors_no_copyright_text
+
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SETUPTOOLS_FIXTURE = FIXTURE_DIR / "projects" / "sampleproject-setuptools"
 
@@ -149,6 +151,72 @@ def test_read_setup_py_provenance() -> None:
     assert "setup.py" in metadata.provenance["authors"]
 
 
+def test_read_setup_py_empty_install_requires_gets_provenance() -> None:
+    """An explicitly declared but empty install_requires=[] must still
+    record provenance -- merge_project_metadata() relies on that
+    presence to treat the empty list as authoritative, not absent."""
+    content = (
+        "from setuptools import setup\n"
+        "setup(name='pkg', version='1.0', install_requires=[])\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert metadata.dependencies == []
+    assert "dependencies" in metadata.provenance
+
+
+def test_read_setup_py_declared_empty_author_no_copyright_text() -> None:
+    """An explicitly declared but empty author='' must still record
+    provenance for `authors`, but with no author to derive a name from,
+    no `copyright_text` is inferred."""
+    content = (
+        "from setuptools import setup\nsetup(name='pkg', version='1.0', author='')\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert_declared_empty_authors_no_copyright_text(metadata)
+
+
+def test_read_setup_py_empty_python_requires_gets_provenance() -> None:
+    """An explicitly declared but empty python_requires='' must still
+    record provenance -- merge_project_metadata() relies on that presence
+    to treat the resulting None as authoritative, not absent."""
+    content = (
+        "from setuptools import setup\n"
+        "setup(name='pkg', version='1.0', python_requires='')\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert metadata.requires_python is None
+    assert "requires_python" in metadata.provenance
+
+
+def test_read_setup_py_unresolvable_install_requires_is_not_declared(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A statically-unresolvable install_requires (a module-level variable,
+    not a literal) must be treated as undeclared, not as an authoritative
+    empty list -- Pitloom has no real value for it, and asserting
+    'declared, zero dependencies' would block merge_project_metadata()'s
+    fallback to a lower-priority source that might actually have the
+    real dependency list. A WARNING names the dropped kwarg instead."""
+    content = (
+        "from setuptools import setup\n"
+        "DEPS = ['requests']\n"
+        "setup(name='pkg', version='1.0', install_requires=DEPS)\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        with caplog.at_level("WARNING"):
+            metadata, _ = read_setup_py(Path(d))
+    assert metadata.dependencies == []
+    assert "dependencies" not in metadata.provenance
+    assert "install_requires" in caplog.text
+
+
 def test_read_setup_py_returns_default_pitloom_config() -> None:
     """setup.py provides no pitloom config -- defaults are returned."""
     content = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"
@@ -191,6 +259,22 @@ def test_read_setup_py_long_description_and_tuples() -> None:
     assert metadata.readme == "A detailed description"
     assert metadata.dependencies == ["dep1", "dep2"]
     assert "readme" in metadata.provenance
+
+
+def test_ast_literal_distinguishes_none_element_from_unresolvable() -> None:
+    """A literal `None` list element must resolve to the list `[None]`,
+    not be treated the same as an unresolvable element (a Name/Call node)
+    -- both used to collapse to the same `None` return, silently
+    invalidating a list that happens to contain a real `None`."""
+    import ast  # pylint: disable=import-outside-toplevel
+
+    from pitloom.extract._setuptools_py import _UNRESOLVABLE, _ast_literal
+
+    literal_none_list = ast.parse("[None]", mode="eval").body
+    assert _ast_literal(literal_none_list) == [None]
+
+    unresolvable_list = ast.parse("[SOME_VAR]", mode="eval").body
+    assert _ast_literal(unresolvable_list) is _UNRESOLVABLE
 
 
 def test_ast_literal_dict_unpacking_and_calls() -> None:

@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-26
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Python Enhancement Proposals (PEPs)
 
-> Note: PEPs are historical document.
+> Note: PEPs are historical documents.
 > The up-to-date, canonical spec for Python packaging,
 > is maintained on the
 > [PyPA specs page](https://packaging.python.org/en/latest/specifications/).
@@ -25,7 +25,7 @@ each with a short note on what SBOM metadata it feeds:
   `.dist-info/` layout Pitloom reads/writes package files against.
   **Stale on one point** the PEP text itself doesn't reflect: the
   name/version escaping rule for `.dist-info` directory naming (PEP 503
-  normalization, then `-` → `_`) was *revised in 2021* to match real
+  normalisation, then `-` → `_`) was *revised in 2021* to match real
   tooling — see the canonical
   [Binary Distribution Format spec][pep-427-spec] instead of this PEP
   for that rule specifically.
@@ -33,7 +33,7 @@ each with a short note on what SBOM metadata it feeds:
   Specification: version syntax used for dependency-constraint
   conversion (e.g. Poetry's `^`/`~`) and wheel-vs-SBOM version checks.
 - [PEP 503][pep-503] – Simple Repository API: package-name
-  normalization, used generically wherever two package names must
+  normalisation, used generically wherever two package names must
   compare equal regardless of case/`-`/`_`/`.` -- PyPI purl
   construction, dependency dedup, wheel-vs-SBOM name checks, and wheel
   `.dist-info` path escaping.
@@ -52,6 +52,10 @@ each with a short note on what SBOM metadata it feeds:
 - [PEP 639][pep-639] – Improving License Clarity with Better Package
   Metadata: SPDX license expression and `license-files` bundling → the
   SBOM's declared-license and license-file elements.
+- [PEP 751][pep-751] – A file format to record Python dependencies for
+  installation reproducibility: `pylock.toml`, the highest-priority
+  resolved-dependency source in the lock-file cascade (see
+  [Dependency sources](dependency-sources.md)).
 - [PEP 770][pep-770] – Improving measurability of Python packages with
   Software Bill-of-Materials: defines `.dist-info/sboms/`, where
   Pitloom embeds/locates a wheel's own SBOM.
@@ -67,6 +71,7 @@ each with a short note on what SBOM metadata it feeds:
 [pep-518]: https://peps.python.org/pep-0518/
 [pep-621]: https://peps.python.org/pep-0621/
 [pep-639]: https://peps.python.org/pep-0639/
+[pep-751]: https://peps.python.org/pep-0751/
 [pep-770]: https://peps.python.org/pep-0770/
 [packaging-peps]: https://peps.python.org/topic/packaging/
 

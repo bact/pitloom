@@ -19,16 +19,20 @@ from __future__ import annotations
 
 import json
 import tempfile
+from datetime import datetime, timezone, tzinfo
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble import generate_project_sbom
-from pitloom.assemble.spdx3.document import _magika_version, build
+from pitloom.assemble.spdx3.document import _build_main_package, _magika_version, build
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
+from tests.assemble.conftest import _FakeMetadata
 
 
 def test_generate_project_sbom_basic() -> None:
@@ -163,6 +167,26 @@ def test_build_main_package_purl_normalizes_name() -> None:
     assert main_package["software_packageUrl"] == "pkg:pypi/my-package@2.0.0"
 
 
+def test_build_main_package_copyright_year_fallback_when_created_not_datetime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When spdx_ci.created is not a datetime, fall back to current UTC year."""
+
+    class MockDatetime(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> MockDatetime:
+            return cls(2026, 3, 15, 12, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr("pitloom.assemble.spdx3.document.datetime", MockDatetime)
+    project = ProjectMetadata(name="fallback-year-pkg")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    spdx_ci = MagicMock(spec=spdx3.CreationInfo)
+    spdx_ci.created = None
+    pkg = _build_main_package(doc, spdx_ci, [], "00000000-0000-0000-0000-000000000000")
+    assert pkg.software_copyrightText is not None
+    assert "Copyright (c) 2026" in pkg.software_copyrightText
+
+
 def test_magika_version_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
     """_magika_version() must only hit importlib.metadata once per process."""
     _magika_version.cache_clear()
@@ -263,8 +287,6 @@ def test_magika_version_falls_back_to_unknown_when_package_not_found(
 ) -> None:
     """_magika_version() must fall back to "unknown" when ``magika`` isn't
     installed (importlib.metadata.version() raises PackageNotFoundError)."""
-    from importlib.metadata import PackageNotFoundError
-
     _magika_version.cache_clear()
 
     def _raise_not_found(name: str) -> str:
@@ -307,3 +329,168 @@ def test_add_package_files_skips_relationships_when_build_relationship_none(
         if e.get("type") == "Relationship" and e.get("relationshipType") == "contains"
     ]
     assert contains_rels == []
+
+
+def test_build_document_ai_model_license_adds_simple_licensing_profile() -> None:
+    """When an AI model has a license and the project has no license,
+    simpleLicensing profile must be added to profileConformance."""
+    from pitloom.core.ai_metadata import AiModelMetadata
+
+    project = ProjectMetadata(name="ai-lic-project", version="1.0.0", license_name=None)
+    ai_model = AiModelMetadata(name="test-model", license="Apache-2.0")
+    doc = DocumentModel(
+        project=project,
+        creation_metadata=CreationMetadata(),
+        ai_models=[ai_model],
+    )
+    exporter = build(doc, offline=True)
+    spdx_doc = next(
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.SpdxDocument)
+    )
+    assert spdx3.ProfileIdentifierType.ai in spdx_doc.profileConformance
+    assert spdx3.ProfileIdentifierType.simpleLicensing in spdx_doc.profileConformance
+
+
+def test_build_concluded_license_without_declared_license() -> None:
+    """When license_name is None but license_concluded is present,
+    concluded license relationship must be emitted and simpleLicensing added
+    -- and since there's no declared value at all, the declared side must
+    still get an explicit NOASSERTION relationship, not be silently absent
+    (the elif branch's NOASSERTION fallback exists specifically for this
+    concluded-classified sub-case, distinct from the declared-classified
+    one covered by test_build_transparent_concluded_license_classified_as_declared)."""
+    project = ProjectMetadata(
+        name="concluded-only",
+        version="1.0.0",
+        license_name=None,
+        license_concluded="MIT",
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    spdx_doc = next(e for e in graph if e.get("type") == "SpdxDocument")
+    assert "simpleLicensing" in spdx_doc["profileConformance"]
+
+    main_package_ids = {
+        e["spdxId"]
+        for e in graph
+        if e.get("type") == "software_Package" and e.get("name") == "concluded-only"
+    }
+    rels = [
+        e
+        for e in graph
+        if e.get("type") == "Relationship" and e.get("from") in main_package_ids
+    ]
+    concluded_rels = [
+        r for r in rels if r.get("relationshipType") == "hasConcludedLicense"
+    ]
+    assert len(concluded_rels) == 1
+    licenses = {
+        e["spdxId"]: e.get("simplelicensing_licenseText")
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+    }
+    assert licenses[concluded_rels[0]["to"][0]] == "MIT"
+
+    declared_rels = [
+        r for r in rels if r.get("relationshipType") == "hasDeclaredLicense"
+    ]
+    assert len(declared_rels) == 1
+    assert licenses[declared_rels[0]["to"][0]] == "NOASSERTION"
+
+
+def test_build_transparent_concluded_license_classified_as_declared() -> None:
+    """When license_name is None but license_concluded is present with a
+    transparent, method-less provenance (e.g. read directly from
+    pyproject.toml, not detected/inferred), _is_license_concluded()
+    classifies it as declared rather than concluded -- build_license_elements()
+    then returns no concluded relationship at all, and attach_main_package_license()
+    must skip adding one rather than erroring on the None."""
+    project = ProjectMetadata(
+        name="transparent-concluded",
+        version="1.0.0",
+        license_name=None,
+        license_concluded="MIT",
+        provenance={
+            "license_concluded": (
+                "Source: pyproject.toml | Field: project.license_concluded"
+            )
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    concluded_rels = [
+        r for r in rels if r.get("relationshipType") == "hasConcludedLicense"
+    ]
+    assert concluded_rels == []
+    declared_rels = [
+        r for r in rels if r.get("relationshipType") == "hasDeclaredLicense"
+    ]
+    assert len(declared_rels) == 1
+    licenses = {
+        e["spdxId"]: e.get("simplelicensing_licenseText")
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+    }
+    # Must be the real MIT license, not a NOASSERTION filler -- reverting
+    # attach_main_package_license()'s use of the declared relationship
+    # build_license_elements() actually returns here would make this
+    # NOASSERTION again while MIT sat orphaned in the graph with no
+    # relationship pointing to it.
+    assert licenses[declared_rels[0]["to"][0]] == "MIT"
+
+
+def test_generate_project_sbom_does_not_mutate_caller_files(
+    tmp_path: Path,
+) -> None:
+    """generate_project_sbom must not mutate caller's files list in place."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "caller-name"\nversion = "1.0.0"\n'
+    )
+    initial_files: list[ProjectFile] = []
+    caller_meta = ProjectMetadata(
+        name="caller-name",
+        version="1.0.0",
+        files=initial_files,
+    )
+    from pitloom.core.config import PitloomConfig
+
+    generate_project_sbom(
+        tmp_path, project_metadata=caller_meta, pitloom_config=PitloomConfig()
+    )
+    assert initial_files == []
+
+
+def test_build_dependency_license_adds_simple_licensing_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When a dependency has a resolved license, simpleLicensing must be in
+    profileConformance.
+    """
+    fake_meta = _FakeMetadata(
+        {
+            "Name": "requests",
+            "Version": "2.31.0",
+            "License": "Apache-2.0",
+        }
+    )
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.deps_installed.get_pkg_metadata",
+        lambda _name: fake_meta,
+    )
+    project = ProjectMetadata(
+        name="nolicense-with-dep",
+        version="1.0.0",
+        license_name=None,
+        dependencies=["requests==2.31.0"],
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    exporter = build(doc, offline=True)
+    spdx_doc = next(
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.SpdxDocument)
+    )
+    assert spdx3.ProfileIdentifierType.simpleLicensing in spdx_doc.profileConformance

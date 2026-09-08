@@ -24,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 # pylint: disable=wrong-import-position
-from pitloom.extract._license import normalize_license_expression
+from pitloom.extract._license import normalize_license_expression  # noqa: E402
 
 
 def _run_one(data: bytes) -> None:
@@ -39,7 +39,8 @@ def _run_one(data: bytes) -> None:
     normalize_license_expression(text)
 
 
-def TestOneInput(data: bytes) -> None:  # noqa: N802 -- atheris/libFuzzer entrypoint name
+# atheris/libFuzzer entrypoint name:
+def TestOneInput(data: bytes) -> None:  # noqa: N802
     _run_one(data)
 
 

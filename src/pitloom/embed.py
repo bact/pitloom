@@ -362,7 +362,10 @@ def _generate_embed_sbom_json(
 
     proj_root = Path(project_dir).resolve()
     if pitloom_config is None:
-        _, cfg, _ = read_project(proj_root)
+        # Only [tool.pitloom] config is used here -- skip the lock/pin
+        # cascade (embed-wheel is build-stage; a source-stage lock file's
+        # resolved dependencies must never leak into an embedded SBOM).
+        _, cfg, _ = read_project(proj_root, include_locked_dependencies=False)
     else:
         cfg = pitloom_config
 

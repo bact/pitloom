@@ -64,6 +64,11 @@ dependencies = [
     "flit_core>=3.9",
     "hatchling>=1.32.0",
     "licenseid>=0.3.7",
+    # 25.0 floor: `packaging.markers.Marker` only accepts the PEP 751
+    # `extras`/`dependency_groups` pseudo-environment variable names
+    # starting at this release (24.x raises InvalidMarker for them) --
+    # required by pitloom.extract._pylock's default-groups filtering.
+    "packaging>=25.0",
     "pdm-backend>=2.4.1",
     "pipdeptree>=4.2.3",
     "poetry-core>=2.4.1",
@@ -194,10 +199,13 @@ exclude = [
     "tests/fixtures/croissant/*.json",
     "tests/fixtures/fragments/*.json",
     "tests/fixtures/huggingface-hub/*.txt",
+    "tests/fixtures/real-world-projects/",
+    "tests/fixtures/real-world-locks/",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pitloom"]
+exclude = ["tests/fixtures/"]
 
 [tool.hatch.version]
 path = "src/pitloom/__about__.py"

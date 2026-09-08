@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.deps_installed import (
@@ -42,6 +43,7 @@ from pitloom.core.models import build_pypi_purl, build_relationship, generate_sp
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
+from pitloom.extract._lock_common import is_same_version
 
 __all__ = [
     "_DOWNLOAD_LABELS",
@@ -79,7 +81,7 @@ def _enrich_from_pypi(
     """Best-effort PyPI JSON API fallback for originator, license, and hash."""
     version = dep_version if dep_version != "unknown" else None
     release_info = (
-        release_info_cache.get((dep_name, version))
+        release_info_cache.get((canonicalize_name(dep_name), version))
         if release_info_cache is not None
         else _fetch_pypi_release_info(dep_name, version)
     )
@@ -171,6 +173,7 @@ def _finish_dependency_enrichment(
         doc_name,
         doc_uuid,
         exporter,
+        expected_version=dep_version,
         provenance_config=provenance_config,
         encoder=encoder,
         offline=offline,
@@ -226,15 +229,19 @@ def add_dependencies(
     completeness: str | None = None,
     release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
     | None = None,
+    locked_versions: dict[str, str] | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
 
     Multiple declared dependency strings that resolve to the same
-    ``(name, version)`` -- e.g. the same package listed under more than one
-    ``pyproject.toml`` extra, each split by a ``python_version`` marker --
-    collapse into a single ``software_Package`` node. Their raw declared
-    strings are preserved together in that node's provenance comment.
+    package -- same PEP 503-canonicalized name (``Django``/``django``) and
+    the same PEP 440 version (``"1.0"``/``"1.0.0"``), e.g. the same
+    package listed under more than one ``pyproject.toml`` extra, each
+    split by a ``python_version`` marker -- collapse into a single
+    ``software_Package`` node, keeping the first-seen literal name for
+    display. Their raw declared strings are preserved together in that
+    node's provenance comment.
 
     *completeness*, when given (e.g. ``spdx3.RelationshipCompleteness.complete``
     for a lock-resolved transitive-dependency call), is set on every
@@ -249,24 +256,50 @@ def add_dependencies(
     can prefetch a single combined batch up front and share it across
     every call, instead of paying for one PyPI network round-trip per
     call.
+
+    *locked_versions*, when given, maps PEP 503-canonicalized package names
+    to exact version strings resolved from a project lock file. A direct
+    dependency declared with a version range (e.g. ``requests>=2.0``)
+    resolves to this locked version rather than falling back to host
+    environment introspection.
     """
     resolved = []
     for dep in dependencies:
         dep_name = _parse_dep_name(dep)
-        dep_version, version_note = _resolve_version(dep_name, dep)
+        locked_ver = (
+            locked_versions.get(canonicalize_name(dep_name))
+            if locked_versions is not None
+            else None
+        )
+        dep_version, version_note = _resolve_version(
+            dep_name, dep, locked_version=locked_ver
+        )
         resolved.append((dep, dep_name, dep_version, version_note))
     if release_info_cache is None and not offline:
         release_info_cache = _prefetch_pypi_release_infos(
             (dep_name, dep_version) for _dep, dep_name, dep_version, _note in resolved
         )
 
-    grouped: dict[tuple[str, str], list[tuple[str, str | None]]] = {}
+    grouped: dict[tuple[str, str], list[tuple[str, str, str | None]]] = {}
     for dep, dep_name, dep_version, version_note in resolved:
-        grouped.setdefault((dep_name, dep_version), []).append((dep, version_note))
+        canon_name = canonicalize_name(dep_name)
+        matched_key = next(
+            (
+                (k_name, k_ver)
+                for k_name, k_ver in grouped
+                if k_name == canon_name and is_same_version(k_ver, dep_version)
+            ),
+            None,
+        )
+        canon_key = (
+            matched_key if matched_key is not None else (canon_name, dep_version)
+        )
+        grouped.setdefault(canon_key, []).append((dep, dep_name, version_note))
 
-    for (dep_name, dep_version), declared in grouped.items():
-        declared_constraints = [dep for dep, _note in declared]
-        version_note = next((note for _dep, note in declared if note), None)
+    for (_canon_name, dep_version), declared in grouped.items():
+        display_dep_name = declared[0][1]
+        declared_constraints = [dep for dep, _raw_name, _note in declared]
+        version_note = next((note for _dep, _raw_name, note in declared if note), None)
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
             "declared_constraint": " | ".join(declared_constraints),
@@ -276,14 +309,14 @@ def add_dependencies(
 
         dep_package = spdx3.software_Package(
             spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
-            name=dep_name,
+            name=display_dep_name,
             creationInfo=creation_info,
         )
         dep_package.software_packageVersion = dep_version
         dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
 
         _finish_dependency_enrichment(
-            dep_name,
+            display_dep_name,
             dep_version,
             dep_package,
             creation_info,

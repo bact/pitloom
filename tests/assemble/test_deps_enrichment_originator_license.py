@@ -294,25 +294,88 @@ def test_extract_pypi_license_absent_returns_none() -> None:
 
 
 def test_extract_release_hash_prefers_wheel() -> None:
+    sdist_hash = "a" * 64
+    wheel_hash = "b" * 64
     release_info = {
         "urls": [
-            {"packagetype": "sdist", "digests": {"sha256": "sdist-hash"}},
-            {"packagetype": "bdist_wheel", "digests": {"sha256": "wheel-hash"}},
+            {"packagetype": "sdist", "digests": {"sha256": sdist_hash}},
+            {"packagetype": "bdist_wheel", "digests": {"sha256": wheel_hash}},
         ]
     }
-    assert _extract_release_hash(release_info) == "wheel-hash"
+    assert _extract_release_hash(release_info) == wheel_hash
+
+
+def test_extract_release_hash_multiple_wheels_deterministic_by_filename() -> None:
+    """A release with several platform wheels must always pick the same
+    one (sorted by filename), regardless of the PyPI JSON API's own
+    array order -- required for bit-for-bit-identical SBOMs across builds."""
+    macos_hash = "a" * 64
+    linux_hash = "b" * 64
+    windows_hash = "c" * 64
+    forward_order = {
+        "urls": [
+            {
+                "packagetype": "bdist_wheel",
+                "filename": "pkg-1.0-cp310-cp310-macosx_10_9_x86_64.whl",
+                "digests": {"sha256": macos_hash},
+            },
+            {
+                "packagetype": "bdist_wheel",
+                "filename": "pkg-1.0-cp310-cp310-manylinux_2_17_x86_64.whl",
+                "digests": {"sha256": linux_hash},
+            },
+            {
+                "packagetype": "bdist_wheel",
+                "filename": "pkg-1.0-cp310-cp310-win_amd64.whl",
+                "digests": {"sha256": windows_hash},
+            },
+        ]
+    }
+    reversed_order = {"urls": list(reversed(forward_order["urls"]))}
+
+    result_forward = _extract_release_hash(forward_order)
+    result_reversed = _extract_release_hash(reversed_order)
+
+    assert result_forward == result_reversed == macos_hash
 
 
 def test_extract_release_hash_falls_back_to_sdist() -> None:
+    sdist_hash = "a" * 64
     release_info = {
-        "urls": [{"packagetype": "sdist", "digests": {"sha256": "sdist-hash"}}]
+        "urls": [{"packagetype": "sdist", "digests": {"sha256": sdist_hash}}]
     }
-    assert _extract_release_hash(release_info) == "sdist-hash"
+    assert _extract_release_hash(release_info) == sdist_hash
+
+
+def test_extract_release_hash_falls_back_to_first_url() -> None:
+    egg_hash = "c" * 64
+    release_info = {
+        "urls": [{"packagetype": "bdist_egg", "digests": {"sha256": egg_hash}}]
+    }
+    assert _extract_release_hash(release_info) == egg_hash
 
 
 def test_extract_release_hash_no_urls_returns_none() -> None:
     assert _extract_release_hash({"urls": []}) is None
     assert _extract_release_hash({}) is None
+
+
+def test_extract_release_hash_validates_hex_sha256() -> None:
+    # Non-dict digests
+    assert _extract_release_hash({"urls": [{"digests": "not-a-dict"}]}) is None
+    assert _extract_release_hash({"urls": [{"digests": [1, 2, 3]}]}) is None
+    assert _extract_release_hash({"urls": [{"digests": 123}]}) is None
+    # Invalid length or characters
+    assert (
+        _extract_release_hash({"urls": [{"digests": {"sha256": "too-short"}}]}) is None
+    )
+    assert _extract_release_hash({"urls": [{"digests": {"sha256": "g" * 64}}]}) is None
+    # Uppercase normalized to lowercase
+    upper_hash = ("A" * 32) + ("B" * 32)
+    assert (
+        _extract_release_hash({"urls": [{"digests": {"sha256": upper_hash}}]})
+        == upper_hash.lower()
+    )
 
 
 # ---------------------------------------------------------------------------

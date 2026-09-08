@@ -12,12 +12,16 @@ and :mod:`pitloom.extract._setuptools` (facade).
 from __future__ import annotations
 
 import ast
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._extract_utils import field_declared
+
+log = logging.getLogger(__name__)
 
 
 def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
@@ -38,18 +42,33 @@ def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
             yield node
 
 
+#: Sentinel for "not a resolvable literal" (a variable, function call,
+#: f-string, ...), distinct from a genuine literal ``None`` constant
+#: (``Constant(value=None)``) -- conflating the two would make a real
+#: ``[None]`` list element indistinguishable from an unresolvable one.
+_UNRESOLVABLE = object()
+
+
 def _ast_literal(node: ast.expr) -> Any:
     """Extract a Python literal value from an AST expression.
 
-    Returns ``None`` for non-literal expressions (variables, function calls,
-    f-strings, etc.) rather than raising.
+    Returns :data:`_UNRESOLVABLE` for non-literal expressions (variables,
+    function calls, f-strings, etc.) rather than raising -- never ``None``
+    for that case, so a genuine literal ``None`` stays distinguishable.
     """
     if isinstance(node, ast.Constant):
         return node.value
-    if isinstance(node, ast.List):
-        return [v for elt in node.elts if (v := _ast_literal(elt)) is not None]
-    if isinstance(node, ast.Tuple):
-        return [v for elt in node.elts if (v := _ast_literal(elt)) is not None]
+    if isinstance(node, (ast.List, ast.Tuple)):
+        # All-or-nothing, unlike the dict branch below: silently dropping
+        # just the unresolvable elements would misrepresent a list like
+        # `install_requires=[SOME_CONSTANT]` as the literal empty list
+        # `[]` -- a "no dependencies" claim indistinguishable from a
+        # genuinely empty `install_requires=[]`, which downstream
+        # presence-based provenance treats as authoritative.
+        # `_UNRESOLVABLE` here correctly propagates "not a resolvable
+        # literal" instead, without colliding with a real `None` element.
+        values = [_ast_literal(elt) for elt in node.elts]
+        return _UNRESOLVABLE if any(v is _UNRESOLVABLE for v in values) else values
     if isinstance(node, ast.Dict):
         result: dict[str, Any] = {}
         for key, value in zip(node.keys, node.values, strict=False):
@@ -58,16 +77,22 @@ def _ast_literal(node: ast.expr) -> Any:
             k = _ast_literal(key)
             v = _ast_literal(value)
             if isinstance(k, str):
-                result[k] = v
+                result[k] = None if v is _UNRESOLVABLE else v
         return result
-    return None
+    return _UNRESOLVABLE
 
 
 def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     """Extract keyword arguments from a ``setup()`` or ``setuptools.setup()`` call.
 
-    Returns the first matching call's kwargs as a dict.  Non-literal values
-    (variables, function calls) are omitted from the result.
+    Returns the first matching call's kwargs as a dict. A kwarg whose value
+    isn't a resolvable literal (a variable, function call, ...) is omitted
+    from the result -- Pitloom has no actual value to report for it, so
+    treating it as "declared" would assert a confidently wrong empty
+    container (e.g. ``install_requires=[]``) instead of leaving the field
+    open for ``merge_project_metadata()`` to fill from a lower-priority
+    source. A ``WARNING:`` names the dropped kwarg so this isn't a silent
+    deviation.
     """
     node = next(iter_setup_calls(tree), None)
     if node is None:
@@ -76,8 +101,15 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     for kw in node.keywords:
         if kw.arg is not None:  # skip **expansion
             value = _ast_literal(kw.value)
-            if value is not None:
-                kwargs[kw.arg] = value
+            if value is _UNRESOLVABLE:
+                log.warning(
+                    "setup.py: %r is declared but its value isn't a"
+                    " statically resolvable literal -- treating it as"
+                    " undeclared and falling back to a lower-priority source",
+                    kw.arg,
+                )
+                continue
+            kwargs[kw.arg] = value
     return kwargs
 
 
@@ -126,12 +158,22 @@ def _build_setup_py_provenance(
     has_readme: bool,
     has_license: bool,
     has_authors: bool,
+    authors: list[dict[str, str]],
     has_urls: bool,
     has_dependencies: bool,
     has_requires_python: bool,
     has_keywords: bool,
 ) -> dict[str, str]:
-    """Build provenance dictionary for extracted setup.py fields."""
+    """Build provenance dictionary for extracted setup.py fields.
+
+    A container field's provenance is gated on *presence* of its own
+    setup() kwarg (``has_urls``, ``has_dependencies``, etc.), not on
+    whether parsing it produced a non-empty result -- an explicitly
+    declared but empty ``install_requires=[]`` is a genuine, authoritative
+    "zero" that ``merge_project_metadata()`` must not silently fill in
+    from a lower-priority source, the same None-vs-[] distinction
+    ``_pyproject.py``'s ``[project]``-table path already applies.
+    """
     prov: dict[str, str] = {"name": "Source: setup.py | Field: setup(name=...)"}
     if has_version:
         prov["version"] = "Source: setup.py | Field: setup(version=...)"
@@ -143,9 +185,10 @@ def _build_setup_py_provenance(
         prov["license"] = "Source: setup.py | Field: setup(license=...)"
     if has_authors:
         prov["authors"] = "Source: setup.py | Field: setup(author=...)"
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
+        if authors:
+            prov["copyright_text"] = (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            )
     if has_urls:
         prov["urls"] = "Source: setup.py | Field: setup(url=...)"
     if has_dependencies:
@@ -204,15 +247,22 @@ def read_setup_py(
     )
 
     prov = _build_setup_py_provenance(
+        # version/description/readme/license have no meaningful "explicitly
+        # declared but empty" state (unlike install_requires/keywords/
+        # python_requires below) -- see AGENTS.md's "tri-state signal"
+        # bullet -- so truthy-gating them is not the same bug.
         has_version=bool(version),
         has_description=bool(description),
         has_readme=bool(readme),
         has_license=bool(license_name),
-        has_authors=bool(authors),
-        has_urls=bool(urls),
-        has_dependencies=bool(dependencies),
-        has_requires_python=bool(requires_python),
-        has_keywords=bool(keywords),
+        has_authors=field_declared(kwargs, "author")
+        or field_declared(kwargs, "author_email"),
+        authors=authors,
+        has_urls=field_declared(kwargs, "url")
+        or field_declared(kwargs, "project_urls"),
+        has_dependencies=field_declared(kwargs, "install_requires"),
+        has_requires_python=field_declared(kwargs, "python_requires"),
+        has_keywords=field_declared(kwargs, "keywords"),
     )
 
     project_metadata = ProjectMetadata(

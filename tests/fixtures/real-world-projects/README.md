@@ -6,6 +6,17 @@ SPDX-License-Identifier: CC0-1.0
 
 # Real-world project fixtures
 
+This directory covers one fixture category: real packages vendored as
+full sdist archives to validate build-backend **wheel-file discovery**
+(the table below is organised by build backend). A sibling directory,
+[../real-world-locks/README.md](../real-world-locks/README.md), covers a
+different category -- real projects' **lock/pin files** (`poetry.lock`,
+`pylock.toml`, and others), organised by lock format instead, and much
+smaller per fixture (two text files, not a full sdist) since that's all
+dependency-resolution testing needs. Kept as separate directories
+because the two categories need different content and a different
+validation shape, not because of any relationship between them.
+
 See also: [../real_world.py](../real_world.py) (the shared
 sdist-extraction/manifest helper every test in this file uses);
 [../projects/README.md](../projects/README.md) (small, synthetic,
@@ -48,9 +59,14 @@ archive a real `pip install <pkg>==<version>` would download, which is
 also all `discover()` itself ever needs.
 
 This directory (like the rest of `tests/fixtures/`) is excluded from
-Pitloom's own published sdist (`pyproject.toml`'s
-`[tool.hatch.build.targets.sdist]`), to avoid redistributing vendored
-third-party source in a release artifact. `tests/fixtures/real_world.py`'s
+Pitloom's own published sdist and wheel (`pyproject.toml`'s
+`[tool.hatch.build.targets.sdist]`/`[tool.hatch.build.targets.wheel]`),
+to avoid redistributing vendored third-party source in a release
+artifact -- the wheel was already implicitly safe (`packages =
+["src/pitloom"]` never picks up `tests/`), but the sdist's own
+`exclude` list didn't name this directory until it started actually
+holding multi-megabyte vendored archives; both now list it explicitly.
+`tests/fixtures/real_world.py`'s
 `sdist_available()` lets
 [`test_models_wheel_real_world.py`](../../core/models_wheel/test_models_wheel_real_world.py)
 skip cleanly (not error) when a fixture's archive isn't present -- e.g.
@@ -70,7 +86,7 @@ to a different backend since, or (as with a compiled/Rust project)
 declare a Track B backend like `maturin` despite superficially looking
 like a `uv_build` case.
 
-## Fixtures
+## Backend file-discovery fixtures
 
 | Backend | Project | Version | License | Notes |
 | :--- | :--- | :--- | :--- | :--- |

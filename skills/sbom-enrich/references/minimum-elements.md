@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-08-12
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,17 +151,17 @@ in the project.
 
 - **SBOM Author** (when `[[tool.pitloom.creator]]` isn't set): "Pitloom's own
   `CreationInfo` currently only names Pitloom itself as the generating tool, not the
-  person or organization that ran it. Who should be recorded as the SBOM author --
-  you, or an organization? This can also be set permanently via
+  person or organisation that ran it. Who should be recorded as the SBOM author --
+  you, or an organisation? This can also be set permanently via
   `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets -- it's an
   array of tables) so future runs don't need to ask -- and it also fills in Component
   Producer for the main package at the same time."
 - **Component/Model Producer**: "Is this dependency/model something your
-  organization built, or a third-party component? If third-party, do you know the
-  maintaining organization or project (check the package's PyPI page, GitHub org, or
+  organisation built, or a third-party component? If third-party, do you know the
+  maintaining organisation or project (check the package's PyPI page, GitHub org, or
   model card)?"
 - **SBOM Author Signature**: "This requires a detached digital signature over the
-  SBOM using your organization's own signing infrastructure (see NIST SP 800-57
+  SBOM using your organisation's own signing infrastructure (see NIST SP 800-57
   Pt. 1 for key-management guidance). Pitloom doesn't generate signatures -- do you
   already have a signing process, or is this out of scope for now?"
 - **Model license**: "Does the model have its own license, separate from the

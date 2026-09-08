@@ -63,6 +63,7 @@ from pathlib import Path
 from typing import Any
 
 from pitloom.core.project import ProjectMetadata
+from pitloom.extract._extract_utils import field_declared
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
@@ -116,13 +117,16 @@ def extract_poetry_metadata(
         poetry, project_dir
     )
 
-    raw_keywords = poetry.get("keywords", [])
-    keywords: list[str] = raw_keywords if isinstance(raw_keywords, list) else []
+    keywords = poetry.get("keywords", [])
+    if not isinstance(keywords, list):
+        keywords = []
 
     authors = _parse_poetry_authors(poetry.get("authors", []))
     urls = _parse_poetry_urls(poetry)
 
-    dependencies, requires_python = _parse_poetry_deps(poetry.get("dependencies", {}))
+    dependencies, requires_python, python_declared = _parse_poetry_deps(
+        poetry.get("dependencies", {})
+    )
 
     prov: dict[str, str] = {
         "name": "Source: pyproject.toml | Field: tool.poetry.name",
@@ -134,25 +138,37 @@ def extract_poetry_metadata(
     if readme:
         prov["readme"] = "Source: pyproject.toml | Field: tool.poetry.readme"
     prov.update(license_prov)
-    if authors:
+    # A container field's provenance is gated on the raw key's *presence*
+    # in [tool.poetry], not on whether parsing it produced a non-empty
+    # result -- an explicitly declared but empty `keywords = []` is a
+    # genuine, authoritative "zero" that merge_project_metadata() must not
+    # silently fill in from a lower-priority source, the same None-vs-[]
+    # distinction _pyproject.py's [project]-table path already applies.
+    if field_declared(poetry, "authors"):
         prov["authors"] = "Source: pyproject.toml | Field: tool.poetry.authors"
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
-    if urls:
+        if authors:
+            prov["copyright_text"] = (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            )
+    if any(
+        field_declared(poetry, key)
+        for key in ("homepage", "repository", "documentation")
+    ):
         prov["urls"] = (
             "Source: pyproject.toml"
             " | Field: tool.poetry.homepage/repository/documentation"
         )
-    if dependencies:
+    if field_declared(poetry, "dependencies"):
         prov["dependencies"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies"
         )
-    if requires_python:
+    # Presence-gated like the container fields above, not truthy-gated --
+    # see AGENTS.md's "provenance dict's tri-state signal" bullet.
+    if python_declared:
         prov["requires_python"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
         )
-    if keywords:
+    if field_declared(poetry, "keywords"):
         prov["keywords"] = "Source: pyproject.toml | Field: tool.poetry.keywords"
 
     return ProjectMetadata(
@@ -258,31 +274,42 @@ def _parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
 
 def _parse_poetry_deps(
     deps: Any,
-) -> tuple[list[str], str | None]:
+) -> tuple[list[str], str | None, bool]:
     """Convert ``[tool.poetry.dependencies]`` to a PEP 508 list plus requires-python.
 
-    The ``python`` key is extracted as ``requires_python``; all other entries
-    are converted to PEP 508 strings on a best-effort basis.
+    The ``python`` key is extracted as ``requires_python`` (matched
+    case-insensitively); all other entries are converted to PEP 508
+    strings on a best-effort basis.
 
     Returns:
-        ``(dependencies, requires_python)`` where ``requires_python`` may be
-        ``None`` when the ``python`` key is absent.
+        ``(dependencies, requires_python, python_declared)`` --
+        ``requires_python`` may be ``None`` when the ``python`` key is
+        absent OR when it's present but resolves to no constraint (e.g.
+        ``python = "*"``); ``python_declared`` distinguishes those two
+        cases so a caller can gate provenance on presence, not on
+        ``requires_python``'s truthiness -- an explicit "no constraint"
+        is a genuine, authoritative answer that
+        :func:`pitloom.core.project.merge_project_metadata` must not
+        silently override from a lower-priority source, the same
+        None-vs-absent distinction already applied to container fields.
     """
     if not isinstance(deps, dict):
-        return [], None
+        return [], None, False
 
     requires_python: str | None = None
+    python_declared = False
     dependencies: list[str] = []
 
     for pkg, constraint in deps.items():
         if pkg.lower() == "python":
             requires_python = _poetry_constraint_to_pep440(constraint)
+            python_declared = True
             continue
         dep = _poetry_dep_to_pep508(pkg, constraint)
         if dep is not None:
             dependencies.append(dep)
 
-    return dependencies, requires_python
+    return dependencies, requires_python, python_declared
 
 
 def _convert_caret(ver: str) -> str:

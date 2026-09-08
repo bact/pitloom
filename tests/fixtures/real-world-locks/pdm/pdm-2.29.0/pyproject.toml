@@ -1,0 +1,260 @@
+[build-system]
+requires = ["pdm-backend", "pdm-build-locked"]
+build-backend = "pdm.backend"
+
+[project]
+# PEP 621 project metadata
+# See https://www.python.org/dev/peps/pep-0621/
+name = "pdm"
+description = "A modern Python package and dependency manager supporting the latest PEP standards"
+authors = [
+    {name = "Frost Ming", email = "mianghong@gmail.com"},
+]
+dynamic = ["version"]
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "argcomplete>=3.6.3",
+    "blinker",
+    "packaging>22.0",
+    "platformdirs",
+    "rich>=12.3.0",
+    "virtualenv>=20",
+    "pyproject-hooks",
+    "unearth>=0.17.5",
+    "dep-logic>=0.5",
+    "findpython>=0.7.0,<1.0.0a0",
+    "tomlkit>=0.11.1,<1",
+    "shellingham>=1.3.2",
+    "python-dotenv>=0.15",
+    "resolvelib>=1.1",
+    "installer>=1",
+    "truststore>=0.10.4",
+    "tomli>=1.1.0; python_version < \"3.11\"",
+    "hishel[httpx]>=1.0.0",
+    "pbs-installer>=2025.10.7",
+    "httpx[socks]<1,>0.20",
+    "filelock>=3.13",
+    "httpcore>=1.0.6",
+    "certifi>=2024.8.30",
+    "id>=1.5.0"
+]
+readme = "README.md"
+keywords = ["packaging", "dependency", "workflow"]
+classifiers = [
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://pdm-project.org"
+Repository = "https://github.com/pdm-project/pdm"
+Documentation = "https://pdm-project.org"
+Changelog = "https://pdm-project.org/latest/dev/changelog/"
+
+[project.optional-dependencies]
+pytest = [
+    "pytest",
+    "pytest-mock",
+]
+copier = ["copier>=8.0.0"]
+cookiecutter = ["cookiecutter"]
+keyring = ["keyring"]
+template = [
+    "pdm[copier,cookiecutter]",
+]
+all = [
+    "pdm[keyring,template]",
+]
+
+[project.scripts]
+pdm = "pdm.core:main"
+
+[dependency-groups]
+test = [
+    "pdm[pytest]",
+    "pytest-cov",
+    "pytest-xdist>=1.31.0",
+    "pytest-rerunfailures>=10.2",
+    "pytest-httpserver>=1.0.6",
+    "pytest-httpx>=0.34.0",
+]
+tox = [
+    "tox",
+    "tox-pdm>=0.5",
+]
+doc = [
+    "zensical>=0.0.28; python_version >= '3.10'",
+    "mkdocstrings[python]>=0.18",
+    "setuptools>=62.3.3",
+]
+workflow = [
+    "parver>=0.3.1",
+    "towncrier>=20",
+]
+
+[tool.ruff]
+line-length = 120
+exclude = ["tests/fixtures"]
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+extend-select = [
+  "I",    # isort
+  "B",    # flake8-bugbear
+  "C4",   # flake8-comprehensions
+  "FA",   # flake8-future-annotations
+  "PGH",  # pygrep-hooks
+  "RUF",  # ruff
+  "W",    # pycodestyle
+  "UP",   # pyupgrade
+  "YTT",  # flake8-2020
+]
+extend-ignore = ["B018", "B019", "BLE001", "RUF018", "PLW1510"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["pdm"]
+
+[tool.towncrier]
+package = "pdm"
+filename = "CHANGELOG.md"
+issue_format = "[#{issue}](https://github.com/pdm-project/pdm/issues/{issue})"
+directory = "news/"
+title_format = "## Release v{version} ({project_date})"
+underlines = ["", "", ""]
+
+  [[tool.towncrier.type]]
+  directory = "break"
+  name = "Breaking Changes"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "feature"
+  name = "Features & Improvements"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "bugfix"
+  name = "Bug Fixes"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "doc"
+  name = "Documentation"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "dep"
+  name = "Dependencies"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "removal"
+  name = "Removals and Deprecations"
+  showcontent = true
+
+  [[tool.towncrier.type]]
+  directory = "misc"
+  name = "Miscellany"
+  showcontent = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+  "default::DeprecationWarning",
+]
+markers = [
+    "network: Tests that require network",
+    "integration: Run with all Python versions",
+    "path: Tests that compare with the system paths",
+    "deprecated: Tests about deprecated features",
+    "uv: Tests that require uv to be installed",
+]
+addopts = "-r aR"
+testpaths = [
+    "tests/",
+]
+
+[tool.codespell]
+ignore-words-list = "ba,overriden,te,instal"
+
+[tool.coverage.run]
+branch = true
+source = ["pdm"]
+omit = [
+    "*/pdm/__main__.py",
+    "*/pdm/pep582/sitecustomize.py",
+    "*/pdm/models/in_process/*.py",
+    "*/pdm-test-*-env/*",
+    "*/pdm/misc/sysconfig_patcher.py",
+]
+
+[tool.coverage.report]
+fail_under = 84
+# Regexes for lines to exclude from consideration
+exclude_lines = [
+    "pragma: no cover",
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self.debug",
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+    # Don't complain if non-runnable code isn't run:
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+ignore_errors = true
+
+[tool.mypy]
+follow_imports = "silent"
+ignore_missing_imports = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+disallow_untyped_decorators = true
+exclude = "pdm/(pep582/|models/in_process/.+\\.py|misc)"
+namespace_packages = true
+mypy_path = "src"
+explicit_package_bases = true
+
+[tool.pdm.version]
+source = "scm"
+write_to = "pdm/VERSION"
+
+[tool.pdm.build]
+excludes = ["./**/.git"]
+package-dir = "src"
+includes = ["src/pdm"]
+source-includes = ["tests", "typings", "CHANGELOG.md", "LICENSE", "README.md", "tox.ini"]
+# editables backend doesn't work well with namespace packages
+editable-backend = "path"
+locked = true
+locked-groups = ["default", "all"]
+
+[tool.pdm.scripts]
+pre_release = "python tasks/max_versions.py"
+release = "python tasks/release.py"
+test = "pytest"
+coverage = {shell = """\
+                    python -m pytest \
+                              --verbosity=3 \
+                              --cov=src/pdm \
+                              --cov-branch \
+                              --cov-report term-missing \
+                              tests/
+                    """}
+tox = "tox"
+pre_doc = "python tasks/render_reference_docs.py"
+doc = {cmd= "zensical serve", help = "Start the dev server for docs preview"}
+doc-build = {composite = ["pre_doc", "zensical build"], help = "Build the documentation site"}
+lint = "prek run --all-files"
+complete = {call = "tasks.complete:main", help = "Create autocomplete files with argcomplete"}

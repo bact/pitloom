@@ -288,6 +288,11 @@ See `working-docs/design/sbom-fragments/fragment-merge-design.md`.
 
 ### Data flow: extraction -> document model -> assembly
 
+See [end-to-end-flow.md](../implementation/end-to-end-flow.md) for a
+generic, stage-level version of this diagram -- the version here is the fuller,
+more implementation/integration-specific picture, including the still-planned
+pieces.
+
 ```text
 Information sources
 ───────────────────

@@ -5,13 +5,13 @@
 
 """Tests for low-level [tool.poetry] parsing helpers.
 
-See also: test_poetry_pyproject.py for read_pyproject() poetry-fallback,
-fixture integration, and license-conflict tests.
+See also: test_poetry_extract.py for extract_poetry_metadata() tests,
+split out to keep this file under this repo's file-size soft limit;
+test_poetry_pyproject.py for read_pyproject() poetry-fallback, fixture
+integration, and license-conflict tests.
 """
 
 import logging
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -20,7 +20,6 @@ from pitloom.extract._poetry import (
     _parse_poetry_deps,
     _poetry_constraint_to_pep440,
     _poetry_dep_to_pep508,
-    extract_poetry_metadata,
 )
 
 # ---------------------------------------------------------------------------
@@ -195,29 +194,44 @@ def test_parse_authors_unmatched_email_bracket_skipped() -> None:
 
 def test_parse_deps_python_extracted() -> None:
     deps = {"python": "^3.10", "requests": "^2.28"}
-    packages, requires_python = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
     assert requires_python == ">=3.10,<4.0.0"
+    assert python_declared is True
     assert any("requests" in d for d in packages)
     assert not any("python" in d for d in packages)
 
 
 def test_parse_deps_no_python_key() -> None:
     deps = {"click": ">=8.0"}
-    packages, requires_python = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
     assert requires_python is None
+    assert python_declared is False
     assert any("click" in d for d in packages)
 
 
 def test_parse_deps_empty() -> None:
-    packages, requires_python = _parse_poetry_deps({})
+    packages, requires_python, python_declared = _parse_poetry_deps({})
     assert not packages
     assert requires_python is None
+    assert python_declared is False
 
 
 def test_parse_deps_not_a_dict() -> None:
-    packages, requires_python = _parse_poetry_deps("invalid")
+    packages, requires_python, python_declared = _parse_poetry_deps("invalid")
     assert not packages
     assert requires_python is None
+    assert python_declared is False
+
+
+def test_parse_deps_wildcard_python_declared_but_no_constraint() -> None:
+    """`python = "*"` resolves requires_python to None, but python_declared
+    must still be True -- the caller needs to distinguish "declared, no
+    constraint" from "not declared at all" to gate provenance correctly."""
+    deps = {"python": "*"}
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
+    assert requires_python is None
+    assert python_declared is True
+    assert not packages
 
 
 def test_parse_deps_skips_unrepresentable_git_dependency() -> None:
@@ -226,136 +240,8 @@ def test_parse_deps_skips_unrepresentable_git_dependency() -> None:
         "dev-pkg": {"git": "https://github.com/x/y"},
         "requests": "^2.28",
     }
-    packages, requires_python = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
     assert requires_python is None
+    assert python_declared is False
     assert not any("dev-pkg" in d for d in packages)
     assert any("requests" in d for d in packages)
-
-
-# ---------------------------------------------------------------------------
-# extract_poetry_metadata -- from dict
-# ---------------------------------------------------------------------------
-
-
-def test_extract_basic_fields() -> None:
-    data = {
-        "tool": {
-            "poetry": {
-                "name": "my-pkg",
-                "version": "1.2.3",
-                "description": "A test package",
-                "license": "MIT",
-                "keywords": ["foo", "bar"],
-                "authors": ["Alice <alice@example.com>"],
-                "homepage": "https://example.com",
-                "repository": "https://github.com/example/my-pkg",
-                "documentation": "https://docs.example.com",
-            }
-        }
-    }
-    with tempfile.TemporaryDirectory() as d:
-        metadata = extract_poetry_metadata(data, Path(d))
-    assert metadata.name == "my-pkg"
-    assert metadata.version == "1.2.3"
-    assert metadata.description == "A test package"
-    assert metadata.license_name == "MIT"
-    assert metadata.keywords == ["foo", "bar"]
-    assert metadata.authors == [{"name": "Alice", "email": "alice@example.com"}]
-    assert metadata.urls["Homepage"] == "https://example.com"
-    assert metadata.urls["Repository"] == "https://github.com/example/my-pkg"
-    assert metadata.urls["Documentation"] == "https://docs.example.com"
-
-
-def test_extract_dependencies() -> None:
-    data = {
-        "tool": {
-            "poetry": {
-                "name": "my-pkg",
-                "dependencies": {
-                    "python": "^3.10",
-                    "requests": "^2.28",
-                    "numpy": ">=1.23",
-                },
-            }
-        }
-    }
-    with tempfile.TemporaryDirectory() as d:
-        metadata = extract_poetry_metadata(data, Path(d))
-    assert metadata.requires_python == ">=3.10,<4.0.0"
-    assert any("requests" in d for d in metadata.dependencies)
-    assert any("numpy" in d for d in metadata.dependencies)
-    assert not any("python" in d for d in metadata.dependencies)
-
-
-def test_extract_readme_string() -> None:
-    data = {"tool": {"poetry": {"name": "pkg", "readme": "README.md"}}}
-    with tempfile.TemporaryDirectory() as d:
-        metadata = extract_poetry_metadata(data, Path(d))
-    assert metadata.readme == "README.md"
-
-
-def test_extract_readme_list() -> None:
-    data = {
-        "tool": {"poetry": {"name": "pkg", "readme": ["README.md", "CHANGELOG.md"]}}
-    }
-    with tempfile.TemporaryDirectory() as d:
-        metadata = extract_poetry_metadata(data, Path(d))
-    assert metadata.readme == "README.md"
-
-
-def test_extract_missing_section_raises() -> None:
-    with pytest.raises(ValueError, match=r"\[tool\.poetry\]"):
-        extract_poetry_metadata({}, Path("."))
-
-
-def test_extract_missing_name_raises() -> None:
-    data = {"tool": {"poetry": {"version": "1.0"}}}
-    with pytest.raises(ValueError, match="name is required"):
-        extract_poetry_metadata(data, Path("."))
-
-
-def test_extract_provenance_sources() -> None:
-    data = {
-        "tool": {
-            "poetry": {
-                "name": "my-pkg",
-                "version": "1.0.0",
-                "description": "desc",
-                "authors": ["Alice <a@example.com>"],
-            }
-        }
-    }
-    with tempfile.TemporaryDirectory() as d:
-        metadata = extract_poetry_metadata(data, Path(d))
-    assert "tool.poetry.name" in metadata.provenance.get("name", "")
-    assert "tool.poetry.version" in metadata.provenance.get("version", "")
-    assert "tool.poetry.description" in metadata.provenance.get("description", "")
-    assert "tool.poetry.authors" in metadata.provenance.get("authors", "")
-    assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
-
-
-def test_convert_caret_and_tilde_edge_cases() -> None:
-    """_convert_caret and _convert_tilde handle zero/short/invalid versions."""
-    from pitloom.extract._poetry import (
-        _convert_caret,
-        _convert_tilde,
-        _parse_poetry_authors,
-        _poetry_constraint_to_pep440,
-    )
-
-    # Caret edge cases
-    assert _convert_caret("0") == ">=0"
-    assert _convert_caret("0.0") == ">=0.0,<0.1.0"
-    assert _convert_caret("invalid") == ">=invalid"
-
-    # Tilde edge cases
-    assert _convert_tilde("1") == ">=1"
-    assert _convert_tilde("abc") == ">=abc"
-    assert _convert_tilde("abc.def") == ">=abc.def"
-
-    # Non-string / invalid constraint
-    assert _poetry_constraint_to_pep440(12345) is None
-    assert _poetry_constraint_to_pep440(None) is None
-
-    # Authors with invalid string formats
-    assert _parse_poetry_authors([123, "", "   "]) == []

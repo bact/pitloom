@@ -1,0 +1,434 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Tests for ``Pipfile.lock`` resolved-dependency parsing
+(:mod:`pitloom.extract._pipfile_lock`).
+
+See also: test_pipfile_lock_integration.py for ``read_project()`` lock cascade
+integration and real-world fixture coverage;
+test_poetry_lock.py/test_pylock.py/test_uv_lock.py for sibling lock extractors;
+test_locked_dependencies.py for the cascade mechanism's own tests.
+"""
+
+import json
+import logging
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from pitloom.extract._pipfile_lock import extract_pipfile_lock_dependencies
+
+#: Every genuine `Pipfile.lock` carries this key -- merged into *data* by
+#: default so tests that aren't specifically about the genuineness check
+#: itself don't need to repeat it.
+_META = {"pipfile-spec": 6}
+
+
+def _write_lock(
+    tmp_dir: Path, data: dict[str, object], include_meta: bool = True
+) -> None:
+    full_data = {"_meta": _META, **data} if include_meta else data
+    (tmp_dir / "Pipfile.lock").write_text(json.dumps(full_data), encoding="utf-8")
+
+
+def test_no_lock_file_returns_none() -> None:
+    """`None` (absent/unusable), not `[]` (valid, zero dependencies) --
+    the cascade in `_locked_dependencies.py` relies on this distinction
+    to let a lower-priority source apply when this one is truly absent."""
+    with tempfile.TemporaryDirectory() as tmp:
+        assert extract_pipfile_lock_dependencies(Path(tmp)) is None
+
+
+def test_malformed_json_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "Pipfile.lock").write_text("{not valid json", encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "Failed to parse" in caplog.text
+
+
+def test_missing_meta_key_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An empty/unrelated-but-parseable JSON object with no top-level
+    `_meta` key (this repo's `None`-vs-`[]` recurring bug pattern) must
+    not be treated as "a real, empty Pipfile.lock" -- it could otherwise
+    silently win the cascade over a genuinely usable lower-priority
+    lock."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, {}, include_meta=False)
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine Pipfile.lock" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "meta",
+    [
+        pytest.param({"requires": {}}, id="missing"),
+        pytest.param({"pipfile-spec": "6"}, id="non-int"),
+    ],
+)
+def test_meta_missing_pipfile_spec_returns_none_and_warns(
+    meta: dict[str, object], caplog: pytest.LogCaptureFixture
+) -> None:
+    """A present but wrong-shaped `pipfile-spec` (e.g. a string instead
+    of an int) must not pass more easily than the key being absent
+    entirely."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, {"_meta": meta}, include_meta=False)
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "doesn't look like a genuine Pipfile.lock" in caplog.text
+
+
+def test_default_section_not_a_dict_returns_none_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, {"default": ["not-a-dict"]})
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is None
+        assert "expected a table" in caplog.text
+
+
+def test_no_default_section_returns_empty_list_not_none() -> None:
+    """A Pipfile.lock with no `default` key at all (unusual but not
+    invalid) is treated as zero runtime dependencies, not an error --
+    and must return `[]`, not `None`, so the cascade treats this lock as
+    a real, winning (if empty) answer rather than "not present"."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, {"develop": {"pytest": {"version": "==8.0.0"}}})
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == []
+
+
+def test_simple_dependency_resolved() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "requests": {"version": "==2.31.0", "index": "pypi"},
+                },
+                "develop": {
+                    "pytest": {"version": "==8.0.0"},
+                },
+            },
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
+def test_develop_section_excluded() -> None:
+    """Only `default` (main/runtime) entries are included -- `develop`
+    (dev-only) entries are excluded, mirroring poetry.lock's
+    main-group-only policy."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {"requests": {"version": "==2.31.0"}},
+                "develop": {"pytest": {"version": "==8.0.0"}},
+            },
+        )
+
+        result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result is not None
+        assert result == ["requests==2.31.0"]
+        assert "pytest" not in " ".join(result)
+
+
+def test_same_name_different_casing_same_version_deduped() -> None:
+    """Grouping compares PEP 503-canonicalized names, so a name that
+    happens to be spelled differently across entries still collapses
+    when the versions agree."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "Flask": {"version": "==3.0.0"},
+                    "flask": {"version": "==3.0.0"},
+                }
+            },
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == ["Flask==3.0.0"]
+
+
+def test_same_name_different_casing_conflicting_versions_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: `Pipfile.lock`'s `"default"` section is a JSON object
+    keyed directly by literal name -- unlike every sibling format, this
+    extractor previously had no PEP 503 canonicalization step, so a
+    `Pipfile.lock` with both a `"Flask"` and a `"flask"` key (schema-legal
+    JSON) would silently emit two conflicting dependency lines instead of
+    being flagged like every other lock format's own duplicate-name
+    case."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "Flask": {"version": "==3.0.0"},
+                    "flask": {"version": "==2.0.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "pinned to conflicting versions" in caplog.text
+
+
+def test_malformed_entry_not_a_dict_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "broken": "not-a-table",
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "malformed" in caplog.text.lower()
+
+
+def test_missing_version_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "no-version": {"index": "pypi"},
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "missing" in caplog.text.lower()
+
+
+@pytest.mark.parametrize(
+    "non_registry_key", ["git", "hg", "bzr", "svn", "path", "file", "editable"]
+)
+def test_non_registry_sourced_dependency_excluded(
+    non_registry_key: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "local-dep": {non_registry_key: "some-value"},
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "local-dep" in caplog.text
+
+
+def test_editable_false_not_treated_as_non_registry_source() -> None:
+    """`editable` is Pipfile.lock's one boolean-valued non-registry key
+    (every other one -- `git`/`hg`/`bzr`/`svn`/`path`/`file` -- is a
+    string, so mere presence means non-registry). An explicit
+    `"editable": false` (schema-legal, just uncommon) is a normal,
+    ordinary registry-resolved pin, not a local/editable source -- unlike
+    a *truthy* `editable` value, which the parametrized test above
+    already covers as correctly excluded."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {"default": {"requests": {"version": "==2.31.0", "editable": False}}},
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == ["requests==2.31.0"]
+
+
+def test_git_false_still_treated_as_non_registry_source() -> None:
+    """Regression: the falsy-value exemption above is `editable`-specific,
+    not blanket. Every other non-registry key (`git`/`hg`/`bzr`/`svn`/
+    `path`/`file`) is a string when it means anything at all -- a
+    malformed `"git": false` must still disqualify the entry, not be
+    read as "no git source" the way `"editable": false` correctly is."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {"default": {"sneaky": {"version": "==1.0.0", "git": False}}},
+        )
+
+        assert extract_pipfile_lock_dependencies(tmp_path) == []
+
+
+def test_invalid_specifier_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "broken-version": {"version": "not-a-specifier"},
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "valid PEP 440 specifier" in caplog.text
+
+
+def test_prefix_match_specifier_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: `packaging.specifiers.Specifier("==2.31.*").operator`
+    is also `"=="`, so a naive `operator == "=="` check would wrongly
+    accept a prefix-match specifier (pinning a *range* of versions) as
+    if it were a single exact pin."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "wildcard": {"version": "==2.31.*"},
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "isn't a single exact" in caplog.text
+
+
+def test_non_dict_json_top_level_returns_empty_list_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: unlike TOML (whose grammar guarantees a table at the
+    document root), a `Pipfile.lock` containing valid but non-object
+    JSON (e.g. a bare array) used to crash extraction with
+    `AttributeError` on `data.get(...)` instead of degrading gracefully."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "Pipfile.lock").write_text("[]", encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert not result
+        assert "expected an object" in caplog.text
+
+
+@pytest.mark.parametrize("version", [">=2.31.0", "==2.31.0,!=2.31.1", "!=2.31.0"])
+def test_non_exact_pin_skipped_and_warns(
+    version: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A `version` that isn't a single exact `==` specifier (a range, or
+    an excluded-version specifier) is skipped, not coerced -- pipenv
+    lock output is expected to always resolve to an exact pin, so this
+    is a defensive "don't guess" path, same policy as every other
+    format's ambiguous-version skip."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "ranged": {"version": version},
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "exact" in caplog.text.lower()
+
+
+def test_missing_or_empty_name_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A malformed top-level key (e.g. JSON's own coercion couldn't
+    produce a non-string here in practice, but an empty string is
+    possible and must not silently pass through) is skipped."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            {
+                "default": {
+                    "": {"version": "==1.0.0"},
+                    "requests": {"version": "==2.31.0"},
+                }
+            },
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_pipfile_lock_dependencies(tmp_path)
+
+        assert result == ["requests==2.31.0"]
+        assert "malformed" in caplog.text.lower()

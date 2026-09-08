@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-26
+# Last-Modified: 2026-09-08
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -214,7 +214,7 @@ Steps:
    ```
 
    For a stronger check, run the fragment through the same SPDX 3
-   JSON-LD deserializer `merge_fragments()` itself uses -- this catches
+   JSON-LD deserialiser `merge_fragments()` itself uses -- this catches
    the same broken-JSON-LD cases `merge_fragments()` swallows as a
    warning, plus SPDX-shape problems (e.g. an unknown property or type)
    that plain JSON-syntax validity would miss:
@@ -303,7 +303,7 @@ e. **Contradiction check.** Before drafting the fragment, compare each new answe
    against the base SBOM's existing value for that field and against other answers
    already collected this session -- if they conflict, surface both and ask the user
    to confirm which stands, the same way step 6 above handles a prose-vs-frontmatter
-   conflict, generalized to interactively-collected answers too. Never silently pick
+   conflict, generalised to interactively-collected answers too. Never silently pick
    one.
 f. **Draft, validate, register, merge, validate** -- reuse steps 6-10 above verbatim.
    No new mechanism: this workflow only changes *what* gets proposed and *how it's

@@ -75,6 +75,28 @@ def record_dict_field_provenance(
         )
 
 
+def field_declared(container: Any, key: str) -> bool:
+    """Return whether *key* is present in *container*, never the resolved
+    value's truthiness.
+
+    The one canonical presence check for the provenance-gating pattern
+    documented in AGENTS.md's "Recurring bug patterns": a metadata
+    producer must record provenance for a container field (``keywords``,
+    ``dependencies``, ``authors``, ...) based on whether its raw source
+    key was declared at all, not on whether the parsed value is truthy --
+    ``dependencies = []`` is a declared, authoritative empty list, not an
+    absent field. A bare ``key in container`` is enough for a plain
+    ``dict``; some sources (e.g. Hatchling's ``core.config``) can raise
+    ``OSError`` from the same underlying access their property accessors
+    do, so that failure is treated as "not declared" rather than
+    propagating.
+    """
+    try:
+        return key in container
+    except OSError:
+        return False
+
+
 def get_first(d: dict[str, Any], *keys: str) -> Any:
     """Return the value for the first matching key in *d*, or ``None``."""
     for k in keys:

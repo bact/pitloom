@@ -22,6 +22,7 @@ from pitloom.assemble.spdx3.provenance import (
     parse_provenance_value,
 )
 from pitloom.core.models import build_relationship, generate_spdx_id
+from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._license import (
@@ -142,7 +143,7 @@ def build_license_elements(
     """Get or create SimpleLicensingText element(s) and build declared/concluded
     license relationships.
 
-    Single-candidate mode (*concluded_license_id* omitted, the default):
+    Single-candidate mode (*concluded_license_id* falsy, the default):
     unchanged behavior -- one element, classified as declared XOR concluded
     via :func:`_is_license_concluded` on *license_provenance*.
 
@@ -155,8 +156,12 @@ def build_license_elements(
     license element. When they disagree, an additional G2 conflict Annotation
     is emitted on *package_spdx_id* recording both candidates; see
     :func:`~pitloom.assemble.spdx3.provenance.build_conflict_annotation`.
+
+    Dispatches on truthiness, not just ``is None`` -- unlike ``requires_python``,
+    a license id is never meaningfully ``""``, so that must not route into
+    two-candidate mode with a spurious empty second candidate.
     """
-    if concluded_license_id is None:
+    if not concluded_license_id:
         license_spdx_id = _get_or_create_license_element(
             license_id,
             license_provenance,
@@ -403,3 +408,93 @@ def _add_license_noassertion(
             doc_uuid,
         )
     )
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def attach_main_package_license(
+    metadata: ProjectMetadata,
+    main_package: spdx3.software_Package,
+    spdx_ci: spdx3.CreationInfo,
+    spdx_doc: spdx3.SpdxDocument,
+    doc_uuid: str,
+    exporter: Spdx3JsonExporter,
+    *,
+    provenance_config: ProvenanceConfig | None = None,
+    encoder: ProvenanceEncoder | None = None,
+) -> None:
+    """Attach declared and/or concluded license elements and relationships for
+    the main Python project package.
+
+    ``metadata.license_name`` truthy does not guarantee two-candidate mode:
+    when ``metadata.license_concluded`` is falsy, :func:`build_license_elements`
+    still runs single-candidate on ``license_name``'s own provenance, which
+    can classify it as concluded (``rel_declared is None``) -- see the
+    comment on the ``elif`` branch below for why that branch, unlike this
+    one, needs its own NOASSERTION fallback for the symmetric case.
+    """
+    if metadata.license_name:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+        rel_declared, rel_concluded = build_license_elements(
+            license_id=metadata.license_name,
+            package_spdx_id=require_spdx_id(main_package),
+            license_provenance=metadata.provenance.get(
+                "license", "Source: pyproject.toml | Field: project.license"
+            ),
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            concluded_license_id=metadata.license_concluded,
+            concluded_license_provenance=metadata.provenance.get("license_concluded"),
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
+    elif metadata.license_concluded:
+        spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
+        rel_declared, rel_concluded = build_license_elements(
+            license_id=metadata.license_concluded,
+            package_spdx_id=require_spdx_id(main_package),
+            license_provenance=metadata.provenance.get(
+                "license_concluded",
+                "Source: LICENSE | Method: licenseid_detection",
+            ),
+            creation_info=spdx_ci,
+            doc_name=metadata.name,
+            doc_uuid=doc_uuid,
+            exporter=exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )
+        # Unlike the `if` branch above, this branch has no second candidate
+        # at all -- when its one candidate (metadata.license_concluded)
+        # classifies as declared rather than concluded, that's the ONLY
+        # relationship this package can get, so it must be emitted for
+        # real, not silently dropped in favour of a NOASSERTION filler.
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        else:
+            _add_license_noassertion(
+                main_package,
+                spdx_ci,
+                metadata.name,
+                doc_uuid,
+                exporter,
+                provenance_config=provenance_config,
+                encoder=encoder,
+            )
+        if rel_concluded:
+            exporter.add_relationship(rel_concluded)
+    else:
+        _add_license_noassertion(
+            main_package,
+            spdx_ci,
+            metadata.name,
+            doc_uuid,
+            exporter,
+            provenance_config=provenance_config,
+            encoder=encoder,
+        )

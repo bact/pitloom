@@ -1,4 +1,12 @@
 # ruff: noqa: F403, F405
+"""Tests for metadata_from_hatchling()'s field-mapping and edge-case
+behavior.
+
+See also: test_hatch_hook_metadata_parity.py for the CLI-vs-hook
+metadata-parity tests, split out to keep this file under this repo's
+file-size soft limit.
+"""
+
 from __future__ import annotations
 
 import tempfile
@@ -10,9 +18,8 @@ import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 import pytest
 from hatchling.plugin.manager import PluginManager  # noqa: E402
 
-from pitloom.core.models import compute_doc_uuid  # noqa: E402
-from pitloom.extract._pyproject import read_pyproject  # noqa: E402
 from pitloom.extract.hatchling import (  # noqa: E402
+    _hatchling_field_declared,
     _resolve_hatchling_license_files,
     metadata_from_hatchling,
 )
@@ -21,13 +28,12 @@ from pitloom.plugins.hatch import (  # noqa: E402
 )
 
 from .conftest import (
-    CONFLICT_PYPROJECT,
     MINIMAL_PYPROJECT,
     MISSING_LICENSE_FILE_PYPROJECT,
     MISSING_README_PYPROJECT,
     POETRY_GAP_FILL_PYPROJECT,
-    SYNTHETIC_NONCANONICAL_PYPROJECT,
     _fake_hatch_metadata,
+    assert_declared_empty_authors_no_copyright_text,
     write_pyproject,
 )
 
@@ -65,6 +71,28 @@ def test_metadata_from_hatchling_maps_license_files() -> None:
     )
 
 
+def test_metadata_from_hatchling_declared_empty_authors_no_copyright_text() -> None:
+    """An explicitly declared but empty ``authors`` (``authors_data`` with
+    no names or emails) must still record provenance for ``authors``, but
+    with no authors to derive a name from, no ``copyright_text`` is
+    inferred."""
+    hatch_meta = _fake_hatch_metadata(core={"authors_data": {"name": [], "email": []}})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert_declared_empty_authors_no_copyright_text(metadata)
+
+
+def test_metadata_from_hatchling_empty_declared_dependencies_gets_provenance() -> None:
+    """An explicitly declared but empty ``[project.dependencies]`` must
+    still record provenance -- merge_project_metadata() relies on that
+    presence to treat the empty list as authoritative, not absent. Guards
+    _hatchling_field_declared() against regressing to a truthiness check
+    (``if dependencies:``) on the resolved list."""
+    hatch_meta = _fake_hatch_metadata(core={"dependencies": []})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.dependencies == []
+    assert "dependencies" in metadata.provenance
+
+
 def test_metadata_from_hatchling_no_license_files() -> None:
     """Absent ``[project.license-files]`` must resolve to an empty list, not
     ``None`` or a missing field."""
@@ -72,6 +100,30 @@ def test_metadata_from_hatchling_no_license_files() -> None:
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
     assert metadata.license_files == []
     assert "license_files" not in metadata.provenance
+
+
+def test_metadata_from_hatchling_explicit_empty_requires_python_gets_provenance() -> (
+    None
+):
+    """An explicit `requires-python = ""` (PEP 621's equivalent of Poetry's
+    `python = "*"`) resolves to None but must still record provenance --
+    merge_project_metadata() relies on that presence to treat the None as
+    an authoritative "no constraint", not absent."""
+    hatch_meta = _fake_hatch_metadata(core={"requires_python": ""})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.requires_python is None
+    assert metadata.provenance["requires_python"] == (
+        "Source: Hatchling build backend | Field: project.requires-python"
+    )
+
+
+def test_metadata_from_hatchling_no_requires_python_declared() -> None:
+    """No ``[project.requires-python]`` key: resolves to None, and no
+    provenance is recorded -- distinct from an explicit empty string."""
+    hatch_meta = _fake_hatch_metadata()
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.requires_python is None
+    assert "requires_python" not in metadata.provenance
 
 
 def test_metadata_from_hatchling_no_license_files_with_real_core(
@@ -138,6 +190,20 @@ def test_resolve_hatchling_license_files_tolerates_oserror() -> None:
     assert _resolve_hatchling_license_files(_RaisingCore()) == []
 
 
+def test_hatchling_field_declared_tolerates_oserror_on_config_access() -> None:
+    """A ``core.config`` property access that raises ``OSError`` must
+    resolve to "not declared" (``False``), not propagate -- mirroring the
+    same class of lazily-evaluated Hatchling property failure every other
+    ``core.X`` read in this module tolerates."""
+
+    class _RaisingCore:
+        @property
+        def config(self) -> dict[str, object]:
+            raise OSError("simulated filesystem error")
+
+    assert _hatchling_field_declared(_RaisingCore(), "dependencies") is False
+
+
 def test_metadata_from_hatchling_canonicalises_dependency_markers() -> None:
     """Dependency specifiers are normalised to ``packaging`` canonical form.
 
@@ -152,126 +218,6 @@ def test_metadata_from_hatchling_canonicalises_dependency_markers() -> None:
     )
     metadata = metadata_from_hatchling(hatch_meta, Path("."))
     assert metadata.dependencies == ['tomli>=2.0.0; python_version < "3.11"']
-
-
-def test_metadata_from_hatchling_matches_read_pyproject_for_uuid() -> None:
-    """Hook and CLI paths must yield the same doc UUID for a static project.
-
-    Regression guard: switching the hook to Hatchling's resolved metadata
-    must not change the document identity of a project whose metadata is
-    fully static (as Pitloom's own is).
-    """
-    root = Path(__file__).resolve().parent.parent.parent
-    cli_meta, _ = read_pyproject(root / "pyproject.toml")
-    hatch_pm = hatchling_metadata_core.ProjectMetadata(str(root), PluginManager())
-    hook_meta = metadata_from_hatchling(hatch_pm, root)
-
-    assert hook_meta.name == cli_meta.name
-    assert hook_meta.version == cli_meta.version
-    assert hook_meta.dependencies == cli_meta.dependencies
-    assert compute_doc_uuid(
-        hook_meta.name, hook_meta.version or "x", hook_meta.dependencies
-    ) == compute_doc_uuid(cli_meta.name, cli_meta.version or "x", cli_meta.dependencies)
-
-
-def test_metadata_from_hatchling_matches_read_pyproject_for_noncanonical_name() -> None:
-    """CLI and hook paths must agree even when the name/deps are non-canonical.
-
-    Regression guard for the gap the earlier, name-only ``raw_name`` fix and
-    the marker-only ``_normalize_dependencies`` helper both missed: a project
-    name with an uppercase letter, underscore, and dot (``My_Package.Extra``)
-    and dependency names with an underscore (``typing_extensions``) and a dot
-    (``zope.interface``). Before this fix, Hatchling's own PEP 503
-    normalisation made the hook report ``name == "my-package-extra"`` and
-    canonicalised dependency names, while the CLI path left both untouched,
-    giving the same project two different deterministic document UUIDs
-    depending on which path generated the SBOM.
-    """
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path, SYNTHETIC_NONCANONICAL_PYPROJECT)
-
-        cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
-        hatch_pm = hatchling_metadata_core.ProjectMetadata(
-            str(tmp_path), PluginManager()
-        )
-        hook_meta = metadata_from_hatchling(hatch_pm, tmp_path)
-
-        assert cli_meta.name == "My_Package.Extra"
-        assert hook_meta.name == "My_Package.Extra"
-        assert hook_meta.name == cli_meta.name
-
-        expected_deps = ["typing-extensions>=4.0", "zope-interface>=5.0"]
-        assert cli_meta.dependencies == expected_deps
-        assert hook_meta.dependencies == expected_deps
-
-        assert compute_doc_uuid(
-            hook_meta.name, hook_meta.version or "x", hook_meta.dependencies
-        ) == compute_doc_uuid(
-            cli_meta.name, cli_meta.version or "x", cli_meta.dependencies
-        )
-
-
-def test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict() -> None:
-    """CLI and hook paths must agree on G2 when the declared license and an
-    independently-detected LICENSE file disagree.
-
-    Regression guard for the systemic gap ``resolve_license_concluded()``
-    exists to close: the Hatchling build-hook path
-    (:func:`~pitloom.extract.hatchling.metadata_from_hatchling`) originally
-    called :func:`~pitloom.extract._license.detect_license_for_project`
-    directly and never ran the independent directory scan at all, so G2
-    only ever fired via the CLI's
-    :func:`~pitloom.extract._pyproject.read_pyproject`. Both paths must now
-    resolve the same ``license_concluded`` value for the same project.
-    """
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path, CONFLICT_PYPROJECT)
-        (tmp_path / "LICENSE").write_text(
-            "Apache License\nVersion 2.0" + "x" * 200, encoding="utf-8"
-        )
-
-        with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="Apache-2.0",
-        ):
-            cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
-            hatch_pm = hatchling_metadata_core.ProjectMetadata(
-                str(tmp_path), PluginManager()
-            )
-            hook_meta = metadata_from_hatchling(hatch_pm, tmp_path)
-
-        assert cli_meta.license_name == "MIT"
-        assert hook_meta.license_name == "MIT"
-        assert cli_meta.license_concluded == "Apache-2.0"
-        assert hook_meta.license_concluded == cli_meta.license_concluded
-
-
-def test_metadata_from_hatchling_matches_read_pyproject_for_license_agreement() -> None:
-    """Same as above, but declared and detected agree: both paths must
-    still populate ``license_concluded`` (equal to the declared value),
-    not just leave it unset -- G2 records both sides regardless of
-    agreement."""
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path, CONFLICT_PYPROJECT)
-        (tmp_path / "LICENSE").write_text(
-            "MIT License\n\nPermission" + "x" * 200, encoding="utf-8"
-        )
-
-        with patch(
-            "pitloom.extract._license.detect_license_from_text",
-            return_value="MIT",
-        ):
-            cli_meta, _ = read_pyproject(tmp_path / "pyproject.toml")
-            hatch_pm = hatchling_metadata_core.ProjectMetadata(
-                str(tmp_path), PluginManager()
-            )
-            hook_meta = metadata_from_hatchling(hatch_pm, tmp_path)
-
-        assert cli_meta.license_concluded == "MIT"
-        assert hook_meta.license_concluded == "MIT"
 
 
 def test_metadata_from_hatchling_maps_urls() -> None:
@@ -433,35 +379,6 @@ def test_metadata_from_hatchling_fills_gaps_from_poetry() -> None:
             {"name": "Poetry Author", "email": "poetry@example.com"}
         ]
         assert metadata.keywords == ["from-poetry", "gap-fill"]
-
-
-def test_metadata_from_hatchling_does_not_leak_poetry_lock_dependencies() -> None:
-    """Regression: ``poetry.lock`` is a source-stage-only artifact (see
-    ``pitloom.extract._poetry_lock``'s module docstring) -- the real wheel
-    Hatchling builds never consults it, so the build hook's ``[tool.poetry]``
-    gap-fill path must never populate ``locked_dependencies`` from a
-    ``poetry.lock`` sitting next to a Hatchling-backed project, even though
-    ``read_pyproject()`` (the CLI/source-stage path) legitimately does.
-    """
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        write_pyproject(tmp_path, POETRY_GAP_FILL_PYPROJECT)
-        (tmp_path / "poetry.lock").write_text(
-            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n',
-            encoding="utf-8",
-        )
-
-        hatch_pm = hatchling_metadata_core.ProjectMetadata(
-            str(tmp_path), PluginManager()
-        )
-        metadata = metadata_from_hatchling(hatch_pm, tmp_path)
-
-        assert metadata.locked_dependencies == []
-        assert "locked_dependencies" not in metadata.provenance
-
-        # The CLI/source-stage path, by contrast, legitimately picks it up.
-        cli_metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
-        assert cli_metadata.locked_dependencies == ["requests==2.31.0"]
 
 
 def test_check_hatchling_sbom_support_raises_when_metadata_missing() -> None:

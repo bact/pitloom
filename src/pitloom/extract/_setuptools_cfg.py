@@ -33,8 +33,36 @@ class _NoProjectNameError(ValueError):
 
 
 def _section_dict(cfg: configparser.ConfigParser, section: str) -> dict[str, str]:
-    """Return a section's items as a plain dict, or empty dict if absent."""
+    """Return a section's items as a plain dict, or empty dict if absent.
+
+    Includes ``[DEFAULT]``-inherited values (``cfg.items()``'s normal,
+    intended behaviour) -- correct for *resolving* a value, but not for
+    asking whether *this section* declared a key: see
+    :func:`_section_declares_key` for that question.
+    """
     return dict(cfg.items(section)) if cfg.has_section(section) else {}
+
+
+def _section_declares_key(
+    cfg: configparser.ConfigParser, section: str, key: str
+) -> bool:
+    """Return whether *section* itself declares *key*, ignoring any value
+    only inherited from ``[DEFAULT]``.
+
+    ``key in cfg[section]``/``cfg.items(section)`` both merge in
+    ``[DEFAULT]`` by design (real, intended value-resolution behaviour) --
+    but that makes them unusable for "was this explicitly declared here"
+    provenance-presence checks: a ``[DEFAULT]`` value shared across
+    sections would make every section's container field look explicitly
+    (and emptily) declared, even one that never mentions the key at all.
+    ``cfg._sections`` is the one place holding each section's own keys
+    with no ``[DEFAULT]`` merge -- an accepted, stable use of
+    :mod:`configparser`'s implementation, since the public API has no
+    equivalent "this section's own keys only" accessor.
+    """
+    # pylint: disable-next=protected-access
+    sections: dict[str, dict[str, str]] = cfg._sections  # type: ignore[attr-defined]
+    return key in sections.get(section, {})
 
 
 def _resolve_cfg_version_file_directive(
@@ -241,18 +269,30 @@ def read_setup_cfg(
         prov["readme"] = "Source: setup.cfg | Field: metadata.long_description"
     if license_name:
         prov["license"] = "Source: setup.cfg | Field: metadata.license"
-    if authors:
+    # Provenance for a container field is gated on the raw key's *presence*
+    # in the file, not on whether parsing it produced a non-empty result --
+    # an explicitly-declared-but-empty value (e.g. `install_requires =`)
+    # is a genuine, authoritative "zero" that merge_project_metadata() must
+    # not silently fill in from a lower-priority source, the same
+    # None-vs-[] distinction _pyproject.py's [project]-table path already
+    # applies to `keywords`/`urls`/`dependencies`/`authors`.
+    if _section_declares_key(cfg, "metadata", "author") or _section_declares_key(
+        cfg, "metadata", "author_email"
+    ):
         prov["authors"] = "Source: setup.cfg | Field: metadata.author/author_email"
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
-    if urls:
+        if authors:
+            prov["copyright_text"] = (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            )
+    if _section_declares_key(cfg, "metadata", "url") or _section_declares_key(
+        cfg, "metadata", "project_urls"
+    ):
         prov["urls"] = "Source: setup.cfg | Field: metadata.url/project_urls"
-    if dependencies:
+    if _section_declares_key(cfg, "options", "install_requires"):
         prov["dependencies"] = "Source: setup.cfg | Field: options.install_requires"
-    if requires_python:
+    if _section_declares_key(cfg, "options", "python_requires"):
         prov["requires_python"] = "Source: setup.cfg | Field: options.python_requires"
-    if keywords:
+    if _section_declares_key(cfg, "metadata", "keywords"):
         prov["keywords"] = "Source: setup.cfg | Field: metadata.keywords"
 
     project_metadata = ProjectMetadata(

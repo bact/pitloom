@@ -78,6 +78,71 @@ def test_merge_project_metadata_empty_lists_filled_from_secondary() -> None:
     assert merged.dependencies == ["requests>=2.0"]
 
 
+def test_merge_project_metadata_explicit_empty_container_preserved() -> None:
+    """Per GEMINI.md, ``None`` vs ``[]``/``{}`` (empty-but-present) is a distinct
+    signal: an empty container with provenance confirming it was explicitly
+    declared in *primary* is authoritative (zero dependencies/keywords) and
+    must NOT be overwritten by secondary."""
+    primary = ProjectMetadata(
+        name="pkg",
+        dependencies=[],
+        keywords=[],
+        provenance={
+            "dependencies": "Source: pyproject.toml | Field: project.dependencies",
+            "keywords": "Source: pyproject.toml | Field: project.keywords",
+        },
+    )
+    secondary = ProjectMetadata(
+        name="pkg",
+        dependencies=["requests>=2.0"],
+        keywords=["tool", "utility"],
+        urls={"Homepage": "https://example.com"},
+        provenance={
+            "dependencies": "Source: tool.poetry | Field: tool.poetry.dependencies",
+            "keywords": "Source: tool.poetry | Field: tool.poetry.keywords",
+            "urls": "Source: tool.poetry | Field: tool.poetry.urls",
+        },
+    )
+    merged = merge_project_metadata(primary, secondary)
+    assert merged.dependencies == []
+    assert merged.keywords == []
+    assert merged.urls == {"Homepage": "https://example.com"}
+    assert merged.provenance["dependencies"] == (
+        "Source: pyproject.toml | Field: project.dependencies"
+    )
+    assert merged.provenance["urls"] == (
+        "Source: tool.poetry | Field: tool.poetry.urls"
+    )
+
+
+def test_merge_project_metadata_explicit_empty_license_name_preserved() -> None:
+    """Regression: every ``license_name`` producer
+    (``_pyproject.py``/``_setuptools_py.py``/``_setuptools_cfg.py``) records
+    its provenance under the literal key ``"license"``, not
+    ``"license_name"`` -- the field/provenance-key name mismatch the
+    ``_PROVENANCE_KEY_ALIASES`` map exists to bridge. An explicitly
+    declared-but-empty ``license_name`` in *primary* (e.g. `license = ""`)
+    with that provenance recorded must not be overwritten by *secondary*'s
+    ``license_name``."""
+    primary = ProjectMetadata(
+        name="pkg",
+        license_name="",
+        provenance={"license": "Source: pyproject.toml | Field: project.license"},
+    )
+    secondary = ProjectMetadata(
+        name="pkg",
+        license_name="MIT",
+        provenance={"license": "Source: tool.poetry | Field: tool.poetry.license"},
+    )
+
+    merged = merge_project_metadata(primary, secondary)
+
+    assert merged.license_name == ""
+    assert merged.provenance["license"] == (
+        "Source: pyproject.toml | Field: project.license"
+    )
+
+
 def test_merge_project_metadata_license_concluded_preserved() -> None:
     """Regression for the specific bug this function was introduced to fix:
     a newly added field (license_concluded, for G2) must merge with the
@@ -91,6 +156,35 @@ def test_merge_project_metadata_license_concluded_preserved() -> None:
     )
     merged = merge_project_metadata(primary, secondary)
     assert merged.license_concluded == "Apache-2.0"
+
+
+def test_merge_project_metadata_explicit_none_scalar_preserved() -> None:
+    """A scalar field resolved to None with confirmed provenance (e.g.
+    Poetry's `python = "*"`, meaning "explicitly no constraint") is a
+    deliberate, authoritative answer -- not absent -- and must not be
+    overwritten by secondary's real value, the same None-vs-[] distinction
+    already applied to empty containers above."""
+    primary = ProjectMetadata(
+        name="pkg",
+        requires_python=None,
+        provenance={
+            "requires_python": (
+                "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
+            )
+        },
+    )
+    secondary = ProjectMetadata(
+        name="pkg",
+        requires_python=">=3.8",
+        provenance={
+            "requires_python": "Source: setup.py | Field: setup(python_requires=...)"
+        },
+    )
+    merged = merge_project_metadata(primary, secondary)
+    assert merged.requires_python is None
+    assert merged.provenance["requires_python"] == (
+        "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
+    )
 
 
 def test_merge_project_metadata_does_not_mutate_inputs() -> None:

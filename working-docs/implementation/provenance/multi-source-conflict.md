@@ -98,7 +98,7 @@ paths, the same directory-detection fallback when nothing is declared) so
 a future fifth extraction path can't reintroduce the same gap by omission.
 Cross-path regression tests
 (`test_metadata_from_hatchling_matches_read_pyproject_for_license_conflict`
-in `tests/extract/test_hatch_hook_metadata.py`,
+in `tests/extract/test_hatch_hook_metadata_parity.py`,
 `test_read_poetry_matches_read_pyproject_fallback_for_license_conflict` in
 `tests/extract/test_poetry_pyproject.py` -- paths since renamed and moved,
 see `cli-test-coverage-roadmap.md`) assert the paths agree on the same

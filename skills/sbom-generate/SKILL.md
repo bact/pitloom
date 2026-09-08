@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-08-31
+# Last-Modified: 2026-09-08
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -113,6 +113,32 @@ loom env -o env.spdx3.json
 # 5. Fragment Merging
 loom merge .spdx3-fragments/ -o combined.spdx3.json
 ```
+
+### Automatic lock file discovery & resolved dependencies
+
+When generating an SBOM for a project directory (`loom project .` or
+`loom generate .`), Pitloom automatically inspects the project root for lock
+files to discover exact, pinned dependency versions and transitive
+dependencies.
+
+Supported lock formats in priority order:
+1. `pylock.toml` (PEP 751 standard lock file)
+2. `uv.lock` (uv workspace/resolver)
+3. `poetry.lock` (Poetry resolver)
+4. `pdm.lock` (PDM resolver)
+5. `Pipfile.lock` (Pipenv resolver)
+6. `requirements.txt` (Strictly fully-pinned requirement file)
+
+When a lock file is present:
+- Direct dependencies declared with version ranges (e.g. `requests>=2.0`)
+  automatically resolve to their exact locked version rather than falling
+  back to host environment introspection.
+- Transitive dependencies from the lock file are emitted as SPDX 3
+  `software_Package` elements connected via `dependsOn` relationships.
+- Relationship completeness is conservatively left unset (`None`) to
+  avoid overstating completeness for partial closures (e.g. omitted
+  VCS/path dependencies or marker-ambiguous variants).
+
 
 ## Embed an SBOM into a wheel (PEP 770)
 
@@ -229,7 +255,7 @@ Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
 prefix -- exactly one of the three, always at the start of the line
 (see `AGENTS.md`'s "CLI output" section for the full convention).
 `WARNING:` examples: "a config value was too small to be useful and got
-normalized instead", "a requested detector isn't installed". `INFO:`
+normalised instead", "a requested detector isn't installed". `INFO:`
 covers normal status the command wants a human to see, most importantly
 **generation being skipped or scoped down** -- e.g. a Hatchling build
 hook run that produced no SBOM because it's disabled or the target
@@ -275,8 +301,8 @@ back a JSON file that looks complete but isn't:
 - **AI model formats**: broad but not universal coverage (GGUF, ONNX,
   PyTorch, PyTorch PT2/ExecuTorch, Safetensors, Keras, HDF5, NumPy,
   fastText, plus Hugging Face Hub models). A model in some other
-  serialization format isn't
-  recognized at all -- same "say so" rule applies rather than silently
+  serialisation format isn't
+  recognised at all -- same "say so" rule applies rather than silently
   skipping it.
 - **Unsupported build backend** for `loom project`/`loom generate`
   against a project directory -- check `pyproject.toml`'s

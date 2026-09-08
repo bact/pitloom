@@ -270,6 +270,26 @@ def test_add_license_without_license_text_is_not_indexed() -> None:
     assert license_text in exporter.object_set.objects
 
 
+def test_has_licenses_detects_real_license() -> None:
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    assert not exporter.has_licenses
+
+    noassert = spdx3.simplelicensing_SimpleLicensingText(
+        spdxId="urn:x#Lic-NoAssert", creationInfo=ci
+    )
+    noassert.simplelicensing_licenseText = "NOASSERTION"
+    exporter.add_license(noassert)
+    assert not exporter.has_licenses
+
+    lic = spdx3.simplelicensing_SimpleLicensingText(
+        spdxId="urn:x#Lic-1", creationInfo=ci
+    )
+    lic.simplelicensing_licenseText = "MIT"
+    exporter.add_license(lic)
+    assert exporter.has_licenses
+
+
 # --- Spdx3JsonExporter: to_json()/to_file() ---
 
 

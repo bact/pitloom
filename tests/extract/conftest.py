@@ -9,6 +9,7 @@ import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 import pytest
 from hatchling.plugin.manager import PluginManager  # noqa: E402
 
+from pitloom.core.project import ProjectMetadata
 from pitloom.plugins.hatch import (  # noqa: E402
     PitloomBuildHook,
 )
@@ -16,6 +17,19 @@ from pitloom.plugins.hatch import (  # noqa: E402
 """Tests for the Pitloom Hatchling build hook (pitloom.plugins.hatch)."""
 
 pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
+
+
+def assert_declared_empty_authors_no_copyright_text(metadata: ProjectMetadata) -> None:
+    """Assert the shared contract every ``ProjectMetadata`` producer applies
+    to an explicitly declared but empty ``authors`` field: provenance is
+    still recorded (presence, not truthiness, gates it -- see AGENTS.md's
+    "tri-state signal" bullet), but with no author to derive a name from,
+    no ``copyright_text`` is inferred.
+    """
+    assert metadata.authors == []
+    assert "authors" in metadata.provenance
+    assert "copyright_text" not in metadata.provenance
+
 
 MINIMAL_PYPROJECT = """\
 [build-system]
@@ -109,15 +123,28 @@ def _fake_hatch_metadata(
     ``_fake_hatch_metadata(core={"license_expression": "MIT"})``.
 
     The fake ``core.config`` (the raw, unprocessed ``[project]`` table --
-    see :func:`pitloom.extract.hatchling._resolve_hatchling_license_files`)
-    gets a ``"license-files"`` key exactly when *core* explicitly overrides
-    ``license_files``, mirroring how a real declared field would show up in
-    both places at once.
+    see :func:`pitloom.extract.hatchling._hatchling_field_declared`) gets
+    the corresponding ``[project]`` key exactly for whichever fields
+    *core* explicitly overrides, mirroring how a real declared field
+    would show up in both places at once -- every field
+    ``metadata_from_hatchling()`` gates provenance on presence for
+    (``authors``/``urls``/``dependencies``/``keywords``/``license-files``/
+    ``requires-python``), not just ``license_files``.
     """
     merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
-    config: dict[str, Any] = {}
-    if core is not None and "license_files" in core:
-        config["license-files"] = merged_core["license_files"]
+    core_attr_to_config_key = {
+        "authors_data": "authors",
+        "urls": "urls",
+        "dependencies": "dependencies",
+        "keywords": "keywords",
+        "license_files": "license-files",
+        "requires_python": "requires-python",
+    }
+    config: dict[str, Any] = {
+        core_attr_to_config_key[attr]: merged_core[attr]
+        for attr in (core or {})
+        if attr in core_attr_to_config_key and merged_core[attr] is not None
+    }
     return SimpleNamespace(
         name=name,
         version=version,
@@ -218,30 +245,7 @@ __all__ = [
     "_FAKE_CORE_DEFAULTS",
     "_fake_hatch_metadata",
     "annotations",
-    "hatchling_metadata_core",
-    "make_hook",
-    "pytest",
-    "types",
-    "write_pyproject",
-    "write_pyproject_with_pitloom_config",
-]
-
-__all__ = [
-    "Any",
-    "CONFLICT_PYPROJECT",
-    "MINIMAL_PYPROJECT",
-    "MISSING_LICENSE_FILE_PYPROJECT",
-    "MISSING_README_PYPROJECT",
-    "POETRY_GAP_FILL_PYPROJECT",
-    "PYPROJECT_WITH_PRETTY",
-    "Path",
-    "PitloomBuildHook",
-    "PluginManager",
-    "SYNTHETIC_NONCANONICAL_PYPROJECT",
-    "SimpleNamespace",
-    "_FAKE_CORE_DEFAULTS",
-    "_fake_hatch_metadata",
-    "annotations",
+    "assert_declared_empty_authors_no_copyright_text",
     "hatchling_metadata_core",
     "make_hook",
     "pytest",

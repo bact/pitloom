@@ -481,3 +481,8 @@ path.
 | `tests/assemble/test_license_files_bundling.py` | End-to-end
   `[project.license-files]` bundling tests against the vendored
   real-world fixtures |
+| `tests/assemble/test_deps_license.py` | Unit tests for
+  `build_license_elements()`/`_is_license_concluded()`/
+  `_get_or_create_license_element()`, split out of
+  `test_deps_enrichment_pypi_fallback.py` to stay under the file-size
+  soft limit |
