@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._poetry import (
     _parse_poetry_authors,
     _parse_poetry_deps,
@@ -195,29 +196,44 @@ def test_parse_authors_unmatched_email_bracket_skipped() -> None:
 
 def test_parse_deps_python_extracted() -> None:
     deps = {"python": "^3.10", "requests": "^2.28"}
-    packages, requires_python = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
     assert requires_python == ">=3.10,<4.0.0"
+    assert python_declared is True
     assert any("requests" in d for d in packages)
     assert not any("python" in d for d in packages)
 
 
 def test_parse_deps_no_python_key() -> None:
     deps = {"click": ">=8.0"}
-    packages, requires_python = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
     assert requires_python is None
+    assert python_declared is False
     assert any("click" in d for d in packages)
 
 
 def test_parse_deps_empty() -> None:
-    packages, requires_python = _parse_poetry_deps({})
+    packages, requires_python, python_declared = _parse_poetry_deps({})
     assert not packages
     assert requires_python is None
+    assert python_declared is False
 
 
 def test_parse_deps_not_a_dict() -> None:
-    packages, requires_python = _parse_poetry_deps("invalid")
+    packages, requires_python, python_declared = _parse_poetry_deps("invalid")
     assert not packages
     assert requires_python is None
+    assert python_declared is False
+
+
+def test_parse_deps_wildcard_python_declared_but_no_constraint() -> None:
+    """`python = "*"` resolves requires_python to None, but python_declared
+    must still be True -- the caller needs to distinguish "declared, no
+    constraint" from "not declared at all" to gate provenance correctly."""
+    deps = {"python": "*"}
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
+    assert requires_python is None
+    assert python_declared is True
+    assert not packages
 
 
 def test_parse_deps_skips_unrepresentable_git_dependency() -> None:
@@ -226,8 +242,9 @@ def test_parse_deps_skips_unrepresentable_git_dependency() -> None:
         "dev-pkg": {"git": "https://github.com/x/y"},
         "requests": "^2.28",
     }
-    packages, requires_python = _parse_poetry_deps(deps)
+    packages, requires_python, python_declared = _parse_poetry_deps(deps)
     assert requires_python is None
+    assert python_declared is False
     assert not any("dev-pkg" in d for d in packages)
     assert any("requests" in d for d in packages)
 
@@ -358,13 +375,13 @@ def test_extract_provenance_empty_declared_dependencies() -> None:
     assert "requires_python" in metadata.provenance
 
 
-def test_extract_provenance_wildcard_python_leaves_requires_python_unset() -> None:
+def test_extract_provenance_wildcard_python_records_requires_python() -> None:
     """`python = "*"` (no real constraint) resolves requires_python to
-    None -- unlike the container fields, provenance must follow that
-    resolved value, not the raw `python` key's mere presence, or a
-    misattributed provenance tag could survive a later
-    merge_project_metadata() call that fills requires_python from a
-    different, real source."""
+    None, but that's a deliberate, explicitly-declared answer, not an
+    absent field -- provenance must record it so merge_project_metadata()
+    can protect it against a lower-priority source's real (possibly
+    wrong) constraint, the same presence-based rule every container field
+    already follows."""
     data = {
         "tool": {
             "poetry": {
@@ -377,7 +394,58 @@ def test_extract_provenance_wildcard_python_leaves_requires_python_unset() -> No
     with tempfile.TemporaryDirectory() as d:
         metadata = extract_poetry_metadata(data, Path(d))
     assert metadata.requires_python is None
-    assert "requires_python" not in metadata.provenance
+    assert "requires_python" in metadata.provenance
+
+
+def test_extract_provenance_capitalized_python_key_records_requires_python() -> None:
+    """A capitalized `Python` key (unusual, but _parse_poetry_deps()
+    matches it case-insensitively for the *value*) must get the same
+    provenance treatment -- a case-sensitive presence check would
+    silently miss it, reopening a narrower version of the misattribution
+    bug the presence-based check exists to close."""
+    data = {
+        "tool": {
+            "poetry": {
+                "name": "my-pkg",
+                "version": "1.0.0",
+                "dependencies": {"Python": "^3.9"},
+            }
+        }
+    }
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
+    assert metadata.requires_python is not None
+    assert "requires_python" in metadata.provenance
+
+
+def test_poetry_wildcard_python_survives_merge_as_primary() -> None:
+    """Poetry-derived metadata with an explicit `python = "*"` must keep
+    requires_python as None when merged as *primary* against a secondary
+    with a real constraint -- the end-to-end proof (real producer output
+    fed through the real merge function) that the presence-based
+    provenance fix actually changes merge_project_metadata()'s decision,
+    not just a synthetic ProjectMetadata literal."""
+    data = {
+        "tool": {
+            "poetry": {
+                "name": "my-pkg",
+                "version": "1.0.0",
+                "dependencies": {"python": "*"},
+            }
+        }
+    }
+    with tempfile.TemporaryDirectory() as d:
+        poetry_metadata = extract_poetry_metadata(data, Path(d))
+    secondary = ProjectMetadata(
+        name="my-pkg",
+        version="1.0.0",
+        requires_python=">=3.8",
+        provenance={
+            "requires_python": "Source: setup.py | Field: setup(python_requires=...)"
+        },
+    )
+    merged = merge_project_metadata(poetry_metadata, secondary)
+    assert merged.requires_python is None
 
 
 def test_convert_caret_and_tilde_edge_cases() -> None:

@@ -12,6 +12,7 @@ and :mod:`pitloom.extract._setuptools` (facade).
 from __future__ import annotations
 
 import ast
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,8 @@ from typing import Any
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._extract_utils import field_declared
+
+log = logging.getLogger(__name__)
 
 
 def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
@@ -42,10 +45,7 @@ def iter_setup_calls(tree: ast.AST) -> Iterator[ast.Call]:
 #: Sentinel for "not a resolvable literal" (a variable, function call,
 #: f-string, ...), distinct from a genuine literal ``None`` constant
 #: (``Constant(value=None)``) -- conflating the two would make a real
-#: ``[None]`` list element indistinguishable from an unresolvable one, and
-#: (via :func:`_extract_setup_kwargs`) would make a kwarg whose value
-#: couldn't be resolved indistinguishable from a kwarg never written at
-#: all.
+#: ``[None]`` list element indistinguishable from an unresolvable one.
 _UNRESOLVABLE = object()
 
 
@@ -86,13 +86,13 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     """Extract keyword arguments from a ``setup()`` or ``setuptools.setup()`` call.
 
     Returns the first matching call's kwargs as a dict. A kwarg whose value
-    isn't a resolvable literal (a variable, function call, ...) is still
-    present in the result, with value ``None`` -- only the unresolved
-    *value* is dropped, never the key's presence. Keeping the key lets a
-    presence check (:func:`pitloom.extract._extract_utils.field_declared`)
-    correctly tell "explicitly declared, but not statically resolvable"
-    apart from "never mentioned at all" -- collapsing the two would silently
-    lose provenance for a kwarg like ``install_requires=SOME_VARIABLE``.
+    isn't a resolvable literal (a variable, function call, ...) is omitted
+    from the result -- Pitloom has no actual value to report for it, so
+    treating it as "declared" would assert a confidently wrong empty
+    container (e.g. ``install_requires=[]``) instead of leaving the field
+    open for ``merge_project_metadata()`` to fill from a lower-priority
+    source. A ``WARNING:`` names the dropped kwarg so this isn't a silent
+    deviation.
     """
     node = next(iter_setup_calls(tree), None)
     if node is None:
@@ -101,7 +101,15 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     for kw in node.keywords:
         if kw.arg is not None:  # skip **expansion
             value = _ast_literal(kw.value)
-            kwargs[kw.arg] = None if value is _UNRESOLVABLE else value
+            if value is _UNRESOLVABLE:
+                log.warning(
+                    "setup.py: %r is declared but its value isn't a"
+                    " statically resolvable literal -- treating it as"
+                    " undeclared and falling back to a lower-priority source",
+                    kw.arg,
+                )
+                continue
+            kwargs[kw.arg] = value
     return kwargs
 
 
@@ -239,6 +247,10 @@ def read_setup_py(
     )
 
     prov = _build_setup_py_provenance(
+        # version/description/readme/license have no meaningful "explicitly
+        # declared but empty" state (unlike install_requires/keywords/
+        # python_requires below) -- see AGENTS.md's "tri-state signal"
+        # bullet -- so truthy-gating them is not the same bug.
         has_version=bool(version),
         has_description=bool(description),
         has_readme=bool(readme),
@@ -249,7 +261,7 @@ def read_setup_py(
         has_urls=field_declared(kwargs, "url")
         or field_declared(kwargs, "project_urls"),
         has_dependencies=field_declared(kwargs, "install_requires"),
-        has_requires_python=bool(requires_python),
+        has_requires_python=field_declared(kwargs, "python_requires"),
         has_keywords=field_declared(kwargs, "keywords"),
     )
 

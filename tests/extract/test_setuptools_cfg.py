@@ -319,6 +319,18 @@ def test_read_setup_cfg_empty_install_requires_gets_provenance() -> None:
     assert "dependencies" in metadata.provenance
 
 
+def test_read_setup_cfg_empty_python_requires_gets_provenance() -> None:
+    """An explicitly declared but empty python_requires must still record
+    provenance -- merge_project_metadata() relies on that presence to
+    treat the resulting None as authoritative, not absent."""
+    content = "[metadata]\nname = pkg\nversion = 1.0\n[options]\npython_requires =\n"
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        metadata, _ = read_setup_cfg(Path(d))
+    assert metadata.requires_python is None
+    assert "requires_python" in metadata.provenance
+
+
 def test_resolve_cfg_version_edge_cases(tmp_path: Path) -> None:
     """_resolve_cfg_version handles empty strings, invalid attrs, and directives."""
     from pitloom.extract._setuptools_cfg import _resolve_cfg_version

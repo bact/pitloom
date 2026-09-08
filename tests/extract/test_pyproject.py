@@ -95,6 +95,65 @@ def test_read_pyproject_no_license_files_declared() -> None:
     assert "license_files" not in metadata.provenance
 
 
+def test_read_pyproject_explicit_empty_requires_python_gets_provenance() -> None:
+    """An explicit `requires-python = ""` (PEP 621's equivalent of Poetry's
+    `python = "*"`) resolves to None but must still record provenance --
+    merge_project_metadata() relies on that presence to treat the None as
+    an authoritative "no constraint", not absent."""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "pkg"\nversion = "1.0.0"\nrequires-python = ""\n',
+            encoding="utf-8",
+        )
+        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+    assert metadata.requires_python is None
+    assert metadata.provenance["requires_python"] == (
+        "Source: pyproject.toml | Field: project.requires-python"
+    )
+
+
+def test_read_pyproject_explicit_empty_requires_python_survives_poetry_gap_fill() -> (
+    None
+):
+    """The [project] table's explicit `requires-python = ""` must win over
+    [tool.poetry]'s real constraint through the actual read_pyproject()
+    merge -- the concrete, reachable regression this presence check
+    exists to prevent, not just a synthetic unit-level scenario."""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(
+            "[project]\n"
+            'name = "pkg"\n'
+            'version = "1.0.0"\n'
+            'requires-python = ""\n'
+            "\n"
+            "[tool.poetry]\n"
+            'name = "pkg"\n'
+            'version = "1.0.0"\n'
+            "\n"
+            "[tool.poetry.dependencies]\n"
+            'python = ">=3.8"\n',
+            encoding="utf-8",
+        )
+        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+    assert metadata.requires_python is None
+
+
+def test_read_pyproject_no_requires_python_declared() -> None:
+    """No `[project.requires-python]` key: resolves to None, and no
+    provenance is recorded -- distinct from an explicit empty string."""
+    with tempfile.TemporaryDirectory() as d:
+        tmp_path = Path(d)
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "pkg"\nversion = "1.0.0"\n',
+            encoding="utf-8",
+        )
+        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+    assert metadata.requires_python is None
+    assert "requires_python" not in metadata.provenance
+
+
 def test_read_pyproject_no_project_no_poetry_no_license_found() -> None:
     """No ``[project]``, no ``[tool.poetry]``, and nothing in the directory
     that looks like a license: ``license_prov`` stays falsy."""

@@ -40,6 +40,11 @@ def _parse_pkg_info(pkg_info_text: str, source_label: str) -> ProjectMetadata:
         requires_python=requires_python,
     )
     metadata.provenance["name"] = source_label
+    # Unlike Poetry's `python = "*"` or setup.cfg's `python_requires =`,
+    # PKG-INFO/Core-Metadata has no convention where an empty header value
+    # means "explicitly no constraint" rather than just missing data, so
+    # truthy-gating these below is not the same presence-vs-truthy bug
+    # fixed elsewhere -- see AGENTS.md's "tri-state signal" bullet.
     if version:
         metadata.provenance["version"] = source_label
     if summary:

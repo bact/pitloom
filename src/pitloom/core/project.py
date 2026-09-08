@@ -157,12 +157,16 @@ def merge_project_metadata(
       conflict, rather than replaced wholesale.
 
     Every other field: *primary*'s value when present, else *secondary*'s.
-    An empty container (``dependencies``, ``keywords``, ``urls``, etc.)
-    with provenance confirming it was explicitly declared in *primary* is
-    authoritative and preserved. Default-constructed empty containers (absent
-    from *primary*'s provenance) or ``None`` values are treated as absent and
-    filled from *secondary*. A non-empty *primary* list replaces *secondary*'s
-    wholesale, it is never unioned with it. If a future
+    This rule is uniform across scalar and container fields, with no
+    field-type-specific case: a falsy value -- an empty container
+    (``dependencies``, ``keywords``, ``urls``, etc.) or a scalar's
+    ``None`` (e.g. ``requires_python`` left unset by an explicit
+    ``python = "*"``) -- with provenance confirming it was explicitly
+    declared in *primary* is authoritative and preserved, exactly like a
+    truthy value would be. A falsy value absent from *primary*'s
+    provenance is treated as not-yet-resolved and filled from
+    *secondary*. A non-empty *primary* list replaces
+    *secondary*'s wholesale, it is never unioned with it. If a future
     ``locked_dependencies`` source needs union-not-replace semantics (e.g.
     combining two lock-derived dependency sets), that is a deliberate
     deviation from every sibling list field here and belongs in a dedicated
@@ -183,8 +187,6 @@ def merge_project_metadata(
             continue
         primary_value = getattr(primary, f.name)
         provenance_key = _PROVENANCE_KEY_ALIASES.get(f.name, f.name)
-        if primary_value is None or (
-            not primary_value and provenance_key not in primary.provenance
-        ):
+        if not primary_value and provenance_key not in primary.provenance:
             setattr(merged, f.name, getattr(secondary, f.name))
     return merged

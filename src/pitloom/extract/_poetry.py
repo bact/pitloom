@@ -117,13 +117,16 @@ def extract_poetry_metadata(
         poetry, project_dir
     )
 
-    raw_keywords = poetry.get("keywords", [])
-    keywords: list[str] = raw_keywords if isinstance(raw_keywords, list) else []
+    keywords = poetry.get("keywords", [])
+    if not isinstance(keywords, list):
+        keywords = []
 
     authors = _parse_poetry_authors(poetry.get("authors", []))
     urls = _parse_poetry_urls(poetry)
 
-    dependencies, requires_python = _parse_poetry_deps(poetry.get("dependencies", {}))
+    dependencies, requires_python, python_declared = _parse_poetry_deps(
+        poetry.get("dependencies", {})
+    )
 
     prov: dict[str, str] = {
         "name": "Source: pyproject.toml | Field: tool.poetry.name",
@@ -159,15 +162,9 @@ def extract_poetry_metadata(
         prov["dependencies"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies"
         )
-    # requires_python is a scalar (str | None), not a container -- unlike
-    # keywords/urls/dependencies/authors above, there's no "explicitly
-    # declared but empty" state worth preserving: `python = "*"` means
-    # "no constraint", which is correctly None, and provenance must
-    # follow that resolved value (truthy-gated), not the raw key's mere
-    # presence -- otherwise a `python = "*"` entry sets provenance for a
-    # field that stays None, which can misattribute a real value a
-    # lower-priority source supplies later via merge_project_metadata().
-    if requires_python:
+    # Presence-gated like the container fields above, not truthy-gated --
+    # see AGENTS.md's "provenance dict's tri-state signal" bullet.
+    if python_declared:
         prov["requires_python"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
         )
@@ -277,31 +274,42 @@ def _parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
 
 def _parse_poetry_deps(
     deps: Any,
-) -> tuple[list[str], str | None]:
+) -> tuple[list[str], str | None, bool]:
     """Convert ``[tool.poetry.dependencies]`` to a PEP 508 list plus requires-python.
 
-    The ``python`` key is extracted as ``requires_python``; all other entries
-    are converted to PEP 508 strings on a best-effort basis.
+    The ``python`` key is extracted as ``requires_python`` (matched
+    case-insensitively); all other entries are converted to PEP 508
+    strings on a best-effort basis.
 
     Returns:
-        ``(dependencies, requires_python)`` where ``requires_python`` may be
-        ``None`` when the ``python`` key is absent.
+        ``(dependencies, requires_python, python_declared)`` --
+        ``requires_python`` may be ``None`` when the ``python`` key is
+        absent OR when it's present but resolves to no constraint (e.g.
+        ``python = "*"``); ``python_declared`` distinguishes those two
+        cases so a caller can gate provenance on presence, not on
+        ``requires_python``'s truthiness -- an explicit "no constraint"
+        is a genuine, authoritative answer that
+        :func:`pitloom.core.project.merge_project_metadata` must not
+        silently override from a lower-priority source, the same
+        None-vs-absent distinction already applied to container fields.
     """
     if not isinstance(deps, dict):
-        return [], None
+        return [], None, False
 
     requires_python: str | None = None
+    python_declared = False
     dependencies: list[str] = []
 
     for pkg, constraint in deps.items():
         if pkg.lower() == "python":
             requires_python = _poetry_constraint_to_pep440(constraint)
+            python_declared = True
             continue
         dep = _poetry_dep_to_pep508(pkg, constraint)
         if dep is not None:
             dependencies.append(dep)
 
-    return dependencies, requires_python
+    return dependencies, requires_python, python_declared
 
 
 def _convert_caret(ver: str) -> str:

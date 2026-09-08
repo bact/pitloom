@@ -164,13 +164,30 @@ def test_read_setup_py_empty_install_requires_gets_provenance() -> None:
     assert "dependencies" in metadata.provenance
 
 
-def test_read_setup_py_unresolvable_install_requires_still_gets_provenance() -> None:
-    """A declared but statically-unresolvable install_requires (a module-
-    level variable, not a literal) must still record provenance -- the
-    kwarg was genuinely written, even though its value can't be resolved
-    by AST parsing alone. Dropping the key entirely (as an earlier bug
-    did) would make this indistinguishable from install_requires never
-    being mentioned at all."""
+def test_read_setup_py_empty_python_requires_gets_provenance() -> None:
+    """An explicitly declared but empty python_requires='' must still
+    record provenance -- merge_project_metadata() relies on that presence
+    to treat the resulting None as authoritative, not absent."""
+    content = (
+        "from setuptools import setup\n"
+        "setup(name='pkg', version='1.0', python_requires='')\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert metadata.requires_python is None
+    assert "requires_python" in metadata.provenance
+
+
+def test_read_setup_py_unresolvable_install_requires_is_not_declared(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A statically-unresolvable install_requires (a module-level variable,
+    not a literal) must be treated as undeclared, not as an authoritative
+    empty list -- Pitloom has no real value for it, and asserting
+    'declared, zero dependencies' would block merge_project_metadata()'s
+    fallback to a lower-priority source that might actually have the
+    real dependency list. A WARNING names the dropped kwarg instead."""
     content = (
         "from setuptools import setup\n"
         "DEPS = ['requests']\n"
@@ -178,9 +195,11 @@ def test_read_setup_py_unresolvable_install_requires_still_gets_provenance() -> 
     )
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.py").write_text(content)
-        metadata, _ = read_setup_py(Path(d))
+        with caplog.at_level("WARNING"):
+            metadata, _ = read_setup_py(Path(d))
     assert metadata.dependencies == []
-    assert "dependencies" in metadata.provenance
+    assert "dependencies" not in metadata.provenance
+    assert "install_requires" in caplog.text
 
 
 def test_read_setup_py_returns_default_pitloom_config() -> None:

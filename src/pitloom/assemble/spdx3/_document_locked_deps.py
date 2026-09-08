@@ -7,9 +7,11 @@
 :func:`pitloom.assemble.spdx3.document.build` -- deduplication, conflict
 detection, the exact-locked-version map, and the combined PyPI release-info
 prefetch. Split out of :mod:`pitloom.assemble.spdx3.document` to keep that
-module under this repo's file-size soft limit; every name here is
-re-exported from there, so existing imports of these names from
-``pitloom.assemble.spdx3.document`` keep working.
+module under this repo's file-size soft limit; every name that was already
+public from that module before the split is re-exported from there, so
+existing imports of those names from ``pitloom.assemble.spdx3.document``
+keep working. ``_dedup_and_locked_versions`` and ``_canon_names_and_pins``
+are new, module-internal to this split and not re-exported.
 
 See also: :mod:`pitloom.extract._lock_common` for the shared
 canonical-name-grouping and version-equality helpers this module builds on.
@@ -35,10 +37,13 @@ from pitloom.extract._lock_common import (
 def _canon_names_and_pins(
     locked_dependencies: list[str] | None,
 ) -> tuple[dict[str, str], list[tuple[str, str, str]]]:
-    """Parse every entry in *locked_dependencies* exactly once, returning
-    each dep string's PEP 503-canonicalized name (``canon_by_dep``,
-    keyed by the original dep string) alongside the ``(name, dep, pinned)``
-    triples for entries that carry an exact pin.
+    """Parse every entry in *locked_dependencies* via ``Requirement()``
+    at most once each (twice only for a dep string ``Requirement()``
+    itself can't parse, where :func:`_parse_dep_name`'s own fallback
+    re-attempts it before falling back further), returning each dep
+    string's PEP 503-canonicalized name (``canon_by_dep``, keyed by the
+    original dep string) alongside the ``(name, dep, pinned)`` triples
+    for entries that carry an exact pin.
 
     Split out of :func:`_dedup_and_locked_versions` only to keep that
     function's local-variable count under this repo's complexity ceiling.

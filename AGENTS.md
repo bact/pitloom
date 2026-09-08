@@ -92,23 +92,44 @@ shape described, not just the module where each was first found.
     grep every existing producer's `provenance[...]` assignments for the
     same field and match whichever check style they already settled on.
   - **The presence signal must survive every merge/inheritance boundary,
-    or the fix is cosmetic.** `merge_project_metadata()` only treats an
-    empty container as authoritative when *its own* provenance key says
-    so -- so a producer that resolves the presence check correctly but
-    is never checked against real merge call sites can still lose the
-    signal in practice. The same masking happens one layer down:
-    `configparser`'s `[DEFAULT]`-section value inheritance makes
-    `"key" in cfg.items(section)` true even when *that section* never
-    declared `key` -- a presence check must read the section's own keys
-    only (not the merged view) or a shared default gets misread as an
-    explicit per-section declaration. And an upstream resolver that
-    silently collapses "couldn't fully resolve" to the same empty
-    container as "genuinely empty" (e.g. an AST list literal with one
-    unresolvable element silently dropping just that element instead of
-    invalidating the whole literal) reintroduces the exact ambiguity a
-    presence check downstream is trying to eliminate -- propagate
-    "unresolvable" as its own outcome, distinct from both "absent" and
-    "empty".
+    or the fix is cosmetic.** `merge_project_metadata()` only treats a
+    falsy value (empty container **or** `None`/other falsy scalar) as
+    authoritative when *its own* provenance key says so -- so a producer
+    that resolves the presence check correctly but is never checked
+    against real merge call sites can still lose the signal in practice.
+    The same masking happens one layer down: `configparser`'s `[DEFAULT]`-
+    section value inheritance makes `"key" in cfg.items(section)` true even
+    when *that section* never declared `key` -- a presence check must
+    read the section's own keys only (not the merged view) or a shared
+    default gets misread as an explicit per-section declaration. And an
+    upstream resolver that silently collapses "couldn't fully resolve" to
+    the same empty container as "genuinely empty" (e.g. an AST list
+    literal with one unresolvable element silently dropping just that
+    element instead of invalidating the whole literal) reintroduces the
+    exact ambiguity a presence check downstream is trying to eliminate --
+    propagate "unresolvable" as its own outcome, distinct from both
+    "absent" and "empty".
+  - **The provenance dict's tri-state signal isn't container-specific --
+    it's the same rule for a scalar that can legitimately resolve to
+    `None`.** `merge_project_metadata()`'s "was this explicitly declared"
+    check special-cased `primary_value is None` unconditionally, so no
+    scalar field's `None` could ever be protected as a deliberate answer,
+    only an absent one -- even when its own producer had confirmed
+    provenance for it. Three producers worked around this instead of
+    fixing it: `_poetry.py`'s `python = "*"` (Poetry's "explicitly no
+    constraint" convention), `_setuptools_cfg.py`'s `python_requires =`,
+    and `_setuptools_py.py`'s `python_requires=""` all truthy-gated their
+    own `provenance["requires_python"]` write -- correctly avoiding a
+    provenance/value mismatch (claiming "declared" for a field the merge
+    would then silently overwrite anyway), but at the cost of that field
+    never being protected against a lower-priority source's real,
+    possibly wrong, constraint. A producer that gates a scalar's
+    provenance on the *resolved value's truthiness* rather than the *raw
+    source key's presence* is treating a symptom of an asymmetric merge
+    condition, not a genuine ambiguity in its own data -- the fix belongs
+    in the shared merge function once, so every field type (present or
+    future, scalar or container) gets the same rule, not a per-producer
+    workaround that has to be independently rediscovered next time.
 - **Compare domain identifiers the way the ecosystem/spec does, not as
   raw strings.** A raw `==`/dict-key comparison silently fails to match
   values that a spec treats as equivalent (e.g. PEP 503 package-name

@@ -290,7 +290,7 @@ def read_setup_cfg(
         prov["urls"] = "Source: setup.cfg | Field: metadata.url/project_urls"
     if _section_declares_key(cfg, "options", "install_requires"):
         prov["dependencies"] = "Source: setup.cfg | Field: options.install_requires"
-    if requires_python:
+    if _section_declares_key(cfg, "options", "python_requires"):
         prov["requires_python"] = "Source: setup.cfg | Field: options.python_requires"
     if _section_declares_key(cfg, "metadata", "keywords"):
         prov["keywords"] = "Source: setup.cfg | Field: metadata.keywords"

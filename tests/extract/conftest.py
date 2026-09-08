@@ -110,12 +110,12 @@ def _fake_hatch_metadata(
 
     The fake ``core.config`` (the raw, unprocessed ``[project]`` table --
     see :func:`pitloom.extract.hatchling._hatchling_field_declared`) gets
-    the corresponding ``[project]`` key exactly for whichever container
-    fields *core* explicitly overrides, mirroring how a real declared
-    field would show up in both places at once -- every container field
+    the corresponding ``[project]`` key exactly for whichever fields
+    *core* explicitly overrides, mirroring how a real declared field
+    would show up in both places at once -- every field
     ``metadata_from_hatchling()`` gates provenance on presence for
-    (``authors``/``urls``/``dependencies``/``keywords``/``license-files``),
-    not just ``license_files``.
+    (``authors``/``urls``/``dependencies``/``keywords``/``license-files``/
+    ``requires-python``), not just ``license_files``.
     """
     merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
     core_attr_to_config_key = {
@@ -124,6 +124,7 @@ def _fake_hatch_metadata(
         "dependencies": "dependencies",
         "keywords": "keywords",
         "license_files": "license-files",
+        "requires_python": "requires-python",
     }
     config: dict[str, Any] = {
         core_attr_to_config_key[attr]: merged_core[attr]

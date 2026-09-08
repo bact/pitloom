@@ -194,6 +194,11 @@ def metadata_from_hatchling(
 
     readme = _resolve_hatchling_readme(core)
     requires_python = core.requires_python or None
+    # Presence-gated, not truthy-gated -- see AGENTS.md's "tri-state
+    # signal" bullet: an explicit `requires-python = ""` is PEP 621's
+    # equivalent of Poetry's `python = "*"`.
+    if _hatchling_field_declared(core, "requires-python"):
+        provenance["requires_python"] = _field_provenance("requires-python")
 
     # Provenance for a container field is gated on presence in the raw
     # [project] table (`_hatchling_field_declared`), not on the resolved

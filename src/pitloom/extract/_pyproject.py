@@ -244,6 +244,13 @@ def read_pyproject(
         provenance["license_files"] = (
             "Source: pyproject.toml | Field: project.license-files"
         )
+    # Presence-gated, not truthy-gated -- see AGENTS.md's "tri-state
+    # signal" bullet: `requires-python = ""` resolves to an empty (falsy)
+    # SpecifierSet, PEP 621's equivalent of Poetry's `python = "*"`.
+    if field_declared(project_data, "requires-python"):
+        provenance["requires_python"] = (
+            "Source: pyproject.toml | Field: project.requires-python"
+        )
 
     metadata = ProjectMetadata(
         name=std.name,

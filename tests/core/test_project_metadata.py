@@ -158,6 +158,35 @@ def test_merge_project_metadata_license_concluded_preserved() -> None:
     assert merged.license_concluded == "Apache-2.0"
 
 
+def test_merge_project_metadata_explicit_none_scalar_preserved() -> None:
+    """A scalar field resolved to None with confirmed provenance (e.g.
+    Poetry's `python = "*"`, meaning "explicitly no constraint") is a
+    deliberate, authoritative answer -- not absent -- and must not be
+    overwritten by secondary's real value, the same None-vs-[] distinction
+    already applied to empty containers above."""
+    primary = ProjectMetadata(
+        name="pkg",
+        requires_python=None,
+        provenance={
+            "requires_python": (
+                "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
+            )
+        },
+    )
+    secondary = ProjectMetadata(
+        name="pkg",
+        requires_python=">=3.8",
+        provenance={
+            "requires_python": "Source: setup.py | Field: setup(python_requires=...)"
+        },
+    )
+    merged = merge_project_metadata(primary, secondary)
+    assert merged.requires_python is None
+    assert merged.provenance["requires_python"] == (
+        "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
+    )
+
+
 def test_merge_project_metadata_does_not_mutate_inputs() -> None:
     """Neither *primary* nor *secondary* is modified by the merge."""
     primary = ProjectMetadata(name="pkg", provenance={"name": "Source: primary"})

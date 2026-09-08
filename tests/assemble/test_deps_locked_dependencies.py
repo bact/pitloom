@@ -516,9 +516,9 @@ def test_deduplicated_locked_dependencies_preserves_original_order() -> None:
 def test_build_warns_conflicting_locked_duplicates_only_once(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """build() shares one _deduplicated_locked_dependencies() result between
-    _locked_transitive_only_dependencies() and _extract_locked_version_map()
-    instead of each recomputing it -- a genuine conflict must log
+    """build() shares one _dedup_and_locked_versions() result between
+    _locked_transitive_only_dependencies() and its own locked-version-map
+    unpacking instead of each recomputing it -- a genuine conflict must log
     'pinned to conflicting versions' exactly once per document, not once
     per caller."""
     project = ProjectMetadata(

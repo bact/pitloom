@@ -86,6 +86,30 @@ def test_metadata_from_hatchling_no_license_files() -> None:
     assert "license_files" not in metadata.provenance
 
 
+def test_metadata_from_hatchling_explicit_empty_requires_python_gets_provenance() -> (
+    None
+):
+    """An explicit `requires-python = ""` (PEP 621's equivalent of Poetry's
+    `python = "*"`) resolves to None but must still record provenance --
+    merge_project_metadata() relies on that presence to treat the None as
+    an authoritative "no constraint", not absent."""
+    hatch_meta = _fake_hatch_metadata(core={"requires_python": ""})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.requires_python is None
+    assert metadata.provenance["requires_python"] == (
+        "Source: Hatchling build backend | Field: project.requires-python"
+    )
+
+
+def test_metadata_from_hatchling_no_requires_python_declared() -> None:
+    """No ``[project.requires-python]`` key: resolves to None, and no
+    provenance is recorded -- distinct from an explicit empty string."""
+    hatch_meta = _fake_hatch_metadata()
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert metadata.requires_python is None
+    assert "requires_python" not in metadata.provenance
+
+
 def test_metadata_from_hatchling_no_license_files_with_real_core(
     tmp_path: Path,
 ) -> None:
