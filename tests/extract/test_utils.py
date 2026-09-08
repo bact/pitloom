@@ -9,7 +9,31 @@
 
 from __future__ import annotations
 
-from pitloom.extract._extract_utils import record_dict_field_provenance
+from pitloom.extract._extract_utils import field_declared, record_dict_field_provenance
+
+
+class _RaisesOSErrorOnContains:
+    """A container whose ``__contains__`` raises OSError, mirroring a
+    Hatchling ``core.config``-style property accessor that can fail the
+    same way its other property accessors do."""
+
+    def __contains__(self, key: object) -> bool:
+        raise OSError("simulated backend failure")
+
+
+def test_field_declared_true_for_present_key() -> None:
+    assert field_declared({"keywords": []}, "keywords") is True
+
+
+def test_field_declared_false_for_absent_key() -> None:
+    assert field_declared({}, "keywords") is False
+
+
+def test_field_declared_false_on_oserror() -> None:
+    """An OSError from the container's own ``__contains__`` is treated as
+    "not declared", not propagated -- the same defensive contract
+    documented in the function's own docstring."""
+    assert field_declared(_RaisesOSErrorOnContains(), "keywords") is False
 
 
 def test_record_dict_field_provenance_per_key() -> None:

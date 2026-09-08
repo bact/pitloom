@@ -24,6 +24,8 @@ from pitloom.extract._poetry import (
     extract_poetry_metadata,
 )
 
+from .conftest import assert_declared_empty_authors_no_copyright_text
+
 # ---------------------------------------------------------------------------
 # _parse_poetry_authors
 # ---------------------------------------------------------------------------
@@ -373,6 +375,42 @@ def test_extract_provenance_empty_declared_dependencies() -> None:
     assert "dependencies" in metadata.provenance
     assert "keywords" in metadata.provenance
     assert "requires_python" in metadata.provenance
+
+
+def test_extract_non_list_keywords_treated_as_empty() -> None:
+    """A malformed `keywords` value that isn't a list (e.g. a bare string)
+    must resolve to an empty list, not raise or pass the raw value
+    through."""
+    data = {
+        "tool": {
+            "poetry": {
+                "name": "my-pkg",
+                "version": "1.0.0",
+                "keywords": "not-a-list",
+            }
+        }
+    }
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
+    assert metadata.keywords == []
+
+
+def test_extract_provenance_declared_empty_authors_no_copyright_text() -> None:
+    """An explicitly declared but empty `authors = []` must still record
+    provenance for `authors`, but with no authors to derive a name from,
+    no `copyright_text` is inferred."""
+    data = {
+        "tool": {
+            "poetry": {
+                "name": "my-pkg",
+                "version": "1.0.0",
+                "authors": [],
+            }
+        }
+    }
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
+    assert_declared_empty_authors_no_copyright_text(metadata)
 
 
 def test_extract_provenance_wildcard_python_records_requires_python() -> None:

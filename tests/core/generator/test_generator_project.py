@@ -353,7 +353,12 @@ def test_build_document_ai_model_license_adds_simple_licensing_profile() -> None
 
 def test_build_concluded_license_without_declared_license() -> None:
     """When license_name is None but license_concluded is present,
-    concluded license relationship must be emitted and simpleLicensing added."""
+    concluded license relationship must be emitted and simpleLicensing added
+    -- and since there's no declared value at all, the declared side must
+    still get an explicit NOASSERTION relationship, not be silently absent
+    (the elif branch's NOASSERTION fallback exists specifically for this
+    concluded-classified sub-case, distinct from the declared-classified
+    one covered by test_build_transparent_concluded_license_classified_as_declared)."""
     project = ProjectMetadata(
         name="concluded-only",
         version="1.0.0",
@@ -378,6 +383,56 @@ def test_build_concluded_license_without_declared_license() -> None:
         if e.get("type") == "simplelicensing_SimpleLicensingText"
     }
     assert licenses[concluded_rels[0]["to"][0]] == "MIT"
+
+    declared_rels = [
+        r for r in rels if r.get("relationshipType") == "hasDeclaredLicense"
+    ]
+    assert len(declared_rels) == 1
+    assert licenses[declared_rels[0]["to"][0]] == "NOASSERTION"
+
+
+def test_build_transparent_concluded_license_classified_as_declared() -> None:
+    """When license_name is None but license_concluded is present with a
+    transparent, method-less provenance (e.g. read directly from
+    pyproject.toml, not detected/inferred), _is_license_concluded()
+    classifies it as declared rather than concluded -- build_license_elements()
+    then returns no concluded relationship at all, and attach_main_package_license()
+    must skip adding one rather than erroring on the None."""
+    project = ProjectMetadata(
+        name="transparent-concluded",
+        version="1.0.0",
+        license_name=None,
+        license_concluded="MIT",
+        provenance={
+            "license_concluded": (
+                "Source: pyproject.toml | Field: project.license_concluded"
+            )
+        },
+    )
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    exporter = build(doc, offline=True)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    rels = [e for e in graph if e.get("type") == "Relationship"]
+    concluded_rels = [
+        r for r in rels if r.get("relationshipType") == "hasConcludedLicense"
+    ]
+    assert concluded_rels == []
+    declared_rels = [
+        r for r in rels if r.get("relationshipType") == "hasDeclaredLicense"
+    ]
+    assert len(declared_rels) == 1
+    licenses = {
+        e["spdxId"]: e.get("simplelicensing_licenseText")
+        for e in graph
+        if e.get("type") == "simplelicensing_SimpleLicensingText"
+    }
+    # Must be the real MIT license, not a NOASSERTION filler -- reverting
+    # attach_main_package_license()'s use of the declared relationship
+    # build_license_elements() actually returns here would make this
+    # NOASSERTION again while MIT sat orphaned in the graph with no
+    # relationship pointing to it.
+    assert licenses[declared_rels[0]["to"][0]] == "MIT"
 
 
 def test_generate_project_sbom_does_not_mutate_caller_files(

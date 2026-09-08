@@ -9,6 +9,7 @@ import hatchling.metadata.core as hatchling_metadata_core  # noqa: E402
 import pytest
 from hatchling.plugin.manager import PluginManager  # noqa: E402
 
+from pitloom.core.project import ProjectMetadata
 from pitloom.plugins.hatch import (  # noqa: E402
     PitloomBuildHook,
 )
@@ -16,6 +17,19 @@ from pitloom.plugins.hatch import (  # noqa: E402
 """Tests for the Pitloom Hatchling build hook (pitloom.plugins.hatch)."""
 
 pytest.importorskip("hatchling", reason="hatchling is required for hook tests")
+
+
+def assert_declared_empty_authors_no_copyright_text(metadata: ProjectMetadata) -> None:
+    """Assert the shared contract every ``ProjectMetadata`` producer applies
+    to an explicitly declared but empty ``authors`` field: provenance is
+    still recorded (presence, not truthiness, gates it -- see AGENTS.md's
+    "tri-state signal" bullet), but with no author to derive a name from,
+    no ``copyright_text`` is inferred.
+    """
+    assert metadata.authors == []
+    assert "authors" in metadata.provenance
+    assert "copyright_text" not in metadata.provenance
+
 
 MINIMAL_PYPROJECT = """\
 [build-system]
@@ -231,30 +245,7 @@ __all__ = [
     "_FAKE_CORE_DEFAULTS",
     "_fake_hatch_metadata",
     "annotations",
-    "hatchling_metadata_core",
-    "make_hook",
-    "pytest",
-    "types",
-    "write_pyproject",
-    "write_pyproject_with_pitloom_config",
-]
-
-__all__ = [
-    "Any",
-    "CONFLICT_PYPROJECT",
-    "MINIMAL_PYPROJECT",
-    "MISSING_LICENSE_FILE_PYPROJECT",
-    "MISSING_README_PYPROJECT",
-    "POETRY_GAP_FILL_PYPROJECT",
-    "PYPROJECT_WITH_PRETTY",
-    "Path",
-    "PitloomBuildHook",
-    "PluginManager",
-    "SYNTHETIC_NONCANONICAL_PYPROJECT",
-    "SimpleNamespace",
-    "_FAKE_CORE_DEFAULTS",
-    "_fake_hatch_metadata",
-    "annotations",
+    "assert_declared_empty_authors_no_copyright_text",
     "hatchling_metadata_core",
     "make_hook",
     "pytest",

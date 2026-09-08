@@ -20,6 +20,8 @@ import pytest
 
 from pitloom.extract._setuptools import read_setup_py
 
+from .conftest import assert_declared_empty_authors_no_copyright_text
+
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SETUPTOOLS_FIXTURE = FIXTURE_DIR / "projects" / "sampleproject-setuptools"
 
@@ -162,6 +164,19 @@ def test_read_setup_py_empty_install_requires_gets_provenance() -> None:
         metadata, _ = read_setup_py(Path(d))
     assert metadata.dependencies == []
     assert "dependencies" in metadata.provenance
+
+
+def test_read_setup_py_declared_empty_author_no_copyright_text() -> None:
+    """An explicitly declared but empty author='' must still record
+    provenance for `authors`, but with no author to derive a name from,
+    no `copyright_text` is inferred."""
+    content = (
+        "from setuptools import setup\nsetup(name='pkg', version='1.0', author='')\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert_declared_empty_authors_no_copyright_text(metadata)
 
 
 def test_read_setup_py_empty_python_requires_gets_provenance() -> None:

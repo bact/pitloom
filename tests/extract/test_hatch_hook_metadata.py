@@ -13,6 +13,7 @@ from hatchling.plugin.manager import PluginManager  # noqa: E402
 from pitloom.core.models import compute_doc_uuid  # noqa: E402
 from pitloom.extract._pyproject import read_pyproject  # noqa: E402
 from pitloom.extract.hatchling import (  # noqa: E402
+    _hatchling_field_declared,
     _resolve_hatchling_license_files,
     metadata_from_hatchling,
 )
@@ -28,6 +29,7 @@ from .conftest import (
     POETRY_GAP_FILL_PYPROJECT,
     SYNTHETIC_NONCANONICAL_PYPROJECT,
     _fake_hatch_metadata,
+    assert_declared_empty_authors_no_copyright_text,
     write_pyproject,
 )
 
@@ -63,6 +65,16 @@ def test_metadata_from_hatchling_maps_license_files() -> None:
     assert metadata.provenance["license_files"] == (
         "Source: Hatchling build backend | Field: project.license-files"
     )
+
+
+def test_metadata_from_hatchling_declared_empty_authors_no_copyright_text() -> None:
+    """An explicitly declared but empty ``authors`` (``authors_data`` with
+    no names or emails) must still record provenance for ``authors``, but
+    with no authors to derive a name from, no ``copyright_text`` is
+    inferred."""
+    hatch_meta = _fake_hatch_metadata(core={"authors_data": {"name": [], "email": []}})
+    metadata = metadata_from_hatchling(hatch_meta, Path("."))
+    assert_declared_empty_authors_no_copyright_text(metadata)
 
 
 def test_metadata_from_hatchling_empty_declared_dependencies_gets_provenance() -> None:
@@ -172,6 +184,20 @@ def test_resolve_hatchling_license_files_tolerates_oserror() -> None:
             raise OSError("simulated filesystem error")
 
     assert _resolve_hatchling_license_files(_RaisingCore()) == []
+
+
+def test_hatchling_field_declared_tolerates_oserror_on_config_access() -> None:
+    """A ``core.config`` property access that raises ``OSError`` must
+    resolve to "not declared" (``False``), not propagate -- mirroring the
+    same class of lazily-evaluated Hatchling property failure every other
+    ``core.X`` read in this module tolerates."""
+
+    class _RaisingCore:
+        @property
+        def config(self) -> dict[str, object]:
+            raise OSError("simulated filesystem error")
+
+    assert _hatchling_field_declared(_RaisingCore(), "dependencies") is False
 
 
 def test_metadata_from_hatchling_canonicalises_dependency_markers() -> None:

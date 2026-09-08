@@ -9,6 +9,8 @@
 See also: test_deps_enrichment_names_versions.py,
 test_deps_enrichment_originator_license.py, test_deps_enrichment_prefetch.py --
 this module's siblings, split from the original test_deps_enrichment.py.
+test_deps_license.py holds the deps_license.py unit tests split out of
+this file.
 
 Covers the PyPI JSON API fallback (used when installed metadata doesn't
 cover a field) and the NOASSERTION policy for whatever neither source can
@@ -28,11 +30,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
 from pitloom.assemble.spdx3 import deps_pypi
 from pitloom.assemble.spdx3.deps import _enrich_from_pypi, add_dependencies
-from pitloom.assemble.spdx3.deps_license import (
-    _add_license_noassertion,
-    _build_license_relationship,
-    _get_or_create_license_element,
-)
+from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
 from pitloom.assemble.spdx3.deps_originator import _resolve_metadata_url
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
@@ -424,41 +422,3 @@ def test_enrich_from_pypi_unknown_version_skips_hash_extraction() -> None:
     )
     assert "hash" not in filled
     assert not dep_pkg.verifiedUsing
-
-
-# ---------------------------------------------------------------------------
-# deps_license -- long-name truncation and the defensive raise
-# ---------------------------------------------------------------------------
-
-
-def test_get_or_create_license_element_truncates_long_name() -> None:
-    doc_uuid = compute_doc_uuid("longlicense", "1.0", [])
-    _clear_doc_counters(doc_uuid)
-    exporter = Spdx3JsonExporter()
-    ci = _make_ci()
-    long_id = "X" * 80
-
-    spdx_id = _get_or_create_license_element(
-        long_id, "Source: test", ci, "longlicense", doc_uuid, exporter
-    )
-
-    license_text = exporter.object_set.obj_by_id[spdx_id]
-    assert isinstance(license_text, spdx3.simplelicensing_SimpleLicensingText)
-    assert license_text.name == "X" * 57 + "..."
-    assert len(license_text.name) == 60
-
-
-def test_build_license_relationship_raises_when_relationship_build_fails() -> None:
-    """``build_relationship`` returns ``None`` when ``from_id`` is ``None``;
-    ``_build_license_relationship`` must fail loudly rather than silently
-    swallow it."""
-    ci = _make_ci()
-    with pytest.raises(ValueError, match="Failed to build relationship"):
-        _build_license_relationship(
-            None,  # type: ignore[arg-type]
-            "http://spdx.org/spdxdocs/license-1",
-            spdx3.RelationshipType.hasDeclaredLicense,
-            ci,
-            "doc",
-            "uuid",
-        )

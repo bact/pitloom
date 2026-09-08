@@ -419,7 +419,15 @@ def attach_main_package_license(
     encoder: ProvenanceEncoder | None = None,
 ) -> None:
     """Attach declared and/or concluded license elements and relationships for
-    the main Python project package."""
+    the main Python project package.
+
+    ``metadata.license_name`` truthy does not guarantee two-candidate mode:
+    when ``metadata.license_concluded`` is unset, :func:`build_license_elements`
+    still runs single-candidate on ``license_name``'s own provenance, which
+    can classify it as concluded (``rel_declared is None``) -- see the
+    comment on the ``elif`` branch below for why that branch, unlike this
+    one, needs its own NOASSERTION fallback for the symmetric case.
+    """
     if metadata.license_name:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
         rel_declared, rel_concluded = build_license_elements(
@@ -443,16 +451,7 @@ def attach_main_package_license(
             exporter.add_relationship(rel_concluded)
     elif metadata.license_concluded:
         spdx_doc.profileConformance.append(spdx3.ProfileIdentifierType.simpleLicensing)
-        _add_license_noassertion(
-            main_package,
-            spdx_ci,
-            metadata.name,
-            doc_uuid,
-            exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
-        _rel_dec, rel_concluded = build_license_elements(
+        rel_declared, rel_concluded = build_license_elements(
             license_id=metadata.license_concluded,
             package_spdx_id=require_spdx_id(main_package),
             license_provenance=metadata.provenance.get(
@@ -466,6 +465,23 @@ def attach_main_package_license(
             provenance_config=provenance_config,
             encoder=encoder,
         )
+        # Unlike the `if` branch above, this branch has no second candidate
+        # at all -- when its one candidate (metadata.license_concluded)
+        # classifies as declared rather than concluded, that's the ONLY
+        # relationship this package can get, so it must be emitted for
+        # real, not silently dropped in favour of a NOASSERTION filler.
+        if rel_declared:
+            exporter.add_relationship(rel_declared)
+        else:
+            _add_license_noassertion(
+                main_package,
+                spdx_ci,
+                metadata.name,
+                doc_uuid,
+                exporter,
+                provenance_config=provenance_config,
+                encoder=encoder,
+            )
         if rel_concluded:
             exporter.add_relationship(rel_concluded)
     else:
