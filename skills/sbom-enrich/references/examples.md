@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-25
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -153,7 +153,7 @@ python3 -c "import json,sys; json.load(open(sys.argv[1]))" \
 ```
 
 For a stronger check, run the fragment through the same SPDX 3 JSON-LD
-deserializer `merge_fragments()` itself uses. This catches the same
+deserialiser `merge_fragments()` itself uses. This catches the same
 broken-JSON-LD cases `merge_fragments()` swallows as a warning, plus
 SPDX-shape problems (e.g. an unknown property or type) that plain
 JSON-syntax validity would miss:

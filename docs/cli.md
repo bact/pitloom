@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-04
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -106,7 +106,7 @@ Or inject an existing pre-generated SBOM into built wheels:
 loom embed-wheel dist/*.whl --sbom sbom.spdx3.json
 ```
 
-`sbom.spdx3.json`'s declared subject name/version (PEP 503/440-normalized)
+`sbom.spdx3.json`'s declared subject name/version (PEP 503/440-normalised)
 is cross-checked against the target wheel's own `.dist-info/METADATA`
 *before* anything is written: a mismatch is an `ERROR:` that aborts the
 embed (exit 1, nothing written); pass `--allow-mismatch` to downgrade it
@@ -122,7 +122,7 @@ without a per-wheel naming scheme; omit it to modify each wheel in place.
 
 Check a wheel's embedded SBOM is at the correct PEP 770 location
 (`.dist-info/sboms/`), uses its format's recommended extension, and its
-declared subject name/version (PEP 503/440-normalized) match the wheel's
+declared subject name/version (PEP 503/440-normalised) match the wheel's
 own `.dist-info/METADATA`:
 
 ```bash
@@ -149,7 +149,7 @@ needs `pip install "pitloom[validate]"`):
 loom validate-wheel dist/*.whl
 ```
 
-An embedded file in an unrecognized format prints a `WARNING:` and skips
+An embedded file in an unrecognised format prints a `WARNING:` and skips
 validation (exit 0) rather than failing -- unsupported isn't the same as
 invalid. `embed-wheel` itself takes `--verify`/`--validate` as convenience
 flags that run these same checks against the wheel just embedded:
@@ -422,6 +422,8 @@ does and worked examples.
 
 ## See also
 
+- [Dependency sources and precedence](dependency-sources.md) -- how
+  resolved lock files feed into Source SBOM dependencies.
 - [Python API](python-api.md) -- calling Pitloom from Python code instead
   of the shell.
 - [Hatchling build hook](hatchling-build-hook.md) -- generate the SBOM

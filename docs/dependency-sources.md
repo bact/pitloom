@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-07
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -57,7 +57,7 @@ lines that happen to already be fully pinned.
 pin, even when the URL looks like it points at a tagged release** (e.g.
 `name @ https://github.com/org/repo/archive/refs/tags/v2.31.0.zip`). A
 git tag or release filename is an arbitrary string with no guaranteed
-relationship to the package's real, normalized version -- Pitloom
+relationship to the package's real, normalised version -- Pitloom
 doesn't fetch the URL to check, so a line like that disqualifies the
 whole file the same as an unpinned or ranged one would.
 
@@ -88,7 +88,7 @@ missing.
 ## Version comparison: PEP 440, not SemVer
 
 **Pitloom compares dependency versions using [PEP 440][pep-440] equality,
-not SemVer.** "Same version" means the two version strings normalize to
+not SemVer.** "Same version" means the two version strings normalise to
 the identical release under PEP 440 -- trailing-zero components are
 padded and compared, so `1.0`, `1.0.0`, and `1.0.0.0` are all the same
 version. It does **not** mean "the latest release compatible with 1.0"
@@ -103,7 +103,7 @@ two places:
 
 - **A lock file's own duplicate entries.** If one lock file records the
   same package name more than once (e.g. a platform-specific variant),
-  entries that normalize to the same PEP 440 release are silently
+  entries that normalise to the same PEP 440 release are silently
   collapsed into one; entries that don't get a `WARNING:` naming both
   versions, and that package is left out of the transitive list
   entirely rather than guessed at.
@@ -111,7 +111,7 @@ two places:
   direct dependency is unpinned or declared as a range, the lock file's
   resolved version is used (see above). When it's already pinned
   exactly (e.g. `requests==2.31.0`) and the lock file separately
-  resolved it to a version that doesn't normalize the same way (e.g.
+  resolved it to a version that doesn't normalise the same way (e.g.
   `2.31.1`), Pitloom logs a `WARNING:` but keeps the *declared* pin --
   the lock's differing value never silently overrides an exact pin the
   project itself declared.

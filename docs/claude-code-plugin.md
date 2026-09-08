@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-11
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,7 +76,7 @@ Either trigger path works, same as standalone Skills:
 
 All arguments are optional. See the [Agent Skills](agent-skills.md) page
 for what each of the three Skills actually does and worked-example
-recipes -- the behavior is identical to the standalone install, only the
+recipes -- the behaviour is identical to the standalone install, only the
 invocation prefix changes.
 
 ## Verifying it works

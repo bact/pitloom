@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-08-14
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -52,7 +52,7 @@ explicit `creation_metadata=CreationMetadata(...)` to that call.
 
 | Field (SPDX 3 name) | Meaning | What Pitloom puts there |
 | :--- | :--- | :--- |
-| `createdBy` (**≥1**) | *Who* created it | One or more **creators**: a person, organization, software agent, or generic agent for each one you name (`--creator-name`, repeatable); otherwise Pitloom itself, acting unattended (see below). |
+| `createdBy` (**≥1**) | *Who* created it | One or more **creators**: a person, organisation, software agent, or generic agent for each one you name (`--creator-name`, repeatable); otherwise Pitloom itself, acting unattended (see below). |
 | `createdUsing` (0+) | *What* tool produced it | **Pitloom** by default, with a version summary; repeat `--creation-tool` for more than one. Suppress with `--no-creation-tool`. |
 | `created` (1) | *When* | `--creation-datetime` if set, else [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/specs/source-date-epoch/) if set, else the current UTC time. |
 | `comment` (0-1) | *How* it was invoked | A short static note per channel (`Generated via Pitloom CLI`, `... Hatchling build hook`, `... loom SDK`), or your `--creation-comment`. |
@@ -68,7 +68,7 @@ the `SoftwareAgent` creator too (see below) -- but never pretending a
 human did the work.
 
 - **You name one or more creators** (repeatable `--creator-name`, or
-  `[[tool.pitloom.creator]]`): each becomes a person (default), organization,
+  `[[tool.pitloom.creator]]`): each becomes a person (default), organisation,
   software agent, or generic agent (via `--creator-type`/`type`, bound to the
   most recently named creator). The software-agent/agent types are for
   naming an automated creator that isn't Pitloom itself -- e.g. a CI bot
@@ -77,7 +77,7 @@ human did the work.
   or more are given.
 - **You name no creator** (zero-config): rather than invent a fake person,
   Pitloom records itself as the creator too, but as a software agent, not a
-  person or organization -- honestly "an unattended Pitloom run made this" --
+  person or organisation -- honestly "an unattended Pitloom run made this" --
   and omits a supplier for the main package. Pitloom is also recorded as
   the tool by default (unless suppressed with `--no-creation-tool`), so
   the same Pitloom can show up twice in this case: once as the (software

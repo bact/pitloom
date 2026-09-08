@@ -11,7 +11,7 @@
 **Pitloom** automates the generation of [SPDX 3]-compliant SBOMs for
 AI models and Python projects. It reads metadata directly from Python
 packages and AI models (GGUF, ONNX, PyTorch, Safetensors), producing
-standardized SPDX 3 JSON artifacts -- as a CLI, a library, or a native
+standardised SPDX 3 JSON artifacts -- as a CLI, a library, or a native
 Hatchling build hook.
 
 When used with Hatchling, Pitloom automatically embeds the generated
@@ -91,7 +91,10 @@ Merkle root) is backend-aware for Hatchling, setuptools, Poetry,
 PDM-backend, and Flit-core, and falls back to a Hatchling-based
 heuristic with a warning for other backends -- see
 [Command line](docs/cli.md#generate-an-sbom) for the full limitation
-note.
+note. If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
+`Pipfile.lock`, or pinned `requirements.txt`) is present, Pitloom includes
+its exact resolved dependencies automatically -- see
+[Dependency sources](docs/dependency-sources.md).
 
 Generate an **Analyzed SBOM** from a pre-built wheel
 (extracting bundled binaries as phantom dependencies):
@@ -160,8 +163,9 @@ loom enrich path/to/model.safetensors --project-dir . -o model.enrich.spdx3.json
 
 Register the fragment under `[tool.pitloom.fragment]` and re-run
 `loom project`/`loom generate` to merge it in. See
-[`sbom-enrichment.md`](working-docs/design/sbom-enrichment.md) for the
-full surface list (Python API, Hatchling hook, GitHub Action, Skill).
+[Command line](docs/cli.md#enrich-an-sbom) and
+[Agent Skills](docs/agent-skills.md) for the full surface list
+(Python API, Hatchling hook, GitHub Action, Skill).
 
 ### Hatchling build hook
 
@@ -461,7 +465,7 @@ and a worked example.
 
 - [SPDX 3.0 Specification](https://spdx.dev/wp-content/uploads/sites/31/2024/12/SPDX-3.0.1-1.pdf)
 - [PEP 770 – SBOM metadata in Python packages](https://peps.python.org/pep-0770/)
-- [Design document](working-docs/design/architecture-overview.md)
+- [Resources and standards list](docs/resources.md)
 - Bennet et al., [“Implementing AI Bill of Materials with SPDX 3.0”](https://www.linuxfoundation.org/research/ai-bom),
   The Linux Foundation, 2024.
 

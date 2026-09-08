@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-29
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -82,6 +82,12 @@ generate_project_sbom(
 )
 ```
 
+When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
+`pdm.lock`, `Pipfile.lock`, or pinned `requirements.txt`) is present
+next to `pyproject.toml`, project generation automatically resolves and
+includes its exact transitive dependencies -- see
+[Dependency sources and precedence](dependency-sources.md).
+
 `pitloom.assemble` also exposes `generate_wheel_sbom()`,
 `generate_model_sbom()`, and `generate_env_sbom()` -- the same target
 kinds the [CLI](cli.md)'s `loom wheel` / `loom model` / `loom env`
@@ -123,7 +129,7 @@ of the embed; `floored` is `True` when the wheel's ZIP entry timestamp had
 to be floored to 1980-01-01 (see [Configuration](configuration.md#toolpitloomcreation)).
 
 With `sbom_path=` (form 2, the equivalent of the CLI's `embed-wheel --sbom`),
-the SBOM's declared subject name/version (PEP 503/440-normalized) is
+the SBOM's declared subject name/version (PEP 503/440-normalised) is
 cross-checked against the wheel's own `.dist-info/METADATA` *before*
 anything is written: a mismatch raises `ValueError` and nothing is
 written, unless `allow_mismatch=True` downgrades it to a `WARNING:` log
@@ -270,6 +276,8 @@ merging again. See [API reference](api.md#fragment-merging).
 ## See also
 
 - [Command line](cli.md) -- the same generation targets, from a shell.
+- [Dependency sources and precedence](dependency-sources.md) -- how
+  resolved lock files feed into Source SBOM dependencies.
 - [Hatchling build hook](hatchling-build-hook.md) -- how registered
   fragments get merged automatically at build time.
 - [Creation metadata](creation-metadata.md) and [Metadata

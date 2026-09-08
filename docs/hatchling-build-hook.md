@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-08-29
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -89,6 +89,8 @@ provenance](metadata-provenance.md).
 
 - [Command line](cli.md) -- generate an SBOM manually or post-process built
   wheels with `loom embed-wheel`.
+- [Dependency sources and precedence](dependency-sources.md) -- why wheel
+  embedding scopes dependencies to the build stage.
 - [GitHub Action](github-action.md) -- embed PEP 770 SBOMs in CI for any
   build backend.
 - [Python API](python-api.md) -- the tracking decorator that produces the

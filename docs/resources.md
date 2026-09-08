@@ -1,6 +1,6 @@
 ---
 Created: 2026-03-26
-Last-Modified: 2026-09-05
+Last-Modified: 2026-09-08
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC0-1.0
 
 ## Python Enhancement Proposals (PEPs)
 
-> Note: PEPs are historical document.
+> Note: PEPs are historical documents.
 > The up-to-date, canonical spec for Python packaging,
 > is maintained on the
 > [PyPA specs page](https://packaging.python.org/en/latest/specifications/).
@@ -25,7 +25,7 @@ each with a short note on what SBOM metadata it feeds:
   `.dist-info/` layout Pitloom reads/writes package files against.
   **Stale on one point** the PEP text itself doesn't reflect: the
   name/version escaping rule for `.dist-info` directory naming (PEP 503
-  normalization, then `-` → `_`) was *revised in 2021* to match real
+  normalisation, then `-` → `_`) was *revised in 2021* to match real
   tooling — see the canonical
   [Binary Distribution Format spec][pep-427-spec] instead of this PEP
   for that rule specifically.
@@ -33,7 +33,7 @@ each with a short note on what SBOM metadata it feeds:
   Specification: version syntax used for dependency-constraint
   conversion (e.g. Poetry's `^`/`~`) and wheel-vs-SBOM version checks.
 - [PEP 503][pep-503] – Simple Repository API: package-name
-  normalization, used generically wherever two package names must
+  normalisation, used generically wherever two package names must
   compare equal regardless of case/`-`/`_`/`.` -- PyPI purl
   construction, dependency dedup, wheel-vs-SBOM name checks, and wheel
   `.dist-info` path escaping.
