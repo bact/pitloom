@@ -92,6 +92,22 @@ def _field_provenance(field_name: str) -> str:
     return f"{_PROVENANCE_SOURCE} | Field: project.{field_name}"
 
 
+def _hatchling_field_declared(core: Any, project_key: str) -> bool:
+    """Return whether ``[project.<project_key>]`` was actually declared,
+    via ``core.config`` (the raw, unprocessed ``[project]`` table) --
+    never a container field's own *parsed* truthiness, which can't
+    distinguish "declared but empty" (e.g. ``dependencies = []``, a
+    genuine, authoritative zero) from "not declared at all" (fall back to
+    a lower-priority source in :func:`pitloom.core.project.merge_project_metadata`).
+    ``core.config`` access can raise ``OSError`` the same way the
+    property accessors it backs can (see :func:`_resolve_hatchling_readme`).
+    """
+    try:
+        return project_key in core.config
+    except OSError:
+        return False
+
+
 def _resolve_hatchling_readme(core: Any) -> str | None:
     """Extract readme string or path safely from Hatchling core metadata."""
     try:
@@ -123,7 +139,7 @@ def _resolve_hatchling_license(
         provenance["license_concluded"] = license_concluded_prov
 
     license_files = _resolve_hatchling_license_files(core)
-    if license_files:
+    if _hatchling_field_declared(core, "license-files"):
         provenance["license_files"] = _field_provenance("license-files")
 
     return license_name, license_concluded, license_files
@@ -175,22 +191,32 @@ def metadata_from_hatchling(
     readme = _resolve_hatchling_readme(core)
     requires_python = core.requires_python or None
 
+    # Provenance for a container field is gated on presence in the raw
+    # [project] table (`_hatchling_field_declared`), not on the resolved
+    # value's truthiness -- an explicitly declared but empty
+    # `dependencies = []` is a genuine, authoritative "zero" that
+    # merge_project_metadata() must not silently fill in from a
+    # lower-priority source ([tool.poetry] gap-fill below).
     authors = _authors_from_data(core.authors_data or {})
-    if authors:
+    if _hatchling_field_declared(core, "authors"):
         provenance["authors"] = _field_provenance("authors")
-        provenance["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
+        if authors:
+            provenance["copyright_text"] = (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            )
 
     urls = dict(core.urls or {})
-    if urls:
+    if _hatchling_field_declared(core, "urls"):
         provenance["urls"] = _field_provenance("urls")
 
     dependencies = [
         normalize_dependency_specifier(dep) for dep in (core.dependencies or [])
     ]
-    if dependencies:
+    if _hatchling_field_declared(core, "dependencies"):
         provenance["dependencies"] = _field_provenance("dependencies")
+
+    if _hatchling_field_declared(core, "keywords"):
+        provenance["keywords"] = _field_provenance("keywords")
 
     license_name, license_concluded, license_files = _resolve_hatchling_license(
         core, project_dir, provenance

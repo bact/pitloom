@@ -149,6 +149,21 @@ def test_read_setup_py_provenance() -> None:
     assert "setup.py" in metadata.provenance["authors"]
 
 
+def test_read_setup_py_empty_install_requires_gets_provenance() -> None:
+    """An explicitly declared but empty install_requires=[] must still
+    record provenance -- merge_project_metadata() relies on that
+    presence to treat the empty list as authoritative, not absent."""
+    content = (
+        "from setuptools import setup\n"
+        "setup(name='pkg', version='1.0', install_requires=[])\n"
+    )
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.py").write_text(content)
+        metadata, _ = read_setup_py(Path(d))
+    assert metadata.dependencies == []
+    assert "dependencies" in metadata.provenance
+
+
 def test_read_setup_py_returns_default_pitloom_config() -> None:
     """setup.py provides no pitloom config -- defaults are returned."""
     content = "from setuptools import setup\nsetup(name='pkg', version='1.0')\n"

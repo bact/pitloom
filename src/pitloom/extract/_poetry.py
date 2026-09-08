@@ -134,25 +134,35 @@ def extract_poetry_metadata(
     if readme:
         prov["readme"] = "Source: pyproject.toml | Field: tool.poetry.readme"
     prov.update(license_prov)
-    if authors:
+    # A container field's provenance is gated on the raw key's *presence*
+    # in [tool.poetry], not on whether parsing it produced a non-empty
+    # result -- an explicitly declared but empty `keywords = []` is a
+    # genuine, authoritative "zero" that merge_project_metadata() must not
+    # silently fill in from a lower-priority source, the same None-vs-[]
+    # distinction _pyproject.py's [project]-table path already applies.
+    if "authors" in poetry:
         prov["authors"] = "Source: pyproject.toml | Field: tool.poetry.authors"
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
-    if urls:
+        if authors:
+            prov["copyright_text"] = (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            )
+    if any(key in poetry for key in ("homepage", "repository", "documentation")):
         prov["urls"] = (
             "Source: pyproject.toml"
             " | Field: tool.poetry.homepage/repository/documentation"
         )
-    if dependencies:
+    if "dependencies" in poetry:
         prov["dependencies"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies"
         )
-    if requires_python:
+    if (
+        isinstance(poetry.get("dependencies"), dict)
+        and "python" in poetry["dependencies"]
+    ):
         prov["requires_python"] = (
             "Source: pyproject.toml | Field: tool.poetry.dependencies.python"
         )
-    if keywords:
+    if "keywords" in poetry:
         prov["keywords"] = "Source: pyproject.toml | Field: tool.poetry.keywords"
 
     return ProjectMetadata(

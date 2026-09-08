@@ -46,10 +46,16 @@ def _ast_literal(node: ast.expr) -> Any:
     """
     if isinstance(node, ast.Constant):
         return node.value
-    if isinstance(node, ast.List):
-        return [v for elt in node.elts if (v := _ast_literal(elt)) is not None]
-    if isinstance(node, ast.Tuple):
-        return [v for elt in node.elts if (v := _ast_literal(elt)) is not None]
+    if isinstance(node, (ast.List, ast.Tuple)):
+        # All-or-nothing, unlike the dict branch below: silently dropping
+        # just the unresolvable elements would misrepresent a list like
+        # `install_requires=[SOME_CONSTANT]` as the literal empty list
+        # `[]` -- a "no dependencies" claim indistinguishable from a
+        # genuinely empty `install_requires=[]`, which downstream
+        # presence-based provenance treats as authoritative. `None` here
+        # correctly propagates as "not a resolvable literal" instead.
+        values = [_ast_literal(elt) for elt in node.elts]
+        return None if any(v is None for v in values) else values
     if isinstance(node, ast.Dict):
         result: dict[str, Any] = {}
         for key, value in zip(node.keys, node.values, strict=False):
@@ -126,12 +132,22 @@ def _build_setup_py_provenance(
     has_readme: bool,
     has_license: bool,
     has_authors: bool,
+    authors: list[dict[str, str]],
     has_urls: bool,
     has_dependencies: bool,
     has_requires_python: bool,
     has_keywords: bool,
 ) -> dict[str, str]:
-    """Build provenance dictionary for extracted setup.py fields."""
+    """Build provenance dictionary for extracted setup.py fields.
+
+    A container field's provenance is gated on *presence* of its own
+    setup() kwarg (``has_urls``, ``has_dependencies``, etc.), not on
+    whether parsing it produced a non-empty result -- an explicitly
+    declared but empty ``install_requires=[]`` is a genuine, authoritative
+    "zero" that ``merge_project_metadata()`` must not silently fill in
+    from a lower-priority source, the same None-vs-[] distinction
+    ``_pyproject.py``'s ``[project]``-table path already applies.
+    """
     prov: dict[str, str] = {"name": "Source: setup.py | Field: setup(name=...)"}
     if has_version:
         prov["version"] = "Source: setup.py | Field: setup(version=...)"
@@ -143,9 +159,10 @@ def _build_setup_py_provenance(
         prov["license"] = "Source: setup.py | Field: setup(license=...)"
     if has_authors:
         prov["authors"] = "Source: setup.py | Field: setup(author=...)"
-        prov["copyright_text"] = (
-            "Source: Pitloom generator | Method: inferred_from_authors"
-        )
+        if authors:
+            prov["copyright_text"] = (
+                "Source: Pitloom generator | Method: inferred_from_authors"
+            )
     if has_urls:
         prov["urls"] = "Source: setup.py | Field: setup(url=...)"
     if has_dependencies:
@@ -208,11 +225,12 @@ def read_setup_py(
         has_description=bool(description),
         has_readme=bool(readme),
         has_license=bool(license_name),
-        has_authors=bool(authors),
-        has_urls=bool(urls),
-        has_dependencies=bool(dependencies),
+        has_authors="author" in kwargs or "author_email" in kwargs,
+        authors=authors,
+        has_urls="url" in kwargs or "project_urls" in kwargs,
+        has_dependencies="install_requires" in kwargs,
         has_requires_python=bool(requires_python),
-        has_keywords=bool(keywords),
+        has_keywords="keywords" in kwargs,
     )
 
     project_metadata = ProjectMetadata(

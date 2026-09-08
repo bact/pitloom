@@ -327,3 +327,22 @@ def test_marker_invalid_operators_treated_as_unknown() -> None:
         deps = extract_pylock_dependencies(tmp_path)
         assert deps is not None
         assert set(deps) == {"group-eq==1.0.0", "extra-gte==1.0.0"}
+
+
+def test_marker_reversed_in_operand_on_singular_extra_treated_as_unknown() -> None:
+    """`extra in 'devtools'` (the singular string variable on the left of
+    `in`) tests substring containment in the wrong direction, not set
+    membership -- same as the plural extras/dependency_groups branch
+    already rejects a reversed `in`/`not in` operand, this must return
+    unknown (included) rather than guessing at a result."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            'default-groups = ["default"]\n'
+            '[[packages]]\nname = "reversed-in"\nversion = "1.0.0"\n'
+            "marker = \"extra in 'devtools'\"\n",
+        )
+
+        deps = extract_pylock_dependencies(tmp_path)
+        assert deps == ["reversed-in==1.0.0"]

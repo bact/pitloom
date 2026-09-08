@@ -454,11 +454,45 @@ def test_add_dependencies_groups_pep440_equivalent_versions() -> None:
 def test_extract_locked_version_map_warns_on_conflicting_duplicates(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Conflicting duplicate package entries in locked_dependencies must warn."""
+    """Conflicting duplicate package entries in locked_dependencies must warn
+    and be excluded entirely -- neither conflicting version is guessed at."""
     caplog.set_level("WARNING")
     locked_map = _extract_locked_version_map(["requests==2.31.0", "requests==2.28.0"])
-    assert locked_map["requests"] == "2.28.0"
+    assert "requests" not in locked_map
     assert "pinned to conflicting versions" in caplog.text
+
+
+def test_locked_transitive_only_dependencies_excludes_conflicting_duplicates(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A conflicting duplicate name in locked_dependencies must not reach the
+    assembled SBOM as two separate dependsOn edges for the same package."""
+    caplog.set_level("WARNING")
+    meta = ProjectMetadata(
+        name="testpkg",
+        dependencies=["requests>=2.0"],
+        locked_dependencies=["bar==1.0", "bar==2.0", "requests==2.31.0"],
+    )
+    assert _locked_transitive_only_dependencies(meta) == []
+    assert "pinned to conflicting versions" in caplog.text
+
+
+def test_locked_transitive_only_dependencies_keeps_unpinned_entries() -> None:
+    """An unpinned/ranged locked_dependencies entry has no version to
+    compare or conflict on, so it must pass through unfiltered rather
+    than being silently dropped by the pin-only conflict-dedup step --
+    only _extract_locked_version_map needs a pin, not this function."""
+    meta = ProjectMetadata(
+        name="testpkg",
+        dependencies=[],
+        locked_dependencies=["unpinned-pkg", "range-dep>=1.0", "pinned==1.0"],
+    )
+
+    assert set(_locked_transitive_only_dependencies(meta)) == {
+        "unpinned-pkg",
+        "range-dep>=1.0",
+        "pinned==1.0",
+    }
 
 
 def test_locked_transitive_only_dependencies_handles_none_locked() -> None:

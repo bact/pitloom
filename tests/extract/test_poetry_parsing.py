@@ -334,6 +334,30 @@ def test_extract_provenance_sources() -> None:
     assert "inferred_from_authors" in metadata.provenance.get("copyright_text", "")
 
 
+def test_extract_provenance_empty_declared_dependencies() -> None:
+    """An explicitly declared but empty [tool.poetry.dependencies] (besides
+    the always-present `python` key) must still record provenance for
+    `dependencies` -- merge_project_metadata() relies on that presence to
+    treat the empty list as authoritative, not absent."""
+    data = {
+        "tool": {
+            "poetry": {
+                "name": "my-pkg",
+                "version": "1.0.0",
+                "dependencies": {"python": "^3.10"},
+                "keywords": [],
+            }
+        }
+    }
+    with tempfile.TemporaryDirectory() as d:
+        metadata = extract_poetry_metadata(data, Path(d))
+    assert metadata.dependencies == []
+    assert metadata.keywords == []
+    assert "dependencies" in metadata.provenance
+    assert "keywords" in metadata.provenance
+    assert "requires_python" in metadata.provenance
+
+
 def test_convert_caret_and_tilde_edge_cases() -> None:
     """_convert_caret and _convert_tilde handle zero/short/invalid versions."""
     from pitloom.extract._poetry import (

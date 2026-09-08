@@ -228,12 +228,18 @@ def read_pyproject(
     )
     license_files = [p.as_posix() for p in (std.license_files or [])]
 
+    project_data = data.get("project", {})
     provenance = _build_provenance(
-        data.get("project", {}), version_source, license_prov, description_source
+        project_data, version_source, license_prov, description_source
     )
     if license_concluded and license_concluded_prov:
         provenance["license_concluded"] = license_concluded_prov
-    if license_files:
+    # Presence-gated, not truthy-gated: an explicit `license-files = []`
+    # is a genuine, authoritative "zero" that merge_project_metadata()
+    # must not silently fill in from a lower-priority source, the same
+    # None-vs-[] distinction _build_provenance() already applies to its
+    # own fields.
+    if "license-files" in project_data:
         provenance["license_files"] = (
             "Source: pyproject.toml | Field: project.license-files"
         )

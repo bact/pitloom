@@ -47,8 +47,12 @@ def test_extract_exact_pin_accepts_single_exact_pins() -> None:
 
 
 def test_extract_exact_pin_rejects_wildcards_and_ranges() -> None:
-    """A prefix wildcard (==1.*) or multi-clause specifier is a range,
-    not an exact release pin."""
+    """A prefix wildcard (==1.*), alone or combined with another clause,
+    is a range, never an exact release pin -- but a genuine exact ==/===
+    clause combined with another (non-wildcard) clause still fully
+    determines the version (e.g. `==1.0,<=2.0` -- the `<=2.0` is
+    redundant, not conflicting) and must still be recognized as pinned,
+    per "explicit pin beats local environment"."""
     req_wild, pin_wild = _extract_exact_pin("requests==1.*")
     assert isinstance(req_wild, Requirement)
     assert pin_wild is None
@@ -59,7 +63,7 @@ def test_extract_exact_pin_rejects_wildcards_and_ranges() -> None:
 
     req_two, pin_two = _extract_exact_pin("requests==1.0,<=2.0")
     assert isinstance(req_two, Requirement)
-    assert pin_two is None
+    assert pin_two == "1.0"
 
     req_range, pin_range = _extract_exact_pin("requests>=2.0")
     assert isinstance(req_range, Requirement)
@@ -160,6 +164,38 @@ def test_resolve_version_arbitrary_equality_pins_matching_and_conflict(
     assert ver_mismatch == "2021.01.01-legacy"
     assert note_mismatch is None
     assert "conflicts with declared exact pin '2021.01.01-legacy'" in caplog.text
+
+
+def test_resolve_version_compound_specifier_with_exact_pin_wins_over_locked(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A compound specifier that embeds a genuine exact pin (e.g.
+    `foo>=1.0,==1.5`) must still be recognized as pinned -- the declared
+    pin wins over a conflicting locked_version, with a warning, the same
+    as a bare `==1.5` would."""
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version("foo", "foo>=1.0,==1.5", locked_version="2.0")
+
+    assert version == "1.5"
+    assert note is None
+    assert "conflicts with declared exact pin '1.5'" in caplog.text
+
+
+def test_resolve_version_unparseable_dep_with_locked_version_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An unparseable dependency string combined with a locked_version must
+    still warn -- its declared constraint (if any) couldn't be verified,
+    which is different from "no constraint to violate" and must not be
+    silently treated the same."""
+    with caplog.at_level(logging.WARNING):
+        version, note = _resolve_version(
+            "foo", "foo (garbled >= syntax", locked_version="9.9.9"
+        )
+
+    assert version == "9.9.9"
+    assert note == "Version resolved: Project lock file"
+    assert "couldn't be parsed" in caplog.text
 
 
 def test_enrich_from_installed_skips_when_installed_version_mismatches(
@@ -290,10 +326,13 @@ def test_is_exact_pin_conflict_invalid_version_in_contains() -> None:
 
 
 def test_satisfies_constraint_req_none_or_empty_specifier() -> None:
-    """_satisfies_constraint returns True when req is None or has no specifier."""
-    assert deps_installed_mod._satisfies_constraint(None, "1.0.0")
+    """_satisfies_constraint returns True when req has no specifier (genuinely
+    unconstrained), but None (unknown, not satisfied) when req itself is None
+    (the dependency string was unparseable, so its constraint can't be
+    verified at all -- distinct from "no constraint")."""
+    assert deps_installed_mod._satisfies_constraint(None, "1.0.0") is None
     req_no_spec = Requirement("requests")
-    assert deps_installed_mod._satisfies_constraint(req_no_spec, "1.0.0")
+    assert deps_installed_mod._satisfies_constraint(req_no_spec, "1.0.0") is True
 
 
 def test_satisfies_constraint_invalid_version_returns_false() -> None:

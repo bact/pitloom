@@ -154,6 +154,62 @@ def _build_main_package(
     return main_package
 
 
+def _deduplicated_locked_dependencies(
+    locked_dependencies: list[str] | None,
+) -> list[str]:
+    """Collapse *locked_dependencies* to one entry per PEP 503-canonicalized
+    name among its exact-pinned entries, preserving order.
+
+    A canonical name whose *pinned* entries disagree on PEP 440 version is
+    a genuine conflict (e.g. two lock formats layered by hand into the
+    same ``ProjectMetadata``, or a future extractor that forgets to
+    dedupe before returning) -- warned via :func:`warn_conflicting_versions`
+    and excluded entirely, the same "skip the ambiguous name, don't guess"
+    policy every extractor already applies to its own duplicate entries.
+    Neither of this function's two callers (:func:`_extract_locked_version_map`,
+    :func:`_locked_transitive_only_dependencies`) could otherwise safely
+    pick a winner between two conflicting entries on its own -- and picking
+    different winners in each would silently emit the ambiguous package
+    twice, once per winner, into the assembled SPDX graph.
+
+    An entry with no exact pin at all (unpinned, ranged, or unparseable --
+    every shipped extractor always emits an exact pin, but this guards a
+    future one that doesn't) has no version to compare and passes through
+    unfiltered: only :func:`_extract_locked_version_map` needs a pin, and
+    it already discards a pin-less entry on its own via
+    :func:`_extract_exact_pin`'s own ``None`` return. A passthrough entry
+    is dropped, though, when its canonical name also has a pinned entry
+    elsewhere in *locked_dependencies* -- the pin is strictly more
+    informative, and keeping both would double-emit the same package
+    (one from the pinned entry, one from the passthrough one).
+    """
+    by_canonical: dict[str, list[tuple[str, str]]] = {}
+    passthrough: list[str] = []
+    for dep in locked_dependencies or []:
+        _req, pinned = _extract_exact_pin(dep)
+        if pinned is None:
+            passthrough.append(dep)
+            continue
+        canon = canonicalize_name(_parse_dep_name(dep))
+        by_canonical.setdefault(canon, []).append((dep, pinned))
+
+    deduplicated: list[str] = [
+        dep
+        for dep in passthrough
+        if canonicalize_name(_parse_dep_name(dep)) not in by_canonical
+    ]
+    for group in by_canonical.values():
+        dep, version = group[0]
+        conflicting_versions = {v for _, v in group if not is_same_version(v, version)}
+        if conflicting_versions:
+            warn_conflicting_versions(
+                "locked dependencies", _parse_dep_name(dep), {v for _, v in group}
+            )
+            continue
+        deduplicated.append(dep)
+    return deduplicated
+
+
 def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]:
     """Return *metadata*'s locked (e.g. ``poetry.lock``-resolved) dependencies
     that aren't already a direct dependency, so a package declared both
@@ -172,7 +228,7 @@ def _locked_transitive_only_dependencies(metadata: ProjectMetadata) -> list[str]
     }
     return [
         dep
-        for dep in (metadata.locked_dependencies or [])
+        for dep in _deduplicated_locked_dependencies(metadata.locked_dependencies)
         if canonicalize_name(_parse_dep_name(dep)) not in direct_names
     ]
 
@@ -204,18 +260,11 @@ def _extract_locked_version_map(
     to introspecting Pitloom's host environment.
     """
     result: dict[str, str] = {}
-    for dep in locked_dependencies or []:
+    for dep in _deduplicated_locked_dependencies(locked_dependencies):
         dep_name = _parse_dep_name(dep)
         _req, pinned = _extract_exact_pin(dep)
         if pinned is not None:
-            canon = canonicalize_name(dep_name)
-            if canon in result and not is_same_version(result[canon], pinned):
-                warn_conflicting_versions(
-                    "locked dependencies",
-                    dep_name,
-                    [result[canon], pinned],
-                )
-            result[canon] = pinned
+            result[canonicalize_name(dep_name)] = pinned
     return result
 
 

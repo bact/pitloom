@@ -107,15 +107,37 @@ def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] |
 
 def _extract_release_hash(release_info: dict[str, Any]) -> str | None:
     """Return the hex SHA-256 digest of the release's wheel (preferred) or
-    sdist artifact from a PyPI JSON API response, or ``None``."""
-    urls = release_info.get("urls") or []
-    by_type = {u.get("packagetype"): u for u in urls if isinstance(u, dict)}
-    entry = by_type.get("bdist_wheel") or by_type.get("sdist")
-    if entry is None and urls:
-        entry = next((u for u in urls if isinstance(u, dict)), None)
-    if entry is None:
+    sdist artifact from a PyPI JSON API response, or ``None``.
+
+    A release commonly ships several ``bdist_wheel`` entries (one per
+    platform/ABI tag); picking one requires a deterministic tie-break --
+    by filename, since neither PyPI's JSON API nor this repo defines any
+    other stable ordering -- so the same release always resolves to the
+    same hash across builds, per this repo's "SBOMs must be bit-for-bit
+    identical" requirement. Relying on whatever order the ``urls`` array
+    happens to arrive in would make the choice depend on an API response
+    order this repo has no contract with.
+    """
+    urls = [u for u in (release_info.get("urls") or []) if isinstance(u, dict)]
+    by_type: dict[str, list[dict[str, Any]]] = {}
+    for url_entry in urls:
+        packagetype = url_entry.get("packagetype")
+        if isinstance(packagetype, str):
+            by_type.setdefault(packagetype, []).append(url_entry)
+
+    def _first_by_filename(candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
+        if not candidates:
+            return None
+        return min(candidates, key=lambda u: str(u.get("filename", "")))
+
+    selected = _first_by_filename(by_type.get("bdist_wheel", [])) or _first_by_filename(
+        by_type.get("sdist", [])
+    )
+    if selected is None:
+        selected = _first_by_filename(urls)
+    if selected is None:
         return None
-    digests = entry.get("digests")
+    digests = selected.get("digests")
     if not isinstance(digests, dict):
         return None
     digest = digests.get("sha256")

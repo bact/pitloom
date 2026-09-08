@@ -18,6 +18,7 @@ from packaging.specifiers import SpecifierSet
 from pitloom.extract._lock_common import (
     default_group_included,
     find_first_present_key,
+    group_pin_triples_by_canonical_name,
     group_versions_by_canonical_name,
     has_required_top_level_table,
     index_packages_by_name,
@@ -159,6 +160,29 @@ def test_group_versions_by_canonical_name_groups_case_and_separator_variants() -
 
 def test_group_versions_by_canonical_name_empty_input_returns_empty_dict() -> None:
     assert not group_versions_by_canonical_name([])
+
+
+def test_group_pin_triples_by_canonical_name_groups_case_and_separator_variants() -> (
+    None
+):
+    """The ``(name, operator, version)`` sibling of
+    ``group_versions_by_canonical_name`` must canonicalize the same way,
+    and preserve each triple's operator (``==``/``===``) through grouping."""
+    triples = [
+        ("Flask", "==", "2.0"),
+        ("flask", "===", "2.0-legacy"),
+        ("idna", "==", "3.7"),
+    ]
+
+    result = group_pin_triples_by_canonical_name(triples)
+
+    assert list(result.keys()) == ["flask", "idna"]
+    assert result["flask"] == [("Flask", "==", "2.0"), ("flask", "===", "2.0-legacy")]
+    assert result["idna"] == [("idna", "==", "3.7")]
+
+
+def test_group_pin_triples_by_canonical_name_empty_input_returns_empty_dict() -> None:
+    assert not group_pin_triples_by_canonical_name([])
 
 
 def test_find_first_present_key_returns_first_match_in_key_order() -> None:

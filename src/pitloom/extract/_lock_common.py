@@ -22,7 +22,7 @@ import json
 import logging
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import Any, TypeGuard
+from typing import Any, TypeGuard, TypeVar
 
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
@@ -226,12 +226,14 @@ def is_usable_version(version: object) -> TypeGuard[str]:
     return True
 
 
-def group_versions_by_canonical_name(
-    pairs: Iterable[tuple[str, str]],
-) -> dict[str, list[tuple[str, str]]]:
-    """Group ``(name, version)`` pairs by PEP 503-canonicalized *name*,
-    preserving each pair's original literal name/version and file order
-    both across and within groups.
+_CanonicalGroupT = TypeVar("_CanonicalGroupT", bound=tuple[str, ...])
+
+
+def _group_by_canonical_name(
+    items: Iterable[_CanonicalGroupT],
+) -> dict[str, list[_CanonicalGroupT]]:
+    """Group tuples by PEP 503-canonicalized *name* (each tuple's first
+    element), preserving file order both across and within groups.
 
     Comparing canonicalized (lowercased, ``-``/``_``/``.``-folded) names
     is required, not optional: ``Flask==1.0`` and ``flask==2.0`` name the
@@ -239,26 +241,40 @@ def group_versions_by_canonical_name(
     resolve to more than one version" must group them together or the
     check silently never fires for a mixed-case duplicate.
 
+    Generic over tuple arity so :func:`group_versions_by_canonical_name`'s
+    ``(name, version)`` pairs and :func:`group_pin_triples_by_canonical_name`'s
+    ``(name, operator, version)`` triples share one implementation instead
+    of two copies of the same loop.
+    """
+    by_canonical: dict[str, list[_CanonicalGroupT]] = {}
+    for item in items:
+        by_canonical.setdefault(canonicalize_name(item[0]), []).append(item)
+    return by_canonical
+
+
+def group_versions_by_canonical_name(
+    pairs: Iterable[tuple[str, str]],
+) -> dict[str, list[tuple[str, str]]]:
+    """Group ``(name, version)`` pairs by PEP 503-canonicalized *name* --
+    see :func:`_group_by_canonical_name`.
+
     A caller decides what a multi-entry group means for its own format:
     :mod:`pitloom.extract._pdm_lock` collapses a group to one entry when
     every version agrees (its per-extra duplicate records always do) and
     skips just that name otherwise. See :func:`group_pin_triples_by_canonical_name`
-    for the sibling version used where the pin's operator (``==`` vs ``===``)
-    also needs to survive grouping.
+    for the sibling used where the pin's operator (``==`` vs ``===``) also
+    needs to survive grouping.
     """
-    by_canonical: dict[str, list[tuple[str, str]]] = {}
-    for name, version in pairs:
-        by_canonical.setdefault(canonicalize_name(name), []).append((name, version))
-    return by_canonical
+    return _group_by_canonical_name(pairs)
 
 
 def group_pin_triples_by_canonical_name(
     triples: Iterable[tuple[str, str, str]],
 ) -> dict[str, list[tuple[str, str, str]]]:
     """Group ``(name, operator, version)`` pins by PEP 503-canonicalized
-    *name*, preserving file order both across and within groups -- the
-    ``===``-aware sibling of :func:`group_versions_by_canonical_name`,
-    for :mod:`pitloom.extract._pipfile_lock` and
+    *name* -- see :func:`_group_by_canonical_name`. The ``===``-aware
+    sibling of :func:`group_versions_by_canonical_name`, for
+    :mod:`pitloom.extract._pipfile_lock` and
     :mod:`pitloom.extract._requirements_txt`, whose ``version`` field is
     already a PEP 440 specifier that can carry either exact-pin operator
     and must keep it through to the formatted ``name<op>version`` output.
@@ -270,12 +286,7 @@ def group_pin_triples_by_canonical_name(
     whole file, since it has no per-format definition of "expected
     duplication" the way an extra-variant lock entry does.
     """
-    by_canonical: dict[str, list[tuple[str, str, str]]] = {}
-    for name, operator, version in triples:
-        by_canonical.setdefault(canonicalize_name(name), []).append(
-            (name, operator, version)
-        )
-    return by_canonical
+    return _group_by_canonical_name(triples)
 
 
 #: PEP 440 operators that pin to exactly one release: ``==`` (the

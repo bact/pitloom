@@ -265,7 +265,14 @@ def _evaluate_group_leaf(
         member = canonicalize_name(literal) in active_set
         return member if op == "in" else not member
 
-    # variable == "extra" (PEP 508 singular string variable)
+    # variable == "extra" (PEP 508 singular string variable). Equality
+    # commutes, so is_reversed doesn't matter for ==/!=. in/not in do care
+    # about operand order the same way the plural branch above does --
+    # `extra in 'devtools'` (variable on the left) tests substring
+    # containment in the wrong direction, not membership, so it's
+    # rejected as unknown rather than guessed at.
+    if op in ("in", "not in") and is_reversed:
+        return None
     if op not in ("==", "!=", "in", "not in"):
         return None
     active_set = environment.get("extras", frozenset())

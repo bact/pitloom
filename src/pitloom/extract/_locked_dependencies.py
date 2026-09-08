@@ -127,8 +127,8 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     :func:`_ignore_expected_name` in :data:`_LOCK_SOURCES` above instead.
 
     If *metadata* already carries a ``locked_dependencies`` result and a
-    higher-or-equal-priority source here wins, that source replaces it
-    and a ``WARNING:`` names the override -- and, per this repo's "no
+    higher-priority source here wins, that source replaces it and a
+    ``WARNING:`` names the override -- and, per this repo's "no
     silent deviations" principle, the fact that a source was superseded
     is also recorded in the resulting ``provenance["locked_dependencies"]``
     string itself (as a trailing ``| Note: supersedes <name>``), not only

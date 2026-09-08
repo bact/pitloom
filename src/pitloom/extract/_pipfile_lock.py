@@ -131,7 +131,7 @@ def _pinned_pair_for_package(
 
     Returning the raw pair (not the formatted ``name==version`` string)
     lets the caller group same-canonical-name entries via
-    :func:`pitloom.extract._lock_common.group_versions_by_canonical_name`
+    :func:`pitloom.extract._lock_common.group_pin_triples_by_canonical_name`
     and skip a name that resolves to more than one distinct version --
     unlike every sibling format, this extractor's input is a JSON object
     keyed directly by literal (not canonicalized) name, so a hand-edited
@@ -143,6 +143,12 @@ def _pinned_pair_for_package(
         warn_missing_name("Skipping malformed Pipfile.lock entry", name)
         return None
     if not isinstance(entry, dict):
+        # Not warn_malformed_entry_not_table(): unlike every sibling
+        # format's [[package]]-style list (where the entry itself must be
+        # a table before a name can even be read out of it), Pipfile.lock
+        # keys each entry by name up front -- naming which key was
+        # malformed is more useful here than the shared helper's generic
+        # positional entry_label (e.g. "[[package]]") would be.
         log.warning(
             "Skipping malformed Pipfile.lock entry %r: expected a table, got %s",
             name,

@@ -192,8 +192,10 @@ no `groups` field at all, `category == "main"` -- and not marked
 `optional = true` (an extra, not a default runtime dependency). This
 excludes dev/other-group-only and extras packages, the same "not a
 runtime dependency" policy already applied to `[tool.poetry.group.*]`
-above, as exact-pin `name==version` (or `name===version` for a legacy
-non-normalizable pin) strings. A package resolved from a
+above, as exact-pin `name==version` strings -- `poetry.lock`'s
+`version` field is a bare version number, not a PEP 440 specifier, so
+(unlike `Pipfile.lock`/`requirements.txt` below) there's no operator to
+preserve and this extractor always emits `==`. A package resolved from a
 `directory`/`file`/`git`/`url` source (per `[package.source].type`) is
 excluded the same way `_poetry_dep_to_pep508()` excludes it from direct
 dependencies -- it has no meaningful PyPI version pin, so including it
@@ -238,7 +240,9 @@ introspecting whatever happens to be installed in Pitloom's own
 execution environment, which has no relationship to the target
 project's environment. This priority order is generic across every
 lock format, not `poetry.lock`-specific -- see
-[lock-file-cascade.md](lock-file-cascade.md).
+[docs/dependency-sources.md](../../docs/dependency-sources.md)'s "Two
+kinds of dependency information" and "Version comparison: PEP 440, not
+SemVer" sections.
 
 In the assembled SPDX 3 graph, a locked package already covered by a
 direct `[tool.poetry.dependencies]` entry gets no duplicate edge --

@@ -102,14 +102,30 @@ _NON_PEP508_SOURCE_TYPES = frozenset({"directory", "file", "git", "url"})
 
 
 def _is_main_group(validated: dict[str, Any], name: str) -> bool:
-    """Return True if package belongs to the main/default group."""
+    """Return True if package belongs to the main/default group.
+
+    Modern Poetry (1.2+) locks use ``groups``; legacy pre-1.5 locks use
+    ``category`` instead -- the two are schema-version-exclusive and
+    never coexist in a genuine lock file, so ``groups`` taking precedence
+    when both happen to be present (e.g. a hand-merged/corrupted file) is
+    an arbitrary but harmless tie-break.
+    """
     if "groups" in validated:
         return (
             default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name)
             is True
         )
     if "category" in validated:
-        return validated.get("category") == _DEFAULT_GROUP
+        category = validated.get("category")
+        if not isinstance(category, str):
+            log.warning(
+                "Skipping malformed poetry.lock entry %r: 'category' is %s, "
+                "expected a string",
+                name,
+                type(category).__name__,
+            )
+            return False
+        return category == _DEFAULT_GROUP
     return (
         default_group_included(validated, "poetry.lock", _DEFAULT_GROUP, name) is True
     )

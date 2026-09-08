@@ -173,17 +173,16 @@ def _collapse_or_none(
     result: list[str] = []
     for group in group_pin_triples_by_canonical_name(pins).values():
         name, op, version = group[0]
-        conflicting = next(
-            (v for _, _, v in group if not is_same_version(v, version)), None
-        )
-        if conflicting is not None:
+        conflicting_versions = {
+            v for _, _, v in group if not is_same_version(v, version)
+        }
+        if conflicting_versions:
             log.warning(
-                "%s: %r pinned to conflicting versions (%s, %s) -- "
+                "%s: %r pinned to conflicting versions (%s) -- "
                 "ignoring requirements.txt",
                 lock_path,
                 name,
-                version,
-                conflicting,
+                ", ".join(sorted({version, *conflicting_versions})),
             )
             return None
         result.append(f"{name}{op}{version}")

@@ -75,6 +75,40 @@ shape described, not just the module where each was first found.
   `dict.get(key, [])`, or `if some_container:`, ask whether the empty
   case and the absent case are supposed to behave the same -- they
   usually aren't.
+  - **Same bug, provenance-flavoured: gate a "was this field explicitly
+    declared" check on presence of the raw source key, never on the
+    resolved value's truthiness.** A metadata producer building a
+    `provenance` dict for a container field (`keywords`, `urls`,
+    `dependencies`, `authors`, `license_files`, ...) with `if parsed_value:
+    provenance["field"] = ...` silently fails to record provenance for an
+    explicitly-declared-but-empty value (`dependencies = []`,
+    `install_requires =`) -- indistinguishable downstream from the field
+    never having been mentioned at all. This recurred independently across
+    five separate `ProjectMetadata` producers in one PR
+    (`_pyproject.py`, `_setuptools_py.py`, `_setuptools_cfg.py`,
+    `_poetry.py`, `hatchling.py`) before all five were fixed to check
+    presence in the raw source (`"key" in raw_dict`/`kwargs`/`core.config`)
+    instead. When adding a new container field or a new metadata producer,
+    grep every existing producer's `provenance[...]` assignments for the
+    same field and match whichever check style they already settled on.
+  - **The presence signal must survive every merge/inheritance boundary,
+    or the fix is cosmetic.** `merge_project_metadata()` only treats an
+    empty container as authoritative when *its own* provenance key says
+    so -- so a producer that resolves the presence check correctly but
+    is never checked against real merge call sites can still lose the
+    signal in practice. The same masking happens one layer down:
+    `configparser`'s `[DEFAULT]`-section value inheritance makes
+    `"key" in cfg.items(section)` true even when *that section* never
+    declared `key` -- a presence check must read the section's own keys
+    only (not the merged view) or a shared default gets misread as an
+    explicit per-section declaration. And an upstream resolver that
+    silently collapses "couldn't fully resolve" to the same empty
+    container as "genuinely empty" (e.g. an AST list literal with one
+    unresolvable element silently dropping just that element instead of
+    invalidating the whole literal) reintroduces the exact ambiguity a
+    presence check downstream is trying to eliminate -- propagate
+    "unresolvable" as its own outcome, distinct from both "absent" and
+    "empty".
 - **Compare domain identifiers the way the ecosystem/spec does, not as
   raw strings.** A raw `==`/dict-key comparison silently fails to match
   values that a spec treats as equivalent (e.g. PEP 503 package-name
@@ -82,6 +116,20 @@ shape described, not just the module where each was first found.
   Whenever two identifiers of the same kind are compared or one is used
   as a dict key, canonicalize both sides first per the format/spec that
   defines them, rather than assuming byte-for-byte equality is enough.
+  - **Version equality is PEP 440, never SemVer, and the two must not be
+    conflated in an explanation or a docstring.** Pitloom's own
+    `is_same_version()` compares two version strings via
+    `packaging.version.Version` equality: `"1.0"` == `"1.0.0"` ==
+    `"1.0.0.0"` (trailing-zero-padded normalization), a fixed, narrow
+    notion of "the same release" -- not "the latest release compatible
+    with 1.0" and not a caret/tilde-style range (`^1.0.0` accepting
+    `1.0.1`). The two are easy to blur in prose (a reader's SemVer
+    intuition reads "same version" as "compatible version"), so an
+    explanation of a version-equality check must say "PEP 440 equality",
+    not bare "same version", and must not describe it in range/
+    compatibility terms. See "Version comparison: PEP 440, not SemVer"
+    in `docs/dependency-sources.md` for the user-facing version of this
+    same distinction.
 - **A private third-party API (`obj._attr`) does not owe you any
   structural guarantee beyond what it happens to return today.** E.g.
   `packaging.markers.Marker()._markers` does not pre-group same-
@@ -115,6 +163,45 @@ shape described, not just the module where each was first found.
   a cascade, fallback, or precedence order: re-read the current
   implementation before repeating or extending a prior description of
   its behavior, rather than assuming an existing doc still matches it).
+- **Picking one candidate from an unordered collection needs an explicit,
+  stable tie-break whenever the result must be deterministic** (see "SBOM
+  output" above). `{u.get("packagetype"): u for u in urls}`-style
+  dict-comprehension overwrite, or "first item in a list", silently makes
+  the choice depend on whatever order an external API/dict/set happens to
+  produce -- not a contract Pitloom controls. Sort candidates by a stable
+  key (filename, name, version) before picking one; never rely on
+  insertion/iteration order as the tie-break.
+- **Reusing a helper outside the contract it was actually built for
+  silently narrows behavior.** A helper written for one caller's specific
+  shape (`single_exact_pin()`: a lock file's `version` field, which is
+  always *exactly one* PEP 440 specifier clause) can look like a
+  reasonable fit for a superficially similar but looser case (a general
+  PEP 508 dependency string, which may legally combine an exact `==`
+  clause with another, non-conflicting clause, e.g. `foo==1.0,!=1.0.dev0`)
+  -- and silently reject valid input the narrower helper was never asked
+  to handle. Before reusing a helper in a new call site, check its
+  docstring's stated preconditions against what the new call site can
+  actually receive, not just whether the return type matches.
+- **A dedup/conflict-exclusion fix must check every path that can produce
+  an entry for the same identity, not just the path the original bug was
+  in.** A fix that partitions input into "the bucket the bug lived in"
+  (now correctly deduplicated) and "everything else, passed through
+  unfiltered" can silently reintroduce the exact double-emission bug it
+  was meant to fix, via the passthrough bucket, the moment the same
+  identity (e.g. a canonicalized package name) can appear in *both*
+  buckets. After adding conflict-exclusion logic for one shape of
+  duplicate, ask whether the same identity could also reach the output
+  through an entirely different, unfiltered code path.
+- **A test fixture/mock that models an external system's shape must be
+  updated in lockstep with what the production code under test actually
+  inspects.** A duck-typed stand-in (e.g. a fake Hatchling `core.config`)
+  that only populates the one field an earlier version of the code
+  happened to check gives false confidence once the code is fixed to
+  check more fields the same way -- the fixture still returns all-green
+  because it was never asked to model the new field, not because the fix
+  is correct. When broadening a check across several fields, broaden the
+  fixture that backs its tests across the same fields in the same change,
+  or the new branches go untested despite "the tests pass."
 
 ## CLI output
 

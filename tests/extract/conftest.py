@@ -109,15 +109,27 @@ def _fake_hatch_metadata(
     ``_fake_hatch_metadata(core={"license_expression": "MIT"})``.
 
     The fake ``core.config`` (the raw, unprocessed ``[project]`` table --
-    see :func:`pitloom.extract.hatchling._resolve_hatchling_license_files`)
-    gets a ``"license-files"`` key exactly when *core* explicitly overrides
-    ``license_files``, mirroring how a real declared field would show up in
-    both places at once.
+    see :func:`pitloom.extract.hatchling._hatchling_field_declared`) gets
+    the corresponding ``[project]`` key exactly for whichever container
+    fields *core* explicitly overrides, mirroring how a real declared
+    field would show up in both places at once -- every container field
+    ``metadata_from_hatchling()`` gates provenance on presence for
+    (``authors``/``urls``/``dependencies``/``keywords``/``license-files``),
+    not just ``license_files``.
     """
     merged_core = {"raw_name": name, **_FAKE_CORE_DEFAULTS, **(core or {})}
-    config: dict[str, Any] = {}
-    if core is not None and "license_files" in core:
-        config["license-files"] = merged_core["license_files"]
+    core_attr_to_config_key = {
+        "authors_data": "authors",
+        "urls": "urls",
+        "dependencies": "dependencies",
+        "keywords": "keywords",
+        "license_files": "license-files",
+    }
+    config: dict[str, Any] = {
+        core_attr_to_config_key[attr]: merged_core[attr]
+        for attr in (core or {})
+        if attr in core_attr_to_config_key and merged_core[attr] is not None
+    }
     return SimpleNamespace(
         name=name,
         version=version,

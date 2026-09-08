@@ -219,6 +219,27 @@ def test_legacy_poetry_category_main_and_dev() -> None:
         assert result == ["runtime-pkg==1.0.0"]
 
 
+def test_legacy_poetry_malformed_category_skipped_and_warns(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A non-string 'category' (corrupted/hand-edited legacy lock) must be
+    skipped with a WARNING:, the same as a malformed 'groups' field is --
+    not silently excluded with no diagnostic."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "bad-category-pkg"\nversion = "1.0.0"\n'
+            'category = ["main"]\n',
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = extract_poetry_lock_dependencies(tmp_path)
+
+        assert result == []
+        assert "'category' is list, expected a string" in caplog.text
+
+
 def test_optional_package_excluded() -> None:
     """A package with optional = true is an extra, not a default runtime
     dependency -- must be excluded."""

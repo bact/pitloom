@@ -77,13 +77,27 @@ def _extract_pin_from_unparseable(dep: str) -> str | None:
 
 
 def _extract_exact_pin(dep: str) -> tuple[Requirement | None, str | None]:
-    """Parse *dep* into a Requirement and extract any single exact pin (== or ===)."""
+    """Parse *dep* into a Requirement and extract an exact pin (== or ===),
+    if any of its (possibly several) specifier clauses is one.
+
+    Unlike :func:`pitloom.extract._lock_common.single_exact_pin` (which
+    requires the *entire* specifier set to be one exact pin -- correct for
+    a lock file's own ``version`` field, always a single specifier), a
+    general PEP 508 dependency string can legitimately combine an exact
+    pin with another clause (e.g. ``foo==1.2.3,!=1.2.3.dev0``) and still be
+    fully determined by that pin. Requiring the specifier set to contain
+    *only* the pin would wrongly treat such a dependency as unpinned,
+    letting a conflicting *locked_version* override a declared exact
+    version -- the opposite of "explicit pin beats local environment".
+    """
     try:
         req = Requirement(dep)
-        exact = single_exact_pin(req.specifier)
-        return (req, exact[1]) if exact is not None else (req, None)
     except InvalidRequirement:
         return None, _extract_pin_from_unparseable(dep)
+    for spec in req.specifier:
+        if spec.operator in ("==", "===") and "*" not in spec.version:
+            return req, spec.version
+    return req, None
 
 
 def _is_exact_pin_conflict(
@@ -93,20 +107,22 @@ def _is_exact_pin_conflict(
     if req is not None and req.specifier:
         try:
             return not req.specifier.contains(locked_version, prereleases=True)
-        # pylint: disable-next=broad-exception-caught
-        except (InvalidVersion, Exception):
+        except InvalidVersion:
             pass
     return not is_same_version(locked_version, pinned)
 
 
-def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool:
-    """Return True if locked_version satisfies req.specifier."""
-    if req is None or not req.specifier:
+def _satisfies_constraint(req: Requirement | None, locked_version: str) -> bool | None:
+    """Return whether locked_version satisfies req.specifier, or ``None``
+    when that can't be determined at all (dep was unparseable, so its
+    declared constraint -- if any -- is unknown, not merely absent)."""
+    if req is None:
+        return None
+    if not req.specifier:
         return True
     try:
         return req.specifier.contains(locked_version, prereleases=True)
-    # pylint: disable-next=broad-exception-caught
-    except (InvalidVersion, Exception):
+    except InvalidVersion:
         return False
 
 
@@ -150,7 +166,17 @@ def _resolve_version(
         return pinned, None
 
     if locked_version is not None:
-        if warn and not _satisfies_constraint(req, locked_version):
+        satisfies = _satisfies_constraint(req, locked_version)
+        if warn and satisfies is None:
+            log.warning(
+                "Dependency %r declared as %r couldn't be parsed -- its"
+                " constraint (if any) can't be verified against locked"
+                " version %r, using it anyway",
+                dep_name,
+                dep,
+                locked_version,
+            )
+        elif warn and not satisfies:
             log.warning(
                 "Locked version %r for dependency %r does not satisfy declared"
                 " constraint %r -- using locked version",
