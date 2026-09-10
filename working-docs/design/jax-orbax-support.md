@@ -158,6 +158,20 @@ relies on it, to confirm this is cosmetic and not a real restore attempt.
 | Performance metrics (loss/accuracy/etc, G7 "Model properties") | `CheckpointManager.metrics(step)` / `<step>/metrics/metrics`, *iff* `best_fn` tracking was enabled **and** metrics were passed at save time | Double-conditional -- likely absent in most real checkpoints; when present, this is a genuine, currently-unique-among-extractors way to close a G7 gap flagged elsewhere as **not automatable** (see `skills/sbom-enrich/references/minimum-elements.md`'s "Operational performance KPIs" row) |
 | Checkpoint init/commit timestamps | `_CHECKPOINT_METADATA.init_timestamp_nsecs`/`commit_timestamp_nsecs` | Reliable, but informational provenance only -- must not feed `CreationInfo.created` (the SBOM's own build timestamp) or any other "when was this generated" field; these describe the checkpoint's own history, not the SBOM's |
 
+### Error handling / graceful degradation
+
+`read_jax()` follows the project-wide rule now stated in `AGENTS.md`'s
+"Design principles" ("Absent source data is not an error; a genuine
+read/access failure is") -- not a JAX-specific decision. A field the
+checkpoint simply doesn't carry (`custom_metadata`, tracked `metrics`)
+stays `None`/empty silently; `ValueError` (matching `read_numpy()`'s
+pattern) is reserved for genuine read failures -- the directory matched the
+`_CHECKPOINT_METADATA` marker but the JSON is unparseable/corrupt, a
+required file is missing mid-read, etc. Detection-time absence (not a
+checkpoint at all) is a different, prior failure mode --
+`detect_ai_model_format()` simply doesn't return `AiModelFormat.JAX` for
+it, same as any other format's magic-byte miss.
+
 No new SPDX3 `ExternalRef`/`ExternalIdentifier` vocabulary term is needed
 (resolved in conversation, not yet written up elsewhere): the codebase's
 existing `other` + explanatory `comment` convention
@@ -200,13 +214,39 @@ Not platform-blocked -- answerable on any machine with careful test code:
 2. Multi-item checkpoints (e.g. separate `params`/`opt_state` items saved
    under one step) -- confirm the extractor sums parameter counts across
    all items' trees, not just a hardcoded `"default"` item name.
-3. CLI path handling -- `loom model <path>` needs to accept a directory
-   argument; confirm current arg validation doesn't reject non-file paths
-   before this reaches the extractor.
+3. ~~CLI path handling~~ -- **verified, not an open question.** `loom
+   model <path>`'s argparse `target` has no `type=Path`/file validator
+   (`cli/commands/model.py:91`), and the handler's own check is just
+   `Path(target).resolve().exists()`, `True` for a directory. Today (before
+   JAX is registered) this already reaches `read_ai_model()` and fails
+   cleanly with `ValueError: Unsupported model format for file: <path>.
+   Supported extensions: ...` -- no crash, no directory-specific rejection
+   to work around. Once `AiModelFormat.JAX` is registered, `loom model
+   <checkpoint_dir>` just works with no CLI-layer change needed. The user
+   must still name the checkpoint directory explicitly -- same
+   explicit-target model every other format already uses (`loom model
+   model.safetensors`, not "search this folder").
 4. Sidecar YAML config file (mentioned in the original roadmap entry) --
    no fixed filename convention found in Orbax itself during this
    investigation; likely out of scope for a first cut, revisit if a real
    project's convention turns up during the Flax/CleanRL verification pass.
+5. **`loom project` cannot discover a JAX checkpoint at all, and this is
+   an architecture gap, not a missing registry entry.** Verified:
+   `scan_project_for_ai_models` doesn't walk the filesystem itself -- it
+   iterates a flat list of individual files the build backend's own
+   include/exclude discovery already produced (e.g. `get_wheel_files` in
+   `core/_models_wheel.py`), then `_scan_single_file_for_model`
+   (`extract/scanner.py:37`) filters each by `suffix in _ALLOWED_EXTS`
+   *before* calling `detect_ai_model_format()` at all. An Orbax checkpoint's
+   inner files (`_CHECKPOINT_METADATA`, `_METADATA`, `manifest.ocdbt`) have
+   no matching suffix, so they're silently skipped -- not misdetected, but
+   never seen either. Registering `AiModelFormat.JAX` and shipping
+   `read_jax()` does nothing for `loom project`; a separate directory-aware
+   scan path is needed (something has to walk the project tree looking for
+   dirs bearing the `_CHECKPOINT_METADATA` marker from "Detection marker"
+   above, alongside -- not instead of -- the existing per-file scan). Scope
+   this as its own follow-up once the single-checkpoint `loom model` path
+   is working, not bundled into the first cut.
 
 Blocked on this Intel Mac, open pending an Apple Silicon (or Linux) machine
 with a current jaxlib wheel:
