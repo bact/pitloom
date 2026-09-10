@@ -20,7 +20,7 @@ without executing model code.
 
 | Format | Priority | Extraction approach | Key Python libraries |
 | :----- | :------- | :------------------ | :-------------------- |
-| JAX (Orbax) | Higher | `orbax-checkpoint` for pytree structure inspection without full restoration | jax, orbax-checkpoint. Stores checkpoints as directories of arrays; metadata in YAML config files alongside checkpoint data |
+| JAX (Orbax) | Higher | `orbax-checkpoint` for pytree structure inspection without full restoration. See [jax-orbax-support.md](jax-orbax-support.md) for the verified on-disk format, detection marker, and field mapping | jax, orbax-checkpoint. Stores checkpoints as directories, one subdirectory per step |
 | TensorFlow SavedModel | Planned | Parse `saved_model.pb` via Protocol Buffers; inspect `MetaGraphDef` for signature defs | tensorflow, tflite-support (or `tensorflow.core.protobuf.saved_model_pb2` for protobuf-only parsing) |
 | TensorFlow Lite | Planned | Parse FlatBuffer binary without loading the TF runtime | flatbuffers -- no GPU/runtime required |
 | Scikit-learn | Planned, complex | Pickle/joblib serialisation -- no single standard format; `fickling` for safe AST inspection to extract estimator class and `get_params()` values | scikit-learn, fickling (already an optional dependency). Common extensions: `.pkl`, `.joblib`. The challenge is that the serialized type varies widely (`Pipeline`, `GridSearchCV`, etc.) |
