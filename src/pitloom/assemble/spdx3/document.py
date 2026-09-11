@@ -275,6 +275,9 @@ def build(
     )
 
     # --- Dependencies ---
+    locked_dependencies_provenance = metadata.provenance.get(
+        "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
+    )
     add_dependencies(
         dependencies=metadata.dependencies,
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
@@ -289,14 +292,13 @@ def build(
         content_type_method=content_type_method,
         release_info_cache=release_info_cache,
         locked_versions=locked_versions,
+        locked_provenance=locked_dependencies_provenance,
     )
 
     if transitive_only:
         add_dependencies(
             dependencies=transitive_only,
-            dep_provenance=metadata.provenance.get(
-                "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
-            ),
+            dep_provenance=locked_dependencies_provenance,
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,
             doc_name=metadata.name,
