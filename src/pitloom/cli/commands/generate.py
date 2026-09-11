@@ -14,14 +14,17 @@ from typing import Any
 
 from pitloom.assemble import (
     generate,
+    generate_project_sbom,
     target_resolves_to_project,
 )
 from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_provenance
 from pitloom.cli.options import (
     _resolve_common_options,
+    _resolve_creation_metadata,
     add_offline_argument,
     add_use_lockfile_argument,
 )
+from pitloom.extract.project import resolve_project_with_lockfile
 
 
 @cli_error_handler("SBOM generation failed")
@@ -47,34 +50,57 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         return 1
 
     target_path = Path(args.target) if args.target else None
-    # Quiet this peek's own WARNING: lines only when the peeked file is
-    # the *same* file generate_project_sbom()'s real read will re-parse
-    # non-quiet: true for a plain directory target (both reads parse its
-    # pyproject.toml -- see target_resolves_to_project()'s docstring), but
-    # not for an sdist archive target -- the real read there parses the
-    # archive's own internal metadata via read_sdist(), a different file
-    # from this peek's sibling pyproject.toml, so quieting would silently
-    # drop the peek's only warning instead of deferring it to a
-    # re-emission that never happens.
-    is_project_dir_target = (
+    if (
         target_path is not None
         and target_path.is_dir()
         and target_resolves_to_project(args.target)
-    )
-    pitloom_config, creation_metadata, pretty, describe_relationship = (
-        _resolve_common_options(
-            args,
-            target_dir=target_path,
-            quiet=is_project_dir_target,
+    ):
+        # A real project directory: resolve it once via the same
+        # peek-then-decide helper 'loom project' uses, then pre-supply the
+        # result to generate_project_sbom() -- a single real read, instead
+        # of a config-only peek here followed by generate()'s own read.
+        project_metadata, pitloom_config, _config_path = resolve_project_with_lockfile(
+            target_path, args.use_lockfile
         )
-    )
-    effective_use_lockfile = (
-        pitloom_config.use_lockfile if args.use_lockfile is None else args.use_lockfile
+        creation = _resolve_creation_metadata(args, pitloom_config)
+        effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
+        effective_describe_relationship = (
+            pitloom_config.describe_relationship
+            if args.describe_relationship is None
+            else args.describe_relationship
+        )
+        generate_project_sbom(
+            target_path,
+            output_path=args.output,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe_relationship,
+            project_metadata=project_metadata,
+            pitloom_config=pitloom_config,
+            registry=args.registry,
+            update_registry=args.update_registry,
+            provenance=resolve_effective_provenance(pitloom_config, args),
+            enrich=args.enrich,
+            offline=args.offline,
+            extract_file_header=args.extract_file_header,
+            content_type=args.content_type,
+            content_type_method=args.content_type_method,
+        )
+        return 0
+
+    # Every other target (env / wheel / model file / HF URL / sdist
+    # archive): generate()'s own read never re-parses the same file this
+    # peek reads (an sdist archive's real read parses its internal
+    # metadata via read_sdist(), not this peek's sibling pyproject.toml),
+    # so quieting the peek would silently drop its only WARNING: instead
+    # of deferring it to a re-emission that never happens.
+    pitloom_config, creation_metadata, pretty, describe_relationship = (
+        _resolve_common_options(args, target_dir=target_path, quiet=False)
     )
     generate(
         args.target,
         offline=args.offline,
-        use_lockfile=effective_use_lockfile,
+        use_lockfile=args.use_lockfile,
         output_path=args.output,
         creation_metadata=creation_metadata,
         pretty=pretty,

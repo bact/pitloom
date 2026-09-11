@@ -504,13 +504,14 @@ def _try_read_poetry(
     except (ValueError, KeyError) as exc:
         if locked_dependencies is None:
             return None
-        log.warning(
-            "%s: [tool.poetry] metadata could not be parsed (%s) -- "
-            "skipping Poetry gap-fill, but still applying poetry.lock's "
-            "resolved dependencies",
-            project_dir,
-            exc,
-        )
+        if not quiet:
+            log.warning(
+                "%s: [tool.poetry] metadata could not be parsed (%s) -- "
+                "skipping Poetry gap-fill, but still applying poetry.lock's "
+                "resolved dependencies",
+                project_dir,
+                exc,
+            )
         metadata = ProjectMetadata(name="")
     if locked_dependencies is not None:
         metadata.locked_dependencies = locked_dependencies

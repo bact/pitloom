@@ -433,6 +433,28 @@ def test_resolve_project_with_lockfile_sdist_reads_archive_once(
     mock_read_sdist.assert_called_once()
 
 
+def test_resolve_project_with_lockfile_sdist_explicit_flag_warns_and_is_ignored(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: an explicit use_lockfile passed for an sdist archive has
+    no effect (no lock/pin cascade support for archives yet) -- silently
+    discarding it instead of warning would hide the no-op from the user."""
+    sdist_path = tmp_path / "demo-1.0.0.tar.gz"
+    pkg_info = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
+    with tarfile.open(sdist_path, "w:gz") as tf:
+        ti = tarfile.TarInfo(name="demo-1.0.0/PKG-INFO")
+        ti.size = len(pkg_info)
+        tf.addfile(ti, io.BytesIO(pkg_info))
+
+    with caplog.at_level(logging.WARNING):
+        metadata, _pitloom_config, _config_path = resolve_project_with_lockfile(
+            sdist_path, False
+        )
+
+    assert metadata.name == "demo"
+    assert "has no effect for an sdist archive target" in caplog.text
+
+
 def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -458,6 +480,39 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
 
     assert metadata.name == "pkg"
     assert caplog.text.count("Skipping Poetry dependency") == 1
+
+
+def test_read_project_quiet_suppresses_poetry_parse_failure_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: a malformed [tool.poetry] section (missing name) logs its
+    own "metadata could not be parsed... still applying poetry.lock's
+    resolved dependencies" WARNING: from _try_read_poetry() -- read_project()'s
+    own docstring promises ``quiet`` suppresses every warning from that read,
+    but this one call site was missing the ``if not quiet:`` guard every
+    sibling warning in the same chain already has, so a caller re-reading
+    the same file (e.g. resolve_project_with_lockfile()'s peek-then-reread)
+    would still get it re-emitted despite passing quiet=True."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.poetry]\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+        '[metadata]\nlock-version = "2.1"\n',
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        metadata, _pitloom_config, _config_path = read_project(tmp_path, quiet=True)
+
+    assert metadata.locked_dependencies == ["requests==2.31.0"]
+    assert "metadata could not be parsed" not in caplog.text
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        read_project(tmp_path, quiet=False)
+
+    assert caplog.text.count("metadata could not be parsed") == 1
 
 
 def test_resolve_project_with_lockfile_does_not_duplicate_setuptools_warning(

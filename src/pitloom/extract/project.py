@@ -219,6 +219,13 @@ def resolve_project_with_lockfile(
     place, not duplicated per caller.
     """
     if _is_sdist_archive(project_path):
+        if use_lockfile is not None:
+            log.warning(
+                "%s: --use-lockfile/--no-use-lockfile has no effect for an "
+                "sdist archive target (no lock/pin cascade support for "
+                "archives yet) -- ignoring the explicit override",
+                project_path,
+            )
         return read_project(project_path)
 
     if use_lockfile is not None:

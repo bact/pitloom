@@ -77,34 +77,42 @@ _MODEL_FILE_EXTENSIONS = (
 )
 
 
+def _classify_target(target: Path | str) -> str:
+    """Classify *target* into ``"env"``, ``"wheel"``, ``"hf"``,
+    ``"model_file"``, or ``"project"`` (plain directory or sdist archive).
+
+    Single source of truth for :func:`generate`'s own dispatch and for
+    :func:`target_resolves_to_project` -- one shared check instead of two
+    independently-maintained classifications drifting apart.
+    """
+    target_str = str(target).strip()
+    if target_str.lower() in ("env", "environment", "--env"):
+        return "env"
+    if target_str.lower().endswith(".whl"):
+        return "wheel"
+    if is_huggingface_source(target_str):
+        return "hf"
+    target_path = Path(target_str)
+    if target_path.is_file() and target_path.name.lower().endswith(
+        _MODEL_FILE_EXTENSIONS
+    ):
+        return "model_file"
+    return "project"
+
+
 def target_resolves_to_project(target: Path | str) -> bool:
     """Return whether :func:`generate`'s dispatch reaches
     :func:`~pitloom.assemble._generators.generate_project_sbom` (a plain
     project directory or sdist archive) for *target*, rather than the
     env/wheel/Hugging-Face/model-file branches.
 
-    The single source of truth for that classification -- :func:`generate`
-    itself uses it for its own dispatch, and
     ``pitloom.cli.commands.generate._run_generate_command`` calls it ahead
     of time to decide whether its own config-only project peek
     (:func:`pitloom.cli.options._resolve_common_options`) would otherwise
     duplicate a ``WARNING:`` that :func:`generate_project_sbom`'s real read
-    re-emits for the same directory -- one shared check instead of two
-    independently-maintained classifications drifting apart.
+    re-emits for the same directory.
     """
-    target_str = str(target).strip()
-    if target_str.lower() in ("env", "environment", "--env"):
-        return False
-    if target_str.lower().endswith(".whl"):
-        return False
-    if is_huggingface_source(target_str):
-        return False
-    target_path = Path(target_str)
-    if target_path.is_file() and target_path.name.lower().endswith(
-        _MODEL_FILE_EXTENSIONS
-    ):
-        return False
-    return True
+    return _classify_target(target) == "project"
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -127,8 +135,9 @@ def generate(
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types."""
     target_str = str(target).strip()
+    classification = _classify_target(target_str)
 
-    if target_str.lower() in ("env", "environment", "--env"):
+    if classification == "env":
         return generate_env_sbom(
             output_path=output_path,
             creation_metadata=creation_metadata,
@@ -140,7 +149,7 @@ def generate(
             update_registry=update_registry,
         )
 
-    if target_str.lower().endswith(".whl"):
+    if classification == "wheel":
         return generate_wheel_sbom(
             target_str,
             output_path=output_path,
@@ -153,7 +162,7 @@ def generate(
             update_registry=update_registry,
         )
 
-    if is_huggingface_source(target_str):
+    if classification == "hf":
         return generate_model_sbom(
             target_str,
             offline=offline,
@@ -166,24 +175,21 @@ def generate(
             enrich=enrich,
         )
 
-    target_path = Path(target)
-    if target_path.is_file():
-        name_lower = target_path.name.lower()
-        if name_lower.endswith(_MODEL_FILE_EXTENSIONS):
-            return generate_model_sbom(
-                target_path,
-                offline=offline,
-                output_path=output_path,
-                creation_metadata=creation_metadata,
-                pretty=pretty,
-                describe_relationship=describe_relationship,
-                registry=registry,
-                provenance=provenance,
-                enrich=enrich,
-            )
+    if classification == "model_file":
+        return generate_model_sbom(
+            Path(target_str),
+            offline=offline,
+            output_path=output_path,
+            creation_metadata=creation_metadata,
+            pretty=pretty,
+            describe_relationship=describe_relationship,
+            registry=registry,
+            provenance=provenance,
+            enrich=enrich,
+        )
 
     return generate_project_sbom(
-        target_path,
+        Path(target_str),
         output_path=output_path,
         creation_metadata=creation_metadata,
         pretty=pretty,

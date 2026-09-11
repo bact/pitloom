@@ -72,7 +72,7 @@ creation-comment = "configured in pyproject"
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys, "argv", ["loom", "generate", str(project_dir), "-o", str(output_path)]
     )
@@ -80,7 +80,7 @@ creation-comment = "configured in pyproject"
     exit_code = __main__.main()
 
     assert exit_code == 0
-    assert captured["target"] == str(project_dir)
+    assert captured["target"] == project_dir
     assert captured["pretty"] is True
     assert captured["describe_relationship"] is True
     assert isinstance(captured["creation_metadata"], CreationMetadata)
@@ -94,8 +94,8 @@ def test_generate_command_default_file_headers_and_content_type_are_none(
     tmp_path: Path,
 ) -> None:
     """No --extract-file-header/--content-type/--content-type-method
-    flags: all three must reach generate() as None, deferring to
-    [tool.pitloom] extract-file-header / [tool.pitloom.content-type]."""
+    flags: all three must reach generate_project_sbom() as None, deferring
+    to [tool.pitloom] extract-file-header / [tool.pitloom.content-type]."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
@@ -107,7 +107,7 @@ def test_generate_command_default_file_headers_and_content_type_are_none(
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys, "argv", ["loom", "generate", str(project_dir), "-o", str(output_path)]
     )
@@ -135,8 +135,8 @@ def test_generate_command_file_headers_content_type_flags_passed_through(
     expected: bool,
 ) -> None:
     """--extract-file-header/--no-extract-file-header and
-    --content-type/--no-content-type must each override generate()'s
-    corresponding param independently."""
+    --content-type/--no-content-type must each override
+    generate_project_sbom()'s corresponding param independently."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
@@ -147,7 +147,7 @@ def test_generate_command_file_headers_content_type_flags_passed_through(
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -162,7 +162,7 @@ def test_generate_command_content_type_method_flag_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """--content-type-method must reach generate() verbatim."""
+    """--content-type-method must reach generate_project_sbom() verbatim."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
@@ -172,7 +172,7 @@ def test_generate_command_content_type_method_flag_passed_through(
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys,
         "argv",

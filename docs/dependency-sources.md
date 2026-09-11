@@ -187,6 +187,13 @@ explicitly to match whatever produced the base SBOM, or omit it to
 auto-match *DIR*'s own `[tool.pitloom] use-lockfile` config. A mismatch here
 silently produces a fragment referencing the wrong document identity.
 
+`--use-lockfile`/`--no-use-lockfile` has no effect for an sdist archive
+target (`loom project`/`loom generate` on a `.tar.gz`/`.zip`): no lock/pin
+cascade support exists for archives yet, so a real lock file in the
+archive's *own* build environment was never read into it in the first
+place. An explicit flag passed for an archive target logs a `WARNING:`
+and is otherwise ignored.
+
 `--offline` (also settable via `[tool.pitloom] offline` --
 see [Configuration](configuration.md)) is unrelated to lock-file
 reading: it only controls whether Pitloom's own PyPI JSON API lookups

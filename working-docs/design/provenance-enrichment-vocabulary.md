@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-08-26
+Last-Modified: 2026-09-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -161,6 +161,8 @@ line numbers are approximate.
 | `extension_guess` | File content-type resolved by filename-extension fallback (no `magika` / no confident result) | `src/pitloom/assemble/spdx3/_document_files.py:138` |
 | `magika_content_detection` | File content-type resolved by the `magika` content-detection library; includes a `Tool: magika==<ver>` segment | `src/pitloom/assemble/spdx3/_document_files.py:135` |
 | `yaml_frontmatter` | Value read from a local README/model-card's YAML frontmatter block (the `enrich/readme.py` enricher) | `src/pitloom/enrich/readme.py:100` |
+| `resolved_lockfile` | `ProjectMetadata.locked_dependencies` populated from a real lock-solver output (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`, `Pipfile.lock`) via the lock/pin cascade (added in PR #208) | `src/pitloom/extract/_locked_dependencies.py:71-93` (the `_LOCK_SOURCES` table) |
+| `pinned_requirements` | `ProjectMetadata.locked_dependencies` populated from a fully-pinned `requirements.txt` -- tagged separately from `resolved_lockfile` since it's not a lock-solver output, a weaker guarantee (added in PR #208) | `src/pitloom/extract/_locked_dependencies.py:94` |
 
 **As of 2026-08-13, `sbomAuthorSupplied` and `inference` are no longer
 `method` values** -- both retired from this table; see the `role` table
@@ -181,6 +183,9 @@ open, not yet applied to that file):**
 - `Method: spdx-license-detector` appears once, only as an arbitrary
   example string in `tests/test_provenance_integration.py:67` -- not
   part of the controlled vocabulary, just test-fixture prose.
+- `resolved_lockfile`/`pinned_requirements` (PR #208's lock/pin cascade,
+  landed after this doc was drafted) are also missing from the doc's
+  table entirely.
 
 ### 2. Provenance `role` values
 

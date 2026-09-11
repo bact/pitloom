@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +25,8 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.project import read_project
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -239,10 +242,8 @@ def _resolve_common_options(
 
     ``quiet`` suppresses this peek's own ``WARNING:`` lines (default
     ``False``) -- pass ``True`` only when the caller knows a real,
-    non-quiet read of the same *target_dir* will immediately follow (e.g.
-    ``loom generate`` on a target :func:`pitloom.assemble.target_resolves_to_project`
-    confirms will reach :func:`~pitloom.assemble._generators.generate_project_sbom`),
-    so that read's own warning stands in for this discarded peek's. Passing
+    non-quiet read of the same *target_dir* will immediately follow, so
+    that read's own warning stands in for this discarded peek's. Passing
     it when no such second read is guaranteed would silently drop this
     peek's only warning.
     """
@@ -260,6 +261,20 @@ def _resolve_common_options(
                 lookup_dir, include_locked_dependencies=False, quiet=quiet
             )
         except FileNotFoundError:
+            # No config file at all -- absent source data, not an error.
+            pitloom_config = PitloomConfig()
+        except ValueError as exc:
+            # A real parse failure (malformed pyproject.toml/setup.cfg):
+            # this peek is best-effort only (its caller's target may not
+            # even be this directory), so degrade to defaults rather than
+            # raise -- but say so, since silently discarding a genuine
+            # parse error would hide it from the user entirely.
+            if not quiet:
+                log.warning(
+                    "%s: could not read project config (%s) -- using defaults",
+                    lookup_dir,
+                    exc,
+                )
             pitloom_config = PitloomConfig()
     else:
         pitloom_config = PitloomConfig()

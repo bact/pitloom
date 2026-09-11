@@ -68,6 +68,10 @@ and this project adheres to
   ([#205])
 - `embed-wheel --project-dir` now shows the real reason when project
   metadata can't be resolved ([#205])
+- `loom enrich --project-dir` no longer always ran the lock-file cascade
+  when computing the base document's identity, regardless of the base
+  SBOM's own setting -- silently produced dangling fragment references
+  ([#210])
 
 ### Changed
 
