@@ -197,13 +197,47 @@ Save script becomes a documented, reproducible generator (same spirit as
 the numpy/keras fixture generation scripts), not a hand-crafted JSON blob,
 so it stays honest about real Orbax output shape.
 
-Flax's MNIST example, CleanRL's JAX/Flax scripts, and Octo (all suggested
-as real-world references) are good **manual verification targets** once the
-extractor exists -- run it against real output from each, don't vendor them
-as committed fixtures (too large / real-world instability risk for a
+Flax's MNIST example, CleanRL's JAX/Flax scripts, Octo, and (also suggested)
+Physical Intelligence's `openpi`, `texttron/tevatron`, and
+`RoboTwin-Platform/RoboTwin` are good **manual verification targets** once
+the extractor exists -- run it against real output from each, don't vendor
+them as committed fixtures (too large / real-world instability risk for a
 committed test fixture, per the project's existing preference for small
 synthetic fixtures over vendored real ones outside the Hub-sourced
 ONNX/Safetensors/GGUF fixtures that already have a stable pinned source).
+
+**License verification** (checked against the GitHub API and raw repo
+content, not taken at face value): `google/flax` -- Apache-2.0;
+`octo-models/octo` -- MIT; `Physical-Intelligence/openpi` -- Apache-2.0;
+`texttron/tevatron` -- Apache-2.0; `RoboTwin-Platform/RoboTwin` -- MIT;
+`google/orbax` (docs/notebooks only, not a fixture source) -- Apache-2.0.
+**`vwxyzjn/cleanrl` is not simply MIT** despite the common claim -- GitHub's
+own license detector flags it `NOASSERTION`/"Other", and its `LICENSE` file
+confirms why: MIT is the default, but specific files carry their own
+Apache-2.0 or BSD-style exceptions for adapted code (e.g. the Procgen
+scripts under Apache-2.0). The JAX/Flax PPO/DQN scripts' own per-file
+license wasn't confirmed from the LICENSE file's exception list alone --
+would need that specific script's own header checked before ever treating
+it as clean MIT. A concrete illustration of why vendoring a real repo's
+output costs more than a repo-level license badge suggests, and another
+data point favoring the synthetic-generation plan above over vendoring any
+of these.
+
+**Code license vs. artifact license -- these are two separate questions,
+not one.** A trained checkpoint is a distinct artifact from the training
+script that produced it; a permissive code license (Apache-2.0/MIT) on the
+script does not automatically extend to, or clear, the weights file. A
+project that publishes weights separately (e.g. on Hugging Face) licenses
+them on their own terms, which need independent checking, same as the code
+was checked above. A project that doesn't publish weights at all (true of
+every repo in this list except Octo) has no artifact to vendor in the first
+place -- getting one means running their code, which reopens the same
+stability/provenance problem "Fixture plan" above already ruled out (no
+fixed, pinned, versioned source; "whatever running the script today
+produces"). Generating the fixture with a small script written for Pitloom
+itself, calling `jax`/`orbax-checkpoint` directly rather than reusing any
+of these repos' code, sidesteps both questions at once -- same footing as
+the project's existing CC0-1.0 "Generated for testing purposes" fixtures.
 
 ## Open questions before implementation
 
