@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -86,7 +86,12 @@ When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
 `pdm.lock`, `Pipfile.lock`, or pinned `requirements.txt`) is present
 next to `pyproject.toml`, project generation automatically resolves and
 includes its exact transitive dependencies -- see
-[Dependency sources and precedence](dependency-sources.md).
+[Dependency sources and precedence](dependency-sources.md). Pass
+`locked_dependencies=False` to `generate()`/`generate_project_sbom()` to
+opt out (on by default; same as the CLI's `--no-locked-dependencies`).
+Has no effect if a pre-resolved `project_metadata`/`pitloom_config` is
+also passed in -- the cascade decision was already made when that
+metadata was produced.
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()`,
 `generate_model_sbom()`, and `generate_env_sbom()` -- the same target
@@ -170,12 +175,17 @@ Pass `project_target=` when merging into a project-level (not
 single-model) base SBOM -- see the equivalent `--project-dir` note on the
 [Command line](cli.md#enrich-an-sbom) page: `--project-dir`'s document
 identity is derived from the resolved file list, so it changes whenever
-that file list changes for the same project. Pass `registry=` (a path, or
-an already-loaded `IdRegistry`) to reference a pinned entity id instead of
-one freshly computed from the model's own identity. Raises `ValueError`
-for a Hugging Face Hub source -- Hugging Face model cards are already
-parsed natively when generating the SBOM, so local enrichment doesn't
-apply there.
+that file list changes for the same project. The same applies to
+`locked_dependencies=`: it must match whatever produced the base SBOM's
+identity, or the fragment references the wrong document -- omit it (the
+default, `None`) to auto-match `project_target`'s own `[tool.pitloom]
+locked-dependencies` config; pass it explicitly only when the base SBOM's
+generation used an explicit override that disagreed with that config.
+Pass `registry=` (a path, or an already-loaded `IdRegistry`) to reference
+a pinned entity id instead of one freshly computed from the model's own
+identity. Raises `ValueError` for a Hugging Face Hub source -- Hugging
+Face model cards are already parsed natively when generating the SBOM,
+so local enrichment doesn't apply there.
 
 ## Tracking decorator
 

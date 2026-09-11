@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-11
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,7 +27,8 @@ the same way.
 | `pretty` | bool | `false` | `--pretty` / `--no-pretty` | `pretty` | `pretty` | Indent the JSON output with 2 spaces. |
 | `describe-relationship` | bool | `false` | `--describe-relationship` / `--no-describe-relationship` | -- | `describe_relationship` | Include human-readable text on SPDX relationships. |
 | `sbom-basename` | string | *(derived from project name/version)* | -- | -- | `sbom_basename` | Base filename (no extension) for the generated SBOM. |
-| `offline` | bool | `false` | `--offline` | -- | `offline` | Skip the PyPI JSON API fallback used to fill dependency metadata gaps. Network attempted, best-effort, by default -- any failure (including no network) silently falls back to local-only data. |
+| `offline` | bool | `false` | `--offline` | `offline` | `offline` | Skip the PyPI JSON API fallback used to fill dependency metadata gaps. Network attempted, best-effort, by default -- any failure (including no network) silently falls back to local-only data. |
+| `locked-dependencies` | bool | `true` | `--locked-dependencies` / `--no-locked-dependencies` | `locked-dependencies` | `locked_dependencies` | Resolve exact versions from a lock/pin file cascade (`pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned `requirements.txt`) -- see [Dependency sources and precedence](dependency-sources.md). On by default, unlike every other bool above; `false` falls back to direct dependencies and environment introspection only. CLI flag only on `project`/`generate` (dependency resolution) and `enrich` (`--project-dir` document identity matching); no effect on `model`/`wheel`/`embed-wheel`/`env`. |
 | `extract-file-header` | bool | `true` | `--extract-file-header` / `--no-extract-file-header` | `extract-file-header` | `extract_file_header` | Scan each source file's leading comment header for SPDX-File\* tags. Independent of content-type detection below -- a binary file with no text header still gets a `contentType` when that's on. |
 | `enrich` | bool | `false` | `--enrich` / `--no-enrich` | `enrich` | `enrich` | Run local README/model-card enrichment for discovered AI models. |
 | `ids-file` | string | `null` (auto-discovers `loom-ids.json` by walking up from the project directory) | -- | -- | -- (see `registry` param) | Path to the Loom ID registry file. |
