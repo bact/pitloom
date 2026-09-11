@@ -31,6 +31,25 @@ log = logging.getLogger(__name__)
 _SDIST_EXTENSIONS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip")
 
 
+def warn_use_lockfile_no_effect(subject: object, reason: str) -> None:
+    """Log the shared ``WARNING:`` for an explicit ``--use-lockfile``/
+    ``--no-use-lockfile`` (or the equivalent ``use_lockfile=`` library-API
+    argument) given for a target/mode the setting doesn't apply to.
+
+    *reason* is spliced in after "has no effect" (its own leading space,
+    no trailing punctuation) -- called from every no-op case: an sdist
+    archive target (:func:`resolve_project_with_lockfile` below), a non-
+    project :func:`~pitloom.assemble.generate` target, and
+    :func:`~pitloom.assemble.enrich_model` without ``--project-dir``.
+    """
+    log.warning(
+        "%s: --use-lockfile/--no-use-lockfile has no effect %s -- "
+        "ignoring the explicit override",
+        subject,
+        reason,
+    )
+
+
 def _is_sdist_archive(path: Path) -> bool:
     """Return True if path points to an sdist file archive."""
     if not path.is_file():
@@ -220,11 +239,10 @@ def resolve_project_with_lockfile(
     """
     if _is_sdist_archive(project_path):
         if use_lockfile is not None:
-            log.warning(
-                "%s: --use-lockfile/--no-use-lockfile has no effect for an "
-                "sdist archive target (no lock/pin cascade support for "
-                "archives yet) -- ignoring the explicit override",
+            warn_use_lockfile_no_effect(
                 project_path,
+                "for an sdist archive target (no lock/pin cascade support "
+                "for archives yet)",
             )
         return read_project(project_path)
 

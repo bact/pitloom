@@ -20,12 +20,10 @@ from pitloom.assemble import (
 from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_provenance
 from pitloom.cli.options import (
     _resolve_common_options,
-    _resolve_creation_metadata,
-    _resolve_pretty_and_describe_relationship,
+    _resolve_project_generation_settings,
     add_offline_argument,
     add_use_lockfile_argument,
 )
-from pitloom.extract.project import resolve_project_with_lockfile
 
 
 @cli_error_handler("SBOM generation failed")
@@ -56,17 +54,18 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         and target_path.is_dir()
         and target_resolves_to_project(args.target)
     ):
-        # A real project directory: resolve it once via the same
-        # peek-then-decide helper 'loom project' uses, then pre-supply the
-        # result to generate_project_sbom() -- a single real read, instead
-        # of a config-only peek here followed by generate()'s own read.
-        project_metadata, pitloom_config, _config_path = resolve_project_with_lockfile(
-            target_path, args.use_lockfile
-        )
-        creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty, effective_describe_relationship = (
-            _resolve_pretty_and_describe_relationship(args, pitloom_config)
-        )
+        # A real project directory: resolve it once via the same shared
+        # helper 'loom project' uses, then pre-supply the result to
+        # generate_project_sbom() -- a single real read, instead of a
+        # config-only peek here followed by generate()'s own read.
+        (
+            project_metadata,
+            pitloom_config,
+            _config_path,
+            creation,
+            effective_pretty,
+            effective_describe_relationship,
+        ) = _resolve_project_generation_settings(args, target_path)
         generate_project_sbom(
             target_path,
             output_path=args.output,
@@ -143,7 +142,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "; effect depends on the resolved target -- "
         "project dir: fall back to direct dependencies + environment "
         "introspection only. "
-        "wheel / model file / HF URL / env: no-op (no lock-file concept "
-        "applies).",
+        "sdist archive / wheel / model file / HF URL / env: no-op (no "
+        "lock-file concept applies).",
     )
     gen_parser.set_defaults(func=_run_generate_command)

@@ -12,7 +12,6 @@ See also:
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from pitloom.assemble._generators import (
@@ -38,9 +37,8 @@ from pitloom.embed import (
     find_embedded_sbom,
 )
 from pitloom.extract._huggingface import is_huggingface_source
+from pitloom.extract.project import warn_use_lockfile_no_effect
 from pitloom.ids import IdRegistry
-
-log = logging.getLogger(__name__)
 
 __all__ = [
     "ConfigOverrides",
@@ -141,11 +139,10 @@ def generate(
     classification = _classify_target(target_str)
 
     if use_lockfile is not None and classification != "project":
-        log.warning(
-            "%s: --use-lockfile/--no-use-lockfile has no effect for this "
-            "target (no lock-file concept applies to env/wheel/model-file/"
-            "Hugging-Face targets) -- ignoring the explicit override",
+        warn_use_lockfile_no_effect(
             target_str,
+            "for this target (no lock-file concept applies to env/wheel/"
+            "model-file/Hugging-Face targets)",
         )
 
     if classification == "env":

@@ -210,7 +210,7 @@ def read_setuptools(
 
     if setup_cfg.exists():
         try:
-            cfg_metadata, cfg_config = read_setup_cfg(project_dir, quiet=quiet)
+            cfg_metadata, cfg_config = read_setup_cfg(project_dir)
         except (FileNotFoundError, _NoProjectNameError):
             pass
 

@@ -24,7 +24,7 @@ from pitloom.core.creation import (
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract._toml_io import load_toml_file
-from pitloom.extract.project import read_project
+from pitloom.extract.project import read_project, resolve_project_with_lockfile
 
 log = logging.getLogger(__name__)
 
@@ -309,6 +309,37 @@ def _resolve_pretty_and_describe_relationship(
         else getattr(args, "describe_relationship", False)
     )
     return effective_pretty, effective_describe_relationship
+
+
+def _resolve_project_generation_settings(
+    args: argparse.Namespace, project_dir: Path
+) -> tuple[
+    ProjectMetadata, PitloomConfig, Path | None, _ResolvedCreationMetadata, bool, bool
+]:
+    """Resolve *project_dir*'s metadata/config, creation metadata, and the
+    ``pretty``/``describe_relationship`` cascade in one call -- the same
+    three-call sequence every project-directory SBOM-generation command
+    handler needs immediately after deciding the lock-file cascade
+    (``loom project``, and ``loom generate``'s own project-directory fast
+    path), so it lives in one place rather than being hand-copied per
+    caller (see AGENTS.md's "pattern hand-copied across 3+ call sites
+    drifts" rule).
+    """
+    project_metadata, pitloom_config, config_path = resolve_project_with_lockfile(
+        project_dir, args.use_lockfile
+    )
+    creation = _resolve_creation_metadata(args, pitloom_config)
+    effective_pretty, effective_describe_relationship = (
+        _resolve_pretty_and_describe_relationship(args, pitloom_config)
+    )
+    return (
+        project_metadata,
+        pitloom_config,
+        config_path,
+        creation,
+        effective_pretty,
+        effective_describe_relationship,
+    )
 
 
 def _load_pitloom_tool_section(config_path: Path | None) -> dict[str, Any]:

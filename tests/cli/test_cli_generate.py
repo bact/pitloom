@@ -267,14 +267,16 @@ def test_ids_generate_cli_end_to_end(
 def test_generate_command_does_not_duplicate_project_warning(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: `_run_generate_command()` peeks [tool.pitloom] config via
-    `_resolve_common_options()` and then, for a plain project-directory
-    target, `generate_project_sbom()` reads the same pyproject.toml again
-    for real -- both used to independently emit the same WARNING: (e.g. the
-    PEP 639 transitional license/classifier conflict), doubling it end to
-    end via the CLI. Unlike `loom project` (never duplicated -- it doesn't
-    call `_resolve_common_options()`'s project-config peek), `loom
-    generate` previously did."""
+    """Regression: for a plain project-directory target,
+    `_run_generate_command()` calls `resolve_project_with_lockfile()` +
+    `generate_project_sbom()` directly -- the same single-read pattern
+    `loom project` uses -- rather than going through `_resolve_common_options()`'s
+    own config-only peek followed by `generate()`'s real read. Only
+    `resolve_project_with_lockfile()`'s own peek-then-quiet-reread can emit
+    a WARNING: here (e.g. the PEP 639 transitional license/classifier
+    conflict), so it must never double-fire end to end via the CLI --
+    the older, two-independent-reads mechanism this test used to guard
+    against no longer exists for this target type."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(
@@ -299,14 +301,14 @@ def test_generate_command_does_not_duplicate_project_warning(
 def test_generate_command_sdist_target_does_not_drop_sibling_project_warning(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Regression: unlike a directory target, an sdist-archive target's
-    real read (`generate_project_sbom()` -> `read_sdist()`) never touches
-    `read_pyproject()` at all -- it parses the archive's own internal
-    PKG-INFO, not the *sibling* pyproject.toml `_run_generate_command()`'s
-    own peek read to resolve [tool.pitloom] config. Quieting that peek on
-    the (directory-only) assumption that a later real read re-emits its
-    WARNING: would silently drop it instead, since no such re-emission
-    ever happens for an archive target."""
+    """Regression: an sdist-archive target isn't a directory, so it takes
+    `_run_generate_command()`'s fallback branch -- a plain, always
+    non-quiet `_resolve_common_options()` peek followed by `generate()`'s
+    real read. That real read (`generate_project_sbom()` -> `read_sdist()`)
+    never touches `read_pyproject()` at all -- it parses the archive's own
+    internal PKG-INFO, not the *sibling* pyproject.toml the peek read to
+    resolve [tool.pitloom] config -- so the peek's WARNING: is this
+    invocation's only possible emission of it and must not be lost."""
     import io
     import tarfile
 
