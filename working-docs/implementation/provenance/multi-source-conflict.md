@@ -196,17 +196,20 @@ widening `_resolve_version`'s return type, which has ~24 existing
 production call sites in `_document_locked_deps.py`. The small amount of
 duplicated parsing is a deliberate trade for zero blast radius.
 
-**Known limitation.** When more than one raw declared dependency string
+**Multi-entry merge.** When more than one raw declared dependency string
 collapses into the same grouped `software_Package` (e.g. two extras
 declaring different version ranges that both resolve to the same locked
-version) and more than one of them individually conflicts, only the first
-conflicting entry's 2-candidate Annotation is emitted — not a merged
-N-candidate one. `ConflictCandidate`'s `candidates: list[...]` is
-structurally unbounded, so a full fix is possible; out of scope for this
-field's initial build. See
+version) and more than one of them individually conflicts,
+`merge_conflict_candidates` (`deps_installed.py`) combines every
+conflicting entry's candidates into one Annotation, deduping by
+`(value, role, source)` so the shared locked-side candidate collapses to
+one while each distinct declared-side value is kept. `ConflictCandidate`'s
+`candidates: list[...]` is structurally unbounded, so this merge can
+legitimately produce more than 2 candidates for one field -- unlike
+license, which always has exactly 2. See
 [generic-multi-candidate-fields.md](../../design/generic-multi-candidate-fields.md)
-for the broader design question this and license's own hand-built shape
-both motivate.
+for the broader design question license's fixed-2-candidate shape and this
+field's N-candidate shape both motivate.
 
 **Future candidate sources (not built — `enrich/`-territory network or
 agent work, cross-referenced to

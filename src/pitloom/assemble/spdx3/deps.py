@@ -24,8 +24,9 @@ from pitloom.assemble.spdx3.deps_installed import (
     _VERSION_OPERATORS,
     _enrich_from_installed,
     _parse_dep_name,
+    _resolve_dependency_with_conflict,
     _resolve_version,
-    build_dependency_version_conflict,
+    merge_conflict_candidates,
 )
 from pitloom.assemble.spdx3.deps_license import _add_license_noassertion, _apply_license
 from pitloom.assemble.spdx3.deps_originator import (
@@ -217,43 +218,6 @@ def _finish_dependency_enrichment(
         )
 
 
-def _resolve_dependency_with_conflict(
-    dep: str,
-    locked_versions: dict[str, str] | None,
-    dep_provenance: str,
-    locked_provenance: str | None,
-) -> tuple[str, str, str, str | None, list[ConflictCandidate] | None]:
-    """Resolve one declared dependency string's name, authoritative version,
-    version-provenance note, and (when a lock file supplied a conflicting
-    version) its G2 conflict candidates.
-
-    Extracted out of :func:`add_dependencies`'s own loop body purely to keep
-    that function's cognitive complexity under the repo's flake8 ceiling --
-    no independent reuse beyond that one caller.
-    """
-    dep_name = _parse_dep_name(dep)
-    locked_ver = (
-        locked_versions.get(canonicalize_name(dep_name))
-        if locked_versions is not None
-        else None
-    )
-    dep_version, version_note = _resolve_version(
-        dep_name, dep, locked_version=locked_ver
-    )
-    conflict_candidates = (
-        build_dependency_version_conflict(
-            dep,
-            locked_ver,
-            dep_source=dep_provenance,
-            locked_source=locked_provenance
-            or "Source: lock file | Method: resolved_lockfile",
-        )
-        if locked_ver is not None
-        else None
-    )
-    return dep, dep_name, dep_version, version_note, conflict_candidates
-
-
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 # pylint: disable=too-many-locals
 def add_dependencies(
@@ -312,9 +276,10 @@ def add_dependencies(
     version genuinely conflicts with its locked-resolved version (see
     :func:`~pitloom.assemble.spdx3.deps_installed.build_dependency_version_conflict`).
     Only meaningful when *locked_versions* is also given -- the
-    transitive-only call passes neither. Defaults to ``"Source: lock file
-    | Method: resolved_lockfile"`` when *locked_versions* resolves a
-    version but no real provenance string was supplied.
+    transitive-only call passes neither. Defaults to
+    :data:`~pitloom.assemble.spdx3.deps_installed._DEFAULT_LOCKED_PROVENANCE`
+    when *locked_versions* resolves a version but no real provenance string
+    was supplied.
     """
     resolved = [
         _resolve_dependency_with_conflict(
@@ -355,13 +320,13 @@ def add_dependencies(
         version_note = next(
             (note for _dep, _raw_name, note, _conflict in declared if note), None
         )
-        # KNOWN LIMITATION: when >1 raw declared string collapses into this
-        # group (e.g. two extras with different version ranges resolving to
-        # the same locked version) and more than one of them individually
-        # conflicts, only the first conflicting entry's 2-candidate
-        # Annotation is emitted -- see multi-source-conflict.md.
-        group_conflict_candidates = next(
-            (c for _dep, _raw_name, _note, c in declared if c is not None), None
+        # Merge, not just take the first: >1 raw declared string can collapse
+        # into this group (e.g. two extras with different version ranges
+        # resolving to the same locked version), each with its own
+        # independently-conflicting declared value -- see
+        # multi-source-conflict.md.
+        group_conflict_candidates = merge_conflict_candidates(
+            c for _dep, _raw_name, _note, c in declared
         )
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,

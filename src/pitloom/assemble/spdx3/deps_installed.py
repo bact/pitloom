@@ -11,12 +11,14 @@ See also: :mod:`pitloom.assemble.spdx3.deps` for the public facade and PyPI enri
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from importlib.metadata import PackageMetadata, PackageNotFoundError
 from importlib.metadata import metadata as get_pkg_metadata
 from importlib.metadata import version as get_package_version
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
@@ -38,6 +40,15 @@ from pitloom.extract._lock_common import is_same_version, single_exact_pin
 _VERSION_OPERATORS = ("===", "~=", "!=", "==", ">=", "<=", ">", "<")
 _HOMEPAGE_LABELS = ("homepage", "home page", "home")
 _DOWNLOAD_LABELS = ("download",)
+
+#: Shared fallback G2 ``source`` label for a dependency's locked-resolved
+#: version candidate, when no real per-document provenance string is
+#: available. Used by both :func:`_resolve_dependency_with_conflict` (via
+#: its *locked_provenance* param) and
+#: :mod:`pitloom.assemble.spdx3.document` (as the default for
+#: ``metadata.provenance.get("locked_dependencies", ...)``) -- kept as one
+#: constant so the two never hand-type diverging wording.
+_DEFAULT_LOCKED_PROVENANCE = "Source: lock file | Method: resolved_lockfile"
 
 log = logging.getLogger(__name__)
 
@@ -190,6 +201,72 @@ def build_dependency_version_conflict(
         {"value": declared_value, "role": "declared", "source": dep_source},
         {"value": locked_version, "role": "declared", "source": locked_source},
     ]
+
+
+def _resolve_dependency_with_conflict(
+    dep: str,
+    locked_versions: dict[str, str] | None,
+    dep_provenance: str,
+    locked_provenance: str | None,
+) -> tuple[str, str, str, str | None, list[ConflictCandidate] | None]:
+    """Resolve one declared dependency string's name, authoritative version,
+    version-provenance note, and (when a lock file supplied a conflicting
+    version) its G2 conflict candidates.
+
+    Extracted out of :func:`~pitloom.assemble.spdx3.deps.add_dependencies`'s
+    own loop body purely to keep that function's cognitive complexity under
+    the repo's flake8 ceiling -- no independent reuse beyond that one caller.
+    """
+    dep_name = _parse_dep_name(dep)
+    locked_ver = (
+        locked_versions.get(canonicalize_name(dep_name))
+        if locked_versions is not None
+        else None
+    )
+    dep_version, version_note = _resolve_version(
+        dep_name, dep, locked_version=locked_ver
+    )
+    conflict_candidates = (
+        build_dependency_version_conflict(
+            dep,
+            locked_ver,
+            dep_source=dep_provenance,
+            locked_source=locked_provenance or _DEFAULT_LOCKED_PROVENANCE,
+        )
+        if locked_ver is not None
+        else None
+    )
+    return dep, dep_name, dep_version, version_note, conflict_candidates
+
+
+def merge_conflict_candidates(
+    candidate_lists: Iterable[list[ConflictCandidate] | None],
+) -> list[ConflictCandidate] | None:
+    """Merge multiple 2-candidate G2 lists (one per raw declared dependency
+    string that collapsed into the same grouped ``software_Package``) into
+    one deduped list, or ``None`` if none of them conflicted.
+
+    Without this, when more than one raw declared string for the same
+    package resolves to the same locked version (e.g. two extras declaring
+    different, individually-conflicting version ranges), only the first
+    conflicting entry would be reported and any other genuinely-differing
+    declared value would be silently dropped from the SBOM. Deduping by
+    ``(value, role, source)`` naturally collapses the shared locked-side
+    candidate (identical across every input list, since all resolve against
+    the same locked version and provenance) down to one, while keeping each
+    distinct declared-side value.
+    """
+    merged: list[ConflictCandidate] = []
+    seen: set[tuple[str, str, str]] = set()
+    for candidates in candidate_lists:
+        if candidates is None:
+            continue
+        for candidate in candidates:
+            key = (candidate["value"], candidate["role"], candidate["source"])
+            if key not in seen:
+                seen.add(key)
+                merged.append(candidate)
+    return merged or None
 
 
 def _resolve_version(
