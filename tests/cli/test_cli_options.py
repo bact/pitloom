@@ -95,7 +95,7 @@ def test_resolve_project_paths_is_file(
 
     from pitloom.cli.commands import project
 
-    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
         class MockMeta:
             name = "foo"
             version = "1.0"
@@ -104,7 +104,9 @@ def test_resolve_project_paths_is_file(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "read_project", fake_read_project)
+    monkeypatch.setattr(
+        project, "resolve_project_with_locked_dependencies", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -135,7 +137,7 @@ def test_explicit_creation_metadata(
 ) -> None:
     from pitloom.cli.commands import project
 
-    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
         class MockMeta:
             name = "foo"
             version = "1.0"
@@ -144,7 +146,9 @@ def test_explicit_creation_metadata(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "read_project", fake_read_project)
+    monkeypatch.setattr(
+        project, "resolve_project_with_locked_dependencies", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -186,7 +190,7 @@ def test_no_creation_tool(
 ) -> None:
     from pitloom.cli.commands import project
 
-    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
         class MockMeta:
             name = "foo"
             version = "1.0"
@@ -195,7 +199,9 @@ def test_no_creation_tool(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "read_project", fake_read_project)
+    monkeypatch.setattr(
+        project, "resolve_project_with_locked_dependencies", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass

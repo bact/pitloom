@@ -76,6 +76,7 @@ def generate(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     update_registry: bool | None = None,
+    locked_dependencies: bool | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types."""
     target_str = str(target).strip()
@@ -165,4 +166,5 @@ def generate(
         content_type_method=content_type_method,
         offline=offline,
         update_registry=update_registry,
+        locked_dependencies=locked_dependencies,
     )

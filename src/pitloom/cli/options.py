@@ -93,6 +93,28 @@ def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
     )
 
 
+def add_locked_dependencies_argument(
+    parser: argparse.ArgumentParser, effect: str
+) -> None:
+    """Add the shared ``--locked-dependencies``/``--no-locked-dependencies`` flag.
+
+    Unlike ``--offline``/``--enrich`` this is an *opt-out* flag: the lock/pin
+    file cascade is on by default. ``default=None`` here still means
+    "unset", deferring to ``[tool.pitloom] locked-dependencies`` (itself on
+    by default) when omitted.
+    """
+    parser.add_argument(
+        "--locked-dependencies",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            f"Resolve exact versions from a lock/pin file cascade{effect} "
+            "Defers to [tool.pitloom] locked-dependencies (on by default) "
+            "when omitted."
+        ),
+    )
+
+
 def add_debug_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--debug``/``--no-debug`` flag.
 

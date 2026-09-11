@@ -21,7 +21,7 @@ from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
 from pitloom.extract.ai_model import read_ai_model
-from pitloom.extract.project import read_project
+from pitloom.extract.project import resolve_project_with_locked_dependencies
 from pitloom.ids import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
@@ -54,7 +54,9 @@ def _resolve_model_enrich_config(model_dir: Path) -> EnrichConfig:
         return EnrichConfig()
 
 
-def _project_doc_identity(project_dir: Path) -> tuple[str, str]:
+def _project_doc_identity(
+    project_dir: Path, *, locked_dependencies: bool | None = None
+) -> tuple[str, str]:
     """Compute ``(doc_name, doc_uuid)`` for a project directory.
 
     ``doc_uuid`` is content-addressed via ``merkle_root`` (see
@@ -67,8 +69,16 @@ def _project_doc_identity(project_dir: Path) -> tuple[str, str]:
     after a Pitloom upgrade that changes file discovery for this
     project's backend, or the fragment's element references may not
     match the base document's spdxIds.
+
+    ``locked_dependencies`` must match whatever setting produced the base
+    document being merged into, or the computed ``doc_uuid`` will diverge
+    from it (see ``pitloom.core.models.compute_doc_uuid``'s use of
+    ``locked_dependencies``). When omitted, it auto-matches *project_dir*'s
+    own ``[tool.pitloom] locked-dependencies`` config.
     """
-    project_metadata, _pitloom_config, _config_path = read_project(project_dir)
+    project_metadata, _pitloom_config, _config_path = (
+        resolve_project_with_locked_dependencies(project_dir, locked_dependencies)
+    )
     merkle_root, project_files = get_wheel_files(project_dir)
     project_metadata.files = project_files
     doc_uuid = compute_doc_uuid(
@@ -162,6 +172,7 @@ def enrich_model(
     enrich: bool | None = None,
     project_target: Path | str | None = None,
     registry: str | Path | IdRegistry | None = None,
+    locked_dependencies: bool | None = None,
 ) -> str:
     """Run enrichment only for a local model file."""
     configure_logging()
@@ -188,7 +199,9 @@ def enrich_model(
     results = run_enrichers(model, enrich_config, model_dir)
 
     base_doc_identity = (
-        _project_doc_identity(Path(project_target))
+        _project_doc_identity(
+            Path(project_target), locked_dependencies=locked_dependencies
+        )
         if project_target is not None
         else None
     )

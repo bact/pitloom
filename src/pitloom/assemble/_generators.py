@@ -32,7 +32,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.env import read_environment
-from pitloom.extract.project import read_project
+from pitloom.extract.project import resolve_project_with_locked_dependencies
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
@@ -127,12 +127,21 @@ def generate_project_sbom(
     content_type_method: str | None = None,
     offline: bool | None = None,
     update_registry: bool | None = None,
+    locked_dependencies: bool | None = None,
 ) -> str:
-    """Generate a Source SPDX 3 SBOM for a Python project or sdist archive."""
+    """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
+
+    ``locked_dependencies`` only affects metadata resolved by this call: if
+    ``project_metadata``/``pitloom_config`` are pre-supplied by the caller,
+    this parameter has no effect -- the lock-file cascade decision was
+    already made when that metadata was produced.
+    """
     configure_logging()
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:
-        project_metadata, pitloom_config, _ = read_project(target_path)
+        project_metadata, pitloom_config, _ = resolve_project_with_locked_dependencies(
+            target_path, locked_dependencies
+        )
 
     effective_pretty: bool = pitloom_config.pretty if pretty is None else pretty
     effective_describe: bool = bool(

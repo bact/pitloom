@@ -390,6 +390,87 @@ def test_project_command_content_type_method_flag_passed_through(
     assert captured["content_type_method"] == method
 
 
+_PYLOCK_WITH_TRANSITIVE = """
+lock-version = "1.0"
+created-by = "test"
+[[packages]]
+name = "requests"
+version = "2.31.0"
+[[packages]]
+name = "idna"
+version = "3.7"
+""".strip()
+
+
+def _make_project_with_lock(tmp_path: Path) -> Path:
+    """A project whose direct dependency ("requests") is also resolvable
+    via a sibling pylock.toml, which additionally pins a transitive-only
+    package ("idna") never named in [project.dependencies] -- present in
+    the SBOM only when the lock-file cascade actually ran."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "locked-app"\nversion = "0.1.0"\n'
+        'dependencies = ["requests>=2.0"]\n',
+        encoding="utf-8",
+    )
+    (project_dir / "pylock.toml").write_text(_PYLOCK_WITH_TRANSITIVE, encoding="utf-8")
+    return project_dir
+
+
+def test_project_command_no_locked_dependencies_skips_cascade(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--no-locked-dependencies`` must skip the lock-file cascade end to
+    end via the CLI, not just at the ``generate_project_sbom()`` level."""
+    project_dir = _make_project_with_lock(tmp_path)
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "project",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--offline",
+            "--no-locked-dependencies",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    package_names = {
+        n["name"] for n in doc["@graph"] if n["type"] == "software_Package"
+    }
+    assert "idna" not in package_names
+
+
+def test_project_command_locked_dependencies_default_runs_cascade(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No flag at all: the cascade runs by default (opt-out, not opt-in)."""
+    project_dir = _make_project_with_lock(tmp_path)
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "project", str(project_dir), "-o", str(out), "--offline"],
+    )
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    package_names = {
+        n["name"] for n in doc["@graph"] if n["type"] == "software_Package"
+    }
+    assert "idna" in package_names
+
+
 def test_project_command_default_creation_comment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

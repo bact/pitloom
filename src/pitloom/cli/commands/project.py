@@ -23,10 +23,11 @@ from pitloom.cli.options import (
     _resolve_creation_metadata,
     _resolve_output_path,
     _resolve_project_paths,
+    add_locked_dependencies_argument,
     add_offline_argument,
 )
 from pitloom.cli.verbose import _print_verbose
-from pitloom.extract.project import read_project
+from pitloom.extract.project import resolve_project_with_locked_dependencies
 
 
 @cli_error_handler("SBOM generation failed")
@@ -36,7 +37,9 @@ def _run_project_command(args: argparse.Namespace) -> int:
     if project_dir is None:
         return 1
 
-    project_metadata, pitloom_config, config_path = read_project(project_dir)
+    project_metadata, pitloom_config, config_path = (
+        resolve_project_with_locked_dependencies(project_dir, args.locked_dependencies)
+    )
     creation = _resolve_creation_metadata(args, pitloom_config)
     effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
     effective_describe_relationship = (
@@ -97,5 +100,9 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     add_offline_argument(
         proj_parser,
         " -- skip PyPI lookup, no error (local metadata already covers what it can).",
+    )
+    add_locked_dependencies_argument(
+        proj_parser,
+        " -- fall back to direct dependencies + environment introspection only",
     )
     proj_parser.set_defaults(func=_run_project_command)

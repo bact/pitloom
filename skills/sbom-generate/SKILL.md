@@ -139,6 +139,11 @@ When a lock file is present:
   avoid overstating completeness for partial closures (e.g. omitted
   VCS/path dependencies or marker-ambiguous variants).
 
+To opt out and fall back to direct dependencies + environment introspection
+only, pass `--no-locked-dependencies` (on `project`/`generate`/`enrich`) or
+set `[tool.pitloom] locked-dependencies = false` in `pyproject.toml`. On by
+default; an explicit CLI flag always wins over the config value.
+
 
 ## Embed an SBOM into a wheel (PEP 770)
 

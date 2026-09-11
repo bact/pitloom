@@ -155,11 +155,16 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](./metadata-sources.md).
-- [ ] **CLI option `--no-locked-dependencies`** -- opt-out flag and
-  `[tool.pitloom] locked-dependencies = false` configuration allowing users
-  and CI pipelines to disable automatic lock file discovery, falling back to
-  direct dependencies and environment introspection. Wire across CLI,
-  library API, and build backend hooks.
+- [x] **CLI option `--no-locked-dependencies`** -- opt-out flag (also
+  `[tool.pitloom] locked-dependencies = false`) disabling automatic
+  lock-file discovery on `project`/`generate`/`enrich`, the library API's
+  `generate_project_sbom()`/`generate()`, and `action.yml`; on by default,
+  a documented no-op on the Hatchling build hook and `embed-wheel`. Also
+  closed a matching `--offline` gap in `action.yml` (never exposed there
+  despite being a real CLI flag), and fixed a related bug: `loom enrich`'s
+  doc-identity computation always ran the cascade regardless of the base
+  SBOM's own setting, silently producing dangling fragment references.
+  See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-locked-dependencies-opt-out).
 - [ ] **Preserve lock file hashes in `--offline` mode** -- retain package
   SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
   `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3

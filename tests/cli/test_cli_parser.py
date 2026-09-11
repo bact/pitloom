@@ -210,3 +210,39 @@ def test_offline_flag_supports_three_states(
     assert parser.parse_args([command, *target_args]).offline is None
     assert parser.parse_args([command, *target_args, "--offline"]).offline is True
     assert parser.parse_args([command, *target_args, "--no-offline"]).offline is False
+
+
+@pytest.mark.parametrize(
+    ("command", "target_args"),
+    [
+        ("generate", ["."]),
+        ("project", ["."]),
+        ("enrich", ["dummy.gguf"]),
+    ],
+)
+def test_locked_dependencies_flag_supports_three_states(
+    command: str, target_args: list[str]
+) -> None:
+    """``--locked-dependencies`` must behave like every other boolean CLI
+    flag: unset by default (deferring to ``[tool.pitloom]
+    locked-dependencies``), and explicitly overridable back to ``False``
+    via ``--no-locked-dependencies``. Only offered on commands that read a
+    lock/pin file cascade at all -- not ``wheel``/``embed-wheel``/``model``/
+    ``env``."""
+    from pitloom.cli.parser import _build_parser
+
+    parser = _build_parser()
+
+    assert parser.parse_args([command, *target_args]).locked_dependencies is None
+    assert (
+        parser.parse_args(
+            [command, *target_args, "--locked-dependencies"]
+        ).locked_dependencies
+        is True
+    )
+    assert (
+        parser.parse_args(
+            [command, *target_args, "--no-locked-dependencies"]
+        ).locked_dependencies
+        is False
+    )

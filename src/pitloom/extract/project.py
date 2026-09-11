@@ -176,4 +176,36 @@ def read_project(
     return metadata, pitloom_config, config_path
 
 
+def resolve_project_with_locked_dependencies(
+    project_path: Path, locked_dependencies: bool | None
+) -> tuple[ProjectMetadata, PitloomConfig, Path | None]:
+    """Resolve project metadata, deciding the lock/pin cascade from
+    *locked_dependencies* itself when given, or ``[tool.pitloom]
+    locked-dependencies`` when ``None``.
+
+    The cascade decision has to be known before the real metadata read
+    runs, but ``[tool.pitloom] locked-dependencies`` only becomes known
+    *from* a :func:`read_project` call -- so when *locked_dependencies* is
+    ``None``, this "peeks" the config first via a cheap
+    ``include_locked_dependencies=False`` read (no lock-file I/O), then
+    only re-reads for real when that config says the cascade should run.
+    Shared by :func:`pitloom.assemble.generate_project_sbom` and
+    ``pitloom.cli.commands.project._run_project_command`` so the resolution
+    logic (and its double-parse tradeoff, an accepted cost -- see
+    ``working-docs/implementation/lock-file-cascade.md``) exists in one
+    place, not duplicated per caller.
+    """
+    if locked_dependencies is not None:
+        return read_project(
+            project_path, include_locked_dependencies=locked_dependencies
+        )
+
+    peeked_metadata, peeked_config, peeked_path = read_project(
+        project_path, include_locked_dependencies=False
+    )
+    if peeked_config.locked_dependencies:
+        return read_project(project_path)
+    return peeked_metadata, peeked_config, peeked_path
+
+
 __all__ = ["read_project"]

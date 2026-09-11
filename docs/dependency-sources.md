@@ -168,12 +168,23 @@ in the generated SBOM.
 
 ## Configuration and flags
 
-There is currently no setting to change the priority order above,
-choose a specific lock file, or turn lock-file reading off -- it's
-automatic, based purely on which lock file (if any) is present next to
-`pyproject.toml`. If you don't want a lock file's resolved dependencies
-included, the only way is to not have that file present when you run
-`loom project`/`loom generate`.
+There is currently no setting to change the priority order above or
+choose a specific lock file -- which one wins is automatic, based purely
+on which lock file (if any) is present next to `pyproject.toml`.
+
+To turn lock-file reading off entirely -- falling back to direct
+dependencies plus environment introspection only -- pass
+`--no-locked-dependencies` on `loom project`, `loom generate`, or
+`loom enrich`, or set `[tool.pitloom] locked-dependencies = false` in
+`pyproject.toml`. On by default (an explicit CLI flag always wins over
+the config value); see [Configuration](configuration.md).
+
+`loom enrich --project-dir DIR` computes the fragment's target document
+identity from that same setting: pass `--locked-dependencies`/
+`--no-locked-dependencies` explicitly to match whatever produced the
+base SBOM, or omit it to auto-match *DIR*'s own `[tool.pitloom]
+locked-dependencies` config. A mismatch here silently produces a
+fragment referencing the wrong document identity.
 
 `--offline` (also settable via `[tool.pitloom] offline` --
 see [Configuration](configuration.md)) is unrelated to lock-file

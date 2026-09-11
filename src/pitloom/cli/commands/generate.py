@@ -16,7 +16,11 @@ from pitloom.assemble import (
     generate,
 )
 from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_provenance
-from pitloom.cli.options import _resolve_common_options, add_offline_argument
+from pitloom.cli.options import (
+    _resolve_common_options,
+    add_locked_dependencies_argument,
+    add_offline_argument,
+)
 
 
 @cli_error_handler("SBOM generation failed")
@@ -45,9 +49,15 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     pitloom_config, creation_metadata, pretty, describe_relationship = (
         _resolve_common_options(args, target_dir=target_path)
     )
+    effective_locked = (
+        pitloom_config.locked_dependencies
+        if args.locked_dependencies is None
+        else args.locked_dependencies
+    )
     generate(
         args.target,
         offline=args.offline,
+        locked_dependencies=effective_locked,
         output_path=args.output,
         creation_metadata=creation_metadata,
         pretty=pretty,
@@ -86,5 +96,13 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "project dir / .whl: skip PyPI lookup, no error (local metadata "
         "already covers what it can). "
         "local model file: no-op (no network path exists).",
+    )
+    add_locked_dependencies_argument(
+        gen_parser,
+        "; effect depends on the resolved target -- "
+        "project dir: fall back to direct dependencies + environment "
+        "introspection only. "
+        "wheel / model file / HF URL / env: no-op (no lock-file concept "
+        "applies).",
     )
     gen_parser.set_defaults(func=_run_generate_command)
