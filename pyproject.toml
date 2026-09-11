@@ -373,6 +373,8 @@ ignore-missing-imports = [
     "onnx.*",
     "magika",
     "magika.*",
+    "yaml",
+    "yaml.*",
 ]
 
 [tool.pyright]

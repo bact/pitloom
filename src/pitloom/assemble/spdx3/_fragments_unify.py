@@ -111,11 +111,12 @@ def _remap_object_refs(
             if replacement is not None:
                 setattr(obj, pyname, replacement)
         elif isinstance(value, spdx3.ListProxy):
-            for i, item in enumerate(value):
+            items = cast(list[Any], value)
+            for i, item in enumerate(items):
                 if isinstance(item, spdx3.SHACLObject):
                     replacement = remap.get(item)
                     if replacement is not None:
-                        cast(list[Any], value)[i] = replacement
+                        items[i] = replacement
 
 
 def _is_empty(value: Any) -> bool:
