@@ -176,12 +176,7 @@ def _build_poetry_provenance(
     authors: list[dict[str, str]],
     python_declared: bool,
 ) -> dict[str, str]:
-    """Build :func:`extract_poetry_metadata`'s provenance dict.
-
-    Pulled out of :func:`extract_poetry_metadata` so its own local-variable
-    count stays under pylint's ``too-many-locals`` threshold, the same
-    reason :func:`_resolve_poetry_license` was split out below.
-    """
+    """Build :func:`extract_poetry_metadata`'s provenance dict."""
     prov: dict[str, str] = {
         "name": "Source: pyproject.toml | Field: tool.poetry.name",
     }
@@ -257,10 +252,9 @@ def _resolve_poetry_license(
     """Resolve ``[tool.poetry]``'s declared license, falling back to
     directory detection when absent, plus G2's independent second opinion.
 
-    Returns ``(license_name, license_concluded, license_prov)`` -- pulled
-    out of :func:`extract_poetry_metadata` so its own local-variable count
-    stays under pylint's ``too-many-locals`` threshold; ``license_prov`` is
-    ready to merge into the caller's provenance dict directly.
+    Returns ``(license_name, license_concluded, license_prov)`` --
+    ``license_prov`` is ready to merge into the caller's provenance dict
+    directly.
     """
     license_name = (poetry.get("license") or "").strip() or None
     has_declared_license = bool(license_name)

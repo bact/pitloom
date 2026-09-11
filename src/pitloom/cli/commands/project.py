@@ -22,6 +22,7 @@ from pitloom.cli.commands.utils import (
 from pitloom.cli.options import (
     _resolve_creation_metadata,
     _resolve_output_path,
+    _resolve_pretty_and_describe_relationship,
     _resolve_project_paths,
     add_offline_argument,
     add_use_lockfile_argument,
@@ -41,11 +42,8 @@ def _run_project_command(args: argparse.Namespace) -> int:
         project_dir, args.use_lockfile
     )
     creation = _resolve_creation_metadata(args, pitloom_config)
-    effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
-    effective_describe_relationship = (
-        pitloom_config.describe_relationship
-        if args.describe_relationship is None
-        else args.describe_relationship
+    effective_pretty, effective_describe_relationship = (
+        _resolve_pretty_and_describe_relationship(args, pitloom_config)
     )
 
     output_path = _resolve_output_path(args.output, project_metadata, pitloom_config)

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 import sys
 from pathlib import Path
 
@@ -24,6 +25,8 @@ from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.ids import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
+
+log = logging.getLogger(__name__)
 
 
 def _write_output_file(sbom_json: str, output_path: Path | None) -> None:
@@ -198,6 +201,13 @@ def enrich_model(
     )
     results = run_enrichers(model, enrich_config, model_dir)
 
+    if use_lockfile is not None and project_target is None:
+        log.warning(
+            "%s: --use-lockfile/--no-use-lockfile has no effect without "
+            "--project-dir (no base document identity is computed) -- "
+            "ignoring the explicit override",
+            source_str,
+        )
     base_doc_identity = (
         _project_doc_identity(Path(project_target), use_lockfile=use_lockfile)
         if project_target is not None

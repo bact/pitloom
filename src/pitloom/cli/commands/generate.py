@@ -21,6 +21,7 @@ from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_prov
 from pitloom.cli.options import (
     _resolve_common_options,
     _resolve_creation_metadata,
+    _resolve_pretty_and_describe_relationship,
     add_offline_argument,
     add_use_lockfile_argument,
 )
@@ -63,11 +64,8 @@ def _run_generate_command(args: argparse.Namespace) -> int:
             target_path, args.use_lockfile
         )
         creation = _resolve_creation_metadata(args, pitloom_config)
-        effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
-        effective_describe_relationship = (
-            pitloom_config.describe_relationship
-            if args.describe_relationship is None
-            else args.describe_relationship
+        effective_pretty, effective_describe_relationship = (
+            _resolve_pretty_and_describe_relationship(args, pitloom_config)
         )
         generate_project_sbom(
             target_path,
@@ -95,7 +93,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     # so quieting the peek would silently drop its only WARNING: instead
     # of deferring it to a re-emission that never happens.
     pitloom_config, creation_metadata, pretty, describe_relationship = (
-        _resolve_common_options(args, target_dir=target_path, quiet=False)
+        _resolve_common_options(args, target_dir=target_path)
     )
     generate(
         args.target,

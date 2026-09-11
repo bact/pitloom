@@ -214,6 +214,8 @@ def _parse_cfg_requires(raw: str) -> list[str]:
 # pylint: disable=too-many-locals
 def read_setup_cfg(
     project_dir: Path,
+    *,
+    quiet: bool = False,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from ``setup.cfg``.
 
@@ -221,7 +223,16 @@ def read_setup_cfg(
     dependency declarations.  Pitloom settings can be placed under a
     ``[tool:pitloom]`` section (note the colon separator used by
     ``setup.cfg`` convention).
+
+    ``quiet`` currently has no effect: this function logs no ``WARNING:``
+    lines today. Accepted (and threaded in by :func:`read_setuptools`)
+    regardless, so a future warning added here -- e.g. an unresolvable
+    directive value, mirroring ``setup.py``'s equivalent case in
+    :mod:`pitloom.extract._setuptools_py` -- is forced to honour it from
+    the start, instead of the call-site-discipline trap AGENTS.md warns
+    about for stage/quiet-scoped helpers.
     """
+    _ = quiet
     setup_cfg_path = project_dir / "setup.cfg"
     if not setup_cfg_path.exists():
         raise FileNotFoundError(f"setup.cfg not found at {setup_cfg_path}")

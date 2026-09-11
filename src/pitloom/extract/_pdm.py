@@ -54,7 +54,11 @@ _RESOLVABLE_SOURCES = frozenset({"file", "scm"})
 
 
 def resolve_pdm_dynamic_version(
-    project_dir: Path, data: dict[str, Any], dynamic_fields: list[str]
+    project_dir: Path,
+    data: dict[str, Any],
+    dynamic_fields: list[str],
+    *,
+    quiet: bool = False,
 ) -> tuple[str | None, str | None]:
     """Resolve PDM's dynamic ``version`` field from ``[tool.pdm.version]``.
 
@@ -63,6 +67,10 @@ def resolve_pdm_dynamic_version(
     present, the declared ``source`` is ``"call"`` or unrecognized, or
     resolution otherwise fails (logged as a ``WARNING:``, never raised --
     the caller falls back to its own generic dynamic-version heuristic).
+
+    ``quiet`` suppresses this resolution's own ``WARNING:`` lines (default
+    ``False``) -- for a caller re-reading the same file a second time; see
+    :func:`pitloom.extract.project.read_project`'s own ``quiet``.
     """
     if "version" not in dynamic_fields:
         return None, None
@@ -79,12 +87,13 @@ def resolve_pdm_dynamic_version(
     if source is None:
         return None, None
     if source not in _RESOLVABLE_SOURCES:
-        log.warning(
-            "PDM dynamic version source %r for %s is not resolvable without "
-            "executing project code -- version left unresolved",
-            source,
-            project_dir,
-        )
+        if not quiet:
+            log.warning(
+                "PDM dynamic version source %r for %s is not resolvable "
+                "without executing project code -- version left unresolved",
+                source,
+                project_dir,
+            )
         return None, None
 
     # pylint: disable=import-outside-toplevel
@@ -142,9 +151,10 @@ def resolve_pdm_dynamic_version(
         version = str(method(context, **options))
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "PDM dynamic version resolution failed for %s: %s", project_dir, exc
-        )
+        if not quiet:
+            log.warning(
+                "PDM dynamic version resolution failed for %s: %s", project_dir, exc
+            )
         return None, None
 
     return version, f"Source: pyproject.toml | Method: pdm_dynamic_version({source})"

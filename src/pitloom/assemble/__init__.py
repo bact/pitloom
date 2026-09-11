@@ -12,6 +12,7 @@ See also:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pitloom.assemble._generators import (
@@ -38,6 +39,8 @@ from pitloom.embed import (
 )
 from pitloom.extract._huggingface import is_huggingface_source
 from pitloom.ids import IdRegistry
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "ConfigOverrides",
@@ -136,6 +139,14 @@ def generate(
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types."""
     target_str = str(target).strip()
     classification = _classify_target(target_str)
+
+    if use_lockfile is not None and classification != "project":
+        log.warning(
+            "%s: --use-lockfile/--no-use-lockfile has no effect for this "
+            "target (no lock-file concept applies to env/wheel/model-file/"
+            "Hugging-Face targets) -- ignoring the explicit override",
+            target_str,
+        )
 
     if classification == "env":
         return generate_env_sbom(

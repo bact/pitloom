@@ -482,17 +482,19 @@ def test_resolve_project_with_lockfile_does_not_duplicate_poetry_warning(
     assert caplog.text.count("Skipping Poetry dependency") == 1
 
 
-def test_read_project_quiet_suppresses_poetry_parse_failure_warning(
+def test_resolve_project_with_lockfile_poetry_parse_failure_warning_not_lost(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Regression: a malformed [tool.poetry] section (missing name) logs its
     own "metadata could not be parsed... still applying poetry.lock's
-    resolved dependencies" WARNING: from _try_read_poetry() -- read_project()'s
-    own docstring promises ``quiet`` suppresses every warning from that read,
-    but this one call site was missing the ``if not quiet:`` guard every
-    sibling warning in the same chain already has, so a caller re-reading
-    the same file (e.g. resolve_project_with_lockfile()'s peek-then-reread)
-    would still get it re-emitted despite passing quiet=True."""
+    resolved dependencies" WARNING: from _try_read_poetry() -- reachable only
+    when locked_dependencies is not None (include_locked_dependencies=True).
+    resolve_project_with_lockfile()'s peek always calls with
+    include_locked_dependencies=False, so the peek itself can never reach
+    this branch; the warning must therefore NOT be gated by `quiet` (unlike
+    this function's other, genuinely peek-reachable warnings) -- gating it
+    would silently drop it for the default/no-flag path, where the only
+    real (include_locked_dependencies=True) call is the quiet=True reread."""
     (tmp_path / "pyproject.toml").write_text(
         '[tool.poetry]\nversion = "1.0.0"\n', encoding="utf-8"
     )
@@ -503,15 +505,11 @@ def test_read_project_quiet_suppresses_poetry_parse_failure_warning(
     )
 
     with caplog.at_level(logging.WARNING):
-        metadata, _pitloom_config, _config_path = read_project(tmp_path, quiet=True)
+        metadata, _pitloom_config, _config_path = resolve_project_with_lockfile(
+            tmp_path, None
+        )
 
     assert metadata.locked_dependencies == ["requests==2.31.0"]
-    assert "metadata could not be parsed" not in caplog.text
-
-    caplog.clear()
-    with caplog.at_level(logging.WARNING):
-        read_project(tmp_path, quiet=False)
-
     assert caplog.text.count("metadata could not be parsed") == 1
 
 
@@ -564,3 +562,30 @@ def test_resolve_project_with_lockfile_does_not_duplicate_fallback_warning(
 
     assert metadata.name == "real-pkg"
     assert caplog.text.count("no usable [project] table") == 1
+
+
+def test_resolve_project_with_lockfile_does_not_duplicate_flit_dynamic_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: prepare_dynamic_version() (called unconditionally by
+    read_pyproject(), regardless of include_locked_dependencies) didn't
+    forward `quiet` to resolve_flit_dynamic_metadata() -- a Flit-backend
+    project with an unresolvable `dynamic = ["version"]` would log its
+    "Flit dynamic metadata resolution failed" WARNING: twice on the
+    peek-then-reread, the fifth independent call chain (after PEP 639,
+    Poetry, setup.py, and the pyproject-fallback cases above) reaching a
+    warning-emitting parse path."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["flit_core>=3.9"]\n'
+        'build-backend = "flit_core.buildapi"\n\n'
+        '[project]\nname = "nonexistent_pkg"\ndynamic = ["version"]\n',
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        metadata, _pitloom_config, _config_path = resolve_project_with_lockfile(
+            tmp_path, None
+        )
+
+    assert metadata.version is None
+    assert caplog.text.count("Flit dynamic metadata resolution failed") == 1

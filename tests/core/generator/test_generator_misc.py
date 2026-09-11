@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
 from pathlib import Path
 
@@ -216,6 +217,43 @@ def test_generate_dispatches_env_target(
     monkeypatch.setattr(assemble, "generate_env_sbom", _fake_generate_env_sbom)
     assert generate(target) == "env-sbom"
     assert "output_path" in called
+
+
+def test_generate_use_lockfile_warns_for_non_project_target(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: an explicit use_lockfile has no effect for a non-project
+    target (env/wheel/model-file/Hugging-Face) -- generate() never forwards
+    it to generate_env_sbom()/generate_wheel_sbom()/generate_model_sbom(),
+    so passing it must log a WARNING: (matching the analogous sdist-archive
+    no-op in resolve_project_with_lockfile()) instead of silently
+    discarding the caller's explicit instruction."""
+    monkeypatch.setattr(
+        assemble,
+        "generate_env_sbom",
+        lambda **kwargs: "env-sbom",  # noqa: ARG005
+    )
+
+    with caplog.at_level(logging.WARNING):
+        assert generate("env", use_lockfile=False) == "env-sbom"
+
+    assert "has no effect for this target" in caplog.text
+
+
+def test_generate_use_lockfile_silent_for_project_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A project-directory target is where use_lockfile actually applies --
+    no no-op WARNING: should fire there."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "smart-pkg"\nversion = "0.1.0"\n'
+    )
+
+    with caplog.at_level(logging.WARNING):
+        generate(tmp_path, use_lockfile=False)
+
+    assert "has no effect for this target" not in caplog.text
 
 
 def test_generate_dispatches_huggingface_source(

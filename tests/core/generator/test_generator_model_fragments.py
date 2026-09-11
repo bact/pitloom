@@ -18,6 +18,7 @@ variants.
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
 from pathlib import Path
 
@@ -73,6 +74,26 @@ def test_enrich_model_writes_bare_graph_fragment() -> None:
             c["field"] for c in json.loads(enrichment_anns[0]["statement"])["changes"]
         }
         assert changed_fields == {"license", "datasets:tiny-imagenet"}
+
+
+def test_enrich_model_use_lockfile_warns_without_project_target(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression: an explicit use_lockfile has no effect without
+    --project-dir (no base document identity is ever computed), so passing
+    it must log a WARNING: instead of silently discarding the caller's
+    explicit instruction -- matching the sibling no-op cases (sdist
+    archives, non-project generate() targets)."""
+    fixture = _AI_MODEL_ROOT / "safetensors" / "phi-tiny-random.safetensors"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        model_path = tmppath / "model.safetensors"
+        model_path.write_bytes(fixture.read_bytes())
+
+        with caplog.at_level(logging.WARNING):
+            enrich_model(model_path, use_lockfile=False)
+
+        assert "has no effect without --project-dir" in caplog.text
 
 
 def test_enrich_model_no_readme_produces_empty_fragment() -> None:

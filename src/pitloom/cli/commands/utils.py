@@ -166,11 +166,11 @@ def _locate_and_detect(
 def _import_spdx3_validate() -> Any | None:
     """Import ``spdx3_validate``, printing an install-hint ``ERROR:`` if missing.
 
-    Split out of :func:`_validate_spdx3_documents` so ``fragment validate``
-    can check for the dependency before its own path-existence check (the
-    dependency is more fundamental than any one path being wrong) while
-    :func:`_validate_spdx3_documents` still does the same check internally
-    for callers, like ``validate-wheel``, that don't need to sequence it.
+    Called directly by ``fragment validate`` before its own path-existence
+    check, since a missing dependency is more fundamental than any one
+    path being wrong; :func:`_validate_spdx3_documents` also calls this
+    internally for callers, like ``validate-wheel``, that don't need to
+    sequence it that way.
     """
     try:
         # pylint: disable=import-outside-toplevel

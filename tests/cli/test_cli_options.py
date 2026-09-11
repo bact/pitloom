@@ -233,6 +233,38 @@ def test_resolve_common_options_file_target(tmp_path: Path) -> None:
     assert conf.pretty is False
 
 
+def test_resolve_common_options_malformed_config_degrades_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: a genuine parse failure (not just a missing file) in the
+    config-only peek must not crash the caller -- this peek is best-effort
+    only, its caller's actual target may not even be this directory -- but
+    must log a WARNING: rather than silently discarding the error."""
+    import argparse
+    import logging
+
+    from pitloom.cli.options import _resolve_common_options
+    from pitloom.core.config import PitloomConfig
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nrequires-python = "not a valid specifier!!"\n'
+    )
+    args = argparse.Namespace(
+        no_creation_tool=True,
+        creators=[],
+        creation_datetime=None,
+        creation_comment=None,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        conf, _meta, _pretty, _desc = _resolve_common_options(
+            args, target_dir=tmp_path, load_project=True
+        )
+
+    assert conf == PitloomConfig()
+    assert "could not read project config" in caplog.text
+
+
 def test_resolve_common_options_not_found(tmp_path: Path) -> None:
     import argparse
 

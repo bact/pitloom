@@ -16,8 +16,7 @@ module; only what's shared across two or more formats -- loading the
 lock file, grouping entries by name, judging a specifier -- lives here.
 
 See also: :mod:`pitloom.extract._lock_common_warnings` for the shared
-``WARNING:`` message helpers, split out to keep this module under this
-repo's file-size soft limit and re-exported below.
+``WARNING:`` message helpers, re-exported below.
 """
 
 from __future__ import annotations

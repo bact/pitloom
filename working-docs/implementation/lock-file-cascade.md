@@ -519,20 +519,30 @@ Resolving the setting before the real metadata read requires a cheap
 which does no lock-file I/O) purely to read `[tool.pitloom] use-lockfile`
 when no explicit CLI flag was given, reusing the peeked metadata/config
 when it already matches the final decision rather than reading twice.
-`generate_project_sbom()`, `loom project`'s own command handler, and
-`_project_doc_identity()` (see below) all need this same peek-then-decide
-behaviour, so it lives in one place --
+`generate_project_sbom()`, `loom project`'s own command handler,
+`loom generate`'s own command handler (for a project-directory target
+only -- see below), and `_project_doc_identity()` (see below) all need
+this same peek-then-decide behaviour, so it lives in one place --
 `pitloom.extract.project.resolve_project_with_lockfile()` -- rather than
 being hand-copied per caller (the "pattern hand-copied across 3+ call
 sites drifts" rule). The peek-then-reread's own duplicate-`WARNING:`
 risk (same file parsed twice) is closed via a `quiet` parameter threaded
 through the shared read path, so the reread never re-emits what the peek
 already logged; the sdist-archive case (which never varies by this
-setting) skips the peek/reread dance entirely instead. `loom generate`'s
-separate `_resolve_common_options()` config-only peek gets the same
-treatment via `pitloom.assemble.target_resolves_to_project()`, which
-tells it in advance whether `generate_project_sbom()`'s own real read
-will immediately follow for the same directory.
+setting) skips the peek/reread dance entirely instead.
+
+`loom generate`'s command handler special-cases a project-directory
+target (`pitloom.assemble.target_resolves_to_project()` plus a directory
+check): it calls `resolve_project_with_lockfile()` and
+`generate_project_sbom()` directly -- the same single-read pattern
+`loom project` uses -- instead of going through the shared `generate()`
+dispatcher, which would otherwise still need a separate config-only peek
+(`_resolve_common_options()`) ahead of `generate_project_sbom()`'s own
+real read. For every other target (env/wheel/model-file/Hugging-Face/
+sdist-archive), `loom generate` does go through `generate()`, and its own
+`_resolve_common_options()` peek is a normal, always-non-quiet read: none
+of those targets' real reads re-parse the same directory this peek
+looked at, so there is nothing for it to duplicate.
 
 `loom enrich`'s `_project_doc_identity()` (`_model_generator.py`) also
 threads this setting: it must match whatever value produced the *base*
@@ -543,6 +553,14 @@ coverage). When `loom enrich` is given no explicit `--use-lockfile` flag,
 `[tool.pitloom] use-lockfile` config and uses that -- so a base SBOM
 generated purely from config (no CLI override) is matched automatically,
 with an explicit flag still available to cover the CLI-override case.
+
+Every no-op case -- an explicit `--use-lockfile`/`--no-use-lockfile`
+given for a target the setting doesn't apply to -- logs a `WARNING:`
+identifying itself and explaining that the override was ignored, per the
+"no silent deviations" rule: the sdist-archive case above
+(`resolve_project_with_lockfile()`), `generate()`'s env/wheel/model-file/
+Hugging-Face targets, and `enrich_model()` when called without
+`project_target`/`--project-dir`.
 
 The Hatchling build hook is a deliberate no-op for this setting, the
 same way it already is for `[tool.pitloom] pretty`: lock/pin files are

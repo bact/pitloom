@@ -5,13 +5,8 @@
 
 """PEP 621 ``dynamic`` field resolution for ``pyproject.toml``.
 
-Split out of :mod:`pitloom.extract._pyproject` (which calls
-:func:`prepare_dynamic_version`) to keep that module from growing into a
-dumping ground -- this is a cohesive sub-concern (resolving
-``dynamic = [...]`` fields via whichever mechanism the declared build
-backend uses) with its own clear boundary.
-
-Tries each backend's own resolution logic first
+Resolves ``dynamic = [...]`` fields via whichever mechanism the declared
+build backend uses. Tries each backend's own resolution logic first
 (:mod:`pitloom.extract._flit` for ``version``/``description``,
 :mod:`pitloom.extract._pdm` for ``version`` via ``[tool.pdm.version]``,
 :func:`_extract_setuptools_dynamic_version` for
@@ -19,6 +14,9 @@ Tries each backend's own resolution logic first
 ``__about__.py``/``__version__.py``-file heuristic
 (:func:`_extract_dynamic_version`) for ``version`` when the backend
 isn't recognized or its own resolution comes up empty.
+
+Called by :func:`pitloom.extract._pyproject.read_pyproject` via
+:func:`prepare_dynamic_version`.
 """
 
 from __future__ import annotations
@@ -53,6 +51,8 @@ def prepare_dynamic_version(
     data: dict[str, Any],
     project_data: dict[str, Any],
     pyproject_path: Path,
+    *,
+    quiet: bool = False,
 ) -> tuple[dict[str, Any], list[str], str | None, str | None]:
     """Resolve dynamic ``version``/``description`` in project metadata, if
     declared.
@@ -66,6 +66,10 @@ def prepare_dynamic_version(
     heuristic below can't see. Falls back to that generic heuristic for
     ``version`` when the backend isn't recognized or its own resolution
     comes up empty.
+
+    ``quiet`` suppresses the Flit/PDM resolvers' own ``WARNING:`` lines
+    (default ``False``) -- forwarded to both; see
+    :func:`pitloom.extract.project.read_project`'s own ``quiet``.
     """
     dynamic_fields = list(project_data.get("dynamic", []))
     version_source: str | None = None
@@ -76,7 +80,9 @@ def prepare_dynamic_version(
     backend = detect_build_backend(pyproject_path.parent, pyproject_data=data)
 
     if backend == "flit":
-        resolved = resolve_flit_dynamic_metadata(pyproject_path, dynamic_fields)
+        resolved = resolve_flit_dynamic_metadata(
+            pyproject_path, dynamic_fields, quiet=quiet
+        )
         for field, value in resolved.items():
             data, project_data, dynamic_fields = _resolve_field(
                 data, project_data, dynamic_fields, field, value
@@ -94,7 +100,7 @@ def prepare_dynamic_version(
 
     if backend == "pdm" and "version" in dynamic_fields:
         version, source = resolve_pdm_dynamic_version(
-            pyproject_path.parent, data, dynamic_fields
+            pyproject_path.parent, data, dynamic_fields, quiet=quiet
         )
         data, project_data, dynamic_fields = _resolve_field(
             data, project_data, dynamic_fields, "version", version

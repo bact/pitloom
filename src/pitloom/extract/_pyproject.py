@@ -123,10 +123,6 @@ def _parse_standard_metadata_with_retry(
     ``data.get("project", {})``/``_try_read_poetry()`` calls, not the
     original.
 
-    Split out of :func:`read_pyproject` specifically to keep that function's
-    cognitive complexity under the repo's ``.flake8`` ceiling -- this nested
-    try/except was its single largest contributor.
-
     *quiet* suppresses the PEP 639 transitional-state ``WARNING:`` -- for a
     caller that already emitted it once for this same file and is re-parsing
     only to apply a different, unrelated setting (e.g.
@@ -227,7 +223,7 @@ def read_pyproject(
         )
 
     data, dynamic_fields, version_source, description_source = prepare_dynamic_version(
-        data, project_data, pyproject_path
+        data, project_data, pyproject_path, quiet=quiet
     )
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
 
@@ -504,14 +500,23 @@ def _try_read_poetry(
     except (ValueError, KeyError) as exc:
         if locked_dependencies is None:
             return None
-        if not quiet:
-            log.warning(
-                "%s: [tool.poetry] metadata could not be parsed (%s) -- "
-                "skipping Poetry gap-fill, but still applying poetry.lock's "
-                "resolved dependencies",
-                project_dir,
-                exc,
-            )
+        # Not gated by `if not quiet:` like this function's sibling
+        # warnings: this branch is only reachable when locked_dependencies
+        # is not None, i.e. only when include_locked_dependencies=True --
+        # resolve_project_with_lockfile()'s peek always calls this with
+        # include_locked_dependencies=False, so the peek can never reach
+        # this branch to have already logged it. The one real
+        # (include_locked_dependencies=True) call -- whether the single
+        # explicit-use_lockfile read or the peek-then-decide's quiet=True
+        # reread -- is therefore always this warning's only possible
+        # emission, never a duplicate of one the peek already made.
+        log.warning(
+            "%s: [tool.poetry] metadata could not be parsed (%s) -- "
+            "skipping Poetry gap-fill, but still applying poetry.lock's "
+            "resolved dependencies",
+            project_dir,
+            exc,
+        )
         metadata = ProjectMetadata(name="")
     if locked_dependencies is not None:
         metadata.locked_dependencies = locked_dependencies

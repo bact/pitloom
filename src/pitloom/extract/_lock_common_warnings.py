@@ -5,13 +5,12 @@
 
 """Shared ``WARNING:`` message helpers for lock/pin file extractors.
 
-Split out of :mod:`pitloom.extract._lock_common` (which re-exports every
-name here) to keep that module under this repo's file-size soft limit.
 Every extractor's own malformed-entry/non-registry-source/missing-field
 warning is worded identically by routing through one of these instead of
 hand-rolling a similarly-worded message per format -- see AGENTS.md's
 "Recurring bug patterns" for why wording drift across siblings is worth
-avoiding.
+avoiding. Every name here is re-exported from
+:mod:`pitloom.extract._lock_common`.
 """
 
 from __future__ import annotations
