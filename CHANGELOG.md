@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -49,6 +49,8 @@ and this project adheres to
   resolved-dependency cascade above, across CLI, library API, and
   `action.yml`; on by default ([#210])
 - Add `--offline`/`--use-lockfile` as `action.yml` inputs ([#210])
+- Add conflict detection for dependency version (declared specifier
+  vs. lock-resolved version), generalizing it beyond license ([#211])
 
 ### Fixed
 
@@ -94,6 +96,7 @@ and this project adheres to
 [#207]: https://github.com/bact/pitloom/pull/207
 [#208]: https://github.com/bact/pitloom/pull/208
 [#210]: https://github.com/bact/pitloom/pull/210
+[#211]: https://github.com/bact/pitloom/pull/211
 
 ## [0.17.0] - 2026-08-30
 

@@ -104,4 +104,3 @@ def test_return_is_none_never_empty_list_on_agreement() -> None:
         locked_source="Source: requirements.txt | Method: resolved_lockfile",
     )
     assert result is None
-    assert result != []
