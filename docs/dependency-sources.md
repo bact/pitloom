@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -109,12 +109,15 @@ two places:
   entirely rather than guessed at.
 - **A declared range vs. the lock file's resolved version.** When a
   direct dependency is unpinned or declared as a range, the lock file's
-  resolved version is used (see above). When it's already pinned
+  resolved version is used (see above); when it's already pinned
   exactly (e.g. `requests==2.31.0`) and the lock file separately
   resolved it to a version that doesn't normalise the same way (e.g.
   `2.31.1`), Pitloom logs a `WARNING:` but keeps the *declared* pin --
   the lock's differing value never silently overrides an exact pin the
-  project itself declared.
+  project itself declared. Either direction, a genuine disagreement also
+  adds a `conflict` Annotation (`field: "dependency_version"`) to the
+  generated SBOM, not just a stderr `WARNING:` -- see [Metadata
+  provenance](metadata-provenance.md#how-a-dependency-version-source-is-chosen).
 
 [pep-440]: https://peps.python.org/pep-0440/
 
