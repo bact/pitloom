@@ -93,6 +93,7 @@ def test_resolve_project_paths_is_file(
     sdist_file = tmp_path / "my_project-1.0.tar.gz"
     sdist_file.write_text("dummy content")
 
+    from pitloom.cli import options as cli_options
     from pitloom.cli.commands import project
 
     def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
@@ -104,7 +105,9 @@ def test_resolve_project_paths_is_file(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "resolve_project_with_lockfile", fake_resolve_project)
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -133,6 +136,7 @@ def test_explicit_creation_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    from pitloom.cli import options as cli_options
     from pitloom.cli.commands import project
 
     def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
@@ -144,7 +148,9 @@ def test_explicit_creation_metadata(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "resolve_project_with_lockfile", fake_resolve_project)
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -184,6 +190,7 @@ def test_no_creation_tool(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    from pitloom.cli import options as cli_options
     from pitloom.cli.commands import project
 
     def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
@@ -195,7 +202,9 @@ def test_no_creation_tool(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "resolve_project_with_lockfile", fake_resolve_project)
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
