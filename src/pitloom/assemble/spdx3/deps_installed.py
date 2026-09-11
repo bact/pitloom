@@ -180,7 +180,7 @@ def build_dependency_version_conflict(
         # disagreement -- distinct from "confirmed no conflict" (satisfies
         # is True). Neither case gets a ConflictCandidate list.
         return None
-    if req is None or not req.specifier:
+    if req is None or not req.specifier:  # pragma: no cover
         # Unreachable: _satisfies_constraint only returns False when req is
         # not None and req.specifier is non-empty. Kept for mypy narrowing
         # instead of an `assert` (production code, never test-only).
