@@ -6,14 +6,15 @@
 """Locked (e.g. ``poetry.lock``-resolved) dependency handling for
 :func:`pitloom.assemble.spdx3.document.build` -- deduplication, conflict
 detection, the exact-locked-version map, and the combined PyPI release-info
-prefetch. Split out of :mod:`pitloom.assemble.spdx3.document` to keep that
-module under this repo's file-size soft limit; every name that was already
-public from that module before the split is listed in its ``__all__`` and
-re-exported from there, so existing imports of those names from
-``pitloom.assemble.spdx3.document`` keep working. ``_dedup_and_locked_versions``
-and ``_canon_names_and_pins`` are new, module-internal to this split --
-``document.py`` imports the former for its own use in :func:`build` but
-omits it from ``__all__``, and never imports the latter at all.
+prefetch.
+
+Every name that is also public from :mod:`pitloom.assemble.spdx3.document`
+is listed in this module's ``__all__`` and re-exported from there, so
+importing those names from ``pitloom.assemble.spdx3.document`` keeps
+working. ``_dedup_and_locked_versions`` and ``_canon_names_and_pins`` are
+internal to this module -- ``document.py`` imports the former for its own
+use in :func:`build` but omits it from ``__all__``, and never imports the
+latter at all.
 
 See also: :mod:`pitloom.extract._lock_common` for the shared
 canonical-name-grouping and version-equality helpers this module builds on.
@@ -46,9 +47,6 @@ def _canon_names_and_pins(
     string's PEP 503-canonicalized name (``canon_by_dep``, keyed by the
     original dep string) alongside the ``(name, dep, pinned)`` triples
     for entries that carry an exact pin.
-
-    Split out of :func:`_dedup_and_locked_versions` only to keep that
-    function's local-variable count under this repo's complexity ceiling.
     """
     canon_by_dep: dict[str, str] = {}
     pinned_triples: list[tuple[str, str, str]] = []

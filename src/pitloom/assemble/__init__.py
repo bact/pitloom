@@ -37,6 +37,7 @@ from pitloom.embed import (
     find_embedded_sbom,
 )
 from pitloom.extract._huggingface import is_huggingface_source
+from pitloom.extract.project import warn_use_lockfile_no_effect
 from pitloom.ids import IdRegistry
 
 __all__ = [
@@ -57,7 +58,62 @@ __all__ = [
     "generate_project_sbom",
     "generate_wheel_sbom",
     "merge_fragments",
+    "target_resolves_to_project",
 ]
+
+_MODEL_FILE_EXTENSIONS = (
+    ".gguf",
+    ".safetensors",
+    ".onnx",
+    ".pt",
+    ".pth",
+    ".pt2",
+    ".h5",
+    ".hdf5",
+    ".keras",
+    ".npy",
+    ".npz",
+    ".bin",
+    ".ftz",
+)
+
+
+def _classify_target(target: Path | str) -> str:
+    """Classify *target* into ``"env"``, ``"wheel"``, ``"hf"``,
+    ``"model_file"``, or ``"project"`` (plain directory or sdist archive).
+
+    Single source of truth for :func:`generate`'s own dispatch and for
+    :func:`target_resolves_to_project` -- one shared check instead of two
+    independently-maintained classifications drifting apart.
+    """
+    target_str = str(target).strip()
+    if target_str.lower() in ("env", "environment", "--env"):
+        return "env"
+    if target_str.lower().endswith(".whl"):
+        return "wheel"
+    if is_huggingface_source(target_str):
+        return "hf"
+    target_path = Path(target_str)
+    if target_path.is_file() and target_path.name.lower().endswith(
+        _MODEL_FILE_EXTENSIONS
+    ):
+        return "model_file"
+    return "project"
+
+
+def target_resolves_to_project(target: Path | str) -> bool:
+    """Return whether :func:`generate`'s dispatch reaches
+    :func:`~pitloom.assemble._generators.generate_project_sbom` (a plain
+    project directory or sdist archive) for *target*, rather than the
+    env/wheel/Hugging-Face/model-file branches.
+
+    ``pitloom.cli.commands.generate._run_generate_command`` calls it ahead
+    of time to decide whether its own config-only project peek
+    (:func:`pitloom.cli.options._resolve_common_options`) would otherwise
+    duplicate a ``WARNING:`` that :func:`generate_project_sbom`'s real read
+    re-emits for the same directory.
+    """
+    return _classify_target(target) == "project"
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -76,11 +132,20 @@ def generate(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     update_registry: bool | None = None,
+    use_lockfile: bool | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types."""
     target_str = str(target).strip()
+    classification = _classify_target(target_str)
 
-    if target_str.lower() in ("env", "environment", "--env"):
+    if use_lockfile is not None and classification != "project":
+        warn_use_lockfile_no_effect(
+            target_str,
+            "for this target (no lock-file concept applies to env/wheel/"
+            "model-file/Hugging-Face targets)",
+        )
+
+    if classification == "env":
         return generate_env_sbom(
             output_path=output_path,
             creation_metadata=creation_metadata,
@@ -92,7 +157,7 @@ def generate(
             update_registry=update_registry,
         )
 
-    if target_str.lower().endswith(".whl"):
+    if classification == "wheel":
         return generate_wheel_sbom(
             target_str,
             output_path=output_path,
@@ -105,7 +170,7 @@ def generate(
             update_registry=update_registry,
         )
 
-    if is_huggingface_source(target_str):
+    if classification == "hf":
         return generate_model_sbom(
             target_str,
             offline=offline,
@@ -118,41 +183,21 @@ def generate(
             enrich=enrich,
         )
 
-    target_path = Path(target)
-    if target_path.is_file():
-        name_lower = target_path.name.lower()
-        if any(
-            name_lower.endswith(ext)
-            for ext in (
-                ".gguf",
-                ".safetensors",
-                ".onnx",
-                ".pt",
-                ".pth",
-                ".pt2",
-                ".h5",
-                ".hdf5",
-                ".keras",
-                ".npy",
-                ".npz",
-                ".bin",
-                ".ftz",
-            )
-        ):
-            return generate_model_sbom(
-                target_path,
-                offline=offline,
-                output_path=output_path,
-                creation_metadata=creation_metadata,
-                pretty=pretty,
-                describe_relationship=describe_relationship,
-                registry=registry,
-                provenance=provenance,
-                enrich=enrich,
-            )
+    if classification == "model_file":
+        return generate_model_sbom(
+            Path(target_str),
+            offline=offline,
+            output_path=output_path,
+            creation_metadata=creation_metadata,
+            pretty=pretty,
+            describe_relationship=describe_relationship,
+            registry=registry,
+            provenance=provenance,
+            enrich=enrich,
+        )
 
     return generate_project_sbom(
-        target_path,
+        Path(target_str),
         output_path=output_path,
         creation_metadata=creation_metadata,
         pretty=pretty,
@@ -165,4 +210,5 @@ def generate(
         content_type_method=content_type_method,
         offline=offline,
         update_registry=update_registry,
+        use_lockfile=use_lockfile,
     )

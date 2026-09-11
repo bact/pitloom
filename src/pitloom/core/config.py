@@ -33,6 +33,7 @@ from pitloom.core._config_parse import (
     _read_offline_setting,
     _read_provenance_settings,
     _read_tools,
+    _read_use_lockfile_setting,
     parse_pitloom_config,
     read_pitloom_config,
 )
@@ -75,6 +76,7 @@ __all__ = [
     "_read_offline_setting",
     "_read_provenance_settings",
     "_read_tools",
+    "_read_use_lockfile_setting",
     "parse_pitloom_config",
     "read_pitloom_config",
 ]

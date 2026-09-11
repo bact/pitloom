@@ -45,6 +45,10 @@ and this project adheres to
   from `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`,
   and a fully pinned `requirements.txt` -- see [Dependency sources and
   precedence](docs/dependency-sources.md) ([#208])
+- Add `--no-use-lockfile`/`[tool.pitloom] use-lockfile` opt-out for the
+  resolved-dependency cascade above, across CLI, library API, and
+  `action.yml`; on by default ([#210])
+- Add `--offline`/`--use-lockfile` as `action.yml` inputs ([#210])
 
 ### Fixed
 
@@ -64,6 +68,10 @@ and this project adheres to
   ([#205])
 - `embed-wheel --project-dir` now shows the real reason when project
   metadata can't be resolved ([#205])
+- `loom enrich --project-dir` no longer always ran the lock-file cascade
+  when computing the base document's identity, regardless of the base
+  SBOM's own setting -- silently produced dangling fragment references
+  ([#210])
 
 ### Changed
 
@@ -85,6 +93,7 @@ and this project adheres to
 [#205]: https://github.com/bact/pitloom/pull/205
 [#207]: https://github.com/bact/pitloom/pull/207
 [#208]: https://github.com/bact/pitloom/pull/208
+[#210]: https://github.com/bact/pitloom/pull/210
 
 ## [0.17.0] - 2026-08-30
 

@@ -7,12 +7,14 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
 import pytest
 
 from pitloom import __main__
+from pitloom.assemble import target_resolves_to_project
 from pitloom.cli.commands import env as mod_env
 from pitloom.cli.commands import generate as mod_generate
 from pitloom.core.creation import CreationMetadata
@@ -70,7 +72,7 @@ creation-comment = "configured in pyproject"
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys, "argv", ["loom", "generate", str(project_dir), "-o", str(output_path)]
     )
@@ -78,7 +80,7 @@ creation-comment = "configured in pyproject"
     exit_code = __main__.main()
 
     assert exit_code == 0
-    assert captured["target"] == str(project_dir)
+    assert captured["target"] == project_dir
     assert captured["pretty"] is True
     assert captured["describe_relationship"] is True
     assert isinstance(captured["creation_metadata"], CreationMetadata)
@@ -92,8 +94,8 @@ def test_generate_command_default_file_headers_and_content_type_are_none(
     tmp_path: Path,
 ) -> None:
     """No --extract-file-header/--content-type/--content-type-method
-    flags: all three must reach generate() as None, deferring to
-    [tool.pitloom] extract-file-header / [tool.pitloom.content-type]."""
+    flags: all three must reach generate_project_sbom() as None, deferring
+    to [tool.pitloom] extract-file-header / [tool.pitloom.content-type]."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
@@ -105,7 +107,7 @@ def test_generate_command_default_file_headers_and_content_type_are_none(
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys, "argv", ["loom", "generate", str(project_dir), "-o", str(output_path)]
     )
@@ -133,8 +135,8 @@ def test_generate_command_file_headers_content_type_flags_passed_through(
     expected: bool,
 ) -> None:
     """--extract-file-header/--no-extract-file-header and
-    --content-type/--no-content-type must each override generate()'s
-    corresponding param independently."""
+    --content-type/--no-content-type must each override
+    generate_project_sbom()'s corresponding param independently."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
@@ -145,7 +147,7 @@ def test_generate_command_file_headers_content_type_flags_passed_through(
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -160,7 +162,7 @@ def test_generate_command_content_type_method_flag_passed_through(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """--content-type-method must reach generate() verbatim."""
+    """--content-type-method must reach generate_project_sbom() verbatim."""
     project_dir = _make_simple_project(tmp_path)
     captured: dict[str, object] = {}
 
@@ -170,7 +172,7 @@ def test_generate_command_content_type_method_flag_passed_through(
         return "{}"
 
     output_path = tmp_path / "out.spdx3.json"
-    monkeypatch.setattr(mod_generate, "generate", _fake_generate)
+    monkeypatch.setattr(mod_generate, "generate_project_sbom", _fake_generate)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -260,3 +262,107 @@ def test_ids_generate_cli_end_to_end(
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
     assert "src/mod.py" in registry.files
+
+
+def test_generate_command_does_not_duplicate_project_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: for a plain project-directory target,
+    `_run_generate_command()` calls `resolve_project_with_lockfile()` +
+    `generate_project_sbom()` directly -- the same single-read pattern
+    `loom project` uses -- rather than going through `_resolve_common_options()`'s
+    own config-only peek followed by `generate()`'s real read. Only
+    `resolve_project_with_lockfile()`'s own peek-then-quiet-reread can emit
+    a WARNING: here (e.g. the PEP 639 transitional license/classifier
+    conflict), so it must never double-fire end to end via the CLI."""
+    project_dir = tmp_path / "proj"
+    project_dir.mkdir()
+    (project_dir / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\n'
+        'license = "MIT"\n'
+        'classifiers = ["License :: OSI Approved :: MIT License"]\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "generate", str(project_dir), "-o", str(out), "--offline"],
+    )
+
+    with caplog.at_level(logging.WARNING):
+        assert __main__.main() == 0
+
+    assert caplog.text.count("PEP 639 transitional state") == 1
+
+
+def test_generate_command_sdist_target_does_not_drop_sibling_project_warning(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: an sdist-archive target isn't a directory, so it takes
+    `_run_generate_command()`'s fallback branch -- a plain, always
+    non-quiet `_resolve_common_options()` peek followed by `generate()`'s
+    real read. That real read (`generate_project_sbom()` -> `read_sdist()`)
+    never touches `read_pyproject()` at all -- it parses the archive's own
+    internal PKG-INFO, not the *sibling* pyproject.toml the peek read to
+    resolve [tool.pitloom] config -- so the peek's WARNING: is this
+    invocation's only possible emission of it and must not be lost."""
+    import io
+    import tarfile
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "1.0.0"\n'
+        'license = "MIT"\n'
+        'classifiers = ["License :: OSI Approved :: MIT License"]\n',
+        encoding="utf-8",
+    )
+    sdist_path = tmp_path / "demo-1.0.0.tar.gz"
+    pkg_info = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
+    with tarfile.open(sdist_path, "w:gz") as tf:
+        ti = tarfile.TarInfo(name="demo-1.0.0/PKG-INFO")
+        ti.size = len(pkg_info)
+        tf.addfile(ti, io.BytesIO(pkg_info))
+
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "generate", str(sdist_path), "-o", str(out), "--offline"],
+    )
+
+    with caplog.at_level(logging.WARNING):
+        assert __main__.main() == 0
+
+    assert caplog.text.count("PEP 639 transitional state") == 1
+
+
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        (".", True),
+        ("some/project/dir", True),
+        ("archive.tar.gz", True),
+        ("env", False),
+        ("environment", False),
+        ("--env", False),
+        ("package.whl", False),
+        ("PACKAGE.WHL", False),
+        ("https://huggingface.co/mistralai/Mistral-7B-v0.1", False),
+    ],
+)
+def test_target_resolves_to_project(target: str, expected: bool) -> None:
+    """Non-filesystem-dependent target shapes classify without touching disk."""
+    assert target_resolves_to_project(target) is expected
+
+
+def test_target_resolves_to_project_model_file(tmp_path: Path) -> None:
+    """A real on-disk file with a recognized model extension is not a
+    project target -- matches generate()'s own dispatch check, which also
+    requires target_path.is_file()."""
+    model_file = tmp_path / "weights.safetensors"
+    model_file.write_bytes(b"")
+    assert target_resolves_to_project(model_file) is False
+
+    non_model_file = tmp_path / "weights.safetensors.txt"
+    non_model_file.write_bytes(b"")
+    assert target_resolves_to_project(non_model_file) is True

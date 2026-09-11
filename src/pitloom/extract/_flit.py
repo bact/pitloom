@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 def resolve_flit_dynamic_metadata(
-    pyproject_path: Path, dynamic_fields: list[str]
+    pyproject_path: Path, dynamic_fields: list[str], *, quiet: bool = False
 ) -> dict[str, str]:
     """Resolve Flit's dynamic ``version``/``description`` fields.
 
@@ -57,6 +57,10 @@ def resolve_flit_dynamic_metadata(
     an AST-unresolvable dynamic field), logged as a ``WARNING:`` rather
     than raised, since the caller falls back to its own generic
     dynamic-version heuristic either way.
+
+    ``quiet`` suppresses this resolution's own ``WARNING:`` line (default
+    ``False``) -- for a caller re-reading the same file a second time; see
+    :func:`pitloom.extract.project.read_project`'s own ``quiet``.
     """
     wanted = [f for f in ("version", "description") if f in dynamic_fields]
     if not wanted:
@@ -73,9 +77,12 @@ def resolve_flit_dynamic_metadata(
         docstring, version = get_docstring_and_version_via_ast(module)
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.warning(
-            "Flit dynamic metadata resolution failed for %s: %s", pyproject_path, exc
-        )
+        if not quiet:
+            log.warning(
+                "Flit dynamic metadata resolution failed for %s: %s",
+                pyproject_path,
+                exc,
+            )
         return {}
 
     result: dict[str, str] = {}

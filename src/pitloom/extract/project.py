@@ -3,12 +3,15 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Single entry point for resolving a project's metadata and Pitloom config.
+"""Entry points for resolving a project's metadata and Pitloom config.
 
-Tries ``pyproject.toml`` first, then ``setup.cfg``/``setup.py``, or reads an
-sdist archive (.tar.gz, .zip), so both the CLI (:mod:`pitloom.__main__`) and
-the library entry point (:func:`pitloom.assemble.generate_project_sbom`) resolve
-project metadata the same way.
+:func:`read_project` tries ``pyproject.toml`` first, then
+``setup.cfg``/``setup.py``, or reads an sdist archive (.tar.gz, .zip), so
+both the CLI (:mod:`pitloom.__main__`) and the library entry point
+(:func:`pitloom.assemble.generate_project_sbom`) resolve project metadata
+the same way. :func:`resolve_project_with_lockfile` additionally decides
+the lock/pin cascade from a tri-state (CLI-flag-shaped) setting -- see its
+own docstring.
 """
 
 from __future__ import annotations
@@ -28,6 +31,25 @@ log = logging.getLogger(__name__)
 _SDIST_EXTENSIONS = (".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip")
 
 
+def warn_use_lockfile_no_effect(subject: object, reason: str) -> None:
+    """Log the shared ``WARNING:`` for an explicit ``--use-lockfile``/
+    ``--no-use-lockfile`` (or the equivalent ``use_lockfile=`` library-API
+    argument) given for a target/mode the setting doesn't apply to.
+
+    *reason* is spliced in after "has no effect" (its own leading space,
+    no trailing punctuation) -- called from every no-op case: an sdist
+    archive target (:func:`resolve_project_with_lockfile` below), a non-
+    project :func:`~pitloom.assemble.generate` target, and
+    :func:`~pitloom.assemble.enrich_model` without ``--project-dir``.
+    """
+    log.warning(
+        "%s: --use-lockfile/--no-use-lockfile has no effect %s -- "
+        "ignoring the explicit override",
+        subject,
+        reason,
+    )
+
+
 def _is_sdist_archive(path: Path) -> bool:
     """Return True if path points to an sdist file archive."""
     if not path.is_file():
@@ -40,6 +62,7 @@ def read_project(
     project_path: Path,
     *,
     include_locked_dependencies: bool = True,
+    quiet: bool = False,
 ) -> tuple[ProjectMetadata, PitloomConfig, Path | None]:
     """Resolve project metadata and Pitloom config from *project_path*.
 
@@ -77,6 +100,11 @@ def read_project(
             resolved dependencies at all -- ``poetry.lock`` included
             (default ``True``). Pass ``False`` from any build-stage or
             metadata-discarding caller.
+        quiet: Suppress this read's own ``WARNING:`` lines (default
+            ``False``). For a caller re-reading the same, already-read
+            *project_path* a second time and only interested in a setting
+            unrelated to the warning's cause -- never for a caller doing
+            the only read that will happen.
 
     Returns:
         A 3-tuple of:
@@ -107,7 +135,9 @@ def read_project(
     pyproject_path = project_path / "pyproject.toml"
     if pyproject_path.exists():
         metadata, pitloom_config = read_pyproject(
-            pyproject_path, include_locked_dependencies=include_locked_dependencies
+            pyproject_path,
+            include_locked_dependencies=include_locked_dependencies,
+            quiet=quiet,
         )
         if not metadata.name and (setup_cfg.exists() or setup_py.exists()):
             # pyproject.toml exists but resolved no usable metadata --
@@ -119,12 +149,13 @@ def read_project(
             # same shape _models_wheel.py's file-discovery dispatch
             # already treats as "no static pyproject.toml config" (see
             # has_resolvable_pyproject_config()).
-            log.warning(
-                "%s has no usable [project] table and no [tool.poetry] "
-                "fallback -- falling back to setup.cfg/setup.py metadata "
-                "instead of an empty pyproject.toml-only result",
-                pyproject_path,
-            )
+            if not quiet:
+                log.warning(
+                    "%s has no usable [project] table and no [tool.poetry] "
+                    "fallback -- falling back to setup.cfg/setup.py metadata "
+                    "instead of an empty pyproject.toml-only result",
+                    pyproject_path,
+                )
             # read_pyproject() may have already resolved locked_dependencies
             # from poetry.lock -- via _try_read_poetry()'s own "[tool.poetry]
             # couldn't be parsed, but still apply poetry.lock's resolved
@@ -147,7 +178,9 @@ def read_project(
             # below, generalized so a future field needing the same
             # treatment doesn't need a third hand-copied carry-over here.
             pre_setuptools_metadata = metadata
-            metadata, setuptools_pitloom_config = read_setuptools(project_path)
+            metadata, setuptools_pitloom_config = read_setuptools(
+                project_path, quiet=quiet
+            )
             metadata = merge_project_metadata(
                 primary=metadata, secondary=pre_setuptools_metadata
             )
@@ -164,7 +197,7 @@ def read_project(
         else:
             config_path = pyproject_path
     elif setup_cfg.exists() or setup_py.exists():
-        metadata, pitloom_config = read_setuptools(project_path)
+        metadata, pitloom_config = read_setuptools(project_path, quiet=quiet)
         config_path = setup_cfg if setup_cfg.exists() else setup_py
     else:
         raise FileNotFoundError(
@@ -176,4 +209,52 @@ def read_project(
     return metadata, pitloom_config, config_path
 
 
-__all__ = ["read_project"]
+def resolve_project_with_lockfile(
+    project_path: Path, use_lockfile: bool | None
+) -> tuple[ProjectMetadata, PitloomConfig, Path | None]:
+    """Resolve project metadata, deciding the lock/pin cascade from
+    *use_lockfile* itself when given, or ``[tool.pitloom] use-lockfile``
+    when ``None``.
+
+    The cascade decision has to be known before the real metadata read
+    runs, but ``[tool.pitloom] use-lockfile`` only becomes known *from* a
+    :func:`read_project` call -- so when *use_lockfile* is ``None``, this
+    "peeks" the config first via a cheap
+    ``include_locked_dependencies=False`` read (no lock-file I/O), then
+    only re-reads for real when that config says the cascade should run.
+    That re-read is passed ``quiet=True``: it parses the same file the peek
+    just did, so any ``WARNING:`` its content triggers was already emitted
+    once by the peek -- re-emitting it would violate this repo's "one
+    grep-able line per event" CLI-output contract. An sdist archive target
+    skips the peek/reread dance entirely: :func:`read_project` ignores
+    *include_locked_dependencies* for sdist targets (no lock/pin cascade
+    support for archives yet), so peeking would always see the cascade as
+    "on" and re-read (and re-extract the archive) for an identical result.
+    Shared by :func:`pitloom.assemble.generate_project_sbom` and
+    ``pitloom.cli.commands.project._run_project_command`` so the resolution
+    logic (and its remaining double-parse tradeoff for the on-cascade,
+    non-sdist case -- an accepted cost, see
+    ``working-docs/implementation/lock-file-cascade.md``) exists in one
+    place, not duplicated per caller.
+    """
+    if _is_sdist_archive(project_path):
+        if use_lockfile is not None:
+            warn_use_lockfile_no_effect(
+                project_path,
+                "for an sdist archive target (no lock/pin cascade support "
+                "for archives yet)",
+            )
+        return read_project(project_path)
+
+    if use_lockfile is not None:
+        return read_project(project_path, include_locked_dependencies=use_lockfile)
+
+    peeked_metadata, peeked_config, peeked_path = read_project(
+        project_path, include_locked_dependencies=False
+    )
+    if peeked_config.use_lockfile:
+        return read_project(project_path, quiet=True)
+    return peeked_metadata, peeked_config, peeked_path
+
+
+__all__ = ["read_project", "resolve_project_with_lockfile"]

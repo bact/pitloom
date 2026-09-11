@@ -126,12 +126,12 @@ returns a `StepMetadata` dataclass without restoring array data:
 ```python
 StepMetadata(
     item_handlers={...},
-    item_metadata=None,          # populated by item_metadata(step) instead
-    metrics={},                  # see caveats above
+    item_metadata=None,  # populated by item_metadata(step) instead
+    metrics={},  # see caveats above
     performance_metrics=SaveStepStatistics(...),  # save-I/O timing, not model perf
     init_timestamp_nsecs=...,
     commit_timestamp_nsecs=...,
-    custom_metadata={...},       # the real extension point, see below
+    custom_metadata={...},  # the real extension point, see below
 )
 ```
 

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,7 +24,9 @@ from pitloom.core.creation import (
 from pitloom.core.project import ProjectMetadata
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract._toml_io import load_toml_file
-from pitloom.extract.project import read_project
+from pitloom.extract.project import read_project, resolve_project_with_lockfile
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -89,6 +92,26 @@ def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
         help=(
             f"Forbid network access{effect} Defers to [tool.pitloom] "
             "offline (off by default) when omitted."
+        ),
+    )
+
+
+def add_use_lockfile_argument(parser: argparse.ArgumentParser, effect: str) -> None:
+    """Add the shared ``--use-lockfile``/``--no-use-lockfile`` flag.
+
+    Unlike ``--offline``/``--enrich`` this is an *opt-out* flag: the lock/pin
+    file cascade is on by default. ``default=None`` here still means
+    "unset", deferring to ``[tool.pitloom] use-lockfile`` (itself on by
+    default) when omitted.
+    """
+    parser.add_argument(
+        "--use-lockfile",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            f"Resolve exact versions from a lock/pin file cascade{effect} "
+            "Defers to [tool.pitloom] use-lockfile (on by default) when "
+            "omitted."
         ),
     )
 
@@ -213,7 +236,15 @@ def _resolve_common_options(
     target_dir: Path | None = None,
     load_project: bool = True,
 ) -> tuple[PitloomConfig, CreationMetadata, bool, bool]:
-    """Resolve common settings using project config when available."""
+    """Resolve common settings using project config when available.
+
+    This is always a best-effort, config-only peek
+    (``include_locked_dependencies=False``): no caller pre-supplies its
+    result to a later real metadata read for the same directory, so its
+    own ``WARNING:`` lines are never at risk of being re-emitted by one --
+    unlike :func:`pitloom.extract.project.resolve_project_with_lockfile`'s
+    peek-then-reread, which does need to suppress that.
+    """
     if load_project:
         lookup_dir = target_dir if target_dir is not None else Path.cwd()
         if lookup_dir.is_file():
@@ -228,11 +259,45 @@ def _resolve_common_options(
                 lookup_dir, include_locked_dependencies=False
             )
         except FileNotFoundError:
+            # No config file at all -- absent source data, not an error.
+            pitloom_config = PitloomConfig()
+        except ValueError as exc:
+            # A real parse failure (malformed pyproject.toml/setup.cfg):
+            # this peek is best-effort only (its caller's target may not
+            # even be this directory), so degrade to defaults rather than
+            # raise -- but say so, since silently discarding a genuine
+            # parse error would hide it from the user entirely.
+            log.warning(
+                "%s: could not read project config (%s) -- using defaults",
+                lookup_dir,
+                exc,
+            )
             pitloom_config = PitloomConfig()
     else:
         pitloom_config = PitloomConfig()
 
     creation = _resolve_creation_metadata(args, pitloom_config)
+    effective_pretty, effective_describe_relationship = (
+        _resolve_pretty_and_describe_relationship(args, pitloom_config)
+    )
+    return (
+        pitloom_config,
+        creation.to_creation_metadata(),
+        effective_pretty,
+        effective_describe_relationship,
+    )
+
+
+def _resolve_pretty_and_describe_relationship(
+    args: argparse.Namespace, pitloom_config: PitloomConfig
+) -> tuple[bool, bool]:
+    """Resolve the CLI-flag > ``[tool.pitloom]`` > default cascade for
+    ``pretty``/``describe_relationship``, shared by every caller that
+    already has a resolved *pitloom_config* in hand (whether from
+    :func:`_resolve_common_options`'s own peek or from a caller's own
+    :func:`pitloom.extract.project.resolve_project_with_lockfile` read) --
+    see AGENTS.md's "pattern hand-copied across 3+ call sites drifts" rule.
+    """
     effective_pretty = (
         pitloom_config.pretty
         if getattr(args, "pretty", None) is None
@@ -243,9 +308,35 @@ def _resolve_common_options(
         if getattr(args, "describe_relationship", None) is None
         else getattr(args, "describe_relationship", False)
     )
+    return effective_pretty, effective_describe_relationship
+
+
+def _resolve_project_generation_settings(
+    args: argparse.Namespace, project_dir: Path
+) -> tuple[
+    ProjectMetadata, PitloomConfig, Path | None, _ResolvedCreationMetadata, bool, bool
+]:
+    """Resolve *project_dir*'s metadata/config, creation metadata, and the
+    ``pretty``/``describe_relationship`` cascade in one call -- the same
+    three-call sequence every project-directory SBOM-generation command
+    handler needs immediately after deciding the lock-file cascade
+    (``loom project``, and ``loom generate``'s own project-directory fast
+    path), so it lives in one place rather than being hand-copied per
+    caller (see AGENTS.md's "pattern hand-copied across 3+ call sites
+    drifts" rule).
+    """
+    project_metadata, pitloom_config, config_path = resolve_project_with_lockfile(
+        project_dir, args.use_lockfile
+    )
+    creation = _resolve_creation_metadata(args, pitloom_config)
+    effective_pretty, effective_describe_relationship = (
+        _resolve_pretty_and_describe_relationship(args, pitloom_config)
+    )
     return (
+        project_metadata,
         pitloom_config,
-        creation.to_creation_metadata(),
+        config_path,
+        creation,
         effective_pretty,
         effective_describe_relationship,
     )

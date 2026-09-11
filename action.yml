@@ -92,6 +92,19 @@ inputs:
       (unbounded) by default.
     required: false
     default: ""
+  offline:
+    description: >-
+      Forbid network access ("true"/"false"). Empty (default) defers to
+      the project's [tool.pitloom] offline config, which is off by default.
+    required: false
+    default: ""
+  use-lockfile:
+    description: >-
+      Resolve exact versions from a lock/pin file cascade ("true"/"false").
+      Empty (default) defers to the project's [tool.pitloom] use-lockfile
+      config, which is on by default.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
@@ -177,6 +190,8 @@ runs:
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
         PL_MAX_SOURCE_METADATA_BYTES: ${{ inputs.max-source-metadata-bytes }}
+        PL_OFFLINE: ${{ inputs.offline }}
+        PL_USE_LOCKFILE: ${{ inputs.use-lockfile }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -249,6 +264,21 @@ runs:
         fi
         if [ -n "${PL_MAX_SOURCE_METADATA_BYTES}" ]; then
           loom_args+=("--max-source-metadata-bytes" "${PL_MAX_SOURCE_METADATA_BYTES}")
+        fi
+        if [ "${PL_OFFLINE}" = "true" ]; then
+          loom_args+=("--offline")
+        elif [ "${PL_OFFLINE}" = "false" ]; then
+          loom_args+=("--no-offline")
+        fi
+        # "--use-lockfile"/"--no-use-lockfile" only exists on "loom project"
+        # (not "loom model"/"loom embed-wheel"), since only project mode
+        # reads a lock/pin file cascade at all.
+        if [ "${is_embed}" = false ] && [ -z "${PL_MODEL}" ]; then
+          if [ "${PL_USE_LOCKFILE}" = "true" ]; then
+            loom_args+=("--use-lockfile")
+          elif [ "${PL_USE_LOCKFILE}" = "false" ]; then
+            loom_args+=("--no-use-lockfile")
+          fi
         fi
         if [ -n "${PL_ARGS}" ]; then
           # Quote-aware split: PL_ARGS is a shell-like list of extra flags

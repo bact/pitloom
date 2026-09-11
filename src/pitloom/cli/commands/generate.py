@@ -14,9 +14,16 @@ from typing import Any
 
 from pitloom.assemble import (
     generate,
+    generate_project_sbom,
+    target_resolves_to_project,
 )
 from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_provenance
-from pitloom.cli.options import _resolve_common_options, add_offline_argument
+from pitloom.cli.options import (
+    _resolve_common_options,
+    _resolve_project_generation_settings,
+    add_offline_argument,
+    add_use_lockfile_argument,
+)
 
 
 @cli_error_handler("SBOM generation failed")
@@ -42,12 +49,55 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         return 1
 
     target_path = Path(args.target) if args.target else None
+    if (
+        target_path is not None
+        and target_path.is_dir()
+        and target_resolves_to_project(args.target)
+    ):
+        # A real project directory: resolve it once via the same shared
+        # helper 'loom project' uses, then pre-supply the result to
+        # generate_project_sbom() -- a single real read, instead of a
+        # config-only peek here followed by generate()'s own read.
+        (
+            project_metadata,
+            pitloom_config,
+            _config_path,
+            creation,
+            effective_pretty,
+            effective_describe_relationship,
+        ) = _resolve_project_generation_settings(args, target_path)
+        generate_project_sbom(
+            target_path,
+            output_path=args.output,
+            creation_metadata=creation.to_creation_metadata(),
+            pretty=effective_pretty,
+            describe_relationship=effective_describe_relationship,
+            project_metadata=project_metadata,
+            pitloom_config=pitloom_config,
+            registry=args.registry,
+            update_registry=args.update_registry,
+            provenance=resolve_effective_provenance(pitloom_config, args),
+            enrich=args.enrich,
+            offline=args.offline,
+            extract_file_header=args.extract_file_header,
+            content_type=args.content_type,
+            content_type_method=args.content_type_method,
+        )
+        return 0
+
+    # Every other target (env / wheel / model file / HF URL / sdist
+    # archive): generate()'s own read never re-parses the same file this
+    # peek reads (an sdist archive's real read parses its internal
+    # metadata via read_sdist(), not this peek's sibling pyproject.toml),
+    # so quieting the peek would silently drop its only WARNING: instead
+    # of deferring it to a re-emission that never happens.
     pitloom_config, creation_metadata, pretty, describe_relationship = (
         _resolve_common_options(args, target_dir=target_path)
     )
     generate(
         args.target,
         offline=args.offline,
+        use_lockfile=args.use_lockfile,
         output_path=args.output,
         creation_metadata=creation_metadata,
         pretty=pretty,
@@ -86,5 +136,13 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "project dir / .whl: skip PyPI lookup, no error (local metadata "
         "already covers what it can). "
         "local model file: no-op (no network path exists).",
+    )
+    add_use_lockfile_argument(
+        gen_parser,
+        "; effect depends on the resolved target -- "
+        "project dir: fall back to direct dependencies + environment "
+        "introspection only. "
+        "sdist archive / wheel / model file / HF URL / env: no-op (no "
+        "lock-file concept applies).",
     )
     gen_parser.set_defaults(func=_run_generate_command)

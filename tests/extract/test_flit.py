@@ -66,6 +66,28 @@ def test_resolve_flit_dynamic_metadata_warns_on_missing_module(
     assert "Flit dynamic metadata resolution failed" in caplog.text
 
 
+def test_resolve_flit_dynamic_metadata_quiet_suppresses_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: quiet=True must suppress this resolver's own WARNING: --
+    for a caller re-reading the same file a second time (e.g.
+    resolve_project_with_lockfile()'s peek-then-reread, see
+    tests/extract/test_project.py's matching duplicate-warning coverage)."""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        '[build-system]\nrequires = ["flit_core>=3.9"]\n'
+        'build-backend = "flit_core.buildapi"\n\n'
+        '[project]\nname = "nonexistent_pkg"\ndynamic = ["version"]\n',
+        encoding="utf-8",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        result = resolve_flit_dynamic_metadata(pyproject, ["version"], quiet=True)
+
+    assert not result
+    assert "Flit dynamic metadata resolution failed" not in caplog.text
+
+
 def test_resolve_flit_dynamic_metadata_never_executes_project_code(
     tmp_path: Path,
 ) -> None:

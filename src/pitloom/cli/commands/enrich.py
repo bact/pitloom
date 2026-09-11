@@ -17,7 +17,10 @@ from pitloom.assemble import (
     enrich_model,
 )
 from pitloom.cli.commands.utils import cli_error_handler
-from pitloom.cli.options import _resolve_common_options
+from pitloom.cli.options import (
+    _resolve_common_options,
+    add_use_lockfile_argument,
+)
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
 
@@ -53,6 +56,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
         enrich=args.enrich,
         project_target=args.project_dir,
         registry=args.registry,
+        use_lockfile=args.use_lockfile,
     )
     print(f"Enrichment fragment written to: {output_path}")
     print(
@@ -92,5 +96,11 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
             "and single-model documents assign the model's ai_AIPackage "
             "a different id."
         ),
+    )
+    add_use_lockfile_argument(
+        enrich_parser,
+        " when computing the base document's identity for --project-dir "
+        "matching -- must match whatever setting produced that base SBOM, "
+        "or omit to auto-match its [tool.pitloom] config",
     )
     enrich_parser.set_defaults(func=_run_enrich_command)

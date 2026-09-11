@@ -295,6 +295,11 @@ def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
     return _read_bool_setting(pitloom_data, "offline", False)
 
 
+def _read_use_lockfile_setting(pitloom_data: dict[str, Any]) -> bool:
+    """Read ``[tool.pitloom] use-lockfile`` (on by default)."""
+    return _read_bool_setting(pitloom_data, "use-lockfile", True)
+
+
 def _read_fragments(pitloom_data: dict[str, Any]) -> list[str]:
     """Read ``[tool.pitloom.fragment] files``."""
     raw = pitloom_data.get("fragment", {}).get("files", [])
@@ -366,6 +371,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
             )
     sbom_basename: str | None = pitloom_data.get("sbom-basename") or None
     offline = _read_offline_setting(pitloom_data)
+    use_lockfile = _read_use_lockfile_setting(pitloom_data)
 
     creators = _read_creators(pitloom_data)
     tools = _apply_no_creation_tool(creation_data, _read_tools(pitloom_data))
@@ -401,6 +407,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         content_type_method=content_type_method,
         content_type_overrides=content_type_overrides,
         offline=offline,
+        use_lockfile=use_lockfile,
     )
 
 

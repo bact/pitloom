@@ -25,6 +25,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.extract.project import read_project
+from tests.fixtures.locked_deps import write_locked_deps_project
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
 POETRY_FIXTURE = FIXTURES / "sampleproject-poetry"
@@ -75,5 +76,64 @@ def test_project_doc_identity_matches_build_doc_uuid_with_locked_dependencies() 
     expected_doc_uuid = _real_build_doc_uuid(doc)
 
     _doc_name, doc_uuid = _project_doc_identity(POETRY_FIXTURE)
+
+    assert doc_uuid == expected_doc_uuid
+
+
+def test_project_doc_identity_matches_build_doc_uuid_with_use_lockfile_disabled(
+    tmp_path: Path,
+) -> None:
+    """An explicit ``use_lockfile=False`` on both sides -- base generation
+    and ``_project_doc_identity`` -- must still agree: a base SBOM
+    generated with ``--no-use-lockfile`` and a fragment built via
+    ``loom enrich --use-lockfile=False --project-dir DIR`` must reference
+    the same ``doc_uuid``."""
+    write_locked_deps_project(tmp_path)
+
+    project_metadata, _config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+    assert not project_metadata.locked_dependencies
+
+    merkle_root, project_files = get_wheel_files(tmp_path)
+    project_metadata.files = project_files
+    doc = DocumentModel(
+        project=project_metadata,
+        creation_metadata=CreationMetadata(
+            creation_datetime="2026-01-01T00:00:00+00:00"
+        ),
+    )
+    expected_doc_uuid = _real_build_doc_uuid(doc)
+
+    _doc_name, doc_uuid = _project_doc_identity(tmp_path, use_lockfile=False)
+
+    assert doc_uuid == expected_doc_uuid
+
+
+def test_project_doc_identity_auto_matches_config_default(tmp_path: Path) -> None:
+    """No explicit ``use_lockfile`` argument -- ``_project_doc_identity``
+    must auto-match *project_dir*'s own ``[tool.pitloom] use-lockfile``
+    config, so ``loom enrich --project-dir DIR`` (no matching flag) still
+    references the correct ``doc_uuid`` for a base SBOM generated purely
+    from that project's config default."""
+    write_locked_deps_project(tmp_path, disable_cascade_in_config=True)
+
+    project_metadata, pitloom_config, _config_path = read_project(
+        tmp_path, include_locked_dependencies=False
+    )
+    assert pitloom_config.use_lockfile is False
+    assert not project_metadata.locked_dependencies
+
+    merkle_root, project_files = get_wheel_files(tmp_path)
+    project_metadata.files = project_files
+    doc = DocumentModel(
+        project=project_metadata,
+        creation_metadata=CreationMetadata(
+            creation_datetime="2026-01-01T00:00:00+00:00"
+        ),
+    )
+    expected_doc_uuid = _real_build_doc_uuid(doc)
+
+    _doc_name, doc_uuid = _project_doc_identity(tmp_path)
 
     assert doc_uuid == expected_doc_uuid

@@ -93,9 +93,10 @@ def test_resolve_project_paths_is_file(
     sdist_file = tmp_path / "my_project-1.0.tar.gz"
     sdist_file.write_text("dummy content")
 
+    from pitloom.cli import options as cli_options
     from pitloom.cli.commands import project
 
-    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
         class MockMeta:
             name = "foo"
             version = "1.0"
@@ -104,7 +105,9 @@ def test_resolve_project_paths_is_file(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "read_project", fake_read_project)
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -133,9 +136,10 @@ def test_explicit_creation_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    from pitloom.cli import options as cli_options
     from pitloom.cli.commands import project
 
-    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
         class MockMeta:
             name = "foo"
             version = "1.0"
@@ -144,7 +148,9 @@ def test_explicit_creation_metadata(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "read_project", fake_read_project)
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -184,9 +190,10 @@ def test_no_creation_tool(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    from pitloom.cli import options as cli_options
     from pitloom.cli.commands import project
 
-    def fake_read_project(*args: Any, **kwargs: Any) -> Any:
+    def fake_resolve_project(*args: Any, **kwargs: Any) -> Any:
         class MockMeta:
             name = "foo"
             version = "1.0"
@@ -195,7 +202,9 @@ def test_no_creation_tool(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(project, "read_project", fake_read_project)
+    monkeypatch.setattr(
+        cli_options, "resolve_project_with_lockfile", fake_resolve_project
+    )
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -231,6 +240,38 @@ def test_resolve_common_options_file_target(tmp_path: Path) -> None:
     )
     # The config should gracefully fallback to empty because no pyproject exists in parent  # noqa: E501
     assert conf.pretty is False
+
+
+def test_resolve_common_options_malformed_config_degrades_with_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: a genuine parse failure (not just a missing file) in the
+    config-only peek must not crash the caller -- this peek is best-effort
+    only, its caller's actual target may not even be this directory -- but
+    must log a WARNING: rather than silently discarding the error."""
+    import argparse
+    import logging
+
+    from pitloom.cli.options import _resolve_common_options
+    from pitloom.core.config import PitloomConfig
+
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "pkg"\nrequires-python = "not a valid specifier!!"\n'
+    )
+    args = argparse.Namespace(
+        no_creation_tool=True,
+        creators=[],
+        creation_datetime=None,
+        creation_comment=None,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        conf, _meta, _pretty, _desc = _resolve_common_options(
+            args, target_dir=tmp_path, load_project=True
+        )
+
+    assert conf == PitloomConfig()
+    assert "could not read project config" in caplog.text
 
 
 def test_resolve_common_options_not_found(tmp_path: Path) -> None:

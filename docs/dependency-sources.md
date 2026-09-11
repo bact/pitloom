@@ -168,12 +168,31 @@ in the generated SBOM.
 
 ## Configuration and flags
 
-There is currently no setting to change the priority order above,
-choose a specific lock file, or turn lock-file reading off -- it's
-automatic, based purely on which lock file (if any) is present next to
-`pyproject.toml`. If you don't want a lock file's resolved dependencies
-included, the only way is to not have that file present when you run
-`loom project`/`loom generate`.
+There is currently no setting to change the priority order above or
+choose a specific lock file -- which one wins is automatic, based purely
+on which lock file (if any) is present next to `pyproject.toml`.
+
+To turn lock-file reading off entirely -- falling back to direct
+dependencies plus environment introspection only -- pass
+`--no-use-lockfile` on `loom project`, `loom generate`, or `loom enrich`
+(the last only together with `--project-dir` -- no project metadata is
+read at all on a bare `loom enrich <model>`, so the flag has no effect
+without it), or set `[tool.pitloom] use-lockfile = false` in
+`pyproject.toml`. On by default (an explicit CLI flag always wins over
+the config value); see [Configuration](configuration.md).
+
+`loom enrich --project-dir DIR` computes the fragment's target document
+identity from that same setting: pass `--use-lockfile`/`--no-use-lockfile`
+explicitly to match whatever produced the base SBOM, or omit it to
+auto-match *DIR*'s own `[tool.pitloom] use-lockfile` config. A mismatch here
+silently produces a fragment referencing the wrong document identity.
+
+`--use-lockfile`/`--no-use-lockfile` has no effect for an sdist archive
+target (`loom project`/`loom generate` on a `.tar.gz`/`.zip`): no lock/pin
+cascade support exists for archives yet, so a real lock file in the
+archive's *own* build environment was never read into it in the first
+place. An explicit flag passed for an archive target logs a `WARNING:`
+and is otherwise ignored.
 
 `--offline` (also settable via `[tool.pitloom] offline` --
 see [Configuration](configuration.md)) is unrelated to lock-file

@@ -238,9 +238,10 @@ class IdRegistry:
     def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, int]:
         """Harvest *sorted_objects* (see :func:`_sorted_by_spdx_id`).
 
-        Split out of :meth:`harvest` so :meth:`import_sbom` -- which
-        already needs a sorted list for its own namespace-seeding scan --
-        can reuse it here instead of sorting the same object set twice.
+        Shared by :meth:`harvest` and :meth:`import_sbom` -- the latter
+        already needs a sorted list for its own namespace-seeding scan,
+        so it reuses that same list here instead of sorting the object
+        set twice.
         """
         before_files, before_entities = len(self.files), len(self.entities)
         for obj in sorted_objects:

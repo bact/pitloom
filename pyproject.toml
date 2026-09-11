@@ -146,6 +146,7 @@ typecheck = [
     "mypy>=2.3.1",
     "pyrefly>=1.2.0",
     "pyright>=1.1.411",
+    "types-PyYAML>=6.0.12.20260906",
     "types-setuptools>=84.0.0.20260812",
 ]
 docs = [
@@ -249,10 +250,6 @@ module = "magika.*"
 [[tool.mypy.overrides]]
 ignore_missing_imports = true
 module = "py_spdx_license.*"
-
-[[tool.mypy.overrides]]
-ignore_missing_imports = true
-module = "yaml.*"
 
 # safetensors safe_open and sys.modules typing changed across library versions.
 # These modules carry type: ignore comments that may be needed on older versions

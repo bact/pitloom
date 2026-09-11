@@ -20,13 +20,13 @@ from pitloom.cli.commands.utils import (
     resolve_effective_provenance,
 )
 from pitloom.cli.options import (
-    _resolve_creation_metadata,
     _resolve_output_path,
+    _resolve_project_generation_settings,
     _resolve_project_paths,
     add_offline_argument,
+    add_use_lockfile_argument,
 )
 from pitloom.cli.verbose import _print_verbose
-from pitloom.extract.project import read_project
 
 
 @cli_error_handler("SBOM generation failed")
@@ -36,14 +36,14 @@ def _run_project_command(args: argparse.Namespace) -> int:
     if project_dir is None:
         return 1
 
-    project_metadata, pitloom_config, config_path = read_project(project_dir)
-    creation = _resolve_creation_metadata(args, pitloom_config)
-    effective_pretty = pitloom_config.pretty if args.pretty is None else args.pretty
-    effective_describe_relationship = (
-        pitloom_config.describe_relationship
-        if args.describe_relationship is None
-        else args.describe_relationship
-    )
+    (
+        project_metadata,
+        pitloom_config,
+        config_path,
+        creation,
+        effective_pretty,
+        effective_describe_relationship,
+    ) = _resolve_project_generation_settings(args, project_dir)
 
     output_path = _resolve_output_path(args.output, project_metadata, pitloom_config)
 
@@ -97,5 +97,11 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     add_offline_argument(
         proj_parser,
         " -- skip PyPI lookup, no error (local metadata already covers what it can).",
+    )
+    add_use_lockfile_argument(
+        proj_parser,
+        " -- fall back to direct dependencies + environment introspection "
+        "only (no-op for an sdist archive target: no lock-file concept "
+        "applies there)",
     )
     proj_parser.set_defaults(func=_run_project_command)

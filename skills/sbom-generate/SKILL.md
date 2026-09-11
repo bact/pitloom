@@ -139,6 +139,13 @@ When a lock file is present:
   avoid overstating completeness for partial closures (e.g. omitted
   VCS/path dependencies or marker-ambiguous variants).
 
+To opt out and fall back to direct dependencies + environment introspection
+only, pass `--no-use-lockfile` (on `project`/`generate`, or on `enrich`
+together with `--project-dir` -- it has no effect on `enrich` without
+`--project-dir`, since no project metadata is read at all in that case) or
+set `[tool.pitloom] use-lockfile = false` in `pyproject.toml`. On by
+default; an explicit CLI flag always wins over the config value.
+
 
 ## Embed an SBOM into a wheel (PEP 770)
 

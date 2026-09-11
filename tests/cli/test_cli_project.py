@@ -22,6 +22,7 @@ from pitloom.cli.commands import model as mod_model
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.creation import CreationMetadata
 from tests.cli.shared import SAFETENSORS_FIXTURE, _make_simple_project
+from tests.fixtures.locked_deps import write_locked_deps_project
 
 
 def test_main_uses_pretty_from_pyproject(
@@ -388,6 +389,64 @@ def test_project_command_content_type_method_flag_passed_through(
 
     assert __main__.main() == 0
     assert captured["content_type_method"] == method
+
+
+def _make_project_with_lock(tmp_path: Path) -> Path:
+    """See tests.fixtures.locked_deps.write_locked_deps_project."""
+    return write_locked_deps_project(tmp_path / "proj")
+
+
+def test_project_command_no_use_lockfile_skips_cascade(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--no-use-lockfile`` must skip the lock-file cascade end to end
+    via the CLI, not just at the ``generate_project_sbom()`` level."""
+    project_dir = _make_project_with_lock(tmp_path)
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loom",
+            "project",
+            str(project_dir),
+            "-o",
+            str(out),
+            "--offline",
+            "--no-use-lockfile",
+        ],
+    )
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    package_names = {
+        n["name"] for n in doc["@graph"] if n["type"] == "software_Package"
+    }
+    assert "idna" not in package_names
+
+
+def test_project_command_use_lockfile_default_runs_cascade(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No flag at all: the cascade runs by default (opt-out, not opt-in)."""
+    project_dir = _make_project_with_lock(tmp_path)
+    out = tmp_path / "out.spdx3.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "project", str(project_dir), "-o", str(out), "--offline"],
+    )
+
+    assert __main__.main() == 0
+
+    doc = json.loads(out.read_text())
+    package_names = {
+        n["name"] for n in doc["@graph"] if n["type"] == "software_Package"
+    }
+    assert "idna" in package_names
 
 
 def test_project_command_default_creation_comment(

@@ -75,9 +75,12 @@ log = logging.getLogger(__name__)
 _AUTHOR_RE = re.compile(r"^(?P<name>[^<]*?)\s*(?:<(?P<email>[^>]+)>)?$")
 
 
+# pylint: disable-next=too-many-locals
 def extract_poetry_metadata(
     data: dict[str, Any],
     project_dir: Path,
+    *,
+    quiet: bool = False,
 ) -> ProjectMetadata:
     """Extract :class:`~pitloom.core.project.ProjectMetadata` from pre-loaded data.
 
@@ -93,6 +96,10 @@ def extract_poetry_metadata(
             extractor performs; see
             :func:`~pitloom.extract._license.resolve_license_concluded`'s
             docstring for why every extractor must call it.
+        quiet: Suppress this extraction's own ``WARNING:`` lines (default
+            ``False``) -- for a caller re-reading the same, already-read
+            *data* a second time; see
+            :func:`pitloom.extract.project.read_project`'s own ``quiet``.
 
     Returns:
         A populated :class:`~pitloom.core.project.ProjectMetadata`.
@@ -125,9 +132,51 @@ def extract_poetry_metadata(
     urls = _parse_poetry_urls(poetry)
 
     dependencies, requires_python, python_declared = _parse_poetry_deps(
-        poetry.get("dependencies", {})
+        poetry.get("dependencies", {}), quiet=quiet
+    )
+    prov = _build_poetry_provenance(
+        poetry,
+        version=version,
+        description=description,
+        readme=readme,
+        license_prov=license_prov,
+        authors=authors,
+        python_declared=python_declared,
     )
 
+    return ProjectMetadata(
+        name=name,
+        version=version,
+        description=description,
+        readme=readme,
+        requires_python=requires_python,
+        license_name=license_name,
+        license_concluded=license_concluded,
+        keywords=keywords,
+        authors=authors,
+        urls=urls,
+        dependencies=dependencies,
+        provenance=prov,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+
+# pylint: disable-next=too-many-arguments
+def _build_poetry_provenance(
+    poetry: dict[str, Any],
+    *,
+    version: str | None,
+    description: str | None,
+    readme: str | None,
+    license_prov: dict[str, str],
+    authors: list[dict[str, str]],
+    python_declared: bool,
+) -> dict[str, str]:
+    """Build :func:`extract_poetry_metadata`'s provenance dict."""
     prov: dict[str, str] = {
         "name": "Source: pyproject.toml | Field: tool.poetry.name",
     }
@@ -170,26 +219,7 @@ def extract_poetry_metadata(
         )
     if field_declared(poetry, "keywords"):
         prov["keywords"] = "Source: pyproject.toml | Field: tool.poetry.keywords"
-
-    return ProjectMetadata(
-        name=name,
-        version=version,
-        description=description,
-        readme=readme,
-        requires_python=requires_python,
-        license_name=license_name,
-        license_concluded=license_concluded,
-        keywords=keywords,
-        authors=authors,
-        urls=urls,
-        dependencies=dependencies,
-        provenance=prov,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
+    return prov
 
 
 def _parse_poetry_readme(readme_raw: Any) -> str | None:
@@ -222,10 +252,9 @@ def _resolve_poetry_license(
     """Resolve ``[tool.poetry]``'s declared license, falling back to
     directory detection when absent, plus G2's independent second opinion.
 
-    Returns ``(license_name, license_concluded, license_prov)`` -- pulled
-    out of :func:`extract_poetry_metadata` so its own local-variable count
-    stays under pylint's ``too-many-locals`` threshold; ``license_prov`` is
-    ready to merge into the caller's provenance dict directly.
+    Returns ``(license_name, license_concluded, license_prov)`` --
+    ``license_prov`` is ready to merge into the caller's provenance dict
+    directly.
     """
     license_name = (poetry.get("license") or "").strip() or None
     has_declared_license = bool(license_name)
@@ -274,6 +303,8 @@ def _parse_poetry_authors(authors: list[Any]) -> list[dict[str, str]]:
 
 def _parse_poetry_deps(
     deps: Any,
+    *,
+    quiet: bool = False,
 ) -> tuple[list[str], str | None, bool]:
     """Convert ``[tool.poetry.dependencies]`` to a PEP 508 list plus requires-python.
 
@@ -305,7 +336,7 @@ def _parse_poetry_deps(
             requires_python = _poetry_constraint_to_pep440(constraint)
             python_declared = True
             continue
-        dep = _poetry_dep_to_pep508(pkg, constraint)
+        dep = _poetry_dep_to_pep508(pkg, constraint, quiet=quiet)
         if dep is not None:
             dependencies.append(dep)
 
@@ -367,7 +398,9 @@ def _poetry_constraint_to_pep440(constraint: Any) -> str | None:
     return str(constraint)
 
 
-def _poetry_dep_to_pep508(name: str, constraint: Any) -> str | None:
+def _poetry_dep_to_pep508(
+    name: str, constraint: Any, *, quiet: bool = False
+) -> str | None:
     """Convert a single Poetry dependency entry to a PEP 508 string.
 
     Handles string constraints, inline-table constraints (``{version = "^1.0",
@@ -379,12 +412,13 @@ def _poetry_dep_to_pep508(name: str, constraint: Any) -> str | None:
     if isinstance(constraint, dict):
         source = next((k for k in ("path", "git", "url") if k in constraint), None)
         if source is not None:
-            log.warning(
-                "Skipping Poetry dependency %r: %s-sourced dependencies cannot "
-                "be represented as a PEP 508 specifier",
-                name,
-                source,
-            )
+            if not quiet:
+                log.warning(
+                    "Skipping Poetry dependency %r: %s-sourced dependencies "
+                    "cannot be represented as a PEP 508 specifier",
+                    name,
+                    source,
+                )
             return None
         constraint = constraint.get("version", "*")
 
