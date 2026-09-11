@@ -274,9 +274,7 @@ def test_generate_command_does_not_duplicate_project_warning(
     own config-only peek followed by `generate()`'s real read. Only
     `resolve_project_with_lockfile()`'s own peek-then-quiet-reread can emit
     a WARNING: here (e.g. the PEP 639 transitional license/classifier
-    conflict), so it must never double-fire end to end via the CLI --
-    the older, two-independent-reads mechanism this test used to guard
-    against no longer exists for this target type."""
+    conflict), so it must never double-fire end to end via the CLI."""
     project_dir = tmp_path / "proj"
     project_dir.mkdir()
     (project_dir / "pyproject.toml").write_text(
