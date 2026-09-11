@@ -140,8 +140,10 @@ When a lock file is present:
   VCS/path dependencies or marker-ambiguous variants).
 
 To opt out and fall back to direct dependencies + environment introspection
-only, pass `--no-locked-dependencies` (on `project`/`generate`/`enrich`) or
-set `[tool.pitloom] locked-dependencies = false` in `pyproject.toml`. On by
+only, pass `--no-use-lockfile` (on `project`/`generate`, or on `enrich`
+together with `--project-dir` -- it has no effect on `enrich` without
+`--project-dir`, since no project metadata is read at all in that case) or
+set `[tool.pitloom] use-lockfile = false` in `pyproject.toml`. On by
 default; an explicit CLI flag always wins over the config value.
 
 

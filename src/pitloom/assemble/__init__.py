@@ -57,7 +57,54 @@ __all__ = [
     "generate_project_sbom",
     "generate_wheel_sbom",
     "merge_fragments",
+    "target_resolves_to_project",
 ]
+
+_MODEL_FILE_EXTENSIONS = (
+    ".gguf",
+    ".safetensors",
+    ".onnx",
+    ".pt",
+    ".pth",
+    ".pt2",
+    ".h5",
+    ".hdf5",
+    ".keras",
+    ".npy",
+    ".npz",
+    ".bin",
+    ".ftz",
+)
+
+
+def target_resolves_to_project(target: Path | str) -> bool:
+    """Return whether :func:`generate`'s dispatch reaches
+    :func:`~pitloom.assemble._generators.generate_project_sbom` (a plain
+    project directory or sdist archive) for *target*, rather than the
+    env/wheel/Hugging-Face/model-file branches.
+
+    The single source of truth for that classification -- :func:`generate`
+    itself uses it for its own dispatch, and
+    ``pitloom.cli.commands.generate._run_generate_command`` calls it ahead
+    of time to decide whether its own config-only project peek
+    (:func:`pitloom.cli.options._resolve_common_options`) would otherwise
+    duplicate a ``WARNING:`` that :func:`generate_project_sbom`'s real read
+    re-emits for the same directory -- one shared check instead of two
+    independently-maintained classifications drifting apart.
+    """
+    target_str = str(target).strip()
+    if target_str.lower() in ("env", "environment", "--env"):
+        return False
+    if target_str.lower().endswith(".whl"):
+        return False
+    if is_huggingface_source(target_str):
+        return False
+    target_path = Path(target_str)
+    if target_path.is_file() and target_path.name.lower().endswith(
+        _MODEL_FILE_EXTENSIONS
+    ):
+        return False
+    return True
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -76,7 +123,7 @@ def generate(
     content_type: bool | None = None,
     content_type_method: str | None = None,
     update_registry: bool | None = None,
-    locked_dependencies: bool | None = None,
+    use_lockfile: bool | None = None,
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types."""
     target_str = str(target).strip()
@@ -122,24 +169,7 @@ def generate(
     target_path = Path(target)
     if target_path.is_file():
         name_lower = target_path.name.lower()
-        if any(
-            name_lower.endswith(ext)
-            for ext in (
-                ".gguf",
-                ".safetensors",
-                ".onnx",
-                ".pt",
-                ".pth",
-                ".pt2",
-                ".h5",
-                ".hdf5",
-                ".keras",
-                ".npy",
-                ".npz",
-                ".bin",
-                ".ftz",
-            )
-        ):
+        if name_lower.endswith(_MODEL_FILE_EXTENSIONS):
             return generate_model_sbom(
                 target_path,
                 offline=offline,
@@ -166,5 +196,5 @@ def generate(
         content_type_method=content_type_method,
         offline=offline,
         update_registry=update_registry,
-        locked_dependencies=locked_dependencies,
+        use_lockfile=use_lockfile,
     )

@@ -14,12 +14,13 @@ from typing import Any
 
 from pitloom.assemble import (
     generate,
+    target_resolves_to_project,
 )
 from pitloom.cli.commands.utils import cli_error_handler, resolve_effective_provenance
 from pitloom.cli.options import (
     _resolve_common_options,
-    add_locked_dependencies_argument,
     add_offline_argument,
+    add_use_lockfile_argument,
 )
 
 
@@ -46,18 +47,34 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         return 1
 
     target_path = Path(args.target) if args.target else None
-    pitloom_config, creation_metadata, pretty, describe_relationship = (
-        _resolve_common_options(args, target_dir=target_path)
+    # Quiet this peek's own WARNING: lines only when the peeked file is
+    # the *same* file generate_project_sbom()'s real read will re-parse
+    # non-quiet: true for a plain directory target (both reads parse its
+    # pyproject.toml -- see target_resolves_to_project()'s docstring), but
+    # not for an sdist archive target -- the real read there parses the
+    # archive's own internal metadata via read_sdist(), a different file
+    # from this peek's sibling pyproject.toml, so quieting would silently
+    # drop the peek's only warning instead of deferring it to a
+    # re-emission that never happens.
+    is_project_dir_target = (
+        target_path is not None
+        and target_path.is_dir()
+        and target_resolves_to_project(args.target)
     )
-    effective_locked = (
-        pitloom_config.locked_dependencies
-        if args.locked_dependencies is None
-        else args.locked_dependencies
+    pitloom_config, creation_metadata, pretty, describe_relationship = (
+        _resolve_common_options(
+            args,
+            target_dir=target_path,
+            quiet=is_project_dir_target,
+        )
+    )
+    effective_use_lockfile = (
+        pitloom_config.use_lockfile if args.use_lockfile is None else args.use_lockfile
     )
     generate(
         args.target,
         offline=args.offline,
-        locked_dependencies=effective_locked,
+        use_lockfile=effective_use_lockfile,
         output_path=args.output,
         creation_metadata=creation_metadata,
         pretty=pretty,
@@ -97,7 +114,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
         "already covers what it can). "
         "local model file: no-op (no network path exists).",
     )
-    add_locked_dependencies_argument(
+    add_use_lockfile_argument(
         gen_parser,
         "; effect depends on the resolved target -- "
         "project dir: fall back to direct dependencies + environment "

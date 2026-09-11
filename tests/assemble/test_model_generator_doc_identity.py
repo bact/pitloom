@@ -25,6 +25,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.models import get_wheel_files
 from pitloom.extract.project import read_project
+from tests.fixtures.locked_deps import write_locked_deps_project
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "projects"
 POETRY_FIXTURE = FIXTURES / "sampleproject-poetry"
@@ -79,24 +80,15 @@ def test_project_doc_identity_matches_build_doc_uuid_with_locked_dependencies() 
     assert doc_uuid == expected_doc_uuid
 
 
-def test_project_doc_identity_matches_build_doc_uuid_with_locked_dependencies_disabled(
+def test_project_doc_identity_matches_build_doc_uuid_with_use_lockfile_disabled(
     tmp_path: Path,
 ) -> None:
-    """An explicit ``locked_dependencies=False`` on both sides -- base
-    generation and ``_project_doc_identity`` -- must still agree: a base
-    SBOM generated with ``--no-locked-dependencies`` and a fragment built
-    via ``loom enrich --locked-dependencies=False --project-dir DIR`` must
-    reference the same ``doc_uuid``."""
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "locked-app"\nversion = "0.1.0"\n'
-        'dependencies = ["requests>=2.0"]\n',
-        encoding="utf-8",
-    )
-    (tmp_path / "pylock.toml").write_text(
-        'lock-version = "1.0"\ncreated-by = "test"\n'
-        '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
-        encoding="utf-8",
-    )
+    """An explicit ``use_lockfile=False`` on both sides -- base generation
+    and ``_project_doc_identity`` -- must still agree: a base SBOM
+    generated with ``--no-use-lockfile`` and a fragment built via
+    ``loom enrich --use-lockfile=False --project-dir DIR`` must reference
+    the same ``doc_uuid``."""
+    write_locked_deps_project(tmp_path)
 
     project_metadata, _config, _config_path = read_project(
         tmp_path, include_locked_dependencies=False
@@ -113,33 +105,23 @@ def test_project_doc_identity_matches_build_doc_uuid_with_locked_dependencies_di
     )
     expected_doc_uuid = _real_build_doc_uuid(doc)
 
-    _doc_name, doc_uuid = _project_doc_identity(tmp_path, locked_dependencies=False)
+    _doc_name, doc_uuid = _project_doc_identity(tmp_path, use_lockfile=False)
 
     assert doc_uuid == expected_doc_uuid
 
 
 def test_project_doc_identity_auto_matches_config_default(tmp_path: Path) -> None:
-    """No explicit ``locked_dependencies`` argument -- ``_project_doc_identity``
-    must auto-match *project_dir*'s own ``[tool.pitloom] locked-dependencies``
+    """No explicit ``use_lockfile`` argument -- ``_project_doc_identity``
+    must auto-match *project_dir*'s own ``[tool.pitloom] use-lockfile``
     config, so ``loom enrich --project-dir DIR`` (no matching flag) still
     references the correct ``doc_uuid`` for a base SBOM generated purely
     from that project's config default."""
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "locked-app"\nversion = "0.1.0"\n'
-        'dependencies = ["requests>=2.0"]\n\n'
-        "[tool.pitloom]\nlocked-dependencies = false\n",
-        encoding="utf-8",
-    )
-    (tmp_path / "pylock.toml").write_text(
-        'lock-version = "1.0"\ncreated-by = "test"\n'
-        '[[packages]]\nname = "requests"\nversion = "2.31.0"\n',
-        encoding="utf-8",
-    )
+    write_locked_deps_project(tmp_path, disable_cascade_in_config=True)
 
     project_metadata, pitloom_config, _config_path = read_project(
         tmp_path, include_locked_dependencies=False
     )
-    assert pitloom_config.locked_dependencies is False
+    assert pitloom_config.use_lockfile is False
     assert not project_metadata.locked_dependencies
 
     merkle_root, project_files = get_wheel_files(tmp_path)

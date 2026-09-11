@@ -104,9 +104,7 @@ def test_resolve_project_paths_is_file(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(
-        project, "resolve_project_with_locked_dependencies", fake_resolve_project
-    )
+    monkeypatch.setattr(project, "resolve_project_with_lockfile", fake_resolve_project)
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -146,9 +144,7 @@ def test_explicit_creation_metadata(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(
-        project, "resolve_project_with_locked_dependencies", fake_resolve_project
-    )
+    monkeypatch.setattr(project, "resolve_project_with_lockfile", fake_resolve_project)
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass
@@ -199,9 +195,7 @@ def test_no_creation_tool(
 
         return MockMeta(), PitloomConfig(), None
 
-    monkeypatch.setattr(
-        project, "resolve_project_with_locked_dependencies", fake_resolve_project
-    )
+    monkeypatch.setattr(project, "resolve_project_with_lockfile", fake_resolve_project)
 
     def fake_generate(*args: Any, **kwargs: Any) -> Any:
         pass

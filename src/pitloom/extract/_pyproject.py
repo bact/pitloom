@@ -48,12 +48,14 @@ def _read_pyproject_fallback(
     pitloom_config: PitloomConfig,
     *,
     include_locked_dependencies: bool,
+    quiet: bool = False,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
     """Handle fallback when [project] section is absent or missing a name."""
     poetry_meta = _try_read_poetry(
         data,
         pyproject_path.parent,
         include_locked_dependencies=include_locked_dependencies,
+        quiet=quiet,
     )
     if poetry_meta is not None:
         return poetry_meta, pitloom_config
@@ -109,6 +111,8 @@ def _parse_standard_metadata_with_retry(
     data: dict[str, Any],
     pyproject_path: Path,
     dynamic_fields: list[str],
+    *,
+    quiet: bool = False,
 ) -> tuple[StandardMetadata, dict[str, Any]]:
     """Parse *data* via ``StandardMetadata.from_pyproject()``, retrying once
     if the failure is the PEP 639 transitional classifier conflict.
@@ -122,6 +126,13 @@ def _parse_standard_metadata_with_retry(
     Split out of :func:`read_pyproject` specifically to keep that function's
     cognitive complexity under the repo's ``.flake8`` ceiling -- this nested
     try/except was its single largest contributor.
+
+    *quiet* suppresses the PEP 639 transitional-state ``WARNING:`` -- for a
+    caller that already emitted it once for this same file and is re-parsing
+    only to apply a different, unrelated setting (e.g.
+    :func:`pitloom.extract.project.resolve_project_with_lockfile`'s
+    peek-then-reread), not because anything about the license/classifier
+    data changed.
     """
     try:
         return (
@@ -144,13 +155,14 @@ def _parse_standard_metadata_with_retry(
         # same release they add the SPDX field. Retry once with the
         # redundant classifiers dropped, keeping the SPDX expression --
         # the newer, more specific PEP 639 source -- as authoritative.
-        log.warning(
-            "%s declares both an SPDX `license` expression and legacy "
-            "`License ::` classifiers -- dropping the redundant "
-            "classifiers and keeping the SPDX expression (PEP 639 "
-            "transitional state)",
-            pyproject_path,
-        )
+        if not quiet:
+            log.warning(
+                "%s declares both an SPDX `license` expression and legacy "
+                "`License ::` classifiers -- dropping the redundant "
+                "classifiers and keeping the SPDX expression (PEP 639 "
+                "transitional state)",
+                pyproject_path,
+            )
         data = _drop_redundant_license_classifiers(data)
         try:
             return (
@@ -177,6 +189,7 @@ def read_pyproject(
     pyproject_path: Path,
     *,
     include_locked_dependencies: bool = True,
+    quiet: bool = False,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from a ``pyproject.toml`` file.
 
@@ -188,6 +201,11 @@ def read_pyproject(
     ``False``. Defaults to ``True`` so every existing call site (the
     source-stage path via :func:`pitloom.extract.project.read_project`)
     keeps its current behaviour unless it explicitly opts out.
+
+    ``quiet`` suppresses this read's own ``WARNING:`` lines (forwarded to
+    :func:`_parse_standard_metadata_with_retry`) -- for a caller re-reading
+    the same file a second time and only interested in a setting unrelated
+    to the warning's cause, not because the file's content changed.
     """
     if not pyproject_path.exists():
         raise FileNotFoundError(f"pyproject.toml not found at {pyproject_path}")
@@ -205,6 +223,7 @@ def read_pyproject(
             name,
             pitloom_config,
             include_locked_dependencies=include_locked_dependencies,
+            quiet=quiet,
         )
 
     data, dynamic_fields, version_source, description_source = prepare_dynamic_version(
@@ -213,7 +232,7 @@ def read_pyproject(
     data, readme_override = _strip_missing_readme(project_data, pyproject_path, data)
 
     std, data = _parse_standard_metadata_with_retry(
-        data, pyproject_path, dynamic_fields
+        data, pyproject_path, dynamic_fields, quiet=quiet
     )
 
     license_name, license_prov = _extract_and_detect_license(std, pyproject_path.parent)
@@ -273,6 +292,7 @@ def read_pyproject(
         data,
         pyproject_path.parent,
         include_locked_dependencies=include_locked_dependencies,
+        quiet=quiet,
     )
     if poetry_meta is not None:
         metadata = merge_project_metadata(metadata, poetry_meta)
@@ -451,6 +471,7 @@ def _try_read_poetry(
     project_dir: Path,
     *,
     include_locked_dependencies: bool = True,
+    quiet: bool = False,
 ) -> ProjectMetadata | None:
     """Return poetry metadata when ``[tool.poetry]`` is present, else ``None``.
 
@@ -479,7 +500,7 @@ def _try_read_poetry(
         else None
     )
     try:
-        metadata = extract_poetry_metadata(data, project_dir)
+        metadata = extract_poetry_metadata(data, project_dir, quiet=quiet)
     except (ValueError, KeyError) as exc:
         if locked_dependencies is None:
             return None

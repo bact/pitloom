@@ -174,17 +174,18 @@ on which lock file (if any) is present next to `pyproject.toml`.
 
 To turn lock-file reading off entirely -- falling back to direct
 dependencies plus environment introspection only -- pass
-`--no-locked-dependencies` on `loom project`, `loom generate`, or
-`loom enrich`, or set `[tool.pitloom] locked-dependencies = false` in
+`--no-use-lockfile` on `loom project`, `loom generate`, or `loom enrich`
+(the last only together with `--project-dir` -- no project metadata is
+read at all on a bare `loom enrich <model>`, so the flag has no effect
+without it), or set `[tool.pitloom] use-lockfile = false` in
 `pyproject.toml`. On by default (an explicit CLI flag always wins over
 the config value); see [Configuration](configuration.md).
 
 `loom enrich --project-dir DIR` computes the fragment's target document
-identity from that same setting: pass `--locked-dependencies`/
-`--no-locked-dependencies` explicitly to match whatever produced the
-base SBOM, or omit it to auto-match *DIR*'s own `[tool.pitloom]
-locked-dependencies` config. A mismatch here silently produces a
-fragment referencing the wrong document identity.
+identity from that same setting: pass `--use-lockfile`/`--no-use-lockfile`
+explicitly to match whatever produced the base SBOM, or omit it to
+auto-match *DIR*'s own `[tool.pitloom] use-lockfile` config. A mismatch here
+silently produces a fragment referencing the wrong document identity.
 
 `--offline` (also settable via `[tool.pitloom] offline` --
 see [Configuration](configuration.md)) is unrelated to lock-file

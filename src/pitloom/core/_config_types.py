@@ -49,7 +49,7 @@ class PitloomConfig:
     content_type_method: str = "auto"
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()
     offline: bool = False
-    locked_dependencies: bool = True
+    use_lockfile: bool = True
 
     @property
     def provenance(self) -> ProvenanceConfig:

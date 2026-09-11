@@ -94,7 +94,7 @@ heuristic with a warning for other backends -- see
 note. If a lock file (`pylock.toml`, `uv.lock`, `poetry.lock`, `pdm.lock`,
 `Pipfile.lock`, or pinned `requirements.txt`) is present, Pitloom includes
 its exact resolved dependencies automatically (opt out with
-`--no-locked-dependencies`) -- see
+`--no-use-lockfile`) -- see
 [Dependency sources](docs/dependency-sources.md).
 
 Generate an **Analyzed SBOM** from a pre-built wheel

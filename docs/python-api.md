@@ -87,11 +87,13 @@ When a supported lock file (`pylock.toml`, `uv.lock`, `poetry.lock`,
 next to `pyproject.toml`, project generation automatically resolves and
 includes its exact transitive dependencies -- see
 [Dependency sources and precedence](dependency-sources.md). Pass
-`locked_dependencies=False` to `generate()`/`generate_project_sbom()` to
-opt out (on by default; same as the CLI's `--no-locked-dependencies`).
-Has no effect if a pre-resolved `project_metadata`/`pitloom_config` is
-also passed in -- the cascade decision was already made when that
-metadata was produced.
+`use_lockfile=False` to `generate()`/`generate_project_sbom()` to opt out
+(on by default; same as the CLI's `--no-use-lockfile`). Has no effect if
+pre-resolved `project_metadata`/`pitloom_config` are BOTH also passed in
+-- the cascade decision was already made when that metadata was
+produced. Passing only one of the two is not a supported combination:
+both are discarded and re-resolved from the target instead, with a
+`WARNING:` explaining why.
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()`,
 `generate_model_sbom()`, and `generate_env_sbom()` -- the same target
@@ -176,11 +178,12 @@ single-model) base SBOM -- see the equivalent `--project-dir` note on the
 [Command line](cli.md#enrich-an-sbom) page: `--project-dir`'s document
 identity is derived from the resolved file list, so it changes whenever
 that file list changes for the same project. The same applies to
-`locked_dependencies=`: it must match whatever produced the base SBOM's
+`use_lockfile=`: it must match whatever produced the base SBOM's
 identity, or the fragment references the wrong document -- omit it (the
-default, `None`) to auto-match `project_target`'s own `[tool.pitloom]
-locked-dependencies` config; pass it explicitly only when the base SBOM's
-generation used an explicit override that disagreed with that config.
+default, `None`) to auto-match `project_target`'s own
+`[tool.pitloom] use-lockfile` config; pass it explicitly only when the
+base SBOM's generation used an explicit override that disagreed with
+that config.
 Pass `registry=` (a path, or an already-loaded `IdRegistry`) to reference
 a pinned entity id instead of one freshly computed from the model's own
 identity. Raises `ValueError` for a Hugging Face Hub source -- Hugging

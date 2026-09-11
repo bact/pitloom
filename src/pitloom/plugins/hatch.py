@@ -230,8 +230,8 @@ class PitloomBuildHook(BuildHookInterface[BuilderConfig]):
     CLI uses -- so there is one place to configure them for both.  The hook
     always emits compact, RFC 8785 (JCS) canonical JSON, ignoring
     ``[tool.pitloom] pretty``.  It also ignores ``[tool.pitloom]
-    locked-dependencies``: lock/pin files are source-stage-only and already
-    excluded from the build hook's output (see
+    use-lockfile``: lock/pin files are source-stage-only and already excluded
+    from the build hook's output (see
     ``hatchling.py::_poetry_fallback_metadata``'s
     ``include_locked_dependencies=False``).
     """

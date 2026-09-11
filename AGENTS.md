@@ -314,6 +314,7 @@ Unix philosophy. Consistent, predictable, parseable.
 - Min version: Python 3.10. No syntax/features unavailable before 3.10 unless via `__future__`.
 - No `A | B` union syntax outside `TYPE_CHECKING` blocks below 3.10.
 - Verify types with mypy (strict=true). Use pyright/pytype for second opinions.
+- **Untyped third-party dependency**: before adding an `ignore_missing_imports`/`ignore-missing-imports` override (mypy `[[tool.mypy.overrides]]`, `[tool.pyrefly] ignore-missing-imports`, etc.), check PyPI for a legitimate, trusted `types-<package>` stub package (the typeshed-maintained ones, e.g. `types-PyYAML`, `types-setuptools`). Add it to the `typecheck` dependency group instead -- real stubs catch genuine type errors an `Any`-blanket override would hide, and (unlike a suppression) don't need re-verifying every time a type checker changes how it treats an unresolvable/stub-less import (e.g. pyrefly 1.2 vs 1.3 disagreeing on whether `ignore-missing-imports` still applies once a module is merely stub-incomplete rather than fully unresolvable). Only fall back to a suppression override when no such stub package exists.
 - Fully qualified names in docstrings for non-stdlib types (e.g., `numpy.ndarray`).
 - No `assert` in production -- tests only.
 - All config in `pyproject.toml` where possible.

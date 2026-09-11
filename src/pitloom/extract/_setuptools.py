@@ -189,11 +189,17 @@ def detect_build_backend(
     return _KNOWN_BACKEND_ALIASES.get(top_level, top_level)
 
 
-def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
+def read_setuptools(
+    project_dir: Path, *, quiet: bool = False
+) -> tuple[ProjectMetadata, PitloomConfig]:
     """Read project metadata from ``setup.cfg`` and/or ``setup.py``.
 
     Merges metadata from both files with ``setup.cfg`` taking precedence
     over ``setup.py``, following modern setuptools conventions.
+
+    ``quiet`` suppresses this read's own ``WARNING:`` lines (default
+    ``False``) -- for a caller re-reading the same project a second time;
+    see :func:`pitloom.extract.project.read_project`'s own ``quiet``.
     """
     setup_cfg = project_dir / "setup.cfg"
     setup_py = project_dir / "setup.py"
@@ -210,7 +216,7 @@ def read_setuptools(project_dir: Path) -> tuple[ProjectMetadata, PitloomConfig]:
 
     if setup_py.exists():
         try:
-            py_metadata, _ = read_setup_py(project_dir)
+            py_metadata, _ = read_setup_py(project_dir, quiet=quiet)
         except (FileNotFoundError, ValueError):
             pass
 

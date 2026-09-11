@@ -137,12 +137,11 @@ Steps:
    once merged -- no error, just missing data in the output. When
    `--registry <file>` was used for the base SBOM, pass the same
    `--registry` here too. If the base SBOM was generated with an
-   explicit `--locked-dependencies`/`--no-locked-dependencies` override
-   (not just the project's `[tool.pitloom] locked-dependencies`
-   default), pass the same flag here too -- `--project-dir`'s document
-   identity depends on it, the same way it depends on the resolved file
-   list. Omit the flag (the default) to auto-match the project's own
-   config when no override was used.
+   explicit `--use-lockfile`/`--no-use-lockfile` override (not just the
+   project's `[tool.pitloom] use-lockfile` default), pass the same flag here
+   too -- `--project-dir`'s document identity depends on it, the same way
+   it depends on the resolved file list. Omit the flag (the default) to
+   auto-match the project's own config when no override was used.
 3. Read the project's `README.md` / model card **prose** and any other
    local docs. Only propose fields for gaps step 2 left untouched --
    `loom enrich` already found everything it could from frontmatter, so

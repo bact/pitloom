@@ -155,16 +155,23 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
   See [metadata-sources.md](./metadata-sources.md).
-- [x] **CLI option `--no-locked-dependencies`** -- opt-out flag (also
-  `[tool.pitloom] locked-dependencies = false`) disabling automatic
-  lock-file discovery on `project`/`generate`/`enrich`, the library API's
+- [x] **CLI option `--no-use-lockfile`** -- opt-out flag (also
+  `[tool.pitloom] use-lockfile = false`) disabling automatic lock-file
+  discovery on `project`/`generate`/`enrich`, the library API's
   `generate_project_sbom()`/`generate()`, and `action.yml`; on by default,
   a documented no-op on the Hatchling build hook and `embed-wheel`. Also
   closed a matching `--offline` gap in `action.yml` (never exposed there
   despite being a real CLI flag), and fixed a related bug: `loom enrich`'s
   doc-identity computation always ran the cascade regardless of the base
   SBOM's own setting, silently producing dangling fragment references.
-  See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-locked-dependencies-opt-out).
+  Originally shipped as `--locked-dependencies`/`--no-locked-dependencies`,
+  briefly renamed to `--lockfile`/`--no-lockfile` (borrowing yarn/pnpm's
+  naming), then renamed again to `--use-lockfile`/`--no-use-lockfile`: a
+  bare `lockfile` bool sat too close to `ProjectMetadata.locked_dependencies`
+  (the unrelated, actual resolved-dependency data from [#208]) in the same
+  Python scopes, risking exactly the kind of conflated naming this repo's
+  recurring-bug-pattern notes warn about.
+  See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-use-lockfile-opt-out).
 - [ ] **Preserve lock file hashes in `--offline` mode** -- retain package
   SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
   `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3

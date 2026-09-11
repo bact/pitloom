@@ -98,11 +98,11 @@ inputs:
       the project's [tool.pitloom] offline config, which is off by default.
     required: false
     default: ""
-  locked-dependencies:
+  use-lockfile:
     description: >-
       Resolve exact versions from a lock/pin file cascade ("true"/"false").
-      Empty (default) defers to the project's [tool.pitloom]
-      locked-dependencies config, which is on by default.
+      Empty (default) defers to the project's [tool.pitloom] use-lockfile
+      config, which is on by default.
     required: false
     default: ""
   args:
@@ -191,7 +191,7 @@ runs:
         PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
         PL_MAX_SOURCE_METADATA_BYTES: ${{ inputs.max-source-metadata-bytes }}
         PL_OFFLINE: ${{ inputs.offline }}
-        PL_LOCKED_DEPENDENCIES: ${{ inputs.locked-dependencies }}
+        PL_USE_LOCKFILE: ${{ inputs.use-lockfile }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -270,14 +270,14 @@ runs:
         elif [ "${PL_OFFLINE}" = "false" ]; then
           loom_args+=("--no-offline")
         fi
-        # "--locked-dependencies"/"--no-locked-dependencies" only exists on
-        # "loom project" (not "loom model"/"loom embed-wheel"), since only
-        # project mode reads a lock/pin file cascade at all.
+        # "--use-lockfile"/"--no-use-lockfile" only exists on "loom project"
+        # (not "loom model"/"loom embed-wheel"), since only project mode
+        # reads a lock/pin file cascade at all.
         if [ "${is_embed}" = false ] && [ -z "${PL_MODEL}" ]; then
-          if [ "${PL_LOCKED_DEPENDENCIES}" = "true" ]; then
-            loom_args+=("--locked-dependencies")
-          elif [ "${PL_LOCKED_DEPENDENCIES}" = "false" ]; then
-            loom_args+=("--no-locked-dependencies")
+          if [ "${PL_USE_LOCKFILE}" = "true" ]; then
+            loom_args+=("--use-lockfile")
+          elif [ "${PL_USE_LOCKFILE}" = "false" ]; then
+            loom_args+=("--no-use-lockfile")
           fi
         fi
         if [ -n "${PL_ARGS}" ]; then

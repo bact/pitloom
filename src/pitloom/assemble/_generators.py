@@ -32,7 +32,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.env import read_environment
-from pitloom.extract.project import resolve_project_with_locked_dependencies
+from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
@@ -68,6 +68,31 @@ def _harvestable(obj: Any) -> bool:
     get_compact_type = getattr(obj, "get_compact_type", None)
     compact_type = get_compact_type() if get_compact_type is not None else None
     return compact_type not in _AUTO_HARVEST_EXCLUDED_TYPES
+
+
+def _warn_if_partial_presupply(
+    project_metadata: ProjectMetadata | None,
+    pitloom_config: PitloomConfig | None,
+    target_path: Path,
+) -> None:
+    """Warn when exactly one of project_metadata/pitloom_config is
+    pre-supplied to generate_project_sbom() -- the pair is re-resolved and
+    the one supplied value is discarded either way (see that function's
+    docstring), so silently doing so would violate "no silent deviations".
+
+    Only called from within generate_project_sbom()'s own
+    ``project_metadata is None or pitloom_config is None`` guard, so
+    "both supplied" can never reach here -- no need to re-check it.
+    """
+    if project_metadata is None and pitloom_config is None:
+        return
+    log.warning(
+        "generate_project_sbom(): project_metadata and pitloom_config "
+        "must be supplied together, or neither -- the %s you passed alone "
+        "is being discarded and both are re-resolved from %s",
+        "project_metadata" if project_metadata is not None else "pitloom_config",
+        target_path,
+    )
 
 
 def _sync_registry(
@@ -127,20 +152,25 @@ def generate_project_sbom(
     content_type_method: str | None = None,
     offline: bool | None = None,
     update_registry: bool | None = None,
-    locked_dependencies: bool | None = None,
+    use_lockfile: bool | None = None,
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
 
-    ``locked_dependencies`` only affects metadata resolved by this call: if
-    ``project_metadata``/``pitloom_config`` are pre-supplied by the caller,
-    this parameter has no effect -- the lock-file cascade decision was
-    already made when that metadata was produced.
+    ``use_lockfile`` only affects metadata resolved by this call: if the
+    caller pre-supplies BOTH ``project_metadata`` and ``pitloom_config``
+    together, this parameter has no effect -- the lock-file cascade
+    decision was already made when that metadata was produced. Supplying
+    only one of the two is not a supported combination: both are
+    re-resolved from *project_target* and the one you did supply is
+    discarded, with a ``WARNING:`` explaining why (see "no silent
+    deviations" in AGENTS.md).
     """
     configure_logging()
     target_path = Path(project_target)
     if project_metadata is None or pitloom_config is None:
-        project_metadata, pitloom_config, _ = resolve_project_with_locked_dependencies(
-            target_path, locked_dependencies
+        _warn_if_partial_presupply(project_metadata, pitloom_config, target_path)
+        project_metadata, pitloom_config, _ = resolve_project_with_lockfile(
+            target_path, use_lockfile
         )
 
     effective_pretty: bool = pitloom_config.pretty if pretty is None else pretty

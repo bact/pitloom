@@ -73,9 +73,9 @@ its resolved transitive dependencies are added to the Source SBOM's
 dependency list too -- see
 [Dependency sources and precedence](dependency-sources.md) for which
 one wins when more than one is present, and what counts as "resolved"
-for each. On by default; pass `--no-locked-dependencies` (or set
-`[tool.pitloom] locked-dependencies = false`) to fall back to direct
-dependencies and environment introspection only.
+for each. On by default; pass `--no-use-lockfile` (or set
+`[tool.pitloom] use-lockfile = false`) to fall back to direct dependencies
+and environment introspection only.
 
 Generate an **Analyzed SBOM** from a pre-built wheel (extracting bundled
 binaries as phantom dependencies):
@@ -237,13 +237,13 @@ Register the fragment under `[tool.pitloom.fragment]` and re-run
 > SBOM first -- otherwise the fragment's element references won't match
 > the base document's ids, and the merge fails outright (see below).
 >
-> The same applies to `--locked-dependencies`/`--no-locked-dependencies`
-> (see [Generate an SBOM](#generate-an-sbom) above): the document
-> identity also depends on whether the lock-file cascade ran. `loom
-> enrich --project-dir DIR` auto-matches *DIR*'s own `[tool.pitloom]
-> locked-dependencies` config when no explicit flag is given, so only
-> pass one here if the base SBOM's own generation used an explicit
-> CLI-flag override that disagreed with that config.
+> The same applies to `--use-lockfile`/`--no-use-lockfile` (see
+> [Generate an SBOM](#generate-an-sbom) above): the document identity
+> also depends on whether the lock-file cascade ran. `loom enrich
+> --project-dir DIR` auto-matches *DIR*'s own `[tool.pitloom] use-lockfile`
+> config when no explicit flag is given, so only pass one here if the
+> base SBOM's own generation used an explicit CLI-flag override that
+> disagreed with that config.
 
 For prose-reading enrichment (an AI agent reading the actual README text,
 not just its frontmatter), see the [Agent Skills](agent-skills.md) page
@@ -317,11 +317,11 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
 - `--pretty` -- indent the JSON for human reading (default: compact).
 - `--offline` -- forbid network access (PyPI/Hugging Face lookups).
   Not on `enrich` either.
-- `--locked-dependencies` / `--no-locked-dependencies` -- only on
-  `project`/`generate` (not `model`/`wheel`/`embed-wheel`/`env`, which
-  never read a lock file) and `enrich` (for `--project-dir` document
-  identity matching, see [Enrich an SBOM](#enrich-an-sbom)). On by
-  default; see [Dependency sources and precedence](dependency-sources.md).
+- `--use-lockfile` / `--no-use-lockfile` -- only on `project`/`generate` (not
+  `model`/`wheel`/`embed-wheel`/`env`, which never read a lock file) and
+  `enrich` (for `--project-dir` document identity matching, see
+  [Enrich an SBOM](#enrich-an-sbom)). On by default; see
+  [Dependency sources and precedence](dependency-sources.md).
 - `-v` / `--verbose` -- print effective options and where each came from.
 - `--registry FILE` -- Loom ID registry file path, overriding the
   auto-resolved default -- see [Pin ids across

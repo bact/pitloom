@@ -19,7 +19,7 @@ from pitloom.assemble import (
 from pitloom.cli.commands.utils import cli_error_handler
 from pitloom.cli.options import (
     _resolve_common_options,
-    add_locked_dependencies_argument,
+    add_use_lockfile_argument,
 )
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 
@@ -56,7 +56,7 @@ def _run_enrich_command(args: argparse.Namespace) -> int:
         enrich=args.enrich,
         project_target=args.project_dir,
         registry=args.registry,
-        locked_dependencies=args.locked_dependencies,
+        use_lockfile=args.use_lockfile,
     )
     print(f"Enrichment fragment written to: {output_path}")
     print(
@@ -97,7 +97,7 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
             "a different id."
         ),
     )
-    add_locked_dependencies_argument(
+    add_use_lockfile_argument(
         enrich_parser,
         " when computing the base document's identity for --project-dir "
         "matching -- must match whatever setting produced that base SBOM, "

@@ -93,24 +93,22 @@ def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
     )
 
 
-def add_locked_dependencies_argument(
-    parser: argparse.ArgumentParser, effect: str
-) -> None:
-    """Add the shared ``--locked-dependencies``/``--no-locked-dependencies`` flag.
+def add_use_lockfile_argument(parser: argparse.ArgumentParser, effect: str) -> None:
+    """Add the shared ``--use-lockfile``/``--no-use-lockfile`` flag.
 
     Unlike ``--offline``/``--enrich`` this is an *opt-out* flag: the lock/pin
     file cascade is on by default. ``default=None`` here still means
-    "unset", deferring to ``[tool.pitloom] locked-dependencies`` (itself on
-    by default) when omitted.
+    "unset", deferring to ``[tool.pitloom] use-lockfile`` (itself on by
+    default) when omitted.
     """
     parser.add_argument(
-        "--locked-dependencies",
+        "--use-lockfile",
         action=argparse.BooleanOptionalAction,
         default=None,
         help=(
             f"Resolve exact versions from a lock/pin file cascade{effect} "
-            "Defers to [tool.pitloom] locked-dependencies (on by default) "
-            "when omitted."
+            "Defers to [tool.pitloom] use-lockfile (on by default) when "
+            "omitted."
         ),
     )
 
@@ -234,8 +232,20 @@ def _resolve_common_options(
     args: argparse.Namespace,
     target_dir: Path | None = None,
     load_project: bool = True,
+    *,
+    quiet: bool = False,
 ) -> tuple[PitloomConfig, CreationMetadata, bool, bool]:
-    """Resolve common settings using project config when available."""
+    """Resolve common settings using project config when available.
+
+    ``quiet`` suppresses this peek's own ``WARNING:`` lines (default
+    ``False``) -- pass ``True`` only when the caller knows a real,
+    non-quiet read of the same *target_dir* will immediately follow (e.g.
+    ``loom generate`` on a target :func:`pitloom.assemble.target_resolves_to_project`
+    confirms will reach :func:`~pitloom.assemble._generators.generate_project_sbom`),
+    so that read's own warning stands in for this discarded peek's. Passing
+    it when no such second read is guaranteed would silently drop this
+    peek's only warning.
+    """
     if load_project:
         lookup_dir = target_dir if target_dir is not None else Path.cwd()
         if lookup_dir.is_file():
@@ -247,7 +257,7 @@ def _resolve_common_options(
             # skip the lock/pin cascade so it never runs for a caller that
             # would discard the result anyway.
             _, pitloom_config, _ = read_project(
-                lookup_dir, include_locked_dependencies=False
+                lookup_dir, include_locked_dependencies=False, quiet=quiet
             )
         except FileNotFoundError:
             pitloom_config = PitloomConfig()

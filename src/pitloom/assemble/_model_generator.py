@@ -21,7 +21,7 @@ from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.extract._huggingface import is_huggingface_source, read_huggingface
 from pitloom.extract.ai_model import read_ai_model
-from pitloom.extract.project import resolve_project_with_locked_dependencies
+from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.ids import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
@@ -55,7 +55,7 @@ def _resolve_model_enrich_config(model_dir: Path) -> EnrichConfig:
 
 
 def _project_doc_identity(
-    project_dir: Path, *, locked_dependencies: bool | None = None
+    project_dir: Path, *, use_lockfile: bool | None = None
 ) -> tuple[str, str]:
     """Compute ``(doc_name, doc_uuid)`` for a project directory.
 
@@ -70,14 +70,14 @@ def _project_doc_identity(
     project's backend, or the fragment's element references may not
     match the base document's spdxIds.
 
-    ``locked_dependencies`` must match whatever setting produced the base
-    document being merged into, or the computed ``doc_uuid`` will diverge
-    from it (see ``pitloom.core.models.compute_doc_uuid``'s use of
-    ``locked_dependencies``). When omitted, it auto-matches *project_dir*'s
-    own ``[tool.pitloom] locked-dependencies`` config.
+    ``use_lockfile`` must match whatever setting produced the base document
+    being merged into, or the computed ``doc_uuid`` will diverge from it
+    (see ``pitloom.core.models.compute_doc_uuid``'s use of its own
+    ``locked_dependencies`` data). When omitted, it auto-matches
+    *project_dir*'s own ``[tool.pitloom] use-lockfile`` config.
     """
-    project_metadata, _pitloom_config, _config_path = (
-        resolve_project_with_locked_dependencies(project_dir, locked_dependencies)
+    project_metadata, _pitloom_config, _config_path = resolve_project_with_lockfile(
+        project_dir, use_lockfile
     )
     merkle_root, project_files = get_wheel_files(project_dir)
     project_metadata.files = project_files
@@ -172,7 +172,7 @@ def enrich_model(
     enrich: bool | None = None,
     project_target: Path | str | None = None,
     registry: str | Path | IdRegistry | None = None,
-    locked_dependencies: bool | None = None,
+    use_lockfile: bool | None = None,
 ) -> str:
     """Run enrichment only for a local model file."""
     configure_logging()
@@ -199,9 +199,7 @@ def enrich_model(
     results = run_enrichers(model, enrich_config, model_dir)
 
     base_doc_identity = (
-        _project_doc_identity(
-            Path(project_target), locked_dependencies=locked_dependencies
-        )
+        _project_doc_identity(Path(project_target), use_lockfile=use_lockfile)
         if project_target is not None
         else None
     )

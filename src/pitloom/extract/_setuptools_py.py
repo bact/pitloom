@@ -82,7 +82,7 @@ def _ast_literal(node: ast.expr) -> Any:
     return _UNRESOLVABLE
 
 
-def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
+def _extract_setup_kwargs(tree: ast.Module, *, quiet: bool = False) -> dict[str, Any]:
     """Extract keyword arguments from a ``setup()`` or ``setuptools.setup()`` call.
 
     Returns the first matching call's kwargs as a dict. A kwarg whose value
@@ -92,7 +92,8 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
     container (e.g. ``install_requires=[]``) instead of leaving the field
     open for ``merge_project_metadata()`` to fill from a lower-priority
     source. A ``WARNING:`` names the dropped kwarg so this isn't a silent
-    deviation.
+    deviation -- unless *quiet* (default ``False``), for a caller re-reading
+    the same file a second time.
     """
     node = next(iter_setup_calls(tree), None)
     if node is None:
@@ -102,12 +103,13 @@ def _extract_setup_kwargs(tree: ast.Module) -> dict[str, Any]:
         if kw.arg is not None:  # skip **expansion
             value = _ast_literal(kw.value)
             if value is _UNRESOLVABLE:
-                log.warning(
-                    "setup.py: %r is declared but its value isn't a"
-                    " statically resolvable literal -- treating it as"
-                    " undeclared and falling back to a lower-priority source",
-                    kw.arg,
-                )
+                if not quiet:
+                    log.warning(
+                        "setup.py: %r is declared but its value isn't a"
+                        " statically resolvable literal -- treating it as"
+                        " undeclared and falling back to a lower-priority source",
+                        kw.arg,
+                    )
                 continue
             kwargs[kw.arg] = value
     return kwargs
@@ -209,8 +211,15 @@ def _extract_str_kwarg(kwargs: dict[str, Any], key: str) -> str | None:
 # pylint: disable=too-many-locals
 def read_setup_py(
     project_dir: Path,
+    *,
+    quiet: bool = False,
 ) -> tuple[ProjectMetadata, PitloomConfig]:
-    """Read project metadata from ``setup.py`` using AST parsing."""
+    """Read project metadata from ``setup.py`` using AST parsing.
+
+    ``quiet`` suppresses this read's own ``WARNING:`` lines (default
+    ``False``) -- for a caller re-reading the same file a second time; see
+    :func:`pitloom.extract.project.read_project`'s own ``quiet``.
+    """
     setup_py_path = project_dir / "setup.py"
     if not setup_py_path.exists():
         raise FileNotFoundError(f"setup.py not found at {setup_py_path}")
@@ -221,7 +230,7 @@ def read_setup_py(
     except (OSError, SyntaxError) as exc:
         raise ValueError(f"Could not parse setup.py: {exc}") from exc
 
-    kwargs = _extract_setup_kwargs(tree)
+    kwargs = _extract_setup_kwargs(tree, quiet=quiet)
     name = kwargs.get("name")
     if not isinstance(name, str) or not name.strip():
         raise ValueError(

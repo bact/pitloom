@@ -16,7 +16,7 @@ from pitloom.core.config import (
     _read_extract_file_header,
     _read_fragments,
     _read_ids_file,
-    _read_locked_dependencies_setting,
+    _read_use_lockfile_setting,
     parse_pitloom_config,
 )
 from pitloom.core.content_type_config import ContentTypeOverride
@@ -195,31 +195,31 @@ def test_read_enrich_settings_non_bool_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _read_locked_dependencies_setting
+# _read_use_lockfile_setting
 # ---------------------------------------------------------------------------
 
 
-def test_read_locked_dependencies_setting_defaults_true_when_absent() -> None:
+def test_read_use_lockfile_setting_defaults_true_when_absent() -> None:
     """Unlike ``offline``/``enrich``, this is opt-out: on by default."""
-    assert _read_locked_dependencies_setting({}) is True
+    assert _read_use_lockfile_setting({}) is True
 
 
-def test_read_locked_dependencies_setting_explicit_false() -> None:
-    assert _read_locked_dependencies_setting({"locked-dependencies": False}) is False
+def test_read_use_lockfile_setting_explicit_false() -> None:
+    assert _read_use_lockfile_setting({"use-lockfile": False}) is False
 
 
-def test_read_locked_dependencies_setting_non_bool_raises() -> None:
-    with pytest.raises(ValueError, match="'locked-dependencies' must be a boolean"):
-        _read_locked_dependencies_setting({"locked-dependencies": "yes"})
+def test_read_use_lockfile_setting_non_bool_raises() -> None:
+    with pytest.raises(ValueError, match="'use-lockfile' must be a boolean"):
+        _read_use_lockfile_setting({"use-lockfile": "yes"})
 
 
-def test_parse_pitloom_config_locked_dependencies_default_true() -> None:
-    assert parse_pitloom_config({}).locked_dependencies is True
+def test_parse_pitloom_config_use_lockfile_default_true() -> None:
+    assert parse_pitloom_config({}).use_lockfile is True
 
 
-def test_parse_pitloom_config_locked_dependencies_false() -> None:
-    config = parse_pitloom_config({"tool": {"pitloom": {"locked-dependencies": False}}})
-    assert config.locked_dependencies is False
+def test_parse_pitloom_config_use_lockfile_false() -> None:
+    config = parse_pitloom_config({"tool": {"pitloom": {"use-lockfile": False}}})
+    assert config.use_lockfile is False
 
 
 # ---------------------------------------------------------------------------
