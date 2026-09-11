@@ -24,7 +24,9 @@ from pitloom.assemble.spdx3.deps_installed import (
     _VERSION_OPERATORS,
     _enrich_from_installed,
     _parse_dep_name,
+    _resolve_dependency_with_conflict,
     _resolve_version,
+    merge_conflict_candidates,
 )
 from pitloom.assemble.spdx3.deps_license import _add_license_noassertion, _apply_license
 from pitloom.assemble.spdx3.deps_originator import (
@@ -38,7 +40,12 @@ from pitloom.assemble.spdx3.deps_pypi import (
     _fetch_pypi_release_info,
     _prefetch_pypi_release_infos,
 )
-from pitloom.assemble.spdx3.provenance import ProvenanceEncoder, emit_provenance
+from pitloom.assemble.spdx3.provenance import (
+    ConflictCandidate,
+    ProvenanceEncoder,
+    build_conflict_annotation,
+    emit_provenance,
+)
 from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
 from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
@@ -230,6 +237,7 @@ def add_dependencies(
     release_info_cache: dict[tuple[str, str | None], dict[str, Any] | None]
     | None = None,
     locked_versions: dict[str, str] | None = None,
+    locked_provenance: str | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -262,26 +270,34 @@ def add_dependencies(
     dependency declared with a version range (e.g. ``requests>=2.0``)
     resolves to this locked version rather than falling back to host
     environment introspection.
+
+    *locked_provenance*, when given, is the provenance string recorded as
+    the locked-side G2 candidate's ``source`` when a declared dependency's
+    version genuinely conflicts with its locked-resolved version (see
+    :func:`~pitloom.assemble.spdx3.deps_installed.build_dependency_version_conflict`).
+    Only meaningful when *locked_versions* is also given -- the
+    transitive-only call passes neither. Defaults to
+    :data:`~pitloom.assemble.spdx3.deps_installed._DEFAULT_LOCKED_PROVENANCE`
+    when *locked_versions* resolves a version but no real provenance string
+    was supplied.
     """
-    resolved = []
-    for dep in dependencies:
-        dep_name = _parse_dep_name(dep)
-        locked_ver = (
-            locked_versions.get(canonicalize_name(dep_name))
-            if locked_versions is not None
-            else None
+    resolved = [
+        _resolve_dependency_with_conflict(
+            dep, locked_versions, dep_provenance, locked_provenance
         )
-        dep_version, version_note = _resolve_version(
-            dep_name, dep, locked_version=locked_ver
-        )
-        resolved.append((dep, dep_name, dep_version, version_note))
+        for dep in dependencies
+    ]
     if release_info_cache is None and not offline:
         release_info_cache = _prefetch_pypi_release_infos(
-            (dep_name, dep_version) for _dep, dep_name, dep_version, _note in resolved
+            (dep_name, dep_version)
+            for _dep, dep_name, dep_version, _note, _conflict in resolved
         )
 
-    grouped: dict[tuple[str, str], list[tuple[str, str, str | None]]] = {}
-    for dep, dep_name, dep_version, version_note in resolved:
+    grouped: dict[
+        tuple[str, str],
+        list[tuple[str, str, str | None, list[ConflictCandidate] | None]],
+    ] = {}
+    for dep, dep_name, dep_version, version_note, conflict_candidates in resolved:
         canon_name = canonicalize_name(dep_name)
         matched_key = next(
             (
@@ -294,12 +310,24 @@ def add_dependencies(
         canon_key = (
             matched_key if matched_key is not None else (canon_name, dep_version)
         )
-        grouped.setdefault(canon_key, []).append((dep, dep_name, version_note))
+        grouped.setdefault(canon_key, []).append(
+            (dep, dep_name, version_note, conflict_candidates)
+        )
 
     for (_canon_name, dep_version), declared in grouped.items():
         display_dep_name = declared[0][1]
-        declared_constraints = [dep for dep, _raw_name, _note in declared]
-        version_note = next((note for _dep, _raw_name, note in declared if note), None)
+        declared_constraints = [dep for dep, _raw_name, _note, _conflict in declared]
+        version_note = next(
+            (note for _dep, _raw_name, note, _conflict in declared if note), None
+        )
+        # Merge, not just take the first: >1 raw declared string can collapse
+        # into this group (e.g. two extras with different version ranges
+        # resolving to the same locked version), each with its own
+        # independently-conflicting declared value -- see
+        # multi-source-conflict.md.
+        group_conflict_candidates = merge_conflict_candidates(
+            c for _dep, _raw_name, _note, c in declared
+        )
         dep_provenance_fields: dict[str, str] = {
             "dependencies": dep_provenance,
             "declared_constraint": " | ".join(declared_constraints),
@@ -331,6 +359,18 @@ def add_dependencies(
         )
 
         exporter.add_package(dep_package)
+        if group_conflict_candidates is not None:
+            exporter.add_annotation(
+                build_conflict_annotation(
+                    subject_spdx_id=require_spdx_id(dep_package),
+                    field="dependency_version",
+                    candidates=group_conflict_candidates,
+                    creation_info=creation_info,
+                    annotation_spdx_id=generate_spdx_id(
+                        "Annotation", doc_name=doc_name, doc_uuid=doc_uuid
+                    ),
+                )
+            )
         emit_provenance(
             subject=dep_package,
             provenance=dep_provenance_fields,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-08
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -201,11 +201,51 @@ value) -- so none of these are misreported as a conflict.
   `externalReported` remains reserved for a future candidate source (a
   linked GitHub/Hugging Face Hub API) -- not built yet.
 
+## How a dependency-version source is chosen
+
+The same disagreement-detection mechanism also applies to a dependency's
+resolved version, once a project lock file is in play (see [Dependency
+sources and precedence](dependency-sources.md)). Unlike license, there's
+no independent-detection procedure here -- both candidates are the
+project's own stated claims, just from two different files, so **both are
+`role: "declared"`**, not a `declared`/`detected` pair:
+
+- A direct dependency pinned exactly (e.g. `requests==2.31.0`) whose
+  pinned version doesn't match what the lock file separately resolved to.
+- A direct dependency declared as a range or left unpinned (e.g.
+  `requests>=2.0`) whose declared constraint the lock file's resolved
+  version doesn't satisfy.
+
+Either way, the resolved `software_packageVersion` still follows the
+same "explicit pin beats local environment" precedence described in
+[Dependency sources and precedence](dependency-sources.md#version-comparison-pep-440-not-semver)
+(a declared exact pin always wins; otherwise the lock file's version
+wins), and Pitloom adds a `conflict` Annotation (`field:
+"dependency_version"`) on the dependency package recording both values:
+
+```json
+{
+  "schema": "https://pitloom.dev/provenance/conflict/1",
+  "kind": "conflict",
+  "field": "dependency_version",
+  "candidates": [
+    {"value": ">=2.0", "role": "declared", "source": "Source: pyproject.toml | Field: dependencies"},
+    {"value": "1.5.0", "role": "declared", "source": "Source: requirements.txt | Method: resolved_lockfile"}
+  ]
+}
+```
+
+Note the declared candidate's `value` is a PEP 440 specifier expression
+(e.g. `">=2.0"`), not a version, when the dependency was declared as a
+range rather than pinned exactly -- the exact-pin case instead has a
+concrete version on both sides.
+
 ## See also
 
 `[tool.pitloom.provenance]` is read the same way regardless of entry
 point -- see [Command line](cli.md#configuration), [Hatchling build
 hook](hatchling-build-hook.md), and [Python API](python-api.md) for where
 to set it.
+
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies and provenance.

@@ -46,6 +46,7 @@ from pitloom.assemble.spdx3._document_model import (
 from pitloom.assemble.spdx3.ai import add_ai_models
 from pitloom.assemble.spdx3.creation_info import build_creation_info
 from pitloom.assemble.spdx3.deps import add_dependencies, add_phantom_dependencies
+from pitloom.assemble.spdx3.deps_installed import _DEFAULT_LOCKED_PROVENANCE
 from pitloom.assemble.spdx3.deps_license import attach_main_package_license
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
@@ -275,6 +276,9 @@ def build(
     )
 
     # --- Dependencies ---
+    locked_dependencies_provenance = metadata.provenance.get(
+        "locked_dependencies", _DEFAULT_LOCKED_PROVENANCE
+    )
     add_dependencies(
         dependencies=metadata.dependencies,
         dep_provenance=metadata.provenance.get("dependencies", "Unknown source"),
@@ -289,14 +293,13 @@ def build(
         content_type_method=content_type_method,
         release_info_cache=release_info_cache,
         locked_versions=locked_versions,
+        locked_provenance=locked_dependencies_provenance,
     )
 
     if transitive_only:
         add_dependencies(
             dependencies=transitive_only,
-            dep_provenance=metadata.provenance.get(
-                "locked_dependencies", "Source: lock file | Method: resolved_lockfile"
-            ),
+            dep_provenance=locked_dependencies_provenance,
             main_package_spdx_id=require_spdx_id(main_package),
             creation_info=spdx_ci,
             doc_name=metadata.name,

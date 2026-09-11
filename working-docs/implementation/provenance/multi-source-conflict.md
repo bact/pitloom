@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-09-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -151,6 +151,65 @@ BSD-3-Clause`, while `MIT AND (Apache-2.0 OR BSD-3-Clause)` (parens
 distinct and keeps its now-necessary paren. So the normalization strips
 parens exactly when they're redundant and keeps them exactly when they're
 load-bearing — not a blanket strip-all-parens heuristic.
+
+## G2 second field: dependency version
+
+The declared-version-specifier-vs-lock-file-resolved-version conflict
+(`field="dependency_version"`), the roadmap's named next candidate for G2
+once the lock-file cascade shipped ([PR #208](https://github.com/bact/pitloom/pull/208)).
+Built in [`deps_installed.py`](../../../src/pitloom/assemble/spdx3/deps_installed.py)
+`build_dependency_version_conflict`, called from
+[`deps.py`](../../../src/pitloom/assemble/spdx3/deps.py)'s
+`_resolve_dependency_with_conflict`/`add_dependencies`.
+
+**Both candidates are `role: declared`** — this deviates from license's
+`declared`/`detected` split. Neither the `pyproject.toml`/`setup.cfg`
+constraint nor the lock file's resolved version is Pitloom's own
+independently-run detection procedure; both are the subject's own stated
+claims, from two different files (see
+[role-vocabulary.md](role-vocabulary.md)'s "whose determination is this"
+test). A reader who has only seen license's G2 shape should not assume
+every conflict Annotation has exactly one `declared` and one non-`declared`
+candidate.
+
+**No paired native relationships.** A dependency version has exactly one
+native slot (`software_Package.software_packageVersion`), already filled
+by `_resolve_version`'s existing winner-selection (declared exact pin wins
+over a conflicting lock file; a lock-resolved version wins over an
+unsatisfied declared range) — unchanged by G2. Unlike license, there is no
+second element to create and no `ref` on either candidate.
+
+**Value-shape asymmetry.** In the exact-pin-conflict branch, both
+candidates hold a concrete version string. In the range/unpinned branch,
+the declared side has no single concrete version — its `"value"` holds
+the PEP 440 specifier expression itself (e.g. `">=2.0"`), not a version.
+`ConflictCandidate.value: str` has no format constraint enforcing "always
+a version" across every `field`; a consumer that assumes so will misread
+this one.
+
+**Deliberately not threaded through `_resolve_version`.**
+`build_dependency_version_conflict` re-derives the disagreement
+independently (re-parsing the declared string via `_extract_exact_pin` and
+re-running `_is_exact_pin_conflict`/`_satisfies_constraint`) rather than
+widening `_resolve_version`'s return type, which has ~24 existing
+2-tuple-unpacking call sites across three test files plus two other
+production call sites in `_document_locked_deps.py`. The small amount of
+duplicated parsing is a deliberate trade for zero blast radius.
+
+**Multi-entry merge.** When more than one raw declared dependency string
+collapses into the same grouped `software_Package` (e.g. two extras
+declaring different version ranges that both resolve to the same locked
+version) and more than one of them individually conflicts,
+`merge_conflict_candidates` (`deps_installed.py`) combines every
+conflicting entry's candidates into one Annotation, deduping by
+`(value, role, source)` so the shared locked-side candidate collapses to
+one while each distinct declared-side value is kept. `ConflictCandidate`'s
+`candidates: list[...]` is structurally unbounded, so this merge can
+legitimately produce more than 2 candidates for one field -- unlike
+license, which always has exactly 2. See
+[generic-multi-candidate-fields.md](../../design/generic-multi-candidate-fields.md)
+for the broader design question license's fixed-2-candidate shape and this
+field's N-candidate shape both motivate.
 
 **Future candidate sources (not built — `enrich/`-territory network or
 agent work, cross-referenced to

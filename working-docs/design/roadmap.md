@@ -225,21 +225,22 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   consolidate every place that documents this vocabulary ad hoc into
   one canonical source. See
   [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md).
-- [ ] **Generalize multi-source conflict detection beyond license**
-  (priority) -- `build_conflict_annotation`
-  (`src/pitloom/assemble/spdx3/provenance.py:169`) is the only place the
-  `conflict` Annotation kind (Section 5.7/G2,
-  [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md))
-  is constructed, and it has exactly one caller:
-  `src/pitloom/assemble/spdx3/deps_license.py:256`. The independent-detection
-  vs. declared-value comparison mechanism this implements is general --
-  obtain a fact two independent ways, normalize, compare, emit `conflict`
-  only on genuine disagreement -- but today it exists for license only.
-  Dependency version (declared specifier vs. lock-file-resolved version,
-  once the lock file item above ships) is the most obvious next
-  candidate: the same "don't let two sources silently disagree" argument
-  applies, and the comparison/normalization scaffolding already built for
-  license is largely reusable.
+- [x] **Generalize multi-source conflict detection beyond license** --
+  `build_conflict_annotation`/`ConflictCandidate` (already field-agnostic)
+  now also fires for dependency version (declared specifier vs.
+  lock-file-resolved version), each field's candidates still hand-built
+  at its own assembly call site. See
+  [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md).
+- [ ] **Generic multi-candidate field representation** -- today each
+  multi-source field (license, dependency version) hand-builds its own
+  `ConflictCandidate` list at its own assembly call site; there's no
+  shared type carrying a labeled candidate set (declared/detected/
+  concluded, or a richer vocabulary such as BSI TR-03183's original/
+  distribution/effective) from extraction through assembly, nor a shared
+  per-field policy for "which roles map to which native SPDX relationship
+  (if any) vs. Annotation-only." Worth designing once a third field needs
+  this. See
+  [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md).
 - [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
   extras, development dependencies.
 - [ ] **Auto-discover default license files when `[project.license-files]`

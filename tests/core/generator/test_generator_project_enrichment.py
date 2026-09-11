@@ -387,3 +387,83 @@ license = "MIT"
             )
 
         assert sbom_json_1 == sbom_json_2
+
+
+def test_generate_project_sbom_dependency_version_conflict_end_to_end() -> None:
+    """Declared "requests>=3.0" + a requirements.txt lock pinning
+    requests==2.31.0 (doesn't satisfy the declared range): the locked
+    version wins on the package, plus one G2 conflict Annotation on the
+    dependency package -- both candidates role="declared", unlike
+    license's declared/detected."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+dependencies = ["requests>=3.0"]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "requirements.txt").write_text("requests==2.31.0\n")
+
+        sbom_json = generate_project_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        dep_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "requests"
+        )
+        assert dep_package["software_packageVersion"] == "2.31.0"
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == dep_package["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert len(conflict_anns) == 1
+        statement = json.loads(conflict_anns[0]["statement"])
+        assert statement["field"] == "dependency_version"
+        roles = {c["role"] for c in statement["candidates"]}
+        assert roles == {"declared"}
+        values = {c["value"] for c in statement["candidates"]}
+        assert values == {">=3.0", "2.31.0"}
+        assert all("ref" not in c for c in statement["candidates"])
+
+
+def test_generate_project_sbom_dependency_version_agrees_no_conflict_annotation() -> (
+    None
+):
+    """Declared "requests>=2.0" satisfied by a requirements.txt lock pinning
+    requests==2.31.0: no conflict Annotation on the dependency package."""
+    pyproject_content = """
+[project]
+name = "test-package"
+version = "1.0.0"
+dependencies = ["requests>=2.0"]
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        (tmppath / "pyproject.toml").write_text(pyproject_content)
+        (tmppath / "requirements.txt").write_text("requests==2.31.0\n")
+
+        sbom_json = generate_project_sbom(tmppath)
+        graph = json.loads(sbom_json)["@graph"]
+
+        dep_package = next(
+            e
+            for e in graph
+            if e.get("type") == "software_Package" and e["name"] == "requests"
+        )
+        assert dep_package["software_packageVersion"] == "2.31.0"
+
+        annotations = [e for e in graph if e.get("type") == "Annotation"]
+        conflict_anns = [
+            a
+            for a in annotations
+            if a.get("subject") == dep_package["spdxId"]
+            and json.loads(a["statement"]).get("kind") == "conflict"
+        ]
+        assert conflict_anns == []
