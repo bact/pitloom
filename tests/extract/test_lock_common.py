@@ -16,6 +16,7 @@ import pytest
 from packaging.specifiers import SpecifierSet
 
 from pitloom.extract._lock_common import (
+    canonical_name_and_pinned_version,
     default_group_included,
     find_first_present_key,
     group_pin_triples_by_canonical_name,
@@ -355,6 +356,32 @@ def test_single_exact_pin_rejects_range() -> None:
 
 def test_single_exact_pin_rejects_multiple_specifiers() -> None:
     assert single_exact_pin(SpecifierSet(">=2.31.0,<3.0.0")) is None
+
+
+def test_canonical_name_and_pinned_version_exact_pin() -> None:
+    assert canonical_name_and_pinned_version("Requests==2.31.0") == (
+        "requests",
+        "2.31.0",
+    )
+
+
+def test_canonical_name_and_pinned_version_canonicalizes_name() -> None:
+    assert canonical_name_and_pinned_version("some_Package.Name==1.0") == (
+        "some-package-name",
+        "1.0",
+    )
+
+
+def test_canonical_name_and_pinned_version_unparseable_requirement() -> None:
+    """A string ``Requirement()`` itself can't parse (not merely a loose
+    specifier) returns ``None`` rather than raising."""
+    assert canonical_name_and_pinned_version("not a valid == requirement !!!") is None
+
+
+def test_canonical_name_and_pinned_version_not_single_exact_pin() -> None:
+    """Parses fine as a ``Requirement`` but isn't a single exact pin
+    (a range) -- also ``None``."""
+    assert canonical_name_and_pinned_version("requests>=2.0") is None
 
 
 def test_warn_non_registry_source_logs_expected_message(

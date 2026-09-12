@@ -318,6 +318,47 @@ def test_add_dependencies_offline_populates_hash_from_lock_file(
     assert verified.hashValue == lock_hash
 
 
+def test_add_dependencies_locked_hashes_given_but_no_entry_for_dependency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`locked_hashes` covering unrelated packages (but not this one) must
+    leave `verifiedUsing` unset, not raise or apply an unrelated hash."""
+    monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
+    monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _uninstalled)
+
+    doc_uuid = compute_doc_uuid("nomatchhashtest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id(
+            "Package", doc_name="nomatchhashtest", doc_uuid=doc_uuid
+        ),
+        name="nomatchhashtest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["somepkg==2.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "nomatchhashtest",
+        doc_uuid,
+        exporter,
+        offline=True,
+        locked_hashes={"unrelated-package": "d" * 64},
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    dep = next(p for p in packages if p.name == "somepkg")
+    assert not dep.verifiedUsing
+
+
 def test_add_dependencies_lock_hash_wins_over_pypi_hash_online(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -216,8 +216,16 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
         metadata.locked_dependencies = dependencies
         metadata.provenance["locked_dependencies"] = provenance
         hash_extractor = _LOCK_HASH_EXTRACTORS.get(source_name)
-        if hash_extractor is not None:
-            hashes = hash_extractor(project_dir, dependencies)
-            if hashes:
-                metadata.locked_dependency_hashes = hashes
+        # Always reset, even to `{}`: a stale, previously-set
+        # locked_dependency_hashes (e.g. from `_try_read_poetry()`'s own
+        # earlier write, or a lower-priority cascade entry this one
+        # overrides) must never survive alongside a *different* winning
+        # `locked_dependencies` -- an empty result from this source's own
+        # hash extractor is just as authoritative as an empty
+        # `dependencies` list is above, not "no update".
+        metadata.locked_dependency_hashes = (
+            hash_extractor(project_dir, dependencies) or {}
+            if hash_extractor is not None
+            else {}
+        )
         return

@@ -13,11 +13,22 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
-from pitloom.extract._pdm_lock_hashes import extract_pdm_lock_hashes
+from pitloom.extract._pdm_lock_hashes import (
+    _file_entry_candidates,
+    _index_by_name_and_version,
+    extract_pdm_lock_hashes,
+)
 
 REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "pdm"
 )
+
+_METADATA = '[metadata]\nlock_version = "4.5.1"\n'
+
+
+def _write_lock(tmp_dir: Path, body: str) -> None:
+    (tmp_dir / "pdm.lock").write_text(body + _METADATA, encoding="utf-8")
+
 
 #: anyio's wheel hash from
 #: tests/fixtures/real-world-locks/pdm/pdm-2.29.0/pdm.lock -- its sdist
@@ -54,3 +65,50 @@ def test_missing_dependency_omitted_not_error() -> None:
     project_dir = REAL_WORLD_LOCKS / "pdm-2.29.0"
     hashes = extract_pdm_lock_hashes(project_dir, ["nonexistent-package==1.0"])
     assert hashes == {}
+
+
+def test_package_key_wrong_type_returns_none() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(tmp_path, 'package = "not-a-list"\n')
+        assert extract_pdm_lock_hashes(tmp_path, []) is None
+
+
+def test_locked_dependency_not_a_single_exact_pin_skipped() -> None:
+    """A `locked_dependencies` entry that isn't a single exact pin (e.g.
+    a future extractor that doesn't always emit one) is skipped, not an
+    error."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\n'
+            'files = [{file = "requests-2.31.0.whl", hash = "sha256:'
+            + "a" * 64
+            + '"}]\n',
+        )
+        hashes = extract_pdm_lock_hashes(tmp_path, ["requests>=2.0"])
+        assert hashes == {}
+
+
+def test_file_entry_candidates_skips_non_dict_and_non_sha256() -> None:
+    assert not _file_entry_candidates("not-a-list")
+    assert _file_entry_candidates(
+        [
+            "not-a-dict",
+            {"file": "pkg.whl", "hash": "md5:deadbeef"},
+            {"file": "pkg.tar.gz", "hash": "sha256:" + "b" * 64},
+        ]
+    ) == [("pkg.tar.gz", "b" * 64)]
+
+
+def test_index_by_name_and_version_skips_malformed_entries() -> None:
+    index = _index_by_name_and_version(
+        [
+            "not-a-dict",
+            {"name": "onlyname"},
+            {"version": "1.0"},
+            {"name": "good", "version": "1.0"},
+        ]
+    )
+    assert list(index.keys()) == [("good", "1.0")]

@@ -110,10 +110,14 @@ def test_apply_locked_dependencies_overrides_prior_source_with_note(
     itself, not only logged."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
+        # `_write_pylock()` carries no hash data -- this also verifies the
+        # stale `requests` hash left over from the superseded poetry.lock
+        # source doesn't survive alongside the new locked_dependencies.
         _write_pylock(tmp_path, "httpx", "0.27.0")
         metadata = ProjectMetadata(
             name="pkg",
             locked_dependencies=["requests==2.31.0"],
+            locked_dependency_hashes={"requests": "a" * 64},
             provenance={
                 "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
             },
@@ -127,6 +131,7 @@ def test_apply_locked_dependencies_overrides_prior_source_with_note(
             "Source: pylock.toml | Method: resolved_lockfile "
             "| Note: supersedes poetry.lock"
         )
+        assert not metadata.locked_dependency_hashes
         assert "poetry.lock and pylock.toml" in caplog.text
         assert "pylock.toml takes priority" in caplog.text
 

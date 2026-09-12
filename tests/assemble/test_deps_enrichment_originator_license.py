@@ -376,6 +376,9 @@ def test_extract_release_hash_validates_hex_sha256() -> None:
         _extract_release_hash({"urls": [{"digests": {"sha256": upper_hash}}]})
         == upper_hash.lower()
     )
+    # No "sha256" key at all, and a non-string "sha256" value
+    assert _extract_release_hash({"urls": [{"digests": {"md5": "x"}}]}) is None
+    assert _extract_release_hash({"urls": [{"digests": {"sha256": 12345}}]}) is None
 
 
 # ---------------------------------------------------------------------------
