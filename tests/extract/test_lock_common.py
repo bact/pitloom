@@ -32,6 +32,7 @@ from pitloom.extract._lock_common import (
     sha256_file_entry_candidates,
     shape_validated_package,
     single_exact_pin,
+    version_key,
     warn_malformed_entry_not_table,
     warn_missing_name,
     warn_missing_version,
@@ -202,7 +203,7 @@ def test_index_packages_by_name_and_version_skips_malformed_entries() -> None:
             {"name": "good", "version": "1.0"},
         ]
     )
-    assert list(index.keys()) == [("good", "1.0")]
+    assert list(index.keys()) == [("good", version_key("1.0"))]
 
 
 def test_index_packages_by_name_and_version_groups_by_name_and_version() -> None:
@@ -214,8 +215,34 @@ def test_index_packages_by_name_and_version_groups_by_name_and_version() -> None
 
     index = index_packages_by_name_and_version(packages)
 
-    assert index[("requests", "2.31.0")] == [packages[0], packages[1]]
-    assert index[("requests", "2.32.0")] == [packages[2]]
+    assert index[("requests", version_key("2.31.0"))] == [packages[0], packages[1]]
+    assert index[("requests", version_key("2.32.0"))] == [packages[2]]
+
+
+def test_index_packages_by_name_and_version_pep440_equivalence() -> None:
+    """PEP 440 equivalent versions (e.g. 1.0 vs 1.0.0 across branches)
+    must group into the same bucket."""
+    packages = [
+        {"name": "foo", "version": "1.0"},
+        {"name": "foo", "version": "1.0.0"},
+    ]
+    index = index_packages_by_name_and_version(packages)
+    assert len(index) == 1
+    assert index[("foo", version_key("1.0"))] == packages
+    assert index[("foo", version_key("1.0.0"))] == packages
+
+
+def test_version_key_parses_pep440_versions_as_equal() -> None:
+    assert version_key("1.0") == version_key("1.0.0")
+    assert version_key("1.0") != version_key("1.1")
+
+
+def test_version_key_falls_back_to_raw_string_for_non_pep440() -> None:
+    """A ``===``-pinned arbitrary-equality version (legal PEP 440, but not
+    itself parseable as a `Version`) must still produce a usable, stable
+    key -- the raw string itself -- rather than raising."""
+    assert version_key("2021.01.01-legacy") == "2021.01.01-legacy"
+    assert version_key("2021.01.01-legacy") != version_key("2021.01.02-legacy")
 
 
 def test_sha256_file_entry_candidates_skips_non_dict_and_non_sha256() -> None:

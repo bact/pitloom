@@ -39,6 +39,7 @@ from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
     load_lock_json,
     single_exact_pin,
+    version_key,
 )
 
 __all__ = ["extract_pipfile_lock_hashes"]
@@ -76,16 +77,17 @@ def _entry_pinned_version(entry: dict[str, Any]) -> str | None:
 
 def _index_by_name_and_version(
     section: dict[str, Any],
-) -> dict[tuple[str, str], list[dict[str, Any]]]:
+) -> dict[tuple[str, Any], list[dict[str, Any]]]:
     """Group every well-formed ``"default"``-section entry by
-    ``(canonicalize_name(name), version)``."""
-    index: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    ``(canonicalize_name(name), version_key(version))``."""
+    index: dict[tuple[str, Any], list[dict[str, Any]]] = {}
     for name, entry in section.items():
         if not isinstance(name, str) or not isinstance(entry, dict):
             continue
         version = _entry_pinned_version(entry)
         if version is not None:
-            index.setdefault((canonicalize_name(name), version), []).append(entry)
+            key = (canonicalize_name(name), version_key(version))
+            index.setdefault(key, []).append(entry)
     return index
 
 
@@ -122,7 +124,7 @@ def extract_pipfile_lock_hashes(
         canon_name, version = parsed
         candidates = [
             candidate
-            for entry in index.get((canon_name, version), [])
+            for entry in index.get((canon_name, version_key(version)), [])
             for candidate in _hash_candidates(entry.get("hashes"))
         ]
         digest = select_sha256_hash(candidates)

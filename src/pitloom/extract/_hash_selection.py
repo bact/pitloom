@@ -63,10 +63,10 @@ def select_sha256_hash(candidates: Iterable[tuple[str | None, str]]) -> str | No
 
     wheels = [c for c in valid if c[0] is not None and c[0].endswith(".whl")]
     if wheels:
-        return min(wheels, key=lambda c: c[0] or "")[1]
+        return min(wheels, key=lambda c: (c[0] or "", c[1]))[1]
 
     named = [c for c in valid if c[0] is not None]
     if named:
-        return min(named, key=lambda c: c[0] or "")[1]
+        return min(named, key=lambda c: (c[0] or "", c[1]))[1]
 
     return min(digest for _name, digest in valid)

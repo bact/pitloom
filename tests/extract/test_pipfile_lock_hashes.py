@@ -18,6 +18,7 @@ from typing import Any
 
 from packaging.utils import canonicalize_name
 
+from pitloom.extract._lock_common import version_key
 from pitloom.extract._pipfile_lock import extract_pipfile_lock_dependencies
 from pitloom.extract._pipfile_lock_hashes import (
     _entry_pinned_version,
@@ -119,4 +120,16 @@ def test_index_by_name_and_version_skips_malformed_entries() -> None:
         "good": {"version": "==1.0"},
     }
     index = _index_by_name_and_version(section)
-    assert list(index.keys()) == [("good", "1.0")]
+    assert list(index.keys()) == [("good", version_key("1.0"))]
+
+
+def test_index_by_name_and_version_pep440_equivalence() -> None:
+    digest = "a" * 64
+    section: dict[Any, Any] = {
+        "foo": {"version": "==1.0", "hashes": [f"sha256:{digest}"]},
+    }
+    index = _index_by_name_and_version(section)
+    # Querying with '1.0.0' should find the '1.0' entry via PEP 440 equivalence
+    entries = index.get(("foo", version_key("1.0.0")), [])
+    assert len(entries) == 1
+    assert _hash_candidates(entries[0]["hashes"]) == [(None, digest)]

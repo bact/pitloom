@@ -63,6 +63,7 @@ __all__ = [
     "sha256_file_entry_candidates",
     "shape_validated_package",
     "single_exact_pin",
+    "version_key",
     "warn_conflicting_versions",
     "warn_malformed_entry_not_table",
     "warn_missing_name",
@@ -265,14 +266,28 @@ def index_packages_by_name(
     return by_name
 
 
+def version_key(version: str) -> Version | str:
+    """Return a hashable key for *version* that compares equal under PEP 440
+    equivalences (e.g. ``"1.0" == "1.0.0"``), falling back to the raw string
+    when it does not parse as a PEP 440 version."""
+    try:
+        return Version(version)
+    except InvalidVersion:
+        return version
+
+
 def index_packages_by_name_and_version(
     packages: Iterable[object],
-) -> dict[tuple[str, str], list[dict[str, Any]]]:
+) -> dict[tuple[str, Version | str], list[dict[str, Any]]]:
     """Group every well-formed ``[[package]]``-style entry by
-    ``(canonicalize_name(name), version)``, preserving every entry seen
-    for a given key -- multiple marker-branch entries can legitimately
+    ``(canonicalize_name(name), version_key(version))``, preserving every entry
+    seen for a given key -- multiple marker-branch entries can legitimately
     share the same resolved name and version, each contributing its own
     artifact set.
+
+    Using :func:`version_key` ensures PEP 440 equivalences (e.g. ``"1.0"``
+    and ``"1.0.0"`` across branches) index together into the same bucket,
+    matching the pin extractor's own :func:`is_same_version` agreement.
 
     Shared by every hash-extraction companion module whose lock format's
     per-package entries are a flat table with a plain ``name``/``version``
@@ -284,13 +299,14 @@ def index_packages_by_name_and_version(
     ``Pipfile.lock``'s own hash extractor indexes a differently-shaped
     ``{name: entry}`` mapping instead and doesn't use this helper.
     """
-    index: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    index: dict[tuple[str, Version | str], list[dict[str, Any]]] = {}
     for pkg in packages:
         if not isinstance(pkg, dict):
             continue
         name, version = pkg.get("name"), pkg.get("version")
         if isinstance(name, str) and isinstance(version, str):
-            index.setdefault((canonicalize_name(name), version), []).append(pkg)
+            key = (canonicalize_name(name), version_key(version))
+            index.setdefault(key, []).append(pkg)
     return index
 
 

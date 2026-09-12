@@ -102,3 +102,24 @@ def test_artifact_hash_candidates_skips_non_sha256_hash() -> None:
             "wheels": [{"url": "pkg.whl", "hash": "sha256:" + "b" * 64}],
         }
     ) == [("pkg.whl", "b" * 64)]
+
+
+def test_artifact_hash_candidates_strips_url_query_and_fragment() -> None:
+    digest = "c" * 64
+    candidates = _artifact_hash_candidates(
+        {
+            "wheels": [
+                {
+                    "url": "https://example.com/pkg-1.0.whl?auth=secret#frag",
+                    "hash": "sha256:" + digest,
+                }
+            ]
+        }
+    )
+    assert candidates == [("https://example.com/pkg-1.0.whl", digest)]
+
+
+def test_artifact_hash_candidates_non_list_wheels_degrades_gracefully() -> None:
+    """Malformed non-list wheels must not crash with TypeError."""
+    assert _artifact_hash_candidates({"wheels": 123}) == []
+    assert _artifact_hash_candidates({"wheels": "not-a-list"}) == []

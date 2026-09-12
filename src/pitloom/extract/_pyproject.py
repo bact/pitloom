@@ -525,6 +525,5 @@ def _try_read_poetry(
             f"Source: {POETRY_LOCK_SOURCE_NAME} | Method: resolved_lockfile"
         )
         hashes = extract_poetry_lock_hashes(project_dir, locked_dependencies)
-        if hashes:
-            metadata.locked_dependency_hashes = hashes
+        metadata.locked_dependency_hashes = hashes or {}
     return metadata

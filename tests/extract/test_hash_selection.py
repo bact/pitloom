@@ -43,6 +43,18 @@ def test_multiple_wheels_deterministic_by_filename() -> None:
     assert forward == reversed_order == macos[1]
 
 
+def test_multiple_wheels_identical_filename_deterministic_by_digest() -> None:
+    """When multiple wheel entries share the exact same filename (e.g. pytz
+    in pipenv pylock.toml), the tie-break stably sorts by digest."""
+    candidate_1 = ("pkg-1.0-py3-none-any.whl", "2" * 64)
+    candidate_2 = ("pkg-1.0-py3-none-any.whl", "1" * 64)
+
+    forward = select_sha256_hash([candidate_1, candidate_2])
+    reversed_order = select_sha256_hash([candidate_2, candidate_1])
+
+    assert forward == reversed_order == "1" * 64
+
+
 def test_no_filename_falls_back_to_sorting_digests() -> None:
     """Pipfile.lock's shape: no filenames at all, just a flat hash list."""
     digest_a = "a" * 64

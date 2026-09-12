@@ -26,6 +26,7 @@ from pitloom.extract._lock_common import (
     index_packages_by_name_and_version,
     load_lock_toml,
     sha256_file_entry_candidates,
+    version_key,
 )
 
 __all__ = ["extract_pdm_lock_hashes"]
@@ -63,7 +64,7 @@ def extract_pdm_lock_hashes(
         canon_name, version = parsed
         candidates = [
             candidate
-            for pkg in index.get((canon_name, version), [])
+            for pkg in index.get((canon_name, version_key(version)), [])
             for candidate in sha256_file_entry_candidates(pkg.get("files"))
         ]
         digest = select_sha256_hash(candidates)

@@ -30,6 +30,7 @@ from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
     index_packages_by_name_and_version,
     load_lock_toml,
+    version_key,
 )
 
 __all__ = ["extract_uv_lock_hashes"]
@@ -43,13 +44,19 @@ def _artifact_hash_candidates(pkg: dict[str, Any]) -> list[tuple[str | None, str
     value is simply not a candidate, not an error.
     """
     candidates: list[tuple[str | None, str]] = []
-    for artifact in [pkg.get("sdist"), *(pkg.get("wheels") or [])]:
+    wheels = pkg.get("wheels")
+    artifacts = [pkg.get("sdist")]
+    if isinstance(wheels, list):
+        artifacts.extend(wheels)
+    for artifact in artifacts:
         if not isinstance(artifact, dict):
             continue
         raw_hash = artifact.get("hash")
         if not isinstance(raw_hash, str) or not raw_hash.startswith("sha256:"):
             continue
         url = artifact.get("url")
+        if isinstance(url, str) and ("?" in url or "#" in url):
+            url = url.split("?", 1)[0].split("#", 1)[0]
         candidates.append(
             (url if isinstance(url, str) else None, raw_hash.removeprefix("sha256:"))
         )
@@ -91,7 +98,7 @@ def extract_uv_lock_hashes(
         canon_name, version = parsed
         candidates = [
             candidate
-            for pkg in index.get((canon_name, version), [])
+            for pkg in index.get((canon_name, version_key(version)), [])
             for candidate in _artifact_hash_candidates(pkg)
         ]
         digest = select_sha256_hash(candidates)

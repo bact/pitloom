@@ -112,3 +112,29 @@ def test_artifact_hash_candidates_skips_malformed_artifacts() -> None:
             ],
         }
     ) == [("pkg.whl", "b" * 64)]
+
+
+def test_artifact_hash_candidates_supports_name_and_strips_url_query() -> None:
+    """PEP 751 allows name on artifact; URL query string must be stripped."""
+    digest = "c" * 64
+    candidates = _artifact_hash_candidates(
+        {
+            "wheels": [
+                {"name": "pkg-1.0-py3-none-any.whl", "hashes": {"sha256": digest}},
+                {
+                    "url": "https://example.com/pkg-1.0.whl?token=123",
+                    "hashes": {"sha256": digest},
+                },
+            ]
+        }
+    )
+    assert candidates == [
+        ("pkg-1.0-py3-none-any.whl", digest),
+        ("https://example.com/pkg-1.0.whl", digest),
+    ]
+
+
+def test_artifact_hash_candidates_non_list_wheels_degrades_gracefully() -> None:
+    """Malformed non-list wheels must not crash with TypeError."""
+    assert _artifact_hash_candidates({"wheels": 123}) == []
+    assert _artifact_hash_candidates({"wheels": "not-a-list"}) == []

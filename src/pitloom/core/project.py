@@ -123,14 +123,21 @@ class ProjectMetadata:
 
 
 #: Maps a :class:`ProjectMetadata` field name to the literal provenance key
-#: its extractors actually record it under, for the one known case where
-#: they differ -- every ``license_name`` producer (``_pyproject.py``,
-#: ``_setuptools_py.py``, ``_setuptools_cfg.py``) writes
-#: ``provenance["license"]``, never ``provenance["license_name"]``. Consulted
-#: by :func:`merge_project_metadata`'s "explicitly declared" check so it
-#: looks up the key extractors actually use instead of a field name that's
-#: never present in *provenance*.
-_PROVENANCE_KEY_ALIASES: dict[str, str] = {"license_name": "license"}
+#: its extractors actually record it under, for the cases where they differ:
+#:
+#: - ``license_name``: every producer (``_pyproject.py``, ``_setuptools_py.py``,
+#:   ``_setuptools_cfg.py``) writes ``provenance["license"]``.
+#: - ``locked_dependency_hashes``: companion to ``locked_dependencies``,
+#:   sharing its ``provenance["locked_dependencies"]`` record so hashes stay
+#:   bound to the winning lock-derived dependency set and never drift.
+#:
+#: Consulted by :func:`merge_project_metadata`'s "explicitly declared" check
+#: so it looks up the key extractors actually use instead of a field name
+#: that's never present in *provenance*.
+_PROVENANCE_KEY_ALIASES: dict[str, str] = {
+    "license_name": "license",
+    "locked_dependency_hashes": "locked_dependencies",
+}
 
 
 def merge_project_metadata(

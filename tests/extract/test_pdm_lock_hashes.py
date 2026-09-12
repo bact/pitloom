@@ -85,3 +85,23 @@ def test_locked_dependency_not_a_single_exact_pin_skipped() -> None:
         )
         hashes = extract_pdm_lock_hashes(tmp_path, ["requests>=2.0"])
         assert hashes == {}
+
+
+def test_pep440_version_equivalence_collects_all_branch_candidates() -> None:
+    """Regression: branches specifying PEP 440 equivalent versions (e.g.
+    1.0 and 1.0.0) must group together so all candidates across branches
+    are considered (e.g. preferring a wheel on 1.0.0 over an sdist on 1.0)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        wheel_hash = "b" * 64
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "foo"\nversion = "1.0"\n'
+            'files = [{file = "foo-1.0.tar.gz", hash = "sha256:' + "a" * 64 + '"}]\n\n'
+            '[[package]]\nname = "foo"\nversion = "1.0.0"\n'
+            'files = [{file = "foo-1.0.0-py3-none-any.whl", hash = "sha256:'
+            + wheel_hash
+            + '"}]\n',
+        )
+        hashes = extract_pdm_lock_hashes(tmp_path, ["foo==1.0"])
+        assert hashes == {"foo": wheel_hash}

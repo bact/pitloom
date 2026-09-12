@@ -26,6 +26,7 @@ from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
     index_packages_by_name_and_version,
     load_lock_toml,
+    version_key,
 )
 from pitloom.extract._pylock import _extract_validated_packages
 
@@ -33,15 +34,19 @@ __all__ = ["extract_pylock_hashes"]
 
 
 def _artifact_hash_candidates(pkg: dict[str, Any]) -> list[tuple[str | None, str]]:
-    """Return ``(url, sha256_digest)`` candidates for one ``[[packages]]``
-    entry's ``sdist`` table and each of its ``wheels`` entries -- each
-    independently a PEP 751 ``hashes`` table keyed by algorithm name, so
+    """Return ``(filename, sha256_digest)`` candidates for one
+    ``[[packages]]`` entry's ``sdist`` table and each of its ``wheels`` entries
+    -- each independently a PEP 751 ``hashes`` table keyed by algorithm name, so
     an artifact lacking a ``sha256`` key (only some other algorithm) is
     simply not a candidate, not an error; a sibling artifact on the same
     package may still have one.
     """
     candidates: list[tuple[str | None, str]] = []
-    for artifact in [pkg.get("sdist"), *(pkg.get("wheels") or [])]:
+    wheels = pkg.get("wheels")
+    artifacts = [pkg.get("sdist")]
+    if isinstance(wheels, list):
+        artifacts.extend(wheels)
+    for artifact in artifacts:
         if not isinstance(artifact, dict):
             continue
         hashes = artifact.get("hashes")
@@ -50,8 +55,16 @@ def _artifact_hash_candidates(pkg: dict[str, Any]) -> list[tuple[str | None, str
         digest = hashes.get("sha256")
         if not isinstance(digest, str):
             continue
-        url = artifact.get("url")
-        candidates.append((url if isinstance(url, str) else None, digest))
+        raw_name = artifact.get("name")
+        raw_url = artifact.get("url")
+        filename = (
+            raw_name
+            if isinstance(raw_name, str)
+            else (raw_url if isinstance(raw_url, str) else None)
+        )
+        if filename is not None and ("?" in filename or "#" in filename):
+            filename = filename.split("?", 1)[0].split("#", 1)[0]
+        candidates.append((filename, digest))
     return candidates
 
 
@@ -88,7 +101,7 @@ def extract_pylock_hashes(
         canon_name, version = parsed
         candidates = [
             candidate
-            for pkg in index.get((canon_name, version), [])
+            for pkg in index.get((canon_name, version_key(version)), [])
             for candidate in _artifact_hash_candidates(pkg)
         ]
         digest = select_sha256_hash(candidates)

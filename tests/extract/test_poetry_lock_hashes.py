@@ -18,7 +18,10 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
-from pitloom.extract._poetry_lock_hashes import extract_poetry_lock_hashes
+from pitloom.extract._poetry_lock_hashes import (
+    _filename_matches_version,
+    extract_poetry_lock_hashes,
+)
 
 REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "poetry"
@@ -70,6 +73,28 @@ def test_real_world_pastel_appdirs_wheel_hash_legacy_metadata_files() -> None:
     assert hashes[canonicalize_name("appdirs")] == _APPDIRS_WHEEL_HASH
 
 
+def test_real_world_pastel_colorama_wheel_hash_matches_resolved_version() -> None:
+    """Regression: when `[metadata.files]` contains files for multiple
+    versions of the same package (e.g. across marker branches), hash
+    extraction must only pick files matching the resolved version, not
+    arbitrarily pick an older version's wheel."""
+    project_dir = REAL_WORLD_LOCKS / "pastel-0.2.1"
+    colorama_043_hash = (
+        "7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"
+    )
+    colorama_041_hash = (
+        "f8ac84de7840f5b9c4e3347b3c1eaa50f7e49c2b07596221daec5edaabbd7c48"
+    )
+
+    hashes_043 = extract_poetry_lock_hashes(project_dir, ["colorama==0.4.3"])
+    assert hashes_043 is not None
+    assert hashes_043[canonicalize_name("colorama")] == colorama_043_hash
+
+    hashes_041 = extract_poetry_lock_hashes(project_dir, ["colorama==0.4.1"])
+    assert hashes_041 is not None
+    assert hashes_041[canonicalize_name("colorama")] == colorama_041_hash
+
+
 def test_determinism_same_lock_same_hash() -> None:
     project_dir = REAL_WORLD_LOCKS / "pendulum-3.2.0"
     deps = extract_poetry_lock_dependencies(project_dir)
@@ -105,3 +130,29 @@ def test_locked_dependency_not_a_single_exact_pin_skipped() -> None:
         )
         hashes = extract_poetry_lock_hashes(tmp_path, ["requests>=2.0"])
         assert hashes == {}
+
+
+def test_filename_matches_version_rejects_non_string_filename() -> None:
+    assert not _filename_matches_version(None, "1.0.0")
+
+
+def test_filename_matches_version_arbitrary_equality_falls_back_to_substring() -> None:
+    """A ``===``-pinned, non-PEP-440 *expected_version* can't be built into
+    a `Version` to compare against a parsed wheel/sdist version -- falls
+    back to the plain substring/suffix heuristic."""
+    assert _filename_matches_version(
+        "pkg-2021.01.01-legacy-py3-none-any.whl", "2021.01.01-legacy"
+    )
+    assert not _filename_matches_version(
+        "pkg-2021.01.02-legacy-py3-none-any.whl", "2021.01.01-legacy"
+    )
+
+
+def test_filename_matches_version_unparseable_filename_falls_back_to_substring() -> (
+    None
+):
+    """A filename that's neither a valid wheel nor sdist filename (an
+    unrecognized extension) still falls back to the substring/suffix
+    heuristic rather than raising."""
+    assert _filename_matches_version("pkg-1.0.0-linux.tar.bz2", "1.0.0")
+    assert not _filename_matches_version("pkg-2.0.0-linux.tar.bz2", "1.0.0")

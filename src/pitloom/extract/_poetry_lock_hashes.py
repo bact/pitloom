@@ -31,7 +31,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from packaging.utils import canonicalize_name
+from packaging.utils import (
+    InvalidSdistFilename,
+    InvalidWheelFilename,
+    canonicalize_name,
+    parse_sdist_filename,
+    parse_wheel_filename,
+)
+from packaging.version import InvalidVersion, Version
 
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
@@ -39,9 +46,36 @@ from pitloom.extract._lock_common import (
     index_packages_by_name_and_version,
     load_lock_toml,
     sha256_file_entry_candidates,
+    version_key,
 )
 
 __all__ = ["extract_poetry_lock_hashes"]
+
+
+def _filename_matches_version(filename: str | None, expected_version: str) -> bool:
+    """Return whether a wheel or sdist *filename* belongs to *expected_version*."""
+    if not isinstance(filename, str):
+        return False
+    try:
+        target_ver = Version(expected_version)
+    except InvalidVersion:
+        target_ver = None
+    if target_ver is not None:
+        try:
+            _name, ver, _build, _tags = parse_wheel_filename(filename)
+            return ver == target_ver
+        except (InvalidWheelFilename, ValueError):
+            pass
+        try:
+            _name, ver = parse_sdist_filename(filename)
+            return ver == target_ver
+        except (InvalidSdistFilename, ValueError):
+            pass
+    return (
+        f"-{expected_version}-" in filename
+        or filename.endswith(f"-{expected_version}.tar.gz")
+        or filename.endswith(f"-{expected_version}.zip")
+    )
 
 
 def _legacy_metadata_files_by_canonical_name(
@@ -94,12 +128,16 @@ def extract_poetry_lock_hashes(
             continue
         canon_name, version = parsed
         candidates: list[tuple[str | None, str]] = []
-        for pkg in index.get((canon_name, version), []):
+        for pkg in index.get((canon_name, version_key(version)), []):
             candidates.extend(sha256_file_entry_candidates(pkg.get("files")))
         if not candidates:
-            candidates = sha256_file_entry_candidates(
-                legacy_files_by_name.get(canon_name)
-            )
+            candidates = [
+                c
+                for c in sha256_file_entry_candidates(
+                    legacy_files_by_name.get(canon_name)
+                )
+                if _filename_matches_version(c[0], version)
+            ]
         digest = select_sha256_hash(candidates)
         if digest is not None:
             hashes[canon_name] = digest
