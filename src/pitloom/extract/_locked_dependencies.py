@@ -33,17 +33,23 @@ from pitloom.assemble.spdx3._provenance_encoders import parse_provenance_value
 from pitloom.core.project import ProjectMetadata
 from pitloom.extract._lock_common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
+from pitloom.extract._pdm_lock_hashes import extract_pdm_lock_hashes
 from pitloom.extract._pipfile_lock import extract_pipfile_lock_dependencies
+from pitloom.extract._pipfile_lock_hashes import extract_pipfile_lock_hashes
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
+from pitloom.extract._poetry_lock_hashes import extract_poetry_lock_hashes
 from pitloom.extract._pylock import extract_pylock_dependencies
+from pitloom.extract._pylock_hashes import extract_pylock_hashes
 from pitloom.extract._requirements_txt import extract_pinned_requirements_dependencies
 from pitloom.extract._uv_lock import extract_uv_lock_dependencies
+from pitloom.extract._uv_lock_hashes import extract_uv_lock_hashes
 
 log = logging.getLogger(__name__)
 
 __all__ = ["apply_locked_dependencies"]
 
 _LockExtractor = Callable[[Path, str | None], list[str] | None]
+_LockHashExtractor = Callable[[Path, list[str]], dict[str, str] | None]
 
 
 def _ignore_expected_name(
@@ -98,6 +104,23 @@ _LOCK_SOURCES: list[tuple[str, _LockExtractor, str]] = [
         "pinned_requirements",
     ),
 ]
+
+#: Per-source SHA-256 hash extractor, keyed by the same source name used
+#: in :data:`_LOCK_SOURCES` -- ``None`` for a source with no hash data of
+#: its own (``requirements.txt``, a plain pinned-requirements file, never
+#: carries an artifact digest). Each extractor takes the winning
+#: cascade's own already-resolved ``locked_dependencies`` result (never
+#: re-derives which packages qualify -- see each ``_<format>_hashes``
+#: module's own docstring) so hash extraction can never disagree with
+#: the pin extraction that already decided what's in scope.
+_LOCK_HASH_EXTRACTORS: dict[str, _LockHashExtractor | None] = {
+    "pylock.toml": extract_pylock_hashes,
+    "uv.lock": extract_uv_lock_hashes,
+    POETRY_LOCK_SOURCE_NAME: extract_poetry_lock_hashes,
+    "pdm.lock": extract_pdm_lock_hashes,
+    "Pipfile.lock": extract_pipfile_lock_hashes,
+    "requirements.txt": None,
+}
 
 
 def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> None:
@@ -192,4 +215,9 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
 
         metadata.locked_dependencies = dependencies
         metadata.provenance["locked_dependencies"] = provenance
+        hash_extractor = _LOCK_HASH_EXTRACTORS.get(source_name)
+        if hash_extractor is not None:
+            hashes = hash_extractor(project_dir, dependencies)
+            if hashes:
+                metadata.locked_dependency_hashes = hashes
         return

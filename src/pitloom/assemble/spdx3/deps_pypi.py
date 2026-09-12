@@ -20,6 +20,7 @@ from packaging.utils import canonicalize_name
 
 from pitloom.assemble.spdx3.deps_originator import _extract_name_email_pairs
 from pitloom.extract._extract_utils import fetch_json
+from pitloom.extract._hash_selection import select_sha256_hash
 
 # Best-effort PyPI JSON API fetch timeout -- short enough that a blocked or
 # slow network doesn't meaningfully stall a build; see _fetch_pypi_release_info.
@@ -110,44 +111,23 @@ def _extract_release_hash(release_info: dict[str, Any]) -> str | None:
     sdist artifact from a PyPI JSON API response, or ``None``.
 
     A release commonly ships several ``bdist_wheel`` entries (one per
-    platform/ABI tag); picking one requires a deterministic tie-break --
-    by filename, since neither PyPI's JSON API nor this repo defines any
-    other stable ordering -- so the same release always resolves to the
-    same hash across builds, per this repo's "SBOMs must be bit-for-bit
-    identical" requirement. Relying on whatever order the ``urls`` array
-    happens to arrive in would make the choice depend on an API response
-    order this repo has no contract with.
+    platform/ABI tag); picking one deterministically is
+    :func:`~pitloom.extract._hash_selection.select_sha256_hash`'s job --
+    shared with every lock-file hash extractor so a package's selected
+    hash follows the same rule regardless of source.
     """
     urls = [u for u in (release_info.get("urls") or []) if isinstance(u, dict)]
-    by_type: dict[str, list[dict[str, Any]]] = {}
+    candidates: list[tuple[str | None, str]] = []
     for url_entry in urls:
-        packagetype = url_entry.get("packagetype")
-        if isinstance(packagetype, str):
-            by_type.setdefault(packagetype, []).append(url_entry)
-
-    def _first_by_filename(candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
-        if not candidates:
-            return None
-        return min(candidates, key=lambda u: str(u.get("filename", "")))
-
-    selected = _first_by_filename(by_type.get("bdist_wheel", [])) or _first_by_filename(
-        by_type.get("sdist", [])
-    )
-    if selected is None:
-        selected = _first_by_filename(urls)
-    if selected is None:
-        return None
-    digests = selected.get("digests")
-    if not isinstance(digests, dict):
-        return None
-    digest = digests.get("sha256")
-    if (
-        isinstance(digest, str)
-        and len(digest) == 64
-        and all(c in "0123456789abcdefABCDEF" for c in digest)
-    ):
-        return digest.lower()
-    return None
+        digests = url_entry.get("digests")
+        if not isinstance(digests, dict):
+            continue
+        digest = digests.get("sha256")
+        if not isinstance(digest, str):
+            continue
+        filename = url_entry.get("filename")
+        candidates.append((filename if isinstance(filename, str) else None, digest))
+    return select_sha256_hash(candidates)
 
 
 def _prefetch_pypi_release_infos(

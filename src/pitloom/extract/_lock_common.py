@@ -27,6 +27,7 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, TypeGuard, TypeVar
 
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
@@ -46,6 +47,7 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "POETRY_LOCK_SOURCE_NAME",
+    "canonical_name_and_pinned_version",
     "default_group_included",
     "find_first_present_key",
     "group_by_canonical_name",
@@ -357,6 +359,32 @@ def single_exact_pin(specifier_set: SpecifierSet) -> tuple[str, str] | None:
     ):
         return None
     return specifiers[0].operator, specifiers[0].version
+
+
+def canonical_name_and_pinned_version(dep: str) -> tuple[str, str] | None:
+    """Parse an exact-pin dependency string -- one already known to carry a
+    single exact pin, as every lock/pin extractor in this package formats
+    its own output (e.g. ``f"{name}=={version}"``) -- back into
+    ``(canonicalize_name(name), version)``, or ``None`` if it doesn't parse
+    or isn't a single exact pin.
+
+    Used by each format's hash-extraction companion
+    (:mod:`pitloom.extract._pylock_hashes` and its siblings) to look a pin
+    extractor's own already-resolved winning dependency back up in the raw
+    lock data by name and version, so hash extraction never re-derives the
+    pin extractor's own group/marker/non-registry-source filtering and
+    conflicting-version exclusion a second time -- it only ever computes a
+    hash for a package the pin extractor itself decided to include.
+    """
+    try:
+        req = Requirement(dep)
+    except InvalidRequirement:
+        return None
+    pin = single_exact_pin(req.specifier)
+    if pin is None:
+        return None
+    _operator, version = pin
+    return canonicalize_name(req.name), version
 
 
 def find_first_present_key(

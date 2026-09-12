@@ -35,6 +35,7 @@ from pitloom.extract._license import (
 from pitloom.extract._lock_common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract._poetry import extract_poetry_metadata
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
+from pitloom.extract._poetry_lock_hashes import extract_poetry_lock_hashes
 from pitloom.extract._pyproject_dynamic import prepare_dynamic_version
 from pitloom.extract._toml_io import load_toml_file
 
@@ -523,4 +524,7 @@ def _try_read_poetry(
         metadata.provenance["locked_dependencies"] = (
             f"Source: {POETRY_LOCK_SOURCE_NAME} | Method: resolved_lockfile"
         )
+        hashes = extract_poetry_lock_hashes(project_dir, locked_dependencies)
+        if hashes:
+            metadata.locked_dependency_hashes = hashes
     return metadata

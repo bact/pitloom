@@ -142,7 +142,7 @@ def _enrich_from_pypi(
         ):
             filled.add("license")
 
-    if version is not None:
+    if "hash" not in already_filled and version is not None:
         digest = _extract_release_hash(release_info)
         if digest:
             dep_package.verifiedUsing = [sha256_hash(digest)]
@@ -167,6 +167,7 @@ def _finish_dependency_enrichment(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     content_type_method: str = "auto",
+    locked_hashes: dict[str, str] | None = None,
 ) -> None:
     """Apply the shared dependency-package completeness policy."""
     dep_package.software_packageUrl = build_pypi_purl(
@@ -186,6 +187,12 @@ def _finish_dependency_enrichment(
         offline=offline,
         content_type_method=content_type_method,
     )
+
+    if "hash" not in filled and locked_hashes:
+        digest = locked_hashes.get(canonicalize_name(dep_name))
+        if digest:
+            dep_package.verifiedUsing = [sha256_hash(digest)]
+            filled.add("hash")
 
     if not offline:
         filled |= _enrich_from_pypi(
@@ -238,6 +245,7 @@ def add_dependencies(
     | None = None,
     locked_versions: dict[str, str] | None = None,
     locked_provenance: str | None = None,
+    locked_hashes: dict[str, str] | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -280,6 +288,15 @@ def add_dependencies(
     :data:`~pitloom.assemble.spdx3.deps_installed._DEFAULT_LOCKED_PROVENANCE`
     when *locked_versions* resolves a version but no real provenance string
     was supplied.
+
+    *locked_hashes*, when given, maps PEP 503-canonicalized package names
+    to a hex SHA-256 digest parsed from a project lock file
+    (:attr:`~pitloom.core.project.ProjectMetadata.locked_dependency_hashes`).
+    Always takes priority over a PyPI JSON API-looked-up hash when both are
+    available -- the lock file names the exact resolved artifact, more
+    authoritative than a PyPI lookup that may resolve to a different
+    release build -- and, unlike PyPI enrichment, is applied in both
+    online and offline mode.
     """
     resolved = [
         _resolve_dependency_with_conflict(
@@ -356,6 +373,7 @@ def add_dependencies(
             provenance_config=provenance_config,
             encoder=encoder,
             content_type_method=content_type_method,
+            locked_hashes=locked_hashes,
         )
 
         exporter.add_package(dep_package)
