@@ -21,11 +21,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from packaging.utils import canonicalize_name
-
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
+    index_packages_by_name_and_version,
     load_lock_toml,
 )
 from pitloom.extract._pylock import _extract_validated_packages
@@ -56,25 +55,6 @@ def _artifact_hash_candidates(pkg: dict[str, Any]) -> list[tuple[str | None, str
     return candidates
 
 
-def _index_by_name_and_version(
-    packages: list[object],
-) -> dict[tuple[str, str], list[dict[str, Any]]]:
-    """Group every well-formed ``[[packages]]`` entry by
-    ``(canonicalize_name(name), version)``, preserving every entry seen
-    for a given key -- multiple marker-branch entries can legitimately
-    share the same resolved name and version, each contributing its own
-    artifact set.
-    """
-    index: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for pkg in packages:
-        if not isinstance(pkg, dict):
-            continue
-        name, version = pkg.get("name"), pkg.get("version")
-        if isinstance(name, str) and isinstance(version, str):
-            index.setdefault((canonicalize_name(name), version), []).append(pkg)
-    return index
-
-
 def extract_pylock_hashes(
     project_dir: Path, locked_dependencies: list[str]
 ) -> dict[str, str] | None:
@@ -98,7 +78,7 @@ def extract_pylock_hashes(
     if packages is None:
         return None
 
-    index = _index_by_name_and_version(packages)
+    index = index_packages_by_name_and_version(packages)
 
     hashes: dict[str, str] = {}
     for dep in locked_dependencies:

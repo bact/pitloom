@@ -36,50 +36,12 @@ from packaging.utils import canonicalize_name
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
+    index_packages_by_name_and_version,
     load_lock_toml,
+    sha256_file_entry_candidates,
 )
 
 __all__ = ["extract_poetry_lock_hashes"]
-
-
-def _file_entry_candidates(file_entries: object) -> list[tuple[str | None, str]]:
-    """Return ``(file, sha256_digest)`` candidates from a poetry.lock
-    ``files``-shaped list (``[{file, hash}, ...]``). A ``hash`` value
-    without a ``sha256:`` prefix (a different digest algorithm) is simply
-    not a candidate, not an error.
-    """
-    if not isinstance(file_entries, list):
-        return []
-    candidates: list[tuple[str | None, str]] = []
-    for entry in file_entries:
-        if not isinstance(entry, dict):
-            continue
-        raw_hash = entry.get("hash")
-        if not isinstance(raw_hash, str) or not raw_hash.startswith("sha256:"):
-            continue
-        file_name = entry.get("file")
-        candidates.append(
-            (
-                file_name if isinstance(file_name, str) else None,
-                raw_hash.removeprefix("sha256:"),
-            )
-        )
-    return candidates
-
-
-def _index_by_name_and_version(
-    packages: list[object],
-) -> dict[tuple[str, str], list[dict[str, Any]]]:
-    """Group every well-formed ``[[package]]`` entry by
-    ``(canonicalize_name(name), version)``."""
-    index: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for pkg in packages:
-        if not isinstance(pkg, dict):
-            continue
-        name, version = pkg.get("name"), pkg.get("version")
-        if isinstance(name, str) and isinstance(version, str):
-            index.setdefault((canonicalize_name(name), version), []).append(pkg)
-    return index
 
 
 def _legacy_metadata_files_by_canonical_name(
@@ -122,7 +84,7 @@ def extract_poetry_lock_hashes(
     if not isinstance(packages, list):
         return None
 
-    index = _index_by_name_and_version(packages)
+    index = index_packages_by_name_and_version(packages)
     legacy_files_by_name = _legacy_metadata_files_by_canonical_name(data)
 
     hashes: dict[str, str] = {}
@@ -133,9 +95,11 @@ def extract_poetry_lock_hashes(
         canon_name, version = parsed
         candidates: list[tuple[str | None, str]] = []
         for pkg in index.get((canon_name, version), []):
-            candidates.extend(_file_entry_candidates(pkg.get("files")))
+            candidates.extend(sha256_file_entry_candidates(pkg.get("files")))
         if not candidates:
-            candidates = _file_entry_candidates(legacy_files_by_name.get(canon_name))
+            candidates = sha256_file_entry_candidates(
+                legacy_files_by_name.get(canon_name)
+            )
         digest = select_sha256_hash(candidates)
         if digest is not None:
             hashes[canon_name] = digest

@@ -55,10 +55,12 @@ __all__ = [
     "group_versions_by_canonical_name",
     "has_required_top_level_table",
     "index_packages_by_name",
+    "index_packages_by_name_and_version",
     "is_same_version",
     "is_usable_version",
     "load_lock_json",
     "load_lock_toml",
+    "sha256_file_entry_candidates",
     "shape_validated_package",
     "single_exact_pin",
     "warn_conflicting_versions",
@@ -84,6 +86,36 @@ __all__ = [
 #: consumer rather than three siblings.
 POETRY_LOCK_SOURCE_NAME = "poetry.lock"
 
+#: (path, mtime_ns, size) -> already-parsed lock data, for
+#: :func:`load_lock_toml`/:func:`load_lock_json`. A format's pin extractor
+#: and its hash-extraction companion (see
+#: :mod:`pitloom.extract._pylock_hashes` and its siblings) both read and
+#: parse the same winning lock file back-to-back within one cascade
+#: lookup -- caching by the file's own current identity (not just its
+#: path) means a second read within the same run is a dict lookup instead
+#: of a re-parse, while a file that's changed or disappeared since the
+#: last read (a different mtime/size, or a failed ``stat()``) is never
+#: served stale: its cache key simply won't match, so it falls through to
+#: a real re-read. Safe because every caller only reads the returned
+#: dict, never mutates it.
+_LockFileCacheKey = tuple[Path, int, int]
+_LOCK_FILE_CACHE: dict[_LockFileCacheKey, dict[str, Any]] = {}
+
+
+def _lock_file_cache_key(lock_path: Path) -> _LockFileCacheKey | None:
+    """Return *lock_path*'s current ``(path, mtime_ns, size)`` identity
+    for :data:`_LOCK_FILE_CACHE`, or ``None`` when it can't be
+    ``stat()``-ed (absent, permission error, etc.) -- callers treat
+    ``None`` as "don't use the cache for this call" rather than raising,
+    since the caller's own subsequent read attempt already handles that
+    case.
+    """
+    try:
+        stat_result = lock_path.stat()
+    except OSError:
+        return None
+    return (lock_path, stat_result.st_mtime_ns, stat_result.st_size)
+
 
 def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
     """Load *lock_path* as TOML, returning ``None`` (after a
@@ -91,9 +123,17 @@ def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
     file) instead of raising -- every lock format is optional
     enrichment, never a requirement, so a caller's usual next step is
     ``if data is None: return []``.
+
+    See :data:`_LOCK_FILE_CACHE` for the memoization this and
+    :func:`load_lock_json` share.
     """
+    cache_key = _lock_file_cache_key(lock_path)
+    if cache_key is not None:
+        cached = _LOCK_FILE_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
     try:
-        return load_toml_file(lock_path)
+        data = load_toml_file(lock_path)
     except FileNotFoundError:
         return None
     except (OSError, TOMLDecodeError, UnicodeDecodeError) as exc:
@@ -103,6 +143,9 @@ def load_lock_toml(lock_path: Path) -> dict[str, Any] | None:
         # reason to abort the whole cascade.
         log.warning("Failed to parse %s: %s", lock_path, exc)
         return None
+    if cache_key is not None:
+        _LOCK_FILE_CACHE[cache_key] = data
+    return data
 
 
 def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
@@ -119,7 +162,15 @@ def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
     here with a ``WARNING:`` so every caller can rely on this function's
     declared ``dict[str, Any] | None`` return type without its own
     defensive `isinstance` check.
+
+    See :data:`_LOCK_FILE_CACHE` for the memoization this and
+    :func:`load_lock_toml` share.
     """
+    cache_key = _lock_file_cache_key(lock_path)
+    if cache_key is not None:
+        cached = _LOCK_FILE_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
     try:
         with open(lock_path, encoding="utf-8") as f:
             data = json.load(f)
@@ -139,6 +190,8 @@ def load_lock_json(lock_path: Path) -> dict[str, Any] | None:
             type(data).__name__,
         )
         return None
+    if cache_key is not None:
+        _LOCK_FILE_CACHE[cache_key] = data
     return data
 
 
@@ -210,6 +263,65 @@ def index_packages_by_name(
         if isinstance(name, str) and name:
             by_name.setdefault(key(name), []).append(pkg)
     return by_name
+
+
+def index_packages_by_name_and_version(
+    packages: Iterable[object],
+) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    """Group every well-formed ``[[package]]``-style entry by
+    ``(canonicalize_name(name), version)``, preserving every entry seen
+    for a given key -- multiple marker-branch entries can legitimately
+    share the same resolved name and version, each contributing its own
+    artifact set.
+
+    Shared by every hash-extraction companion module whose lock format's
+    per-package entries are a flat table with a plain ``name``/``version``
+    pair (:mod:`pitloom.extract._pylock_hashes`,
+    :mod:`pitloom.extract._uv_lock_hashes`,
+    :mod:`pitloom.extract._poetry_lock_hashes`,
+    :mod:`pitloom.extract._pdm_lock_hashes`) -- factored out of four
+    independently-drifting, byte-identical per-format copies.
+    ``Pipfile.lock``'s own hash extractor indexes a differently-shaped
+    ``{name: entry}`` mapping instead and doesn't use this helper.
+    """
+    index: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for pkg in packages:
+        if not isinstance(pkg, dict):
+            continue
+        name, version = pkg.get("name"), pkg.get("version")
+        if isinstance(name, str) and isinstance(version, str):
+            index.setdefault((canonicalize_name(name), version), []).append(pkg)
+    return index
+
+
+def sha256_file_entry_candidates(file_entries: object) -> list[tuple[str | None, str]]:
+    """Return ``(file, sha256_digest)`` candidates from a ``[{file, hash},
+    ...]``-shaped list -- the ``poetry.lock``/``pdm.lock`` per-package
+    ``files`` shape. A ``hash`` value without a ``sha256:`` prefix (a
+    different digest algorithm) is simply not a candidate, not an error.
+
+    Shared by :mod:`pitloom.extract._poetry_lock_hashes` and
+    :mod:`pitloom.extract._pdm_lock_hashes`, whose per-package ``files``
+    entries share this exact shape -- factored out of two independently-
+    drifting, byte-identical copies.
+    """
+    if not isinstance(file_entries, list):
+        return []
+    candidates: list[tuple[str | None, str]] = []
+    for entry in file_entries:
+        if not isinstance(entry, dict):
+            continue
+        raw_hash = entry.get("hash")
+        if not isinstance(raw_hash, str) or not raw_hash.startswith("sha256:"):
+            continue
+        file_name = entry.get("file")
+        candidates.append(
+            (
+                file_name if isinstance(file_name, str) else None,
+                raw_hash.removeprefix("sha256:"),
+            )
+        )
+    return candidates
 
 
 def is_usable_version(version: object) -> TypeGuard[str]:

@@ -107,23 +107,25 @@ def _fetch_pypi_release_info(name: str, version: str | None) -> dict[str, Any] |
 
 
 def _extract_release_hash(release_info: dict[str, Any]) -> str | None:
-    """Return the hex SHA-256 digest of the release's wheel (preferred) or
-    sdist artifact from a PyPI JSON API response, or ``None``.
+    """Return the hex SHA-256 digest of the release's wheel (preferred),
+    else sdist, else any other artifact, from a PyPI JSON API response --
+    or ``None``.
 
     A release commonly ships several ``bdist_wheel`` entries (one per
     platform/ABI tag); picking one deterministically among artifacts of
     the same preference tier is
     :func:`~pitloom.extract._hash_selection.select_sha256_hash`'s job --
     shared with every lock-file hash extractor so a package's selected
-    hash follows the same tie-break rule regardless of source. The
-    wheel-over-everything-else preference itself is decided here via
-    PyPI's own authoritative ``packagetype`` field, not the shared
+    hash follows the same tie-break rule regardless of source. The tiering
+    itself is decided here via PyPI's own authoritative ``packagetype``
+    field (``bdist_wheel`` > ``sdist`` > anything else), not the shared
     helper's filename-suffix heuristic (which lock files must fall back
     to, having no ``packagetype`` of their own) -- a wheel URL entry
     missing its ``filename`` would otherwise go undetected as a wheel.
     """
     urls = [u for u in (release_info.get("urls") or []) if isinstance(u, dict)]
     wheel_candidates: list[tuple[str | None, str]] = []
+    sdist_candidates: list[tuple[str | None, str]] = []
     other_candidates: list[tuple[str | None, str]] = []
     for url_entry in urls:
         digests = url_entry.get("digests")
@@ -134,11 +136,18 @@ def _extract_release_hash(release_info: dict[str, Any]) -> str | None:
             continue
         filename = url_entry.get("filename")
         candidate = (filename if isinstance(filename, str) else None, digest)
-        if url_entry.get("packagetype") == "bdist_wheel":
+        packagetype = url_entry.get("packagetype")
+        if packagetype == "bdist_wheel":
             wheel_candidates.append(candidate)
+        elif packagetype == "sdist":
+            sdist_candidates.append(candidate)
         else:
             other_candidates.append(candidate)
-    return select_sha256_hash(wheel_candidates) or select_sha256_hash(other_candidates)
+    return (
+        select_sha256_hash(wheel_candidates)
+        or select_sha256_hash(sdist_candidates)
+        or select_sha256_hash(other_candidates)
+    )
 
 
 def _prefetch_pypi_release_infos(

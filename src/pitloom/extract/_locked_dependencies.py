@@ -69,58 +69,61 @@ def _ignore_expected_name(
     return lambda project_dir, _expected_name: extractor(project_dir)
 
 
-#: Full priority order (highest first) across every lock/pin source.
-#: Each entry is ``(source name, extractor, provenance Method tag)``.
-#: ``poetry.lock`` is registered with an extractor for Poetry 2.0+ and
-#: non-Poetry build backends, but bypassed when ``_try_read_poetry()``
-#: already extracted it during pyproject parsing. This is the single
-#: place the *complete* order is declared -- both which extractors this
-#: cascade tries, and where ``poetry.lock`` ranks relative to them.
-_LOCK_SOURCES: list[tuple[str, _LockExtractor, str]] = [
+#: Full priority order (highest first) across every lock/pin source. Each
+#: entry is ``(source name, pin extractor, hash extractor, provenance
+#: Method tag)`` -- ``hash extractor`` is ``None`` for a source with no
+#: hash data of its own (``requirements.txt``, a plain pinned-requirements
+#: file, never carries an artifact digest). A hash extractor takes the
+#: winning cascade's own already-resolved ``locked_dependencies`` result
+#: (never re-derives which packages qualify -- see each ``_<format>_hashes``
+#: module's own docstring) so hash extraction can never disagree with the
+#: pin extraction that already decided what's in scope. ``poetry.lock`` is
+#: registered with extractors for Poetry 2.0+ and non-Poetry build
+#: backends, but bypassed when ``_try_read_poetry()`` already extracted it
+#: during pyproject parsing. This is the single place the *complete* order
+#: is declared -- both which extractors this cascade tries, and where
+#: ``poetry.lock`` ranks relative to them. A single list (rather than a
+#: separate pin-extractor table and hash-extractor table keyed by the same
+#: source name) so a new lock format is wired for both in one place --
+#: nothing to forget to keep in sync.
+_LOCK_SOURCES: list[tuple[str, _LockExtractor, _LockHashExtractor | None, str]] = [
     (
         "pylock.toml",
         _ignore_expected_name(extract_pylock_dependencies),
+        extract_pylock_hashes,
         "resolved_lockfile",
     ),
-    ("uv.lock", extract_uv_lock_dependencies, "resolved_lockfile"),
+    (
+        "uv.lock",
+        extract_uv_lock_dependencies,
+        extract_uv_lock_hashes,
+        "resolved_lockfile",
+    ),
     (
         POETRY_LOCK_SOURCE_NAME,
         _ignore_expected_name(extract_poetry_lock_dependencies),
+        extract_poetry_lock_hashes,
         "resolved_lockfile",
     ),
     (
         "pdm.lock",
         _ignore_expected_name(extract_pdm_lock_dependencies),
+        extract_pdm_lock_hashes,
         "resolved_lockfile",
     ),
     (
         "Pipfile.lock",
         _ignore_expected_name(extract_pipfile_lock_dependencies),
+        extract_pipfile_lock_hashes,
         "resolved_lockfile",
     ),
     (
         "requirements.txt",
         _ignore_expected_name(extract_pinned_requirements_dependencies),
+        None,
         "pinned_requirements",
     ),
 ]
-
-#: Per-source SHA-256 hash extractor, keyed by the same source name used
-#: in :data:`_LOCK_SOURCES` -- ``None`` for a source with no hash data of
-#: its own (``requirements.txt``, a plain pinned-requirements file, never
-#: carries an artifact digest). Each extractor takes the winning
-#: cascade's own already-resolved ``locked_dependencies`` result (never
-#: re-derives which packages qualify -- see each ``_<format>_hashes``
-#: module's own docstring) so hash extraction can never disagree with
-#: the pin extraction that already decided what's in scope.
-_LOCK_HASH_EXTRACTORS: dict[str, _LockHashExtractor | None] = {
-    "pylock.toml": extract_pylock_hashes,
-    "uv.lock": extract_uv_lock_hashes,
-    POETRY_LOCK_SOURCE_NAME: extract_poetry_lock_hashes,
-    "pdm.lock": extract_pdm_lock_hashes,
-    "Pipfile.lock": extract_pipfile_lock_hashes,
-    "requirements.txt": None,
-}
 
 
 def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> None:
@@ -172,7 +175,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     previous_rank = next(
         (
             rank
-            for rank, (name, _, _) in enumerate(_LOCK_SOURCES)
+            for rank, (name, _, _, _) in enumerate(_LOCK_SOURCES)
             if name == previous_source
         ),
         None,
@@ -195,7 +198,7 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
     sources_to_try = (
         _LOCK_SOURCES if previous_rank is None else _LOCK_SOURCES[:previous_rank]
     )
-    for source_name, extractor, method in sources_to_try:
+    for source_name, extractor, hash_extractor, method in sources_to_try:
         dependencies = extractor(project_dir, metadata.name)
         if dependencies is None:
             continue
@@ -215,7 +218,6 @@ def apply_locked_dependencies(metadata: ProjectMetadata, project_dir: Path) -> N
 
         metadata.locked_dependencies = dependencies
         metadata.provenance["locked_dependencies"] = provenance
-        hash_extractor = _LOCK_HASH_EXTRACTORS.get(source_name)
         # Always reset, even to `{}`: a stale, previously-set
         # locked_dependency_hashes (e.g. from `_try_read_poetry()`'s own
         # earlier write, or a lower-priority cascade entry this one

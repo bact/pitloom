@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from packaging.specifiers import SpecifierSet
 
+import pitloom.extract._lock_common as lock_common
 from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
     default_group_included,
@@ -23,10 +24,12 @@ from pitloom.extract._lock_common import (
     group_versions_by_canonical_name,
     has_required_top_level_table,
     index_packages_by_name,
+    index_packages_by_name_and_version,
     is_same_version,
     is_usable_version,
     load_lock_json,
     load_lock_toml,
+    sha256_file_entry_candidates,
     shape_validated_package,
     single_exact_pin,
     warn_malformed_entry_not_table,
@@ -82,6 +85,59 @@ def test_load_lock_toml_invalid_utf8_returns_none_and_warns(
         assert "Failed to parse" in caplog.text
 
 
+def test_load_lock_toml_second_read_of_same_file_is_cached() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.lock"
+        lock_path.write_text('key = "value"\n', encoding="utf-8")
+
+        first = load_lock_toml(lock_path)
+        second = load_lock_toml(lock_path)
+
+        assert first == {"key": "value"}
+        assert second is first  # the cached dict, not a freshly-parsed one
+
+
+def test_load_lock_toml_no_cache_key_skips_caching(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: when the file's identity can't be determined (e.g. a
+    stat() race), the parse must still succeed and simply not be cached,
+    not raise or return a stale value."""
+    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
+    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.lock"
+        lock_path.write_text('key = "value"\n', encoding="utf-8")
+
+        assert load_lock_toml(lock_path) == {"key": "value"}
+        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
+
+
+def test_load_lock_json_second_read_of_same_file_is_cached() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.json"
+        lock_path.write_text('{"key": "value"}', encoding="utf-8")
+
+        first = load_lock_json(lock_path)
+        second = load_lock_json(lock_path)
+
+        assert first == {"key": "value"}
+        assert second is first
+
+
+def test_load_lock_json_no_cache_key_skips_caching(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
+    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.json"
+        lock_path.write_text('{"key": "value"}', encoding="utf-8")
+
+        assert load_lock_json(lock_path) == {"key": "value"}
+        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
+
+
 def test_load_lock_json_invalid_utf8_returns_none_and_warns(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -135,6 +191,48 @@ def test_index_packages_by_name_ignores_entries_with_missing_or_bad_name() -> No
 
 def test_index_packages_by_name_empty_list_returns_empty_dict() -> None:
     assert not index_packages_by_name([])
+
+
+def test_index_packages_by_name_and_version_skips_malformed_entries() -> None:
+    index = index_packages_by_name_and_version(
+        [
+            "not-a-dict",
+            {"name": "onlyname"},
+            {"version": "1.0"},
+            {"name": "good", "version": "1.0"},
+        ]
+    )
+    assert list(index.keys()) == [("good", "1.0")]
+
+
+def test_index_packages_by_name_and_version_groups_by_name_and_version() -> None:
+    packages = [
+        {"name": "Requests", "version": "2.31.0", "marker": "a"},
+        {"name": "requests", "version": "2.31.0", "marker": "b"},
+        {"name": "requests", "version": "2.32.0"},
+    ]
+
+    index = index_packages_by_name_and_version(packages)
+
+    assert index[("requests", "2.31.0")] == [packages[0], packages[1]]
+    assert index[("requests", "2.32.0")] == [packages[2]]
+
+
+def test_sha256_file_entry_candidates_skips_non_dict_and_non_sha256() -> None:
+    assert not sha256_file_entry_candidates("not-a-list")
+    assert sha256_file_entry_candidates(
+        [
+            "not-a-dict",
+            {"file": "pkg.whl", "hash": "md5:deadbeef"},
+            {"file": "pkg.tar.gz", "hash": "sha256:" + "b" * 64},
+        ]
+    ) == [("pkg.tar.gz", "b" * 64)]
+
+
+def test_sha256_file_entry_candidates_missing_filename_is_none() -> None:
+    assert sha256_file_entry_candidates([{"hash": "sha256:" + "c" * 64}]) == [
+        (None, "c" * 64)
+    ]
 
 
 def test_group_versions_by_canonical_name_groups_case_and_separator_variants() -> None:

@@ -15,7 +15,6 @@ from packaging.utils import canonicalize_name
 from pitloom.extract._uv_lock import extract_uv_lock_dependencies
 from pitloom.extract._uv_lock_hashes import (
     _artifact_hash_candidates,
-    _index_by_name_and_version,
     extract_uv_lock_hashes,
 )
 
@@ -103,15 +102,3 @@ def test_artifact_hash_candidates_skips_non_sha256_hash() -> None:
             "wheels": [{"url": "pkg.whl", "hash": "sha256:" + "b" * 64}],
         }
     ) == [("pkg.whl", "b" * 64)]
-
-
-def test_index_by_name_and_version_skips_malformed_entries() -> None:
-    index = _index_by_name_and_version(
-        [
-            "not-a-dict",
-            {"name": "onlyname"},
-            {"version": "1.0"},
-            {"name": "good", "version": "1.0"},
-        ]
-    )
-    assert list(index.keys()) == [("good", "1.0")]

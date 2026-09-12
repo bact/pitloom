@@ -13,11 +13,7 @@ from pathlib import Path
 from packaging.utils import canonicalize_name
 
 from pitloom.extract._pdm_lock import extract_pdm_lock_dependencies
-from pitloom.extract._pdm_lock_hashes import (
-    _file_entry_candidates,
-    _index_by_name_and_version,
-    extract_pdm_lock_hashes,
-)
+from pitloom.extract._pdm_lock_hashes import extract_pdm_lock_hashes
 
 REAL_WORLD_LOCKS = (
     Path(__file__).parent.parent / "fixtures" / "real-world-locks" / "pdm"
@@ -89,26 +85,3 @@ def test_locked_dependency_not_a_single_exact_pin_skipped() -> None:
         )
         hashes = extract_pdm_lock_hashes(tmp_path, ["requests>=2.0"])
         assert hashes == {}
-
-
-def test_file_entry_candidates_skips_non_dict_and_non_sha256() -> None:
-    assert not _file_entry_candidates("not-a-list")
-    assert _file_entry_candidates(
-        [
-            "not-a-dict",
-            {"file": "pkg.whl", "hash": "md5:deadbeef"},
-            {"file": "pkg.tar.gz", "hash": "sha256:" + "b" * 64},
-        ]
-    ) == [("pkg.tar.gz", "b" * 64)]
-
-
-def test_index_by_name_and_version_skips_malformed_entries() -> None:
-    index = _index_by_name_and_version(
-        [
-            "not-a-dict",
-            {"name": "onlyname"},
-            {"version": "1.0"},
-            {"name": "good", "version": "1.0"},
-        ]
-    )
-    assert list(index.keys()) == [("good", "1.0")]

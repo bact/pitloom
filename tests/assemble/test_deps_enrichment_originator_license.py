@@ -347,6 +347,23 @@ def test_extract_release_hash_falls_back_to_sdist() -> None:
     assert _extract_release_hash(release_info) == sdist_hash
 
 
+def test_extract_release_hash_prefers_sdist_over_legacy_binary() -> None:
+    """Regression: with no wheel present, sdist must still outrank a
+    legacy binary format (e.g. bdist_egg) -- both used to collapse into
+    one undifferentiated "other" tier, tie-broken by filename sort, which
+    could silently pick the egg's hash over the sdist's."""
+    sdist_hash = "a" * 64
+    egg_hash = "c" * 64
+    release_info = {
+        "urls": [
+            # Filename sort would otherwise put the egg first.
+            {"packagetype": "bdist_egg", "digests": {"sha256": egg_hash}},
+            {"packagetype": "sdist", "digests": {"sha256": sdist_hash}},
+        ]
+    }
+    assert _extract_release_hash(release_info) == sdist_hash
+
+
 def test_extract_release_hash_falls_back_to_first_url() -> None:
     egg_hash = "c" * 64
     release_info = {

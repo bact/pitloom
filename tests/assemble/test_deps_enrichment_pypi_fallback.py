@@ -412,6 +412,96 @@ def test_add_dependencies_lock_hash_wins_over_pypi_hash_online(
     assert verified.hashValue == lock_hash
 
 
+def test_add_dependencies_lock_hash_skipped_on_declared_pin_version_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: a declared exact pin conflicting with the lock's
+    resolved version must win the version (per "explicit pin beats lock"),
+    and the lock's hash -- which describes the *locked* version's
+    artifact, not the declared one -- must not be attached to a package
+    now recorded at a different version."""
+    monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
+    monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _uninstalled)
+
+    doc_uuid = compute_doc_uuid("pinconflicthashtest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id(
+            "Package", doc_name="pinconflicthashtest", doc_uuid=doc_uuid
+        ),
+        name="pinconflicthashtest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["somepkg==2.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "pinconflicthashtest",
+        doc_uuid,
+        exporter,
+        offline=True,
+        locked_versions={"somepkg": "1.0.0"},
+        locked_hashes={"somepkg": "e" * 64},
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    dep = next(p for p in packages if p.name == "somepkg")
+    assert dep.software_packageVersion == "2.0.0"
+    assert not dep.verifiedUsing
+
+
+def test_add_dependencies_lock_hash_skipped_when_name_absent_from_locked_versions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: `locked_hashes` covering a name that `locked_versions`
+    doesn't (e.g. excluded upstream as a genuine locked-version conflict,
+    or never lock-resolved at all) must not attach that hash -- there is
+    no verified version match to trust it against."""
+    monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
+    monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _uninstalled)
+
+    doc_uuid = compute_doc_uuid("noversionhashtest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id(
+            "Package", doc_name="noversionhashtest", doc_uuid=doc_uuid
+        ),
+        name="noversionhashtest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["somepkg==2.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "noversionhashtest",
+        doc_uuid,
+        exporter,
+        offline=True,
+        locked_versions={},
+        locked_hashes={"somepkg": "f" * 64},
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    dep = next(p for p in packages if p.name == "somepkg")
+    assert not dep.verifiedUsing
+
+
 def test_add_license_noassertion_is_deduped() -> None:
     """Two packages that both fall back to NOASSERTION must share one
     license element, not mint a duplicate for each."""
