@@ -53,7 +53,11 @@ def select_sha256_hash(candidates: Iterable[tuple[str | None, str]]) -> str | No
     an ordering this repo has no contract with, violating the "SBOMs
     must be bit-for-bit identical" requirement.
     """
-    valid = [(name, digest.lower()) for name, digest in candidates if _is_valid_sha256(digest)]
+    valid = [
+        (name, digest.lower())
+        for name, digest in candidates
+        if _is_valid_sha256(digest)
+    ]
     if not valid:
         return None
 

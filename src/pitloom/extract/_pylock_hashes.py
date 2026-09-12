@@ -24,7 +24,10 @@ from typing import Any
 from packaging.utils import canonicalize_name
 
 from pitloom.extract._hash_selection import select_sha256_hash
-from pitloom.extract._lock_common import canonical_name_and_pinned_version, load_lock_toml
+from pitloom.extract._lock_common import (
+    canonical_name_and_pinned_version,
+    load_lock_toml,
+)
 from pitloom.extract._pylock import _extract_validated_packages
 
 __all__ = ["extract_pylock_hashes"]

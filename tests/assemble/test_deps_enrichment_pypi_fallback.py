@@ -271,6 +271,104 @@ def test_add_dependencies_offline_skips_pypi_entirely(
     ]
     dep = next(p for p in packages if p.name == "somepkg")
     assert dep.software_copyrightText == "NOASSERTION"
+    assert not dep.verifiedUsing
+
+
+def test_add_dependencies_offline_populates_hash_from_lock_file(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unlike a PyPI-looked-up hash, a lock-file hash is available even
+    with offline=True -- see lock-hash-preservation.md."""
+    monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
+    monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
+    monkeypatch.setattr(deps_pypi, "_fetch_pypi_release_info", _uninstalled)
+
+    lock_hash = "c" * 64
+    doc_uuid = compute_doc_uuid("offlinehashtest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id(
+            "Package", doc_name="offlinehashtest", doc_uuid=doc_uuid
+        ),
+        name="offlinehashtest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["somepkg==2.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "offlinehashtest",
+        doc_uuid,
+        exporter,
+        offline=True,
+        locked_hashes={"somepkg": lock_hash},
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    dep = next(p for p in packages if p.name == "somepkg")
+    verified = dep.verifiedUsing[0]
+    assert isinstance(verified, spdx3.Hash)
+    assert verified.hashValue == lock_hash
+
+
+def test_add_dependencies_lock_hash_wins_over_pypi_hash_online(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lock-file hash always takes priority over a PyPI JSON API hash,
+    even online -- the lock file names the exact resolved artifact,
+    which is more authoritative than a PyPI lookup that could resolve to
+    a different release build. See lock-hash-preservation.md."""
+    monkeypatch.setattr(deps_mod, "get_package_version", _uninstalled)
+    monkeypatch.setattr(deps_mod, "get_pkg_metadata", _uninstalled)
+    monkeypatch.setattr(
+        deps_pypi,
+        "_fetch_pypi_release_info",
+        lambda name, version: {
+            "info": {},
+            "urls": [
+                {"packagetype": "bdist_wheel", "digests": {"sha256": "b" * 64}},
+            ],
+        },
+    )
+
+    lock_hash = "c" * 64
+    doc_uuid = compute_doc_uuid("lockwinstest", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    main_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="lockwinstest", doc_uuid=doc_uuid),
+        name="lockwinstest",
+        creationInfo=ci,
+    )
+    exporter.add_package(main_pkg)
+
+    add_dependencies(
+        ["somepkg==2.0.0"],
+        "Source: pyproject.toml | Field: project.dependencies",
+        require_spdx_id(main_pkg),
+        ci,
+        "lockwinstest",
+        doc_uuid,
+        exporter,
+        offline=False,
+        locked_hashes={"somepkg": lock_hash},
+    )
+
+    packages = [
+        o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Package)
+    ]
+    dep = next(p for p in packages if p.name == "somepkg")
+    verified = dep.verifiedUsing[0]
+    assert isinstance(verified, spdx3.Hash)
+    assert verified.hashValue == lock_hash
 
 
 def test_add_license_noassertion_is_deduped() -> None:

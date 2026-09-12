@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -160,11 +160,16 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   discovery across every usage surface; on by default. Also fixed a
   related `loom enrich` doc-identity bug found along the way.
   See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-use-lockfile-opt-out).
-- [ ] **Preserve lock file hashes in `--offline` mode** -- retain package
-  SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
-  `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3
-  `verifiedUsing` integrity checksums without requiring online PyPI JSON API
-  enrichment lookups.
+- [x] **Preserve lock file hashes in `--offline` mode** -- SHA-256 digests
+  parsed from `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`
+  now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API
+  lookup even online. See [lock-hash-preservation.md](lock-hash-preservation.md).
+- [ ] **SHA-512 / BSI TR-03183-2 `verifiedUsing`** -- no lock format or the
+  PyPI JSON API carries a SHA-512 digest; producing one means downloading the
+  artifact and hashing it, a heavier feature than the SHA-256 lock-hash
+  preservation above. `Element.verifiedUsing`'s 0..* cardinality means this
+  can append to the same list without restructuring it.
+  See [lock-hash-preservation.md](lock-hash-preservation.md#scope).
 
 ### PEP 770 / embed-wheel
 
