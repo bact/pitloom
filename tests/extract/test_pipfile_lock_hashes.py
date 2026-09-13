@@ -133,3 +133,12 @@ def test_index_by_name_and_version_pep440_equivalence() -> None:
     entries = index.get(("foo", version_key("1.0.0")), [])
     assert len(entries) == 1
     assert _hash_candidates(entries[0]["hashes"]) == [(None, digest)]
+
+
+def test_missing_pipfile_spec_marker_returns_none() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "Pipfile.lock").write_text(
+            '{"default": {"foo": {"version": "==1.0"}}}', encoding="utf-8"
+        )
+        assert extract_pipfile_lock_hashes(tmp_path, ["foo==1.0"]) is None

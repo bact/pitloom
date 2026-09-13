@@ -23,6 +23,7 @@ from pathlib import Path
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
+    has_required_top_level_table,
     index_packages_by_name_and_version,
     load_lock_toml,
     sha256_file_entry_candidates,
@@ -48,6 +49,8 @@ def extract_pdm_lock_hashes(
     lock_path = project_dir / "pdm.lock"
     data = load_lock_toml(lock_path)
     if data is None:
+        return None
+    if not has_required_top_level_table(data, "metadata", "lock_version", str):
         return None
 
     packages = data.get("package", [])

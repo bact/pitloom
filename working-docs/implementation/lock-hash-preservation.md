@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Lock-file hash preservation
 
-See also: [roadmap.md](roadmap.md), [lock-file-cascade.md](../implementation/lock-file-cascade.md)
+See also: [roadmap.md](../design/roadmap.md), [lock-file-cascade.md](lock-file-cascade.md)
 (the pin-extraction cascade this feature builds on top of, unchanged by
 this work).
 

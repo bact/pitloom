@@ -272,7 +272,7 @@ def version_key(version: str) -> Version | str:
     when it does not parse as a PEP 440 version."""
     try:
         return Version(version)
-    except InvalidVersion:
+    except (InvalidVersion, TypeError):
         return version
 
 
@@ -454,7 +454,7 @@ def is_same_version(v1: str, v2: str) -> bool:
     """
     try:
         return Version(v1) == Version(v2)
-    except InvalidVersion:
+    except (InvalidVersion, TypeError):
         return v1 == v2
 
 
@@ -506,7 +506,7 @@ def canonical_name_and_pinned_version(dep: str) -> tuple[str, str] | None:
     """
     try:
         req = Requirement(dep)
-    except InvalidRequirement:
+    except (InvalidRequirement, TypeError):
         return None
     pin = single_exact_pin(req.specifier)
     if pin is None:

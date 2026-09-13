@@ -105,3 +105,12 @@ def test_pep440_version_equivalence_collects_all_branch_candidates() -> None:
         )
         hashes = extract_pdm_lock_hashes(tmp_path, ["foo==1.0"])
         assert hashes == {"foo": wheel_hash}
+
+
+def test_missing_lock_version_marker_returns_none() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pdm.lock").write_text(
+            '[[package]]\nname = "foo"\nversion = "1.0"\n', encoding="utf-8"
+        )
+        assert extract_pdm_lock_hashes(tmp_path, ["foo==1.0"]) is None

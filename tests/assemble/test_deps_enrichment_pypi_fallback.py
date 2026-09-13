@@ -23,12 +23,13 @@ determine.
 from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError
+from typing import Any
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3 import deps, deps_pypi
 from pitloom.assemble.spdx3 import deps_installed as deps_mod
-from pitloom.assemble.spdx3 import deps_pypi
 from pitloom.assemble.spdx3.deps import _enrich_from_pypi, add_dependencies
 from pitloom.assemble.spdx3.deps_license import _add_license_noassertion
 from pitloom.assemble.spdx3.deps_originator import _resolve_metadata_url
@@ -651,3 +652,78 @@ def test_enrich_from_pypi_unknown_version_skips_hash_extraction() -> None:
     )
     assert "hash" not in filled
     assert not dep_pkg.verifiedUsing
+
+
+def test_enrich_from_pypi_short_circuits_when_all_fields_filled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When originator, license, and hash are already filled, PyPI is not fetched."""
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    dep_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="allfilledtest", doc_uuid="u"),
+        name="pkgz",
+        creationInfo=ci,
+    )
+
+    def _fail_if_called(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError(
+            "PyPI should not be contacted when all fields are already filled"
+        )
+
+    monkeypatch.setattr(deps, "_fetch_pypi_release_info", _fail_if_called)
+
+    filled = _enrich_from_pypi(
+        "pkgz",
+        "1.0.0",
+        dep_pkg,
+        ci,
+        "allfilledtest",
+        "u",
+        exporter,
+        already_filled={"originator", "license", "hash"},
+    )
+    assert filled == set()
+
+
+def test_enrich_from_pypi_fetches_when_hash_not_filled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When only originator and license are filled, PyPI is queried to fill hash."""
+    exporter = Spdx3JsonExporter()
+    ci = _make_ci()
+    dep_pkg = spdx3.software_Package(
+        spdxId=generate_spdx_id("Package", doc_name="hashmiss", doc_uuid="u"),
+        name="pkgz",
+        creationInfo=ci,
+    )
+    called = False
+
+    def _mock_fetch(name: str, version: str | None) -> dict[str, Any]:
+        nonlocal called
+        called = True
+        return {
+            "info": {},
+            "urls": [
+                {
+                    "packagetype": "bdist_wheel",
+                    "digests": {"sha256": "a" * 64},
+                }
+            ],
+        }
+
+    monkeypatch.setattr(deps, "_fetch_pypi_release_info", _mock_fetch)
+
+    filled = _enrich_from_pypi(
+        "pkgz",
+        "1.0.0",
+        dep_pkg,
+        ci,
+        "hashmiss",
+        "u",
+        exporter,
+        already_filled={"originator", "license"},
+    )
+    assert called is True
+    assert "hash" in filled
+    assert len(dep_pkg.verifiedUsing) == 1

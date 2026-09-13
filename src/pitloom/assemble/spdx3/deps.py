@@ -86,6 +86,9 @@ def _enrich_from_pypi(
     content_type_method: str = "auto",
 ) -> set[str]:
     """Best-effort PyPI JSON API fallback for originator, license, and hash."""
+    if {"originator", "license", "hash"}.issubset(already_filled):
+        return set()
+
     version = dep_version if dep_version != "unknown" else None
     release_info = (
         release_info_cache.get((canonicalize_name(dep_name), version))

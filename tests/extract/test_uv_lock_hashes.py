@@ -116,10 +116,50 @@ def test_artifact_hash_candidates_strips_url_query_and_fragment() -> None:
             ]
         }
     )
-    assert candidates == [("https://example.com/pkg-1.0.whl", digest)]
+    assert candidates == [("pkg-1.0.whl", digest)]
 
 
 def test_artifact_hash_candidates_non_list_wheels_degrades_gracefully() -> None:
     """Malformed non-list wheels must not crash with TypeError."""
     assert _artifact_hash_candidates({"wheels": 123}) == []
     assert _artifact_hash_candidates({"wheels": "not-a-list"}) == []
+
+
+def test_wheels_tiebreak_sorts_by_filename_not_url_hash_path() -> None:
+    """When multiple wheels exist, candidate tie-break must sort by artifact
+    filename rather than PyPI's content-addressable URL hash directory."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        hash1 = "1" * 64
+        hash2 = "2" * 64
+        url1 = "https://files.pythonhosted.org/packages/00/pkg-1.0-py3-none-any.whl"
+        url2 = (
+            "https://files.pythonhosted.org/packages/99/pkg-1.0-cp310-cp310-linux.whl"
+        )
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "pkg"\nversion = "1.0"\n'
+            "wheels = [\n"
+            f'  {{ url = "{url1}", hash = "sha256:{hash1}" }},\n'
+            f'  {{ url = "{url2}", hash = "sha256:{hash2}" }},\n'
+            "]\n",
+        )
+        hashes = extract_uv_lock_hashes(tmp_path, ["pkg==1.0"])
+        assert hashes is not None
+        assert hashes["pkg"] == hash2
+
+
+def test_artifact_hash_candidates_pathless_url_gives_none_filename() -> None:
+    """A URL with no path component (e.g. 'https://example.com') should
+    produce filename=None, not the domain name."""
+    digest = "d" * 64
+    candidates = _artifact_hash_candidates(
+        {"wheels": [{"url": "https://example.com", "hash": "sha256:" + digest}]}
+    )
+    assert candidates == [(None, digest)]
+
+    # Trailing-slash URL should also produce None
+    candidates2 = _artifact_hash_candidates(
+        {"wheels": [{"url": "https://example.com/", "hash": "sha256:" + digest}]}
+    )
+    assert candidates2 == [(None, digest)]

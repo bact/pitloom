@@ -27,8 +27,12 @@ _SHA256_HEX_LEN = 64
 _HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
 
 
-def _is_valid_sha256(digest: str) -> bool:
-    return len(digest) == _SHA256_HEX_LEN and all(c in _HEX_DIGITS for c in digest)
+def _is_valid_sha256(digest: object) -> bool:
+    return (
+        isinstance(digest, str)
+        and len(digest) == _SHA256_HEX_LEN
+        and all(c in _HEX_DIGITS for c in digest)
+    )
 
 
 def select_sha256_hash(candidates: Iterable[tuple[str | None, str]]) -> str | None:
@@ -53,15 +57,15 @@ def select_sha256_hash(candidates: Iterable[tuple[str | None, str]]) -> str | No
     an ordering this repo has no contract with, violating the "SBOMs
     must be bit-for-bit identical" requirement.
     """
-    valid = [
-        (name, digest.lower())
+    valid: list[tuple[str | None, str]] = [
+        (name if isinstance(name, str) and name else None, digest.lower())
         for name, digest in candidates
         if _is_valid_sha256(digest)
     ]
     if not valid:
         return None
 
-    wheels = [c for c in valid if c[0] is not None and c[0].endswith(".whl")]
+    wheels = [c for c in valid if c[0] is not None and c[0].lower().endswith(".whl")]
     if wheels:
         return min(wheels, key=lambda c: (c[0] or "", c[1]))[1]
 

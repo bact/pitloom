@@ -48,8 +48,8 @@ and this project adheres to
 - `--offline`/`--use-lockfile` as `action.yml` inputs ([#210])
 - Conflict detection for dependency version (declared specifier
   vs. lock-resolved version) ([#211])
-- Use lock-file SHA-256 hashes for SPDX 3 `verifiedUsing`,
-  prioritised over PyPI online ([#212])
+- Use lock-file SHA-256 hashes for SPDX 3 `verifiedUsing` in offline
+  builds and prioritised over PyPI online ([#212])
 
 ### Fixed
 

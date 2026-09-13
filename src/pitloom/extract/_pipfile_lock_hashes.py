@@ -37,6 +37,7 @@ from packaging.utils import canonicalize_name
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
+    has_required_top_level_table,
     load_lock_json,
     single_exact_pin,
     version_key,
@@ -108,6 +109,8 @@ def extract_pipfile_lock_hashes(
     lock_path = project_dir / "Pipfile.lock"
     data = load_lock_json(lock_path)
     if data is None:
+        return None
+    if not has_required_top_level_table(data, "_meta", "pipfile-spec", int):
         return None
 
     default_section = data.get("default", {})

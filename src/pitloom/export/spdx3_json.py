@@ -62,7 +62,7 @@ def sha256_hash(hex_digest: str, *, comment: str | None = None) -> spdx3.Hash:
     only needs fixing in one place.
     """
     hash_element = spdx3.Hash(
-        algorithm=spdx3.HashAlgorithm.sha256, hashValue=hex_digest
+        algorithm=spdx3.HashAlgorithm.sha256, hashValue=hex_digest.lower()
     )
     if comment:
         hash_element.comment = comment

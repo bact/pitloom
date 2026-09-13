@@ -43,6 +43,7 @@ from packaging.version import InvalidVersion, Version
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
     canonical_name_and_pinned_version,
+    has_required_top_level_table,
     index_packages_by_name_and_version,
     load_lock_toml,
     sha256_file_entry_candidates,
@@ -52,8 +53,63 @@ from pitloom.extract._lock_common import (
 __all__ = ["extract_poetry_lock_hashes"]
 
 
-def _filename_matches_version(filename: str | None, expected_version: str) -> bool:
-    """Return whether a wheel or sdist *filename* belongs to *expected_version*."""
+def _parse_artifact_version(filename: str, expected_version: str) -> Version | None:
+    """Attempt to parse a wheel or sdist version from *filename*, supporting
+    historical sdist extensions (.tar.bz2, etc.) and PEP 427/625 local version
+    '+' to '_' normalization."""
+    try:
+        _name, ver, _build, _tags = parse_wheel_filename(filename)
+        return ver
+    except (InvalidWheelFilename, ValueError):
+        pass
+    try:
+        _name, ver = parse_sdist_filename(filename)
+        return ver
+    except (InvalidSdistFilename, ValueError):
+        pass
+    for ext in (".tar.bz2", ".tgz", ".tar.xz"):
+        if filename.endswith(ext):
+            normalized = filename[: -len(ext)] + ".tar.gz"
+            try:
+                _name, ver = parse_sdist_filename(normalized)
+                return ver
+            except (InvalidSdistFilename, ValueError):
+                pass
+    if "+" in expected_version:
+        normalized_ver = expected_version.replace("+", "_")
+        if f"-{normalized_ver}-" in filename:
+            candidate_fn = filename.replace(
+                f"-{normalized_ver}-", f"-{expected_version}-"
+            )
+            try:
+                _name, ver, _build, _tags = parse_wheel_filename(candidate_fn)
+                return ver
+            except (InvalidWheelFilename, ValueError):
+                pass
+        for ext in (".tar.gz", ".zip", ".tar.bz2", ".tgz", ".tar.xz"):
+            if filename.endswith(f"-{normalized_ver}{ext}"):
+                prefix = filename[: -len(ext) - len(normalized_ver) - 1]
+                candidate_fn = f"{prefix}-{expected_version}.tar.gz"
+                try:
+                    _name, ver = parse_sdist_filename(candidate_fn)
+                    return ver
+                except (InvalidSdistFilename, ValueError):
+                    pass
+    return None
+
+
+def _filename_matches_version(
+    filename: str | None,
+    expected_version: str,
+    canon_name: str | None = None,
+) -> bool:
+    """Return whether a wheel or sdist *filename* belongs to *expected_version*.
+
+    When *canon_name* is given, the string fallback anchors the version
+    match to the expected position (after the package-name prefix) to
+    avoid false positives on filenames whose package name itself contains
+    a version-like substring (e.g. ``lib-1.0-tools-2.0.tar.gz``).
+    """
     if not isinstance(filename, str):
         return False
     try:
@@ -61,20 +117,39 @@ def _filename_matches_version(filename: str | None, expected_version: str) -> bo
     except InvalidVersion:
         target_ver = None
     if target_ver is not None:
-        try:
-            _name, ver, _build, _tags = parse_wheel_filename(filename)
-            return ver == target_ver
-        except (InvalidWheelFilename, ValueError):
-            pass
-        try:
-            _name, ver = parse_sdist_filename(filename)
-            return ver == target_ver
-        except (InvalidSdistFilename, ValueError):
-            pass
+        parsed_ver = _parse_artifact_version(filename, expected_version)
+        if parsed_ver is not None:
+            return parsed_ver == target_ver
+    # Fallback: plain substring match for non-PEP-440 or unparseable
+    # filenames. When canon_name is available, anchor after the
+    # normalized package name prefix to avoid matching version-like
+    # substrings inside the package name itself.
+    normalized_ver = expected_version.replace("+", "_")
+    if canon_name is not None:
+        # PEP 427/625 filenames use the normalized (underscored) name.
+        norm_name = canonicalize_name(canon_name).replace("-", "_")
+        prefix = f"{norm_name}-"
+        lower_fn = filename.lower()
+        if not lower_fn.startswith(prefix):
+            return False
+        suffix = lower_fn[len(prefix) :]
+        return (
+            suffix.startswith(f"{expected_version}-")
+            or suffix.startswith(f"{normalized_ver}-")
+            or any(
+                suffix == f"{expected_version}{ext}"
+                or suffix == f"{normalized_ver}{ext}"
+                for ext in (".tar.gz", ".zip", ".tar.bz2", ".tgz", ".tar.xz")
+            )
+        )
     return (
         f"-{expected_version}-" in filename
-        or filename.endswith(f"-{expected_version}.tar.gz")
-        or filename.endswith(f"-{expected_version}.zip")
+        or f"-{normalized_ver}-" in filename
+        or any(
+            filename.endswith(f"-{expected_version}{ext}")
+            or filename.endswith(f"-{normalized_ver}{ext}")
+            for ext in (".tar.gz", ".zip", ".tar.bz2", ".tgz", ".tar.xz")
+        )
     )
 
 
@@ -89,11 +164,11 @@ def _legacy_metadata_files_by_canonical_name(
     files_table = metadata.get("files") if isinstance(metadata, dict) else None
     if not isinstance(files_table, dict):
         return {}
-    return {
-        canonicalize_name(name): entries
-        for name, entries in files_table.items()
-        if isinstance(name, str)
-    }
+    files_by_name: dict[str, list[object]] = {}
+    for name, entries in files_table.items():
+        if isinstance(name, str) and isinstance(entries, list):
+            files_by_name.setdefault(canonicalize_name(name), []).extend(entries)
+    return files_by_name
 
 
 def extract_poetry_lock_hashes(
@@ -112,6 +187,8 @@ def extract_poetry_lock_hashes(
     lock_path = project_dir / "poetry.lock"
     data = load_lock_toml(lock_path)
     if data is None:
+        return None
+    if not has_required_top_level_table(data, "metadata", "lock-version", str):
         return None
 
     packages = data.get("package", [])
@@ -136,7 +213,7 @@ def extract_poetry_lock_hashes(
                 for c in sha256_file_entry_candidates(
                     legacy_files_by_name.get(canon_name)
                 )
-                if _filename_matches_version(c[0], version)
+                if _filename_matches_version(c[0], version, canon_name=canon_name)
             ]
         digest = select_sha256_hash(candidates)
         if digest is not None:

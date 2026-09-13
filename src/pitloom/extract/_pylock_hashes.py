@@ -18,8 +18,10 @@ having to reproduce it correctly a second time.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from posixpath import basename as posix_basename
 from typing import Any
+from urllib.parse import urlparse
 
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
@@ -57,13 +59,19 @@ def _artifact_hash_candidates(pkg: dict[str, Any]) -> list[tuple[str | None, str
             continue
         raw_name = artifact.get("name")
         raw_url = artifact.get("url")
-        filename = (
-            raw_name
-            if isinstance(raw_name, str)
-            else (raw_url if isinstance(raw_url, str) else None)
-        )
-        if filename is not None and ("?" in filename or "#" in filename):
-            filename = filename.split("?", 1)[0].split("#", 1)[0]
+        raw_path = artifact.get("path")
+        filename: str | None
+        if isinstance(raw_name, str) and raw_name:
+            # PEP 751 artifact `name` field could theoretically contain
+            # query/fragment chars; strip them defensively.
+            filename = raw_name.split("?", 1)[0].split("#", 1)[0] or None
+        elif isinstance(raw_url, str) and raw_url:
+            clean_url = raw_url.split("?", 1)[0].split("#", 1)[0]
+            filename = posix_basename(urlparse(clean_url).path) or None
+        elif isinstance(raw_path, str) and raw_path:
+            filename = PureWindowsPath(raw_path).name or None
+        else:
+            filename = None
         candidates.append((filename, digest))
     return candidates
 

@@ -20,6 +20,7 @@ from packaging.utils import canonicalize_name
 from pitloom.extract._poetry_lock import extract_poetry_lock_dependencies
 from pitloom.extract._poetry_lock_hashes import (
     _filename_matches_version,
+    _legacy_metadata_files_by_canonical_name,
     extract_poetry_lock_hashes,
 )
 
@@ -156,3 +157,77 @@ def test_filename_matches_version_unparseable_filename_falls_back_to_substring()
     heuristic rather than raising."""
     assert _filename_matches_version("pkg-1.0.0-linux.tar.bz2", "1.0.0")
     assert not _filename_matches_version("pkg-2.0.0-linux.tar.bz2", "1.0.0")
+
+
+def test_legacy_metadata_files_by_canonical_name_merges_casing_variations() -> None:
+    data = {
+        "metadata": {
+            "files": {
+                "PyYAML": [{"file": "PyYAML-5.4.1.tar.gz", "hash": "sha256:aaa"}],
+                "pyyaml": [
+                    {"file": "pyyaml-5.4.1-py3-none-any.whl", "hash": "sha256:bbb"}
+                ],
+                "foo_bar": [{"file": "foo_bar-1.0.tar.gz", "hash": "sha256:ccc"}],
+                "foo-bar": [
+                    {"file": "foo_bar-1.0-py3-none-any.whl", "hash": "sha256:ddd"}
+                ],
+            }
+        }
+    }
+    index = _legacy_metadata_files_by_canonical_name(data)
+    assert len(index["pyyaml"]) == 2
+    assert len(index["foo-bar"]) == 2
+
+
+def test_filename_matches_version_supports_legacy_sdist_extensions() -> None:
+    assert _filename_matches_version("foo-1.0.tar.bz2", "1.0")
+    assert _filename_matches_version("foo-1.0.tgz", "1.0")
+    assert _filename_matches_version("foo-1.0.tar.xz", "1.0")
+    assert not _filename_matches_version("foo-2.0.tar.bz2", "1.0")
+    # PEP 440 normalization across trailing zeros
+    assert _filename_matches_version("foo-1.0.0.tar.bz2", "1.0")
+    assert _filename_matches_version("foo-1.0.tar.bz2", "1.0.0")
+    # Pre-release rejection
+    assert not _filename_matches_version("foo-1.0a1.tar.bz2", "1.0")
+    assert not _filename_matches_version("foo-1.0rc1.tar.bz2", "1.0")
+
+
+def test_filename_matches_version_supports_local_version_normalization() -> None:
+    """PEP 427/625 normalizes '+' in local versions to '_' in filenames."""
+    assert _filename_matches_version(
+        "torch-2.0.0_cpu-cp310-cp310-linux_x86_64.whl", "2.0.0+cpu"
+    )
+    assert _filename_matches_version("torch-2.0.0_cpu.tar.gz", "2.0.0+cpu")
+    assert not _filename_matches_version(
+        "torch-2.0.1_cpu-cp310-cp310-linux_x86_64.whl", "2.0.0+cpu"
+    )
+
+
+def test_missing_lock_version_marker_returns_none() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "poetry.lock").write_text(
+            '[[package]]\nname = "foo"\nversion = "1.0"\n', encoding="utf-8"
+        )
+        assert extract_poetry_lock_hashes(tmp_path, ["foo==1.0"]) is None
+
+
+def test_filename_matches_version_anchored_rejects_name_version_substring() -> None:
+    """With canon_name, a version-like substring in the package name portion
+    of the filename must NOT false-positive match.
+
+    Uses a non-PEP-440 version string to force the string-fallback path
+    (structured parsers handle standard versions correctly and wouldn't
+    reach the fallback).
+    """
+    # Non-PEP-440 version forces string fallback.
+    # Without canon_name, "-beta1-" in the package name false-positives.
+    assert _filename_matches_version("lib-beta1-tools-beta2.tar.gz", "beta1")
+    # With canon_name anchoring, the match is correctly rejected
+    assert not _filename_matches_version(
+        "lib_beta1_tools-beta2.tar.gz", "beta1", canon_name="lib-beta1-tools"
+    )
+    # With canon_name, the correct version still matches
+    assert _filename_matches_version(
+        "lib_beta1_tools-beta2.tar.gz", "beta2", canon_name="lib-beta1-tools"
+    )

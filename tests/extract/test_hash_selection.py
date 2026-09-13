@@ -87,3 +87,34 @@ def test_all_malformed_returns_none() -> None:
 def test_digest_is_lowercased() -> None:
     digest = "A" * 64
     assert select_sha256_hash([("pkg-1.0.tar.gz", digest)]) == "a" * 64
+
+
+def test_empty_filename_does_not_beat_named_artifact() -> None:
+    named_digest = "b" * 64
+    empty_digest = "a" * 64
+    candidates = [
+        ("", empty_digest),
+        ("pkg-1.0.tar.gz", named_digest),
+    ]
+    # Named artifact should beat empty-string filename, despite "a" < "b"
+    assert select_sha256_hash(candidates) == named_digest
+
+
+def test_uppercase_whl_extension_is_recognized_as_wheel() -> None:
+    sdist_digest = "a" * 64
+    wheel_digest = "b" * 64
+    candidates = [
+        ("pkg-1.0.tar.gz", sdist_digest),
+        ("pkg-1.0-py3-none-any.WHL", wheel_digest),
+    ]
+    assert select_sha256_hash(candidates) == wheel_digest
+
+
+def test_non_string_types_handled_gracefully() -> None:
+    valid_digest = "a" * 64
+    candidates: list[tuple[object, object]] = [
+        (123, valid_digest),
+        ("pkg-1.0.tar.gz", None),
+        ("pkg-1.0.tar.gz", 12345),
+    ]
+    assert select_sha256_hash(candidates) == valid_digest  # type: ignore[arg-type]

@@ -130,7 +130,7 @@ def test_artifact_hash_candidates_supports_name_and_strips_url_query() -> None:
     )
     assert candidates == [
         ("pkg-1.0-py3-none-any.whl", digest),
-        ("https://example.com/pkg-1.0.whl", digest),
+        ("pkg-1.0.whl", digest),
     ]
 
 
@@ -138,3 +138,67 @@ def test_artifact_hash_candidates_non_list_wheels_degrades_gracefully() -> None:
     """Malformed non-list wheels must not crash with TypeError."""
     assert _artifact_hash_candidates({"wheels": 123}) == []
     assert _artifact_hash_candidates({"wheels": "not-a-list"}) == []
+
+
+def test_artifact_hash_candidates_supports_path() -> None:
+    """PEP 751 allows path on artifact; filename is extracted from basename."""
+    digest = "d" * 64
+    candidates = _artifact_hash_candidates(
+        {
+            "wheels": [
+                {
+                    "path": "dist/pkg-1.0-py3-none-any.whl",
+                    "hashes": {"sha256": digest},
+                },
+            ]
+        }
+    )
+    assert candidates == [("pkg-1.0-py3-none-any.whl", digest)]
+
+
+def test_artifact_hash_candidates_supports_windows_path() -> None:
+    """Windows backslash path is correctly parsed to basename on all platforms."""
+    digest = "e" * 64
+    candidates = _artifact_hash_candidates(
+        {
+            "wheels": [
+                {
+                    "path": r"dist\pkg-1.0-py3-none-any.whl",
+                    "hashes": {"sha256": digest},
+                },
+            ]
+        }
+    )
+    assert candidates == [("pkg-1.0-py3-none-any.whl", digest)]
+
+
+def test_artifact_hash_candidates_nameless_when_name_url_path_absent() -> None:
+    """Artifact lacking name, url, and path is treated as nameless candidate."""
+    digest = "f" * 64
+    candidates = _artifact_hash_candidates({"sdist": {"hashes": {"sha256": digest}}})
+    assert candidates == [(None, digest)]
+
+
+def test_artifact_hash_candidates_pathless_url_gives_none_filename() -> None:
+    """A URL with no path component should produce filename=None,
+    not the domain name."""
+    digest = "g" * 64
+    candidates = _artifact_hash_candidates(
+        {"wheels": [{"url": "https://example.com", "hashes": {"sha256": digest}}]}
+    )
+    assert candidates == [(None, digest)]
+
+    # Trailing-slash URL should also produce None
+    candidates2 = _artifact_hash_candidates(
+        {"wheels": [{"url": "https://example.com/", "hashes": {"sha256": digest}}]}
+    )
+    assert candidates2 == [(None, digest)]
+
+
+def test_artifact_hash_candidates_name_with_query_fragment_stripped() -> None:
+    """PEP 751 name field with stray ?/# chars should be cleaned."""
+    digest = "h" * 64
+    candidates = _artifact_hash_candidates(
+        {"wheels": [{"name": "pkg-1.0.whl?token=x#frag", "hashes": {"sha256": digest}}]}
+    )
+    assert candidates == [("pkg-1.0.whl", digest)]

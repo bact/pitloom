@@ -23,7 +23,9 @@ that from being ambiguous here.
 from __future__ import annotations
 
 from pathlib import Path
+from posixpath import basename as posix_basename
 from typing import Any
+from urllib.parse import urlparse
 
 from pitloom.extract._hash_selection import select_sha256_hash
 from pitloom.extract._lock_common import (
@@ -55,11 +57,11 @@ def _artifact_hash_candidates(pkg: dict[str, Any]) -> list[tuple[str | None, str
         if not isinstance(raw_hash, str) or not raw_hash.startswith("sha256:"):
             continue
         url = artifact.get("url")
-        if isinstance(url, str) and ("?" in url or "#" in url):
-            url = url.split("?", 1)[0].split("#", 1)[0]
-        candidates.append(
-            (url if isinstance(url, str) else None, raw_hash.removeprefix("sha256:"))
-        )
+        filename: str | None = None
+        if isinstance(url, str):
+            clean_url = url.split("?", 1)[0].split("#", 1)[0]
+            filename = posix_basename(urlparse(clean_url).path) or None
+        candidates.append((filename, raw_hash.removeprefix("sha256:")))
     return candidates
 
 
