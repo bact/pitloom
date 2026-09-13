@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-12
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -140,17 +140,8 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   [setuptools-support.md](../implementation/setuptools-support.md) and
   [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md).
 - [ ] **`get_wheel_files()` option to skip Merkle root computation** --
-  `_build_sbom_from_project_and_wheel` (`src/pitloom/embed.py`) already
-  discards `get_wheel_files()`'s own `merkle_root` return value in favor
-  of one computed from the wheel's own (post-merge) file hashes (see
-  `_compute_wheel_merkle_root`), so that work is wasted for its one
-  current caller. Worth adding only when both `extract_file_header` and
-  `content_type` are off too -- otherwise every file's bytes get read
-  off disk anyway for header/content-type scanning, and skipping just
-  the hash/tree-build step on top of bytes already in memory saves
-  little. With both scanners off, though, `get_wheel_files()` currently
-  reads every file's full bytes solely to hash them for the discarded
-  root -- real, avoidable I/O for large projects.
+  avoidable I/O for `embed-wheel`'s one current caller. See
+  [performance-optimizations.md](performance-optimizations.md#skip-merkle-root-in-get_wheel_files).
 - [ ] **Installed `.dist-info` / `.egg-info` as metadata source** -- treat
   an existing installed package as a high-fidelity source when present
   (editable installs, virtual environments).
@@ -160,11 +151,17 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   discovery across every usage surface; on by default. Also fixed a
   related `loom enrich` doc-identity bug found along the way.
   See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-use-lockfile-opt-out).
-- [ ] **Preserve lock file hashes in `--offline` mode** -- retain package
-  SHA-256 digests parsed from lock files (`pylock.toml`, `uv.lock`, `pdm.lock`,
-  `Pipfile.lock`, etc.) so that `--offline` mode can populate SPDX 3
-  `verifiedUsing` integrity checksums without requiring online PyPI JSON API
-  enrichment lookups.
+- [x] **Preserve lock file hashes in `--offline` mode** -- SHA-256 digests
+  parsed from `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`
+  now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API
+  lookup even online.
+  See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md).
+- [ ] **SHA-512 / BSI TR-03183-2 `verifiedUsing`** -- no lock format or the
+  PyPI JSON API carries a SHA-512 digest; producing one means downloading the
+  artifact and hashing it, a heavier feature than the SHA-256 lock-hash
+  preservation above. `Element.verifiedUsing`'s 0..* cardinality means this
+  can append to the same list without restructuring it.
+  See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md#scope).
 
 ### PEP 770 / embed-wheel
 
@@ -328,8 +325,9 @@ table in [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md));
   replacement for) the PEP 740 item above. See <https://scitt.io/> and
   [scitt-integration.md](scitt-integration.md) for the receipt-placement
   decision, Pitloom's client-only role, and the tooling landscape.
-- [ ] **Performance optimization** -- Rust backend for large-project
-  log parsing; parallel file hashing for Merkle root computation.
+- [ ] **Performance optimization** -- Rust backend for large-project log
+  parsing; parallel file hashing. See
+  [performance-optimizations.md](performance-optimizations.md#rust-backend--parallel-hashing).
 - [ ] **Agentic skill governance (guardrail mode)** -- extend the
   existing AI-agent Skills (Adoption surfaces above) from "generate an
   SBOM on request" to "veto/flag a coding agent's own action" -- e.g.

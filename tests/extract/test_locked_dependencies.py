@@ -35,6 +35,18 @@ def _write_pylock(tmp_dir: Path, name: str, version: str) -> None:
     )
 
 
+def _write_pylock_with_hash(
+    tmp_dir: Path, name: str, version: str, sha256: str
+) -> None:
+    (tmp_dir / "pylock.toml").write_text(
+        f'lock-version = "1.0"\ncreated-by = "test"\n'
+        f'[[packages]]\nname = "{name}"\nversion = "{version}"\n'
+        f'wheels = [{{ url = "{name}-{version}-py3-none-any.whl", '
+        f'hashes = {{ sha256 = "{sha256}" }} }}]\n',
+        encoding="utf-8",
+    )
+
+
 def test_apply_locked_dependencies_sets_provenance_when_no_prior_source() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -47,6 +59,32 @@ def test_apply_locked_dependencies_sets_provenance_when_no_prior_source() -> Non
         assert metadata.provenance["locked_dependencies"] == (
             "Source: pylock.toml | Method: resolved_lockfile"
         )
+
+
+def test_apply_locked_dependencies_populates_hash_for_winning_source() -> None:
+    """The cascade calls the winning source's own hash extractor and
+    stores the result on ``locked_dependency_hashes`` -- see
+    lock-hash-preservation.md."""
+    sha256 = "a" * 64
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_pylock_with_hash(tmp_path, "requests", "2.31.0", sha256)
+        metadata = ProjectMetadata(name="pkg")
+
+        apply_locked_dependencies(metadata, tmp_path)
+
+        assert metadata.locked_dependency_hashes == {"requests": sha256}
+
+
+def test_apply_locked_dependencies_no_hash_data_leaves_hashes_empty() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        _write_pylock(tmp_path, "requests", "2.31.0")
+        metadata = ProjectMetadata(name="pkg")
+
+        apply_locked_dependencies(metadata, tmp_path)
+
+        assert not metadata.locked_dependency_hashes
 
 
 def test_apply_locked_dependencies_no_source_present_leaves_metadata_untouched() -> (
@@ -72,10 +110,14 @@ def test_apply_locked_dependencies_overrides_prior_source_with_note(
     itself, not only logged."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
+        # `_write_pylock()` carries no hash data -- this also verifies the
+        # stale `requests` hash left over from the superseded poetry.lock
+        # source doesn't survive alongside the new locked_dependencies.
         _write_pylock(tmp_path, "httpx", "0.27.0")
         metadata = ProjectMetadata(
             name="pkg",
             locked_dependencies=["requests==2.31.0"],
+            locked_dependency_hashes={"requests": "a" * 64},
             provenance={
                 "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
             },
@@ -89,6 +131,7 @@ def test_apply_locked_dependencies_overrides_prior_source_with_note(
             "Source: pylock.toml | Method: resolved_lockfile "
             "| Note: supersedes poetry.lock"
         )
+        assert not metadata.locked_dependency_hashes
         assert "poetry.lock and pylock.toml" in caplog.text
         assert "pylock.toml takes priority" in caplog.text
 

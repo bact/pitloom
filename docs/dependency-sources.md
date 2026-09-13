@@ -200,9 +200,11 @@ and is otherwise ignored.
 `--offline` (also settable via `[tool.pitloom] offline` --
 see [Configuration](configuration.md)) is unrelated to lock-file
 reading: it only controls whether Pitloom's own PyPI JSON API lookups
-(used to fill in a dependency package's supplier/license/copyright gaps)
+(used to fill in a dependency package's supplier/license/copyright/integrity gaps)
 are attempted. A lock file is always read from disk regardless of this
-setting -- there's no network involved in reading it.
+setting -- there's no network involved in reading it. When a supported lock
+file contains SHA-256 digests, Pitloom uses them for `verifiedUsing`
+checksums in offline builds without requiring network access.
 
 ## See also
 

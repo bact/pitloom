@@ -23,34 +23,33 @@ and this project adheres to
 
 ### Added
 
-- Add PDM-backend and Flit-core metadata extraction and wheel file
-  discovery ([#205])
-- Add Poetry backend wheel file discovery and lock parsing ([#198])
-- Add `pitloom fragment validate` CLI command, using `spdx3-validate`'s
-  library API; new `pitloom[validate]` optional extra ([#200])
-- Add `--debug`/`--no-debug` flags / `PITLOOM_DEBUG` env var to surface
-  `DEBUG:`-level diagnostics on stderr, consistently across every
-  subcommand ([#201])
-- Add `pitloom verify-wheel`/`validate-wheel` CLI commands and matching
+- Poetry backend wheel file discovery and lock parsing ([#198])
+- `pitloom fragment validate` CLI command, using `spdx3-validate`'s
+  library API ([#200])
+- `--debug`/`--no-debug` flags / `PITLOOM_DEBUG` env var to surface
+  `DEBUG:`-level diagnostics on stderr ([#201])
+- `pitloom verify-wheel`/`validate-wheel` CLI commands and matching
   `embed-wheel --verify`/`--validate` flags ([#202])
-- Add SBOM name/version cross-check to `verify-wheel`, with
-  `--fail-on-mismatch` to make a mismatch fatal ([#204])
-- `embed-wheel --sbom` now cross-checks the SBOM's name/version against
-  the wheel's METADATA before writing; aborts on mismatch unless
-  `--allow-mismatch` ([#204])
-- Add PEP 639 `[project.license-files]` support: each declared license
-  file gets a `software_File` element at the real wheel's
-  `.dist-info/licenses/` path and a `hasDeclaredLicense` relationship ([#207])
-- Add resolved-dependency parsing for `loom project`/`loom generate`
+- SBOM name/version cross-check to `verify-wheel`,
+  with `--fail-on-mismatch` to make a mismatch fatal ([#204])
+- SBOM name/version cross-check to `embed-wheel --sbom`,
+  aborts on mismatch unless `--allow-mismatch` ([#204])
+- PDM-backend and Flit-core metadata extraction and wheel file
+  discovery ([#205])
+- PEP 639 `[project.license-files]` support: each declared license
+  file gets a file reference to the real wheel's `.dist-info/licenses/` path
+  ([#207])
+- Resolved-dependency parsing for `loom project`/`loom generate`
   from `pylock.toml` (PEP 751), `uv.lock`, `pdm.lock`, `Pipfile.lock`,
   and a fully pinned `requirements.txt` -- see [Dependency sources and
   precedence](docs/dependency-sources.md) ([#208])
-- Add `--no-use-lockfile`/`[tool.pitloom] use-lockfile` opt-out for the
-  resolved-dependency cascade above, across CLI, library API, and
-  `action.yml`; on by default ([#210])
-- Add `--offline`/`--use-lockfile` as `action.yml` inputs ([#210])
-- Add conflict detection for dependency version (declared specifier
-  vs. lock-resolved version), generalizing it beyond license ([#211])
+- `--no-use-lockfile`/`[tool.pitloom] use-lockfile` opt-out for the
+  resolved-dependency cascade above ([#210])
+- `--offline`/`--use-lockfile` as `action.yml` inputs ([#210])
+- Conflict detection for dependency version (declared specifier
+  vs. lock-resolved version) ([#211])
+- Use lock-file SHA-256 hashes for SPDX 3 `verifiedUsing` in offline
+  builds and prioritised over PyPI online ([#212])
 
 ### Fixed
 
@@ -79,7 +78,7 @@ and this project adheres to
 
 - Promote 18 log messages from `DEBUG:` to `WARNING:` (shown by
   default, not just under `--debug`) where a failure silently drops
-  data from the generated SBOM/AIBOM: Hugging Face Hub fetch failures
+  data from the generated SBOM: Hugging Face Hub fetch failures
   (model card, `model_info()`, license files), PyTorch/PT2
   pickle/graph/metadata parse failures, fastText args/labels reads,
   README enrichment frontmatter, sdist `pyproject.toml` fallback
@@ -97,6 +96,7 @@ and this project adheres to
 [#208]: https://github.com/bact/pitloom/pull/208
 [#210]: https://github.com/bact/pitloom/pull/210
 [#211]: https://github.com/bact/pitloom/pull/211
+[#212]: https://github.com/bact/pitloom/pull/212
 
 ## [0.17.0] - 2026-08-30
 
@@ -168,7 +168,7 @@ and this project adheres to
 - `pytest` now fails on any runtime warning
   (`filterwarnings = ["error"]`, plus `--strict-markers`/`--strict-config`) --
   OpenSSF Best Practices `warnings_strict` ([#179])
-- Add Sigstore and provenance attestation to GitHub release ([#180])
+- Publish Sigstore and provenance attestation to GitHub release ([#180])
 
 ### Fixed
 

@@ -294,6 +294,7 @@ def build(
         release_info_cache=release_info_cache,
         locked_versions=locked_versions,
         locked_provenance=locked_dependencies_provenance,
+        locked_hashes=metadata.locked_dependency_hashes,
     )
 
     if transitive_only:
@@ -311,6 +312,7 @@ def build(
             content_type_method=content_type_method,
             release_info_cache=release_info_cache,
             completeness=_locked_dependencies_completeness(metadata),
+            locked_hashes=metadata.locked_dependency_hashes,
         )
 
     # --- Files ---

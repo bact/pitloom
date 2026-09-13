@@ -135,6 +135,9 @@ When a lock file is present:
   back to host environment introspection.
 - Transitive dependencies from the lock file are emitted as SPDX 3
   `software_Package` elements connected via `dependsOn` relationships.
+- SHA-256 package hashes are extracted directly from supported lock files
+  for `verifiedUsing` integrity validation, preserved in offline builds and
+  prioritised over PyPI lookups.
 - Relationship completeness is conservatively left unset (`None`) to
   avoid overstating completeness for partial closures (e.g. omitted
   VCS/path dependencies or marker-ambiguous variants).

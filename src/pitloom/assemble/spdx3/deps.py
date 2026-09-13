@@ -86,6 +86,9 @@ def _enrich_from_pypi(
     content_type_method: str = "auto",
 ) -> set[str]:
     """Best-effort PyPI JSON API fallback for originator, license, and hash."""
+    if {"originator", "license", "hash"}.issubset(already_filled):
+        return set()
+
     version = dep_version if dep_version != "unknown" else None
     release_info = (
         release_info_cache.get((canonicalize_name(dep_name), version))
@@ -142,7 +145,7 @@ def _enrich_from_pypi(
         ):
             filled.add("license")
 
-    if version is not None:
+    if "hash" not in already_filled and version is not None:
         digest = _extract_release_hash(release_info)
         if digest:
             dep_package.verifiedUsing = [sha256_hash(digest)]
@@ -167,6 +170,8 @@ def _finish_dependency_enrichment(
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     content_type_method: str = "auto",
+    locked_hashes: dict[str, str] | None = None,
+    locked_versions: dict[str, str] | None = None,
 ) -> None:
     """Apply the shared dependency-package completeness policy."""
     dep_package.software_packageUrl = build_pypi_purl(
@@ -186,6 +191,30 @@ def _finish_dependency_enrichment(
         offline=offline,
         content_type_method=content_type_method,
     )
+
+    if "hash" not in filled and locked_hashes:
+        canon_name = canonicalize_name(dep_name)
+        # locked_versions is None for the lock-resolved-transitive-only
+        # call (dep_version there *is* the lock's own version already, by
+        # construction -- no separate declared pin can conflict with it),
+        # so the hash is trusted unconditionally. For the direct-dependency
+        # call, locked_versions is always a (possibly empty) dict: a
+        # canonical name absent from it means either the dependency isn't
+        # lock-resolved at all, or it was excluded there as a genuine
+        # name/version conflict (see _dedup_and_locked_versions) -- either
+        # way locked_hashes must not be trusted for it. And when it *is*
+        # present, dep_version (the "explicit pin beats lock" resolved
+        # version) must PEP 440-equal it, or the hash would describe a
+        # different artifact than the one this package claims to be.
+        version_ok = locked_versions is None or (
+            (locked_version := locked_versions.get(canon_name)) is not None
+            and is_same_version(dep_version, locked_version)
+        )
+        if version_ok:
+            digest = locked_hashes.get(canon_name)
+            if digest:
+                dep_package.verifiedUsing = [sha256_hash(digest)]
+                filled.add("hash")
 
     if not offline:
         filled |= _enrich_from_pypi(
@@ -238,6 +267,7 @@ def add_dependencies(
     | None = None,
     locked_versions: dict[str, str] | None = None,
     locked_provenance: str | None = None,
+    locked_hashes: dict[str, str] | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -280,6 +310,23 @@ def add_dependencies(
     :data:`~pitloom.assemble.spdx3.deps_installed._DEFAULT_LOCKED_PROVENANCE`
     when *locked_versions* resolves a version but no real provenance string
     was supplied.
+
+    *locked_hashes*, when given, maps PEP 503-canonicalized package names
+    to a hex SHA-256 digest parsed from a project lock file
+    (:attr:`~pitloom.core.project.ProjectMetadata.locked_dependency_hashes`).
+    Always takes priority over a PyPI JSON API-looked-up hash when both are
+    available -- the lock file names the exact resolved artifact, more
+    authoritative than a PyPI lookup that may resolve to a different
+    release build -- and, unlike PyPI enrichment, is applied in both
+    online and offline mode. When *locked_versions* is also given (the
+    direct-dependency call), a lock hash is only trusted for a name whose
+    resolved *dep_version* PEP 440-equals *locked_versions*' entry for it --
+    guarding both the "explicit pin beats lock" case (a declared exact pin
+    overrides a conflicting locked version, so the lock's hash would
+    describe a different artifact) and a name excluded from *locked_versions*
+    entirely as a genuine locked-version conflict. The transitive-only call
+    passes no *locked_versions*, since its own *dependencies* strings already
+    carry the lock's version verbatim.
     """
     resolved = [
         _resolve_dependency_with_conflict(
@@ -356,6 +403,8 @@ def add_dependencies(
             provenance_config=provenance_config,
             encoder=encoder,
             content_type_method=content_type_method,
+            locked_hashes=locked_hashes,
+            locked_versions=locked_versions,
         )
 
         exporter.add_package(dep_package)

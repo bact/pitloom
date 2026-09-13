@@ -1,0 +1,221 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""SHA-256 digest extraction from a ``poetry.lock``, alongside
+:mod:`pitloom.extract._poetry_lock`'s ``name==version`` pin extraction.
+
+Split into its own module (rather than growing :mod:`pitloom.extract._poetry_lock`
+further) purely for this repo's file-size discipline.
+
+Takes the pin extractor's own already-resolved winning dependency strings
+as input (never re-derives which packages qualify): this both avoids
+duplicating :mod:`pitloom.extract._poetry_lock`'s group/optional/non-
+registry-source filtering here, and sidesteps having to reproduce it
+correctly a second time.
+
+Unlike every sibling lock format, a package's file hashes are **not**
+always nested in its own ``[[package]]`` entry: Poetry 2.1+
+(``lock-version`` 2.1+) writes them there directly as a per-package
+``files`` array, but every earlier lock version (1.x) instead lists them
+in one *separate*, top-level ``[metadata.files]`` table keyed by literal
+package name. Both shapes are checked here -- the per-package ``files``
+array first, falling back to ``metadata.files`` -- so this module works
+across the whole range of lock files this repo's own fixtures cover
+(``tests/fixtures/real-world-locks/poetry/``).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from packaging.utils import (
+    InvalidSdistFilename,
+    InvalidWheelFilename,
+    canonicalize_name,
+    parse_sdist_filename,
+    parse_wheel_filename,
+)
+from packaging.version import InvalidVersion, Version
+
+from pitloom.extract._hash_selection import select_sha256_hash
+from pitloom.extract._lock_common import (
+    canonical_name_and_pinned_version,
+    has_required_top_level_table,
+    index_packages_by_name_and_version,
+    load_lock_toml,
+    sha256_file_entry_candidates,
+    version_key,
+)
+
+__all__ = ["extract_poetry_lock_hashes"]
+
+
+def _parse_artifact_version(filename: str, expected_version: str) -> Version | None:
+    """Attempt to parse a wheel or sdist version from *filename*, supporting
+    historical sdist extensions (.tar.bz2, etc.) and PEP 427/625 local version
+    '+' to '_' normalization."""
+    try:
+        _name, ver, _build, _tags = parse_wheel_filename(filename)
+        return ver
+    except (InvalidWheelFilename, ValueError):
+        pass
+    try:
+        _name, ver = parse_sdist_filename(filename)
+        return ver
+    except (InvalidSdistFilename, ValueError):
+        pass
+    for ext in (".tar.bz2", ".tgz", ".tar.xz"):
+        if filename.endswith(ext):
+            normalized = filename[: -len(ext)] + ".tar.gz"
+            try:
+                _name, ver = parse_sdist_filename(normalized)
+                return ver
+            except (InvalidSdistFilename, ValueError):
+                pass
+    if "+" in expected_version:
+        normalized_ver = expected_version.replace("+", "_")
+        if f"-{normalized_ver}-" in filename:
+            candidate_fn = filename.replace(
+                f"-{normalized_ver}-", f"-{expected_version}-"
+            )
+            try:
+                _name, ver, _build, _tags = parse_wheel_filename(candidate_fn)
+                return ver
+            except (InvalidWheelFilename, ValueError):
+                pass
+        for ext in (".tar.gz", ".zip", ".tar.bz2", ".tgz", ".tar.xz"):
+            if filename.endswith(f"-{normalized_ver}{ext}"):
+                prefix = filename[: -len(ext) - len(normalized_ver) - 1]
+                candidate_fn = f"{prefix}-{expected_version}.tar.gz"
+                try:
+                    _name, ver = parse_sdist_filename(candidate_fn)
+                    return ver
+                except (InvalidSdistFilename, ValueError):
+                    pass
+    return None
+
+
+def _filename_matches_version(
+    filename: str | None,
+    expected_version: str,
+    canon_name: str | None = None,
+) -> bool:
+    """Return whether a wheel or sdist *filename* belongs to *expected_version*.
+
+    When *canon_name* is given, the string fallback anchors the version
+    match to the expected position (after the package-name prefix) to
+    avoid false positives on filenames whose package name itself contains
+    a version-like substring (e.g. ``lib-1.0-tools-2.0.tar.gz``).
+    """
+    if not isinstance(filename, str):
+        return False
+    try:
+        target_ver = Version(expected_version)
+    except InvalidVersion:
+        target_ver = None
+    if target_ver is not None:
+        parsed_ver = _parse_artifact_version(filename, expected_version)
+        if parsed_ver is not None:
+            return parsed_ver == target_ver
+    # Fallback: plain substring match for non-PEP-440 or unparseable
+    # filenames. When canon_name is available, anchor after the
+    # normalized package name prefix to avoid matching version-like
+    # substrings inside the package name itself.
+    normalized_ver = expected_version.replace("+", "_")
+    if canon_name is not None:
+        # PEP 427/625 filenames use the normalized (underscored) name.
+        norm_name = canonicalize_name(canon_name).replace("-", "_")
+        prefix = f"{norm_name}-"
+        lower_fn = filename.lower()
+        if not lower_fn.startswith(prefix):
+            return False
+        suffix = lower_fn[len(prefix) :]
+        return (
+            suffix.startswith(f"{expected_version}-")
+            or suffix.startswith(f"{normalized_ver}-")
+            or any(
+                suffix == f"{expected_version}{ext}"
+                or suffix == f"{normalized_ver}{ext}"
+                for ext in (".tar.gz", ".zip", ".tar.bz2", ".tgz", ".tar.xz")
+            )
+        )
+    return (
+        f"-{expected_version}-" in filename
+        or f"-{normalized_ver}-" in filename
+        or any(
+            filename.endswith(f"-{expected_version}{ext}")
+            or filename.endswith(f"-{normalized_ver}{ext}")
+            for ext in (".tar.gz", ".zip", ".tar.bz2", ".tgz", ".tar.xz")
+        )
+    )
+
+
+def _legacy_metadata_files_by_canonical_name(
+    data: dict[str, Any],
+) -> dict[str, list[object]]:
+    """Index the top-level ``[metadata.files]`` table (Poetry lock-version
+    1.x) by PEP 503-canonicalized package name -- absent entirely on a
+    2.1+ lock, where every package's own ``files`` field is used instead.
+    """
+    metadata = data.get("metadata")
+    files_table = metadata.get("files") if isinstance(metadata, dict) else None
+    if not isinstance(files_table, dict):
+        return {}
+    files_by_name: dict[str, list[object]] = {}
+    for name, entries in files_table.items():
+        if isinstance(name, str) and isinstance(entries, list):
+            files_by_name.setdefault(canonicalize_name(name), []).extend(entries)
+    return files_by_name
+
+
+def extract_poetry_lock_hashes(
+    project_dir: Path, locked_dependencies: list[str]
+) -> dict[str, str] | None:
+    """Read ``poetry.lock`` next to ``pyproject.toml`` and return a hex
+    SHA-256 digest per PEP 503-canonicalized package name, for exactly the
+    entries of *locked_dependencies* (the already-resolved output of
+    :func:`pitloom.extract._poetry_lock.extract_poetry_lock_dependencies`
+    for the same *project_dir*).
+
+    Returns ``None`` when no ``poetry.lock`` is present or it can't be
+    parsed. A dependency with no ``sha256``-prefixed hash on any of its
+    file entries is simply omitted, not an error.
+    """
+    lock_path = project_dir / "poetry.lock"
+    data = load_lock_toml(lock_path)
+    if data is None:
+        return None
+    if not has_required_top_level_table(data, "metadata", "lock-version", str):
+        return None
+
+    packages = data.get("package", [])
+    if not isinstance(packages, list):
+        return None
+
+    index = index_packages_by_name_and_version(packages)
+    legacy_files_by_name = _legacy_metadata_files_by_canonical_name(data)
+
+    hashes: dict[str, str] = {}
+    for dep in locked_dependencies:
+        parsed = canonical_name_and_pinned_version(dep)
+        if parsed is None:
+            continue
+        canon_name, version = parsed
+        candidates: list[tuple[str | None, str]] = []
+        for pkg in index.get((canon_name, version_key(version)), []):
+            candidates.extend(sha256_file_entry_candidates(pkg.get("files")))
+        if not candidates:
+            candidates = [
+                c
+                for c in sha256_file_entry_candidates(
+                    legacy_files_by_name.get(canon_name)
+                )
+                if _filename_matches_version(c[0], version, canon_name=canon_name)
+            ]
+        digest = select_sha256_hash(candidates)
+        if digest is not None:
+            hashes[canon_name] = digest
+    return hashes

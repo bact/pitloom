@@ -15,19 +15,24 @@ from pathlib import Path
 import pytest
 from packaging.specifiers import SpecifierSet
 
+import pitloom.extract._lock_common as lock_common
 from pitloom.extract._lock_common import (
+    canonical_name_and_pinned_version,
     default_group_included,
     find_first_present_key,
     group_pin_triples_by_canonical_name,
     group_versions_by_canonical_name,
     has_required_top_level_table,
     index_packages_by_name,
+    index_packages_by_name_and_version,
     is_same_version,
     is_usable_version,
     load_lock_json,
     load_lock_toml,
+    sha256_file_entry_candidates,
     shape_validated_package,
     single_exact_pin,
+    version_key,
     warn_malformed_entry_not_table,
     warn_missing_name,
     warn_missing_version,
@@ -79,6 +84,59 @@ def test_load_lock_toml_invalid_utf8_returns_none_and_warns(
 
         assert result is None
         assert "Failed to parse" in caplog.text
+
+
+def test_load_lock_toml_second_read_of_same_file_is_cached() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.lock"
+        lock_path.write_text('key = "value"\n', encoding="utf-8")
+
+        first = load_lock_toml(lock_path)
+        second = load_lock_toml(lock_path)
+
+        assert first == {"key": "value"}
+        assert second is first  # the cached dict, not a freshly-parsed one
+
+
+def test_load_lock_toml_no_cache_key_skips_caching(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: when the file's identity can't be determined (e.g. a
+    stat() race), the parse must still succeed and simply not be cached,
+    not raise or return a stale value."""
+    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
+    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.lock"
+        lock_path.write_text('key = "value"\n', encoding="utf-8")
+
+        assert load_lock_toml(lock_path) == {"key": "value"}
+        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
+
+
+def test_load_lock_json_second_read_of_same_file_is_cached() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.json"
+        lock_path.write_text('{"key": "value"}', encoding="utf-8")
+
+        first = load_lock_json(lock_path)
+        second = load_lock_json(lock_path)
+
+        assert first == {"key": "value"}
+        assert second is first
+
+
+def test_load_lock_json_no_cache_key_skips_caching(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lock_common, "_lock_file_cache_key", lambda _path: None)
+    cache_size_before = len(lock_common._LOCK_FILE_CACHE)
+    with tempfile.TemporaryDirectory() as tmp:
+        lock_path = Path(tmp) / "some.json"
+        lock_path.write_text('{"key": "value"}', encoding="utf-8")
+
+        assert load_lock_json(lock_path) == {"key": "value"}
+        assert len(lock_common._LOCK_FILE_CACHE) == cache_size_before
 
 
 def test_load_lock_json_invalid_utf8_returns_none_and_warns(
@@ -134,6 +192,74 @@ def test_index_packages_by_name_ignores_entries_with_missing_or_bad_name() -> No
 
 def test_index_packages_by_name_empty_list_returns_empty_dict() -> None:
     assert not index_packages_by_name([])
+
+
+def test_index_packages_by_name_and_version_skips_malformed_entries() -> None:
+    index = index_packages_by_name_and_version(
+        [
+            "not-a-dict",
+            {"name": "onlyname"},
+            {"version": "1.0"},
+            {"name": "good", "version": "1.0"},
+        ]
+    )
+    assert list(index.keys()) == [("good", version_key("1.0"))]
+
+
+def test_index_packages_by_name_and_version_groups_by_name_and_version() -> None:
+    packages = [
+        {"name": "Requests", "version": "2.31.0", "marker": "a"},
+        {"name": "requests", "version": "2.31.0", "marker": "b"},
+        {"name": "requests", "version": "2.32.0"},
+    ]
+
+    index = index_packages_by_name_and_version(packages)
+
+    assert index[("requests", version_key("2.31.0"))] == [packages[0], packages[1]]
+    assert index[("requests", version_key("2.32.0"))] == [packages[2]]
+
+
+def test_index_packages_by_name_and_version_pep440_equivalence() -> None:
+    """PEP 440 equivalent versions (e.g. 1.0 vs 1.0.0 across branches)
+    must group into the same bucket."""
+    packages = [
+        {"name": "foo", "version": "1.0"},
+        {"name": "foo", "version": "1.0.0"},
+    ]
+    index = index_packages_by_name_and_version(packages)
+    assert len(index) == 1
+    assert index[("foo", version_key("1.0"))] == packages
+    assert index[("foo", version_key("1.0.0"))] == packages
+
+
+def test_version_key_parses_pep440_versions_as_equal() -> None:
+    assert version_key("1.0") == version_key("1.0.0")
+    assert version_key("1.0") != version_key("1.1")
+
+
+def test_version_key_falls_back_to_raw_string_for_non_pep440() -> None:
+    """A ``===``-pinned arbitrary-equality version (legal PEP 440, but not
+    itself parseable as a `Version`) must still produce a usable, stable
+    key -- the raw string itself -- rather than raising."""
+    assert version_key("2021.01.01-legacy") == "2021.01.01-legacy"
+    assert version_key("2021.01.01-legacy") != version_key("2021.01.02-legacy")
+
+
+def test_sha256_file_entry_candidates_skips_non_dict_and_non_sha256() -> None:
+    assert not sha256_file_entry_candidates("not-a-list")
+    assert sha256_file_entry_candidates(
+        [
+            "not-a-dict",
+            {"file": "pkg.whl", "hash": "md5:deadbeef"},
+            {"file": "pkg.tar.gz", "hash": "sha256:" + "b" * 64},
+        ]
+    ) == [("pkg.tar.gz", "b" * 64)]
+
+
+def test_sha256_file_entry_candidates_missing_filename_is_none() -> None:
+    assert sha256_file_entry_candidates([{"hash": "sha256:" + "c" * 64}]) == [
+        (None, "c" * 64)
+    ]
 
 
 def test_group_versions_by_canonical_name_groups_case_and_separator_variants() -> None:
@@ -355,6 +481,32 @@ def test_single_exact_pin_rejects_range() -> None:
 
 def test_single_exact_pin_rejects_multiple_specifiers() -> None:
     assert single_exact_pin(SpecifierSet(">=2.31.0,<3.0.0")) is None
+
+
+def test_canonical_name_and_pinned_version_exact_pin() -> None:
+    assert canonical_name_and_pinned_version("Requests==2.31.0") == (
+        "requests",
+        "2.31.0",
+    )
+
+
+def test_canonical_name_and_pinned_version_canonicalizes_name() -> None:
+    assert canonical_name_and_pinned_version("some_Package.Name==1.0") == (
+        "some-package-name",
+        "1.0",
+    )
+
+
+def test_canonical_name_and_pinned_version_unparseable_requirement() -> None:
+    """A string ``Requirement()`` itself can't parse (not merely a loose
+    specifier) returns ``None`` rather than raising."""
+    assert canonical_name_and_pinned_version("not a valid == requirement !!!") is None
+
+
+def test_canonical_name_and_pinned_version_not_single_exact_pin() -> None:
+    """Parses fine as a ``Requirement`` but isn't a single exact pin
+    (a range) -- also ``None``."""
+    assert canonical_name_and_pinned_version("requests>=2.0") is None
 
 
 def test_warn_non_registry_source_logs_expected_message(

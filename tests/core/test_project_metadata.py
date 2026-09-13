@@ -199,6 +199,37 @@ def test_merge_project_metadata_does_not_mutate_inputs() -> None:
     assert secondary.provenance == {"version": "Source: secondary"}
 
 
+def test_merge_project_metadata_hashes_bound_to_locked_dependencies() -> None:
+    """`locked_dependency_hashes` shares `locked_dependencies` provenance,
+    so an authoritative lock result with zero hashes is never polluted by
+    secondary's hashes."""
+    primary = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["foo==1.0"],
+        locked_dependency_hashes={},
+        provenance={
+            "locked_dependencies": "Source: poetry.lock | Method: resolved_lockfile"
+        },
+    )
+    secondary = ProjectMetadata(
+        name="pkg",
+        locked_dependencies=["bar==2.0"],
+        locked_dependency_hashes={"bar": "a" * 64},
+        provenance={
+            "locked_dependencies": "Source: uv.lock | Method: resolved_lockfile"
+        },
+    )
+    merged = merge_project_metadata(primary, secondary)
+    assert merged.locked_dependencies == ["foo==1.0"]
+    assert merged.locked_dependency_hashes == {}
+
+    # When primary has no locked_dependencies at all, both fall back together
+    unlocked_primary = ProjectMetadata(name="pkg")
+    merged_fallback = merge_project_metadata(unlocked_primary, secondary)
+    assert merged_fallback.locked_dependencies == ["bar==2.0"]
+    assert merged_fallback.locked_dependency_hashes == {"bar": "a" * 64}
+
+
 # ---------------------------------------------------------------------------
 # resolve_license_concluded (the shared G2 entry point every extractor calls)
 # ---------------------------------------------------------------------------

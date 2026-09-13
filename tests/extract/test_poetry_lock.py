@@ -458,6 +458,30 @@ def test_read_pyproject_populates_locked_dependencies() -> None:
     )
 
 
+def test_read_pyproject_populates_locked_dependency_hashes() -> None:
+    """Regression: `_try_read_poetry()` applies `poetry.lock`-resolved
+    dependencies directly, bypassing the `_locked_dependencies.py`
+    cascade entirely -- a hash-extraction call placed only in the
+    cascade would never run for this, the common poetry case. See
+    lock-hash-preservation.md."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "pyproject.toml").write_text(
+            '[tool.poetry]\nname = "pkg"\nversion = "1.0.0"\n', encoding="utf-8"
+        )
+        sha256 = "a" * 64
+        _write_lock(
+            tmp_path,
+            '[[package]]\nname = "requests"\nversion = "2.31.0"\ngroups = ["main"]\n'
+            f'files = [{{file = "requests-2.31.0-py3-none-any.whl", '
+            f'hash = "sha256:{sha256}"}}]\n',
+        )
+
+        metadata, _config = read_pyproject(tmp_path / "pyproject.toml")
+
+        assert metadata.locked_dependency_hashes == {"requests": sha256}
+
+
 def test_read_pyproject_pep621_project_with_minimal_poetry_still_reads_lock(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
