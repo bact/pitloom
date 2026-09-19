@@ -126,6 +126,12 @@ inputs:
       ("true"/"false"). No effect without allow-build.
     required: false
     default: "false"
+  build-timeout:
+    description: >-
+      Seconds or h/m/s duration, e.g. 900 or 1h30m. Empty uses Pitloom's
+      default of 20m. No effect without allow-build.
+    required: false
+    default: ""
   args:
     description: "Extra raw flags passed through to the loom command."
     required: false
@@ -225,6 +231,7 @@ runs:
         PL_USE_LOCKFILE: ${{ inputs.use-lockfile }}
         PL_ALLOW_BUILD: ${{ inputs.allow-build }}
         PL_NO_BUILD_ISOLATION: ${{ inputs.no-build-isolation }}
+        PL_BUILD_TIMEOUT: ${{ inputs.build-timeout }}
         PL_ARGS: ${{ inputs.args }}
       run: |
         set -euo pipefail
@@ -314,16 +321,40 @@ runs:
             loom_args+=("--no-use-lockfile")
           fi
         fi
-        # "--allow-build"/"--no-build-isolation" exist on both "loom
-        # project" and "loom embed-wheel" (both rescan a project
-        # directory via get_wheel_files()), but not "loom model" (no
-        # project-dir file discovery there).
+        # "--allow-build"/"--no-build-isolation"/"--build-timeout" exist
+        # on both "loom project" and "loom embed-wheel" (both rescan a
+        # project directory via get_wheel_files()), but not "loom model"
+        # (no project-dir file discovery there). The build-timeout input
+        # is passed through verbatim -- parse_build_timeout() in
+        # pitloom.core._models_wheel_types is the single duration parser;
+        # this script never validates or converts the value itself.
         if [ -z "${PL_MODEL}" ]; then
           if [ "${PL_ALLOW_BUILD}" = "true" ]; then
             loom_args+=("--allow-build")
           fi
           if [ "${PL_NO_BUILD_ISOLATION}" = "true" ]; then
             loom_args+=("--no-build-isolation")
+          fi
+          if [ -n "${PL_BUILD_TIMEOUT}" ]; then
+            loom_args+=("--build-timeout" "${PL_BUILD_TIMEOUT}")
+          fi
+        else
+          # Model mode has no project-dir file discovery, so these three
+          # inputs would silently do nothing -- warn once per
+          # explicitly-set one instead of dropping it quietly ("no
+          # silent deviations", see CLAUDE.md), matching how Pitloom's
+          # own BuildOptions warns for the same "given but has no
+          # effect" case on every other surface. Never passed to
+          # "loom model" itself. Duration parsing is still never done in
+          # shell here -- only a non-empty check, same as above.
+          if [ "${PL_ALLOW_BUILD}" = "true" ]; then
+            echo "::warning::allow-build has no effect in model mode (no project-directory file discovery there)"
+          fi
+          if [ "${PL_NO_BUILD_ISOLATION}" = "true" ]; then
+            echo "::warning::no-build-isolation has no effect in model mode (no project-directory file discovery there)"
+          fi
+          if [ -n "${PL_BUILD_TIMEOUT}" ]; then
+            echo "::warning::build-timeout has no effect in model mode (no project-directory file discovery there)"
           fi
         fi
         if [ -n "${PL_ARGS//[[:space:]]/}" ]; then

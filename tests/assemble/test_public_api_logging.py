@@ -24,9 +24,11 @@ from pathlib import Path
 import pytest
 
 from pitloom.assemble import (
+    BuildOptions,
     embed_sbom_in_wheel,
     embed_wheel_sbom,
     enrich_model,
+    generate,
     generate_env_sbom,
     generate_model_sbom,
     generate_project_sbom,
@@ -34,6 +36,28 @@ from pitloom.assemble import (
     merge_fragments,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter
+
+
+def test_generate_configures_logging_before_its_own_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``generate()`` logs its own "has no effect" warnings for a
+    non-project target before delegating, so it must configure logging
+    first -- otherwise those lines reach stderr without ``WARNING:``."""
+    events: list[str] = []
+    monkeypatch.setattr(
+        "pitloom.assemble.configure_logging", lambda: events.append("configure")
+    )
+    monkeypatch.setattr(
+        "pitloom.assemble.generate_env_sbom", lambda **_kwargs: events.append("env")
+    )
+    monkeypatch.setattr(
+        BuildOptions,
+        "warn_no_effect",
+        lambda _self, _subject, _reason: events.append("warn"),
+    )
+    generate("env", build_options=BuildOptions(allow=True))
+    assert events == ["configure", "warn", "env"]
 
 
 def test_generate_project_sbom_configures_logging(

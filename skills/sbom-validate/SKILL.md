@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-09-18
+# Last-Modified: 2026-09-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -141,7 +141,10 @@ unattended run is its own kind of unasked deviation.
 
 See the `sbom-generate` skill's "Embed an SBOM into a wheel" section for
 `embed-wheel --verify`/`--validate` (the combined flag form, run
-immediately after an embed in the same command).
+immediately after an embed in the same command). `embed-wheel` also
+accepts `--allow-build`; if the user asked for it, follow
+`sbom-generate`'s "Choosing `--build-timeout`" section before running
+the build.
 
 ## Report the result
 

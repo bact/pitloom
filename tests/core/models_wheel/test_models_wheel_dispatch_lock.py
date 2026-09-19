@@ -21,6 +21,7 @@ import pytest
 
 from pitloom.core._models_wheel_lock import _DiscoveryLock
 from pitloom.core._models_wheel_types import IncludedFile
+from pitloom.core.build_options import BuildOptions
 from pitloom.core.models import get_wheel_files
 
 from .test_models_wheel_dispatch import _make_backend_project
@@ -233,9 +234,9 @@ def test_get_wheel_files_build_and_read_does_not_block_or_get_blocked(
     writer_saw_build_and_read = threading.Event()
 
     def _slow_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> tuple[list[IncludedFile], Callable[[], None]]:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         build_and_read_entered.set()
         if writer_entered.wait(timeout=5):
             build_and_read_saw_writer.set()
@@ -258,7 +259,9 @@ def test_get_wheel_files_build_and_read_does_not_block_or_get_blocked(
 
     threads = [
         threading.Thread(
-            target=get_wheel_files, args=(uv_build_dir,), kwargs={"allow_build": True}
+            target=get_wheel_files,
+            args=(uv_build_dir,),
+            kwargs={"build_options": BuildOptions(allow=True)},
         ),
         threading.Thread(target=get_wheel_files, args=(setuptools_dir,)),
     ]

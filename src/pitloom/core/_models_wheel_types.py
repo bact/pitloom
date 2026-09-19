@@ -12,6 +12,7 @@ See also: :mod:`pitloom.core._models_wheel_dispatch` (dispatch facade),
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
@@ -196,3 +197,113 @@ class FileHeaderExtras(TypedDict):
     spdx_license_identifier: str | None
     content_type: str | None
     content_type_method: str | None
+
+
+DEFAULT_BUILD_TIMEOUT_SECONDS = 1200
+"""``--build-timeout`` default (20 minutes) when the caller gives none."""
+
+MAX_BUILD_TIMEOUT_SECONDS = 604_800
+"""``--build-timeout`` upper bound (7 days). There is no "0 = unlimited":
+an unbounded build is exactly the hang the timeout exists to prevent."""
+
+
+class BuildSettings(NamedTuple):
+    """``--allow-build`` options, bundled so they thread through
+    :mod:`pitloom.core._models_wheel_dispatch` as one value (``None`` there
+    means ``--allow-build`` is off)."""
+
+    isolated: bool
+    timeout: int
+
+
+# Out-of-range values of this magnitude are described, never formatted:
+# str() of an int beyond sys.get_int_max_str_digits() raises ValueError.
+_ECHO_LIMIT = 10**12
+
+
+def _out_of_range(shown: str) -> ValueError:
+    return ValueError(
+        f"build timeout must be 1-{MAX_BUILD_TIMEOUT_SECONDS} seconds, got {shown}"
+    )
+
+
+def validate_build_timeout(value: object) -> int:
+    """Return *value* if it is a valid build timeout in whole seconds.
+
+    Raises :class:`TypeError` for a non-``int`` (``bool`` included, even
+    though it subclasses ``int``) and :class:`ValueError` outside
+    ``1..MAX_BUILD_TIMEOUT_SECONDS``. Messages carry no ``Build:`` prefix:
+    argparse prefixes its own ``argument --build-timeout:``.
+    """
+    # bool subclasses int; True must not pass as a one-second timeout.
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(
+            f"build timeout must be an int number of seconds, "
+            f"got {type(value).__name__}"
+        )
+    if value > MAX_BUILD_TIMEOUT_SECONDS:
+        shown = (
+            str(value)
+            if value < _ECHO_LIMIT
+            else f"more than {MAX_BUILD_TIMEOUT_SECONDS}"
+        )
+        raise _out_of_range(shown)
+    if value < 1:
+        raise _out_of_range(str(value) if value > -_ECHO_LIMIT else "less than 1")
+    return value
+
+
+def resolve_build_timeout(value: int | None) -> int:
+    """Return :data:`DEFAULT_BUILD_TIMEOUT_SECONDS` for ``None``, else the
+    validated *value* (see :func:`validate_build_timeout`)."""
+    if value is None:
+        return DEFAULT_BUILD_TIMEOUT_SECONDS
+    return validate_build_timeout(value)
+
+
+# [0-9], not \d: \d also matches non-ASCII digits such as Arabic-Indic ones.
+_BARE_SECONDS_RE = re.compile(r"[0-9]+")
+_DURATION_RE = re.compile(r"(?:([0-9]+)h)?(?:([0-9]+)m)?(?:([0-9]+)s)?")
+_UNIT_SECONDS = (3600, 60, 1)
+_MAX_SIGNIFICANT_DIGITS = len(str(MAX_BUILD_TIMEOUT_SECONDS))
+
+
+def parse_build_timeout(text: str) -> int:
+    """Parse a CLI/GitHub Action duration string into validated seconds.
+
+    Accepted: bare ASCII digits (seconds, e.g. ``900``), or ``h``/``m``/``s``
+    units in that order, each at most once (``90m``, ``1h30m``,
+    ``1h30m45s``). Every unit-bearing value accepted here means the same
+    in Go's ``time.ParseDuration``. Components are not capped individually
+    (``1h90m`` is fine); only the total is range-checked
+    (see :func:`validate_build_timeout`).
+
+    Rejected with :class:`ValueError`: decimals, ``ms``/``d`` units,
+    upper-case units, signs, whitespace (never stripped), repeated or
+    out-of-order units, and non-ASCII digits.
+    """
+    shown = text if len(text) <= 40 else f"{text[:40]}..."
+    invalid = ValueError(
+        f"invalid duration {shown!r} (use seconds, or h/m/s units like 1h30m)"
+    )
+    # No strip(): surrounding whitespace is an error, not trimmed.
+    if _BARE_SECONDS_RE.fullmatch(text):
+        parts: tuple[str | None, ...] = (None, None, text)
+    else:
+        match = _DURATION_RE.fullmatch(text)
+        # The all-optional pattern also matches "", which is not a duration.
+        if match is None or not any(match.groups()):
+            raise invalid
+        parts = match.groups()
+    # int() refuses digit strings beyond sys.get_int_max_str_digits(), so
+    # drop leading zeros first; a component with more significant digits
+    # than the maximum is out of range whatever its unit.
+    digits = [None if part is None else part.lstrip("0") or "0" for part in parts]
+    if any(part and len(part) > _MAX_SIGNIFICANT_DIGITS for part in digits):
+        raise _out_of_range(f"more than {MAX_BUILD_TIMEOUT_SECONDS}")
+    seconds = sum(
+        int(part) * unit
+        for part, unit in zip(digits, _UNIT_SECONDS, strict=True)
+        if part is not None
+    )
+    return validate_build_timeout(seconds)

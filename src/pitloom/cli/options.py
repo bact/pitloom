@@ -16,7 +16,6 @@ the ~400-500 line soft limit -- re-exported below so every existing
 from __future__ import annotations
 
 import argparse
-import logging
 
 # Re-exports (mypy's explicit-reexport check under strict=true needs
 # either "import X as X" or __all__ membership for a name to count as
@@ -42,7 +41,8 @@ from pitloom.cli.options_resolve import (
     _ResolvedTools,
     _ResolvedValue,
 )
-from pitloom.core._models_wheel_types import BUILD_LOG_PREFIX
+from pitloom.core._models_wheel_types import parse_build_timeout
+from pitloom.core.build_options import BuildOptions
 
 __all__ = [
     "_load_pitloom_tool_section",
@@ -65,11 +65,10 @@ __all__ = [
     "add_use_lockfile_argument",
     "add_allow_build_argument",
     "add_no_build_isolation_argument",
-    "warn_if_no_build_isolation_without_allow_build",
+    "add_build_timeout_argument",
+    "build_options_from_args",
     "add_debug_argument",
 ]
-
-log = logging.getLogger(__name__)
 
 
 def add_offline_argument(parser: argparse.ArgumentParser, effect: str) -> None:
@@ -151,7 +150,7 @@ def add_allow_build_argument(parser: argparse.ArgumentParser) -> None:
 
 def add_no_build_isolation_argument(parser: argparse.ArgumentParser) -> None:
     """Add the shared ``--no-build-isolation`` flag. No effect without
-    ``--allow-build`` (each caller warns if passed without it)."""
+    ``--allow-build`` (the library warns if passed without it)."""
     parser.add_argument(
         "--no-build-isolation",
         action="store_true",
@@ -167,22 +166,75 @@ def add_no_build_isolation_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def warn_if_no_build_isolation_without_allow_build(
-    args: argparse.Namespace, subject: object
-) -> None:
-    """Check and, if needed, log the shared ``WARNING:`` for
-    ``--no-build-isolation`` passed without ``--allow-build``. Every
-    command offering both flags calls this instead of repeating the
-    ``if args.no_build_isolation and not args.allow_build:`` guard
-    itself, so the check and its wording stay identical everywhere
-    (mirrors :func:`warn_use_lockfile_no_effect` in
-    :mod:`pitloom.extract.project.reader`)."""
-    if args.no_build_isolation and not args.allow_build:
-        log.warning(
-            "%s%s: --no-build-isolation has no effect without --allow-build",
-            BUILD_LOG_PREFIX,
-            subject,
-        )
+def _build_timeout_arg(text: str) -> int:
+    """``type=`` callable for ``--build-timeout``: parse *text* via the
+    single shared duration parser
+    (:func:`~pitloom.core._models_wheel_types.parse_build_timeout`) and
+    convert its ``ValueError``/``TypeError`` into
+    ``argparse.ArgumentTypeError`` so argparse reports it the normal way
+    (``argument --build-timeout: ...``, exit code 2) instead of a raw
+    traceback."""
+    try:
+        return parse_build_timeout(text)
+    except (ValueError, TypeError) as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def add_build_timeout_argument(parser: argparse.ArgumentParser) -> None:
+    """Add the shared ``--build-timeout`` flag.
+
+    ``default=None`` (like ``--offline``/``--use-lockfile`` above) means
+    "not given" -- needed to tell an explicit value apart from Pitloom's
+    own default when warning about a stray flag without ``--allow-build``.
+    """
+    parser.add_argument(
+        "--build-timeout",
+        type=_build_timeout_arg,
+        default=None,
+        metavar="DURATION",
+        help=(
+            "With --allow-build, stop the build after DURATION -- "
+            "seconds (e.g. 900) or h/m/s units (e.g. 90m, 1h30m); "
+            "default 20m, max 7 days -- and fall back to static file "
+            "discovery with a WARNING:. No effect without --allow-build."
+        ),
+    )
+
+
+def build_options_from_args(
+    args: argparse.Namespace, subject: object | None = None
+) -> BuildOptions:
+    """Bundle ``--allow-build``/``--no-build-isolation``/``--build-timeout``
+    into the one value the library API takes. The library, not the CLI,
+    warns about a flag that has no effect, so every surface reports it
+    the same way (see :class:`~pitloom.core.build_options.BuildOptions`).
+
+    *subject* is optional: pass it only when the caller already knows,
+    with no I/O beyond what it already did to get *subject* itself, that
+    the target will reach file discovery (e.g. a project directory
+    already confirmed to exist). When given, the returned value is
+    already :meth:`~pitloom.core.build_options.BuildOptions.settle`\\
+    d -- a stray ``no_isolation``/``timeout`` is warned about and reset
+    right here, before the caller goes on to read any project metadata
+    or lock file, rather than only once the library gets around to it.
+    Leave it unset when the target kind isn't known yet. When it's
+    already known *not* to reach file discovery (an sdist archive, a
+    non-project target), don't pass it here -- ``settle()``'s "without
+    --allow-build" reason would misdescribe why the flag is ineffective;
+    instead call
+    :meth:`~pitloom.core.build_options.BuildOptions.settle_not_applicable`
+    on the returned value with that target's own reason (e.g.
+    :data:`~pitloom.core.build_options.SDIST_TARGET_REASON`), before
+    reading any project metadata or lock file for it -- see
+    ``cli/commands/project.py``/``cli/commands/generate.py`` for the
+    sdist case.
+    """
+    options = BuildOptions(
+        allow=args.allow_build,
+        no_isolation=args.no_build_isolation,
+        timeout=args.build_timeout,
+    )
+    return options if subject is None else options.settle(subject)
 
 
 def add_debug_argument(parser: argparse.ArgumentParser) -> None:

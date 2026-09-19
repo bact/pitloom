@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-18
+# Last-Modified: 2026-09-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -47,7 +47,9 @@ infer a plausible license from ambiguous wording, classify a dependency's
 purpose, or work out `trainedOn`/`testedOn` dataset relationships that no
 structured field encodes. Do this only **after** a base SBOM exists (use
 the `sbom-generate` skill first if it does not), and only when it adds
-real information -- do not fabricate detail for its own sake.
+real information -- do not fabricate detail for its own sake. If
+generating that base SBOM needs `--allow-build` and the user asked for
+it, follow `sbom-generate`'s "Choosing `--build-timeout`" section.
 
 **Limitation inherited from the base SBOM:** enrichment can only add
 evidence to elements the base SBOM already contains. If the project mixes

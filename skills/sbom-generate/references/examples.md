@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -77,6 +77,15 @@ uvx --from 'pitloom[huggingface_hub]' loom model mistralai/Mistral-7B-v0.1 \
 
 ```bash
 loom env -o env.spdx3.json
+```
+
+## Project SBOM with a real build, capped build time
+
+Only after the user has explicitly asked for `--allow-build` -- see
+`../SKILL.md`'s "Choosing `--build-timeout`":
+
+```bash
+loom project . --allow-build --build-timeout 8m -o sbom.spdx3.json
 ```
 
 ## Project SBOM, multiple creators

@@ -31,12 +31,15 @@ from pitloom.cli.commands.verify_wheel import _check_location, _check_name_versi
 from pitloom.cli.options import (
     _resolve_creation_metadata,
     add_allow_build_argument,
+    add_build_timeout_argument,
     add_no_build_isolation_argument,
     add_offline_argument,
-    warn_if_no_build_isolation_without_allow_build,
+    build_options_from_args,
 )
+from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
+from pitloom.embed import EmbedFileCache
 from pitloom.extract.project import read_project
 
 log = logging.getLogger(__name__)
@@ -222,14 +225,32 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         )
         return 1
 
-    warn_if_no_build_isolation_without_allow_build(
-        args, args.project_dir or "embed-wheel"
-    )
+    # Settle the build flags up front, so an ineffective flag's warning
+    # comes before any metadata warning; the batch's EmbedFileCache then
+    # has nothing left to warn about. --sbom and an explicit
+    # --project-dir are known from args alone, so they settle before
+    # _resolve_project_dir_and_config() reads any [tool.pitloom] config;
+    # an implicit cwd needs that read to tell whether it is a project.
+    build_options = build_options_from_args(args)
+    if args.sbom is not None:
+        build_options = build_options.settle_not_applicable(
+            args.sbom, EXTERNAL_SBOM_REASON
+        )
+    elif args.project_dir is not None:
+        build_options = build_options.settle(args.project_dir)
 
     resolved = _resolve_project_dir_and_config(args.project_dir)
     if resolved is None:
         return 1
     project_dir, pitloom_config = resolved
+    if project_dir is None:
+        build_options = build_options.settle_not_applicable(
+            Path.cwd(),
+            f"{NO_PROJECT_DIR_REASON} (no --project-dir, and the current "
+            "directory is not a project)",
+        )
+    else:
+        build_options = build_options.settle(project_dir)
 
     creation = _resolve_creation_metadata(args, pitloom_config)
     overrides = ConfigOverrides(
@@ -239,28 +260,32 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
         content_type_method=args.content_type_method,
         provenance=resolve_effective_provenance(pitloom_config, args),
         offline=args.offline,
-        allow_build=args.allow_build,
-        no_build_isolation=args.no_build_isolation,
+        build_options=build_options,
     )
-    batch = _EmbedBatchContext(
-        project_dir=project_dir,
-        pitloom_config=pitloom_config,
-        creation_metadata=creation.to_creation_metadata(),
-        overrides=overrides,
-    )
-
     all_ok = True
-    for wheel_path in unique_wheels:
-        output_path = args.output if len(unique_wheels) == 1 else None
-        embedded = _try_embed_one_wheel(wheel_path, output_path, batch, args)
-        if embedded is None:
-            all_ok = False
-            continue
-        embedded_wheel_path, arcname = embedded
-        if output_path is not None:
-            _print_sbom_output_path(output_path)
-        if not _run_post_embed_checks(args, embedded_wheel_path, arcname):
-            all_ok = False
+    # One file cache for the whole batch, cleaned up once on leaving the
+    # block, on every exit path: it resolves project_dir's file list (and
+    # runs any --allow-build real build) at most once, shared across every
+    # wheel -- see EmbedFileCache's own docstring.
+    with EmbedFileCache() as file_cache:
+        batch = _EmbedBatchContext(
+            project_dir=project_dir,
+            pitloom_config=pitloom_config,
+            creation_metadata=creation.to_creation_metadata(),
+            overrides=overrides,
+            file_cache=file_cache,
+        )
+        for wheel_path in unique_wheels:
+            output_path = args.output if len(unique_wheels) == 1 else None
+            embedded = _try_embed_one_wheel(wheel_path, output_path, batch, args)
+            if embedded is None:
+                all_ok = False
+                continue
+            embedded_wheel_path, arcname = embedded
+            if output_path is not None:
+                _print_sbom_output_path(output_path)
+            if not _run_post_embed_checks(args, embedded_wheel_path, arcname):
+                all_ok = False
     return 0 if all_ok else 1
 
 
@@ -268,12 +293,20 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
 class _EmbedBatchContext:
     """The per-run values every wheel in a batch embeds with -- resolved
     once in :func:`_run_embed_wheel_command`, not per-wheel, and bundled
-    here so :func:`_try_embed_one_wheel` stays under the arg-count limit."""
+    here so :func:`_try_embed_one_wheel` stays under the arg-count limit.
+
+    ``file_cache`` is a mutable :class:`~pitloom.embed.EmbedFileCache`,
+    not a value like the other fields: it memoizes ``project_dir``'s
+    file-discovery result across every wheel in the batch (see its own
+    docstring). ``_run_embed_wheel_command`` holds its ``with`` block
+    around the whole batch, not per wheel.
+    """
 
     project_dir: Path | None
     pitloom_config: PitloomConfig
     creation_metadata: CreationMetadata
     overrides: ConfigOverrides
+    file_cache: EmbedFileCache
 
 
 def _try_embed_one_wheel(
@@ -307,6 +340,7 @@ def _try_embed_one_wheel(
             registry=args.registry,
             overrides=batch.overrides,
             allow_mismatch=args.allow_mismatch,
+            file_cache=batch.file_cache,
         )
     except (ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -389,4 +423,5 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     add_offline_argument(embed_parser, " during SBOM generation.")
     add_allow_build_argument(embed_parser)
     add_no_build_isolation_argument(embed_parser)
+    add_build_timeout_argument(embed_parser)
     embed_parser.set_defaults(func=_run_embed_wheel_command)

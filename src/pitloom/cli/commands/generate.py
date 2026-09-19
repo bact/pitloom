@@ -26,10 +26,15 @@ from pitloom.cli.options import (
     _resolve_common_options,
     _resolve_project_generation_settings,
     add_allow_build_argument,
+    add_build_timeout_argument,
     add_no_build_isolation_argument,
     add_offline_argument,
     add_use_lockfile_argument,
-    warn_if_no_build_isolation_without_allow_build,
+    build_options_from_args,
+)
+from pitloom.core.build_options import (
+    NON_PROJECT_TARGET_REASON,
+    SDIST_TARGET_REASON,
 )
 
 
@@ -54,7 +59,6 @@ def _run_generate_command(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
-    warn_if_no_build_isolation_without_allow_build(args, args.target)
 
     target_path = Path(args.target) if args.target else None
     if (
@@ -62,10 +66,17 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         and target_path.is_dir()
         and target_resolves_to_project(args.target)
     ):
-        # A real project directory: resolve it once via the same shared
-        # helper 'loom project' uses, then pre-supply the result to
-        # generate_project_sbom() -- a single real read, instead of a
-        # config-only peek here followed by generate()'s own read.
+        # A real project directory: is_dir() above already confirms it's
+        # not an sdist archive, so settle a stray --no-build-isolation/
+        # --build-timeout (and warn about it) right now, before the
+        # metadata/lock-file read below -- same reasoning as 'loom
+        # project' (see cli/commands/project.py).
+        build_options = build_options_from_args(args, target_path)
+
+        # Resolve it once via the same shared helper 'loom project' uses,
+        # then pre-supply the result to generate_project_sbom() -- a
+        # single real read, instead of a config-only peek here followed
+        # by generate()'s own read.
         (
             project_metadata,
             pitloom_config,
@@ -90,8 +101,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
             extract_file_header=args.extract_file_header,
             content_type=args.content_type,
             content_type_method=args.content_type_method,
-            allow_build=args.allow_build,
-            no_build_isolation=args.no_build_isolation,
+            build_options=build_options,
         )
         _print_sbom_output_path(args.output)
         return 0
@@ -102,6 +112,25 @@ def _run_generate_command(args: argparse.Namespace) -> int:
     # metadata via read_sdist(), not this peek's sibling pyproject.toml),
     # so quieting the peek would silently drop its only WARNING: instead
     # of deferring it to a re-emission that never happens.
+    build_options = build_options_from_args(args)
+    if args.target is not None and not target_resolves_to_project(args.target):
+        # env / wheel / model file / HF target: settle with the same reason
+        # generate() uses, before _resolve_common_options()'s peek below, so
+        # the build-flag WARNING precedes any metadata WARNING the peek logs.
+        build_options = build_options.settle_not_applicable(
+            str(args.target).strip(), NON_PROJECT_TARGET_REASON
+        )
+    elif target_path is not None and target_path.is_file():
+        # sdist archive: settle with its own target-specific reason right
+        # now, before _resolve_common_options()'s peek below -- so the
+        # build-flag WARNING precedes any metadata WARNING that peek can
+        # produce. generate_project_sbom()'s own settle_not_applicable()
+        # call for the same target (reached via generate() below) then
+        # finds nothing left to warn about.
+        build_options = build_options.settle_not_applicable(
+            target_path, SDIST_TARGET_REASON
+        )
+
     pitloom_config, creation_metadata, pretty, describe_relationship = (
         _resolve_common_options(args, target_dir=target_path)
     )
@@ -120,8 +149,7 @@ def _run_generate_command(args: argparse.Namespace) -> int:
         extract_file_header=args.extract_file_header,
         content_type=args.content_type,
         content_type_method=args.content_type_method,
-        allow_build=args.allow_build,
-        no_build_isolation=args.no_build_isolation,
+        build_options=build_options,
     )
     _print_sbom_output_path(args.output)
     return 0
@@ -161,4 +189,5 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     add_allow_build_argument(gen_parser)
     add_no_build_isolation_argument(gen_parser)
+    add_build_timeout_argument(gen_parser)
     gen_parser.set_defaults(func=_run_generate_command)

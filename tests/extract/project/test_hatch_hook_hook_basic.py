@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -91,6 +93,22 @@ def test_hook_sbom_is_valid_json() -> None:
         assert "@graph" in data
 
         hook.finalize("standard", build_data, "")
+
+
+def test_hook_leaves_signal_handling_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The hook never builds (it *is* the build), so the termination guard
+    that get_wheel_files() enters must never install a signal handler
+    inside the host build frontend's process."""
+    spy = mock.Mock(wraps=signal.signal)
+    monkeypatch.setattr(signal, "signal", spy)
+    with tempfile.TemporaryDirectory() as tmp:
+        write_pyproject(Path(tmp))
+        hook = make_hook(tmp, {})
+        build_data: dict[str, Any] = {}
+        hook.initialize("standard", build_data)
+        assert hook._sbom_staging_path is not None
+        hook.finalize("standard", build_data, "")
+    spy.assert_not_called()
 
 
 def test_hook_custom_basename_stored() -> None:

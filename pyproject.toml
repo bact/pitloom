@@ -418,6 +418,10 @@ select = [
 [tool.ruff.lint.isort]
 known-first-party = ["pitloom"]
 
+[tool.ruff.lint.flake8-bugbear]
+# Frozen dataclass: safe as a shared default argument (B008).
+extend-immutable-calls = ["pitloom.core.build_options.BuildOptions"]
+
 [tool.ruff.lint.mccabe]
 # Ratchet ceiling lowered to 14. AGENTS.md target is 10.
 max-complexity = 14

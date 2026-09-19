@@ -256,6 +256,7 @@ jobs:
           output: "uv-build-allow-build-sbom.spdx3.json"
           pretty: "true"
           allow-build: "true"
+          build-timeout: "900"
           install: "false"
           upload-artifact: "false"
 

@@ -16,7 +16,9 @@ dispatch (a registered backend's static module, the generic
 fallback) and :data:`~pitloom.core._models_wheel_lock._DISCOVERY_LOCK`;
 :mod:`pitloom.core.models` for SPDX model identifiers and Merkle
 calculation; :mod:`pitloom.core._models_wheel_types` for the shared
-``IncludedFile``/``FileHeaderExtras``/``FileScanConfig`` types.
+``IncludedFile``/``FileHeaderExtras``/``FileScanConfig`` types;
+:mod:`pitloom.core.build_signals` for the termination guard that keeps a
+build-and-read result from leaking.
 """
 
 from __future__ import annotations
@@ -36,6 +38,8 @@ from pitloom.core._models_wheel_types import (
     FileScanConfig,
     IncludedFile,
 )
+from pitloom.core.build_options import BuildOptions
+from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.project import ProjectFile
 
@@ -152,8 +156,7 @@ def get_wheel_files(
     content_type_overrides: tuple[ContentTypeOverride, ...] = (),
     assume_backend: str | None = None,
     skip_merkle_root: bool = False,
-    allow_build: bool = False,
-    no_build_isolation: bool = False,
+    build_options: BuildOptions = BuildOptions(),
 ) -> tuple[str | None, list[ProjectFile], Callable[[], None]]:
     """Get all files included in the wheel and compute their SHA-256 Merkle root.
 
@@ -161,7 +164,7 @@ def get_wheel_files(
     called once the caller is done reading any returned
     :class:`~pitloom.core.project.ProjectFile`'s bytes from disk -- a
     no-op for every static backend, but for a build-and-read-sourced
-    result (see *allow_build* below) it removes the temporary extraction
+    result (see *build_options* below) it removes the temporary extraction
     directory those files physically live in. Call it only after every
     downstream step that re-reads a file's bytes from
     ``physical_path`` finishes (e.g. AI-model scanning/enrichment) --
@@ -169,6 +172,16 @@ def get_wheel_files(
     found" failures for build-and-read-sourced files specifically
     (their ``physical_path`` doesn't resolve under *project_dir* at
     all, unlike every other backend's).
+
+    Until this returns, the extraction directory is removed on every exit
+    path: a failure (the ``(None, [], ...)`` result carries a no-op), an
+    error computing the Merkle root (propagated), ``KeyboardInterrupt``,
+    or SIGTERM/SIGHUP/SIGBREAK (see
+    :class:`~pitloom.core.build_signals.TerminationGuard`). After that it
+    is the caller's: run ``cleanup`` in a ``finally``. A signal then
+    ends the process without it under ``SIG_DFL``, unless the caller
+    holds a ``TerminationGuard`` around both this call and its use of
+    the files, as Pitloom's own entry points do.
 
     Discovers the file set via the project's build backend (see
     :func:`_discover_included_files`), respecting that backend's own
@@ -196,17 +209,24 @@ def get_wheel_files(
     access failure still degrades the whole call to ``(None, [])``,
     same as when hashing is on.
 
-    *allow_build* opts into the build-and-read mechanism as a fallback
-    when static discovery has no module for the backend or that
-    backend's own static discovery fails -- this executes third-party
-    build-time code from *project_dir* (subprocess; may install
-    build-requires from the network unless *no_build_isolation*), the
-    first mechanism in Pitloom to do so. Off by default; deliberately
-    has no ``[tool.pitloom]`` config-file equivalent (unlike every other
-    keyword here) -- the target project's own config must never be able
-    to silently opt itself into code execution for whoever scans it.
+    *build_options* (``allow`` on) opts into the build-and-read
+    mechanism as a fallback when static discovery has no module for the
+    backend or that backend's own static discovery fails -- this
+    executes third-party build-time code from *project_dir* (subprocess;
+    may install build-requires from the network unless ``no_isolation``),
+    bounded by ``timeout``. Off by default; deliberately has no
+    ``[tool.pitloom]`` config-file equivalent (unlike every other keyword
+    here) -- the target project's own config must never be able to
+    silently opt itself into code execution for whoever scans it. A
+    ``no_isolation``/``timeout`` given without ``allow`` gets one
+    ``WARNING:`` per flag from :meth:`~pitloom.core.build_options.BuildOptions.settle`,
+    called here -- a no-op for a caller that already settled its build
+    options earlier (e.g. a CLI command handler), so this is only ever
+    the first (and only) warning for a direct library caller of this
+    function.
     """
     project_dir = project_dir.resolve()
+    build_options = build_options.settle(project_dir)
     parse_header = None
     if scan_file_headers:
         # pylint: disable-next=import-outside-toplevel
@@ -233,21 +253,55 @@ def get_wheel_files(
         content_type_method=content_type_method,
     )
 
-    try:
-        included_files, cleanup_discovery = _discover_included_files(
-            project_dir,
-            assume_backend=assume_backend,
-            allow_build=allow_build,
-            no_build_isolation=no_build_isolation,
-        )
-    # pylint: disable=broad-exception-caught
-    except Exception:
-        return _discovery_failure_result()
+    # Owns signal handling until this returns, unless the caller entered
+    # its own guard first (see pitloom.core.build_signals).
+    with TerminationGuard():
+        try:
+            included_files, cleanup_discovery = _discover_included_files(
+                project_dir,
+                assume_backend=assume_backend,
+                build=build_options.settings(),
+            )
+        # pylint: disable-next=broad-exception-caught
+        except Exception:
+            return _discovery_failure_result()
 
+        scanned: tuple[str | None, list[ProjectFile]] | None = None
+        try:
+            scanned = _scan_included_files(
+                included_files,
+                project_dir,
+                need_bytes=(
+                    scan_file_headers or detect_content_type or not skip_merkle_root
+                ),
+                skip_merkle_root=skip_merkle_root,
+                scan_config=scan_config,
+            )
+        finally:
+            # Not handed over -- no readable file, an error, an interrupt
+            # (KeyboardInterrupt included) -- so the caller never gets it.
+            if scanned is None:
+                cleanup_discovery()
+        if scanned is None:
+            return _discovery_failure_result()
+        merkle_root, project_files = scanned
+        return merkle_root, project_files, cleanup_discovery
+
+
+def _scan_included_files(
+    included_files: list[IncludedFile],
+    project_dir: Path,
+    *,
+    need_bytes: bool,
+    skip_merkle_root: bool,
+    scan_config: FileScanConfig,
+) -> tuple[str | None, list[ProjectFile]] | None:
+    """Hash and scan *included_files*: ``(merkle_root, project_files)``,
+    or ``None`` when a file fails to read or none of them is a regular
+    file. See :func:`get_wheel_files` for *need_bytes*/*skip_merkle_root*."""
+    project_files: list[ProjectFile] = []
+    file_entries: list[tuple[str, bytes]] = []
     try:
-        project_files: list[ProjectFile] = []
-        file_entries: list[tuple[str, bytes]] = []
-        need_bytes = scan_file_headers or detect_content_type or not skip_merkle_root
         for included_file in included_files:
             source = Path(included_file.path)
             if not source.is_file():
@@ -263,18 +317,13 @@ def get_wheel_files(
             project_files.append(project_file)
             if digest_bytes is not None:
                 file_entries.append((project_file.distribution_path, digest_bytes))
-    # pylint: disable=broad-exception-caught
-    except Exception:
-        # A genuine per-file read failure never leaves a build-and-read
-        # temp directory behind: the caller never receives this
-        # cleanup_discovery, since (None, [], _noop_cleanup) carries a
-        # no-op instead -- so it must run here, immediately.
-        cleanup_discovery()
-        return _discovery_failure_result()
-
+    # pylint: disable-next=broad-exception-caught
+    except Exception as exc:
+        # A genuine per-file read failure degrades to "no files".
+        log.debug("file scan failed for %s: %s", project_dir, exc)
+        return None
     if not project_files:
-        cleanup_discovery()
-        return _discovery_failure_result()
+        return None
 
     # Discovery order isn't guaranteed stable across runs/filesystems
     # (e.g. setuptools' find_all_modules() uses glob.glob() with no
@@ -283,11 +332,10 @@ def get_wheel_files(
     # across builds of the same, unchanged project.
     project_files.sort(key=lambda project_file: project_file.distribution_path)
     if skip_merkle_root:
-        return None, project_files, cleanup_discovery
+        return None, project_files
 
     file_entries.sort(key=operator.itemgetter(0))
     # pylint: disable-next=import-outside-toplevel,cyclic-import
     from pitloom.core.models import _build_merkle_tree
 
-    merkle_root = _build_merkle_tree([digest for _, digest in file_entries])
-    return merkle_root, project_files, cleanup_discovery
+    return _build_merkle_tree([digest for _, digest in file_entries]), project_files

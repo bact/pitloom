@@ -24,12 +24,14 @@ from pitloom.cli.options import (
     _resolve_project_generation_settings,
     _resolve_project_paths,
     add_allow_build_argument,
+    add_build_timeout_argument,
     add_no_build_isolation_argument,
     add_offline_argument,
     add_use_lockfile_argument,
-    warn_if_no_build_isolation_without_allow_build,
+    build_options_from_args,
 )
 from pitloom.cli.verbose import _print_verbose
+from pitloom.core.build_options import SDIST_TARGET_REASON
 
 
 @cli_error_handler("SBOM generation failed")
@@ -38,7 +40,25 @@ def _run_project_command(args: argparse.Namespace) -> int:
     project_dir, config_path = _resolve_project_paths(args)
     if project_dir is None:
         return 1
-    warn_if_no_build_isolation_without_allow_build(args, project_dir)
+
+    # Settle a stray --no-build-isolation/--build-timeout (given without
+    # --allow-build) right now, before the metadata/lock-file read below,
+    # for a real project directory -- not for an sdist archive target
+    # (project_dir.is_file()), whose own "without --allow-build" wording
+    # would misdescribe why the flags are ineffective there.
+    build_options = build_options_from_args(
+        args, None if project_dir.is_file() else project_dir
+    )
+    if project_dir.is_file():
+        # sdist archive target: warn about any given build flag -- with
+        # its own target-specific reason, not "without --allow-build" --
+        # and reset to defaults right now, before the metadata/lock-file
+        # read below, so this is the first thing the run logs.
+        # generate_project_sbom()'s own settle_not_applicable() call for
+        # the same target then finds nothing left to warn about.
+        build_options = build_options.settle_not_applicable(
+            project_dir, SDIST_TARGET_REASON
+        )
 
     (
         project_metadata,
@@ -77,8 +97,7 @@ def _run_project_command(args: argparse.Namespace) -> int:
         extract_file_header=args.extract_file_header,
         content_type=args.content_type,
         content_type_method=args.content_type_method,
-        allow_build=args.allow_build,
-        no_build_isolation=args.no_build_isolation,
+        build_options=build_options,
     )
     _print_sbom_output_path(output_path)
     return 0
@@ -112,4 +131,5 @@ def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
     )
     add_allow_build_argument(proj_parser)
     add_no_build_isolation_argument(proj_parser)
+    add_build_timeout_argument(proj_parser)
     proj_parser.set_defaults(func=_run_project_command)

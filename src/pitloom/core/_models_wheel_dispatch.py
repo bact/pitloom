@@ -30,6 +30,7 @@ from pitloom.core._models_wheel_lock import _DISCOVERY_LOCK
 from pitloom.core._models_wheel_types import (
     BUILD_LOG_PREFIX,
     BackendDiscoverer,
+    BuildSettings,
     IncludedFile,
     has_resolvable_pyproject_config,
     has_uv_build_backend_overrides,
@@ -164,7 +165,7 @@ def _try_build_and_read(
     backend: str,
     project_dir: Path,
     *,
-    no_build_isolation: bool,
+    build: BuildSettings,
     reason: str,
 ) -> tuple[list[IncludedFile], Callable[[], None]] | None:
     """Shared entry point for both ``--allow-build`` call sites in
@@ -173,9 +174,11 @@ def _try_build_and_read(
     generic, backend-agnostic
     :func:`~pitloom.core._models_wheel_build_and_read.build_and_read_wheel`.
 
-    Never invoked unless ``allow_build=True`` at the caller -- enforced
-    by the caller, not here, so this function has no ``allow_build``
-    parameter of its own to accidentally forget to check.
+    Never invoked unless *build* is not ``None`` at the caller (i.e.
+    ``--allow-build`` was given) -- enforced by the caller, not here, so
+    this function takes a required
+    :class:`~pitloom.core._models_wheel_types.BuildSettings` instead of
+    an optional one to accidentally forget to check.
     """
     # pylint: disable-next=import-outside-toplevel
     from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
@@ -183,16 +186,19 @@ def _try_build_and_read(
     log.warning(
         "%s--allow-build is invoking a real PEP 517 build "
         "for %s (backend=%r, %s) to discover its file list -- this "
-        "executes third-party build-time code%s",
+        "executes third-party build-time code%s, timeout %ds",
         BUILD_LOG_PREFIX,
         project_dir,
         backend,
         reason,
         ", without build isolation (--no-build-isolation)"
-        if no_build_isolation
+        if not build.isolated
         else " in an isolated build environment",
+        build.timeout,
     )
-    return build_and_read_wheel(project_dir, isolated=not no_build_isolation)
+    return build_and_read_wheel(
+        project_dir, isolated=build.isolated, timeout=build.timeout
+    )
 
 
 def _discover_with_no_static_module(
@@ -200,23 +206,22 @@ def _discover_with_no_static_module(
     project_dir: Path,
     pyproject_data: dict[str, object] | None,
     *,
-    allow_build: bool,
-    no_build_isolation: bool,
+    build: BuildSettings | None,
 ) -> tuple[list[IncludedFile], Callable[[], None]] | None:
     """No static module for this backend at all -- uv_build today, any
     future/unrecognized backend, or a Track B backend (maturin,
     scikit-build-core, meson-python) once its own toolchain happens to
     be available. No backend-specific code needed for any of these to
-    start working the moment ``allow_build=True``.
+    start working the moment ``build`` is given (``--allow-build``).
 
     Returns a result to return immediately, or ``None`` to fall through
     to the Hatchling heuristic (the "not backend-aware" ``WARNING:`` is
     logged here either way before falling through)."""
-    if allow_build:
+    if build is not None:
         build_result = _try_build_and_read(
             backend,
             project_dir,
-            no_build_isolation=no_build_isolation,
+            build=build,
             reason="no static discovery module registered",
         )
         if build_result is not None:
@@ -224,8 +229,10 @@ def _discover_with_no_static_module(
         # _try_build_and_read/build_and_read_wheel() already logged its
         # own specific failure WARNING:; fall through to the generic
         # "not backend-aware" warning.
-    build_and_read_failed = "" if not allow_build else " (build-and-read failed)"
-    hint = _unhandled_backend_hint(backend, pyproject_data, allow_build=allow_build)
+    build_and_read_failed = "" if build is None else " (build-and-read failed)"
+    hint = _unhandled_backend_hint(
+        backend, pyproject_data, allow_build=build is not None
+    )
     if not _has_project_table(pyproject_data):
         # Same guard _discover_with_registered_backend applies (via
         # _skip_hatchling_fallback) when its own discoverer gives up:
@@ -262,13 +269,12 @@ def _discover_with_registered_backend(
     project_dir: Path,
     pyproject_data: dict[str, object] | None,
     *,
-    allow_build: bool,
-    no_build_isolation: bool,
+    build: BuildSettings | None,
 ) -> tuple[list[IncludedFile], Callable[[], None]] | None:
     """*backend* has its own static discovery module -- try that first,
-    then (with ``allow_build``) a real build as a robustness fallback
-    for when the static discoverer gives up, before finally deferring
-    to the Hatchling heuristic.
+    then (with *build* given, i.e. ``--allow-build``) a real build as a
+    robustness fallback for when the static discoverer gives up, before
+    finally deferring to the Hatchling heuristic.
 
     Returns a result to return immediately, or ``None`` to fall through
     to the Hatchling heuristic."""
@@ -296,11 +302,11 @@ def _discover_with_registered_backend(
     # discoverer already succeeded above (that returns immediately) -- a
     # real build must never run when the fast, safe static rescan
     # already worked.
-    if allow_build:
+    if build is not None:
         build_result = _try_build_and_read(
             backend,
             project_dir,
-            no_build_isolation=no_build_isolation,
+            build=build,
             reason="its own static discovery failed",
         )
         if build_result is not None:
@@ -314,8 +320,7 @@ def _discover_included_files(
     project_dir: Path,
     *,
     assume_backend: str | None = None,
-    allow_build: bool = False,
-    no_build_isolation: bool = False,
+    build: BuildSettings | None = None,
 ) -> tuple[list[IncludedFile], Callable[[], None]]:
     """Resolve the wheel's file list via the project's build backend.
 
@@ -323,8 +328,8 @@ def _discover_included_files(
     discovery module (or whose static config can't be resolved) falls
     back to the Hatchling-based heuristic, with a ``WARNING:`` since
     the result may not accurately reflect that backend's actual
-    inclusion rules -- unless *allow_build* opts into a real PEP 517
-    build instead (see
+    inclusion rules -- unless *build* (not ``None`` ⇔ ``--allow-build``)
+    opts into a real PEP 517 build instead (see
     :mod:`pitloom.core._models_wheel_build_and_read`), which is tried
     first in both of those cases (no dedicated module at all, or a
     dedicated module whose own static discovery failed) before falling
@@ -385,8 +390,7 @@ def _discover_included_files(
                 backend,
                 project_dir,
                 pyproject_data,
-                allow_build=allow_build,
-                no_build_isolation=no_build_isolation,
+                build=build,
             )
             if registered is None
             else _discover_with_registered_backend(
@@ -394,8 +398,7 @@ def _discover_included_files(
                 registered,
                 project_dir,
                 pyproject_data,
-                allow_build=allow_build,
-                no_build_isolation=no_build_isolation,
+                build=build,
             )
         )
         if result is not None:

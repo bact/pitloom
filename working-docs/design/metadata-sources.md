@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-07-09
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -166,6 +166,18 @@ In practice pitloom should use the `build` library's
 `ProjectBuilder.prepare_metadata_for_build_wheel()` rather than invoking the
 backend directly, to get correct environment isolation and wheel directory
 handling.
+
+**Note (2026-09-19):** this proposal is still unimplemented (this document
+predates it), but a sibling mechanism that *did* ship -- `--allow-build`'s
+file-discovery build (`_models_wheel_build_and_read.py`) -- deliberately
+does **not** call in-process `ProjectBuilder`/`DefaultIsolatedEnv` the way
+sketched above: neither has a timeout, so a hung build (network fetch,
+stdin-blocking backend) would hang the whole `loom` invocation with no
+escape but Ctrl-C. It instead shells out to `python -m build` as a real
+subprocess tree it can kill on a `--build-timeout` deadline. See
+[allow-build-timeout.md](../implementation/allow-build-timeout.md) for why
+and the traps involved -- any future implementation of the sketch above
+should use the same subprocess approach, not in-process `ProjectBuilder`.
 
 ### Tradeoffs
 

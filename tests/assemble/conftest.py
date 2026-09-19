@@ -25,8 +25,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import os
+import tarfile
 import zipfile
 from collections.abc import Iterator
 from datetime import datetime, timezone
@@ -289,3 +291,19 @@ def _make_dummy_wheel(
             zf.writestr(zinfo, payload)
 
     return wheel_path
+
+
+def _make_sdist(tmp_path: Path) -> Path:
+    """Create a minimal ``demo-1.0.0.tar.gz`` sdist with PKG-INFO and
+    pyproject.toml."""
+    sdist_path = tmp_path / "demo-1.0.0.tar.gz"
+    with tarfile.open(sdist_path, "w:gz") as tf:
+        pkg_info = b"Metadata-Version: 2.1\nName: demo\nVersion: 1.0.0\n"
+        ti = tarfile.TarInfo(name="demo-1.0.0/PKG-INFO")
+        ti.size = len(pkg_info)
+        tf.addfile(ti, io.BytesIO(pkg_info))
+        pyproject = b'[project]\nname = "demo"\nversion = "1.0.0"\n'
+        ti2 = tarfile.TarInfo(name="demo-1.0.0/pyproject.toml")
+        ti2.size = len(pyproject)
+        tf.addfile(ti2, io.BytesIO(pyproject))
+    return sdist_path

@@ -7,6 +7,7 @@
 
 from pitloom.__about__ import __version__
 from pitloom.assemble import (
+    BuildOptions,
     enrich_model,
     generate,
     generate_env_sbom,
@@ -16,6 +17,7 @@ from pitloom.assemble import (
 )
 
 __all__ = [
+    "BuildOptions",
     "__version__",
     "enrich_model",
     "generate",

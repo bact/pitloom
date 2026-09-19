@@ -119,7 +119,11 @@ def _run_loom_project(
     ]
     if allow_build:
         cmd.append("--allow-build")
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600, check=False)
+    # Outer timeout must exceed Pitloom's own --build-timeout default
+    # (1200s) so a slow-but-legitimate build isn't killed here first.
+    proc = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=1500, check=False
+    )
     return proc.returncode, proc.stderr
 
 

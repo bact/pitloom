@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-18
+# Last-Modified: 2026-09-19
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -33,6 +33,11 @@ description: >-
   wheel", "create SBOM in the wheel", "create PEP 770 SBOM", "PEP 770
   wheel embedding", and similar phrasings naming an SBOM together with a
   wheel/PEP 770 -- see "Embed an SBOM into a wheel (PEP 770)" below.
+  Also triggers on choosing or discussing how long an `--allow-build`
+  build may run -- "generate the SBOM with a real build", "use
+  --allow-build", "limit the build to 30 minutes", "how long should the
+  build timeout be", "the build is taking too long" -- see "Choosing
+  `--build-timeout`" below.
 license: Apache-2.0
 argument-hint: "[target]"
 ---
@@ -252,6 +257,10 @@ presence-only ask).
 - `--content-type-method {auto,magika,extension}` -- which detector
   `--content-type` uses; defaults to `auto` (try `magika`, fall back to
   the extension guess). Only needed to force a specific detector.
+- `--build-timeout DURATION` -- with `--allow-build`, stop the build
+  after DURATION (seconds, e.g. `900`, or `h`/`m`/`s` units, e.g. `15m`,
+  `1h30m`); default 20m, max 7 days. No effect without `--allow-build`.
+  See "Choosing `--build-timeout`" below.
 
 ## Combine with enrichment
 
@@ -327,6 +336,32 @@ language -- don't let a real warning or an `INFO:` line saying
 generation was skipped pass by unmentioned just because the command
 exited 0 and (maybe) produced a file.
 
+A `--allow-build` run that hits its `--build-timeout` prints `WARNING:
+Build: build-and-read for <dir> timed out after <N>s (--build-timeout)
+-- build process tree terminated` (or `-- could not confirm the build
+process tree terminated`, when the kill wasn't confirmed -- also warn
+the user a build process may still be running), then continues: exit 0,
+an SBOM is still written, but its file list came from the static
+fallback, not the real build. Tell the user and offer/perform a re-run
+with a larger `--build-timeout` -- see "Choosing `--build-timeout`" below.
+
+A `--allow-build` run interrupted during the build kills the build and
+removes its temp dirs first, then stops with no SBOM written. SIGTERM
+or SIGHUP (CI job cancellation, `timeout(1)`, a closed terminal; also
+Ctrl-Break on Windows) prints `WARNING: Build: received SIGTERM during
+the build -- exiting after cleanup` (`after the build` once the build
+has finished; the signal name varies) and
+ends killed by that signal (exit status 143 for SIGTERM, 129 for
+SIGHUP). Ctrl-C (SIGINT) prints no such line: a Python
+`KeyboardInterrupt` traceback instead, exit status 130. Either way,
+tell the user the run was interrupted, not a Pitloom failure, and offer
+to re-run.
+
+After a successful `--allow-build` build, `INFO: Build: killed processes
+the build left running` just reports cleanup; `WARNING: Build: could not
+confirm the processes the build left running ... terminated` means one
+may still run -- tell the user.
+
 ## Known limitations -- say so, don't paper over it
 
 Pitloom's dependency/supplier/license extraction is Python-packaging-native:
@@ -383,14 +418,46 @@ back a JSON file that looks complete but isn't:
   only) closes this gap by actually invoking the project's own PEP 517
   build backend to discover the real file list -- but it executes
   third-party build-time code, so **never pass `--allow-build` (or
-  `allow_build=True` via the library API) on the user's behalf unless
+  `BuildOptions(allow=True)` via the library API) on the user's behalf unless
   they have explicitly asked for it in this conversation.** Mention it
   as an available option when an unsupported backend comes up; don't
   decide to use it yourself.
 
+### Choosing `--build-timeout`
+
+This applies only once the user has already asked for `--allow-build`
+this conversation -- picking a `--build-timeout` value is not itself a
+security decision, so you may choose one without a fresh ask. The hard
+rule above still stands: never add `--allow-build` yourself just to be
+able to use this flag.
+
+Full method (estimating build time from read-only signals, your own
+harness's timeout limits, the interactive question flow, and the
+non-interactive fallback) is in
+`references/build-timeout.md` -- read it before running any
+`--allow-build` command. In short:
+
+- **In an agent session, always pass an explicit `--build-timeout`.**
+  Pitloom's own default (20m) is longer than many harness call limits
+  (e.g. a 2-10 min Bash tool call); if the harness stops `loom` first,
+  no SBOM is written at all, and a harness that SIGKILLs it orphans the
+  build process tree.
+- Estimate the likely build time from read-only signals (build backend,
+  native-code presence, project size, network dependency) -- never run
+  the build or any project code just to measure it.
+- Interactive: state the estimate and your own limit, propose a value
+  that fits, and ask one question before running. Non-interactive
+  (CI/batch): pick a value yourself, state why, and don't block.
+- On timeout, the SBOM is still written from the static fallback --
+  report the `WARNING:` and offer/perform a re-run with a larger value
+  rather than silently accepting a possibly-inaccurate file list.
+
 ## See also
 
 - `references/examples.md` -- copy-paste recipes for every target type.
+- `references/build-timeout.md` -- estimating and choosing a
+  `--build-timeout` value for `--allow-build`; see "Choosing
+  `--build-timeout`" above.
 - The sibling `sbom-enrich` skill -- the agentic, prose-reading enrichment
   pass; see "Combine with enrichment" above for when a request calls for
   it, and its "Complete a standard's minimum elements" section for

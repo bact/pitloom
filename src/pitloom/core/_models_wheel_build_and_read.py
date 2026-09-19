@@ -12,9 +12,16 @@ module of its own (e.g. ``uv_build``, a thin PEP 517 shim with no
 in-process introspection API), or as a fallback when a backend that
 *does* have one fails to resolve on a given project. This mechanism
 never needs to know a backend's name -- it just runs the project's
-declared PEP 517 hooks via :mod:`build`, whatever they are -- see
+declared PEP 517 hooks via ``python -m build``, whatever they are -- see
 :mod:`pitloom.core._models_wheel_dispatch`'s ``_try_build_and_read``, the
 sole caller.
+
+The build itself runs as a child *process tree* (see
+:mod:`pitloom.core._models_wheel_build_subprocess`), not in-process --
+a thread can't be killed, and PyPA ``build``'s own hooks don't cover
+everything a build backend can do (e.g. spawn its own subprocesses),
+so a hung or misbehaving build can only be bounded and terminated by
+running it out-of-process with a real ``--build-timeout``.
 
 Gated everywhere it's called from behind ``--allow-build``: this is the
 first mechanism in Pitloom that executes third-party build-time code.
@@ -23,65 +30,35 @@ AST-only version scan, PDM's ``WheelBuilder``/``Context``-not-``.build()``
 avoidance).
 
 See also: ``working-docs/design/non-hatchling-file-discovery.md``
-(Track A/B split, "build-and-read" as roadmap item #4).
+(Track A/B split, "build-and-read" as roadmap item #4) and
+``working-docs/implementation/allow-build-timeout.md`` (subprocess
+design, traps, rejected paths).
 """
 
 from __future__ import annotations
 
+import functools
 import logging
+import os
 import shutil
 import tempfile
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
+from pitloom.core._models_wheel_build_subprocess import (
+    BuildTimeoutError,
+    run_build_subprocess,
+)
 from pitloom.core._models_wheel_types import (
     BUILD_LOG_PREFIX,
     IncludedFile,
     is_dist_info_path,
     to_posix_distribution_path,
 )
+from pitloom.core.build_signals import TerminationGuard
 
 log = logging.getLogger(__name__)
-
-
-def _run_pep517_build_wheel(
-    project_dir: Path, output_dir: Path, *, isolated: bool
-) -> Path:
-    """Build a real wheel for *project_dir* into *output_dir* via PyPA
-    ``build``, returning the built wheel's path.
-
-    *isolated* mirrors ``python -m build``'s own default: a fresh temp
-    virtualenv is created and the project's declared
-    ``[build-system] requires`` (plus any ``get_requires_for_build``
-    additions) are installed into it -- this is where a network fetch
-    happens, reusing pip's normal cache. ``isolated=False`` (from
-    ``--no-build-isolation``) skips all of that and calls the currently
-    running Python's own importable build backend directly -- faster, no
-    network, but only correct if the caller's environment genuinely
-    already has it installed.
-
-    Never catches an exception itself -- the caller
-    (:func:`build_and_read_wheel`) wraps this in one broad
-    ``except Exception`` alongside every other step, matching every
-    other backend module's single blanket-except-and-warn contract.
-    """
-    # pylint: disable-next=import-outside-toplevel
-    from build import ProjectBuilder
-
-    if isolated:
-        # pylint: disable-next=import-outside-toplevel
-        from build.env import DefaultIsolatedEnv
-
-        with DefaultIsolatedEnv() as env:
-            builder = ProjectBuilder.from_isolated_env(env, project_dir)
-            env.install(builder.build_system_requires)
-            env.install(builder.get_requires_for_build("wheel"))
-            wheel_filename = builder.build("wheel", str(output_dir))
-    else:
-        builder = ProjectBuilder(project_dir)
-        wheel_filename = builder.build("wheel", str(output_dir))
-    return output_dir / wheel_filename
 
 
 def _extract_wheel_to_included_files(
@@ -149,34 +126,78 @@ def _extract_wheel_to_included_files(
 
 
 def build_and_read_wheel(
-    project_dir: Path, *, isolated: bool = True
+    project_dir: Path, *, isolated: bool = True, timeout: int
 ) -> tuple[list[IncludedFile], Callable[[], None]] | None:
     """Build a real wheel for *project_dir* and return its file list as
     ordinary, on-disk :class:`IncludedFile` entries, plus a cleanup
     callback the caller MUST invoke once done consuming them (deletes the
     temp extraction directory backing ``.path``).
 
-    Returns ``None`` on any failure (backend not installable, network
-    unavailable under isolation, the build script itself fails, or the
-    build produced a wheel with zero non-``.dist-info`` files) -- same
-    "``None`` means fall back" contract as every static discoverer,
-    logged with a ``WARNING:`` here (the caller's own fallback-to-Hatchling
-    warning fires on top of this one, same two-tier pattern
-    setuptools'/PDM's/Flit's own failure paths already have).
+    *timeout* is a required keyword (seconds) -- resolved once upstream
+    via :func:`~pitloom.core._models_wheel_types.resolve_build_timeout`,
+    so a call site that forgets to thread it through fails loudly with a
+    ``TypeError`` instead of silently reusing some default here. Passed
+    straight to
+    :func:`~pitloom.core._models_wheel_build_subprocess.run_build_subprocess`,
+    which runs the build as its own child process tree and terminates it
+    if *timeout* elapses.
 
-    Never leaves a temp directory behind on the failure path: the
-    build-output tempdir is always a context manager; only the
-    *extraction* tempdir survives past this function's return on success
-    (its contents are what the returned ``IncludedFile.path`` values
-    point at), via the returned cleanup callback.
+    Returns ``None`` on any failure (backend not installable, network
+    unavailable under isolation, the build script itself fails, the
+    build timed out, or the build produced a wheel with zero
+    non-``.dist-info`` files) -- same "``None`` means fall back" contract
+    as every static discoverer, logged with a ``WARNING:`` here (the
+    caller's own fallback-to-Hatchling warning fires on top of this one,
+    same two-tier pattern setuptools'/PDM's/Flit's own failure paths
+    already have). A timeout gets its own, more specific ``WARNING:``
+    naming the elapsed duration, checked before the generic failure
+    ``except``.
+
+    Removes both temp directories on every exit path, including
+    ``KeyboardInterrupt`` and SIGTERM/SIGHUP/SIGBREAK: each one's removal
+    is registered with the :class:`~pitloom.core.build_signals.TerminationGuard`
+    as soon as it exists, the build's own work directory is removed once
+    the wheel is extracted, and the *extraction* directory (whose contents
+    are what the returned ``IncludedFile.path`` values point at) unless the
+    call actually succeeded -- only then does it survive past this
+    function's return, via the returned cleanup callback. A directory that
+    could not be fully removed gets a ``WARNING:`` naming it.
+
+    A termination signal is held only while the directories are created
+    and the build runs: it stops the build (kill tree, reap), then both
+    directories are removed and the signal re-raised. From the build's
+    exit on -- extracting a possibly multi-GiB wheel, removing the work
+    directory -- the signal handler removes both directories and ends the
+    process at once. After a successful return, the extraction directory
+    stays protected for as long as the caller's own
+    :class:`~pitloom.core.build_signals.TerminationGuard` (the outermost
+    one entered) is held; with none, until this returns.
     """
-    extract_dir = Path(tempfile.mkdtemp(prefix="pitloom-build-and-read-"))
+    with TerminationGuard() as termination:
+        return _build_and_read_wheel(
+            project_dir, isolated=isolated, timeout=timeout, termination=termination
+        )
+
+
+def _build_and_read_wheel(
+    project_dir: Path, *, isolated: bool, timeout: int, termination: TerminationGuard
+) -> tuple[list[IncludedFile], Callable[[], None]] | None:
+    """:func:`build_and_read_wheel` inside its :class:`TerminationGuard`."""
+    remove_work_dir = remove_extract_dir = _nothing_to_remove
+    handed_over = False
     try:
-        with tempfile.TemporaryDirectory(prefix="pitloom-build-output-") as build_out:
-            wheel_path = _run_pep517_build_wheel(
-                project_dir, Path(build_out), isolated=isolated
+        with termination.hold():
+            extract_dir, remove_extract_dir = _registered_extract_dir(termination)
+            work_dir, remove_work_dir = _registered_work_dir(termination)
+            wheel_path = run_build_subprocess(
+                project_dir,
+                work_dir,
+                isolated=isolated,
+                timeout=timeout,
+                termination=termination,
             )
-            files = _extract_wheel_to_included_files(wheel_path, extract_dir)
+        # Not held: a signal during a long extraction must not wait for it.
+        files = _extract_wheel_to_included_files(wheel_path, extract_dir)
         if not files:
             log.warning(
                 "%s%s's real build produced a wheel with "
@@ -185,11 +206,21 @@ def build_and_read_wheel(
                 BUILD_LOG_PREFIX,
                 project_dir,
             )
-            shutil.rmtree(extract_dir, ignore_errors=True)
             return None
-        return files, lambda: shutil.rmtree(extract_dir, ignore_errors=True)
+        handed_over = True
+        return files, remove_extract_dir
+    except BuildTimeoutError as exc:
+        log.warning(
+            "%sbuild-and-read for %s timed out after %ds (--build-timeout) -- %s",
+            BUILD_LOG_PREFIX,
+            project_dir,
+            exc.timeout,
+            "build process tree terminated"
+            if exc.tree_terminated
+            else "could not confirm the build process tree terminated",
+        )
+        return None
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        shutil.rmtree(extract_dir, ignore_errors=True)
         log.warning(
             "%sbuild-and-read discovery failed for %s: %s",
             BUILD_LOG_PREFIX,
@@ -197,3 +228,81 @@ def build_and_read_wheel(
             exc,
         )
         return None
+    finally:
+        remove_work_dir()
+        if not handed_over:
+            remove_extract_dir()
+
+
+def _registered_extract_dir(
+    termination: TerminationGuard,
+) -> tuple[Path, Callable[[], None]]:
+    """A new extraction directory and its removal, registered with
+    *termination*. Call inside a hold, so no signal acts in between."""
+    path = Path(tempfile.mkdtemp(prefix="pitloom-build-and-read-"))
+    remove = _one_shot(functools.partial(_remove_temp_dir, path))
+    termination.add_cleanup(remove)
+    return path, remove
+
+
+def _registered_work_dir(
+    termination: TerminationGuard,
+) -> tuple[Path, Callable[[], None]]:
+    """The build's new work directory and its removal, registered with
+    *termination*. Call inside a hold, so no signal acts in between."""
+    # Not a with-block: its removal must be the registered callback.
+    # ignore_cleanup_errors: on Windows a just-killed process may still
+    # hold a handle; a leftover is reported instead of raising.
+    # pylint: disable-next=consider-using-with
+    work = tempfile.TemporaryDirectory(prefix="plb-", ignore_cleanup_errors=True)
+    remove = _one_shot(functools.partial(_remove_work_dir, work))
+    termination.add_cleanup(remove)
+    return Path(work.name), remove
+
+
+def _nothing_to_remove() -> None:
+    """Stands in for a removal until its directory exists."""
+
+
+def _one_shot(remove: Callable[[], None]) -> Callable[[], None]:
+    """*remove* (a temp directory's removal) as a cleanup callback that
+    runs it to completion once.
+
+    Idempotent, as
+    :meth:`~pitloom.core.build_signals.TerminationGuard.add_cleanup`
+    requires -- both the caller and the guard may run it. Marked done only
+    after *remove* returns, so a run cut short by the signal handler is
+    repeated by the handler's own run.
+    """
+    done = False
+
+    def cleanup() -> None:
+        nonlocal done
+        if not done:
+            remove()
+            done = True
+
+    return cleanup
+
+
+def _remove_work_dir(work: tempfile.TemporaryDirectory[str]) -> None:
+    """Remove the build's work directory, with a ``WARNING:`` if anything
+    survives. :meth:`~tempfile.TemporaryDirectory.cleanup` repeats a
+    removal cut short, and resets read-only permissions on the way."""
+    work.cleanup()
+    _warn_if_left_behind(Path(work.name))
+
+
+def _remove_temp_dir(path: Path) -> None:
+    """Remove *path*, with a ``WARNING:`` if anything survives."""
+    shutil.rmtree(path, ignore_errors=True)
+    _warn_if_left_behind(path)
+
+
+def _warn_if_left_behind(path: Path) -> None:
+    """``WARNING:`` when a temp directory survived its removal."""
+    # os.path.lexists, not Path.exists(): never raises (e.g. EACCES).
+    if os.path.lexists(path):
+        log.warning(
+            "%scould not fully remove temporary directory %s", BUILD_LOG_PREFIX, path
+        )

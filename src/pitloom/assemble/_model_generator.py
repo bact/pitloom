@@ -91,7 +91,7 @@ def _project_doc_identity(
     project_metadata, _pitloom_config, _config_path = resolve_project_with_lockfile(
         project_dir, use_lockfile
     )
-    # allow_build intentionally omitted (stays False): this doc-identity
+    # build_options intentionally omitted (no --allow-build): this doc-identity
     # helper is only reachable from the model/enrich commands, which have
     # no --allow-build CLI flag of their own to read. The returned
     # cleanup is therefore always a no-op; call it immediately.

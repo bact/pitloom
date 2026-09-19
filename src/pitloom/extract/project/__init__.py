@@ -14,13 +14,11 @@ from __future__ import annotations
 from pitloom.extract.project.reader import (
     read_project,
     resolve_project_with_lockfile,
-    warn_allow_build_no_effect,
     warn_use_lockfile_no_effect,
 )
 
 __all__ = [
     "read_project",
     "resolve_project_with_lockfile",
-    "warn_allow_build_no_effect",
     "warn_use_lockfile_no_effect",
 ]

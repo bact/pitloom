@@ -18,6 +18,7 @@ watch:
 nav:
   - Home: index.md
   - Command line: cli.md
+  - Building a project (--allow-build): allow-build.md
   - AI model formats: ai-model-formats.md
   - Python API:
       - Guide: python-api.md

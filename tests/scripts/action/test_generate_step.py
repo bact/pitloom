@@ -10,6 +10,7 @@ argument handling, output/annotation capture and exit-code propagation
 without installing Pitloom.
 """
 
+import itertools
 import sys
 import zipfile
 from collections.abc import Callable
@@ -35,7 +36,7 @@ EMPTY_INPUTS = dict.fromkeys(
     "PL_EMBED_WHEEL PL_MODEL PL_OUTPUT PL_PRETTY PL_ENRICH "
     "PL_EXTRACT_FILE_HEADER PL_CONTENT_TYPE PL_CONTENT_TYPE_METHOD "
     "PL_MAX_SOURCE_METADATA_BYTES PL_OFFLINE PL_USE_LOCKFILE "
-    "PL_ALLOW_BUILD PL_NO_BUILD_ISOLATION".split(),
+    "PL_ALLOW_BUILD PL_NO_BUILD_ISOLATION PL_BUILD_TIMEOUT".split(),
     "",
 )
 
@@ -101,6 +102,83 @@ def test_project_mode_reports_the_printed_sbom_path(
     assert result.returncode == 0
     assert result.sbom_path == "out/sbom.spdx3.json"
     assert result.loom_args == ["project", "."]
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["30", "1h30m", "not-a-duration"],
+    ids=["seconds", "unit-form", "invalid-passed-verbatim"],
+)
+def test_build_timeout_is_passed_through_verbatim(
+    generate: Callable[..., _Result], value: str
+) -> None:
+    """The action script never parses/validates PL_BUILD_TIMEOUT itself
+    (single-parser rule: pitloom.core._models_wheel_types.parse_build_timeout
+    is the only duration parser) -- every value, including an invalid
+    one, is passed straight through as an argv token for "loom" itself
+    to accept or reject."""
+    result = generate(PL_BUILD_TIMEOUT=value)
+    assert result.loom_args == ["project", ".", "--build-timeout", value]
+
+
+_BUILD_INPUTS = (
+    ("PL_ALLOW_BUILD", ("false", "true"), ["--allow-build"]),
+    ("PL_NO_BUILD_ISOLATION", ("false", "true"), ["--no-build-isolation"]),
+    ("PL_BUILD_TIMEOUT", ("", "1h30m"), ["--build-timeout", "1h30m"]),
+)
+_BUILD_INPUT_COMBOS = list(
+    itertools.product(*(values for _, values, _ in _BUILD_INPUTS))
+)
+
+
+@pytest.mark.parametrize("mode", ["project", "embed-wheel", "model"])
+@pytest.mark.parametrize(
+    "values",
+    _BUILD_INPUT_COMBOS,
+    ids=["-".join(v or "empty" for v in combo) for combo in _BUILD_INPUT_COMBOS],
+)
+def test_build_input_matrix(
+    generate: Callable[..., _Result], tmp_path: Path, mode: str, values: tuple[str, ...]
+) -> None:
+    """Every combination of the three build inputs in every mode (the
+    Action's row of the cross-surface build-flag matrix, see
+    tests/test_build_flag_warnings.py). "project"/"embed-wheel" pass each
+    set input on as its CLI flag, in a fixed order, and warn about none --
+    loom itself decides what has no effect. "model" has no such flags: it
+    passes none and warns once per set input instead."""
+    env = {
+        name: value for (name, _, _), value in zip(_BUILD_INPUTS, values, strict=True)
+    }
+    if mode == "embed-wheel":
+        _make_wheel(tmp_path / "p-1.whl")
+        env.update(PL_EMBED_WHEEL=str(tmp_path / "*.whl"), LOOM_STDOUT=EMBED_STDOUT)
+    elif mode == "model":
+        env["PL_MODEL"] = "dummy.gguf"
+    is_set = [value not in ("", "false") for value in values]
+
+    result = generate(**env)
+
+    assert result.returncode == 0
+    assert result.loom_args[0] == mode
+    expected: list[str] = []
+    for (name, _, argv), given in zip(_BUILD_INPUTS, is_set, strict=True):
+        if mode != "model" and given:
+            expected += argv
+        flag = name.removeprefix("PL_").lower().replace("_", "-")
+        warning = f"::warning::{flag} has no effect in model mode"
+        assert result.output.count(warning) == (mode == "model" and given)
+    assert _build_flags(result.loom_args) == expected
+
+
+def _build_flags(loom_args: list[str]) -> list[str]:
+    """The build-flag tokens in *loom_args*, with ``--build-timeout``'s value."""
+    flags: list[str] = []
+    for index, arg in enumerate(loom_args):
+        if arg in ("--allow-build", "--no-build-isolation"):
+            flags.append(arg)
+        elif arg == "--build-timeout":
+            flags += loom_args[index : index + 2]
+    return flags
 
 
 def test_windows_crlf_in_loom_output_is_dropped(

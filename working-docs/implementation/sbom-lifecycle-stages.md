@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-27
-Last-Modified: 2026-09-15
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -104,7 +104,7 @@ in one deciding respect: the code executed is the target project's own
 predictable risk surface, though the determinism, build-dependency, and
 network-access costs above still apply, which is exactly why it stays
 opt-in rather than a transparent upgrade to the static path. See
-[`docs/cli.md`](../../docs/cli.md#building-a-project-to-discover-its-file-list---allow-build)
+[`docs/allow-build.md`](../../docs/allow-build.md)
 for the flag itself and
 [`non-hatchling-file-discovery.md`](../design/non-hatchling-file-discovery.md)
 for the full design/history.

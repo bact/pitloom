@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-15
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,7 +12,10 @@ See also: [roadmap.md](roadmap.md) (Near-term -- "Non-Hatchling file
 discovery"), [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md)
 (the mechanism and why this stays a static-config read for every backend,
 never a build), [backend-file-discovery-validation.md](../implementation/backend-file-discovery-validation.md)
-(real-world validation method and results so far).
+(real-world validation method and results so far),
+[allow-build-timeout.md](../implementation/allow-build-timeout.md) (why
+the build-and-read mechanism below runs as a killable subprocess tree
+with a `--build-timeout`, not an in-process, unbounded build).
 
 ## The bug
 
@@ -120,7 +123,7 @@ fixes:
   robustness fallback for Track A: when a registered backend's own
   static rescan fails on a given project, `--allow-build` retries via a
   real build before giving up. See
-  [`docs/cli.md`](../../docs/cli.md#building-a-project-to-discover-its-file-list---allow-build)
+  [`docs/allow-build.md`](../../docs/allow-build.md)
   for the full flag/security documentation.
 
 ## Dependency packaging strategy

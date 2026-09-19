@@ -16,7 +16,11 @@ for the generic mechanism's own standalone unit tests;
 tests/core/models_wheel/test_models_wheel_dispatch.py for
 ``test_get_wheel_files_unhandled_backend_falls_back_with_warning``, which
 this file's tests complement (uv_build's ``allow_build=False`` case is
-covered there and deliberately left unchanged by this feature).
+covered there and deliberately left unchanged by this feature);
+tests/core/models_wheel/test_models_wheel_build_timeout.py for
+``--build-timeout``/``BuildSettings`` threading at this same dispatch
+level, split out to keep both files under this repo's file-size soft
+limit.
 """
 
 import logging
@@ -27,6 +31,7 @@ from unittest import mock
 import pytest
 
 from pitloom.core._models_wheel_types import IncludedFile
+from pitloom.core.build_options import BuildOptions
 from pitloom.core.models import get_wheel_files
 
 BuildAndReadResult = tuple[list[IncludedFile], Callable[[], None]] | None
@@ -64,9 +69,9 @@ def test_allow_build_dispatches_unhandled_backend_to_build_and_read(
     (tmp_path / "a.py").write_text("a = 1\n", encoding="utf-8")
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         return (
             [IncludedFile(path=str(tmp_path / "a.py"), distribution_path="pkg/a.py")],
             lambda: None,
@@ -82,7 +87,7 @@ def test_allow_build_dispatches_unhandled_backend_to_build_and_read(
         _recording_hatchling_discover(hatchling_called),
     )
 
-    _root, files, _ = get_wheel_files(tmp_path, allow_build=True)
+    _root, files, _ = get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     assert not hatchling_called
     assert [f.distribution_path for f in files] == ["pkg/a.py"]
@@ -99,9 +104,9 @@ def test_allow_build_failure_falls_back_to_hatchling_with_warning(
     hatchling_called: list[Path] = []
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         return None
 
     monkeypatch.setattr(
@@ -114,7 +119,7 @@ def test_allow_build_failure_falls_back_to_hatchling_with_warning(
     )
 
     with caplog.at_level(logging.WARNING):
-        get_wheel_files(tmp_path, allow_build=True)
+        get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     assert hatchling_called
     assert "--allow-build is invoking a real PEP 517 build" in caplog.text
@@ -140,9 +145,9 @@ def test_allow_build_failure_hint_does_not_suggest_allow_build_again(
         f.write('\n[tool.uv.build-backend]\nwheel-exclude = ["pkg/vendored/**"]\n')
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         return None
 
     monkeypatch.setattr(
@@ -151,7 +156,7 @@ def test_allow_build_failure_hint_does_not_suggest_allow_build_again(
     )
 
     with caplog.at_level(logging.WARNING):
-        get_wheel_files(tmp_path, allow_build=True)
+        get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     assert "build-and-read failed" in caplog.text
     assert "pass --allow-build" not in caplog.text
@@ -176,9 +181,9 @@ def test_allow_build_second_tier_fallback_for_registered_backend_failure(
         return None
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         return (
             [IncludedFile(path=str(tmp_path / "a.py"), distribution_path="pkg/a.py")],
             lambda: None,
@@ -196,7 +201,7 @@ def test_allow_build_second_tier_fallback_for_registered_backend_failure(
         _recording_hatchling_discover(hatchling_called),
     )
 
-    _root, files, _ = get_wheel_files(tmp_path, allow_build=True)
+    _root, files, _ = get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     assert not hatchling_called
     assert [f.distribution_path for f in files] == ["pkg/a.py"]
@@ -220,9 +225,9 @@ def test_allow_build_registered_backend_and_build_and_read_both_fail(
         return None
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         return None
 
     monkeypatch.setattr(
@@ -234,7 +239,9 @@ def test_allow_build_registered_backend_and_build_and_read_both_fail(
     )
 
     with caplog.at_level(logging.WARNING):
-        root, files, _ = get_wheel_files(tmp_path, allow_build=True)
+        root, files, _ = get_wheel_files(
+            tmp_path, build_options=BuildOptions(allow=True)
+        )
 
     assert root is None
     assert files == []
@@ -264,7 +271,9 @@ def test_allow_build_never_invoked_when_registered_backend_succeeds(
     with mock.patch(
         "pitloom.core._models_wheel_build_and_read.build_and_read_wheel"
     ) as mock_build:
-        _root, files, _ = get_wheel_files(tmp_path, allow_build=True)
+        _root, files, _ = get_wheel_files(
+            tmp_path, build_options=BuildOptions(allow=True)
+        )
 
     mock_build.assert_not_called()
     assert [f.distribution_path for f in files] == ["pkg/a.py"]
@@ -286,7 +295,7 @@ def test_allow_build_never_reachable_for_none_or_hatchling_backend(
     with mock.patch(
         "pitloom.core._models_wheel_build_and_read.build_and_read_wheel"
     ) as mock_build:
-        get_wheel_files(tmp_path, allow_build=True)
+        get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     mock_build.assert_not_called()
 
@@ -305,9 +314,9 @@ def test_allow_build_cleanup_called_even_on_per_file_read_error(
         cleanup_calls.append(True)
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir, isolated
+        del project_dir, isolated, timeout
         # A real, on-disk file whose read is made to fail below --
         # source.is_file() must be True or the loop just skips it
         # silently instead of exercising the read-failure path.
@@ -327,7 +336,7 @@ def test_allow_build_cleanup_called_even_on_per_file_read_error(
     )
     monkeypatch.setattr(Path, "read_bytes", _raise_on_read)
 
-    root, files, _ = get_wheel_files(tmp_path, allow_build=True)
+    root, files, _ = get_wheel_files(tmp_path, build_options=BuildOptions(allow=True))
 
     assert root is None
     assert files == []
@@ -337,16 +346,16 @@ def test_allow_build_cleanup_called_even_on_per_file_read_error(
 def test_no_build_isolation_forwarded_to_build_and_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``no_build_isolation=True`` must reach build_and_read_wheel() as
+    """``BuildOptions(no_isolation=True)`` must reach build_and_read_wheel() as
     ``isolated=False`` -- never silently dropped or coerced back to
     isolated."""
     _make_backend_project(tmp_path, "uv_build")
     isolated_seen: list[bool] = []
 
     def _fake_build_and_read(
-        project_dir: Path, *, isolated: bool = True
+        project_dir: Path, *, isolated: bool = True, timeout: int = 1200
     ) -> BuildAndReadResult:
-        del project_dir
+        del project_dir, timeout
         isolated_seen.append(isolated)
         return None
 
@@ -358,6 +367,6 @@ def test_no_build_isolation_forwarded_to_build_and_read(
         "pitloom.core._models_wheel_hatchling.discover", lambda project_dir: []
     )
 
-    get_wheel_files(tmp_path, allow_build=True, no_build_isolation=True)
+    get_wheel_files(tmp_path, build_options=BuildOptions(allow=True, no_isolation=True))
 
     assert isolated_seen == [False]

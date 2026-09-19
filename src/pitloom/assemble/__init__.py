@@ -24,6 +24,7 @@ from pitloom.assemble._model_generator import (
     generate_model_sbom,
 )
 from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
+from pitloom.core.build_options import NON_PROJECT_TARGET_REASON, BuildOptions
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.embed import (
@@ -36,14 +37,13 @@ from pitloom.embed import (
     embed_wheel_sbom,
     find_embedded_sbom,
 )
-from pitloom.extract.project import (
-    warn_allow_build_no_effect,
-    warn_use_lockfile_no_effect,
-)
+from pitloom.extract.project import warn_use_lockfile_no_effect
 from pitloom.extract.remote import is_huggingface_source
 from pitloom.ids import IdRegistry
+from pitloom.logging_config import configure_logging
 
 __all__ = [
+    "BuildOptions",
     "ConfigOverrides",
     "EmbeddedSbomLocation",
     "FragmentMergeError",
@@ -136,17 +136,23 @@ def generate(
     content_type_method: str | None = None,
     update_registry: bool | None = None,
     use_lockfile: bool | None = None,
-    allow_build: bool = False,
-    no_build_isolation: bool = False,
+    build_options: BuildOptions = BuildOptions(),
 ) -> str:
     """Smart unified entrypoint for generating SPDX 3 SBOMs across all target types.
 
-    ``allow_build``/``no_build_isolation`` only take effect for a project
-    directory/sdist target (the ``generate_project_sbom()`` dispatch
-    below) -- see that function's own docstring for why they're plain
-    ``bool``, not the ``bool | None``-deferring-to-config shape every
-    other flag here uses.
+    ``build_options`` (see :class:`~pitloom.core.build_options.BuildOptions`)
+    only takes effect for a project directory target (the
+    ``generate_project_sbom()`` dispatch below); any other target logs
+    one ``WARNING:`` per given build flag here, immediately, before
+    dispatching. A "project" classification covers both a project
+    directory and an sdist archive (the two aren't told apart until
+    ``generate_project_sbom()`` itself checks), so that dispatch settles/
+    warns about ``build_options`` on its own, right before its own
+    metadata read -- not repeated here.
     """
+    # Before the no-effect warnings below, which precede any delegate's own
+    # configure_logging() call.
+    configure_logging()
     target_str = str(target).strip()
     classification = _classify_target(target_str)
 
@@ -157,11 +163,14 @@ def generate(
             "model-file/Hugging-Face targets)",
         )
 
-    if (allow_build or no_build_isolation) and classification != "project":
-        warn_allow_build_no_effect(
-            target_str,
-            "for this target (no build-backend file discovery applies to "
-            "env/wheel/model-file/Hugging-Face targets)",
+    if classification != "project":
+        # Reset to defaults too (not just warn): nothing below reuses
+        # build_options for a non-project classification, but this keeps
+        # the same "warn once, reset to defaults" contract every other
+        # settle_not_applicable() call site follows, so a future caller
+        # added here can't accidentally double-warn.
+        build_options = build_options.settle_not_applicable(
+            target_str, NON_PROJECT_TARGET_REASON
         )
 
     if classification == "env":
@@ -230,6 +239,5 @@ def generate(
         offline=offline,
         update_registry=update_registry,
         use_lockfile=use_lockfile,
-        allow_build=allow_build,
-        no_build_isolation=no_build_isolation,
+        build_options=build_options,
     )

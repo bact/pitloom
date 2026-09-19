@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-18
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,6 +23,7 @@ pitloom/
 ├── docs/                           # Published site (mkdocs.yml at repo root)
 │   ├── agent-skills.md
 │   ├── ai-model-formats.md
+│   ├── allow-build.md              # --allow-build/--no-build-isolation/--build-timeout, split from cli.md
 │   ├── api.md
 │   ├── claude-code-plugin.md
 │   ├── cli.md
@@ -53,6 +54,8 @@ pitloom/
 │   │   ├── provenance/             # 10 files -- annotation-provenance(-mechanism/-full-plan).md, role-vocabulary.md, etc.
 │   │   ├── adoption-surfaces.md
 │   │   ├── agent-skill.md
+│   │   ├── allow-build-termination.md # Signal handling around a build-and-read and its result
+│   │   ├── allow-build-timeout.md  # --build-timeout: build subprocess, kill path, traps
 │   │   ├── claude-code-plugin.md
 │   │   ├── cli-ux.md
 │   │   ├── demo.md
@@ -124,12 +127,21 @@ pitloom/
 │       │   ├── _config_legacy.py   # Migration error checks and constants
 │       │   ├── _config_parse.py    # TOML parser for [tool.pitloom]
 │       │   ├── _config_types.py    # Configuration dataclasses and type definitions
-│       │   ├── _models_wheel.py    # Backend-dispatch facade + shared per-file processing loop
+│       │   ├── _models_wheel.py    # get_wheel_files(): discovery facade + shared per-file processing loop
+│       │   ├── _models_wheel_build_and_read.py  # --allow-build: build a real wheel, extract its files
+│       │   ├── _models_wheel_build_kill.py      # Kill the build's process tree (POSIX group / taskkill)
+│       │   ├── _models_wheel_build_subprocess.py # Run `python -m build` as a child tree with a timeout
+│       │   ├── _models_wheel_dispatch.py   # Backend dispatch: static module, build-and-read, Hatchling fallback
+│       │   ├── _models_wheel_flit.py       # flit-core-backed discover()
 │       │   ├── _models_wheel_hatchling.py  # Hatchling WheelBuilder-based discover()
+│       │   ├── _models_wheel_lock.py       # Reader/writer lock for backend file discovery
+│       │   ├── _models_wheel_pdm.py        # pdm-backend-backed discover()
 │       │   ├── _models_wheel_poetry.py     # poetry-core WheelBuilder-based discover()
 │       │   ├── _models_wheel_setuptools.py # setuptools static-config-based discover()
 │       │   ├── _models_wheel_types.py # IncludedFile, BackendDiscoverer protocol, shared helpers
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
+│       │   ├── build_options.py    # BuildOptions: --allow-build flags, validation, no-effect warnings
+│       │   ├── build_signals.py    # TerminationGuard: SIGTERM/SIGHUP cleanup of a build-and-read
 │       │   ├── config.py           # PitloomConfig facade and re-exports
 │       │   ├── content_type_config.py # [tool.pitloom.content-type] settings
 │       │   ├── creation.py         # CreationMetadata (creator / timestamp)
@@ -164,6 +176,7 @@ pitloom/
 │       ├── __about__.py            # Package version (__version__)
 │       ├── __init__.py
 │       ├── __main__.py             # Thin entry point only: logging setup + args.func dispatch
+│       ├── _embed_build_sbom.py    # embed-wheel Build SBOM: project rescan + wheel files, EmbedFileCache
 │       ├── _embed_wheel.py         # Low-level ZIP rewriting and RECORD injection
 │       ├── _ids_types.py           # ID registry types and hash helpers
 │       ├── _loom_caller.py         # Caller stack inspection and provenance helpers
@@ -177,11 +190,13 @@ pitloom/
 │   ├── assemble/                   # 35 files -- assemble/, embed.py, enrich/ coverage + conftest.py
 │   ├── cli/                        # 14 files -- one per src/pitloom/cli/ module, + shared.py
 │   ├── core/                       # 42 files -- core/, ids.py, loom.py, generator orchestration
+│   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
 │   ├── extract/                    # 46 files, one per extractor
 │   │   └── huggingface/            # 20 files -- split by metadata category
 │   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
+│   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── ids_shared.py               # Shared helpers for ids-registry tests
 ├── scripts/

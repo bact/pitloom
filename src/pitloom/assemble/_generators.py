@@ -22,6 +22,8 @@ from pitloom.assemble._model_generator import (
 from pitloom.assemble.spdx3.document import build, build_deployed
 from pitloom.assemble.spdx3.fragments import merge_fragments
 from pitloom.core._models_wheel_dispatch import _noop_cleanup
+from pitloom.core.build_options import SDIST_TARGET_REASON, BuildOptions
+from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS, PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
@@ -34,10 +36,7 @@ from pitloom.export.spdx3_json import Spdx3JsonExporter
 from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.env import read_environment
-from pitloom.extract.project import (
-    resolve_project_with_lockfile,
-    warn_allow_build_no_effect,
-)
+from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner import scan_project_for_ai_models
 from pitloom.extract.wheel import read_wheel
 from pitloom.ids import IdRegistry, resolve_registry
@@ -100,22 +99,6 @@ def _warn_if_partial_presupply(
     )
 
 
-def _warn_if_allow_build_no_effect_for_sdist(
-    target_path: Path, allow_build: bool, no_build_isolation: bool
-) -> None:
-    """``generate_project_sbom()``'s sdist-archive branch never reaches
-    ``get_wheel_files()`` (files come from the archive's own listing) --
-    warn once when an explicit ``allow_build``/``no_build_isolation``
-    was given for one, rather than silently dropping it."""
-    if allow_build or no_build_isolation:
-        warn_allow_build_no_effect(
-            target_path,
-            "for an sdist archive target (no build-and-read support "
-            "for archives yet -- files come from the archive's own "
-            "listing)",
-        )
-
-
 def _sync_registry(
     exporter: Spdx3JsonExporter,
     registry: IdRegistry | None,
@@ -174,19 +157,19 @@ def generate_project_sbom(
     offline: bool | None = None,
     update_registry: bool | None = None,
     use_lockfile: bool | None = None,
-    allow_build: bool = False,
-    no_build_isolation: bool = False,
+    build_options: BuildOptions = BuildOptions(),
 ) -> str:
     """Generate a Source SPDX 3 SBOM for a Python project or sdist archive.
 
-    ``allow_build``/``no_build_isolation`` are plain ``bool`` (default
-    ``False``), unlike every other flag-shaped parameter here -- they
-    deliberately have no ``pitloom_config.*`` fallback to defer to when
-    unset. A caller must pass ``allow_build=True`` explicitly every time
-    it wants Pitloom to execute the target project's own PEP 517 build
-    backend; there is no config-cascade layer for it, since the config
-    file lives in the (untrusted) project being scanned and must never be
-    able to silently opt itself into code execution.
+    ``build_options`` (see :class:`~pitloom.core.build_options.BuildOptions`),
+    unlike every other flag-shaped parameter here, deliberately has no
+    ``pitloom_config.*`` fallback to defer to when unset. A caller must
+    pass ``BuildOptions(allow=True)`` explicitly every time it wants
+    Pitloom to execute the target project's own PEP 517 build backend;
+    there is no config-cascade layer for it, since the config file lives
+    in the (untrusted) project being scanned and must never be able to
+    silently opt itself into code execution. For an sdist archive target
+    every given build flag is ignored with one ``WARNING:`` each.
 
     ``use_lockfile`` only affects metadata resolved by this call: if the
     caller pre-supplies BOTH ``project_metadata`` and ``pitloom_config``
@@ -199,6 +182,24 @@ def generate_project_sbom(
     """
     configure_logging()
     target_path = Path(project_target)
+
+    # Both branches below are cheap (a single is_file() stat, no parsing)
+    # and run before any project-metadata/lock-file read, so the build-flag
+    # WARNING: -- whichever one applies -- is always the first thing this
+    # call logs, never something a user has to scroll past later warnings
+    # to find. An sdist archive never reaches file discovery, so every
+    # given flag (including --allow-build itself) is unconditionally
+    # ineffective here; a project directory does reach it, so only a
+    # no_isolation/timeout given without allow is resolved now (settle()
+    # warns and resets it) -- whether allow itself has an effect depends
+    # on file discovery below, not on this cheap up-front check.
+    if target_path.is_file():
+        build_options = build_options.settle_not_applicable(
+            target_path, SDIST_TARGET_REASON
+        )
+    else:
+        build_options = build_options.settle(target_path)
+
     if project_metadata is None or pitloom_config is None:
         _warn_if_partial_presupply(project_metadata, pitloom_config, target_path)
         project_metadata, pitloom_config, _ = resolve_project_with_lockfile(
@@ -236,73 +237,76 @@ def generate_project_sbom(
         pitloom_config.update_registry if update_registry is None else update_registry
     )
 
-    if target_path.is_file():
-        _warn_if_allow_build_no_effect_for_sdist(
-            target_path, allow_build, no_build_isolation
-        )
-        merkle_root = None
-        project_files = project_metadata.files
-        search_root = target_path.parent
-        cleanup_discovery: Callable[[], None] = _noop_cleanup
-    else:
-        merkle_root, project_files, cleanup_discovery = get_wheel_files(
-            target_path,
-            scan_file_headers=effective_extract_file_header,
-            detect_content_type=effective_content_type,
-            content_type_method=effective_content_type_method,
-            content_type_overrides=pitloom_config.content_type.overrides,
-            allow_build=allow_build,
-            no_build_isolation=no_build_isolation,
-        )
-        search_root = target_path
-
-    # cleanup_discovery (a no-op unless allow_build's build-and-read
-    # sourced project_files) must stay alive -- and this whole block
-    # must run inside its try -- through every step below that either
-    # re-reads a ProjectFile's bytes from disk via physical_path (AI-
-    # model scanning, enrichment) or could itself raise before reaching
-    # them (license-file resolution, the fresh-containers copy): any of
-    # these raising before cleanup_discovery() runs would leak the
-    # build-and-read temp directory. Nothing after this block reads
-    # file bytes again (document assembly only uses distribution_path/
-    # physical_path as string keys, never re-opens the file).
-    try:
-        if not target_path.is_file():
-            # Pitloom's file discovery is, by default, a static
-            # config-driven walk, never a real wheel build (the sole
-            # opt-in exception is allow_build's build-and-read
-            # mechanism) -- it never reproduces the
-            # `.dist-info/licenses/...` entries a real build would add
-            # for `[project.license-files]`. Resolve those directly so
-            # they still show up in the SBOM's file list, before
-            # replace_with_fresh_containers() below makes
-            # `project_files` the metadata's authoritative file list
-            # for this (directory) target -- every other dict/list
-            # field (provenance, field_conflicts, etc.) also gets its
-            # own fresh copy, so the caller's own `project_metadata`
-            # can never be silently mutated as a side effect of
-            # anything downstream.
-            project_files = project_files + resolve_license_file_entries(
+    # Owns SIGTERM/SIGHUP handling for the whole lifetime of a
+    # build-and-read result: once a build ran, a signal until the end of
+    # this block removes its extraction directory before the process
+    # ends (see pitloom.core.build_signals). Without a build, inert.
+    with TerminationGuard():
+        if target_path.is_file():
+            # Warned above, before metadata resolution -- nothing left to
+            # warn about here.
+            merkle_root = None
+            project_files = project_metadata.files
+            search_root = target_path.parent
+            cleanup_discovery: Callable[[], None] = _noop_cleanup
+        else:
+            merkle_root, project_files, cleanup_discovery = get_wheel_files(
                 target_path,
-                project_metadata.name,
-                project_metadata.version,
-                project_metadata.license_files,
+                scan_file_headers=effective_extract_file_header,
+                detect_content_type=effective_content_type,
+                content_type_method=effective_content_type_method,
+                content_type_overrides=pitloom_config.content_type.overrides,
+                build_options=build_options,
             )
-            project_metadata = project_metadata.replace_with_fresh_containers(
-                files=project_files
+            search_root = target_path
+
+        # cleanup_discovery (a no-op unless --allow-build's build-and-read
+        # sourced project_files) must stay alive -- and this whole block
+        # must run inside its try -- through every step below that either
+        # re-reads a ProjectFile's bytes from disk via physical_path (AI-
+        # model scanning, enrichment) or could itself raise before reaching
+        # them (license-file resolution, the fresh-containers copy): any of
+        # these raising before cleanup_discovery() runs would leak the
+        # build-and-read temp directory. Nothing after this block reads
+        # file bytes again (document assembly only uses distribution_path/
+        # physical_path as string keys, never re-opens the file).
+        try:
+            if not target_path.is_file():
+                # Pitloom's file discovery is, by default, a static
+                # config-driven walk, never a real wheel build (the sole
+                # opt-in exception is --allow-build's build-and-read
+                # mechanism) -- it never reproduces the
+                # `.dist-info/licenses/...` entries a real build would add
+                # for `[project.license-files]`. Resolve those directly so
+                # they still show up in the SBOM's file list, before
+                # replace_with_fresh_containers() below makes
+                # `project_files` the metadata's authoritative file list
+                # for this (directory) target -- every other dict/list
+                # field (provenance, field_conflicts, etc.) also gets its
+                # own fresh copy, so the caller's own `project_metadata`
+                # can never be silently mutated as a side effect of
+                # anything downstream.
+                project_files = project_files + resolve_license_file_entries(
+                    target_path,
+                    project_metadata.name,
+                    project_metadata.version,
+                    project_metadata.license_files,
+                )
+                project_metadata = project_metadata.replace_with_fresh_containers(
+                    files=project_files
+                )
+
+            ai_models = (
+                scan_project_for_ai_models(target_path, project_files)
+                if target_path.is_dir()
+                else []
             )
 
-        ai_models = (
-            scan_project_for_ai_models(target_path, project_files)
-            if target_path.is_dir()
-            else []
-        )
-
-        enrichment_results_by_model = run_enrichers_for_models(
-            ai_models, effective_enrich_config, target_path
-        )
-    finally:
-        cleanup_discovery()
+            enrichment_results_by_model = run_enrichers_for_models(
+                ai_models, effective_enrich_config, target_path
+            )
+        finally:
+            cleanup_discovery()
 
     resolved_registry = resolve_registry(
         search_root, registry if registry is not None else pitloom_config.ids_file

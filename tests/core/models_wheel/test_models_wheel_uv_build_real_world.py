@@ -44,6 +44,10 @@ from pathlib import Path
 import pytest
 
 from pitloom.core._models_wheel_dispatch import _discover_included_files
+from pitloom.core._models_wheel_types import (
+    DEFAULT_BUILD_TIMEOUT_SECONDS,
+    BuildSettings,
+)
 from tests.fixtures.real_world import (
     REAL_WORLD_ROOT,
     extract_sdist,
@@ -100,7 +104,9 @@ def test_build_and_read_matches_real_wheel(project_dir: Path, tmp_path: Path) ->
     extracted_root = extract_sdist(project_dir, tmp_path)
 
     included, cleanup = _discover_included_files(
-        extracted_root, assume_backend="uv_build", allow_build=True
+        extracted_root,
+        assume_backend="uv_build",
+        build=BuildSettings(isolated=True, timeout=DEFAULT_BUILD_TIMEOUT_SECONDS),
     )
     try:
         discovered = {f.distribution_path for f in included}

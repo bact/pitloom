@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-11
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -95,17 +95,52 @@ produced. Passing only one of the two is not a supported combination:
 both are discarded and re-resolved from the target instead, with a
 `WARNING:` explaining why.
 
-Pass `allow_build=True` (plus optionally `no_build_isolation=True`) to
+Pass `build_options=BuildOptions(allow=True)` to
 `generate()`/`generate_project_sbom()` to let Pitloom invoke a project's
 own PEP 517 build backend to discover its real file list, when static
 discovery has no module for the backend (e.g. `uv_build`) or a supported
-backend's own static discovery fails -- see the CLI's
-[`--allow-build`](cli.md#building-a-project-to-discover-its-file-list---allow-build)
-for the full security rationale, which applies identically here. Unlike
-`use_lockfile` above, both default to plain `False` with **no**
-`[tool.pitloom]` config-file equivalent and must be passed explicitly
-every call -- there is no config layer for a scanned project to silently
-opt itself into.
+backend's own static discovery fails -- see
+[`--allow-build`](allow-build.md) for the full security rationale, which
+applies identically here. Unlike
+`use_lockfile` above, it has **no** `[tool.pitloom]` config-file
+equivalent and must be passed explicitly every call -- there is no
+config layer for a scanned project to silently opt itself into.
+
+```python
+from pathlib import Path
+from pitloom import BuildOptions, generate
+
+generate(
+    Path("/path/to/project"),
+    output_path=Path("sbom.spdx3.json"),
+    build_options=BuildOptions(allow=True, timeout=900),
+)
+```
+
+`BuildOptions` mirrors the three CLI flags:
+
+| Field | CLI flag | Default |
+| --- | --- | --- |
+| `allow` (`bool`) | `--allow-build` | `False` |
+| `no_isolation` (`bool`) | `--no-build-isolation` | `False` |
+| `timeout` (`int` seconds or `None`) | `--build-timeout` | `None` (1200 s) |
+
+`timeout` is plain `int` seconds -- **not** a duration string; the CLI's
+own `h`/`m`/`s` grammar is a CLI/Action-layer convenience only.
+`BuildOptions(...)` validates its fields when constructed, for every
+target: a non-`bool` `allow`/`no_isolation` (e.g. the string `"false"`)
+or a non-`int` `timeout` raises `TypeError`; a `timeout` outside 1 to
+604800 raises `ValueError`. A field set where it has no effect -- a
+target other than a project directory, or `no_isolation`/`timeout`
+without `allow` -- logs one `WARNING: Build: ...` line per field,
+naming the field by its CLI flag spelling (e.g. `--build-timeout`)
+followed by "has no effect" and the reason -- even when `BuildOptions`
+was constructed directly and no CLI flag was ever typed. Intentional:
+the same warning stays recognisable and grep-able regardless of which
+surface (CLI, library API, ...) triggered it. Logged as early as
+possible on every surface -- before any project-metadata or lock-file
+`WARNING:` a project directory target might also trigger -- so it's
+never buried later in a run's output.
 
 `pitloom.assemble` also exposes `generate_wheel_sbom()`,
 `generate_model_sbom()`, and `generate_env_sbom()` -- the same target
@@ -126,9 +161,8 @@ modified_wheel, arcname, sbom_json, removed, floored = embed_wheel_sbom(
     wheel_path=Path("dist/mypackage-1.0.0-py3-none-any.whl"),
     project_dir=Path("."),
     overrides=ConfigOverrides(offline=True),  # optional
-    # ConfigOverrides also accepts allow_build/no_build_isolation (both
-    # default False, no [tool.pitloom] equivalent) -- see the
-    # --allow-build docs above.
+    # ConfigOverrides also accepts build_options=BuildOptions(...) (no
+    # [tool.pitloom] equivalent) -- see the --allow-build docs above.
 )
 
 # 2. Or embed an externally-generated, pre-written SBOM file (checked)
@@ -161,6 +195,44 @@ Form 3, `embed_sbom_in_wheel()`, is the lower-level, unchecked archive
 primitive both forms 1 and 2 converge on -- calling it directly (bypassing
 `embed_wheel_sbom()`) skips the cross-check entirely, same as it skips
 SBOM *generation*.
+
+#### Batch embedding with `EmbedFileCache`
+
+Embedding into several wheels from the same *project_dir* in a loop --
+what the CLI's `embed-wheel dist/*.whl --project-dir .` does -- should
+share one `EmbedFileCache` across the whole batch instead of calling
+`embed_wheel_sbom()` per wheel with no cache: without it, each call
+independently resolves *project_dir*'s file list (and, with
+`--allow-build`, reruns the real PEP 517 build) once per wheel instead of
+once for the batch, and repeats each ineffective build flag's
+`WARNING:` once per wheel.
+
+```python
+from pathlib import Path
+from pitloom.embed import EmbedFileCache, embed_wheel_sbom
+
+wheels = [Path("dist/mypackage-1.0.0-py3-none-any.whl"), Path("dist/mypackage-1.0.0-py2-none-any.whl")]
+
+with EmbedFileCache() as cache:
+    for wheel in wheels:
+        embed_wheel_sbom(
+            wheel_path=wheel,
+            project_dir=Path("."),
+            file_cache=cache,
+        )
+```
+
+`EmbedFileCache` must be used as a context manager around the whole
+batch: it resolves *project_dir*'s file list (and any `--allow-build`
+build) once, on the batch's first call, and removes its temporary
+directories on exit -- including on SIGTERM/SIGHUP or Ctrl-C, via the
+same `TerminationGuard` the `--allow-build` docs describe. Every call
+in one batch must use the same *project_dir*, file-scan settings and
+build options -- a call that doesn't raises `ValueError`. Passing
+`file_cache=` to `embed_wheel_sbom()` outside the `with` block raises
+`RuntimeError`.
+Advanced/batch use only -- a single `embed_wheel_sbom()` call needs no
+`file_cache` and manages its own resolve-then-cleanup cycle.
 
 ### Config
 

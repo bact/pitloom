@@ -145,10 +145,11 @@ def _build_document_model(
     """
     metadata = metadata_from_hatchling(hatch_metadata, project_dir)
     creation_metadata = _build_creation_metadata(pitloom_config)
-    # allow_build stays at its default False here (this is the Hatchling
-    # build hook -- the backend is Hatchling by construction, never a
-    # build-and-read candidate), so the returned cleanup is always a
-    # no-op; call it immediately rather than threading it further.
+    # build_options stays at its default (--allow-build not given): this
+    # is the Hatchling build hook, so the backend is Hatchling by
+    # construction -- never a build-and-read candidate -- so the
+    # returned cleanup is always a no-op; call it immediately rather
+    # than threading it further.
     merkle_root, project_files, _cleanup = get_wheel_files(
         project_dir,
         scan_file_headers=pitloom_config.extract_file_header,

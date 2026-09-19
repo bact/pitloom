@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-16
+Last-Modified: 2026-09-19
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -61,7 +61,7 @@ loom project /path/to/project -o sbom.spdx3.json
 > **Limitation:** the per-file inventory (file list and hashes)
 > is backend-aware and accurate for Flit-core, PDM-backend, Poetry,
 > Hatchling, setuptools, and uv_build
-> (uv_build needs [`--allow-build` flag](#building-a-project-to-discover-its-file-list-allow-build)).
+> (uv_build needs the [`--allow-build` flag](allow-build.md)).
 > Other backends (e.g. maturin, scikit-build-core, meson-python)
 > fall back to a heuristic and log a `WARNING:`.
 
@@ -362,8 +362,8 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   `extension` skips magika entirely (stdlib-only).
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
-and [Building a project to discover its file list](#building-a-project-to-discover-its-file-list---allow-build)
-below for `--allow-build`/`--no-build-isolation` (only on
+and [Building a project to discover its file list](allow-build.md) for
+`--allow-build`/`--no-build-isolation`/`--build-timeout` (only on
 `project`/`generate`/`embed-wheel`).
 
 Every subcommand that writes an SBOM (`project`, `model`, `env`, `wheel`,
@@ -375,57 +375,14 @@ themselves.
 
 ## Building a project to discover its file list (`--allow-build`)
 
-Available on `project`/`generate`/`embed-wheel` only (not `wheel`/`enrich`/
-`env`/`model`, which never rescan a project directory).
-
-By default, Pitloom's file discovery is a **static read** of a project's
-build-backend config (Hatchling, setuptools, Poetry, PDM, Flit) -- it
-never executes the project's own build. For a backend with no static
-introspection at all (currently: uv_build), or when a supported
-backend's own static discovery fails on a given project, Pitloom falls
-back to a Hatchling-based heuristic and prints a `WARNING:` -- the file
-list may be inaccurate in that case.
-
-`--allow-build` opts into a more accurate but heavier alternative:
-Pitloom actually invokes the project's own [PEP
-517](https://peps.python.org/pep-0517/) build backend (in a subprocess,
-via [`build`](https://pypi.org/project/build/)) and reads the resulting
-wheel's real file list. This is a **security-relevant** decision --
-it executes third-party build-time code from the project being scanned
--- so:
-
-- It's off by default and must be passed explicitly every time; there is
-  **no** `[tool.pitloom]` config-file equivalent, unlike every other flag
-  in this guide. A target project's own `pyproject.toml` must never be
-  able to silently opt itself into code execution for whoever scans it.
-- Only enable it for a project whose build script you trust.
-- Requires the optional `pitloom[build]` extra (`pip install
-  pitloom[build]`).
-- By default, the build runs in an isolated temporary environment
-  (installs the project's own `[build-system] requires`, may hit the
-  network -- reuses pip's normal cache across runs). `--no-build-isolation`
-  skips this and uses the current environment's already-installed
-  backend instead (faster, no network); it has no effect without
-  `--allow-build` (logs a `WARNING:` if passed alone).
-- On any failure (network unavailable, backend not installed, build
-  script error), Pitloom falls back to the same Hatchling-heuristic
-  path used without the flag -- `--allow-build`'s worst case is never
-  worse than leaving it off.
-- On `generate`, both flags parse for every target (`generate`
-  auto-detects env/wheel/model-file/Hugging-Face/project targets from
-  one shared parser) but only take effect when the target resolves to a
-  project *directory* -- for any other target, including an sdist
-  archive (whose file list comes from the archive's own listing, not a
-  build), they're a no-op and Pitloom prints a `WARNING:` saying so.
-  The same applies to `embed-wheel` when it can't resolve a project
-  directory to rescan (no `--project-dir` and no `pyproject.toml` in
-  the current directory) or when `--sbom` supplies an
-  already-generated SBOM to embed verbatim.
-
-```bash
-loom project . --allow-build -o sbom.json
-loom project . --allow-build --no-build-isolation -o sbom.json
-```
+`--allow-build` (with `--no-build-isolation` and `--build-timeout`) opts
+`project`/`generate`/`embed-wheel` into invoking the target project's own
+PEP 517 build backend to discover its real file list, instead of
+Pitloom's default static read -- a security-relevant, off-by-default
+decision with no `[tool.pitloom]` config-file equivalent. See [Building a
+project to discover its file list](allow-build.md) for the full
+security rationale, the flags, `--build-timeout`'s duration grammar, and
+signal-handling behaviour (Ctrl-C/SIGTERM/SIGHUP/SIGKILL) during a build.
 
 ## Debugging
 
@@ -520,6 +477,8 @@ does and worked examples.
 
 ## See also
 
+- [Building a project to discover its file list](allow-build.md) -- the
+  full `--allow-build`/`--no-build-isolation`/`--build-timeout` reference.
 - [Dependency sources and precedence](dependency-sources.md) -- how
   resolved lock files feed into Source SBOM dependencies.
 - [Python API](python-api.md) -- calling Pitloom from Python code instead
