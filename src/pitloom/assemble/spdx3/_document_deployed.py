@@ -29,10 +29,60 @@ from pitloom.core.models import (
     build_relationship,
     compute_doc_uuid,
     generate_spdx_id,
+    reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry, claim_registry_hit
+
+
+def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
+    """Return the pipdeptree-graph key used to key *package_spdx_ids* /
+    build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
+    field, falling back to a lowercased *dep_name*. Unrelated to the
+    registry lookup key: :meth:`~pitloom.id_registry.IdRegistry.lookup_entity`
+    PEP 503-canonicalizes a :data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`
+    name itself (see :func:`pitloom.id_registry._types._entity_key`), so *dep_name* is
+    passed to it verbatim, uncanonicalized, by
+    :func:`_resolve_deployed_package_hits`."""
+    return str(pkg_info.get("key", dep_name.lower()))
+
+
+def _resolve_deployed_package_hits(
+    env_tree: list[dict[str, Any]],
+    registry: IdRegistry | None,
+    claimed: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Pre-resolve every deployed dependency's registry hit, keyed by its
+    *lookup_key* (:func:`_deployed_lookup_key`) so :func:`build_deployed`
+    can reserve exactly these ids and :func:`_build_deployed_package` can
+    reuse them without looking the registry up a second time: pre-
+    resolution is the single source of truth for what was reserved.
+
+    *env_tree* is walked in its own given order, so hit resolution is
+    deterministic; when two dependencies' registry hit is the same id
+    (e.g. a stale entry left behind by an earlier run -- see
+    ``working-docs/implementation/id-registry-autosync.md``), only the
+    first claims it (:func:`~pitloom.id_registry.claim_registry_hit`) and the
+    other falls back to a fresh mint, with one ``WARNING: Registry: ...``
+    naming both. A no-op, returning ``{}``, when *registry* is ``None``.
+    A fresh, empty *claimed* is used when the caller doesn't share one.
+    """
+    if registry is None:
+        return {}
+    if claimed is None:
+        claimed = {}
+    hits: dict[str, str] = {}
+    for node in env_tree:
+        pkg_info = node.get("package", {})
+        dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+        lookup_key = _deployed_lookup_key(pkg_info, dep_name)
+        spdx_id = registry.lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)
+        if spdx_id is not None:
+            claimed_id = claim_registry_hit(lookup_key, spdx_id, claimed)
+            if claimed_id is not None:
+                hits[lookup_key] = claimed_id
+    return hits
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -41,25 +91,26 @@ def _build_deployed_package(
     metadata_name: str,
     doc_uuid: str,
     spdx_ci: spdx3.CreationInfo,
-    registry: IdRegistry | None,
+    resolved_id: str | None,
     exporter: Spdx3JsonExporter,
     release_info_cache: (dict[tuple[str, str | None], dict[str, Any] | None] | None),
     prov_cfg: ProvenanceConfig,
     encoder: ProvenanceEncoder,
     offline: bool,
     content_type_method: str,
-) -> tuple[str, str]:
-    """Create, enrich, and register a software_Package element for a deployed dep."""
+) -> str:
+    """Create, enrich, and register a software_Package element for a deployed dep.
+
+    *resolved_id* is the id :func:`_resolve_deployed_package_hits` already
+    looked up for this dependency's lookup key (or ``None`` on a miss) --
+    this function never queries the registry itself, so it always builds
+    on the exact same hit :func:`build_deployed`'s caller reserved,
+    instead of deriving its own lookup key from *node* a second time."""
     pkg_info = node.get("package", {})
     dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
     dep_version = pkg_info.get("installed_version", "unknown")
 
-    lookup_key = pkg_info.get("key", dep_name.lower())
-    spdx_id = (
-        registry.lookup_entity(lookup_key, "software_Package")
-        if registry is not None
-        else None
-    )
+    spdx_id = resolved_id
     if spdx_id is None:
         spdx_id = generate_spdx_id("Package", doc_name=metadata_name, doc_uuid=doc_uuid)
 
@@ -97,7 +148,7 @@ def _build_deployed_package(
         provenance_config=prov_cfg,
         encoder=encoder,
     )
-    return lookup_key, require_spdx_id(dep_package)
+    return require_spdx_id(dep_package)
 
 
 def _build_deployed_inter_relationships(
@@ -233,6 +284,8 @@ def build_deployed(
         merkle_root=None,
     )
     _clear_doc_counters(doc_uuid)
+    resolved_hits = _resolve_deployed_package_hits(env_tree, registry)
+    reserve_spdx_ids(metadata.name, doc_uuid, resolved_hits.values())
 
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
     exporter.add_creation_info(spdx_ci)
@@ -269,12 +322,15 @@ def build_deployed(
 
     package_spdx_ids: dict[str, str] = {}
     for node in env_tree:
-        lookup_key, spdx_id = _build_deployed_package(
+        pkg_info = node.get("package", {})
+        dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
+        lookup_key = _deployed_lookup_key(pkg_info, dep_name)
+        spdx_id = _build_deployed_package(
             node,
             metadata.name,
             doc_uuid,
             spdx_ci,
-            registry,
+            resolved_hits.get(lookup_key),
             exporter,
             release_info_cache,
             prov_cfg,

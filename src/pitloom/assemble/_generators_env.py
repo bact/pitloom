@@ -26,7 +26,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.env import read_environment
-from pitloom.ids import IdRegistry, resolve_explicit_registry
+from pitloom.id_registry import IdRegistry, resolve_explicit_registry
 from pitloom.logging_config import configure_logging
 
 

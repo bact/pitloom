@@ -16,7 +16,7 @@ from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 "Tests for SBOM fragment merging -- verifies that informational fields\nfrom SPDX 3 fragment files are not dropped during the stitch/merge step.\n\nFixtures live in tests/fixtures/fragments/:\n  ai-model-fragment.spdx3.json       -- ai_AIPackage with full AI metadata\n  dataset-fragment.spdx3.json        -- dataset_DatasetPackage with dataset metadata\n  training-run-fragment.spdx3.json   -- loom.run()-style combined fragment:\n                                        ai_AIPackage + 2 datasets + trainedOn/testedOn\n\nImplementation note\n-------------------\nThe spdx-python-model library serialises anonymous (blank) node objects --\nDictionaryEntry, ai_EnergyConsumption, ai_EnergyConsumptionDescription -- as\nseparate @graph entries referenced by blank-node IDs like ``_:DictionaryEntry0``.\nThe ``_resolve`` / ``_entries`` helpers below dereference those IDs so that\ntests can navigate nested structures without depending on blank-node internals.\n"  # noqa: E501
 

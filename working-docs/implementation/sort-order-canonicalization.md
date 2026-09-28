@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-08-15
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -15,7 +15,7 @@ canonicalization", follow-up to [PR #178](https://github.com/bact/pitloom/pull/1
 
 Audited every `sorted()`/`.sort()` call in the assemble/id-registry
 path. Findings, made explicit in code rather than left as a roadmap
-note: `_sorted_by_spdx_id()` (`src/pitloom/ids.py`) is *not* canonical
+note: `_sorted_by_spdx_id()` (`src/pitloom/id_registry/_harvest.py`) is *not* canonical
 -- it only orders `IdRegistry` bookkeeping, never hashed/serialized
 SBOM content, and its docstring now says so. The genuinely load-bearing
 one, formerly `_stable_key()` in

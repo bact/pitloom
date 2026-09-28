@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import loom
-from pitloom.ids import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
 
 from .conftest import _relationships
 
@@ -75,8 +75,8 @@ def test_loom_registry_id_reuse_for_dataset_and_model() -> None:
             )
         },
         entities={
-            "registered-model": EntityEntry(
-                type="ai_AIPackage", spdx_id=f"{namespace}#AIPackage-1"
+            ("ai_AIPackage", "registered-model"): EntityEntry(
+                spdx_id=f"{namespace}#AIPackage-1"
             )
         },
     )
@@ -218,6 +218,283 @@ def test_loom_output_dataset_only_run_gets_generates_edge_to_outputs() -> None:
         rels = _relationships(graph)
         (generates,) = [r for r in rels if r.get("relationshipType") == "generates"]
         assert generates["to"] == [ds["spdxId"]]
+
+
+def test_loom_set_model_called_twice_with_registry_gets_two_ids(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``set_model()`` called twice for the same name (e.g. once before and
+    once after training, a common loom pattern) with a registry: the
+    first call claims the registered id, the second is unconditionally a
+    miss -- not raise, two distinct ``ai_AIPackage`` elements, one
+    ``WARNING: Registry: ... registered for both ...``. Matches
+    no-registry behaviour (two elements) except for the warning, which
+    is the truthful record of which call got the registered id."""
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    registry = IdRegistry(
+        namespace=namespace,
+        entities={
+            ("ai_AIPackage", "m"): EntityEntry(spdx_id=f"{namespace}#AIPackage-1")
+        },
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "frag.json"
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file, registry=registry):
+                loom.set_model("m")
+                loom.set_model("m")
+
+        graph = json.loads(output_file.read_text())["@graph"]
+        models = [e for e in graph if e["type"] == "ai_AIPackage"]
+        assert len(models) == 2
+        assert models[0]["spdxId"] != models[1]["spdxId"]
+        assert f"{namespace}#AIPackage-1" in {m["spdxId"] for m in models}
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelname == "WARNING" and "registered for both" in r.message
+        ]
+        assert len(warnings) == 1
+
+
+def test_loom_same_file_as_input_and_output_dataset_gets_two_ids(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The same file name added via both ``add_input_dataset()`` and
+    ``add_dataset()`` (a legitimate loom pattern: a file used both as raw
+    input and re-declared as the training dataset) with a registry: the
+    second call is unconditionally a miss -- not raise, two distinct
+    ``dataset_DatasetPackage`` elements, one collision warning."""
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    registry = IdRegistry(
+        namespace=namespace,
+        files={
+            _EXISTING_FILE: FileEntry(
+                spdx_id=f"{namespace}#File-1", sha256=_sha256_of(_EXISTING_FILE)
+            )
+        },
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "frag.json"
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file, registry=registry):
+                loom.add_input_dataset(_EXISTING_FILE)
+                loom.add_dataset(_EXISTING_FILE)
+
+        graph = json.loads(output_file.read_text())["@graph"]
+        datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+        assert len(datasets) == 2
+        assert datasets[0]["spdxId"] != datasets[1]["spdxId"]
+        assert f"{namespace}#File-1" in {d["spdxId"] for d in datasets}
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelname == "WARNING" and "registered for both" in r.message
+        ]
+        assert len(warnings) == 1
+
+
+def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``set_model()`` called twice for the same name but with *differing*
+    content (e.g. hyperparameters filled in after training) must not
+    raise, and must not silently collapse into the first: the second
+    call gets its own fresh id plus one ``WARNING: Registry: ...
+    registered for both ...``, matching what happens with no registry
+    at all."""
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    registry = IdRegistry(
+        namespace=namespace,
+        entities={
+            ("ai_AIPackage", "m"): EntityEntry(spdx_id=f"{namespace}#AIPackage-1")
+        },
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "frag.json"
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file, registry=registry):
+                loom.set_model("m")
+                loom.set_model("m", model_type="cnn", hyperparameters={"lr": "0.1"})
+
+        graph = json.loads(output_file.read_text())["@graph"]
+        models = [e for e in graph if e["type"] == "ai_AIPackage"]
+        assert len(models) == 2
+        assert models[0]["spdxId"] != models[1]["spdxId"]
+        assert f"{namespace}#AIPackage-1" in {m["spdxId"] for m in models}
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelname == "WARNING" and "registered for both" in r.message
+        ]
+        assert len(warnings) == 1
+
+
+def test_loom_same_file_as_dataset_with_different_type_gets_two_ids(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The same file added via ``add_input_dataset()`` then ``add_dataset()``
+    with *different* ``dataset_type`` values is a genuine second element
+    -- not the identical-repeat case above. Must not raise, and each
+    dataset keeps its own distinct id plus one collision warning."""
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    registry = IdRegistry(
+        namespace=namespace,
+        files={
+            _EXISTING_FILE: FileEntry(
+                spdx_id=f"{namespace}#File-1", sha256=_sha256_of(_EXISTING_FILE)
+            )
+        },
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "frag.json"
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file, registry=registry):
+                loom.add_input_dataset(_EXISTING_FILE, dataset_type="text")
+                loom.add_dataset(_EXISTING_FILE, dataset_type="image")
+
+        graph = json.loads(output_file.read_text())["@graph"]
+        datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+        assert len(datasets) == 2
+        assert datasets[0]["spdxId"] != datasets[1]["spdxId"]
+        assert f"{namespace}#File-1" in {d["spdxId"] for d in datasets}
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelname == "WARNING" and "registered for both" in r.message
+        ]
+        assert len(warnings) == 1
+
+
+def test_loom_input_then_output_dataset_after_file_rewrite_gets_two_ids(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A realistic pipeline: ``add_input_dataset("data.txt")`` before
+    training, the script rewrites ``data.txt``, then
+    ``add_output_dataset("data.txt")`` after -- same name, same default
+    ``dataset_type``, but a DIFFERENT file hash (``verifiedUsing``). This
+    is the case a content-*signature* comparison misses, because the
+    signature never covered the hash: must not raise, and each dataset
+    keeps its own distinct id."""
+    monkeypatch.chdir(tmp_path)
+    data_file = tmp_path / "data.txt"
+    data_file.write_text("before\n")
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    registry = IdRegistry(
+        namespace=namespace,
+        files={
+            "data.txt": FileEntry(
+                spdx_id=f"{namespace}#File-1", sha256=_sha256_of("data.txt")
+            )
+        },
+    )
+
+    output_file = tmp_path / "frag.json"
+    with loom.run(output_file, registry=registry):
+        loom.add_input_dataset("data.txt")
+        data_file.write_text("after\n")
+        loom.add_output_dataset("data.txt")
+
+    graph = json.loads(output_file.read_text())["@graph"]
+    datasets = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    assert len(datasets) == 2
+    assert datasets[0]["spdxId"] != datasets[1]["spdxId"]
+    hash_values = {d["verifiedUsing"][0]["hashValue"] for d in datasets}
+    assert len(hash_values) == 2
+
+
+def test_loom_script_file_hit_shares_id_with_dataset_gets_two_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The generating script's own registry hit
+    (``_build_script_file()``'s ``_hash_and_registry_lookup()`` call) is
+    a loom registry hit like any other, and must go through the run's
+    claims the same way ``set_model()``/``add_*_dataset()`` do. A
+    registry where a dataset's key and the script's key happen to share
+    one id (e.g. two independently-registered files that were never
+    meant to collide) must not raise at ``Run.__exit__``: the dataset
+    claims the id first, the script's own hit is a miss and gets its own
+    fresh id plus one collision warning."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data.txt").write_text("data\n")
+    (tmp_path / "script.py").write_text("print('hi')\n")
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    shared_id = f"{namespace}#File-1"
+    registry = IdRegistry(
+        namespace=namespace,
+        files={
+            "data.txt": FileEntry(spdx_id=shared_id, sha256=_sha256_of("data.txt")),
+            "script.py": FileEntry(spdx_id=shared_id, sha256=_sha256_of("script.py")),
+        },
+    )
+
+    output_file = tmp_path / "frag.json"
+    with patch(
+        "pitloom._loom_active_run._get_caller_script_path", return_value="script.py"
+    ):
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file, registry=registry):
+                loom.set_model("m")
+                loom.add_input_dataset("data.txt")
+
+    graph = json.loads(output_file.read_text())["@graph"]
+    (dataset,) = [e for e in graph if e["type"] == "dataset_DatasetPackage"]
+    (script_file,) = [
+        e for e in graph if e["type"] == "software_File" and e["name"] == "script.py"
+    ]
+    assert dataset["spdxId"] != script_file["spdxId"]
+    assert shared_id in {dataset["spdxId"], script_file["spdxId"]}
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelname == "WARNING" and "registered for both" in r.message
+    ]
+    assert len(warnings) == 1
+
+
+def test_loom_set_model_hyperparameters_then_set_model_again_gets_two_ids(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``set_model("m")`` -> ``set_model_hyperparameters({...})`` (mutating
+    the first ``ai_AIPackage`` element in place) -> ``set_model("m")``
+    again: the first and second elements now differ (hyperparameters
+    present vs. absent). This is the case a content-*signature* recorded
+    only at the first call's own time misses, since the mutation happens
+    after that. Must not raise, two distinct ids, one warning."""
+    namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
+    registry = IdRegistry(
+        namespace=namespace,
+        entities={
+            ("ai_AIPackage", "m"): EntityEntry(spdx_id=f"{namespace}#AIPackage-1")
+        },
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "frag.json"
+        with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
+            with loom.run(output_file, registry=registry):
+                loom.set_model("m")
+                loom.set_model_hyperparameters({"lr": "0.1"})
+                loom.set_model("m")
+
+        graph = json.loads(output_file.read_text())["@graph"]
+        models = [e for e in graph if e["type"] == "ai_AIPackage"]
+        assert len(models) == 2
+        assert models[0]["spdxId"] != models[1]["spdxId"]
+        has_hyperparameters = [bool(m.get("ai_hyperparameter")) for m in models]
+        assert sorted(has_hyperparameters) == [False, True]
+        warnings = [
+            r
+            for r in caplog.records
+            if r.levelname == "WARNING" and "registered for both" in r.message
+        ]
+        assert len(warnings) == 1
 
 
 def test_loom_repl_caller_gets_no_script_file() -> None:

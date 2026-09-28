@@ -3,9 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loom ID registry: a stable file/entity -> SPDX ID registry.
+"""``IdRegistry``: a Loom ID registry, persisted as JSON.
 
-See also: :mod:`pitloom._ids_types` for registry dataclasses and file traversal.
+See also: :mod:`pitloom.id_registry._types` for its dataclasses and file
+traversal, :mod:`pitloom.id_registry._harvest` for SBOM-element harvest
+helpers, :mod:`pitloom.id_registry.resolve` for registry resolution.
 """
 
 from __future__ import annotations
@@ -13,47 +15,32 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom._ids_types import (
-    _DEFAULT_IDS_GENERATE_DIR_NAMES,
-    _IGNORED_DIR_NAMES,
+from pitloom._sbom_io import open_text_lf
+from pitloom.id_registry._harvest import (
+    _import_sbom_element,
+    _sorted_by_spdx_id,
+    _SpdxIdIndex,
+)
+from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
     DEFAULT_REGISTRY_FILENAME,
     EntityEntry,
     FileEntry,
+    _entity_key,
     _iter_files,
-    _sha256_file,
-    _sha256_from_verified_using,
     _type_id_prefix,
+    sha256_file,
 )
-from pitloom._sbom_io import open_text_lf
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("pitloom.id_registry")
 
-__all__ = [
-    "DEFAULT_REGISTRY_FILENAME",
-    "EntityEntry",
-    "FileEntry",
-    "IdRegistry",
-    "_DEFAULT_IDS_GENERATE_DIR_NAMES",
-    "_IGNORED_DIR_NAMES",
-    "_REGISTRY_VERSION",
-    "_default_ids_generate_paths",
-    "_import_sbom_element",
-    "_iter_files",
-    "_load_or_create_registry",
-    "_sha256_file",
-    "_sha256_from_verified_using",
-    "_type_id_prefix",
-    "resolve_explicit_registry",
-    "resolve_registry",
-]
+__all__ = ["IdRegistry"]
 
 
 class IdRegistry:
@@ -65,12 +52,17 @@ class IdRegistry:
         self,
         namespace: str,
         files: dict[str, FileEntry] | None = None,
-        entities: dict[str, EntityEntry] | None = None,
+        entities: dict[tuple[str, str], EntityEntry] | None = None,
         path: Path | None = None,
     ) -> None:
         self.namespace = namespace
         self.files: dict[str, FileEntry] = files if files is not None else {}
-        self.entities: dict[str, EntityEntry] = entities if entities is not None else {}
+        #: Keyed by ``(type_name, name)`` -- a directory and a package (or
+        #: any two entities of different SPDX 3 types) sharing one name are
+        #: distinct entries, never overwriting each other.
+        self.entities: dict[tuple[str, str], EntityEntry] = (
+            entities if entities is not None else {}
+        )
         self.path = path
 
     @classmethod
@@ -94,6 +86,14 @@ class IdRegistry:
         if not isinstance(namespace, str) or not namespace:
             raise ValueError(f"Registry {path} is missing a valid 'namespace'")
 
+        version = data.get("version")
+        if version != _REGISTRY_VERSION:
+            raise ValueError(
+                f"Registry {path} has version {version!r}, expected "
+                f"{_REGISTRY_VERSION} (no migration support -- delete it and "
+                "re-run `pitloom ids generate` or `pitloom ids import`)"
+            )
+
         try:
             files = {
                 str(rel_path): FileEntry(
@@ -101,12 +101,15 @@ class IdRegistry:
                 )
                 for rel_path, entry in data.get("files", {}).items()
             }
-            entities = {
-                str(name): EntityEntry(
-                    type=str(entry["type"]), spdx_id=str(entry["spdxId"])
-                )
-                for name, entry in data.get("entities", {}).items()
-            }
+            entities: dict[tuple[str, str], EntityEntry] = {}
+            for type_name, names in data.get("entities", {}).items():
+                for name, entry in names.items():
+                    key = _entity_key(str(name), str(type_name))
+                    if key in entities:
+                        raise ValueError(
+                            f"Registry {path} has two {key[0]} entries for {key[1]!r}"
+                        )
+                    entities[key] = EntityEntry(spdx_id=str(entry["spdxId"]))
         except (KeyError, TypeError, AttributeError) as exc:
             raise ValueError(f"Registry {path} has a malformed entry: {exc}") from exc
 
@@ -137,10 +140,15 @@ class IdRegistry:
 
     def lookup_entity(self, name: str, type_name: str) -> str | None:
         """Return the registered ``spdxId`` for the named entity of *type_name*."""
-        entry = self.entities.get(name)
-        if entry is None or entry.type != type_name:
-            return None
-        return entry.spdx_id
+        entry = self.entities.get(_entity_key(name, type_name))
+        return entry.spdx_id if entry is not None else None
+
+    def has_entity_named(self, name: str) -> bool:
+        """Return whether *name* is registered under any type at all, as
+        given or as the type's own key form (:func:`_entity_key`)."""
+        return any(
+            key[1] == name or key == _entity_key(name, key[0]) for key in self.entities
+        )
 
     def _mint_id(self, prefix: str) -> str:
         """Mint the next stable ``#<prefix>-<n>`` id in this registry's namespace."""
@@ -173,21 +181,20 @@ class IdRegistry:
         return spdx_id
 
     def register_entity(self, name: str, type_name: str) -> str:
-        """Register (or reuse) a named entity and return its ``spdxId``."""
-        existing = self.entities.get(name)
+        """Register (or reuse) a named entity and return its ``spdxId``.
+
+        Keyed by ``(type_name, name)`` (see :func:`_entity_key` for the
+        :data:`PACKAGE_ENTITY_TYPE` canonicalization applied to *name*): an
+        entity already registered under *name* but a *different* type is a
+        distinct entry, not a conflict -- both are kept, each looked up
+        only by its own type.
+        """
+        key = _entity_key(name, type_name)
+        existing = self.entities.get(key)
         if existing is not None:
-            if existing.type != type_name:
-                log.warning(
-                    "Registry: entity %r already registered as type %r; "
-                    "keeping its existing spdxId rather than minting a new "
-                    "one for type %r.",
-                    name,
-                    existing.type,
-                    type_name,
-                )
             return existing.spdx_id
         spdx_id = self._mint_id(_type_id_prefix(type_name))
-        self.entities[name] = EntityEntry(type=type_name, spdx_id=spdx_id)
+        self.entities[key] = EntityEntry(spdx_id=spdx_id)
         return spdx_id
 
     def generate(self, paths: list[Path], project_root: Path) -> None:
@@ -197,7 +204,7 @@ class IdRegistry:
 
         for file_path in _iter_files(paths, project_root):
             try:
-                sha256 = _sha256_file(file_path)
+                sha256 = sha256_file(file_path)
             except OSError as exc:
                 log.warning("Registry: could not read %s: %s", file_path, exc)
                 continue
@@ -224,7 +231,7 @@ class IdRegistry:
 
         self._harvest_sorted(sorted_objects)
 
-    def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, int]:
+    def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, int, bool]:
         """Harvest every named element in *object_set* into this registry.
 
         Used both by :meth:`import_sbom` (after deserializing an existing
@@ -233,28 +240,47 @@ class IdRegistry:
         object set -- no serialize/reparse round trip needed there, since
         every element already carries its assigned ``spdxId``.
 
-        Returns the number of ``(new_files, new_entities)`` added.
+        Returns ``(new_files, new_entities, changed)``: the first two are
+        *net* count deltas (for a caller's own log message), the third is
+        a proper "did anything actually change" signal a caller should
+        gate a ``save()`` on instead --
+        :func:`~pitloom.id_registry._harvest._release_stale_keys_for_id`
+        can drop one stale key in the same pass that adds another, which
+        nets to a zero size delta despite real content changing (the
+        surviving key's id, or the stale key's removal, both need
+        persisting); the net-count deltas alone cannot detect that case.
         """
         return self._harvest_sorted(_sorted_by_spdx_id(object_set))
 
-    def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, int]:
-        """Harvest *sorted_objects* (see :func:`_sorted_by_spdx_id`).
+    def _harvest_sorted(self, sorted_objects: list[Any]) -> tuple[int, int, bool]:
+        """Harvest *sorted_objects* (see
+        :func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`).
 
         Shared by :meth:`harvest` and :meth:`import_sbom` -- the latter
         already needs a sorted list for its own namespace-seeding scan,
         so it reuses that same list here instead of sorting the object
         set twice.
         """
-        before_files, before_entities = len(self.files), len(self.entities)
+        before_files = dict(self.files)
+        before_entities = dict(self.entities)
+        index = _SpdxIdIndex.from_registry(self)
         for obj in sorted_objects:
-            _import_sbom_element(self, obj)
-        return len(self.files) - before_files, len(self.entities) - before_entities
+            _import_sbom_element(self, obj, index)
+        changed = self.files != before_files or self.entities != before_entities
+        return (
+            len(self.files) - len(before_files),
+            len(self.entities) - len(before_entities),
+            changed,
+        )
 
     def save(self, path: Path | None = None) -> None:
         """Write this registry as JSON to *path*."""
         target = path or self.path
         if target is None:
             raise ValueError("No path given and registry has no default path")
+        entities_by_type: dict[str, dict[str, dict[str, str]]] = {}
+        for (type_name, name), entry in sorted(self.entities.items()):
+            entities_by_type.setdefault(type_name, {})[name] = {"spdxId": entry.spdx_id}
         data = {
             "version": _REGISTRY_VERSION,
             "namespace": self.namespace,
@@ -262,124 +288,10 @@ class IdRegistry:
                 rel_path: {"spdxId": entry.spdx_id, "sha256": entry.sha256}
                 for rel_path, entry in sorted(self.files.items())
             },
-            "entities": {
-                name: {"type": entry.type, "spdxId": entry.spdx_id}
-                for name, entry in sorted(self.entities.items())
-            },
+            "entities": entities_by_type,
         }
         target.parent.mkdir(parents=True, exist_ok=True)
         with open_text_lf(target) as f:
             json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
             f.write("\n")
         self.path = target
-
-
-def _sorted_by_spdx_id(object_set: spdx3.SHACLObjectSet) -> list[Any]:
-    """Return *object_set*'s objects sorted by ``spdxId`` for deterministic
-    iteration (``SHACLObjectSet.objects`` is an unordered set).
-
-    Not canonical for SBOM output: this order never feeds hashed or
-    serialized SBOM content -- unlike
-    :func:`pitloom.assemble.spdx3._fragments_unify._canonical_merge_key`,
-    whose order does determine SBOM output content. It is still
-    load-bearing for :class:`IdRegistry` bookkeeping, though: when an
-    imported SBOM carries more than one ``SpdxDocument`` element,
-    :meth:`IdRegistry.import_sbom` takes the first one in this order as
-    ``self.namespace`` (see its loop over ``sorted_objects``), and that
-    namespace is itself persisted by :meth:`IdRegistry.save`. Changing
-    this key is safe for the common single-document case, but can change
-    which namespace gets picked -- and persisted -- for a multi-document
-    input.
-    """
-    return sorted(object_set.objects, key=lambda o: getattr(o, "spdxId", None) or "")
-
-
-def _import_sbom_element(registry: IdRegistry, obj: Any) -> None:
-    """Harvest a single deserialized SBOM element into *registry*."""
-    name = getattr(obj, "name", None)
-    spdx_id = getattr(obj, "spdxId", None)
-    if not name or not spdx_id:
-        return
-
-    get_compact_type = getattr(obj, "get_compact_type", None)
-    compact_type = get_compact_type() if get_compact_type is not None else None
-    if not compact_type:
-        compact_type = type(obj).__name__
-
-    if compact_type != "software_Package":
-        sha256 = _sha256_from_verified_using(obj)
-        if sha256 is not None:
-            registry.files[name] = FileEntry(spdx_id=spdx_id, sha256=sha256)
-            return
-
-    if not compact_type or compact_type == "object":
-        log.debug("Import: skipping %r (no SPDX 3 compact type)", name)
-        return
-    registry.entities[name] = EntityEntry(type=compact_type, spdx_id=spdx_id)
-
-
-def resolve_registry(
-    project_dir: Path,
-    ids_file: str | Path | IdRegistry | None = None,
-) -> IdRegistry | None:
-    """Resolve the registry a project build should consult."""
-    if isinstance(ids_file, IdRegistry):
-        return ids_file
-    if ids_file is not None:
-        path = Path(ids_file)
-        registry_path = path if path.is_absolute() else project_dir / path
-        try:
-            return IdRegistry.load(registry_path)
-        except (FileNotFoundError, ValueError, OSError) as exc:
-            log.warning("Registry: could not load %s: %s", registry_path, exc)
-            return None
-    return IdRegistry.find(start=project_dir)
-
-
-def resolve_explicit_registry(
-    registry: str | Path | IdRegistry | None,
-    ids_file: str | None,
-) -> IdRegistry | None:
-    """Resolve the registry for a target with no project of its own (a
-    wheel, an installed environment, a model file).
-
-    Only an explicit source counts: *registry* (``--registry``), else
-    *ids_file* from an explicitly named config. Unlike
-    :func:`resolve_registry`, this never searches for a ``loom-ids.json``
-    -- one found near the current directory belongs to whatever project
-    that is, not to this target. A relative path resolves against the
-    current directory; :func:`pitloom.core.config_cascade.load_config_file`
-    has already made a config's own ``ids-file`` absolute.
-    """
-    source = registry if registry is not None else ids_file
-    if source is None:
-        return None
-    return resolve_registry(Path.cwd(), source)
-
-
-def _load_or_create_registry(
-    registry_path: Path, project_dir_name: str
-) -> IdRegistry | None:
-    """Load existing registry from registry_path or return a new one."""
-    if registry_path.exists():
-        try:
-            return IdRegistry.load(registry_path)
-        # pylint: disable=broad-exception-caught
-        except Exception as exc:
-            print(
-                f"ERROR: failed to load registry from {registry_path}: {exc}",
-                file=sys.stderr,
-            )
-            return None
-
-    namespace = f"https://spdx.org/spdxdocs/{project_dir_name}-{uuid4()}"
-    return IdRegistry(namespace=namespace)
-
-
-def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
-    """Return default candidate paths for `pitloom ids generate`."""
-    return [
-        project_dir / name
-        for name in _DEFAULT_IDS_GENERATE_DIR_NAMES
-        if (project_dir / name).exists()
-    ]

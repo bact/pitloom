@@ -17,7 +17,7 @@ import rfc8785
 
 from pitloom import __main__
 from pitloom.cli.commands import wheel as mod_wheel
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.warning_helpers import count_naming, stderr_warnings
 

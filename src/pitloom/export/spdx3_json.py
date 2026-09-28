@@ -196,6 +196,45 @@ def _deduplicate_named_elements(
     return result
 
 
+def _describe_graph_element(element: dict[str, Any]) -> str:
+    """Short ``Type:name`` label for a serialized graph element, for a
+    duplicate-id error message."""
+    return f"{element.get('type', 'unknown')}:{element.get('name')}"
+
+
+def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
+    """Raise ``RuntimeError`` if two elements of *graph* share a
+    ``spdxId`` after :func:`_deduplicate_named_elements` has already run.
+
+    Must run AFTER that dedup pass, on its output, not on
+    :attr:`Spdx3JsonExporter.object_set` before serialization: two
+    elements sharing an id with byte-for-byte identical content (e.g.
+    ``pitloom.loom``'s ``set_model()`` called twice, or the same file
+    added via both ``add_input_dataset()`` and ``add_dataset()``) is a
+    normal, expected outcome that dedup collapses to one copy -- checking
+    before dedup would raise on that legitimate case. What reaches here
+    is only :func:`_deduplicate_named_elements`'s "conflict, retain all"
+    branch: two same-id elements that differ in content, which it
+    deliberately keeps both of rather than guessing which to drop. A
+    last-resort safety net for the case
+    :func:`~pitloom.id_registry.claim_registry_hit`-based reservation exists to
+    avoid -- see ``working-docs/implementation/id-registry-autosync.md``.
+    """
+    seen: dict[str, dict[str, Any]] = {}
+    for element in graph:
+        spdx_id = element.get("spdxId")
+        if not spdx_id:
+            continue
+        first = seen.get(spdx_id)
+        if first is not None:
+            raise RuntimeError(
+                f"Duplicate spdxId {spdx_id!r}: "
+                f"{_describe_graph_element(first)} and "
+                f"{_describe_graph_element(element)}"
+            )
+        seen[spdx_id] = element
+
+
 def _resolve_element_name(el: dict[str, Any], spdx_id: str) -> str:
     """Derive human-friendly name for an SPDX element."""
     name = el.get("name")
@@ -394,6 +433,7 @@ class Spdx3JsonExporter:
         if "@graph" in data:
             data["@graph"] = _deduplicate_creation_infos(data["@graph"])
             data["@graph"] = _deduplicate_named_elements(data["@graph"])
+            _check_no_duplicate_spdx_ids(data["@graph"])
             if describe_relationship:
                 _annotate_relationships(data["@graph"])
             data["@graph"].sort(key=_graph_sort_key)

@@ -13,6 +13,7 @@ See also:
 from __future__ import annotations
 
 import collections
+import hashlib
 import json
 import logging
 import tempfile
@@ -22,7 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import _loom_caller, loom
-from pitloom.ids import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
 
 
 def test_loom_functions_raise_runtime_error_without_active_run() -> None:
@@ -238,6 +239,30 @@ def test_hash_and_registry_lookup_content_changed_warning(
         Path(file_path).unlink(missing_ok=True)
 
 
+def test_hash_and_registry_lookup_streams_without_read_bytes(
+    tmp_path: Path,
+) -> None:
+    """``_hash_and_registry_lookup()`` must stream the file in chunks
+    (CLAUDE.md: never load an entire file into memory) rather than
+    ``Path.read_bytes()`` -- same digest either way, but
+    ``Path.read_bytes`` must never be called."""
+    file_path = tmp_path / "data.txt"
+    content = b"x" * 20000  # several chunk-sizes, not a coincidental fit
+    file_path.write_bytes(content)
+    expected_digest = hashlib.sha256(content).hexdigest()
+
+    with patch.object(
+        Path, "read_bytes", side_effect=AssertionError("read_bytes must not be used")
+    ):
+        hash_elem, registered_id = _loom_caller._hash_and_registry_lookup(
+            str(file_path), None
+        )
+
+    assert registered_id is None
+    assert hash_elem is not None
+    assert hash_elem.hashValue == expected_digest
+
+
 def test_active_run_set_model_registry_type_mismatch_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -248,8 +273,8 @@ def test_active_run_set_model_registry_type_mismatch_warning(
             namespace="https://spdx.org/spdxdocs/test",
             files={},
             entities={
-                "my_model": EntityEntry(
-                    type="software_Package",  # Different from ai_AIPackage
+                ("software_Package", "my_model"): EntityEntry(
+                    # Different from ai_AIPackage
                     spdx_id="https://spdx.org/spdxdocs/doc/test-Package-1",
                 )
             },

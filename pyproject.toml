@@ -359,7 +359,9 @@ ignored-modules = ["gguf", "magika"]
 
 [tool.pyrefly]
 project-excludes = ["**/tests/fixtures/"]
-search-path = [".", "src", "examples/sentimentdemo-aibom/src"]
+# "src" before ".": a module under src/ must resolve as pitloom.x, never also
+# as src.pitloom.x (two identities for one class -> false bad-argument-type).
+search-path = ["src", ".", "examples/sentimentdemo-aibom/src"]
 python-version = "3.10.0"
 
 # spdx-python-model uses SHACL-based dynamic class generation: its enum-like

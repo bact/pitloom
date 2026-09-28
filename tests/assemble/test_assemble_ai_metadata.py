@@ -18,7 +18,7 @@ from pitloom.assemble.spdx3.ai import (
     _source_metadata_blob,
 )
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.ids import EntityEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, IdRegistry
 
 from ..conftest import fake_build_and_read_path
 
@@ -96,7 +96,7 @@ def test_lookup_ai_model_entity_found_by_name() -> None:
     registry = IdRegistry(
         namespace="urn:doc",
         entities={
-            "mymodel": EntityEntry(type="ai_AIPackage", spdx_id="urn:doc#AIPackage-1")
+            ("ai_AIPackage", "mymodel"): EntityEntry(spdx_id="urn:doc#AIPackage-1")
         },
     )
     model = AiModelMetadata(name="mymodel")
@@ -107,8 +107,8 @@ def test_lookup_ai_model_entity_found_by_physical_path() -> None:
     registry = IdRegistry(
         namespace="urn:doc",
         entities={
-            "src/model.gguf": EntityEntry(
-                type="ai_AIPackage", spdx_id="urn:doc#AIPackage-2"
+            ("ai_AIPackage", "src/model.gguf"): EntityEntry(
+                spdx_id="urn:doc#AIPackage-2"
             )
         },
     )
@@ -122,7 +122,7 @@ def test_lookup_ai_model_entity_found_by_file_stem() -> None:
     registry = IdRegistry(
         namespace="urn:doc",
         entities={
-            "model": EntityEntry(type="ai_AIPackage", spdx_id="urn:doc#AIPackage-3")
+            ("ai_AIPackage", "model"): EntityEntry(spdx_id="urn:doc#AIPackage-3")
         },
     )
     model = AiModelMetadata(format_info=AiModelFormatInfo(file_name="model.gguf"))
@@ -140,8 +140,8 @@ def test_lookup_ai_model_entity_falls_back_when_physical_path_absolute() -> None
     registry = IdRegistry(
         namespace="urn:doc",
         entities={
-            "src/model.gguf": EntityEntry(
-                type="ai_AIPackage", spdx_id="urn:doc#AIPackage-4"
+            ("ai_AIPackage", "src/model.gguf"): EntityEntry(
+                spdx_id="urn:doc#AIPackage-4"
             )
         },
     )
@@ -161,7 +161,7 @@ def test_lookup_ai_model_entity_absolute_path_no_fallback_skips_candidate() -> N
     registry = IdRegistry(
         namespace="urn:doc",
         entities={
-            "model": EntityEntry(type="ai_AIPackage", spdx_id="urn:doc#AIPackage-5")
+            ("ai_AIPackage", "model"): EntityEntry(spdx_id="urn:doc#AIPackage-5")
         },
     )
     model = AiModelMetadata(

@@ -36,7 +36,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry, claim_registry_hit
 
 __all__ = [
     "_LineageContext",
@@ -49,7 +49,56 @@ __all__ = [
     "_should_preserve_metadata",
     "_source_metadata_blob",
     "add_ai_models",
+    "resolve_ai_model_entity_hits",
 ]
+
+
+def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
+    """A short, human-readable identifier for *ai_model* in a
+    :func:`~pitloom.id_registry.claim_registry_hit` warning -- never used as a
+    lookup key, only for the message."""
+    return (
+        ai_model.name
+        or ai_model.format_info.file_path_relative
+        or ai_model.format_info.file_name
+        or f"ai_models[{index}]"
+    )
+
+
+def resolve_ai_model_entity_hits(
+    ai_models: list[AiModelMetadata],
+    registry: IdRegistry | None,
+    claimed: dict[str, str] | None = None,
+) -> list[str | None]:
+    """Pre-resolve each of *ai_models*' ``ai_AIPackage`` registry hit, in
+    list order, before any minting starts.
+
+    One entry per model (``None`` on a miss) via :func:`_lookup_ai_model_entity`.
+    The caller must reserve every non-``None`` value
+    (:func:`~pitloom.core.models.reserve_spdx_ids`) before minting, then
+    pass this list to :func:`add_ai_models` instead of *registry* --
+    pre-resolution is the single source of truth for what was reserved,
+    so the actual build must never look the registry up a second time.
+
+    Two models can legitimately hit the same entity -- e.g. two models
+    sharing a file stem, the only lookup candidate left when neither has a
+    name/``physical_path`` -- in which case only the first (in list order,
+    or via a shared *claimed* passed in by the caller, the first hit
+    across files/directories/AI models together) reuses it
+    (:func:`~pitloom.id_registry.claim_registry_hit`); every later one gets its
+    own fresh id instead of silently losing its element to the first,
+    with one ``WARNING: Registry: ...`` naming both. A fresh, empty
+    *claimed* is used when the caller doesn't share one.
+    """
+    if claimed is None:
+        claimed = {}
+    hits: list[str | None] = []
+    for index, ai_model in enumerate(ai_models):
+        hit = _lookup_ai_model_entity(ai_model, registry)
+        if hit is not None:
+            hit = claim_registry_hit(_ai_model_label(ai_model, index), hit, claimed)
+        hits.append(hit)
+    return hits
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -109,13 +158,16 @@ def _add_single_ai_model(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    registry: IdRegistry | None,
+    entity_spdx_id: str | None,
     config: ProvenanceConfig,
     encoder: ProvenanceEncoder | None,
     lineage_ctx: _LineageContext,
 ) -> None:
-    """Assemble elements and relationships for a single AI model."""
-    entity_spdx_id = _lookup_ai_model_entity(ai_model, registry)
+    """Assemble elements and relationships for a single AI model.
+
+    *entity_spdx_id* is the pre-resolved registry hit from
+    :func:`resolve_ai_model_entity_hits` (or ``None`` on a miss) -- never
+    looked up here."""
     ai_pkg = _build_ai_package(
         ai_model, creation_info, doc_name, doc_uuid, entity_spdx_id=entity_spdx_id
     )
@@ -224,13 +276,19 @@ def add_ai_models(
     doc_name: str,
     doc_uuid: str,
     exporter: Spdx3JsonExporter,
-    registry: IdRegistry | None = None,
+    resolved_entity_ids: list[str | None] | None = None,
     *,
     provenance_config: ProvenanceConfig | None = None,
     encoder: ProvenanceEncoder | None = None,
     enrichment_results_by_model: list[list[EnrichmentResult]] | None = None,
 ) -> None:
-    """Build ``ai_AIPackage`` and ``contains`` relationship elements for AI models."""
+    """Build ``ai_AIPackage`` and ``contains`` relationship elements for AI models.
+
+    *resolved_entity_ids*, when given, is one pre-resolved registry hit
+    (or ``None``) per ``ai_models`` element, same order -- see
+    :func:`resolve_ai_model_entity_hits`. Missing/``None`` list entries are
+    treated as a miss, unchanged behaviour when no registry applies.
+    """
     config = provenance_config or ProvenanceConfig()
     lineage_ctx = _LineageContext(
         creation_info=creation_info,
@@ -244,6 +302,11 @@ def add_ai_models(
             if enrichment_results_by_model and index < len(enrichment_results_by_model)
             else []
         )
+        entity_spdx_id = (
+            resolved_entity_ids[index]
+            if resolved_entity_ids and index < len(resolved_entity_ids)
+            else None
+        )
         _add_single_ai_model(
             ai_model,
             model_enrichment_results,
@@ -253,7 +316,7 @@ def add_ai_models(
             doc_name,
             doc_uuid,
             exporter,
-            registry,
+            entity_spdx_id,
             config,
             encoder,
             lineage_ctx,

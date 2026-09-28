@@ -11,12 +11,42 @@ import argparse
 import sys
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from pitloom.ids import (
-    DEFAULT_REGISTRY_FILENAME,
-    _default_ids_generate_paths,
-    _load_or_create_registry,
-)
+from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, IdRegistry
+
+#: Candidate directory names for `pitloom ids generate`'s implicit-paths
+#: fallback (see :func:`_default_ids_generate_paths`). CLI-only: no other
+#: id_registry consumer needs this list.
+_DEFAULT_IDS_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
+
+
+def _load_or_create_registry(
+    registry_path: Path, project_dir_name: str
+) -> IdRegistry | None:
+    """Load existing registry from registry_path or return a new one."""
+    if registry_path.exists():
+        try:
+            return IdRegistry.load(registry_path)
+        # pylint: disable=broad-exception-caught
+        except Exception as exc:
+            print(
+                f"ERROR: failed to load registry from {registry_path}: {exc}",
+                file=sys.stderr,
+            )
+            return None
+
+    namespace = f"https://spdx.org/spdxdocs/{project_dir_name}-{uuid4()}"
+    return IdRegistry(namespace=namespace)
+
+
+def _default_ids_generate_paths(project_dir: Path) -> list[Path]:
+    """Return default candidate paths for `pitloom ids generate`."""
+    return [
+        project_dir / name
+        for name in _DEFAULT_IDS_GENERATE_DIR_NAMES
+        if (project_dir / name).exists()
+    ]
 
 
 def _run_ids_generate(args: argparse.Namespace) -> int:

@@ -18,7 +18,7 @@ from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import _clear_doc_counters
 from pitloom.core.provenance import ProvenanceConfig
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 #: loom.py is a standalone SDK invoked from ad hoc scripts/notebooks, not
 #: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
@@ -77,7 +77,7 @@ class Run(contextlib.ContextDecorator):
             all fields. When ``None`` (default), the comment defaults to an
             auto-generated note identifying the loom SDK and its version,
             and the creator defaults to the ``SoftwareAgent`` "Pitloom".
-        registry: A ``pitloom.ids.IdRegistry``, a path to a registry
+        registry: A ``pitloom.id_registry.IdRegistry``, a path to a registry
             JSON file, or ``None`` (default) to auto-discover
             ``loom-ids.json`` by walking up from the current working
             directory. Consulted read-only: datasets, the model, and the

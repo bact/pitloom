@@ -23,6 +23,7 @@ from pitloom.core.models import (
     generate_spdx_id,
     get_wheel_files,
     normalize_dependency_specifier,
+    reserve_spdx_ids,
 )
 
 
@@ -97,6 +98,62 @@ def test_clear_doc_counters_resets_sequence() -> None:
     id2 = generate_spdx_id("Package", doc_name="resetpkg", doc_uuid=doc_uuid)
     assert id1 == id2
     assert id1.endswith("#Package-1")
+
+
+def test_reserve_spdx_ids_skips_reserved_numbers() -> None:
+    """A reserved number is skipped by generate_spdx_id(), whatever order
+    it's minted in -- regression for the wheel/directory id mint-collision
+    (a registry-supplied id and a freshly-minted one landing on the exact
+    same number in the same document namespace)."""
+    doc_uuid = compute_doc_uuid("reservepkg", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    namespace = f"https://spdx.org/spdxdocs/reservepkg-{doc_uuid}"
+    reserve_spdx_ids(
+        "reservepkg",
+        doc_uuid,
+        [f"{namespace}#File-2", f"{namespace}#File-5"],
+    )
+
+    minted = [
+        generate_spdx_id("File", doc_name="reservepkg", doc_uuid=doc_uuid)
+        for _ in range(4)
+    ]
+
+    assert [i.rsplit("-", 1)[-1] for i in minted] == ["1", "3", "4", "6"]
+
+
+def test_reserve_spdx_ids_ignores_other_namespaces() -> None:
+    """An id from an unrelated document namespace is not reserved."""
+    doc_uuid = compute_doc_uuid("nspkg", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    reserve_spdx_ids(
+        "nspkg",
+        doc_uuid,
+        ["https://spdx.org/spdxdocs/other-project-deadbeef#File-1"],
+    )
+
+    minted = generate_spdx_id("File", doc_name="nspkg", doc_uuid=doc_uuid)
+
+    assert minted.endswith("#File-1")
+
+
+def test_clear_doc_counters_clears_reservations() -> None:
+    """_clear_doc_counters() also drops any reservation for that doc_uuid --
+    a caller must reserve *after* clearing, never before (see build()).
+
+    Asserted through observable minting behaviour only (never by poking
+    the internal ``_RESERVED`` dict): if the reservation survived the
+    clear, this mint would skip ``#File-1`` and land on ``#File-2``
+    instead."""
+    doc_uuid = compute_doc_uuid("clearpkg", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    namespace = f"https://spdx.org/spdxdocs/clearpkg-{doc_uuid}"
+    reserve_spdx_ids("clearpkg", doc_uuid, [f"{namespace}#File-1"])
+
+    _clear_doc_counters(doc_uuid)
+
+    minted = generate_spdx_id("File", doc_name="clearpkg", doc_uuid=doc_uuid)
+    assert minted.endswith("#File-1")
 
 
 def test_compute_doc_uuid_field_boundary_no_collision() -> None:

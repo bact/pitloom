@@ -19,7 +19,7 @@ from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.config import FragmentConfig
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 from .conftest import (
     _AI_MODEL_FRAGMENT,

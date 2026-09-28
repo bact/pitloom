@@ -44,7 +44,12 @@ from pitloom.assemble import (
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
-from pitloom.ids import DEFAULT_REGISTRY_FILENAME, EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import (
+    DEFAULT_REGISTRY_FILENAME,
+    EntityEntry,
+    FileEntry,
+    IdRegistry,
+)
 
 from ..cli.shared import SAFETENSORS_FIXTURE
 from .conftest import _make_dummy_wheel
@@ -75,8 +80,8 @@ def _seed_registry(path: Path, wheel: Path) -> None:
     up by name) and a file entry (looked up by path and digest)."""
     registry = IdRegistry(namespace=_IDS_NAMESPACE, path=path)
     for name, kind in ((_TARGET, "software_Package"), ("model", "ai_AIPackage")):
-        registry.entities[name] = EntityEntry(
-            spdx_id=f"{_IDS_NAMESPACE}#{kind}-seeded", type=kind
+        registry.entities[(kind, name)] = EntityEntry(
+            spdx_id=f"{_IDS_NAMESPACE}#{kind}-seeded"
         )
     member = f"{_TARGET}/__init__.py"
     with zipfile.ZipFile(wheel) as archive:

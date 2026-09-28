@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Shared utilities for pitloom.ids tests."""
+"""Shared utilities for pitloom.id_registry tests."""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -111,7 +111,8 @@ def _write_sample_sbom_without_document(path: Path) -> dict[str, str]:
     """Write a small SPDX 3 SBOM with no ``SpdxDocument`` element.
 
     Used to exercise the "no SpdxDocument found while harvesting a fresh
-    registry's namespace" fall-through in :meth:`pitloom.ids.IdRegistry.import_sbom`.
+    registry's namespace" fall-through in
+    :meth:`pitloom.id_registry.IdRegistry.import_sbom`.
     """
     namespace = "https://spdx.org/spdxdocs/sample-nodoc"
     ci = spdx3.CreationInfo(

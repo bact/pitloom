@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,3 +59,31 @@ reliable way to say "this is the same model I saw last time":
 
 No implementation direction chosen yet -- open design question, not a
 committed plan.
+
+## Known gap: two models sharing a file stem
+
+With a `pitloom ids generate`-populated registry, `_lookup_ai_model_entity`'s
+filename-stem candidate is the *only* usable key for a model with no
+`ai_model.name`/`physical_path` -- and that stem alone isn't unique
+across a project. Two models at `a/weights.npy` and `b/weights.npy`
+both resolve to the same stem, `"weights"`, so both hit the exact same
+registered `ai_AIPackage` entity.
+
+With the first-claimant-wins reservation
+([#234](https://github.com/bact/pitloom/pull/234),
+`pitloom.id_registry.claim_registry_hit`), this no longer loses the second
+model: only the first model (in `ai_models` list order, or resolution
+order more generally) reuses the registered hit; the second gets its own
+freshly-minted id and one `WARNING: Registry: ... is registered for both
+... and ...` naming both. Both elements now appear in the SBOM.
+
+What's still open is the underlying match itself: the stem-based lookup
+has no way to tell "these really are the same model, re-run" from "these
+are two unrelated models that happen to share a filename" -- it always
+guesses the *first* one it processes is the "real" match, which is
+resolution-order-dependent, not based on any actual evidence of
+identity. This is the same "what counts as the same model" question the
+rest of this document is already open on (see "Deterministic same-model
+identification for auto-harvest" above), extended to also disambiguate
+by containing directory/path, not just a bare filename stem -- not
+addressed here.

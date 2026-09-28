@@ -39,7 +39,7 @@ from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner import scan_project_for_ai_models
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 _T = TypeVar("_T")
 

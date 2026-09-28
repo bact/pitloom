@@ -8,7 +8,7 @@ from pitloom.assemble.spdx3.document import build
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.ids import FileEntry, IdRegistry
+from pitloom.id_registry import FileEntry, IdRegistry
 
 from ...conftest import fake_build_and_read_path
 from ..conftest import (
@@ -311,7 +311,7 @@ def test_build_file_no_header_data_emits_nothing_extra() -> None:
 def test_add_package_files_falls_back_to_distribution_path_lookup() -> None:
     """A registry entry keyed by distribution_path (the only path an
     auto-harvested ``software_File`` element can carry -- see
-    `pitloom.ids.IdRegistry.harvest`) is still found, even though the
+    `pitloom.id_registry.IdRegistry.harvest`) is still found, even though the
     live-scan lookup tries physical_path first. Without this fallback, a
     src/-layout project (physical_path != distribution_path) would never
     match auto-harvested file entries, silently defeating cross-run id

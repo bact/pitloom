@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 from .conftest import (
     _by_type,
@@ -68,7 +68,10 @@ class TestRegistryUnification:
         graph, _, registry = merged
         ai_pkgs = _by_type(graph, "ai_AIPackage")
         assert len(ai_pkgs) == 1
-        assert ai_pkgs[0]["spdxId"] == registry.entities["demo-model"].spdx_id
+        assert (
+            ai_pkgs[0]["spdxId"]
+            == registry.entities[("ai_AIPackage", "demo-model")].spdx_id
+        )
 
     def test_dataset_appears_once_and_lineage_chain_connects(
         self, merged: tuple[list[dict[str, Any]], dict[str, dict[str, Any]], IdRegistry]
@@ -87,7 +90,7 @@ class TestRegistryUnification:
         assert by_name["data/raw.txt"][0]["spdxId"] == raw_id
 
         rels = _relationships(graph)
-        model_id = registry.entities["demo-model"].spdx_id
+        model_id = registry.entities[("ai_AIPackage", "demo-model")].spdx_id
         assert any(
             r["relationshipType"] == "hasInput"
             and r["from"] == train_id
@@ -121,7 +124,7 @@ class TestRegistryUnification:
         assert [f["spdxId"] for f in files].count(preprocess_script_id) == 1
 
         rels = _relationships(graph)
-        model_id = registry.entities["demo-model"].spdx_id
+        model_id = registry.entities[("ai_AIPackage", "demo-model")].spdx_id
         train_txt_id = registry.files["data/train.txt"].spdx_id
         assert any(
             r["relationshipType"] == "generates"
@@ -154,7 +157,7 @@ class TestRegistryUnification:
         sboms = _by_type(graph, "software_Sbom")
         assert len(sboms) == 2
         assert set(docs[0]["rootElement"]) == {s["spdxId"] for s in sboms}
-        model_id = registry.entities["demo-model"].spdx_id
+        model_id = registry.entities[("ai_AIPackage", "demo-model")].spdx_id
         assert any(s["rootElement"] == [model_id] for s in sboms)
 
     def test_single_pitloom_agent_and_tool(

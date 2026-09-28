@@ -30,6 +30,7 @@ from pitloom.assemble.spdx3._document_files import (
     _add_package_files,
     _emit_file_header_metadata,
     _magika_version,
+    _resolve_file_and_directory_hits,
 )
 from pitloom.assemble.spdx3._document_locked_deps import (
     _dedup_and_locked_versions,
@@ -44,7 +45,7 @@ from pitloom.assemble.spdx3._document_model import (
     build_enrichment_fragment,
     build_model,
 )
-from pitloom.assemble.spdx3.ai import add_ai_models
+from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
 from pitloom.assemble.spdx3.creation_info import (
     build_creation_info,
     parse_iso_datetime,
@@ -64,11 +65,12 @@ from pitloom.core.models import (
     build_pypi_purl,
     compute_doc_uuid,
     generate_spdx_id,
+    reserve_spdx_ids,
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 __all__ = [
     "_ai_model_identity",
@@ -204,6 +206,24 @@ def build(
         locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
     )
     _clear_doc_counters(doc_uuid)
+    # One combined claim map across files, directories, and AI models: a
+    # registry hit any of them resolves is claimed by whichever comes
+    # first below, so two elements never reuse the same stale id -- see
+    # claim_registry_hit()'s docstring.
+    claimed_hits: dict[str, str] = {}
+    dir_hits, file_hits = _resolve_file_and_directory_hits(
+        metadata.files, registry, claimed_hits
+    )
+    ai_entity_hits = resolve_ai_model_entity_hits(doc.ai_models, registry, claimed_hits)
+    reserve_spdx_ids(
+        metadata.name,
+        doc_uuid,
+        [
+            *dir_hits.values(),
+            *file_hits.values(),
+            *(hit for hit in ai_entity_hits if hit is not None),
+        ],
+    )
 
     # --- Creation info, creator agents, and creation tools ---
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
@@ -339,7 +359,8 @@ def build(
         spdx_ci,
         doc_uuid,
         exporter,
-        registry,
+        dir_hits,
+        file_hits,
         provenance_config=prov_cfg,
         encoder=encoder,
     )
@@ -379,7 +400,7 @@ def build(
             doc_name=metadata.name,
             doc_uuid=doc_uuid,
             exporter=exporter,
-            registry=registry,
+            resolved_entity_ids=ai_entity_hits,
             provenance_config=prov_cfg,
             encoder=encoder,
             enrichment_results_by_model=enrichment_results_by_model,

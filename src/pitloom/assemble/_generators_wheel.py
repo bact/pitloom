@@ -29,7 +29,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.wheel import read_wheel
-from pitloom.ids import IdRegistry, resolve_explicit_registry
+from pitloom.id_registry import IdRegistry, resolve_explicit_registry
 from pitloom.logging_config import configure_logging
 
 

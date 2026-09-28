@@ -83,14 +83,14 @@ API](python-api.md#tracking-decorator) page.
 
 ## ID registry
 
-::: pitloom.ids.IdRegistry
+::: pitloom.id_registry.IdRegistry
 
-::: pitloom.ids.resolve_registry
+::: pitloom.id_registry.resolve_registry
 
-::: pitloom.ids.resolve_explicit_registry
+::: pitloom.id_registry.resolve_explicit_registry
 
-::: pitloom.ids.EntityEntry
+::: pitloom.id_registry.EntityEntry
 
-::: pitloom.ids.FileEntry
+::: pitloom.id_registry.FileEntry
 
-::: pitloom.ids.DEFAULT_REGISTRY_FILENAME
+::: pitloom.id_registry.DEFAULT_REGISTRY_FILENAME

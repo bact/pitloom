@@ -8,7 +8,7 @@ _annotate_relationships(), and Spdx3JsonExporter's license indexing and
 to_json()/to_file() serialization.
 
 See also: tests/ids_shared.py, which builds a fuller Spdx3JsonExporter
-document for pitloom.ids tests; tests/core/conftest.py, which exercises
+document for pitloom.id_registry tests; tests/core/conftest.py, which exercises
 Spdx3JsonExporter indirectly through the full assembler pipeline.
 """
 
@@ -336,6 +336,57 @@ def _build_minimal_document(exporter: Spdx3JsonExporter) -> dict[str, str]:
         "dep_id": f"{namespace}#Package-2",
         "relationship_id": f"{namespace}#Relationship-1",
     }
+
+
+def test_to_json_raises_on_duplicate_spdx_id() -> None:
+    """Two objects sharing a spdxId but differing in content (here,
+    ``name``) must never reach serialized output -- a last-resort safety
+    net behind the id-reservation fixes (see
+    working-docs/implementation/id-registry-autosync.md's "Duplicate-
+    spdxId safety net" section). This is ``_deduplicate_named_elements``'s
+    "conflict, retain all" branch surviving to the check, which runs
+    after that dedup pass
+    -- see ``test_to_json_collapses_identical_duplicate_spdx_id`` for the
+    sibling case (identical content) that must NOT raise."""
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    pkg_a = spdx3.software_Package(
+        spdxId="https://example.org#Package-1", name="a", creationInfo=ci
+    )
+    pkg_b = spdx3.software_Package(
+        spdxId="https://example.org#Package-1", name="b", creationInfo=ci
+    )
+    exporter.add_package(pkg_a)
+    exporter.add_package(pkg_b)
+
+    with pytest.raises(RuntimeError, match="Duplicate spdxId"):
+        exporter.to_json()
+
+
+def test_to_json_collapses_identical_duplicate_spdx_id() -> None:
+    """Two objects sharing a spdxId with byte-for-byte identical content
+    (e.g. ``pitloom.loom``'s ``set_model()`` called twice, or the same
+    file added via both ``add_input_dataset()`` and ``add_dataset()``)
+    must be silently collapsed to one by ``_deduplicate_named_elements``,
+    not raise -- the duplicate-spdxId safety net
+    (``_check_no_duplicate_spdx_ids``) only fires on content that
+    survives dedup because it genuinely differs."""
+    ci = _creation_info()
+    exporter = Spdx3JsonExporter()
+    exporter.add_creation_info(ci)
+    pkg_a = spdx3.software_Package(
+        spdxId="https://example.org#Package-1", name="a", creationInfo=ci
+    )
+    pkg_a_again = spdx3.software_Package(
+        spdxId="https://example.org#Package-1", name="a", creationInfo=ci
+    )
+    exporter.add_package(pkg_a)
+    exporter.add_package(pkg_a_again)
+
+    graph = json.loads(exporter.to_json())["@graph"]
+    matches = [e for e in graph if e.get("spdxId") == "https://example.org#Package-1"]
+    assert len(matches) == 1
 
 
 def test_to_json_without_describe_relationship_omits_description() -> None:

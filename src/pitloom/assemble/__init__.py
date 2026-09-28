@@ -42,7 +42,7 @@ from pitloom.embed import (
     find_embedded_sbom,
 )
 from pitloom.extract.remote import is_huggingface_source
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 from pitloom.logging_config import configure_logging
 
 __all__ = [

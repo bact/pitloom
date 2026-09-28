@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.ids registry generation."""
+"""Tests for pitloom.id_registry registry generation."""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -16,8 +16,8 @@ from typing import Any
 
 import pytest
 
-import pitloom.ids as ids_mod
-from pitloom.ids import (
+import pitloom.id_registry._registry as ids_mod
+from pitloom.id_registry import (
     DEFAULT_REGISTRY_FILENAME,
     IdRegistry,
 )
@@ -98,9 +98,8 @@ def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
     registry.generate([Path("models")], root)
 
     assert "models/sentimentdemo.bin" in registry.files
-    assert "sentimentdemo" in registry.entities
-    entity = registry.entities["sentimentdemo"]
-    assert entity.type == "ai_AIPackage"
+    assert ("ai_AIPackage", "sentimentdemo") in registry.entities
+    entity = registry.entities[("ai_AIPackage", "sentimentdemo")]
     assert entity.spdx_id.startswith(f"{registry.namespace}#AIPackage-")
 
 
@@ -127,7 +126,7 @@ def test_generate_handles_oserror(
     def fake_sha256(*args: Any, **kwargs: Any) -> Any:
         raise OSError("Permission denied")
 
-    monkeypatch.setattr(ids_mod, "_sha256_file", fake_sha256)
+    monkeypatch.setattr(ids_mod, "sha256_file", fake_sha256)
 
     registry = IdRegistry.new("test")
     registry.generate([root / "src"], root)
@@ -137,7 +136,8 @@ def test_generate_handles_oserror(
 def test_iter_files_edge_cases(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from pitloom.ids import DEFAULT_REGISTRY_FILENAME, _iter_files
+    from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME
+    from pitloom.id_registry._types import _iter_files
 
     # Missing root
     assert list(_iter_files([tmp_path / "missing"], tmp_path)) == []
