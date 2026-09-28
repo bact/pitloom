@@ -9,7 +9,7 @@ The same ``pyproject.toml``/``setup.cfg`` gives the same config (or the same
 failure) whether it is read from a directory or from a ``.tar.gz``/``.zip``
 of it -- one rule, :func:`pitloom.core.config.select_project_config`, picks
 the source for both, by presence of ``[tool.pitloom]``, never by value. Only
-``ids-file`` and fragments differ: they cannot apply to an archive, so they
+``id-registry`` and fragments differ: they cannot apply to an archive, so they
 are dropped (documented, not warned).
 
 See also:
@@ -184,23 +184,23 @@ def test_read_config_false_does_not_parse_the_config(tmp_path: Path) -> None:
     assert config == PitloomConfig() and path is None
 
 
-def test_own_ids_file_is_dropped_silently(
+def test_own_id_registry_is_dropped_silently(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    sdist = _make_sdist(tmp_path, "[tool.pitloom]\nids-file = 'ids.json'\n")
+    sdist = _make_sdist(tmp_path, "[tool.pitloom]\nid-registry = 'ids.json'\n")
     with caplog.at_level(logging.WARNING):
         config = read_sdist(sdist).config
-    assert config.ids_file is None
+    assert config.id_registry is None
     assert not caplog.records
     # the directory keeps it: a deliberate difference (as for fragments)
     _, dir_config, _ = read_project(
         _directory(
             tmp_path,
-            {"pyproject.toml": _NAMED + "[tool.pitloom]\nids-file = 'ids.json'\n"},
+            {"pyproject.toml": _NAMED + "[tool.pitloom]\nid-registry = 'ids.json'\n"},
         )
     )
-    assert dir_config.ids_file is not None
-    assert dataclasses.replace(dir_config, ids_file=None) == config
+    assert dir_config.id_registry is not None
+    assert dataclasses.replace(dir_config, id_registry=None) == config
 
 
 def test_read_project_names_the_member(tmp_path: Path) -> None:

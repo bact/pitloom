@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-09-18
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -54,13 +54,13 @@ drift is silent.
   `sbom-enrich`'s description points back. Neither skill alone covered it.
 - **Loom ID registry.** Skills must understand the concept, not run the
   commands: `project`/`wheel`/`env` auto-harvest ids, so ids stay stable
-  across reruns and fragments keep merging; a `--registry` mismatch between
+  across reruns and fragments keep merging; a `--id-registry` mismatch between
   the base-SBOM run and an enrichment run is a second cause of dangling
   fragment references (besides a Pitloom upgrade changing file discovery).
 
 ## Deferred (need design; tracked in the roadmap)
 
-`loom ids generate`, `loom ids import`, `loom merge`, `loom fragment list`
+`loom id generate`, `loom id import`, `loom merge`, `loom fragment list`
 have no trigger phrasing. Open questions: which skill owns them, and which
 phrasings separate "pin ids before a first run" from "import ids from an
 SBOM" without colliding with plain generate/enrich asks.

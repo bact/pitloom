@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-09-01
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -167,9 +167,9 @@ merge, not just matching id strings) and
 `test_enrich_model_without_project_target_mismatches_project_level_id`
 (negative-space guard that omitting it really does mismatch).
 
-Similarly, a project using `--registry`/`IdRegistry` to pin a stable
-`ai_AIPackage` id needs `loom enrich --registry <file>` (or
-`enrich_model(..., registry=...)`) too, for the same reason.
+Similarly, a project using `--id-registry`/`IdRegistry` to pin a stable
+`ai_AIPackage` id needs `loom enrich --id-registry <file>` (or
+`enrich_model(..., id_registry=...)`) too, for the same reason.
 
 **Known limitation, not yet fixed:** two AI models in the same project
 that share an identical resolved identity -- no embedded `name` *and*

@@ -3,7 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Shared utilities for pitloom.id_registry tests."""
+"""Shared utilities for pitloom.id_registry tests.
+
+See also: test_registry.py, test_registry_generate.py, test_registry_import.py
+(tests that use these fixtures).
+"""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring

@@ -122,7 +122,7 @@ pitloom/
 │       │   │   ├── utils.py        # cli_error_handler decorator, wheel-glob path resolution
 │       │   │   └── wheel.py        # loom wheel
 │       │   ├── constants.py        # Shared literals (.spdx3.json ext, source labels)
-│       │   ├── ids.py              # loom ids generate|import
+│       │   ├── id.py               # loom id generate|import
 │       │   ├── options.py          # add_*_argument()/warn_*() flag-definition helpers
 │       │   ├── options_config.py   # args -> library kwargs/ConfigOverrides map; --config loading
 │       │   ├── options_resolve.py  # CLI > --config > pyproject.toml > default resolution
@@ -179,7 +179,7 @@ pitloom/
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
-│       ├── id_registry/             # Loom ID registry (loom-ids.json)
+│       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
 │       │   ├── __init__.py          # Public API re-exports (IdRegistry, resolve_*, claim_registry_hit)
 │       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element, claim_registry_hit)
 │       │   ├── _registry.py         # IdRegistry class
@@ -200,17 +200,17 @@ pitloom/
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
 │   ├── assemble/                   # 58 files -- assemble/, embed.py, enrich/ coverage + conftest.py
-│   ├── cli/                        # 20 files -- one per src/pitloom/cli/ module, + shared.py
-│   ├── core/                       # 29 files -- core/, id_registry, loom.py, generator orchestration
+│   ├── cli/                        # 22 files -- one per src/pitloom/cli/ module, + shared.py
+│   ├── core/                       # 26 files -- core/, loom.py, generator orchestration
 │   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
 │   ├── extract/                    # 46 files, one per extractor
 │   │   └── huggingface/            # 20 files -- split by metadata category
 │   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
+│   ├── id_registry/                # 4 files -- shared.py, test_registry.py, test_registry_generate.py, test_registry_import.py
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
-│   ├── ids_shared.py               # Shared helpers for ids-registry tests
 │   └── warning_helpers.py          # Shared WARNING:/caplog assertion helpers
 ├── scripts/
 │   ├── action/                     # GitHub Action helpers (install, Python probe/resolver)

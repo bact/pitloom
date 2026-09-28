@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,7 @@ names the archive and member, e.g. `config file
 dist/demo-1.0.0.tar.gz:pyproject.toml: ...`; `--config` replaces it without reading it. Some keys cannot apply to
 an archive and are ignored without a warning:
 
-- `ids-file` (it could only name a file inside the archive) and
+- `id-registry` (it could only name a file inside the archive) and
   `[tool.pitloom.fragment]` (fragments merge only into a project
   directory's SBOM, even from `--config`);
 - `use-lockfile`, `enrich`, `extract-file-header` and
@@ -61,20 +61,20 @@ an archive and are ignored without a warning:
 | Surface | Target's own config | `--config` / `pitloom_config=` | Current directory | Flags |
 | :--- | :--- | :--- | :--- | :--- |
 | `project`/`generate` (project dir) -- `generate_project_sbom()` | Read | Replaces it | Never read | Override |
-| `project`/`generate` (sdist archive) -- `generate_project_sbom()` | Read (root `pyproject.toml`, else `setup.cfg`; not `ids-file`/fragments) | Replaces it | Never read | Override |
+| `project`/`generate` (sdist archive) -- `generate_project_sbom()` | Read (root `pyproject.toml`, else `setup.cfg`; not `id-registry`/fragments) | Replaces it | Never read | Override |
 | `wheel`/`generate` (`.whl`) -- `generate_wheel_sbom()` | Never read | Only config source | Never read | Override |
 | `env`/`generate env` -- `generate_env_sbom()` | Never read | Only config source | Never read | Override |
 | `model` (local file)/`generate` -- `generate_model_sbom()` | Never read | Only config source | Never read | Override |
 | `model` (Hugging Face) -- `generate_model_sbom()` | Never read | Only config source | Never read | Override |
 | `enrich` (no `--project-dir`) -- `enrich_model()` | Never read | Only config source | Never read | Override |
-| `enrich --project-dir D` -- `enrich_model(project_target=D)` | Read, for document identity (`use-lockfile`) and the registry (`ids-file`) only; for an sdist D neither applies, but an invalid config still fails the run | Replaces D's own | Never read | Override |
+| `enrich --project-dir D` -- `enrich_model(project_target=D)` | Read, for document identity (`use-lockfile`) and the registry (`id-registry`) only; for an sdist D neither applies, but an invalid config still fails the run | Replaces D's own | Never read | Override |
 | `embed-wheel --project-dir D` -- `embed_wheel_sbom(project_dir=D)` | Read | Replaces it | Never read | Override |
 | `embed-wheel` (no `--project-dir`) -- `embed_wheel_sbom()` | Never read | Only config source | Never read | Override |
 | `embed-wheel --sbom` -- `embed_wheel_sbom(sbom_path=...)` | Not read | Not read (`--config` warns, no effect) | Never read | Embedding flags only (`--sbom-basename`, `-o`, `--verify`, ...); every SBOM-generation flag warns, since the file is embedded as is |
 | Hatchling build hook | Read (always, at build time) | No equivalent -- the hook has no per-run override surface | Never read | None -- no per-run surface |
 | GitHub Action | Project and embed-wheel modes read it (`--project-dir` under the hood); model mode never | `config` input maps to `--config` | Never read | Every other input maps to a flag |
 
-A relative path inside a `--config` file (`ids-file`, a fragment's
+A relative path inside a `--config` file (`id-registry`, a fragment's
 `path`) resolves against that file's own directory, not the current
 directory or a symlink's target -- as a project's own `pyproject.toml`
 does. `loom fragment list` reads only the project's own config.
@@ -84,9 +84,9 @@ directory's SBOM (`project`, `generate <dir>`, `embed-wheel
 --project-dir`), and an SBOM embedded in a wheel is always compact. The
 matching flags do warn -- see [Options with no
 effect](cli.md#options-with-no-effect).
-A relative `--registry` on the command line resolves against the
+A relative `--id-registry` on the command line resolves against the
 current directory, on every command -- unlike a target's own
-`ids-file`, which is project-relative.
+`id-registry`, which is project-relative.
 
 See [Options with no effect](cli.md#options-with-no-effect) for which
 flags a target given for the wrong kind warns about instead of silently
@@ -103,13 +103,13 @@ doing nothing.
 | `use-lockfile` | bool | `true` | `--use-lockfile` / `--no-use-lockfile` | `use-lockfile` | `use_lockfile` | Resolve exact versions from a lock/pin file cascade (`pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned `requirements.txt`) -- see [Dependency sources and precedence](dependency-sources.md). On by default, unlike every other bool above; `false` falls back to direct dependencies and environment introspection only. CLI flag only on `project`/`generate` (dependency resolution) and `enrich` (`--project-dir` document identity matching); no effect on `model`/`wheel`/`embed-wheel`/`env`. |
 | `extract-file-header` | bool | `true` | `--extract-file-header` / `--no-extract-file-header` | `extract-file-header` | `extract_file_header` | Scan each source file's leading comment header for SPDX-File\* tags. Independent of content-type detection below -- a binary file with no text header still gets a `contentType` when that's on. |
 | `enrich` | bool | `false` | `--enrich` / `--no-enrich` | `enrich` | `enrich` | Run local README/model-card enrichment for discovered AI models. |
-| `ids-file` | string | `null` (auto-discovers `loom-ids.json` by walking up from the project directory) | -- | -- | -- (see `registry` param) | Path to the Loom ID registry file. |
-| `update-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-registry` / `--no-update-registry` | -- | `update_registry` | After generating, harvest newly-minted ids back into the resolved registry and save it. Effective on `project`/`wheel`/`env`/`generate`; given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped. No effect when no registry is resolved -- see [Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-pitloom-ids). |
+| `id-registry` | string | `null` (auto-discovers `loom-id-registry.json` by walking up from the project directory) | -- | -- | -- (see `id_registry` param) | Path to the Loom ID registry file. |
+| `update-id-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-id-registry` / `--no-update-id-registry` | -- | `update_id_registry` | After generating, harvest newly-minted ids back into the resolved registry and save it. Effective on `project`/`wheel`/`env`/`generate`; given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped. No effect when no registry is resolved -- see [Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id). |
 
 **Invalid values / fallback behaviour:** every boolean above raises
 `ValueError` at config-read time if set to a non-boolean (e.g. the TOML
 string `"true"` instead of the bare value `true`) -- no silent
-coercion. `sbom-basename`/`ids-file` raise `ValueError` if set to a
+coercion. `sbom-basename`/`id-registry` raise `ValueError` if set to a
 non-string, and `sbom-basename` also if it is a path rather than a file
 name (a `/`, `\`, `:` or NUL, or `.`/`..`) -- the same rule as
 `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks

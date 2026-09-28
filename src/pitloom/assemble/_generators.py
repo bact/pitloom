@@ -78,14 +78,14 @@ def generate_project_sbom(
     describe_relationship: bool | None = None,
     project_metadata: ProjectMetadata | None = None,
     pitloom_config: PitloomConfig | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
     extract_file_header: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
-    update_registry: bool | None = None,
+    update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
@@ -143,8 +143,8 @@ def generate_project_sbom(
                 "content_type_method": content_type_method,
                 "max_source_metadata_bytes": max_source_metadata_bytes,
                 "offline": offline,
-                "registry": registry,
-                "update_registry": update_registry,
+                "id_registry": id_registry,
+                "update_id_registry": update_id_registry,
                 "creation_metadata": creation_metadata,
                 "use_lockfile": use_lockfile,
             },
@@ -167,7 +167,7 @@ def generate_project_sbom(
             offline=offline,
             pretty=pretty,
             describe_relationship=describe_relationship,
-            update_registry=update_registry,
+            update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
     )
@@ -246,10 +246,10 @@ def generate_project_sbom(
     # An sdist's directory is not its project: only a given registry is
     # used, resolved as for any target without a project directory.
     resolved_registry = (
-        resolve_explicit_registry(registry, cfg.ids_file)
+        resolve_explicit_registry(id_registry, cfg.id_registry)
         if target_path.is_file()
         else resolve_registry(
-            search_root, registry if registry is not None else cfg.ids_file
+            search_root, id_registry if id_registry is not None else cfg.id_registry
         )
     )
 
@@ -270,7 +270,7 @@ def generate_project_sbom(
     if target_path.is_dir():
         merge_fragments(target_path, cfg.fragments, exporter)
 
-    _sync_registry(exporter, resolved_registry, cfg.update_registry)
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,

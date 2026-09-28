@@ -280,7 +280,7 @@ def test_active_run_set_model_registry_type_mismatch_warning(
             },
         )
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry) as run:
+            with loom.run(output_file, id_registry=registry) as run:
                 run.set_model("my_model")
 
             assert any("different type" in r.message for r in caplog.records)

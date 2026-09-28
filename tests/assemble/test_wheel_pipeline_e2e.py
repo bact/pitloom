@@ -43,7 +43,10 @@ pytest.importorskip(
 from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom import loom  # noqa: E402
-from pitloom.id_registry import IdRegistry  # noqa: E402
+from pitloom.id_registry import (  # noqa: E402
+    DEFAULT_ID_REGISTRY_FILENAME,
+    IdRegistry,
+)
 
 # pylint: enable=wrong-import-position
 
@@ -96,7 +99,7 @@ def sbom_graph(
     registry = IdRegistry.new("pipedemo")
     registry.generate([Path("src"), Path("data")], project)
     registry.register_entity("pipedemo-model", "ai_AIPackage")
-    registry.save(project / "loom-ids.json")
+    registry.save(project / DEFAULT_ID_REGISTRY_FILENAME)
 
     # loom resolves dataset paths and the registry relative to the cwd.
     old_cwd = os.getcwd()
@@ -133,7 +136,7 @@ def sbom_graph(
         assert sbom_entry.endswith(".dist-info/sboms/pipedemo.spdx3.json")
         graph = json.loads(zf.read(sbom_entry))["@graph"]
 
-    return graph, IdRegistry.load(project / "loom-ids.json")
+    return graph, IdRegistry.load(project / DEFAULT_ID_REGISTRY_FILENAME)
 
 
 def _by_type(graph: list[dict[str, Any]], type_name: str) -> list[dict[str, Any]]:

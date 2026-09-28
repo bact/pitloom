@@ -29,7 +29,7 @@ from pitloom.id_registry._harvest import (
 )
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
-    DEFAULT_REGISTRY_FILENAME,
+    DEFAULT_ID_REGISTRY_FILENAME,
     EntityEntry,
     FileEntry,
     _entity_key,
@@ -91,7 +91,7 @@ class IdRegistry:
             raise ValueError(
                 f"Registry {path} has version {version!r}, expected "
                 f"{_REGISTRY_VERSION} (no migration support -- delete it and "
-                "re-run `pitloom ids generate` or `pitloom ids import`)"
+                "re-run `pitloom id generate` or `pitloom id import`)"
             )
 
         try:
@@ -117,16 +117,17 @@ class IdRegistry:
 
     @staticmethod
     def find(start: Path | None = None) -> IdRegistry | None:
-        """Walk upward from *start* (default: cwd) looking for ``loom-ids.json``."""
+        """Walk upward from *start* (default: cwd) looking for
+        ``loom-id-registry.json``."""
         current = (start or Path.cwd()).resolve()
         for directory in (current, *current.parents):
-            candidate = directory / DEFAULT_REGISTRY_FILENAME
+            candidate = directory / DEFAULT_ID_REGISTRY_FILENAME
             if candidate.is_file():
                 try:
                     return IdRegistry.load(candidate)
                 except (ValueError, OSError) as exc:
                     log.warning(
-                        "Registry: ignoring invalid file %s: %s", candidate, exc
+                        "ID registry: ignoring invalid file %s: %s", candidate, exc
                     )
                     return None
         return None
@@ -172,7 +173,7 @@ class IdRegistry:
             return existing.spdx_id
         if existing is not None:
             log.info(
-                "Registry: content changed for %s; minting a new spdxId (old: %s).",
+                "ID registry: content changed for %s; minting a new spdxId (old: %s).",
                 path,
                 existing.spdx_id,
             )
@@ -206,7 +207,7 @@ class IdRegistry:
             try:
                 sha256 = sha256_file(file_path)
             except OSError as exc:
-                log.warning("Registry: could not read %s: %s", file_path, exc)
+                log.warning("ID registry: could not read %s: %s", file_path, exc)
                 continue
             rel_path = file_path.relative_to(project_root).as_posix()
             self.register_file(rel_path, sha256)

@@ -358,7 +358,7 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         document, merkle_root, enrichment_results_by_model = _build_document_model(
             project_dir, self.metadata, pitloom_config
         )
-        registry = resolve_registry(project_dir, pitloom_config.ids_file)
+        registry = resolve_registry(project_dir, pitloom_config.id_registry)
 
         exporter = assemble_spdx3(
             document,

@@ -64,7 +64,7 @@ def _resolve_deployed_package_hits(
     (e.g. a stale entry left behind by an earlier run -- see
     ``working-docs/implementation/id-registry-autosync.md``), only the
     first claims it (:func:`~pitloom.id_registry.claim_registry_hit`) and the
-    other falls back to a fresh mint, with one ``WARNING: Registry: ...``
+    other falls back to a fresh mint, with one ``WARNING: ID registry: ...``
     naming both. A no-op, returning ``{}``, when *registry* is ``None``.
     A fresh, empty *claimed* is used when the caller doesn't share one.
     """

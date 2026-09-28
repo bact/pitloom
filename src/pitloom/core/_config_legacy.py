@@ -37,7 +37,7 @@ _FILE_HEADERS_MOVED_TO = (
     "[tool.pitloom] extract-file-header and [tool.pitloom.content-type]"
 )
 _MOVED_TOP_LEVEL_TABLES: dict[str, str] = {
-    "ids": "[tool.pitloom] ids-file",
+    "ids": "[tool.pitloom] id-registry",
     "fragments": "[tool.pitloom.fragment] (key: files)",
     "file-headers": _FILE_HEADERS_MOVED_TO,
     "file_headers": _FILE_HEADERS_MOVED_TO,

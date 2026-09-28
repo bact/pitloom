@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -130,10 +130,10 @@ from](configuration.md#where-settings-come-from)).
 `--max-source-metadata-bytes` on the CLI (see [Metadata
 provenance](metadata-provenance.md)).
 
-A relative `registry=` path resolves against the project directory for
+A relative `id_registry=` path resolves against the project directory for
 a project directory target (and `embed_wheel_sbom(project_dir=...)`),
 and against the current directory for any other target, an sdist
-included. The CLI makes `--registry`
+included. The CLI makes `--id-registry`
 absolute against the current directory first, so there it always means
 the file under the current directory.
 
@@ -320,7 +320,7 @@ default, `None`) to auto-match `project_target`'s own
 `[tool.pitloom] use-lockfile` config; pass it explicitly only when the
 base SBOM's generation used an explicit override that disagreed with
 that config.
-Pass `registry=` (a path, or an already-loaded `IdRegistry`) to reference
+Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to reference
 a pinned entity id (a relative path resolves against `project_target`
 when it is a directory, else against the current directory) instead of
 one freshly computed from the model's own

@@ -28,7 +28,7 @@ import pytest
 
 from pitloom.assemble import generate_env_sbom
 from pitloom.core.creation import CreationMetadata
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
 
@@ -76,7 +76,7 @@ def test_generate_env_sbom_grown_environment_never_duplicates_ids(
     type-wide scan of every ``software_Package`` entity) keeps this
     deterministic; see ``_document_deployed.py``'s docstrings."""
     monkeypatch.chdir(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
     creation_metadata = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
 
@@ -84,7 +84,7 @@ def test_generate_env_sbom_grown_environment_never_duplicates_ids(
         "subprocess.run", return_value=_fake_pipdeptree_result([_node("requests")])
     ):
         first_json = generate_env_sbom(
-            registry=registry_path, creation_metadata=creation_metadata
+            id_registry=registry_path, creation_metadata=creation_metadata
         )
     _assert_no_duplicate_spdx_ids(first_json)
     assert IdRegistry.load(registry_path).entities
@@ -94,7 +94,7 @@ def test_generate_env_sbom_grown_environment_never_duplicates_ids(
         return_value=_fake_pipdeptree_result([_node("aaa"), _node("requests")]),
     ):
         second_json = generate_env_sbom(
-            registry=registry_path, creation_metadata=creation_metadata
+            id_registry=registry_path, creation_metadata=creation_metadata
         )
     _assert_no_duplicate_spdx_ids(second_json)
 
@@ -113,7 +113,7 @@ def test_generate_env_sbom_identical_env_rerun_is_byte_identical(
     mint could drift -- catching that mutant needs the add-then-remove
     round trip instead."""
     monkeypatch.chdir(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
     creation_metadata = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
 
@@ -122,7 +122,7 @@ def test_generate_env_sbom_identical_env_rerun_is_byte_identical(
             "subprocess.run", return_value=_fake_pipdeptree_result([_node("requests")])
         ):
             return generate_env_sbom(
-                registry=registry_path, creation_metadata=creation_metadata
+                id_registry=registry_path, creation_metadata=creation_metadata
             )
 
     first_json = _run()
@@ -145,14 +145,14 @@ def test_generate_env_sbom_dep_added_then_removed_returns_to_original_bytes(
     ``deployed-environment`` package, ``aaa``) get reserved too and shift
     every miss's fresh-minted number."""
     monkeypatch.chdir(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
     creation_metadata = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
 
     def _run(tree: list[dict[str, Any]]) -> str:
         with patch("subprocess.run", return_value=_fake_pipdeptree_result(tree)):
             return generate_env_sbom(
-                registry=registry_path, creation_metadata=creation_metadata
+                id_registry=registry_path, creation_metadata=creation_metadata
             )
 
     first_json = _run([_node("requests")])
@@ -181,7 +181,7 @@ def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     mismatch doesn't leave the harvested entry dead weight and the
     package's id unstable across runs."""
     monkeypatch.chdir(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
     creation_metadata = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
     tree = [_node_with_declared_name("pyyaml", "PyYAML", "6.0")]
@@ -189,7 +189,7 @@ def test_generate_env_sbom_reuses_package_id_despite_name_case_mismatch(
     def _run() -> str:
         with patch("subprocess.run", return_value=_fake_pipdeptree_result(tree)):
             return generate_env_sbom(
-                registry=registry_path, creation_metadata=creation_metadata
+                id_registry=registry_path, creation_metadata=creation_metadata
             )
 
     first_json = _run()

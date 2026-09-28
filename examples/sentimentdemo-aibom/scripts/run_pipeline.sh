@@ -6,7 +6,7 @@
 # fragment per stage plus the final composite AI SBOM embedded in the wheel.
 #
 # Stage 0 (and the registry refreshes after stages 1 and 2) maintain
-# loom-ids.json: a stable file/entity -> SPDX ID registry. Every stage --
+# loom-id-registry.json: a stable file/entity -> SPDX ID registry. Every stage --
 # the loom runs, the `loom model` extractor, and the Hatchling build hook --
 # consults it, so the same dataset, script, or model carries the same spdxId
 # in every fragment, and the merge step can join the fragments into one
@@ -20,11 +20,11 @@ export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 mkdir -p fragments models
 
 echo "================================================================"
-echo "Stage 0/5  -  Pin stable SPDX ids (pitloom ids generate)"
+echo "Stage 0/5  -  Pin stable SPDX ids (pitloom id generate)"
 echo "================================================================"
 # --entity registers the model's id up front, before the model file exists,
 # so the training and evaluation fragments already share it.
-python -m pitloom ids generate data src --entity sentimentdemo
+python -m pitloom id generate data src --entity sentimentdemo
 
 echo
 echo "================================================================"
@@ -34,7 +34,7 @@ python -m sentimentdemo.preprocess
 # Pin ids for the freshly written data/processed/ files so the training and
 # evaluation runs reference them by the same ids the preprocessing fragment
 # established (unchanged files keep their ids -- regeneration is stable).
-python -m pitloom ids generate data src --entity sentimentdemo
+python -m pitloom id generate data src --entity sentimentdemo
 
 echo
 echo "================================================================"
@@ -42,7 +42,7 @@ echo "Stage 2/5  -  Model training (loom context manager)"
 echo "================================================================"
 python -m sentimentdemo.train
 # Pin the id of the freshly written models/sentimentdemo.bin.
-python -m pitloom ids generate data models src --entity sentimentdemo
+python -m pitloom id generate data models src --entity sentimentdemo
 
 echo
 echo "================================================================"

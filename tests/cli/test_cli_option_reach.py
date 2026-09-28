@@ -18,7 +18,7 @@ settling. Per cell, one of two outcomes must hold:
 
 - *reached*: the value arrives at the entry point and nothing before the
   entry warned about it (the entry point may still warn once itself -- it
-  is then the layer that dropped it, e.g. ``--registry`` for a Hugging
+  is then the layer that dropped it, e.g. ``--id-registry`` for a Hugging
   Face model);
 - *dropped*: the value does not arrive, and exactly one
   ``WARNING: Options:`` line named it before the entry point.
@@ -110,7 +110,7 @@ _REGISTRY = "<registry>"
 #: Value for an option that is neither boolean, int nor a choice.
 _VALUES: dict[str, tuple[str, ...]] = {
     "--config": (_CONFIG,),
-    "--registry": (_REGISTRY,),
+    "--id-registry": (_REGISTRY,),
     "--creator-name": (_CREATOR,),
     "--creation-tool": (_TOOL,),
     "--creation-datetime": (_DATETIME,),
@@ -366,7 +366,7 @@ def _spy_entry_points(
 
 def _received(kwargs: dict[str, Any], form: _Form, registry: str) -> bool:
     """Whether *form*'s value arrived in an entry point's *kwargs*;
-    *registry* is the path the ``--registry`` placeholder stood for."""
+    *registry* is the path the ``--id-registry`` placeholder stood for."""
     if form.option in _REACH:
         return _REACH[form.option](kwargs)
     overrides = kwargs.get("overrides")
@@ -376,7 +376,7 @@ def _received(kwargs: dict[str, Any], form: _Form, registry: str) -> bool:
     else:
         value = kwargs.get(form.dest)
     expected = form.expected
-    if form.dest == "registry":
+    if form.dest == "id_registry":
         return value is not None and Path(value) == Path(registry)
     # Strict: 0 == False in Python, and either would pass a plain ==.
     return type(value) is type(expected) and value == expected
@@ -503,8 +503,8 @@ _ONCE_CASES = [
         id="embed-wheel-batch:no-project-dir",
     ),
     pytest.param(
-        ("model", HF_URL, "--no-offline", "--registry", "<registry>"),
-        "--registry",
+        ("model", HF_URL, "--no-offline", "--id-registry", "<registry>"),
+        "--id-registry",
         id="model-hf:dropped-inside-generate_model_sbom",
     ),
     pytest.param(

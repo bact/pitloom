@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ status and cross-reference each other loosely.
 **Status:** design/future work throughout, except the fragment-merge
 callout in [fragment-merge-design.md](fragment-merge-design.md) noting
 what has actually shipped (`merge_fragments` unification, the
-`loom-ids.json` registry). Everything else in this cluster is unbuilt.
+`loom-id-registry.json` registry). Everything else in this cluster is unbuilt.
 
 | File | Covers |
 | :--- | :----- |

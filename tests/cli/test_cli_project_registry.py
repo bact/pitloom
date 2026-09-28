@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 from ..conftest import _assert_no_duplicate_spdx_ids
 
@@ -45,7 +45,7 @@ def test_loom_project_repeated_runs_never_duplicate_ids(
         '[tool.hatch.build.targets.wheel]\npackages = ["src/collisiondemo"]\n',
         encoding="utf-8",
     )
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("collisiondemo", path=registry_path).save()
     output_path = tmp_path / "out.spdx3.json"
 
@@ -58,7 +58,7 @@ def test_loom_project_repeated_runs_never_duplicate_ids(
             str(project_dir),
             "-o",
             str(output_path),
-            "--registry",
+            "--id-registry",
             str(registry_path),
             "--creation-datetime",
             "2026-01-01T00:00:00Z",

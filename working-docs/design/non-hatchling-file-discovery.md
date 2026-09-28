@@ -252,7 +252,7 @@ work above; each is its own reviewed change.
   reimplements `extract_sdist()`'s tar/zip-open, `filter="data"`,
   single-top-level-dir logic, generalized to accept any archive path.
   Dev-only script, not shipped code, no user-facing risk -- low priority.
-- **`--allow-build`-sourced files never match a `loom ids
+- **`--allow-build`-sourced files never match a `loom id
   generate`-pinned registry entry** -- `IdRegistry.generate()` (`id_registry/_registry.py`)
   keys every entry by physical, project-root-relative path; a
   build-and-read-sourced `ProjectFile.physical_path` is an ephemeral
@@ -281,7 +281,7 @@ work above; each is its own reviewed change.
   CLAUDE.md's "Recurring bug patterns" section). This closes the
   guaranteed-never-match case for AI models but does **not** fully solve
   the general problem above: `file_path_relative` still won't match an
-  entry `loom ids generate` pinned under the *original*
+  entry `loom id generate` pinned under the *original*
   project-relative `physical_path` for a `src/`-layout project, so the
   real fix (a third, existence-checked candidate) described above still
   applies equally here.

@@ -83,7 +83,7 @@ def test_loom_registry_id_reuse_for_dataset_and_model() -> None:
 
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
-        with loom.run(output_file, registry=registry):
+        with loom.run(output_file, id_registry=registry):
             loom.set_model("registered-model")
             loom.add_dataset(_EXISTING_FILE)
 
@@ -112,7 +112,7 @@ def test_loom_registry_hash_mismatch_warns_and_mints_new_id(
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.set_model("test-model")
                 loom.add_dataset(_EXISTING_FILE)
 
@@ -227,7 +227,7 @@ def test_loom_set_model_called_twice_with_registry_gets_two_ids(
     once after training, a common loom pattern) with a registry: the
     first call claims the registered id, the second is unconditionally a
     miss -- not raise, two distinct ``ai_AIPackage`` elements, one
-    ``WARNING: Registry: ... registered for both ...``. Matches
+    ``WARNING: ID registry: ... registered for both ...``. Matches
     no-registry behaviour (two elements) except for the warning, which
     is the truthful record of which call got the registered id."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
@@ -241,7 +241,7 @@ def test_loom_set_model_called_twice_with_registry_gets_two_ids(
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.set_model("m")
                 loom.set_model("m")
 
@@ -279,7 +279,7 @@ def test_loom_same_file_as_input_and_output_dataset_gets_two_ids(
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.add_input_dataset(_EXISTING_FILE)
                 loom.add_dataset(_EXISTING_FILE)
 
@@ -302,7 +302,7 @@ def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
     """``set_model()`` called twice for the same name but with *differing*
     content (e.g. hyperparameters filled in after training) must not
     raise, and must not silently collapse into the first: the second
-    call gets its own fresh id plus one ``WARNING: Registry: ...
+    call gets its own fresh id plus one ``WARNING: ID registry: ...
     registered for both ...``, matching what happens with no registry
     at all."""
     namespace = "https://spdx.org/spdxdocs/test-proj-fixed"
@@ -316,7 +316,7 @@ def test_loom_set_model_called_twice_with_different_content_gets_two_ids(
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.set_model("m")
                 loom.set_model("m", model_type="cnn", hyperparameters={"lr": "0.1"})
 
@@ -353,7 +353,7 @@ def test_loom_same_file_as_dataset_with_different_type_gets_two_ids(
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.add_input_dataset(_EXISTING_FILE, dataset_type="text")
                 loom.add_dataset(_EXISTING_FILE, dataset_type="image")
 
@@ -394,7 +394,7 @@ def test_loom_input_then_output_dataset_after_file_rewrite_gets_two_ids(
     )
 
     output_file = tmp_path / "frag.json"
-    with loom.run(output_file, registry=registry):
+    with loom.run(output_file, id_registry=registry):
         loom.add_input_dataset("data.txt")
         data_file.write_text("after\n")
         loom.add_output_dataset("data.txt")
@@ -439,7 +439,7 @@ def test_loom_script_file_hit_shares_id_with_dataset_gets_two_ids(
         "pitloom._loom_active_run._get_caller_script_path", return_value="script.py"
     ):
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.set_model("m")
                 loom.add_input_dataset("data.txt")
 
@@ -478,7 +478,7 @@ def test_loom_set_model_hyperparameters_then_set_model_again_gets_two_ids(
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "frag.json"
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry):
+            with loom.run(output_file, id_registry=registry):
                 loom.set_model("m")
                 loom.set_model_hyperparameters({"lr": "0.1"})
                 loom.set_model("m")

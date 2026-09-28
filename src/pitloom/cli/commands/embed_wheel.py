@@ -335,7 +335,7 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
             project_dir=project_dir,
             pitloom_config=pitloom_config,
             creation_metadata=options["creation_metadata"],
-            registry=options["registry"],
+            id_registry=options["id_registry"],
             overrides=overrides,
             file_cache=file_cache,
         )
@@ -369,7 +369,7 @@ class _EmbedBatchContext:
     project_dir: Path | None
     pitloom_config: PitloomConfig | None
     creation_metadata: CreationMetadata | None
-    registry: Path | None
+    id_registry: Path | None
     overrides: ConfigOverrides
     file_cache: EmbedFileCache
 
@@ -402,7 +402,7 @@ def _try_embed_one_wheel(
             output_path=output_path,
             sbom_basename=args.sbom_basename,
             creation_metadata=batch.creation_metadata,
-            registry=batch.registry,
+            id_registry=batch.id_registry,
             overrides=batch.overrides,
             allow_mismatch=args.allow_mismatch,
             file_cache=batch.file_cache,

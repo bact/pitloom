@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -60,9 +60,9 @@ the unpacked directory does. Before, `read_project()` returned
 
 ## Decisions
 
-1. **`ids-file` and fragments: documented, not warned.** #231's rule: a
+1. **`id-registry` and fragments: documented, not warned.** #231's rule: a
    config *key* a target cannot use is documented; a *flag* warns. The
-   `ids-file` could only name a file inside the archive, so `read_sdist()`
+   `id-registry` could only name a file inside the archive, so `read_sdist()`
    drops it -- and the fragments -- at the source, so the CLI, the
    library, `enrich --project-dir` and `embed-wheel --project-dir` all get
    the same config with no caller-side "explicit or own" branch (the
@@ -127,7 +127,7 @@ runs on every invocation, not only under `-v`.
 ## Found, not fixed here
 
 - **Config-parity findings** (error shapes, `-v` sources, key
-  applicability, `loom.Run` cwd walk-up, id-minting via `ids-file`,
+  applicability, `loom.Run` cwd walk-up, id-minting via `id-registry`,
   unknown keys, repeated warnings, ...) moved to
   [config-cascade-parity.md](../design/config-cascade-parity.md), to be
   fixed together.

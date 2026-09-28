@@ -7,6 +7,6 @@ data/processed/
 models/
 fragments/
 
-# loom-ids.json (the stable file/entity -> SPDX id registry) is
+# loom-id-registry.json (the stable file/entity -> SPDX id registry) is
 # intentionally checked in, not ignored -- it's what keeps the same
 # dataset/script/model carrying the same spdxId across pipeline runs.

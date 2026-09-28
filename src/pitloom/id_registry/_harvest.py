@@ -205,7 +205,7 @@ def _release_stale_keys_for_id(
 def claim_registry_hit(key: str, spdx_id: str, claimed: dict[str, str]) -> str | None:
     """Return *spdx_id* if nothing in *claimed* has claimed it yet,
     recording ``claimed[spdx_id] = key``; otherwise log one
-    ``WARNING: Registry: ...`` naming both claimants and return ``None``
+    ``WARNING: ID registry: ...`` naming both claimants and return ``None``
     (treated as a lookup miss by the caller, so it mints its own id
     instead).
 
@@ -232,7 +232,7 @@ def claim_registry_hit(key: str, spdx_id: str, claimed: dict[str, str]) -> str |
     first_key = claimed.get(spdx_id)
     if first_key is not None:
         log.warning(
-            "Registry: %s is registered for both %s and %s; %s gets a new id",
+            "ID registry: %s is registered for both %s and %s; %s gets a new id",
             spdx_id,
             first_key,
             key,

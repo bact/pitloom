@@ -87,7 +87,7 @@ def resolve_ai_model_entity_hits(
     across files/directories/AI models together) reuses it
     (:func:`~pitloom.id_registry.claim_registry_hit`); every later one gets its
     own fresh id instead of silently losing its element to the first,
-    with one ``WARNING: Registry: ...`` naming both. A fresh, empty
+    with one ``WARNING: ID registry: ...`` naming both. A fresh, empty
     *claimed* is used when the caller doesn't share one.
     """
     if claimed is None:

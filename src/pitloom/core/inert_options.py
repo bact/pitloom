@@ -60,8 +60,8 @@ PARAM_TO_FLAG: dict[str, str] = {
     "max_source_metadata_bytes": "--max-source-metadata-bytes",
     "offline": "--offline/--no-offline",
     "use_lockfile": "--use-lockfile/--no-use-lockfile",
-    "registry": "--registry",
-    "update_registry": "--update-registry/--no-update-registry",
+    "id_registry": "--id-registry",
+    "update_id_registry": "--update-id-registry/--no-update-id-registry",
     "creation_metadata": "--creator-*/--creation-*",
     "pitloom_config": "--config",
     "project_dir": "--project-dir",
@@ -116,12 +116,12 @@ _FILE_SCAN = ("extract_file_header", "content_type")
 _EMBED_COMMON: dict[str, str] = {
     "pretty": _EMBED_CANONICAL,
     "describe_relationship": _EMBED_NO_DESCRIBE,
-    "update_registry": _NO_HARVEST,
+    "update_id_registry": _NO_HARVEST,
 }
 _MODEL_FILE_ROW: dict[str, str] = {
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "content_type_method": _MODEL_NO_DEPENDENCIES,
-    "update_registry": _NO_HARVEST,
+    "update_id_registry": _NO_HARVEST,
 }
 
 _ENRICH_ROW: dict[str, str] = {
@@ -129,7 +129,7 @@ _ENRICH_ROW: dict[str, str] = {
     "describe_relationship": _FRAGMENT_NO_DESCRIBE,
     "content_type_method": _MODEL_NO_DEPENDENCIES,
     "max_source_metadata_bytes": _FRAGMENT_NO_SOURCE_METADATA,
-    "update_registry": _NO_HARVEST,
+    "update_id_registry": _NO_HARVEST,
 }
 
 #: Target kind -> {parameter: reason it has no effect there}.
@@ -158,7 +158,7 @@ INERT: dict[str, dict[str, str]] = {
     HF: {
         **_MODEL_FILE_ROW,
         "enrich": _HF_NO_LOCAL_ENRICH,
-        "registry": _HF_NO_REGISTRY,
+        "id_registry": _HF_NO_REGISTRY,
         "use_lockfile": _NO_LOCKFILE,
     },
     ENRICH: _ENRICH_ROW,
@@ -176,7 +176,7 @@ INERT: dict[str, dict[str, str]] = {
                 "content_type_method",
                 "max_source_metadata_bytes",
                 "offline",
-                "registry",
+                "id_registry",
                 "creation_metadata",
                 "pitloom_config",
                 "project_dir",

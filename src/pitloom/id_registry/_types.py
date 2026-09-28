@@ -25,7 +25,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
-    "DEFAULT_REGISTRY_FILENAME",
+    "DEFAULT_ID_REGISTRY_FILENAME",
     "DIRECTORY_ENTITY_TYPE",
     "EntityEntry",
     "FileEntry",
@@ -39,7 +39,7 @@ __all__ = [
     "sha256_file",
 ]
 
-DEFAULT_REGISTRY_FILENAME = "loom-ids.json"
+DEFAULT_ID_REGISTRY_FILENAME = "loom-id-registry.json"
 
 #: The SPDX 3 compact type a directory is registered under (an
 #: :class:`~spdx_python_model.bindings.v3_0_1.software_File` with
@@ -158,7 +158,7 @@ def _is_eligible_file(file_path: Path, seen: set[Path]) -> bool:
         return False
     if any(part in _IGNORED_DIR_NAMES for part in file_path.parts):
         return False
-    if file_path.name == DEFAULT_REGISTRY_FILENAME:
+    if file_path.name == DEFAULT_ID_REGISTRY_FILENAME:
         return False
     if file_path in seen:
         return False
@@ -172,7 +172,7 @@ def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:
     for raw_path in paths:
         root = raw_path if raw_path.is_absolute() else project_root / raw_path
         if not root.exists():
-            log.warning("Registry: path not found, skipping: %s", root)
+            log.warning("ID registry: path not found, skipping: %s", root)
             continue
 
         candidates: Iterable[Path] = (

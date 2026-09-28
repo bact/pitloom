@@ -20,7 +20,7 @@ from __future__ import annotations
 from pitloom.id_registry._harvest import claim_registry_hit
 from pitloom.id_registry._registry import IdRegistry
 from pitloom.id_registry._types import (
-    DEFAULT_REGISTRY_FILENAME,
+    DEFAULT_ID_REGISTRY_FILENAME,
     DIRECTORY_ENTITY_TYPE,
     PACKAGE_ENTITY_TYPE,
     EntityEntry,
@@ -30,7 +30,7 @@ from pitloom.id_registry._types import (
 from pitloom.id_registry.resolve import resolve_explicit_registry, resolve_registry
 
 __all__ = [
-    "DEFAULT_REGISTRY_FILENAME",
+    "DEFAULT_ID_REGISTRY_FILENAME",
     "DIRECTORY_ENTITY_TYPE",
     "PACKAGE_ENTITY_TYPE",
     "EntityEntry",

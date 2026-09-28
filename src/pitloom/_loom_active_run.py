@@ -57,12 +57,12 @@ class _ActiveRun:
         output_file: str,
         pretty: bool = False,
         creation_metadata: CreationMetadata | None = None,
-        registry: str | Path | IdRegistry | None = None,
+        id_registry: str | Path | IdRegistry | None = None,
     ):
         self.output_file = output_file
         self.pretty = pretty
         self.doc_uuid = str(uuid4())
-        self.registry = _resolve_registry(registry)
+        self.registry = _resolve_registry(id_registry)
         self.caller_script_path = _get_caller_script_path()
         self._model_generated: bool | None = None
 
@@ -101,7 +101,7 @@ class _ActiveRun:
         element afterwards (e.g. ``set_model_hyperparameters()``) -- is
         unconditionally a miss: ``None`` is returned so the caller mints
         its own fresh id, and :func:`pitloom.id_registry.claim_registry_hit` logs
-        one ``WARNING: Registry: ... registered for both ...``. This
+        one ``WARNING: ID registry: ... registered for both ...``. This
         matches what happens with no registry at all, where every call
         already mints its own id -- the only difference is the warning,
         which is truthful (the registered id went to the first call).

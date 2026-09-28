@@ -273,10 +273,10 @@ def _config(
         pyproject_config_applies(pyproject),
         read_setup_cfg if _SETUP_CFG in root else None,
     )
-    # Neither can apply to an archive: an ids-file names a file inside it,
+    # Neither can apply to an archive: an id-registry names a file inside it,
     # and fragments merge only into a directory's SBOM. Dropped here, so
     # every surface given this config ignores them (documented, not warned).
-    return dataclasses.replace(config, ids_file=None, fragments=[]), member
+    return dataclasses.replace(config, id_registry=None, fragments=[]), member
 
 
 def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
@@ -286,7 +286,7 @@ def read_sdist(sdist_path: Path, *, read_config: bool = True) -> SdistContents:
     The config is read as for the unpacked directory: the root
     ``pyproject.toml``'s ``[tool.pitloom]``, else ``setup.cfg``'s
     ``[tool:pitloom]`` (:func:`~pitloom.core.config.select_project_config`),
-    minus ``ids-file`` and fragments, which cannot apply to an archive.
+    minus ``id-registry`` and fragments, which cannot apply to an archive.
     Without *read_config* it is not parsed and the defaults are returned --
     an explicit config replaces it, so a fault in it cannot fail the read.
 

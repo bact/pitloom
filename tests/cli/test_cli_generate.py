@@ -19,7 +19,7 @@ from pitloom.cli.commands import env as mod_env
 from pitloom.cli.commands import generate as mod_generate
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.creation import CreationMetadata
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.cli.shared import _make_simple_project, effective_setting
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
@@ -250,19 +250,19 @@ def test_deployed_dispatches_to_generate_env_sbom(
     assert captured["output_path"] == tmp_path / "deployed-environment.spdx3.json"
 
 
-def test_ids_generate_cli_end_to_end(
+def test_id_generate_cli_end_to_end(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom ids generate` smoke test through main(): real filesystem, no
+    """`loom id generate` smoke test through main(): real filesystem, no
     monkeypatching of IdRegistry itself since it is fast and local."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "mod.py").write_text("x = 1\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["loom", "ids", "generate"])
+    monkeypatch.setattr(sys, "argv", ["loom", "id", "generate"])
 
     assert __main__.main() == 0
 
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
     assert "src/mod.py" in registry.files

@@ -37,11 +37,11 @@ version = "0.0.0"
 [tool.pitloom]
 pretty = true
 enrich = true
-update-registry = true
-ids-file = "loom-ids.json"
+update-id-registry = true
+id-registry = "loom-id-registry.json"
 creation-comment = "{_DECOY_COMMENT}"
 """
-_REGISTRY = "loom-ids.json"
+_REGISTRY = "loom-id-registry.json"
 _PINNED = ("--creation-datetime", DATETIME)
 
 # Command -> argv for a target; each writes its SBOM to the given file.
@@ -99,7 +99,7 @@ def check_no_implicit_config(ctx: Context) -> None:
     wheel = build_wheel(project, ctx.work / "dist")
     registry = ctx.work / "seed-ids.json"
     run_ok(
-        "ids",
+        "id",
         "generate",
         str(project),
         "--project-dir",
@@ -135,7 +135,7 @@ def check_no_implicit_config(ctx: Context) -> None:
             out / "c.json",
         )
         expect(_DECOY_COMMENT.encode() in named, f"{name}: --config not applied")
-        # The named config's ids-file may be written back: reseed it.
+        # The named config's id-registry may be written back: reseed it.
         (decoy / _REGISTRY).write_bytes(seeded)
 
     clean = _embedded(wheel, ctx.work / "embed" / "a", empty)

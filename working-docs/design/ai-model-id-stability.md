@@ -21,7 +21,7 @@ registry's auto-harvest (`_sync_registry` in
 extraction-dependent (varies with whether `ai` extras are installed),
 so a name-keyed harvest would write entries that never match
 `_lookup_ai_model_entity`'s lookup candidates. The only currently-stable
-path is the extras-free, filename-stem-keyed `loom ids generate`.
+path is the extras-free, filename-stem-keyed `loom id generate`.
 Revisit whether auto-harvest can be safely extended once there's a
 reliable way to say "this is the same model I saw last time":
 
@@ -45,7 +45,7 @@ reliable way to say "this is the same model I saw last time":
   the cases stability matters most. Source files don't have this
   problem; AI model files might.
 - **"Machine ID" scoping idea**: record a randomly-generated (not
-  identifying) machine tag in `loom-ids.json` itself, so the registry
+  identifying) machine tag in `loom-id-registry.json` itself, so the registry
   can distinguish "these runs are from the same working environment
   across time" from "these came from different machines/CI runners,"
   without claiming any actual machine identity. This addresses a
@@ -62,7 +62,7 @@ committed plan.
 
 ## Known gap: two models sharing a file stem
 
-With a `pitloom ids generate`-populated registry, `_lookup_ai_model_entity`'s
+With a `pitloom id generate`-populated registry, `_lookup_ai_model_entity`'s
 filename-stem candidate is the *only* usable key for a model with no
 `ai_model.name`/`physical_path` -- and that stem alone isn't unique
 across a project. Two models at `a/weights.npy` and `b/weights.npy`
@@ -74,7 +74,7 @@ With the first-claimant-wins reservation
 `pitloom.id_registry.claim_registry_hit`), this no longer loses the second
 model: only the first model (in `ai_models` list order, or resolution
 order more generally) reuses the registered hit; the second gets its own
-freshly-minted id and one `WARNING: Registry: ... is registered for both
+freshly-minted id and one `WARNING: ID registry: ... is registered for both
 ... and ...` naming both. Both elements now appear in the SBOM.
 
 What's still open is the underlying match itself: the stem-based lookup

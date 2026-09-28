@@ -52,7 +52,7 @@ def test_debug_flag_raises_logger_to_debug_level(
         [
             "loom",
             "--debug",
-            "ids",
+            "id",
             "generate",
             str(tmp_path),
             "-o",
@@ -102,7 +102,7 @@ def test_debug_flag_omitted_leaves_logger_at_info_level(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "ids", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
+        ["loom", "id", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
     )
     result = __main__.main()
     assert result == 0
@@ -120,7 +120,7 @@ def test_debug_flag_omitted_respects_ambient_env_var(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "ids", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
+        ["loom", "id", "generate", str(tmp_path), "-o", str(tmp_path / "r.json")],
     )
     result = __main__.main()
     assert result == 0
@@ -141,7 +141,7 @@ def test_no_debug_flag_overrides_ambient_env_var(
         [
             "loom",
             "--no-debug",
-            "ids",
+            "id",
             "generate",
             str(tmp_path),
             "-o",

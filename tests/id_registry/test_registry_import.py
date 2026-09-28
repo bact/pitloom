@@ -3,7 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.id_registry import functionality."""
+"""Tests for pitloom.id_registry import functionality.
+
+See also: test_registry.py, test_registry_generate.py, shared.py.
+"""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -20,7 +23,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
 from pitloom.id_registry._harvest import _import_sbom_element
 from pitloom.id_registry._types import _entity_key
-from tests.ids_shared import (
+from tests.id_registry.shared import (
     _write_sample_sbom,
     _write_sample_sbom_without_document,
 )
@@ -143,7 +146,7 @@ def test_import_sbom_empty_elements() -> None:
         # A different id from DummyElement2's -- this test is about
         # (type, name) keying preventing an *overwrite*, not about the
         # one-id-per-key invariant (see test_harvest_drops_stale_key_...
-        # in test_ids_core.py for that), so the two ids here must differ
+        # in test_registry.py for that), so the two ids here must differ
         # or the second harvest would legitimately release the first.
         spdxId = "http://test2"
         # no get_compact_type, but class name fallback

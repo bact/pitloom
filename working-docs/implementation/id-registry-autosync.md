@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Auto-sync the Loom ID registry after SBOM generation
 
 See also: [roadmap.md](../design/roadmap.md) (Completed), the "Loom IDs
-across fragments" section of the top-level [README.md](../../README.md#loom-ids-across-fragments-pitloom-ids).
+across fragments" section of the top-level [README.md](../../README.md#loom-ids-across-fragments-loom-id).
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
@@ -104,7 +104,7 @@ name-only-entities check uses `IdRegistry.has_entity_named()`.
 helper every `_resolve_*_hits` pass calls for each hit it finds: the
 first key to claim a given id keeps it, a later key with the *same*
 hit id is treated as a miss (falls back to its own fresh mint) and
-gets one `WARNING: Registry: <spdxId> is registered for both <first>
+gets one `WARNING: ID registry: <spdxId> is registered for both <first>
 and <second>; <second> gets a new id`. Each resolver iterates in a
 fixed, deterministic order (files in `metadata.files` order,
 directories root-to-leaf, AI models in `ai_models` list order, env
@@ -126,7 +126,7 @@ successful claims. A directory whose hit is rejected by
 `claim_registry_hit` (lost the first-claimant race) or whose lookup
 misses adds no `dir_hits` entry either way, so memoizing on `dir_hits`
 membership alone would re-look-up and, on a rejection, re-log the same
-`WARNING: Registry: ... registered for both ...` once per file sharing
+`WARNING: ID registry: ... registered for both ...` once per file sharing
 that directory instead of once per directory.
 
 `pitloom.loom`'s `_ActiveRun` has its own claim state
@@ -229,17 +229,17 @@ bumped to 2, no migration. An old-version file is rejected differently
 by surface: a build surface consulting an *explicit* registry path
 (`resolve_registry`/`resolve_explicit_registry`, used by `build()`/
 `build_deployed()`/the Hatchling hook) logs
-`WARNING: Registry: could not load ...` and proceeds with no registry;
-an *auto-discovered* `loom-ids.json` (`IdRegistry.find()`, no
-`--registry`/`ids_file` given) instead logs
-`WARNING: Registry: ignoring invalid file ...` -- same outcome,
-different wording because a different function logs it. `pitloom ids
-generate`/`pitloom ids import` (`_load_or_create_registry`) print
+`WARNING: ID registry: could not load ...` and proceeds with no registry;
+an *auto-discovered* `loom-id-registry.json` (`IdRegistry.find()`, no
+`--id-registry`/`id-registry` given) instead logs
+`WARNING: ID registry: ignoring invalid file ...` -- same outcome,
+different wording because a different function logs it. `pitloom id
+generate`/`pitloom id import` (`_load_or_create_registry`) print
 `ERROR: failed to load registry from ...` and exit 1 instead, since
 those commands' entire job is to write to that file -- silently
 proceeding without one would produce a registry that doesn't build on
 the previous run's ids. Both point at the same fix: delete the file
-and re-run `pitloom ids generate` or `pitloom ids import`.
+and re-run `pitloom id generate` or `pitloom id import`.
 
 ### Duplicate-spdxId safety net
 
@@ -274,8 +274,8 @@ above) -- `_sync_registry()` used exactly that to decide whether to
 `harvest()` returns a third value, `changed: bool` (based on actual
 dict-content comparison, not size), and `_sync_registry()` gates its
 `save()` on that instead. Its INFO log distinguishes the two cases:
-`"Registry: added %d new file(s), %d new entit(y/ies) to %s"` when the
-net counts are nonzero, `"Registry: updated stale entries in %s"` when
+`"ID registry: added %d new file(s), %d new entit(y/ies) to %s"` when the
+net counts are nonzero, `"ID registry: updated stale entries in %s"` when
 `changed` is true but the net counts are zero (a release and an add
 cancelling out) -- the latter would otherwise misleadingly read as
 "added 0... entit(y/ies)", as if nothing had happened.

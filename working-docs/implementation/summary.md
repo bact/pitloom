@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-06
-Last-Modified: 2026-08-30
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -94,14 +94,14 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
    - `__main__.py` is a thin entry point only: logging setup and
      `args.func(args)` dispatch. Argparse construction (`cli/parser.py`),
      CLI-vs-`pyproject.toml`-vs-default option resolution (`cli/options.py`),
-     `--verbose` reporting (`cli/verbose.py`), the `ids` subcommand
-     (`cli/ids.py`), and each subcommand's own `_run_<verb>_command()` +
+     `--verbose` reporting (`cli/verbose.py`), the `id` subcommand
+     (`cli/id.py`), and each subcommand's own `_run_<verb>_command()` +
      `add_parser()` (`cli/commands/*.py`, one module per subcommand) all
      live under `cli/` -- see
      [cli-test-coverage-roadmap.md](../design/cli-test-coverage-roadmap.md)
      for the per-module breakdown
    - User-friendly argparse-based CLI with input-centric subcommands
-     (`project`, `wheel`, `model`, `env`, `merge`, `embed-wheel`, `ids`)
+     (`project`, `wheel`, `model`, `env`, `merge`, `embed-wheel`, `id`)
      and a smart entrypoint `loom generate [TARGET]` (requires `-o`,
      unlike the input-centric subcommands, which each have an obvious
      target-derived default filename)
@@ -191,7 +191,7 @@ SPDX 3.0 compliant SBOMs in JSON-LD format.
 
 > **Historical snapshot, early prototype.** The invocation and element
 > counts below predate the input-centric CLI subcommands
-> (`project`/`wheel`/`model`/`env`/`generate`/`ids`) and
+> (`project`/`wheel`/`model`/`env`/`generate`/`id`) and
 > provenance-as-Annotation (see
 > [annotation-provenance.md](provenance/annotation-provenance.md)) -- a current run
 > uses `loom project <path>` (or `loom generate <path>`), not the bare

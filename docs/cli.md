@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -185,7 +185,7 @@ loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
 
 It embeds the same kind of SBOM `embed-wheel` does: RFC 8785 canonical
 JSON, no relationship descriptions, no registry update -- so `--pretty`,
-`--describe-relationship` and `--update-registry` warn and have no
+`--describe-relationship` and `--update-id-registry` warn and have no
 effect, and `-o FILE` writes a copy of exactly what was embedded.
 
 Generate a **Deployed SBOM** reflecting the exact installed environment
@@ -279,8 +279,8 @@ id absent from the merge -- most commonly a fragment merged against a
 stale base SBOM (see the note above). Regenerate the base SBOM and
 re-run the fragment-producing step before merging again.
 
-`merge`, `fragment`, and `ids` each take only their own small flag set,
-not the common options below -- e.g. `--offline`/`-v`/`--registry`/
+`merge`, `fragment`, and `id` each take only their own small flag set,
+not the common options below -- e.g. `--offline`/`-v`/`--id-registry`/
 `--enrich` don't apply to any of them. `merge`'s own `--pretty` also
 defaults to `True` (pretty-printed), the opposite of every other
 subcommand's compact default.
@@ -337,26 +337,26 @@ would normally get a different `spdxId` in each run. Pin ids ahead of
 time, or reuse ids already present in an SBOM:
 
 ```bash
-loom ids generate data src --entity model      # pin ids before running
-loom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
+loom id generate data src --entity model      # pin ids before running
+loom id import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
-`ids generate [PATH...]` flags: `-o`/`--registry FILE` (registry file to
-update, default `loom-ids.json` under `--project-dir`), `--project-dir
+`id generate [PATH...]` flags: `-o`/`--id-registry FILE` (registry file to
+update, default `loom-id-registry.json` under `--project-dir`), `--project-dir
 DIR`, `-e`/`--entity NAME[:TYPE]` (repeatable -- register an explicit
-entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`). `ids import
-SBOM_FILE` takes only `-o`/`--registry FILE`.
+entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`). `id import
+SBOM_FILE` takes only `-o`/`--id-registry FILE`.
 
 `project`/`wheel`/`env` also auto-harvest newly-minted ids back into the
-resolved registry after each run (`--update-registry`/`--no-update-registry`,
-on by default) -- see
-[Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-pitloom-ids)
+resolved registry after each run (`--update-id-registry` on by default, or
+`--no-update-id-registry`) -- see
+[Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
 for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
 
 ## Useful flags
 
 Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
-(not `merge`/`fragment`/`ids`, see above), unless noted otherwise:
+(not `merge`/`fragment`/`id`, see above), unless noted otherwise:
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
@@ -367,7 +367,7 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   `enrich`, `embed-wheel` without `--project-dir`), it is the *only*
   config that target can ever get -- none of these read the current
   directory or the target's own location. A relative path inside *FILE*
-  (`ids-file`, a fragment's `path`) resolves against *FILE*'s own
+  (`id-registry`, a fragment's `path`) resolves against *FILE*'s own
   directory. A missing or invalid *FILE* is an `ERROR:`, except under
   `embed-wheel --sbom`, where it is not read at all and only warns. The
   replaced project config is not parsed, so `--config` also rescues a
@@ -389,7 +389,7 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   `wheel`/`env`/`model`/`enrich` print only the version, target and
   output path. `generate` on any other target and `embed-wheel` print
   nothing more and warn that `-v` has no effect.
-- `--registry FILE` -- Loom ID registry file path, overriding the
+- `--id-registry FILE` -- Loom ID registry file path, overriding the
   auto-resolved default -- see [Pin ids across
   fragments](#pin-ids-across-fragments). A relative path resolves
   against the current directory on every command.
@@ -421,15 +421,15 @@ and drops it, rather than silently ignoring it:
 | project directory | — |
 | sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
 | wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
-| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-registry` |
+| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
 | installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
-| local model file | `--extract-file-header`, `--content-type`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-registry` |
-| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--use-lockfile`, `--registry`, `--update-registry` |
-| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-registry` |
-| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-registry` |
-| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--update-registry` |
-| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-registry` |
-| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--registry`, `--update-registry`, `--creator-*`, `--config`, `--project-dir` |
+| local model file | `--extract-file-header`, `--content-type`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry` |
+| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry` |
+| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
+| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
+| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--update-id-registry` |
+| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
+| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
 Each `--flag` above also covers its `--no-flag` boolean-negation form
 where one exists (e.g. `--no-enrich`, `--no-pretty`); the warning names
@@ -465,7 +465,7 @@ signal-handling behaviour (Ctrl-C/SIGTERM/SIGHUP/SIGKILL) during a build.
 ## Debugging
 
 `--debug` is global -- unlike the flags above, it works before *any*
-subcommand, including `merge`/`fragment`/`ids`:
+subcommand, including `merge`/`fragment`/`id`:
 
 ```bash
 loom --debug project .

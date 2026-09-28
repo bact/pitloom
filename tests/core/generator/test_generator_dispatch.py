@@ -53,11 +53,11 @@ _SENTINELS: dict[str, Any] = {
     "creation_metadata": CreationMetadata(creation_comment="sentinel-comment"),
     "pretty": True,
     "describe_relationship": True,
-    "registry": "sentinel-registry.json",
+    "id_registry": "sentinel-registry.json",
     "provenance": ProvenanceConfig(max_source_metadata_bytes=4321),
     "offline": True,
     "content_type_method": "extension",
-    "update_registry": False,
+    "update_id_registry": False,
     "max_source_metadata_bytes": 4321,
     "pitloom_config": PitloomConfig(creation_comment="sentinel-config"),
     # Project/model-only parameters.

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -72,7 +72,7 @@ accident of which code path it goes through.
 - **`enrich --project-dir D` without `--config` uses the default
   creator**, while `project D` uses D's `creators`, so a fragment's
   creators differ from its base SBOM's.
-- **`loom.Run(registry=None)` walks up from the current directory** for a
+- **`loom.Run(id_registry=None)` walks up from the current directory** for a
   registry -- the one surface still doing an implicit cwd read.
 - **`sbom-basename = "x.spdx3.json"`**: `project` writes
   `x.spdx3.json.spdx3.json`, `embed-wheel` strips the extension and
@@ -80,7 +80,7 @@ accident of which code path it goes through.
 - **`embed-wheel --project-dir <sdist>` runs Hatchling file discovery on
   the archive path** (and warns it failed), while `project <sdist>` uses
   the archive's own listing.
-- **An explicit config's `ids-file` reaches `wheel`/`env`/`model`** --
+- **An explicit config's `id-registry` reaches `wheel`/`env`/`model`** --
   the id-minting collision it widened is fixed (see
   [id-registry-autosync.md](../implementation/id-registry-autosync.md#id-mint-collision-fix-branch-id-mint-collision)).
 - **`--max-source-metadata-bytes -1`** runs as no cap with no message;
@@ -99,7 +99,7 @@ accident of which code path it goes through.
 - **A no-effect warning's subject differs by command**: the target as
   typed (`wheel`), a resolved absolute path (local model), the literal
   `"embed-wheel"` (standalone embed batch).
-- **`Registry: could not load` repeats once per wheel** in an
+- **`ID registry: could not load` repeats once per wheel** in an
   `embed-wheel` batch.
 
 ## Direction (to decide before building)

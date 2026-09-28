@@ -53,7 +53,7 @@ def test_omitted_flags_stay_none() -> None:
     [
         (["--no-pretty"], "pretty", False),
         (["--max-source-metadata-bytes", "0"], "max_source_metadata_bytes", 0),
-        (["--no-update-registry"], "update_registry", False),
+        (["--no-update-id-registry"], "update_id_registry", False),
     ],
 )
 def test_false_and_zero_are_given_values(
@@ -112,16 +112,16 @@ def test_load_explicit_config_missing_file_raises(tmp_path: Path) -> None:
         load_explicit_config(_parse("--config", str(tmp_path / "absent.toml")))
 
 
-def test_relative_registry_is_made_absolute_against_cwd(
+def test_relative_id_registry_is_made_absolute_against_cwd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A path typed on the command line means the file under the current
     directory on every command -- the library would otherwise resolve a
     relative one against the project directory on some of them."""
     monkeypatch.chdir(tmp_path)
-    options = run_options(_parse("--registry", "ids.json"), PitloomConfig())
-    assert options["registry"] == tmp_path / "ids.json"
-    assert options["registry"].is_absolute()
+    options = run_options(_parse("--id-registry", "ids.json"), PitloomConfig())
+    assert options["id_registry"] == tmp_path / "ids.json"
+    assert options["id_registry"].is_absolute()
 
 
 def _loom(argv: list[str], monkeypatch: pytest.MonkeyPatch) -> int:
@@ -238,7 +238,7 @@ def test_config_fragment_path_resolves_beside_the_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every relative path in a ``--config`` file means the file beside it,
-    as ``ids-file`` does, and no machine-specific directory leaks into
+    as ``id-registry`` does, and no machine-specific directory leaks into
     the SBOM."""
     project = demo_project(tmp_path)
     config_dir = tmp_path / "ci"

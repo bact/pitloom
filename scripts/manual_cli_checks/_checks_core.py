@@ -264,7 +264,7 @@ def check_registry(ctx: Context) -> None:
     project = write_project(ctx.work / "proj")
     registry = ctx.work / "registry.json"
     run_ok(
-        "ids",
+        "id",
         "generate",
         str(project),
         "--project-dir",
@@ -280,7 +280,7 @@ def check_registry(ctx: Context) -> None:
             str(project),
             "-o",
             str(out),
-            "--registry",
+            "--id-registry",
             str(registry),
             "--creation-datetime",
             DATETIME,

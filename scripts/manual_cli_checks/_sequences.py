@@ -106,13 +106,16 @@ def seq_embed_orders(ctx: Context) -> None:
         ctx.note(f"{label}: {types[0]} -> {types[1]}")
 
 
-@check("S4", "registry: generate, then project --registry twice; --no-update-registry")
+@check(
+    "S4",
+    "registry: generate, then project --id-registry twice; --no-update-id-registry",
+)
 def seq_registry(ctx: Context) -> None:
     project = _fixtures.get().stage("project", ctx.work)
     registry = ctx.work / "reg.json"
     _ok(
         ctx.work,
-        "ids",
+        "id",
         "generate",
         str(project),
         "--project-dir",
@@ -127,11 +130,18 @@ def seq_registry(ctx: Context) -> None:
     frozen.write_bytes(fresh)
     _ok(
         ctx.work,
-        *("project", str(project), "--registry", str(frozen), "--offline", *_DATED),
-        *("-o", "c.json", "--no-update-registry"),
+        *("project", str(project), "--id-registry", str(frozen), "--offline", *_DATED),
+        *("-o", "c.json", "--no-update-id-registry"),
     )
-    expect(frozen.read_bytes() == fresh, "--no-update-registry changed the registry")
-    args = ("project", str(project), "--registry", str(registry), "--offline", *_DATED)
+    expect(frozen.read_bytes() == fresh, "--no-update-id-registry changed the registry")
+    args = (
+        "project",
+        str(project),
+        "--id-registry",
+        str(registry),
+        "--offline",
+        *_DATED,
+    )
     outputs, registries = [], []
     for name in ("a.json", "b.json"):
         _ok(ctx.work, *args, "-o", name)
@@ -143,18 +153,18 @@ def seq_registry(ctx: Context) -> None:
     expect((ctx.work / "c.json").read_bytes() == outputs[0], "SBOM differs")
 
 
-@check("S5", "ids import of an SBOM, then project --registry reuses its IDs")
+@check("S5", "id import of an SBOM, then project --id-registry reuses its IDs")
 def seq_import(ctx: Context) -> None:
     fx = _fixtures.get()
     sbom = fx.get("sbom")
     registry = ctx.work / "reg.json"
-    _ok(ctx.work, "ids", "import", str(sbom), "-o", str(registry))
+    _ok(ctx.work, "id", "import", str(sbom), "-o", str(registry))
     project = fx.stage("project", ctx.work)
     _ok(
         ctx.work,
         "project",
         str(project),
-        "--registry",
+        "--id-registry",
         str(registry),
         "--offline",
         *_DATED,

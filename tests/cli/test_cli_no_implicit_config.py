@@ -7,7 +7,7 @@
 
 A command whose target has no project of its own (``wheel``, ``env``,
 ``model``, ``enrich``, ``generate`` on one of those, ``embed-wheel``
-without ``--project-dir``) reads no config and no ``loom-ids.json`` from
+without ``--project-dir``) reads no config and no ``loom-id-registry.json`` from
 the current directory. Each no-implicit test runs the command from an
 empty directory and from a project directory holding a decoy config and a
 seeded registry (``SOURCE_DATE_EPOCH`` pinned): the outputs must be
@@ -15,7 +15,7 @@ byte-identical and the registry untouched. The same decoy named with
 ``--config`` must change the output, or the comparison proves nothing.
 
 The rest pins ``--config`` itself: flag > ``--config`` > target config;
-``--config`` replaces a project's own config; its relative ``ids-file``
+``--config`` replaces a project's own config; its relative ``id-registry``
 resolves against its own directory; a bad ``--config`` is one ``ERROR:``
 and exit 1 with nothing written; and a field-level byte cap from the flag
 overrides the config's without resetting its other provenance settings.
@@ -40,7 +40,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
-from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, FileEntry, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FileEntry, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import DEPENDENCY, demo_project, demo_wheel
 from tests.assemble.test_generator_no_implicit_config import _TARGET, _seed_registry
@@ -54,7 +54,7 @@ _DECOY = f"""
 pretty = true
 describe-relationship = true
 creation-comment = "{_DECOY_COMMENT}"
-update-registry = true
+update-id-registry = true
 offline = false
 
 [[tool.pitloom.creator]]
@@ -143,7 +143,7 @@ def test_no_config_or_registry_is_read_from_the_current_directory(
     # A real project directory, as when embed-wheel runs from a project's
     # root without --project-dir: still not the wheel's project.
     decoy = demo_project(tmp_path / "decoy", _DECOY)
-    registry = decoy / DEFAULT_REGISTRY_FILENAME
+    registry = decoy / DEFAULT_ID_REGISTRY_FILENAME
     _seed_registry(registry, files.wheel)
     shutil.copyfile(decoy / "pyproject.toml", files.model.parent / "pyproject.toml")
     registry_before = registry.read_bytes()
@@ -158,7 +158,7 @@ def test_no_config_or_registry_is_read_from_the_current_directory(
 
     assert from_decoy == from_empty
     assert registry.read_bytes() == registry_before
-    assert not (empty / DEFAULT_REGISTRY_FILENAME).exists()
+    assert not (empty / DEFAULT_ID_REGISTRY_FILENAME).exists()
     assert named != from_empty, "the decoy changes nothing even when named"
     assert _DECOY_COMMENT.encode() in named
 
@@ -246,7 +246,7 @@ def test_config_replaces_the_projects_own(
 
 
 @pytest.mark.parametrize("command", ["wheel", "project"])
-def test_relative_ids_file_resolves_against_the_config(
+def test_relative_id_registry_resolves_against_the_config(
     command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SOURCE_DATE_EPOCH", _EPOCH)
@@ -264,7 +264,7 @@ def test_relative_ids_file_resolves_against_the_config(
     )
     seeded.save()
     config = _write(
-        cfg_dir / "explicit.toml", '[tool.pitloom]\nids-file = "ids.json"\n'
+        cfg_dir / "explicit.toml", '[tool.pitloom]\nid-registry = "ids.json"\n'
     )
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
@@ -272,13 +272,13 @@ def test_relative_ids_file_resolves_against_the_config(
     _write(elsewhere / "ids.json", "not json")
     monkeypatch.chdir(elsewhere)
     target = "{wheel}" if command == "wheel" else "{project}"
-    argv = (command, target, "--offline", "--no-update-registry")
+    argv = (command, target, "--offline", "--no-update-id-registry")
 
     plain = files.run(argv, monkeypatch)
     named = files.run(argv, monkeypatch, "--config", str(config))
 
     assert b"decoy-ids" not in plain
-    assert b"decoy-ids" in named, "the config's ids-file was not used"
+    assert b"decoy-ids" in named, "the config's id-registry was not used"
 
 
 _BAD_CONFIGS: dict[str, Callable[[Path], Path]] = {

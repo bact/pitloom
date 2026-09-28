@@ -26,7 +26,7 @@ BUILD_LOG_PREFIX = "Build: "
 """Shared ``WARNING:`` sub-prefix for every ``--allow-build``/build-and-
 read-related log message (CLAUDE.md's "CLI output" convention: a shared,
 literal sub-prefix so a subsystem's own messages are easy to grep/compare
-as a group, matching the existing ``"Registry: "`` precedent). One
+as a group, matching the existing ``"ID registry: "`` precedent). One
 constant instead of a hand-copied literal at each call site -- see
 CLAUDE.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
 

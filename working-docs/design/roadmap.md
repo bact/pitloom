@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -260,7 +260,7 @@ below, which is the actual commitment for what ships before mid-October):
   pattern across Track A modules; a hand-rolled `tool` table walk
   repeated across 6+ modules), one low-priority dev-script dedup, one
   id-registry gap (`--allow-build`-sourced files can't match a
-  `loom ids generate`-pinned entry, since their `physical_path` is an
+  `loom id generate`-pinned entry, since their `physical_path` is an
   ephemeral temp path -- **partially addressed** 2026-09-15: a separate,
   previously-unguarded AI-model registry lookup in `_ai_package.py` was
   found and fixed, but `_document_files.py`'s own `software_File` lookup
@@ -404,7 +404,7 @@ below, which is the actual commitment for what ships before mid-October):
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
-- [ ] **Skill trigger coverage for `loom ids generate`/`loom ids import`**
+- [ ] **Skill trigger coverage for `loom id generate`/`loom id import`**
   -- flagged during a 2026-09-18 skills-coverage audit: the skills now
   explain the registry *concept* (why ids stay stable across reruns via
   auto-harvest, so `sbom-enrich`'s dangling-fragment troubleshooting can
@@ -708,16 +708,16 @@ be built:
 - [ ] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- they print
   prose (`Enrichment fragment written to: ...`, `pitloom: merged N
   fragment(s) into ...`), unlike `PITLOOM_SBOM_OUTPUT_PATH=` from every
-  other SBOM command ("CLI output" in CLAUDE.md); so do `ids` and
+  other SBOM command ("CLI output" in CLAUDE.md); so do `id` and
   `fragment validate`.
-- [x] **A relative `--registry` resolves against the project directory**
+- [x] **A relative `--id-registry` resolves against the project directory**
   -- fixed: it now resolves against the current directory on every
   command, like every other path option. See
   [config-sources.md](../implementation/config-sources.md).
-- [ ] **`loom ids generate` crashes on a symlinked path** -- a project
+- [ ] **`loom id generate` crashes on a symlinked path** -- a project
   path through a symlink (macOS `/var` -> `/private/var`) fails
   `relative_to()` with a raw traceback instead of an `ERROR:`.
-- [ ] **`loom ids generate` mints a random registry namespace** -- a
+- [ ] **`loom id generate` mints a random registry namespace** -- a
   UUID4 per run, so two fresh registries for the same project differ.
   Decide whether that is intended (a registry is minted once) or should
   be derived like an SBOM's namespace.

@@ -3,7 +3,11 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Core tests for pitloom.id_registry."""
+"""Core tests for pitloom.id_registry.
+
+See also: test_registry_generate.py, test_registry_import.py, shared.py
+(fixtures shared by this group).
+"""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -21,6 +25,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 import pitloom.id_registry._harvest as ids_mod
 from pitloom.id_registry import (
+    DEFAULT_ID_REGISTRY_FILENAME,
     DIRECTORY_ENTITY_TYPE,
     EntityEntry,
     FileEntry,
@@ -33,7 +38,7 @@ from pitloom.id_registry._types import _REGISTRY_VERSION, _sha256_from_verified_
 
 def test_resolve_registry_error(tmp_path: Path) -> None:
     # Passing an invalid file
-    invalid_file = tmp_path / "loom-ids.json"
+    invalid_file = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     invalid_file.write_text("{")  # Malformed JSON
 
     assert resolve_registry(tmp_path, invalid_file) is None
@@ -69,7 +74,7 @@ def test_register_entity_matching_type_reuses_id_without_warning(
 
 
 def test_load_missing_namespace_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text(json.dumps({"files": {}, "entities": {}}))
 
     with pytest.raises(ValueError, match="missing a valid 'namespace'"):
@@ -77,7 +82,7 @@ def test_load_missing_namespace_raises(tmp_path: Path) -> None:
 
 
 def test_load_malformed_entry_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text(
         json.dumps(
             {
@@ -97,14 +102,14 @@ def test_find_ignores_invalid_registry_and_returns_none(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """find() logs and returns None when the nearest registry is invalid."""
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("{not valid json")
 
     with caplog.at_level("WARNING"):
         result = IdRegistry.find(start=tmp_path)
 
     assert result is None
-    assert "Registry: ignoring invalid file" in caplog.text
+    assert "ID registry: ignoring invalid file" in caplog.text
 
 
 def test_save_without_path_raises() -> None:
@@ -130,7 +135,7 @@ def test_entities_keyed_by_type_survive_a_shared_name_round_trip(
     assert registry.lookup_entity("demo", DIRECTORY_ENTITY_TYPE) == dir_id
     assert registry.lookup_entity("demo", "software_Package") == pkg_id
 
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry.save(registry_path)
     reloaded = IdRegistry.load(registry_path)
 
@@ -145,7 +150,7 @@ def test_load_rejects_old_registry_version(
     """An old-version registry file is rejected outright (no migration) --
     surfaced by resolve_registry()/find() as exactly one WARNING, never a
     crash."""
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text(
         json.dumps(
             {
@@ -166,7 +171,7 @@ def test_load_rejects_old_registry_version(
     assert result is None
     warnings = [r for r in caplog.records if r.levelname == "WARNING"]
     assert len(warnings) == 1
-    assert warnings[0].message.startswith("Registry: could not load")
+    assert warnings[0].message.startswith("ID registry: could not load")
 
 
 class _FakeHash:
@@ -408,7 +413,7 @@ def _write_registry_entities(
 def test_load_canonicalizes_package_entity_names(tmp_path: Path) -> None:
     """A non-canonical ``software_Package`` key on disk is found by the
     canonical lookup every other reader uses."""
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     _write_registry_entities(
         registry_path,
         {"software_Package": {"PyYAML": {"spdxId": "x#Package-2"}}},
@@ -423,7 +428,7 @@ def test_load_canonicalizes_package_entity_names(tmp_path: Path) -> None:
 def test_load_rejects_package_names_equal_after_canonicalization(
     tmp_path: Path,
 ) -> None:
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     _write_registry_entities(
         registry_path,
         {

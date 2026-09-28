@@ -77,13 +77,13 @@ class Run(contextlib.ContextDecorator):
             all fields. When ``None`` (default), the comment defaults to an
             auto-generated note identifying the loom SDK and its version,
             and the creator defaults to the ``SoftwareAgent`` "Pitloom".
-        registry: A ``pitloom.id_registry.IdRegistry``, a path to a registry
-            JSON file, or ``None`` (default) to auto-discover
-            ``loom-ids.json`` by walking up from the current working
-            directory. Consulted read-only: datasets, the model, and the
-            generating script all get the registered ``spdxId`` when one
-            exists for them, so independently generated fragments can be
-            unified at merge time without name-based matching.
+        id_registry: A ``pitloom.id_registry.IdRegistry``, a path to a
+            registry JSON file, or ``None`` (default) to auto-discover
+            ``loom-id-registry.json`` by walking up from the current
+            working directory. Consulted read-only: datasets, the model,
+            and the generating script all get the registered ``spdxId``
+            when one exists for them, so independently generated fragments
+            can be unified at merge time without name-based matching.
     """
 
     def __init__(
@@ -91,12 +91,12 @@ class Run(contextlib.ContextDecorator):
         output_file: str | Path,
         pretty: bool = False,
         creation_metadata: CreationMetadata | None = None,
-        registry: str | Path | IdRegistry | None = None,
+        id_registry: str | Path | IdRegistry | None = None,
     ):
         self.output_file = str(output_file)
         self.pretty = pretty
         self.creation_metadata = creation_metadata or CreationMetadata()
-        self.registry = registry
+        self.id_registry = id_registry
         self.previous_run: _ActiveRun | None = None
 
     def __enter__(self) -> _ActiveRun:
@@ -107,7 +107,7 @@ class Run(contextlib.ContextDecorator):
             self.output_file,
             pretty=self.pretty,
             creation_metadata=self.creation_metadata,
-            registry=self.registry,
+            id_registry=self.id_registry,
         )
         return _active_run
 

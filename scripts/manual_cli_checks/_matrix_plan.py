@@ -106,7 +106,7 @@ COMMANDS: list[Command] = [
         "stdout",
     ),
     Command(
-        "ids generate",
+        "id generate",
         lambda fx, c: [
             str(fx.stage("project", c)),
             "--project-dir",
@@ -117,7 +117,7 @@ COMMANDS: list[Command] = [
         "registry",
     ),
     Command(
-        "ids import",
+        "id import",
         lambda fx, c: [str(fx.stage("sbom", c)), "-o", str(c / "reg.json")],
         "registry",
     ),
@@ -176,18 +176,18 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     "--allow-build": f"exclude:{_BUILD_FLAGS}",
     "--no-build-isolation": f"exclude:{_BUILD_FLAGS}",
     "--build-timeout": f"exclude:{_BUILD_FLAGS}",
-    "--update-registry": "exclude:side effect on the registry file: sequence S4",
+    "--update-id-registry": "exclude:side effect on the registry file: sequence S4",
     "--embed": "exclude:side effect on the wheel: sequences S2 and S3",
     "--project-dir": f"exclude:{_TARGET}",
     ("fragment list", "--project-dir"): f"exclude:{_TARGET}",
-    ("ids generate", "-o"): f"exclude:{_TARGET} (-o is --registry here)",
+    ("id generate", "-o"): f"exclude:{_TARGET} (-o is --id-registry here)",
     # embed-wheel's artefact is the embedded SBOM; -o writes a copy.
     ("embed-wheel", "-o"): [_v("-o file", "writes:copy.json", "-o", "copy.json")],
     ("embed-wheel", "--pretty"): [
         _v("--pretty", "writes:copy.json", "-o", "copy.json", "--pretty"),
         _v("--no-pretty", "writes:copy.json", "-o", "copy.json", "--no-pretty"),
     ],
-    ("ids import", "-o"): f"exclude:{_TARGET} (-o is --registry here)",
+    ("id import", "-o"): f"exclude:{_TARGET} (-o is --id-registry here)",
     # --content-type-method is live on a wheel/env (it steers the authors
     # fetch) while --content-type is not, so give it alone there.
     **{
@@ -242,9 +242,11 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("-1", "exit:2", "--max-source-metadata-bytes", "-1"),
     ],
     "-v": [_v("-v", "same", "-v")],
-    "--registry": [
+    "--id-registry": [
         Variant(
-            "empty registry", lambda _fx, c: ["--registry", str(c / "r.json")], "any"
+            "empty registry",
+            lambda _fx, c: ["--id-registry", str(c / "r.json")],
+            "any",
         ),
     ],
     "--creator-name": [

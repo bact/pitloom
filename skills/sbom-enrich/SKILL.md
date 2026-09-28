@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-19
+# Last-Modified: 2026-09-28
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -136,10 +136,10 @@ Steps:
    **Dangling references can also come from a registry mismatch, not
    just a Pitloom upgrade:** `project`/`wheel`/`env` harvest ids into a
    Loom ID registry file (`project` finds one in the project;
-   `wheel`/`env` need `--registry`) so ids normally stay stable across
+   `wheel`/`env` need `--id-registry`) so ids normally stay stable across
    reruns without any action needed (see `sbom-generate`'s "Why element
    ids stay stable across reruns" section) -- but if a different
-   `--registry` file was used (or none) between the base-SBOM run and
+   `--id-registry` file was used (or none) between the base-SBOM run and
    this enrichment/regeneration, ids can drift even with nothing else
    changed. Check this before assuming an upgrade is the cause.
 2. **Run the deterministic pass first:** `loom enrich <model-file>` for
@@ -158,8 +158,8 @@ Steps:
    fragment that references an id absent from the base SBOM, so the
    dataset relationship and enrichment evidence silently fail to attach
    once merged -- no error, just missing data in the output. When
-   `--registry <file>` was used for the base SBOM, pass the same
-   `--registry` here too. If the base SBOM was generated with an
+   `--id-registry <file>` was used for the base SBOM, pass the same
+   `--id-registry` here too. If the base SBOM was generated with an
    explicit `--use-lockfile`/`--no-use-lockfile` override (not just the
    project's `[tool.pitloom] use-lockfile` default), pass the same flag here
    too -- `--project-dir`'s document identity depends on it, the same way

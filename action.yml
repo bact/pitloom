@@ -95,7 +95,7 @@ inputs:
   config:
     description: >-
       Path to a TOML file whose [tool.pitloom] table replaces the
-      project's own (passed as --config). A relative ids-file in it
+      project's own (passed as --config). A relative id-registry in it
       resolves against the file's directory. Empty (default) uses the
       project's own [tool.pitloom]; a model file reads no config
       otherwise.

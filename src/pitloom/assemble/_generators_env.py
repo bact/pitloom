@@ -37,11 +37,11 @@ def generate_env_sbom(
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
     describe_relationship: bool | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     offline: bool | None = None,
     content_type_method: str | None = None,
-    update_registry: bool | None = None,
+    update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
 ) -> str:
@@ -68,11 +68,11 @@ def generate_env_sbom(
             content_type_method=content_type_method,
             pretty=pretty,
             describe_relationship=describe_relationship,
-            update_registry=update_registry,
+            update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
     )
-    resolved_registry = resolve_explicit_registry(registry, cfg.ids_file)
+    resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
 
     doc = DocumentModel(
         project=project_metadata,
@@ -86,7 +86,7 @@ def generate_env_sbom(
         **cfg.assemble_options,
     )
 
-    _sync_registry(exporter, resolved_registry, cfg.update_registry)
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,

@@ -22,38 +22,39 @@ __all__ = ["resolve_explicit_registry", "resolve_registry"]
 
 def resolve_registry(
     project_dir: Path,
-    ids_file: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
 ) -> IdRegistry | None:
     """Resolve the registry a project build should consult."""
-    if isinstance(ids_file, IdRegistry):
-        return ids_file
-    if ids_file is not None:
-        path = Path(ids_file)
+    if isinstance(id_registry, IdRegistry):
+        return id_registry
+    if id_registry is not None:
+        path = Path(id_registry)
         registry_path = path if path.is_absolute() else project_dir / path
         try:
             return IdRegistry.load(registry_path)
         except (FileNotFoundError, ValueError, OSError) as exc:
-            log.warning("Registry: could not load %s: %s", registry_path, exc)
+            log.warning("ID registry: could not load %s: %s", registry_path, exc)
             return None
     return IdRegistry.find(start=project_dir)
 
 
 def resolve_explicit_registry(
-    registry: str | Path | IdRegistry | None,
-    ids_file: str | None,
+    id_registry: str | Path | IdRegistry | None,
+    configured_id_registry: str | None,
 ) -> IdRegistry | None:
     """Resolve the registry for a target with no project of its own (a
     wheel, an installed environment, a model file).
 
-    Only an explicit source counts: *registry* (``--registry``), else
-    *ids_file* from an explicitly named config. Unlike
-    :func:`resolve_registry`, this never searches for a ``loom-ids.json``
-    -- one found near the current directory belongs to whatever project
-    that is, not to this target. A relative path resolves against the
-    current directory; :func:`pitloom.core.config_cascade.load_config_file`
-    has already made a config's own ``ids-file`` absolute.
+    Only an explicit source counts: *id_registry* (``--id-registry``), else
+    *configured_id_registry* from an explicitly named config. Unlike
+    :func:`resolve_registry`, this never searches for a
+    ``loom-id-registry.json`` -- one found near the current directory
+    belongs to whatever project that is, not to this target. A relative
+    path resolves against the current directory;
+    :func:`pitloom.core.config_cascade.load_config_file` has already made a
+    config's own ``id-registry`` absolute.
     """
-    source = registry if registry is not None else ids_file
+    source = id_registry if id_registry is not None else configured_id_registry
     if source is None:
         return None
     return resolve_registry(Path.cwd(), source)

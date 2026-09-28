@@ -6,7 +6,7 @@
 """Regression test for the AI-model id-mint-collision fix:
 :func:`pitloom.assemble.spdx3.ai.resolve_ai_model_entity_hits` must be
 reserved before the first mint, or a registry hit returned by
-``_lookup_ai_model_entity`` (e.g. after ``pitloom ids import`` of the
+``_lookup_ai_model_entity`` (e.g. after ``pitloom id import`` of the
 document's own earlier SBOM) can be handed out again by a sibling
 model's fresh mint under the same ``(doc_uuid, "AIPackage-<name>")``
 counter.
@@ -83,7 +83,7 @@ def test_ai_models_sharing_a_mint_prefix_never_duplicate_ids_after_import(
     tmp_path: Path,
 ) -> None:
     """Run 1 builds 10 same-prefix AI models with no registry. Its own
-    SBOM is imported into a fresh registry (``pitloom ids import``'s
+    SBOM is imported into a fresh registry (``pitloom id import``'s
     mechanism), then run 2 rebuilds against that registry -- the earlier
     (buggy) behaviour let a lookup hit for one model's file stem go
     unreserved, so a sibling model's later fresh mint could land on the

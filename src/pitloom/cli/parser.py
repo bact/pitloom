@@ -23,7 +23,7 @@ from pitloom.cli.commands.project import add_parser as add_project
 from pitloom.cli.commands.validate_wheel import add_parser as add_validate_wheel
 from pitloom.cli.commands.verify_wheel import add_parser as add_verify_wheel
 from pitloom.cli.commands.wheel import add_parser as add_wheel
-from pitloom.cli.ids import add_parser as add_ids
+from pitloom.cli.id import add_parser as add_id
 from pitloom.cli.options import add_debug_argument
 from pitloom.cli.options_config import add_config_argument
 from pitloom.core.config import VALID_CONTENT_TYPE_METHODS
@@ -180,20 +180,20 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         help="Print verbose execution and option details.",
     )
     parent.add_argument(
-        "--registry",
+        "--id-registry",
         type=Path,
         default=None,
         metavar="FILE",
         help="Loom ID registry JSON file path.",
     )
     parent.add_argument(
-        "--update-registry",
+        "--update-id-registry",
         action=argparse.BooleanOptionalAction,
         default=None,
         help=(
             "After generating, harvest newly-minted ids back into the "
             "resolved Loom ID registry and save it. Defers to "
-            "[tool.pitloom] update-registry (on by default) when omitted; "
+            "[tool.pitloom] update-id-registry (on by default) when omitted; "
             "no effect when no registry is resolved. Only consulted by "
             "'project'/'wheel'/'env'/'generate' -- 'model'/'enrich'/"
             "'embed-wheel'/'wheel --embed' never update the registry and "
@@ -285,6 +285,6 @@ def _build_parser() -> argparse.ArgumentParser:
     add_env(subparsers, parent_parser)
     add_merge(subparsers, parent_parser)
     add_fragment(subparsers, parent_parser)
-    add_ids(subparsers, parent_parser)
+    add_id(subparsers, parent_parser)
 
     return parser

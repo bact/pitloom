@@ -178,8 +178,8 @@ def test_wheel_embed_embeds_the_canonical_sbom_embed_wheel_does(
     registry = tmp_path / "ids.json"
     IdRegistry(namespace="https://example.org/ns", path=registry).save()
     seeded = registry.read_bytes()
-    flags = ["--pretty", "--describe-relationship", "--update-registry"]
-    argv = ["wheel", str(wheel), "--embed", "--registry", str(registry), *flags]
+    flags = ["--pretty", "--describe-relationship", "--update-id-registry"]
+    argv = ["wheel", str(wheel), "--embed", "--id-registry", str(registry), *flags]
     output = tmp_path / "copy.json"
     if with_output:
         argv += ["-o", str(output)]

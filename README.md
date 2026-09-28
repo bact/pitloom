@@ -380,33 +380,35 @@ See [Creation metadata](docs/creation-metadata.md) for what these fields
 record and why -- the who/what/when/how model behind every element Pitloom
 emits.
 
-### Loom IDs across fragments (`loom ids`)
+### Loom IDs across fragments (`loom id`)
 
 Fragments are written by independent runs, so the same dataset or model
 would normally get a different `spdxId` in each -- leaving the merged SBOM
-as disconnected islands. The Loom ID registry (`loom-ids.json`) fixes that:
+as disconnected islands. The Loom ID registry (`loom-id-registry.json`)
+fixes that:
 
 ```console
-loom ids generate data src --entity model      # pin ids before running
-loom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
+loom id generate data src --entity model      # pin ids before running
+loom id import existing-sbom.spdx3.json       # or reuse ids from an SBOM
 ```
 
 `pitloom.loom`, `loom project`, the build hook and `generate()` on a
 project directory find the registry in the project (or take it from
-`[tool.pitloom] ids-file`). `loom wheel`/`env`/`model` and `embed-wheel`
-without `--project-dir` never search for one: pass `--registry FILE` or
-a `--config` file with `ids-file`. Given the same registry, the same
+`[tool.pitloom] id-registry`). `loom wheel`/`env`/`model` and `embed-wheel`
+without `--project-dir` never search for one: pass `--id-registry FILE` or
+a `--config` file with `id-registry`. Given the same registry, the same
 file/entity carries the same id everywhere. Regeneration is
 stable: an unchanged file keeps its id; changed content gets a fresh one
 (different bytes are different provenance).
 
 `loom project`/`wheel`/`env` also harvest newly-minted ids back into the
-resolved registry after each run (`update-registry`, on by default) --
-running `loom project`, then `loom wheel --registry loom-ids.json`, then
-`loom env --registry loom-ids.json` keeps the same spdxIds without a
-manual `ids generate`/`import` step in between.
+resolved registry after each run (`update-id-registry`, on by default) --
+running `loom project`, then `loom wheel --id-registry` and
+`loom env --id-registry` pointing to `loom-id-registry.json` keeps the same
+spdxIds without a
+manual `id generate`/`import` step in between.
 `ai_AIPackage` and `dataset_DatasetPackage` entries are the exceptions:
-`loom ids generate` remains the way to register AI models, since their
+`loom id generate` remains the way to register AI models, since their
 stable key (the model file's stem) can't safely come from auto-harvest;
 datasets aren't registry-consulted at build time at all yet, so harvesting
 them would just write dead entries. See

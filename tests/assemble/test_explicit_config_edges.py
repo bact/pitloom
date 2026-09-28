@@ -31,7 +31,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from pitloom.extract.project import resolve_project_with_lockfile
-from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.warning_helpers import count_naming, logged_warnings
@@ -128,11 +128,11 @@ def test_sdist_does_not_search_for_a_registry_beside_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The directory holding an sdist (``dist/``, Downloads, cwd) is not its
-    project: no ``loom-ids.json`` is searched for there or above; a named
+    project: no ``loom-id-registry.json`` is searched for there or above; a named
     one is still loaded."""
     (tmp_path / "dist").mkdir()
     sdist = _make_sdist(tmp_path / "dist")
-    registry_path = tmp_path / DEFAULT_REGISTRY_FILENAME
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry(namespace="https://example.org/ns", path=registry_path).save()
     monkeypatch.chdir(tmp_path)
     searched: list[object] = []
@@ -153,7 +153,7 @@ def test_sdist_does_not_search_for_a_registry_beside_it(
     generate_project_sbom(sdist, creation_metadata=_PINNED)
     assert not searched and not loaded
 
-    generate_project_sbom(sdist, creation_metadata=_PINNED, registry=registry_path)
+    generate_project_sbom(sdist, creation_metadata=_PINNED, id_registry=registry_path)
     assert loaded == [registry_path]
 
 
@@ -213,14 +213,14 @@ def test_enrich_model_registry_follows_the_base_project_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, explicit: bool
 ) -> None:
     """``enrich --project-dir D`` looks ids up in the registry D's base SBOM
-    used: D's own ``ids-file``, or an explicit config's in its place."""
+    used: D's own ``id-registry``, or an explicit config's in its place."""
     project = _locked_project(tmp_path)
-    own = project / "own-ids.json"
-    named = tmp_path / "named-ids.json"
+    own = project / "own-id-registry.json"
+    named = tmp_path / "named-id-registry.json"
     pyproject = project / "pyproject.toml"
     pyproject.write_text(
         pyproject.read_text(encoding="utf-8")
-        + '\n[tool.pitloom]\nids-file = "own-ids.json"\n',
+        + '\n[tool.pitloom]\nid-registry = "own-id-registry.json"\n',
         encoding="utf-8",
     )
     for path in (own, named):
@@ -234,7 +234,9 @@ def test_enrich_model_registry_follows_the_base_project_config(
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
     config = (
-        dataclasses.replace(PitloomConfig(), ids_file=str(named)) if explicit else None
+        dataclasses.replace(PitloomConfig(), id_registry=str(named))
+        if explicit
+        else None
     )
     enrich_model(
         SAFETENSORS_FIXTURE,
@@ -269,7 +271,7 @@ def test_embed_external_sbom_inert_byte_cap_warns_once(
 def test_sdist_relative_registry_resolves_as_for_a_wheel(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A relative ``registry=`` means the same file for an sdist as for a
+    """A relative ``id_registry=`` means the same file for an sdist as for a
     wheel -- the one under the current directory, not beside the archive."""
     (tmp_path / "dist").mkdir()
     sdist = _make_sdist(tmp_path / "dist")
@@ -283,7 +285,7 @@ def test_sdist_relative_registry_resolves_as_for_a_wheel(
         return load(path)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
-    generate_project_sbom(sdist, creation_metadata=_PINNED, registry="ids.json")
+    generate_project_sbom(sdist, creation_metadata=_PINNED, id_registry="ids.json")
     assert [p.resolve() for p in loaded] == [(tmp_path / "ids.json").resolve()]
 
 
@@ -313,10 +315,10 @@ def test_enrich_against_an_sdist_does_not_search_for_a_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """As for the sdist's own SBOM: the archive's directory is not a
-    project, so no ``loom-ids.json`` is searched for there."""
+    project, so no ``loom-id-registry.json`` is searched for there."""
     sdist = _make_sdist(tmp_path)
     IdRegistry(
-        namespace="https://example.org/ns", path=tmp_path / DEFAULT_REGISTRY_FILENAME
+        namespace="https://example.org/ns", path=tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     ).save()
     monkeypatch.chdir(tmp_path)
     searched: list[object] = []
@@ -353,13 +355,13 @@ def test_enrich_against_an_sdist_warns_about_use_lockfile_once(
     assert count_naming(logged_warnings(caplog), "--use-lockfile") == 1
 
 
-def test_standalone_embed_uses_the_config_ids_file(
+def test_standalone_embed_uses_the_config_id_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A wheel embedded without a project takes its registry from the given
-    config's ``ids-file`` -- the only registry source it has."""
+    config's ``id-registry`` -- the only registry source it has."""
     wheel = _make_dummy_wheel(tmp_path / "w", name="demo")
-    named = tmp_path / "named-ids.json"
+    named = tmp_path / "named-id-registry.json"
     IdRegistry(namespace="https://example.org/ns", path=named).save()
     loaded: list[Path] = []
     load = IdRegistry.load
@@ -369,7 +371,7 @@ def test_standalone_embed_uses_the_config_ids_file(
         return load(path)
 
     monkeypatch.setattr(IdRegistry, "load", spy_load)
-    config = dataclasses.replace(PitloomConfig(), ids_file=str(named))
+    config = dataclasses.replace(PitloomConfig(), id_registry=str(named))
     embed_wheel_sbom(
         wheel,
         pitloom_config=config,

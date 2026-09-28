@@ -109,7 +109,7 @@ def generate_model_sbom(
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
     describe_relationship: bool | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
     max_source_metadata_bytes: int | None = None,
@@ -125,7 +125,7 @@ def generate_model_sbom(
     Three parameters apply to one source kind only, and warn when given for
     the other (see :data:`pitloom.core.inert_options.INERT`): *offline* for
     a Hugging Face source (a local file never reaches the network), and
-    *enrich*/*registry* for a local file.
+    *enrich*/*id_registry* for a local file.
     """
     configure_logging()
     source_str = str(source)
@@ -133,7 +133,7 @@ def generate_model_sbom(
     settle_inert(
         HF if is_hf else MODEL_FILE,
         source_str,
-        {"offline": offline, "enrich": enrich, "registry": registry},
+        {"offline": offline, "enrich": enrich, "id_registry": id_registry},
     )
     cfg = resolve_standalone_config(
         pitloom_config,
@@ -159,7 +159,7 @@ def generate_model_sbom(
     else:
         model_path = Path(source)
         model = read_ai_model(model_path)
-        resolved_registry = resolve_explicit_registry(registry, cfg.ids_file)
+        resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
         entity_spdx_id = (
             resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
             if resolved_registry is not None
@@ -194,7 +194,7 @@ def enrich_model(
     pretty: bool | None = None,
     enrich: bool | None = None,
     project_target: Path | str | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     use_lockfile: bool | None = None,
     pitloom_config: PitloomConfig | None = None,
 ) -> str:
@@ -202,10 +202,10 @@ def enrich_model(
 
     Settings come from the arguments, then an explicit *pitloom_config*,
     then the built-in defaults; nothing is read from the current directory
-    or from the model file's directory. The registry is *registry*, else
-    the explicit config's ``ids-file``; with *project_target*, a registry is
-    also looked for in that project, since it is the document the fragment
-    will merge into.
+    or from the model file's directory. The registry is *id_registry*, else
+    the explicit config's ``id-registry``; with *project_target*, a registry
+    is also looked for in that project, since it is the document the
+    fragment will merge into.
     """
     configure_logging()
     source_str = str(source)
@@ -235,7 +235,7 @@ def enrich_model(
 
     if project_target is None:
         base_doc_identity = None
-        resolved_registry = resolve_explicit_registry(registry, cfg.ids_file)
+        resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
     else:
         # The project the fragment merges into, resolved as its base SBOM
         # is: its identity and registry come from the config that SBOM
@@ -245,12 +245,14 @@ def enrich_model(
             project_dir, use_lockfile, pitloom_config
         )
         base_doc_identity = _doc_identity_of(project_dir, base_metadata)
-        ids_file = registry if registry is not None else base_config.ids_file
+        declared_id_registry = (
+            id_registry if id_registry is not None else base_config.id_registry
+        )
         # An sdist's directory is not its project, as in its base SBOM.
         resolved_registry = (
-            resolve_explicit_registry(registry, base_config.ids_file)
+            resolve_explicit_registry(id_registry, base_config.id_registry)
             if project_dir.is_file()
-            else resolve_registry(project_dir, ids_file)
+            else resolve_registry(project_dir, declared_id_registry)
         )
     entity_spdx_id = (
         resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")

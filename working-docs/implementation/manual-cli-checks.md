@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -53,7 +53,7 @@ checks (`1`-`12`, `B1`-`B7`) it runs:
 - **Sequences** (`S1`-`S8`): commands in order where one's side effect
   is the next one's input -- a default output inside the scanned
   project, re-embedding, `embed-wheel` vs `wheel --embed` in both
-  orders, registry updates, `ids import`, a merge into its own input
+  orders, registry updates, `id import`, a merge into its own input
   directory, verifying before and after embedding, embedding a
   hook-built wheel.
 
@@ -193,8 +193,8 @@ Little Snitch) with `--offline` and confirm no outbound connections,
 vs. confirming at least one occurs without `--offline` against a
 Hugging Face Hub URL.
 
-**9. Registry round trip**: `loom ids generate` on a project, then
-regenerate the SBOM with `--registry` pointing at that file and confirm
+**9. Registry round trip**: `loom id generate` on a project, then
+regenerate the SBOM with `--id-registry` pointing at that file and confirm
 IDs are stable (byte-identical `@id` values) across repeated runs --
 this is what "Auto-sync the Loom ID registry" in `roadmap.md` depends on.
 
@@ -230,8 +230,8 @@ and the same fixture without a socket guard is
 
 **12. No implicit config for a non-project target**: from an empty
 directory and from a decoy project directory (a `[tool.pitloom]` with
-`pretty`, `enrich`, `update-registry`, a relative `ids-file` and a
-creation comment, plus a seeded `loom-ids.json`; the model file's own
+`pretty`, `enrich`, `update-id-registry`, a relative `id-registry` and a
+creation comment, plus a seeded `loom-id-registry.json`; the model file's own
 directory gets the same decoy), run `loom wheel`, `generate <wheel>`,
 `env`, `model`, `enrich` (no `--project-dir`) and `embed-wheel` (no
 `--project-dir`). Each pair of SBOMs must be byte-identical and the

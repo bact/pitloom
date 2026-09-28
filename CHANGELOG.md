@@ -59,11 +59,11 @@ and this project adheres to
   setting, including the byte cap, not four of five ([#227])
 - `generate_wheel_sbom()`/`generate_env_sbom()`/`generate_model_sbom()`
   resolve settings from an explicit `--config`/`pitloom_config=` only,
-  never the current directory's `[tool.pitloom]` or `loom-ids.json`
+  never the current directory's `[tool.pitloom]` or `loom-id-registry.json`
   ([#228], [#231])
 - `ConfigOverrides` gained `pretty`, `describe_relationship` and
-  `update_registry`, read by the project/wheel/env/model generators
-  (`update_registry` not for a model);
+  `update_id_registry`, read by the project/wheel/env/model generators
+  (`update_id_registry` not for a model);
   inert (warns) on `embed_wheel_sbom(overrides=...)` ([#228], [#231])
 - `embed_wheel_sbom(project_dir=..., pitloom_config=...)`: an invalid
   `content_type_method` in the supplied config now raises, as it already
@@ -77,9 +77,9 @@ and this project adheres to
   apply to warns through the same `Options:` table as every other
   option, once ([#231])
 - `wheel --embed` embeds a canonical SBOM like `embed-wheel`;
-  `--pretty`/`--describe-relationship`/`--update-registry` warn, and `-o`
+  `--pretty`/`--describe-relationship`/`--update-id-registry` warn, and `-o`
   gets a copy of the embedded SBOM ([#231])
-- A relative `--registry` on the command line now resolves against the
+- A relative `--id-registry` on the command line now resolves against the
   current directory on every command, not the project directory
   ([#231])
 - An sdist reads its own `[tool.pitloom]` (root `pyproject.toml`, else
@@ -99,8 +99,14 @@ and this project adheres to
   `pitloom._ids_types` removed ([#234])
 - Loom ID registry file format version bumped to 2: `entities` keyed by
   type then name; an older-version registry file is rejected (`WARNING:`
-  on a build surface, `ERROR:`/exit 1 on `ids generate`/`ids import`),
+  on a build surface, `ERROR:`/exit 1 on `id generate`/`id import`),
   not migrated ([#234])
+- `loom ids` subcommand renamed `loom id`; `--registry`/`ids-file`/`registry=`
+  renamed `--id-registry`/`id-registry`/`id_registry=`
+- `--update-registry`/`update-registry`/`update_registry=` renamed
+  `--update-id-registry`/`update-id-registry`/`update_id_registry=`
+- Default Loom ID registry file renamed `loom-id-registry.json`; registry
+  log lines start `ID registry:`
 - `Spdx3JsonExporter.to_json()` now raises on a duplicate spdxId that
   survives dedup (differing content); identical copies still collapse
   silently ([#234])
@@ -111,7 +117,7 @@ and this project adheres to
   id no longer collides with a freshly-minted one in the same
   document ([#234])
 - A stale registry entry from an earlier run no longer collides with a
-  later run's id; a genuine collision now logs `WARNING: Registry: ...
+  later run's id; a genuine collision now logs `WARNING: ID registry: ...
   registered for both ...` exactly once per colliding directory/file,
   not once per file under it ([#234])
 - A deployed dependency's name is matched PEP 503-canonicalized against
@@ -126,7 +132,7 @@ and this project adheres to
 - A missing, unreadable, non-UTF-8 or invalid `--config FILE` is one
   `ERROR:` naming the file ([#231])
 - `enrich --project-dir <sdist>` names the sdist SBOM's document and no
-  longer searches beside the archive for `loom-ids.json` ([#231])
+  longer searches beside the archive for `loom-id-registry.json` ([#231])
 - An enrichment's `CreationInfo.created` follows `--creation-datetime`/
   `SOURCE_DATE_EPOCH` instead of the wall clock, so enriched SBOMs are
   reproducible ([#231])

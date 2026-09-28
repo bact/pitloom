@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for [tool.pitloom] config parsing: extract-file-header,
-[tool.pitloom.content-type], ids-file, enrich, [tool.pitloom.fragment]."""
+[tool.pitloom.content-type], id-registry, enrich, [tool.pitloom.fragment]."""
 
 import pytest
 
@@ -17,7 +17,7 @@ from pitloom.core.config import (
     _read_enrich_settings,
     _read_extract_file_header,
     _read_fragments,
-    _read_ids_file,
+    _read_id_registry,
     _read_use_lockfile_setting,
     parse_pitloom_config,
 )
@@ -162,21 +162,24 @@ def test_read_content_type_settings_override_malformed_content_type() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _read_ids_file
+# _read_id_registry
 # ---------------------------------------------------------------------------
 
 
-def test_read_ids_file_defaults_none_when_absent() -> None:
-    assert _read_ids_file({}) is None
+def test_read_id_registry_defaults_none_when_absent() -> None:
+    assert _read_id_registry({}) is None
 
 
-def test_read_ids_file_explicit_string() -> None:
-    assert _read_ids_file({"ids-file": "loom-ids.json"}) == "loom-ids.json"
+def test_read_id_registry_explicit_string() -> None:
+    assert (
+        _read_id_registry({"id-registry": "loom-id-registry.json"})
+        == "loom-id-registry.json"
+    )
 
 
-def test_read_ids_file_non_string_raises() -> None:
-    with pytest.raises(ValueError, match="'ids-file' must be a string"):
-        _read_ids_file({"ids-file": 123})
+def test_read_id_registry_non_string_raises() -> None:
+    with pytest.raises(ValueError, match="'id-registry' must be a string"):
+        _read_id_registry({"id-registry": 123})
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +373,7 @@ def test_read_fragments_table_entry_non_str_link_to_main_raises() -> None:
 
 def test_old_ids_table_raises_instead_of_silently_ignored() -> None:
     """A leftover [tool.pitloom.ids] table must error, not silently
-    revert ids-file to auto-discovery."""
+    revert id-registry to auto-discovery."""
     data = {"tool": {"pitloom": {"ids": {"file": "custom-ids.json"}}}}
     with pytest.raises(ValueError, match=r"\[tool\.pitloom\.ids\] has moved to"):
         parse_pitloom_config(data)
@@ -413,7 +416,7 @@ def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
     data = {
         "tool": {
             "pitloom": {
-                "ids-file": "loom-ids.json",
+                "id-registry": "loom-id-registry.json",
                 "fragment": {"files": ["a.json"]},
                 "extract-file-header": False,
                 "enrich": True,
@@ -422,7 +425,7 @@ def test_new_style_config_unaffected_by_moved_keys_guard() -> None:
         }
     }
     config = parse_pitloom_config(data)
-    assert config.ids_file == "loom-ids.json"
+    assert config.id_registry == "loom-id-registry.json"
     assert config.fragments == [FragmentConfig(path="a.json")]
     assert config.extract_file_header is False
     assert config.enrich_local is True

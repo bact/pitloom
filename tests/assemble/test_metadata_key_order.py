@@ -61,7 +61,7 @@ def _safetensors_sbom(tmp_path: Path, metadata: dict[str, str]) -> str:
             creation_metadata=CreationMetadata(
                 creation_datetime="2026-01-01T00:00:00Z"
             ),
-            registry=None,
+            id_registry=None,
         )
 
 

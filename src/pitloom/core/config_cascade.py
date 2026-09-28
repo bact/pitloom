@@ -88,7 +88,7 @@ class ConfigOverrides:
         pretty: The embed path (``embed_wheel_sbom(overrides=...)``)
             always writes JCS-canonical JSON and warns that a given value
             has no effect, as it does for ``describe_relationship`` and
-            ``update_registry`` (see
+            ``update_id_registry`` (see
             :data:`pitloom.core.inert_options.INERT`).
         build_options: ``--allow-build`` and its companion flags (see
             :class:`~pitloom.core.build_options.BuildOptions`). Unlike
@@ -121,7 +121,7 @@ class ConfigOverrides:
     offline: bool | None = None
     pretty: bool | None = None
     describe_relationship: bool | None = None
-    update_registry: bool | None = None
+    update_id_registry: bool | None = None
     max_source_metadata_bytes: int | None = None
     build_options: BuildOptions = BuildOptions()
 
@@ -131,14 +131,14 @@ def load_config_file(path: Path) -> PitloomConfig:
 
     Unlike a target project's own config, a file the user named is a source
     that claimed to carry settings, so every failure raises instead of
-    degrading to defaults. A relative ``ids-file`` or fragment path resolves
-    against the file's own directory, so the config means the same thing
-    whatever directory Pitloom runs from (as a project's own
+    degrading to defaults. A relative ``id-registry`` or fragment path
+    resolves against the file's own directory, so the config means the same
+    thing whatever directory Pitloom runs from (as a project's own
     ``pyproject.toml`` already does).
 
     A file with no ``[tool.pitloom]`` table gives the defaults and one
     ``WARNING:``, since a wrong path would otherwise pass unnoticed. A
-    relative ``ids-file`` resolves against the directory *path* names, not
+    relative ``id-registry`` resolves against the directory *path* names, not
     that of a symbolic link's target.
 
     Raises:
@@ -167,8 +167,8 @@ def load_config_file(path: Path) -> PitloomConfig:
     # Every relative path in the file means the same thing wherever
     # Pitloom runs: it resolves against the file's own directory.
     config_dir = Path(path).absolute().parent
-    if cfg.ids_file is not None and not Path(cfg.ids_file).is_absolute():
-        cfg = dataclasses.replace(cfg, ids_file=str(config_dir / cfg.ids_file))
+    if cfg.id_registry is not None and not Path(cfg.id_registry).is_absolute():
+        cfg = dataclasses.replace(cfg, id_registry=str(config_dir / cfg.id_registry))
     return dataclasses.replace(
         cfg,
         fragments=[
@@ -217,8 +217,8 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
         changes["pretty"] = overrides.pretty
     if overrides.describe_relationship is not None:
         changes["describe_relationship"] = overrides.describe_relationship
-    if overrides.update_registry is not None:
-        changes["update_registry"] = overrides.update_registry
+    if overrides.update_id_registry is not None:
+        changes["update_id_registry"] = overrides.update_id_registry
     if overrides.max_source_metadata_bytes is not None:
         changes["provenance_max_source_metadata_bytes"] = (
             normalize_max_source_metadata_bytes(overrides.max_source_metadata_bytes)

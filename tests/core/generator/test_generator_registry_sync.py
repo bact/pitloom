@@ -7,9 +7,9 @@
 / ``generate_wheel_sbom`` / ``generate_env_sbom`` harvesting newly-minted ids
 back into the resolved registry after generation, so a multi-step
 project -> wheel -> env pipeline keeps stable ids without a manual
-``pitloom ids generate``/``import`` step in between.
+``pitloom id generate``/``import`` step in between.
 
-See also: :mod:`tests.core.test_ids_core` for ``IdRegistry.harvest()`` itself.
+See also: :mod:`tests.id_registry.test_registry` for ``IdRegistry.harvest()`` itself.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from pitloom.assemble import (
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from pitloom.id_registry._types import FileEntry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
@@ -70,7 +70,7 @@ def test_sync_registry_excludes_dataset_packages(tmp_path: Path) -> None:
     exporter.add_creation_info(ci)
     exporter.add_package(dataset)
 
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry = IdRegistry.new("dataset-exclusion", path=registry_path)
 
     _sync_registry(exporter, registry, True)
@@ -98,7 +98,7 @@ def test_sync_registry_logs_warning_on_save_failure(
 ) -> None:
     """A save failure is logged, not raised -- it must never break SBOM
     generation itself."""
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry = IdRegistry.new("save-fails", path=registry_path)
     exporter = _exporter_with_one_package()
 
@@ -117,7 +117,7 @@ def test_sync_registry_logs_updated_when_net_counts_are_zero(
     the same pass nets to zero size change, but real content changed --
     the INFO message must say so (not "added 0 new file(s), 0 new
     entit(y/ies)", which reads as if nothing happened when a save did)."""
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     shared_id = "https://spdx.org/spdxdocs/x-1#File-1"
     registry = IdRegistry.new("net-zero-change", path=registry_path)
     registry.files["old.py"] = FileEntry(spdx_id=shared_id, sha256="a" * 64)
@@ -149,24 +149,24 @@ def test_sync_registry_logs_updated_when_net_counts_are_zero(
 
 def test_generate_project_sbom_auto_updates_registry(tmp_path: Path) -> None:
     """A fresh, empty registry gets populated after generation -- no
-    separate ``pitloom ids generate``/``import`` step needed."""
+    separate ``pitloom id generate``/``import`` step needed."""
     _write_smoke_project(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("smoke-project", path=registry_path).save()
 
-    generate_project_sbom(tmp_path, registry=registry_path)
+    generate_project_sbom(tmp_path, id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
     assert reloaded.files
 
 
-def test_generate_project_sbom_respects_no_update_registry(tmp_path: Path) -> None:
-    """``update_registry=False`` leaves an already-resolved registry untouched."""
+def test_generate_project_sbom_respects_no_update_id_registry(tmp_path: Path) -> None:
+    """``update_id_registry=False`` leaves an already-resolved registry untouched."""
     _write_smoke_project(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("smoke-project", path=registry_path).save()
 
-    generate_project_sbom(tmp_path, registry=registry_path, update_registry=False)
+    generate_project_sbom(tmp_path, id_registry=registry_path, update_id_registry=False)
 
     reloaded = IdRegistry.load(registry_path)
     assert not reloaded.files
@@ -180,12 +180,12 @@ def test_generate_project_sbom_stable_ids_across_two_runs(tmp_path: Path) -> Non
     registry intercepts the lookup with the id harvested from run 1."""
     pyproject_path = tmp_path / "pyproject.toml"
     _write_smoke_project(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("smoke-project", path=registry_path).save()
 
-    first_graph = json.loads(generate_project_sbom(tmp_path, registry=registry_path))[
-        "@graph"
-    ]
+    first_graph = json.loads(
+        generate_project_sbom(tmp_path, id_registry=registry_path)
+    )["@graph"]
     first_id = _find_file_element(first_graph, "smoke_project/__init__.py")["spdxId"]
     first_deps = [e["name"] for e in first_graph if e.get("type") == "software_Package"]
     assert "requests" not in first_deps
@@ -202,9 +202,9 @@ def test_generate_project_sbom_stable_ids_across_two_runs(tmp_path: Path) -> Non
             'version = "0.1.0"\ndependencies = ["requests"]\n',
         )
     )
-    second_graph = json.loads(generate_project_sbom(tmp_path, registry=registry_path))[
-        "@graph"
-    ]
+    second_graph = json.loads(
+        generate_project_sbom(tmp_path, id_registry=registry_path)
+    )["@graph"]
     second_id = _find_file_element(second_graph, "smoke_project/__init__.py")["spdxId"]
     second_deps = [
         e["name"] for e in second_graph if e.get("type") == "software_Package"
@@ -222,13 +222,13 @@ def test_generate_project_sbom_does_not_auto_harvest_ai_packages(
 ) -> None:
     """``ai_AIPackage`` elements are produced (however AI extras resolve),
     but are deliberately excluded from auto-harvest -- their correct
-    registry key (the file's stem) only comes from ``pitloom ids
+    registry key (the file's stem) only comes from ``pitloom id
     generate``, not from the element's own (extraction-dependent) name."""
     _write_smoke_project(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("smoke-project", path=registry_path).save()
 
-    graph = json.loads(generate_project_sbom(tmp_path, registry=registry_path))[
+    graph = json.loads(generate_project_sbom(tmp_path, id_registry=registry_path))[
         "@graph"
     ]
     assert any(e.get("type") == "ai_AIPackage" for e in graph)
@@ -242,24 +242,24 @@ def test_generate_wheel_sbom_auto_updates_registry(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_wheel(tmp_path, "wheel-sync-pkg", "1.0.0")
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("wheel-sync-pkg", path=registry_path).save()
 
-    generate_wheel_sbom(wheel_path, registry=registry_path)
+    generate_wheel_sbom(wheel_path, id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
     assert reloaded.files
 
 
-def test_generate_wheel_sbom_respects_no_update_registry(
+def test_generate_wheel_sbom_respects_no_update_id_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_wheel(tmp_path, "wheel-sync-pkg", "1.0.0")
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("wheel-sync-pkg", path=registry_path).save()
 
-    generate_wheel_sbom(wheel_path, registry=registry_path, update_registry=False)
+    generate_wheel_sbom(wheel_path, id_registry=registry_path, update_id_registry=False)
 
     reloaded = IdRegistry.load(registry_path)
     assert not reloaded.files
@@ -269,7 +269,7 @@ def test_generate_env_sbom_auto_updates_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
     tree = [
         {
@@ -288,17 +288,17 @@ def test_generate_env_sbom_auto_updates_registry(
     )
 
     with patch("subprocess.run", return_value=fake_result):
-        generate_env_sbom(registry=registry_path)
+        generate_env_sbom(id_registry=registry_path)
 
     reloaded = IdRegistry.load(registry_path)
     assert ("software_Package", "requests") in reloaded.entities
 
 
-def test_generate_env_sbom_respects_no_update_registry(
+def test_generate_env_sbom_respects_no_update_id_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("env-sync", path=registry_path).save()
     tree = [
         {
@@ -317,7 +317,7 @@ def test_generate_env_sbom_respects_no_update_registry(
     )
 
     with patch("subprocess.run", return_value=fake_result):
-        generate_env_sbom(registry=registry_path, update_registry=False)
+        generate_env_sbom(id_registry=registry_path, update_id_registry=False)
 
     reloaded = IdRegistry.load(registry_path)
     assert not reloaded.entities
@@ -354,13 +354,13 @@ def test_generate_wheel_sbom_repeated_runs_never_duplicate_ids(
     file-lookup path it already had)."""
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_nested_wheel(tmp_path, "collisiondemo", "1.0.0")
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("collisiondemo", path=registry_path).save()
     creation_metadata = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
 
     def _run() -> str:
         return generate_wheel_sbom(
-            wheel_path, registry=registry_path, creation_metadata=creation_metadata
+            wheel_path, id_registry=registry_path, creation_metadata=creation_metadata
         )
 
     first_json = _run()
@@ -419,12 +419,12 @@ def test_generate_wheel_sbom_new_file_does_not_collide_with_registered_ids(
     between two ``loom wheel`` invocations)."""
     monkeypatch.chdir(tmp_path)
     wheel_path = _make_nested_wheel(tmp_path, "growingdemo", "1.0.0")
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry.new("growingdemo", path=registry_path).save()
     creation_metadata = CreationMetadata(creation_datetime="2026-01-01T00:00:00+00:00")
 
     first_json = generate_wheel_sbom(
-        wheel_path, registry=registry_path, creation_metadata=creation_metadata
+        wheel_path, id_registry=registry_path, creation_metadata=creation_metadata
     )
     _assert_no_duplicate_spdx_ids(first_json)
     assert IdRegistry.load(registry_path).files
@@ -437,6 +437,6 @@ def test_generate_wheel_sbom_new_file_does_not_collide_with_registered_ids(
         zf.writestr("growingdemo/c.py", "# c\n")
 
     second_json = generate_wheel_sbom(
-        wheel_path, registry=registry_path, creation_metadata=creation_metadata
+        wheel_path, id_registry=registry_path, creation_metadata=creation_metadata
     )
     _assert_no_duplicate_spdx_ids(second_json)

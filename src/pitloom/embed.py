@@ -177,7 +177,7 @@ def embed_wheel_sbom(
     output_path: Path | str | None = None,
     sbom_basename: str | None = None,
     creation_metadata: CreationMetadata | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     overrides: ConfigOverrides | None = None,
     allow_mismatch: bool = False,
     file_cache: EmbedFileCache | None = None,
@@ -216,7 +216,7 @@ def embed_wheel_sbom(
         sbom_path=sbom_path,
         sbom_basename=sbom_basename,
         creation_metadata=creation_metadata,
-        registry=registry,
+        id_registry=id_registry,
         overrides=eff_overrides,
         file_cache=file_cache,
     )
@@ -313,7 +313,7 @@ def _generate_embed_sbom_json(
     sbom_path: Path | str | None,
     sbom_basename: str | None,
     creation_metadata: CreationMetadata | None,
-    registry: str | Path | IdRegistry | None,
+    id_registry: str | Path | IdRegistry | None,
     overrides: ConfigOverrides,
     file_cache: EmbedFileCache | None = None,
 ) -> tuple[str, str | None]:
@@ -328,7 +328,7 @@ def _generate_embed_sbom_json(
             field.name: getattr(overrides, field.name)
             for field in dataclasses.fields(ConfigOverrides)
         },
-        "registry": registry,
+        "id_registry": id_registry,
         "creation_metadata": creation_metadata,
         "pitloom_config": pitloom_config,
         "project_dir": project_dir,
@@ -360,7 +360,7 @@ def _generate_embed_sbom_json(
             wheel_metadata,
             cfg,
             creation_metadata or cfg.creation_metadata,
-            resolve_explicit_registry(registry, cfg.ids_file),
+            resolve_explicit_registry(id_registry, cfg.id_registry),
         )
         return sbom_json, sbom_basename or cfg.sbom_basename
 
@@ -398,7 +398,9 @@ def _generate_embed_sbom_json(
         proj_root,
         wheel_metadata,
         cfg,
-        resolve_registry(proj_root, registry if registry is not None else cfg.ids_file),
+        resolve_registry(
+            proj_root, id_registry if id_registry is not None else cfg.id_registry
+        ),
         creation_metadata or cfg.creation_metadata,
         build_options=settled_build_options,
         file_cache=file_cache,

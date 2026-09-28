@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-21
+# Last-Modified: 2026-09-28
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -180,15 +180,15 @@ the same ids, letting a fragment written against one run still merge
 cleanly into a later regeneration (see the `sbom-enrich` skill's
 fragment workflow, which depends on this). `project`/`wheel`/`env`
 harvest newly-minted ids into the registry file after each run
-(`--update-registry`/`--no-update-registry`, on by default). `project`
-finds `loom-ids.json` in the project itself; `wheel`/`env` use one only
-when given `--registry FILE` or a `--config` file with `ids-file`. So
+(`--update-id-registry`/`--no-update-id-registry`, on by default). `project`
+finds `loom-id-registry.json` in the project itself; `wheel`/`env` use one only
+when given `--id-registry FILE` or a `--config` file with `id-registry`. So
 this is normally automatic -- just don't switch
-`--registry` files between a base-SBOM run and a later
+`--id-registry` files between a base-SBOM run and a later
 enrichment/regeneration of the same project, or ids can drift.
 
-Two edge cases need the registry touched manually, via `loom ids
-generate`/`loom ids import` -- **not yet wired into this skill's trigger
+Two edge cases need the registry touched manually, via `loom id
+generate`/`loom id import` -- **not yet wired into this skill's trigger
 phrasings**: pinning an id ahead of a first run, or reusing ids from a
 pre-existing SBOM not produced by Pitloom's own auto-harvest. If a
 user's request clearly needs one of these, say so and point at

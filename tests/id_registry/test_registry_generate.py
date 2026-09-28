@@ -3,7 +3,10 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.id_registry registry generation."""
+"""Tests for pitloom.id_registry registry generation.
+
+See also: test_registry.py, test_registry_import.py, shared.py.
+"""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -18,10 +21,10 @@ import pytest
 
 import pitloom.id_registry._registry as ids_mod
 from pitloom.id_registry import (
-    DEFAULT_REGISTRY_FILENAME,
+    DEFAULT_ID_REGISTRY_FILENAME,
     IdRegistry,
 )
-from tests.ids_shared import _sha256
+from tests.id_registry.shared import _sha256
 
 
 def _make_project(tmp_path: Path) -> Path:
@@ -72,7 +75,7 @@ def test_generate_mints_new_id_for_changed_content(tmp_path: Path) -> None:
 
 def test_generate_preserves_namespace_across_regeneration(tmp_path: Path) -> None:
     root = _make_project(tmp_path)
-    registry_path = root / DEFAULT_REGISTRY_FILENAME
+    registry_path = root / DEFAULT_ID_REGISTRY_FILENAME
     registry = IdRegistry.new("proj", path=registry_path)
     registry.generate([Path("src")], root)
     registry.save()
@@ -105,14 +108,14 @@ def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
 
 def test_generate_skips_registry_file_itself(tmp_path: Path) -> None:
     root = _make_project(tmp_path)
-    registry_path = root / DEFAULT_REGISTRY_FILENAME
+    registry_path = root / DEFAULT_ID_REGISTRY_FILENAME
     registry = IdRegistry.new("proj", path=registry_path)
     registry.generate([Path(".")], root)
     registry.save()
 
     reloaded = IdRegistry.load(registry_path)
     reloaded.generate([Path(".")], root)
-    assert DEFAULT_REGISTRY_FILENAME not in reloaded.files
+    assert DEFAULT_ID_REGISTRY_FILENAME not in reloaded.files
 
 
 def test_generate_handles_oserror(
@@ -136,7 +139,7 @@ def test_generate_handles_oserror(
 def test_iter_files_edge_cases(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME
+    from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME
     from pitloom.id_registry._types import _iter_files
 
     # Missing root
@@ -155,7 +158,7 @@ def test_iter_files_edge_cases(
     ignored_file.write_text("a")
 
     # Also test registry filename ignored
-    registry_file = tmp_path / DEFAULT_REGISTRY_FILENAME
+    registry_file = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_file.write_text("a")
 
     # Duplicate file

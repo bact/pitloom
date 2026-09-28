@@ -323,7 +323,7 @@ def _resolve_file_and_directory_hits(
     directory/AI-model hit in the same document) already claimed, only
     the first claimant reuses it (:func:`~pitloom.id_registry.claim_registry_hit`)
     -- a later one falls back to a fresh mint instead of duplicating the
-    id, with one ``WARNING: Registry: ...`` naming both. A fresh, empty
+    id, with one ``WARNING: ID registry: ...`` naming both. A fresh, empty
     *claimed* is used when the caller doesn't share one.
     """
     dir_hits: dict[str, str] = {}
