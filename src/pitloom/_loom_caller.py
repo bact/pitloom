@@ -11,7 +11,6 @@ See also: :mod:`pitloom._loom_active_run` for active run lifecycle and graph bui
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import inspect
 import logging
 from pathlib import Path
@@ -19,6 +18,7 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
+from pitloom._ids_types import sha256_file
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.ids import IdRegistry, resolve_registry
 from pitloom.logging_config import field_loss_suffix, warn_once
@@ -138,7 +138,7 @@ def _hash_and_registry_lookup(
     if not path.is_file():
         return None, None
 
-    sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    sha256 = sha256_file(path)
     hash_element = spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=sha256)
 
     registered_id: str | None = None

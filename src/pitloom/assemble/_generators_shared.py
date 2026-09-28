@@ -71,17 +71,24 @@ def _sync_registry(
         if _harvestable(obj):
             filtered.add(obj)
 
-    new_files, new_entities = registry.harvest(filtered)
-    if not new_files and not new_entities:
+    new_files, new_entities, changed = registry.harvest(filtered)
+    if not changed:
         return
     try:
         registry.save()
     except OSError as exc:
         log.warning("Registry: failed to save %s: %s", registry.path, exc)
         return
-    log.info(
-        "Registry: added %d new file(s), %d new entit(y/ies) to %s",
-        new_files,
-        new_entities,
-        registry.path,
-    )
+    if new_files or new_entities:
+        log.info(
+            "Registry: added %d new file(s), %d new entit(y/ies) to %s",
+            new_files,
+            new_entities,
+            registry.path,
+        )
+    else:
+        # changed is True but the net counts are zero: a stale key was
+        # released in the same pass a new one claimed its id (see
+        # pitloom.ids._release_stale_keys_for_id) -- real content
+        # changed even though nothing was added or removed net.
+        log.info("Registry: updated stale entries in %s", registry.path)

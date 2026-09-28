@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-25
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,17 +32,6 @@ or superseded, with one exception carried forward:
 
 ## Found while doing this, not fixed here
 
-- **Registry id minting does not reserve registry-supplied numbers.** When
-  a registry supplies ids for some elements, the counter that mints the
-  rest restarts at 1 and can hand out a number the registry already used,
-  so two `software_File` elements collide on one spdxId and a second run
-  of the same target is not byte-identical. Reproduced on `main` with a
-  default-named `loom-ids.json` in the current directory and three
-  consecutive `generate_wheel_sbom()` runs: run 1 differs from runs 2-3,
-  and runs 2-3 carry a duplicate `#File-2`. Now also reachable from
-  `wheel`/`env`/`model` via an explicit `--config`'s `ids-file` (see
-  `config-sources.md`'s "Found, not fixed here"). Fixing the minting is a
-  prerequisite for that path being safe.
 - **`read_pitloom_config` gates on `Path.exists()`**
   (`core/_config_parse.py`), which swallows a different errno set on
   Python 3.14 than on 3.10-3.13 (see AGENTS.md). An unreadable *parent*

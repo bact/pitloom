@@ -80,9 +80,9 @@ accident of which code path it goes through.
 - **`embed-wheel --project-dir <sdist>` runs Hatchling file discovery on
   the archive path** (and warns it failed), while `project <sdist>` uses
   the archive's own listing.
-- **An explicit config's `ids-file` reaches `wheel`/`env`/`model`**, which
-  widens the registry id-minting collision in
-  [cli-shared-options-ignored.md](cli-shared-options-ignored.md#found-while-doing-this-not-fixed-here).
+- **An explicit config's `ids-file` reaches `wheel`/`env`/`model`** --
+  the id-minting collision it widened is fixed (see
+  [id-registry-autosync.md](../implementation/id-registry-autosync.md#id-mint-collision-fix-branch-id-mint-collision)).
 - **`--max-source-metadata-bytes -1`** runs as no cap with no message;
   check whether the config key accepts it too.
 

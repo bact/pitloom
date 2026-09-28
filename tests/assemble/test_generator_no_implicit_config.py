@@ -75,8 +75,8 @@ def _seed_registry(path: Path, wheel: Path) -> None:
     up by name) and a file entry (looked up by path and digest)."""
     registry = IdRegistry(namespace=_IDS_NAMESPACE, path=path)
     for name, kind in ((_TARGET, "software_Package"), ("model", "ai_AIPackage")):
-        registry.entities[name] = EntityEntry(
-            spdx_id=f"{_IDS_NAMESPACE}#{kind}-seeded", type=kind
+        registry.entities[(kind, name)] = EntityEntry(
+            spdx_id=f"{_IDS_NAMESPACE}#{kind}-seeded"
         )
     member = f"{_TARGET}/__init__.py"
     with zipfile.ZipFile(wheel) as archive:

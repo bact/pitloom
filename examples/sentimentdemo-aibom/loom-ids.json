@@ -1,52 +1,53 @@
 {
   "entities": {
-    "sentimentdemo": {
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#AIPackage-1",
-      "type": "ai_AIPackage"
+    "ai_AIPackage": {
+      "sentimentdemo": {
+        "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#AIPackage-1"
+      }
     }
   },
   "files": {
     "data/processed/test.txt": {
       "sha256": "caa7d568d4a2f93ebe58664d8942978b92e316ba210ebeb635c8cee59ac9858a",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-8"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-1"
     },
     "data/processed/train.txt": {
       "sha256": "583e2df378fa3b48845f900c0302767649396809a3180308eb4b5f37708ad616",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-9"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-2"
     },
     "data/raw/neg.txt": {
       "sha256": "de57db3e8de6c55614bda2d62e2334f414ff7e648d4cd0daa45b7bc7ab6172fb",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-1"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-3"
     },
     "data/raw/pos.txt": {
       "sha256": "04974b88c89fe08af6b7c0c92c1923b66fd250fded4c883c5b0b8665a1a3222c",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-2"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-4"
     },
     "models/sentimentdemo.bin": {
-      "sha256": "4ff7609605a1bb039cfc1e3bd78fcd21b3eefb2d11bc7b1be146a94d92b504bf",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-14"
+      "sha256": "e305266780d52535358f1f33361d84b4b02fca250a7f11da5f87f42285d85680",
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-11"
     },
     "src/sentimentdemo/__about__.py": {
       "sha256": "c9443361942b2ea8cab27cc0727a39a0d496cf0da53aa969313e80c50d566676",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-3"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-5"
     },
     "src/sentimentdemo/__init__.py": {
       "sha256": "497727fcacb904cf8f1078d6564f962e3ec7b46862cc2050d90896240c62f328",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-4"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-6"
     },
     "src/sentimentdemo/evaluate.py": {
       "sha256": "e27b8ae8923f122e7e435eeadb7b6e4d95359940c0ff6f5d213c0ea9e573b547",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-11"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-7"
     },
     "src/sentimentdemo/preprocess.py": {
       "sha256": "cdd28f12bbd72434538786fcb07dae0bfed894119d4ff413b736ed133800db7e",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-12"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-8"
     },
     "src/sentimentdemo/train.py": {
       "sha256": "91f1b7df7d4a00939d898b860dc94f56a5062d110611c7cfc2172e923a88deb8",
-      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac#File-13"
+      "spdxId": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7#File-9"
     }
   },
-  "namespace": "https://spdx.org/spdxdocs/sentimentdemo-aibom-77023e5c-6b07-4e79-b2c9-9fa83d23a1ac",
-  "version": 1
+  "namespace": "https://spdx.org/spdxdocs/sentimentdemo-aibom-02679af2-dd22-459c-8143-0d82396823c7",
+  "version": 2
 }

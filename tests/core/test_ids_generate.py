@@ -98,9 +98,8 @@ def test_generate_registers_ai_model_entity(tmp_path: Path) -> None:
     registry.generate([Path("models")], root)
 
     assert "models/sentimentdemo.bin" in registry.files
-    assert "sentimentdemo" in registry.entities
-    entity = registry.entities["sentimentdemo"]
-    assert entity.type == "ai_AIPackage"
+    assert ("ai_AIPackage", "sentimentdemo") in registry.entities
+    entity = registry.entities[("ai_AIPackage", "sentimentdemo")]
     assert entity.spdx_id.startswith(f"{registry.namespace}#AIPackage-")
 
 
@@ -127,7 +126,7 @@ def test_generate_handles_oserror(
     def fake_sha256(*args: Any, **kwargs: Any) -> Any:
         raise OSError("Permission denied")
 
-    monkeypatch.setattr(ids_mod, "_sha256_file", fake_sha256)
+    monkeypatch.setattr(ids_mod, "sha256_file", fake_sha256)
 
     registry = IdRegistry.new("test")
     registry.generate([root / "src"], root)

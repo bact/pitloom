@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4, uuid5
 
@@ -35,6 +36,13 @@ PITLOOM_NS = UUID("aecb050b-c1a4-5c3f-aaa7-d8e12dee7e5b")
 #              (uuid, "Relationship")     -> 1, 2, 3 ...
 _ID_COUNTERS: dict[tuple[str, str], int] = {}
 
+# Numbers a caller has reserved per (doc_uuid, prefix) -- see
+# reserve_spdx_ids() -- because an IdRegistry already assigned them within
+# this same document's namespace. generate_spdx_id() skips any reserved
+# number instead of re-minting it, so a registry-supplied id merged into
+# this document can never collide with a freshly-minted one.
+_RESERVED: dict[tuple[str, str], set[int]] = {}
+
 __all__ = [
     "PITLOOM_NS",
     "FileHeaderExtras",
@@ -48,6 +56,7 @@ __all__ = [
     "generate_spdx_id",
     "get_wheel_files",
     "normalize_dependency_specifier",
+    "reserve_spdx_ids",
 ]
 
 
@@ -70,10 +79,13 @@ def build_pypi_purl(name: str, version: str | None) -> str:
 
 
 def _clear_doc_counters(doc_uuid: str) -> None:
-    """Remove all ``_ID_COUNTERS`` entries for *doc_uuid*."""
+    """Remove all ``_ID_COUNTERS``/``_RESERVED`` entries for *doc_uuid*."""
     for key in list(_ID_COUNTERS):
         if key[0] == doc_uuid:
             del _ID_COUNTERS[key]
+    for key in list(_RESERVED):
+        if key[0] == doc_uuid:
+            del _RESERVED[key]
 
 
 def _build_merkle_tree(leaf_hashes: list[bytes]) -> str:
@@ -166,20 +178,62 @@ def compute_doc_uuid(
     return str(uuid5(PITLOOM_NS, seed))
 
 
+def _doc_namespace(doc_name: str, doc_uuid: str) -> str:
+    """Return the SPDX document namespace for (*doc_name*, *doc_uuid*).
+
+    The single source of this string: :func:`generate_spdx_id` mints every
+    id under it, and :func:`reserve_spdx_ids` matches registry-supplied ids
+    against it to decide which ones fall in this document's own namespace.
+    """
+    return f"https://spdx.org/spdxdocs/{doc_name}-{doc_uuid}"
+
+
 def generate_spdx_id(
     prefix: str, doc_name: str = "pitloom", doc_uuid: str | None = None
 ) -> str:
     """Generate a unique SPDX ID with UUID following SPDX 3 best practices."""
     current_doc_uuid = doc_uuid or str(uuid4())
-    doc_namespace = f"https://spdx.org/spdxdocs/{doc_name}-{current_doc_uuid}"
+    doc_namespace = _doc_namespace(doc_name, current_doc_uuid)
 
     if prefix == "SpdxDocument":
         return doc_namespace
 
     counter_key = (current_doc_uuid, prefix)
-    _ID_COUNTERS[counter_key] = _ID_COUNTERS.get(counter_key, 0) + 1
-    seq_id = _ID_COUNTERS[counter_key]
+    reserved = _RESERVED.get(counter_key, ())
+    seq_id = _ID_COUNTERS.get(counter_key, 0) + 1
+    while seq_id in reserved:
+        seq_id += 1
+    _ID_COUNTERS[counter_key] = seq_id
     return f"{doc_namespace}#{prefix}-{seq_id}"
+
+
+def reserve_spdx_ids(doc_name: str, doc_uuid: str, spdx_ids: Iterable[str]) -> None:
+    """Reserve every number *spdx_ids* already uses in (*doc_name*,
+    *doc_uuid*)'s own document namespace, so a later :func:`generate_spdx_id`
+    call for the same ``(doc_uuid, prefix)`` skips it instead of re-minting a
+    duplicate.
+
+    Intended for a registry auto-harvested from an earlier run of the exact
+    same document (same name/version/dependencies -> same deterministic
+    *doc_uuid*): the registry looks ids up by content hash/name first (see
+    ``pitloom.ids.IdRegistry.lookup_file``/``lookup_entity``), and only a
+    lookup *miss* falls back to minting here -- without a reservation, a
+    fresh mint doesn't know the registry already claimed a number in this
+    same namespace and can hand out a duplicate. Call once per document,
+    right after :func:`_clear_doc_counters`, before the first
+    ``generate_spdx_id`` call for it. An id in a different namespace (a
+    registry entry harvested from an unrelated document) is ignored -- only
+    the ``prefix``/``n`` suffix matters, matched with a greedy prefix (e.g.
+    ``AIPackage-my-model-3`` -> prefix ``AIPackage-my-model``, n=``3``).
+    """
+    namespace = _doc_namespace(doc_name, doc_uuid)
+    pattern = re.compile(rf"^{re.escape(namespace)}#(?P<prefix>.+)-(?P<n>\d+)$")
+    for spdx_id in spdx_ids:
+        match = pattern.match(spdx_id)
+        if not match:
+            continue
+        counter_key = (doc_uuid, match.group("prefix"))
+        _RESERVED.setdefault(counter_key, set()).add(int(match.group("n")))
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments

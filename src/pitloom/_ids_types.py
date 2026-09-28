@@ -42,7 +42,7 @@ _IGNORED_DIR_NAMES = frozenset(
     }
 )
 
-_REGISTRY_VERSION = 1
+_REGISTRY_VERSION = 2
 _DEFAULT_IDS_GENERATE_DIR_NAMES: tuple[str, ...] = ("src", "data", "models")
 
 
@@ -59,14 +59,26 @@ class FileEntry:
 
 @dataclass
 class EntityEntry:
-    """A single registered named entity (e.g. an AI model) and its ``spdxId``."""
+    """A single registered named entity (e.g. an AI model) and its ``spdxId``.
 
-    type: str
+    No ``type`` field: :class:`~pitloom.ids.IdRegistry` keys its
+    ``entities`` dict by ``(type, name)``, so the type already lives in the
+    key -- storing it again here would be the same fact in two places, free
+    to drift out of sync on a hand-edited registry file.
+    """
+
     spdx_id: str
 
 
-def _sha256_file(path: Path) -> str:
-    """Return the hex-encoded SHA-256 digest of *path*'s contents."""
+def sha256_file(path: Path) -> str:
+    """Return the hex-encoded SHA-256 digest of *path*'s contents.
+
+    Streams the file in chunks (never ``read_bytes()``/``Path.read_text()``
+    the whole thing into memory at once) -- narrow public helper so
+    sibling modules needing a file's SHA-256 (:mod:`pitloom.ids`,
+    :mod:`pitloom._loom_caller`) share one implementation instead of each
+    writing its own chunked-read loop.
+    """
     digest = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):

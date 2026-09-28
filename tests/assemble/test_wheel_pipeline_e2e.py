@@ -162,7 +162,7 @@ def test_connected_pipeline_chain(
     train.txt -> hasInput -> raw.txt, all through registry-stable ids."""
     graph, registry = sbom_graph
     train_py_id = registry.files["src/pipedemo/train.py"].spdx_id
-    model_id = registry.entities["pipedemo-model"].spdx_id
+    model_id = registry.entities[("ai_AIPackage", "pipedemo-model")].spdx_id
     train_txt_id = registry.files["data/train.txt"].spdx_id
     raw_id = registry.files["data/raw.txt"].spdx_id
 
@@ -230,7 +230,7 @@ def test_document_envelope_and_profiles(
     sboms = _by_type(graph, "software_Sbom")
     assert len(sboms) == 2
     assert set(doc["rootElement"]) == {s["spdxId"] for s in sboms}
-    model_id = registry.entities["pipedemo-model"].spdx_id
+    model_id = registry.entities[("ai_AIPackage", "pipedemo-model")].spdx_id
     assert any(s["rootElement"] == [model_id] for s in sboms)
 
 

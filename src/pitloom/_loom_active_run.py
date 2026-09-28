@@ -33,7 +33,7 @@ from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import IdRegistry
+from pitloom.ids import IdRegistry, claim_registry_hit
 
 log = logging.getLogger("pitloom.loom")
 
@@ -87,6 +87,29 @@ class _ActiveRun:
             tuple[spdx3.dataset_DatasetPackage, list[str] | None]
         ] = []
 
+        # First-claimant-wins state for repeated registry hits within this
+        # run (e.g. two set_model() calls for the same name) -- see
+        # _claim_loom_registry_hit().
+        self._registry_claims: dict[str, str] = {}
+
+    def _claim_loom_registry_hit(self, key: str, registered_id: str) -> str | None:
+        """Claim a registry hit for this run, first-claimant-wins.
+
+        The *first* loom call that hits *registered_id* within this run
+        claims it. *Every* repeat -- whatever the repeat call's own
+        arguments, and regardless of whether anything mutates the first
+        element afterwards (e.g. ``set_model_hyperparameters()``) -- is
+        unconditionally a miss: ``None`` is returned so the caller mints
+        its own fresh id, and :func:`pitloom.ids.claim_registry_hit` logs
+        one ``WARNING: Registry: ... registered for both ...``. This
+        matches what happens with no registry at all, where every call
+        already mints its own id -- the only difference is the warning,
+        which is truthful (the registered id went to the first call).
+        Deliberately content-blind: see
+        ``working-docs/implementation/id-registry-autosync.md`` for why.
+        """
+        return claim_registry_hit(key, registered_id, self._registry_claims)
+
     def set_model(
         self,
         name: str,
@@ -98,9 +121,9 @@ class _ActiveRun:
         caller_info = _get_caller_info()
         registered_id = None
         if self.registry is not None:
-            registered_id = self.registry.lookup_entity(name, "ai_AIPackage")
-            if registered_id is None:
-                if name in self.registry.entities:
+            hit = self.registry.lookup_entity(name, "ai_AIPackage")
+            if hit is None:
+                if self.registry.has_entity_named(name):
                     log.warning(
                         "loom: registry entry for entity %r exists but under a "
                         "different type; minting a new spdxId.",
@@ -112,6 +135,8 @@ class _ActiveRun:
                         "(untracked entity).",
                         name,
                     )
+            else:
+                registered_id = self._claim_loom_registry_hit(name, hit)
         self.model = spdx3.ai_AIPackage(
             spdxId=registered_id or generate_spdx_id("AIPackage", name, self.doc_uuid),
             name=name,
@@ -183,7 +208,10 @@ class _ActiveRun:
     ) -> spdx3.dataset_DatasetPackage:
         """Build a ``dataset_DatasetPackage`` for *name*."""
         caller_info = _get_caller_info()
-        hash_element, registered_id = _hash_and_registry_lookup(name, self.registry)
+        hash_element, hit = _hash_and_registry_lookup(name, self.registry)
+        registered_id = None
+        if hit is not None:
+            registered_id = self._claim_loom_registry_hit(name, hit)
         dataset_pkg = spdx3.dataset_DatasetPackage(
             spdxId=registered_id
             or generate_spdx_id("DatasetPackage", name, self.doc_uuid),
@@ -397,9 +425,10 @@ class _ActiveRun:
 
     def _build_script_file(self, script_path: str) -> spdx3.software_File:
         """Build the ``software_File`` for the generating script."""
-        hash_element, registered_id = _hash_and_registry_lookup(
-            script_path, self.registry
-        )
+        hash_element, hit = _hash_and_registry_lookup(script_path, self.registry)
+        registered_id = None
+        if hit is not None:
+            registered_id = self._claim_loom_registry_hit(script_path, hit)
         script_file = spdx3.software_File(
             spdxId=registered_id
             or generate_spdx_id("File", script_path, self.doc_uuid),

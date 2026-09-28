@@ -253,6 +253,40 @@ def test_build_deployed_reuses_registry_entity_by_name() -> None:
     assert requests_pkg["spdxId"] == registered_id
 
 
+def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
+    """A harvested entry keyed by a package's *declared* name (e.g.
+    ``"PyYAML"``, what ``_build_deployed_package`` sets as the element's
+    own ``name``) must still be found by a later run's lookup, which only
+    has pipdeptree's *key* (e.g. ``"pyyaml"``) to query with -- both sides
+    now go through :func:`packaging.utils.canonicalize_name`
+    (:mod:`pitloom.ids`'s ``_import_sbom_element`` on harvest,
+    :func:`pitloom.assemble.spdx3._document_deployed._resolve_deployed_package_hits`
+    on lookup), so the raw-string mismatch no longer loses the hit."""
+    project = ProjectMetadata(name="deployed-environment", version="0.0.0")
+    doc = DocumentModel(project=project, creation_metadata=CreationMetadata())
+    env_tree = [
+        {
+            "package": {
+                "key": "pyyaml",
+                "package_name": "PyYAML",
+                "installed_version": "6.0",
+            }
+        }
+    ]
+
+    registry = IdRegistry.new("deployed-environment")
+    # Simulates a harvested entry: registered under the canonical form of
+    # the declared name, exactly as _import_sbom_element now stores it.
+    registered_id = registry.register_entity("pyyaml", "software_Package")
+
+    exporter = build_deployed(doc, env_tree, registry=registry)
+    graph = json.loads(exporter.to_json())["@graph"]
+
+    packages = [e for e in graph if e.get("type") == "software_Package"]
+    pyyaml_pkg = next(p for p in packages if p["name"] == "PyYAML")
+    assert pyyaml_pkg["spdxId"] == registered_id
+
+
 def test_build_deployed_no_registry_match_mints_fresh_id() -> None:
     """No matching registry entity -> unchanged behaviour: a fresh id is
     minted for the installed package."""

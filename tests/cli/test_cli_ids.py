@@ -57,7 +57,7 @@ version = "1.0.0"
     registry_path = tmp_path / "loom-ids.json"
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
-    assert "importable-pkg" in registry.entities
+    assert registry.has_entity_named("importable-pkg")
 
 
 def test_ids_generate_registry_load_fails(
@@ -176,10 +176,75 @@ def test_ids_generate_cli_entity_flag(
     assert exit_code == 0
 
     registry = IdRegistry.load(tmp_path / "loom-ids.json")
-    assert registry.entities["sentimentdemo"].type == "ai_AIPackage"
-    assert registry.entities["sentimentdemo"].spdx_id.endswith("#AIPackage-1")
-    assert registry.entities["other"].type == "dataset_DatasetPackage"
+    assert registry.entities[("ai_AIPackage", "sentimentdemo")].spdx_id.endswith(
+        "#AIPackage-1"
+    )
+    assert ("dataset_DatasetPackage", "other") in registry.entities
     assert "data/raw.txt" in registry.files
+
+
+def test_ids_generate_entity_flag_hits_env_lookup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--entity PyYAML:software_Package` registers the entity under its
+    declared (mixed-case) name; a later ``generate_env_sbom()`` lookup,
+    which only has pipdeptree's lowercased ``key`` to query with, must
+    still hit it -- ``IdRegistry``'s own PEP 503 canonicalization
+    (:func:`pitloom.ids._entity_key`) is what makes a raw ``--entity``
+    registration and a real deployed-dependency lookup agree, not
+    anything specific to harvest."""
+    # pylint: disable=import-outside-toplevel
+    import json
+    import subprocess
+    from unittest.mock import patch
+
+    from pitloom.assemble import generate_env_sbom
+    from pitloom.core.creation import CreationMetadata
+
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "raw.txt").write_text("raw\n")
+    monkeypatch.chdir(tmp_path)
+    parser = _build_parser()
+    args = parser.parse_args(
+        ["ids", "generate", "data", "--entity", "PyYAML:software_Package"]
+    )
+    assert _run_ids_command(args) == 0
+
+    registry_path = tmp_path / "loom-ids.json"
+    tree = [
+        {
+            "package": {
+                "key": "pyyaml",
+                "package_name": "PyYAML",
+                "installed_version": "6.0",
+            }
+        }
+    ]
+    fake_result = subprocess.CompletedProcess(
+        args=["pipdeptree", "--json-tree", "--all"],
+        returncode=0,
+        stdout=json.dumps(tree),
+        stderr="",
+    )
+    registered_id = (
+        IdRegistry.load(registry_path).entities[("software_Package", "pyyaml")].spdx_id
+    )
+
+    with patch("subprocess.run", return_value=fake_result):
+        sbom = generate_env_sbom(
+            registry=registry_path,
+            creation_metadata=CreationMetadata(
+                creation_datetime="2026-01-01T00:00:00+00:00"
+            ),
+        )
+
+    graph = json.loads(sbom)["@graph"]
+    pyyaml_pkg = next(
+        e
+        for e in graph
+        if e.get("type") == "software_Package" and e.get("name") == "PyYAML"
+    )
+    assert pyyaml_pkg["spdxId"] == registered_id
 
 
 def test_load_or_create_registry_fails(tmp_path: Path) -> None:

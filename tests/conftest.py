@@ -5,6 +5,7 @@
 
 """Shared pytest fixtures and configuration."""
 
+import json
 import socket
 import tempfile
 from pathlib import Path
@@ -16,6 +17,36 @@ from pitloom.extract._license import _get_matcher
 from pitloom.logging_config import _WARNED_ONCE
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _assert_no_duplicate_spdx_ids(
+    sbom_json: str | None = None, exporter: Any | None = None
+) -> None:
+    """Assert no two elements share a ``spdxId``.
+
+    Pass *exporter* (a :class:`~pitloom.export.spdx3_json.Spdx3JsonExporter`)
+    whenever the caller has one: checking its ``object_set`` directly is
+    the strict form, since Pitloom's own ``_deduplicate_named_elements``
+    (``pitloom.export.spdx3_json``) silently drops a later same-id element
+    from the *serialized* ``@graph`` whenever its fields are byte-for-byte
+    identical to an earlier one -- which can mask a genuine duplicate id
+    on two elements that happen to carry identical content (e.g. two
+    same-fallback-name AI model packages). Pass *sbom_json* (the
+    generator's own returned string) instead when no exporter is
+    reachable, e.g. a test that only calls a public
+    ``generate_*_sbom()``/CLI entry point.
+    """
+    if exporter is not None:
+        ids = [
+            str(obj.spdxId)
+            for obj in exporter.object_set.objects
+            if getattr(obj, "spdxId", None)
+        ]
+    else:
+        assert sbom_json is not None, "pass sbom_json or exporter"
+        graph = json.loads(sbom_json)["@graph"]
+        ids = [e["spdxId"] for e in graph if "spdxId" in e]
+    assert len(ids) == len(set(ids)), f"duplicate spdxId: {sorted(ids)}"
 
 
 def fake_build_and_read_path(*parts: str) -> str:
