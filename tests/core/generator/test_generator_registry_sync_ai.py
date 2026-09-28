@@ -26,7 +26,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 
 def _numpy_models() -> list[AiModelMetadata]:

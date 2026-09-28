@@ -28,7 +28,7 @@ import pytest
 
 from pitloom.assemble import generate_env_sbom
 from pitloom.core.creation import CreationMetadata
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
 

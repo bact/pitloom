@@ -34,7 +34,7 @@ from pitloom.embed import (
     ConfigOverrides,
     embed_wheel_sbom,
 )
-from pitloom.ids import DEFAULT_REGISTRY_FILENAME, FileEntry, IdRegistry
+from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, FileEntry, IdRegistry
 
 from .conftest import _make_dummy_wheel
 

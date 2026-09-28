@@ -70,7 +70,7 @@ def _ai_model_identity(
 
     ``entity_spdx_id``, when given, overrides the computed
     ``ai_package_spdx_id`` entirely -- e.g. one already resolved from an
-    :class:`~pitloom.ids.IdRegistry`, matching what the base document
+    :class:`~pitloom.id_registry.IdRegistry`, matching what the base document
     (generated separately, with the same registry) will use.
 
     Clears the resolved ``doc_uuid``'s id counters immediately before

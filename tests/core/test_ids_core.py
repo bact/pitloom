@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Core tests for pitloom.ids."""
+"""Core tests for pitloom.id_registry."""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -19,17 +19,16 @@ from unittest.mock import patch
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-import pitloom.ids as ids_mod
-from pitloom.ids import (
-    _REGISTRY_VERSION,
+import pitloom.id_registry._harvest as ids_mod
+from pitloom.id_registry import (
     DIRECTORY_ENTITY_TYPE,
     EntityEntry,
     FileEntry,
     IdRegistry,
-    _import_sbom_element,
-    _sha256_from_verified_using,
     resolve_registry,
 )
+from pitloom.id_registry._harvest import _import_sbom_element
+from pitloom.id_registry._types import _REGISTRY_VERSION, _sha256_from_verified_using
 
 
 def test_resolve_registry_error(tmp_path: Path) -> None:
@@ -287,8 +286,9 @@ def test_harvest_drops_stale_file_key_when_alias_shaped_but_content_differs() ->
     same file -- e.g. the stale entry is genuinely superseded content, or
     the two paths are otherwise unrelated. Path-suffix shape alone is not
     sufficient: both ``sha256`` match AND the path-suffix shape are
-    required (:func:`pitloom.ids._is_files_path_alias`) for the entry to
-    survive; a differing hash must still drop the stale key."""
+    required (:func:`pitloom.id_registry._harvest._is_files_path_alias`)
+    for the entry to survive; a differing hash must still drop the stale
+    key."""
     registry = IdRegistry.new("proj")
     ci = spdx3.CreationInfo(
         specVersion="3.0.1", created=datetime(2026, 1, 1, tzinfo=timezone.utc)

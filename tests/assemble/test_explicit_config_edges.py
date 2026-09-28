@@ -31,7 +31,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from pitloom.extract.project import resolve_project_with_lockfile
-from pitloom.ids import DEFAULT_REGISTRY_FILENAME, IdRegistry
+from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.warning_helpers import count_naming, logged_warnings

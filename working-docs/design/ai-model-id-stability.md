@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-15
-Last-Modified: 2026-09-25
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,8 +70,8 @@ both resolve to the same stem, `"weights"`, so both hit the exact same
 registered `ai_AIPackage` entity.
 
 With the first-claimant-wins reservation
-([#233](https://github.com/bact/pitloom/pull/233),
-`pitloom.ids.claim_registry_hit`), this no longer loses the second
+([#234](https://github.com/bact/pitloom/pull/234),
+`pitloom.id_registry.claim_registry_hit`), this no longer loses the second
 model: only the first model (in `ai_models` list order, or resolution
 order more generally) reuses the registered hit; the second gets its own
 freshly-minted id and one `WARNING: Registry: ... is registered for both

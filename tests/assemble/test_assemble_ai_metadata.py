@@ -18,7 +18,7 @@ from pitloom.assemble.spdx3.ai import (
     _source_metadata_blob,
 )
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.ids import EntityEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, IdRegistry
 
 from ..conftest import fake_build_and_read_path
 

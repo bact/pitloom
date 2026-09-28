@@ -36,7 +36,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import IdRegistry, claim_registry_hit
+from pitloom.id_registry import IdRegistry, claim_registry_hit
 
 __all__ = [
     "_LineageContext",
@@ -55,7 +55,7 @@ __all__ = [
 
 def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
     """A short, human-readable identifier for *ai_model* in a
-    :func:`~pitloom.ids.claim_registry_hit` warning -- never used as a
+    :func:`~pitloom.id_registry.claim_registry_hit` warning -- never used as a
     lookup key, only for the message."""
     return (
         ai_model.name
@@ -85,7 +85,7 @@ def resolve_ai_model_entity_hits(
     name/``physical_path`` -- in which case only the first (in list order,
     or via a shared *claimed* passed in by the caller, the first hit
     across files/directories/AI models together) reuses it
-    (:func:`~pitloom.ids.claim_registry_hit`); every later one gets its
+    (:func:`~pitloom.id_registry.claim_registry_hit`); every later one gets its
     own fresh id instead of silently losing its element to the first,
     with one ``WARNING: Registry: ...`` naming both. A fresh, empty
     *claimed* is used when the caller doesn't share one.

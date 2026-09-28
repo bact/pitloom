@@ -40,7 +40,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
-from pitloom.ids import DEFAULT_REGISTRY_FILENAME, FileEntry, IdRegistry
+from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, FileEntry, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import DEPENDENCY, demo_project, demo_wheel
 from tests.assemble.test_generator_no_implicit_config import _TARGET, _seed_registry

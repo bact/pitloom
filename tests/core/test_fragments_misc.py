@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 from .conftest import (
     _by_type,

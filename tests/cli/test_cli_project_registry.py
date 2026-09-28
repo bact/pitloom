@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from pitloom import __main__
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 from ..conftest import _assert_no_duplicate_spdx_ids
 

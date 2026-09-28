@@ -70,7 +70,7 @@ from pitloom.core.models import (
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 __all__ = [
     "_ai_model_identity",

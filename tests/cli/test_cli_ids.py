@@ -15,12 +15,9 @@ from typing import Any
 import pytest
 
 from pitloom import __main__
-from pitloom.cli.ids import (  # type: ignore[attr-defined]
-    _load_or_create_registry,
-    _run_ids_command,
-)
+from pitloom.cli.ids import _load_or_create_registry, _run_ids_command
 from pitloom.cli.parser import _build_parser
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -190,7 +187,7 @@ def test_ids_generate_entity_flag_hits_env_lookup(
     declared (mixed-case) name; a later ``generate_env_sbom()`` lookup,
     which only has pipdeptree's lowercased ``key`` to query with, must
     still hit it -- ``IdRegistry``'s own PEP 503 canonicalization
-    (:func:`pitloom.ids._entity_key`) is what makes a raw ``--entity``
+    (:func:`pitloom.id_registry._types._entity_key`) is what makes a raw ``--entity``
     registration and a real deployed-dependency lookup agree, not
     anything specific to harvest."""
     # pylint: disable=import-outside-toplevel

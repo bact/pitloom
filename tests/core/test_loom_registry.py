@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import loom
-from pitloom.ids import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
 
 from .conftest import _relationships
 

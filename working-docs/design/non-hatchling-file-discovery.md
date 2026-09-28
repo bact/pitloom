@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -253,7 +253,7 @@ work above; each is its own reviewed change.
   single-top-level-dir logic, generalized to accept any archive path.
   Dev-only script, not shipped code, no user-facing risk -- low priority.
 - **`--allow-build`-sourced files never match a `loom ids
-  generate`-pinned registry entry** -- `IdRegistry.generate()` (`ids.py`)
+  generate`-pinned registry entry** -- `IdRegistry.generate()` (`id_registry/_registry.py`)
   keys every entry by physical, project-root-relative path; a
   build-and-read-sourced `ProjectFile.physical_path` is an ephemeral
   temp path instead, so neither of `_document_files.py`'s two lookup

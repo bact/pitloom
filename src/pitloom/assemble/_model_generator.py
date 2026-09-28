@@ -33,7 +33,7 @@ from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
-from pitloom.ids import IdRegistry, resolve_explicit_registry, resolve_registry
+from pitloom.id_registry import IdRegistry, resolve_explicit_registry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)

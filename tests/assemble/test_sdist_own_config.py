@@ -32,7 +32,7 @@ from pitloom.core import _config_parse
 from pitloom.core.config import FragmentConfig, PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.embed import embed_wheel_sbom
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.warning_helpers import error_lines, logged_warnings
 

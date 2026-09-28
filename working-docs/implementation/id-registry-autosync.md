@@ -28,7 +28,7 @@ dependency name/version pair is. Auto-harvesting them risks silently
 pinning the wrong element under a name that later re-extracts
 differently.
 
-## Id mint-collision fix ([#233](https://github.com/bact/pitloom/pull/233))
+## Id mint-collision fix ([#234](https://github.com/bact/pitloom/pull/234))
 
 Auto-sync mixes registry-supplied ids (via a lookup-then-mint-fallback
 pattern) with freshly-minted ones in the same document namespace.
@@ -100,7 +100,7 @@ name-only-entities check uses `IdRegistry.has_entity_named()`.
 
 ### First claimant wins
 
-`pitloom.ids.claim_registry_hit(key, spdx_id, claimed)` is the one
+`pitloom.id_registry.claim_registry_hit(key, spdx_id, claimed)` is the one
 helper every `_resolve_*_hits` pass calls for each hit it finds: the
 first key to claim a given id keeps it, a later key with the *same*
 hit id is treated as a miss (falls back to its own fresh mint) and
@@ -168,7 +168,7 @@ its own fresh id plus the usual warning.
 
 ### One key per id in the registry
 
-`pitloom.ids._release_stale_keys_for_id()` runs before
+`pitloom.id_registry._harvest._release_stale_keys_for_id()` runs before
 `_import_sbom_element()` writes a harvested id under a key: it drops
 any *other* key already holding that exact id, so a stale entry left
 behind by an earlier run can't keep re-triggering the same collision
@@ -176,7 +176,7 @@ warning on every later run.
 
 Files-table exception: a key is kept only when BOTH its `sha256`
 matches the new entry's AND its path is a
-`pitloom.ids._is_files_path_alias()` of the new key -- trailing
+`pitloom.id_registry._harvest._is_files_path_alias()` of the new key -- trailing
 `PurePosixPath` parts tail-match, one a strict suffix of the other
 (e.g. `src/pkg/x.py` vs `pkg/x.py`), the intentional
 physical-path/distribution-path dual-keying for one src/-layout file
@@ -200,7 +200,7 @@ indefinitely, stealing an unrelated file's id on a later run. Both
 conditions, same hash and suffix-alias shape, are required.
 
 `_release_stale_keys_for_id()` checks `spdx_id` equality before the
-more expensive sha256/alias check, against a `pitloom.ids._SpdxIdIndex`
+more expensive sha256/alias check, against a `pitloom.id_registry._harvest._SpdxIdIndex`
 -- a `spdx_id -> keys` reverse index over both the `files` and
 `entities` tables, built once per `_harvest_sorted()` pass and kept in
 sync (`set_file`/`drop_file`/`set_entity`/`drop_entity`) as entries are
@@ -213,7 +213,7 @@ size); with it, each release is O(keys actually sharing that id).
 `IdRegistry.entities` is keyed by `(type, name)`, not `name` alone -- a
 harvested directory and a same-named package (or any two
 differently-typed entities sharing a name) no longer overwrite each
-other. `pitloom.ids._entity_key(name, type_name)` is the single place
+other. `pitloom.id_registry._types._entity_key(name, type_name)` is the single place
 a `PACKAGE_ENTITY_TYPE` entity's name is PEP 503-canonicalized
 (`packaging.utils.canonicalize_name`), used by `register_entity()`,
 `lookup_entity()`, and harvest alike -- a caller like

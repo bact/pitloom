@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import _loom_caller, loom
-from pitloom.ids import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
 
 
 def test_loom_functions_raise_runtime_error_without_active_run() -> None:

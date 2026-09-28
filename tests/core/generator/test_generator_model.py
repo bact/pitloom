@@ -24,7 +24,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 
 def test_assembler_ai_model_with_inputs_outputs() -> None:
@@ -259,7 +259,7 @@ def test_build_deployed_reuses_registry_entity_by_canonicalized_name() -> None:
     own ``name``) must still be found by a later run's lookup, which only
     has pipdeptree's *key* (e.g. ``"pyyaml"``) to query with -- both sides
     now go through :func:`packaging.utils.canonicalize_name`
-    (:mod:`pitloom.ids`'s ``_import_sbom_element`` on harvest,
+    (:mod:`pitloom.id_registry._harvest`'s ``_import_sbom_element`` on harvest,
     :func:`pitloom.assemble.spdx3._document_deployed._resolve_deployed_package_hits`
     on lookup), so the raw-string mismatch no longer loses the hit."""
     project = ProjectMetadata(name="deployed-environment", version="0.0.0")

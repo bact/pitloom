@@ -95,29 +95,31 @@ and this project adheres to
   key order, whatever the model file's own order ([#232])
 - SBOM, fragment and registry files are written with LF line endings and
   UTF-8 on every platform, stdout included ([#232])
+- `pitloom.ids` module renamed `pitloom.id_registry` (a package);
+  `pitloom._ids_types` removed ([#234])
 - Loom ID registry file format version bumped to 2: `entities` keyed by
   type then name; an older-version registry file is rejected (`WARNING:`
   on a build surface, `ERROR:`/exit 1 on `ids generate`/`ids import`),
-  not migrated ([#233])
+  not migrated ([#234])
 - `Spdx3JsonExporter.to_json()` now raises on a duplicate spdxId that
   survives dedup (differing content); identical copies still collapse
-  silently ([#233])
+  silently ([#234])
 
 ### Fixed
 
 - A registry-supplied file, directory, AI model, or deployed-dependency
   id no longer collides with a freshly-minted one in the same
-  document ([#233])
+  document ([#234])
 - A stale registry entry from an earlier run no longer collides with a
   later run's id; a genuine collision now logs `WARNING: Registry: ...
   registered for both ...` exactly once per colliding directory/file,
-  not once per file under it ([#233])
+  not once per file under it ([#234])
 - A deployed dependency's name is matched PEP 503-canonicalized against
-  its registry entry ([#233])
+  its registry entry ([#234])
 - `pitloom.loom`'s `set_model()`/`add_*_dataset()` repeated for one
   name/file, or the generating script's own file sharing a registered
   id with a dataset/model, no longer raises at `Run.__exit__`; the
-  repeat gets a fresh id and a warning ([#233])
+  repeat gets a fresh id and a warning ([#234])
 - `build_deployed()` no longer drops `content_type_method`, so an
   environment SBOM stops fetching remote authors files under
   `extension` ([#228])
@@ -164,7 +166,7 @@ and this project adheres to
 [#230]: https://github.com/bact/pitloom/pull/230
 [#231]: https://github.com/bact/pitloom/pull/231
 [#232]: https://github.com/bact/pitloom/pull/232
-[#233]: https://github.com/bact/pitloom/pull/233
+[#234]: https://github.com/bact/pitloom/pull/234
 
 ## [0.19.0] - 2026-09-18
 

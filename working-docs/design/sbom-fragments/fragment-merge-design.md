@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-13
-Last-Modified: 2026-08-29
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -153,7 +153,7 @@ to declare:
 > remapped, duplicate relationships removed, `profileConformance` updated,
 > and a second `software_Sbom` rooted at the merged `ai_AIPackage` added.
 > Cross-fragment id stability comes from the `loom-ids.json` registry
-> (`src/pitloom/ids.py`, `loom ids generate|import`), consulted by
+> (`src/pitloom/id_registry/`, `loom ids generate|import`), consulted by
 > `pitloom.loom`, the build hook, and the CLI. `SpdxDocument.imports` is
 > now populated too (`_add_fragment_imports()`, one `ExternalMap` per
 > merged fragment's document id), and the merged graph's referential

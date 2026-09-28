@@ -217,7 +217,7 @@ def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
     branch: two same-id elements that differ in content, which it
     deliberately keeps both of rather than guessing which to drop. A
     last-resort safety net for the case
-    :func:`~pitloom.ids.claim_registry_hit`-based reservation exists to
+    :func:`~pitloom.id_registry.claim_registry_hit`-based reservation exists to
     avoid -- see ``working-docs/implementation/id-registry-autosync.md``.
     """
     seen: dict[str, dict[str, Any]] = {}

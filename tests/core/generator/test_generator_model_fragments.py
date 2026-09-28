@@ -28,7 +28,7 @@ from pitloom.assemble import enrich_model, generate_model_sbom, generate_project
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 from ..conftest import _AI_MODEL_ROOT, _write_smoke_project
 

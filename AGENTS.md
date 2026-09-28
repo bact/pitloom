@@ -279,9 +279,9 @@ Unix philosophy. Consistent, predictable, parseable.
     invoked Pitloom. A new entry point that skips this call is a bug,
     not a style choice.
 - Within one subsystem, prefer a shared, literal sub-prefix so its
-  messages are easy to compare/grep as a group (e.g. `Registry: ...` for
-  every `pitloom.ids`/`IdRegistry` warning, `FORMAT=%s FILE=%s: ...` for
-  per-model-file scanning warnings) -- match an existing sibling
+  messages are easy to compare/grep as a group (e.g. `Registry: ...`
+  for every `pitloom.id_registry`/`IdRegistry` warning, `FORMAT=%s
+  FILE=%s: ...` for per-model-file scanning warnings) -- match an existing sibling
   message's wording before inventing a new phrasing for the same kind of
   event. Not a single global schema across unrelated subsystems: forcing
   one would make many messages read unnaturally for no parsing benefit

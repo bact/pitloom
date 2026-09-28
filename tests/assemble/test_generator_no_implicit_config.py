@@ -44,7 +44,12 @@ from pitloom.assemble import (
 )
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
-from pitloom.ids import DEFAULT_REGISTRY_FILENAME, EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import (
+    DEFAULT_REGISTRY_FILENAME,
+    EntityEntry,
+    FileEntry,
+    IdRegistry,
+)
 
 from ..cli.shared import SAFETENSORS_FIXTURE
 from .conftest import _make_dummy_wheel

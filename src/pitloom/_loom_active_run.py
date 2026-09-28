@@ -33,7 +33,7 @@ from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import IdRegistry, claim_registry_hit
+from pitloom.id_registry import IdRegistry, claim_registry_hit
 
 log = logging.getLogger("pitloom.loom")
 
@@ -100,7 +100,7 @@ class _ActiveRun:
         arguments, and regardless of whether anything mutates the first
         element afterwards (e.g. ``set_model_hyperparameters()``) -- is
         unconditionally a miss: ``None`` is returned so the caller mints
-        its own fresh id, and :func:`pitloom.ids.claim_registry_hit` logs
+        its own fresh id, and :func:`pitloom.id_registry.claim_registry_hit` logs
         one ``WARNING: Registry: ... registered for both ...``. This
         matches what happens with no registry at all, where every call
         already mints its own id -- the only difference is the warning,

@@ -76,7 +76,7 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.wheel import read_wheel
-from pitloom.ids import IdRegistry, resolve_explicit_registry, resolve_registry
+from pitloom.id_registry import IdRegistry, resolve_explicit_registry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)

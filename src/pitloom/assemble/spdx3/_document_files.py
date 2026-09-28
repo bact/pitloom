@@ -27,7 +27,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.ids import DIRECTORY_ENTITY_TYPE, IdRegistry, claim_registry_hit
+from pitloom.id_registry import DIRECTORY_ENTITY_TYPE, IdRegistry, claim_registry_hit
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
@@ -274,7 +274,7 @@ def _resolve_directory_hits_for_file(
     place.
 
     *seen_dirs* remembers every directory this pass has already resolved
-    -- hit, rejected by :func:`~pitloom.ids.claim_registry_hit`, or
+    -- hit, rejected by :func:`~pitloom.id_registry.claim_registry_hit`, or
     lookup miss -- so a directory shared by many files (the common case)
     is looked up and claimed at most once. Checking membership in
     *dir_hits* instead would miss the rejected/miss cases (neither adds
@@ -321,7 +321,7 @@ def _resolve_file_and_directory_hits(
     file's registry hit is an id something earlier in this same pass (or,
     via a shared *claimed* passed in by the caller, an earlier file/
     directory/AI-model hit in the same document) already claimed, only
-    the first claimant reuses it (:func:`~pitloom.ids.claim_registry_hit`)
+    the first claimant reuses it (:func:`~pitloom.id_registry.claim_registry_hit`)
     -- a later one falls back to a fresh mint instead of duplicating the
     id, with one ``WARNING: Registry: ...`` naming both. A fresh, empty
     *claimed* is used when the caller doesn't share one.

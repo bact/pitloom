@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Regression tests for the id-mint-collision fixes ([#233]), calling
+"""Regression tests for the id-mint-collision fixes ([#234]), calling
 ``build()``/``build_deployed()`` directly (rather than the
 ``generate_*_sbom()`` string-returning wrappers) so every assertion runs
 against the exporter's own ``object_set`` -- never the serialized JSON,
@@ -13,10 +13,10 @@ which can mask a real duplicate id (see
 
 Covers: a stale registry entry from a file/dependency absent in one run
 colliding with a later run's fresh mint (fixed by
-``pitloom.ids._release_stale_keys_for_id``, the harvest-time one-key-
+``pitloom.id_registry._harvest._release_stale_keys_for_id``, the harvest-time one-key-
 per-id invariant), and two elements in the *same* run legitimately
 hitting one registered id (fixed by
-``pitloom.ids.claim_registry_hit``'s first-claimant-wins).
+``pitloom.id_registry.claim_registry_hit``'s first-claimant-wins).
 
 See also: :mod:`tests.core.generator.test_generator_registry_sync` and
 :mod:`tests.core.generator.test_generator_registry_sync_env` for the
@@ -34,7 +34,6 @@ from unittest.mock import patch
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom._ids_types import FileEntry
 from pitloom.assemble.spdx3._document_deployed import _resolve_deployed_package_hits
 from pitloom.assemble.spdx3._document_files import _resolve_file_and_directory_hits
 from pitloom.assemble.spdx3.ai import resolve_ai_model_entity_hits
@@ -44,7 +43,8 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
+from pitloom.id_registry._types import FileEntry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
 
@@ -101,7 +101,7 @@ def _init_py_files(*dirs: str) -> list[ProjectFile]:
     """One empty ``<dir>/__init__.py`` per *dirs*, all sharing one sha256
     (the empty-file hash) -- same content, unrelated paths, so none of
     them are the legitimate physical-path/distribution-path alias
-    :func:`pitloom.ids._is_files_path_alias` recognises."""
+    :func:`pitloom.id_registry._harvest._is_files_path_alias` recognises."""
     empty_sha256 = hashlib.sha256(b"").hexdigest()
     return sorted(
         (

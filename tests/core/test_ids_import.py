@@ -3,7 +3,7 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for pitloom.ids import functionality."""
+"""Tests for pitloom.id_registry import functionality."""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -17,13 +17,9 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.ids import (
-    EntityEntry,
-    FileEntry,
-    IdRegistry,
-    _entity_key,
-    _import_sbom_element,
-)
+from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry._harvest import _import_sbom_element
+from pitloom.id_registry._types import _entity_key
 from tests.ids_shared import (
     _write_sample_sbom,
     _write_sample_sbom_without_document,

@@ -24,7 +24,6 @@ from unittest.mock import patch
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom._ids_types import FileEntry
 from pitloom.assemble import (
     generate_env_sbom,
     generate_project_sbom,
@@ -33,7 +32,8 @@ from pitloom.assemble import (
 from pitloom.assemble._generators_shared import _sync_registry
 from pitloom.core.creation import CreationMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
+from pitloom.id_registry._types import FileEntry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
 from ..conftest import _find_file_element, _make_wheel, _write_smoke_project

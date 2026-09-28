@@ -43,7 +43,7 @@ pytest.importorskip(
 from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom import loom  # noqa: E402
-from pitloom.ids import IdRegistry  # noqa: E402
+from pitloom.id_registry import IdRegistry  # noqa: E402
 
 # pylint: enable=wrong-import-position
 

@@ -20,7 +20,7 @@ from typing import Any
 from spdx_python_model.bindings import v3_0_1 as spdx3_bindings
 
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 log = logging.getLogger(__name__)
 
@@ -89,6 +89,6 @@ def _sync_registry(
     else:
         # changed is True but the net counts are zero: a stale key was
         # released in the same pass a new one claimed its id (see
-        # pitloom.ids._release_stale_keys_for_id) -- real content
+        # pitloom.id_registry._harvest._release_stale_keys_for_id) -- real content
         # changed even though nothing was added or removed net.
         log.info("Registry: updated stale entries in %s", registry.path)

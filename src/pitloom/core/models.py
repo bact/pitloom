@@ -216,7 +216,7 @@ def reserve_spdx_ids(doc_name: str, doc_uuid: str, spdx_ids: Iterable[str]) -> N
     Intended for a registry auto-harvested from an earlier run of the exact
     same document (same name/version/dependencies -> same deterministic
     *doc_uuid*): the registry looks ids up by content hash/name first (see
-    ``pitloom.ids.IdRegistry.lookup_file``/``lookup_entity``), and only a
+    ``pitloom.id_registry.IdRegistry.lookup_file``/``lookup_entity``), and only a
     lookup *miss* falls back to minting here -- without a reservation, a
     fresh mint doesn't know the registry already claimed a number in this
     same namespace and can hand out a duplicate. Call once per document,

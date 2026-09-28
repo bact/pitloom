@@ -22,7 +22,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 
 # Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
 _SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}

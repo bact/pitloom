@@ -33,16 +33,16 @@ from pitloom.core.models import (
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.ids import PACKAGE_ENTITY_TYPE, IdRegistry, claim_registry_hit
+from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry, claim_registry_hit
 
 
 def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
     """Return the pipdeptree-graph key used to key *package_spdx_ids* /
     build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
     field, falling back to a lowercased *dep_name*. Unrelated to the
-    registry lookup key: :meth:`~pitloom.ids.IdRegistry.lookup_entity`
-    PEP 503-canonicalizes a :data:`~pitloom.ids.PACKAGE_ENTITY_TYPE`
-    name itself (see :func:`pitloom.ids._entity_key`), so *dep_name* is
+    registry lookup key: :meth:`~pitloom.id_registry.IdRegistry.lookup_entity`
+    PEP 503-canonicalizes a :data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`
+    name itself (see :func:`pitloom.id_registry._types._entity_key`), so *dep_name* is
     passed to it verbatim, uncanonicalized, by
     :func:`_resolve_deployed_package_hits`."""
     return str(pkg_info.get("key", dep_name.lower()))
@@ -63,7 +63,7 @@ def _resolve_deployed_package_hits(
     deterministic; when two dependencies' registry hit is the same id
     (e.g. a stale entry left behind by an earlier run -- see
     ``working-docs/implementation/id-registry-autosync.md``), only the
-    first claims it (:func:`~pitloom.ids.claim_registry_hit`) and the
+    first claims it (:func:`~pitloom.id_registry.claim_registry_hit`) and the
     other falls back to a fresh mint, with one ``WARNING: Registry: ...``
     naming both. A no-op, returning ``{}``, when *registry* is ``None``.
     A fresh, empty *claimed* is used when the caller doesn't share one.

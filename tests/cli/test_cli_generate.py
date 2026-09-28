@@ -19,7 +19,7 @@ from pitloom.cli.commands import env as mod_env
 from pitloom.cli.commands import generate as mod_generate
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.creation import CreationMetadata
-from pitloom.ids import IdRegistry
+from pitloom.id_registry import IdRegistry
 from tests.cli.shared import _make_simple_project, effective_setting
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"

@@ -18,9 +18,8 @@ from pathlib import Path
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
-from pitloom._ids_types import sha256_file
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.ids import IdRegistry, resolve_registry
+from pitloom.id_registry import IdRegistry, resolve_registry, sha256_file
 from pitloom.logging_config import field_loss_suffix, warn_once
 
 log = logging.getLogger("pitloom.loom")

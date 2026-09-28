@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ checklist (N1-N6). G2's own implementation depth lives separately in
   annotated; its fragment origin is Phase-2 `SpdxDocument.imports` territory
   (see N1 below). A2 superseded identity across builds (useful,
   **not implemented — design only**): when file content changes,
-  [`ids.py`](../../../src/pitloom/ids.py) `register_file` mints a fresh
+  [`id_registry`](../../../src/pitloom/id_registry/_registry.py) `register_file` mints a fresh
   `spdxId` and the old one is simply discarded — no supersedes/replaces
   record survives anywhere. Lower priority than A1: it's a cross-build fact
   (comparing this SBOM to a previous one), not something expressible within

@@ -8,7 +8,7 @@ _annotate_relationships(), and Spdx3JsonExporter's license indexing and
 to_json()/to_file() serialization.
 
 See also: tests/ids_shared.py, which builds a fuller Spdx3JsonExporter
-document for pitloom.ids tests; tests/core/conftest.py, which exercises
+document for pitloom.id_registry tests; tests/core/conftest.py, which exercises
 Spdx3JsonExporter indirectly through the full assembler pipeline.
 """
 
