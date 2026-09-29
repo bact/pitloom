@@ -50,8 +50,8 @@ _SAME_NAME_OPTIONS = (
     "content_type_method",
     "max_source_metadata_bytes",
     "offline",
-    "registry",
-    "update_registry",
+    "id_registry",
+    "update_id_registry",
     "use_lockfile",
 )
 
@@ -79,15 +79,15 @@ def run_options(args: argparse.Namespace, config: PitloomConfig) -> dict[str, An
     ``creation_metadata`` is resolved against *config* (flag > config >
     default), since it is a single object rather than one value per flag.
     Every other value is the raw flag, ``None`` when omitted, except that a
-    relative ``--registry`` is made absolute against the current directory,
-    as a path on the command line is -- the library resolves a relative one
-    against the project directory.
+    relative ``--id-registry`` is made absolute against the current
+    directory, as a path on the command line is -- the library resolves a
+    relative one against the project directory.
     """
     options: dict[str, Any] = {
         name: getattr(args, name, None) for name in _SAME_NAME_OPTIONS
     }
-    if options["registry"] is not None:
-        options["registry"] = Path(options["registry"]).absolute()
+    if options["id_registry"] is not None:
+        options["id_registry"] = Path(options["id_registry"]).absolute()
     options["creation_metadata"] = _resolve_creation_metadata(
         args, config
     ).to_creation_metadata()
@@ -109,7 +109,7 @@ def overrides_from_options(
     options: dict[str, Any], build_options: BuildOptions = BuildOptions()
 ) -> ConfigOverrides:
     """The :class:`ConfigOverrides` for *options* (from :func:`run_options`);
-    ``registry`` and ``creation_metadata`` are separate arguments of the
+    ``id_registry`` and ``creation_metadata`` are separate arguments of the
     embed API and are not part of it."""
     return ConfigOverrides(
         enrich=options["enrich"],
@@ -119,7 +119,7 @@ def overrides_from_options(
         offline=options["offline"],
         pretty=options["pretty"],
         describe_relationship=options["describe_relationship"],
-        update_registry=options["update_registry"],
+        update_id_registry=options["update_id_registry"],
         max_source_metadata_bytes=options["max_source_metadata_bytes"],
         build_options=build_options,
     )
@@ -147,7 +147,7 @@ def add_config_argument(parser: argparse.ArgumentParser) -> None:
             "TOML file). The only config a wheel, environment or model "
             "file gets -- none is read from the current directory. For a "
             "project target it replaces the project's own [tool.pitloom]. "
-            "A relative ids-file in FILE resolves against FILE's directory."
+            "A relative id-registry in FILE resolves against FILE's directory."
         ),
     )
 

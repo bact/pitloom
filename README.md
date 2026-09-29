@@ -380,36 +380,71 @@ See [Creation metadata](docs/creation-metadata.md) for what these fields
 record and why -- the who/what/when/how model behind every element Pitloom
 emits.
 
-### Loom IDs across fragments (`loom ids`)
+### Loom IDs across fragments (`loom id`)
 
 Fragments are written by independent runs, so the same dataset or model
 would normally get a different `spdxId` in each -- leaving the merged SBOM
-as disconnected islands. The Loom ID registry (`loom-ids.json`) fixes that:
+as disconnected islands. A Loom ID registry fixes that, but only when you
+declare one -- nothing is ever searched for or auto-discovered, on any
+surface (every CLI subcommand, the Hatchling build hook, the library API
+including `loom.Run`, and the GitHub Action). Declare a registry with
+`--id-registry FILE` on the command line, or with `id-registry` in the
+project's own `[tool.pitloom]` (or in a `--config` file):
 
-```console
-loom ids generate data src --entity model      # pin ids before running
-loom ids import existing-sbom.spdx3.json       # or reuse ids from an SBOM
+```toml
+[tool.pitloom]
+id-registry = "loom-id-registry.json"
 ```
 
-`pitloom.loom`, `loom project`, the build hook and `generate()` on a
-project directory find the registry in the project (or take it from
-`[tool.pitloom] ids-file`). `loom wheel`/`env`/`model` and `embed-wheel`
-without `--project-dir` never search for one: pass `--registry FILE` or
-a `--config` file with `ids-file`. Given the same registry, the same
-file/entity carries the same id everywhere. Regeneration is
-stable: an unchanged file keeps its id; changed content gets a fresh one
-(different bytes are different provenance).
+```console
+loom id generate data src --entity model      # pin ids before running
+loom id import existing-sbom.spdx3.json       # or reuse ids from an SBOM
+loom project                                  # uses the declared registry
+```
 
-`loom project`/`wheel`/`env` also harvest newly-minted ids back into the
-resolved registry after each run (`update-registry`, on by default) --
-running `loom project`, then `loom wheel --registry loom-ids.json`, then
-`loom env --registry loom-ids.json` keeps the same spdxIds without a
-manual `ids generate`/`import` step in between.
+Precedence is `--id-registry`/`id_registry=` first, then the applicable
+config's `id-registry` key, then no registry at all -- silently, on
+every surface except `loom id generate`/`loom id import` themselves:
+those two require a declared location (`-o`/`--id-registry`, or the
+project's own `id-registry` key) and print one `ERROR:` line and exit 1
+otherwise -- there's no implicit `loom-id-registry.json` fallback file.
+Given the same registry, a file, directory, dependency package, the
+project's own package (`project`, `wheel`, `embed-wheel` and the Hatchling
+hook) or AI model carries the same id everywhere, except that a
+`src/`-layout project's files are not found by `wheel` or sdist targets
+(their paths differ from the project's). A `loom.Run` dataset is looked up by file path and hash; datasets found at
+build time and `env`'s root package are not looked up, so a registry entry
+doesn't pin them. Regeneration is stable: an unchanged file keeps its id;
+changed content gets a fresh one (different bytes are different
+provenance). A package name held by two elements of one document that
+both read the registry (two versions of one dependency behind different
+markers) cannot be pinned automatically: runs don't record it, and a
+pinned id for it goes to the first of them, with a `WARNING:`. A
+self-referencing extra, or a bundled library named like the project or a
+dependency, never reads the registry: it silently gets its own id, and runs
+still record the name for the project or dependency. `loom id import` of
+an SBOM skips every name held by several elements, with one `INFO:` line.
+
+A declared registry that's missing, unreadable, or invalid is fatal: the
+CLI prints one `ERROR:` line and exits 1; the library API and `loom.Run`
+raise `ValueError`; the Hatchling build hook logs one `ERROR:` and fails
+the build. Create one with `loom id generate`/`loom id import` -- see
+above -- which also print a `[tool.pitloom]` line to add, but only when
+that run *created* a new registry file (not when writing to one that
+already existed) and the target isn't already declared in the project's
+own config.
+
+`loom project`/`wheel`/`env` also harvest newly-minted ids back into a
+*declared* registry after each run (`update-id-registry`, on by default;
+never creates one) -- running `loom project`, then `loom wheel
+--id-registry loom-id-registry.json` and `loom env --id-registry
+loom-id-registry.json` keeps the same spdxIds without a manual `id
+generate`/`import` step in between.
 `ai_AIPackage` and `dataset_DatasetPackage` entries are the exceptions:
-`loom ids generate` remains the way to register AI models, since their
+`loom id generate` remains the way to register AI models, since their
 stable key (the model file's stem) can't safely come from auto-harvest;
-datasets aren't registry-consulted at build time at all yet, so harvesting
-them would just write dead entries. See
+datasets found at build time aren't registry-consulted at all, so
+harvesting them would just write dead entries. See
 [Persisting the Loom ID registry in CI](docs/github-action.md#persisting-the-loom-id-registry-in-ci)
 for the CI workflow shape this implies.
 

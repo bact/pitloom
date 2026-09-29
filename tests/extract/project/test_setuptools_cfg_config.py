@@ -161,3 +161,30 @@ def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:
     assert config.pretty is False
     assert config.sbom_basename is None
     assert not config.fragments
+
+
+def test_read_setup_cfg_moved_key_error_names_setup_cfg_table() -> None:
+    """A moved-key error triggered from ``setup.cfg``'s ``[tool:pitloom]``
+    must name that table (colon separator), not
+    ``pyproject.toml``'s ``[tool.pitloom]`` (dot separator) -- the
+    generic moved-key checks in :mod:`pitloom.core._config_legacy` are
+    shared by both sources via ``parse_pitloom_config(..., is_setup_cfg=
+    ...)``."""
+    content = """
+[metadata]
+name = pkg
+version = 1.0
+
+[tool:pitloom]
+ids-file = registry.json
+"""
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "setup.cfg").write_text(content)
+        try:
+            read_setup_cfg(Path(d))
+        except ValueError as exc:
+            message = str(exc)
+        else:
+            raise AssertionError("expected ValueError for moved 'ids-file' key")
+    assert "[tool:pitloom]" in message
+    assert "[tool.pitloom]" not in message

@@ -38,7 +38,7 @@ def _open_wheel_zip(wheel_path: Path) -> zipfile.ZipFile:
         return zipfile.ZipFile(wheel_path, "r")
     except OSError:
         raise
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         raise ValueError(f"Invalid wheel archive {wheel_path.name}: {exc}") from exc
 

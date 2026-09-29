@@ -34,7 +34,7 @@ from pitloom.assemble.spdx3.fragments import (
 )
 from pitloom.core.config import FragmentConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 from .conftest import (
     _by_type,
@@ -46,7 +46,7 @@ from .conftest import (
 
 
 class TestRegistryUnification:
-    """The full workflow: `ids generate` -> loom runs -> generate_project_sbom."""
+    """The full workflow: `id generate` -> loom runs -> generate_project_sbom."""
 
     @pytest.fixture()
     def merged(
@@ -56,10 +56,14 @@ class TestRegistryUnification:
         monkeypatch.chdir(tmp_path)
         _run_unify_pipeline(tmp_path)
 
-        sbom_json = generate_project_sbom(tmp_path, creation_metadata=_fixed_creation())
+        sbom_json = generate_project_sbom(
+            tmp_path,
+            creation_metadata=_fixed_creation(),
+            id_registry=tmp_path / DEFAULT_ID_REGISTRY_FILENAME,
+        )
         graph = json.loads(sbom_json).get("@graph", [])
         index = {e["spdxId"]: e for e in graph if "spdxId" in e}
-        registry = IdRegistry.load(tmp_path / "loom-ids.json")
+        registry = IdRegistry.load(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)
         return graph, index, registry
 
     def test_single_ai_package_under_registry_id(

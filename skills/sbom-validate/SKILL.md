@@ -1,38 +1,32 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-09-19
+# Last-Modified: 2026-09-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
 name: sbom-validate
 description: >-
-  Use this skill whenever an SPDX 3 JSON document (an SBOM/AIBOM, whether
-  Pitloom-generated or not) needs a schema/shape-level conformance check --
-  after generating or enriching a Pitloom SBOM, after hand-editing or
-  merging SPDX 3 JSON, or whenever asked to validate, check, or verify an
-  SPDX 3 document against the spec. Trigger phrasings include "validate
-  this SBOM", "validate this BOM", "is this SBOM valid", "is it a valid
-  SBOM", "check this SBOM", "check this SBOM's SPDX conformance", "verify
-  this SBOM", "is this SBOM in good shape", "validate the merged output",
-  "run spdx3-validate on this file". Also triggers, on the wheel-embedded
-  SBOM specifically (see "Validate a wheel's embedded SBOM" below, which
-  runs both `verify-wheel` and `validate-wheel`) -- "check validity of
-  SBOM in wheel", "check the SBOM in this wheel", "validate the SBOM in
-  this wheel", "validate wheel SBOM", "is the wheel's SBOM valid", "is the
-  SBOM inside this wheel valid", "check if wheel SBOM is valid", "validate
-  SBOM embedded in wheel". Also triggers, for presence/location only (see
-  "Presence/location only" below, which runs `verify-wheel` alone and
-  asks a follow-up before checking content) -- "is SBOM in correct
-  location in the wheel", "is this wheel has an SBOM", "does this wheel
-  have a SBOM", "check if the wheel has an SBOM", "where is the SBOM in
-  this wheel". A quick
-  `@graph`-presence sanity check (see the sibling `sbom-generate`/
-  `sbom-enrich` skills) is not a substitute for this: it cannot catch a
-  missing required property or a wrong relationship type, which only
-  schema/SHACL validation catches.
+  Check any SPDX 3 JSON document (an SBOM/AIBOM, Pitloom-generated or not)
+  for schema and SHACL conformance with `loom fragment validate` or
+  spdx3-validate, and check a wheel's PEP 770 embedded SBOM. `verify-wheel`
+  is structural (present, right place, name/version match); `validate-wheel`
+  checks content (schema/SHACL). Triggers: "validate/check/verify this
+  SBOM/BOM", "is this SBOM valid", "is it a valid SBOM", "is this SBOM in
+  good shape", "validate the merged output", "run spdx3-validate". Wheel
+  content, runs both: "is the wheel's SBOM valid", "check validity of SBOM in
+  wheel", "check the SBOM in this wheel", "validate wheel SBOM", "validate
+  SBOM embedded in wheel". Presence only, runs verify-wheel alone and offers
+  a content check: "does this wheel have an SBOM", "check if the wheel has an
+  SBOM", "is SBOM in correct location in the wheel", "where is the SBOM in
+  this wheel". A quick @graph check is not a substitute. Not for
+  NTIA/CISA/G7 completeness (sbom-enrich).
 license: Apache-2.0
-argument-hint: "[sbom-file]"
+compatibility: >-
+  Requires a shell, Python 3.10+ and pitloom >= 0.20.0 with the validate
+  extra (pitloom[validate], which brings spdx3-validate) via pip, uvx or
+  pipx, or spdx3-validate alone. Needs network access to install them. Not
+  usable where packages cannot be installed, e.g. Claude API code execution.
 ---
 
 # Validate an SPDX 3 document
@@ -44,11 +38,22 @@ doesn't match its own `ExternalMap` entry. This skill runs
 [`spdx3-validate`](https://github.com/JPEWdev/spdx3-validate) -- schema
 (JSON Schema) plus shape (SHACL) validation, with SPDX-3-aware handling of
 `ExternalMap`-declared IDs that plain `pyshacl`/`check-jsonschema` gets
-wrong.
+wrong. It works on any SPDX 3 JSON document, not just Pitloom's own
+output: a hand-authored fragment, a merged SBOM, a third-party file.
 
-Works on any SPDX 3 JSON document, not just Pitloom's own output --
-useful for a hand-authored fragment, a merged SBOM, or a third-party SPDX
-3 file.
+This skill is one of three (`sbom-generate`, `sbom-enrich`,
+`sbom-validate`) meant to be installed together: it refers to sections of
+`sbom-generate`.
+
+Pitloom's CLI splits two checks, and users treat the words as synonyms:
+
+| Check | Command | Answers |
+| :--- | :--- | :--- |
+| Verify (structural) | `loom verify-wheel` | Is an SBOM present at the PEP 770 location, with the right extension and a name/version matching the wheel's METADATA? |
+| Validate (content) | `loom fragment validate`, `loom validate-wheel` | Does the SBOM conform to the SPDX 3 schema and SHACL shapes? |
+
+Neither implies the other; a generic "is it valid" runs the content check
+(for a wheel, both, verify first).
 
 **"Valid" is not "complete."** This skill only checks that what's present
 conforms to the spec's shape -- it says nothing about whether the SBOM
@@ -62,29 +67,38 @@ answer both questions, not just the one this skill actually checks.
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-validate
 [sbom-file]` (`/pitloom:sbom-validate [sbom-file]` when installed via the
-Claude Code plugin). `sbom-file` is optional -- point it at a specific
-file when a project has more than one SBOM; omit it to let the agent find
-the one to validate.
+Claude Code plugin; the syntax depends on the client, e.g.
+`$sbom-validate` in Codex). `sbom-file` is optional -- point it at a
+specific file when a project has more than one SBOM; omit it to let the
+agent find the one to validate.
 
-See `references/examples.md` for copy-paste recipes (URL in "See also"
-below).
+See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-Python >= 3.10, the `loom`/`pitloom` entry point or standalone
-`spdx3-validate` CLI; `loom fragment validate` needs the `validate`
-extra (`pip install "pitloom[validate]"`).
+Python >= 3.10 and **pitloom >= 0.20.0** (earlier releases lack
+`--id-registry`, `loom id` and `--build-timeout`, which the sibling skills
+use), the `loom`/`pitloom` entry point or standalone `spdx3-validate` CLI;
+`loom fragment validate` needs the `validate` extra (`pip install
+"pitloom[validate]>=0.20.0"`).
 
 ## Run the validator
 
+Snippets are POSIX shell. On Windows use `python` or `py` for `python3`,
+and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
+one per line).
+
 ```bash
-pip install "pitloom[validate]"  # if not already installed
+pip install "pitloom[validate]>=0.20.0"  # if not already installed
 loom fragment validate <sbom-file>
 ```
 
-Works on any SPDX 3 JSON document, Pitloom-generated or not -- despite
-the `fragment` grouping (shared with `loom merge`), the underlying
-`spdx3-validate` check has no dependency on Pitloom's own output.
+Without a persistent install: `uvx --from "pitloom[validate]>=0.20.0"
+loom fragment validate <sbom-file>`.
+
+Despite the `fragment` grouping (shared with `loom merge`), the
+underlying `spdx3-validate` check has no dependency on Pitloom's own
+output.
 
 Exit code `0` means valid; a non-zero exit code means at least one
 schema or SHACL error, printed to stderr with every line `ERROR:`-tagged
@@ -92,8 +106,8 @@ schema or SHACL error, printed to stderr with every line `ERROR:`-tagged
 several `ERROR:` lines, not just one).
 
 To validate several related documents (e.g. a base SBOM plus a fragment
-that references it via `ExternalMap`) and additionally check the *merged*
-graph, pass more than one path:
+that declares an `ExternalMap` for the base ids it uses) and additionally
+check the *merged* graph, pass more than one path:
 
 ```bash
 loom fragment validate base.spdx3.json fragment.spdx3.json
@@ -102,29 +116,36 @@ loom fragment validate base.spdx3.json fragment.spdx3.json
 Add `--no-merge` to skip the merged-graph check and validate each
 document only in isolation.
 
+**A Pitloom enrichment fragment is not such a fragment.** It names the
+base SBOM's ids directly, with no `ExternalMap`, so it fails SHACL alone
+and paired with its base (exit 1) even when correct. To check one,
+validate the **merged** SBOM: regenerate the project with the fragment
+registered (`sbom-enrich`, steps 8-10) and run `loom fragment validate
+<merged-sbom-file>`.
+
 (The standalone `spdx3-validate --json <file>` CLI checks the same rules
 and uses the same exit code convention, if `pitloom[validate]` isn't the
 preferred install path in a given context -- but it writes its report to
-*stdout*, not stderr, and doesn't `ERROR:`-tag lines the way `loom
-fragment validate` does.)
+*stdout*, not stderr, and only each document's header line is
+`ERROR:`-tagged; the continuation lines are not.)
 
 ## Validate a wheel's embedded SBOM
 
 For "is this wheel's SBOM valid" rather than a standalone document, run
-**both** checks -- they answer different questions and neither implies
-the other:
+**both** checks, the cheap structural one first -- a wheel can pass one
+and fail the other:
 
 ```bash
 loom verify-wheel dist/mypackage-1.0.0-py3-none-any.whl     # present, right place, name/version match
 loom validate-wheel dist/mypackage-1.0.0-py3-none-any.whl   # schema/SHACL content check
 ```
 
-`verify-wheel` (structural: is an SBOM present at the PEP 770 location,
-does its extension match its format, does its declared name/version match
-the wheel's own `.dist-info/METADATA`) and `validate-wheel` (content:
-schema/SHACL conformance) are independent -- a wheel can pass one and fail
-the other. A generic "is this wheel's SBOM valid/good" request runs both,
-in that order (the cheap structural check first).
+**Exit 0 is not always a clean pass.** A name/version mismatch in
+`verify-wheel` is only a `WARNING:` (exit 0, and it still prints "N
+wheel(s) OK") unless `--fail-on-mismatch` is given: report any `WARNING:`,
+and add `--fail-on-mismatch` in CI. `validate-wheel` on an SBOM in a
+format it has no validator for prints "... skipped (no validator for their
+format)" and exits 0: report a skipped count as "not validated".
 
 ### Presence/location only -- ask before validating content
 
@@ -146,16 +167,11 @@ that content validity was not checked, and stop there. Don't silently run
 `validate-wheel` on their behalf either -- expanding scope on an
 unattended run is its own kind of unasked deviation.
 
-`sbom-generate`'s "Embed an SBOM into a wheel" section (URL in "See
-also" below) covers the combined flag form, run right after an embed
-in the same command: `loom embed-wheel dist/*.whl --project-dir . --verify --validate`
-(`--project-dir` is required for a project rescan; without it the SBOM is
-built from the wheel alone).
-`embed-wheel` also accepts `--allow-build`; if the user asked for it,
-size `--build-timeout` first (bare number = seconds, or `h`/`m`/`s`
-units, default 20m, max 7 days; **in an agent session always pass an
-explicit value**) -- full method in `sbom-generate`'s "Choosing
-`--build-timeout`" section, same URL.
+Right after an embed, `loom embed-wheel dist/*.whl --project-dir .
+--verify --validate` runs both checks in the same command
+(`sbom-generate`'s "Embed an SBOM into a wheel" section). If the user
+asked for `embed-wheel --allow-build`, always pass an explicit
+`--build-timeout` (see `sbom-generate`'s "Choosing `--build-timeout`").
 
 ## Report the result
 

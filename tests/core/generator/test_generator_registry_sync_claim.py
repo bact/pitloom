@@ -16,7 +16,7 @@ colliding with a later run's fresh mint (fixed by
 ``pitloom.id_registry._harvest._release_stale_keys_for_id``, the harvest-time one-key-
 per-id invariant), and two elements in the *same* run legitimately
 hitting one registered id (fixed by
-``pitloom.id_registry.claim_registry_hit``'s first-claimant-wins).
+``pitloom.id_registry.IdRegistrySession``'s first-claimant-wins).
 
 See also: :mod:`tests.core.generator.test_generator_registry_sync` and
 :mod:`tests.core.generator.test_generator_registry_sync_env` for the
@@ -43,7 +43,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import IdRegistry, IdRegistrySession
 from pitloom.id_registry._types import FileEntry
 
 from ...conftest import _assert_no_duplicate_spdx_ids
@@ -254,7 +254,9 @@ def test_resolve_file_hits_default_claimed_dict_collision(
     )
 
     with caplog.at_level("WARNING"):
-        _dir_hits, file_hits = _resolve_file_and_directory_hits(files, registry)
+        _dir_hits, file_hits = _resolve_file_and_directory_hits(
+            files, IdRegistrySession(registry)
+        )
 
     assert len(file_hits) == 1
     warnings = [r for r in caplog.records if r.levelname == "WARNING"]
@@ -279,7 +281,7 @@ def test_resolve_deployed_hits_default_claimed_dict_collision(
     ]
 
     with caplog.at_level("WARNING"):
-        hits = _resolve_deployed_package_hits(env_tree, registry)
+        hits = _resolve_deployed_package_hits(env_tree, IdRegistrySession(registry))
 
     assert len(hits) == 1
     assert collided_id in hits.values()
@@ -289,7 +291,7 @@ def test_resolve_deployed_hits_default_claimed_dict_collision(
 
 def test_resolve_ai_model_hits_default_claimed_dict() -> None:
     """Direct unit coverage of ``resolve_ai_model_entity_hits`` called
-    with no shared *claimed* dict (its default, ``None``)."""
+    with a fresh, unshared session."""
     registry = IdRegistry.new("ai-project")
     registered_id = registry.register_entity("model", "ai_AIPackage")
     ai_models = [
@@ -300,38 +302,38 @@ def test_resolve_ai_model_hits_default_claimed_dict() -> None:
         )
     ]
 
-    hits = resolve_ai_model_entity_hits(ai_models, registry)
+    hits = resolve_ai_model_entity_hits(ai_models, IdRegistrySession(registry))
 
     assert hits == [registered_id]
 
 
 def test_resolve_deployed_hits_shared_claimed_dict() -> None:
     """``_resolve_deployed_package_hits`` accepts a caller-supplied
-    *claimed* dict (not its ``None`` default) -- ``build_deployed()``
-    doesn't currently share one across calls, since a deployed
-    environment is a single, self-contained resolution pass, but the
-    parameter exists for symmetry with the other resolvers and must
-    behave the same way when a caller does pass one in."""
+    *session* (not a fresh one per call) -- ``build_deployed()`` doesn't
+    currently share one across calls, since a deployed environment is a
+    single, self-contained resolution pass, but the parameter exists for
+    symmetry with the other resolvers and must behave the same way when
+    a caller does pass one in."""
     registry = IdRegistry.new("deployed-environment")
     registered_id = registry.register_entity("aaa", "software_Package")
     env_tree = [
         {"package": {"key": "aaa", "package_name": "aaa", "installed_version": "1.0"}}
     ]
 
-    hits = _resolve_deployed_package_hits(env_tree, registry, {})
+    hits = _resolve_deployed_package_hits(env_tree, IdRegistrySession(registry))
 
     assert hits == {"aaa": registered_id}
 
 
 def test_resolve_deployed_hits_no_registry_is_noop() -> None:
-    """``_resolve_deployed_package_hits(env_tree, registry=None)`` returns
-    ``{}`` without touching *env_tree* at all -- the no-registry branch
-    every other resolver's docstring documents too."""
+    """``_resolve_deployed_package_hits(env_tree, IdRegistrySession(None))``
+    returns ``{}`` without touching *env_tree* at all -- the no-registry
+    branch every other resolver's docstring documents too."""
     env_tree = [
         {"package": {"key": "aaa", "package_name": "aaa", "installed_version": "1.0"}}
     ]
 
-    assert not _resolve_deployed_package_hits(env_tree, None)
+    assert not _resolve_deployed_package_hits(env_tree, IdRegistrySession(None))
 
 
 def test_resolve_directory_hits_collision(caplog: pytest.LogCaptureFixture) -> None:
@@ -356,7 +358,9 @@ def test_resolve_directory_hits_collision(caplog: pytest.LogCaptureFixture) -> N
     ]
 
     with caplog.at_level("WARNING"):
-        dir_hits, _file_hits = _resolve_file_and_directory_hits(files, registry)
+        dir_hits, _file_hits = _resolve_file_and_directory_hits(
+            files, IdRegistrySession(registry)
+        )
 
     assert len(dir_hits) == 1
     assert collided_id in dir_hits.values()
@@ -386,7 +390,9 @@ def test_resolve_directory_hits_collision_warns_once_across_many_files(
     ]
 
     with caplog.at_level("WARNING"):
-        dir_hits, file_hits = _resolve_file_and_directory_hits(files, registry)
+        dir_hits, file_hits = _resolve_file_and_directory_hits(
+            files, IdRegistrySession(registry)
+        )
 
     warnings = [
         r
@@ -435,7 +441,9 @@ def test_resolve_file_hits_absolute_physical_path_falls_back_to_distribution_pat
     with patch.object(
         IdRegistry, "lookup_file", autospec=True, side_effect=IdRegistry.lookup_file
     ) as spy:
-        _dir_hits, file_hits = _resolve_file_and_directory_hits(files, registry)
+        _dir_hits, file_hits = _resolve_file_and_directory_hits(
+            files, IdRegistrySession(registry)
+        )
 
     assert file_hits["demo/pkg/mod.py"] == registered_id
     called_with_absolute = any(

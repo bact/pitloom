@@ -279,7 +279,7 @@ Unix philosophy. Consistent, predictable, parseable.
     invoked Pitloom. A new entry point that skips this call is a bug,
     not a style choice.
 - Within one subsystem, prefer a shared, literal sub-prefix so its
-  messages are easy to compare/grep as a group (e.g. `Registry: ...`
+  messages are easy to compare/grep as a group (e.g. `ID registry: ...`
   for every `pitloom.id_registry`/`IdRegistry` warning, `FORMAT=%s
   FILE=%s: ...` for per-model-file scanning warnings) -- match an existing sibling
   message's wording before inventing a new phrasing for the same kind of
@@ -334,7 +334,7 @@ flake8
 - Sort all imports alphabetically and logically (enforced by `ruff` / `isort`).
 - Remove unused imports and trailing whitespace.
 - Restrict non-ASCII characters to human language messages and diagrams.
-- Place `# pylint: disable=` comments on the preceding line rather than inline to save line length.
+- Place pylint suppressions on the preceding line as `# pylint: disable-next=<msg>` rather than inline, to save line length. A bare `# pylint: disable=` line before an `except` clause stopped suppressing it in pylint 4.1.
 
 ## File headers
 
@@ -385,7 +385,7 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 pytest exercises functions in-process only -- it doesn't exercise the
 `loom` entry point, subprocess argv parsing, real filesystem/archive I/O,
 or drift between the CLI/library-API/Hatchling-hook/skills surfaces (see
-"Usage surfaces" above). Run 13 checks by hand -- or have an agent run
+"Usage surfaces" above). Run 14 checks by hand -- or have an agent run
 them -- against a real project (scratch dir, never the repo tree) after
 any change touching `assemble/`, `extract/`, `core/`, `embed.py`,
 `__main__.py`, or `plugins/hatch.py`, before committing: determinism,
@@ -393,10 +393,12 @@ CLI/library-API/hook parity, embed-wheel/`wheel --embed` parity,
 embed->verify->validate round trip, `--debug`/`PITLOOM_DEBUG` reaching
 every subcommand, skills/plugin surface drift, fragment merge
 determinism, offline-mode zero-network-calls, registry round trip,
-`--allow-build` with/without/ground-truth parity, and a setting that
+`--allow-build` with/without/ground-truth parity, a setting that
 changes no bytes (`--content-type-method`) still reaching `project` and
-`embed-wheel`, no implicit config for a non-project target, and an
-sdist reading its own config as its unpacked directory does.
+`embed-wheel`, no implicit config for a non-project target, an
+sdist reading its own config as its unpacked directory does, and a
+declared-but-missing/invalid `--id-registry` failing the same way on
+every surface.
 Full commands for each in
 [working-docs/implementation/manual-cli-checks.md](working-docs/implementation/manual-cli-checks.md).
 Run them all with `.venv/bin/python scripts/manual_cli_checks` (add

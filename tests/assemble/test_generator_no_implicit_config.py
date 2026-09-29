@@ -9,7 +9,7 @@ A wheel, an installed environment, a model file, an enrichment fragment and
 a wheel embedded without a project directory have no ``[tool.pitloom]`` of
 their own. A config lying in the current directory -- or beside the model
 file -- may belong to an unrelated project, so none is read implicitly, and
-no ``loom-ids.json`` is searched for. Settings come from arguments and from
+no ``loom-id-registry.json`` is searched for. Settings come from arguments and from
 a config the caller names explicitly (``pitloom_config=``, ``--config``).
 
 Each test runs one surface twice with ``SOURCE_DATE_EPOCH`` pinned: once
@@ -45,7 +45,7 @@ from pitloom.assemble import (
 from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import load_config_file
 from pitloom.id_registry import (
-    DEFAULT_REGISTRY_FILENAME,
+    DEFAULT_ID_REGISTRY_FILENAME,
     EntityEntry,
     FileEntry,
     IdRegistry,
@@ -173,10 +173,10 @@ def test_no_config_is_borrowed_from_the_current_directory(
     decoy = tmp_path / "decoy"
     decoy.mkdir()
     (decoy / "pyproject.toml").write_text(_DECOY, encoding="utf-8")
-    _seed_registry(decoy / DEFAULT_REGISTRY_FILENAME, wheel)
+    _seed_registry(decoy / DEFAULT_ID_REGISTRY_FILENAME, wheel)
     # Beside the model file too: that directory is not the model's project.
     shutil.copyfile(decoy / "pyproject.toml", targets / "pyproject.toml")
-    registry_before = (decoy / DEFAULT_REGISTRY_FILENAME).read_bytes()
+    registry_before = (decoy / DEFAULT_ID_REGISTRY_FILENAME).read_bytes()
 
     monkeypatch.chdir(empty)
     from_empty = run(target(), None)
@@ -186,6 +186,6 @@ def test_no_config_is_borrowed_from_the_current_directory(
     named = run(target(), load_config_file(decoy / "pyproject.toml"))
 
     assert from_decoy == from_empty
-    assert (decoy / DEFAULT_REGISTRY_FILENAME).read_bytes() == registry_before
+    assert (decoy / DEFAULT_ID_REGISTRY_FILENAME).read_bytes() == registry_before
     assert named != from_empty, "the decoy changes nothing even when named"
     assert "comment-from-the-decoy" in named

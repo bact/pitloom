@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -23,7 +23,7 @@ Before this change, a wheel/env/model target read whichever
 has no necessary relationship to the wheel/model/environment being
 scanned: running `loom wheel dist/other-package.whl` from inside an
 unrelated project silently picked up *that* project's settings
-(`enrich`, `update-registry`, creator identity, `ids-file`). There was
+(`enrich`, `update-id-registry`, creator identity, `id-registry`). There was
 also no way to point any of these targets at a config file at all --
 only a project directory's own `pyproject.toml` was reachable.
 
@@ -86,13 +86,13 @@ only a project directory's own `pyproject.toml` was reachable.
   instead of degrading to defaults. A file with no `[tool.pitloom]`
   table is not an error (empty is valid TOML) but does warn, since a
   wrong path would otherwise pass unnoticed.
-- **A relative `ids-file` inside `--config` resolves against the config
+- **A relative `id-registry` inside `--config` resolves against the config
   file's own directory**, not the current directory and not a symlink
   target's directory -- the config means the same thing regardless of
   where Pitloom runs from.
-- **A relative `--registry` on the command line resolves against the
+- **A relative `--id-registry` on the command line resolves against the
   current directory, on every command** -- unlike a target's own
-  `ids-file`, which is project-relative. This is a path given on the
+  `id-registry`, which is project-relative. This is a path given on the
   command line, so it follows shell-path convention, not the config's.
 - **`embed-wheel` never infers a project from the current directory**:
   `--project-dir` is required to have it rescan one; without it (and
@@ -112,7 +112,7 @@ only a project directory's own `pyproject.toml` was reachable.
 - **`wheel --embed` embeds what `embed-wheel` embeds**: it settles the
   whole `EMBED_STANDALONE` row (same reasons as `embed-wheel` without a
   project), clears those options, and forces `EMBEDDED_SBOM_PARAMS`
-  (`pretty`, `describe_relationship`, `update_registry`) off, so `-o`
+  (`pretty`, `describe_relationship`, `update_id_registry`) off, so `-o`
   writes a copy of the embedded bytes. Rejected:
   a pretty `-o` plus a canonical embedded copy -- two different SBOMs
   from one run, and `describe_relationship` changes content, not only
@@ -153,7 +153,7 @@ only a project directory's own `pyproject.toml` was reachable.
   reason.
 - `tests/cli/test_cli_no_implicit_config.py` -- CLI-level: no
   `wheel`/`env`/`model`/`enrich`/`embed-wheel` invocation reads a decoy
-  `pyproject.toml`/`loom-ids.json` from the current directory.
+  `pyproject.toml`/`loom-id-registry.json` from the current directory.
 - `tests/assemble/test_generator_no_implicit_config.py` -- the same
   guarantee at the library level, per generator function.
 - `tests/assemble/test_explicit_config_edges.py` -- library edge cases:
@@ -162,7 +162,7 @@ only a project directory's own `pyproject.toml` was reachable.
   `enrich`/registry, one warning per embed batch.
 - `tests/core/test_config_cascade.py` -- `load_config_file()`: missing
   file, directory, non-UTF-8, invalid TOML, no `[tool.pitloom]` table,
-  relative `ids-file` (and through a symlink).
+  relative `id-registry` (and through a symlink).
 - `tests/core/test_inert_options.py` -- `INERT` against the
   `docs/cli.md` table, and every warned flag exists on the CLI.
 - Manual check 12 in
@@ -197,10 +197,13 @@ only a project directory's own `pyproject.toml` was reachable.
 ## Found, not fixed here
 
 - **Config-parity findings** (error shapes, `-v` sources, key
-  applicability, `loom.Run` cwd walk-up, id-minting via `ids-file`,
-  unknown keys, repeated warnings, ...) moved to
+  applicability, unknown keys, repeated warnings, ...) moved to
   [config-cascade-parity.md](../design/config-cascade-parity.md), to be
-  fixed together.
+  fixed together. Two items from that list -- `loom.Run`'s cwd walk-up
+  and id-minting via `id-registry` -- are resolved by PR A2: a registry
+  is used only when explicitly declared, on every surface; see
+  [id-registry-autosync.md](id-registry-autosync.md)'s "Revised in PR
+  A2" section.
 - **A latent import cycle**, hidden by import order:
   `core._config_parse` imports `extract._toml_io`, which (via
   `extract/__init__.py`) reaches `extract.project.reader`, which imports

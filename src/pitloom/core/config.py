@@ -17,6 +17,7 @@ from pitloom.core._config_legacy import (
     _MOVED_CREATION_KEYS_LIST_VALID,
     _MOVED_TOP_LEVEL_TABLES,
     _check_moved_creation_keys,
+    _check_moved_flat_keys,
     _check_moved_top_level_tables,
 )
 from pitloom.core._config_parse import (
@@ -31,7 +32,7 @@ from pitloom.core._config_parse import (
     _read_enrich_settings,
     _read_extract_file_header,
     _read_fragments,
-    _read_ids_file,
+    _read_id_registry,
     _read_offline_setting,
     _read_provenance_settings,
     _read_tools,
@@ -73,6 +74,7 @@ __all__ = [
     "_VALID_PROVENANCE_DETAIL",
     "_VALID_PROVENANCE_FORMATS",
     "_check_moved_creation_keys",
+    "_check_moved_flat_keys",
     "_check_moved_top_level_tables",
     "_read_content_type_overrides",
     "_read_content_type_settings",
@@ -80,7 +82,7 @@ __all__ = [
     "_read_enrich_settings",
     "_read_extract_file_header",
     "_read_fragments",
-    "_read_ids_file",
+    "_read_id_registry",
     "_read_offline_setting",
     "_read_provenance_settings",
     "_read_tools",

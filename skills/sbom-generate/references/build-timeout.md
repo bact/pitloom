@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -12,8 +12,8 @@ Companion to `../SKILL.md`'s "Choosing `--build-timeout`" section. This
 only ever applies **after** the user has already explicitly asked for
 `--allow-build` in this conversation -- picking a `--build-timeout`
 value is not itself a security decision, but adding `--allow-build` is,
-and that hard rule (`../SKILL.md`, "Known limitations") never changes
-because of anything below.
+and that hard rule (`../SKILL.md`, "Hard rules") never changes because of
+anything below.
 
 ## 1. Duration format
 
@@ -73,11 +73,11 @@ explicitly that it's an estimate, not a measurement.
 
 ## 3. Know your own limits (agent/harness), before choosing a value
 
-- **Per-command timeout of whatever runs `loom`.** For example, Claude
-  Code's Bash tool defaults to a 2-minute timeout per call (up to a
-  10-minute max if requested), unless the command is run in the
-  background; a CI job may carry its own `timeout-minutes`; a scheduler
-  may carry an overall job/session budget.
+- **Per-command timeout of whatever runs `loom`.** Every agent client's
+  shell tool has one; check yours. For example, Claude Code's Bash tool
+  defaults to 2 minutes per call (10 minutes max if requested) unless the
+  command runs in the background; a CI job may carry its own
+  `timeout-minutes`; a scheduler may carry an overall job/session budget.
 - **Why it matters.** If the harness stops `loom` before
   `--build-timeout` fires on its own, no SBOM is written at all. On
   SIGTERM/SIGHUP/Ctrl-C during the build, or while its files are still in
@@ -176,9 +176,9 @@ means one may still run -- tell the user.
 - `../SKILL.md`
   (<https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>)
   -- "Choosing `--build-timeout`" (the short version this file expands
-  on), "Known limitations" (the `--allow-build` consent rule), and
-  "Check stderr" (the short prefix list this file gives full wording
-  for).
+  on), "Hard rules" (the `--allow-build` consent rule), and "Check
+  stderr" (the general prefix convention; this file gives the full
+  `Build:` wording).
 - `references/examples.md`
   (<https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/examples.md>)
   -- a copy-paste recipe using `--build-timeout`.

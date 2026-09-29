@@ -32,7 +32,7 @@ def cli_error_handler(
         def wrapper(args: Any, *pargs: Any, **kwargs: Any) -> int:
             try:
                 return func(args, *pargs, **kwargs)
-            # pylint: disable=broad-exception-caught
+            # pylint: disable-next=broad-exception-caught
             except Exception as e:
                 print(f"ERROR: {error_msg}: {e}", file=sys.stderr)
                 if getattr(args, "verbose", False):

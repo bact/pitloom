@@ -90,7 +90,7 @@ _BOOL_OVERRIDE_TO_CONFIG = {
     "offline": "offline",
     "pretty": "pretty",
     "describe_relationship": "describe_relationship",
-    "update_registry": "update_registry",
+    "update_id_registry": "update_id_registry",
 }
 
 
@@ -154,32 +154,32 @@ def test_load_config_file_reads_every_key(tmp_path: Path) -> None:
     assert [creator.name for creator in config.creators] == ["Team"]
 
 
-def test_load_config_file_resolves_ids_file_against_its_own_directory(
+def test_load_config_file_resolves_id_registry_against_its_own_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A relative ``ids-file`` means the same file whatever directory
+    """A relative ``id-registry`` means the same file whatever directory
     Pitloom runs from -- the one beside the config, never the cwd's."""
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     path = config_dir / "pyproject.toml"
-    path.write_text('[tool.pitloom]\nids-file = "ids/loom.json"\n', encoding="utf-8")
+    path.write_text('[tool.pitloom]\nid-registry = "ids/loom.json"\n', encoding="utf-8")
     monkeypatch.chdir(elsewhere)
 
     config = load_config_file(path)
 
-    assert config.ids_file is not None
-    assert Path(config.ids_file) == (config_dir / "ids" / "loom.json").resolve()
+    assert config.id_registry is not None
+    assert Path(config.id_registry) == (config_dir / "ids" / "loom.json").resolve()
 
 
-def test_load_config_file_keeps_an_absolute_ids_file(tmp_path: Path) -> None:
+def test_load_config_file_keeps_an_absolute_id_registry(tmp_path: Path) -> None:
     target = tmp_path / "abs.json"
     path = tmp_path / "pyproject.toml"
     path.write_text(
-        f"[tool.pitloom]\nids-file = {json.dumps(str(target))}\n", encoding="utf-8"
+        f"[tool.pitloom]\nid-registry = {json.dumps(str(target))}\n", encoding="utf-8"
     )
-    assert load_config_file(path).ids_file == str(target)
+    assert load_config_file(path).id_registry == str(target)
 
 
 @pytest.mark.parametrize("shape", ["missing", "directory"])
@@ -253,14 +253,14 @@ def test_load_config_file_warns_without_a_pitloom_table(
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
-def test_load_config_file_ids_file_follows_the_link_not_its_target(
+def test_load_config_file_id_registry_follows_the_link_not_its_target(
     tmp_path: Path,
 ) -> None:
-    """A relative ids-file resolves beside the path the user named."""
+    """A relative id-registry resolves beside the path the user named."""
     real = tmp_path / "real"
     real.mkdir()
     (real / "team.toml").write_text(
-        '[tool.pitloom]\nids-file = "loom.json"\n', encoding="utf-8"
+        '[tool.pitloom]\nid-registry = "loom.json"\n', encoding="utf-8"
     )
     link_dir = tmp_path / "link"
     link_dir.mkdir()
@@ -268,7 +268,7 @@ def test_load_config_file_ids_file_follows_the_link_not_its_target(
 
     config = load_config_file(link_dir / "team.toml")
 
-    assert config.ids_file == str(link_dir / "loom.json")
+    assert config.id_registry == str(link_dir / "loom.json")
 
 
 def test_resolve_standalone_config_uses_only_explicit_sources(

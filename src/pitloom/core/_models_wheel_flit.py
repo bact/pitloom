@@ -125,7 +125,7 @@ def discover(
                     )
 
         return files
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.warning("Flit file discovery failed for %s: %s", project_dir, exc)
         return None

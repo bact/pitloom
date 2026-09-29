@@ -16,6 +16,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, resolve_package_id
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
@@ -33,25 +34,24 @@ from pitloom.core.models import (
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry, claim_registry_hit
+from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 
 def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
     """Return the pipdeptree-graph key used to key *package_spdx_ids* /
     build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
     field, falling back to a lowercased *dep_name*. Unrelated to the
-    registry lookup key: :meth:`~pitloom.id_registry.IdRegistry.lookup_entity`
-    PEP 503-canonicalizes a :data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`
-    name itself (see :func:`pitloom.id_registry._types._entity_key`), so *dep_name* is
-    passed to it verbatim, uncanonicalized, by
-    :func:`_resolve_deployed_package_hits`."""
+    registry lookup key: the registry PEP 503-canonicalizes a package name
+    itself (see :func:`pitloom.id_registry._types._entity_key`), so
+    :func:`_resolve_deployed_package_hits` passes *dep_name* verbatim to
+    :func:`~pitloom.assemble.spdx3._package_ids.resolve_package_id`, the
+    same lookup the project and wheel surfaces use."""
     return str(pkg_info.get("key", dep_name.lower()))
 
 
 def _resolve_deployed_package_hits(
     env_tree: list[dict[str, Any]],
-    registry: IdRegistry | None,
-    claimed: dict[str, str] | None = None,
+    session: IdRegistrySession,
 ) -> dict[str, str]:
     """Pre-resolve every deployed dependency's registry hit, keyed by its
     *lookup_key* (:func:`_deployed_lookup_key`) so :func:`build_deployed`
@@ -63,25 +63,18 @@ def _resolve_deployed_package_hits(
     deterministic; when two dependencies' registry hit is the same id
     (e.g. a stale entry left behind by an earlier run -- see
     ``working-docs/implementation/id-registry-autosync.md``), only the
-    first claims it (:func:`~pitloom.id_registry.claim_registry_hit`) and the
-    other falls back to a fresh mint, with one ``WARNING: Registry: ...``
-    naming both. A no-op, returning ``{}``, when *registry* is ``None``.
-    A fresh, empty *claimed* is used when the caller doesn't share one.
+    first claims it and the other falls back to a fresh mint, with one
+    ``WARNING: ID registry: ...`` naming both. Empty when *session* has
+    no registry loaded.
     """
-    if registry is None:
-        return {}
-    if claimed is None:
-        claimed = {}
     hits: dict[str, str] = {}
     for node in env_tree:
         pkg_info = node.get("package", {})
         dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
         lookup_key = _deployed_lookup_key(pkg_info, dep_name)
-        spdx_id = registry.lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)
-        if spdx_id is not None:
-            claimed_id = claim_registry_hit(lookup_key, spdx_id, claimed)
-            if claimed_id is not None:
-                hits[lookup_key] = claimed_id
+        claimed_id = resolve_package_id(session, DEPENDENCY_LABEL, dep_name)
+        if claimed_id is not None:
+            hits[lookup_key] = claimed_id
     return hits
 
 
@@ -284,8 +277,9 @@ def build_deployed(
         merkle_root=None,
     )
     _clear_doc_counters(doc_uuid)
-    resolved_hits = _resolve_deployed_package_hits(env_tree, registry)
-    reserve_spdx_ids(metadata.name, doc_uuid, resolved_hits.values())
+    session = IdRegistrySession(registry)
+    resolved_hits = _resolve_deployed_package_hits(env_tree, session)
+    reserve_spdx_ids(metadata.name, doc_uuid, session.claimed_ids())
 
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
     exporter.add_creation_info(spdx_ci)

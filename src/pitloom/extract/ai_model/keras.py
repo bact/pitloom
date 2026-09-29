@@ -170,7 +170,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
         raise ValueError(
             f"Failed to read Keras file {model_path}: not a valid ZIP archive"
         ) from exc
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to read Keras file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read Keras file {model_path}: {exc}") from exc

@@ -34,7 +34,7 @@ from pitloom.embed import (
     ConfigOverrides,
     embed_wheel_sbom,
 )
-from pitloom.id_registry import DEFAULT_REGISTRY_FILENAME, FileEntry, IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, FileEntry, IdRegistry
 
 from .conftest import _make_dummy_wheel
 
@@ -500,7 +500,7 @@ packages = ["ctpkg"]
 def test_embed_standalone_wheel_uses_only_an_explicit_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """With no project directory, a ``loom-ids.json`` near the current
+    """With no project directory, a ``loom-id-registry.json`` near the current
     directory belongs to whatever project that is: it is never adopted. An
     explicit registry is -- which also proves the seeded registry would
     have shown up in the SBOM."""
@@ -513,12 +513,12 @@ def test_embed_standalone_wheel_uses_only_an_explicit_registry(
     registry.files[member] = FileEntry(
         spdx_id=f"{namespace}#File-seeded", sha256=digest
     )
-    registry.save(tmp_path / DEFAULT_REGISTRY_FILENAME)
+    registry.save(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)
     monkeypatch.chdir(tmp_path)
 
     *_, implicit, _, _ = embed_wheel_sbom(wheel_path)
     *_, explicit, _, _ = embed_wheel_sbom(
-        wheel_path, registry=tmp_path / DEFAULT_REGISTRY_FILENAME
+        wheel_path, id_registry=tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     )
 
     assert namespace not in implicit

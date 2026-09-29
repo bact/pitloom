@@ -59,7 +59,7 @@ def _read_labelled(path: Path, label: str) -> list[str]:
     return rows
 
 
-@loom.run(FRAGMENT_PATH, pretty=True)
+@loom.run(FRAGMENT_PATH, pretty=True, id_registry=ROOT / "loom-id-registry.json")
 def preprocess() -> tuple[Path, Path]:
     """Tokenise the raw corpus, write the train/test split, and record dataset lineage.
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-25
-Last-Modified: 2026-08-25
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -18,7 +18,7 @@ status and cross-reference each other loosely.
 **Status:** design/future work throughout, except the fragment-merge
 callout in [fragment-merge-design.md](fragment-merge-design.md) noting
 what has actually shipped (`merge_fragments` unification, the
-`loom-ids.json` registry). Everything else in this cluster is unbuilt.
+`loom-id-registry.json` registry). Everything else in this cluster is unbuilt.
 
 | File | Covers |
 | :--- | :----- |
@@ -26,6 +26,7 @@ what has actually shipped (`merge_fragments` unification, the
 | [loom-sdk-and-notebooks.md](loom-sdk-and-notebooks.md) | The `pitloom.loom` tracking SDK redesign (MLflow-style `log_*` API) and Jupyter/notebook recording mode (persistent sessions, IPython magic). |
 | [extractor-integrations.md](extractor-integrations.md) | New extractors for external tracking tools: W&B Weave, DVC, and MLflow extractor updates. |
 | [roadmap-and-resources.md](roadmap-and-resources.md) | The phased implementation roadmap tying the above together, plus the existing-tools/community-resources table and references. |
+| [open-items.md](open-items.md) | What's already shipped vs. still open, re-verified against current code (2026-09-28) -- trimmed out of `roadmap.md`'s own summary bullet. |
 
 See also [working-docs/design/mlflow-extractor.md](../mlflow-extractor.md)
 (the existing, separate MLflow extractor design this cluster's MLflow

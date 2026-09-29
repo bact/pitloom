@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -85,12 +85,16 @@ API](python-api.md#tracking-decorator) page.
 
 ::: pitloom.id_registry.IdRegistry
 
+::: pitloom.id_registry.IdRegistrySession
+
 ::: pitloom.id_registry.resolve_registry
 
-::: pitloom.id_registry.resolve_explicit_registry
+::: pitloom.id_registry.registry_base_dir
+
+::: pitloom.id_registry.warn_claim_collision
 
 ::: pitloom.id_registry.EntityEntry
 
 ::: pitloom.id_registry.FileEntry
 
-::: pitloom.id_registry.DEFAULT_REGISTRY_FILENAME
+::: pitloom.id_registry.DEFAULT_ID_REGISTRY_FILENAME

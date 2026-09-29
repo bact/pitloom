@@ -43,7 +43,10 @@ pytest.importorskip(
 from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom import loom  # noqa: E402
-from pitloom.id_registry import IdRegistry  # noqa: E402
+from pitloom.id_registry import (  # noqa: E402
+    DEFAULT_ID_REGISTRY_FILENAME,
+    IdRegistry,
+)
 
 # pylint: enable=wrong-import-position
 
@@ -65,6 +68,7 @@ enabled = true
 
 [tool.pitloom]
 sbom-basename = "pipedemo"
+id-registry = "loom-id-registry.json"
 
 [tool.pitloom.fragment]
 files = [
@@ -96,9 +100,11 @@ def sbom_graph(
     registry = IdRegistry.new("pipedemo")
     registry.generate([Path("src"), Path("data")], project)
     registry.register_entity("pipedemo-model", "ai_AIPackage")
-    registry.save(project / "loom-ids.json")
+    registry.save(project / DEFAULT_ID_REGISTRY_FILENAME)
 
-    # loom resolves dataset paths and the registry relative to the cwd.
+    # loom resolves dataset paths relative to the cwd; the registry is
+    # named explicitly (no longer searched for).
+    registry_path = project / DEFAULT_ID_REGISTRY_FILENAME
     old_cwd = os.getcwd()
     os.chdir(project)
     try:
@@ -106,7 +112,10 @@ def sbom_graph(
             "pitloom._loom_active_run._get_caller_script_path",
             return_value="src/pipedemo/preprocess.py",
         ):
-            with loom.run(project / "fragments" / "01_preprocess.spdx3.json") as run:
+            with loom.run(
+                project / "fragments" / "01_preprocess.spdx3.json",
+                id_registry=registry_path,
+            ) as run:
                 run.add_input_dataset("data/raw.txt")
                 run.add_output_dataset("data/train.txt")
                 run.add_output_dataset("data/test.txt")
@@ -115,7 +124,10 @@ def sbom_graph(
             "pitloom._loom_active_run._get_caller_script_path",
             return_value="src/pipedemo/train.py",
         ):
-            with loom.run(project / "fragments" / "02_train.spdx3.json") as run:
+            with loom.run(
+                project / "fragments" / "02_train.spdx3.json",
+                id_registry=registry_path,
+            ) as run:
                 run.set_model("pipedemo-model", model_type="supervised")
                 run.add_dataset("data/train.txt")
                 run.add_validation_dataset("data/test.txt")
@@ -133,7 +145,7 @@ def sbom_graph(
         assert sbom_entry.endswith(".dist-info/sboms/pipedemo.spdx3.json")
         graph = json.loads(zf.read(sbom_entry))["@graph"]
 
-    return graph, IdRegistry.load(project / "loom-ids.json")
+    return graph, IdRegistry.load(project / DEFAULT_ID_REGISTRY_FILENAME)
 
 
 def _by_type(graph: list[dict[str, Any]], type_name: str) -> list[dict[str, Any]]:

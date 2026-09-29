@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import _loom_caller, loom
-from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, FileEntry, IdRegistry, IdRegistrySession
 
 
 def test_loom_functions_raise_runtime_error_without_active_run() -> None:
@@ -230,7 +230,7 @@ def test_hash_and_registry_lookup_content_changed_warning(
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
             # pylint: disable=protected-access
             hash_elem, registered_id = _loom_caller._hash_and_registry_lookup(
-                file_path, registry
+                file_path, IdRegistrySession(registry)
             )
             assert hash_elem is not None
             assert registered_id is None
@@ -255,7 +255,7 @@ def test_hash_and_registry_lookup_streams_without_read_bytes(
         Path, "read_bytes", side_effect=AssertionError("read_bytes must not be used")
     ):
         hash_elem, registered_id = _loom_caller._hash_and_registry_lookup(
-            str(file_path), None
+            str(file_path), IdRegistrySession(None)
         )
 
     assert registered_id is None
@@ -280,7 +280,7 @@ def test_active_run_set_model_registry_type_mismatch_warning(
             },
         )
         with caplog.at_level(logging.WARNING, logger="pitloom.loom"):
-            with loom.run(output_file, registry=registry) as run:
+            with loom.run(output_file, id_registry=registry) as run:
                 run.set_model("my_model")
 
             assert any("different type" in r.message for r in caplog.records)

@@ -10,50 +10,64 @@ See also: :mod:`pitloom.id_registry._registry` for ``IdRegistry`` itself.
 
 from __future__ import annotations
 
-import logging
+import os
 from pathlib import Path
 
 from pitloom.id_registry._registry import IdRegistry
 
-log = logging.getLogger("pitloom.id_registry")
+__all__ = ["registry_base_dir", "resolve_registry"]
 
-__all__ = ["resolve_explicit_registry", "resolve_registry"]
+
+def registry_base_dir(target: Path) -> Path:
+    """The base directory a relative declared ``id-registry`` path
+    resolves against, for a *target* that may be either a project
+    directory or a single file (e.g. an sdist archive).
+
+    A file target has no directory of its own to resolve a relative
+    registry path against -- :func:`~pitloom.core.project.read_project`
+    resolves an sdist archive's own config keys relative to the archive
+    itself, but a registry path is not read from inside the archive, so
+    that convention doesn't apply here. Falls back to the current
+    directory instead, same as the no-``project_dir`` case.
+
+    Shared by every ``resolve_registry()`` call site that resolves a
+    *target* which might be an sdist (or, in :mod:`pitloom.embed`, any
+    single-file ``project_dir``) -- callers that already know they have a
+    directory (or already know they have none, using ``Path.cwd()``
+    directly) don't need this helper.
+    """
+    return Path.cwd() if os.path.isfile(target) else target
 
 
 def resolve_registry(
-    project_dir: Path,
-    ids_file: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None,
+    configured: str | None,
+    base_dir: Path,
 ) -> IdRegistry | None:
-    """Resolve the registry a project build should consult."""
-    if isinstance(ids_file, IdRegistry):
-        return ids_file
-    if ids_file is not None:
-        path = Path(ids_file)
-        registry_path = path if path.is_absolute() else project_dir / path
-        try:
-            return IdRegistry.load(registry_path)
-        except (FileNotFoundError, ValueError, OSError) as exc:
-            log.warning("Registry: could not load %s: %s", registry_path, exc)
-            return None
-    return IdRegistry.find(start=project_dir)
+    """Resolve the registry a build should consult -- an explicit source
+    only, never searched for.
 
+    Precedence: *id_registry* (a flag/kwarg, or an already-loaded
+    :class:`IdRegistry`), else *configured* (the applicable config's own
+    ``id-registry``: the project's own ``[tool.pitloom]``, or an explicit
+    ``--config``, which replaces it). Neither given: ``None``, silently --
+    no ``loom-id-registry.json`` is searched for, near the target or
+    anywhere else. A relative path resolves against *base_dir* (the
+    project directory, or the current directory for a target with none of
+    its own), itself resolved first, so the loaded registry's path (and
+    every message naming it) is absolute even for a relative *base_dir*;
+    an already-absolute path (e.g. a config's own key, made absolute by
+    :func:`~pitloom.core.config_cascade.load_config_file`, or a CLI flag
+    made absolute against cwd) is used as given.
 
-def resolve_explicit_registry(
-    registry: str | Path | IdRegistry | None,
-    ids_file: str | None,
-) -> IdRegistry | None:
-    """Resolve the registry for a target with no project of its own (a
-    wheel, an installed environment, a model file).
-
-    Only an explicit source counts: *registry* (``--registry``), else
-    *ids_file* from an explicitly named config. Unlike
-    :func:`resolve_registry`, this never searches for a ``loom-ids.json``
-    -- one found near the current directory belongs to whatever project
-    that is, not to this target. A relative path resolves against the
-    current directory; :func:`pitloom.core.config_cascade.load_config_file`
-    has already made a config's own ``ids-file`` absolute.
+    Raises ``ValueError`` (via :meth:`IdRegistry.load`) when the resolved
+    path does not load -- a declared registry is always meant to load;
+    this function never swallows that failure.
     """
-    source = registry if registry is not None else ids_file
+    source = id_registry if id_registry is not None else configured
     if source is None:
         return None
-    return resolve_registry(Path.cwd(), source)
+    if isinstance(source, IdRegistry):
+        return source
+    path = Path(source)
+    return IdRegistry.load(path if path.is_absolute() else base_dir.resolve() / path)

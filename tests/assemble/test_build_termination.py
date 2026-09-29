@@ -36,7 +36,7 @@ import pytest
 
 from pitloom import __main__, _embed_build_sbom
 from pitloom.assemble import _generators, generate_project_sbom
-from pitloom.cli.commands import embed_wheel as embed_wheel_cmd
+from pitloom.cli.commands import _embed_wheel_batch
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.models import get_wheel_files
 from pitloom.embed import ConfigOverrides, embed_wheel_sbom
@@ -190,7 +190,7 @@ def test_embed_batch_sigterm_between_wheels_cleans_up_once(
         deliver_sigterm()
         pytest.fail("the signal did not end the batch")
 
-    monkeypatch.setattr(embed_wheel_cmd, "embed_wheel_sbom", embed_then_signal)
+    monkeypatch.setattr(_embed_wheel_batch, "embed_wheel_sbom", embed_then_signal)
     rmtree = mock.Mock(wraps=shutil.rmtree)
     monkeypatch.setattr(shutil, "rmtree", rmtree)
     left_at_raise = _record_dirs_at_raise(raise_spy, sys_tmp)

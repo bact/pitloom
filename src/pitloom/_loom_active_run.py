@@ -25,7 +25,6 @@ from pitloom._loom_caller import (
     _get_caller_script_path,
     _hash_and_registry_lookup,
     _record_hyperparameter_provenance,
-    _resolve_registry,
 )
 from pitloom._sbom_io import write_text_lf
 from pitloom.assemble.spdx3.creation_info import build_creation_info
@@ -33,7 +32,7 @@ from pitloom.assemble.spdx3.provenance import emit_provenance
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import IdRegistry, claim_registry_hit
+from pitloom.id_registry import IdRegistry, IdRegistrySession, resolve_registry
 
 log = logging.getLogger("pitloom.loom")
 
@@ -44,7 +43,6 @@ __all__ = [
     "_get_caller_script_path",
     "_hash_and_registry_lookup",
     "_record_hyperparameter_provenance",
-    "_resolve_registry",
 ]
 
 
@@ -57,12 +55,18 @@ class _ActiveRun:
         output_file: str,
         pretty: bool = False,
         creation_metadata: CreationMetadata | None = None,
-        registry: str | Path | IdRegistry | None = None,
+        id_registry: str | Path | IdRegistry | None = None,
     ):
+        # First statement: an undeclared registry never applies, but a
+        # declared-and-bad one must fail before _active_run is set (its
+        # caller assigns this constructor's result directly to the
+        # module global -- an exception here means that assignment never
+        # happens).
+        resolved = resolve_registry(id_registry, None, Path.cwd())
         self.output_file = output_file
         self.pretty = pretty
         self.doc_uuid = str(uuid4())
-        self.registry = _resolve_registry(registry)
+        self.session = IdRegistrySession(resolved)
         self.caller_script_path = _get_caller_script_path()
         self._model_generated: bool | None = None
 
@@ -87,29 +91,6 @@ class _ActiveRun:
             tuple[spdx3.dataset_DatasetPackage, list[str] | None]
         ] = []
 
-        # First-claimant-wins state for repeated registry hits within this
-        # run (e.g. two set_model() calls for the same name) -- see
-        # _claim_loom_registry_hit().
-        self._registry_claims: dict[str, str] = {}
-
-    def _claim_loom_registry_hit(self, key: str, registered_id: str) -> str | None:
-        """Claim a registry hit for this run, first-claimant-wins.
-
-        The *first* loom call that hits *registered_id* within this run
-        claims it. *Every* repeat -- whatever the repeat call's own
-        arguments, and regardless of whether anything mutates the first
-        element afterwards (e.g. ``set_model_hyperparameters()``) -- is
-        unconditionally a miss: ``None`` is returned so the caller mints
-        its own fresh id, and :func:`pitloom.id_registry.claim_registry_hit` logs
-        one ``WARNING: Registry: ... registered for both ...``. This
-        matches what happens with no registry at all, where every call
-        already mints its own id -- the only difference is the warning,
-        which is truthful (the registered id went to the first call).
-        Deliberately content-blind: see
-        ``working-docs/implementation/id-registry-autosync.md`` for why.
-        """
-        return claim_registry_hit(key, registered_id, self._registry_claims)
-
     def set_model(
         self,
         name: str,
@@ -119,24 +100,25 @@ class _ActiveRun:
     ) -> None:
         """Define the primary AI model being trained."""
         caller_info = _get_caller_info()
-        registered_id = None
-        if self.registry is not None:
-            hit = self.registry.lookup_entity(name, "ai_AIPackage")
-            if hit is None:
-                if self.registry.has_entity_named(name):
-                    log.warning(
-                        "loom: registry entry for entity %r exists but under a "
-                        "different type; minting a new spdxId.",
-                        name,
-                    )
-                else:
-                    log.warning(
-                        "loom: entity %r not found in registry; minting a new spdxId "
-                        "(untracked entity).",
-                        name,
-                    )
+
+        def _on_miss() -> None:
+            registry = self.session.registry
+            if registry is not None and registry.has_entity_named(name):
+                log.warning(
+                    "loom: registry entry for entity %r exists but under a "
+                    "different type; minting a new spdxId.",
+                    name,
+                )
             else:
-                registered_id = self._claim_loom_registry_hit(name, hit)
+                log.warning(
+                    "loom: entity %r not found in registry; minting a new spdxId "
+                    "(untracked entity).",
+                    name,
+                )
+
+        registered_id = self.session.entity_id(
+            name, [name], "ai_AIPackage", on_miss=_on_miss
+        )
         self.model = spdx3.ai_AIPackage(
             spdxId=registered_id or generate_spdx_id("AIPackage", name, self.doc_uuid),
             name=name,
@@ -208,10 +190,7 @@ class _ActiveRun:
     ) -> spdx3.dataset_DatasetPackage:
         """Build a ``dataset_DatasetPackage`` for *name*."""
         caller_info = _get_caller_info()
-        hash_element, hit = _hash_and_registry_lookup(name, self.registry)
-        registered_id = None
-        if hit is not None:
-            registered_id = self._claim_loom_registry_hit(name, hit)
+        hash_element, registered_id = _hash_and_registry_lookup(name, self.session)
         dataset_pkg = spdx3.dataset_DatasetPackage(
             spdxId=registered_id
             or generate_spdx_id("DatasetPackage", name, self.doc_uuid),
@@ -425,10 +404,9 @@ class _ActiveRun:
 
     def _build_script_file(self, script_path: str) -> spdx3.software_File:
         """Build the ``software_File`` for the generating script."""
-        hash_element, hit = _hash_and_registry_lookup(script_path, self.registry)
-        registered_id = None
-        if hit is not None:
-            registered_id = self._claim_loom_registry_hit(script_path, hit)
+        hash_element, registered_id = _hash_and_registry_lookup(
+            script_path, self.session
+        )
         script_file = spdx3.software_File(
             spdxId=registered_id
             or generate_spdx_id("File", script_path, self.doc_uuid),

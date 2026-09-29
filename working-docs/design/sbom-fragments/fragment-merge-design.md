@@ -152,8 +152,8 @@ to declare:
 > `SpdxDocument`/`software_Sbom` envelopes are dropped, references
 > remapped, duplicate relationships removed, `profileConformance` updated,
 > and a second `software_Sbom` rooted at the merged `ai_AIPackage` added.
-> Cross-fragment id stability comes from the `loom-ids.json` registry
-> (`src/pitloom/id_registry/`, `loom ids generate|import`), consulted by
+> Cross-fragment id stability comes from the `loom-id-registry.json` registry
+> (`src/pitloom/id_registry/`, `loom id generate|import`), consulted by
 > `pitloom.loom`, the build hook, and the CLI. `SpdxDocument.imports` is
 > now populated too (`_add_fragment_imports()`, one `ExternalMap` per
 > merged fragment's document id), and the merged graph's referential

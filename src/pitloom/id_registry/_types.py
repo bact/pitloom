@@ -25,7 +25,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
-    "DEFAULT_REGISTRY_FILENAME",
+    "DEFAULT_ID_REGISTRY_FILENAME",
     "DIRECTORY_ENTITY_TYPE",
     "EntityEntry",
     "FileEntry",
@@ -34,12 +34,16 @@ __all__ = [
     "_REGISTRY_VERSION",
     "_entity_key",
     "_iter_files",
+    "_require_scalar_str",
     "_sha256_from_verified_using",
     "_type_id_prefix",
+    "registry_file_error",
     "sha256_file",
 ]
 
-DEFAULT_REGISTRY_FILENAME = "loom-ids.json"
+#: The suggested registry file name, and the one file ``id generate`` never
+#: indexes. There is no default registry: nothing looks for this file.
+DEFAULT_ID_REGISTRY_FILENAME = "loom-id-registry.json"
 
 #: The SPDX 3 compact type a directory is registered under (an
 #: :class:`~spdx_python_model.bindings.v3_0_1.software_File` with
@@ -120,6 +124,37 @@ def _entity_key(name: str, type_name: str) -> tuple[str, str]:
     return (type_name, name)
 
 
+def _require_scalar_str(value: Any, field: str) -> str:
+    """Return *value* if it is a ``str``, else raise ``TypeError``.
+
+    Used by :meth:`~pitloom.id_registry.IdRegistry.load` for every scalar
+    entry field (``spdxId``, ``sha256``) that a hand-edited registry file
+    could carry as the wrong JSON type (``null``, a list, a number) --
+    ``str(value)`` alone would silently stringify any of those instead of
+    surfacing them as the malformed entry they are. Raises ``TypeError``
+    (not :func:`registry_file_error` directly) so it composes with the
+    existing ``except (KeyError, TypeError, AttributeError)`` catch around
+    every entry-parsing call site.
+    """
+    if not isinstance(value, str):
+        raise TypeError(
+            f"{field!r} must be a string, got {type(value).__name__}: {value!r}"
+        )
+    return value
+
+
+def registry_file_error(path: Path, reason: str) -> ValueError:
+    """Build the one ``ValueError`` shape every :meth:`IdRegistry.load`
+    failure raises: ``ID registry file {path}: {reason}``.
+
+    A single helper so every failure reason (not found, unreadable, bad
+    JSON, wrong shape, wrong version, malformed entry, duplicate) shares
+    identical wording up to its *reason* -- the CLI, the library API and
+    the Hatchling hook all surface this message verbatim.
+    """
+    return ValueError(f"ID registry file {path}: {reason}")
+
+
 def sha256_file(path: Path) -> str:
     """Return the hex-encoded SHA-256 digest of *path*'s contents.
 
@@ -158,7 +193,7 @@ def _is_eligible_file(file_path: Path, seen: set[Path]) -> bool:
         return False
     if any(part in _IGNORED_DIR_NAMES for part in file_path.parts):
         return False
-    if file_path.name == DEFAULT_REGISTRY_FILENAME:
+    if file_path.name == DEFAULT_ID_REGISTRY_FILENAME:
         return False
     if file_path in seen:
         return False
@@ -172,7 +207,7 @@ def _iter_files(paths: list[Path], project_root: Path) -> Iterator[Path]:
     for raw_path in paths:
         root = raw_path if raw_path.is_absolute() else project_root / raw_path
         if not root.exists():
-            log.warning("Registry: path not found, skipping: %s", root)
+            log.warning("ID registry: path not found, skipping: %s", root)
             continue
 
         candidates: Iterable[Path] = (

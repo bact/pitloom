@@ -15,9 +15,9 @@ from typing import Any
 import pytest
 
 from pitloom import __main__
-from pitloom.cli.ids import _load_or_create_registry, _run_ids_command
+from pitloom.cli.id import _load_or_create_registry, _run_id_command
 from pitloom.cli.parser import _build_parser
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 SAFETENSORS_FIXTURE = (
@@ -26,10 +26,10 @@ SAFETENSORS_FIXTURE = (
 ONNX_FIXTURE = FIXTURE_DIR / "aimodels" / "onnx" / "squeezenet1.1-7.onnx"
 
 
-def test_ids_import_cli_end_to_end(
+def test_id_import_cli_end_to_end(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`loom ids import` smoke test through main(): harvests ids from a real
+    """`loom id import` smoke test through main(): harvests ids from a real
     SBOM produced by `loom project`."""
     pyproject_content = """\
 [build-system]
@@ -48,31 +48,35 @@ version = "1.0.0"
     assert __main__.main() == 0
     assert sbom_path.exists()
 
-    monkeypatch.setattr(sys, "argv", ["loom", "ids", "import", str(sbom_path)])
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "id", "import", str(sbom_path), "--id-registry", str(registry_path)],
+    )
     assert __main__.main() == 0
 
-    registry_path = tmp_path / "loom-ids.json"
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
     assert registry.has_entity_named("importable-pkg")
 
 
-def test_ids_generate_registry_load_fails(
+def test_id_generate_registry_load_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     # _load_or_create_registry returns None when it fails (e.g. invalid JSON)
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("invalid json")
 
     monkeypatch.setattr(
-        sys, "argv", ["loom", "ids", "generate", "--registry", str(registry_path)]
+        sys, "argv", ["loom", "id", "generate", "--id-registry", str(registry_path)]
     )
     result = __main__.main()
     assert result == 1
 
 
-def test_ids_generate_no_paths(
+def test_id_generate_no_paths(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -81,45 +85,107 @@ def test_ids_generate_no_paths(
     empty_dir.mkdir()
     monkeypatch.chdir(empty_dir)
 
-    # We provide no paths and the default path resolution fails
-    monkeypatch.setattr(sys, "argv", ["loom", "ids", "generate"])
+    # We provide no paths and the default path resolution fails. -o names
+    # the target explicitly: no project config to declare id-registry here,
+    # so an explicit flag is required to get past registry resolution and
+    # reach the "no source/data directories" check this test targets.
+    registry_path = empty_dir / "registry.json"
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "id", "generate", "--id-registry", str(registry_path)]
+    )
     result = __main__.main()
     assert result == 1
     assert "ERROR: no source/data directories found" in capsys.readouterr().err
 
 
-def test_ids_import_sbom_not_found(
+def test_id_generate_uses_project_own_id_registry_key_no_hint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """No ``--id-registry`` flag: the project's own ``[tool.pitloom]
+    id-registry`` key is used, and (since the path did come from that
+    key) the "add to [tool.pitloom]" hint is not logged."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_text("x = 1\n")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\n\n'
+        '[tool.pitloom]\nid-registry = "custom/registry.json"\n'
+    )
+    monkeypatch.chdir(tmp_path)
+
+    parser = _build_parser()
+    args = parser.parse_args(["id", "generate"])
+    with caplog.at_level("INFO"):
+        exit_code = _run_id_command(args)
+
+    assert exit_code == 0
+    registry_path = tmp_path / "custom" / "registry.json"
+    assert registry_path.is_file()
+    assert "to use this registry" not in caplog.text
+
+
+def test_id_import_uses_cwd_own_id_registry_key_no_hint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``id import`` reads its cwd's own ``[tool.pitloom] id-registry``
+    (import's project dir is always cwd): when the path came from that
+    key, the "add to [tool.pitloom]" hint is not logged."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\n\n'
+        '[tool.pitloom]\nid-registry = "custom/registry.json"\n'
+    )
+    sbom_path = tmp_path / "external.spdx3.json"
+    sbom_path.write_text(
+        '{"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", "@graph": []}',
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    parser = _build_parser()
+    args = parser.parse_args(["id", "import", str(sbom_path)])
+    with caplog.at_level("INFO"):
+        exit_code = _run_id_command(args)
+
+    assert exit_code == 0
+    assert (tmp_path / "custom" / "registry.json").is_file()
+    assert "to use this registry" not in caplog.text
+
+
+def test_id_import_sbom_not_found(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     nonexistent = tmp_path / "does_not_exist.json"
-    monkeypatch.setattr(sys, "argv", ["loom", "ids", "import", str(nonexistent)])
+    monkeypatch.setattr(sys, "argv", ["loom", "id", "import", str(nonexistent)])
     result = __main__.main()
     assert result == 1
     assert "ERROR: SBOM file not found" in capsys.readouterr().err
 
 
-def test_ids_import_registry_load_fails(
+def test_id_import_registry_load_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     sbom_path = tmp_path / "valid.json"
     sbom_path.write_text("{}")
 
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("invalid json")
 
     monkeypatch.setattr(
         sys,
         "argv",
-        ["loom", "ids", "import", str(sbom_path), "--registry", str(registry_path)],
+        ["loom", "id", "import", str(sbom_path), "--id-registry", str(registry_path)],
     )
     result = __main__.main()
     assert result == 1
 
 
-def test_ids_import_fails(
+def test_id_import_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -134,21 +200,26 @@ def test_ids_import_fails(
 
     monkeypatch.setattr(IdRegistry, "import_sbom", fake_import)
 
-    monkeypatch.setattr(sys, "argv", ["loom", "ids", "import", str(sbom_path)])
+    registry_path = tmp_path / "registry.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "id", "import", str(sbom_path), "--id-registry", str(registry_path)],
+    )
     result = __main__.main()
     assert result == 1
     assert "ERROR: failed to import SBOM" in capsys.readouterr().err
 
 
-def test_ids_cli_invalid_command() -> None:
+def test_id_cli_invalid_command() -> None:
     # argparse will normally catch this, but if we bypass it
-    # or test `_run_ids_command` directly
-    args = argparse.Namespace(ids_command="invalid")
-    result = _run_ids_command(args)
+    # or test `_run_id_command` directly
+    args = argparse.Namespace(id_command="invalid")
+    result = _run_id_command(args)
     assert result == 1
 
 
-def test_ids_generate_cli_entity_flag(
+def test_id_generate_cli_entity_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`--entity NAME[:TYPE]` registers entities up front, before the model
@@ -157,22 +228,25 @@ def test_ids_generate_cli_entity_flag(
     (tmp_path / "data" / "raw.txt").write_text("raw\n")
     monkeypatch.chdir(tmp_path)
 
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     parser = _build_parser()
     args = parser.parse_args(
         [
-            "ids",
+            "id",
             "generate",
             "data",
+            "--id-registry",
+            str(registry_path),
             "--entity",
             "sentimentdemo",
             "--entity",
             "other:dataset_DatasetPackage",
         ]
     )
-    exit_code = _run_ids_command(args)
+    exit_code = _run_id_command(args)
     assert exit_code == 0
 
-    registry = IdRegistry.load(tmp_path / "loom-ids.json")
+    registry = IdRegistry.load(registry_path)
     assert registry.entities[("ai_AIPackage", "sentimentdemo")].spdx_id.endswith(
         "#AIPackage-1"
     )
@@ -180,7 +254,7 @@ def test_ids_generate_cli_entity_flag(
     assert "data/raw.txt" in registry.files
 
 
-def test_ids_generate_entity_flag_hits_env_lookup(
+def test_id_generate_entity_flag_hits_env_lookup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`--entity PyYAML:software_Package` registers the entity under its
@@ -201,13 +275,20 @@ def test_ids_generate_entity_flag_hits_env_lookup(
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "raw.txt").write_text("raw\n")
     monkeypatch.chdir(tmp_path)
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     parser = _build_parser()
     args = parser.parse_args(
-        ["ids", "generate", "data", "--entity", "PyYAML:software_Package"]
+        [
+            "id",
+            "generate",
+            "data",
+            "--id-registry",
+            str(registry_path),
+            "--entity",
+            "PyYAML:software_Package",
+        ]
     )
-    assert _run_ids_command(args) == 0
-
-    registry_path = tmp_path / "loom-ids.json"
+    assert _run_id_command(args) == 0
     tree = [
         {
             "package": {
@@ -229,7 +310,7 @@ def test_ids_generate_entity_flag_hits_env_lookup(
 
     with patch("subprocess.run", return_value=fake_result):
         sbom = generate_env_sbom(
-            registry=registry_path,
+            id_registry=registry_path,
             creation_metadata=CreationMetadata(
                 creation_datetime="2026-01-01T00:00:00+00:00"
             ),
@@ -245,11 +326,12 @@ def test_ids_generate_entity_flag_hits_env_lookup(
 
 
 def test_load_or_create_registry_fails(tmp_path: Path) -> None:
-
-    registry_path = tmp_path / "loom-ids.json"
+    """A present-but-unloadable registry raises -- never returns None."""
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("invalid json")
 
-    assert _load_or_create_registry(registry_path, "proj") is None
+    with pytest.raises(ValueError, match="ID registry file"):
+        _load_or_create_registry(registry_path, "proj")
 
 
 def test_main_returns_1_when_parsed_args_have_no_func(
@@ -284,7 +366,7 @@ def test_module_entrypoint_exits_with_main_return_code(
     """
     import runpy
 
-    monkeypatch.setattr(sys, "argv", ["pitloom", "ids", "generate", "--help"])
+    monkeypatch.setattr(sys, "argv", ["pitloom", "id", "generate", "--help"])
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(__main__.__file__, run_name="__main__")
     assert exc_info.value.code == 0

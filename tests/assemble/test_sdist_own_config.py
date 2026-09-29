@@ -7,7 +7,7 @@
 directory's does, and ``--config``/``pitloom_config=`` replaces it without
 parsing it.
 
-What an sdist cannot use is documented, not warned: its ``ids-file`` names a
+What an sdist cannot use is documented, not warned: its ``id-registry`` names a
 file inside the archive, and fragments merge only into a directory's SBOM.
 
 See also:
@@ -137,22 +137,21 @@ def test_explicit_config_rescues_an_invalid_target_config(
     assert not any(spy.called for spy in spies)
 
 
-def test_own_ids_file_is_not_searched_or_loaded(
+def test_own_id_registry_is_not_searched_or_loaded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """An sdist's ``ids-file`` can only name a file inside the archive: no
+    """An sdist's ``id-registry`` can only name a file inside the archive: no
     registry is loaded (not even one sitting beside the archive under that
     name), and nothing is warned -- it is documented."""
     (tmp_path / "ids.json").write_text("{}", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    sdist = _make_sdist(tmp_path, "[tool.pitloom]\nids-file = 'ids.json'\n")
+    sdist = _make_sdist(tmp_path, "[tool.pitloom]\nid-registry = 'ids.json'\n")
     with (
         patch.object(IdRegistry, "load", autospec=True) as load,
-        patch.object(IdRegistry, "find", autospec=True) as find,
         caplog.at_level(logging.WARNING),
     ):
         generate_project_sbom(sdist, creation_metadata=_PINNED)
-    assert not load.called and not find.called
+    assert not load.called
     assert not logged_warnings(caplog)
 
 

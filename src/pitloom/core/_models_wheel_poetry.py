@@ -76,7 +76,7 @@ def discover(
             )
             for included_file in builder.find_files_to_add()
         ]
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.warning("Poetry file discovery failed for %s: %s", project_dir, exc)
         return None

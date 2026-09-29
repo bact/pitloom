@@ -94,7 +94,7 @@ def _safe_load_json(
         )
         with open(local_path, encoding="utf-8") as fh:
             return json.load(fh)  # type: ignore[no-any-return]
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         # File may legitimately not exist (e.g. non-generative models lack
         # generation_config.json) -- hf_hub_download raises for that same
@@ -115,7 +115,7 @@ def _load_model_card(
         card = ModelCard.load(model_id)
         card_data: dict[str, Any] = card.data.to_dict() if card.data else {}
         return card.text or None, card_data
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to load model card for %s: %s" + field_loss_suffix(
             "skipped",
@@ -162,7 +162,7 @@ def _load_model_info(model_id: str) -> dict[str, Any]:
         if info.tags:
             result["tags"] = list(info.tags)
         return result
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to load model_info() for %s: %s" + field_loss_suffix(
             "skipped",
@@ -190,7 +190,7 @@ def _list_license_files_in_repo(model_id: str) -> list[str]:
 
         existing: set[str] = set(list_repo_files(model_id))
         return [f for f in _HF_LICENSE_FILENAMES if f in existing]
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to list repo files for %s: %s" + field_loss_suffix(
             "skipped", "license (file-based detection)"
@@ -238,7 +238,7 @@ def _detect_license_from_hf_files(
             text = (
                 _Path(local_path).read_text(encoding="utf-8", errors="replace").strip()
             )
-        # pylint: disable=broad-exception-caught
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             msg = (
                 "Failed to download/read license file %s for %s: %s"

@@ -128,8 +128,8 @@ class PitloomConfig:
     tools: list[Tool] | None = None
     creation_datetime: str | None = None
     creation_comment: str | None = None
-    ids_file: str | None = None
-    update_registry: bool = True
+    id_registry: str | None = None
+    update_id_registry: bool = True
     provenance_format: str = "both"
     provenance_schema: str = _DEFAULT_PROVENANCE_SCHEMA
     provenance_detail: str = "minimal"

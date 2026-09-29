@@ -81,7 +81,7 @@ def read_onnx(model_path: Path) -> AiModelMetadata:
     try:
         # load_external_data=False avoids loading large external tensor files
         model = onnx.load(str(model_path), load_external_data=False)
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to load ONNX model from %s: %s", model_path, exc)
         raise ValueError(f"Failed to load ONNX model from {model_path}: {exc}") from exc

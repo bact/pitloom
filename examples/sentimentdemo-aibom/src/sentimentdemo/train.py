@@ -47,7 +47,9 @@ def train() -> Path:
         Path to the saved model file.
     """
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    with loom.run(FRAGMENT_PATH, pretty=True):
+    with loom.run(
+        FRAGMENT_PATH, pretty=True, id_registry=ROOT / "loom-id-registry.json"
+    ):
         # ``model_type`` is a stable DPV-AI IRI from STAV so downstream consumers
         # can resolve it to the formal "SupervisedLearning" concept unambiguously.
         loom.set_model(

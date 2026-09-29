@@ -19,7 +19,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.__about__ import __version__
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.id_registry import IdRegistry, resolve_registry, sha256_file
+from pitloom.id_registry import IdRegistrySession, sha256_file
 from pitloom.logging_config import field_loss_suffix, warn_once
 
 log = logging.getLogger("pitloom.loom")
@@ -57,7 +57,7 @@ def _get_caller_info() -> str:
                     f"Method: inspect_caller (tool: pitloom.loom, "
                     f"function: {func_name})"
                 )
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         # WARNING once per process, DEBUG after -- inspect.stack() failing
         # is a per-process environment condition (sandboxed/frozen
@@ -96,7 +96,7 @@ def _get_caller_script_path() -> str | None:
                 return path.resolve().relative_to(Path.cwd()).as_posix()
             except ValueError:
                 return path.as_posix()
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         warn_once(
             log,
@@ -122,15 +122,8 @@ def _record_hyperparameter_provenance(
         provenance[f"hyperparameters.{key}"] = f"{caller_info} | Field: {safe_key}"
 
 
-def _resolve_registry(
-    registry: str | Path | IdRegistry | None,
-) -> IdRegistry | None:
-    """Resolve the registry argument of Run to an IdRegistry or None."""
-    return resolve_registry(Path.cwd(), registry)
-
-
 def _hash_and_registry_lookup(
-    name: str, registry: IdRegistry | None
+    name: str, session: IdRegistrySession
 ) -> tuple[spdx3.Hash | None, str | None]:
     """Compute SHA-256 Hash for *name* and resolve its registered spdxId."""
     path = Path(name)
@@ -140,20 +133,21 @@ def _hash_and_registry_lookup(
     sha256 = sha256_file(path)
     hash_element = spdx3.Hash(algorithm=spdx3.HashAlgorithm.sha256, hashValue=sha256)
 
-    registered_id: str | None = None
-    if registry is not None:
-        registered_id = registry.lookup_file(name, sha256)
-        if registered_id is None:
-            if name in registry.files:
-                log.warning(
-                    "loom: registry entry for %r exists but its SHA-256 no "
-                    "longer matches; minting a new spdxId (content changed).",
-                    name,
-                )
-            else:
-                log.warning(
-                    "loom: file %r not found in registry; minting a new spdxId "
-                    "(untracked file).",
-                    name,
-                )
+    def _on_miss() -> None:
+        # Only called when a registry is loaded (see IdRegistrySession.file_id).
+        registry = session.registry
+        if registry is not None and name in registry.files:
+            log.warning(
+                "loom: registry entry for %r exists but its SHA-256 no "
+                "longer matches; minting a new spdxId (content changed).",
+                name,
+            )
+        else:
+            log.warning(
+                "loom: file %r not found in registry; minting a new spdxId "
+                "(untracked file).",
+                name,
+            )
+
+    registered_id = session.file_id(name, [name], sha256, on_miss=_on_miss)
     return hash_element, registered_id

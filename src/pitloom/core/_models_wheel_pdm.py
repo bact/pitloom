@@ -157,7 +157,7 @@ def discover(
             )
             for rel_path, full_path in files
         ]
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.warning("PDM file discovery failed for %s: %s", project_dir, exc)
         return None

@@ -28,7 +28,7 @@ from pitloom.assemble import enrich_model, generate_model_sbom, generate_project
 from pitloom.assemble.spdx3.document import build_model
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 from ..conftest import _AI_MODEL_ROOT, _write_smoke_project
 
@@ -259,7 +259,7 @@ def test_enrich_model_project_target_merges_correctly_end_to_end() -> None:
 def test_enrich_model_registry_pinned_id_matches_base_doc() -> None:
     """A registry-pinned ai_AIPackage id must be referenced by the
     fragment too, not the freshly computed one -- otherwise a project
-    using a stable registry (--registry) gets the same dangling-reference
+    using a stable registry (--id-registry) gets the same dangling-reference
     bug as the project_target case, even for a single-model base doc."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
@@ -271,15 +271,15 @@ def test_enrich_model_registry_pinned_id_matches_base_doc() -> None:
         )
         (tmppath / "README.md").write_text("---\ndatasets:\n  - tiny-imagenet\n---\n")
 
-        registry_path = tmppath / "loom-ids.json"
+        registry_path = tmppath / DEFAULT_ID_REGISTRY_FILENAME
         registry = IdRegistry.new("pinned-demo", path=registry_path)
         pinned_id = registry.register_entity("model", "ai_AIPackage")
         registry.save()
 
         full_doc = json.loads(
-            generate_model_sbom(model_path, enrich=True, registry=registry_path)
+            generate_model_sbom(model_path, enrich=True, id_registry=registry_path)
         )
-        fragment = json.loads(enrich_model(model_path, registry=registry_path))
+        fragment = json.loads(enrich_model(model_path, id_registry=registry_path))
 
         full_ai_pkg = next(
             e for e in full_doc["@graph"] if e.get("type") == "ai_AIPackage"

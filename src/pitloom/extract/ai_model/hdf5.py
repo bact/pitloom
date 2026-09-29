@@ -304,7 +304,7 @@ def read_hdf5(model_path: Path) -> AiModelMetadata:
 
     try:
         hf = h5py.File(str(model_path), "r")
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to open HDF5 file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read HDF5 file {model_path}: {exc}") from exc

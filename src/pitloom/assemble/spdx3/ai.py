@@ -16,10 +16,10 @@ from pitloom.assemble.spdx3._ai_package import (
     _SAFETY_RISK_VALUES,
     _add_base_model_lineage,
     _add_external_identifiers_and_refs,
+    _ai_model_entity_candidates,
     _build_ai_package,
     _emit_source_metadata,
     _LineageContext,
-    _lookup_ai_model_entity,
     _should_preserve_metadata,
     _source_metadata_blob,
 )
@@ -36,7 +36,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import IdRegistry, claim_registry_hit
+from pitloom.id_registry import IdRegistrySession
 
 __all__ = [
     "_LineageContext",
@@ -45,7 +45,6 @@ __all__ = [
     "_add_external_identifiers_and_refs",
     "_build_ai_package",
     "_emit_source_metadata",
-    "_lookup_ai_model_entity",
     "_should_preserve_metadata",
     "_source_metadata_blob",
     "add_ai_models",
@@ -54,9 +53,9 @@ __all__ = [
 
 
 def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
-    """A short, human-readable identifier for *ai_model* in a
-    :func:`~pitloom.id_registry.claim_registry_hit` warning -- never used as a
-    lookup key, only for the message."""
+    """A short, human-readable identifier for *ai_model* in an
+    :class:`~pitloom.id_registry.IdRegistrySession` collision warning --
+    never used as a lookup key, only for the message."""
     return (
         ai_model.name
         or ai_model.format_info.file_path_relative
@@ -67,36 +66,35 @@ def _ai_model_label(ai_model: AiModelMetadata, index: int) -> str:
 
 def resolve_ai_model_entity_hits(
     ai_models: list[AiModelMetadata],
-    registry: IdRegistry | None,
-    claimed: dict[str, str] | None = None,
+    session: IdRegistrySession,
 ) -> list[str | None]:
     """Pre-resolve each of *ai_models*' ``ai_AIPackage`` registry hit, in
     list order, before any minting starts.
 
-    One entry per model (``None`` on a miss) via :func:`_lookup_ai_model_entity`.
-    The caller must reserve every non-``None`` value
-    (:func:`~pitloom.core.models.reserve_spdx_ids`) before minting, then
-    pass this list to :func:`add_ai_models` instead of *registry* --
-    pre-resolution is the single source of truth for what was reserved,
-    so the actual build must never look the registry up a second time.
+    One entry per model (``None`` on a miss) via
+    :meth:`~pitloom.id_registry.IdRegistrySession.entity_id` over
+    :func:`_ai_model_entity_candidates`. The caller must reserve every
+    non-``None`` value (:func:`~pitloom.core.models.reserve_spdx_ids`)
+    before minting, then pass this list to :func:`add_ai_models` instead
+    of the registry -- pre-resolution is the single source of truth for
+    what was reserved, so the actual build must never look the registry
+    up a second time.
 
     Two models can legitimately hit the same entity -- e.g. two models
     sharing a file stem, the only lookup candidate left when neither has a
-    name/``physical_path`` -- in which case only the first (in list order,
-    or via a shared *claimed* passed in by the caller, the first hit
-    across files/directories/AI models together) reuses it
-    (:func:`~pitloom.id_registry.claim_registry_hit`); every later one gets its
-    own fresh id instead of silently losing its element to the first,
-    with one ``WARNING: Registry: ...`` naming both. A fresh, empty
-    *claimed* is used when the caller doesn't share one.
+    name/``physical_path`` -- in which case only the first (in list
+    order, or the first hit across files/directories/AI models together
+    in *session*) reuses it; every later one gets its own fresh id
+    instead of silently losing its element to the first, with one
+    ``WARNING: ID registry: ...`` naming both.
     """
-    if claimed is None:
-        claimed = {}
     hits: list[str | None] = []
     for index, ai_model in enumerate(ai_models):
-        hit = _lookup_ai_model_entity(ai_model, registry)
-        if hit is not None:
-            hit = claim_registry_hit(_ai_model_label(ai_model, index), hit, claimed)
+        hit = session.entity_id(
+            _ai_model_label(ai_model, index),
+            _ai_model_entity_candidates(ai_model),
+            "ai_AIPackage",
+        )
         hits.append(hit)
     return hits
 

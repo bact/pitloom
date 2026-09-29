@@ -217,8 +217,8 @@ def _check_no_duplicate_spdx_ids(graph: list[dict[str, Any]]) -> None:
     branch: two same-id elements that differ in content, which it
     deliberately keeps both of rather than guessing which to drop. A
     last-resort safety net for the case
-    :func:`~pitloom.id_registry.claim_registry_hit`-based reservation exists to
-    avoid -- see ``working-docs/implementation/id-registry-autosync.md``.
+    :class:`~pitloom.id_registry.IdRegistrySession`-based claim/reservation
+    exists to avoid -- see ``working-docs/implementation/id-registry-autosync.md``.
     """
     seen: dict[str, dict[str, Any]] = {}
     for element in graph:
@@ -295,6 +295,11 @@ class Spdx3JsonExporter:
         # for deduplicating Agents built from external metadata (e.g. two
         # dependencies sharing the same author).
         self._agent_index: dict[str, str] = {}
+        #: spdxIds of packages built without an ID registry lookup because
+        #: another package of this document owns their name (see
+        #: :mod:`pitloom.assemble.spdx3._package_ids`). Run auto-harvest
+        #: neither counts nor writes them.
+        self.registry_non_readers: set[str] = set()
 
     def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.

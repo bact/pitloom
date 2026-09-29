@@ -148,7 +148,7 @@ _UUID4 = re.compile(
 
 
 def normalise(text: str, cell: Path) -> str:
-    """Cell paths, and random (version 4) UUIDs, which only `ids generate`
+    """Cell paths, and random (version 4) UUIDs, which only `id generate`
     mints (a fresh registry's namespace), made comparable."""
     text = text.replace(str(cell.resolve()), "<CELL>").replace(str(cell), "<CELL>")
     return _UUID4.sub("<UUID4>", text)

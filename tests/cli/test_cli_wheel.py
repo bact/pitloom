@@ -134,10 +134,10 @@ def test_wheel_command_nonexistent_and_verbose(
 
 
 def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
-    """_report_embed_result prints the confirmation to stdout (this
+    """report_embed_result prints the confirmation to stdout (this
     command's primary result output) and the two INFO: side-effect lines
     to stderr, matching every other INFO:/WARNING:/ERROR: line."""
-    from pitloom.cli.commands.embed_wheel import _report_embed_result
+    from pitloom.cli.commands._embed_wheel_batch import report_embed_result
     from pitloom.logging_config import configure_logging
 
     # The two side-effect lines go through logging (see CLAUDE.md's "CLI
@@ -146,7 +146,7 @@ def test_report_embed_result(capsys: pytest.CaptureFixture[str]) -> None:
     # the configure_logging() call that normally wires INFO: up to stderr.
     configure_logging()
 
-    _report_embed_result(
+    report_embed_result(
         "sbom.spdx.json",
         "pkg.whl",
         ("old_sbom.spdx.json",),
@@ -178,8 +178,8 @@ def test_wheel_embed_embeds_the_canonical_sbom_embed_wheel_does(
     registry = tmp_path / "ids.json"
     IdRegistry(namespace="https://example.org/ns", path=registry).save()
     seeded = registry.read_bytes()
-    flags = ["--pretty", "--describe-relationship", "--update-registry"]
-    argv = ["wheel", str(wheel), "--embed", "--registry", str(registry), *flags]
+    flags = ["--pretty", "--describe-relationship", "--update-id-registry"]
+    argv = ["wheel", str(wheel), "--embed", "--id-registry", str(registry), *flags]
     output = tmp_path / "copy.json"
     if with_output:
         argv += ["-o", str(output)]

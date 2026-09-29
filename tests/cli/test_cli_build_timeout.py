@@ -93,7 +93,7 @@ _EXPECTED = BuildOptions(allow=True, no_isolation=True, timeout=3600)
         # code path, so both patch the same generate_project_sbom().
         ("generate", "pitloom.cli.commands.project.generate_project_sbom"),
         ("generate-sdist", "pitloom.cli.commands.project.generate_project_sbom"),
-        ("embed-wheel", "pitloom.cli.commands.embed_wheel.embed_wheel_sbom"),
+        ("embed-wheel", "pitloom.cli.commands._embed_wheel_batch.embed_wheel_sbom"),
     ],
 )
 def test_command_passes_one_build_options_to_library(

@@ -26,7 +26,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.env import read_environment
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry
+from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
@@ -37,11 +37,11 @@ def generate_env_sbom(
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
     describe_relationship: bool | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     offline: bool | None = None,
     content_type_method: str | None = None,
-    update_registry: bool | None = None,
+    update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
 ) -> str:
@@ -58,8 +58,6 @@ def generate_env_sbom(
     scanning, which reading an installed environment never performs.
     """
     configure_logging()
-    project_metadata, env_tree = read_environment()
-
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(
@@ -68,11 +66,15 @@ def generate_env_sbom(
             content_type_method=content_type_method,
             pretty=pretty,
             describe_relationship=describe_relationship,
-            update_registry=update_registry,
+            update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
     )
-    resolved_registry = resolve_explicit_registry(registry, cfg.ids_file)
+    # Resolved before the expensive read_environment() call (pipdeptree)
+    # below -- a declared-but-missing/malformed registry should fail fast,
+    # never after paying for a full environment scan first.
+    resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    project_metadata, env_tree = read_environment()
 
     doc = DocumentModel(
         project=project_metadata,
@@ -86,7 +88,7 @@ def generate_env_sbom(
         **cfg.assemble_options,
     )
 
-    _sync_registry(exporter, resolved_registry, cfg.update_registry)
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,

@@ -284,7 +284,7 @@ def _cell_completeness(mx: Matrix) -> CheckFunc:
             for opt in opts
             if not planned(cmd, opt[0])
         ]
-        known = {c.name for c in COMMANDS} | {"loom", "fragment", "ids"}
+        known = {c.name for c in COMMANDS} | {"loom", "fragment", "id"}
         unknown = sorted(set(mx.surface) - known)
         expect(not missing, f"options with no plan entry: {missing}")
         expect(not unknown, f"subcommands with no Command entry: {unknown}")

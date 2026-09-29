@@ -5,7 +5,7 @@
 
 """Regression tests for the defensive ``if <relationship>:`` guards in
 ``pitloom.assemble.spdx3.deps.add_dependencies`` and
-``add_phantom_dependencies``.
+``pitloom.assemble.spdx3.deps_phantom.add_phantom_dependencies``.
 
 See also: test_deps_enrichment_pypi_fallback.py,
 test_deps_enrichment_originator_license.py, test_deps_enrichment_prefetch.py,
@@ -32,8 +32,9 @@ from typing import Any
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3 import deps as deps_module
-from pitloom.assemble.spdx3.deps import add_dependencies, add_phantom_dependencies
+from pitloom.assemble.spdx3 import deps_phantom as phantom_module
+from pitloom.assemble.spdx3.deps import add_dependencies
+from pitloom.assemble.spdx3.deps_phantom import add_phantom_dependencies
 from pitloom.core.models import (
     _clear_doc_counters,
     build_relationship,
@@ -118,7 +119,7 @@ def test_add_phantom_dependencies_skips_falsy_file_containment_relationship(
     falsy value (defensive guard, mirrors the ``dependsOn`` guard above),
     ``add_phantom_dependencies`` must skip adding it without raising --
     exercised by patching ``build_relationship`` in the calling module
-    (``pitloom.assemble.spdx3.deps``) to return ``None`` only for the
+    (``pitloom.assemble.spdx3.deps_phantom``) to return ``None`` only for the
     ``contains`` relationship type, delegating to the real implementation
     otherwise so the ``dependsOn`` edge still builds normally."""
 
@@ -127,7 +128,7 @@ def test_add_phantom_dependencies_skips_falsy_file_containment_relationship(
             return None
         return build_relationship(*args, **kwargs)
 
-    monkeypatch.setattr(deps_module, "build_relationship", _fake_build_relationship)
+    monkeypatch.setattr(phantom_module, "build_relationship", _fake_build_relationship)
 
     doc_uuid = compute_doc_uuid("phantomfilerel", "1.0", [])
     _clear_doc_counters(doc_uuid)

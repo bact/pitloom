@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,7 @@ SPDX-License-Identifier: CC0-1.0
 # Auto-sync the Loom ID registry after SBOM generation
 
 See also: [roadmap.md](../design/roadmap.md) (Completed), the "Loom IDs
-across fragments" section of the top-level [README.md](../../README.md#loom-ids-across-fragments-pitloom-ids).
+across fragments" section of the top-level [README.md](../../README.md#loom-ids-across-fragments-loom-id).
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
 past a summary.
@@ -59,14 +59,18 @@ right after `_clear_doc_counters()`, one lookup per candidate element:
 via `IdRegistry.lookup_entity(name, DIRECTORY_ENTITY_TYPE)`, and file
 in `metadata.files` order), `assemble.spdx3.ai.resolve_ai_model_entity_hits()`
 (one call per AI model), `_document_deployed._resolve_deployed_package_hits()`
-(one `lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)` per `env_tree` node).
+(one `_package_ids.resolve_package_id()` session lookup per `env_tree`
+node),
+and, for `project`/`wheel`, `_package_ids.resolve_project_package_ids()`
+(main package, dependencies, phantom dependencies -- see "Revised in PR
+A2" below).
 
 `pitloom.core.models.reserve_spdx_ids(doc_name, doc_uuid, spdx_ids)`
 parses each id against the document's own namespace and records its
 `(prefix, n)` in a `_RESERVED` map; `generate_spdx_id()` skips any
 reserved `n` instead of re-minting it. `_clear_doc_counters()` clears
 `_RESERVED` too, so a caller must reserve *after* clearing, never
-before. `document.py build()` reserves the union of all three
+before. `document.py build()` reserves the union of all its
 resolvers' hits via one `reserve_spdx_ids()` call, then passes the
 resolved dicts/lists down instead of the registry itself:
 pre-resolution is the single source of truth for what was reserved, so
@@ -100,11 +104,20 @@ name-only-entities check uses `IdRegistry.has_entity_named()`.
 
 ### First claimant wins
 
+**Pre-A2 mechanism, kept for the rationale.** `claim_registry_hit()` and
+the per-call-site shared `claimed` dict this section describes were
+removed in PR A2 -- see "Revised in PR A2" below. The *rule*
+(first-claimant-wins, one shared claim scope per document) is unchanged;
+it is now enforced by `pitloom.id_registry.IdRegistrySession`
+(`id_registry/_session.py`)'s `file_id()`/`entity_id()`/internal
+`_claim()`, one session per document build, instead of the ad hoc
+per-resolver `claimed` dict named below.
+
 `pitloom.id_registry.claim_registry_hit(key, spdx_id, claimed)` is the one
 helper every `_resolve_*_hits` pass calls for each hit it finds: the
 first key to claim a given id keeps it, a later key with the *same*
 hit id is treated as a miss (falls back to its own fresh mint) and
-gets one `WARNING: Registry: <spdxId> is registered for both <first>
+gets one `WARNING: ID registry: <spdxId> is registered for both <first>
 and <second>; <second> gets a new id`. Each resolver iterates in a
 fixed, deterministic order (files in `metadata.files` order,
 directories root-to-leaf, AI models in `ai_models` list order, env
@@ -122,11 +135,12 @@ own id and a warning instead of reusing the first model's.
 `_resolve_directory_hits_for_file()` memoizes every ancestor directory
 it has already resolved for the current file pass in a `seen_dirs` set
 -- not just the ones recorded in `dir_hits`, which only holds
-successful claims. A directory whose hit is rejected by
-`claim_registry_hit` (lost the first-claimant race) or whose lookup
+successful claims. A directory whose hit is rejected by the session's
+claim (`IdRegistrySession.entity_id()`, lost the first-claimant race) or
+whose lookup
 misses adds no `dir_hits` entry either way, so memoizing on `dir_hits`
 membership alone would re-look-up and, on a rejection, re-log the same
-`WARNING: Registry: ... registered for both ...` once per file sharing
+`WARNING: ID registry: ... registered for both ...` once per file sharing
 that directory instead of once per directory.
 
 `pitloom.loom`'s `_ActiveRun` has its own claim state
@@ -225,21 +239,152 @@ unreachable.
 
 The on-disk `entities` object is nested by type
 (`{"<type>": {"<name>": {"spdxId": ...}}}`); `_REGISTRY_VERSION`
-bumped to 2, no migration. An old-version file is rejected differently
-by surface: a build surface consulting an *explicit* registry path
+bumped to 2, no migration. **As revised in PR A2, see below**: every
+surface now raises/exits on a declared-but-broken registry file
+(including an old-version one), instead of the split described in the
+rest of this paragraph, which describes the pre-A2 behaviour for
+context. Before PR A2, an old-version file was rejected differently by
+surface: a build surface consulting an *explicit* registry path
 (`resolve_registry`/`resolve_explicit_registry`, used by `build()`/
-`build_deployed()`/the Hatchling hook) logs
-`WARNING: Registry: could not load ...` and proceeds with no registry;
-an *auto-discovered* `loom-ids.json` (`IdRegistry.find()`, no
-`--registry`/`ids_file` given) instead logs
-`WARNING: Registry: ignoring invalid file ...` -- same outcome,
-different wording because a different function logs it. `pitloom ids
-generate`/`pitloom ids import` (`_load_or_create_registry`) print
-`ERROR: failed to load registry from ...` and exit 1 instead, since
-those commands' entire job is to write to that file -- silently
+`build_deployed()`/the Hatchling hook) logged
+`WARNING: ID registry: could not load ...` and proceeded with no
+registry; an *auto-discovered* `loom-id-registry.json`
+(`IdRegistry.find()`, no `--id-registry`/`id-registry` given) instead
+logged `WARNING: ID registry: ignoring invalid file ...` -- same
+outcome, different wording because a different function logged it.
+`pitloom id generate`/`pitloom id import` (`_load_or_create_registry`)
+printed `ERROR: failed to load registry from ...` and exited 1 instead,
+since those commands' entire job is to write to that file -- silently
 proceeding without one would produce a registry that doesn't build on
-the previous run's ids. Both point at the same fix: delete the file
-and re-run `pitloom ids generate` or `pitloom ids import`.
+the previous run's ids. All three pointed at the same fix: delete the
+file and re-run `pitloom id generate` or `pitloom id import` -- that
+fix is unchanged by PR A2.
+
+### Revised in PR A2 (2026-09-28)
+
+`resolve_explicit_registry()` and `IdRegistry.find()` (auto-discovery,
+including its `loom.Run` walk-up) are removed. A registry is now used
+only when explicitly declared -- `--id-registry`/`id_registry=`, the
+target's own `[tool.pitloom] id-registry`, or a `--config` file's
+`id-registry` -- on every surface, with no fallback search. A declared
+registry that's missing, unreadable, or invalid is fatal everywhere,
+collapsing the three-way split above into one `ValueError` raised by
+`IdRegistry.load()` (message: `ID registry file <path>: <reason>`): the
+CLI prints one `ERROR:` line and exits 1 (`cli_error_handler`), the
+library API and `loom.Run` raise it directly (never also logging, to
+avoid a double error line), and the Hatchling build hook logs one
+`ERROR:` and fails the build. Registry lookups during a single
+document's build now go through `IdRegistrySession`
+(`id_registry/_session.py`), which replaces the ad hoc first-claimant
+bookkeeping each call site used to do (`claim_registry_hit`, removed).
+
+**Why (user decision):** a config file found by walking up from the
+current directory, or from the project directory, may belong to an
+unrelated project -- silently picking it up (or silently skipping a
+broken one) is worse than failing loudly. Being explicit about which
+registry is in play, and failing fast when it can't be read, beats a
+best-effort fallback that could quietly use the wrong file or none at
+all.
+
+**Package ids (2026-09-29, commit 3 of PR A2).** `project`/`wheel` minted the
+project's own `software_Package`, its declared and lock-resolved
+dependencies and its phantom dependencies without consulting the registry,
+though harvest wrote all of them into it -- so a pinned
+`id generate -e NAME:software_Package` id was overwritten by the first
+project run, alternating project/wheel runs rewrote the package entries
+every time, and `env` reused whichever document harvested last.
+`spdx3.document.build` now pre-resolves them through the shared session
+(`assemble/spdx3/_package_ids.py`), before `reserve_spdx_ids`, in a fixed
+order: main package, dependencies (once per PEP 503 name, declared then
+lock-resolved), phantom dependencies; `env` uses the same
+`resolve_package_id()`. One registry key backs one id, so two distinct
+packages sharing a name (two pinned versions, or a declared package and a
+bundled binary) cannot both use it: the first takes it, the other mints a
+fresh id with the usual claim `WARNING:` (`DependencyIdHits`,
+`warn_claim_collision`). Output is byte-identical without a registry.
+Out of scope, unchanged: harvest still rewrites per-document entities
+(`SoftwareAgent`/`Tool`/`License` ids follow each document's own uuid), so
+registry bytes still change across project/wheel runs -- only the package
+entries are stable; `env`'s root package is still always minted.
+
+**Ambiguous package names (2026-09-29, commit-3 review).** Lookup gives a
+name's registry id to the *first* claimant, while harvest kept the *last*
+element per key in `spdxId` order, so a document with two same-name
+`software_Package` elements (a self-referencing extra `demo[x]; extra ==
+'all'` next to the main package, two pinned versions of one dependency, a
+dependency or main package sharing a phantom stem) swapped ids between runs.
+Now harvest (`IdRegistry.harvest` and `import_sbom`, via
+`_harvest_elements`/`_ambiguous_entity_keys`) never writes a key held by more
+than one element of the document and leaves any existing entry untouched;
+an existing pin goes to the first claimant with the claim `WARNING:`, the
+same on every run; a dependency named like the project (a self-referencing
+extra) never looks up, so it mints silently and the main package keeps the
+registry id. A phantom dependency named like the project or a dependency
+never looks up either (silent, same rule; decided 2026-09-29, or alternating
+`project`/`wheel` runs would warn on wheel builds only); two phantoms of one
+name still both look up, so the second warns, like two versions of one
+dependency.
+
+Run auto-harvest leaves those non-readers out (decided 2026-09-29, commit
+3b): they neither count as a holder of their name nor get written, so a
+name only one element *reads* is written for it and pinned on the next run
+(before this, `demo[x]` next to `demo` meant the main package was never
+pinned). Only one element reads the key, so no swap is possible. The
+non-reader ids come from the code that decides not to look up:
+`_package_ids` records which canonical names/phantom indices skip the lookup
+(`DependencyIdHits.looked_up()`, `ProjectPackageIds.phantom_not_looked_up`),
+`deps.py`/`deps_phantom.py` add each such package's minted id to
+`Spdx3JsonExporter.registry_non_readers`, and `_sync_registry` filters them
+out before `IdRegistry.harvest`, so `_ambiguous_entity_keys` stays the one
+counter. Rejected: re-deriving non-readers at harvest from names or graph
+relationships (a name filter would also drop the main package; a graph
+heuristic would drift from the lookup code). `env` records none: its
+synthetic root never looks up but is written as before (no dependency can
+share its name in practice). `id import` has no such record and still skips
+every multi-holder key. Two versions of one dependency both read
+(`DependencyIdHits.take`), so they stay ambiguous.
+
+The harvest skip applies to every entity type, not just
+`software_Package`: the `ai_AIPackage` `numpy` import test
+(`test_generator_registry_sync_ai.py`) had to pin its stale entry by hand,
+since ten same-stem models are now one ambiguous key. `loom id import` names
+what it skipped in one `INFO: ID registry: not imported (name held by
+several elements): <names>` line (sorted); auto-harvest logs each skipped key
+once at DEBUG only. A name-keyed registry cannot pin an ambiguous name; the
+one-name-per-document caveat is documented for users instead of solved.
+
+**Paths rejected:** keeping the walk-up as a fallback when nothing is
+declared (rejected -- reintroduces the unrelated-project risk above);
+keeping the old warn-and-continue behaviour for a declared-but-broken
+file (rejected -- a registry the user explicitly named should never be
+silently ignored, since that risks minting fresh ids that silently
+diverge from a previous run's).
+
+`loom id generate`'s relative `-o`/`--id-registry` and PATH arguments
+also now resolve against the current directory, not `--project-dir` --
+dropping the deliberate exception this doc's own text used to describe,
+for consistency with every other command; registry keys and the
+implicit default paths are unaffected, staying relative to
+`--project-dir`.
+
+**Registry location is required everywhere, never assumed (user
+decision, 2026-09-28):** `loom id generate`/`loom id import` no longer
+fall back to an implicit `<project-dir>/loom-id-registry.json` /
+`./loom-id-registry.json` when neither `-o`/`--id-registry` nor a
+declared project `id-registry` key names a target -- they now print one
+`ERROR: no ID registry declared: pass --id-registry FILE or set
+id-registry in [tool.pitloom]` (`[tool:pitloom]` for a
+setup.cfg-configured project) and exit 1, writing nothing. Why: the
+implicit default silently pointed both commands at whatever
+`loom-id-registry.json` happened to exist relative to the resolution
+base, which was rarely the file the caller meant -- `id import` run
+from the wrong directory silently merged into and rewrote an unrelated
+`./loom-id-registry.json`, and `id generate` created an undeclared file
+that the next build (reading `[tool.pitloom]`, which never named it)
+silently ignored. `loom-id-registry.json` stays as
+`DEFAULT_ID_REGISTRY_FILENAME`, the suggested name in docs/skills, but
+is no longer assumed by these two commands. The INFO "add to
+`[tool.pitloom]`" hint after a fresh write is unchanged.
 
 ### Duplicate-spdxId safety net
 
@@ -274,8 +419,8 @@ above) -- `_sync_registry()` used exactly that to decide whether to
 `harvest()` returns a third value, `changed: bool` (based on actual
 dict-content comparison, not size), and `_sync_registry()` gates its
 `save()` on that instead. Its INFO log distinguishes the two cases:
-`"Registry: added %d new file(s), %d new entit(y/ies) to %s"` when the
-net counts are nonzero, `"Registry: updated stale entries in %s"` when
+`"ID registry: added %d new file(s), %d new entit(y/ies) to %s"` when the
+net counts are nonzero, `"ID registry: updated stale entries in %s"` when
 `changed` is true but the net counts are zero (a release and an add
 cancelling out) -- the latter would otherwise misleadingly read as
 "added 0... entit(y/ies)", as if nothing had happened.

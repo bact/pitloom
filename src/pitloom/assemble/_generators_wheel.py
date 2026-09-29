@@ -29,7 +29,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.wheel import read_wheel
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry
+from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
@@ -41,11 +41,11 @@ def generate_wheel_sbom(
     creation_metadata: CreationMetadata | None = None,
     pretty: bool | None = None,
     describe_relationship: bool | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     offline: bool | None = None,
     content_type_method: str | None = None,
-    update_registry: bool | None = None,
+    update_id_registry: bool | None = None,
     max_source_metadata_bytes: int | None = None,
     pitloom_config: PitloomConfig | None = None,
 ) -> str:
@@ -55,8 +55,8 @@ def generate_wheel_sbom(
     from the current directory, not from beside the wheel -- either may
     belong to an unrelated project. Settings come from the arguments, then
     *pitloom_config* when the caller names one explicitly, then the built-in
-    defaults. The same holds for the registry: *registry*, else the explicit
-    config's ``ids-file``; no ``loom-ids.json`` is searched for.
+    defaults. The same holds for the registry: *id_registry*, else the explicit
+    config's ``id-registry``; no ``loom-id-registry.json`` is searched for.
 
     An explicit *pitloom_config* applies in full, identity included: its
     creators, creation datetime and comment fill in when *creation_metadata*
@@ -70,9 +70,6 @@ def generate_wheel_sbom(
     """
     configure_logging()
     wheel_path_obj = Path(wheel_path)
-    project_metadata, project_files = read_wheel(wheel_path_obj)
-    phantom_deps = find_phantom_dependencies(project_files)
-
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(
@@ -81,11 +78,16 @@ def generate_wheel_sbom(
             content_type_method=content_type_method,
             pretty=pretty,
             describe_relationship=describe_relationship,
-            update_registry=update_registry,
+            update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
     )
-    resolved_registry = resolve_explicit_registry(registry, cfg.ids_file)
+    # Resolved before the expensive read_wheel()/find_phantom_dependencies()
+    # calls below -- a declared-but-missing/malformed registry should fail
+    # fast, never after paying for a full wheel read first.
+    resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    project_metadata, project_files = read_wheel(wheel_path_obj)
+    phantom_deps = find_phantom_dependencies(project_files)
 
     doc = DocumentModel(
         project=project_metadata,
@@ -101,7 +103,7 @@ def generate_wheel_sbom(
         **cfg.assemble_options,
     )
 
-    _sync_registry(exporter, resolved_registry, cfg.update_registry)
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,

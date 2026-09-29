@@ -45,15 +45,17 @@ from pitloom.assemble.spdx3._document_model import (
     build_enrichment_fragment,
     build_model,
 )
+from pitloom.assemble.spdx3._package_ids import resolve_project_package_ids
 from pitloom.assemble.spdx3.ai import add_ai_models, resolve_ai_model_entity_hits
 from pitloom.assemble.spdx3.creation_info import (
     build_creation_info,
     parse_iso_datetime,
     to_spdx3_datetime,
 )
-from pitloom.assemble.spdx3.deps import add_dependencies, add_phantom_dependencies
+from pitloom.assemble.spdx3.deps import add_dependencies
 from pitloom.assemble.spdx3.deps_installed import _DEFAULT_LOCKED_PROVENANCE
 from pitloom.assemble.spdx3.deps_license import attach_main_package_license
+from pitloom.assemble.spdx3.deps_phantom import add_phantom_dependencies
 from pitloom.assemble.spdx3.provenance import (
     ProvenanceEncoder,
     emit_provenance,
@@ -70,7 +72,7 @@ from pitloom.core.models import (
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 __all__ = [
     "_ai_model_identity",
@@ -102,13 +104,20 @@ def _build_main_package(
     agents: list[spdx3.Agent],
     doc_uuid: str,
     merkle_root: str | None = None,
+    resolved_id: str | None = None,
 ) -> spdx3.software_Package:
-    """Create the SPDX package representing the Python project."""
+    """Create the SPDX package representing the Python project.
+
+    *resolved_id* is the pre-resolved registry id (see
+    :func:`~pitloom.assemble.spdx3._package_ids.resolve_project_package_ids`);
+    ``None`` mints one.
+    """
     metadata = doc.project
     creation_metadata = doc.creation_metadata
     download_location = metadata.urls.get("Source") or metadata.urls.get("Homepage")
     main_package = spdx3.software_Package(
-        spdxId=generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
+        spdxId=resolved_id
+        or generate_spdx_id("Package", doc_name=metadata.name, doc_uuid=doc_uuid),
         name=metadata.name,
         creationInfo=spdx_ci,
     )
@@ -206,24 +215,25 @@ def build(
         locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
     )
     _clear_doc_counters(doc_uuid)
-    # One combined claim map across files, directories, and AI models: a
-    # registry hit any of them resolves is claimed by whichever comes
+    # Deduplicated once and shared below: a genuine name/version conflict
+    # in metadata.locked_dependencies must warn exactly once per document,
+    # not once per function that would otherwise recompute it, and each
+    # entry's pin is parsed once, not once per consumer.
+    deduplicated_locked, locked_versions = _dedup_and_locked_versions(
+        metadata.locked_dependencies
+    )
+    transitive_only = _locked_transitive_only_dependencies(
+        metadata, deduplicated_locked=deduplicated_locked
+    )
+    # One shared session across files, directories, AI models and packages:
+    # a registry hit any of them resolves is claimed by whichever comes
     # first below, so two elements never reuse the same stale id -- see
-    # claim_registry_hit()'s docstring.
-    claimed_hits: dict[str, str] = {}
-    dir_hits, file_hits = _resolve_file_and_directory_hits(
-        metadata.files, registry, claimed_hits
-    )
-    ai_entity_hits = resolve_ai_model_entity_hits(doc.ai_models, registry, claimed_hits)
-    reserve_spdx_ids(
-        metadata.name,
-        doc_uuid,
-        [
-            *dir_hits.values(),
-            *file_hits.values(),
-            *(hit for hit in ai_entity_hits if hit is not None),
-        ],
-    )
+    # IdRegistrySession's docstring. Every lookup precedes the reservation.
+    session = IdRegistrySession(registry)
+    dir_hits, file_hits = _resolve_file_and_directory_hits(metadata.files, session)
+    ai_entity_hits = resolve_ai_model_entity_hits(doc.ai_models, session)
+    package_ids = resolve_project_package_ids(doc, transitive_only, session)
+    reserve_spdx_ids(metadata.name, doc_uuid, session.claimed_ids())
 
     # --- Creation info, creator agents, and creation tools ---
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
@@ -235,7 +245,9 @@ def build(
         exporter.object_set.add(tool)
 
     # --- Main package ---
-    main_package = _build_main_package(doc, spdx_ci, agents, doc_uuid, merkle_root)
+    main_package = _build_main_package(
+        doc, spdx_ci, agents, doc_uuid, merkle_root, package_ids.main
+    )
 
     # --- SBOM and document envelope ---
     sbom = spdx3.software_Sbom(
@@ -294,16 +306,6 @@ def build(
     )
 
     # --- Locked (e.g. poetry.lock-resolved) transitive-only dependencies ---
-    # Deduplicated once and shared below: a genuine name/version conflict
-    # in metadata.locked_dependencies must warn exactly once per document,
-    # not once per function that would otherwise recompute it, and each
-    # entry's pin is parsed once, not once per consumer.
-    deduplicated_locked, locked_versions = _dedup_and_locked_versions(
-        metadata.locked_dependencies
-    )
-    transitive_only = _locked_transitive_only_dependencies(
-        metadata, deduplicated_locked=deduplicated_locked
-    )
     release_info_cache = (
         None
         if offline
@@ -332,6 +334,7 @@ def build(
         locked_versions=locked_versions,
         locked_provenance=locked_dependencies_provenance,
         locked_hashes=metadata.locked_dependency_hashes,
+        resolved_ids=package_ids.dependencies,
     )
 
     if transitive_only:
@@ -350,6 +353,7 @@ def build(
             release_info_cache=release_info_cache,
             completeness=_locked_dependencies_completeness(metadata),
             locked_hashes=metadata.locked_dependency_hashes,
+            resolved_ids=package_ids.dependencies,
         )
 
     # --- Files ---
@@ -377,6 +381,8 @@ def build(
             exporter=exporter,
             provenance_config=prov_cfg,
             encoder=encoder,
+            resolved_ids=package_ids.phantom,
+            not_looked_up=package_ids.phantom_not_looked_up,
         )
 
     # --- AI models (and their associated datasets) ---

@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -204,6 +204,14 @@ full picture.
   tests/` are); known edge cases: `args` containing a literal ASCII RS or a CR
   inside quotes, quadratic `${PL_ARGS//[[:space:]]/}` on bash 3.2. See
   [github-action.md](../implementation/github-action.md).
+- [ ] **GitHub Action silently drops invalid boolean inputs** -- any
+  non-empty value other than exactly `true`/`false` (`maybe`, `True`) on the
+  tri-state `enrich`, `extract-file-header`, `update-id-registry`,
+  `content-type`, `offline`, `use-lockfile`, and on the two-state `pretty`,
+  `allow-build`, `no-build-isolation` (case-sensitive `= "true"`, so
+  `allow-build: True` silently skips the build), passes no flag and prints
+  no warning; `use-lockfile` in model/embed-wheel mode is dropped silently
+  too. Violates "no silent deviations".
 - [ ] **SARIF output** -- emit a SARIF file as a build artifact for CI
   findings (inline PR annotations, Security-tab view), fed by
   `WARNING:`/`ERROR:` output, OSV.dev results (once built), and license
@@ -260,7 +268,7 @@ below, which is the actual commitment for what ships before mid-October):
   pattern across Track A modules; a hand-rolled `tool` table walk
   repeated across 6+ modules), one low-priority dev-script dedup, one
   id-registry gap (`--allow-build`-sourced files can't match a
-  `loom ids generate`-pinned entry, since their `physical_path` is an
+  `loom id generate`-pinned entry, since their `physical_path` is an
   ephemeral temp path -- **partially addressed** 2026-09-15: a separate,
   previously-unguarded AI-model registry lookup in `_ai_package.py` was
   found and fixed, but `_document_files.py`'s own `software_File` lookup
@@ -275,95 +283,7 @@ below, which is the actual commitment for what ships before mid-October):
 
 ### Build backend improvements
 
-- [x] **Build-and-read extraction dir removed on SIGTERM/SIGHUP/Ctrl-C
-  for its whole lifetime** (hashing, AI-model scanning, `embed-wheel`
-  batches), not only during the build. See
-  [allow-build-termination.md](../implementation/allow-build-termination.md).
-- [ ] **Optional safety net for SIGKILL** -- the guard above can't run
-  under SIGKILL by design (see its own known limitations); sweep stale
-  `pitloom-build-and-read-*`/`plb-*` temp dirs older than N hours at the
-  next run as a lightweight backstop.
-- [ ] **Windows: run the build in a Job Object** -- `taskkill /T` walks
-  the tree by parent PID, so processes a finished build leaves running
-  are unreachable once their parent exits; and a Ctrl-Break during
-  wheel extraction leaves both build temp dirs behind (files still open
-  when the handler removes them; each gets a `WARNING:`, seen on Windows
-  CI in PR #226). A Job Object would kill the whole tree; the leftover
-  dirs need the extraction's open files closed first. See
-  [allow-build-termination.md](../implementation/allow-build-termination.md#limitations).
-- [ ] **Accepted residual limits of build termination** -- revisit only if
-  reported; listed in
-  [allow-build-termination.md](../implementation/allow-build-termination.md#limitations).
-- [ ] **`--allow-build` follow-ups from the PR #226 reviews** -- build-flag
-  warning inconsistencies across surfaces, build-child isolation gaps,
-  `EmbedFileCache` on worker threads, and the manual checks' blind spots.
-  See [allow-build-followups.md](allow-build-followups.md).
-- [ ] **PEP 517 `prepare_metadata_for_build_wheel`** (opt-in) -- call the build
-  backend in a subprocess to resolve dynamic metadata (Git-tag versions,
-  computed deps) that static parsing cannot handle.
-  See [metadata-sources.md](metadata-sources.md).
-- [x] **Setuptools wheel file discovery** -- resolves a setuptools
-  project's file set from static config instead of Hatchling's
-  `WheelBuilder`. See
-  [setuptools-support.md](../implementation/setuptools-support.md) and
-  [sbom-lifecycle-stages.md](../implementation/sbom-lifecycle-stages.md).
-- [x] **`get_wheel_files()` option to skip Merkle root computation** --
-  `embed-wheel`'s one caller now skips per-file hashing entirely. See
-  [get-wheel-files-skip-merkle-root.md](../implementation/get-wheel-files-skip-merkle-root.md).
-- [x] **In-tree `.egg-info`/`.dist-info` as a supplementary metadata
-  source** -- an editable-install byproduct left next to
-  `pyproject.toml` gap-fills undeclared fields; static source stays
-  authoritative on conflict (recorded, never silently substituted).
-  See [installed-dist-info-source.md](installed-dist-info-source.md).
-- [x] **Unify `extract/project/installed.py`'s RFC 822 Core-Metadata
-  parser with `extract/wheel.py`'s** -- closed (2026-09-15, PR #215):
-  widened to all four sites with the same duplicated `Project-URL`
-  -splitting shape, consolidated into one parametrized
-  `extract/_core_metadata.py::parse_project_urls()`. See
-  [installed-dist-info-source.md](installed-dist-info-source.md#relationship-to-extractwheelpys-parser).
-- [ ] **Real installed `.dist-info` (site-packages) as a metadata
-  source** -- the deferred, backend-agnostic phase: a user-supplied
-  venv/site-packages path, cross-checked via `direct_url.json`.
-  See ["Deferred: real installed dist-info (site-packages)"](installed-dist-info-source.md#deferred-real-installed-dist-info-site-packages).
-- [x] **Split `extract/project/installed.py`** -- closed (2026-09-15,
-  PR #215): discovery+parsing stayed in `installed.py` (now ~340 lines);
-  reconciliation moved to the sibling `_installed_reconcile.py`, exactly
-  the seam previously identified.
-- [ ] **`resolve_project_with_lockfile()`'s peek/reread pays for
-  installed-metadata discovery twice** (once per `read_project()` call)
-  when the lock cascade is auto-detected. Already an accepted,
-  documented cost; a fix needs care -- the peek's own read may be
-  load-bearing for surfacing errors the quiet re-read wouldn't catch on
-  its own, so any change here needs a closer look at that ordering
-  before changing it, not a quick patch.
-- [x] **CLI option `--no-use-lockfile`** -- opt-out flag (also
-  `[tool.pitloom] use-lockfile = false`) disabling automatic lock-file
-  discovery across every usage surface; on by default. Also fixed a
-  related `loom enrich` doc-identity bug found along the way.
-  See [lock-file-cascade.md](../implementation/lock-file-cascade.md#--no-use-lockfile-opt-out).
-- [x] **Preserve lock file hashes in `--offline` mode** -- SHA-256 digests
-  parsed from `pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`
-  now populate SPDX 3 `verifiedUsing`, taking priority over a PyPI JSON API
-  lookup even online.
-  See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md).
-- [ ] **SHA-512 / BSI TR-03183-2 `verifiedUsing`** -- no lock format or the
-  PyPI JSON API carries a SHA-512 digest; producing one means downloading the
-  artifact and hashing it, a heavier feature than the SHA-256 lock-hash
-  preservation above. `Element.verifiedUsing`'s 0..* cardinality means this
-  can append to the same list without restructuring it.
-  See [lock-hash-preservation.md](../implementation/lock-hash-preservation.md#scope).
-- [ ] **Transitive dependency resolution and lock-hash support in Hatchling build hook** --
-  gather transitive dependencies down the n-level dependency tree during build-stage
-  hook execution to resolve dependencies and obtain integrity hashes, populating
-  `verifiedUsing` in embedded build SBOMs without relying on source-stage lock files.
-- [ ] **`pixi.lock` and `conda-lock.yml` as resolved-dependency sources** --
-  the two lock-file phases the current cascade doesn't cover, for
-  AI/ML stacks mixing PyPI wheels with Conda/CUDA binaries. See
-  [lock-files.md](lock-files.md)'s Phase 2 -- its priority table and
-  shipped-status notes are current, but its Pydantic/CycloneDX sketch
-  predates and doesn't match this codebase's actual shape; follow
-  `extract/lock/poetry.py` and `assemble/spdx3/deps.py`'s established
-  pattern instead, as the doc itself now says.
+See [build-backend-improvements.md](build-backend-improvements.md).
 
 ### PEP 770 / embed-wheel
 
@@ -404,26 +324,19 @@ below, which is the actual commitment for what ships before mid-October):
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
-- [ ] **Skill trigger coverage for `loom ids generate`/`loom ids import`**
-  -- flagged during a 2026-09-18 skills-coverage audit: the skills now
-  explain the registry *concept* (why ids stay stable across reruns via
-  auto-harvest, so `sbom-enrich`'s dangling-fragment troubleshooting can
-  point at a registry mismatch -- see `sbom-generate`'s "Why element ids
-  stay stable across reruns" section), but the two manual commands
-  themselves have no trigger phrasings or dedicated skill workflow.
-  Needs design: which skill should own them (a new one, or folded into
-  `sbom-generate`), and what phrasings distinguish "pin ids before a
-  first run" from "import ids from an existing SBOM" without colliding
-  with plain generate/enrich requests. See
-  [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
+- [ ] **Skill trigger coverage for `loom id generate`/`loom id import`** --
+  the skills run both commands now, but no description triggers on them;
+  owner skill undecided. See [id-registry-followups.md](id-registry-followups.md).
 - [ ] **Deterministic same-model identification for auto-harvest** --
-  `ai_AIPackage` elements are excluded from the Loom ID registry's
-  auto-harvest since `ai_model.name` is extraction-dependent. Open
-  design question: whether a content-hash match (narrower than "same
-  model" for re-exported/re-quantized models) plus a non-identifying
-  "machine ID" scoping tag could safely extend auto-harvest to AI
-  models. No implementation direction chosen yet. See
-  [ai-model-id-stability.md](ai-model-id-stability.md).
+  `ai_AIPackage` stays out of auto-harvest; content-hash matching is an
+  open design question. See [ai-model-id-stability.md](ai-model-id-stability.md).
+- [ ] **Wheel/sdist targets and src-layout registry file ids** -- path keys
+  differ; a `project` harvest aliases the wheel path, `id generate` alone
+  does not, and an sdist finds neither. See [id-registry-followups.md](id-registry-followups.md).
+- [ ] **Registry harvest rewrites per-document entities; `env`'s root
+  package is never looked up.** See [id-registry-followups.md](id-registry-followups.md).
+- [ ] **A declared registry inside the package tree never settles** -- the
+  registry is itself a hashed file. See [id-registry-followups.md](id-registry-followups.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
@@ -464,166 +377,30 @@ below, which is the actual commitment for what ships before mid-October):
   extracted dynamically by summing `cr:totalItems` across `cr:recordSet`
   entries (or top-level `cr:totalItems`), with graceful `None` fallback.
 
+- [ ] **Pipdeptree JSON-shape mismatch in `loom env`** -- `extract/env.py`
+  runs `pipdeptree --json-tree --all` but `_document_deployed.py` reads
+  `--json` shape, so all deployed packages named `unknown` on pipdeptree
+  4.2.5; tests stub the `--json` shape. Own PR
+  right after [#235](https://github.com/bact/pitloom/pull/235).
+
 ### SBOM fragments (merge system)
 
-`working-docs/design/sbom-fragments/` is a 5-file design cluster (index:
-[README.md](sbom-fragments/README.md)) that was not linked from this
-roadmap until 2026-09-15 -- re-verified against current code before
-listing below, since parts of its Phase 1/4 plan turned out to already
-be built:
+Core merge mechanism, `FragmentConfig`, and `loom fragment list` have
+shipped; several follow-ups (fragment signing/SHA-256 enforcement,
+skill trigger coverage, SDK ergonomics, new extractors,
+compliance/interop, element-level traceability) remain open. See
+[open-items.md](sbom-fragments/open-items.md).
 
-- [ ] **Skill trigger coverage for `loom merge` and `loom fragment
-  list`** -- flagged during a 2026-09-18 skills-coverage audit: neither
-  has a trigger phrasing or dedicated workflow in any `skills/*/SKILL.md`
-  (`loom merge` appears only as one bash example line in
-  `sbom-generate`). Needs design: `sbom-enrich` already covers the
-  fragment-registration-and-regenerate path end to end, so this is about
-  whether standalone `loom merge`/`loom fragment list` requests (outside
-  that flow) warrant their own trigger phrasings, and if so, in which
-  skill. See
-  [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
-- [x] **Core merge mechanism and `loom fragment validate`** -- both
-  already ship, substantially superseding the original design cluster's
-  Phase 1/4 plan. See
-  [fragment-merge-mechanism.md](../implementation/fragment-merge-mechanism.md).
-- [x] **`FragmentConfig` dataclass** -- `PitloomConfig.fragments` is
-  `list[FragmentConfig]` (`role`/`description`/`required`/`sha256`/
-  `link-to-main`), backward-compatible with a plain-string loader
-  (`core/_config_types.py`, `core/_config_parse.py`).
-- [x] **`loom fragment list`** -- surfaces per-fragment status (existence,
-  `@graph` element count, SHA-256 match) to developers
-  (`cli/commands/fragment.py`).
-- [ ] **`loom fragment sign` + SHA-256 verification in merge** --
-  genuinely open; the SHA-256 hashing that already exists in
-  `_fragments_unify.py` is for same-identity element dedup, not
-  fragment-file integrity/tamper checking. `FragmentConfig.sha256` is
-  currently display-only (`fragment list`), not enforced before merge.
-- [ ] **Fragment-parse-path consolidation** -- `fragment list`'s
-  per-fragment read/parse (`_fragment_read_status` in
-  `cli/commands/fragment.py`) and `merge_fragments()`'s own read/parse
-  (`assemble/spdx3/fragments.py`) are two independently-written code
-  paths doing the same "open, JSON-parse, SPDX3-deserialize" job --
-  `fragment list` calls `JSONLDDeserializer().deserialize_data()` on
-  pre-parsed JSON (to avoid re-parsing bytes it already parsed for the
-  SHA-256/element-count checks), `merge_fragments()` calls
-  `JSONLDDeserializer().read()` directly on an open file handle. They
-  agree today, but nothing keeps them in sync if either the deserializer
-  library or one call site changes independently. A shared
-  "read+parse+deserialize a fragment, return raw bytes and the SPDX3
-  object set" helper would close this; deferred since it isn't a live
-  bug and reworking it risks reintroducing the double-JSON-parse
-  inefficiency the current split was built to avoid.
-- [ ] **`merge_fragments()`'s required-fragment check short-circuits the
-  dangling-reference check** -- a missing/unreadable `required=True`
-  fragment raises `FragmentMergeError` before
-  `_raise_on_dangling_references()` ever runs, even when other,
-  successfully-merged fragments introduced a genuine, independent
-  dangling reference. Deliberate today (root-cause-first: a missing
-  required fragment is usually the cause of downstream dangling refs,
-  per the comment in `merge_fragments()`), but means a build with both
-  problems only ever reports one per run -- revisit if that turns out to
-  cost real debugging time in practice.
-- [ ] **`FragmentMergeError` propagates uncaught from the Hatchling build
-  hook** -- `required=True` enforcement makes this reachable far more
-  often than before (previously only the dangling-reference check could
-  raise it from `plugins/hatch.py`'s `initialize()`, which has no
-  `try/except` around `merge_fragments()`). A user hits a raw Python
-  traceback through Hatchling's hook machinery instead of a clean
-  message, unlike the CLI (`cli_error_handler`-wrapped `ERROR:` line).
-  Matches existing precedent (`ValueError`/`RuntimeError` from config
-  validation already propagate uncaught there the same way), so not a
-  regression, but worth a dedicated `try/except FragmentMergeError` with
-  a clean message if it turns out to bite users in practice.
-- [ ] **`KEY=VALUE` CLI output has no quoting/escaping for values
-  containing spaces** -- `pitloom fragment list`'s one-line-per-fragment
-  output (`PATH=... ROLE=... REQUIRED=...`) space-separates its fields,
-  so a fragment `path` containing a space (legal on all three supported
-  platforms) breaks naive whitespace-based field splitting downstream
-  (`awk '{print $1}'`-style consumers). Pre-existing risk, not introduced
-  by this PR -- shared by every other space-separated `KEY=VALUE` line in
-  the codebase (e.g. `scanner.py`'s `FORMAT=%s FILE=%s`). No quoting
-  convention defined yet; pick one (shell-style quoting, JSON Lines
-  output mode, etc.) if/when a real path-with-spaces bug report lands.
-- [ ] **SDK ergonomics (Phase 2)** -- `log_param`/`log_metric`/`log_tag`
-  on `_ActiveRun`, a fluent `add_dataset` builder, `log_evaluation`,
-  persistent `loom.start_session()`/`end_session()`, an optional
-  `%%pitloom_record` IPython cell magic. See
-  [loom-sdk-and-notebooks.md](sbom-fragments/loom-sdk-and-notebooks.md).
-- [ ] **New extractors (Phase 3)** -- W&B Weave and DVC extractors, plus
-  an MLflow dataset-input addition once the base
-  [MLflow extractor](#extractors) above exists. See
-  [extractor-integrations.md](sbom-fragments/extractor-integrations.md).
-- [ ] **Compliance/interop (Phase 4)** -- CycloneDX BOM-Link emission
-  (blocked on the CycloneDX assembler under Medium-term) and a
-  fragment `completeness` field (`complete`/`incomplete`/`unknown`)
-  mapped to an SPDX `Annotation`. See
-  [roadmap-and-resources.md](sbom-fragments/roadmap-and-resources.md).
-- [ ] **Element-level fragment-merge traceability** -- document-level
-  traceability (which fragment *files* contributed) shipped in
-  [PR #108](https://github.com/bact/pitloom/pull/108); which
-  *unification criterion* matched (same `spdxId` vs. content hash vs.
-  structural equality) and which fragments a merged element's
-  properties came from is not recorded in the output, only in a
-  `log.warning`. Not planned to change without a native SPDX
-  field-provenance construct -- see
-  [roadmap-and-resources.md](sbom-fragments/roadmap-and-resources.md)
-  for the full note.
+- [ ] **Non-directory targets silently ignore configured fragments** --
+  `loom model` (and `generate` on a model file), Hugging Face, `wheel`,
+  `env` and sdist runs never call `merge_fragments()`, so fragments in
+  `--config`/project config are dropped with no `WARNING:` and exit 0
+  (violates "no silent deviations"). Found reviewing the `sbom-enrich`
+  skill; the skill now says so. Record only.
 
 ### Metadata quality
 
-- [ ] **Revise and publish the provenance/enrichment vocabulary reference**
-  -- draft `docs/vocabulary.md` page reverted out of `docs/` pending a
-  `role`/`method` taxonomy revision; once settled, publish and
-  consolidate every place that documents this vocabulary ad hoc into
-  one canonical source. See
-  [provenance-enrichment-vocabulary.md](provenance-enrichment-vocabulary.md).
-- [x] **Generalize multi-source conflict detection beyond license** --
-  `build_conflict_annotation`/`ConflictCandidate` now also fires for
-  dependency version, not just license. See
-  [multi-source-conflict.md](../implementation/provenance/multi-source-conflict.md).
-- [ ] **Generic multi-candidate field representation** -- today each
-  multi-source field (license, dependency version) hand-builds its own
-  `ConflictCandidate` list at its own assembly call site; there's no
-  shared type carrying a labeled candidate set (declared/detected/
-  concluded, or a richer vocabulary such as BSI TR-03183's original/
-  distribution/effective) from extraction through assembly, nor a shared
-  per-field policy for "which roles map to which native SPDX relationship
-  (if any) vs. Annotation-only." Worth designing once a third field needs
-  this. See
-  [generic-multi-candidate-fields.md](generic-multi-candidate-fields.md).
-- [ ] **Enhanced dependency analysis** -- transitive dependencies, optional
-  extras, development dependencies.
-- [ ] **Auto-discover default license files when `[project.license-files]`
-  is undeclared** -- setuptools' `_finalize_license_files()` and
-  Hatchling's `CoreMetadata.license_files` both fall back to the same
-  glob (`LICEN[CS]E*`, `COPYING*`, `NOTICE*`, `AUTHORS*`, citing the
-  `wheel` package's own documented convention) and bundle whatever
-  matches into a real wheel's `.dist-info/licenses/`, even with no
-  explicit field. Pitloom's `resolve_license_file_entries()`
-  (`src/pitloom/extract/_license.py`) deliberately does *not* replicate
-  this today -- both extraction paths only trust an explicit
-  `[project.license-files]` declaration (see
-  [license-pipeline.md](../implementation/license-pipeline.md)'s
-  "License-files bundling" section) --
-  because the default glob is a build-backend auto-bundling convenience,
-  not something PEP 639 itself defines, and because `NOTICE`/`AUTHORS`
-  matches don't obviously belong under a `hasDeclaredLicense` relationship
-  the way `LICENSE`/`COPYING` do. If this is picked up, it needs its own
-  design pass: which stems to trust, whether it holds for every backend
-  (only setuptools and Hatchling are confirmed so far), and a provenance
-  label that clearly distinguishes "inferred default" from "explicitly
-  declared."
-- [x] **SBOM enrichment from external sources** (the `enrich/` subpackage)
-  -- MVP shipped: local README/model-card YAML frontmatter parsing,
-  gated by `[tool.pitloom] enrich` (default off), code-level and
-  deterministic -- distinct from the agent-facing `sbom-enrich` Skill
-  above. Still not started: OpenSSF Scorecard, Hugging Face Hub and
-  PyPI metadata sources, per-source enable/disable config.
-  See [sbom-enrichment.md](sbom-enrichment.md).
-- [ ] **OSV.dev vulnerability lookup** (`--enrich-cve` or similar) -- static
-  enrichment only (no exploitability judgement); VEX generation under
-  Medium-term is the follow-on triage step. See
-  [osv-vulnerability-lookup.md](osv-vulnerability-lookup.md).
+See [metadata-quality.md](metadata-quality.md).
 
 ### Remote source ingestion
 
@@ -635,103 +412,17 @@ be built:
 
 ### Testing / CI
 
-- [x] **Real Windows and macOS CI runs** -- `test.yml`/`build.yml` now
-  cover `windows-latest`/`macos-latest`, not just `ubuntu-latest`. The
-  first Windows run immediately surfaced 7 real test failures (all
-  test-fixture bugs, no production code changed). See
-  [windows-macos-ci.md](../implementation/windows-macos-ci.md).
-  ([PR #220](https://github.com/bact/pitloom/pull/220))
-- [x] **`fasttext` Windows/macOS + Python 3.14 gap** -- resolved upstream
-  ([fasttext-community#13](https://github.com/munlicode/fasttext-community/pull/13)).
-  See [windows-macos-ci.md](../implementation/windows-macos-ci.md).
-  ([PR #222](https://github.com/bact/pitloom/pull/222))
-- [x] **CI workflow step duplication** -- two shared composite actions
-  replace hand-copied boilerplate across 10 of the 17
-  `.github/workflows/*.yml` files: `setup-python` for the
-  actions/setup-python version/cache config
-  ([PR #221](https://github.com/bact/pitloom/pull/221)) and
-  `install-pitloom` for the Hatchling-pin/dependency-group/
-  editable-install bootstrap. See
-  [ci-install-composite-action.md](../implementation/ci-install-composite-action.md)
-  ([PR #222](https://github.com/bact/pitloom/pull/222)). `checkout` stays
-  inline in each file (a local composite action can't check itself out).
-  `version-consistency.yml` (no cache/pip-install step) and the two
-  intentionally-different `licenseid update` steps were left untouched.
-- [ ] **Verify `--allow-build` termination on real platforms** -- the
-  Windows paths (Ctrl-Break/SIGBREAK, `taskkill /F /T` tree kill) and
-  Pitloom as PID 1 in a container without `--init` are covered by mocks
-  only; the Linux child-subreaper e2e test runs only on Linux CI. See
-  [allow-build-termination.md](../implementation/allow-build-termination.md).
-- [ ] **Build workflow fails on spdx.org network errors** -- `loom
-  validate-wheel`, `loom fragment validate` and `spdx3-validate` fetch
-  the SPDX schema, ontology and context over the network on every run;
-  a `Connection reset by peer` failed two of PR #226's runs. Cache or
-  vendor them, or retry. The step then reports "The SBOM does not
-  conform to SPDX specification" for what was a download error, and
-  fail-fast cancels the other matrix jobs: tell a network failure apart
-  from a real validation failure.
+See [testing-ci-followups.md](testing-ci-followups.md).
+
+- [ ] **Delete `_project_doc_identity` and test `enrich_model` directly** --
+  `assemble/_model_generator.py`'s `_project_doc_identity()` has no
+  production caller (`enrich_model()` calls `_doc_identity_of()`); only
+  `tests/assemble/test_model_generator_doc_identity.py` and
+  `test_explicit_config_edges.py` use it, as an oracle.
 
 ### Diagnostics / logging
 
-- [x] **`--debug` flag / `PITLOOM_DEBUG` env var, and promoting
-  silent-data-loss `DEBUG:` messages to `WARNING:`** -- both shipped
-  together. See [debug-logging.md](../implementation/debug-logging.md)
-  ([PR #201](https://github.com/bact/pitloom/pull/201)).
-- [ ] **`loom <cmd> -o -` corrupts piped JSON** -- with stdout as the
-  SBOM output, `_print_sbom_output_path()`
-  (`cli/commands/utils.py`) still prints
-  `PITLOOM_SBOM_OUTPUT_PATH=-` to stdout after the JSON, on the same
-  stream a consumer expects to be pure SBOM. Found during a
-  `--build-timeout` review, 2026-09-19.
-- [ ] **Hatchling-heuristic fallback WARNING embeds an untagged
-  multi-line exception** -- `_models_wheel_hatchling.py`'s discovery-
-  failure `WARNING:` (~L64) appends a real exception's full text after
-  its one `WARNING:` tag, so continuation lines reach stderr with no
-  `LEVEL:` prefix of their own -- breaks "every line starts with
-  exactly one `LEVEL:`" (CLAUDE.md's "CLI output"). Found during a
-  `--build-timeout` review, 2026-09-19.
-- [ ] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- no
-  top-level handler in `__main__.py` catches it, unlike every other
-  failure mode (`ERROR:` via `cli_error_handler`). Found during a
-  `--build-timeout` review, 2026-09-19.
-- [x] **Shared options accepted, then silently ignored** -- fixed via
-  `core/inert_options.INERT`, a per-target-kind "has no effect" warning
-  every shared flag now goes through. See
-  [config-sources.md](../implementation/config-sources.md); remaining
-  open gap in
-  [cli-shared-options-ignored.md](cli-shared-options-ignored.md).
-- [ ] **Canonical output follow-ups** -- one name-normalisation policy for
-  every named thing (an AI model name with a space yields an invalid IRI);
-  key-order audit of project-metadata sources. Sorted keys, UTC `Z` and LF
-  were built in step 6.5.
-  See [canonical-output-followups.md](canonical-output-followups.md).
-- [ ] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- they print
-  prose (`Enrichment fragment written to: ...`, `pitloom: merged N
-  fragment(s) into ...`), unlike `PITLOOM_SBOM_OUTPUT_PATH=` from every
-  other SBOM command ("CLI output" in CLAUDE.md); so do `ids` and
-  `fragment validate`.
-- [x] **A relative `--registry` resolves against the project directory**
-  -- fixed: it now resolves against the current directory on every
-  command, like every other path option. See
-  [config-sources.md](../implementation/config-sources.md).
-- [ ] **`loom ids generate` crashes on a symlinked path** -- a project
-  path through a symlink (macOS `/var` -> `/private/var`) fails
-  `relative_to()` with a raw traceback instead of an `ERROR:`.
-- [ ] **`loom ids generate` mints a random registry namespace** -- a
-  UUID4 per run, so two fresh registries for the same project differ.
-  Decide whether that is intended (a registry is minted once) or should
-  be derived like an SBOM's namespace.
-
-- [ ] **Big item: config cascade parity across usage surfaces** -- ~20
-  differences in how a setting is read, applied, errored on and reported
-  (`-v`) across CLI, library, hook, `pitloom.loom`, directory vs sdist;
-  one resolver with recorded sources, one reader per format, a key
-  applicability table, a surface x setting matrix test. Fix together.
-  See [config-cascade-parity.md](config-cascade-parity.md).
-- [ ] **Leftovers from #231/#232** (two import cycles, a Poetry
-  `version = 3` crash). See
-  [config-sources.md](../implementation/config-sources.md#found-not-fixed-here),
-  [sdist-own-config.md](../implementation/sdist-own-config.md#found-not-fixed-here).
+See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 
 ### Internal codenames
 

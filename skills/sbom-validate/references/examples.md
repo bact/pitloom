@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-10
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 # Pitloom's `sbom-validate` skill: copy-paste recipes
 
 Companion to `../SKILL.md`. These recipes are meant to be run as-is or
-adapted with minimal edits.
+adapted with minimal edits. Snippets are POSIX shell; on Windows use
+PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands one
+per line).
 
 ## Validate a single SBOM
 
@@ -24,14 +26,23 @@ spdx3-validate --json sbom.spdx3.json
 spdx3-validate --json sbom.spdx3.json --quiet
 ```
 
-## Validate a base SBOM plus a fragment together
+## Validate a base SBOM plus a fragment that declares an ExternalMap
 
 Checks each document individually, then the merged graph -- catches an
 `ExternalMap`-referenced `spdxId` that the fragment expects but the base
-document doesn't actually provide:
+document doesn't actually provide. Only for a fragment that declares an
+`ExternalMap` for the base ids it uses:
 
 ```bash
-spdx3-validate --json sbom.spdx3.json --json fragments/agent-enrichment.spdx3.json
+spdx3-validate --json sbom.spdx3.json --json fragments/external.spdx3.json
+```
+
+A Pitloom enrichment fragment declares none, so this fails (exit 1) for
+it, alone or with its base. Validate the merged SBOM instead:
+
+```bash
+loom project . -o sbom.spdx3.json   # fragment registered in [tool.pitloom.fragment]
+spdx3-validate --json sbom.spdx3.json
 ```
 
 ## Validate several documents without the merged-graph check
@@ -50,16 +61,15 @@ missing:
 spdx3-validate --json sbom.spdx3.json --spdx-version 3.0.1
 ```
 
-## Validate from stdin
+## Generate and validate in one go
 
 ```bash
-loom project . -o - | spdx3-validate --json -
+loom project . -o sbom.spdx3.json && spdx3-validate --json sbom.spdx3.json
 ```
 
-`-o -` is required: without an explicit output path, `loom project`
-writes the SBOM to a named file and prints only
-`PITLOOM_SBOM_OUTPUT_PATH=<path>` to stdout -- `-o -` is what makes it
-stream the SBOM itself to stdout instead.
+Write to a file: don't pipe `loom project . -o -` into the validator.
+`loom` still prints a `PITLOOM_SBOM_OUTPUT_PATH=-` line after the JSON on
+stdout, so `spdx3-validate` fails with `JSONDecodeError: Extra data`.
 
 ## Interpreting the result
 

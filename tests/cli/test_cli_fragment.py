@@ -98,7 +98,7 @@ def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
 
 def test_fragment_cli_invalid_command() -> None:
     # argparse catches this normally; test `_run_fragment_command` directly
-    # for the fallback branch (mirrors test_cli_ids.py's equivalent check).
+    # for the fallback branch (mirrors test_cli_id.py's equivalent check).
     args = argparse.Namespace(fragment_command="invalid")
     result = _run_fragment_command(args)
     assert result == 1

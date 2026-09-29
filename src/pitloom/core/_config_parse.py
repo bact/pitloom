@@ -17,6 +17,7 @@ from typing import Any
 
 from pitloom.core._config_legacy import (
     _check_moved_creation_keys,
+    _check_moved_flat_keys,
     _check_moved_top_level_tables,
 )
 from pitloom.core._config_types import (
@@ -216,15 +217,15 @@ def _read_provenance_settings(
     return fmt, schema, detail, preserve, max_metadata_bytes
 
 
-def _read_ids_file(pitloom_data: dict[str, Any]) -> str | None:
-    """Read ``[tool.pitloom] ids-file``."""
-    ids_file = pitloom_data.get("ids-file")
-    if ids_file is not None and not isinstance(ids_file, str):
+def _read_id_registry(pitloom_data: dict[str, Any]) -> str | None:
+    """Read ``[tool.pitloom] id-registry``."""
+    id_registry = pitloom_data.get("id-registry")
+    if id_registry is not None and not isinstance(id_registry, str):
         raise ValueError(
-            "[tool.pitloom] 'ids-file' must be a string, got "
-            f"{type(ids_file).__name__}: {ids_file!r}"
+            "[tool.pitloom] 'id-registry' must be a string, got "
+            f"{type(id_registry).__name__}: {id_registry!r}"
         )
-    return ids_file
+    return id_registry
 
 
 def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
@@ -267,9 +268,9 @@ def _read_extract_file_header(pitloom_data: dict[str, Any]) -> bool:
     return _read_bool_setting(pitloom_data, "extract-file-header", True)
 
 
-def _read_update_registry(pitloom_data: dict[str, Any]) -> bool:
-    """Read ``[tool.pitloom] update-registry``."""
-    return _read_bool_setting(pitloom_data, "update-registry", True)
+def _read_update_id_registry(pitloom_data: dict[str, Any]) -> bool:
+    """Read ``[tool.pitloom] update-id-registry``."""
+    return _read_bool_setting(pitloom_data, "update-id-registry", True)
 
 
 def _read_content_type_settings(
@@ -452,17 +453,29 @@ def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
 
 
 # pylint: disable=too-many-locals
-def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
-    """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`."""
+def parse_pitloom_config(
+    data: dict[str, Any], *, is_setup_cfg: bool = False
+) -> PitloomConfig:
+    """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
+
+    *is_setup_cfg* names the moved-key errors' own source table
+    ``[tool:pitloom]``/``[tool:pitloom:creation]`` instead of
+    ``[tool.pitloom]``/``[tool.pitloom.creation]`` -- pass ``True`` only
+    for *data* built from a ``setup.cfg`` ``[tool:pitloom]`` section (see
+    :func:`pitloom.extract.project.setuptools_cfg.setup_cfg_pitloom_config`'s
+    own call), never for a ``pyproject.toml``-derived *data*, whatever
+    that TOML file's own basename happens to be.
+    """
     tool_data = _read_table(data, "tool", "[tool]")
     pitloom_data = _read_table(tool_data, "pitloom", "[tool.pitloom]")
     creation_data = _read_table(pitloom_data, "creation", "[tool.pitloom.creation]")
 
-    _check_moved_creation_keys(pitloom_data, creation_data)
-    _check_moved_top_level_tables(pitloom_data)
+    _check_moved_creation_keys(pitloom_data, creation_data, is_setup_cfg=is_setup_cfg)
+    _check_moved_top_level_tables(pitloom_data, is_setup_cfg=is_setup_cfg)
+    _check_moved_flat_keys(pitloom_data, is_setup_cfg=is_setup_cfg)
 
     fragments = _read_fragments(pitloom_data)
-    ids_file = _read_ids_file(pitloom_data)
+    id_registry = _read_id_registry(pitloom_data)
     (
         provenance_format,
         provenance_schema,
@@ -472,7 +485,7 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
     ) = _read_provenance_settings(pitloom_data)
     enrich_local = _read_enrich_settings(pitloom_data)
     extract_file_header = _read_extract_file_header(pitloom_data)
-    update_registry = _read_update_registry(pitloom_data)
+    update_id_registry = _read_update_id_registry(pitloom_data)
     (
         content_type_enabled,
         content_type_method,
@@ -515,8 +528,8 @@ def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
         tools=tools,
         creation_datetime=creation_datetime,
         creation_comment=creation_comment,
-        ids_file=ids_file,
-        update_registry=update_registry,
+        id_registry=id_registry,
+        update_id_registry=update_id_registry,
         provenance_format=provenance_format,
         provenance_schema=provenance_schema,
         provenance_detail=provenance_detail,

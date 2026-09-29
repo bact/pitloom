@@ -40,7 +40,7 @@ from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner import scan_project_for_ai_models
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry, resolve_registry
+from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
@@ -78,14 +78,14 @@ def generate_project_sbom(
     describe_relationship: bool | None = None,
     project_metadata: ProjectMetadata | None = None,
     pitloom_config: PitloomConfig | None = None,
-    registry: str | Path | IdRegistry | None = None,
+    id_registry: str | Path | IdRegistry | None = None,
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
     extract_file_header: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
-    update_registry: bool | None = None,
+    update_id_registry: bool | None = None,
     use_lockfile: bool | None = None,
     build_options: BuildOptions = BuildOptions(),
     max_source_metadata_bytes: int | None = None,
@@ -143,8 +143,8 @@ def generate_project_sbom(
                 "content_type_method": content_type_method,
                 "max_source_metadata_bytes": max_source_metadata_bytes,
                 "offline": offline,
-                "registry": registry,
-                "update_registry": update_registry,
+                "id_registry": id_registry,
+                "update_id_registry": update_id_registry,
                 "creation_metadata": creation_metadata,
                 "use_lockfile": use_lockfile,
             },
@@ -167,9 +167,15 @@ def generate_project_sbom(
             offline=offline,
             pretty=pretty,
             describe_relationship=describe_relationship,
-            update_registry=update_registry,
+            update_id_registry=update_id_registry,
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
+    )
+
+    resolved_registry = resolve_registry(
+        id_registry,
+        cfg.id_registry,
+        registry_base_dir(target_path),
     )
 
     # Owns SIGTERM/SIGHUP handling for the whole lifetime of a
@@ -182,7 +188,6 @@ def generate_project_sbom(
             # warn about here.
             merkle_root = None
             project_files = project_metadata.files
-            search_root = target_path.parent
             cleanup_discovery: Callable[[], None] = _noop_cleanup
         else:
             merkle_root, project_files, cleanup_discovery = get_wheel_files(
@@ -193,7 +198,6 @@ def generate_project_sbom(
                 content_type_overrides=cfg.content_type.overrides,
                 build_options=build_options,
             )
-            search_root = target_path
 
         # cleanup_discovery (a no-op unless --allow-build's build-and-read
         # sourced project_files) must stay alive -- and this whole block
@@ -243,16 +247,6 @@ def generate_project_sbom(
         finally:
             cleanup_discovery()
 
-    # An sdist's directory is not its project: only a given registry is
-    # used, resolved as for any target without a project directory.
-    resolved_registry = (
-        resolve_explicit_registry(registry, cfg.ids_file)
-        if target_path.is_file()
-        else resolve_registry(
-            search_root, registry if registry is not None else cfg.ids_file
-        )
-    )
-
     doc = DocumentModel(
         project=project_metadata,
         creation_metadata=creation_metadata or cfg.creation_metadata,
@@ -270,7 +264,7 @@ def generate_project_sbom(
     if target_path.is_dir():
         merge_fragments(target_path, cfg.fragments, exporter)
 
-    _sync_registry(exporter, resolved_registry, cfg.update_registry)
+    _sync_registry(exporter, resolved_registry, cfg.update_id_registry)
 
     sbom_json = exporter.to_json(
         pretty=cfg.pretty,

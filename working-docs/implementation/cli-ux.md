@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-11
-Last-Modified: 2026-08-14
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -39,7 +39,7 @@ The CLI initially exposed subcommands named directly after CISA SBOM lifecycle s
 - `loom source [project_dir]` (Source SBOM)
 - `loom analyze <target>` (Analyzed SBOM — handles `.whl`, local model binaries, and Hugging Face URLs)
 - `loom deployed` (Deployed SBOM — active environment)
-- `loom ids ...` (Registry management)
+- `loom id ...` (Registry management)
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,12 +91,14 @@ pitloom/
 │       │   │   ├── _document_files.py       # File-element assembly
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
 │       │   │   ├── _fragments_unify.py      # Fragment entity unification and deduplication
+│       │   │   ├── _package_ids.py          # Registry pre-resolution: main package, dependencies, phantom dependencies
 │       │   │   ├── _provenance_encoders.py  # Provenance encoder and payload builders
 │       │   │   ├── ai.py             # AI model element assembly facade
 │       │   │   ├── creation_info.py  # Shared CreationInfo construction
 │       │   │   ├── dataset.py        # Dataset element assembly
 │       │   │   ├── deps_installed.py # Installed-environment dependency tree mapping
 │       │   │   ├── deps_license.py   # License element assembly
+│       │   │   ├── deps_phantom.py   # Phantom (bundled binary) dependency assembly
 │       │   │   ├── deps_pypi.py      # PyPI release-info lookups
 │       │   │   ├── deps_originator.py # Originator resolution
 │       │   │   ├── deps.py           # Dependency enrichment facade
@@ -112,6 +114,7 @@ pitloom/
 │       │   └── __init__.py         # Public assemble facade and generate() entrypoint
 │       ├── cli/                    # CLI: argparse, options, dispatch
 │       │   ├── commands/           # One module per subcommand: _run_<verb>_command() + add_parser()
+│       │   │   ├── _embed_wheel_batch.py # embed-wheel batch context, project-dir/registry resolution
 │       │   │   ├── embed_wheel.py  # loom embed-wheel
 │       │   │   ├── enrich.py       # loom enrich
 │       │   │   ├── env.py          # loom env
@@ -122,7 +125,7 @@ pitloom/
 │       │   │   ├── utils.py        # cli_error_handler decorator, wheel-glob path resolution
 │       │   │   └── wheel.py        # loom wheel
 │       │   ├── constants.py        # Shared literals (.spdx3.json ext, source labels)
-│       │   ├── ids.py              # loom ids generate|import
+│       │   ├── id.py               # loom id generate|import
 │       │   ├── options.py          # add_*_argument()/warn_*() flag-definition helpers
 │       │   ├── options_config.py   # args -> library kwargs/ConfigOverrides map; --config loading
 │       │   ├── options_resolve.py  # CLI > --config > pyproject.toml > default resolution
@@ -179,12 +182,14 @@ pitloom/
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
-│       ├── id_registry/             # Loom ID registry (loom-ids.json)
-│       │   ├── __init__.py          # Public API re-exports (IdRegistry, resolve_*, claim_registry_hit)
-│       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element, claim_registry_hit)
+│       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
+│       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)
+│       │   ├── _ambiguous.py        # Names held by several elements of one document (never harvested)
+│       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element)
 │       │   ├── _registry.py         # IdRegistry class
+│       │   ├── _session.py          # IdRegistrySession: one document's first-claimant-wins lookups
 │       │   ├── _types.py            # Registry dataclasses, hash helpers, file traversal
-│       │   └── resolve.py           # resolve_registry(), resolve_explicit_registry()
+│       │   └── resolve.py           # resolve_registry(id_registry, configured, base_dir)
 │       ├── plugins/                # Build-system integrations
 │       │   └── hatch.py            # Hatchling BuildHookInterface (PEP 770)
 │       ├── __about__.py            # Package version (__version__)
@@ -200,17 +205,17 @@ pitloom/
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
 │   ├── assemble/                   # 58 files -- assemble/, embed.py, enrich/ coverage + conftest.py
-│   ├── cli/                        # 20 files -- one per src/pitloom/cli/ module, + shared.py
-│   ├── core/                       # 29 files -- core/, id_registry, loom.py, generator orchestration
+│   ├── cli/                        # 22 files -- one per src/pitloom/cli/ module, + shared.py
+│   ├── core/                       # 26 files -- core/, loom.py, generator orchestration
 │   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
 │   ├── extract/                    # 46 files, one per extractor
 │   │   └── huggingface/            # 20 files -- split by metadata category
 │   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
+│   ├── id_registry/                # 19 files -- conftest.py, shared.py, package_ids_base.py, surfaces_base.py, surfaces_cli.py, surfaces_shared.py, test_package_ids.py, test_package_ids_ambiguous.py, test_registry.py, test_registry_base_dir_sdist.py, test_registry_generate.py, test_registry_harvest.py, test_registry_import.py, test_relative_paths.py, test_relative_paths_id_commands.py, test_session.py, test_surfaces.py, test_surfaces_failures.py, test_surfaces_same_ids.py
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
-│   ├── ids_shared.py               # Shared helpers for ids-registry tests
 │   └── warning_helpers.py          # Shared WARNING:/caplog assertion helpers
 ├── scripts/
 │   ├── action/                     # GitHub Action helpers (install, Python probe/resolver)

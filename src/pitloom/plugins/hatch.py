@@ -355,10 +355,15 @@ class PitloomBuildHook(_PitloomBuildHookBase):
         )
         sbom_filename: str = f"{sbom_basename}{SPDX3_JSONLD_EXTENSION}"
 
+        try:
+            registry = resolve_registry(None, pitloom_config.id_registry, project_dir)
+        except ValueError as exc:
+            log.error("%s", exc)
+            raise
+
         document, merkle_root, enrichment_results_by_model = _build_document_model(
             project_dir, self.metadata, pitloom_config
         )
-        registry = resolve_registry(project_dir, pitloom_config.ids_file)
 
         exporter = assemble_spdx3(
             document,

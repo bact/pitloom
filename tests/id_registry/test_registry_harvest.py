@@ -3,7 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Core tests for pitloom.id_registry."""
+"""Harvest tests for pitloom.id_registry (split out of test_registry.py --
+see AGENTS.md's file-size rule).
+
+See also: test_registry.py (core load/save/lookup tests), test_registry_generate.py,
+test_registry_import.py, shared.py (fixtures shared by this group).
+"""
 
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -21,152 +26,13 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 import pitloom.id_registry._harvest as ids_mod
 from pitloom.id_registry import (
-    DIRECTORY_ENTITY_TYPE,
+    DEFAULT_ID_REGISTRY_FILENAME,
     EntityEntry,
     FileEntry,
     IdRegistry,
-    resolve_registry,
 )
 from pitloom.id_registry._harvest import _import_sbom_element
 from pitloom.id_registry._types import _REGISTRY_VERSION, _sha256_from_verified_using
-
-
-def test_resolve_registry_error(tmp_path: Path) -> None:
-    # Passing an invalid file
-    invalid_file = tmp_path / "loom-ids.json"
-    invalid_file.write_text("{")  # Malformed JSON
-
-    assert resolve_registry(tmp_path, invalid_file) is None
-
-    missing_file = tmp_path / "missing.json"
-    assert resolve_registry(tmp_path, missing_file) is None
-
-
-def test_register_entity_different_type_gets_its_own_id() -> None:
-    """Two different types sharing a name are distinct entries, each with
-    its own id -- (type, name) keying means this is no longer a conflict."""
-    registry = IdRegistry.new("test")
-
-    id1 = registry.register_entity("my-entity", "Software")
-    id2 = registry.register_entity("my-entity", "Dataset")
-
-    assert id1 != id2
-    assert registry.lookup_entity("my-entity", "Software") == id1
-    assert registry.lookup_entity("my-entity", "Dataset") == id2
-
-
-def test_register_entity_matching_type_reuses_id_without_warning(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Re-registering an entity with the *same* type is a silent no-op."""
-    registry = IdRegistry.new("test")
-
-    id1 = registry.register_entity("my-entity", "Software")
-    id2 = registry.register_entity("my-entity", "Software")
-
-    assert id1 == id2
-    assert "already registered as type" not in caplog.text
-
-
-def test_load_missing_namespace_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / "loom-ids.json"
-    registry_path.write_text(json.dumps({"files": {}, "entities": {}}))
-
-    with pytest.raises(ValueError, match="missing a valid 'namespace'"):
-        IdRegistry.load(registry_path)
-
-
-def test_load_malformed_entry_raises(tmp_path: Path) -> None:
-    registry_path = tmp_path / "loom-ids.json"
-    registry_path.write_text(
-        json.dumps(
-            {
-                "version": _REGISTRY_VERSION,
-                "namespace": "https://spdx.org/spdxdocs/test-1",
-                "files": {"a.py": {"spdxId": "x#File-1"}},  # missing sha256
-                "entities": {},
-            }
-        )
-    )
-
-    with pytest.raises(ValueError, match="has a malformed entry"):
-        IdRegistry.load(registry_path)
-
-
-def test_find_ignores_invalid_registry_and_returns_none(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """find() logs and returns None when the nearest registry is invalid."""
-    registry_path = tmp_path / "loom-ids.json"
-    registry_path.write_text("{not valid json")
-
-    with caplog.at_level("WARNING"):
-        result = IdRegistry.find(start=tmp_path)
-
-    assert result is None
-    assert "Registry: ignoring invalid file" in caplog.text
-
-
-def test_save_without_path_raises() -> None:
-    registry = IdRegistry.new("test")
-
-    with pytest.raises(ValueError, match="No path given"):
-        registry.save()
-
-
-def test_entities_keyed_by_type_survive_a_shared_name_round_trip(
-    tmp_path: Path,
-) -> None:
-    """A directory and a package sharing one name are distinct registry
-    entries: (type, name) keying means neither is lost, before or after a
-    save/load round trip -- regression for the name-only-keyed overwrite
-    hazard (a harvested directory and a same-named package silently
-    replacing each other)."""
-    registry = IdRegistry.new("demo-proj")
-    dir_id = registry.register_entity("demo", DIRECTORY_ENTITY_TYPE)
-    pkg_id = registry.register_entity("demo", "software_Package")
-
-    assert dir_id != pkg_id
-    assert registry.lookup_entity("demo", DIRECTORY_ENTITY_TYPE) == dir_id
-    assert registry.lookup_entity("demo", "software_Package") == pkg_id
-
-    registry_path = tmp_path / "loom-ids.json"
-    registry.save(registry_path)
-    reloaded = IdRegistry.load(registry_path)
-
-    assert reloaded.lookup_entity("demo", DIRECTORY_ENTITY_TYPE) == dir_id
-    assert reloaded.lookup_entity("demo", "software_Package") == pkg_id
-    assert len(reloaded.entities) == 2
-
-
-def test_load_rejects_old_registry_version(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """An old-version registry file is rejected outright (no migration) --
-    surfaced by resolve_registry()/find() as exactly one WARNING, never a
-    crash."""
-    registry_path = tmp_path / "loom-ids.json"
-    registry_path.write_text(
-        json.dumps(
-            {
-                "version": _REGISTRY_VERSION - 1,
-                "namespace": "https://spdx.org/spdxdocs/old-1",
-                "files": {},
-                "entities": {"demo": {"type": "software_Package", "spdxId": "x#1"}},
-            }
-        )
-    )
-
-    with pytest.raises(ValueError, match=f"expected {_REGISTRY_VERSION}"):
-        IdRegistry.load(registry_path)
-
-    with caplog.at_level("WARNING"):
-        result = resolve_registry(tmp_path, registry_path)
-
-    assert result is None
-    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert len(warnings) == 1
-    assert warnings[0].message.startswith("Registry: could not load")
 
 
 class _FakeHash:
@@ -408,7 +274,7 @@ def _write_registry_entities(
 def test_load_canonicalizes_package_entity_names(tmp_path: Path) -> None:
     """A non-canonical ``software_Package`` key on disk is found by the
     canonical lookup every other reader uses."""
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     _write_registry_entities(
         registry_path,
         {"software_Package": {"PyYAML": {"spdxId": "x#Package-2"}}},
@@ -423,7 +289,7 @@ def test_load_canonicalizes_package_entity_names(tmp_path: Path) -> None:
 def test_load_rejects_package_names_equal_after_canonicalization(
     tmp_path: Path,
 ) -> None:
-    registry_path = tmp_path / "loom-ids.json"
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     _write_registry_entities(
         registry_path,
         {

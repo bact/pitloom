@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -22,19 +23,16 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import open_text_lf
-from pitloom.id_registry._harvest import (
-    _import_sbom_element,
-    _sorted_by_spdx_id,
-    _SpdxIdIndex,
-)
+from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
-    DEFAULT_REGISTRY_FILENAME,
     EntityEntry,
     FileEntry,
     _entity_key,
     _iter_files,
+    _require_scalar_str,
     _type_id_prefix,
+    registry_file_error,
     sha256_file,
 )
 
@@ -73,31 +71,48 @@ class IdRegistry:
 
     @classmethod
     def load(cls, path: Path) -> IdRegistry:
-        """Load a registry from *path*."""
-        if not path.exists():
-            raise FileNotFoundError(f"Registry file not found: {path}")
+        """Load a registry from *path*.
+
+        Every failure (missing, unreadable, malformed JSON, wrong shape,
+        wrong version, malformed entry, duplicate) raises one ``ValueError``
+        via :func:`~pitloom.id_registry._types.registry_file_error` --
+        never returns ``None``. "Maybe there's a registry" is resolved
+        upstream, by :func:`~pitloom.id_registry.resolve.resolve_registry`.
+        """
+        if not os.path.isfile(path):
+            raise registry_file_error(path, "not found or not a file")
         try:
-            with open(path, encoding="utf-8") as f:
-                data: dict[str, Any] = json.load(f)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Registry {path} is not valid JSON: {exc}") from exc
+            with open(path, "rb") as f:
+                raw = f.read()
+        except OSError as exc:
+            raise registry_file_error(path, f"cannot be read: {exc}") from exc
+
+        try:
+            data: Any = json.loads(raw)
+        except (ValueError, RecursionError) as exc:
+            raise registry_file_error(path, f"not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise registry_file_error(path, "not a JSON object")
 
         namespace = data.get("namespace")
         if not isinstance(namespace, str) or not namespace:
-            raise ValueError(f"Registry {path} is missing a valid 'namespace'")
+            raise registry_file_error(path, "missing a valid 'namespace'")
 
         version = data.get("version")
         if version != _REGISTRY_VERSION:
-            raise ValueError(
-                f"Registry {path} has version {version!r}, expected "
-                f"{_REGISTRY_VERSION} (no migration support -- delete it and "
-                "re-run `pitloom ids generate` or `pitloom ids import`)"
+            raise registry_file_error(
+                path,
+                f"version {version!r}, expected {_REGISTRY_VERSION} (no "
+                "migration support -- delete it and re-run `pitloom id "
+                "generate` or `pitloom id import`)",
             )
 
         try:
             files = {
                 str(rel_path): FileEntry(
-                    spdx_id=str(entry["spdxId"]), sha256=str(entry["sha256"])
+                    spdx_id=_require_scalar_str(entry["spdxId"], "spdxId"),
+                    sha256=_require_scalar_str(entry["sha256"], "sha256"),
                 )
                 for rel_path, entry in data.get("files", {}).items()
             }
@@ -106,37 +121,21 @@ class IdRegistry:
                 for name, entry in names.items():
                     key = _entity_key(str(name), str(type_name))
                     if key in entities:
-                        raise ValueError(
-                            f"Registry {path} has two {key[0]} entries for {key[1]!r}"
+                        raise registry_file_error(
+                            path, f"two {key[0]} entries for {key[1]!r}"
                         )
-                    entities[key] = EntityEntry(spdx_id=str(entry["spdxId"]))
+                    entities[key] = EntityEntry(
+                        spdx_id=_require_scalar_str(entry["spdxId"], "spdxId")
+                    )
         except (KeyError, TypeError, AttributeError) as exc:
-            raise ValueError(f"Registry {path} has a malformed entry: {exc}") from exc
+            raise registry_file_error(path, f"malformed entry: {exc}") from exc
 
         return cls(namespace=namespace, files=files, entities=entities, path=path)
-
-    @staticmethod
-    def find(start: Path | None = None) -> IdRegistry | None:
-        """Walk upward from *start* (default: cwd) looking for ``loom-ids.json``."""
-        current = (start or Path.cwd()).resolve()
-        for directory in (current, *current.parents):
-            candidate = directory / DEFAULT_REGISTRY_FILENAME
-            if candidate.is_file():
-                try:
-                    return IdRegistry.load(candidate)
-                except (ValueError, OSError) as exc:
-                    log.warning(
-                        "Registry: ignoring invalid file %s: %s", candidate, exc
-                    )
-                    return None
-        return None
 
     def lookup_file(self, path: str, sha256: str) -> str | None:
         """Return the registered ``spdxId`` for *path*."""
         entry = self.files.get(path)
-        if entry is None or entry.sha256 != sha256:
-            return None
-        return entry.spdx_id
+        return entry.spdx_id if entry is not None and entry.sha256 == sha256 else None
 
     def lookup_entity(self, name: str, type_name: str) -> str | None:
         """Return the registered ``spdxId`` for the named entity of *type_name*."""
@@ -152,9 +151,8 @@ class IdRegistry:
 
     def _mint_id(self, prefix: str) -> str:
         """Mint the next stable ``#<prefix>-<n>`` id in this registry's namespace."""
-        pattern = re.compile(
-            rf"^{re.escape(self.namespace)}#{re.escape(prefix)}-(\d+)$"
-        )
+        ns, pfx = re.escape(self.namespace), re.escape(prefix)
+        pattern = re.compile(rf"^{ns}#{pfx}-(\d+)$")
         max_n = 0
         all_ids = [entry.spdx_id for entry in self.files.values()] + [
             entry.spdx_id for entry in self.entities.values()
@@ -172,7 +170,7 @@ class IdRegistry:
             return existing.spdx_id
         if existing is not None:
             log.info(
-                "Registry: content changed for %s; minting a new spdxId (old: %s).",
+                "ID registry: content changed for %s; minting a new spdxId (old: %s).",
                 path,
                 existing.spdx_id,
             )
@@ -206,7 +204,7 @@ class IdRegistry:
             try:
                 sha256 = sha256_file(file_path)
             except OSError as exc:
-                log.warning("Registry: could not read %s: %s", file_path, exc)
+                log.warning("ID registry: could not read %s: %s", file_path, exc)
                 continue
             rel_path = file_path.relative_to(project_root).as_posix()
             self.register_file(rel_path, sha256)
@@ -215,8 +213,13 @@ class IdRegistry:
             if fmt != AiModelFormat.UNKNOWN:
                 self.register_entity(file_path.stem, "ai_AIPackage")
 
-    def import_sbom(self, sbom_path: Path) -> None:
-        """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry."""
+    def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:
+        """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
+
+        Returns the ``entities`` keys not imported because the SBOM holds
+        several elements under one name (see
+        :func:`~pitloom.id_registry._ambiguous._ambiguous_entity_keys`).
+        """
         object_set = spdx3.SHACLObjectSet()
         with open(sbom_path, "rb") as f:
             spdx3.JSONLDDeserializer().read(f, object_set)
@@ -229,7 +232,7 @@ class IdRegistry:
                     self.namespace = obj.spdxId
                     break
 
-        self._harvest_sorted(sorted_objects)
+        return _harvest_elements(self, sorted_objects)
 
     def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, int, bool]:
         """Harvest every named element in *object_set* into this registry.
@@ -256,16 +259,13 @@ class IdRegistry:
         """Harvest *sorted_objects* (see
         :func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`).
 
-        Shared by :meth:`harvest` and :meth:`import_sbom` -- the latter
-        already needs a sorted list for its own namespace-seeding scan,
-        so it reuses that same list here instead of sorting the object
-        set twice.
+        A name held by more than one element (see
+        :func:`~pitloom.id_registry._ambiguous._ambiguous_entity_keys`) is
+        not written.
         """
         before_files = dict(self.files)
         before_entities = dict(self.entities)
-        index = _SpdxIdIndex.from_registry(self)
-        for obj in sorted_objects:
-            _import_sbom_element(self, obj, index)
+        _harvest_elements(self, sorted_objects)
         changed = self.files != before_files or self.entities != before_entities
         return (
             len(self.files) - len(before_files),

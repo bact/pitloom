@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -525,7 +525,7 @@ flag was given, reusing the peeked metadata/config when it already
 matches the final decision rather than reading twice.
 `generate_project_sbom()`, `loom project`'s own command handler,
 `loom generate`'s own command handler (for a project-directory target
-only -- see below), and `_project_doc_identity()` (see below) all need
+only -- see below), and `enrich_model()` (see below) all need
 this same peek-then-decide behaviour, so it lives in one place --
 `pitloom.extract.project.resolve_project_with_lockfile()` -- rather than
 being hand-copied per caller (the "pattern hand-copied across 3+ call
@@ -543,12 +543,13 @@ read once. Every other target (env/wheel/model file/Hugging Face) goes
 through the shared `generate()` dispatcher and reads no project config
 at all (see `config-sources.md`).
 
-`loom enrich`'s `_project_doc_identity()` (`_model_generator.py`) also
-threads this setting: it must match whatever value produced the *base*
-document being merged into, or the fragment's `doc_uuid` reference
-diverges (see `test_model_generator_doc_identity.py`'s regression
-coverage). When `loom enrich` is given no explicit `--use-lockfile` flag,
-`_project_doc_identity()` auto-peeks `--project-dir`'s own
+`loom enrich`'s `enrich_model()` (`_model_generator.py`, via
+`_doc_identity_of()`) also threads this setting: it must match whatever
+value produced the *base* document being merged into, or the fragment's
+`doc_uuid` reference diverges (see `test_model_generator_doc_identity.py`'s
+regression coverage, which drives the test-only wrapper
+`_project_doc_identity()`). When `loom enrich` is given no explicit
+`--use-lockfile` flag, `enrich_model()` auto-peeks `--project-dir`'s own
 `[tool.pitloom] use-lockfile` config and uses that -- so a base SBOM
 generated purely from config (no CLI override) is matched automatically,
 with an explicit flag still available to cover the CLI-override case.

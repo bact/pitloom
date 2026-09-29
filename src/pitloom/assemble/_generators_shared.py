@@ -26,10 +26,10 @@ log = logging.getLogger(__name__)
 
 # ai_AIPackage is deliberately excluded from auto-harvest: its correct
 # registry key is the model file's stem (only ever registered via the
-# extras-free `loom ids generate`), not its `.name`, which is
+# extras-free `loom id generate`), not its `.name`, which is
 # extraction-dependent and varies with whether AI-format libraries are
 # installed. Harvesting it by name would write entries that never match
-# future lookups (see `_lookup_ai_model_entity`,
+# future lookups (see `_ai_model_entity_candidates`,
 # pitloom.assemble.spdx3._ai_package) instead of just doing nothing.
 #
 # dataset_DatasetPackage is excluded for a related but simpler reason:
@@ -51,24 +51,31 @@ def _harvestable(obj: Any) -> bool:
 def _sync_registry(
     exporter: Spdx3JsonExporter,
     registry: IdRegistry | None,
-    update_registry: bool,
+    update_id_registry: bool,
 ) -> None:
     """Harvest newly-minted ids from *exporter* back into *registry*.
+
+    Elements that never looked the registry up
+    (:attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_non_readers`)
+    are left out: neither written nor counted as a holder of their name,
+    so the one element that does look a name up is written even when a
+    non-reader shares its name.
 
     No-op when no registry was resolved, auto-update was disabled, or the
     registry has no on-disk path to save to. A save failure is logged as a
     ``WARNING`` and otherwise ignored -- it must never break SBOM
     generation itself.
     """
-    if registry is None or not update_registry:
+    if registry is None or not update_id_registry:
         return
     if registry.path is None:
-        log.warning("Registry: no file path resolved; skipping auto-update.")
+        log.warning("ID registry: no file path resolved; skipping auto-update.")
         return
 
     filtered = spdx3_bindings.SHACLObjectSet()
+    non_readers = exporter.registry_non_readers
     for obj in exporter.object_set.objects:
-        if _harvestable(obj):
+        if _harvestable(obj) and getattr(obj, "spdxId", None) not in non_readers:
             filtered.add(obj)
 
     new_files, new_entities, changed = registry.harvest(filtered)
@@ -77,11 +84,11 @@ def _sync_registry(
     try:
         registry.save()
     except OSError as exc:
-        log.warning("Registry: failed to save %s: %s", registry.path, exc)
+        log.warning("ID registry: failed to save %s: %s", registry.path, exc)
         return
     if new_files or new_entities:
         log.info(
-            "Registry: added %d new file(s), %d new entit(y/ies) to %s",
+            "ID registry: added %d new file(s), %d new entit(y/ies) to %s",
             new_files,
             new_entities,
             registry.path,
@@ -91,4 +98,4 @@ def _sync_registry(
         # released in the same pass a new one claimed its id (see
         # pitloom.id_registry._harvest._release_stale_keys_for_id) -- real content
         # changed even though nothing was added or removed net.
-        log.info("Registry: updated stale entries in %s", registry.path)
+        log.info("ID registry: updated stale entries in %s", registry.path)

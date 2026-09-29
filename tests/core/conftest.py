@@ -16,7 +16,7 @@ from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 "Tests for SBOM fragment merging -- verifies that informational fields\nfrom SPDX 3 fragment files are not dropped during the stitch/merge step.\n\nFixtures live in tests/fixtures/fragments/:\n  ai-model-fragment.spdx3.json       -- ai_AIPackage with full AI metadata\n  dataset-fragment.spdx3.json        -- dataset_DatasetPackage with dataset metadata\n  training-run-fragment.spdx3.json   -- loom.run()-style combined fragment:\n                                        ai_AIPackage + 2 datasets + trainedOn/testedOn\n\nImplementation note\n-------------------\nThe spdx-python-model library serialises anonymous (blank) node objects --\nDictionaryEntry, ai_EnergyConsumption, ai_EnergyConsumptionDescription -- as\nseparate @graph entries referenced by blank-node IDs like ``_:DictionaryEntry0``.\nThe ``_resolve`` / ``_entries`` helpers below dereference those IDs so that\ntests can navigate nested structures without depending on blank-node internals.\n"  # noqa: E501
 
@@ -126,19 +126,25 @@ def _run_unify_pipeline(tmppath: Path) -> None:
     registry = IdRegistry.new("fragdemo")
     registry.generate([Path("src"), Path("data")], tmppath)
     registry.register_entity("demo-model", "ai_AIPackage")
-    registry.save(tmppath / "loom-ids.json")
+    registry_path = tmppath / DEFAULT_ID_REGISTRY_FILENAME
+    registry.save(registry_path)
     with patch(
         "pitloom._loom_active_run._get_caller_script_path",
         return_value="src/fragdemo/preprocess.py",
     ):
-        with loom.run(tmppath / "fragments" / "01_preprocess.spdx3.json") as run:
+        with loom.run(
+            tmppath / "fragments" / "01_preprocess.spdx3.json",
+            id_registry=registry_path,
+        ) as run:
             run.add_input_dataset("data/raw.txt")
             run.add_output_dataset("data/train.txt")
     with patch(
         "pitloom._loom_active_run._get_caller_script_path",
         return_value="src/fragdemo/train.py",
     ):
-        with loom.run(tmppath / "fragments" / "02_train.spdx3.json") as run:
+        with loom.run(
+            tmppath / "fragments" / "02_train.spdx3.json", id_registry=registry_path
+        ) as run:
             run.set_model("demo-model", model_type="supervised")
             run.add_dataset("data/train.txt")
             run.add_validation_dataset("data/raw.txt")

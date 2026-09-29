@@ -19,7 +19,7 @@ from pitloom.assemble.spdx3.fragments import FragmentMergeError, merge_fragments
 from pitloom.core.config import FragmentConfig
 from pitloom.core.creation import CreationMetadata, Creator
 from pitloom.export.spdx3_json import Spdx3JsonExporter
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 
 from .conftest import (
     _AI_MODEL_FRAGMENT,
@@ -115,10 +115,11 @@ def test_duplicate_relationships_deduplicated(
     registry = IdRegistry.new("dedup")
     registry.generate([Path("data")], tmp_path)
     registry.register_entity("m", "ai_AIPackage")
-    registry.save(tmp_path / "loom-ids.json")
+    registry.save(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)
 
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     for fragment_name in ("f1.spdx3.json", "f2.spdx3.json"):
-        with loom.run(tmp_path / fragment_name) as run:
+        with loom.run(tmp_path / fragment_name, id_registry=registry_path) as run:
             run.set_model("m", generated=False)
             run.add_dataset("data/train.txt")
 

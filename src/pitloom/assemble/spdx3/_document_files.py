@@ -27,7 +27,7 @@ from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import ProjectFile, project_relative_or_fallback
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.id_registry import DIRECTORY_ENTITY_TYPE, IdRegistry, claim_registry_hit
+from pitloom.id_registry import DIRECTORY_ENTITY_TYPE, IdRegistrySession
 
 # SPDX 2.x FileType -> SPDX 3 SoftwarePurpose: only the categories with a
 # clean, identity-shaped equivalent. BINARY/AUDIO/IMAGE/TEXT/VIDEO
@@ -264,9 +264,8 @@ class _FileAssemblyContext:
 
 def _resolve_directory_hits_for_file(
     dist_path: Path,
-    registry: IdRegistry,
+    session: IdRegistrySession,
     dir_hits: dict[str, str],
-    claimed: dict[str, str],
     seen_dirs: set[str],
 ) -> None:
     """Resolve and claim a registry hit for each not-yet-seen ancestor
@@ -274,34 +273,31 @@ def _resolve_directory_hits_for_file(
     place.
 
     *seen_dirs* remembers every directory this pass has already resolved
-    -- hit, rejected by :func:`~pitloom.id_registry.claim_registry_hit`, or
-    lookup miss -- so a directory shared by many files (the common case)
-    is looked up and claimed at most once. Checking membership in
-    *dir_hits* instead would miss the rejected/miss cases (neither adds
-    a *dir_hits* entry), so every later file under that directory would
-    re-look it up and, on a rejection, re-log the same collision
-    ``WARNING:`` once per file instead of once per directory. Split out
-    of :func:`_resolve_file_and_directory_hits` to keep its own
-    cognitive complexity down.
+    -- hit, rejected by *session*, or lookup miss -- so a directory
+    shared by many files (the common case) is looked up and claimed at
+    most once. Checking membership in *dir_hits* instead would miss the
+    rejected/miss cases (neither adds a *dir_hits* entry), so every
+    later file under that directory would re-look it up and, on a
+    rejection, re-log the same collision ``WARNING:`` once per file
+    instead of once per directory. Split out of
+    :func:`_resolve_file_and_directory_hits` to keep its own cognitive
+    complexity down.
     """
     for directory_path in list(dist_path.parents)[::-1]:
         directory_name = directory_path.as_posix()
         if not directory_path.name or directory_name in seen_dirs:
             continue
         seen_dirs.add(directory_name)
-        registered_dir_id = registry.lookup_entity(
-            directory_name, DIRECTORY_ENTITY_TYPE
+        claimed_id = session.entity_id(
+            directory_name, [directory_name], DIRECTORY_ENTITY_TYPE
         )
-        if registered_dir_id is not None:
-            claimed_id = claim_registry_hit(directory_name, registered_dir_id, claimed)
-            if claimed_id is not None:
-                dir_hits[directory_name] = claimed_id
+        if claimed_id is not None:
+            dir_hits[directory_name] = claimed_id
 
 
 def _resolve_file_and_directory_hits(
     files: list[ProjectFile],
-    registry: IdRegistry | None,
-    claimed: dict[str, str] | None = None,
+    session: IdRegistrySession,
 ) -> tuple[dict[str, str], dict[str, str]]:
     """Pre-resolve every file's and directory's registry hit in one pass
     over *files*, before any minting starts.
@@ -309,55 +305,45 @@ def _resolve_file_and_directory_hits(
     Returns ``(dir_hits, file_hits)``: *dir_hits* keyed by directory name
     (as :func:`_ensure_directory_chain` computes it, POSIX-style
     parent-path segment), *file_hits* keyed by ``distribution_path``. Both
-    empty when *registry* is ``None``. Callers must reserve every value in
-    both dicts (:func:`~pitloom.core.models.reserve_spdx_ids`) before
-    minting anything, then pass these dicts down instead of the registry
-    itself: pre-resolution is the single source of truth for which ids
-    were reserved, so the actual build must never look the registry up a
-    second time and risk a different answer.
+    empty when *session* has no registry loaded. Callers must reserve
+    every value in both dicts (:func:`~pitloom.core.models.reserve_spdx_ids`)
+    before minting anything, then pass these dicts down instead of the
+    registry itself: pre-resolution is the single source of truth for
+    which ids were reserved, so the actual build must never look the
+    registry up a second time and risk a different answer.
 
     *files* is walked in its own given order, and each file's directories
     root-to-leaf, so hit resolution is deterministic; when a directory or
-    file's registry hit is an id something earlier in this same pass (or,
-    via a shared *claimed* passed in by the caller, an earlier file/
-    directory/AI-model hit in the same document) already claimed, only
-    the first claimant reuses it (:func:`~pitloom.id_registry.claim_registry_hit`)
+    file's registry hit is an id something earlier in this same pass (or
+    an earlier file/directory/AI-model hit in the same document, via the
+    shared *session*) already claimed, only the first claimant reuses it
     -- a later one falls back to a fresh mint instead of duplicating the
-    id, with one ``WARNING: Registry: ...`` naming both. A fresh, empty
-    *claimed* is used when the caller doesn't share one.
+    id, with one ``WARNING: ID registry: ...`` naming both.
     """
     dir_hits: dict[str, str] = {}
     file_hits: dict[str, str] = {}
-    if registry is None:
+    if session.registry is None:
         return dir_hits, file_hits
-    if claimed is None:
-        claimed = {}
     seen_dirs: set[str] = set()
 
     for package_file in files:
         dist_path = Path(package_file.distribution_path)
-        _resolve_directory_hits_for_file(
-            dist_path, registry, dir_hits, claimed, seen_dirs
-        )
+        _resolve_directory_hits_for_file(dist_path, session, dir_hits, seen_dirs)
 
         file_digest = cast(str, package_file.digest_sha256)
         physical_lookup_key = project_relative_or_fallback(
             package_file.physical_path, package_file.distribution_path
         )
-        registered_id = registry.lookup_file(physical_lookup_key, file_digest)
-        if (
-            registered_id is None
-            and physical_lookup_key != package_file.distribution_path
-        ):
-            registered_id = registry.lookup_file(
-                package_file.distribution_path, file_digest
-            )
-        if registered_id is not None:
-            claimed_id = claim_registry_hit(
-                package_file.distribution_path, registered_id, claimed
-            )
-            if claimed_id is not None:
-                file_hits[package_file.distribution_path] = claimed_id
+        lookup_paths = (
+            [physical_lookup_key, package_file.distribution_path]
+            if physical_lookup_key != package_file.distribution_path
+            else [physical_lookup_key]
+        )
+        claimed_id = session.file_id(
+            package_file.distribution_path, lookup_paths, file_digest
+        )
+        if claimed_id is not None:
+            file_hits[package_file.distribution_path] = claimed_id
 
     return dir_hits, file_hits
 

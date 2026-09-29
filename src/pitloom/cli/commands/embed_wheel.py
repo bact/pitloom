@@ -3,12 +3,18 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Command-line interface for Pitloom's SBOM generator."""
+"""Command-line interface for Pitloom's SBOM generator.
+
+See also: ``pitloom.cli.commands._embed_wheel_batch``, which holds the
+per-batch resolution helpers (``--project-dir``, settled options, the
+resolved registry, ``EmbedBatchContext``/``try_embed_one_wheel``, and
+``report_embed_result``) this module's ``_run_embed_wheel_command``
+builds and loops over.
+"""
 
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import logging
 import os
 import sys
@@ -19,7 +25,13 @@ from pitloom._wheel_sbom_location import (
     EmbeddedSbomLocation,
     read_wheel_name_version_from_path,
 )
-from pitloom.assemble import ConfigOverrides, embed_wheel_sbom
+from pitloom.cli.commands._embed_wheel_batch import (
+    EmbedBatchContext,
+    batch_options,
+    resolve_batch_id_registry,
+    resolve_project_dir_and_config,
+    try_embed_one_wheel,
+)
 from pitloom.cli.commands.utils import (
     _collect_wheel_paths,
     _locate_and_detect,
@@ -35,50 +47,11 @@ from pitloom.cli.options import (
     add_offline_argument,
     build_options_from_args,
 )
-from pitloom.cli.options_config import (
-    creation_flags_given,
-    load_explicit_config,
-    overrides_from_options,
-    run_options,
-    warn_verbose_no_effect,
-)
+from pitloom.cli.options_config import overrides_from_options
 from pitloom.core.build_options import EXTERNAL_SBOM_REASON, NO_PROJECT_DIR_REASON
-from pitloom.core.config import PitloomConfig
-from pitloom.core.creation import CreationMetadata
-from pitloom.core.inert_options import (
-    EMBED_PROJECT,
-    EMBED_SBOM,
-    EMBED_STANDALONE,
-    INERT,
-    settle_inert,
-)
 from pitloom.embed import EmbedFileCache
-from pitloom.extract.project import read_project
 
 log = logging.getLogger(__name__)
-
-
-def _report_embed_result(
-    arcname: str,
-    wheel_name: str,
-    removed: tuple[str, ...],
-    timestamp_floored: bool = False,
-) -> None:
-    """Print the embed confirmation, plus one line per notable side effect.
-
-    Shared by ``wheel --embed`` and ``embed-wheel`` so both report results
-    identically -- see :func:`_run_wheel_command`/:func:`_run_embed_wheel_command`.
-    """
-    print(f"pitloom: embedded {arcname} into {wheel_name}")
-    for stale_arcname in removed:
-        log.info("removed stale SBOM %s from %s", stale_arcname, wheel_name)
-    if timestamp_floored:
-        log.info(
-            "%s's embedded SBOM entry timestamp was before 1980 and was "
-            "floored to 1980-01-01 (ZIP format limitation); the SBOM's own "
-            "'created' field keeps the true value",
-            wheel_name,
-        )
 
 
 def _run_post_embed_checks(
@@ -165,106 +138,6 @@ def _warn_on_name_version_mismatch(
     )
 
 
-def _resolve_project_dir_and_config(
-    project_dir: Path | None, *, read_config: bool = True
-) -> tuple[Path | None, PitloomConfig | None] | None:
-    """Resolve ``--project-dir`` into ``(project_dir, its PitloomConfig)``,
-    or ``(None, None)`` when it was not given.
-
-    Without ``--project-dir`` there is no project: the current directory is
-    never assumed to be the wheel's project, since it may be an unrelated
-    one. Returns ``None`` (already printed an ``ERROR:``) if the given
-    directory doesn't exist or has no ``pyproject.toml``/``setup.cfg``.
-
-    Only ``[tool.pitloom]`` config is used here; ``read_project()``'s
-    lock/pin cascade is skipped (``include_locked_dependencies=False``)
-    -- ``embed-wheel`` is build-stage, and a source-stage lock file's
-    resolved dependencies must never leak into a wheel-embedded SBOM. Its
-    in-tree installed-metadata resolution is skipped too
-    (``include_installed_metadata=False``) for the same build-stage
-    rationale, and purely to skip that I/O since this caller discards the
-    metadata anyway.
-
-    Without *read_config* (a ``--config`` replaces it) the
-    project's own config is not read at all, as
-    :func:`~pitloom.embed.embed_wheel_sbom` does not read it when given a
-    config, so an unrelated fault in it cannot fail the embed.
-    """
-    if project_dir is None:
-        return None, None
-
-    proj_path = Path(project_dir).resolve()
-    if not proj_path.exists():
-        print(f"ERROR: project directory not found: {proj_path}", file=sys.stderr)
-        return None
-    if not read_config:
-        return proj_path, None
-    try:
-        _, pitloom_config, _ = read_project(
-            proj_path,
-            include_locked_dependencies=False,
-            include_installed_metadata=False,
-        )
-    except FileNotFoundError as exc:
-        # read_project()'s own message already names the specific reason
-        # (no config file at all, vs. a config file present but resolving
-        # to no usable metadata) -- relay it instead of a fixed guess.
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return None
-    return proj_path, pitloom_config
-
-
-def _settle_batch_options(
-    args: argparse.Namespace,
-    project_dir: Path | None,
-    options: dict[str, Any],
-) -> None:
-    """Warn once for the whole batch about every option this embed cannot
-    use, and clear every option it cannot use in place -- given or not --
-    so no per-wheel call warns again. Creation metadata counts as given
-    only when a creator/creation flag was, since *options* always carries
-    a resolved value."""
-    if args.sbom is not None:
-        kind, subject = EMBED_SBOM, args.sbom
-    elif project_dir is not None:
-        kind, subject = EMBED_PROJECT, project_dir
-    else:
-        kind, subject = EMBED_STANDALONE, "embed-wheel"
-    warn_verbose_no_effect(args, subject, "for embed-wheel (it prints no details)")
-    given = dict(options)
-    if not creation_flags_given(args):
-        given["creation_metadata"] = None
-    settle_inert(kind, subject, given)
-    for name in INERT[kind]:
-        options[name] = None
-
-
-def _batch_options(
-    args: argparse.Namespace,
-    project_dir: Path | None,
-    project_config: PitloomConfig | None,
-) -> tuple[dict[str, Any], PitloomConfig | None]:
-    """The batch's settled options and the config its wheels embed with.
-
-    ``--config`` replaces the project's own ``[tool.pitloom]``, and is the
-    only config a wheel embedded without a project gets. An ``--sbom`` is
-    embedded as is: it uses neither, so a given ``--config`` or
-    ``--project-dir`` is not read (not even checked to exist), only warned
-    about by the batch settle."""
-    if args.sbom is not None:
-        options = run_options(args, PitloomConfig())
-        # Given, not read: the batch settle warns about both.
-        options["pitloom_config"] = args.config
-        options["project_dir"] = args.project_dir
-        _settle_batch_options(args, project_dir, options)
-        return options, None
-    explicit_config = load_explicit_config(args)
-    options = run_options(args, explicit_config or project_config or PitloomConfig())
-    options["pitloom_config"] = explicit_config
-    _settle_batch_options(args, project_dir, options)
-    return options, explicit_config or project_config
-
-
 @cli_error_handler("wheel SBOM embedding failed")
 def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     """Embed an SPDX 3 SBOM into one or more built wheels (PEP 770).
@@ -316,14 +189,14 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     resolved = (
         (None, None)
         if args.sbom is not None
-        else _resolve_project_dir_and_config(
+        else resolve_project_dir_and_config(
             args.project_dir, read_config=args.config is None
         )
     )
     if resolved is None:
         return 1
     project_dir, project_config = resolved
-    options, pitloom_config = _batch_options(args, project_dir, project_config)
+    options, pitloom_config = batch_options(args, project_dir, project_config)
     overrides = overrides_from_options(options, build_options)
     all_ok = True
     # One file cache for the whole batch, cleaned up once on leaving the
@@ -331,17 +204,19 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
     # runs any --allow-build real build) at most once, shared across every
     # wheel -- see EmbedFileCache's own docstring.
     with EmbedFileCache() as file_cache:
-        batch = _EmbedBatchContext(
+        batch = EmbedBatchContext(
             project_dir=project_dir,
             pitloom_config=pitloom_config,
             creation_metadata=options["creation_metadata"],
-            registry=options["registry"],
+            id_registry=resolve_batch_id_registry(
+                args, options, pitloom_config, project_dir
+            ),
             overrides=overrides,
             file_cache=file_cache,
         )
         for wheel_path in unique_wheels:
             output_path = args.output if len(unique_wheels) == 1 else None
-            embedded = _try_embed_one_wheel(wheel_path, output_path, batch, args)
+            embedded = try_embed_one_wheel(wheel_path, output_path, batch, args)
             if embedded is None:
                 all_ok = False
                 continue
@@ -351,67 +226,6 @@ def _run_embed_wheel_command(args: argparse.Namespace) -> int:
             if not _run_post_embed_checks(args, embedded_wheel_path, arcname):
                 all_ok = False
     return 0 if all_ok else 1
-
-
-@dataclasses.dataclass(frozen=True)
-class _EmbedBatchContext:
-    """The per-run values every wheel in a batch embeds with -- resolved
-    once in :func:`_run_embed_wheel_command`, not per-wheel, and bundled
-    here so :func:`_try_embed_one_wheel` stays under the arg-count limit.
-
-    ``file_cache`` is a mutable :class:`~pitloom.embed.EmbedFileCache`,
-    not a value like the other fields: it memoizes ``project_dir``'s
-    file-discovery result across every wheel in the batch (see its own
-    docstring). ``_run_embed_wheel_command`` holds its ``with`` block
-    around the whole batch, not per wheel.
-    """
-
-    project_dir: Path | None
-    pitloom_config: PitloomConfig | None
-    creation_metadata: CreationMetadata | None
-    registry: Path | None
-    overrides: ConfigOverrides
-    file_cache: EmbedFileCache
-
-
-def _try_embed_one_wheel(
-    wheel_path: Path,
-    output_path: Path | None,
-    batch: _EmbedBatchContext,
-    args: argparse.Namespace,
-) -> tuple[Path, str] | None:
-    """Embed into *wheel_path*, report the result, and return
-    ``(embedded_wheel_path, arcname)`` -- or ``None`` on a per-wheel
-    failure that's already been reported as an ``ERROR:``.
-
-    ValueError/OSError here mean *this* wheel failed (bad archive, bad
-    ``--sbom-basename``, or a ``--sbom`` name/version mismatch that
-    wasn't ``--allow-mismatch``'d) -- the same per-wheel-failure contract
-    `find_embedded_sbom()`/`_open_wheel_zip()` already document. Caught
-    here (not left to the outer `cli_error_handler`) so one bad wheel in
-    a multi-wheel batch doesn't abort the others, matching how a failing
-    `--verify`/`--validate` on one wheel already doesn't stop the loop
-    in :func:`_run_embed_wheel_command`.
-    """
-    try:
-        embedded_wheel_path, arcname, _, removed, floored = embed_wheel_sbom(
-            wheel_path,
-            project_dir=batch.project_dir,
-            pitloom_config=batch.pitloom_config,
-            sbom_path=args.sbom,
-            output_path=output_path,
-            sbom_basename=args.sbom_basename,
-            creation_metadata=batch.creation_metadata,
-            registry=batch.registry,
-            overrides=batch.overrides,
-            allow_mismatch=args.allow_mismatch,
-            file_cache=batch.file_cache,
-        )
-    except (ValueError, OSError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return None
-    _report_embed_result(arcname, wheel_path.name, removed, floored)
-    return embedded_wheel_path, arcname
 
 
 def add_parser(subparsers: Any, parent_parser: argparse.ArgumentParser) -> None:
