@@ -27,7 +27,7 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMe
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.project import ProjectMetadata
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import EntityEntry, IdRegistry
 
 
 def _numpy_models() -> list[AiModelMetadata]:
@@ -85,7 +85,8 @@ def test_ai_models_sharing_a_mint_prefix_never_duplicate_ids_after_import(
 ) -> None:
     """Run 1 builds 10 same-prefix AI models with no registry. Its own
     SBOM is imported into a fresh registry (``pitloom id import``'s
-    mechanism), then run 2 rebuilds against that registry -- the earlier
+    mechanism) and a stale ``numpy`` entry is pinned, then run 2 rebuilds
+    against that registry -- the earlier
     (buggy) behaviour let a lookup hit for one model's file stem go
     unreserved, so a sibling model's later fresh mint could land on the
     exact same number: ``AIPackage-numpy-9`` twice, since
@@ -105,7 +106,15 @@ def test_ai_models_sharing_a_mint_prefix_never_duplicate_ids_after_import(
     sbom_path.write_text(first_exporter.to_json(), encoding="utf-8")
     registry = IdRegistry.new("ai-collision-project")
     registry.import_sbom(sbom_path)
-    assert ("ai_AIPackage", "numpy") in registry.entities
+    # Ten elements share the name "numpy", so harvest leaves it unpinned;
+    # pin the id the old harvest kept (the last in string order) by hand.
+    assert ("ai_AIPackage", "numpy") not in registry.entities
+    stale_id = max(
+        str(obj.spdxId)
+        for obj in first_exporter.object_set.objects
+        if isinstance(obj, spdx3.ai_AIPackage)
+    )
+    registry.entities[("ai_AIPackage", "numpy")] = EntityEntry(stale_id)
 
     doc_run2 = DocumentModel(
         project=project, creation_metadata=creation_metadata, ai_models=ai_models

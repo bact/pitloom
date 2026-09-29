@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -343,6 +343,14 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   -- `loom id generate` keys files by project path (`src/demo/x.py`), while
   a wheel's distribution path is `demo/x.py` and an sdist's is
   `demo-1.0.0/src/...`, so neither finds the registry entries.
+- [ ] **Registry harvest rewrites per-document entities; `env`'s root
+  package is never looked up** -- found in PR A2 (#235) while making package
+  ids registry-driven: `SoftwareAgent`/`Tool`/`License` entries carry each
+  document's own uuid, so alternating `project`/`wheel` runs still change
+  the registry's bytes (package entries are stable); `env`'s root
+  `deployed-environment` package is always minted, and a pinned id for it
+  is overwritten on harvest. See
+  [id-registry-autosync.md](../implementation/id-registry-autosync.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 

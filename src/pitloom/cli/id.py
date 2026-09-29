@@ -330,7 +330,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        registry.import_sbom(sbom_path)
+        skipped = registry.import_sbom(sbom_path)
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         print(f"ERROR: failed to import SBOM {sbom_path}: {exc}", file=sys.stderr)
@@ -345,6 +345,11 @@ def _run_id_import(args: argparse.Namespace) -> int:
         f"pitloom id: imported into {registry_path} "
         f"({len(registry.files)} file(s), {len(registry.entities)} entit(y/ies))"
     )
+    if skipped:
+        log.info(
+            "ID registry: not imported (name held by several elements): %s",
+            ", ".join(sorted({name for _type, name in skipped})),
+        )
     if is_new and not from_project_key:
         _log_config_hint(registry_path, project_dir, table)
     return 0

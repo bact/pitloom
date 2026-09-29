@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -59,14 +59,17 @@ right after `_clear_doc_counters()`, one lookup per candidate element:
 via `IdRegistry.lookup_entity(name, DIRECTORY_ENTITY_TYPE)`, and file
 in `metadata.files` order), `assemble.spdx3.ai.resolve_ai_model_entity_hits()`
 (one call per AI model), `_document_deployed._resolve_deployed_package_hits()`
-(one `lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)` per `env_tree` node).
+(one `lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)` per `env_tree` node),
+and, for `project`/`wheel`, `_package_ids.resolve_project_package_ids()`
+(main package, dependencies, phantom dependencies -- see "Revised in PR
+A2" below).
 
 `pitloom.core.models.reserve_spdx_ids(doc_name, doc_uuid, spdx_ids)`
 parses each id against the document's own namespace and records its
 `(prefix, n)` in a `_RESERVED` map; `generate_spdx_id()` skips any
 reserved `n` instead of re-minting it. `_clear_doc_counters()` clears
 `_RESERVED` too, so a caller must reserve *after* clearing, never
-before. `document.py build()` reserves the union of all three
+before. `document.py build()` reserves the union of all its
 resolvers' hits via one `reserve_spdx_ids()` call, then passes the
 resolved dicts/lists down instead of the registry itself:
 pre-resolution is the single source of truth for what was reserved, so
@@ -280,6 +283,52 @@ broken one) is worse than failing loudly. Being explicit about which
 registry is in play, and failing fast when it can't be read, beats a
 best-effort fallback that could quietly use the wrong file or none at
 all.
+
+**Package ids (2026-09-29, commit 3 of PR A2).** `project`/`wheel` minted the
+project's own `software_Package`, its declared and lock-resolved
+dependencies and its phantom dependencies without consulting the registry,
+though harvest wrote all of them into it -- so a pinned
+`id generate -e NAME:software_Package` id was overwritten by the first
+project run, alternating project/wheel runs rewrote the package entries
+every time, and `env` reused whichever document harvested last.
+`spdx3.document.build` now pre-resolves them through the shared session
+(`assemble/spdx3/_package_ids.py`), before `reserve_spdx_ids`, in a fixed
+order: main package, dependencies (once per PEP 503 name, declared then
+lock-resolved), phantom dependencies; `env` uses the same
+`resolve_package_id()`. One registry key backs one id, so two distinct
+packages sharing a name (two pinned versions, or a declared package and a
+bundled binary) cannot both use it: the first takes it, the other mints a
+fresh id with the usual claim `WARNING:` (`DependencyIdHits`,
+`warn_claim_collision`). Output is byte-identical without a registry.
+Out of scope, unchanged: harvest still rewrites per-document entities
+(`SoftwareAgent`/`Tool`/`License` ids follow each document's own uuid), so
+registry bytes still change across project/wheel runs -- only the package
+entries are stable; `env`'s root package is still always minted.
+
+**Ambiguous package names (2026-09-29, commit-3 review).** Lookup gives a
+name's registry id to the *first* claimant, while harvest kept the *last*
+element per key in `spdxId` order, so a document with two same-name
+`software_Package` elements (a self-referencing extra `demo[x]; extra ==
+'all'` next to the main package, two pinned versions of one dependency, a
+dependency or main package sharing a phantom stem) swapped ids between runs.
+Now harvest (`IdRegistry.harvest` and `import_sbom`, via
+`_harvest_elements`/`_ambiguous_entity_keys`) never writes a key held by more
+than one element of the document and leaves any existing entry untouched;
+an existing pin goes to the first claimant with the claim `WARNING:`, the
+same on every run; a dependency named like the project (a self-referencing
+extra) never looks up, so it mints silently and the main package keeps the
+registry id. A phantom dependency named like the project or a dependency
+never looks up either (silent, same rule; decided 2026-09-29, or alternating
+`project`/`wheel` runs would warn on wheel builds only); two phantoms of one
+name still both look up, so the second warns, like two versions of one
+dependency. The harvest skip applies to every entity type, not just
+`software_Package`: the `ai_AIPackage` `numpy` import test
+(`test_generator_registry_sync_ai.py`) had to pin its stale entry by hand,
+since ten same-stem models are now one ambiguous key. `loom id import` names
+what it skipped in one `INFO: ID registry: not imported (name held by
+several elements): <names>` line (sorted); auto-harvest logs each skipped key
+once at DEBUG only. A name-keyed registry cannot pin an ambiguous name; the
+one-name-per-document caveat is documented for users instead of solved.
 
 **Paths rejected:** keeping the walk-up as a fallback when nothing is
 declared (rejected -- reintroduces the unrelated-project risk above);

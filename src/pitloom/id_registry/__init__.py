@@ -19,7 +19,7 @@ that defines them.
 from __future__ import annotations
 
 from pitloom.id_registry._registry import IdRegistry
-from pitloom.id_registry._session import IdRegistrySession
+from pitloom.id_registry._session import IdRegistrySession, warn_claim_collision
 from pitloom.id_registry._types import (
     DEFAULT_ID_REGISTRY_FILENAME,
     DIRECTORY_ENTITY_TYPE,
@@ -41,4 +41,5 @@ __all__ = [
     "registry_base_dir",
     "resolve_registry",
     "sha256_file",
+    "warn_claim_collision",
 ]

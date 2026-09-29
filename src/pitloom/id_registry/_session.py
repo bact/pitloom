@@ -17,7 +17,19 @@ from pitloom.id_registry._registry import IdRegistry
 
 log = logging.getLogger("pitloom.id_registry")
 
-__all__ = ["IdRegistrySession"]
+__all__ = ["IdRegistrySession", "warn_claim_collision"]
+
+
+def warn_claim_collision(spdx_id: str, first: str, second: str) -> None:
+    """Log the one ``WARNING:`` for *spdx_id* wanted by *second* after *first*
+    already took it; *second* mints its own id."""
+    log.warning(
+        "ID registry: %s is registered for both %s and %s; %s gets a new id",
+        spdx_id,
+        first,
+        second,
+        second,
+    )
 
 
 class IdRegistrySession:
@@ -25,7 +37,8 @@ class IdRegistrySession:
 
     Every element that would otherwise look ``registry.lookup_file``/
     ``lookup_entity`` up directly, across an entire document build (files,
-    directories, AI models, deployed packages, loom fragments), instead
+    directories, AI models, the project's own, dependency and phantom
+    packages, deployed packages, loom fragments), instead
     goes through one shared session so a registry hit reused by two
     different elements is claimed by only the first -- see
     :meth:`file_id`/:meth:`entity_id`.
@@ -57,13 +70,7 @@ class IdRegistrySession:
         """
         first_claimant = self._claimed.get(spdx_id)
         if first_claimant is not None:
-            log.warning(
-                "ID registry: %s is registered for both %s and %s; %s gets a new id",
-                spdx_id,
-                first_claimant,
-                claimant,
-                claimant,
-            )
+            warn_claim_collision(spdx_id, first_claimant, claimant)
             return None
         self._claimed[spdx_id] = claimant
         return spdx_id

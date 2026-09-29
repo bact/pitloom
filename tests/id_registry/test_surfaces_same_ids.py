@@ -5,8 +5,8 @@
 
 """One registry snapshot, consulted by several surfaces: each surface
 that emits a given shared element (the demo package's ``__init__.py``
-file, its ``demo`` directory, the ``fakedep`` dependency, the AI model)
-must use the snapshot's id for it.
+file, its ``demo`` directory, the ``demo`` main package, the ``fakedep``
+dependency, the AI model) must use the snapshot's id for it.
 
 Never a whole-SBOM byte comparison across surfaces -- two surfaces
 legitimately produce different documents (different namespaces, extra
@@ -53,6 +53,10 @@ from tests.id_registry.surfaces_shared import (
 #: ``_document_files.py``'s directory-hit resolution.
 _DIRECTORY_NAME = "demo"
 
+#: The demo project's own name: its main ``software_Package``, registered
+#: under :data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`.
+_MAIN_PACKAGE_NAME = "demo"
+
 _MODEL_STEM = SAFETENSORS_FIXTURE.stem
 
 
@@ -66,6 +70,7 @@ def _snapshot_path(tmp_path: Path) -> Path:
     registry = IdRegistry.new("snapshot")
     registry.generate([project / "demo"], project)
     registry.register_entity(_DIRECTORY_NAME, DIRECTORY_ENTITY_TYPE)
+    registry.register_entity(_MAIN_PACKAGE_NAME, PACKAGE_ENTITY_TYPE)
     registry.register_entity(DEPENDENCY, PACKAGE_ENTITY_TYPE)
     registry.register_entity(_MODEL_STEM, "ai_AIPackage")
 
@@ -86,6 +91,7 @@ def _snapshot_ids(snapshot_path: Path) -> dict[str, str | None]:
     return {
         "file": registry.lookup_file("demo/__init__.py", _init_sha(snapshot_path)),
         "directory": registry.lookup_entity(_DIRECTORY_NAME, DIRECTORY_ENTITY_TYPE),
+        "main": registry.lookup_entity(_MAIN_PACKAGE_NAME, PACKAGE_ENTITY_TYPE),
         "dependency": registry.lookup_entity(DEPENDENCY, PACKAGE_ENTITY_TYPE),
         "model": registry.lookup_entity(_MODEL_STEM, "ai_AIPackage"),
     }
@@ -107,20 +113,35 @@ def _spdx_id(elements: list[dict[str, Any]], type_name: str, name: str) -> str |
     return None
 
 
+def _project_like_ids(elements: list[dict[str, Any]]) -> dict[str, str | None]:
+    """The ids a project-shaped surface (project, wheel, hook) emits for the
+    elements the snapshot registers."""
+    return {
+        "file": _spdx_id(elements, "software_File", "demo/__init__.py"),
+        "directory": _spdx_id(elements, "software_File", _DIRECTORY_NAME),
+        "main": _spdx_id(elements, "software_Package", _MAIN_PACKAGE_NAME),
+        "dependency": _spdx_id(elements, "software_Package", DEPENDENCY),
+    }
+
+
+def _assert_project_like_reuse(
+    elements: list[dict[str, Any]], expected: dict[str, str | None]
+) -> None:
+    reused = _project_like_ids(elements)
+    for kind, spdx_id in reused.items():
+        assert spdx_id is not None, kind  # non-vacuous: the element exists
+        assert spdx_id == expected[kind], kind
+
+
 def _only_ai_package_id(elements: list[dict[str, Any]]) -> str | None:
     ai_packages = [n for n in elements if n.get("type") == "ai_AIPackage"]
     assert len(ai_packages) == 1, ai_packages
     return ai_packages[0].get("spdxId")
 
 
-def test_project_surface_reuses_file_and_directory_ids(
+def test_project_surface_reuses_snapshot_ids(
     tmp_path: Path, snapshot_path: Path
 ) -> None:
-    """A project's *declared* (requires-dist) dependency is built by
-    ``deps.py``, which never consults the registry (only a genuinely
-    *deployed*/installed dependency does -- see the env surface test
-    below); the file and directory hits are what this surface actually
-    reuses from the snapshot."""
     expected = _snapshot_ids(snapshot_path)
     registry_copy = _fresh_copy(snapshot_path, tmp_path / "project-copy.json")
     project = demo_project(tmp_path / "run")
@@ -128,48 +149,24 @@ def test_project_surface_reuses_file_and_directory_ids(
     sbom_json = generate_project_sbom(
         project, creation_metadata=None, id_registry=registry_copy
     )
-    elements = _elements(sbom_json)
 
-    reused = {
-        "file": _spdx_id(elements, "software_File", "demo/__init__.py"),
-        "directory": _spdx_id(elements, "software_File", "demo"),
-    }
-    assert reused["file"] == expected["file"]
-    assert reused["directory"] == expected["directory"]
-    # Non-vacuous: at least one element genuinely took the snapshot's id.
-    assert any(reused.values())
+    _assert_project_like_reuse(_elements(sbom_json), expected)
 
 
-def test_wheel_surface_reuses_file_and_directory_ids(
-    tmp_path: Path, snapshot_path: Path
-) -> None:
-    """Same caveat as the project surface above: the wheel's dependency
-    comes from its own declared ``Requires-Dist``, not a deployed
-    environment scan, so only the file/directory hits are registry-backed
-    here."""
+def test_wheel_surface_reuses_snapshot_ids(tmp_path: Path, snapshot_path: Path) -> None:
     expected = _snapshot_ids(snapshot_path)
     registry_copy = _fresh_copy(snapshot_path, tmp_path / "wheel-copy.json")
     wheel = demo_wheel(tmp_path / "run")
 
     sbom_json = generate_wheel_sbom(wheel, id_registry=registry_copy)
-    elements = _elements(sbom_json)
 
-    reused = {
-        "file": _spdx_id(elements, "software_File", "demo/__init__.py"),
-        "directory": _spdx_id(elements, "software_File", "demo"),
-    }
-    assert reused["file"] == expected["file"]
-    assert reused["directory"] == expected["directory"]
-    assert any(reused.values())
+    _assert_project_like_reuse(_elements(sbom_json), expected)
 
 
-def test_hook_surface_reuses_file_and_directory_ids(
-    tmp_path: Path, snapshot_path: Path
-) -> None:
+def test_hook_surface_reuses_snapshot_ids(tmp_path: Path, snapshot_path: Path) -> None:
     """The Hatchling build hook resolves only the project's own
     ``[tool.pitloom] id-registry`` (see
-    :mod:`tests.id_registry.surfaces_shared`'s ``run_hook``) -- same
-    file/directory-hit caveat as the project surface above."""
+    :mod:`tests.id_registry.surfaces_shared`'s ``run_hook``)."""
     expected = _snapshot_ids(snapshot_path)
     registry_copy = _fresh_copy(snapshot_path, tmp_path / "hook-copy.json")
     toml = f"\n[tool.pitloom]\nid-registry = {json.dumps(registry_copy.as_posix())}\n"
@@ -183,15 +180,8 @@ def test_hook_surface_reuses_file_and_directory_ids(
         encoding="utf-8"
     )
     hook.finalize("standard", build_data, "")
-    elements = _elements(sbom_json)
 
-    reused = {
-        "file": _spdx_id(elements, "software_File", "demo/__init__.py"),
-        "directory": _spdx_id(elements, "software_File", "demo"),
-    }
-    assert reused["file"] == expected["file"]
-    assert reused["directory"] == expected["directory"]
-    assert any(reused.values())
+    _assert_project_like_reuse(_elements(sbom_json), expected)
 
 
 def test_env_surface_reuses_dependency_id(
@@ -240,7 +230,7 @@ def test_model_surface_reuses_model_stem_id(
 
 
 def test_snapshot_ids_are_all_distinct_guard(snapshot_path: Path) -> None:
-    """Vacuous-pass guard: if the snapshot's four ids collided, the
+    """Vacuous-pass guard: if the snapshot's five ids collided, the
     assertions above could pass by accident (e.g. every surface just
     reusing whichever id happens to be first)."""
     ids = _snapshot_ids(snapshot_path)

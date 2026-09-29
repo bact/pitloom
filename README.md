@@ -408,10 +408,19 @@ every surface except `loom id generate`/`loom id import` themselves:
 those two require a declared location (`-o`/`--id-registry`, or the
 project's own `id-registry` key) and print one `ERROR:` line and exit 1
 otherwise -- there's no implicit `loom-id-registry.json` fallback file.
-Given the same registry, the same file/entity carries the same id
-everywhere. Regeneration is stable: an unchanged file keeps its id;
+Given the same registry, a file, directory, dependency package, the
+project's own package (`project`, `wheel`, `embed-wheel` and the Hatchling
+hook) or AI model carries the same id everywhere, except that a
+`src/`-layout project's files are not found by `wheel` or sdist targets
+(their paths differ from the project's). A `loom.Run` dataset is looked up by file path and hash; datasets found at
+build time and `env`'s root package are not looked up, so a registry entry
+doesn't pin them. Regeneration is stable: an unchanged file keeps its id;
 changed content gets a fresh one (different bytes are different
-provenance).
+provenance). A package name held by two elements of one document (two
+versions of one dependency behind different markers) cannot be pinned
+automatically; a pinned id for it goes to the first of them, with a
+`WARNING:`. A self-referencing extra, or a bundled library named like the
+project or a dependency, is silent: it just gets its own id.
 
 A declared registry that's missing, unreadable, or invalid is fatal: the
 CLI prints one `ERROR:` line and exits 1; the library API and `loom.Run`
@@ -431,8 +440,8 @@ generate`/`import` step in between.
 `ai_AIPackage` and `dataset_DatasetPackage` entries are the exceptions:
 `loom id generate` remains the way to register AI models, since their
 stable key (the model file's stem) can't safely come from auto-harvest;
-datasets aren't registry-consulted at build time at all yet, so harvesting
-them would just write dead entries. See
+datasets found at build time aren't registry-consulted at all, so
+harvesting them would just write dead entries. See
 [Persisting the Loom ID registry in CI](docs/github-action.md#persisting-the-loom-id-registry-in-ci)
 for the CI workflow shape this implies.
 

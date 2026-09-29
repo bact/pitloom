@@ -23,11 +23,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import open_text_lf
-from pitloom.id_registry._harvest import (
-    _import_sbom_element,
-    _sorted_by_spdx_id,
-    _SpdxIdIndex,
-)
+from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
     EntityEntry,
@@ -217,8 +213,13 @@ class IdRegistry:
             if fmt != AiModelFormat.UNKNOWN:
                 self.register_entity(file_path.stem, "ai_AIPackage")
 
-    def import_sbom(self, sbom_path: Path) -> None:
-        """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry."""
+    def import_sbom(self, sbom_path: Path) -> frozenset[tuple[str, str]]:
+        """Harvest ids from an existing SPDX 3 JSON-LD SBOM into this registry.
+
+        Returns the ``entities`` keys not imported because the SBOM holds
+        several elements under one name (see
+        :func:`~pitloom.id_registry._ambiguous._ambiguous_entity_keys`).
+        """
         object_set = spdx3.SHACLObjectSet()
         with open(sbom_path, "rb") as f:
             spdx3.JSONLDDeserializer().read(f, object_set)
@@ -231,7 +232,7 @@ class IdRegistry:
                     self.namespace = obj.spdxId
                     break
 
-        self._harvest_sorted(sorted_objects)
+        return _harvest_elements(self, sorted_objects)
 
     def harvest(self, object_set: spdx3.SHACLObjectSet) -> tuple[int, int, bool]:
         """Harvest every named element in *object_set* into this registry.
@@ -258,16 +259,13 @@ class IdRegistry:
         """Harvest *sorted_objects* (see
         :func:`~pitloom.id_registry._harvest._sorted_by_spdx_id`).
 
-        Shared by :meth:`harvest` and :meth:`import_sbom` -- the latter
-        already needs a sorted list for its own namespace-seeding scan,
-        so it reuses that same list here instead of sorting the object
-        set twice.
+        A name held by more than one element (see
+        :func:`~pitloom.id_registry._ambiguous._ambiguous_entity_keys`) is
+        not written.
         """
         before_files = dict(self.files)
         before_entities = dict(self.entities)
-        index = _SpdxIdIndex.from_registry(self)
-        for obj in sorted_objects:
-            _import_sbom_element(self, obj, index)
+        _harvest_elements(self, sorted_objects)
         changed = self.files != before_files or self.entities != before_entities
         return (
             len(self.files) - len(before_files),

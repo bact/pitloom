@@ -14,12 +14,14 @@ resulting cycle is avoided).
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.id_registry._ambiguous import _ambiguous_entity_keys, _compact_type_of
 from pitloom.id_registry._types import (
     PACKAGE_ENTITY_TYPE,
     EntityEntry,
@@ -35,6 +37,7 @@ log = logging.getLogger("pitloom.id_registry")
 
 __all__ = [
     "_SpdxIdIndex",
+    "_harvest_elements",
     "_import_sbom_element",
     "_is_files_path_alias",
     "_release_stale_keys_for_id",
@@ -201,8 +204,34 @@ def _release_stale_keys_for_id(
             index.drop_entity(registry, spdx_id, key)
 
 
+def _harvest_elements(
+    registry: IdRegistry, sorted_objects: Iterable[Any]
+) -> frozenset[tuple[str, str]]:
+    """Harvest every element of *sorted_objects* into *registry*, leaving
+    each :func:`_ambiguous_entity_keys` key untouched.
+
+    Returns the skipped (ambiguous) keys; each is logged once at DEBUG.
+    """
+    objects = list(sorted_objects)
+    ambiguous = _ambiguous_entity_keys(objects)
+    for type_name, name in sorted(ambiguous):
+        log.debug(
+            "ID registry: not harvested (%s name held by several elements): %r",
+            type_name,
+            name,
+        )
+    index = _SpdxIdIndex.from_registry(registry)
+    for obj in objects:
+        _import_sbom_element(registry, obj, index, ambiguous_keys=ambiguous)
+    return ambiguous
+
+
 def _import_sbom_element(
-    registry: IdRegistry, obj: Any, index: _SpdxIdIndex | None = None
+    registry: IdRegistry,
+    obj: Any,
+    index: _SpdxIdIndex | None = None,
+    *,
+    ambiguous_keys: frozenset[tuple[str, str]] = frozenset(),
 ) -> None:
     """Harvest a single deserialized SBOM element into *registry*.
 
@@ -220,13 +249,17 @@ def _import_sbom_element(
     see that function's docstring for why one id can never legitimately
     back two registry keys.
 
+    A key in *ambiguous_keys* (see :func:`_ambiguous_entity_keys`) is
+    skipped outright: its existing entry, if any, stays and nothing is
+    released for it.
+
     *index* is the ``spdx_id -> keys`` reverse index
     :func:`_release_stale_keys_for_id` needs --
-    :meth:`~pitloom.id_registry.IdRegistry._harvest_sorted` builds one and
-    threads it through every element in its pass, so it's built once, not
-    once per element. A direct caller (e.g. harvesting a single element
-    outside a batch pass) can omit it and gets one freshly built from
-    *registry*'s current contents, same result either way.
+    :func:`_harvest_elements` builds one and threads it through every
+    element in its pass, so it's built once, not once per element. A
+    direct caller (e.g. harvesting a single element outside a batch pass)
+    can omit it and gets one freshly built from *registry*'s current
+    contents, same result either way.
     """
     name = getattr(obj, "name", None)
     spdx_id = getattr(obj, "spdxId", None)
@@ -235,10 +268,7 @@ def _import_sbom_element(
     if index is None:
         index = _SpdxIdIndex.from_registry(registry)
 
-    get_compact_type = getattr(obj, "get_compact_type", None)
-    compact_type = get_compact_type() if get_compact_type is not None else None
-    if not compact_type:
-        compact_type = type(obj).__name__
+    compact_type = _compact_type_of(obj)
 
     if compact_type != PACKAGE_ENTITY_TYPE:
         sha256 = _sha256_from_verified_using(obj)
@@ -249,9 +279,11 @@ def _import_sbom_element(
             index.set_file(registry, name, FileEntry(spdx_id=spdx_id, sha256=sha256))
             return
 
-    if not compact_type or compact_type == "object":
+    if compact_type == "object":
         log.debug("Import: skipping %r (no SPDX 3 compact type)", name)
         return
     key = _entity_key(name, compact_type)
+    if key in ambiguous_keys:
+        return
     _release_stale_keys_for_id(registry, spdx_id, index, entity_key=key)
     index.set_entity(registry, key, EntityEntry(spdx_id=spdx_id))

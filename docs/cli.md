@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -346,6 +346,10 @@ loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 (`-o`/`--id-registry` is required unless the project's own
 `pyproject.toml`/`setup.cfg` already declares `id-registry` -- see
 below.)
+
+`--entity NAME:software_Package` pins a dependency's, or the project's
+own, package id: `project`, `wheel`, `embed-wheel`, `env` and the Hatchling
+build hook all reuse it.
 
 `id generate [PATH...]` flags: `-o`/`--id-registry FILE` (registry file to
 create or update), `--project-dir DIR`, `-e`/`--entity NAME[:TYPE]`

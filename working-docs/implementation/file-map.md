@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -91,12 +91,14 @@ pitloom/
 │       │   │   ├── _document_files.py       # File-element assembly
 │       │   │   ├── _document_model.py       # Single-AI-model assembly
 │       │   │   ├── _fragments_unify.py      # Fragment entity unification and deduplication
+│       │   │   ├── _package_ids.py          # Registry pre-resolution: main package, dependencies, phantom dependencies
 │       │   │   ├── _provenance_encoders.py  # Provenance encoder and payload builders
 │       │   │   ├── ai.py             # AI model element assembly facade
 │       │   │   ├── creation_info.py  # Shared CreationInfo construction
 │       │   │   ├── dataset.py        # Dataset element assembly
 │       │   │   ├── deps_installed.py # Installed-environment dependency tree mapping
 │       │   │   ├── deps_license.py   # License element assembly
+│       │   │   ├── deps_phantom.py   # Phantom (bundled binary) dependency assembly
 │       │   │   ├── deps_pypi.py      # PyPI release-info lookups
 │       │   │   ├── deps_originator.py # Originator resolution
 │       │   │   ├── deps.py           # Dependency enrichment facade
@@ -182,6 +184,7 @@ pitloom/
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
 │       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)
+│       │   ├── _ambiguous.py        # Names held by several elements of one document (never harvested)
 │       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element)
 │       │   ├── _registry.py         # IdRegistry class
 │       │   ├── _session.py          # IdRegistrySession: one document's first-claimant-wins lookups
@@ -209,7 +212,7 @@ pitloom/
 │   │   └── huggingface/            # 20 files -- split by metadata category
 │   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
-│   ├── id_registry/                # 8 files -- shared.py, test_registry.py, test_registry_generate.py, test_registry_import.py, test_session.py, surfaces_shared.py, test_surfaces.py, test_surfaces_same_ids.py
+│   ├── id_registry/                # 19 files -- conftest.py, shared.py, package_ids_base.py, surfaces_base.py, surfaces_cli.py, surfaces_shared.py, test_package_ids.py, test_package_ids_ambiguous.py, test_registry.py, test_registry_base_dir_sdist.py, test_registry_generate.py, test_registry_harvest.py, test_registry_import.py, test_relative_paths.py, test_relative_paths_id_commands.py, test_session.py, test_surfaces.py, test_surfaces_failures.py, test_surfaces_same_ids.py
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)

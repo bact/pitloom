@@ -8,7 +8,8 @@
 See also: :mod:`pitloom.assemble.spdx3.deps_installed` for local metadata parsing,
 :mod:`pitloom.assemble.spdx3.deps_pypi` for the PyPI JSON API fallback,
 :mod:`pitloom.assemble.spdx3.deps_license` for license element construction,
-and :mod:`pitloom.assemble.spdx3.deps_originator` for originator resolution.
+:mod:`pitloom.assemble.spdx3.deps_originator` for originator resolution,
+and :mod:`pitloom.assemble.spdx3.deps_phantom` for bundled phantom dependencies.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from typing import Any
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, DependencyIdHits
 from pitloom.assemble.spdx3.deps_installed import (
     _DOWNLOAD_LABELS,
     _HOMEPAGE_LABELS,
@@ -47,7 +49,6 @@ from pitloom.assemble.spdx3.provenance import (
     emit_provenance,
 )
 from pitloom.core.models import build_pypi_purl, build_relationship, generate_spdx_id
-from pitloom.core.project import PhantomDependency
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
 from pitloom.extract.lock._common import is_same_version
@@ -62,7 +63,6 @@ __all__ = [
     "_parse_dep_name",
     "_resolve_version",
     "add_dependencies",
-    "add_phantom_dependencies",
 ]
 
 
@@ -268,6 +268,7 @@ def add_dependencies(
     locked_versions: dict[str, str] | None = None,
     locked_provenance: str | None = None,
     locked_hashes: dict[str, str] | None = None,
+    resolved_ids: DependencyIdHits | None = None,
 ) -> None:
     """Build SPDX ``software_Package`` and ``Relationship`` elements for
     dependencies.
@@ -327,6 +328,12 @@ def add_dependencies(
     entirely as a genuine locked-version conflict. The transitive-only call
     passes no *locked_versions*, since its own *dependencies* strings already
     carry the lock's version verbatim.
+
+    *resolved_ids*, when given, holds the registry ids pre-resolved for
+    each PEP 503 name (see
+    :func:`~pitloom.assemble.spdx3._package_ids.resolve_project_package_ids`);
+    a package with a hit uses it instead of minting an id. Ids are never
+    looked up here: they must be reserved before the first one is minted.
     """
     resolved = [
         _resolve_dependency_with_conflict(
@@ -361,7 +368,7 @@ def add_dependencies(
             (dep, dep_name, version_note, conflict_candidates)
         )
 
-    for (_canon_name, dep_version), declared in grouped.items():
+    for (group_canon, dep_version), declared in grouped.items():
         display_dep_name = declared[0][1]
         declared_constraints = [dep for dep, _raw_name, _note, _conflict in declared]
         version_note = next(
@@ -382,8 +389,16 @@ def add_dependencies(
         if version_note:
             dep_provenance_fields["version"] = version_note
 
+        resolved_id = (
+            resolved_ids.take(
+                group_canon, f"{DEPENDENCY_LABEL} {display_dep_name} {dep_version}"
+            )
+            if resolved_ids is not None
+            else None
+        )
         dep_package = spdx3.software_Package(
-            spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
+            spdxId=resolved_id
+            or generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
             name=display_dep_name,
             creationInfo=creation_info,
         )
@@ -445,81 +460,3 @@ def add_dependencies(
         )
         if dep_rel:
             exporter.add_relationship(dep_rel)
-
-
-# pylint: disable=too-many-arguments,too-many-positional-arguments
-def add_phantom_dependencies(
-    phantom_deps: list[PhantomDependency],
-    main_package_spdx_id: str,
-    file_spdx_ids: dict[str, str],
-    creation_info: spdx3.CreationInfo,
-    doc_name: str,
-    doc_uuid: str,
-    exporter: Spdx3JsonExporter,
-    *,
-    provenance_config: ProvenanceConfig | None = None,
-    encoder: ProvenanceEncoder | None = None,
-) -> None:
-    """Build SPDX elements for bundled phantom binary dependencies."""
-    for dep in phantom_deps:
-        dep_package = spdx3.software_Package(
-            spdxId=generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
-            name=dep.name,
-            creationInfo=creation_info,
-        )
-        if dep.version:
-            dep_package.software_packageVersion = dep.version
-        else:
-            dep_package.software_packageVersion = "unknown"
-
-        dep_package.software_primaryPurpose = spdx3.software_SoftwarePurpose.library
-        dep_package.software_copyrightText = "NOASSERTION"
-        if dep.digest_sha256:
-            dep_package.verifiedUsing = [sha256_hash(dep.digest_sha256)]
-        _add_license_noassertion(
-            dep_package,
-            creation_info,
-            doc_name,
-            doc_uuid,
-            exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
-
-        exporter.add_package(dep_package)
-        emit_provenance(
-            subject=dep_package,
-            provenance={
-                "package": "Phantom dependency bundled in distribution artifact"
-            },
-            creation_info=creation_info,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            exporter=exporter,
-            provenance_config=provenance_config,
-            encoder=encoder,
-        )
-
-        dep_rel = build_relationship(
-            from_id=main_package_spdx_id,
-            to_ids=[require_spdx_id(dep_package)],
-            rel_type=spdx3.RelationshipType.dependsOn,
-            doc_name=doc_name,
-            doc_uuid=doc_uuid,
-            creation_info=creation_info,
-        )
-        if dep_rel:
-            exporter.add_relationship(dep_rel)
-
-        file_spdx_id = file_spdx_ids.get(dep.file_path)
-        if file_spdx_id:
-            file_rel = build_relationship(
-                from_id=require_spdx_id(dep_package),
-                to_ids=[file_spdx_id],
-                rel_type=spdx3.RelationshipType.contains,
-                doc_name=doc_name,
-                doc_uuid=doc_uuid,
-                creation_info=creation_info,
-            )
-            if file_rel:
-                exporter.add_relationship(file_rel)

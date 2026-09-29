@@ -16,6 +16,7 @@ from typing import Any
 
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
+from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, resolve_package_id
 from pitloom.assemble.spdx3.deps import _finish_dependency_enrichment
 from pitloom.assemble.spdx3.deps_pypi import _prefetch_pypi_release_infos
 from pitloom.assemble.spdx3.provenance import (
@@ -33,18 +34,18 @@ from pitloom.core.models import (
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry, IdRegistrySession
+from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 
 def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
     """Return the pipdeptree-graph key used to key *package_spdx_ids* /
     build dependsOn edges from *env_tree* -- pipdeptree's own ``key``
     field, falling back to a lowercased *dep_name*. Unrelated to the
-    registry lookup key: :meth:`~pitloom.id_registry.IdRegistry.lookup_entity`
-    PEP 503-canonicalizes a :data:`~pitloom.id_registry.PACKAGE_ENTITY_TYPE`
-    name itself (see :func:`pitloom.id_registry._types._entity_key`), so *dep_name* is
-    passed to it verbatim, uncanonicalized, by
-    :func:`_resolve_deployed_package_hits`."""
+    registry lookup key: the registry PEP 503-canonicalizes a package name
+    itself (see :func:`pitloom.id_registry._types._entity_key`), so
+    :func:`_resolve_deployed_package_hits` passes *dep_name* verbatim to
+    :func:`~pitloom.assemble.spdx3._package_ids.resolve_package_id`, the
+    same lookup the project and wheel surfaces use."""
     return str(pkg_info.get("key", dep_name.lower()))
 
 
@@ -71,7 +72,7 @@ def _resolve_deployed_package_hits(
         pkg_info = node.get("package", {})
         dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
         lookup_key = _deployed_lookup_key(pkg_info, dep_name)
-        claimed_id = session.entity_id(lookup_key, [dep_name], PACKAGE_ENTITY_TYPE)
+        claimed_id = resolve_package_id(session, DEPENDENCY_LABEL, dep_name)
         if claimed_id is not None:
             hits[lookup_key] = claimed_id
     return hits

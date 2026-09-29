@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -47,9 +47,13 @@ and this project adheres to
   first-claimant-wins registry lookup ([#235])
 - `id generate`/`id import` print an `INFO:` config hint after creating
   an undeclared registry ([#235])
+- `id import` prints one `INFO:` listing names not imported because the SBOM
+  holds several elements under them ([#235])
 
 ### Changed
 
+- `project`, `wheel`, `embed-wheel` and the Hatchling hook: dependency and
+  main-package ids now come from a declared ID registry, like `env` ([#235])
 - Library API: `allow_build`/`no_build_isolation` kwargs replaced by one
   `build_options=BuildOptions(...)`; ignored build flags now warn once
   on every surface ([#226])
