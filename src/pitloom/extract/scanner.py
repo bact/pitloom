@@ -64,7 +64,7 @@ def _scan_single_file_for_model(
                 physical_path=pf.physical_path,
             )
         )
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as e:
         log.warning(
             "FORMAT=%s FILE=%s: failed to extract metadata; %s",
@@ -93,7 +93,7 @@ def _scan_python_file_usages(
                     file_name,
                     pf.distribution_path,
                 )
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as e:
         log.warning("FILE=%s: could not read for usage scanning; %s", phys_path, e)
 

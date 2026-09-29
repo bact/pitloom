@@ -54,7 +54,7 @@ def _read_pt2_meta_entry(
                 field_name = "model_name"
             if name and field_name:
                 return name, f"{source} | Field: {meta_entry}.{field_name}"
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to parse PT2 metadata entry %s: %s" + field_loss_suffix(
             "skipped", "name"
@@ -163,7 +163,7 @@ def _read_pt2_extra_files(
         if full in file_list:
             try:
                 return zf.read(full).decode("utf-8", errors="replace").strip() or None
-            # pylint: disable=broad-exception-caught
+            # pylint: disable-next=broad-exception-caught
             except Exception as exc:
                 _warn_pt2_extra_read_failure(full, field, exc)
         return None
@@ -197,7 +197,7 @@ def _read_pt2_extra_files(
                 properties["tags"] = ", ".join(str(t) for t in tags_list)
             else:
                 properties["tags"] = tags_raw
-        # pylint: disable=broad-exception-caught
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             _warn_pt2_extra_tags_malformed(exc)
             properties["tags"] = tags_raw
@@ -240,7 +240,7 @@ def _read_pt2_graph_io(
 
     try:
         data = json.loads(zf.read(model_json_path))
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to parse PT2 model graph %s: %s" + field_loss_suffix(
             "skipped", "inputs", "outputs"
@@ -282,7 +282,7 @@ def _read_pt2_format_version(
             )
             if arch_ver:
                 return arch_ver, f"{source} | Field: {prefix}archive_version"
-        # pylint: disable=broad-exception-caught
+        # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             msg = "Failed to read PT2 %sarchive_version: %s" + field_loss_suffix(
                 "skipped", "version (archive_version fallback)"

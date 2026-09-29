@@ -138,6 +138,8 @@ and this project adheres to
 - `Spdx3JsonExporter.to_json()` now raises on a duplicate spdxId that
   survives dedup (differing content); identical copies still collapse
   silently ([#234])
+- Skills: descriptions fit the 1024-character limit, ID registry detail moved
+  to a `references/` file, and stale examples and claims fixed ([#235])
 
 ### Removed
 

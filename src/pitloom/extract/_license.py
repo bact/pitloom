@@ -136,7 +136,7 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
         results = matcher.match(text)
         filtered = [r for r in results if r["score"] >= threshold]
         return str(filtered[0]["license_id"]) if filtered else None
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("licenseid detection failed: %s", exc)
         return None
@@ -148,7 +148,7 @@ def canonicalize_license_id(raw: str) -> str:
         results = _get_matcher().match(license_id=raw)
         if results:
             return str(results[0]["license_id"])
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         _logger.debug("Failed to canonicalize license id %r: %s", raw, exc)
     return raw
@@ -164,7 +164,7 @@ def normalize_license_expression(raw: str) -> str:
         return str(node.sort().to_string())
     except SpdxExpressionParseError as exc:
         _logger.debug("Failed to parse SPDX expression %r: %s", raw, exc)
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         # py-spdx-license can raise other than ParseError on malformed
         # input (e.g. unbalanced ")" -> IndexError); degrade gracefully

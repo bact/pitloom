@@ -176,7 +176,7 @@ def _parse_standard_metadata_with_retry(
             raise ValueError(
                 f"Failed to parse project metadata: {retry_exc}"
             ) from retry_exc
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         raise ValueError(f"Failed to parse project metadata: {exc}") from exc
 

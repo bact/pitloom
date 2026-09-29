@@ -52,16 +52,8 @@ def _project_doc_identity(
 ) -> tuple[str, str]:
     """Compute ``(doc_name, doc_uuid)`` for a project directory.
 
-    ``doc_uuid`` is content-addressed via ``merkle_root`` (see
-    :func:`~pitloom.core.models.compute_doc_uuid`), so it changes
-    whenever :func:`~pitloom.core.models.get_wheel_files`'s resolved
-    file set changes for this project -- including when a backend's
-    file-discovery accuracy improves without any file on disk actually
-    changing. Callers merging an enrichment fragment against a
-    previously-generated SBOM should regenerate that base SBOM first
-    after a Pitloom upgrade that changes file discovery for this
-    project's backend, or the fragment's element references may not
-    match the base document's spdxIds.
+    See :func:`_doc_identity_of` for what ``doc_uuid`` is built from and
+    when it shifts.
 
     ``use_lockfile`` must match whatever setting produced the base document
     being merged into, or the computed ``doc_uuid`` will diverge from it
@@ -82,11 +74,23 @@ def _doc_identity_of(
 ) -> tuple[str, str]:
     """``(doc_name, doc_uuid)`` for *project_metadata*, resolved from
     *project_dir* (see :func:`~pitloom.core.models.compute_doc_uuid` for
-    the content-addressing this ``doc_uuid`` is built from)."""
-    # build_options intentionally omitted (no --allow-build): this doc-identity
-    # helper is only reachable from the model/enrich commands, which have
-    # no --allow-build CLI flag of their own to read. The returned
-    # cleanup is therefore always a no-op; call it immediately.
+    the content-addressing this ``doc_uuid`` is built from).
+
+    For a project directory, ``doc_uuid`` includes the Merkle root of
+    :func:`~pitloom.core.models.get_wheel_files`'s resolved file set, so it
+    changes whenever that set changes for this project -- including when a
+    backend's file-discovery accuracy improves without any file on disk
+    actually changing. An sdist target has no file walk, so no Merkle root.
+    Callers merging an enrichment fragment against a
+    previously-generated SBOM should regenerate that base SBOM first
+    after a Pitloom upgrade that changes file discovery for this
+    project's backend, or the fragment's element references may not
+    match the base document's spdxIds.
+    """
+    # build_options intentionally omitted (no --allow-build): the only
+    # production caller, enrich_model() (`loom enrich --project-dir`), has
+    # no --allow-build flag to read. The returned cleanup is therefore
+    # always a no-op; call it immediately.
     merkle_root: str | None = None
     if not project_dir.is_file():  # an sdist has no file walk, as in its SBOM
         merkle_root, project_files, _cleanup = get_wheel_files(project_dir)

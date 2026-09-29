@@ -9,7 +9,7 @@ that catches a merged element (typically from a fragment) whose ``Relationship``
 ``Annotation`` endpoint doesn't resolve to any object actually present in the
 merged graph (and isn't a declared external reference either). The prototypical
 cause is a fragment built against a base SBOM's old ``doc_uuid`` (see
-:func:`pitloom.assemble._model_generator._project_doc_identity`'s docstring)
+:func:`pitloom.assemble._model_generator._doc_identity_of`'s docstring)
 merged against a regenerated base SBOM whose element ids have since shifted --
 a dangling reference always fails the merge (:class:`FragmentMergeError`), it
 is never just a warning.
@@ -147,7 +147,7 @@ def test_find_dangling_references_all_resolved_is_empty() -> None:
     exporter.add_package(pkg2)
     exporter.add_relationship(rel)
 
-    assert _find_dangling_references(exporter) == []
+    assert not _find_dangling_references(exporter)
 
 
 def test_raise_on_dangling_references_logs_and_raises(
@@ -215,4 +215,4 @@ def test_find_dangling_references_excludes_declared_external_imports() -> None:
     exporter.add_package(pkg)
     exporter.add_relationship(rel)
 
-    assert _find_dangling_references(exporter) == []
+    assert not _find_dangling_references(exporter)

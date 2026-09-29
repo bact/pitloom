@@ -334,7 +334,7 @@ flake8
 - Sort all imports alphabetically and logically (enforced by `ruff` / `isort`).
 - Remove unused imports and trailing whitespace.
 - Restrict non-ASCII characters to human language messages and diagrams.
-- Place `# pylint: disable=` comments on the preceding line rather than inline to save line length.
+- Place pylint suppressions on the preceding line as `# pylint: disable-next=<msg>` rather than inline, to save line length. A bare `# pylint: disable=` line before an `except` clause stopped suppressing it in pylint 4.1.
 
 ## File headers
 

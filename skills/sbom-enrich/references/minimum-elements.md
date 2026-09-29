@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,35 +8,37 @@ SPDX-License-Identifier: CC0-1.0
 
 # SBOM minimum elements checklists
 
-Companion to `../SKILL.md`
-(<https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/SKILL.md)'s>
-"Complete a standard's minimum elements" section. Three
-checklists -- NTIA 2021, CISA 2026, and G7 SBOM for AI 2026 -- each mapped to the
-Pitloom/SPDX 3 field that carries it today, so the agent can tell a real gap from
-something the base SBOM already covers before asking the user anything.
+Companion to
+[`../SKILL.md`](https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/SKILL.md)'s
+"Complete a standard's minimum elements" section. Three checklists -- NTIA 2021,
+CISA 2026, and G7 SBOM for AI 2026 -- each mapped to the Pitloom/SPDX 3 field
+that carries it today, so the agent can tell a real gap from something the base
+SBOM already covers before asking the user anything.
 
-**Which checklist applies:** CISA 2026 *supersedes* NTIA 2021 (same core principles,
-renamed/split/added fields -- see the "2021 name" column below) and is the current
-baseline unless the user specifically asks for the 2021 version (e.g. an older
-contract or policy cites it by name). G7 SBOM for AI 2026 is **additive** -- apply it
-only when the base SBOM has an `ai_AIPackage` element, on top of whichever general
-checklist applies.
+**Which checklist applies:** CISA 2026 *supersedes* NTIA 2021 (same core
+principles, renamed/split/added fields -- see the "2021 name" column below) and
+is the current baseline unless the user specifically asks for the 2021 version
+(e.g. an older contract or policy cites it by name). G7 SBOM for AI 2026 is
+**additive** -- apply it only when the base SBOM has an `ai_AIPackage` element,
+on top of whichever general checklist applies.
 
-Status legend: **covered** -- Pitloom emits this deterministically, nothing to do.
-**conditional** -- emitted only when a dependency resolves against PyPI/installed
-metadata, or similar; verify per-run, don't assume. **gap** -- this workflow's actual
-job. **not automatable** -- no file or answer this workflow can gather will satisfy
-it; say so plainly rather than implying it can be filled.
+Status legend: **covered** -- Pitloom emits this deterministically, nothing to
+do. **conditional** -- emitted only when a dependency resolves against
+PyPI/installed metadata, or similar; verify per-run, don't assume. **gap** --
+this workflow's actual job. **not automatable** -- no file or answer this
+workflow can gather will satisfy it; say so plainly rather than implying it can
+be filled.
 
-The "covered"/"conditional"/"gap" calls below were re-checked on 2026-09-20 against the
-assembly code (`assemble/spdx3/_ai_package.py`, `ai.py`, `dataset.py`, `document.py`)
-and a fresh `loom project`/`loom model` run -- not against a single sample SBOM, which
-misses fields the sample's model format never carried. Re-verify if the assembly code
-has changed since.
+The "covered"/"conditional"/"gap" calls below were re-checked on 2026-09-20
+against the assembly code (`assemble/spdx3/_ai_package.py`, `ai.py`,
+`dataset.py`, `document.py`) and a fresh `loom project`/`loom model` run -- not
+against a single sample SBOM, which misses fields the sample's model format
+never carried. Re-verify if the assembly code has changed since.
 
 ## NTIA 2021 (7 data fields + 6 practices)
 
-Field names below are the 2021 originals; CISA 2026's Appendix B documents each rename.
+Field names below are the 2021 originals; CISA 2026's Appendix B documents each
+rename.
 
 | 2021 element | Pitloom/SPDX 3 field | Status |
 | :--- | :--- | :--- |
@@ -49,12 +51,12 @@ Field names below are the 2021 originals; CISA 2026's Appendix B documents each 
 | Timestamp | `CreationInfo.created` | covered |
 
 Practices (process expectations, not data fields -- report as satisfied/not by
-observation, nothing to draft a fragment for): Depth (Pitloom's dependency graph has
-no fixed depth limit -- covered), Known Unknowns (Pitloom's `"unknown"` string
-convention -- covered), Distribution and Access Control (deployment concern, out of
-scope), Accommodation of Mistakes (re-run `loom` to regenerate -- covered),
-Automation Support (SPDX 3 JSON-LD is machine-processable -- covered), Frequency
-(deployment/process concern, out of scope).
+observation, nothing to draft a fragment for): Depth (Pitloom's dependency graph
+has no fixed depth limit -- covered), Known Unknowns (Pitloom's `"unknown"`
+string convention -- covered), Distribution and Access Control (deployment
+concern, out of scope), Accommodation of Mistakes (re-run `loom` to regenerate
+-- covered), Automation Support (SPDX 3 JSON-LD is machine-processable --
+covered), Frequency (deployment/process concern, out of scope).
 
 ## CISA 2026 (current baseline; 10 metadata + 7 component fields + 6 practices)
 
@@ -79,7 +81,7 @@ Automation Support (SPDX 3 JSON-LD is machine-processable -- covered), Frequency
 | :--- | :--- | :--- |
 | Component Producer | dependency: `originatedBy` via `_apply_originator` (`deps_originator.py`) from PyPI JSON API; main package: `software_Package.suppliedBy`, only when `[[tool.pitloom.creator]]` is configured | conditional (deps, PyPI-resolvable only); **gap** for the main package unless `[[tool.pitloom.creator]]` is set -- see NTIA's "Supplier Name" row above |
 | Component Dependency Relationship | `Relationship`/`LifecycleScopedRelationship` | covered |
-| Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artifact hash) for `loom project`, the Hatchling hook and source-plus-wheel embedding; **not** set on the main package of a standalone-wheel embed (no source tree, `merkle_root=None`), nor on `ai_AIPackage`/`dataset_DatasetPackage` elements | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artifact hash); the AI/dataset package-level gaps are listed under G7 below |
+| Component Hash Value / Algorithm | `verifiedUsing` (`{"algorithm": "sha256", "hashValue": ...}`); set on every `software_File` (including dataset and model files), lock-file-resolved dependencies (via SHA-256 digests in supported lock files, taking priority and applied in both online and offline builds), and PyPI-resolved deps (`_extract_release_hash` fallback, `deps_pypi.py`). The main package carries the SHA-256 Merkle root over its files (`document.py`; commented as not a single-artefact hash) for `loom project`, the Hatchling hook and source-plus-wheel embedding; **not** set on the main package of a standalone-wheel embed (no source tree, `merkle_root=None`), nor on `ai_AIPackage`/`dataset_DatasetPackage` elements | conditional -- present on deps only when a definite version resolves; on the main package, check the SBOM rather than assuming (Merkle root, not an artefact hash); the AI/dataset package-level gaps are listed under G7 below |
 | Component Identifiers | `software_packageUrl` (PURL) | conditional, same as NTIA's "Other Unique Identifiers" |
 | Component License | `simplelicensing_SimpleLicensingText` + relationship (main package, from `project.license`); deps via PyPI JSON API (`_extract_pypi_license`) | conditional (deps, PyPI-resolvable only); main package usually covered when `pyproject.toml` declares a license |
 | Component Name | `software_Package.name` | covered |
@@ -87,15 +89,15 @@ Automation Support (SPDX 3 JSON-LD is machine-processable -- covered), Frequency
 
 ### Practices and Processes
 
-Mostly process observations, not fields to fill: Accommodation of Updates to SBOM
-Data (re-run `loom` -- covered), Coverage (Pitloom walks the full dependency
-graph -- covered, but a mixed-ecosystem project has real gaps outside Python; see
-`sbom-generate`'s "Known limitations"), Distribution and Delivery (deployment
-concern, out of scope), Explicitly Identifying Unknown Information (Pitloom's
-`"unknown"`/`NOASSERTION` convention -- covered, and this workflow's final report
-should follow the same convention for anything the user declines to answer),
-Frequency (process concern, out of scope), Machine-Processable Data (SPDX 3
-JSON-LD -- covered).
+Mostly process observations, not fields to fill: Accommodation of Updates to
+SBOM Data (re-run `loom` -- covered), Coverage (Pitloom walks the full
+dependency graph -- covered, but a mixed-ecosystem project has real gaps outside
+Python; see `sbom-generate`'s "Known limitations"), Distribution and Delivery
+(deployment concern, out of scope), Explicitly Identifying Unknown Information
+(Pitloom's `"unknown"`/`NOASSERTION` convention -- covered, and this workflow's
+final report should follow the same convention for anything the user declines to
+answer), Frequency (process concern, out of scope), Machine-Processable Data
+(SPDX 3 JSON-LD -- covered).
 
 ## G7 SBOM for AI 2026 (additive -- apply only when an `ai_AIPackage` is present)
 
@@ -112,7 +114,7 @@ JSON-LD -- covered).
 | Model hash value / algorithm | none -- `verifiedUsing` is not set on `ai_AIPackage` (`_build_ai_package`), even though the shipped model file's own `software_File` carries a SHA-256 and is linked by `contains` | **gap** -- do not recompute; the hash is already in the SBOM on the linked `software_File`, so a fragment can reuse it. A core wiring fix is planned, separate from this skill |
 | Model properties (architecture, parameter count, etc.) | `ai_typeOfModel` (type + architecture) and `ai_hyperparameter` (list of `DictionaryEntry`, incl. quantization) | covered for architecture/type/hyperparameters; parameter count is a **gap** (not promoted to its own field, even where a format's raw metadata exposes it) |
 | Model input-output properties | `ai_informationAboutApplication` (JSON string) | covered when the model format's extractor populates it; verify per model type |
-| Model training properties | not distinctly modeled (see `ai_typeOfModel` for the closest overlap) | **gap** -- ask/read for training technique detail (pre-training vs. fine-tuning vs. RLHF, etc.) |
+| Model training properties | not distinctly modelled (see `ai_typeOfModel` for the closest overlap) | **gap** -- ask/read for training technique detail (pre-training vs. fine-tuning vs. RLHF, etc.) |
 | Model license | `LicenseExpression` relationships (declared/concluded) on the AI package, built by the same `build_license_elements` as the main package; source is the model file (PT2), the Hugging Face card, or local model-card enrichment (`enrich/readme.py`) | conditional -- **gap** only when none of those carry a license; then `sbom-enrich`'s prose-inference steps (2-6) are the way to fill it, reuse them rather than re-deriving |
 | Model external references | `externalRef` (arXiv as `documentation`, hub page as `altWebPage`) and DOI as `ExternalIdentifier`, when the source carries them | conditional; **gap** when it carries none |
 
@@ -135,60 +137,63 @@ Applies to each `dataset_DatasetPackage`.
 
 ### System Level Properties, Infrastructure, Security Properties, KPI clusters
 
-Not modeled by Pitloom's current `ai_AIPackage` mapping at all -- every element in
-these four clusters (System name/components/producer/version/timestamp/data
-flow/data usage/input-output properties, Intended application area; Infrastructure
-software/hardware; Security controls/compliance/policy info/vulnerability
-referencing; Security metrics, Operational performance KPIs) is a **gap**, and
-several (Security Properties, KPIs) are largely **not automatable** from repo
-content alone -- they describe the deployed system's operational/security posture,
-not the model artifact. Treat these as the lowest-priority tier: only pursue them if
-the user explicitly asks for full G7 coverage, and expect most to end up reported as
-open gaps rather than filled.
+Not modelled by Pitloom's current `ai_AIPackage` mapping at all -- every element
+in these four clusters (System name/components/producer/version/timestamp/data
+flow/data usage/input-output properties, Intended application area;
+Infrastructure software/hardware; Security controls/compliance/policy
+info/vulnerability referencing; Security metrics, Operational performance KPIs)
+is a **gap**, and several (Security Properties, KPIs) are largely **not
+automatable** from repo content alone -- they describe the deployed system's
+operational/security posture, not the model artefact. Treat these as the
+lowest-priority tier: only pursue them if the user explicitly asks for full G7
+coverage, and expect most to end up reported as open gaps rather than filled.
 
 ## Question bank (educated guesses for hard-to-derive elements)
 
-Use these as a starting point for the "where might this information be" prompt the
-skill gives the user for elements it can't resolve itself -- adapt to what's actually
-in the project.
+Use these as a starting point for the "where might this information be" prompt
+the skill gives the user for elements it can't resolve itself -- adapt to what's
+actually in the project.
 
 - **SBOM Author** (when `[[tool.pitloom.creator]]` isn't set): "Pitloom's own
-  `CreationInfo` currently only names Pitloom itself as the generating tool, not the
-  person or organisation that ran it. Who should be recorded as the SBOM author --
-  you, or an organisation? This can also be set permanently via
-  `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets -- it's an
-  array of tables) so future runs don't need to ask -- and it also fills in Component
-  Producer for the main package at the same time."
+  `CreationInfo` currently only names Pitloom itself as the generating tool, not
+  the person or organisation that ran it. Who should be recorded as the SBOM
+  author -- you, or an organisation? This can also be set permanently via
+  `[[tool.pitloom.creator]]` in `pyproject.toml` (note the double brackets --
+  it's an array of tables) so future runs don't need to ask -- and it also fills
+  in Component Producer for the main package at the same time."
 - **Component/Model Producer**: "Is this dependency/model something your
-  organisation built, or a third-party component? If third-party, do you know the
-  maintaining organisation or project (check the package's PyPI page, GitHub org, or
-  model card)?"
-- **SBOM Author Signature**: "This requires a detached digital signature over the
-  SBOM using your organisation's own signing infrastructure (see NIST SP 800-57
-  Pt. 1 for key-management guidance). Pitloom doesn't generate signatures -- do you
-  already have a signing process, or is this out of scope for now?"
+  organisation built, or a third-party component? If third-party, do you know
+  the maintaining organisation or project (check the package's PyPI page, GitHub
+  org, or model card)?"
+- **SBOM Author Signature**: "This requires a detached digital signature over
+  the SBOM using your organisation's own signing infrastructure (see NIST SP
+  800-57 Pt. 1 for key-management guidance). Pitloom doesn't generate signatures
+  -- do you already have a signing process, or is this out of scope for now?"
 - **Model license**: "Does the model have its own license, separate from the
-  project's? Check the model card / a `LICENSE` file next to the model weights, or
-  the hub page if it came from Hugging Face."
-- **Dataset provenance**: "Where did this dataset come from -- collected in-house,
-  downloaded from a public source, or derived from another dataset in this project?
-  Check the dataset's own README/data card, or a data-collection/labeling pipeline
-  doc if one exists."
+  project's? Check the model card / a `LICENSE` file next to the model weights,
+  or the hub page if it came from Hugging Face."
+- **Dataset provenance**: "Where did this dataset come from -- collected
+  in-house, downloaded from a public source, or derived from another dataset in
+  this project? Check the dataset's own README/data card, or a
+  data-collection/labelling pipeline doc if one exists."
 - **Dataset sensitivity**: "Does this dataset contain personal data (PII),
   copyrighted material, or other sensitive content (financial, medical, national
-  security)? This generally can't be inferred from the data alone -- best answered
-  by whoever curated it."
-- **Model training properties**: "What training approach was used -- pre-training
-  from scratch, fine-tuning an existing model, RLHF, or something else? A model
-  card's 'Training' or 'Methodology' section usually states this if one exists."
+  security)? This generally can't be inferred from the data alone -- best
+  answered by whoever curated it."
+- **Model training properties**: "What training approach was used --
+  pre-training from scratch, fine-tuning an existing model, RLHF, or something
+  else? A model card's 'Training' or 'Methodology' section usually states this
+  if one exists."
 
 ## Optional extra check (not a required step)
 
-If the target standard is NTIA/CISA and the user wants an independent cross-check,
-the community `ntia-conformance-checker` tool
-(<https://github.com/spdx/ntia-conformance-checker>) can validate an SPDX document
-against the NTIA baseline. This is a manual, optional step the user can run
-themselves -- it is not wired into this skill, and its absence shouldn't block
-anything here. The mandatory validation step remains the `sbom-validate` skill
-(<https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>; minimal
-fallback: `pip install "pitloom[validate]"` then `loom fragment validate <file>`).
+If the target standard is NTIA/CISA and the user wants an independent
+cross-check, the community `ntia-conformance-checker` tool
+(<https://github.com/spdx/ntia-conformance-checker>) can validate an SPDX
+document against the NTIA baseline. This is a manual, optional step the user can
+run themselves -- it is not wired into this skill, and its absence shouldn't
+block anything here. The mandatory validation step remains the `sbom-validate`
+skill
+(<https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>;
+minimal fallback: `pip install "pitloom[validate]"` then `loom fragment validate
+<file>`).

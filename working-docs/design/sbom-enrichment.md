@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-22
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -159,8 +159,9 @@ right in the first place is still the correct fix, not something to
 merge past. **Always pass `loom enrich --project-dir
 <dir>` (or `enrich_model(..., project_target=<dir>)`)** when the
 fragment is meant to merge into a project-level base document -- this
-resolves the project's own identity (see `_project_doc_identity()` in
-`assemble/_model_generator.py`) so the two agree. Covered by
+resolves the project's own identity (see `_doc_identity_of()` in
+`assemble/_model_generator.py`, called by `enrich_model()`) so the two
+agree. Covered by
 `tests/core/generator/test_generator_model_fragments.py::test_enrich_model_project_target_merges_correctly_end_to_end`
 (the real regression test -- verifies attachment survives an actual
 merge, not just matching id strings) and

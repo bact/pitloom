@@ -204,9 +204,14 @@ full picture.
   tests/` are); known edge cases: `args` containing a literal ASCII RS or a CR
   inside quotes, quadratic `${PL_ARGS//[[:space:]]/}` on bash 3.2. See
   [github-action.md](../implementation/github-action.md).
-- [ ] **GitHub Action silently drops invalid tri-state inputs** -- e.g.
-  `update-id-registry: maybe` or `extract-file-header: maybe` passes no
-  flag and prints no warning; violates "no silent deviations".
+- [ ] **GitHub Action silently drops invalid boolean inputs** -- any
+  non-empty value other than exactly `true`/`false` (`maybe`, `True`) on the
+  tri-state `enrich`, `extract-file-header`, `update-id-registry`,
+  `content-type`, `offline`, `use-lockfile`, and on the two-state `pretty`,
+  `allow-build`, `no-build-isolation` (case-sensitive `= "true"`, so
+  `allow-build: True` silently skips the build), passes no flag and prints
+  no warning; `use-lockfile` in model/embed-wheel mode is dropped silently
+  too. Violates "no silent deviations".
 - [ ] **SARIF output** -- emit a SARIF file as a build artifact for CI
   findings (inline PR annotations, Security-tab view), fed by
   `WARNING:`/`ERROR:` output, OSV.dev results (once built), and license
@@ -319,38 +324,19 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
-- [ ] **Skill trigger coverage for `loom id generate`/`loom id import`**
-  -- flagged during a 2026-09-18 skills-coverage audit: the skills now
-  explain the registry *concept* (why ids stay stable across reruns via
-  auto-harvest, so `sbom-enrich`'s dangling-fragment troubleshooting can
-  point at a registry mismatch -- see `sbom-generate`'s "Why element ids
-  stay stable across reruns" section), but the two manual commands
-  themselves have no trigger phrasings or dedicated skill workflow.
-  Needs design: which skill should own them (a new one, or folded into
-  `sbom-generate`), and what phrasings distinguish "pin ids before a
-  first run" from "import ids from an existing SBOM" without colliding
-  with plain generate/enrich requests. See
-  [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
+- [ ] **Skill trigger coverage for `loom id generate`/`loom id import`** --
+  the skills run both commands now, but no description triggers on them;
+  owner skill undecided. See [id-registry-followups.md](id-registry-followups.md).
 - [ ] **Deterministic same-model identification for auto-harvest** --
-  `ai_AIPackage` elements are excluded from the Loom ID registry's
-  auto-harvest since `ai_model.name` is extraction-dependent. Open
-  design question: whether a content-hash match (narrower than "same
-  model" for re-exported/re-quantized models) plus a non-identifying
-  "machine ID" scoping tag could safely extend auto-harvest to AI
-  models. No implementation direction chosen yet. See
-  [ai-model-id-stability.md](ai-model-id-stability.md).
-- [ ] **Wheel/sdist targets never reuse src-layout registry file ids**
-  -- `loom id generate` keys files by project path (`src/demo/x.py`), while
-  a wheel's distribution path is `demo/x.py` and an sdist's is
-  `demo-1.0.0/src/...`, so neither finds the registry entries.
+  `ai_AIPackage` stays out of auto-harvest; content-hash matching is an
+  open design question. See [ai-model-id-stability.md](ai-model-id-stability.md).
+- [ ] **Wheel/sdist targets and src-layout registry file ids** -- path keys
+  differ; a `project` harvest aliases the wheel path, `id generate` alone
+  does not, and an sdist finds neither. See [id-registry-followups.md](id-registry-followups.md).
 - [ ] **Registry harvest rewrites per-document entities; `env`'s root
-  package is never looked up** -- found in PR A2 (#235) while making package
-  ids registry-driven: `SoftwareAgent`/`Tool`/`License` entries carry each
-  document's own uuid, so alternating `project`/`wheel` runs still change
-  the registry's bytes (package entries are stable); `env`'s root
-  `deployed-environment` package is always minted, and a pinned id for it
-  is overwritten on harvest. See
-  [id-registry-autosync.md](../implementation/id-registry-autosync.md).
+  package is never looked up.** See [id-registry-followups.md](id-registry-followups.md).
+- [ ] **A declared registry inside the package tree never settles** -- the
+  registry is itself a hashed file. See [id-registry-followups.md](id-registry-followups.md).
 
 ### Sort-order canonicalization (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
@@ -405,6 +391,13 @@ skill trigger coverage, SDK ergonomics, new extractors,
 compliance/interop, element-level traceability) remain open. See
 [open-items.md](sbom-fragments/open-items.md).
 
+- [ ] **Non-directory targets silently ignore configured fragments** --
+  `loom model` (and `generate` on a model file), Hugging Face, `wheel`,
+  `env` and sdist runs never call `merge_fragments()`, so fragments in
+  `--config`/project config are dropped with no `WARNING:` and exit 0
+  (violates "no silent deviations"). Found reviewing the `sbom-enrich`
+  skill; the skill now says so. Record only.
+
 ### Metadata quality
 
 See [metadata-quality.md](metadata-quality.md).
@@ -420,6 +413,12 @@ See [metadata-quality.md](metadata-quality.md).
 ### Testing / CI
 
 See [testing-ci-followups.md](testing-ci-followups.md).
+
+- [ ] **Delete `_project_doc_identity` and test `enrich_model` directly** --
+  `assemble/_model_generator.py`'s `_project_doc_identity()` has no
+  production caller (`enrich_model()` calls `_doc_identity_of()`); only
+  `tests/assemble/test_model_generator_doc_identity.py` and
+  `test_explicit_config_edges.py` use it, as an oracle.
 
 ### Diagnostics / logging
 

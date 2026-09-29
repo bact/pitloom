@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -70,7 +70,9 @@ file-size guidance -- moved verbatim, no content changed.
   registry doesn't index itself, but a custom-named registry declared
   via `--id-registry`/`id-registry` under an indexed path (e.g.
   `data/my-registry.json` when `data` is scanned) indexes itself. Found
-  during PR A2's explicit-registry review, 2026-09-28.
+  during PR A2's explicit-registry review, 2026-09-28. Same root as the
+  in-package-tree registry item in
+  [id-registry-followups.md](id-registry-followups.md#a-declared-registry-inside-the-package-tree-never-settles).
 
 - [ ] **Big item: config cascade parity across usage surfaces** -- ~20
   differences in how a setting is read, applied, errored on and reported

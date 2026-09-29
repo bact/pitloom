@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -63,7 +63,7 @@ with zipfile.ZipFile(sys.argv[1]) as zf:
 ## AI model SBOM, local file
 
 ```bash
-uvx --from 'pitloom[ai]' loom model model.safetensors -o model.spdx3.json --offline
+uvx --from 'pitloom[ai]' loom model model.safetensors -o model.spdx3.json
 ```
 
 ## AI model SBOM, Hugging Face Hub model
@@ -82,7 +82,7 @@ loom env -o env.spdx3.json
 ## Project SBOM with a real build, capped build time
 
 Only after the user has explicitly asked for `--allow-build` -- see
-`../SKILL.md`'s "Choosing `--build-timeout`":
+`../SKILL.md`'s "Hard rules" and "Choosing `--build-timeout`":
 
 ```bash
 loom project . --allow-build --build-timeout 8m -o sbom.spdx3.json
@@ -96,28 +96,27 @@ loom project . --creator-name "Acme Corp" --creator-type organization \
        -o sbom.spdx3.json
 ```
 
-## Verify the result
+## Fallback check when `pitloom[validate]` cannot be installed
+
+A `@graph`-presence sanity check only. It cannot catch a missing required
+property or a wrong relationship type: use the `sbom-validate` skill on
+`sbom.spdx3.json` whenever it can be installed.
 
 ```bash
 python3 -c '
 import json, sys
 d = json.load(open(sys.argv[1]))
 assert "@graph" in d, "missing @graph"
-print(f"Valid SPDX 3 graph with {len(d[\"@graph\"])} nodes")
+print("@graph present:", len(d["@graph"]), "nodes (not validated)")
 ' sbom.spdx3.json
 ```
-
-For a schema/shape-level conformance check -- catches a missing required
-property or wrong relationship type that the sanity check above cannot --
-use the `sbom-validate` skill on `sbom.spdx3.json`.
 
 ## See also
 
 - `../SKILL.md` -- operating instructions for this skill.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/SKILL.md>
-- The sibling `sbom-validate` skill -- schema/shape-level conformance
-  check beyond the `@graph` sanity check above (minimal fallback:
-  `pip install "pitloom[validate]"` then
+- The sibling `sbom-validate` skill -- schema/SHACL conformance check
+  (minimal: `pip install "pitloom[validate]"` then
   `loom fragment validate sbom.spdx3.json`).
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>
 - `docs/resources.md` -- SPDX 3 spec, ontology, and JSON Schema links.

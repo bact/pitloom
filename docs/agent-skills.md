@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -130,22 +130,24 @@ The Skill reads the project's README or the model's model card, drafts a
 small standalone SPDX 3 JSON fragment for whatever it can infer (never
 hand-edits the generated SBOM), registers it under
 `[tool.pitloom.fragment]`, and re-runs Pitloom so the fragment is
-merged. Every inferred field is marked `Source: AI agent | Role:
-inferred` in its `comment`, so it is never mistaken for Pitloom's own
-extraction. See
-[`skills/sbom-enrich/references/examples.md`][sbom-enrich-examples] for a
-full worked example, including the pre-merge and post-merge validation
+merged. The merge works only for an SBOM Pitloom generates from a
+project directory; for any other base (a single model, a Hugging Face
+model, a wheel, an environment, an sdist or a third-party SBOM) the
+fragment is handed over unmerged, and the Skill says so. Every inferred
+field is marked `Source: AI agent | Role: inferred` in its `comment`, so
+it is never mistaken for Pitloom's own extraction. See
+[`skills/sbom-enrich/references/examples.md`][sbom-enrich-examples] for
+a full worked example, including the pre-merge and post-merge validation
 steps.
 
 [sbom-enrich-examples]: https://github.com/bact/pitloom/blob/main/skills/sbom-enrich/references/examples.md
 
-Ask instead for a named standard -- "make this SBOM meet NTIA
-standard", "is this SBOM CISA 2026 compliant", "make this AIBOM meet
-the G7 SBOM for AI minimum elements" -- and the same Skill runs a gap
-analysis against that standard's checklist first, resolving what it can
-itself before asking you about the rest one field at a time (you can
-stop at any point and it completes with whatever's gathered so far).
-See
+Ask instead for a named standard (NTIA 2021, CISA 2026 or G7 SBOM for AI
+2026) -- "make this SBOM meet NTIA standard", "is this SBOM CISA 2026
+compliant", "complete the minimum elements" -- and the same Skill runs a
+gap analysis against that standard's checklist first, resolving what it
+can itself before asking you about the rest one field at a time (you can
+stop at any point and it completes with whatever's gathered so far). See
 [`skills/sbom-enrich/references/minimum-elements.md`][sbom-enrich-minimum-elements]
 for the checklists and field mappings this draws on.
 

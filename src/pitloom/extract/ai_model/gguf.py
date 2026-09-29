@@ -68,7 +68,7 @@ def _resolve_quantization(file_type_value: Any) -> str | None:
         from gguf import GGMLQuantizationType
 
         return str(GGMLQuantizationType(int_val).name)
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug(
             "Failed to resolve GGUF quantization name for file_type=%r: %s",
@@ -179,7 +179,7 @@ def read_gguf(model_path: Path) -> AiModelMetadata:
 
     try:
         reader = GGUFReader(str(model_path), mode="r")
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to open GGUF file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read GGUF file {model_path}: {exc}") from exc

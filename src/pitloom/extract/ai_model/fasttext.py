@@ -54,7 +54,7 @@ def _load_fasttext_model(model_path: Path) -> Any:
 
     try:
         return fasttext.load_model(str(model_path))
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to load fastText model from %s: %s", model_path, exc)
         raise ValueError(
@@ -72,7 +72,7 @@ def _extract_fasttext_args(
 
     try:
         args = model.f.getArgs()
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to read fastText model.f.getArgs(): %s" + field_loss_suffix(
             "skipped", "hyperparameters", "properties.lossName", "type_of_model"
@@ -108,7 +108,7 @@ def _extract_fasttext_outputs(
 
     try:
         labels = get_labels()
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         msg = "Failed to read fastText model labels: %s" + field_loss_suffix(
             "skipped", "properties.labels", "outputs"

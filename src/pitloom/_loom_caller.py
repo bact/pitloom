@@ -57,7 +57,7 @@ def _get_caller_info() -> str:
                     f"Method: inspect_caller (tool: pitloom.loom, "
                     f"function: {func_name})"
                 )
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         # WARNING once per process, DEBUG after -- inspect.stack() failing
         # is a per-process environment condition (sandboxed/frozen
@@ -96,7 +96,7 @@ def _get_caller_script_path() -> str | None:
                 return path.resolve().relative_to(Path.cwd()).as_posix()
             except ValueError:
                 return path.as_posix()
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         warn_once(
             log,

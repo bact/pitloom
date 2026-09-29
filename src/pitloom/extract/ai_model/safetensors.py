@@ -62,7 +62,7 @@ def read_safetensors(model_path: Path) -> AiModelMetadata:
         ) as f:  # type: ignore[no-untyped-call]
             raw_metadata: dict[str, str] = f.metadata() or {}
             tensor_keys: list[str] = list(f.keys())
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to read Safetensors file %s: %s", model_path, exc)
         raise ValueError(

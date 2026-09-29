@@ -246,7 +246,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             )
         elif kind == "npz":
             inputs, provenance = _read_npz_metadata(model_path, source)
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to read NumPy file %s: %s", model_path, exc)
         raise ValueError(f"Failed to read NumPy file {model_path}: {exc}") from exc

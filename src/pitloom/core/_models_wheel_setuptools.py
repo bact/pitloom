@@ -385,7 +385,7 @@ def discover(
             exc,
         )
         return None
-    # pylint: disable=broad-exception-caught
+    # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.warning("Setuptools file discovery failed for %s: %s", project_dir, exc)
         return None
