@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -195,5 +195,5 @@ run themselves -- it is not wired into this skill, and its absence shouldn't
 block anything here. The mandatory validation step remains the `sbom-validate`
 skill
 (<https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>;
-minimal fallback: `pip install "pitloom[validate]"` then `loom fragment validate
-<file>`).
+minimal fallback: `pip install "pitloom[validate]>=0.20.0"` then
+`loom fragment validate <file>`).

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-27
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -44,10 +44,10 @@ skills/
 Each `SKILL.md`'s YAML front matter declares a `name`
 (`sbom-generate`/`sbom-enrich`/`sbom-validate`), a `description` written
 as an explicit trigger sentence -- the string an agent runtime matches
-against a user's request to decide whether to load that skill -- and an
-`argument-hint` (`[target]`, `[sbom-file]`) shown by Claude Code's
-command palette when invoking the skill explicitly (e.g.
-`/sbom-generate <target>`). All three are independent and independently
+against a user's request to decide whether to load that skill -- and a
+`compatibility` note. There is no `argument-hint` (see
+[skills-trigger-coverage.md](skills-trigger-coverage.md)); each body says
+what argument it takes. All three are independent and independently
 triggerable: `sbom-generate` always runs first (there is nothing to
 enrich or validate yet otherwise); `sbom-enrich` is optional and only
 fires when asked for, or when a user explicitly wants to add detail

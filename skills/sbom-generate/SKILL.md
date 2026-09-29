@@ -1,6 +1,6 @@
 ---
 # Created: 2026-07-05
-# Last-Modified: 2026-09-29
+# Last-Modified: 2026-09-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -23,7 +23,13 @@ description: >-
   taking too long"). Checking an existing SBOM is sbom-validate; enriching
   one is sbom-enrich.
 license: Apache-2.0
-argument-hint: "[target]"
+compatibility: >-
+  Requires a shell, Python 3.10+ and pitloom >= 0.20.0 (pip, uvx or pipx).
+  AI model targets need pitloom[ai] (or a format extra such as
+  pitloom[gguf]); --allow-build needs pitloom[build]; --content-type needs
+  pitloom[content-type]. Needs network access to install pitloom and for
+  PyPI and Hugging Face lookups (not with --offline). Not usable where
+  packages cannot be installed, e.g. Claude API code execution.
 ---
 
 # Generate an SBOM with Pitloom
@@ -32,12 +38,17 @@ Pitloom is a command-line tool that generates SPDX 3 JSON SBOMs for
 Python projects, sdist archives, wheels, AI/ML model files, and Python
 environments. This skill drives Pitloom's existing CLI (`loom` / `pitloom`).
 
+This skill is one of three (`sbom-generate`, `sbom-enrich`,
+`sbom-validate`) meant to be installed together: it hands off to the other
+two.
+
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-generate [target]`
 (`/pitloom:sbom-generate [target]` when installed via the Claude Code
-plugin). `target` is optional -- a project directory, an sdist/wheel path,
-a local model file, or a Hugging Face model ID; omit it to default to the
-current directory.
+plugin; the syntax depends on the client, e.g. `$sbom-generate` in Codex).
+`target` is optional -- a project directory, an sdist/wheel path, a local
+model file, or a Hugging Face model ID; omit it to default to the current
+directory.
 
 See `references/examples.md` for copy-paste recipes.
 
@@ -56,8 +67,11 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-- Python >= 3.10, the `loom`/`pitloom` entry point -- `pip install
-  pitloom`, or run ephemeral via `uvx`/`pipx`.
+- Python >= 3.10 and **pitloom >= 0.20.0** (earlier releases lack
+  `--id-registry`, `loom id` and `--build-timeout`), the `loom`/`pitloom`
+  entry point -- `pip install "pitloom>=0.20.0"`, or run ephemeral via
+  `uvx`/`pipx`. Extras take the floor after the extra:
+  `"pitloom[ai]>=0.20.0"`.
 - AI model targets need the `ai` extra (`pitloom[ai]`) or a
   format-specific one (`pitloom[huggingface_hub]`, `pitloom[gguf]`,
   etc. -- see `pyproject.toml`'s `[project.optional-dependencies]`,
@@ -67,24 +81,33 @@ See `references/examples.md` for copy-paste recipes.
 
 ## Run without installing anything persistent
 
-Prefer an ephemeral run so the user's environment is not polluted:
+Prefer an ephemeral run so the user's environment is not polluted.
+Snippets are POSIX shell; on Windows use `python` or `py` for `python3`,
+and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
+one per line):
 
 ```bash
-uvx pitloom generate <target> -o sbom.spdx3.json       # Smart auto-detection entrypoint
+uvx --from "pitloom>=0.20.0" loom generate <target> -o sbom.spdx3.json
 ```
 
 or
 
 ```bash
-pipx run pitloom generate <target> -o sbom.spdx3.json  # pipx's ephemeral runner
+pipx run --spec "pitloom>=0.20.0" loom generate <target> -o sbom.spdx3.json
 ```
 
 Fall back to a normal install only if neither `uv` nor `pipx` is available:
 
 ```bash
-pip install pitloom
+pip install "pitloom>=0.20.0"
 loom generate <target> -o sbom.spdx3.json
 ```
+
+`uvx --from` and `pipx run --spec` fetch the newest release matching the
+spec, not the user's installed `loom`. Where the version matters (a
+merge or re-run must reproduce a base SBOM's ids), pin the installed
+one: `"pitloom==X.Y.Z"`, `X.Y.Z` being the number `loom --version` prints
+(`Pitloom X.Y.Z`).
 
 `loom` and `pitloom` are two names for the same console-script entry point.
 
@@ -107,8 +130,7 @@ For deterministic execution in CI/CD and sandboxed runners:
 
 ```bash
 # 1. Project Directory or Sdist Archive (Source SBOM)
-loom project .
-loom project /path/to/project -o sbom.spdx3.json
+loom project . -o sbom.spdx3.json
 loom project dist/mypackage-1.0.0.tar.gz
 
 # 2. Built Wheel Package (Analyzed SBOM)
@@ -188,10 +210,9 @@ loom embed-wheel dist/*.whl --project-dir .   # multiple wheels, Build SBOM
 ```
 
 `--project-dir` is required to have `embed-wheel` rescan the source
-project (it is never inferred from the current directory, even when the
-shell is already there) -- pass it whenever the user has a project
-directory to scan; omit it only for a genuinely standalone wheel with no
-project of its own. `embed-wheel` also accepts `--allow-build` (see
+project (never inferred from the current directory) -- pass it whenever
+the user has a project directory to scan; omit it only for a genuinely
+standalone wheel. `embed-wheel` also accepts `--allow-build` (see
 "Choosing `--build-timeout`").
 
 Or embed an already-generated SBOM file directly -- its declared subject
@@ -210,11 +231,10 @@ loom wheel dist/mypackage-1.0.0-py3-none-any.whl --embed
 ```
 
 `embed-wheel` mutates the `.whl` archive in place (RECORD is updated to
-match); it works on any wheel regardless of build backend, since a wheel
-is just a ZIP archive -- unlike the Hatchling-specific build hook. See
-<https://bact.github.io/pitloom/cli/>
-for the full flag reference, including `--output` (rejected when more
-than one wheel matches) and `--sbom-basename`.
+match) and works on any wheel regardless of build backend, unlike the
+Hatchling-specific build hook. Full flags, including `--output` (rejected
+when more than one wheel matches) and `--sbom-basename`:
+<https://bact.github.io/pitloom/cli/>.
 
 To check the wheel's embedded SBOM right after this same embed, pass
 `--verify`/`--validate` to `embed-wheel` itself -- both checks share the
@@ -231,22 +251,19 @@ skill ("Validate a wheel's embedded SBOM").
 
 - `-o FILE` / `--output FILE` -- explicit output path.
 - `--config FILE` -- read `[tool.pitloom]` from *FILE* instead of the
-  target's own `pyproject.toml`. Needed whenever the user wants
-  non-default settings applied to a `wheel`/`env`/`model` target, or an
-  `enrich`/`embed-wheel` without `--project-dir` -- those never read the
-  current directory or the target's own location, so `--config` is the
-  only way to give them a `[tool.pitloom]` at all. On a project
-  target it replaces the project's own config outright, not merges with
-  it.
+  target's own `pyproject.toml`. The only way to give a `wheel`/`env`/
+  `model` target, or `enrich`/`embed-wheel` without `--project-dir`, a
+  `[tool.pitloom]` at all (they never read the current directory). On a
+  project target it replaces the project's own config outright, not merges
+  with it.
 - `--pretty` -- indent the JSON for human reading (default: compact).
 - `--offline` -- forbid network access (`project`, `wheel`, `env`,
   `embed-wheel`; `generate` follows its target). On a local model file it
   has no effect (a `WARNING:` if passed); on a Hugging Face model it is an
   error, as nothing can be fetched.
-- `-v` / `--verbose` -- print effective options; config-vs-default source
-  labels appear only for `project`, and `generate` on a project directory
-  or sdist. On `embed-wheel`, and `generate` on any other target, it
-  prints nothing and logs a no-effect `WARNING:`.
+- `-v` / `--verbose` -- print effective options (with config-vs-default
+  labels only for `project`, and `generate` on a project directory or
+  sdist; elsewhere it prints nothing and logs a no-effect `WARNING:`).
 - `--creator-name NAME`, `--creator-email EMAIL` -- name who created the SBOM.
 - `--enrich` / `--no-enrich` -- Pitloom's own deterministic, local,
   frontmatter-only enrichment pass, in the same generate call. Add it only
@@ -256,15 +273,11 @@ skill ("Validate a wheel's embedded SBOM").
 - `--extract-file-header` / `--no-extract-file-header` -- per-file SPDX
   header tag scanning (copyright, contributor, license, file type). On by
   default; cheap, no need to pass it explicitly.
-- `--content-type` / `--no-content-type` -- per-file content-type
-  detection via `magika`/a filename-extension guess. Off by default and
-  **opt-in only** -- only add this flag when the user's request
-  specifically implies wanting per-file content-type/MIME data, not
-  reflexively on every SBOM request, since it costs real time per file
-  (~5ms/file with `magika`) across potentially thousands of files.
-- `--content-type-method {auto,magika,extension}` -- which detector
-  `--content-type` uses; defaults to `auto` (try `magika`, fall back to
-  the extension guess). Only needed to force a specific detector.
+- `--content-type` / `--no-content-type` -- per-file content-type/MIME
+  detection (`magika`, or a filename-extension guess). Off by default and
+  **opt-in only**: add it only when the request implies wanting that data,
+  since it costs ~5ms/file with `magika`. `--content-type-method
+  {auto,magika,extension}` forces a detector (default `auto`).
 - `--build-timeout DURATION` -- with `--allow-build` only; see "Choosing
   `--build-timeout`".
 - `--id-registry FILE` -- declare the Loom ID registry for this run.
@@ -303,19 +316,16 @@ sanity check in `references/examples.md` is only a fallback for when
 Pitloom logs to stderr with a grep-able `INFO:`/`WARNING:`/`ERROR:`
 prefix -- exactly one of the three, always at the start of the line
 (see AGENTS.md's "CLI output" section,
-<https://github.com/bact/pitloom/blob/main/AGENTS.md#cli-output>, for the
-full convention). `WARNING:` examples: "a config value was too small to
-be useful and got normalised instead", "a requested detector isn't
-installed", "an option has no effect for this target". `INFO:` covers
-normal status worth a human seeing, most importantly **generation being
-skipped or scoped down** (e.g. a Hatchling build hook run that produced
-no SBOM because it's disabled or the target isn't `wheel`). Neither always
-fails the command or shows up in the output JSON, so after running
-`loom`, scan the captured stderr for all three prefixes and mention any
-hit to the user -- don't let a real warning or a skipped-generation
-`INFO:` pass by unmentioned just because the command exited 0 and (maybe)
-produced a file. A `WARNING: Options: ...` line about a flag *you* added
-means the flag did not apply to that target: drop it next time.
+<https://github.com/bact/pitloom/blob/main/AGENTS.md#cli-output>).
+`WARNING:` marks a recovered problem or a deviation (a config value
+normalised, a requested detector not installed, an option with no effect
+for this target); `INFO:` marks normal status, above all **generation
+skipped or scoped down** (e.g. a Hatchling build hook run that produced no
+SBOM because it is disabled). Neither always fails the command or reaches
+the output JSON, so scan the captured stderr for all three prefixes after
+every `loom` call and mention any hit to the user, even when the command
+exited 0 and produced a file. A `WARNING: Options: ...` line about a flag
+*you* added means it did not apply to that target: drop it next time.
 
 Two families have their own reference: `WARNING: Build: ...`/`INFO:
 Build: ...` lines from an `--allow-build` run (timeout, interrupt,
@@ -325,52 +335,31 @@ lines (which ones are expected: `references/id-registry.md`).
 
 ## Known limitations -- say so, don't paper over it
 
-Pitloom's dependency/supplier/license extraction is Python-packaging-native:
-it reads `pyproject.toml`/`setup.cfg`/`setup.py`, installed
-`importlib.metadata`, and the PyPI JSON API. Outside that world, coverage
-drops, and the honest move is to tell the user plainly rather than hand
-back a JSON file that looks complete but isn't:
+Pitloom's extraction is Python-packaging-native; outside it, coverage
+drops. Tell the user plainly rather than hand back a JSON file that looks
+complete but isn't. Per-case detail: `references/known-limitations.md`.
 
-- **No Python packaging markers at all** (only `package.json`,
-  `Cargo.toml`, `go.mod`, `pom.xml`/`build.gradle`, `Gemfile`,
-  `composer.json`, or a `.csproj`/`.sln` -- no
-  `pyproject.toml`/`setup.cfg`/`setup.py` anywhere) -- `loom project`/
-  `loom generate` already refuse outright, with an `ERROR:` naming
-  `pyproject.toml`, `setup.cfg` and `setup.py`. Don't work around this
-  (e.g. hand-authoring a fragment to fake coverage) -- tell the user this
+- **No Python packaging markers** (no `pyproject.toml`/`setup.cfg`/
+  `setup.py`; only `package.json`, `Cargo.toml`, `go.mod`, etc.):
+  `loom project`/`loom generate` refuse with an `ERROR:`. Don't work
+  around it (no hand-authored fragment to fake coverage); say the
   ecosystem isn't supported yet.
-- **Mixed-ecosystem repos** (`pyproject.toml` alongside
-  `package.json`/`Cargo.toml`/etc.) -- generation *succeeds* here,
-  silently: the SBOM only inventories the Python side
-  (`[project.dependencies]` and what's importable); every non-Python
-  dependency is invisible, no error, no NOASSERTION placeholder. If you
-  see non-Python ecosystem files, say explicitly that the SBOM covers
-  only the Python packaging surface, not the whole repo.
-- **Non-PyPI dependencies** (`git+https://...`, a local path
-  requirement, or a private-index-only package) get a package entry,
-  but supplier/license/hash enrichment has nothing to look up, so those
-  fields land on `NOASSERTION` -- correct and honest for "genuinely
-  unknown", worth naming when a dependency's entry looks sparse.
-- **AI model formats**: broad but not universal (GGUF, ONNX, PyTorch,
-  PyTorch PT2/ExecuTorch, Safetensors, Keras, HDF5, NumPy, fastText,
-  plus Hugging Face Hub). Any other serialisation isn't recognised at
-  all -- same "say so" rule, don't silently skip it.
-- **Unsupported build backend** for `loom project`/`loom generate` --
-  check `pyproject.toml`'s `[build-system] build-backend` *before*
-  generating, not after. Hatchling, setuptools, Poetry, PDM-backend, and
-  Flit-core get accurate file-level discovery (files, hashes, Merkle
-  root) by default; any other backend (`uv_build`, or one still without
-  its own toolchain, e.g. `maturin`/`scikit-build-core`/`meson-python`)
-  falls back to a Hatchling-based heuristic and logs a `WARNING:` that
-  the file list can be silently incomplete or mis-pathed. Project-level
-  metadata (name, version, dependencies, license, authors) is read
-  independently and unaffected either way. Say this upfront, don't wait
-  for the user to ask why the SBOM looks off -- full detail in
-  [docs/cli.md's Generate an SBOM
-  section](https://bact.github.io/pitloom/cli/#generate-an-sbom).
-  `--allow-build` (`loom project`/`loom generate`/`loom embed-wheel`
-  only) closes this gap by invoking the project's own PEP 517 build
-  backend for the real file list; it is subject to the hard rule above.
+- **Mixed-ecosystem repos** (`pyproject.toml` beside `package.json`/
+  `Cargo.toml`/etc.): generation succeeds *silently* and inventories only
+  the Python side. Say the SBOM covers the Python packaging surface, not
+  the whole repo.
+- **Non-PyPI dependencies** (`git+https://...`, local path, private index)
+  get an entry whose supplier/license/hash stay `NOASSERTION`; name it
+  when an entry looks sparse.
+- **AI model formats** are broad, not universal (see the description). An
+  unrecognised serialisation is not scanned: say so, don't skip silently.
+- **Unsupported build backend:** check `[build-system] build-backend`
+  *before* generating. Hatchling, setuptools, Poetry, PDM-backend and
+  Flit-core get accurate file discovery; any other (`uv_build`,
+  `maturin`, `scikit-build-core`, `meson-python`) falls back to a
+  heuristic with a `WARNING:` that the file list can be incomplete or
+  mis-pathed. Say so upfront. `--allow-build` closes the gap but is
+  subject to the hard rule above.
 
 ### Choosing `--build-timeout`
 
@@ -398,6 +387,9 @@ skills point here for the same rule.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/id-registry.md>
 - `references/lockfile-discovery.md` -- lock formats and their effect.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/lockfile-discovery.md>
+- `references/known-limitations.md` -- what to tell the user when coverage
+  is partial.
+  <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/known-limitations.md>
 - `references/build-timeout.md` -- estimating/choosing a
   `--build-timeout` value.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-generate/references/build-timeout.md>

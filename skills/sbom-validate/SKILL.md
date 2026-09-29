@@ -1,6 +1,6 @@
 ---
 # Created: 2026-08-10
-# Last-Modified: 2026-09-29
+# Last-Modified: 2026-09-30
 # SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
@@ -22,7 +22,11 @@ description: >-
   this wheel". A quick @graph check is not a substitute. Not for
   NTIA/CISA/G7 completeness (sbom-enrich).
 license: Apache-2.0
-argument-hint: "[sbom-file]"
+compatibility: >-
+  Requires a shell, Python 3.10+ and pitloom >= 0.20.0 with the validate
+  extra (pitloom[validate], which brings spdx3-validate) via pip, uvx or
+  pipx, or spdx3-validate alone. Needs network access to install them. Not
+  usable where packages cannot be installed, e.g. Claude API code execution.
 ---
 
 # Validate an SPDX 3 document
@@ -36,6 +40,10 @@ doesn't match its own `ExternalMap` entry. This skill runs
 `ExternalMap`-declared IDs that plain `pyshacl`/`check-jsonschema` gets
 wrong. It works on any SPDX 3 JSON document, not just Pitloom's own
 output: a hand-authored fragment, a merged SBOM, a third-party file.
+
+This skill is one of three (`sbom-generate`, `sbom-enrich`,
+`sbom-validate`) meant to be installed together: it refers to sections of
+`sbom-generate`.
 
 Pitloom's CLI splits two checks, and users treat the words as synonyms:
 
@@ -59,24 +67,34 @@ answer both questions, not just the one this skill actually checks.
 Triggers automatically on natural-language requests (see the trigger
 phrasings above), or invoke it explicitly with `/sbom-validate
 [sbom-file]` (`/pitloom:sbom-validate [sbom-file]` when installed via the
-Claude Code plugin). `sbom-file` is optional -- point it at a specific
-file when a project has more than one SBOM; omit it to let the agent find
-the one to validate.
+Claude Code plugin; the syntax depends on the client, e.g.
+`$sbom-validate` in Codex). `sbom-file` is optional -- point it at a
+specific file when a project has more than one SBOM; omit it to let the
+agent find the one to validate.
 
 See `references/examples.md` for copy-paste recipes.
 
 ## Requirements
 
-Python >= 3.10, the `loom`/`pitloom` entry point or standalone
-`spdx3-validate` CLI; `loom fragment validate` needs the `validate`
-extra (`pip install "pitloom[validate]"`).
+Python >= 3.10 and **pitloom >= 0.20.0** (earlier releases lack
+`--id-registry`, `loom id` and `--build-timeout`, which the sibling skills
+use), the `loom`/`pitloom` entry point or standalone `spdx3-validate` CLI;
+`loom fragment validate` needs the `validate` extra (`pip install
+"pitloom[validate]>=0.20.0"`).
 
 ## Run the validator
 
+Snippets are POSIX shell. On Windows use `python` or `py` for `python3`,
+and PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands
+one per line).
+
 ```bash
-pip install "pitloom[validate]"  # if not already installed
+pip install "pitloom[validate]>=0.20.0"  # if not already installed
 loom fragment validate <sbom-file>
 ```
+
+Without a persistent install: `uvx --from "pitloom[validate]>=0.20.0"
+loom fragment validate <sbom-file>`.
 
 Despite the `fragment` grouping (shared with `loom merge`), the
 underlying `spdx3-validate` check has no dependency on Pitloom's own

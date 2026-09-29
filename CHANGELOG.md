@@ -140,6 +140,8 @@ and this project adheres to
   silently ([#234])
 - Skills: descriptions fit the 1024-character limit, ID registry detail moved
   to a `references/` file, and stale examples and claims fixed ([#235])
+- Skills: portable across clients (no `argument-hint`, `compatibility` with a
+  pitloom >= 0.20.0 floor, slimmer bodies, cross-client install docs) ([#235])
 
 ### Removed
 

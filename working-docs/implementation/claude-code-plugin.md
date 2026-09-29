@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-08-14
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -100,11 +100,11 @@ other two.
   `.../marketplace.json` before assuming either key is safe to add back;
   don't rely on the SchemaStore schema URL as the source of truth --
   it's aspirational/editor-hint only, not what the CLI actually enforces.
-- Each `SKILL.md`'s frontmatter declares `argument-hint` (`[target]` for
-  `sbom-generate`, `[sbom-file]` for `sbom-enrich` and `sbom-validate`) so
-  the Claude Code command palette shows what an explicit invocation
-  (`/pitloom:sbom-generate <target>`) expects, even though the argument
-  remains optional in all three.
+- No `SKILL.md` declares `argument-hint` (dropped in #235: outside the
+  Agent Skills specification, so strict clients reject it); the Claude
+  Code command palette shows no placeholder, and each body says what
+  argument the explicit invocation
+  (`/pitloom:sbom-generate <target>`) takes, optional in all three.
 - `.claude-plugin/` (pure manifest, no value outside `/plugin install`)
   is excluded from the sdist, like `.github`. `skills/` stays in the
   sdist as user-facing plugin content; it was never part of the wheel

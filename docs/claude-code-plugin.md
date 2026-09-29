@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-08
+Last-Modified: 2026-09-29
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -21,7 +21,7 @@ the exact same `SKILL.md` files -- pick whichever install path fits:
 
 | Path | Choose this when... |
 | :--- | :--- |
-| [Agent Skills](agent-skills.md) | You use any agent runtime that reads Skills from a filesystem directory, and want any subset of the three Skills, standalone. |
+| [Agent Skills](agent-skills.md) | You use any agent runtime that reads Skills from a filesystem directory, and want the three Skills, standalone. |
 | Claude Code plugin (this page) | You use Claude Code and want one-command install (`/plugin install`) plus namespaced explicit invocation (`/pitloom:sbom-generate`, `/pitloom:sbom-enrich`, `/pitloom:sbom-validate`). |
 
 ## Quick guide

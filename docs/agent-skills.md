@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -11,9 +11,10 @@ SPDX-License-Identifier: CC0-1.0
 Use this when you want an AI coding agent to generate (and optionally
 enrich or validate) an SBOM on request, in any agent runtime that reads
 [Agent Skills][agent-skills] from a filesystem directory -- Claude Code,
-the Claude Agent SDK, or a compatible runtime.
+the Claude Agent SDK, Codex, Gemini CLI, GitHub Copilot, or another
+compatible client.
 
-[agent-skills]: https://www.anthropic.com/
+[agent-skills]: https://agentskills.io
 
 If you use Claude Code specifically and want one-command install instead
 of copying files, see the [Claude Code plugin](claude-code-plugin.md)
@@ -33,15 +34,32 @@ Pitloom ships three Skills:
   standard's minimum elements (NTIA 2021, CISA 2026, or G7 SBOM for AI
   2026) and only ask about what's actually missing. Requires a base SBOM
   to already exist; run `sbom-generate` first.
-- `sbom-validate` -- runs the third-party `spdx3-validate` CLI against
-  any SPDX 3 JSON document (schema + SHACL), catching a missing required
-  property or a wrong relationship type that a bare `@graph`-presence
-  check cannot. Works on Pitloom's own output, a hand-authored fragment,
-  or a third-party SPDX 3 file.
+- `sbom-validate` -- checks an SPDX 3 JSON document for schema and SHACL
+  conformance (`loom fragment validate`, built on the third-party
+  `spdx3-validate`), catching a missing required property or a wrong
+  relationship type that a bare `@graph`-presence check cannot. Works on
+  Pitloom's own output, a hand-authored fragment, or a third-party SPDX 3
+  file. It also checks a wheel's PEP 770 embedded SBOM: `verify-wheel`
+  (structural: present, right place, name/version match) and
+  `validate-wheel` (content: schema/SHACL).
+
+The three Skills refer to each other, so install all three together.
+
+**Requirements.** A shell, Python 3.10 or later and `pitloom` 0.20.0 or
+later (pip, `uvx` or `pipx`; earlier releases lack `--id-registry`,
+`loom id` and `--build-timeout`, which the Skills use); network access to
+install it and, for PyPI and Hugging Face lookups, at run time. AI model
+files need `pitloom[ai]`; `sbom-enrich`'s post-merge check and
+`sbom-validate` need `pitloom[validate]`; `--allow-build` needs
+`pitloom[build]`. Each `SKILL.md` declares this in its `compatibility`
+field. The Skills do not work where packages cannot be installed, e.g.
+Claude API code execution.
 
 ## Quick guide
 
-Ask in plain language, or invoke explicitly once installed:
+Ask in plain language, or invoke explicitly once installed (the syntax
+depends on the client: `/sbom-generate` in Claude Code, `$sbom-generate`
+in Codex):
 
 ```text
 /sbom-generate .
@@ -51,25 +69,46 @@ Ask in plain language, or invoke explicitly once installed:
 
 ## Installation
 
-Copy (or symlink) any of `skills/sbom-generate/`, `skills/sbom-enrich/`,
-and `skills/sbom-validate/` from a Pitloom checkout into a skills
-directory your agent runtime reads from:
+Copy (or symlink) all three of `skills/sbom-generate/`,
+`skills/sbom-enrich/` and `skills/sbom-validate/` from a Pitloom checkout
+into a skills folder your client reads. `.agents/skills` is the
+cross-client location; use another only for a client that needs it:
+
+| Client | Skills folder (project) |
+| :--- | :--- |
+| Cross-client convention | `.agents/skills/` (user: `~/.agents/skills/`) |
+| Claude Code, Claude Agent SDK | `.claude/skills/` (user: `~/.claude/skills/`) |
+| Codex | `.agents/skills/` |
+| Gemini CLI | `.gemini/skills/` or `.agents/skills/` |
+| GitHub Copilot, VS Code | `.github/skills/`, `.claude/skills/` or `.agents/skills/` (user: `~/.copilot/skills/`) |
 
 ```bash
 # Project-scoped (checked into the repository, shared with the team):
-mkdir -p .claude/skills
-cp -r /path/to/pitloom/skills/sbom-generate .claude/skills/
-cp -r /path/to/pitloom/skills/sbom-enrich .claude/skills/
-cp -r /path/to/pitloom/skills/sbom-validate .claude/skills/
+mkdir -p .agents/skills
+cp -r /path/to/pitloom/skills/sbom-generate .agents/skills/
+cp -r /path/to/pitloom/skills/sbom-enrich .agents/skills/
+cp -r /path/to/pitloom/skills/sbom-validate .agents/skills/
 ```
 
 ```bash
 # User-scoped (available in every project on this machine):
-mkdir -p ~/.claude/skills
-cp -r /path/to/pitloom/skills/sbom-generate ~/.claude/skills/
-cp -r /path/to/pitloom/skills/sbom-enrich ~/.claude/skills/
-cp -r /path/to/pitloom/skills/sbom-validate ~/.claude/skills/
+mkdir -p ~/.agents/skills
+cp -r /path/to/pitloom/skills/sbom-generate ~/.agents/skills/
+cp -r /path/to/pitloom/skills/sbom-enrich ~/.agents/skills/
+cp -r /path/to/pitloom/skills/sbom-validate ~/.agents/skills/
 ```
+
+For Claude Code, replace `.agents/skills` with `.claude/skills` (and
+`~/.agents/skills` with `~/.claude/skills`).
+
+For claude.ai, zip each Skill folder (`cd /path/to/pitloom/skills && zip -r
+sbom-generate.zip sbom-generate`, likewise for the other two) and upload
+each zip: Customize > Skills > "+" > "+ Create skill" > "Upload a skill".
+Code execution must be enabled first (Settings > Capabilities > "Code
+execution and file creation"; on Team and Enterprise plans an organisation
+owner enables it under Organization settings > Plugins & skills). The
+Skills need `pitloom` installed where they run, so they work on claude.ai
+only where its code sandbox can install packages.
 
 If a skill with the same name already exists at that path, rename the
 destination folder to avoid the collision.
@@ -84,9 +123,10 @@ Skills trigger two ways:
   each `SKILL.md`'s `description` front matter and loads the matching
   Skill automatically.
 - **Explicit invocation** -- `/sbom-generate [target]`,
-  `/sbom-enrich [sbom-file]`, and `/sbom-validate [sbom-file]`. All
-  arguments are optional (each defaults sensibly -- e.g. `sbom-generate`
-  defaults to the current directory).
+  `/sbom-enrich [sbom-file]`, and `/sbom-validate [sbom-file]`. The syntax
+  depends on the client (e.g. `$sbom-generate` in Codex). All arguments
+  are optional (each defaults sensibly -- e.g. `sbom-generate` defaults to
+  the current directory).
 
 ### Generate an SBOM
 
@@ -134,8 +174,10 @@ merged. The merge works only for an SBOM Pitloom generates from a
 project directory; for any other base (a single model, a Hugging Face
 model, a wheel, an environment, an sdist or a third-party SBOM) the
 fragment is handed over unmerged, and the Skill says so. Every inferred
-field is marked `Source: AI agent | Role: inferred` in its `comment`, so
-it is never mistaken for Pitloom's own extraction. See
+field is marked in its `comment`, preferably `Source: <agent name>
+(<vendor>) | Role: inferred | Date: <date>` and otherwise the generic
+`Source: AI agent | Role: inferred`, so it is never mistaken for Pitloom's
+own extraction. See
 [`skills/sbom-enrich/references/examples.md`][sbom-enrich-examples] for
 a full worked example, including the pre-merge and post-merge validation
 steps.
@@ -159,10 +201,13 @@ for the checklists and field mappings this draws on.
 /sbom-validate sbom.spdx3.json
 ```
 
-Runs schema (JSON Schema) plus shape (SHACL) validation via the
-third-party `spdx3-validate` CLI. This is the mandatory post-merge check
-the `sbom-enrich` recipe above uses, but it works standalone too -- on
-any SPDX 3 JSON document, not just Pitloom's own output. See
+Runs schema (JSON Schema) plus shape (SHACL) validation with `loom
+fragment validate`, built on the third-party `spdx3-validate`. This is
+the mandatory post-merge check the `sbom-enrich` recipe above uses, but
+it works standalone too -- on any SPDX 3 JSON document, not just
+Pitloom's own output. For a wheel's embedded SBOM it runs both `loom
+verify-wheel` (present, right place, name/version match) and `loom
+validate-wheel` (content). See
 [`skills/sbom-validate/references/examples.md`][sbom-validate-examples]
 for multi-file and merged-graph recipes.
 
@@ -171,12 +216,13 @@ for multi-file and merged-graph recipes.
 ## Configuration
 
 Each Skill's `SKILL.md` front matter carries a `description` (drives
-natural-language auto-trigger matching) and an `argument-hint` (the
-placeholder shown for explicit invocation, e.g. `[target]` for
-`sbom-generate` versus `[sbom-file]` for `sbom-enrich`/`sbom-validate` --
-`sbom-generate` accepts a broader range of input types, while the other
-two always need an existing SBOM file path). Nothing else needs
-configuring to use the Skills as-is.
+natural-language auto-trigger matching) and a `compatibility` note (what
+the Skill needs to run, above). It has no `argument-hint`: that key is
+outside the Agent Skills specification, and claude.ai and the Skills API
+reject it. Each Skill's body says what argument it takes instead --
+`sbom-generate` accepts a project directory, sdist, wheel, model file or
+Hugging Face model ID, while the other two need an existing SBOM file
+path. Nothing else needs configuring to use the Skills as-is.
 
 ## See also
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-05
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -9,7 +9,8 @@ SPDX-License-Identifier: CC0-1.0
 # Pitloom sbom-enrich skill: copy-paste recipe
 
 Companion to `../SKILL.md`. This recipe is meant to be run as-is or
-adapted with minimal edits.
+adapted with minimal edits. Snippets are POSIX shell; on Windows use
+`python` or `py` for `python3`, and PowerShell equivalents.
 
 The scenario: Pitloom's static extraction produced `sbom.spdx3.json` for a
 project whose `model.safetensors` has an adjacent `README.md` with YAML
@@ -47,6 +48,8 @@ re-propose the same field:
 python3 -c "import json; print(json.load(open('model.enrich.spdx3.json'))['@graph'])"
 ```
 
+(Standard library only: any Python 3 works, not only Pitloom's own.)
+
 ## 2. Draft a fragment for what prose adds
 
 The frontmatter enrichment already covered `license`; it never runs on
@@ -55,12 +58,7 @@ README body is still an agent-only finding. A `Relationship` must start
 from the model's real id, so first read it from the base SBOM:
 
 ```bash
-python3 -c "
-import json, sys
-for o in json.load(open(sys.argv[1]))['@graph']:
-    if o.get('type') == 'ai_AIPackage':
-        print(o['spdxId'])
-" sbom.spdx3.json
+python3 -c "import json,sys; print(*[o['spdxId'] for o in json.load(open(sys.argv[1]))['@graph'] if o.get('type') == 'ai_AIPackage'], sep='\n')" sbom.spdx3.json
 ```
 
 Put the printed id where `<AIPackage-spdxId>` appears below.
@@ -189,21 +187,10 @@ Notes:
 
 Read both fragments -- `model.enrich.spdx3.json` from step 1 and
 `fragments/agent-enrichment.spdx3.json` from step 2 -- with the SPDX 3
-JSON-LD deserialiser `merge_fragments()` itself uses. It catches malformed
-JSON and SPDX-shape problems (e.g. an unknown property or type) before
-registration; `merge_fragments()` would otherwise skip (with only a
-`WARNING:`) a fragment it cannot parse unless it is registered with
-`required = true`. Exit 0 is a pass:
-
-```bash
-python3 -c "
-import sys
-from spdx_python_model.bindings import v3_0_1 as spdx3
-for path in sys.argv[1:]:
-    with open(path, 'rb') as f:
-        spdx3.JSONLDDeserializer().read(f, spdx3.SHACLObjectSet())
-" model.enrich.spdx3.json fragments/agent-enrichment.spdx3.json
-```
+JSON-LD deserialiser `merge_fragments()` itself uses, as `../SKILL.md`'s
+step 7 describes: run its one-line snippet (with the interpreter Pitloom
+is installed in; `uvx --from "pitloom>=0.20.0" python` for a `uvx` run) on
+those two files. Exit 0 is a pass.
 
 Do not run `loom fragment validate` on a fragment: it names the base
 SBOM's ids without an `ExternalMap`, so it fails SHACL on its own even
@@ -244,7 +231,7 @@ CreationInfo, the agent-inferred one via its `comment`).
 Use the `sbom-validate` skill on `sbom.spdx3.json` -- this catches
 SPDX-shape/SHACL problems (e.g. a missing required property or the wrong
 relationship type) that plain JSON-syntax validity would miss. Minimal fallback:
-`pip install "pitloom[validate]"` then
+`pip install "pitloom[validate]>=0.20.0"` then
 `loom fragment validate sbom.spdx3.json`.
 
 ## 7. Report back to the user
@@ -267,11 +254,8 @@ extraction.
 - The sibling `sbom-validate` skill -- used for the mandatory post-merge
   check above.
   <https://github.com/bact/pitloom/blob/main/skills/sbom-validate/SKILL.md>
-- `working-docs/design/sbom-enrichment.md` -- enrichment data-source table
-  and the `[tool.pitloom] enrich` enable/disable model (internal repo
-  notes, not published -- see a PR/issue for current detail if this file
-  isn't available).
-- `working-docs/design/sbom-fragments/` -- fragment system design and
-  vocabulary (same caveat).
+- <https://bact.github.io/pitloom/cli/#enrich-an-sbom> and
+  <https://bact.github.io/pitloom/configuration/> -- `loom enrich`, and the
+  `enrich` and `[tool.pitloom.fragment]` settings.
 - `docs/resources.md` -- SPDX 3 spec, ontology, and JSON Schema links.
   <https://bact.github.io/pitloom/resources/>

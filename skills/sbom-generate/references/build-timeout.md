@@ -73,11 +73,11 @@ explicitly that it's an estimate, not a measurement.
 
 ## 3. Know your own limits (agent/harness), before choosing a value
 
-- **Per-command timeout of whatever runs `loom`.** For example, Claude
-  Code's Bash tool defaults to a 2-minute timeout per call (up to a
-  10-minute max if requested), unless the command is run in the
-  background; a CI job may carry its own `timeout-minutes`; a scheduler
-  may carry an overall job/session budget.
+- **Per-command timeout of whatever runs `loom`.** Every agent client's
+  shell tool has one; check yours. For example, Claude Code's Bash tool
+  defaults to 2 minutes per call (10 minutes max if requested) unless the
+  command runs in the background; a CI job may carry its own
+  `timeout-minutes`; a scheduler may carry an overall job/session budget.
 - **Why it matters.** If the harness stops `loom` before
   `--build-timeout` fires on its own, no SBOM is written at all. On
   SIGTERM/SIGHUP/Ctrl-C during the build, or while its files are still in

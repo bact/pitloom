@@ -9,7 +9,9 @@ SPDX-License-Identifier: CC0-1.0
 # Pitloom's `sbom-validate` skill: copy-paste recipes
 
 Companion to `../SKILL.md`. These recipes are meant to be run as-is or
-adapted with minimal edits.
+adapted with minimal edits. Snippets are POSIX shell; on Windows use
+PowerShell equivalents (PowerShell 5.1 has no `&&`: run the commands one
+per line).
 
 ## Validate a single SBOM
 

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-18
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -103,6 +103,82 @@ drift is silent.
   `references/id-registry.md`, keeping the declared-only rule, the
   ask-or-fall-back-to-none step and the hard rules in `SKILL.md`, which was
   514 lines and is now about 410.
+
+## Portability across clients (2026-09-29, PR #235)
+
+Review against the Agent Skills specification (agentskills.io) and other
+clients (Codex, Gemini CLI, GitHub Copilot / VS Code, claude.ai). Decisions:
+
+- **No `argument-hint`.** It is a Claude Code extension outside the
+  specification (allowed keys: `name`, `description`, `license`,
+  `compatibility`, `metadata`, `allowed-tools`); claude.ai and Skills API
+  upload and `skills-ref validate` reject it. Cost: no placeholder in the
+  Claude Code palette. Each body says what argument it takes.
+- **`compatibility` declared** (at most 500 characters), tailored per skill:
+  shell, Python 3.10+, `pitloom >= 0.20.0` by pip/`uvx`/`pipx`, the extras
+  each needs (`ai`, `validate`, `build`, `content-type`), network, and "not
+  usable where packages cannot be installed" (e.g. Claude API code
+  execution).
+- **Version floor: 0.20.0.** The skills use `--id-registry`,
+  `--update-id-registry`, `loom id ...` and `--build-timeout`, absent from
+  0.19.0 (PR #235 ships in 0.20.0). The floor appears in each
+  `compatibility`, each Requirements section, `docs/agent-skills.md` and
+  every `uvx --from`/`pipx run --spec`/`pip install` example
+  (`"pitloom>=0.20.0"`, extras `"pitloom[validate]>=0.20.0"`). It must move
+  with any later breaking CLI change the skills rely on: grep
+  `>=0.20.0` under `skills/` and `docs/`. `uvx --from` fetches the newest
+  matching release, not the user's installed `loom`; `sbom-generate` says
+  to pin `pitloom==X.Y.Z` (the number `loom --version` prints) where ids
+  must reproduce. Not automated: `scripts/check_version_consistency.py`
+  checks only structured version fields, and could also assert the
+  skills' floor is at most `__about__.__version__` (it would fail until
+  the release bump lands).
+- **Install paths.** `docs/agent-skills.md` leads with `.agents/skills`
+  (project) and `~/.agents/skills` (user); `.claude/skills` stays for
+  Claude Code and the Agent SDK; a table lists Codex, Gemini CLI and Copilot
+  folders; claude.ai takes a zipped skill folder. The three skills are
+  installed together: they cross-refer to each other's sections, and
+  `id-registry.md` lives only in `sbom-generate` (each intro says so; a
+  GitHub URL is the fallback).
+- **Pre-merge fragment check.** The `spdx_python_model` snippet fails under
+  `uvx`/`pipx` installs and on Windows. It is now one line (no multi-line
+  `-c`), lives only in `sbom-enrich`'s step 7, and is run with Pitloom's
+  own interpreter: `uvx --from "pitloom>=0.20.0" python -c ...` or
+  `pipx run --spec "pitloom>=0.20.0" python -c ...` (both run from a
+  scratch project: exit 0, no `.venv`/`uv.lock` written).
+  `uv run --with pitloom python` was dropped: in a project directory it
+  creates `.venv` and `uv.lock` and builds the project (build-backend
+  code, against the `--allow-build` hard rule; the new `uv.lock` then
+  feeds lock-file discovery). `uv run --no-project --with ...` is safe but
+  redundant. The bare-`pipx install` venv path is right only after
+  `pipx install`, not after `pipx run` (hashed cache venv).
+  `references/examples.md` points there. The deserialiser check catches
+  malformed JSON, an unknown property on a known type, a wrongly typed
+  value, a missing `spdxId` and a misspelled type carrying properties; a
+  bare unrecognised type with no other key, not even `spdxId`, passes
+  (extensible object),
+  and a missing required property is left to the SHACL post-merge check.
+  Snippets are POSIX shell; each skill says so in `SKILL.md` and in its
+  `references/examples.md`.
+- **Invocation syntax** (`/sbom-*`) differs by client (`$sbom-*` in Codex);
+  one clause says so, occurrences were not rewritten.
+- **Size.** Bodies above the recommended ~5,000 tokens moved detail to
+  `references/` (whole-file sizes): `sbom-generate` 21.1 KB to 20.3 KB
+  (`known-limitations.md`), `sbom-enrich` 23.4 KB to 20.8 KB (`dangling-references.md`,
+  `deterministic-pass.md`, `minimum-elements-workflow.md`). Hard rules,
+  step lists and fallbacks stay in the body; each reference holds only
+  what the body omits (why, extra detail) and points back to the rule, so
+  no fact lives in two places.
+- **Internal links.** No shipped skill file points into `working-docs/`;
+  public `bact.github.io/pitloom` pages replace them.
+- **Guard.** `tests/test_skill_frontmatter.py` checks per skill: frontmatter
+  keys, `name`, `description`, `compatibility`, body size (at most 500
+  lines, the specification's number, and a 24 KiB byte ratchet towards
+  ~20 KB), markdown links, skill files named in code spans (all current
+  references are spans, so a link check alone passes vacuously; the
+  sibling-skill `id-registry.md` mention resolves against `sbom-generate`),
+  one-level `references/`, and no orphan reference. Descriptions were not
+  touched (951, 987, 976 of 1024).
 
 ## Deferred (need design; tracked in the roadmap)
 

@@ -147,7 +147,9 @@ def test_find_dangling_references_all_resolved_is_empty() -> None:
     exporter.add_package(pkg2)
     exporter.add_relationship(rel)
 
-    assert not _find_dangling_references(exporter)
+    result = _find_dangling_references(exporter)
+    assert isinstance(result, list)
+    assert not result
 
 
 def test_raise_on_dangling_references_logs_and_raises(
@@ -215,4 +217,6 @@ def test_find_dangling_references_excludes_declared_external_imports() -> None:
     exporter.add_package(pkg)
     exporter.add_relationship(rel)
 
-    assert not _find_dangling_references(exporter)
+    result = _find_dangling_references(exporter)
+    assert isinstance(result, list)
+    assert not result
