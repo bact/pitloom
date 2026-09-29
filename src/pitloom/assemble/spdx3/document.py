@@ -382,6 +382,7 @@ def build(
             provenance_config=prov_cfg,
             encoder=encoder,
             resolved_ids=package_ids.phantom,
+            not_looked_up=package_ids.phantom_not_looked_up,
         )
 
     # --- AI models (and their associated datasets) ---

@@ -41,6 +41,8 @@ __all__ = [
     "sha256_file",
 ]
 
+#: The suggested registry file name, and the one file ``id generate`` never
+#: indexes. There is no default registry: nothing looks for this file.
 DEFAULT_ID_REGISTRY_FILENAME = "loom-id-registry.json"
 
 #: The SPDX 3 compact type a directory is registered under (an

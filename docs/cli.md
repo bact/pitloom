@@ -348,8 +348,8 @@ loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 below.)
 
 `--entity NAME:software_Package` pins a dependency's, or the project's
-own, package id: `project`, `wheel`, `embed-wheel`, `env` and the Hatchling
-build hook all reuse it.
+own, package id: `project`, `wheel`, `embed-wheel` and the Hatchling build
+hook reuse both, `env` a dependency's only.
 
 `id generate [PATH...]` flags: `-o`/`--id-registry FILE` (registry file to
 create or update), `--project-dir DIR`, `-e`/`--entity NAME[:TYPE]`
@@ -394,17 +394,24 @@ project's own declared `id-registry` (whether it came from the config's
 own key, or from `-o`/`--id-registry` naming that same file), `id
 generate`/`id import` log `INFO: ID registry: to use this registry, add
 to [tool.pitloom] in pyproject.toml: id-registry = "<path>"` for a
-pyproject.toml-configured project (a `json.dumps`-quoted TOML string). For
-a setup.cfg-configured project the line names `[tool:pitloom] in
+pyproject.toml-configured project (a `json.dumps`-quoted TOML string). When
+the table already declares a different `id-registry`, the line reads
+`INFO: ID registry: to use this registry, change id-registry in
+[tool.pitloom] in pyproject.toml to: id-registry = "<path>"` instead:
+replace that key, never add a second one (a repeated key is invalid TOML).
+For a setup.cfg-configured project the line names `[tool:pitloom] in
 setup.cfg` instead, and the path is unquoted (`id-registry = <path>`,
 no quotes) -- `setup.cfg`'s `[tool:pitloom]` values are read as plain INI
 strings, with no quote-stripping, so a quoted value would become part of
-the value itself. Either way the line can be pasted verbatim so the next
-run can declare it.
+the value itself. Either way the `id-registry = ...` part can be pasted
+verbatim so the next run can declare it.
 
 `project`/`wheel`/`env` also harvest newly-minted ids back into a
 *declared* registry after each run (`--update-id-registry` on by
-default, or `--no-update-id-registry`) -- it never creates one. See
+default, or `--no-update-id-registry`) -- it never creates one. A name
+held by several elements of one document that read the registry is not
+written; a self-referencing extra, or a bundled library named like the
+project or a dependency, never reads it and does not count. See
 [Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
 for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
 

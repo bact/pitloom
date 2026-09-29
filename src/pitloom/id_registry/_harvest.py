@@ -211,6 +211,8 @@ def _harvest_elements(
     each :func:`_ambiguous_entity_keys` key untouched.
 
     Returns the skipped (ambiguous) keys; each is logged once at DEBUG.
+    Run auto-harvest passes no element that never looked the registry up
+    (see :func:`_ambiguous_entity_keys`).
     """
     objects = list(sorted_objects)
     ambiguous = _ambiguous_entity_keys(objects)

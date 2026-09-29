@@ -55,6 +55,12 @@ def _sync_registry(
 ) -> None:
     """Harvest newly-minted ids from *exporter* back into *registry*.
 
+    Elements that never looked the registry up
+    (:attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_non_readers`)
+    are left out: neither written nor counted as a holder of their name,
+    so the one element that does look a name up is written even when a
+    non-reader shares its name.
+
     No-op when no registry was resolved, auto-update was disabled, or the
     registry has no on-disk path to save to. A save failure is logged as a
     ``WARNING`` and otherwise ignored -- it must never break SBOM
@@ -67,8 +73,9 @@ def _sync_registry(
         return
 
     filtered = spdx3_bindings.SHACLObjectSet()
+    non_readers = exporter.registry_non_readers
     for obj in exporter.object_set.objects:
-        if _harvestable(obj):
+        if _harvestable(obj) and getattr(obj, "spdxId", None) not in non_readers:
             filtered.add(obj)
 
     new_files, new_entities, changed = registry.harvest(filtered)

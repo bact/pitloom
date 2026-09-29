@@ -122,7 +122,7 @@ def test_id_generate_uses_project_own_id_registry_key_no_hint(
     assert exit_code == 0
     registry_path = tmp_path / "custom" / "registry.json"
     assert registry_path.is_file()
-    assert "add to [tool.pitloom]" not in caplog.text
+    assert "to use this registry" not in caplog.text
 
 
 def test_id_import_uses_cwd_own_id_registry_key_no_hint(
@@ -151,7 +151,7 @@ def test_id_import_uses_cwd_own_id_registry_key_no_hint(
 
     assert exit_code == 0
     assert (tmp_path / "custom" / "registry.json").is_file()
-    assert "add to [tool.pitloom]" not in caplog.text
+    assert "to use this registry" not in caplog.text
 
 
 def test_id_import_sbom_not_found(

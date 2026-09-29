@@ -28,3 +28,10 @@ def _load_spy(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
 
     monkeypatch.setattr(IdRegistry, "load", classmethod(spy))
     return calls
+
+
+@pytest.fixture(name="fixed_epoch")
+def _fixed_epoch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin ``SOURCE_DATE_EPOCH``: a test comparing the bytes of two runs
+    must not see ``created`` differ when the runs straddle a second."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")

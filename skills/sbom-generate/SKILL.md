@@ -204,17 +204,21 @@ never hand-edit one:
   with no `PATH`, whichever of `src`/`data`/`models` exist are used
   (`ERROR:` if none). Or reuse an SBOM's ids: `loom id import <sbom>
   -o loom-id-registry.json`. A newly created, undeclared registry
-  prints this line -- relay it verbatim:
+  prints one of these lines -- relay it verbatim (the second when the
+  project already declares a different `id-registry`: change that key,
+  never add a second one):
 
   ```text
   INFO: ID registry: to use this registry, add to [tool.pitloom] in pyproject.toml: id-registry = "<path>"
+  INFO: ID registry: to use this registry, change id-registry in [tool.pitloom] in pyproject.toml to: id-registry = "<path>"
   ```
 
   (`[tool:pitloom] in setup.cfg` for a setup.cfg project -- there the
   path is unquoted, `id-registry = <path>` with no quotes, since
   `setup.cfg` values are read as plain INI strings; relay that line
   verbatim too, quotes and all, exactly as each variant prints it).
-  Until that key is added, pass `--id-registry <file>` on each run.
+  Until that key is added or changed, pass `--id-registry <file>` on
+  each run.
 - **Models**: `loom id generate` registers every AI model file under
   `PATH` by file stem; add `--entity <stem>` for one outside `PATH`.
   Runs never add model ids -- only `loom id generate` does.

@@ -8,7 +8,8 @@
 See also: :mod:`pitloom.id_registry._types` for registry dataclasses and
 file traversal, :mod:`pitloom.id_registry._registry` for ``IdRegistry``
 itself, :mod:`pitloom.id_registry._harvest` for SBOM-element harvest
-helpers, :mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
+helpers, :mod:`pitloom.id_registry._ambiguous` for the names harvest does
+not write, :mod:`pitloom.id_registry._session` for ``IdRegistrySession``,
 :mod:`pitloom.id_registry.resolve` for registry resolution.
 
 Underscore-prefixed names (e.g. ``_entity_key``, ``_import_sbom_element``)

@@ -59,7 +59,8 @@ right after `_clear_doc_counters()`, one lookup per candidate element:
 via `IdRegistry.lookup_entity(name, DIRECTORY_ENTITY_TYPE)`, and file
 in `metadata.files` order), `assemble.spdx3.ai.resolve_ai_model_entity_hits()`
 (one call per AI model), `_document_deployed._resolve_deployed_package_hits()`
-(one `lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)` per `env_tree` node),
+(one `_package_ids.resolve_package_id()` session lookup per `env_tree`
+node),
 and, for `project`/`wheel`, `_package_ids.resolve_project_package_ids()`
 (main package, dependencies, phantom dependencies -- see "Revised in PR
 A2" below).
@@ -134,8 +135,9 @@ own id and a warning instead of reusing the first model's.
 `_resolve_directory_hits_for_file()` memoizes every ancestor directory
 it has already resolved for the current file pass in a `seen_dirs` set
 -- not just the ones recorded in `dir_hits`, which only holds
-successful claims. A directory whose hit is rejected by
-`claim_registry_hit` (lost the first-claimant race) or whose lookup
+successful claims. A directory whose hit is rejected by the session's
+claim (`IdRegistrySession.entity_id()`, lost the first-claimant race) or
+whose lookup
 misses adds no `dir_hits` entry either way, so memoizing on `dir_hits`
 membership alone would re-look-up and, on a rejection, re-log the same
 `WARNING: ID registry: ... registered for both ...` once per file sharing
@@ -321,7 +323,28 @@ registry id. A phantom dependency named like the project or a dependency
 never looks up either (silent, same rule; decided 2026-09-29, or alternating
 `project`/`wheel` runs would warn on wheel builds only); two phantoms of one
 name still both look up, so the second warns, like two versions of one
-dependency. The harvest skip applies to every entity type, not just
+dependency.
+
+Run auto-harvest leaves those non-readers out (decided 2026-09-29, commit
+3b): they neither count as a holder of their name nor get written, so a
+name only one element *reads* is written for it and pinned on the next run
+(before this, `demo[x]` next to `demo` meant the main package was never
+pinned). Only one element reads the key, so no swap is possible. The
+non-reader ids come from the code that decides not to look up:
+`_package_ids` records which canonical names/phantom indices skip the lookup
+(`DependencyIdHits.looked_up()`, `ProjectPackageIds.phantom_not_looked_up`),
+`deps.py`/`deps_phantom.py` add each such package's minted id to
+`Spdx3JsonExporter.registry_non_readers`, and `_sync_registry` filters them
+out before `IdRegistry.harvest`, so `_ambiguous_entity_keys` stays the one
+counter. Rejected: re-deriving non-readers at harvest from names or graph
+relationships (a name filter would also drop the main package; a graph
+heuristic would drift from the lookup code). `env` records none: its
+synthetic root never looks up but is written as before (no dependency can
+share its name in practice). `id import` has no such record and still skips
+every multi-holder key. Two versions of one dependency both read
+(`DependencyIdHits.take`), so they stay ambiguous.
+
+The harvest skip applies to every entity type, not just
 `software_Package`: the `ai_AIPackage` `numpy` import test
 (`test_generator_registry_sync_ai.py`) had to pin its stale entry by hand,
 since ten same-stem models are now one ambiguous key. `loom id import` names

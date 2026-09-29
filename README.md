@@ -416,11 +416,14 @@ hook) or AI model carries the same id everywhere, except that a
 build time and `env`'s root package are not looked up, so a registry entry
 doesn't pin them. Regeneration is stable: an unchanged file keeps its id;
 changed content gets a fresh one (different bytes are different
-provenance). A package name held by two elements of one document (two
-versions of one dependency behind different markers) cannot be pinned
-automatically; a pinned id for it goes to the first of them, with a
-`WARNING:`. A self-referencing extra, or a bundled library named like the
-project or a dependency, is silent: it just gets its own id.
+provenance). A package name held by two elements of one document that
+both read the registry (two versions of one dependency behind different
+markers) cannot be pinned automatically: runs don't record it, and a
+pinned id for it goes to the first of them, with a `WARNING:`. A
+self-referencing extra, or a bundled library named like the project or a
+dependency, never reads the registry: it silently gets its own id, and runs
+still record the name for the project or dependency. `loom id import` of
+an SBOM skips every name held by several elements, with one `INFO:` line.
 
 A declared registry that's missing, unreadable, or invalid is fatal: the
 CLI prints one `ERROR:` line and exits 1; the library API and `loom.Run`

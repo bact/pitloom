@@ -54,11 +54,17 @@ def _ambiguous_entity_keys(objects: Iterable[Any]) -> frozenset[tuple[str, str]]
     under.
 
     One document holding two elements of one type and one (canonical)
-    name -- a self-referencing extra next to the main package, two
-    pinned versions of one dependency, a bundled binary named like a
-    package -- cannot be pinned by a name-keyed registry: writing either
-    id would make the next run hand it to whichever element claims the
-    name first, which is not the one harvested.
+    name -- two pinned versions of one dependency, two bundled binaries
+    of one name -- cannot be pinned by a name-keyed registry: writing
+    either id would make the next run hand it to whichever element claims
+    the name first, which is not the one harvested.
+
+    Run auto-harvest (:func:`pitloom.assemble._generators_shared._sync_registry`)
+    first leaves out the elements that never look the registry up (a
+    self-referencing dependency, a phantom named like the project or a
+    dependency), so they neither count nor get written, and the one
+    element that looks the name up is written. ``id import`` has no such
+    record and passes every element.
     """
     counts = Counter(key for key in map(_entity_key_of, objects) if key is not None)
     return frozenset(key for key, count in counts.items() if count > 1)

@@ -19,7 +19,11 @@ from typing import Any
 from packaging.utils import canonicalize_name
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
-from pitloom.assemble.spdx3._package_ids import DEPENDENCY_LABEL, DependencyIdHits
+from pitloom.assemble.spdx3._package_ids import (
+    DEPENDENCY_LABEL,
+    DependencyIdHits,
+    dependency_package_id,
+)
 from pitloom.assemble.spdx3.deps_installed import (
     _DOWNLOAD_LABELS,
     _HOMEPAGE_LABELS,
@@ -334,6 +338,9 @@ def add_dependencies(
     :func:`~pitloom.assemble.spdx3._package_ids.resolve_project_package_ids`);
     a package with a hit uses it instead of minting an id. Ids are never
     looked up here: they must be reserved before the first one is minted.
+    A package whose name never looked up is added to
+    :attr:`~pitloom.export.spdx3_json.Spdx3JsonExporter.registry_non_readers`
+    (see :func:`~pitloom.assemble.spdx3._package_ids.dependency_package_id`).
     """
     resolved = [
         _resolve_dependency_with_conflict(
@@ -389,16 +396,16 @@ def add_dependencies(
         if version_note:
             dep_provenance_fields["version"] = version_note
 
-        resolved_id = (
-            resolved_ids.take(
-                group_canon, f"{DEPENDENCY_LABEL} {display_dep_name} {dep_version}"
-            )
-            if resolved_ids is not None
-            else None
-        )
         dep_package = spdx3.software_Package(
-            spdxId=resolved_id
-            or generate_spdx_id("Package", doc_name=doc_name, doc_uuid=doc_uuid),
+            spdxId=dependency_package_id(
+                resolved_ids,
+                group_canon,
+                f"{DEPENDENCY_LABEL} {display_dep_name} {dep_version}",
+                lambda: generate_spdx_id(
+                    "Package", doc_name=doc_name, doc_uuid=doc_uuid
+                ),
+                exporter.registry_non_readers,
+            ),
             name=display_dep_name,
             creationInfo=creation_info,
         )

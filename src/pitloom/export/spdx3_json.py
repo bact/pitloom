@@ -295,6 +295,11 @@ class Spdx3JsonExporter:
         # for deduplicating Agents built from external metadata (e.g. two
         # dependencies sharing the same author).
         self._agent_index: dict[str, str] = {}
+        #: spdxIds of packages built without an ID registry lookup because
+        #: another package of this document owns their name (see
+        #: :mod:`pitloom.assemble.spdx3._package_ids`). Run auto-harvest
+        #: neither counts nor writes them.
+        self.registry_non_readers: set[str] = set()
 
     def add_creation_info(self, creation_info: spdx3.CreationInfo) -> None:
         """Add creation info to the document.

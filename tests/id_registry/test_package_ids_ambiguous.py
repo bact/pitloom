@@ -5,14 +5,17 @@
 
 """One package name held by several elements of one document.
 
-A name-keyed registry cannot pin such a name: ids swapped between runs
-whenever harvest kept one element (the last in ``spdxId`` order) and lookup
-handed the id to another (the first claimant). Harvest now leaves an
-ambiguous name alone; a pinned id goes to the first claimant, with the
-claim ``WARNING:``; a self-referencing extra never looks up.
+A name-keyed registry cannot pin a name several looking-up elements hold:
+ids swapped between runs whenever harvest kept one element (the last in
+``spdxId`` order) and lookup handed the id to another (the first
+claimant). Harvest leaves such a name alone; a pinned id goes to the first
+claimant, with the claim ``WARNING:``. A self-referencing extra, or a
+phantom named like another package, never looks up, so run auto-harvest
+writes the name for the package that does.
 
 See also: :mod:`tests.id_registry.test_package_ids` (the single-owner
-cases).
+cases), :mod:`tests.id_registry.test_package_ids_non_readers` (packages
+that never look up).
 """
 
 # pylint: disable=missing-function-docstring
@@ -43,6 +46,9 @@ from tests.id_registry.package_ids_base import (
     wheel_with_libs,
 )
 from tests.id_registry.surfaces_base import DEPENDENCY
+
+#: Runs are compared byte for byte.
+pytestmark = pytest.mark.usefixtures("fixed_epoch")
 
 _SELF_EXTRA = f"{MAIN}[x]; extra == 'all'"
 _TWO_VERSIONS = ['foo==1.0; python_version<"3.10"', 'foo==2.0; python_version>="3.10"']
@@ -83,7 +89,8 @@ def test_wheel_self_referencing_extra_keeps_root_id_stable(
     assert runs[1] == runs[0]
     assert runs[2] == runs[0]
     entries = package_entries(registry_path)
-    assert set(entries) == {DEPENDENCY}  # the ambiguous name is not pinned
+    assert set(entries) == {DEPENDENCY, MAIN}
+    assert entries[MAIN] == root_element_id(runs[0])  # the main package, pinned
     assert not claim_warnings(caplog)
 
 
@@ -189,32 +196,6 @@ def test_same_name_two_versions_pinned_id_goes_to_first_claimant(
     ],
     ids=["dependency", "main"],
 )
-def test_phantom_sharing_a_name_is_not_pinned_and_output_is_stable(
-    doc_kwargs: dict[str, Any],
-) -> None:
-    doc = make_doc(**doc_kwargs)
-    registry = IdRegistry.new("r")
-
-    first = build_doc(doc, registry)
-    assert [p.name.lower() for p in packages(first)].count("libfoo") == 2
-    registry.harvest(first.object_set)
-    second = build_doc(doc, registry)
-    registry.harvest(second.object_set)
-    third = build_doc(doc, registry)
-
-    assert second.to_json() == first.to_json()
-    assert third.to_json() == first.to_json()
-    assert registry.lookup_entity("libfoo", PACKAGE_ENTITY_TYPE) is None
-
-
-@pytest.mark.parametrize(
-    "doc_kwargs",
-    [
-        {"dependencies": ["libfoo==1.0"], "phantom": [phantom("libfoo", "1")]},
-        {"name": "libfoo", "phantom": [phantom("Libfoo", "1")]},
-    ],
-    ids=["dependency", "main"],
-)
 def test_phantom_sharing_a_name_with_a_pin_never_looks_up(
     doc_kwargs: dict[str, Any], pin_namespace: str, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -241,7 +222,8 @@ def test_wheel_with_phantom_dependencies_is_stable_with_a_registry(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """End to end: ``libz`` is a plain phantom package (pinned), ``fakedep``
-    is both declared and bundled (ambiguous, not pinned)."""
+    is both declared and bundled: the declared package is pinned, the
+    phantom never looks up and is never written."""
     registry_path, _ = new_registry(tmp_path)
     wheel = wheel_with_libs(
         tmp_path / "dist", [f"{DEPENDENCY}==1.0"], ["libz", DEPENDENCY]
@@ -257,7 +239,10 @@ def test_wheel_with_phantom_dependencies_is_stable_with_a_registry(
     assert runs[2] == runs[0]
     entries = package_entries(registry_path)
     assert "libz" in entries
-    assert DEPENDENCY not in entries
+    (declared,) = [
+        p for p in sbom_packages(runs[0]) if p.name == DEPENDENCY and p.version == "1.0"
+    ]
+    assert entries[DEPENDENCY] == declared.spdx_id
     assert not claim_warnings(caplog)
 
 

@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from pitloom.extract.project import read_project
 from pitloom.id_registry import IdRegistry
@@ -54,6 +54,14 @@ _TABLE_CONFIG_FILE = {
     _SETUP_CFG_TABLE: "setup.cfg",
     _PYPROJECT_TABLE: "pyproject.toml",
 }
+
+
+class _ConfigSlot(NamedTuple):
+    """Where :func:`_log_config_hint` points: the config table, and
+    whether that table already sets an ``id-registry``."""
+
+    table: str
+    has_key: bool
 
 
 def _project_configured_id_registry(project_dir: Path) -> tuple[str | None, str]:
@@ -110,7 +118,7 @@ def _no_id_registry_declared_error(table: str) -> ValueError:
 
 def _resolve_id_registry_target(
     flag: Path | None, project_dir: Path
-) -> tuple[Path, bool, str]:
+) -> tuple[Path, bool, _ConfigSlot]:
     """Resolve the registry path `pitloom id generate`/`import` writes to.
 
     Precedence: *flag* (``--id-registry``/``-o``; a relative *flag*
@@ -121,13 +129,13 @@ def _resolve_id_registry_target(
     (see :func:`_project_configured_id_registry`; relative to
     *project_dir*). Raises :func:`_no_id_registry_declared_error` when
     neither is declared -- there is no implicit default file.
-    Returns ``(path, declared_by_config, table)`` -- *declared_by_config* is
+    Returns ``(path, declared_by_config, slot)`` -- *declared_by_config* is
     ``True`` exactly when *path* is the project's own declared
     ``id-registry`` (whether that came from the config's own key or from a
     *flag* that happens to name the same file), i.e. exactly when a config
     hint (see :func:`_run_id_generate`) is *not* worth printing afterwards;
-    *table* names the ``[tool.pitloom]``/``[tool:pitloom]`` table that hint
-    should point at.
+    *slot* names the ``[tool.pitloom]``/``[tool:pitloom]`` table that hint
+    should point at, and whether it already declares another registry.
     """
     # .absolute() only, never .resolve(): resolving would follow a dangling
     # symlink at the final path component to its (nonexistent) target and
@@ -152,19 +160,26 @@ def _resolve_id_registry_target(
             if configured is not None
             else None
         )
-        return path, path == configured_path, table
+        slot = _ConfigSlot(table, configured is not None)
+        return path, path == configured_path, slot
     # No flag: the project's own config is read unconditionally, so a
     # broken/invalid config raises here and takes precedence over the
     # "nothing declared" error below.
     configured, table = _project_configured_id_registry(project_dir)
     if configured is not None:
-        return _normalized_absolute(project_dir / configured), True, table
+        path = _normalized_absolute(project_dir / configured)
+        # Declared by the config itself, so no hint is logged: the slot is unused.
+        return path, True, _ConfigSlot(table, True)
     raise _no_id_registry_declared_error(table)
 
 
-def _log_config_hint(registry_path: Path, project_dir: Path, table: str) -> None:
+def _log_config_hint(registry_path: Path, project_dir: Path, slot: _ConfigSlot) -> None:
     """Log the ``id-registry = ...`` config hint after a fresh save, when
     *registry_path* didn't already come from the project's own config.
+
+    When the table already declares another ``id-registry``, the hint says
+    to change that key, never to add a second one (a duplicate TOML key
+    fails to parse).
 
     ``pyproject.toml`` is TOML, where quotes are string syntax, so the
     value is formatted with :func:`json.dumps` (a valid TOML string
@@ -178,13 +193,10 @@ def _log_config_hint(registry_path: Path, project_dir: Path, table: str) -> None
         rel = registry_path.relative_to(project_dir).as_posix()
     except ValueError:
         rel = registry_path.as_posix()
-    hint = f"{table} in {_TABLE_CONFIG_FILE[table]}"
-    value = json.dumps(rel) if table == _PYPROJECT_TABLE else rel
-    log.info(
-        "ID registry: to use this registry, add to %s: id-registry = %s",
-        hint,
-        value,
-    )
+    where = f"{slot.table} in {_TABLE_CONFIG_FILE[slot.table]}"
+    value = json.dumps(rel) if slot.table == _PYPROJECT_TABLE else rel
+    action = f"change id-registry in {where} to" if slot.has_key else f"add to {where}"
+    log.info("ID registry: to use this registry, %s: id-registry = %s", action, value)
 
 
 def _default_id_generate_paths(project_dir: Path) -> list[Path]:
@@ -236,7 +248,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
     """Run `pitloom id generate`."""
     project_dir: Path = (args.project_dir or Path.cwd()).resolve()
     try:
-        registry_path, from_project_key, table = _resolve_id_registry_target(
+        registry_path, from_project_key, slot = _resolve_id_registry_target(
             args.id_registry, project_dir
         )
     except (ValueError, OSError) as exc:
@@ -302,7 +314,7 @@ def _run_id_generate(args: argparse.Namespace) -> int:
         f"{len(registry.entities)} entit(y/ies) to {registry_path}"
     )
     if is_new and not from_project_key:
-        _log_config_hint(registry_path, project_dir, table)
+        _log_config_hint(registry_path, project_dir, slot)
     return 0
 
 
@@ -315,7 +327,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
 
     project_dir = Path.cwd()
     try:
-        registry_path, from_project_key, table = _resolve_id_registry_target(
+        registry_path, from_project_key, slot = _resolve_id_registry_target(
             args.id_registry, project_dir
         )
     except (ValueError, OSError) as exc:
@@ -351,7 +363,7 @@ def _run_id_import(args: argparse.Namespace) -> int:
             ", ".join(sorted({name for _type, name in skipped})),
         )
     if is_new and not from_project_key:
-        _log_config_hint(registry_path, project_dir, table)
+        _log_config_hint(registry_path, project_dir, slot)
     return 0
 
 

@@ -54,9 +54,11 @@ def resolve_registry(
     no ``loom-id-registry.json`` is searched for, near the target or
     anywhere else. A relative path resolves against *base_dir* (the
     project directory, or the current directory for a target with none of
-    its own); an already-absolute path (e.g. a config's own key, made
-    absolute by :func:`~pitloom.core.config_cascade.load_config_file`, or
-    a CLI flag made absolute against cwd) is used as given.
+    its own), itself resolved first, so the loaded registry's path (and
+    every message naming it) is absolute even for a relative *base_dir*;
+    an already-absolute path (e.g. a config's own key, made absolute by
+    :func:`~pitloom.core.config_cascade.load_config_file`, or a CLI flag
+    made absolute against cwd) is used as given.
 
     Raises ``ValueError`` (via :meth:`IdRegistry.load`) when the resolved
     path does not load -- a declared registry is always meant to load;
@@ -68,4 +70,4 @@ def resolve_registry(
     if isinstance(source, IdRegistry):
         return source
     path = Path(source)
-    return IdRegistry.load(path if path.is_absolute() else base_dir / path)
+    return IdRegistry.load(path if path.is_absolute() else base_dir.resolve() / path)

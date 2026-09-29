@@ -394,7 +394,7 @@ def test_id_generate_flag_matching_declared_key_suppresses_hint(
 
     assert exit_code == 0
     assert declared_path.is_file()
-    assert "add to [tool.pitloom]" not in caplog.text
+    assert "to use this registry" not in caplog.text
 
 
 def test_id_generate_flag_different_from_declared_key_still_hints(
@@ -402,7 +402,7 @@ def test_id_generate_flag_different_from_declared_key_still_hints(
 ) -> None:
     """`-o` naming a *different* file than the project's own declared
     ``id-registry`` still gets the hint -- only an exact match suppresses
-    it."""
+    it -- worded as a change of that key, never a second one."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("x = 1\n")
     (tmp_path / "pyproject.toml").write_text(
@@ -419,4 +419,8 @@ def test_id_generate_flag_different_from_declared_key_still_hints(
 
     assert exit_code == 0
     assert other_path.is_file()
-    assert "add to [tool.pitloom]" in caplog.text
+    assert (
+        "to use this registry, change id-registry in [tool.pitloom] in "
+        'pyproject.toml to: id-registry = "other-registry.json"'
+    ) in caplog.text
+    assert "add to" not in caplog.text

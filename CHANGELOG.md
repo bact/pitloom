@@ -45,15 +45,20 @@ and this project adheres to
 - GitHub Action inputs `id-registry` and `update-id-registry` ([#235])
 - `pitloom.id_registry.IdRegistrySession`, a document-scoped,
   first-claimant-wins registry lookup ([#235])
-- `id generate`/`id import` print an `INFO:` config hint after creating
-  an undeclared registry ([#235])
+- `id generate`/`id import` print an `INFO:` config hint (add, or change
+  an existing, `id-registry` key) after creating an undeclared registry
+  ([#235])
 - `id import` prints one `INFO:` listing names not imported because the SBOM
   holds several elements under them ([#235])
 
 ### Changed
 
-- `project`, `wheel`, `embed-wheel` and the Hatchling hook: dependency and
-  main-package ids now come from a declared ID registry, like `env` ([#235])
+- `project`, `wheel`, `embed-wheel` and the Hatchling hook: main-package,
+  dependency and phantom-dependency ids now come from a declared ID
+  registry, as `env`'s dependency ids do ([#235])
+- Auto-harvest writes no name held by several registry-reading elements of
+  one document (any type); elements that never read the registry don't
+  count ([#235])
 - Library API: `allow_build`/`no_build_isolation` kwargs replaced by one
   `build_options=BuildOptions(...)`; ignored build flags now warn once
   on every surface ([#226])

@@ -43,11 +43,17 @@ plus the completeness guards these sweeps rely on to stay exhaustive).
 from __future__ import annotations
 
 import logging
+import os
+import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from pitloom import __main__
+from pitloom.assemble import enrich_model, generate_project_sbom
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
+from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.id_registry.surfaces_shared import (
     CLI_SURFACES,
     LIBRARY_RUNNERS,
@@ -231,6 +237,75 @@ def test_id_command_malformed_declared_registry_is_one_error(
     ]
     assert len(error_lines) == 1, captured.err
     assert "ID registry file " in error_lines[0]
+
+
+# --- A relative project directory: the ERROR names an absolute path ----
+
+_RELATIVE_PROJECT_ARGV: dict[str, Callable[[str, Path], list[str]]] = {
+    "cli-project": lambda rel, _wheel: ["project", rel, "-o", "out.json"],
+    "cli-enrich-project": lambda rel, _wheel: [
+        "enrich",
+        str(SAFETENSORS_FIXTURE),
+        "--project-dir",
+        rel,
+        "-o",
+        "out.json",
+    ],
+    "cli-embed-wheel-project": lambda rel, wheel: [
+        "embed-wheel",
+        str(wheel),
+        "--project-dir",
+        rel,
+    ],
+}
+
+
+def _relative_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A project declaring a missing ``id-registry = "missing-reg.json"``,
+    and a cwd that is its sibling; returns the registry's absolute path."""
+    project = demo_project(
+        tmp_path, '\n[tool.pitloom]\nid-registry = "missing-reg.json"\n'
+    )
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    return project.resolve() / "missing-reg.json"
+
+
+@pytest.mark.parametrize("surface", sorted(_RELATIVE_PROJECT_ARGV))
+def test_cli_relative_project_dir_error_names_the_absolute_registry_path(
+    surface: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    expected = _relative_project(tmp_path, monkeypatch)
+    wheel = demo_wheel(tmp_path)
+    argv = _RELATIVE_PROJECT_ARGV[surface](os.path.join("..", "proj"), wheel)
+    monkeypatch.setattr(sys, "argv", ["loom", *argv])
+
+    assert __main__.main() == 1
+
+    (error_line,) = [
+        line for line in capsys.readouterr().err.splitlines() if "ERROR:" in line
+    ]
+    assert f"ID registry file {expected}: " in error_line
+
+
+@pytest.mark.parametrize("surface", ["generate_project_sbom", "enrich_model"])
+def test_library_relative_project_target_error_names_the_absolute_registry_path(
+    surface: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected = _relative_project(tmp_path, monkeypatch)
+    relative = Path("..", "proj")
+
+    with pytest.raises(ValueError, match=r"^ID registry file ") as excinfo:
+        if surface == "enrich_model":
+            enrich_model(SAFETENSORS_FIXTURE, project_target=relative)
+        else:
+            generate_project_sbom(relative, creation_metadata=None)
+
+    assert f"ID registry file {expected}: " in str(excinfo.value)
 
 
 # --- Undeclared: IdRegistry.load is never called, on any surface -------

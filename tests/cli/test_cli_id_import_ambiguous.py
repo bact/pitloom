@@ -7,7 +7,8 @@
 several elements under them.
 
 See also: :mod:`tests.cli.test_cli_id` (the rest of ``id import``),
-:mod:`tests.id_registry.test_package_ids_ambiguous` (the harvest rule).
+:mod:`tests.id_registry.test_package_ids_ambiguous` and
+:mod:`tests.id_registry.test_package_ids_non_readers` (the harvest rule).
 """
 
 # pylint: disable=missing-function-docstring
@@ -22,7 +23,7 @@ import pytest
 
 from pitloom import __main__
 from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry
-from tests.id_registry.package_ids_base import build_doc, make_doc
+from tests.id_registry.package_ids_base import MAIN, build_doc, make_doc
 
 _PREFIX = "INFO: ID registry: not imported (name held by several elements): "
 
@@ -65,6 +66,25 @@ def test_id_import_reports_ambiguous_names_in_one_sorted_info_line(
     registry = IdRegistry.load(registry_path)
     assert registry.lookup_entity("foo", PACKAGE_ENTITY_TYPE) is None  # non-vacuous
     assert registry.lookup_entity("bar", PACKAGE_ENTITY_TYPE) is not None
+
+
+def test_id_import_still_skips_a_name_a_non_reader_shares(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An imported SBOM carries no record of which element never looked the
+    registry up: a self-referencing dependency still makes its name
+    ambiguous for ``id import`` (run auto-harvest writes it)."""
+    registry_path = _import(monkeypatch, tmp_path, [f"{MAIN}[x]; extra == 'all'"])
+
+    lines = [
+        line for line in capsys.readouterr().err.splitlines() if "not imported" in line
+    ]
+    assert lines == [_PREFIX + MAIN]
+    assert (
+        IdRegistry.load(registry_path).lookup_entity(MAIN, PACKAGE_ENTITY_TYPE) is None
+    )
 
 
 def test_id_import_without_ambiguous_names_prints_no_such_line(
