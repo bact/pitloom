@@ -70,7 +70,7 @@ from pitloom.core.models import (
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.enrich.base import EnrichmentResult
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id, sha256_hash
-from pitloom.id_registry import IdRegistry
+from pitloom.id_registry import IdRegistry, IdRegistrySession
 
 __all__ = [
     "_ai_model_identity",
@@ -206,24 +206,14 @@ def build(
         locked_dependencies_provenance=metadata.provenance.get("locked_dependencies"),
     )
     _clear_doc_counters(doc_uuid)
-    # One combined claim map across files, directories, and AI models: a
+    # One shared session across files, directories, and AI models: a
     # registry hit any of them resolves is claimed by whichever comes
     # first below, so two elements never reuse the same stale id -- see
-    # claim_registry_hit()'s docstring.
-    claimed_hits: dict[str, str] = {}
-    dir_hits, file_hits = _resolve_file_and_directory_hits(
-        metadata.files, registry, claimed_hits
-    )
-    ai_entity_hits = resolve_ai_model_entity_hits(doc.ai_models, registry, claimed_hits)
-    reserve_spdx_ids(
-        metadata.name,
-        doc_uuid,
-        [
-            *dir_hits.values(),
-            *file_hits.values(),
-            *(hit for hit in ai_entity_hits if hit is not None),
-        ],
-    )
+    # IdRegistrySession's docstring.
+    session = IdRegistrySession(registry)
+    dir_hits, file_hits = _resolve_file_and_directory_hits(metadata.files, session)
+    ai_entity_hits = resolve_ai_model_entity_hits(doc.ai_models, session)
+    reserve_spdx_ids(metadata.name, doc_uuid, session.claimed_ids())
 
     # --- Creation info, creator agents, and creation tools ---
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)

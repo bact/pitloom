@@ -133,15 +133,15 @@ Steps:
    `ERROR:` line) rather than silently producing a broken SBOM --
    regenerate the base SBOM and re-run enrichment before merging again.
 
-   **Dangling references can also come from a registry mismatch, not
-   just a Pitloom upgrade:** `project`/`wheel`/`env` harvest ids into a
-   Loom ID registry file (`project` finds one in the project;
-   `wheel`/`env` need `--id-registry`) so ids normally stay stable across
-   reruns without any action needed (see `sbom-generate`'s "Why element
-   ids stay stable across reruns" section) -- but if a different
-   `--id-registry` file was used (or none) between the base-SBOM run and
-   this enrichment/regeneration, ids can drift even with nothing else
-   changed. Check this before assuming an upgrade is the cause.
+   **Dangling references can also come from a registry mismatch:** base
+   run and `loom enrich` must use the same registry. With
+   `--project-dir`, `loom enrich` picks up the project's own
+   `id-registry` key, as `loom project` does. Without it, no project
+   config is read, so pass the base run's `--id-registry`/`--config`
+   explicitly. `loom enrich` never writes the registry. Check for a
+   registry declared in one run but not the other, or a different file
+   in each, before blaming an upgrade. See `sbom-generate`'s "Why
+   element ids stay stable across reruns" section.
 2. **Run the deterministic pass first:** `loom enrich <model-file>` for
    each local AI model file in scope. This parses only YAML frontmatter
    (no prose, no reasoning) and writes a standalone fragment -- fast,
@@ -157,14 +157,14 @@ Steps:
    id; omitting `--project-dir` in the project-level case produces a
    fragment that references an id absent from the base SBOM, so the
    dataset relationship and enrichment evidence silently fail to attach
-   once merged -- no error, just missing data in the output. When
-   `--id-registry <file>` was used for the base SBOM, pass the same
-   `--id-registry` here too. If the base SBOM was generated with an
-   explicit `--use-lockfile`/`--no-use-lockfile` override (not just the
-   project's `[tool.pitloom] use-lockfile` default), pass the same flag here
-   too -- `--project-dir`'s document identity depends on it, the same way
-   it depends on the resolved file list. Omit the flag (the default) to
-   auto-match the project's own config when no override was used.
+   once merged -- no error, just missing data in the output. Pass the
+   same registry as the base run (see step 1). If the base SBOM was
+   generated with an explicit `--use-lockfile`/`--no-use-lockfile`
+   override (not just the project's `[tool.pitloom] use-lockfile`
+   default), pass the same flag here too -- `--project-dir`'s document
+   identity depends on it, the same way it depends on the resolved file
+   list. Omit the flag (the default) to auto-match the project's own
+   config when no override was used.
 3. Read the project's `README.md` / model card **prose** and any other
    local docs. Only propose fields for gaps step 2 left untouched --
    `loom enrich` already found everything it could from frontmatter, so

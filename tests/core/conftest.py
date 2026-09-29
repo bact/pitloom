@@ -126,19 +126,25 @@ def _run_unify_pipeline(tmppath: Path) -> None:
     registry = IdRegistry.new("fragdemo")
     registry.generate([Path("src"), Path("data")], tmppath)
     registry.register_entity("demo-model", "ai_AIPackage")
-    registry.save(tmppath / DEFAULT_ID_REGISTRY_FILENAME)
+    registry_path = tmppath / DEFAULT_ID_REGISTRY_FILENAME
+    registry.save(registry_path)
     with patch(
         "pitloom._loom_active_run._get_caller_script_path",
         return_value="src/fragdemo/preprocess.py",
     ):
-        with loom.run(tmppath / "fragments" / "01_preprocess.spdx3.json") as run:
+        with loom.run(
+            tmppath / "fragments" / "01_preprocess.spdx3.json",
+            id_registry=registry_path,
+        ) as run:
             run.add_input_dataset("data/raw.txt")
             run.add_output_dataset("data/train.txt")
     with patch(
         "pitloom._loom_active_run._get_caller_script_path",
         return_value="src/fragdemo/train.py",
     ):
-        with loom.run(tmppath / "fragments" / "02_train.spdx3.json") as run:
+        with loom.run(
+            tmppath / "fragments" / "02_train.spdx3.json", id_registry=registry_path
+        ) as run:
             run.set_model("demo-model", model_type="supervised")
             run.add_dataset("data/train.txt")
             run.add_validation_dataset("data/raw.txt")

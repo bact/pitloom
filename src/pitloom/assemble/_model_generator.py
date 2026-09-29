@@ -33,7 +33,12 @@ from pitloom.extract.project import (
     resolve_project_with_lockfile,
 )
 from pitloom.extract.remote import is_huggingface_source, read_huggingface
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry, resolve_registry
+from pitloom.id_registry import (
+    IdRegistry,
+    IdRegistrySession,
+    registry_base_dir,
+    resolve_registry,
+)
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
@@ -76,7 +81,8 @@ def _doc_identity_of(
     project_dir: Path, project_metadata: ProjectMetadata
 ) -> tuple[str, str]:
     """``(doc_name, doc_uuid)`` for *project_metadata*, resolved from
-    *project_dir* (see :func:`_project_doc_identity`)."""
+    *project_dir* (see :func:`~pitloom.core.models.compute_doc_uuid` for
+    the content-addressing this ``doc_uuid`` is built from)."""
     # build_options intentionally omitted (no --allow-build): this doc-identity
     # helper is only reachable from the model/enrich commands, which have
     # no --allow-build CLI flag of their own to read. The returned
@@ -158,12 +164,13 @@ def generate_model_sbom(
         entity_spdx_id = None
     else:
         model_path = Path(source)
+        # Resolved before read_ai_model()/run_enrichers() below -- a
+        # declared-but-missing/malformed registry should fail fast, never
+        # after paying for a model read and enrichment first.
+        resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
         model = read_ai_model(model_path)
-        resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
-        entity_spdx_id = (
-            resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
-            if resolved_registry is not None
-            else None
+        entity_spdx_id = IdRegistrySession(resolved_registry).entity_id(
+            model_path.stem, [model_path.stem], "ai_AIPackage"
         )
         enrichment_results = run_enrichers(model, cfg.enrich, model_path.parent)
 
@@ -202,10 +209,10 @@ def enrich_model(
 
     Settings come from the arguments, then an explicit *pitloom_config*,
     then the built-in defaults; nothing is read from the current directory
-    or from the model file's directory. The registry is *id_registry*, else
-    the explicit config's ``id-registry``; with *project_target*, a registry
-    is also looked for in that project, since it is the document the
-    fragment will merge into.
+    or from the model file's directory. The registry is *id_registry*,
+    else the explicit config's ``id-registry``; with *project_target*, the
+    project's own ``id-registry`` key applies instead, since that project
+    is the document the fragment will merge into.
     """
     configure_logging()
     source_str = str(source)
@@ -224,6 +231,30 @@ def enrich_model(
     cfg = resolve_standalone_config(pitloom_config, ConfigOverrides(pretty=pretty))
 
     model_path = Path(source)
+    # Registry resolved before read_ai_model()/run_enrichers() below -- a
+    # declared-but-missing/malformed registry should fail fast, never
+    # after paying for a model read and enrichment first.
+    if project_target is None:
+        base_doc_identity = None
+        resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    else:
+        # The project the fragment merges into, resolved as its base SBOM
+        # is: its identity and registry come from the config that SBOM
+        # used (an explicit config, else the project's own). Registry
+        # resolved right after resolve_project_with_lockfile(), before
+        # _doc_identity_of()'s own file walk.
+        project_dir = Path(project_target)
+        base_metadata, base_config, _ = resolve_project_with_lockfile(
+            project_dir, use_lockfile, pitloom_config
+        )
+        # An sdist's directory is not its project, as in its base SBOM.
+        resolved_registry = resolve_registry(
+            id_registry,
+            base_config.id_registry,
+            registry_base_dir(project_dir),
+        )
+        base_doc_identity = _doc_identity_of(project_dir, base_metadata)
+
     model = read_ai_model(model_path)
     # Unlike generate_model_sbom()/generate_project_sbom(), the config's
     # enrich setting is NOT an "off by default" gate here: calling
@@ -233,31 +264,8 @@ def enrich_model(
     enrich_config = dataclasses.replace(cfg.enrich, local=enrich is not False)
     results = run_enrichers(model, enrich_config, model_path.parent)
 
-    if project_target is None:
-        base_doc_identity = None
-        resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
-    else:
-        # The project the fragment merges into, resolved as its base SBOM
-        # is: its identity and registry come from the config that SBOM
-        # used (an explicit config, else the project's own).
-        project_dir = Path(project_target)
-        base_metadata, base_config, _ = resolve_project_with_lockfile(
-            project_dir, use_lockfile, pitloom_config
-        )
-        base_doc_identity = _doc_identity_of(project_dir, base_metadata)
-        declared_id_registry = (
-            id_registry if id_registry is not None else base_config.id_registry
-        )
-        # An sdist's directory is not its project, as in its base SBOM.
-        resolved_registry = (
-            resolve_explicit_registry(id_registry, base_config.id_registry)
-            if project_dir.is_file()
-            else resolve_registry(project_dir, declared_id_registry)
-        )
-    entity_spdx_id = (
-        resolved_registry.lookup_entity(model_path.stem, "ai_AIPackage")
-        if resolved_registry is not None
-        else None
+    entity_spdx_id = IdRegistrySession(resolved_registry).entity_id(
+        model_path.stem, [model_path.stem], "ai_AIPackage"
     )
 
     exporter = build_enrichment_fragment(

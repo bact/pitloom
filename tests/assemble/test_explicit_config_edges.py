@@ -135,23 +135,17 @@ def test_sdist_does_not_search_for_a_registry_beside_it(
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     IdRegistry(namespace="https://example.org/ns", path=registry_path).save()
     monkeypatch.chdir(tmp_path)
-    searched: list[object] = []
     loaded: list[Path] = []
-    find, load = IdRegistry.find, IdRegistry.load
-
-    def spy_find(**kwargs: Any) -> IdRegistry | None:
-        searched.append(kwargs)
-        return find(**kwargs)
+    load = IdRegistry.load
 
     def spy_load(path: Path) -> IdRegistry:
         loaded.append(Path(path))
         return load(path)
 
-    monkeypatch.setattr(IdRegistry, "find", spy_find)
     monkeypatch.setattr(IdRegistry, "load", spy_load)
 
     generate_project_sbom(sdist, creation_metadata=_PINNED)
-    assert not searched and not loaded
+    assert not loaded
 
     generate_project_sbom(sdist, creation_metadata=_PINNED, id_registry=registry_path)
     assert loaded == [registry_path]
@@ -321,21 +315,21 @@ def test_enrich_against_an_sdist_does_not_search_for_a_registry(
         namespace="https://example.org/ns", path=tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     ).save()
     monkeypatch.chdir(tmp_path)
-    searched: list[object] = []
-    find = IdRegistry.find
+    loaded: list[Path] = []
+    load = IdRegistry.load
 
-    def spy_find(**kwargs: Any) -> IdRegistry | None:
-        searched.append(kwargs)
-        return find(**kwargs)
+    def spy_load(path: Path) -> IdRegistry:
+        loaded.append(Path(path))
+        return load(path)
 
-    monkeypatch.setattr(IdRegistry, "find", spy_find)
+    monkeypatch.setattr(IdRegistry, "load", spy_load)
     enrich_model(
         SAFETENSORS_FIXTURE,
         project_target=sdist,
         creation_metadata=_PINNED,
         output_path=tmp_path / "frag.json",
     )
-    assert not searched
+    assert not loaded
 
 
 @pytest.mark.parametrize("value", [True, False])

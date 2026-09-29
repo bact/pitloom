@@ -243,10 +243,13 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
     ],
     "-v": [_v("-v", "same", "-v")],
     "--id-registry": [
+        # r.json is never created for this cell -- a declared but missing
+        # registry file is a hard ERROR on every surface (see
+        # working-docs/implementation/manual-cli-checks.md check 14).
         Variant(
-            "empty registry",
+            "missing registry",
             lambda _fx, c: ["--id-registry", str(c / "r.json")],
-            "any",
+            "exit:1",
         ),
     ],
     "--creator-name": [

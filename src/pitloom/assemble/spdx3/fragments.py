@@ -190,7 +190,7 @@ def _find_dangling_references(
     Catches, among other causes, a fragment merged against a stale base
     SBOM -- e.g. one generated before a Pitloom upgrade changed file
     discovery for this project's backend (see
-    :func:`pitloom.assemble._model_generator._project_doc_identity`'s
+    :func:`pitloom.assemble._model_generator._doc_identity_of`'s
     docstring): the fragment's element references were minted against a
     ``doc_uuid`` the current base document no longer uses, so they land
     in the merged graph pointing at nothing.

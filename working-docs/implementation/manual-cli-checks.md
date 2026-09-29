@@ -194,9 +194,11 @@ vs. confirming at least one occurs without `--offline` against a
 Hugging Face Hub URL.
 
 **9. Registry round trip**: `loom id generate` on a project, then
-regenerate the SBOM with `--id-registry` pointing at that file and confirm
-IDs are stable (byte-identical `@id` values) across repeated runs --
-this is what "Auto-sync the Loom ID registry" in `roadmap.md` depends on.
+regenerate the SBOM with `--id-registry` pointing at that same file (a
+registry is used only when declared -- see "Revised in PR A2" in
+[id-registry-autosync.md](id-registry-autosync.md)) and confirm IDs are
+stable (byte-identical `@id` values) across repeated runs -- this is
+what "Auto-sync the Loom ID registry" in `roadmap.md` depends on.
 
 **10. `--allow-build` with vs. without, and vs. ground truth**: general
 pattern for any change touching backend file-discovery dispatch or the
@@ -248,6 +250,21 @@ must both apply it; `-v` on the archive labels it
 (`pretty = 'yes'`) is one `ERROR:` naming that member, and the same run
 with `--config good.toml` succeeds. Automated as check 13; the
 library-level counterpart is `tests/assemble/test_sdist_own_config.py`.
+
+**14. Declared-but-missing/invalid `--id-registry` is one ERROR, every
+CLI surface**: `--id-registry` pointing at a missing file, and again at
+one containing `"{"` (invalid JSON), on `project`, `wheel`, `env`,
+`model` and `embed-wheel` -- each of the 10 runs must exit 1 with
+exactly one `ERROR:` line containing `ID registry file` and no output
+file written. Automated as check 14
+(`scripts/manual_cli_checks/_checks_core.py::check_registry_missing_invalid`).
+This check is flag-only, on those five CLI surfaces; it does not cover
+a registry declared via the project's own `[tool.pitloom] id-registry`
+key, the Hatchling build hook, or the undeclared (no flag, no config
+key) case -- those are covered by pytest instead, in
+`tests/id_registry/test_surfaces_failures.py`. See
+[id-registry-autosync.md](id-registry-autosync.md)'s "Revised in PR A2"
+section.
 
 For a change touching the build subprocess, its kill path or signal
 handling (`--build-timeout`), also run these against a scratch project

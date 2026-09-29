@@ -61,6 +61,7 @@ enabled = true
 
 [tool.pitloom]
 pretty = true
+id-registry = "loom-id-registry.json"
 
 [tool.pitloom.fragment]
 files = [

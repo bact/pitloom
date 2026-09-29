@@ -112,6 +112,7 @@ pitloom/
 │       │   └── __init__.py         # Public assemble facade and generate() entrypoint
 │       ├── cli/                    # CLI: argparse, options, dispatch
 │       │   ├── commands/           # One module per subcommand: _run_<verb>_command() + add_parser()
+│       │   │   ├── _embed_wheel_batch.py # embed-wheel batch context, project-dir/registry resolution
 │       │   │   ├── embed_wheel.py  # loom embed-wheel
 │       │   │   ├── enrich.py       # loom enrich
 │       │   │   ├── env.py          # loom env
@@ -180,11 +181,12 @@ pitloom/
 │       │   ├── scanner.py          # Heuristic scanner for AI model files
 │       │   └── wheel.py            # Analyzed SBOM: project metadata + file records from a built .whl
 │       ├── id_registry/             # Loom ID registry (loom-id-registry.json)
-│       │   ├── __init__.py          # Public API re-exports (IdRegistry, resolve_*, claim_registry_hit)
-│       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element, claim_registry_hit)
+│       │   ├── __init__.py          # Public API re-exports (IdRegistry, IdRegistrySession, resolve_registry)
+│       │   ├── _harvest.py          # SBOM-element harvest helpers (_import_sbom_element)
 │       │   ├── _registry.py         # IdRegistry class
+│       │   ├── _session.py          # IdRegistrySession: one document's first-claimant-wins lookups
 │       │   ├── _types.py            # Registry dataclasses, hash helpers, file traversal
-│       │   └── resolve.py           # resolve_registry(), resolve_explicit_registry()
+│       │   └── resolve.py           # resolve_registry(id_registry, configured, base_dir)
 │       ├── plugins/                # Build-system integrations
 │       │   └── hatch.py            # Hatchling BuildHookInterface (PEP 770)
 │       ├── __about__.py            # Package version (__version__)
@@ -207,7 +209,7 @@ pitloom/
 │   │   └── huggingface/            # 20 files -- split by metadata category
 │   │       └── hf_patches/         # 13 files -- shared mock patches for HF tests
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
-│   ├── id_registry/                # 4 files -- shared.py, test_registry.py, test_registry_generate.py, test_registry_import.py
+│   ├── id_registry/                # 8 files -- shared.py, test_registry.py, test_registry_generate.py, test_registry_import.py, test_session.py, surfaces_shared.py, test_surfaces.py, test_surfaces_same_ids.py
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)

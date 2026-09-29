@@ -34,8 +34,10 @@ __all__ = [
     "_REGISTRY_VERSION",
     "_entity_key",
     "_iter_files",
+    "_require_scalar_str",
     "_sha256_from_verified_using",
     "_type_id_prefix",
+    "registry_file_error",
     "sha256_file",
 ]
 
@@ -118,6 +120,37 @@ def _entity_key(name: str, type_name: str) -> tuple[str, str]:
     if type_name == PACKAGE_ENTITY_TYPE:
         return (type_name, canonicalize_name(name))
     return (type_name, name)
+
+
+def _require_scalar_str(value: Any, field: str) -> str:
+    """Return *value* if it is a ``str``, else raise ``TypeError``.
+
+    Used by :meth:`~pitloom.id_registry.IdRegistry.load` for every scalar
+    entry field (``spdxId``, ``sha256``) that a hand-edited registry file
+    could carry as the wrong JSON type (``null``, a list, a number) --
+    ``str(value)`` alone would silently stringify any of those instead of
+    surfacing them as the malformed entry they are. Raises ``TypeError``
+    (not :func:`registry_file_error` directly) so it composes with the
+    existing ``except (KeyError, TypeError, AttributeError)`` catch around
+    every entry-parsing call site.
+    """
+    if not isinstance(value, str):
+        raise TypeError(
+            f"{field!r} must be a string, got {type(value).__name__}: {value!r}"
+        )
+    return value
+
+
+def registry_file_error(path: Path, reason: str) -> ValueError:
+    """Build the one ``ValueError`` shape every :meth:`IdRegistry.load`
+    failure raises: ``ID registry file {path}: {reason}``.
+
+    A single helper so every failure reason (not found, unreadable, bad
+    JSON, wrong shape, wrong version, malformed entry, duplicate) shares
+    identical wording up to its *reason* -- the CLI, the library API and
+    the Hatchling hook all surface this message verbatim.
+    """
+    return ValueError(f"ID registry file {path}: {reason}")
 
 
 def sha256_file(path: Path) -> str:

@@ -17,6 +17,7 @@ from pitloom.core._config_legacy import (
     _MOVED_CREATION_KEYS_LIST_VALID,
     _MOVED_TOP_LEVEL_TABLES,
     _check_moved_creation_keys,
+    _check_moved_flat_keys,
     _check_moved_top_level_tables,
 )
 from pitloom.core._config_parse import (
@@ -73,6 +74,7 @@ __all__ = [
     "_VALID_PROVENANCE_DETAIL",
     "_VALID_PROVENANCE_FORMATS",
     "_check_moved_creation_keys",
+    "_check_moved_flat_keys",
     "_check_moved_top_level_tables",
     "_read_content_type_overrides",
     "_read_content_type_settings",

@@ -56,7 +56,11 @@ class TestRegistryUnification:
         monkeypatch.chdir(tmp_path)
         _run_unify_pipeline(tmp_path)
 
-        sbom_json = generate_project_sbom(tmp_path, creation_metadata=_fixed_creation())
+        sbom_json = generate_project_sbom(
+            tmp_path,
+            creation_metadata=_fixed_creation(),
+            id_registry=tmp_path / DEFAULT_ID_REGISTRY_FILENAME,
+        )
         graph = json.loads(sbom_json).get("@graph", [])
         index = {e["spdxId"]: e for e in graph if "spdxId" in e}
         registry = IdRegistry.load(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)

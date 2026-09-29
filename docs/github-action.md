@@ -125,11 +125,14 @@ exit behaviour.
 
 ## Persisting the Loom ID registry in CI
 
-`loom project`/`wheel`/`env` (and this Action, which wraps them) harvest
-newly-minted ids back into the resolved [Loom ID registry](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
-(`loom-id-registry.json`) by default -- see `update-id-registry` in
-[Configuration](configuration.md). That write only ever touches the
-runner's local checkout; it never needs elevated permissions itself
+A [Loom ID registry](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
+is used only when declared -- via the `id-registry` input below, or via
+`[tool.pitloom] id-registry` in the project's own config. Nothing is
+auto-discovered. Once declared, `loom project`/`wheel`/`env` (and this
+Action, which wraps them) harvest newly-minted ids back into it by
+default -- see `update-id-registry` in [Configuration](configuration.md).
+That write only ever touches the runner's local checkout; it never needs
+elevated permissions itself
 (that's a `git push`, which Pitloom never does). But the write is
 ephemeral unless a workflow step commits it back, so a release/publish
 job that intentionally runs with `permissions: contents: read` (common
@@ -141,7 +144,14 @@ relaxed just to push that one file.
 Instead, run registry maintenance in a separate, appropriately-scoped
 workflow -- the same shape this repo already uses to commit a generated
 `CITATION.cff` back to the repo
-([`codemeta2cff.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/codemeta2cff.yml)):
+([`codemeta2cff.yml`](https://github.com/bact/pitloom/blob/main/.github/workflows/codemeta2cff.yml)).
+
+A declared `id-registry` that doesn't exist yet is now an `ERROR:`, not
+silently skipped -- so the registry file must exist before the build
+step below runs. Either commit one made by `loom id generate`
+(recommended, so every build reads the same committed file) or keep the
+seed step in the snippet below (it also creates the file on its first
+run, so the very first workflow run still succeeds):
 
 ```yaml
 name: Update Loom ID registry
@@ -175,14 +185,21 @@ jobs:
 
       # Extras-free, stem-keyed -- the only path that keeps ai_AIPackage
       # spdxIds stable regardless of whether "ai" extras are installed
-      # (auto-harvest excludes AI packages -- see below). Omit this step
-      # if the project has no AI model files.
+      # (auto-harvest excludes AI packages -- see below). Creates
+      # loom-id-registry.json on first run. Only omit this step if a
+      # loom-id-registry.json is already committed to the repo -- a
+      # declared-but-missing registry now fails the step below.
       - name: Seed/refresh AI model registry entries
-        run: loom id generate
+        run: loom id generate --id-registry loom-id-registry.json
 
       - uses: bact/pitloom@v0.19.0
         with:
           project-path: .
+          # Required: nothing auto-discovers a registry -- declare it.
+          # Must already exist by this point (the seed step above
+          # creates it on first run) -- a declared-but-missing registry
+          # is an ERROR:, not silently skipped.
+          id-registry: loom-id-registry.json
           # Optional: richer ai_AIPackage metadata (architecture,
           # hyperparameters, etc.) -- NOT what keeps spdxIds stable, that's
           # the step above. Omit if there are no AI models, or if sparse
@@ -236,6 +253,8 @@ Inputs (all optional):
 | `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
 | `max-source-metadata-bytes` | *(empty)* | Cap the artifact-metadata preservation Annotation's serialised size to this many UTF-8 bytes, truncating the largest entries first when exceeded; empty defers to `[tool.pitloom.provenance] max-source-metadata-bytes` (unbounded by default). |
 | `config` | *(empty)* | Path to a TOML file whose `[tool.pitloom]` table replaces the project's own (`loom --config`); a relative `id-registry` in it resolves against the file's directory. Empty uses the project's own; model mode reads no config otherwise. See [Where settings come from](configuration.md#where-settings-come-from). |
+| `id-registry` | *(empty)* | Loom ID registry file path (`loom --id-registry`); relative to the runner's working directory. Empty defers to the `config` input file's `id-registry`, else the project's own `[tool.pitloom] id-registry`, else no registry is used -- nothing is auto-discovered. A declared file that's missing, unreadable or invalid fails the step. |
+| `update-id-registry` | *(empty)* | `true`/`false` to force harvesting newly-minted ids back into a *declared* registry on or off; empty defers to `[tool.pitloom] update-id-registry` (on by default). No effect when no registry is declared, and never creates one. |
 | `offline` | *(empty)* | `true`/`false` to force network access (PyPI/Hugging Face lookups) off or on; empty defers to `[tool.pitloom] offline` (off by default). |
 | `use-lockfile` | *(empty)* | `true`/`false` to force the lock/pin file cascade off or on; empty defers to `[tool.pitloom] use-lockfile` (on by default). Only applies in project mode -- a no-op in model/embed-wheel mode, since neither reads a lock file. See [Dependency sources and precedence](dependency-sources.md). |
 | `allow-build` | `false` | **SECURITY:** `"true"` lets Pitloom invoke the scanned project's own PEP 517 build backend (subprocess; may install build-requires from the network) to discover a wheel's real file list. Executes third-party build-time code from the project being scanned -- only enable for a project whose build script you trust. No `[tool.pitloom]` equivalent; defaults to `"false"`, not empty, since there's no config layer to defer to. Applies in project/embed-wheel mode; explicitly set in model mode, it has no effect and logs `::warning::allow-build has no effect in model mode (no project-directory file discovery there)`. See [`--allow-build`](allow-build.md). |

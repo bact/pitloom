@@ -67,6 +67,7 @@ from pitloom.cli.parser import _build_parser
 from pitloom.core.config_cascade import ConfigOverrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.inert_options import PARAM_TO_FLAG
+from pitloom.id_registry import IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
 from tests.assemble.embed_surfaces_shared import demo_project, demo_wheel
 from tests.cli.shared import SAFETENSORS_FIXTURE
@@ -282,6 +283,12 @@ def _paths(tmp: Path) -> dict[str, str]:
     sbom.write_text("{}", encoding="utf-8")
     config = tmp / "reach-config.toml"
     config.write_text(f'[tool.pitloom]\nsbom-basename = "{_MARKER}"\n', "utf-8")
+    # A declared registry must load (a missing/broken one is now an ERROR,
+    # not a silent no-op) -- a real, empty, valid registry is enough for
+    # this module's own purpose of checking the flag/kwarg reaches the
+    # library, not that anything in it is looked up.
+    registry_path = tmp / "reach-ids.json"
+    IdRegistry.new("reach", path=registry_path).save()
     return {
         "wheel": str(demo_wheel(tmp)),
         "model": str(model),
@@ -323,7 +330,7 @@ _ENTRY_POINTS: dict[Callable[..., Any], tuple[str, ...]] = {
     generate_env_sbom: ("pitloom.assemble", "pitloom.cli.commands.env"),
     generate_model_sbom: ("pitloom.assemble", "pitloom.cli.commands.model"),
     enrich_model: ("pitloom.cli.commands.enrich",),
-    embed_wheel_sbom: ("pitloom.cli.commands.embed_wheel",),
+    embed_wheel_sbom: ("pitloom.cli.commands._embed_wheel_batch",),
 }
 
 
@@ -377,6 +384,11 @@ def _received(kwargs: dict[str, Any], form: _Form, registry: str) -> bool:
         value = kwargs.get(form.dest)
     expected = form.expected
     if form.dest == "id_registry":
+        if isinstance(value, IdRegistry):
+            # embed-wheel resolves the registry once for the whole batch
+            # (see _run_embed_wheel_command) and passes the already-loaded
+            # IdRegistry down instead of the raw path.
+            return value.path is not None and Path(value.path) == Path(registry)
         return value is not None and Path(value) == Path(registry)
     # Strict: 0 == False in Python, and either would pass a plain ==.
     return type(value) is type(expected) and value == expected

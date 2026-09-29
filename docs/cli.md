@@ -280,9 +280,11 @@ stale base SBOM (see the note above). Regenerate the base SBOM and
 re-run the fragment-producing step before merging again.
 
 `merge`, `fragment`, and `id` each take only their own small flag set,
-not the common options below -- e.g. `--offline`/`-v`/`--id-registry`/
-`--enrich` don't apply to any of them. `merge`'s own `--pretty` also
-defaults to `True` (pretty-printed), the opposite of every other
+not the common options below -- e.g. `--offline`/`-v`/`--config`/
+`--enrich` don't apply to any of them (`id generate`/`id import` do take
+`-o`/`--id-registry`, as an alias for their own target-file flag -- not
+in the common-options sense described below). `merge`'s own `--pretty`
+also defaults to `True` (pretty-printed), the opposite of every other
 subcommand's compact default.
 
 ### Validate fragments
@@ -337,19 +339,68 @@ would normally get a different `spdxId` in each run. Pin ids ahead of
 time, or reuse ids already present in an SBOM:
 
 ```bash
-loom id generate data src --entity model      # pin ids before running
-loom id import existing-sbom.spdx3.json       # or reuse ids from an SBOM
+loom id generate data src --entity model -o loom-id-registry.json
+loom id import existing-sbom.spdx3.json -o loom-id-registry.json
 ```
 
-`id generate [PATH...]` flags: `-o`/`--id-registry FILE` (registry file to
-update, default `loom-id-registry.json` under `--project-dir`), `--project-dir
-DIR`, `-e`/`--entity NAME[:TYPE]` (repeatable -- register an explicit
-entity id ahead of a run; `TYPE` defaults to `ai_AIPackage`). `id import
-SBOM_FILE` takes only `-o`/`--id-registry FILE`.
+(`-o`/`--id-registry` is required unless the project's own
+`pyproject.toml`/`setup.cfg` already declares `id-registry` -- see
+below.)
 
-`project`/`wheel`/`env` also auto-harvest newly-minted ids back into the
-resolved registry after each run (`--update-id-registry` on by default, or
-`--no-update-id-registry`) -- see
+`id generate [PATH...]` flags: `-o`/`--id-registry FILE` (registry file to
+create or update), `--project-dir DIR`, `-e`/`--entity NAME[:TYPE]`
+(repeatable -- register an explicit entity id ahead of a run; `TYPE`
+defaults to `ai_AIPackage`). `id import SBOM_FILE` takes only
+`-o`/`--id-registry FILE`.
+
+Target file: `-o`/`--id-registry` if given -- a relative value resolves
+against the current directory, like every other command; a relative
+`PATH` argument to `generate` does too -- else the project's own
+configured `id-registry` key, read the same way every other Pitloom
+surface selects `pyproject.toml`'s `[tool.pitloom]` vs. `setup.cfg`'s
+`[tool:pitloom]` (`generate`: from `--project-dir`; `import`: from the
+current directory). The registry location is required, never assumed:
+with neither `-o`/`--id-registry` nor a declared `id-registry` key,
+`id generate`/`id import` print one line --
+`ERROR: no ID registry declared: pass --id-registry FILE or set
+id-registry in [tool.pitloom]` (`[tool:pitloom]` for a
+setup.cfg-configured project) -- exit 1, and write nothing. There is no
+implicit default registry file; `loom-id-registry.json` is only the
+suggested name to declare. Registry keys (and the implicit default
+`PATH`s -- `src`/`data`/`models`) stay relative to `--project-dir`
+regardless of where `-o`/`PATH` resolve from. A missing target is
+created. A target that exists but can't be loaded (not valid JSON,
+wrong version, etc.) is one `ERROR:` line and exit 1 -- it is never
+silently replaced, and a broken/invalid `pyproject.toml`/`setup.cfg` is
+the same one `ERROR:` line, never a traceback (and takes precedence
+over the "no registry declared" error above).
+
+Each `generate` `PATH` must resolve inside `--project-dir`; a `PATH`
+outside it -- directly, or reached only through a symlink -- is
+`ERROR: PATH <p> is outside --project-dir <dir>` and exit 1. `..` is
+collapsed lexically before any symlink is followed. A symlink
+that itself lives *inside* the project is fine either way, even when it
+points somewhere outside (e.g. `data/models -> ../bigdisk/models`):
+`generate` indexes it under its in-project location, the same as the
+implicit default `PATH`s do.
+
+After a successful write that *created* a new registry file -- never on
+a write to one that already existed -- and unless the target is the
+project's own declared `id-registry` (whether it came from the config's
+own key, or from `-o`/`--id-registry` naming that same file), `id
+generate`/`id import` log `INFO: ID registry: to use this registry, add
+to [tool.pitloom] in pyproject.toml: id-registry = "<path>"` for a
+pyproject.toml-configured project (a `json.dumps`-quoted TOML string). For
+a setup.cfg-configured project the line names `[tool:pitloom] in
+setup.cfg` instead, and the path is unquoted (`id-registry = <path>`,
+no quotes) -- `setup.cfg`'s `[tool:pitloom]` values are read as plain INI
+strings, with no quote-stripping, so a quoted value would become part of
+the value itself. Either way the line can be pasted verbatim so the next
+run can declare it.
+
+`project`/`wheel`/`env` also harvest newly-minted ids back into a
+*declared* registry after each run (`--update-id-registry` on by
+default, or `--no-update-id-registry`) -- it never creates one. See
 [Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id)
 for what's excluded (`ai_AIPackage`, `dataset_DatasetPackage`) and why.
 
@@ -389,10 +440,13 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   `wheel`/`env`/`model`/`enrich` print only the version, target and
   output path. `generate` on any other target and `embed-wheel` print
   nothing more and warn that `-v` has no effect.
-- `--id-registry FILE` -- Loom ID registry file path, overriding the
-  auto-resolved default -- see [Pin ids across
-  fragments](#pin-ids-across-fragments). A relative path resolves
-  against the current directory on every command.
+- `--id-registry FILE` -- declare a Loom ID registry file, taking
+  precedence over the target's own `id-registry` config key -- see [Pin
+  ids across fragments](#pin-ids-across-fragments). A relative path
+  resolves against the current directory on every command. Nothing is
+  ever searched for; without this flag or a config key, no registry is
+  used. A declared file that's missing, unreadable or invalid is an
+  `ERROR:` and exit 1.
 - `--describe-relationship` / `--no-describe-relationship` -- include (or
   suppress) human-readable text on SPDX relationships.
 - `--content-type` / `--no-content-type` -- detect each file's real

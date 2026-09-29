@@ -2,8 +2,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Checks 1-11 of manual-cli-checks.md that can run unattended (12 is in
-``_checks_config.py``).
+"""Checks 1-11 and 14 of manual-cli-checks.md that can run unattended
+(12-13 are in ``_checks_config.py``).
 
 Check 6 (skills/plugin drift) needs judgement and stays manual.
 
@@ -21,7 +21,7 @@ import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
-from _fixtures import build_wheel, write_project
+from _fixtures import build_wheel, get, write_project
 from _harness import (
     DATETIME,
     DEBUG_TAGS,
@@ -379,3 +379,57 @@ def check_content_type_method_fetch(ctx: Context) -> None:
             "(extension must skip the authors-file fetch)",
         )
         ctx.note(f"{surface}: auto {auto} blocked attempts, extension {extension}")
+
+
+@check(
+    "14",
+    "declared registry missing/invalid: one ERROR:, exit 1, no output, every surface",
+)
+def check_registry_missing_invalid(ctx: Context) -> None:
+    """A declared ``--id-registry`` that is missing or unparseable is a
+    hard failure on every surface that accepts the flag -- never silent
+    auto-discovery, never a partial SBOM."""
+    project = write_project(ctx.work / "proj")
+    wheel = _build_wheel(ctx, project, ctx.work / "dist")
+    model = ctx.work / "model.safetensors"
+    shutil.copy2(get().get("model"), model)
+
+    invalid = ctx.work / "invalid.json"
+    invalid.write_text("{", encoding="utf-8")
+    missing = ctx.work / "missing.json"  # never created
+
+    commands: dict[str, list[str]] = {
+        "project": ["project", str(project), "--offline"],
+        "wheel": ["wheel", str(wheel), "--offline"],
+        "env": ["env", "--offline"],
+        "model": ["model", str(model), "--offline"],
+        "embed-wheel": ["embed-wheel", "--project-dir", str(project), "--offline"],
+    }
+    for name, argv in commands.items():
+        for label, registry in (("missing", missing), ("invalid", invalid)):
+            case_dir = ctx.work / "cases" / f"{name}-{label}"
+            case_dir.mkdir(parents=True)
+            out = case_dir / "out.json"
+            full_argv = list(argv)
+            if name == "embed-wheel":
+                copy = case_dir / wheel.name
+                shutil.copy2(wheel, copy)
+                full_argv.insert(1, str(copy))
+            full_argv += ["-o", str(out), "--id-registry", str(registry)]
+            result = run_loom(*full_argv, bootstrap=NETGUARD)
+            expect(
+                result.returncode == 1,
+                f"{name}/{label}: exit {result.returncode}, want 1\n"
+                f"{result.describe()}",
+            )
+            error_lines = [ln for ln in result.stderr_lines if ln.startswith("ERROR: ")]
+            expect(
+                len(error_lines) == 1,
+                f"{name}/{label}: want one ERROR: line, got {error_lines}",
+            )
+            expect(
+                bool(error_lines) and "ID registry file" in error_lines[0],
+                f"{name}/{label}: {error_lines} does not name 'ID registry file'",
+            )
+            expect(not out.exists(), f"{name}/{label}: output written despite failure")
+    ctx.note(f"{len(commands)} surfaces x missing/invalid registry: one ERROR:, exit 1")

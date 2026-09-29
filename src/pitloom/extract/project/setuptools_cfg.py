@@ -497,4 +497,4 @@ def _read_pitloom_config_from_cfg(
             tool_pitloom["creation"]["no-creation-tool"] = b
 
     _clean_creation_keys(tool_pitloom)
-    return parse_pitloom_config(data)
+    return parse_pitloom_config(data, is_setup_cfg=True)

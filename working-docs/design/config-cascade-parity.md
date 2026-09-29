@@ -72,8 +72,12 @@ accident of which code path it goes through.
 - **`enrich --project-dir D` without `--config` uses the default
   creator**, while `project D` uses D's `creators`, so a fragment's
   creators differ from its base SBOM's.
-- **`loom.Run(id_registry=None)` walks up from the current directory** for a
-  registry -- the one surface still doing an implicit cwd read.
+- ~~**`loom.Run(id_registry=None)` walks up from the current directory**
+  for a registry -- the one surface still doing an implicit cwd
+  read.~~ -- **Resolved by PR A2** (2026-09-28): auto-discovery
+  (`IdRegistry.find()`, including this walk-up) is removed everywhere.
+  A registry is used only when explicitly declared -- see
+  [id-registry-autosync.md](../implementation/id-registry-autosync.md#revised-in-pr-a2-2026-09-28).
 - **`sbom-basename = "x.spdx3.json"`**: `project` writes
   `x.spdx3.json.spdx3.json`, `embed-wheel` strips the extension and
   writes `x.spdx3.json`.
@@ -82,7 +86,9 @@ accident of which code path it goes through.
   the archive's own listing.
 - **An explicit config's `id-registry` reaches `wheel`/`env`/`model`** --
   the id-minting collision it widened is fixed (see
-  [id-registry-autosync.md](../implementation/id-registry-autosync.md#id-mint-collision-fix-branch-id-mint-collision)).
+  [id-registry-autosync.md](../implementation/id-registry-autosync.md#id-mint-collision-fix-234)).
+  Now the *only* way a registry reaches any of these three -- **Resolved
+  by PR A2**, same doc's "Revised in PR A2" section.
 - **`--max-source-metadata-bytes -1`** runs as no cap with no message;
   check whether the config key accepts it too.
 
@@ -99,8 +105,12 @@ accident of which code path it goes through.
 - **A no-effect warning's subject differs by command**: the target as
   typed (`wheel`), a resolved absolute path (local model), the literal
   `"embed-wheel"` (standalone embed batch).
-- **`ID registry: could not load` repeats once per wheel** in an
-  `embed-wheel` batch.
+- ~~**`ID registry: could not load` repeats once per wheel** in an
+  `embed-wheel` batch.~~ -- **Resolved by PR A2** (2026-09-28): a
+  declared-but-broken registry now resolves once for the whole batch
+  (before any per-wheel work) and raises `ValueError`, so it is
+  reported once, not once per wheel -- see
+  [id-registry-autosync.md](../implementation/id-registry-autosync.md#revised-in-pr-a2-2026-09-28).
 
 ## Direction (to decide before building)
 
@@ -126,7 +136,8 @@ accident of which code path it goes through.
   `--config`?
 - `sbom-basename`: always a base name (strip a given extension
   everywhere), or a full file name?
-- `loom.Run`: remove the cwd walk-up outright, or deprecate first
-  (private alpha: no compatibility needed)?
+- ~~`loom.Run`: remove the cwd walk-up outright, or deprecate first
+  (private alpha: no compatibility needed)?~~ -- **Resolved by PR A2**:
+  removed outright, no deprecation period (private alpha).
 - Hatchling hook: keep ignoring `pretty` (PEP 770) -- then declare it in
   the table -- or honour it?

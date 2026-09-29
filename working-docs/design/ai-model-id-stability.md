@@ -70,10 +70,11 @@ both resolve to the same stem, `"weights"`, so both hit the exact same
 registered `ai_AIPackage` entity.
 
 With the first-claimant-wins reservation
-([#234](https://github.com/bact/pitloom/pull/234),
-`pitloom.id_registry.claim_registry_hit`), this no longer loses the second
-model: only the first model (in `ai_models` list order, or resolution
-order more generally) reuses the registered hit; the second gets its own
+([#234](https://github.com/bact/pitloom/pull/234), routed through
+`pitloom.id_registry.IdRegistrySession` as of PR A2), this no longer
+loses the second model: only the first model (in `ai_models` list
+order, or resolution order more generally) reuses the registered hit;
+the second gets its own
 freshly-minted id and one `WARNING: ID registry: ... is registered for both
 ... and ...` naming both. Both elements now appear in the SBOM.
 

@@ -130,12 +130,20 @@ from](configuration.md#where-settings-come-from)).
 `--max-source-metadata-bytes` on the CLI (see [Metadata
 provenance](metadata-provenance.md)).
 
-A relative `id_registry=` path resolves against the project directory for
-a project directory target (and `embed_wheel_sbom(project_dir=...)`),
-and against the current directory for any other target, an sdist
-included. The CLI makes `--id-registry`
-absolute against the current directory first, so there it always means
-the file under the current directory.
+`id_registry=` (or a target's own `[tool.pitloom] id-registry`, or an
+`id-registry` in `pitloom_config=`) is the only way a registry is ever
+used -- nothing is searched for or auto-discovered. Precedence:
+`id_registry=` wins over the applicable config's `id-registry` key, which
+wins over no registry at all (silently). A relative `id_registry=` path
+resolves against the project directory for a project directory target
+(and `embed_wheel_sbom(project_dir=...)`, and `enrich_model(project_target=dir)`
+-- the project the enrichment fragment will merge into), and against the
+current directory for any other target, an sdist included. The CLI makes
+`--id-registry` absolute against the current directory first, so there
+it always means the file under the current directory. A declared
+registry file that's missing, unreadable or invalid raises `ValueError`
+(`"ID registry file <path>: <reason>"`) rather than being silently
+skipped or replaced.
 
 Pass `build_options=BuildOptions(allow=True)` to
 `generate()`/`generate_project_sbom()` to let Pitloom invoke a project's
@@ -414,6 +422,16 @@ files = ["fragments/train.json", "fragments/eval.json"]
 and build hook, via `creation_metadata=CreationMetadata(...)`. With none
 given, the fragment records the unattended-run default (Pitloom itself as
 both creator and tool). See [Creation metadata](creation-metadata.md).
+
+Pass `id_registry=` (a path, or an already-loaded `IdRegistry`) to
+consult a Loom ID registry read-only when minting ids for datasets, the
+model, and the generating script -- see [Loom IDs across
+fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id).
+As on every other surface, this is the only way `loom.run`/`loom.Run`
+ever uses a registry: with none given, no registry is used -- nothing is
+searched for or auto-discovered. A declared registry that's missing,
+unreadable or invalid raises `ValueError` when the `with loom.run(...)`
+block (or the decorated call) begins, before any fragment work happens.
 
 The merge itself (`pitloom.assemble.merge_fragments`, called internally
 by `generate()`/`generate_project_sbom()` whenever `[tool.pitloom.fragment]`

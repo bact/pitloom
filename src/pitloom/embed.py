@@ -76,7 +76,7 @@ from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
 from pitloom.extract.wheel import read_wheel
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry, resolve_registry
+from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
@@ -166,6 +166,47 @@ def _enforce_sbom_name_version(
     raise ValueError(message)
 
 
+def _resolve_embed_registry(
+    project_dir: Path | str | None,
+    pitloom_config: PitloomConfig | None,
+    id_registry: str | Path | IdRegistry | None,
+) -> IdRegistry | None:
+    """Resolve (and thereby validate) the registry :func:`embed_wheel_sbom`
+    would use, without needing ``wheel_metadata`` -- so a declared-but-bad
+    registry can be caught before the wheel is read at all. Mirrors the
+    two branches :func:`_generate_embed_sbom_json` resolves the registry
+    in (standalone vs. project-backed). Raises :class:`ValueError` on a
+    bad registry, same as :func:`~pitloom.id_registry.resolve_registry`.
+
+    An explicit *id_registry* always wins, so the project's own config is
+    never read for it (skips the peek entirely). Returns the resolved
+    :class:`IdRegistry` (or ``None``) so the caller can feed it back in,
+    short-circuiting :func:`_generate_embed_sbom_json`'s own resolve
+    instead of loading the file a second time.
+    """
+    base_dir = (
+        Path.cwd()
+        if project_dir is None
+        else registry_base_dir(Path(project_dir).resolve())
+    )
+    if id_registry is not None:
+        return resolve_registry(id_registry, None, base_dir)
+    if pitloom_config is not None:
+        cfg = pitloom_config
+    elif project_dir is None:
+        cfg = PitloomConfig()
+    else:
+        # quiet=True: a discarded peek (only cfg.id_registry is used) --
+        # _generate_embed_sbom_json's real re-read emits this WARNING once.
+        _, cfg, _ = read_project(
+            Path(project_dir).resolve(),
+            include_locked_dependencies=False,
+            include_installed_metadata=False,
+            quiet=True,
+        )
+    return resolve_registry(None, cfg.id_registry, base_dir)
+
+
 # pylint: disable=too-many-arguments
 # pylint: disable-next=too-many-locals
 def embed_wheel_sbom(
@@ -206,8 +247,21 @@ def embed_wheel_sbom(
     """
     configure_logging()
     wheel_obj = Path(wheel_path).resolve()
-    wheel_metadata, _ = read_wheel(wheel_obj)
     eff_overrides = overrides if overrides is not None else ConfigOverrides()
+    if sbom_path is None:
+        # Fail on a declared-but-bad registry before the wheel is ever
+        # read -- a real ``read_wheel()`` opens/parses the archive, work
+        # worth skipping when this run cannot proceed anyway. Only when
+        # *sbom_path* is unset: with an external SBOM,
+        # ``_generate_embed_sbom_json``'s own early-return branch never
+        # touches the registry at all (see its docstring), so there is
+        # nothing to resolve here. The resolved ``IdRegistry`` (or
+        # ``None``) is fed back in as *this call's own* ``id_registry``
+        # below, so ``_generate_embed_sbom_json``'s own
+        # ``resolve_registry()`` call short-circuits on the
+        # already-resolved instance rather than loading the file again.
+        id_registry = _resolve_embed_registry(project_dir, pitloom_config, id_registry)
+    wheel_metadata, _ = read_wheel(wheel_obj)
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,
@@ -360,7 +414,7 @@ def _generate_embed_sbom_json(
             wheel_metadata,
             cfg,
             creation_metadata or cfg.creation_metadata,
-            resolve_explicit_registry(id_registry, cfg.id_registry),
+            resolve_registry(id_registry, cfg.id_registry, Path.cwd()),
         )
         return sbom_json, sbom_basename or cfg.sbom_basename
 
@@ -369,7 +423,9 @@ def _generate_embed_sbom_json(
     # stray no_isolation/timeout (and warn about it) before the
     # project-config read below -- a direct embed_wheel_sbom() caller
     # that didn't already settle upstream still gets the warning first,
-    # ahead of any config-parse WARNING: that read can produce.
+    # ahead of any config-parse WARNING: that read can produce. (An
+    # earlier, quiet=True peek in _resolve_embed_registry never warns,
+    # but still raises there on a malformed config, before this settling.)
     settle, reason = target_settle_plan(proj_root)
     settled_build_options = (
         _settle_build_options(overrides.build_options, file_cache, proj_root, reason)
@@ -398,9 +454,7 @@ def _generate_embed_sbom_json(
         proj_root,
         wheel_metadata,
         cfg,
-        resolve_registry(
-            proj_root, id_registry if id_registry is not None else cfg.id_registry
-        ),
+        resolve_registry(id_registry, cfg.id_registry, registry_base_dir(proj_root)),
         creation_metadata or cfg.creation_metadata,
         build_options=settled_build_options,
         file_cache=file_cache,

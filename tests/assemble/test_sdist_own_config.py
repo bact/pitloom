@@ -148,11 +148,10 @@ def test_own_id_registry_is_not_searched_or_loaded(
     sdist = _make_sdist(tmp_path, "[tool.pitloom]\nid-registry = 'ids.json'\n")
     with (
         patch.object(IdRegistry, "load", autospec=True) as load,
-        patch.object(IdRegistry, "find", autospec=True) as find,
         caplog.at_level(logging.WARNING),
     ):
         generate_project_sbom(sdist, creation_metadata=_PINNED)
-    assert not load.called and not find.called
+    assert not load.called
     assert not logged_warnings(caplog)
 
 

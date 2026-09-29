@@ -103,8 +103,8 @@ doing nothing.
 | `use-lockfile` | bool | `true` | `--use-lockfile` / `--no-use-lockfile` | `use-lockfile` | `use_lockfile` | Resolve exact versions from a lock/pin file cascade (`pylock.toml`/`uv.lock`/`poetry.lock`/`pdm.lock`/`Pipfile.lock`/pinned `requirements.txt`) -- see [Dependency sources and precedence](dependency-sources.md). On by default, unlike every other bool above; `false` falls back to direct dependencies and environment introspection only. CLI flag only on `project`/`generate` (dependency resolution) and `enrich` (`--project-dir` document identity matching); no effect on `model`/`wheel`/`embed-wheel`/`env`. |
 | `extract-file-header` | bool | `true` | `--extract-file-header` / `--no-extract-file-header` | `extract-file-header` | `extract_file_header` | Scan each source file's leading comment header for SPDX-File\* tags. Independent of content-type detection below -- a binary file with no text header still gets a `contentType` when that's on. |
 | `enrich` | bool | `false` | `--enrich` / `--no-enrich` | `enrich` | `enrich` | Run local README/model-card enrichment for discovered AI models. |
-| `id-registry` | string | `null` (auto-discovers `loom-id-registry.json` by walking up from the project directory) | -- | -- | -- (see `id_registry` param) | Path to the Loom ID registry file. |
-| `update-id-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-id-registry` / `--no-update-id-registry` | -- | `update_id_registry` | After generating, harvest newly-minted ids back into the resolved registry and save it. Effective on `project`/`wheel`/`env`/`generate`; given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped. No effect when no registry is resolved -- see [Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id). |
+| `id-registry` | string | `null`: no registry; nothing is searched | `--id-registry` | -- | `id_registry` | Path to the Loom ID registry file, relative to the project directory (or to the `--config` file's own directory, when set there). Used only when declared here, via `--id-registry`, or via a `--config` file -- never auto-discovered. `loom.Run` is the one exception: it never reads any `[tool.pitloom]` config at all, so it only ever takes its own `id_registry=` kwarg, resolved relative to the current directory. A declared file that's missing, unreadable or invalid raises `ValueError` (CLI: `ERROR:` and exit 1; hook: fails the build). |
+| `update-id-registry` | bool | `true` -- from the target's own `[tool.pitloom]` where one applies (see [Where settings come from](#where-settings-come-from)), else from `--config`/`pitloom_config=`, else the default | `--update-id-registry` / `--no-update-id-registry` | -- | `update_id_registry` | After generating, harvest newly-minted ids back into a *declared* registry and save it -- never creates one. Effective on `project`/`wheel`/`env`/`generate`; given for `model`/`enrich`/`embed-wheel`/`wheel --embed` it warns `WARNING: Options: ... has no effect` and is dropped. No effect when no registry is declared -- see [Loom IDs across fragments](https://github.com/bact/pitloom/blob/main/README.md#loom-ids-across-fragments-loom-id). |
 
 **Invalid values / fallback behaviour:** every boolean above raises
 `ValueError` at config-read time if set to a non-boolean (e.g. the TOML
@@ -114,6 +114,11 @@ non-string, and `sbom-basename` also if it is a path rather than a file
 name (a `/`, `\`, `:` or NUL, or `.`/`..`) -- the same rule as
 `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks
 content-type detection -- see below.
+
+**Moved keys:** the pre-rename `ids-file` and `update-registry` keys
+raise `ValueError` if present -- e.g. `[tool.pitloom] 'ids-file' has
+moved to 'id-registry'. Update your config.` -- rather than being read
+under their old names.
 
 ## `[tool.pitloom.content-type]`
 

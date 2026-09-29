@@ -197,10 +197,13 @@ only a project directory's own `pyproject.toml` was reachable.
 ## Found, not fixed here
 
 - **Config-parity findings** (error shapes, `-v` sources, key
-  applicability, `loom.Run` cwd walk-up, id-minting via `id-registry`,
-  unknown keys, repeated warnings, ...) moved to
+  applicability, unknown keys, repeated warnings, ...) moved to
   [config-cascade-parity.md](../design/config-cascade-parity.md), to be
-  fixed together.
+  fixed together. Two items from that list -- `loom.Run`'s cwd walk-up
+  and id-minting via `id-registry` -- are resolved by PR A2: a registry
+  is used only when explicitly declared, on every surface; see
+  [id-registry-autosync.md](id-registry-autosync.md)'s "Revised in PR
+  A2" section.
 - **A latent import cycle**, hidden by import order:
   `core._config_parse` imports `extract._toml_io`, which (via
   `extract/__init__.py`) reaches `extract.project.reader`, which imports

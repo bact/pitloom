@@ -5,11 +5,12 @@
 
 """Regression test for the AI-model id-mint-collision fix:
 :func:`pitloom.assemble.spdx3.ai.resolve_ai_model_entity_hits` must be
-reserved before the first mint, or a registry hit returned by
-``_lookup_ai_model_entity`` (e.g. after ``pitloom id import`` of the
-document's own earlier SBOM) can be handed out again by a sibling
-model's fresh mint under the same ``(doc_uuid, "AIPackage-<name>")``
-counter.
+reserved before the first mint, or a registry hit claimed via
+:class:`~pitloom.id_registry.IdRegistrySession` over
+:func:`~pitloom.assemble.spdx3._ai_package._ai_model_entity_candidates`
+(e.g. after ``pitloom id import`` of the document's own earlier SBOM)
+can be handed out again by a sibling model's fresh mint under the same
+``(doc_uuid, "AIPackage-<name>")`` counter.
 
 See also: :mod:`tests.core.generator.test_generator_model` for
 ``build()``'s basic (single-call) ``ai_AIPackage`` registry-reuse tests.

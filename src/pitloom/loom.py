@@ -78,11 +78,11 @@ class Run(contextlib.ContextDecorator):
             auto-generated note identifying the loom SDK and its version,
             and the creator defaults to the ``SoftwareAgent`` "Pitloom".
         id_registry: A ``pitloom.id_registry.IdRegistry``, a path to a
-            registry JSON file, or ``None`` (default) to auto-discover
-            ``loom-id-registry.json`` by walking up from the current
-            working directory. Consulted read-only: datasets, the model,
-            and the generating script all get the registered ``spdxId``
-            when one exists for them, so independently generated fragments
+            registry JSON file (relative to the current working
+            directory), or ``None`` (default) for no registry -- never
+            searched for. Consulted read-only: datasets, the model, and
+            the generating script all get the registered ``spdxId`` when
+            one exists for them, so independently generated fragments
             can be unified at merge time without name-based matching.
     """
 

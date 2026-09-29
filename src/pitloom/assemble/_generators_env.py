@@ -26,7 +26,7 @@ from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.env import read_environment
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry
+from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
@@ -58,8 +58,6 @@ def generate_env_sbom(
     scanning, which reading an installed environment never performs.
     """
     configure_logging()
-    project_metadata, env_tree = read_environment()
-
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(
@@ -72,7 +70,11 @@ def generate_env_sbom(
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
     )
-    resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
+    # Resolved before the expensive read_environment() call (pipdeptree)
+    # below -- a declared-but-missing/malformed registry should fail fast,
+    # never after paying for a full environment scan first.
+    resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    project_metadata, env_tree = read_environment()
 
     doc = DocumentModel(
         project=project_metadata,

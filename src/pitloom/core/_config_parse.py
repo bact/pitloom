@@ -17,6 +17,7 @@ from typing import Any
 
 from pitloom.core._config_legacy import (
     _check_moved_creation_keys,
+    _check_moved_flat_keys,
     _check_moved_top_level_tables,
 )
 from pitloom.core._config_types import (
@@ -452,14 +453,26 @@ def _pick_str(*sources: tuple[dict[str, Any], tuple[str, ...]]) -> str | None:
 
 
 # pylint: disable=too-many-locals
-def parse_pitloom_config(data: dict[str, Any]) -> PitloomConfig:
-    """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`."""
+def parse_pitloom_config(
+    data: dict[str, Any], *, is_setup_cfg: bool = False
+) -> PitloomConfig:
+    """Read ``[tool.pitloom]`` settings and return a :class:`PitloomConfig`.
+
+    *is_setup_cfg* names the moved-key errors' own source table
+    ``[tool:pitloom]``/``[tool:pitloom:creation]`` instead of
+    ``[tool.pitloom]``/``[tool.pitloom.creation]`` -- pass ``True`` only
+    for *data* built from a ``setup.cfg`` ``[tool:pitloom]`` section (see
+    :func:`pitloom.extract.project.setuptools_cfg.setup_cfg_pitloom_config`'s
+    own call), never for a ``pyproject.toml``-derived *data*, whatever
+    that TOML file's own basename happens to be.
+    """
     tool_data = _read_table(data, "tool", "[tool]")
     pitloom_data = _read_table(tool_data, "pitloom", "[tool.pitloom]")
     creation_data = _read_table(pitloom_data, "creation", "[tool.pitloom.creation]")
 
-    _check_moved_creation_keys(pitloom_data, creation_data)
-    _check_moved_top_level_tables(pitloom_data)
+    _check_moved_creation_keys(pitloom_data, creation_data, is_setup_cfg=is_setup_cfg)
+    _check_moved_top_level_tables(pitloom_data, is_setup_cfg=is_setup_cfg)
+    _check_moved_flat_keys(pitloom_data, is_setup_cfg=is_setup_cfg)
 
     fragments = _read_fragments(pitloom_data)
     id_registry = _read_id_registry(pitloom_data)

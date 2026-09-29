@@ -85,9 +85,9 @@ API](python-api.md#tracking-decorator) page.
 
 ::: pitloom.id_registry.IdRegistry
 
-::: pitloom.id_registry.resolve_registry
+::: pitloom.id_registry.IdRegistrySession
 
-::: pitloom.id_registry.resolve_explicit_registry
+::: pitloom.id_registry.resolve_registry
 
 ::: pitloom.id_registry.EntityEntry
 

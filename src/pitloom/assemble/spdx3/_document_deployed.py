@@ -33,7 +33,7 @@ from pitloom.core.models import (
 )
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry, claim_registry_hit
+from pitloom.id_registry import PACKAGE_ENTITY_TYPE, IdRegistry, IdRegistrySession
 
 
 def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
@@ -50,8 +50,7 @@ def _deployed_lookup_key(pkg_info: dict[str, Any], dep_name: str) -> str:
 
 def _resolve_deployed_package_hits(
     env_tree: list[dict[str, Any]],
-    registry: IdRegistry | None,
-    claimed: dict[str, str] | None = None,
+    session: IdRegistrySession,
 ) -> dict[str, str]:
     """Pre-resolve every deployed dependency's registry hit, keyed by its
     *lookup_key* (:func:`_deployed_lookup_key`) so :func:`build_deployed`
@@ -63,25 +62,18 @@ def _resolve_deployed_package_hits(
     deterministic; when two dependencies' registry hit is the same id
     (e.g. a stale entry left behind by an earlier run -- see
     ``working-docs/implementation/id-registry-autosync.md``), only the
-    first claims it (:func:`~pitloom.id_registry.claim_registry_hit`) and the
-    other falls back to a fresh mint, with one ``WARNING: ID registry: ...``
-    naming both. A no-op, returning ``{}``, when *registry* is ``None``.
-    A fresh, empty *claimed* is used when the caller doesn't share one.
+    first claims it and the other falls back to a fresh mint, with one
+    ``WARNING: ID registry: ...`` naming both. Empty when *session* has
+    no registry loaded.
     """
-    if registry is None:
-        return {}
-    if claimed is None:
-        claimed = {}
     hits: dict[str, str] = {}
     for node in env_tree:
         pkg_info = node.get("package", {})
         dep_name = pkg_info.get("package_name") or pkg_info.get("key", "unknown")
         lookup_key = _deployed_lookup_key(pkg_info, dep_name)
-        spdx_id = registry.lookup_entity(dep_name, PACKAGE_ENTITY_TYPE)
-        if spdx_id is not None:
-            claimed_id = claim_registry_hit(lookup_key, spdx_id, claimed)
-            if claimed_id is not None:
-                hits[lookup_key] = claimed_id
+        claimed_id = session.entity_id(lookup_key, [dep_name], PACKAGE_ENTITY_TYPE)
+        if claimed_id is not None:
+            hits[lookup_key] = claimed_id
     return hits
 
 
@@ -284,8 +276,9 @@ def build_deployed(
         merkle_root=None,
     )
     _clear_doc_counters(doc_uuid)
-    resolved_hits = _resolve_deployed_package_hits(env_tree, registry)
-    reserve_spdx_ids(metadata.name, doc_uuid, resolved_hits.values())
+    session = IdRegistrySession(registry)
+    resolved_hits = _resolve_deployed_package_hits(env_tree, session)
+    reserve_spdx_ids(metadata.name, doc_uuid, session.claimed_ids())
 
     spdx_ci, agents, tools = _build_creation_bundle(doc, doc_uuid)
     exporter.add_creation_info(spdx_ci)

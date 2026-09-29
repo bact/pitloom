@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-28
 SPDX-FileCopyrightText: 2026 Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -51,7 +51,13 @@ trip review attention:
   `extract/project/setuptools_cfg.py` 471, `extract/lock/uv.py` 462,
   `extract/ai_model/pytorch_pt2.py` 457, `assemble/spdx3/deps_installed.py`
   441, `assemble/spdx3/provenance.py` 440, `cli/options.py` 438,
-  `assemble/spdx3/deps_originator.py` 438, `embed.py` 435,
+  `assemble/spdx3/deps_originator.py` 438, `embed.py` 489 (grew from 435
+  with the Loom ID registry rework; PR #235 -- next split seam: move
+  `_resolve_embed_registry`, `_generate_embed_sbom_json`,
+  `_build_sbom_standalone_wheel` and `_build_sbom_from_project_and_wheel`
+  into a private `pitloom/_embed_generate.py`, leaving `embed.py` with
+  `embed_filename`/`_enforce_sbom_name_version`/`embed_wheel_sbom`/the
+  batch-settle helpers -- not yet done, a follow-up),
   `extract/lock/pylock.py` 431, `extract/project/poetry.py` 428,
   `extract/remote/huggingface_field.py` 426.
 - **`tests/`** (excluding `tests/extract/huggingface/` mock fixture
@@ -72,6 +78,12 @@ trip review attention:
   effect" table and `--config`); a candidate split is a separate
   `docs/cli-options.md` for the shared-options section. `CHANGELOG.md`
   (1010 lines) is exempt by nature but could archive released versions.
+  As of 2026-09-28, after PR #235, four more docs are over the ~500-line
+  soft limit and are split candidates: `docs/cli.md` (622, grown further
+  by the Loom ID registry rename/hint work), `README.md` (541),
+  `action.yml` (539), and `skills/sbom-generate/SKILL.md` (510). The
+  `SKILL.md` one is addressed by the skills-cleanup work in the next
+  commit; the other three are still open.
 
 None of the code files have crossed the 800-line hard cap, so nothing is currently broken --
 but per AGENTS.md, a file should be split *before* crossing the soft

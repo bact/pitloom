@@ -48,10 +48,14 @@ version = "1.0.0"
     assert __main__.main() == 0
     assert sbom_path.exists()
 
-    monkeypatch.setattr(sys, "argv", ["loom", "id", "import", str(sbom_path)])
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "id", "import", str(sbom_path), "--id-registry", str(registry_path)],
+    )
     assert __main__.main() == 0
 
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
     assert registry.has_entity_named("importable-pkg")
@@ -81,11 +85,73 @@ def test_id_generate_no_paths(
     empty_dir.mkdir()
     monkeypatch.chdir(empty_dir)
 
-    # We provide no paths and the default path resolution fails
-    monkeypatch.setattr(sys, "argv", ["loom", "id", "generate"])
+    # We provide no paths and the default path resolution fails. -o names
+    # the target explicitly: no project config to declare id-registry here,
+    # so an explicit flag is required to get past registry resolution and
+    # reach the "no source/data directories" check this test targets.
+    registry_path = empty_dir / "registry.json"
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "id", "generate", "--id-registry", str(registry_path)]
+    )
     result = __main__.main()
     assert result == 1
     assert "ERROR: no source/data directories found" in capsys.readouterr().err
+
+
+def test_id_generate_uses_project_own_id_registry_key_no_hint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """No ``--id-registry`` flag: the project's own ``[tool.pitloom]
+    id-registry`` key is used, and (since the path did come from that
+    key) the "add to [tool.pitloom]" hint is not logged."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.py").write_text("x = 1\n")
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\n\n'
+        '[tool.pitloom]\nid-registry = "custom/registry.json"\n'
+    )
+    monkeypatch.chdir(tmp_path)
+
+    parser = _build_parser()
+    args = parser.parse_args(["id", "generate"])
+    with caplog.at_level("INFO"):
+        exit_code = _run_id_command(args)
+
+    assert exit_code == 0
+    registry_path = tmp_path / "custom" / "registry.json"
+    assert registry_path.is_file()
+    assert "add to [tool.pitloom]" not in caplog.text
+
+
+def test_id_import_uses_cwd_own_id_registry_key_no_hint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``id import`` reads its cwd's own ``[tool.pitloom] id-registry``
+    (import's project dir is always cwd): when the path came from that
+    key, the "add to [tool.pitloom]" hint is not logged."""
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\n\n'
+        '[tool.pitloom]\nid-registry = "custom/registry.json"\n'
+    )
+    sbom_path = tmp_path / "external.spdx3.json"
+    sbom_path.write_text(
+        '{"@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld", "@graph": []}',
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    parser = _build_parser()
+    args = parser.parse_args(["id", "import", str(sbom_path)])
+    with caplog.at_level("INFO"):
+        exit_code = _run_id_command(args)
+
+    assert exit_code == 0
+    assert (tmp_path / "custom" / "registry.json").is_file()
+    assert "add to [tool.pitloom]" not in caplog.text
 
 
 def test_id_import_sbom_not_found(
@@ -134,7 +200,12 @@ def test_id_import_fails(
 
     monkeypatch.setattr(IdRegistry, "import_sbom", fake_import)
 
-    monkeypatch.setattr(sys, "argv", ["loom", "id", "import", str(sbom_path)])
+    registry_path = tmp_path / "registry.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loom", "id", "import", str(sbom_path), "--id-registry", str(registry_path)],
+    )
     result = __main__.main()
     assert result == 1
     assert "ERROR: failed to import SBOM" in capsys.readouterr().err
@@ -157,12 +228,15 @@ def test_id_generate_cli_entity_flag(
     (tmp_path / "data" / "raw.txt").write_text("raw\n")
     monkeypatch.chdir(tmp_path)
 
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     parser = _build_parser()
     args = parser.parse_args(
         [
             "id",
             "generate",
             "data",
+            "--id-registry",
+            str(registry_path),
             "--entity",
             "sentimentdemo",
             "--entity",
@@ -172,7 +246,7 @@ def test_id_generate_cli_entity_flag(
     exit_code = _run_id_command(args)
     assert exit_code == 0
 
-    registry = IdRegistry.load(tmp_path / DEFAULT_ID_REGISTRY_FILENAME)
+    registry = IdRegistry.load(registry_path)
     assert registry.entities[("ai_AIPackage", "sentimentdemo")].spdx_id.endswith(
         "#AIPackage-1"
     )
@@ -201,13 +275,20 @@ def test_id_generate_entity_flag_hits_env_lookup(
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "raw.txt").write_text("raw\n")
     monkeypatch.chdir(tmp_path)
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     parser = _build_parser()
     args = parser.parse_args(
-        ["id", "generate", "data", "--entity", "PyYAML:software_Package"]
+        [
+            "id",
+            "generate",
+            "data",
+            "--id-registry",
+            str(registry_path),
+            "--entity",
+            "PyYAML:software_Package",
+        ]
     )
     assert _run_id_command(args) == 0
-
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     tree = [
         {
             "package": {
@@ -245,11 +326,12 @@ def test_id_generate_entity_flag_hits_env_lookup(
 
 
 def test_load_or_create_registry_fails(tmp_path: Path) -> None:
-
+    """A present-but-unloadable registry raises -- never returns None."""
     registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     registry_path.write_text("invalid json")
 
-    assert _load_or_create_registry(registry_path, "proj") is None
+    with pytest.raises(ValueError, match="ID registry file"):
+        _load_or_create_registry(registry_path, "proj")
 
 
 def test_main_returns_1_when_parsed_args_have_no_func(

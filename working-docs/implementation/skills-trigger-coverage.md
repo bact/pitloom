@@ -53,10 +53,14 @@ drift is silent.
   elements workflow, which ends in the mandatory `sbom-validate` pass);
   `sbom-enrich`'s description points back. Neither skill alone covered it.
 - **Loom ID registry.** Skills must understand the concept, not run the
-  commands: `project`/`wheel`/`env` auto-harvest ids, so ids stay stable
-  across reruns and fragments keep merging; a `--id-registry` mismatch between
+  commands: a registry is used only when declared (`--id-registry`, a
+  project's own `id-registry` key, or a `--config` key) -- nothing is
+  auto-discovered. Once declared, `project`/`wheel`/`env` harvest ids
+  back into it, so ids stay stable across reruns and fragments keep
+  merging; a different (or missing) `--id-registry` declaration between
   the base-SBOM run and an enrichment run is a second cause of dangling
-  fragment references (besides a Pitloom upgrade changing file discovery).
+  fragment references (besides a Pitloom upgrade changing file
+  discovery).
 
 ## Deferred (need design; tracked in the roadmap)
 

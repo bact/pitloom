@@ -42,6 +42,11 @@ and this project adheres to
 - `WARNING: Options: <subject>: <flag> has no effect <reason>` for a
   shared flag given on a target that cannot act on it, keyed by target
   kind (`pitloom.core.inert_options.INERT`) ([#231])
+- GitHub Action inputs `id-registry` and `update-id-registry` ([#235])
+- `pitloom.id_registry.IdRegistrySession`, a document-scoped,
+  first-claimant-wins registry lookup ([#235])
+- `id generate`/`id import` print an `INFO:` config hint after creating
+  an undeclared registry ([#235])
 
 ### Changed
 
@@ -98,18 +103,38 @@ and this project adheres to
 - `pitloom.ids` module renamed `pitloom.id_registry` (a package);
   `pitloom._ids_types` removed ([#234])
 - Loom ID registry file format version bumped to 2: `entities` keyed by
-  type then name; an older-version registry file is rejected (`WARNING:`
-  on a build surface, `ERROR:`/exit 1 on `id generate`/`id import`),
-  not migrated ([#234])
+  type then name; an older-version registry file is rejected -- fatal
+  on every surface (CLI `ERROR:`/exit 1; library `ValueError`), not
+  migrated ([#234], [#235])
 - `loom ids` subcommand renamed `loom id`; `--registry`/`ids-file`/`registry=`
-  renamed `--id-registry`/`id-registry`/`id_registry=`
+  renamed `--id-registry`/`id-registry`/`id_registry=` ([#235])
 - `--update-registry`/`update-registry`/`update_registry=` renamed
-  `--update-id-registry`/`update-id-registry`/`update_id_registry=`
-- Default Loom ID registry file renamed `loom-id-registry.json`; registry
-  log lines start `ID registry:`
+  `--update-id-registry`/`update-id-registry`/`update_id_registry=` ([#235])
+- Suggested Loom ID registry filename is now `loom-id-registry.json` (no
+  default file); registry log lines start `ID registry:` ([#235])
+- A Loom ID registry is used only when declared (`--id-registry`/
+  `id_registry=`, `[tool.pitloom] id-registry`, `--config`); never
+  searched for ([#235])
+- A declared registry file that's missing, unreadable or invalid is now
+  an `ERROR:`/exit 1 on the CLI, a `ValueError` from the library API and
+  `loom.Run`, and fails the Hatchling build ([#235])
+- `loom id generate` resolves a relative `-o`/`--id-registry` and PATH
+  arguments against the current directory, like every other command
+  ([#235])
+- `loom id generate`/`id import` require `--id-registry` (or a declared
+  `id-registry` key); no default registry file is assumed ([#235])
+- `[tool.pitloom]` keys `ids-file`/`update-registry` now raise a
+  moved-key `ValueError` naming their new names, instead of being read
+  under their old names ([#235])
 - `Spdx3JsonExporter.to_json()` now raises on a duplicate spdxId that
   survives dedup (differing content); identical copies still collapse
   silently ([#234])
+
+### Removed
+
+- `IdRegistry.find()` and registry auto-discovery (walking up from the
+  current/project directory), including `loom.Run`'s ([#235])
+- `resolve_explicit_registry()`, `claim_registry_hit()` ([#235])
 
 ### Fixed
 
@@ -164,6 +189,9 @@ and this project adheres to
   `BuildHookInterface` type-parameter change; 1.32.3 stays supported ([#229])
 - Flaky tests: two SBOM-equality tests now pin `created`; a thread test no longer
   checks liveness before `join` ([#230])
+- `loom id generate`: a PATH outside `--project-dir` is one `ERROR:` line,
+  not a traceback; an in-project symlink (even to a target outside the
+  project) still resolves, like the implicit default `PATH`s ([#235])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -173,6 +201,7 @@ and this project adheres to
 [#231]: https://github.com/bact/pitloom/pull/231
 [#232]: https://github.com/bact/pitloom/pull/232
 [#234]: https://github.com/bact/pitloom/pull/234
+[#235]: https://github.com/bact/pitloom/pull/235
 
 ## [0.19.0] - 2026-09-18
 

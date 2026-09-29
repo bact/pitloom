@@ -66,6 +66,23 @@ inputs:
       extract-file-header config, which is on by default.
     required: false
     default: ""
+  id-registry:
+    description: >-
+      Loom ID registry file passed as --id-registry. Empty (default) uses
+      the config input file's id-registry, else the project's own
+      [tool.pitloom] id-registry, else none -- never auto-discovered.
+    required: false
+    default: ""
+  update-id-registry:
+    description: >-
+      After generating, harvest newly-minted ids back into the resolved
+      registry and save it ("true"/"false"). Empty (default) defers to
+      the project's [tool.pitloom] update-id-registry config, which is
+      on by default. No effect without a resolved registry, and only
+      consulted by project/wheel/env/generate -- model/enrich/embed-wheel/
+      wheel --embed log a WARNING: if given.
+    required: false
+    default: ""
   content-type:
     description: >-
       Detect each file's content type via magika/an extension guess ("true"/"false").
@@ -233,6 +250,8 @@ runs:
         PL_PRETTY: ${{ inputs.pretty }}
         PL_ENRICH: ${{ inputs.enrich }}
         PL_EXTRACT_FILE_HEADER: ${{ inputs.extract-file-header }}
+        PL_ID_REGISTRY: ${{ inputs.id-registry }}
+        PL_UPDATE_ID_REGISTRY: ${{ inputs.update-id-registry }}
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
         PL_CONTENT_TYPE_METHOD: ${{ inputs.content-type-method }}
         PL_MAX_SOURCE_METADATA_BYTES: ${{ inputs.max-source-metadata-bytes }}
@@ -304,6 +323,14 @@ runs:
           loom_args+=("--extract-file-header")
         elif [ "${PL_EXTRACT_FILE_HEADER}" = "false" ]; then
           loom_args+=("--no-extract-file-header")
+        fi
+        if [ -n "${PL_ID_REGISTRY}" ]; then
+          loom_args+=("--id-registry" "${PL_ID_REGISTRY}")
+        fi
+        if [ "${PL_UPDATE_ID_REGISTRY}" = "true" ]; then
+          loom_args+=("--update-id-registry")
+        elif [ "${PL_UPDATE_ID_REGISTRY}" = "false" ]; then
+          loom_args+=("--no-update-id-registry")
         fi
         if [ "${PL_CONTENT_TYPE}" = "true" ]; then
           loom_args+=("--content-type")

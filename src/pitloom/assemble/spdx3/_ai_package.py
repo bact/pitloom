@@ -22,7 +22,6 @@ from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.core.models import build_relationship, generate_spdx_id
 from pitloom.core.project import project_relative_or_fallback
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
-from pitloom.id_registry import IdRegistry
 
 # Valid SPDX 3 ai_safetyRiskAssessmentType enum values (lowercase).
 _SAFETY_RISK_VALUES = {"high", "medium", "low", "serious"}
@@ -88,13 +87,15 @@ def _emit_source_metadata(
         exporter.add_annotation(annotation)
 
 
-def _lookup_ai_model_entity(
-    ai_model: AiModelMetadata, registry: IdRegistry | None
-) -> str | None:
-    """Resolve a registered ``ai_AIPackage`` id for a scan-discovered model."""
-    if registry is None:
-        return None
+def _ai_model_entity_candidates(ai_model: AiModelMetadata) -> list[str]:
+    """Candidate ``ai_AIPackage`` registry lookup names for a
+    scan-discovered model, in preference order.
 
+    Returns the candidate names only -- no registry lookup here; a
+    caller passes this list to
+    :meth:`~pitloom.id_registry.IdRegistrySession.entity_id`, which tries
+    each in order and claims the first hit.
+    """
     candidates: list[str] = []
     if ai_model.name:
         candidates.append(ai_model.name)
@@ -115,12 +116,7 @@ def _lookup_ai_model_entity(
             candidates.append(resolved)
     if ai_model.format_info.file_name:
         candidates.append(Path(ai_model.format_info.file_name).stem)
-
-    for candidate in candidates:
-        registered_id = registry.lookup_entity(candidate, "ai_AIPackage")
-        if registered_id is not None:
-            return registered_id
-    return None
+    return candidates
 
 
 def _add_external_identifiers_and_refs(

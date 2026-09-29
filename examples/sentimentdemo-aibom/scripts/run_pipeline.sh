@@ -54,7 +54,8 @@ echo
 echo "================================================================"
 echo "Stage 4/5  -  Direct AI model extraction (loom model)"
 echo "================================================================"
-loom model models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty
+loom model models/sentimentdemo.bin -o fragments/04_model_file.spdx3.json --pretty \
+  --id-registry loom-id-registry.json
 
 echo
 echo "================================================================"

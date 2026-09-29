@@ -29,7 +29,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.wheel import read_wheel
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry
+from pitloom.id_registry import IdRegistry, resolve_registry
 from pitloom.logging_config import configure_logging
 
 
@@ -70,9 +70,6 @@ def generate_wheel_sbom(
     """
     configure_logging()
     wheel_path_obj = Path(wheel_path)
-    project_metadata, project_files = read_wheel(wheel_path_obj)
-    phantom_deps = find_phantom_dependencies(project_files)
-
     cfg = resolve_standalone_config(
         pitloom_config,
         ConfigOverrides(
@@ -85,7 +82,12 @@ def generate_wheel_sbom(
             max_source_metadata_bytes=max_source_metadata_bytes,
         ),
     )
-    resolved_registry = resolve_explicit_registry(id_registry, cfg.id_registry)
+    # Resolved before the expensive read_wheel()/find_phantom_dependencies()
+    # calls below -- a declared-but-missing/malformed registry should fail
+    # fast, never after paying for a full wheel read first.
+    resolved_registry = resolve_registry(id_registry, cfg.id_registry, Path.cwd())
+    project_metadata, project_files = read_wheel(wheel_path_obj)
+    phantom_deps = find_phantom_dependencies(project_files)
 
     doc = DocumentModel(
         project=project_metadata,

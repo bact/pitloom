@@ -127,10 +127,11 @@ runs on every invocation, not only under `-v`.
 ## Found, not fixed here
 
 - **Config-parity findings** (error shapes, `-v` sources, key
-  applicability, `loom.Run` cwd walk-up, id-minting via `id-registry`,
-  unknown keys, repeated warnings, ...) moved to
+  applicability, unknown keys, repeated warnings, ...) moved to
   [config-cascade-parity.md](../design/config-cascade-parity.md), to be
-  fixed together.
+  fixed together. `loom.Run`'s cwd walk-up and id-minting via
+  `id-registry` are resolved by PR A2 -- see
+  [config-sources.md](config-sources.md#found-not-fixed-here).
 - `[tool.poetry] version = 3` crashes with an uncaught `AttributeError`
   (`extract/project/poetry.py`); `_try_read_poetry` catches only
   `ValueError`/`KeyError`.

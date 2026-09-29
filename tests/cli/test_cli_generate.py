@@ -258,11 +258,13 @@ def test_id_generate_cli_end_to_end(
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "mod.py").write_text("x = 1\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["loom", "id", "generate"])
+    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
+    monkeypatch.setattr(
+        sys, "argv", ["loom", "id", "generate", "--id-registry", str(registry_path)]
+    )
 
     assert __main__.main() == 0
 
-    registry_path = tmp_path / DEFAULT_ID_REGISTRY_FILENAME
     assert registry_path.exists()
     registry = IdRegistry.load(registry_path)
     assert "src/mod.py" in registry.files

@@ -100,6 +100,15 @@ name-only-entities check uses `IdRegistry.has_entity_named()`.
 
 ### First claimant wins
 
+**Pre-A2 mechanism, kept for the rationale.** `claim_registry_hit()` and
+the per-call-site shared `claimed` dict this section describes were
+removed in PR A2 -- see "Revised in PR A2" below. The *rule*
+(first-claimant-wins, one shared claim scope per document) is unchanged;
+it is now enforced by `pitloom.id_registry.IdRegistrySession`
+(`id_registry/_session.py`)'s `file_id()`/`entity_id()`/internal
+`_claim()`, one session per document build, instead of the ad hoc
+per-resolver `claimed` dict named below.
+
 `pitloom.id_registry.claim_registry_hit(key, spdx_id, claimed)` is the one
 helper every `_resolve_*_hits` pass calls for each hit it finds: the
 first key to claim a given id keeps it, a later key with the *same*
@@ -225,21 +234,85 @@ unreachable.
 
 The on-disk `entities` object is nested by type
 (`{"<type>": {"<name>": {"spdxId": ...}}}`); `_REGISTRY_VERSION`
-bumped to 2, no migration. An old-version file is rejected differently
-by surface: a build surface consulting an *explicit* registry path
+bumped to 2, no migration. **As revised in PR A2, see below**: every
+surface now raises/exits on a declared-but-broken registry file
+(including an old-version one), instead of the split described in the
+rest of this paragraph, which describes the pre-A2 behaviour for
+context. Before PR A2, an old-version file was rejected differently by
+surface: a build surface consulting an *explicit* registry path
 (`resolve_registry`/`resolve_explicit_registry`, used by `build()`/
-`build_deployed()`/the Hatchling hook) logs
-`WARNING: ID registry: could not load ...` and proceeds with no registry;
-an *auto-discovered* `loom-id-registry.json` (`IdRegistry.find()`, no
-`--id-registry`/`id-registry` given) instead logs
-`WARNING: ID registry: ignoring invalid file ...` -- same outcome,
-different wording because a different function logs it. `pitloom id
-generate`/`pitloom id import` (`_load_or_create_registry`) print
-`ERROR: failed to load registry from ...` and exit 1 instead, since
-those commands' entire job is to write to that file -- silently
+`build_deployed()`/the Hatchling hook) logged
+`WARNING: ID registry: could not load ...` and proceeded with no
+registry; an *auto-discovered* `loom-id-registry.json`
+(`IdRegistry.find()`, no `--id-registry`/`id-registry` given) instead
+logged `WARNING: ID registry: ignoring invalid file ...` -- same
+outcome, different wording because a different function logged it.
+`pitloom id generate`/`pitloom id import` (`_load_or_create_registry`)
+printed `ERROR: failed to load registry from ...` and exited 1 instead,
+since those commands' entire job is to write to that file -- silently
 proceeding without one would produce a registry that doesn't build on
-the previous run's ids. Both point at the same fix: delete the file
-and re-run `pitloom id generate` or `pitloom id import`.
+the previous run's ids. All three pointed at the same fix: delete the
+file and re-run `pitloom id generate` or `pitloom id import` -- that
+fix is unchanged by PR A2.
+
+### Revised in PR A2 (2026-09-28)
+
+`resolve_explicit_registry()` and `IdRegistry.find()` (auto-discovery,
+including its `loom.Run` walk-up) are removed. A registry is now used
+only when explicitly declared -- `--id-registry`/`id_registry=`, the
+target's own `[tool.pitloom] id-registry`, or a `--config` file's
+`id-registry` -- on every surface, with no fallback search. A declared
+registry that's missing, unreadable, or invalid is fatal everywhere,
+collapsing the three-way split above into one `ValueError` raised by
+`IdRegistry.load()` (message: `ID registry file <path>: <reason>`): the
+CLI prints one `ERROR:` line and exits 1 (`cli_error_handler`), the
+library API and `loom.Run` raise it directly (never also logging, to
+avoid a double error line), and the Hatchling build hook logs one
+`ERROR:` and fails the build. Registry lookups during a single
+document's build now go through `IdRegistrySession`
+(`id_registry/_session.py`), which replaces the ad hoc first-claimant
+bookkeeping each call site used to do (`claim_registry_hit`, removed).
+
+**Why (user decision):** a config file found by walking up from the
+current directory, or from the project directory, may belong to an
+unrelated project -- silently picking it up (or silently skipping a
+broken one) is worse than failing loudly. Being explicit about which
+registry is in play, and failing fast when it can't be read, beats a
+best-effort fallback that could quietly use the wrong file or none at
+all.
+
+**Paths rejected:** keeping the walk-up as a fallback when nothing is
+declared (rejected -- reintroduces the unrelated-project risk above);
+keeping the old warn-and-continue behaviour for a declared-but-broken
+file (rejected -- a registry the user explicitly named should never be
+silently ignored, since that risks minting fresh ids that silently
+diverge from a previous run's).
+
+`loom id generate`'s relative `-o`/`--id-registry` and PATH arguments
+also now resolve against the current directory, not `--project-dir` --
+dropping the deliberate exception this doc's own text used to describe,
+for consistency with every other command; registry keys and the
+implicit default paths are unaffected, staying relative to
+`--project-dir`.
+
+**Registry location is required everywhere, never assumed (user
+decision, 2026-09-28):** `loom id generate`/`loom id import` no longer
+fall back to an implicit `<project-dir>/loom-id-registry.json` /
+`./loom-id-registry.json` when neither `-o`/`--id-registry` nor a
+declared project `id-registry` key names a target -- they now print one
+`ERROR: no ID registry declared: pass --id-registry FILE or set
+id-registry in [tool.pitloom]` (`[tool:pitloom]` for a
+setup.cfg-configured project) and exit 1, writing nothing. Why: the
+implicit default silently pointed both commands at whatever
+`loom-id-registry.json` happened to exist relative to the resolution
+base, which was rarely the file the caller meant -- `id import` run
+from the wrong directory silently merged into and rewrote an unrelated
+`./loom-id-registry.json`, and `id generate` created an undeclared file
+that the next build (reading `[tool.pitloom]`, which never named it)
+silently ignored. `loom-id-registry.json` stays as
+`DEFAULT_ID_REGISTRY_FILENAME`, the suggested name in docs/skills, but
+is no longer assumed by these two commands. The INFO "add to
+`[tool.pitloom]`" hint after a fresh write is unchanged.
 
 ### Duplicate-spdxId safety net
 

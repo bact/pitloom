@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 # extras-free `loom id generate`), not its `.name`, which is
 # extraction-dependent and varies with whether AI-format libraries are
 # installed. Harvesting it by name would write entries that never match
-# future lookups (see `_lookup_ai_model_entity`,
+# future lookups (see `_ai_model_entity_candidates`,
 # pitloom.assemble.spdx3._ai_package) instead of just doing nothing.
 #
 # dataset_DatasetPackage is excluded for a related but simpler reason:

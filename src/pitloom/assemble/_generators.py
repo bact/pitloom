@@ -40,7 +40,7 @@ from pitloom.enrich import run_enrichers_for_models
 from pitloom.extract._license import resolve_license_file_entries
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.extract.scanner import scan_project_for_ai_models
-from pitloom.id_registry import IdRegistry, resolve_explicit_registry, resolve_registry
+from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
 from pitloom.logging_config import configure_logging
 
 log = logging.getLogger(__name__)
@@ -172,6 +172,12 @@ def generate_project_sbom(
         ),
     )
 
+    resolved_registry = resolve_registry(
+        id_registry,
+        cfg.id_registry,
+        registry_base_dir(target_path),
+    )
+
     # Owns SIGTERM/SIGHUP handling for the whole lifetime of a
     # build-and-read result: once a build ran, a signal until the end of
     # this block removes its extraction directory before the process
@@ -182,7 +188,6 @@ def generate_project_sbom(
             # warn about here.
             merkle_root = None
             project_files = project_metadata.files
-            search_root = target_path.parent
             cleanup_discovery: Callable[[], None] = _noop_cleanup
         else:
             merkle_root, project_files, cleanup_discovery = get_wheel_files(
@@ -193,7 +198,6 @@ def generate_project_sbom(
                 content_type_overrides=cfg.content_type.overrides,
                 build_options=build_options,
             )
-            search_root = target_path
 
         # cleanup_discovery (a no-op unless --allow-build's build-and-read
         # sourced project_files) must stay alive -- and this whole block
@@ -242,16 +246,6 @@ def generate_project_sbom(
             )
         finally:
             cleanup_discovery()
-
-    # An sdist's directory is not its project: only a given registry is
-    # used, resolved as for any target without a project directory.
-    resolved_registry = (
-        resolve_explicit_registry(id_registry, cfg.id_registry)
-        if target_path.is_file()
-        else resolve_registry(
-            search_root, id_registry if id_registry is not None else cfg.id_registry
-        )
-    )
 
     doc = DocumentModel(
         project=project_metadata,

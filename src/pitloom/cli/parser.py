@@ -184,7 +184,10 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         metavar="FILE",
-        help="Loom ID registry JSON file path.",
+        help=(
+            "Loom ID registry JSON file path. Used only when given here or "
+            "via [tool.pitloom] id-registry -- never searched for."
+        ),
     )
     parent.add_argument(
         "--update-id-registry",

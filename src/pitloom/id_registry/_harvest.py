@@ -39,7 +39,6 @@ __all__ = [
     "_is_files_path_alias",
     "_release_stale_keys_for_id",
     "_sorted_by_spdx_id",
-    "claim_registry_hit",
 ]
 
 
@@ -200,47 +199,6 @@ def _release_stale_keys_for_id(
     for key in list(index.entities.get(spdx_id, ())):
         if key != entity_key:
             index.drop_entity(registry, spdx_id, key)
-
-
-def claim_registry_hit(key: str, spdx_id: str, claimed: dict[str, str]) -> str | None:
-    """Return *spdx_id* if nothing in *claimed* has claimed it yet,
-    recording ``claimed[spdx_id] = key``; otherwise log one
-    ``WARNING: ID registry: ...`` naming both claimants and return ``None``
-    (treated as a lookup miss by the caller, so it mints its own id
-    instead).
-
-    Shared by every ``_resolve_*_hits`` pre-resolution pass
-    (:mod:`~pitloom.assemble.spdx3._document_files`,
-    :mod:`~pitloom.assemble.spdx3.ai`,
-    :mod:`~pitloom.assemble.spdx3._document_deployed`) so the same
-    wording is used everywhere instead of being retyped per call site.
-    Two distinct elements in one document both hitting the same
-    registry-supplied id happens when a stale registry entry outlives the
-    element it originally named (see
-    ``working-docs/implementation/id-registry-autosync.md``'s
-    first-claimant-wins section) -- reusing it for both would itself
-    create the exact duplicate-spdxId bug this whole reservation
-    mechanism exists to prevent, so only the first claimant (in whatever
-    order the caller iterates, which must itself be deterministic) gets
-    to reuse it; every later one falls back to a fresh mint.
-
-    *claimed* is shared across every hit in one pre-resolution pass --
-    and, in :func:`~pitloom.assemble.spdx3.document.build`, across
-    files/directories/AI models together -- so the "first claimant" rule
-    holds across all of them, not just within one resolver.
-    """
-    first_key = claimed.get(spdx_id)
-    if first_key is not None:
-        log.warning(
-            "ID registry: %s is registered for both %s and %s; %s gets a new id",
-            spdx_id,
-            first_key,
-            key,
-            key,
-        )
-        return None
-    claimed[spdx_id] = key
-    return spdx_id
 
 
 def _import_sbom_element(

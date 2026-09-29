@@ -174,28 +174,77 @@ default; an explicit CLI flag always wins over the config value.
 
 ### Why element ids stay stable across reruns (the Loom ID registry)
 
-Every element's `spdxId` is content-addressed from the resolved file
-set -- regenerating from the same unchanged source normally reproduces
-the same ids, letting a fragment written against one run still merge
-cleanly into a later regeneration (see the `sbom-enrich` skill's
-fragment workflow, which depends on this). `project`/`wheel`/`env`
-harvest newly-minted ids into the registry file after each run
-(`--update-id-registry`/`--no-update-id-registry`, on by default). `project`
-finds `loom-id-registry.json` in the project itself; `wheel`/`env` use one only
-when given `--id-registry FILE` or a `--config` file with `id-registry`. So
-this is normally automatic -- just don't switch
-`--id-registry` files between a base-SBOM run and a later
-enrichment/regeneration of the same project, or ids can drift.
+Element ids are content-addressed: rerunning on unchanged source
+reproduces them with no registry. A Loom ID registry pins ids across
+runs whose inputs differ -- e.g. a fragment written today, merged into
+next week's regeneration after the source changed (see `sbom-enrich`).
 
-Two edge cases need the registry touched manually, via `loom id
-generate`/`loom id import` -- **not yet wired into this skill's trigger
-phrasings**: pinning an id ahead of a first run, or reusing ids from a
-pre-existing SBOM not produced by Pitloom's own auto-harvest. If a
-user's request clearly needs one of these, say so and point at
-[docs/cli.md's "Pin ids across fragments"
-section](https://github.com/bact/pitloom/blob/main/docs/cli.md#pin-ids-across-fragments)
-for the exact commands -- don't hand-construct or guess at registry
-file contents.
+A registry is used **only when declared**, never searched for:
+`--id-registry FILE` (relative to the current directory), else
+`id-registry` in the applicable config -- a `--config FILE` (relative
+to that file's directory; replaces the project config), or the
+project's own `[tool.pitloom]`/`[tool:pitloom]` (relative to the
+project). Wheel, env and model-file targets, and `enrich`/`embed-wheel`
+without `--project-dir`, read no project config; an sdist's own key is
+ignored. Nothing declared: no registry, silently. Declared but missing
+or invalid: one `ERROR:`, exit 1. A declared registry is also updated:
+`project`/`wheel`/`env`/`generate` runs add newly-minted ids to it
+(stop with `--no-update-id-registry` or `update-id-registry = false`);
+no run ever creates one.
+
+Only `loom id generate`/`loom id import` create or index a registry --
+never hand-edit one:
+
+- **Create**: run from the project directory (`PATH` and `-o` resolve
+  against the current directory; a `PATH` outside the project is an
+  `ERROR:`): `loom id generate <PATH...> -o loom-id-registry.json`.
+  `-o`/`--id-registry` is required unless the project config already
+  declares `id-registry`; without either, one `ERROR:`, exit 1.
+  `PATH` = `src` (src layout) or the package directory (flat layout);
+  with no `PATH`, whichever of `src`/`data`/`models` exist are used
+  (`ERROR:` if none). Or reuse an SBOM's ids: `loom id import <sbom>
+  -o loom-id-registry.json`. A newly created, undeclared registry
+  prints this line -- relay it verbatim:
+
+  ```text
+  INFO: ID registry: to use this registry, add to [tool.pitloom] in pyproject.toml: id-registry = "<path>"
+  ```
+
+  (`[tool:pitloom] in setup.cfg` for a setup.cfg project -- there the
+  path is unquoted, `id-registry = <path>` with no quotes, since
+  `setup.cfg` values are read as plain INI strings; relay that line
+  verbatim too, quotes and all, exactly as each variant prints it).
+  Until that key is added, pass `--id-registry <file>` on each run.
+- **Models**: `loom id generate` registers every AI model file under
+  `PATH` by file stem; add `--entity <stem>` for one outside `PATH`.
+  Runs never add model ids -- only `loom id generate` does.
+- **Datasets**: pinned only by the Python SDK
+  (`pitloom.loom.Run(..., id_registry=...)`, which ignores
+  `[tool.pitloom]`), by path and content hash; index them with
+  `loom id generate <dataset-dir> -o <registry>`.
+
+**Choose the registry before generating.** Skip this for a Hugging Face
+model and for `embed-wheel --sbom` (`--id-registry` is ignored there,
+with a `WARNING:`). Otherwise:
+
+1. Always: if the applicable config declares a registry, it is used --
+   tell the user which file, and (for `project`/`wheel`/`env`/`generate`
+   unless `update-id-registry` is off) that the run adds new ids to it.
+2. None declared, and ids must stay stable across runs or a fragment
+   will be merged after the source changes:
+   - Interactive: ask "Pin ids with a Loom ID registry? If yes, which
+     file -- an existing one, or create `loom-id-registry.json`?"
+     Yes with a file: pass `--id-registry FILE` (create it first, as
+     above, if new). No: generate without one. Never create or pass a
+     registry the user did not name.
+   - Non-interactive: use none, create nothing, and report "No Loom ID
+     registry used (none declared). To pin ids, run `loom id generate
+     <PATH> -o loom-id-registry.json` in the project directory, then
+     declare it as the INFO line says (project target) or pass
+     `--id-registry loom-id-registry.json` on each run (other targets)."
+
+Full command reference: [docs/cli.md's "Pin ids across fragments"
+section](https://github.com/bact/pitloom/blob/main/docs/cli.md#pin-ids-across-fragments).
 
 ## Embed an SBOM into a wheel (PEP 770)
 
@@ -287,6 +336,12 @@ presence-only ask).
 - `--build-timeout DURATION` -- with `--allow-build`, cap how long the
   build may run (default 20m, max 7 days; no effect without
   `--allow-build`). See "Choosing `--build-timeout`" below.
+- `--id-registry FILE` -- declare the Loom ID registry for this run;
+  see "Why element ids stay stable across reruns" above.
+- `--update-id-registry`/`--no-update-id-registry` -- add newly-minted
+  ids to the declared registry (on by default; no effect on `model`, a
+  Hugging Face model, `enrich`, `embed-wheel`, `wheel --embed`); see
+  the same section.
 
 ## Combine with enrichment
 

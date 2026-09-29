@@ -26,6 +26,7 @@ what has actually shipped (`merge_fragments` unification, the
 | [loom-sdk-and-notebooks.md](loom-sdk-and-notebooks.md) | The `pitloom.loom` tracking SDK redesign (MLflow-style `log_*` API) and Jupyter/notebook recording mode (persistent sessions, IPython magic). |
 | [extractor-integrations.md](extractor-integrations.md) | New extractors for external tracking tools: W&B Weave, DVC, and MLflow extractor updates. |
 | [roadmap-and-resources.md](roadmap-and-resources.md) | The phased implementation roadmap tying the above together, plus the existing-tools/community-resources table and references. |
+| [open-items.md](open-items.md) | What's already shipped vs. still open, re-verified against current code (2026-09-28) -- trimmed out of `roadmap.md`'s own summary bullet. |
 
 See also [working-docs/design/mlflow-extractor.md](../mlflow-extractor.md)
 (the existing, separate MLflow extractor design this cluster's MLflow

@@ -12,15 +12,23 @@ See also: :mod:`tests.assemble.test_assemble_ai`.
 
 from __future__ import annotations
 
-from pitloom.assemble.spdx3.ai import (
-    _lookup_ai_model_entity,
-    _should_preserve_metadata,
-    _source_metadata_blob,
-)
+from pitloom.assemble.spdx3._ai_package import _ai_model_entity_candidates
+from pitloom.assemble.spdx3.ai import _should_preserve_metadata, _source_metadata_blob
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
-from pitloom.id_registry import EntityEntry, IdRegistry
+from pitloom.id_registry import EntityEntry, IdRegistry, IdRegistrySession
 
 from ..conftest import fake_build_and_read_path
+
+
+def _lookup_ai_model_entity(
+    model: AiModelMetadata, registry: IdRegistry | None
+) -> str | None:
+    """Test-only helper matching the removed function's old shape: look
+    up *model*'s ``ai_AIPackage`` registry hit via a one-off session over
+    :func:`_ai_model_entity_candidates`."""
+    return IdRegistrySession(registry).entity_id(
+        "test", _ai_model_entity_candidates(model), "ai_AIPackage"
+    )
 
 
 def test_should_preserve_metadata_always() -> None:
