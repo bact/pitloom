@@ -155,6 +155,8 @@ and this project adheres to
 
 ### Fixed
 
+- Project file scan: an unreadable file warns once with its `FILE=` path and is
+  skipped alone; it silently emptied the SBOM's whole file list ([#244])
 - `embed-wheel` with a project directory now emits the project's concluded
   licence, as `loom project` does; the publish workflow fails if Pitloom's
   own SBOM lacks it ([#243])
@@ -241,6 +243,7 @@ and this project adheres to
 [#240]: https://github.com/bact/pitloom/pull/240
 [#242]: https://github.com/bact/pitloom/pull/242
 [#243]: https://github.com/bact/pitloom/pull/243
+[#244]: https://github.com/bact/pitloom/pull/244
 
 ## [0.19.0] - 2026-09-18
 

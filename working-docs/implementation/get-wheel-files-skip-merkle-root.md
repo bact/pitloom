@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-14
-Last-Modified: 2026-09-14
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -76,6 +76,10 @@ that this caller throws away -- real, avoidable I/O for large projects.
   `test_get_wheel_files_returns_none_on_unexpected_discovery_failure`).
   The probe preserves that fail-loud contract while still avoiding the
   full-file read for the common (large-file) case.
+  **Revised 2026-09-30:** a read failure no longer degrades the whole
+  call; the probe now surfaces it as one `WARNING:` and that file is
+  skipped alone -- see
+  [file-scan-unreadable-file.md](file-scan-unreadable-file.md).
 
 ## Paths considered and rejected
 

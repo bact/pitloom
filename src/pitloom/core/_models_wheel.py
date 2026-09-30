@@ -41,7 +41,8 @@ from pitloom.core._models_wheel_types import (
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
-from pitloom.core.project import ProjectFile
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING, is_regular_file
+from pitloom.core.project import ProjectFile, project_relative_or_fallback
 
 log = logging.getLogger(__name__)
 
@@ -87,11 +88,19 @@ def _discovery_failure_result() -> tuple[
     str | None, list[ProjectFile], Callable[[], None]
 ]:
     """The shared ``(None, [], _noop_cleanup)`` :func:`get_wheel_files`
-    return value for every failure path (discovery raised, a per-file
-    read raised, or discovery produced zero files) -- one spelling
-    instead of three, so all three stay in sync if this contract ever
-    changes."""
+    return value for both failure paths (discovery raised, or no
+    readable file) -- one spelling, so both stay in sync if this
+    contract ever changes."""
     return None, [], _noop_cleanup
+
+
+def _physical_path(source: Path, project_dir: Path) -> str:
+    """*source*'s ``ProjectFile.physical_path``: project-relative, or
+    absolute when *source* lies outside *project_dir*."""
+    try:
+        return source.relative_to(project_dir).as_posix()
+    except ValueError:
+        return source.as_posix()
 
 
 def _build_project_file_entry(
@@ -106,11 +115,11 @@ def _build_project_file_entry(
     """Build one *source*'s :class:`ProjectFile` entry (and its digest, if hashed).
 
     *source* must already be known to exist as a regular file (the
-    caller's ``source.is_file()`` check). When *need_bytes* is
-    ``False``, *source* is still opened and immediately closed (no
-    read) -- a genuine access failure (permissions, a TOCTOU race)
-    still raises here, same as a full read would, instead of silently
-    producing an entry for an unreadable file.
+    caller's :func:`~pitloom.core.path_probe.is_regular_file` check).
+    When *need_bytes* is ``False``, *source* is still opened and
+    immediately closed (no read) -- a genuine access failure
+    (permissions, a TOCTOU race) still raises here, same as a full read
+    would, instead of silently producing an entry for an unreadable file.
 
     Returns the built :class:`ProjectFile` and the raw SHA-256 digest
     bytes (or ``None`` when *skip_merkle_root* left it uncomputed).
@@ -129,11 +138,7 @@ def _build_project_file_entry(
         digest_bytes = hashlib.sha256(raw_bytes).digest()
         digest_sha256 = digest_bytes.hex()
 
-    try:
-        rel_path = source.relative_to(project_dir).as_posix()
-    except ValueError:
-        rel_path = source.as_posix()
-
+    rel_path = _physical_path(source, project_dir)
     extras = _resolve_file_header_extras(
         raw_bytes, source.name, distribution_path, scan_config
     )
@@ -206,8 +211,12 @@ def get_wheel_files(
     file's bytes are already read for those scanners and hashing them
     on top is nearly free. A file that fails to open is still detected
     (a cheap open/close probe replaces the full read) so a genuine
-    access failure still degrades the whole call to ``(None, [])``,
-    same as when hashing is on.
+    access failure is still warned about and skipped, same as when
+    hashing is on.
+
+    A discovered file that exists but cannot be read (permissions, a
+    race) gets one ``WARNING:`` naming its project-relative path and is
+    left out; the other files are still returned.
 
     *build_options* (``allow`` on) opts into the build-and-read
     mechanism as a fallback when static discovery has no module for the
@@ -297,14 +306,17 @@ def _scan_included_files(
     scan_config: FileScanConfig,
 ) -> tuple[str | None, list[ProjectFile]] | None:
     """Hash and scan *included_files*: ``(merkle_root, project_files)``,
-    or ``None`` when a file fails to read or none of them is a regular
-    file. See :func:`get_wheel_files` for *need_bytes*/*skip_merkle_root*."""
+    or ``None`` when none of them is a readable regular file.
+
+    A missing or non-regular path is skipped silently; a file that exists
+    but cannot be read gets one ``WARNING:`` and is skipped alone. See
+    :func:`get_wheel_files` for *need_bytes*/*skip_merkle_root*."""
     project_files: list[ProjectFile] = []
     file_entries: list[tuple[str, bytes]] = []
-    try:
-        for included_file in included_files:
-            source = Path(included_file.path)
-            if not source.is_file():
+    for included_file in included_files:
+        source = Path(included_file.path)
+        try:
+            if not is_regular_file(source):
                 continue
             project_file, digest_bytes = _build_project_file_entry(
                 source,
@@ -314,14 +326,20 @@ def _scan_included_files(
                 skip_merkle_root=skip_merkle_root,
                 scan_config=scan_config,
             )
-            project_files.append(project_file)
-            if digest_bytes is not None:
-                file_entries.append((project_file.distribution_path, digest_bytes))
-    # pylint: disable-next=broad-exception-caught
-    except Exception as exc:
-        # A genuine per-file read failure degrades to "no files".
-        log.debug("file scan failed for %s: %s", project_dir, exc)
-        return None
+        except OSError as exc:
+            log.warning(
+                UNREADABLE_FILE_WARNING,
+                project_relative_or_fallback(
+                    _physical_path(source, project_dir),
+                    included_file.distribution_path,
+                ),
+                "for file scanning",
+                exc,
+            )
+            continue
+        project_files.append(project_file)
+        if digest_bytes is not None:
+            file_entries.append((project_file.distribution_path, digest_bytes))
     if not project_files:
         return None
 

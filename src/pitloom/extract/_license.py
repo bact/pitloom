@@ -32,6 +32,7 @@ from packaging.utils import canonicalize_name
 from py_spdx_license import ParseError as SpdxExpressionParseError
 from py_spdx_license import parse as parse_spdx_expression
 
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectFile
 from pitloom.extract._license_detect import (
     _LICENSE_STEMS,
@@ -313,8 +314,9 @@ def resolve_license_file_entries(
             raw_bytes = source.read_bytes()
         except OSError as exc:
             _logger.warning(
-                "FILE=%s: could not read declared license-files entry; %s",
+                UNREADABLE_FILE_WARNING,
                 rel_path,
+                "declared license-files entry",
                 exc,
             )
             continue
