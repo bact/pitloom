@@ -68,4 +68,5 @@ is not kept in sync with post-ship changes.
   licence (#243). See [release-checklist.md](release-checklist.md).
 - [x] **PR-time SBOM licence check** -- `build.yml` runs
   `scripts/check_sbom_license.py` on every push/PR and no longer ignores
-  `CITATION.cff`/`codemeta.json`. See [release-checklist.md](release-checklist.md).
+  `CITATION.cff`/`codemeta.json` (#248). See
+  [release-checklist.md](release-checklist.md).
