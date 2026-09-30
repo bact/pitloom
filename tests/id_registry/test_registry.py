@@ -57,6 +57,18 @@ def test_register_entity_different_type_gets_its_own_id() -> None:
     assert registry.lookup_entity("my-entity", "Dataset") == id2
 
 
+def test_register_entity_encodes_a_user_given_type_prefix() -> None:
+    """``loom id generate -e NAME:TYPE`` takes any TYPE; its id prefix is
+    encoded, and the next mint for that type still finds the previous one."""
+    registry = IdRegistry.new("test")
+
+    first = registry.register_entity("a", "My Type#1")
+    second = registry.register_entity("b", "My Type#1")
+
+    assert first == f"{registry.namespace}#My%20Type%231-1"
+    assert second == f"{registry.namespace}#My%20Type%231-2"
+
+
 def test_register_entity_matching_type_reuses_id_without_warning(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

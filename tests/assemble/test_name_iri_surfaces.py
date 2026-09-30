@@ -123,9 +123,9 @@ def test_registry_round_trips_an_encoded_id(
 ) -> None:
     """An encoded id harvested into the registry is reused, not re-minted.
 
-    Via ``pitloom.loom.run()``, which looks the model up by its name. The
-    stored id is renumbered first: the second run mints under the registry's
-    namespace, so a fresh mint would also give ``AIPackage-1``.
+    Via ``pitloom.loom.run()``, which looks the model up by its name. Each run
+    mints under a fresh random document uuid, so only a reuse can return the
+    first run's id.
     """
     monkeypatch.chdir(tmp_path)
     first = _loom_run(tmp_path, monkeypatch)
@@ -133,14 +133,9 @@ def test_registry_round_trips_an_encoded_id(
     registry = IdRegistry.new("unused", path=registry_path)
     registry.import_sbom(first)
     registry.save()
-    minted_id = registry.lookup_entity(_TITLE, "ai_AIPackage")
-    assert minted_id is not None
-    assert minted_id.startswith(f"{_BASE}{_ENCODED}-")
-    assert minted_id.endswith("#AIPackage-1")
-    model_id = minted_id[: -len("-1")] + "-7"
-    raw = registry_path.read_text(encoding="utf-8")
-    assert raw.count(minted_id) == 1
-    registry_path.write_text(raw.replace(minted_id, model_id), encoding="utf-8")
+    model_id = registry.lookup_entity(_TITLE, "ai_AIPackage")
+    assert model_id is not None
+    assert model_id.startswith(f"{_BASE}{_ENCODED}-")
 
     second = tmp_path / "again.spdx3.json"
     with loom.run(second, id_registry=registry_path):

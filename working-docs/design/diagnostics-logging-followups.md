@@ -65,6 +65,10 @@ file-size guidance -- moved verbatim, no content changed.
   UUID4 per run, so two fresh registries for the same project differ.
   Decide whether that is intended (a registry is minted once) or should
   be derived like an SBOM's namespace.
+- [ ] **`loom id generate -e NAME:TYPE` accepts any TYPE** -- `My Type#1`
+  is registered as a type no element ever has, so the entry is never looked
+  up; its id is percent-encoded (PR #253). Reject a TYPE that is not an
+  SPDX 3 class name with one `ERROR:`.
 - [ ] **`loom id generate` only excludes the default registry filename
   from its own indexing** -- it skips `loom-id-registry.json` so the
   registry doesn't index itself, but a custom-named registry declared

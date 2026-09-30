@@ -23,7 +23,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import open_text_lf
-from pitloom.core.iri import doc_namespace
+from pitloom.core.iri import doc_namespace, iri_segment
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
@@ -151,7 +151,12 @@ class IdRegistry:
         )
 
     def _mint_id(self, prefix: str) -> str:
-        """Mint the next stable ``#<prefix>-<n>`` id in this registry's namespace."""
+        """Mint the next stable ``#<prefix>-<n>`` id in this registry's namespace.
+
+        *prefix* is raw: ``loom id generate -e NAME:TYPE`` derives it from a
+        user-given TYPE, so it passes through :func:`iri_segment` too.
+        """
+        prefix = iri_segment(prefix)
         ns, pfx = re.escape(self.namespace), re.escape(prefix)
         pattern = re.compile(rf"^{ns}#{pfx}-(\d+)$")
         max_n = 0

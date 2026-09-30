@@ -6,8 +6,8 @@
 """Turn a human name into an IRI segment for an SPDX 3 identifier.
 
 Every SPDX document namespace and every ``spdxId`` built from a name goes
-through :func:`iri_segment`, so a name with a space, ``#`` or ``/`` yields a
-valid IRI. The element's ``name`` keeps the original text.
+through :func:`iri_segment`, so a name with a space or ``#`` yields a valid
+IRI. The element's ``name`` keeps the original text.
 """
 
 from __future__ import annotations

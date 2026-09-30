@@ -166,9 +166,9 @@ and this project adheres to
   `pyproject.toml`, not as strings ([#247])
 - Wheel and sdist file names are the same on every OS (`\` to `/`, `./`
   dropped); unsafe or clashing members are skipped; one `WARNING:` each ([#251])
-- A name with a space, `#`, `/` or `%` (e.g. an AI model title) gave an invalid
+- A name with a space, `#` or `%` (e.g. an AI model title) gave an invalid
   `spdxId`/namespace IRI; it is percent-encoded, `name` unchanged ([#253])
- 
+
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
 [#228]: https://github.com/bact/pitloom/pull/228

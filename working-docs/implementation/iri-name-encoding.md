@@ -67,9 +67,8 @@ only caller that applies it to a prefix, and every caller passes a raw name.
 
 - Entity keys stay names (`"Stable Diffusion XL"`); the stored `spdxId` is
   the encoded one. A lookup by name returns it as stored
-  (`test_registry_round_trips_an_encoded_id`, via `pitloom.loom.run()`; the
-  test renumbers the stored id, since a run adopting the registry namespace
-  would otherwise re-mint the same `-1` and pass without any lookup).
+  (`test_registry_round_trips_an_encoded_id`, via `pitloom.loom.run()`, whose
+  fresh random document uuid means only a lookup can return the stored id).
 - `loom model` looks its model up by file stem, not name, so an id imported
   from a titled model's SBOM is not reused there. Not caused by the encoding
   (same on the pre-fix code); tracked in
@@ -78,7 +77,8 @@ only caller that applies it to a prefix, and every caller passes a raw name.
   prefix is the encoded one. `generate_spdx_id()` keys its counter on the
   encoded prefix too, so a reservation and the next mint meet on the same
   key. Keying on the raw prefix would mint a duplicate `-1`.
-- `IdRegistry._mint_id()` prefixes are SPDX type names, always valid.
+- `IdRegistry._mint_id()` encodes its prefix too: it is a type name, but
+  `loom id generate -e NAME:TYPE` accepts any TYPE (e.g. `My Type#1`).
 - A registry written before this change with an unencoded namespace is not
   migrated (no backward compatibility yet); regenerate it.
 
