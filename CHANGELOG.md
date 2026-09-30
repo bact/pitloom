@@ -161,8 +161,8 @@ and this project adheres to
 - Project file scan: an unreadable file warns once with its `FILE=` path and is
   skipped alone; it silently emptied the SBOM's whole file list ([#244])
 - `embed-wheel` with a project directory now emits the project's concluded
-  licence, as `loom project` does; the publish workflow fails if Pitloom's
-  own SBOM lacks it ([#243])
+  licence, as `loom project` does; the publish workflow and every PR's
+  build fail if Pitloom's own SBOM lacks it ([#243], [#248])
 - `WARNING: licenseid database appears empty` prints once per process, not
   once per licence lookup ([#243])
 - PyPI, Croissant URL and remote authors-file fetches close an HTTP error
@@ -248,6 +248,7 @@ and this project adheres to
 [#243]: https://github.com/bact/pitloom/pull/243
 [#244]: https://github.com/bact/pitloom/pull/244
 [#247]: https://github.com/bact/pitloom/pull/247
+[#248]: https://github.com/bact/pitloom/pull/248
 
 ## [0.19.0] - 2026-09-18
 
