@@ -62,3 +62,7 @@ is not kept in sync with post-ship changes.
   ids pinned; #234, #235). See [id-registry-autosync.md](id-registry-autosync.md).
 - [x] **Agent Skills portable across clients** (#235). See
   [skills-trigger-coverage.md](skills-trigger-coverage.md).
+- [x] **Release SBOM licence guard** -- `pypi-publish.yml` fails unless
+  the release SBOM (wheel + standalone) declares and concludes Apache-2.0
+  (`scripts/check_sbom_license.py`); `embed-wheel` now emits the concluded
+  licence (#243). See [release-checklist.md](release-checklist.md).
