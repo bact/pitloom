@@ -38,6 +38,7 @@ from pitloom.core._models_wheel_types import (
     FileScanConfig,
     IncludedFile,
 )
+from pitloom.core._models_wheel_unlistable import warn_unlistable_dirs
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.content_type_config import ContentTypeOverride
@@ -216,7 +217,10 @@ def get_wheel_files(
 
     A discovered file that exists but cannot be read (permissions, a
     race) gets one ``WARNING:`` naming its project-relative path and is
-    left out; the other files are still returned.
+    left out; the other files are still returned. A directory the
+    backend's walk could not list gets one ``WARNING:`` too (see
+    :mod:`pitloom.core._models_wheel_unlistable`); its subtree is
+    missing from the result.
 
     *build_options* (``allow`` on) opts into the build-and-read
     mechanism as a fallback when static discovery has no module for the
@@ -266,11 +270,12 @@ def get_wheel_files(
     # its own guard first (see pitloom.core.build_signals).
     with TerminationGuard():
         try:
-            included_files, cleanup_discovery = _discover_included_files(
-                project_dir,
-                assume_backend=assume_backend,
-                build=build_options.settings(),
-            )
+            with warn_unlistable_dirs(project_dir):
+                included_files, cleanup_discovery = _discover_included_files(
+                    project_dir,
+                    assume_backend=assume_backend,
+                    build=build_options.settings(),
+                )
         # pylint: disable-next=broad-exception-caught
         except Exception:
             return _discovery_failure_result()

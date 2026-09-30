@@ -187,6 +187,12 @@ the move.
     `PermissionError` on every version. On 3.14 a bare `is_file()` made
     a file under a denied directory vanish from the SBOM file scan with
     no warning ([file-scan-unreadable-file.md](file-scan-unreadable-file.md)).
+  - The directory form of the same hazard: `os.walk()` without
+    `onerror`, `glob` and `Path.glob()` skip an unlistable directory
+    silently on every version. Backend libraries walk this way and take
+    no callback, so discovery records the attempted listings with an
+    audit hook instead
+    ([file-discovery-unlistable-dir.md](file-discovery-unlistable-dir.md)).
   - In tests, gate the raising assertion with
     `if sys.version_info < (3, 14):` and keep a version-independent
     probe (`target.read_bytes()` inside `pytest.raises(PermissionError)`)
