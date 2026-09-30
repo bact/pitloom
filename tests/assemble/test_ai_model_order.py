@@ -20,6 +20,7 @@ import logging
 import shutil
 from pathlib import Path
 from typing import Any
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -27,6 +28,7 @@ from pitloom.assemble import generate_project_sbom
 from pitloom.core.ai_metadata import AiModelMetadata
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.project import ProjectFile
+from pitloom.enrich import run_enrichers
 from pitloom.enrich.base import EnrichedField, EnrichmentResult
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import EntityEntry, IdRegistry
@@ -136,6 +138,9 @@ def test_scanner_input_order_does_not_change_sbom_bytes(
 def test_enrichment_results_stay_with_their_model(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Catches a sort placed after enrichment; the sort itself is pinned by
+    the byte-identity and scanner tests."""
+
     def _fake(model: AiModelMetadata, *_: Any) -> list[EnrichmentResult]:
         tag = f"tag::{model.format_info.file_path_relative}"
         return [
@@ -144,7 +149,10 @@ def test_enrichment_results_stay_with_their_model(
             )
         ]
 
-    monkeypatch.setattr("pitloom.enrich.run_enrichers", _fake)
+    monkeypatch.setattr(
+        "pitloom.enrich.run_enrichers",
+        create_autospec(run_enrichers, side_effect=_fake),
+    )
     graph = _graph(_generate(_project(tmp_path), monkeypatch, reverse=True)[0])
     package_file = _package_files(graph)
     tagged = [

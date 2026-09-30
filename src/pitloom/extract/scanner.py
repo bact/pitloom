@@ -43,7 +43,7 @@ _ALLOWED_EXTS: frozenset[str] = frozenset(
 # tie-break. Plain str compare, never Path (Windows compares Path
 # case-insensitively). Positional consumers (enrichment results, registry
 # claims in pitloom.assemble.spdx3.ai) rely on this order.
-_CANDIDATE_ORDER = operator.attrgetter("distribution_path", "physical_path")
+_PATH_ORDER = operator.attrgetter("distribution_path", "physical_path")
 
 
 def is_model_candidate_name(distribution_path: str) -> bool:
@@ -153,7 +153,7 @@ def discover_ai_models(candidates: Iterable[ModelCandidate]) -> list[AiModelMeta
     order of *candidates*; reads and warnings follow the same order.
     """
     models: list[AiModelMetadata] = []
-    for candidate in sorted(candidates, key=_CANDIDATE_ORDER):
+    for candidate in sorted(candidates, key=_PATH_ORDER):
         meta = _read_candidate(candidate)
         if meta is not None:
             models.append(meta)
@@ -169,7 +169,7 @@ def attach_usage_references(
     reported. Each model's ``usage_files`` ends sorted and deduplicated by
     distribution path.
     """
-    for source in sorted(sources, key=operator.attrgetter("distribution_path")):
+    for source in sorted(sources, key=_PATH_ORDER):
         if not source.distribution_path.endswith(".py"):
             continue
         try:

@@ -349,16 +349,23 @@ def test_attach_sorts_and_dedupes_preexisting_usage_files() -> None:
     assert meta.usage_files == ["pkg/x.py", "pkg/z.py"]
 
 
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        (("pkg/b.py", "src/b"), ("pkg/a.py", "src/a")),
+        (("pkg/a.py", "z"), ("pkg/a.py", "y")),
+    ],
+    ids=["distribution", "tie-break"],
+)
 def test_attach_read_warnings_follow_sorted_source_order(
     caplog: pytest.LogCaptureFixture,
+    first: tuple[str, str],
+    second: tuple[str, str],
 ) -> None:
-    sources = [
-        _src("pkg/b.py", "src/b", data=OSError("x")),
-        _src("pkg/a.py", "src/a", data=OSError("x")),
-    ]
+    sources = [_src(*first, data=OSError("x")), _src(*second, data=OSError("x"))]
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
         attach_usage_references([], sources)
-    assert file_values(_warnings(caplog)) == ["src/a", "src/b"]
+    assert file_values(_warnings(caplog)) == [second[1], first[1]]
 
 
 @pytest.mark.parametrize(
