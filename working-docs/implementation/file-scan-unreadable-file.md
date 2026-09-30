@@ -11,6 +11,8 @@ SPDX-License-Identifier: CC0-1.0
 See also: [roadmap.md](../design/roadmap.md),
 [get-wheel-files-skip-merkle-root.md](get-wheel-files-skip-merkle-root.md)
 (the open/close access probe),
+[file-discovery-unlistable-dir.md](file-discovery-unlistable-dir.md)
+(the directory counterpart),
 [recurring-bug-patterns.md](recurring-bug-patterns.md).
 
 **Status (2026-09-30):** implemented in PR
