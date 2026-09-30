@@ -17,6 +17,7 @@ from pathlib import Path
 from pitloom.core._models_wheel_types import (
     IncludedFile,
     to_posix_distribution_path,
+    warn_discovery_failed,
 )
 
 log = logging.getLogger(__name__)
@@ -61,5 +62,5 @@ def discover(
         ]
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.warning("Hatchling file discovery failed for %s: %s", project_dir, exc)
+        warn_discovery_failed(log, "Hatchling", project_dir, exc)
         return None

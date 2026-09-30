@@ -17,6 +17,7 @@ from pitloom.logging_config import (
     PITLOOM_DEBUG_ENV_VAR,
     apply_debug_override,
     configure_logging,
+    one_line,
 )
 
 _LOG = logging.getLogger("pitloom.test_logging_config")
@@ -238,3 +239,16 @@ def test_configure_logging_concurrent_reconfigure_never_drops_a_record(
     captured = capsys.readouterr()
     seen = captured.err.count("WARNING: record ")
     assert seen == emitted, f"expected {emitted} records, saw {seen} (some dropped)"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("a\n\n  b\r\nc", "a b c", id="multi_line_str"),
+        pytest.param(ValueError("x\ny"), "x y", id="multi_line_exception"),
+        pytest.param(ValueError(), "ValueError", id="empty_exception"),
+        pytest.param("", "", id="empty_str"),
+    ],
+)
+def test_one_line(value: object, expected: str) -> None:
+    assert one_line(value) == expected

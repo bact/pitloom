@@ -12,12 +12,14 @@ See also: :mod:`pitloom.core._models_wheel_dispatch` (dispatch facade),
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict
 
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.logging_config import one_line
 
 if TYPE_CHECKING:
     from pitloom.extract._file_headers import FileHeaderMetadata
@@ -29,6 +31,17 @@ literal sub-prefix so a subsystem's own messages are easy to grep/compare
 as a group, matching the existing ``"ID registry: "`` precedent). One
 constant instead of a hand-copied literal at each call site -- see
 CLAUDE.md's "a pattern hand-copied across 3+ call sites drifts" rule."""
+
+
+def warn_discovery_failed(
+    log: logging.Logger, backend: str, project_dir: Path, exc: Exception
+) -> None:
+    """Log the one-line ``WARNING:`` for a backend discoverer whose own file
+    discovery raised, just before it returns ``None`` (the caller then
+    falls back). *backend* is the display name, e.g. ``"Hatchling"``."""
+    log.warning(
+        "%s file discovery failed for %s: %s", backend, project_dir, one_line(exc)
+    )
 
 
 class IncludedFile(NamedTuple):
