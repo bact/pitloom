@@ -8,6 +8,7 @@
 See Also:
     :mod:`pitloom.core._config_types` for the ``PitloomConfig`` class definition.
     :mod:`pitloom.core._config_parse` for internal TOML parsing routines.
+    :mod:`pitloom.core._config_parse_scan` for the file-scan key readers.
 """
 
 from __future__ import annotations
@@ -26,11 +27,8 @@ from pitloom.core._config_parse import (
     _VALID_PROVENANCE_FORMATS,
     PYPROJECT_SOURCE,
     SETUP_CFG_SOURCE,
-    _read_content_type_overrides,
-    _read_content_type_settings,
     _read_creators,
     _read_enrich_settings,
-    _read_extract_file_header,
     _read_fragments,
     _read_id_registry,
     _read_offline_setting,
@@ -41,6 +39,11 @@ from pitloom.core._config_parse import (
     pyproject_config_applies,
     read_pitloom_config,
     select_project_config,
+)
+from pitloom.core._config_parse_scan import (
+    _read_content_type_overrides,
+    _read_content_type_settings,
+    _read_extract_file_header,
 )
 from pitloom.core._config_types import (
     _DEFAULT_PROVENANCE_SCHEMA,

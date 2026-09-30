@@ -473,7 +473,9 @@ Datasets that exist on disk get `verifiedUsing` SHA-256 hashes. These
 they describe a build-time step, not something that runs in the shipped
 artifact. Contrast with the `hasDataFile` relationship Pitloom emits when it
 detects a script *using* a model file at runtime (e.g. a `predict.py` that
-loads it) -- that one is scoped `runtime`.
+loads it). Static scanning for such scripts needs `--scan-model-usage` (off
+by default); a `loom.run` that declares `use_model` emits it regardless. It
+is scoped `runtime`.
 
 A single run can cover more than one independent preprocessing stage --
 e.g. producing train/valid/test splits from separate raw sources in one

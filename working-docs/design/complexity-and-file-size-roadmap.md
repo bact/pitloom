@@ -92,9 +92,10 @@ trip review attention:
   (553) and `action.yml` (539). `skills/sbom-generate/SKILL.md` was
   split below it in PR #235 (now guarded by
   `tests/test_skill_frontmatter.py`). In `src/`,
-  `core/_config_parse.py` is at 603 (split seam planned for the
-  `max-model-extract-bytes`/`scan-model-usage` readers: a new
-  `core/_config_parse_scan.py`).
+  `core/_config_parse.py` was 603; it is now 479, split into the
+  `core/_config_read.py` leaf (read primitives) and
+  `core/_config_parse_scan.py` (file/model scanning key readers, where
+  the `max-model-extract-bytes`/`scan-model-usage` readers belong).
 
 None of the code files have crossed the 800-line hard cap, so nothing is currently broken --
 but per AGENTS.md, a file should be split *before* crossing the soft

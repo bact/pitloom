@@ -24,6 +24,7 @@ from pathlib import Path
 
 from _harness import DATETIME, REPO_ROOT, CheckSkipped, child_env, expect, run_loom
 
+MODEL = "tiny.safetensors"
 SOURCE_DATE_EPOCH = "1767225600"  # DATETIME as a Unix timestamp
 
 _PYPROJECT = textwrap.dedent(
@@ -45,8 +46,9 @@ _PYPROJECT = textwrap.dedent(
 
 
 def write_project(root: Path, *, hook: bool = False) -> Path:
-    """A small Hatchling project ``demo`` 0.1 with a dependency and an
-    SPDX header; *hook* enables the Pitloom build hook."""
+    """A small Hatchling project ``demo`` 0.1 with a dependency, an SPDX
+    header and a tiny AI model referenced by a script; *hook* enables the
+    Pitloom build hook."""
     (root / "demo").mkdir(parents=True)
     # An SPDX header, so --extract-file-header has something to find.
     (root / "demo" / "__init__.py").write_text(
@@ -55,6 +57,9 @@ def write_project(root: Path, *, hook: bool = False) -> Path:
         encoding="utf-8",
     )
     (root / "demo" / "data.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    # A model plus a script naming it: an AIPackage and a usage reference.
+    _write_model(root / "demo" / MODEL)
+    (root / "demo" / "load.py").write_text(f'MODEL = "{MODEL}"\n', encoding="utf-8")
     hook_table = "\n[tool.hatch.build.hooks.pitloom]\n" if hook else ""
     (root / "pyproject.toml").write_text(_PYPROJECT + hook_table, encoding="utf-8")
     return root
@@ -176,7 +181,7 @@ class Fixtures:
         return wheel
 
     def _model(self, target: Path) -> Path:
-        model = target / "tiny.safetensors"
+        model = target / MODEL
         _write_model(model)
         return model
 

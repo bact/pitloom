@@ -68,6 +68,23 @@ def test_build_timeout_is_passed_through_verbatim(
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("", []),
+        ("true", ["--scan-model-usage"]),
+        ("false", ["--no-scan-model-usage"]),
+        ("yes", []),
+    ],
+)
+def test_scan_model_usage_input_is_tri_state(
+    generate: Callable[..., _Result], value: str, expected: list[str]
+) -> None:
+    """Only ``true``/``false`` become a flag; empty defers to the config."""
+    result = generate(PL_SCAN_MODEL_USAGE=value)
+    assert result.loom_args == ["project", ".", *expected]
+
+
+@pytest.mark.parametrize(
     ("mode", "env", "head"),
     [
         ("project", {}, ["project", "."]),

@@ -30,6 +30,7 @@ BOOL_KEYS: dict[str, frozenset[str]] = {
             "extract-file-header",
             "offline",
             "pretty",
+            "scan-model-usage",
             "update-id-registry",
             "use-lockfile",
         }
@@ -49,7 +50,7 @@ def _require_valid_content_type_method(value: str) -> None:
     The one spelling of this check for every caller that takes a method as
     a parameter rather than reading it from a ``[tool.pitloom]`` table;
     a table read reports the offending key's own path instead (see
-    ``pitloom.core._config_parse._require_choice``).
+    ``pitloom.core._config_read._require_choice``).
     """
     if value not in VALID_CONTENT_TYPE_METHODS:
         valid = ", ".join(sorted(VALID_CONTENT_TYPE_METHODS))
@@ -161,6 +162,8 @@ class PitloomConfig:
     provenance_max_source_metadata_bytes: int = 0
     enrich_local: bool = False
     extract_file_header: bool = True
+    #: ``None`` = never given (treated as off, but the scan hints at the flag).
+    scan_model_usage: bool | None = None
     content_type_enabled: bool = False
     content_type_method: str = "auto"
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()

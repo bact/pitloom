@@ -130,6 +130,14 @@ from](configuration.md#where-settings-come-from)).
 `--max-source-metadata-bytes` on the CLI (see [Metadata
 provenance](metadata-provenance.md)).
 
+`scan_model_usage=` is on `generate()` and `generate_project_sbom()` (also
+`ConfigOverrides.scan_model_usage` for `embed_wheel_sbom(project_dir=...)`):
+`True` records which Python files reference each discovered AI model file
+(`hasDataFile`), the CLI's `--scan-model-usage`. Off by default; AI models
+are found either way, and one `INFO:` line says so when the setting was
+never given (an explicit `False` is silent).
+Other targets warn that it has no effect.
+
 `id_registry=` (or a target's own `[tool.pitloom] id-registry`, or an
 `id-registry` in `pitloom_config=`) is the only way a registry is ever
 used -- nothing is searched for or auto-discovered. Precedence:
@@ -386,7 +394,9 @@ wrote. Datasets that exist on disk get `verifiedUsing` SHA-256 hashes.
 These `generates` edges are scoped `build` -- they describe a build-time
 step, not something that runs in the shipped artifact. Contrast with the
 `hasDataFile` relationship Pitloom emits when it detects a script *using*
-a model file at runtime -- that one is scoped `runtime`.
+a model file at runtime -- that one is scoped `runtime`. Static detection of
+such scripts needs `scan_model_usage` (off by default); a `loom.run` that
+declares `use_model` emits it regardless.
 
 `loom.run` can also be used as a context manager instead of a decorator,
 which lets a single run cover more than one independent output batch

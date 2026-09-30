@@ -227,6 +227,10 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("--content-type", "changes", "--content-type"),
         _v("--no-content-type", "same", "--no-content-type"),
     ],
+    "--scan-model-usage": [
+        _v("--scan-model-usage", "changes", "--scan-model-usage"),
+        _v("--no-scan-model-usage", "same", "--no-scan-model-usage"),
+    ],
     "--content-type-method": [
         _v(
             "extension",

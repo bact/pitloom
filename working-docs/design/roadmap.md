@@ -97,6 +97,10 @@ capture, via an expanded `loom` decorator/SDK. Full breakdown, the
 core-vs-Skill scope split, and implementation order: see
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
 
+Note: that checklist lists `hasDataFile` as "covered", but static detection
+is now conditional on `--scan-model-usage` (off by default); update
+`minimum-elements.md` together with G7.
+
 ### Versioning and compatibility policy (new for 1.0)
 
 Not yet decided -- flagging as a required 1.0 decision, not proposing
@@ -181,7 +185,7 @@ rescan -- see below).
 
 **In progress (AI model scanning):** B -- model-candidate type and the
 `--allow-build` path fix; C -- deterministic model order; D -- wheel
-scanning and `--scan-model-usage`. See
+scanning (`--scan-model-usage` landed first, usage pass off by default). See
 [cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open).
 
 **Suggested sequencing after that** (2026-09-16, not a commitment --
@@ -268,6 +272,10 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 - [ ] **`loom wheel --embed` has no `--sbom-basename`** -- `embed-wheel`
   takes one, so the two embed surfaces can't be pointed at the same
   arcname. Found in the manual CLI checks for PR #226.
+- [ ] **Archive member follow-ups** -- name-independent `--allow-build`
+  extraction (case/Unicode folding, Windows path rules), archive-level wheel
+  operations on `orig_filename`, tar links in sdists. See
+  [archive-member-followups.md](archive-member-followups.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
   `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which
