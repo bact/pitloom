@@ -245,8 +245,13 @@ def test_runner_refuses_a_pitloom_other_than_its_own(
 ) -> None:
     """The matrix plan reads ``INERT`` from the runner's own ``pitloom``;
     checks run against another copy must not start."""
-    # Resolved before chdir, as the runner resolves it before any check.
-    inherited = runner.child_env().get("PYTHONPATH", "")
+    # The runner's own src first: pytest's `pythonpath` reaches only this
+    # process, and an installed copy must not stand in for it. Resolved
+    # before chdir, as the runner resolves it before any check.
+    src_dir = str(Path(runner.pitloom.__file__).resolve().parents[1])
+    inherited = os.pathsep.join(
+        p for p in (src_dir, runner.child_env().get("PYTHONPATH", "")) if p
+    )
     monkeypatch.setenv("PYTHONPATH", inherited)
     monkeypatch.chdir(tmp_path)
     if where is not None:
