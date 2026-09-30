@@ -53,6 +53,8 @@ and this project adheres to
 
 ### Changed
 
+- AI model scanning returns models sorted by path, and each model's usage
+  files sorted and deduplicated, whatever the input file order ([#240])
 - `project`, `wheel`, `embed-wheel` and the Hatchling hook: main-package,
   dependency and phantom-dependency ids now come from a declared ID
   registry, as `env`'s dependency ids do ([#235])
@@ -231,6 +233,7 @@ and this project adheres to
 [#236]: https://github.com/bact/pitloom/pull/236
 [#238]: https://github.com/bact/pitloom/pull/238
 [#239]: https://github.com/bact/pitloom/pull/239
+[#240]: https://github.com/bact/pitloom/pull/240
 [#242]: https://github.com/bact/pitloom/pull/242
 
 ## [0.19.0] - 2026-09-18

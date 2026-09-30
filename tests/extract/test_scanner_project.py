@@ -331,3 +331,42 @@ def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
     assert meta.format_info.file_name == "model.npy"
     assert meta.format_info.physical_path == "assets/weights.dat"
     assert meta.usage_files == ["pkg/use.py"]
+
+
+@_LAYOUT
+def test_scan_result_does_not_depend_on_files_order(
+    tmp_path: Path, layout: str
+) -> None:
+    """Models and ``usage_files`` are fixed by the paths, not *files* order."""
+    both = b'x = ["a.gguf", "b.gguf"]'
+    b, a, z, y = (
+        _put(tmp_path, layout, name, data)[0]
+        for name, data in [
+            ("b.gguf", _GGUF),
+            ("a.gguf", _GGUF),
+            ("z.py", both),
+            ("y.py", both),
+        ]
+    )
+    users = [y.distribution_path, z.distribution_path]
+    expected = [(a.distribution_path, users), (b.distribution_path, users)]
+    assert [f.distribution_path for f in (b, a, z, y)] != sorted(
+        f.distribution_path for f in (b, a, z, y)
+    )  # not vacuous
+    for order in ([b, a, z, y], [y, z, a, b]):
+        found = _scan(tmp_path, *order)
+        assert [(m.format_info.file_path_relative, m.usage_files) for m in found] == (
+            expected
+        )
+
+
+def test_scan_tie_break_uses_stable_physical_path(tmp_path: Path) -> None:
+    """Two files with one distribution path: the project-relative path decides."""
+    files = []
+    for phys in ("b/w.gguf", "a/w.gguf"):
+        (tmp_path / "proj" / phys).parent.mkdir(parents=True)
+        (tmp_path / "proj" / phys).write_bytes(_GGUF)
+        files.append(_pf(phys, "pkg/w.gguf"))
+    for order in (files, files[::-1]):
+        found = _scan(tmp_path, *order)
+        assert [m.format_info.physical_path for m in found] == ["a/w.gguf", "b/w.gguf"]

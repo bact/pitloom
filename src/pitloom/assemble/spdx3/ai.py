@@ -69,7 +69,9 @@ def resolve_ai_model_entity_hits(
     session: IdRegistrySession,
 ) -> list[str | None]:
     """Pre-resolve each of *ai_models*' ``ai_AIPackage`` registry hit, in
-    list order, before any minting starts.
+    list order (the scanner's order: sorted by distribution path, see
+    :func:`pitloom.extract.scanner.discover_ai_models`), before any minting
+    starts.
 
     One entry per model (``None`` on a miss) via
     :meth:`~pitloom.id_registry.IdRegistrySession.entity_id` over
