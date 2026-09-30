@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-04
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -131,7 +131,7 @@ the cascade's registered extractor parses it directly.
 Same order [docs/dependency-sources.md](../../docs/dependency-sources.md)
 documents for users, restated here as the exact rank list
 `_LOCK_SOURCES` must match. Highest to lowest, per
-`working-docs/design/roadmap.md`'s completed "Lock/pin formats" item and
+`working-docs/implementation/roadmap-completed.md`'s "Lock/pin formats" item and
 `lock-files.md`'s phase reasoning (build-backend-agnostic and universal
 beats tool-specific; a real resolver lock beats a merely-pinned file):
 

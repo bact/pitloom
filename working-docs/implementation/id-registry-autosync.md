@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Auto-sync the Loom ID registry after SBOM generation
 
-See also: [roadmap.md](../design/roadmap.md) (Completed), the "Loom IDs
+See also: [roadmap-completed.md](roadmap-completed.md), the "Loom IDs
 across fragments" section of the top-level [README.md](../../README.md#loom-ids-across-fragments-loom-id).
 
 Split out of `roadmap.md` (2026-09-17) once this item's detail grew
