@@ -127,16 +127,36 @@ jobs:
         # -- distinct from "Validate SBOM with spdx3-validate" below,
         # which checks a separately generated standalone SBOM from a
         # different code path (see CLAUDE.md's "Usage surfaces").
+        # Fetches the SPDX schema/context too: retried and classified as
+        # in "Validate SBOM with spdx3-validate" below.
         id: validate_wheel_sbom
         if: steps.verify_wheel_sbom.outcome == 'success'
+        timeout-minutes: 20
+        env:
+          WHEEL_PATH: dist/${{ steps.build.outputs.wheel_name }}
         run: |
-          loom validate-wheel "dist/${{ steps.build.outputs.wheel_name }}"
+          rc=0
+          python scripts/retry_network.py --attempts 3 --delay 10 -- \
+            loom validate-wheel "${WHEEL_PATH}" || rc=$?
+          case "${rc}" in
+            0) failure=none ;;
+            75) failure=network ;;
+            *) failure=invalid ;;
+          esac
+          echo "failure=${failure}" >> "$GITHUB_OUTPUT"
+          exit "${rc}"
         continue-on-error: true
 
       - name: Display embedded wheel SBOM validation error
         if: steps.verify_wheel_sbom.outcome == 'success' && steps.validate_wheel_sbom.outcome == 'failure'
+        env:
+          FAILURE: ${{ steps.validate_wheel_sbom.outputs.failure }}
         run: |
-          echo "::error title=Embedded SBOM Validation Failed::loom validate-wheel rejected the wheel's embedded SBOM content (schema/SHACL). See the 'Validate embedded wheel SBOM' step's log for the exact reason."
+          case "${FAILURE}" in
+            network) echo "::error title=Embedded SBOM Validation Network Failure::loom validate-wheel could not download the SPDX schema/context after 3 attempts, so conformance is unknown. Re-run the job." ;;
+            invalid) echo "::error title=Embedded SBOM Validation Failed::loom validate-wheel rejected the wheel's embedded SBOM content (schema/SHACL). See the 'Validate embedded wheel SBOM' step's log for the exact reason." ;;
+            *) echo "::error title=Embedded SBOM Validation Incomplete::loom validate-wheel did not finish (step timed out or was cancelled). See the 'Validate embedded wheel SBOM' step's log." ;;
+          esac
 
       - name: Generate SBOM
         id: sbom
@@ -182,6 +202,10 @@ jobs:
       - name: Validate SBOM with spdx3-validate
         id: validate
         if: steps.sbom.outcome == 'success'
+        # Retries sleep 10 s + 30 s; each attempt is capped at 300 s.
+        timeout-minutes: 20
+        env:
+          SBOM_PATH: ${{ steps.sbom.outputs.sbom_path }}
         run: |
           # Determine which URLs to use based on SPDX version
           SPDX_VER="${{ env.SPDX_VERSION }}"
@@ -211,27 +235,39 @@ jobs:
           echo "  - Annotation: ${ANNOTATION_URL}"
           echo ""
 
-          # Run spdx3-validate auto-detecting version
-          # Note: --spdx-version is omitted due to a bug in spdx3-validate (AttributeError on args.version)
+          # Version auto-detected; --spdx-version is omitted (spdx3-validate
+          # 0.0.7 raises AttributeError on args.version). The console
+          # entry point, not -m: spdx3-validate's __main__ exits 0 on an
+          # invalid document. retry_network.py retries only a network
+          # failure and exits 75 when every attempt hit one; that is a
+          # failure, never a pass.
           echo "Validating SPDX SBOM (auto-detecting version) for ${SPDX_VER}..."
-          VALIDATE_CMD="spdx3-validate --json ${{ steps.sbom.outputs.sbom_path }}"
-
-          if $VALIDATE_CMD; then
-            echo ""
-            echo "✅ SBOM validation passed!"
+          rc=0
+          python scripts/retry_network.py --attempts 3 --delay 10 -- \
+            python -c "import sys; from spdx3_validate.main import main; sys.exit(main())" \
+            --json "${SBOM_PATH}" || rc=$?
+          case "${rc}" in
+            0) failure=none ;;
+            75) failure=network ;;
+            *) failure=invalid ;;
+          esac
+          echo "failure=${failure}" >> "$GITHUB_OUTPUT"
+          if [ "${rc}" -eq 0 ]; then
             echo "::notice title=Validation Success::SBOM successfully validated against SPDX ${SPDX_VER}"
-            exit 0
-          else
-            echo ""
-            echo "❌ SBOM validation failed!"
-            exit 1
           fi
+          exit "${rc}"
         continue-on-error: true
 
       - name: Display validation error
         if: steps.sbom.outcome == 'success' && steps.validate.outcome == 'failure'
+        env:
+          FAILURE: ${{ steps.validate.outputs.failure }}
         run: |
-          echo "::error title=Validation Failed::SBOM validation failed for Python ${{ matrix.python-version }}. The SBOM does not conform to SPDX specification."
+          case "${FAILURE}" in
+            network) echo "::error title=Validation Network Failure::spdx3-validate could not download the SPDX schema/context after 3 attempts, so conformance is unknown. Re-run the job." ;;
+            invalid) echo "::error title=Validation Failed::SBOM validation failed for Python ${{ matrix.python-version }}. The SBOM does not conform to SPDX specification." ;;
+            *) echo "::error title=Validation Incomplete::spdx3-validate did not finish (step timed out or was cancelled). See the 'Validate SBOM with spdx3-validate' step's log." ;;
+          esac
 
       - name: Extract SBOM metadata for summary
         id: metadata
@@ -375,10 +411,10 @@ jobs:
           | :--- | :--- | :--- |
           | Build Wheel | ${{ steps.build.outcome == 'failure' && '❌ Failed' || '✅ Passed' }} | ${{ steps.build.outcome == 'failure' && 'Wheel build failed. Check build logs above.' || 'Successfully built wheel.' }} |
           | SBOM Embedded in Wheel | ${{ steps.verify_wheel_sbom.outcome == 'failure' && '❌ Failed' || steps.verify_wheel_sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.verify_wheel_sbom.outcome == 'failure' && 'loom verify-wheel rejected the SBOM (missing, ambiguous, misplaced, or a name/version mismatch) -- see its log for the reason.' || steps.verify_wheel_sbom.outcome == 'success' && 'SBOM found in .dist-info/sboms/, name/version match the wheel.' || 'Skipped due to build failure.' }} |
-          | Embedded SBOM Content Valid | ${{ steps.validate_wheel_sbom.outcome == 'failure' && '❌ Failed' || steps.validate_wheel_sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate_wheel_sbom.outcome == 'failure' && 'loom validate-wheel rejected the embedded SBOM content (schema/SHACL) -- see its log for the reason.' || steps.validate_wheel_sbom.outcome == 'success' && 'Embedded SBOM content validated.' || 'Skipped due to a previous failure.' }} |
+          | Embedded SBOM Content Valid | ${{ steps.validate_wheel_sbom.outcome == 'failure' && '❌ Failed' || steps.validate_wheel_sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate_wheel_sbom.outputs.failure == 'network' && 'Network failure: could not download the SPDX schema/context after 3 attempts; conformance unknown. Re-run the job.' || steps.validate_wheel_sbom.outcome == 'failure' && 'loom validate-wheel rejected the embedded SBOM content (schema/SHACL) -- see its log for the reason.' || steps.validate_wheel_sbom.outcome == 'success' && 'Embedded SBOM content validated.' || 'Skipped due to a previous failure.' }} |
           | Generate SBOM (standalone) | ${{ steps.sbom.outcome == 'failure' && '❌ Failed' || steps.sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.sbom.outcome == 'failure' && 'SBOM generation failed. Verify project structure.' || steps.sbom.outcome == 'success' && 'Successfully generated SBOM.' || 'Skipped due to build failure.' }} |
           | SBOM Licence (Apache-2.0) | ${{ steps.license.outcome == 'failure' && '❌ Failed' || steps.license.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.license.outcome == 'failure' && 'The wheel or standalone SBOM does not declare and conclude Apache-2.0 -- see its log for the reason.' || steps.license.outcome == 'success' && 'Both SBOMs declare and conclude Apache-2.0.' || 'Skipped due to a previous failure.' }} |
-          | Validate SBOM (spdx3-validate) | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
+          | Validate SBOM (spdx3-validate) | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outputs.failure == 'network' && 'Network failure: could not download the SPDX schema/context after 3 attempts; conformance unknown. Re-run the job.' || steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
 
           ### 💡 Troubleshooting Tips
 
@@ -400,10 +436,15 @@ jobs:
           - The declared licence comes from pyproject.toml project.license; it must say Apache-2.0 too
           ' || '' }}
 
-          ${{ steps.validate.outcome == 'failure' && '**Validation Failed:**
+          ${{ steps.validate.outcome == 'failure' && steps.validate.outputs.failure != 'network' && '**Validation Failed:**
           - Review the SBOM content for SPDX compliance issues
           - Check that all required SPDX fields are present
           - Verify the SBOM structure matches SPDX 3.0 specification
+          ' || '' }}
+
+          ${{ (steps.validate.outputs.failure == 'network' || steps.validate_wheel_sbom.outputs.failure == 'network') && '**Network Failure (not a validation verdict):**
+          - The SPDX schema/context download failed on all 3 attempts
+          - Re-run the job; the SBOM was not judged either way
           ' || '' }}
 
           ---
