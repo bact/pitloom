@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -132,8 +132,17 @@ runs on every invocation, not only under `-v`.
   fixed together. `loom.Run`'s cwd walk-up and id-minting via
   `id-registry` are resolved by PR A2 -- see
   [config-sources.md](config-sources.md#found-not-fixed-here).
-- `[tool.poetry] version = 3` crashes with an uncaught `AttributeError`
-  (`extract/project/poetry.py`); `_try_read_poetry` catches only
-  `ValueError`/`KeyError`.
+- `[tool.poetry] version = 3` crashed with an uncaught `AttributeError`:
+  fixed in #254 (wrong-typed keys warn and are ignored).
+- Same class, not fixed: `[project] name = 3` still crashes at
+  `extract/project/pyproject.py`'s `(project_data.get("name") or "").strip()`
+  before `pyproject-metadata` can report the type error.
+- Same class, not fixed: a non-table `[tool]` (`tool = 3`) still crashes
+  with `AttributeError` on `data.get("tool", {}).get(...)` in
+  `extract/project/pyproject_dynamic.py` and `extract/project/pdm.py`
+  (e.g. with `dynamic = ["version"]`). Only reachable with an explicit
+  `--config`/`pitloom_config=`, which skips the `[tool] must be a table`
+  check.
+  #254 guards the Poetry path only (`read_poetry_section()`).
 - The `pitloom._loom_active_run` import cycle: see
   [config-sources.md](config-sources.md#found-not-fixed-here).

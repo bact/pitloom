@@ -166,6 +166,8 @@ and this project adheres to
   `pyproject.toml`, not as strings ([#247])
 - Wheel and sdist file names are the same on every OS (`\` to `/`, `./`
   dropped); unsafe or clashing members are skipped; one `WARNING:` each ([#251])
+- A wrong-typed `[tool.poetry]` value (e.g. `version = 3`), or a non-table
+  `[tool]`/`[tool.poetry]`, warns once and is ignored; it crashed ([#254])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -186,6 +188,8 @@ and this project adheres to
 [#250]: https://github.com/bact/pitloom/pull/250
 [#251]: https://github.com/bact/pitloom/pull/251
 [#252]: https://github.com/bact/pitloom/pull/252
+[#253]: https://github.com/bact/pitloom/pull/253
+[#254]: https://github.com/bact/pitloom/pull/254
 
 ## [0.19.0] - 2026-09-18
 

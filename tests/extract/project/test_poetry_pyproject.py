@@ -14,8 +14,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from pitloom.extract.project.poetry import extract_poetry_metadata
-from pitloom.extract.project.pyproject import read_pyproject
+from pitloom.extract.project.pyproject import _try_read_poetry, read_pyproject
 
 FIXTURE_DIR = Path(__file__).parent.parent.parent / "fixtures"
 POETRY_FIXTURE = FIXTURE_DIR / "projects" / "sampleproject-poetry"
@@ -64,6 +66,43 @@ requests = "^2.28"
         metadata, _ = read_pyproject(Path(d) / "pyproject.toml")
     assert metadata.requires_python == ">=3.10,<4.0.0"
     assert any("requests" in d for d in metadata.dependencies)
+
+
+def test_read_pyproject_poetry_wrong_typed_version_does_not_crash(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`version = 3` reaches extract_poetry_metadata() through
+    _try_read_poetry(), which catches only ValueError/KeyError."""
+    content = '[tool.poetry]\nname = "poetry-only"\nversion = 3\n'
+    with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
+        (Path(d) / "pyproject.toml").write_text(content, encoding="utf-8")
+        metadata, _ = read_pyproject(Path(d) / "pyproject.toml")
+    assert metadata.name == "poetry-only"
+    assert metadata.version is None
+    assert "[tool.poetry] 'version' is int" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("data", "warning"),
+    [
+        ({"tool": {"poetry": []}}, "[tool.poetry] is list"),
+        ({"tool": {"poetry": ""}}, "[tool.poetry] is str"),
+        ({"tool": {"poetry": "x"}}, "[tool.poetry] is str"),
+        ({"tool": 3}, "[tool] is int"),
+        ({"tool": {"poetry": {}}}, None),
+    ],
+)
+def test_try_read_poetry_non_table_warns_even_when_falsy(
+    data: dict[str, object], warning: str | None, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A non-table `[tool]`/`[tool.poetry]`, falsy or not, is present, not
+    absent: it warns once and is ignored; an empty table stays silent."""
+    with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
+        result = _try_read_poetry(data, Path(d))
+    assert result is None
+    assert [r.getMessage().split(": ", 1)[1] for r in caplog.records] == (
+        [f"{warning}, expected a table -- ignoring it"] if warning else []
+    )
 
 
 # ---------------------------------------------------------------------------
