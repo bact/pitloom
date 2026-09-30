@@ -248,9 +248,11 @@ def _make_dummy_wheel(
     name: str = "demo_pkg",
     version: str = "1.0.0",
     requires_dist: tuple[str, ...] = (),
+    license_expression: str | None = None,
 ) -> Path:
     """Create a minimal valid wheel with a valid RECORD file, declaring
-    each *requires_dist* entry as a ``Requires-Dist`` header."""
+    each *requires_dist* entry as a ``Requires-Dist`` header and any
+    *license_expression* as a ``License-Expression`` header."""
     directory.mkdir(parents=True, exist_ok=True)
     wheel_filename = f"{name}-{version}-py3-none-any.whl"
     wheel_path = directory / wheel_filename
@@ -259,6 +261,7 @@ def _make_dummy_wheel(
     init_code = b"__version__ = '1.0.0'\n"
     metadata_content = (
         f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n"
+        + (f"License-Expression: {license_expression}\n" if license_expression else "")
         + "".join(f"Requires-Dist: {req}\n" for req in requires_dist)
     ).encode()
     wheel_content = (

@@ -221,10 +221,13 @@ below, which is the actual commitment for what ships before mid-October):
   own toolchain happens to be available -- no further Pitloom code
   needed. See [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md)
   for the full design/history.
-- [ ] **Unreadable file drops the whole file list silently** --
-  `core/_models_wheel.py` (~323) catches any per-file error, logs DEBUG
-  only and returns `None` (empty SBOM file set). Should warn once and skip
-  that file (found in #239).
+- [x] **Unreadable file drops the whole file list silently** -- fixed
+  (2026-09-30, #244): warn once, skip that file only. See
+  [file-scan-unreadable-file.md](../implementation/file-scan-unreadable-file.md).
+- [ ] **Unlistable directory drops its subtree silently at discovery** --
+  a `chmod 000` directory is skipped by Hatchling's `safe_walk()` (`os.walk`,
+  no `onerror`) before the per-file scan sees any name, so no
+  `WARNING:` (found in #244). Check each backend's walk.
 - [ ] **Five smaller follow-ups from PR #215's `--allow-build` review**
   -- two consolidation/dedup cleanups (a duplicated blanket-except
   pattern across Track A modules; a hand-rolled `tool` table walk
@@ -450,5 +453,5 @@ See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
   runtime (`sys.modules` introspection or eBPF), to suppress
   vulnerability noise from installed-but-unreachable code. Large scope
   -- needs its own design doc before estimating.
-- [ ] **Release SBOM licence guard** -- the release `build` job has no licenseid DB; the concluded licence comes from `codemeta.json` only (WARNING if lost).
-  Consider failing on "licenseid database appears empty" or running `licenseid update` there.
+- [ ] **PR-time SBOM licence check** -- `build.yml`/`test.yml` `paths-ignore` `codemeta.json`, so a PR dropping its licence fails only at release.
+  Run `scripts/check_sbom_license.py` in `build.yml` on push/PR, with `codemeta.json` no longer ignored there.

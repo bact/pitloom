@@ -118,20 +118,19 @@ def test_skip_merkle_root_genuinely_empty_file_set_still_returns_none(
 
 # ---------------------------------------------------------------------------
 # Regression for the "silent read-failure downgrade" bug caught during
-# plan review: an unreadable file must still fail the whole call loudly
-# (None, []), matching the skip_merkle_root=False contract, instead of
+# plan review: an unreadable file must still be detected and skipped with
+# a warning, matching the skip_merkle_root=False contract, instead of
 # silently appearing with digest_sha256=None.
 # ---------------------------------------------------------------------------
 
 
-def test_skip_merkle_root_unreadable_file_still_fails_whole_call(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_skip_merkle_root_unreadable_file_is_still_detected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A file that passes is_file() but errors on open (permission
-    error, TOCTOU race, ...) must still be caught by the outer
-    except-and-degrade -- the access probe (open+close, no read) taken
-    on the skip_merkle_root path must surface the same failure a full
-    read would have."""
+    """A file that is a regular file but errors on open (permission
+    error, TOCTOU race, ...) must still be warned about and skipped --
+    the access probe (open+close, no read) taken on the skip_merkle_root
+    path must surface the same failure a full read would have."""
     tagged_file, plain_file = _make_header_project(tmp_path)
     _patch_recurse(monkeypatch, tagged_file, plain_file)
 
@@ -147,11 +146,12 @@ def test_skip_merkle_root_unreadable_file_still_fails_whole_call(
     root, files, _ = get_wheel_files(tmp_path, skip_merkle_root=True)
 
     assert root is None
-    assert not files
+    assert [f.distribution_path for f in files] == ["pkg/tagged.py"]
+    assert "FILE=pkg/plain.py: could not read" in caplog.text
 
 
-def test_skip_merkle_root_false_unreadable_file_also_fails_whole_call(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_skip_merkle_root_false_unreadable_file_is_also_detected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Same scenario with skip_merkle_root=False (the existing, already
     -tested contract via read_bytes()) -- included here so the two are
@@ -168,8 +168,9 @@ def test_skip_merkle_root_false_unreadable_file_also_fails_whole_call(
 
     root, files, _ = get_wheel_files(tmp_path)
 
-    assert root is None
-    assert not files
+    assert root is not None
+    assert [f.distribution_path for f in files] == ["pkg/tagged.py"]
+    assert "FILE=pkg/plain.py: could not read" in caplog.text
 
 
 # ---------------------------------------------------------------------------
