@@ -94,6 +94,23 @@ jobs:
           loom verify-wheel --fail-on-mismatch "${WHEEL_PATH}" \
             --sbom-filename "$(basename "${SBOM_PATH}")"
 
+      - name: Check SBOM declares and concludes Apache-2.0
+        # This job has no licenseid database: if codemeta.json lost its
+        # licence, the concluded licence would fall back to licence-text
+        # detection and silently disappear. Checks both the wheel's
+        # embedded copy and the standalone one attached to the release.
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+          WHEEL_PATH: ${{ steps.wheel.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SBOM_PATH}" ]; then
+            echo "::error::no standalone SBOM was produced to check"
+            exit 1
+          fi
+          python scripts/check_sbom_license.py --license Apache-2.0 \
+            "${WHEEL_PATH}" "${SBOM_PATH}"
+
       - name: Validate SBOM
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}

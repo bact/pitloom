@@ -25,6 +25,7 @@ from pathlib import Path, PurePosixPath
 from typing import IO
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.extract.ai_model import detect_ai_model_format_from_header, read_ai_model
 
 log = logging.getLogger(__name__)
@@ -107,9 +108,10 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
         header = candidate.sniff()
     except OSError as e:
         log.warning(
-            "FORMAT=%s FILE=%s: could not read header; %s",
+            "FORMAT=%s " + UNREADABLE_FILE_WARNING,
             detect_ai_model_format_from_header(b"", candidate.distribution_path),
             candidate.physical_path,
+            "header",
             e,
         )
         return None
@@ -187,8 +189,9 @@ def attach_usage_references(
         # pylint: disable-next=broad-exception-caught
         except Exception as e:
             log.warning(
-                "FILE=%s: could not read for usage scanning; %s",
+                UNREADABLE_FILE_WARNING,
                 source.physical_path,
+                "for usage scanning",
                 e,
             )
     for meta in models:

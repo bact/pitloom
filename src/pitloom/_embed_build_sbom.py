@@ -38,6 +38,7 @@ from pitloom.core.document import DocumentModel
 from pitloom.core.models import _build_merkle_tree, get_wheel_files
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.enrich import run_enrichers_for_models
+from pitloom.extract._license import resolve_license_concluded
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.scanner_project import scan_project_for_ai_models
 from pitloom.id_registry import IdRegistry
@@ -100,6 +101,26 @@ def _compute_wheel_merkle_root(files: list[ProjectFile]) -> str | None:
     # from the skip-hashing rescan -- so it's always populated.
     leaf_hashes = [bytes.fromhex(cast(str, f.digest_sha256)) for f in ordered]
     return _build_merkle_tree(leaf_hashes)
+
+
+def _add_concluded_license(metadata: ProjectMetadata, project_dir: Path) -> None:
+    """Set *metadata*'s concluded licence from *project_dir*'s own sources.
+
+    Wheel ``METADATA`` carries only the declared licence, so the G2 second
+    opinion comes from the project directory, through the same resolver
+    ``loom project`` uses, gated on the wheel's declared licence. An sdist
+    *project_dir* gets none, as for ``loom project`` on an sdist.
+    """
+    if metadata.license_concluded is not None or not project_dir.is_dir():
+        return
+    concluded, provenance = resolve_license_concluded(
+        bool(metadata.license_name), project_dir
+    )
+    if not concluded:
+        return
+    metadata.license_concluded = concluded
+    if provenance:
+        metadata.provenance["license_concluded"] = provenance
 
 
 class EmbedFileCache:
@@ -391,6 +412,7 @@ def _build_sbom_from_project_and_wheel(
         project_metadata = wheel_metadata.replace_with_fresh_containers(
             files=merged_files
         )
+        _add_concluded_license(project_metadata, Path(project_dir))
         merkle_root = _compute_wheel_merkle_root(merged_files)
         ai_models = scan_project_for_ai_models(project_dir, project_files)
         enrichment_results = run_enrichers_for_models(

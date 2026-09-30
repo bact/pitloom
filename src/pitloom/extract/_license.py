@@ -32,6 +32,7 @@ from packaging.utils import canonicalize_name
 from py_spdx_license import ParseError as SpdxExpressionParseError
 from py_spdx_license import parse as parse_spdx_expression
 
+from pitloom.core.path_probe import UNREADABLE_FILE_WARNING
 from pitloom.core.project import ProjectFile
 from pitloom.extract._license_detect import (
     _LICENSE_STEMS,
@@ -97,6 +98,17 @@ def _get_matcher() -> AggregatedLicenseMatcher:
     return AggregatedLicenseMatcher()
 
 
+@functools.cache
+def _warn_empty_database() -> None:
+    """Warn once per process: an empty database is a fact about the
+    environment, not about each lookup, so one run's several detections
+    (a project read, then an embed of each wheel) share one warning."""
+    _logger.warning(
+        "licenseid database appears empty -- "
+        "run 'licenseid update' to enable license text detection"
+    )
+
+
 def _looks_like_spdx_license_expression(value: str) -> bool:
     """Return True when *value* looks like a compound SPDX License Expression."""
     stripped = value.strip()
@@ -126,10 +138,7 @@ def detect_license_from_text(text: str, threshold: float = 0.85) -> str | None:
     try:
         matcher = _get_matcher()
         if not matcher.match(license_id="MIT"):
-            _logger.warning(
-                "licenseid database appears empty -- "
-                "run 'licenseid update' to enable license text detection"
-            )
+            _warn_empty_database()
             return None
         if len(text.strip()) < _MIN_LICENSE_TEXT_LENGTH:
             return None
@@ -305,8 +314,9 @@ def resolve_license_file_entries(
             raw_bytes = source.read_bytes()
         except OSError as exc:
             _logger.warning(
-                "FILE=%s: could not read declared license-files entry; %s",
+                UNREADABLE_FILE_WARNING,
                 rel_path,
+                "declared license-files entry",
                 exc,
             )
             continue
