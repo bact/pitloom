@@ -8,6 +8,7 @@ fails here, in every CI run, not only when someone runs the checks.
 """
 
 import importlib
+import os
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -156,3 +157,39 @@ def test_completeness_needs_a_subcommand_to_actually_run_the_group(
     else:
         with pytest.raises(matrix_env.harness.CheckFailed, match=r"loom: --debug"):
             run(ctx)
+
+
+def test_child_env_makes_pythonpath_absolute(
+    matrix_env: _MatrixEnv, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Checks run ``loom`` in scratch dirs: a relative ``PYTHONPATH=src``
+    must still select the runner's ``pitloom``, not fall back to one the
+    interpreter has installed from another checkout."""
+    base = tmp_path.resolve()
+    (base / "pkgs").mkdir()
+    (base / "pkgs" / "mcc_probe_mod.py").write_text("", encoding="utf-8")
+    other = base / "other"
+    other.mkdir()
+    monkeypatch.chdir(base)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(["pkgs", "", str(other)]))
+
+    env = matrix_env.harness.child_env()
+
+    # An empty entry is the current directory, for Python as for abspath().
+    assert env["PYTHONPATH"].split(os.pathsep) == [
+        str(base / "pkgs"),
+        str(base),
+        str(other),
+    ]
+    proc = subprocess.run(  # nosec B603
+        [sys.executable, "-c", "import mcc_probe_mod; print(mcc_probe_mod.__file__)"],
+        env=env,
+        cwd=other,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert Path(proc.stdout.strip()).resolve() == base / "pkgs" / "mcc_probe_mod.py"
+    # An empty PYTHONPATH adds nothing; it must not become the cwd.
+    monkeypatch.setenv("PYTHONPATH", "")
+    assert matrix_env.harness.child_env()["PYTHONPATH"] == ""

@@ -58,7 +58,7 @@ import _checks_core  # noqa: F401  # pylint: disable=unused-import
 import _fixtures
 import _matrix
 import _sequences  # noqa: F401  # pylint: disable=unused-import
-from _harness import CHECKS, Check, CheckSkipped, Context
+from _harness import CHECKS, Check, CheckSkipped, Context, child_env
 from _known import known_issue
 
 _PRINT_LOCK = threading.Lock()
@@ -117,6 +117,8 @@ def _selected(patterns: list[str]) -> list[Check]:
 
 
 def _pitloom_location() -> str:
+    """The ``pitloom`` a check's ``loom`` imports: probed, as every check
+    runs, with :func:`child_env` and a working directory other than ours."""
     proc = subprocess.run(  # nosec B603
         [
             sys.executable,
@@ -126,6 +128,8 @@ def _pitloom_location() -> str:
         capture_output=True,
         text=True,
         check=False,
+        env=child_env(),
+        cwd=tempfile.gettempdir(),
     )
     if proc.returncode != 0:
         raise SystemExit(f"pitloom is not importable by {sys.executable}")
