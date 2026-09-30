@@ -183,7 +183,6 @@ pitloom/
 │       │   ├── _file_headers.py    # SPDX-File* comment-header scanner
 │       │   ├── _license.py         # License normalization and resolution facade
 │       │   ├── _license_detect.py  # License text detection and file scanning
-│       │   ├── _toml_io.py         # Shared tomllib/tomli compat import + raw TOML-file read
 │       │   ├── binary.py           # Bundled third-party binary ("phantom dependency") detection
 │       │   ├── env.py              # Deployed SBOM: installed-environment dependency tree
 │       │   ├── scanner.py          # AI model discovery policy: ModelCandidate, discover/attach passes
@@ -207,6 +206,7 @@ pitloom/
 │       ├── _embed_wheel.py         # Low-level ZIP rewriting and RECORD injection
 │       ├── _loom_caller.py         # Caller stack inspection and provenance helpers
 │       ├── _loom_active_run.py     # Active-run state machine
+│       ├── _toml_io.py             # Shared tomllib/tomli compat import + raw TOML-file read
 │       ├── embed.py                # PEP 770 wheel embedding facade
 │       ├── logging_config.py       # Shared INFO:/WARNING:/ERROR: stderr formatting (configure_logging)
 │       ├── loom.py                 # ML tracking SDK facade (Run context manager / decorator)

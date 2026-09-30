@@ -1,6 +1,6 @@
 ---
 Created: 2026-07-20
-Last-Modified: 2026-08-25
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -622,7 +622,7 @@ opaque to SPARQL except as text (accepted tradeoff, decision §3.2).
 - `pitloom.loom` always uses `provenance_format = "both"` (hardcoded, not
   config-driven) — it is a standalone SDK invoked from ad hoc scripts, not
   through a `pyproject.toml`-based config; see the comment at
-  `src/pitloom/loom.py`'s `_LOOM_PROVENANCE_CONFIG`.
+  `src/pitloom/_loom_active_run.py`'s `_LOOM_PROVENANCE_CONFIG`.
 - Demo/example SBOM fixtures under `examples/sentimentdemo-aibom/` were not
   regenerated (no test depends on their exact content; they now simply show
   the pre-Annotation output format).

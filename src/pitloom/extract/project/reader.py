@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from pitloom._toml_io import load_toml_file
 from pitloom.core.config import (
     PYPROJECT_SOURCE,
     PitloomConfig,
@@ -30,7 +31,6 @@ from pitloom.core.project import (
     is_sdist_archive,
     merge_project_metadata,
 )
-from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.lock import apply_locked_dependencies
 from pitloom.extract.project._installed_reconcile import reconcile_installed_metadata
 from pitloom.extract.project.installed import (

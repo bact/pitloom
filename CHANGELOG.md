@@ -178,6 +178,8 @@ and this project adheres to
   `[tool]`/`[tool.poetry]`, warns once and is ignored; it crashed ([#254])
 - File-discovery failure `WARNING:` is one line, not a multi-line exception;
   `--allow-build` output drops OSC escapes and blank `DEBUG:` lines ([#258])
+- `import pitloom._loom_active_run` as the first Pitloom import failed on a
+  circular import; two more cycles hidden by import order removed ([#260])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -203,6 +205,7 @@ and this project adheres to
 [#256]: https://github.com/bact/pitloom/pull/256
 [#257]: https://github.com/bact/pitloom/pull/257
 [#258]: https://github.com/bact/pitloom/pull/258
+[#260]: https://github.com/bact/pitloom/pull/260
 
 ## [0.19.0] - 2026-09-18
 
