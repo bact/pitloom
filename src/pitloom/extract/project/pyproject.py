@@ -36,6 +36,7 @@ from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
+from pitloom.extract.project._poetry_fields import read_poetry_section
 from pitloom.extract.project.poetry import extract_poetry_metadata
 from pitloom.extract.project.pyproject_dynamic import prepare_dynamic_version
 
@@ -496,7 +497,10 @@ def _try_read_poetry(
     have a perfectly good lock file even when its ``[tool.poetry]`` gap-fill
     metadata can't be extracted.
     """
-    if not data.get("tool", {}).get("poetry"):
+    # Presence, not truthiness: a falsy non-table (`poetry = []`) must
+    # reach extract_poetry_metadata()'s wrong-type warning.
+    poetry = read_poetry_section(data, project_dir / "pyproject.toml", quiet=quiet)
+    if poetry is None or poetry == {}:
         return None
     locked_dependencies = (
         extract_poetry_lock_dependencies(project_dir)

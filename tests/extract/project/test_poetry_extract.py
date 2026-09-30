@@ -149,22 +149,99 @@ def test_extract_provenance_empty_declared_dependencies() -> None:
     assert "requires_python" in metadata.provenance
 
 
-def test_extract_non_list_keywords_treated_as_empty() -> None:
-    """A malformed `keywords` value that isn't a list (e.g. a bare string)
-    must resolve to an empty list, not raise or pass the raw value
-    through."""
-    data = {
-        "tool": {
-            "poetry": {
-                "name": "my-pkg",
-                "version": "1.0.0",
-                "keywords": "not-a-list",
-            }
-        }
-    }
-    with tempfile.TemporaryDirectory() as d:
+_STRING_KEYS = (
+    "name",
+    "version",
+    "description",
+    "license",
+    "homepage",
+    "repository",
+    "documentation",
+)
+_LIST_KEYS = ("readme", "authors", "keywords")
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [(key, value) for key in _STRING_KEYS for value in (3, ["x"], {"k": "v"})]
+    + [(key, value) for key in _LIST_KEYS for value in (3, [1], {"k": "v"})]
+    + [("authors", "Me <me@example.com>"), ("keywords", "kw")]
+    + [("dependencies", value) for value in (3, ["x"], "requests")],
+)
+def test_extract_wrong_typed_field_warns_and_is_treated_as_absent(
+    key: str, value: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A present-but-wrong-typed [tool.poetry] value warns once, naming the
+    key and file, and is then absent: no crash, no provenance claiming it."""
+    poetry = {"name": "my-pkg", key: value}
+    with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
+        if key == "name":
+            with pytest.raises(ValueError, match="name is required"):
+                extract_poetry_metadata({"tool": {"poetry": poetry}}, Path(d))
+        else:
+            metadata = extract_poetry_metadata({"tool": {"poetry": poetry}}, Path(d))
+            assert metadata.name == "my-pkg"
+            assert not any(
+                f"tool.poetry.{key}" in prov for prov in metadata.provenance.values()
+            )
+    assert len(caplog.records) == 1
+    message = caplog.records[0].getMessage()
+    assert f"'{key}' is " in message
+    assert "pyproject.toml" in message
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "expected"),
+    [
+        ("keywords", 3, "'keywords' is int, expected a list of strings"),
+        ("keywords", [1], "is a list with a non-string item (int), expected"),
+        ("version", [1], "'version' is list, expected a string"),
+        ("dependencies", ["x", 2], "'dependencies' is list, expected a table"),
+    ],
+)
+def test_extract_wrong_typed_field_warning_names_the_type(
+    key: str, value: object, expected: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The non-string item is named only where a list of strings was
+    expected; elsewhere the list itself is the wrong type."""
+    data = {"tool": {"poetry": {"name": "p", key: value}}}
+    with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
+        extract_poetry_metadata(data, Path(d))
+    assert expected in caplog.text
+
+
+def test_extract_wrong_typed_field_quiet_is_silent_but_still_ignored(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    data = {"tool": {"poetry": {"name": "my-pkg", "version": 3}}}
+    with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
+        metadata = extract_poetry_metadata(data, Path(d), quiet=True)
+    assert metadata.version is None
+    assert not caplog.records
+
+
+@pytest.mark.parametrize("poetry", ["not-a-table", []])
+def test_extract_non_table_section_warns_and_raises(
+    poetry: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="not a table"):
+        extract_poetry_metadata({"tool": {"poetry": poetry}}, Path("."))
+    assert len(caplog.records) == 1
+    assert "[tool.poetry] is " in caplog.records[0].getMessage()
+
+
+def test_extract_absent_and_empty_string_fields_are_silent(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Absent fields and empty strings stay quiet; an empty string still
+    resolves to ``None`` as before."""
+    data = {"tool": {"poetry": {"name": "my-pkg", "version": "", "license": ""}}}
+    with tempfile.TemporaryDirectory() as d, caplog.at_level("WARNING"):
         metadata = extract_poetry_metadata(data, Path(d))
-    assert metadata.keywords == []
+    assert metadata.version is None
+    assert metadata.description is None
+    assert metadata.license_name is None
+    assert not caplog.records
 
 
 def test_extract_provenance_declared_empty_authors_no_copyright_text() -> None:
