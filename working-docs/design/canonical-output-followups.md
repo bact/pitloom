@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-09-21
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -30,25 +30,18 @@ endings were built in step 6.5 -- see
   (ONNX I/O). Decide per field whether that order is semantic before
   sorting it.
 
-## 2. One name-normalisation policy, across file types
+## 2. Names in identifiers
 
-- **Defect:** an AI model name with a space (`modelspec.title = "Stable
-  Diffusion XL"`) becomes the id segment `AIPackage-{name}` unsanitised
-  (`_ai_package.py`, `_document_model.py`), an invalid IRI that fails SHACL.
-  `generate_spdx_id()` (`core/models.py`) also puts `doc_name` into the
-  namespace (`spdxdocs/{doc_name}-{uuid}`) unsanitised, and is called from
-  about 35 sites.
-- **Policy to decide, for every named thing** (AI model, dataset, package,
-  file, fragment): keep the *display* `name` faithful to the source, and derive
-  the *identifier segment* deterministically (case, Unicode normalisation,
-  which characters are percent-encoded or replaced, length). Package names
-  already follow PEP 503 where compared; this extends one rule to the rest.
-- **One helper** used by `generate_spdx_id()` (so all 35 sites inherit it),
-  not a fix at each of the three AI sites.
-- **Open questions:** does the Loom ID registry key on names (a change would
-  re-mint ids, so it needs a migration or a compatibility rule)? Is the
-  identifier segment lossy (two names colliding) and how is a collision
-  broken deterministically?
-- **Test:** a name table (spaces, non-ASCII, `#`/`/`/`?`, empty, very long)
-  through every named-thing type, each result a valid IRI and validated with
-  `spdx3-validate`.
+- **Done (IRI validity):** every id and namespace segment built from a name
+  is percent-encoded by one helper (`pitloom.core.iri`), lossless and
+  byte-identical for already-valid names; `name` keeps the source text. See
+  [iri-name-encoding.md](../implementation/iri-name-encoding.md).
+- **Open: name comparison across types.** Package names compare under
+  PEP 503; AI model, dataset and fragment names still compare as raw strings
+  (registry keys, lineage lookup by `name`). Decide whether case or Unicode
+  normalisation applies there -- a matching question, separate from the id
+  encoding above.
+- **Open: `pitloom.loom` run namespaces.** One run mints ids under several
+  `doc_name`s -- the model name, each dataset name, the script path and
+  `"loom"` -- with a random `uuid4` document uuid, so one fragment spans
+  several namespaces and differs every run. Found while fixing the encoding.

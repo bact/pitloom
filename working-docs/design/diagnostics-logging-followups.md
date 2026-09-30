@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,10 +43,10 @@ file-size guidance -- moved verbatim, no content changed.
   [config-sources.md](../implementation/config-sources.md); remaining
   open gap in
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md).
-- [ ] **Canonical output follow-ups** -- one name-normalisation policy for
-  every named thing (an AI model name with a space yields an invalid IRI);
-  key-order audit of project-metadata sources. Sorted keys, UTC `Z` and LF
-  were built in step 6.5.
+- [ ] **Canonical output follow-ups** -- name comparison across types;
+  key-order audit of project-metadata sources. Sorted keys, UTC `Z`, LF and
+  percent-encoded names in ids (an AI model name with a space gave an invalid
+  IRI) are built.
   See [canonical-output-followups.md](canonical-output-followups.md).
 - [ ] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- they print
   prose (`Enrichment fragment written to: ...`, `pitloom: merged N

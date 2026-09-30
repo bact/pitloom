@@ -23,6 +23,7 @@ from uuid import uuid4
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom._sbom_io import open_text_lf
+from pitloom.core.iri import doc_namespace
 from pitloom.id_registry._harvest import _harvest_elements, _sorted_by_spdx_id
 from pitloom.id_registry._types import (
     _REGISTRY_VERSION,
@@ -66,7 +67,7 @@ class IdRegistry:
     @classmethod
     def new(cls, project_name: str, path: Path | None = None) -> IdRegistry:
         """Create a fresh, empty registry with a freshly minted namespace."""
-        namespace = f"https://spdx.org/spdxdocs/{project_name}-{uuid4()}"
+        namespace = doc_namespace(project_name, str(uuid4()))
         return cls(namespace=namespace, path=path)
 
     @classmethod

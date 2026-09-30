@@ -24,6 +24,7 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.core._models_wheel import _resolve_file_header_extras, get_wheel_files
 from pitloom.core._models_wheel_types import FileHeaderExtras
+from pitloom.core.iri import doc_namespace, iri_segment
 
 # Fixed pitloom namespace UUID, stable across all versions.
 # Derived from: uuid5(NAMESPACE_URL, "https://github.com/bact/pitloom")
@@ -178,25 +179,21 @@ def compute_doc_uuid(
     return str(uuid5(PITLOOM_NS, seed))
 
 
-def _doc_namespace(doc_name: str, doc_uuid: str) -> str:
-    """Return the SPDX document namespace for (*doc_name*, *doc_uuid*).
-
-    The single source of this string: :func:`generate_spdx_id` mints every
-    id under it, and :func:`reserve_spdx_ids` matches registry-supplied ids
-    against it to decide which ones fall in this document's own namespace.
-    """
-    return f"https://spdx.org/spdxdocs/{doc_name}-{doc_uuid}"
-
-
 def generate_spdx_id(
     prefix: str, doc_name: str = "pitloom", doc_uuid: str | None = None
 ) -> str:
-    """Generate a unique SPDX ID with UUID following SPDX 3 best practices."""
+    """Generate a unique SPDX ID with UUID following SPDX 3 best practices.
+
+    *prefix* and *doc_name* are raw names: both pass through
+    :func:`~pitloom.core.iri.iri_segment`, so the id is a valid IRI.
+    """
     current_doc_uuid = doc_uuid or str(uuid4())
-    doc_namespace = _doc_namespace(doc_name, current_doc_uuid)
+    namespace = doc_namespace(doc_name, current_doc_uuid)
 
     if prefix == "SpdxDocument":
-        return doc_namespace
+        return namespace
+
+    prefix = iri_segment(prefix)
 
     counter_key = (current_doc_uuid, prefix)
     reserved = _RESERVED.get(counter_key, ())
@@ -204,7 +201,7 @@ def generate_spdx_id(
     while seq_id in reserved:
         seq_id += 1
     _ID_COUNTERS[counter_key] = seq_id
-    return f"{doc_namespace}#{prefix}-{seq_id}"
+    return f"{namespace}#{prefix}-{seq_id}"
 
 
 def reserve_spdx_ids(doc_name: str, doc_uuid: str, spdx_ids: Iterable[str]) -> None:
@@ -226,7 +223,7 @@ def reserve_spdx_ids(doc_name: str, doc_uuid: str, spdx_ids: Iterable[str]) -> N
     the ``prefix``/``n`` suffix matters, matched with a greedy prefix (e.g.
     ``AIPackage-my-model-3`` -> prefix ``AIPackage-my-model``, n=``3``).
     """
-    namespace = _doc_namespace(doc_name, doc_uuid)
+    namespace = doc_namespace(doc_name, doc_uuid)
     pattern = re.compile(rf"^{re.escape(namespace)}#(?P<prefix>.+)-(?P<n>\d+)$")
     for spdx_id in spdx_ids:
         match = pattern.match(spdx_id)
