@@ -51,20 +51,28 @@ trip review attention:
   `extract/project/setuptools_cfg.py` 471, `extract/lock/uv.py` 462,
   `extract/ai_model/pytorch_pt2.py` 457, `assemble/spdx3/deps_installed.py`
   441, `assemble/spdx3/provenance.py` 440, `cli/options.py` 438,
-  `assemble/spdx3/deps_originator.py` 438, `embed.py` 489 (grew from 435
-  with the Loom ID registry rework; PR #235 -- next split seam: move
-  `_resolve_embed_registry`, `_generate_embed_sbom_json`,
-  `_build_sbom_standalone_wheel` and `_build_sbom_from_project_and_wheel`
-  into a private `pitloom/_embed_generate.py`, leaving `embed.py` with
-  `embed_filename`/`_enforce_sbom_name_version`/`embed_wheel_sbom`/the
-  batch-settle helpers -- not yet done, a follow-up),
+  `assemble/spdx3/deps_originator.py` 438,
   `extract/lock/pylock.py` 431, `extract/project/poetry.py` 428,
-  `extract/remote/huggingface_field.py` 426.
+  `extract/remote/huggingface_field.py` 426. `embed.py` (489 after the
+  Loom ID registry rework, PR #235) is split: `_resolve_embed_registry`,
+  `_settle_build_options`, `_settle_embed_options`,
+  `_generate_embed_sbom_json` and `_build_sbom_standalone_wheel` moved to
+  a private `pitloom/_embed_generate.py` (278), leaving `embed.py` (243)
+  with `embed_filename`/`_enforce_sbom_name_version`/`embed_wheel_sbom`
+  and the re-exports. The batch-settle helpers moved too:
+  `_generate_embed_sbom_json` calls them, and leaving them in `embed.py`
+  would make the two modules import each other.
+  `_build_sbom_from_project_and_wheel` was already in
+  `_embed_build_sbom.py`.
 - **`tests/`** (excluding `tests/extract/huggingface/` mock fixture
   catalogs): 9 files exceed 415 lines, worst is `test_hdf5.py` at 552
   (`test_pytorch_pt2.py` 459, `test_assembly_edge_cases.py` 456,
   `test_annotation_provenance_emit.py` 449, `test_cli_options.py` 429,
-  `test_gguf.py` 423 -- `test_deps_enrichment_pypi_fallback.py`,
+  `test_gguf.py` 423; not in that count, also over 500 as of 2026-09-30:
+  `assemble/test_embed_overrides.py` 561, whose regression docstring
+  still names `embed.py` for `_build_sbom_from_project_and_wheel` (it
+  lives in `_embed_build_sbom.py`), and `cli/test_cli_option_reach.py`
+  557 -- `test_deps_enrichment_pypi_fallback.py`,
   `test_setuptools_cfg.py`, `test_pyproject.py`, `test_hatch_hook_metadata.py`,
   and `test_poetry_parsing.py` have since been split under this limit, see
   `test_deps_license.py`, `test_setuptools_cfg_backend.py`,

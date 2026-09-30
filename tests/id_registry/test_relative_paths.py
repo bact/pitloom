@@ -314,7 +314,7 @@ def test_library_kwarg_relative_non_project_target_resolves_to_cwd(
 def test_library_kwarg_relative_embed_wheel_sbom_without_project_resolves_to_cwd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, load_spy: list[Path]
 ) -> None:
-    """Kills the ``embed.py`` mutant replacing the standalone (no
+    """Kills the ``_embed_generate.py`` mutant replacing the standalone (no
     ``project_dir``) base directory with anything other than
     ``Path.cwd()``."""
     wheel = demo_wheel(tmp_path / "wheel-src")
@@ -333,8 +333,8 @@ def test_library_kwarg_relative_embed_wheel_sbom_with_project_resolves_to_projec
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, load_spy: list[Path]
 ) -> None:
     """Counterpart of the standalone case above: with ``project_dir``
-    given, ``embed.py``'s other resolve_registry() call site must use
-    that project directory, not cwd."""
+    given, ``_embed_generate.py``'s other resolve_registry() call site
+    must use that project directory, not cwd."""
     project = demo_project(tmp_path / "proj-root")
     wheel = demo_wheel(tmp_path / "wheel-src")
     cwd = tmp_path / "cwd"
