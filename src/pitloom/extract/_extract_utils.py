@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 def sanitize_provenance_text(text: str) -> str:
     """Escape ``|`` in untrusted text destined for a provenance string.
 
-    :func:`~pitloom.assemble.spdx3.provenance.parse_provenance_value` splits a
+    :func:`~pitloom.core.provenance.parse_provenance_value` splits a
     provenance string on ``|`` to find its ``Source:``/``Field:``/``Method:``
     segments. Any untrusted text interpolated into a provenance string --
     a model filename, a binary artifact's internal key name -- can contain

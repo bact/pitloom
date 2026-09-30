@@ -29,8 +29,8 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
-from pitloom.assemble.spdx3._provenance_encoders import parse_provenance_value
 from pitloom.core.project import ProjectMetadata
+from pitloom.core.provenance import parse_provenance_value
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.pdm import extract_pdm_lock_dependencies
 from pitloom.extract.lock.pdm_hash import extract_pdm_lock_hashes

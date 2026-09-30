@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-13
-Last-Modified: 2026-09-11
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -139,7 +139,7 @@ it). §1/§2 below and the drafted page content are updated to match.
 
 All are the literal string that follows `Method:` in a
 `"Source: X | Method: <value>"` provenance string (parsed by
-`parse_provenance_value` in `src/pitloom/assemble/spdx3/provenance.py:74-96`,
+`parse_provenance_value` in `src/pitloom/core/provenance.py`,
 keyed `method` in the JSON statement).
 
 Paths below reflect the subpackage layout under `src/pitloom/extract/`
