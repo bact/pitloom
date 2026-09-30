@@ -28,7 +28,10 @@ from typing import Any
 
 import pytest
 
-from pitloom.core._models_wheel_unlistable import warn_unlistable_dirs
+from pitloom.core._models_wheel_unlistable import (
+    _project_relative,
+    warn_unlistable_dirs,
+)
 from pitloom.core.models import get_wheel_files
 from tests._unreadable import POSIX_NON_ROOT, unlistable
 
@@ -92,6 +95,23 @@ def test_unlistable_dir_warns_once_and_keeps_the_rest(
     assert _HIDDEN not in discovered
     (message,) = _dir_warnings(caplog)
     assert message.startswith("DIR=pkg/sub: could not list for file discovery; ")
+
+
+@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
+def test_project_dir_in_another_letter_case(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """setuptools lists relative to its chdir(); os.getcwd() gives the
+    on-disk case, so the warning must survive *project_dir* spelled
+    otherwise. (pdm-backend lists from its own ``location`` here.)"""
+    root = _project(tmp_path, _BACKENDS["setuptools"])
+    other_case = root.with_name(root.name.upper())
+    if not other_case.exists():
+        pytest.skip("case-sensitive file system")
+    with unlistable(root / "pkg/sub"), caplog.at_level(logging.WARNING):
+        get_wheel_files(other_case, skip_merkle_root=True)[2]()
+    (message,) = _dir_warnings(caplog)
+    assert message.startswith("DIR=pkg/sub: could not list")
 
 
 @pytest.fixture(name="deny_scandir")
@@ -202,3 +222,45 @@ def test_multi_line_error_is_one_line(
     (message,) = _dir_warnings(caplog)
     assert "\n" not in message
     assert message.endswith("denied second line")
+
+
+def test_path_through_another_spelling_of_the_project(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, deny_scandir: set[str]
+) -> None:
+    """Named by directory identity when the text does not match."""
+    project = tmp_path / "proj"
+    (project / "sub").mkdir(parents=True)
+    alias = tmp_path / "alias"
+    try:
+        alias.symlink_to(project, target_is_directory=True)
+    except OSError:
+        pytest.skip("cannot create a symlink here")
+    deny_scandir.add(os.path.abspath(alias / "sub"))
+    with caplog.at_level(logging.WARNING), warn_unlistable_dirs(project):
+        os.listdir(alias / "sub")
+    assert [m.split(":", 1)[0] for m in _dir_warnings(caplog)] == ["DIR=sub"]
+
+
+def test_unstattable_project_dir_matches_nothing(tmp_path: Path) -> None:
+    """An ancestor that cannot be stat()ed must not match a project_dir
+    that cannot be stat()ed either."""
+    missing = str(tmp_path / "gone" / "sub")
+    assert _project_relative(missing, tmp_path / "missing", {}) is None
+
+
+def test_zero_inode_matches_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """st_ino 0 (FAT/exFAT) is no identity: every directory would match."""
+    real_stat = os.stat
+
+    def _stat(path: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        fields = list(real_stat(path, *args, **kwargs))
+        fields[1] = 0  # st_ino
+        return os.stat_result(fields)
+
+    (tmp_path / "project").mkdir()
+    (tmp_path / "elsewhere").mkdir()
+    monkeypatch.setattr(os, "stat", _stat)
+    elsewhere = str(tmp_path / "elsewhere")
+    assert _project_relative(elsewhere, tmp_path / "project", {}) is None

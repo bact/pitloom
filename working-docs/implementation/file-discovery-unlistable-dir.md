@@ -69,6 +69,18 @@ wrapper around `os.walk` would not cover them.
 - **Relative names resolve at call time**: setuptools and pdm-backend
   `chdir()` into the project (under the discovery write lock), so
   `abspath()` runs inside the hook, not after.
+- **"Under the project" is textual first, then by directory identity.**
+  setuptools lists relative to its `chdir()`, and `os.getcwd()` gives the
+  on-disk letter case on macOS and Windows, so `loom project stproj` for
+  on-disk `StProj` recorded paths that `relative_to(project_dir)`
+  rejected, and the warning was lost (found in the #257 review). When the
+  text does not match, the recorded path's ancestors are compared with
+  `project_dir` by `(st_dev, st_ino)`, with the result cached per call. An
+  `st_ino` of 0 counts as no identity: Python documents it as unique only
+  when non-zero, and FAT/exFAT and some network shares report 0 for every
+  directory, which would match anything on the volume. The textual
+  match comes first, so a directory reached through a symlink inside the
+  project keeps its in-project name.
 - **One place, every surface.** The block wraps the
   `_discover_included_files()` call in `get_wheel_files()`, the one
   function every surface uses: `project`, `generate`,
@@ -106,9 +118,12 @@ wrapper around `os.walk` would not cover them.
 - `tests/core/models_wheel/test_models_wheel_unlistable.py`: a real
   `chmod 000` over hatchling, setuptools, flit, pdm, poetry and the
   `uv_build` fallback (gated on `POSIX_NON_ROOT`, a short-circuited
-  module constant), plus portable tests of the helper with
-  `os.scandir` denied by monkeypatch: project-relative naming (`.` for
-  the root), cwd-relative names, and the quiet cases (missing, outside
+  module constant); setuptools with `project_dir` in another letter case
+  (skipped on a case-sensitive file system); plus portable tests of the
+  helper with `os.scandir` denied by monkeypatch: project-relative naming
+  (`.` for the root), cwd-relative names, a path through a symlinked
+  alias of the project, an unstat-able or zero-inode `project_dir`, and
+  the quiet cases (missing, outside
   the project, another thread, before the block, a raising block, odd
   audit arguments).
 - `tests/test_unreadable_file_surfaces.py`: every surface, plus the

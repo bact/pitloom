@@ -91,17 +91,50 @@ def _install_hook() -> None:
             _hook_installed = True
 
 
-def _project_relative(path: str, project_dir: Path) -> str | None:
-    """*path* relative to *project_dir* in POSIX form, or ``None`` outside."""
+_DirId = tuple[int, int]
+
+
+def _dir_id(path: PurePath, cache: dict[PurePath, _DirId | None]) -> _DirId | None:
+    """``(st_dev, st_ino)`` of *path*, or ``None`` when it cannot be stat()ed
+    or has no identity: ``st_ino`` is unique only when non-zero (FAT/exFAT
+    and some network shares report 0 for every file)."""
+    if path not in cache:
+        try:
+            result = os.stat(path)
+        except OSError:
+            cache[path] = None
+        else:
+            cache[path] = (result.st_dev, result.st_ino) if result.st_ino else None
+    return cache[path]
+
+
+def _project_relative(
+    path: str, project_dir: Path, cache: dict[PurePath, _DirId | None]
+) -> str | None:
+    """*path* relative to *project_dir* in POSIX form, or ``None`` outside.
+
+    Textual first. Failing that, by directory identity: a chdir()ing
+    backend's paths come from ``os.getcwd()``, which gives the on-disk
+    spelling (letter case on macOS and Windows), not *project_dir*'s.
+    """
+    candidate = PurePath(path)
     try:
-        return PurePath(path).relative_to(project_dir).as_posix()
+        return candidate.relative_to(project_dir).as_posix()
     except ValueError:
+        pass
+    root_id = _dir_id(PurePath(project_dir), cache)
+    if root_id is None:
         return None
+    for ancestor in (candidate, *candidate.parents):
+        if _dir_id(ancestor, cache) == root_id:
+            return candidate.relative_to(ancestor).as_posix()
+    return None
 
 
 def _warn(attempted: set[str], project_dir: Path) -> None:
+    cache: dict[PurePath, _DirId | None] = {}
     for path in sorted(attempted):
-        relative = _project_relative(path, project_dir)
+        relative = _project_relative(path, project_dir, cache)
         if relative is None:
             continue
         try:
