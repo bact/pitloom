@@ -33,9 +33,9 @@ import argparse
 import secrets
 import subprocess  # nosec B404
 import sys
-import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from time import sleep
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -108,7 +108,7 @@ def run_with_retry(
         if attempt < attempts:
             wait = delay * 3 ** (attempt - 1)
             _say(f"retrying in {wait:g} s")
-            time.sleep(wait)
+            sleep(wait)
     _say(f"all {attempts} attempts failed because of the network")
     return EXIT_NETWORK
 

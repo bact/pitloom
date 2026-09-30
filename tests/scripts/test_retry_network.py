@@ -88,7 +88,7 @@ def test_backoff_triples(
     module: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sleeps: list[float] = []
-    monkeypatch.setattr(module.time, "sleep", sleeps.append)
+    monkeypatch.setattr(module, "sleep", sleeps.append)
     command = _stub(tmp_path, [(1, _NETWORK)])
     assert module.main(["--attempts", "3", "--delay", "10", "--", *command]) == 75
     assert sleeps == [10, 30]
