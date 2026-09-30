@@ -547,8 +547,8 @@ at all (see `config-sources.md`).
 `_doc_identity_of()`) also threads this setting: it must match whatever
 value produced the *base* document being merged into, or the fragment's
 `doc_uuid` reference diverges (see `test_model_generator_doc_identity.py`'s
-regression coverage, which drives the test-only wrapper
-`_project_doc_identity()`). When `loom enrich` is given no explicit
+regression coverage, which reads the base identity back off
+`enrich_model()`'s fragment). When `loom enrich` is given no explicit
 `--use-lockfile` flag, `enrich_model()` auto-peeks `--project-dir`'s own
 `[tool.pitloom] use-lockfile` config and uses that -- so a base SBOM
 generated purely from config (no CLI override) is matched automatically,
