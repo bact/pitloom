@@ -28,10 +28,6 @@ See also: [allow-build-termination.md](../implementation/allow-build-termination
 
 ## Build output and extraction
 
-- The `--debug` build-output tail prints a blank line as an empty
-  `DEBUG: Build: build output:` line, with a trailing space.
-- `_clean_line` strips ESC but leaves an OSC sequence's body (e.g.
-  `]8;;url`) in `WARNING:` text.
 - Entries differing only in case (or Unicode normalisation) overwrite each
   other when extracted onto a case-insensitive filesystem, so one entry
   gets the wrong hash; see

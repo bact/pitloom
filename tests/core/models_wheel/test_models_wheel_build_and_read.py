@@ -111,7 +111,7 @@ def test_build_and_read_wheel_returns_none_on_build_failure(
         timeout: int,
         termination: TerminationGuard,
     ) -> Path:
-        raise RuntimeError("simulated build backend failure")
+        raise RuntimeError("simulated build\nbackend failure")
 
     monkeypatch.setattr(RUN_BUILD, _raise)
 
@@ -120,6 +120,7 @@ def test_build_and_read_wheel_returns_none_on_build_failure(
 
     assert result is None
     assert "build-and-read discovery failed" in caplog.text
+    assert "simulated build backend failure" in caplog.text
 
 
 def test_build_and_read_wheel_returns_none_on_zero_non_dist_info_files(
