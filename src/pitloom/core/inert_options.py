@@ -128,6 +128,9 @@ _EMBED_NO_DESCRIBE = (
 )
 
 _NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only)"
+_EMBED_PROJECT_MODELS = (
+    "with --project-dir (AI models are read from the project, not the wheel)"
+)
 
 _FILE_SCAN = ("extract_file_header", "content_type")
 #: Options no wheel-embedded SBOM can use, however it is embedded
@@ -190,7 +193,7 @@ INERT: dict[str, dict[str, str]] = {
     },
     ENRICH: _ENRICH_ROW,
     ENRICH_STANDALONE: {**_ENRICH_ROW, "use_lockfile": _FRAGMENT_NO_LOCKFILE},
-    EMBED_PROJECT: {**_EMBED_COMMON, "trust_wheel_model": _NOT_A_WHEEL},
+    EMBED_PROJECT: {**_EMBED_COMMON, "trust_wheel_model": _EMBED_PROJECT_MODELS},
     EMBED_STANDALONE: {
         **_EMBED_COMMON,
         **dict.fromkeys((*_FILE_SCAN, "enrich"), NO_PROJECT_DIR_REASON),

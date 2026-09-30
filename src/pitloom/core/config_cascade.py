@@ -92,7 +92,7 @@ class ConfigOverrides:
             ``update_id_registry`` (see
             :data:`pitloom.core.inert_options.INERT`).
         trust_wheel_model: ``--trust-wheel-model``: read a wheel's AI model
-            files with every format reader, native loaders included. Like
+            files with every format reader, including those gated in a wheel. Like
             ``build_options``, no ``[tool.pitloom]`` cascade (a config must
             not opt in) and :func:`apply_overrides` never touches it; only a
             standalone wheel embed reads it, and any other embed warns.

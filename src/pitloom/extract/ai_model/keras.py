@@ -37,9 +37,9 @@ from pitloom.extract._extract_utils import (
     sanitize_provenance_text,
 )
 from pitloom.extract.ai_model.archive_member import (
-    ArchiveMemberTooLarge,
     read_archive_member,
 )
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
 
 log = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
                     config_data, source, hyperparameters, inputs, provenance
                 )
 
-    except ArchiveMemberTooLarge:
+    except ModelLimitExceeded:
         raise
     except zipfile.BadZipFile as exc:
         raise ValueError(

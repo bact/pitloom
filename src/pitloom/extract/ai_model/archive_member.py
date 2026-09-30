@@ -20,6 +20,8 @@ from __future__ import annotations
 import io
 import zipfile
 
+from pitloom.extract.ai_model.limits import ModelLimitExceeded, charge_read
+
 #: Largest metadata member read whole: 8 MiB. A ``.keras`` ``config.json``,
 #: a ``.pt`` ``data.pkl`` (structure only, the tensors are other members)
 #: and a PT2 ``model.json`` are kilobytes to a few MiB even for a model with
@@ -27,13 +29,12 @@ import zipfile
 MAX_ARCHIVE_MEMBER_BYTES = 8 * 1024 * 1024
 
 
-class ArchiveMemberTooLarge(Exception):
+class ArchiveMemberTooLarge(ModelLimitExceeded):
     """A member inside a model archive holds more than
     :data:`MAX_ARCHIVE_MEMBER_BYTES`.
 
-    Not a :class:`ValueError`: a reader's ``except Exception`` fallback must
-    let it through (``except ArchiveMemberTooLarge: raise`` first), so the
-    scanner reports it once instead of each reader degrading quietly.
+    A :class:`~pitloom.extract.ai_model.limits.ModelLimitExceeded`: a
+    reader's ``except Exception`` fallback must let it through.
 
     Attributes:
         member: The member's name in the archive.
@@ -53,6 +54,8 @@ def read_archive_member(zf: zipfile.ZipFile, name: str) -> bytes:
         ArchiveMemberTooLarge: The member holds more than
             :data:`MAX_ARCHIVE_MEMBER_BYTES`; at most one byte more than
             that was read.
+        pitloom.extract.ai_model.limits.ScanBudgetExceeded: A producer is
+            counting reads and its budget is spent.
     """
     # Looked up at call time: a test lowers the module constant.
     limit = MAX_ARCHIVE_MEMBER_BYTES
@@ -60,6 +63,7 @@ def read_archive_member(zf: zipfile.ZipFile, name: str) -> bytes:
         data = fh.read(limit + 1)
     if len(data) > limit:
         raise ArchiveMemberTooLarge(name, limit)
+    charge_read(len(data))
     return data
 
 

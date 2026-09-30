@@ -288,9 +288,7 @@ def _build_sbom_standalone_wheel(
         ),
         max_bytes=cfg.max_model_extract_bytes,
         trust=trust,
-        gate_hint=lambda: (
-            file_cache is None or file_cache.first_use(("native-gate-hint",))
-        ),
+        gate_hint=lambda: file_cache is None or file_cache.first_use(("gate-hint",)),
     )
     doc = DocumentModel(
         project=wheel_metadata,

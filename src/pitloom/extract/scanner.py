@@ -21,7 +21,7 @@ import operator
 import os
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import IO
 
@@ -32,7 +32,13 @@ from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract._reader_log import capture_reader_logs
 from pitloom.extract.ai_model import detect_ai_model_format_from_header, read_ai_model
 from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
-from pitloom.logging_config import loggable
+from pitloom.extract.ai_model.limits import (
+    MAX_MODEL_ENTRIES,
+    ModelLimitExceeded,
+    ScanBudgetExceeded,
+    cap_entries,
+)
+from pitloom.logging_config import loggable, one_line
 
 log = logging.getLogger(__name__)
 
@@ -40,10 +46,11 @@ log = logging.getLogger(__name__)
 # FORMAT=%s FILE=%s scan warning reads.
 _UNREADABLE_MODEL_WARNING = "FORMAT=%s " + UNREADABLE_FILE_WARNING
 
-# Said once per run when a producer gates a model's native reader.
-_NATIVE_GATE_INFO = (
-    "%s models in a wheel are listed without metadata: their native loader "
-    "is not run on a wheel's files. Pass %s for a wheel you trust."
+# Said once per run, listing every gated format met.
+_GATE_INFO = (
+    "AI models in a wheel in these formats are listed without metadata, "
+    "their reader not being run on a wheel's files: %s. Pass %s for a "
+    "wheel you trust."
 )
 
 # Extensions that might genuinely be AI models.
@@ -72,20 +79,31 @@ def is_model_candidate_name(distribution_path: str) -> bool:
 
 
 @dataclass(frozen=True)
-class NativeReaderGate:
-    """Formats a producer does not read, because their reader is a native
-    loader that a hostile file can hang or exhaust memory in (and Ctrl-C
-    cannot interrupt). Such a model keeps a format-only entry.
+class ReaderGate:
+    """Formats a producer does not read, because their reader can crash,
+    hang or exhaust memory on a hostile file, and Ctrl-C cannot interrupt
+    it. Such a model keeps a format-only entry.
 
     Attributes:
         formats: The gated formats.
-        announce: Called when a gated model is met; returns whether to log
-            the ``INFO:`` line saying so. The producer makes it claim a
-            once-per-run slot.
+        announce: Called once, by :meth:`report`, when a gated model was
+            met; returns whether to log the ``INFO:`` line saying so. The
+            producer makes it claim a once-per-run slot.
+        met: The gated formats met so far.
     """
 
     formats: frozenset[AiModelFormat]
     announce: Callable[[], bool]
+    met: set[AiModelFormat] = field(default_factory=set)
+
+    def report(self) -> None:
+        """Log, once, every gated format met (sorted), if *announce* allows."""
+        if self.met and self.announce():
+            log.info(
+                _GATE_INFO,
+                ", ".join(sorted(str(fmt) for fmt in self.met)),
+                PARAM_TO_FLAG["trust_wheel_model"],
+            )
 
 
 @dataclass(frozen=True)
@@ -106,7 +124,7 @@ class ModelCandidate:
             :func:`pitloom.extract.ai_model.read_ai_model`. May raise.
         read_path: The file ``sniff`` reads, when it is one; the scanner
             removes it, in every spelling, from the messages it logs.
-        gate: Formats left unread (see :class:`NativeReaderGate`); the
+        gate: Formats left unread (see :class:`ReaderGate`); the
             header sniff alone decides, and nothing is materialised.
     """
 
@@ -115,7 +133,7 @@ class ModelCandidate:
     sniff: Callable[[], bytes]
     materialize: Callable[[], AbstractContextManager[Path]]
     read_path: Path | None = None
-    gate: NativeReaderGate | None = None
+    gate: ReaderGate | None = None
 
 
 @dataclass(frozen=True)
@@ -155,12 +173,6 @@ class ModelTooLarge(Exception):
         self.limit = limit
 
 
-class ScanBudgetExceeded(Exception):
-    """Raised by a candidate's ``materialize`` when the producer's overall
-    extraction budget is spent. The producer has already logged the one
-    warning for it; the scanner keeps a format-only entry, quietly."""
-
-
 def _path_forms(path: Path) -> list[str]:
     """Every spelling of *path* an exception text may quote, longest first:
     as given and resolved, each raw, as ``repr`` escapes it (a Windows
@@ -173,16 +185,18 @@ def _path_forms(path: Path) -> list[str]:
 
 
 def _scrub(text: str, path: Path | None, stable_path: str) -> str:
-    """*text*, printable, with the temporary *path* replaced by *stable_path*."""
+    """*text*, printable on one line (:func:`~pitloom.logging_config.one_line`),
+    with the temporary *path* replaced by *stable_path*."""
     if path is not None:
         for form in _path_forms(path):
             text = text.replace(form, stable_path)
-    return loggable(text)
+    return one_line(text)
 
 
 def _detail(exc: BaseException, path: Path | None, stable_path: str) -> str:
-    """*exc*'s text, see :func:`_scrub`."""
-    return _scrub(str(exc), path, stable_path)
+    """*exc*'s text, see :func:`_scrub`; never empty: an exception with no
+    message yields its class name."""
+    return _scrub(str(exc), path, stable_path) or type(exc).__name__
 
 
 def _restore_source_name(meta: AiModelMetadata, path: Path, dist_name: str) -> None:
@@ -275,6 +289,21 @@ def _sniff_format(candidate: ModelCandidate) -> AiModelFormat | None:
     return None if fmt == AiModelFormat.UNKNOWN else fmt
 
 
+def _warn_if_capped(meta: AiModelMetadata, fmt: AiModelFormat, where: str) -> None:
+    """Cut *meta*'s over-long lists and maps; say so once."""
+    cut = cap_entries(meta)
+    if cut:
+        log.warning(
+            "FORMAT=%s FILE=%s: more than %d entries in %s; the first %d of "
+            "each are kept",
+            fmt,
+            where,
+            MAX_MODEL_ENTRIES,
+            ", ".join(cut),
+            MAX_MODEL_ENTRIES,
+        )
+
+
 def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
     """Detect and read one candidate; ``None`` when it is not a model."""
     if not is_model_candidate_name(candidate.distribution_path):
@@ -284,8 +313,7 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
     if fmt is None:
         return None
     if candidate.gate is not None and fmt in candidate.gate.formats:
-        if candidate.gate.announce():
-            log.info(_NATIVE_GATE_INFO, fmt, PARAM_TO_FLAG["trust_wheel_model"])
+        candidate.gate.met.add(fmt)
         return _stub(fmt, candidate)
 
     path: Path | None = None
@@ -293,6 +321,7 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
         with candidate.materialize() as path:
             meta = _read_materialized(candidate, fmt, path)
         _set_paths(meta.format_info, candidate)
+        _warn_if_capped(meta, fmt, where)
         log.debug(
             "Discovered AI model: %s (format: %s)", candidate.distribution_path, fmt
         )
@@ -319,6 +348,13 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
             where,
             loggable(e.member),
             e.limit,
+        )
+    except ModelLimitExceeded as e:
+        log.warning(
+            "FORMAT=%s FILE=%s: %s; metadata not read",
+            fmt,
+            where,
+            loggable(e.reason),
         )
     except ImportError as e:
         log.warning(

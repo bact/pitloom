@@ -93,9 +93,8 @@ def generate_fixture(
             GITHUB_ACTION_PATH=str(scripts_dir.parent),
             GITHUB_OUTPUT=str(github_output),
             LOOM_ARGS_FILE=str(args_file),
-            PL_PROJECT_PATH=".",
             PL_ARGS=args,
-            **{**EMPTY_INPUTS, **env},
+            **{"PL_PROJECT_PATH": ".", **EMPTY_INPUTS, **env},
         )
         written = github_output.read_text(encoding="utf-8").strip()
         sbom_path = written.removeprefix("sbom-path=") if written else None

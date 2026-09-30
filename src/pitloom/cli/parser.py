@@ -151,11 +151,12 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "SECURITY: read AI model files inside a wheel with every format "
-            "reader, native loaders included (fastText). Only for wheels you "
-            "trust: a hostile model file can make Pitloom hang or use "
-            "unbounded memory, and Ctrl-C cannot interrupt it. Without it, "
-            "those models are listed without metadata. Deliberately has no "
-            "[tool.pitloom] equivalent."
+            "reader, including those that can crash or hang on a hostile "
+            "file (fastText, HDF5, ONNX, PyTorch .pt/.pth). Only for wheels "
+            "you trust: a hostile model file can crash Pitloom, make it hang "
+            "or use unbounded memory, and Ctrl-C cannot interrupt it. "
+            "Without it, those models are listed without metadata. "
+            "Deliberately has no [tool.pitloom] equivalent."
         ),
     )
     parent.add_argument(

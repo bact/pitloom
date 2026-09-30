@@ -145,9 +145,9 @@ def test_the_gate_is_a_set_of_formats(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Another format joins by being in the set; nothing else changes."""
-    assert scanner_wheel.NATIVE_READERS_GATED == {AiModelFormat.FASTTEXT}
+    assert AiModelFormat.FASTTEXT in scanner_wheel.WHEEL_GATED_FORMATS
     monkeypatch.setattr(
-        scanner_wheel, "NATIVE_READERS_GATED", frozenset({AiModelFormat.SAFETENSORS})
+        scanner_wheel, "WHEEL_GATED_FORMATS", frozenset({AiModelFormat.SAFETENSORS})
     )
     spy = spy_load_model(monkeypatch)
     found = _scan(_wheel(tmp_path, _NAMES[:1]))

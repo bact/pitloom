@@ -106,7 +106,7 @@ def test_the_budget_counts_bytes_read_not_bytes_declared(
     assert len(models) == len(_NAMES)
     assert _read_count(models) == fits < len(_NAMES)
     (message,) = logged_warnings(caplog)
-    assert "copied from this wheel" in message
+    assert "copied or read from" in message
 
 
 def test_the_budget_is_per_wheel(tmp_path: Path) -> None:

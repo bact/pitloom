@@ -99,7 +99,11 @@ def test_a_bomb_member_is_one_warning_and_a_kept_model_in_a_wheel(
     tracemalloc.start()
     try:
         (model,) = scan_wheel_for_ai_models(
-            wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=10**9
+            wheel,
+            scan_usage=False,
+            usage_hint=lambda: False,
+            max_bytes=10**9,
+            trust=True,  # a .pt is gated in a wheel otherwise
         )
         peak = tracemalloc.get_traced_memory()[1]
     finally:
@@ -151,9 +155,12 @@ def test_the_npy_v3_header_length_is_bounded(monkeypatch: pytest.MonkeyPatch) ->
     import numpy.lib.format as fmt  # pylint: disable=import-outside-toplevel
 
     monkeypatch.delattr(fmt, "_read_array_header", raising=False)
-    stream = io.BytesIO(struct.pack("<I", _CAP + 1) + b"{" * 10)
-    with pytest.raises(ArchiveMemberTooLarge):
-        numpy_reader._shim_read_array_header(stream, (3, 0))
+    header = b"{'descr': '<f4', 'fortran_order': False, 'shape': (1,), }"
+    stream = io.BytesIO(struct.pack("<I", len(header)) + header)
+    shape, _, _ = numpy_reader._shim_read_array_header(
+        numpy_reader._bounded_header(stream, 3), (3, 0)
+    )
+    assert shape == (1,)
 
 
 def test_no_reader_reads_an_inner_member_unbounded() -> None:

@@ -16,16 +16,36 @@ See also: [ai-model-scanning.md](../implementation/ai-model-scanning.md)
 
 ## Problem
 
-Some model readers call a native library in Pitloom's own process (today:
-fastText's `load_model`; HDF5 and ONNX are candidates). A hostile file can
-make the library loop or allocate without bound, and a Python signal handler
-does not run while native code holds the interpreter, so Ctrl-C cannot
-interrupt it. The size ceilings (`max-model-extract-bytes`, the per-wheel
+Some model readers call a native library in Pitloom's own process (fastText's
+`load_model`, HDF5, ONNX) or build a large structure in Python (fickling for a
+`.pt`, `GGUFReader`). A hostile file can make the library crash, loop or
+allocate without bound, and a Python signal handler does not run while native
+code holds the interpreter, so Ctrl-C cannot interrupt it.
+
+Evidence from the second review of the wheel-scanning PR (#263), each
+reproduced under a watchdog:
+
+- **HDF5:** two 8 KiB files, each a one-to-27-byte mutation of a valid `.h5`,
+  make libhdf5 segfault in one and busy-loop forever in the other. Random
+  mutation of a valid file found both within a few hundred tries, so this is
+  not a rare input. Both are committed as regression inputs
+  (`tests/fixtures/aimodels/hostile/`).
+- **ONNX:** protobuf amplification; a 16 MiB file of empty `ValueInfo`
+  entries peaked at 3 GB, a 64 MiB file of empty nodes at 2.8 GB.
+- **GGUF:** ~1 KiB and 6 us per string element; the header counts are now
+  checked first, but the largest accepted header still costs ~1.1 GB.
+- **fickling:** ~200x amplification per opcode; bounded to 1M opcodes and
+  8 MiB, still ~250 MB at the bound.
+- **Safetensors/ONNX entry counts:** the reader builds the full result before
+  the scanner's entry cap cuts it. The size ceilings (`max-model-extract-bytes`, the per-wheel
 budget, the 8 MiB inner-member cap) bound bytes read, not what a parser does
 with them.
 
-Shipped mitigation: in a wheel, such a format is listed without metadata
-unless the caller passes `--trust-wheel-model`. A *project* scan still loads
+Shipped mitigation: in a wheel, fastText, HDF5, ONNX and PyTorch
+`.pt`/`.pth` are listed without metadata unless the caller passes
+`--trust-wheel-model`; cheap input bounds (pickle opcodes, GGUF counts, `.npy`
+header length, entry caps, reads charged to the wheel budget) also protect
+project scans. A *project* scan still loads
 every model in the directory, because the project is the user's own tree.
 That is not safe for an untrusted checkout (`loom project` on a cloned
 repository, or CI scanning a pull request from a fork).
@@ -45,7 +65,9 @@ Run the gated readers in a child process instead of refusing them:
 - Parent never unpickles child output: JSON only, validated against the
   `AiModelMetadata` field set.
 - The gate then needs no flag for a wheel; `--trust-wheel-model` would
-  become "run in-process" (faster, no isolation) or be retired.
+  become "run in-process" (faster, no isolation) or be retired. This work
+  removes `WHEEL_GATED_FORMATS` and covers project scans; it is planned as
+  its own PR right after #263, before 0.20.0.
 
 ## Open questions
 

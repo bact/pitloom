@@ -392,3 +392,11 @@ def test_the_standalone_embed_builder_reads_no_declared_inert_option() -> None:
     read |= set(AssembleOptions.__annotations__)  # cfg.assemble_options
     assert {"scan_model_usage", "max_model_extract_bytes"} <= read  # non-vacuous
     assert not read & set(inert_options.INERT[inert_options.EMBED_STANDALONE])
+
+
+def test_trust_wheel_model_with_a_project_dir_says_why() -> None:
+    """``embed-wheel --project-dir`` reads its models from the project; the
+    reason must not claim the target reads no wheel."""
+    reason = INERT[inert_options.EMBED_PROJECT]["trust_wheel_model"]
+    assert "--project-dir" in reason
+    assert "not the wheel" in reason

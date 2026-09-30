@@ -14,6 +14,7 @@ behaviour), tests/build_and_read_shared.py (the signal helpers).
 
 from __future__ import annotations
 
+import importlib
 import io
 import re
 import signal
@@ -164,14 +165,27 @@ def _corrupt_deflate(wheel: Path) -> Path:
     return wheel
 
 
+try:  # zipfile reads Zstandard members (method 93) from Python 3.14 on
+    importlib.import_module("compression.zstd")
+    _HAS_ZSTD = True
+except ImportError:
+    _HAS_ZSTD = False
+
+
 @pytest.mark.parametrize(
     ("build", "copied"),
     [
         (lambda p: _member(p, flag_bits=0x1), False),  # encrypted
-        (lambda p: _member(p, method=93), False),  # zstd: no decompressor
+        # 99 (WinZip AES): no decompressor on any Python version
+        (lambda p: _member(p, method=99), False),
         (_corrupt_deflate, True),  # fails mid-copy
+        pytest.param(  # garbage where a zstd frame belongs: ZstdError
+            lambda p: _member(p, method=93),
+            False,
+            marks=pytest.mark.skipif(not _HAS_ZSTD, reason="no compression.zstd"),
+        ),
     ],
-    ids=["encrypted", "unsupported-method", "corrupt-deflate"],
+    ids=["encrypted", "unsupported-method", "corrupt-deflate", "corrupt-zstd"],
 )
 def test_a_damaged_member_is_one_warning_and_leaves_no_file(
     tmp_path: Path,

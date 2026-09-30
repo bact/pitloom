@@ -167,13 +167,15 @@ inputs:
     default: ""
   trust-wheel-model:
     description: >-
-      SECURITY: with embed-wheel, read AI model files inside the wheel with
-      every format reader, native loaders included (fastText)
-      ("true"/"false"). Only for a wheel you trust: a hostile model file
-      can hang the step or exhaust memory, and cancelling cannot interrupt
-      it. Without it, such models are listed without metadata. No
-      [tool.pitloom] equivalent; the default is "false". No effect outside
-      embed-wheel mode.
+      SECURITY: with embed-wheel and an empty project-path, read AI model
+      files inside the wheel with every format reader, including those that
+      can crash or hang on a hostile file (fastText, HDF5, ONNX, PyTorch
+      .pt/.pth) ("true"/"false"). Only for a wheel you trust: a hostile
+      model file can crash or hang the step or exhaust memory, and
+      cancelling cannot interrupt it. Without it, such models are listed
+      without metadata. No [tool.pitloom] equivalent; the default is
+      "false". No effect outside embed-wheel mode, or with a project-path
+      (the models are then read from the project).
     required: false
     default: "false"
   args:
@@ -291,11 +293,13 @@ runs:
 
         declare -a loom_args
         is_embed=false
+        has_project_dir=false
         if [ -n "${PL_EMBED_WHEEL}" ]; then
           is_embed=true
           loom_args+=("embed-wheel" "${PL_EMBED_WHEEL}")
           if [ -n "${PL_PROJECT_PATH}" ]; then
             loom_args+=("--project-dir" "${PL_PROJECT_PATH}")
+            has_project_dir=true
           fi
         elif [ -n "${PL_MODEL}" ]; then
           loom_args+=("model" "${PL_MODEL}")
@@ -425,11 +429,15 @@ runs:
             echo "::warning::build-timeout has no effect in model mode (no project-directory file discovery there)"
           fi
         fi
-        # Only embed-wheel reads a built wheel here; elsewhere the input would
-        # silently do nothing, so warn and never pass it.
+        # Only embed-wheel without --project-dir reads the models from the
+        # built wheel; with one they come from the project, and elsewhere no
+        # wheel is read. The input would silently do nothing, so warn and
+        # never pass it.
         if [ "${PL_TRUST_WHEEL_MODEL}" = "true" ]; then
-          if [ "${is_embed}" = true ]; then
+          if [ "${is_embed}" = true ] && [ "${has_project_dir}" = false ]; then
             loom_args+=("--trust-wheel-model")
+          elif [ "${is_embed}" = true ]; then
+            echo "::warning::trust-wheel-model has no effect with project-path set (AI models are read from the project, not the wheel); set project-path to an empty string"
           else
             echo "::warning::trust-wheel-model has no effect without embed-wheel (no wheel is read here)"
           fi

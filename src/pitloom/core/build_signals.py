@@ -84,7 +84,9 @@ BUILD_ACTIVITY = GuardedActivity(BUILD_LOG_PREFIX, "the build")
 
 MODEL_SCAN_ACTIVITY = GuardedActivity("AI model scan: ", "the AI model file copy")
 """Copying one AI model file out of a wheel. A signal waits for the copy to
-end; while the copy is parsed, it acts at once."""
+end. While a reader parses the copy no hold is active, so a signal acts as
+usual, which for a native parser (libhdf5, protobuf, fastText) means not
+until it returns to Python; see ``working-docs/design/model-reader-isolation.md``."""
 
 # Before the first hold. Handlers install only in a hold, so no
 # termination message names it; generic rather than claiming a build.

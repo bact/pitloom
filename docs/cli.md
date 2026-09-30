@@ -479,11 +479,14 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
 - `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
   `embed-wheel` without `--project-dir`), read AI model files with every
-  format reader, native loaders included. By default a fastText model in a
-  wheel is listed without metadata (one `INFO:` per run): its native loader
-  runs in Pitloom's own process. Use it only for a wheel you trust: a hostile
-  model file can make Pitloom hang or use unbounded memory, and Ctrl-C cannot
-  interrupt it. No config key, so no config file can opt in.
+  format reader. By default a fastText, HDF5, ONNX or PyTorch `.pt`/`.pth`
+  model in a wheel is listed without metadata (one `INFO:` per run naming
+  the formats met): those readers run in Pitloom's own process, where a
+  hostile file can crash them, hang them or exhaust memory. Use it only for a
+  wheel you trust; Ctrl-C cannot interrupt a native reader. A project
+  directory is not gated, and with `embed-wheel --project-dir` the models are
+  read from the project, not the wheel. No config key, so no config file can
+  opt in.
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
 and [Building a project to discover its file list](allow-build.md) for

@@ -19,6 +19,7 @@ See also: :mod:`pitloom.extract.scanner` (the shared policy),
 from __future__ import annotations
 
 import contextlib
+import importlib
 import logging
 import lzma
 import os
@@ -36,36 +37,60 @@ from pitloom.core.build_signals import MODEL_SCAN_ACTIVITY, TerminationGuard
 from pitloom.core.model_extract_limit import require_max_model_extract_bytes
 from pitloom.core.temp_dirs import registered_temp_dir
 from pitloom.extract.ai_model import SNIFF_BYTES
+from pitloom.extract.ai_model.limits import ScanBudgetExceeded, charging_reads
 from pitloom.extract.scanner import (
     ModelCandidate,
     ModelTooLarge,
-    NativeReaderGate,
-    ScanBudgetExceeded,
+    ReaderGate,
     UsageSource,
     scan_ai_models,
 )
+from pitloom.logging_config import loggable
 
 log = logging.getLogger(__name__)
 
 _CHUNK_BYTES = 8192
 
+
+def _zstd_errors() -> tuple[type[Exception], ...]:
+    """``compression.zstd.ZstdError`` where zipfile can read Zstandard members
+    (Python 3.14+); detected by importing, not by version."""
+    try:
+        module = importlib.import_module("compression.zstd")
+    except ImportError:
+        return ()
+    error = getattr(module, "ZstdError", None)
+    return (error,) if isinstance(error, type) else ()
+
+
 # Everything a damaged, encrypted or unsupported member raises on reading.
-_MEMBER_READ_ERRORS = (
+_MEMBER_READ_ERRORS: tuple[type[Exception], ...] = (
     RuntimeError,
     NotImplementedError,
     zlib.error,
     lzma.LZMAError,
     EOFError,
     zipfile.BadZipFile,
+    *_zstd_errors(),
 )
 
 _Member = tuple[str, zipfile.ZipInfo]
 
 
-#: Formats whose native loader is not run on a wheel's files unless the
-#: caller trusts the wheel (``--trust-wheel-model``). Add a format here to
-#: gate it; nothing else changes.
-NATIVE_READERS_GATED = frozenset({AiModelFormat.FASTTEXT})
+#: Formats whose reader is not run on a wheel's files unless the caller
+#: trusts the wheel (``--trust-wheel-model``): a native parser (fastText,
+#: HDF5, ONNX) or a pickle parser (PyTorch ``.pt``/``.pth``, through
+#: fickling) that a hostile file can crash, hang or exhaust memory in. Add
+#: a format here to gate it; nothing else changes. Project scans are not
+#: gated.
+WHEEL_GATED_FORMATS = frozenset(
+    {
+        AiModelFormat.FASTTEXT,
+        AiModelFormat.HDF5,
+        AiModelFormat.ONNX,
+        AiModelFormat.PYTORCH,
+    }
+)
 
 #: The wheel's overall extraction budget, in multiples of the per-model ceiling.
 BUDGET_FACTOR = 4
@@ -74,10 +99,12 @@ BUDGET_FACTOR = 4
 class _Scratch:
     """What one wheel scan copies into: a temporary directory made on first
     use (a wheel without models creates none and arms no signal handler),
-    and the budget of bytes it may copy in all."""
+    and the budget of bytes it may copy and read in all (the bounded reads
+    of archive members inside a model count too)."""
 
-    def __init__(self, guard: TerminationGuard, max_bytes: int) -> None:
+    def __init__(self, guard: TerminationGuard, max_bytes: int, wheel: str) -> None:
         self.guard = guard
+        self.wheel = wheel
         self.max_bytes = max_bytes
         self.budget = BUDGET_FACTOR * max_bytes
         self.spent = 0
@@ -116,10 +143,11 @@ class _Scratch:
         if not self.exhausted:
             self.exhausted = True
             log.warning(
-                "%smore than %d bytes of model files copied from this wheel; "
+                "%smore than %d bytes of model files copied or read from %s; "
                 "the models not yet read are listed without metadata",
                 MODEL_SCAN_ACTIVITY.log_prefix,
                 self.budget,
+                loggable(self.wheel),
             )
         raise ScanBudgetExceeded
 
@@ -198,7 +226,8 @@ def _materializer(
                     raise OSError(
                         exc.errno, exc.strerror or type(exc).__name__
                     ) from None
-            yield target
+            with charging_reads(scratch.spend):
+                yield target
         finally:
             _unlink_quietly(target)
 
@@ -223,7 +252,7 @@ def _wheel_candidates(
     zf: zipfile.ZipFile,
     members: list[_Member],
     scratch: _Scratch,
-    gate: NativeReaderGate | None,
+    gate: ReaderGate | None,
 ) -> Iterator[ModelCandidate]:
     """One :class:`ModelCandidate` per member; no member is read here."""
     for index, member in enumerate(members):
@@ -271,10 +300,11 @@ def scan_wheel_for_ai_models(
     bytes is spent, stays in the result without metadata, with one
     ``WARNING:`` (per model for the ceiling, one per wheel for the budget).
 
-    A model in a :data:`NATIVE_READERS_GATED` format is not read unless
+    A model in a :data:`WHEEL_GATED_FORMATS` format is not read unless
     *trust*: it stays in the result without metadata, and one ``INFO:``
-    line per scan (when *gate_hint* also returns true; a batch makes it
-    claim a once-per-run slot) names the flag.
+    line per scan, listing the gated formats met (when *gate_hint* also
+    returns true; a batch makes it claim a once-per-run slot), names the
+    flag.
 
     *usage_hint*: see :func:`pitloom.extract.scanner.scan_ai_models`.
 
@@ -289,18 +319,21 @@ def scan_wheel_for_ai_models(
             for member in zip_file_members(zf, wheel_path.name, None)
             if not is_dist_info_path(member[0])
         ]
-        scratch = _Scratch(guard, max_bytes)
+        scratch = _Scratch(guard, max_bytes, wheel_path.name)
         gate = (
             None
             if trust
-            else NativeReaderGate(NATIVE_READERS_GATED, _announce_once(gate_hint))
+            else ReaderGate(WHEEL_GATED_FORMATS, _announce_once(gate_hint))
         )
         try:
-            return scan_ai_models(
+            models = scan_ai_models(
                 _wheel_candidates(zf, members, scratch, gate),
                 _wheel_sources(zf, members),
                 scan_usage=scan_usage,
                 usage_hint=usage_hint,
             )
+            if gate is not None:
+                gate.report()
+            return models
         finally:
             scratch.remove()

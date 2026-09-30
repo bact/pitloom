@@ -176,7 +176,11 @@ def test_hostile_member_names_forge_no_line_through_any_reader(
     model = _hostile_zip(members, patch_member)
     wheel = write_model_wheel(tmp_path, {name: model})
     scan_wheel_for_ai_models(
-        wheel, scan_usage=False, usage_hint=lambda: False, max_bytes=10**7
+        wheel,
+        scan_usage=False,
+        usage_hint=lambda: False,
+        max_bytes=10**7,
+        trust=True,  # a .pt is gated in a wheel otherwise
     )
     messages = logged_warnings(caplog)
     assert messages  # not vacuous: a reader did warn

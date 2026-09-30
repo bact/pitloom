@@ -19,9 +19,9 @@ from zipfile import ZipFile
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
 from pitloom.extract.ai_model.archive_member import (
-    ArchiveMemberTooLarge,
     read_archive_member,
 )
+from pitloom.extract.ai_model.limits import ModelLimitExceeded
 from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def _read_pt2_meta_entry(
                 field_name = "model_name"
             if name and field_name:
                 return name, f"{source} | Field: {meta_entry}.{field_name}"
-    except ArchiveMemberTooLarge:
+    except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -97,7 +97,7 @@ def _read_pt2_text(zf: ZipFile, full: str, field: str) -> str | None:
     try:
         text = read_archive_member(zf, full)
         return text.decode("utf-8", errors="replace").strip() or None
-    except ArchiveMemberTooLarge:
+    except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -254,7 +254,7 @@ def _read_pt2_graph_io(
 
     try:
         data = json.loads(read_archive_member(zf, model_json_path))
-    except ArchiveMemberTooLarge:
+    except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
@@ -298,7 +298,7 @@ def _read_pt2_format_version(
             )
             if arch_ver:
                 return arch_ver, f"{source} | Field: {prefix}archive_version"
-        except ArchiveMemberTooLarge:
+        except ModelLimitExceeded:
             raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:

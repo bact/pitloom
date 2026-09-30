@@ -15,15 +15,15 @@ References:
 from __future__ import annotations
 
 import importlib.util
+import io
 import logging
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.extract.ai_model import archive_member
-from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
+from pitloom.extract.ai_model.limits import MAX_MODEL_ENTRIES, ModelLimitExceeded
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +33,32 @@ log = logging.getLogger(__name__)
 #   Version 3.x: 4-byte LE uint32 header-length field, UTF-8 encoding.
 # Unknown future versions default to utf-8 (the newer, stricter encoding).
 _NPY_HEADER_ENCODING: dict[int, str] = {1: "latin1", 2: "latin1", 3: "utf-8"}
+
+# Largest header numpy itself accepts (its ``max_header_size`` default).
+# numpy reads the declared number of header bytes before it checks that, so
+# a 4 GiB declaration in a few compressed bytes is checked here first.
+_MAX_NPY_HEADER_BYTES = 10000
+
+
+def _bounded_header(fp: IO[bytes], major: int) -> IO[bytes]:
+    """The header-length field and header of the array at *fp* (just past
+    the magic and version), as a stream numpy can parse.
+
+    Raises:
+        ModelLimitExceeded: The declared header is over
+            :data:`_MAX_NPY_HEADER_BYTES`; nothing of it was read.
+        ValueError: The length field is cut short.
+    """
+    width = 2 if major == 1 else 4
+    prefix = fp.read(width)
+    if len(prefix) < width:
+        raise ValueError("truncated .npy header")
+    length = int.from_bytes(prefix, "little")
+    if length > _MAX_NPY_HEADER_BYTES:
+        raise ModelLimitExceeded(
+            f".npy header of {length} bytes, over {_MAX_NPY_HEADER_BYTES}"
+        )
+    return io.BytesIO(prefix + fp.read(length))
 
 
 def _read_npy_version(model_path: Path) -> tuple[int, int]:
@@ -67,6 +93,9 @@ def _read_npy_metadata(
     import numpy as np
 
     major, minor = _read_npy_version(model_path)
+    with model_path.open("rb") as fh:
+        fh.seek(8)
+        _bounded_header(fh, major)
     format_version = f"{major}.{minor}"
     encoding = _NPY_HEADER_ENCODING.get(major, "utf-8")
     properties = {"header_encoding": encoding}
@@ -119,9 +148,6 @@ def _shim_read_array_header(
 
     hlength_str = fp.read(4)
     header_length = struct.unpack("<I", hlength_str)[0]
-    limit = archive_member.MAX_ARCHIVE_MEMBER_BYTES
-    if header_length > limit:
-        raise ArchiveMemberTooLarge("array header", limit)
     header = fp.read(header_length).decode("utf-8")
     d = ast.literal_eval(header)
     return (
@@ -145,12 +171,15 @@ def _read_npz_metadata(
     provenance: dict[str, str] = {}
     with np.load(str(model_path), allow_pickle=False) as npzfile:
         for archive_name in npzfile.zip.namelist():
+            if len(inputs) > MAX_MODEL_ENTRIES:
+                break  # the scanner cuts the list and says so
             if not archive_name.endswith(".npy"):
                 continue
             array_name = archive_name[:-4]
             with npzfile.zip.open(archive_name) as f:
                 version = read_magic(f)  # type: ignore[no-untyped-call]
-                shape, _, dtype = _shim_read_array_header(f, version)
+                header = _bounded_header(f, version[0])
+                shape, _, dtype = _shim_read_array_header(header, version)
                 inputs.append(
                     {
                         "name": array_name,
@@ -251,7 +280,7 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             )
         elif kind == "npz":
             inputs, provenance = _read_npz_metadata(model_path, source)
-    except ArchiveMemberTooLarge:
+    except ModelLimitExceeded:
         raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:

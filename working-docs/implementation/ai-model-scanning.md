@@ -139,10 +139,31 @@ and `.zip`) and is skipped. `ModelCandidate.sniff` raises `OSError` for this
 and returns `b""` only for absence, so every producer shares the one path.
 A readable `.bin` with no model magic stays a silent skip.
 
-A raw (non-ZIP) `.pt` pickle is handed to fickling as a file, not bounded
-by the inner cap below: it is not an inner member, and its size is the
-file's own (a wheel copy is under the ceiling; a project file is read in
-place).
+A raw (non-ZIP) `.pt` is bounded like an inner member: its first pickle must
+end within the 8 MiB cap (the tensors that follow a legacy pickle are not
+read), so a legacy file with a larger first pickle keeps a stub.
+
+What the bounds below do not cover, by design, until subprocess isolation
+([model-reader-isolation.md](../design/model-reader-isolation.md)):
+
+- **GGUF CPU.** `gguf.GGUFReader` loops in Python once per tensor, key/value
+  pair and string element, at about 1 KiB and 6 us each. Tensors, pairs, a
+  scalar array's elements and all string/nested elements together are capped
+  at 1M, so a hostile header is refused in well under a second; but the largest
+  accepted header (one 990k-string array in an 8 MB file, measured) still
+  costs the reader ~1.1 GB and 6 s. A real vocabulary plus merges is
+  ~0.5M strings, so the cap cannot drop further without stubbing real models.
+- **Pure-Python amplification.** fickling builds an AST per opcode (~200x the
+  pickle's size): a pickle just under 1M opcodes measured ~250 MB and 1.7 s. The
+  safetensors `__metadata__` and ONNX readers build their result before the
+  entry cap cuts it, so the cap bounds the SBOM, not the reader's peak
+  memory.
+- **Native readers.** libhdf5, protobuf (ONNX) and fastText are gated in a
+  wheel, not bounded; a project scan runs them on the user's own tree.
+  Under `--trust-wheel-model` a hostile wheel can crash or hang them
+  (measured: a 16 MiB ONNX of empty inputs peaked at 3 GB; of two 8 KiB
+  HDF5 files mutated from a valid `.h5`, one segfaults and one never
+  returns).
 
 ## Paths rejected
 
@@ -278,7 +299,13 @@ directory, never a wheel.
   disk. Bytes actually read are counted, plus a declared-size prefilter;
   once spent, the budget stays spent (a later small model does not sneak
   in), the remaining models become stubs, and one `WARNING:` per wheel says
-  so (`AI model scan: more than N bytes ... copied from this wheel`).
+  so (`AI model scan: more than N bytes ... copied or read from <wheel>`; the
+  wheel's name, escaped). The bounded reads inside a model archive
+  (`read_archive_member()`) count too, through a context variable set around
+  each materialised model (`limits.charging_reads`): 100 `.keras` members
+  that each inflate to 8 MiB are 800 MiB of work, however small the copies.
+  A reader lets the `ScanBudgetExceeded` through like any
+  `ModelLimitExceeded`.
   Members are visited in sorted order, so which models are read is
   deterministic.
 - **Signals.** The temporary directory is made with `registered_temp_dir()`
@@ -322,20 +349,30 @@ directory, never a wheel.
   `FORMAT= FILE=`, escaped, with the path scrubbed and a `Source: 0.pt`
   quoted by a reader put back to the member's name. A reader called without
   the scanner (`loom model`) escapes the member names it quotes itself, with
-  the shared `logging_config.loggable()`. Not thread-safe: a record another
-  thread logs on a reader's logger during a scan would be relayed too.
-- **Native readers are gated** (security; `--trust-wheel-model`). A reader
-  that calls a native library in Pitloom's process (fastText's `load_model`)
-  is an unbounded-CPU/memory surface no byte ceiling covers, and a signal
-  handler does not run under native code, so Ctrl-C cannot interrupt it (a
-  hostile 308-byte header measured 5 GB resident and climbing). A wheel's
+  the shared `logging_config.loggable()`. Reader text goes through
+  `one_line()`, which collapses whitespace and then applies `loggable()`, so
+  a multi-line exception cannot spill untagged lines; `_detail()` never
+  prints an empty detail (an exception without a message gives its class
+  name). Capture is per thread: one dispatcher handler, installed on the
+  first capture and removed by the last (a lock and a count, so blocks of
+  several threads may end in any order), hands a record to the capture of
+  the thread that logged it (`record.thread`) and passes the records of
+  other threads on to the parent logger.
+- **Unsafe readers are gated** (security; `--trust-wheel-model`). A reader
+  that calls a native library in Pitloom's process is an unbounded
+  CPU/memory (or crash) surface no byte ceiling covers, and a signal handler
+  does not run under native code, so Ctrl-C cannot interrupt it: fastText (a
+  hostile 308-byte header measured 5 GB resident and climbing), HDF5 (two
+  committed 8 KiB files, `tests/fixtures/aimodels/hostile/`, segfault and
+  hang libhdf5), ONNX (protobuf amplification: 16 MiB peaked at 3 GB) and, in
+  pure Python, PyTorch `.pt`/`.pth` through fickling (~200x). A wheel's
   hostile file is the likelier input, so the default there is: sniff only
-  (no materialise, no loader), `_stub()`, and one `INFO:` per run naming
-  the flag (claimed through the same once-per-run slot style as the usage
-  hint, so an `embed-wheel` batch says it once). `NATIVE_READERS_GATED`
+  (no materialise, no loader), `_stub()`, and one `INFO:` per run listing
+  every gated format met, sorted, and naming the flag (`ReaderGate.report()`
+  after the scan, through the same once-per-run slot style as the usage hint,
+  so an `embed-wheel` batch says it once). `WHEEL_GATED_FORMATS`
   (`scanner_wheel.py`) is the set of formats; the scanner sees it only as a
-  `NativeReaderGate` on each `ModelCandidate`, so a project producer could
-  use it and HDF5/ONNX join by being added to the set. `--trust-wheel-model`
+  `ReaderGate` on each `ModelCandidate`, so a project producer could use it. `--trust-wheel-model`
   (`trust_wheel_model=`; `ConfigOverrides.trust_wheel_model` for
   `embed_wheel_sbom()`) lifts the gate: a plain opt-in like `--allow-build`,
   `store_true` with a `None` default so the inert-option machinery can tell
@@ -345,6 +382,24 @@ directory, never a wheel.
   the tree is the user's own, but that is unsafe for an untrusted checkout.
   Subprocess isolation with a timeout and memory limit is the real fix:
   [model-reader-isolation.md](../design/model-reader-isolation.md).
+- **Bounds before a parser runs** (project scans too; all raise
+  `ModelLimitExceeded`, which a reader's broad `except` lets through; the
+  scanner logs one `FORMAT= FILE=: <reason>; metadata not read` and keeps the
+  stub). Pickle (`_pickle_bounds.py`): `pickletools.genops` walks the opcodes
+  (no allocation per opcode), refuses more than 1M, and only the bytes of the
+  first pickle reach fickling; fickling's stderr (it prints per failure, 62 MB
+  in one measured case) is redirected to a bounded sink and summarised in one
+  warning. GGUF (`_gguf_bounds.py`): a `struct` walk over the key/value
+  section refuses a tensor/pair/array count over 1M, or one that cannot fit
+  in the file, before `GGUFReader`; a merely truncated file is left to the
+  reader. NumPy (`numpy.py`): the `.npy` header length field is read first
+  and refused over numpy's own 10000 (numpy reads the declared length before
+  checking it: a v2 header declaring 4 GiB in a 48 MiB deflated member
+  inflated it), and an `.npz` stops reading after 1001 members. Entry caps
+  (`limits.cap_entries()`, in the scanner, so one place for every reader):
+  the first 1000 of `inputs`, `outputs`, `hyperparameters`, `properties` and
+  `raw_metadata` in source order, the provenance of the dropped keys removed,
+  one warning naming the fields cut.
 - **Enrichment stays off** for a wheel: no README or model card is read from
   an archive.
 - **Rejected:** materialising siblings (no reader reads one: Keras reads

@@ -50,8 +50,8 @@ and this project adheres to
 - `wheel`, `wheel --embed` and `embed-wheel` without `--project-dir` find AI
   models inside the wheel; `max-model-extract-bytes` caps a model, 4x that a
   wheel; beyond it the model stays without metadata ([#263])
-- `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText model is
-  listed without metadata unless given, as its native loader can hang; no
+- `--trust-wheel-model` (`trust_wheel_model=`): a wheel's fastText, HDF5, ONNX
+  and PyTorch `.pt`/`.pth` models are listed without metadata unless given; no
   config key ([#263])
 
 ### Changed
@@ -199,6 +199,9 @@ and this project adheres to
   `--allow-build` did ([#263])
 - A `.keras`/`.pt`/`.pt2` inner member is read bounded (8 MiB), also in project
   scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#263])
+- AI model readers refuse a pickle over 1M opcodes, a GGUF header or an `.npy`
+  header declaring more than fits, and cut a model to 1000 entries per list or
+  map, each with one `WARNING:` ([#263])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
