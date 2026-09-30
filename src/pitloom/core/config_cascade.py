@@ -45,6 +45,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from pitloom._toml_io import load_toml_file
 from pitloom.core._config_types import _require_valid_content_type_method
 from pitloom.core.build_options import BuildOptions
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
@@ -53,7 +54,6 @@ from pitloom.core.provenance import (
     ProvenanceConfig,
     normalize_max_source_metadata_bytes,
 )
-from pitloom.extract._toml_io import load_toml_file
 
 log = logging.getLogger(__name__)
 

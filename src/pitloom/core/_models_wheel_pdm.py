@@ -25,7 +25,11 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from pitloom.core._models_wheel_types import IncludedFile, to_posix_distribution_path
+from pitloom.core._models_wheel_types import (
+    IncludedFile,
+    to_posix_distribution_path,
+    warn_discovery_failed,
+)
 
 log = logging.getLogger(__name__)
 
@@ -159,5 +163,5 @@ def discover(
         ]
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
-        log.warning("PDM file discovery failed for %s: %s", project_dir, exc)
+        warn_discovery_failed(log, "PDM", project_dir, exc)
         return None

@@ -19,13 +19,13 @@ import dataclasses
 
 import pytest
 
+from pitloom._toml_io import load_toml_bytes
 from pitloom.core.config import (
     BOOL_KEYS,
     INT_KEYS,
     PitloomConfig,
     parse_pitloom_config,
 )
-from pitloom.extract._toml_io import load_toml_bytes
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 
 #: ``PitloomConfig`` field -> (sub-table, key) it is read from. ``tools`` is

@@ -113,6 +113,21 @@ the move.
   `test_fragments_merge_required.py`). Write the fake against the real
   method's actual signature (check it, don't guess), not a generic
   passthrough shim.
+- **Monkeypatching a function on a shared stdlib module reaches every
+  thread in the process.** `test_backoff_triples` (PR #259) recorded
+  `scripts/retry_network.py`'s back-off with
+  `monkeypatch.setattr(module.time, "sleep", sleeps.append)`.
+  `module.time` is the process-wide `time` module, so a background thread
+  left by an earlier test in the same xdist worker, polling with
+  `time.sleep(0.001 .. 0.05)`, appended its own sleeps: the test passed
+  alone and locally, then failed on two CI legs with
+  `[0.001, 0.002, ...] == [10, 30]`. The code under test now does
+  `from time import sleep` and the test patches `module.sleep`, a name
+  only that module reads. Reproduce with a daemon thread calling
+  `time.sleep` in a loop while the test runs. The same holds for any
+  stdlib callable a test fakes to *record* calls (`time.monotonic`,
+  `os.kill`, `subprocess.run`): patch the importing module's own name, or
+  inject the callable.
 - **A version floor asserted in many places drifts -- and nothing checks
   it.** `scripts/check_version_consistency.py` covers Pitloom's *own*
   version string only, not dependency floors. The Hatchling floor lives in
@@ -187,6 +202,12 @@ the move.
     `PermissionError` on every version. On 3.14 a bare `is_file()` made
     a file under a denied directory vanish from the SBOM file scan with
     no warning ([file-scan-unreadable-file.md](file-scan-unreadable-file.md)).
+  - The directory form of the same hazard: `os.walk()` without
+    `onerror`, `glob` and `Path.glob()` skip an unlistable directory
+    silently on every version. Backend libraries walk this way and take
+    no callback, so discovery records the attempted listings with an
+    audit hook instead
+    ([file-discovery-unlistable-dir.md](file-discovery-unlistable-dir.md)).
   - In tests, gate the raising assertion with
     `if sys.version_info < (3, 14):` and keep a version-independent
     probe (`target.read_bytes()` inside `pytest.raises(PermissionError)`)
@@ -194,6 +215,22 @@ the move.
     that probe the 3.14 branch asserts nothing and passes vacuously --
     the setup could silently stop denying permission and no leg would
     notice.
+- **One directory, two spellings: a textual "is it under the project"
+  check misses on a case-insensitive file system.** On macOS
+  `Path.resolve()` keeps the caller's letter case, but `os.getcwd()`
+  after `chdir()` returns the on-disk case, so `loom project stproj`
+  for on-disk `StProj` gives paths that `relative_to(project_dir)`
+  rejects. It hit twice, found in the PR #257 review: the unlistable-
+  directory warning was silently dropped for setuptools (fixed by a
+  `(st_dev, st_ino)` ancestor match after the textual one), and
+  setuptools discovery itself returns absolute `physical_path`s (open in
+  [roadmap.md](../design/roadmap.md)). Any path produced from a
+  `chdir()` + `getcwd()` is suspect. When matching by identity, treat
+  `st_ino == 0` as no identity: Python calls `st_ino` unique only when
+  non-zero, and FAT/exFAT and some network shares report 0 for every
+  file, which makes everything on the volume match. Test the case form
+  where the file system is case-insensitive (skip otherwise), and the
+  identity form portably through a symlinked alias.
 - **A `skipif` decorator's condition is evaluated at import time, on
   every platform, however certain the skip is.**
   `@pytest.mark.skipif(os.geteuid() != 0, ...)` raises
@@ -284,7 +321,9 @@ the move.
   fetch that returns data, still asserts in full. Where the code hides the
   cause (`--allow-build` logs a truncated warning), probe the host up
   front with `require_reachable()` instead. No retry loop: a retry only
-  hides how often the network fails. Ordinary CI skips; the release
+  hides how often the network fails. (The `build.yml` validation steps do retry,
+  through `scripts/retry_network.py`, but log every failed attempt and
+  still fail the job when all of them hit the network, PR #259.) Ordinary CI skips; the release
   workflow is a strict gate: its `network-quality-gate` job sets
   `PITLOOM_REQUIRE_NETWORK=1` (a network failure, or any skipped
   `network` test, fails the job), and its `build` job runs

@@ -17,7 +17,11 @@ test so both exercise the same failures:
 - ``"chmod-file"``/``"chmod-dir"``: the real POSIX permission bits; only
   meaningful when :data:`POSIX_NON_ROOT` (root bypasses them).
 
+:func:`unlistable` is the directory counterpart: ``chmod 000``, so
+discovery never sees the names under it.
+
 See also: tests/core/models_wheel/test_models_wheel_unreadable.py,
+tests/core/models_wheel/test_models_wheel_unlistable.py,
 tests/test_unreadable_file_surfaces.py.
 """
 
@@ -109,3 +113,14 @@ def deny(target: Path, mode: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[N
         yield
     finally:
         locked.chmod(original)
+
+
+@contextmanager
+def unlistable(directory: Path) -> Iterator[None]:
+    """``chmod 000`` *directory* for the block. Needs :data:`POSIX_NON_ROOT`."""
+    original = directory.stat().st_mode
+    directory.chmod(0)
+    try:
+        yield
+    finally:
+        directory.chmod(original)

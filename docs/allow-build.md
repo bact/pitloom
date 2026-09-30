@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -117,8 +117,9 @@ extracted-wheel temporary directory (`pitloom-build-and-read-*` in the
 system temp directory) is removed at once, without waiting for the
 current step to finish. Then:
 
-- **Ctrl-C (SIGINT)** stops Pitloom as usual, with a Python
-  `KeyboardInterrupt` traceback (exit status 130 in a shell).
+- **Ctrl-C (SIGINT)** stops Pitloom with `ERROR: interrupted` and exit
+  status 130, as for any other command (see
+  [Debugging](cli.md#debugging) for the traceback).
 - **SIGTERM/SIGHUP** log `WARNING: Build: received SIGTERM during the
   build -- exiting after cleanup` (or `... after the build -- ...` once
   the build has finished and its files are being read) and re-raise the same

@@ -229,13 +229,18 @@ below, which is the actual commitment for what ships before mid-October):
 - [x] **Unreadable file drops the whole file list silently** -- fixed
   (2026-09-30, #244): warn once, skip that file only. See
   [file-scan-unreadable-file.md](../implementation/file-scan-unreadable-file.md).
-- [ ] **Unlistable directory drops its subtree silently at discovery** --
-  a `chmod 000` directory is skipped by Hatchling's `safe_walk()` (`os.walk`,
-  no `onerror`) before the per-file scan sees any name, so no
-  `WARNING:` (found in #244). Check each backend's walk.
-- [ ] **Five smaller follow-ups from PR #215's `--allow-build` review**
-  -- two consolidation/dedup cleanups (a duplicated blanket-except
-  pattern across Track A modules; a hand-rolled `tool` table walk
+- [x] **Unlistable directory drops its subtree silently at discovery** --
+  fixed (2026-09-30, #257): one `WARNING: DIR=...` per directory, every backend.
+  See [file-discovery-unlistable-dir.md](../implementation/file-discovery-unlistable-dir.md).
+- [ ] **setuptools discovery: absolute `physical_path` for a project dir in
+  another letter case** -- on a case-insensitive file system (macOS,
+  Windows), `loom project stproj` for on-disk `StProj` gives every file an
+  absolute `physical_path`: the discoverer's `chdir()` + `os.getcwd()`
+  yields the on-disk case, which no longer matches `project_dir`
+  textually. Hatchling, flit, pdm and poetry are unaffected. Found in
+  #257 review.
+- [ ] **Four remaining follow-ups from PR #215's `--allow-build` review**
+  -- one consolidation cleanup (a hand-rolled `tool` table walk
   repeated across 6+ modules), one low-priority dev-script dedup, one
   id-registry gap (`--allow-build`-sourced files can't match a
   `loom id generate`-pinned entry, since their `physical_path` is an
@@ -290,6 +295,13 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 - [ ] **`embed-wheel --project-dir <sdist>` runs discovery on the
   archive path** (Hatchling fails on it with a `WARNING:`): read the
   sdist's own listing, as `loom project <sdist>` does, or reject it.
+- [ ] **`embed-wheel --project-dir` rejects the project's own enrichment
+  fragment** -- `loom enrich --project-dir` mints the model id under the
+  directory SBOM's doc uuid, but `embed-wheel` assembles under the wheel's,
+  so a registered fragment fails the merge with `ERROR: 1 dangling
+  reference(s)`; `loom project` on the same directory merges it fine. Same
+  with a plain model name on the pre-#253 code. Identity schemes:
+  [sbom-enrichment.md](sbom-enrichment.md). Found reviewing PR #253.
 - [ ] **Resolve "now" once per batch in multi-wheel `embed-wheel`** --
   the CLI resolves `CreationMetadata` once per batch but leaves
   `creation_datetime` unset, so each wheel calls `now()` for its own
@@ -398,12 +410,6 @@ See [metadata-quality.md](metadata-quality.md).
 ### Testing / CI
 
 See [testing-ci-followups.md](testing-ci-followups.md).
-
-- [ ] **Delete `_project_doc_identity` and test `enrich_model` directly** --
-  `assemble/_model_generator.py`'s `_project_doc_identity()` has no
-  production caller (`enrich_model()` calls `_doc_identity_of()`); only
-  `tests/assemble/test_model_generator_doc_identity.py` and
-  `test_explicit_config_edges.py` use it, as an oracle.
 
 ### Diagnostics / logging
 

@@ -26,27 +26,24 @@ file-size guidance -- moved verbatim, no content changed.
   `PITLOOM_SBOM_OUTPUT_PATH=-` to stdout after the JSON, on the same
   stream a consumer expects to be pure SBOM. Found during a
   `--build-timeout` review, 2026-09-19.
-- [ ] **Hatchling-heuristic fallback WARNING embeds an untagged
-  multi-line exception** -- `_models_wheel_hatchling.py`'s discovery-
-  failure `WARNING:` (~L64) appends a real exception's full text after
-  its one `WARNING:` tag, so continuation lines reach stderr with no
-  `LEVEL:` prefix of their own -- breaks "every line starts with
-  exactly one `LEVEL:`" (CLAUDE.md's "CLI output"). Found during a
-  `--build-timeout` review, 2026-09-19.
-- [ ] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- no
-  top-level handler in `__main__.py` catches it, unlike every other
-  failure mode (`ERROR:` via `cli_error_handler`). Found during a
-  `--build-timeout` review, 2026-09-19.
+- [x] **Hatchling-heuristic fallback WARNING embeds an untagged
+  multi-line exception** -- every backend's discovery-failure `WARNING:`
+  now goes through `warn_discovery_failed()`, which collapses the
+  exception text with `logging_config.one_line()`.
+- [x] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- fixed:
+  `loom` prints `ERROR: interrupted` and still ends by SIGINT; the
+  traceback follows only under `--debug`/`PITLOOM_DEBUG`. See
+  [debug-logging.md](../implementation/debug-logging.md#ctrl-c-at-the-cli-entry-point).
 - [x] **Shared options accepted, then silently ignored** -- fixed via
   `core/inert_options.INERT`, a per-target-kind "has no effect" warning
   every shared flag now goes through. See
   [config-sources.md](../implementation/config-sources.md); remaining
   open gap in
   [cli-shared-options-ignored.md](cli-shared-options-ignored.md).
-- [ ] **Canonical output follow-ups** -- one name-normalisation policy for
-  every named thing (an AI model name with a space yields an invalid IRI);
-  key-order audit of project-metadata sources. Sorted keys, UTC `Z` and LF
-  were built in step 6.5.
+- [ ] **Canonical output follow-ups** -- name comparison across types;
+  key-order audit of project-metadata sources. Sorted keys, UTC `Z`, LF and
+  percent-encoded names in ids (an AI model name with a space gave an invalid
+  IRI) are built.
   See [canonical-output-followups.md](canonical-output-followups.md).
 - [ ] **`enrich` and `merge` stdout is not `KEY=VALUE`** -- they print
   prose (`Enrichment fragment written to: ...`, `pitloom: merged N
@@ -65,6 +62,10 @@ file-size guidance -- moved verbatim, no content changed.
   UUID4 per run, so two fresh registries for the same project differ.
   Decide whether that is intended (a registry is minted once) or should
   be derived like an SBOM's namespace.
+- [ ] **`loom id generate -e NAME:TYPE` accepts any TYPE** -- `My Type#1`
+  is registered as a type no element ever has, so the entry is never looked
+  up; its id is percent-encoded (PR #253). Reject a TYPE that is not an
+  SPDX 3 class name with one `ERROR:`.
 - [ ] **`loom id generate` only excludes the default registry filename
   from its own indexing** -- it skips `loom-id-registry.json` so the
   registry doesn't index itself, but a custom-named registry declared

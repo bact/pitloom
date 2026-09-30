@@ -32,8 +32,8 @@ from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
+from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.extract._json_io import load_json_bytes
-from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.extract.lock._common_warnings import (
     warn_conflicting_versions,
     warn_malformed_entry_not_table,

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -572,6 +572,11 @@ Pitloom's library API and calling it more than once in one long-lived
 process should not rely on `--no-debug`/`apply_debug_override(False)`
 to reset itself between calls -- see `apply_debug_override()`'s
 docstring in `pitloom/logging_config.py`.
+
+Ctrl-C ends any command with one `ERROR: interrupted` line and exit
+status 130. With `--debug` (or `PITLOOM_DEBUG`) the Python traceback
+follows it, showing where the command was interrupted -- useful for a
+run that seems stuck.
 
 ## Configuration
 

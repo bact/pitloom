@@ -27,6 +27,7 @@ from pitloom.extract.project._setup_cfg_values import (
     coerce_cfg_value,
     parse_sub_section,
 )
+from pitloom.logging_config import one_line
 
 # Matches "file: some/path" or "attr: module.attribute"
 _DIRECTIVE_RE = re.compile(r"^(file|attr):\s*(.+)$")
@@ -343,7 +344,7 @@ def setup_cfg_pitloom_config(text: str) -> PitloomConfig:
         return _read_pitloom_config_from_cfg(cfg)
     except configparser.Error as exc:  # also a value's bad % interpolation
         # configparser spreads a parse error over several lines.
-        raise ValueError(" ".join(str(exc).split())) from exc
+        raise ValueError(one_line(exc)) from exc
 
 
 def _pick_cfg_str(

@@ -202,6 +202,12 @@ or citing any of these one-liners.
   raising assertion on `sys.version_info < (3, 14)` and keep a
   version-independent probe (`read_bytes()`) so the 3.14 branch is not
   vacuous (PR #226).
+- **A textual "is this path under the project" check misses on a
+  case-insensitive file system**: `os.getcwd()` after `chdir()` gives the
+  on-disk case, `Path.resolve()` keeps the caller's (macOS). Fall back to
+  a `(st_dev, st_ino)` ancestor match, treating `st_ino == 0` (FAT/exFAT)
+  as no identity (PR #257,
+  [recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)).
 - **A `skipif` decorator's condition is evaluated at import time, on
   every platform.** `@pytest.mark.skipif(os.geteuid() != 0, ...)` raises
   `AttributeError` while *collecting* the module on Windows, so the whole
@@ -231,6 +237,12 @@ or citing any of these one-liners.
   route its result through `tests/_network.py`, so a network cause skips
   with the reason and any other failure still fails (PR #238,
   [recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)).
+- **Monkeypatching a function on a shared stdlib module
+  (`monkeypatch.setattr(mod.time, "sleep", ...)`) patches it for every
+  thread in the process**, so a thread another test left running feeds
+  the fake too -- green alone, red under xdist. Import the name into the
+  module under test (`from time import sleep`) and patch that (PR #259,
+  same doc).
 - **`json.loads(bytes)` auto-strips a leading UTF-8 BOM; `json.loads(str)`
   after `.decode("utf-8")` raises on one instead.** Recurred twice,
   independently, in the same PR (#217) -- once fixed, then found again

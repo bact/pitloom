@@ -62,6 +62,7 @@ from pitloom.core.temp_dirs import (
     rmtree_quietly,
     warn_if_left_behind,
 )
+from pitloom.logging_config import one_line
 
 log = logging.getLogger(__name__)
 
@@ -206,7 +207,7 @@ def _build_and_read_wheel(
             "%sbuild-and-read discovery failed for %s: %s",
             BUILD_LOG_PREFIX,
             project_dir,
-            exc,
+            one_line(exc),
         )
         return None
     finally:
