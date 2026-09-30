@@ -38,6 +38,8 @@ from pitloom.assemble.spdx3.deps_pypi import (
 from pitloom.assemble.spdx3.document import _prefetch_combined_release_info
 from pitloom.core.models import _clear_doc_counters, compute_doc_uuid, generate_spdx_id
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
+from pitloom.extract._extract_utils import fetch_json
+from tests._network import skip_on_network_error
 
 from .conftest import _FakeMetadata, _make_ci
 
@@ -184,9 +186,29 @@ def test_add_dependencies_uses_prefetch_cache_not_individual_fetches(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.pypi_network
-def test_fetch_pypi_release_info_live_network() -> None:
+@pytest.mark.network
+def test_fetch_pypi_release_info_live_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # _fetch_pypi_release_info returns None on any failure, hiding the cause.
+    # Record what the real fetch_json raised so a network cause skips (with
+    # the reason) and anything else fails.
+    raised: list[BaseException] = []
+
+    def _recording_fetch_json(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        try:
+            return fetch_json(*args, **kwargs)
+        except ValueError as exc:
+            raised.append(exc)
+            raise
+
+    monkeypatch.setattr(
+        "pitloom.assemble.spdx3.deps_pypi.fetch_json", _recording_fetch_json
+    )
     release_info = _fetch_pypi_release_info("packaging", None)
+    if release_info is None and raised:
+        with skip_on_network_error():
+            raise raised[0]
     assert release_info is not None
     assert release_info["info"]["name"].lower() == "packaging"
     digest = _extract_release_hash(release_info)

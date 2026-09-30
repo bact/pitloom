@@ -316,7 +316,7 @@ addopts = [
 pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
-    "pypi_network: exercises a real network path (opts out of conftest's default socket block)",
+    "network: reaches a real remote host, directly or via a subprocess/library; skips on a network failure (opts out of conftest's default socket block)",
 ]
 # OpenSSF Best Practices "warnings_strict": promote every runtime warning
 # (DeprecationWarning, ResourceWarning, pytest's own internal warnings,

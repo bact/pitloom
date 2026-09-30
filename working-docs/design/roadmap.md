@@ -497,3 +497,5 @@ See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
   runtime (`sys.modules` introspection or eBPF), to suppress
   vulnerability noise from installed-but-unreachable code. Large scope
   -- needs its own design doc before estimating.
+- [ ] **Release SBOM licence guard** -- the release `build` job has no licenseid DB; the concluded licence comes from `codemeta.json` only (WARNING if lost).
+  Consider failing on "licenseid database appears empty" or running `licenseid update` there.
