@@ -134,6 +134,8 @@ pitloom/
 │       ├── core/                   # Format-neutral data models (no SBOM lib deps)
 │       │   ├── _config_legacy.py   # Migration error checks and constants
 │       │   ├── _config_parse.py    # TOML parser for [tool.pitloom]
+│       │   ├── _config_parse_scan.py # File/model scanning keys (content-type, extract-file-header)
+│       │   ├── _config_read.py     # Leaf read primitives (bool/int/table/choice) for the parsers
 │       │   ├── _config_types.py    # Configuration dataclasses and type definitions
 │       │   ├── _models_wheel.py    # get_wheel_files(): discovery facade + shared per-file processing loop
 │       │   ├── _models_wheel_build_and_read.py  # --allow-build: build a real wheel, extract its files
