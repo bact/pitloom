@@ -55,7 +55,7 @@ from pitloom.core._models_wheel_types import (
     is_dist_info_path,
 )
 from pitloom.core.archive_member_names import zip_file_members
-from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.temp_dirs import (
     one_shot,
     registered_temp_dir,
@@ -165,7 +165,7 @@ def _build_and_read_wheel(
     remove_work_dir = remove_extract_dir = _nothing_to_remove
     handed_over = False
     try:
-        with termination.hold():
+        with termination.hold(BUILD_ACTIVITY):
             extract_dir, remove_extract_dir = registered_temp_dir(
                 termination, "pitloom-build-and-read-", log_prefix=BUILD_LOG_PREFIX
             )

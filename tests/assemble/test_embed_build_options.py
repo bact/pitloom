@@ -30,7 +30,7 @@ from unittest import mock
 import pytest
 
 from pitloom.core.build_options import BuildOptions
-from pitloom.core.build_signals import TerminationGuard
+from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.config import ContentTypeOverride, PitloomConfig
 from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from tests.build_and_read_shared import spied_raise_signal
@@ -189,7 +189,7 @@ def test_embed_file_cache_can_be_entered_again(tmp_path: Path) -> None:
             with cache:
                 embed_wheel_sbom(wheel_path, project_dir=tmp_path, file_cache=cache)
                 # What build_and_read_wheel() does inside the batch's guard.
-                with TerminationGuard() as guard, guard.hold():
+                with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
                     handled.append(callable(signal.getsignal(signal.SIGTERM)))
             cleanup.assert_called_once_with()
 
