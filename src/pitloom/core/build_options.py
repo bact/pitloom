@@ -64,9 +64,9 @@ def target_settle_plan(target: Path) -> tuple[bool, str | None]:
     ``ERROR:`` alone, with no build-flag warning ahead of it.
 
     One authority for that order and those reasons, shared by
-    :meth:`BuildOptions.settle_target` and :mod:`pitloom.embed`, which
-    settles each branch through its own ``EmbedFileCache`` instead and so
-    cannot call the method.
+    :meth:`BuildOptions.settle_target` and :mod:`pitloom._embed_generate`,
+    which settles each branch through its own ``EmbedFileCache`` instead
+    and so cannot call the method.
     """
     if is_sdist_archive(target):
         return True, SDIST_TARGET_REASON

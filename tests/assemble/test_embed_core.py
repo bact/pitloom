@@ -244,7 +244,7 @@ def test_embed_wheel_sbom_ignores_conflicting_in_tree_egg_info(
 ) -> None:
     """Real end-to-end regression (plan's Case 14) for the installed-
     metadata source's ``include_installed_metadata=False`` gate on
-    embed-wheel's actual call sites (``embed.py``'s
+    embed-wheel's actual call sites (``_embed_generate.py``'s
     ``_generate_embed_sbom_json``, ``cli/commands/_embed_wheel_batch.py``'s
     ``resolve_project_dir_and_config``) -- not just a direct
     ``read_project()`` call. Unlike a bare ``read_project()`` unit test,
