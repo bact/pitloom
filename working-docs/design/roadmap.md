@@ -285,6 +285,13 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 - [ ] **`embed-wheel --project-dir <sdist>` runs discovery on the
   archive path** (Hatchling fails on it with a `WARNING:`): read the
   sdist's own listing, as `loom project <sdist>` does, or reject it.
+- [ ] **`embed-wheel --project-dir` rejects the project's own enrichment
+  fragment** -- `loom enrich --project-dir` mints the model id under the
+  directory SBOM's doc uuid, but `embed-wheel` assembles under the wheel's,
+  so a registered fragment fails the merge with `ERROR: 1 dangling
+  reference(s)`; `loom project` on the same directory merges it fine. Same
+  with a plain model name on the pre-#253 code. Identity schemes:
+  [sbom-enrichment.md](sbom-enrichment.md). Found reviewing PR #253.
 - [ ] **Resolve "now" once per batch in multi-wheel `embed-wheel`** --
   the CLI resolves `CreationMetadata` once per batch but leaves
   `creation_datetime` unset, so each wheel calls `now()` for its own

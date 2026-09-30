@@ -137,6 +137,25 @@ def test_reserve_spdx_ids_ignores_other_namespaces() -> None:
     assert minted.endswith("#File-1")
 
 
+def test_generate_spdx_id_encodes_names_and_reserves_encoded_ids() -> None:
+    """A name with a space yields a valid IRI in both the namespace and the
+    id, and a registry-supplied id carrying that encoded prefix is reserved
+    under the same counter key the next mint uses (no duplicate id)."""
+    doc_uuid = compute_doc_uuid("my model", "1.0", [])
+    _clear_doc_counters(doc_uuid)
+    namespace = f"https://spdx.org/spdxdocs/my%20model-{doc_uuid}"
+    reserve_spdx_ids(
+        "my model", doc_uuid, [f"{namespace}#AIPackage-Stable%20Diffusion-1"]
+    )
+
+    minted = generate_spdx_id(
+        "AIPackage-Stable Diffusion", doc_name="my model", doc_uuid=doc_uuid
+    )
+
+    assert minted == f"{namespace}#AIPackage-Stable%20Diffusion-2"
+    assert generate_spdx_id("SpdxDocument", "my model", doc_uuid) == namespace
+
+
 def test_clear_doc_counters_clears_reservations() -> None:
     """_clear_doc_counters() also drops any reservation for that doc_uuid --
     a caller must reserve *after* clearing, never before (see build()).

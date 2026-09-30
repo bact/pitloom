@@ -62,7 +62,8 @@ and this project adheres to
   current directory's `[tool.pitloom]` or registry ([#228], [#231])
 - `ConfigOverrides` gained `pretty`, `describe_relationship` and
   `update_id_registry` (inert, warns, on `embed_wheel_sbom()`);
-  `embed_wheel_sbom()` raises on an invalid `content_type_method` ([#228], [#231])
+  `embed_wheel_sbom()` raises on an invalid `content_type_method`
+  ([#228], [#231])
 - `embed-wheel` needs `--project-dir` to rescan a project, else embeds a
   standalone-wheel SBOM; `wheel --embed` embeds a canonical SBOM like
   `embed-wheel` ([#231])
@@ -70,10 +71,11 @@ and this project adheres to
   current directory on every command ([#231], [#235])
 - An sdist reads its own `[tool.pitloom]` (root `pyproject.toml`, else
   `setup.cfg`) like an unpacked directory; an invalid one fails the run
-  (`--config` bypasses it). `embed-wheel --project-dir <sdist>` no longer merges
-  `--config` fragments ([#232])
-- A declared `[tool.pitloom]` in an unnamed `pyproject.toml` beats `setup.cfg`'s
+  (`--config` bypasses it).
+  `embed-wheel --project-dir <sdist>` no longer merges `--config` fragments
   ([#232])
+- A declared `[tool.pitloom]` in an unnamed `pyproject.toml` beats
+  `setup.cfg`'s ([#232])
 - `sbom-basename` must be a file name: no `/`, `\`, `:` or NUL ([#232])
 - Deterministic output: AI model scan order, usage files, hyperparameters and
   per-key provenance are sorted; SBOM, fragment and registry files are LF/UTF-8
@@ -130,7 +132,8 @@ and this project adheres to
   authors files under `extension` ([#228])
 - Type checking fails on Hatchling 1.32.4; 1.32.3 stays supported ([#229])
 - A missing, unreadable, non-UTF-8 or invalid `--config FILE` is one `ERROR:`
-  naming the file; the replaced target config is no longer parsed ([#231], [#232])
+  naming the file; the replaced target config is no longer parsed
+  ([#231], [#232])
 - `enrich --project-dir <sdist>` names the sdist SBOM's document and no longer
   searches beside the archive for a registry ([#231])
 - Enrichment `CreationInfo.created` follows `--creation-datetime`/
@@ -165,7 +168,10 @@ and this project adheres to
 - `setup.cfg` `[tool:pitloom]`: boolean and integer keys read as in
   `pyproject.toml`, not as strings ([#247])
 - Wheel and sdist file names are the same on every OS (`\` to `/`, `./`
-  dropped); unsafe or clashing members are skipped; one `WARNING:` each ([#251])
+  dropped); unsafe or clashing members are skipped;
+  one `WARNING:` each ([#251])
+- A name with a space, `#` or `%` (e.g. an AI model title) gave an invalid
+  `spdxId`/namespace IRI; it is percent-encoded, `name` unchanged ([#253])
 - A wrong-typed `[tool.poetry]` value (e.g. `version = 3`), or a non-table
   `[tool]`/`[tool.poetry]`, warns once and is ignored; it crashed ([#254])
 
@@ -195,9 +201,9 @@ and this project adheres to
 
 ### Changed
 
-- GitHub Action installs the Pitloom version of its pinned ref (`pitloom-version`
-  overrides), uses the workflow's Python unless `python-version` is set, and no
-  longer runs `pip --upgrade pip` ([#224])
+- GitHub Action installs the Pitloom version of its pinned ref
+  (`pitloom-version` overrides), uses the workflow's Python unless
+  `python-version` is set, and no longer runs `pip --upgrade pip` ([#224])
 
 ### Fixed
 
