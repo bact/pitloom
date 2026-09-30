@@ -18,11 +18,13 @@ the original test_deps_enrichment.py.
 
 from __future__ import annotations
 
+import io
 import time
+from email.message import Message
 from importlib.metadata import PackageNotFoundError
 from typing import Any
 from unittest.mock import MagicMock, patch
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 import pytest
 from spdx_python_model.bindings import v3_0_1 as spdx3
@@ -329,6 +331,25 @@ def test_resolve_remote_authors_file_offline_and_errors() -> None:
     assert locator2 == locator
     assert ctype2 == ctype
     assert content2 == content
+
+
+def test_resolve_remote_authors_file_closes_http_error() -> None:
+    """A 404 on the authors file falls back to the locator and closes the
+    ``HTTPError``, which otherwise warns at garbage collection on 3.14."""
+    exc = HTTPError("https://example.com/x", 404, "Not Found", Message(), io.BytesIO())
+    assert not exc.fp.closed
+    deps_originator._resolve_remote_authors_file.cache_clear()
+    with patch("urllib.request.urlopen", side_effect=exc):
+        locator, _ctype, content = deps_originator._resolve_remote_authors_file(
+            "https://github.com/foo/pkg-http-404",
+            "AUTHORS",
+            offline=False,
+            content_type_method="auto",
+        )
+    deps_originator._resolve_remote_authors_file.cache_clear()
+    assert locator == "https://github.com/foo/pkg-http-404/blob/HEAD/AUTHORS"
+    assert content is None
+    assert exc.fp.closed
 
 
 @patch("urllib.request.urlopen")

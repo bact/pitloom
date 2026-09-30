@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tarfile
 import tempfile
@@ -69,10 +69,11 @@ def _extract_archive(archive: Path, dest: Path) -> Path:
     one)."""
     if archive.suffixes[-2:] == [".tar", ".gz"] or archive.suffix == ".tgz":
         with tarfile.open(archive) as tf:
-            tf.extractall(dest, filter="data")  # noqa: S202 -- trusted, local fixture
+            tf.extractall(dest, filter="data")
     elif archive.suffix == ".zip":
         with zipfile.ZipFile(archive) as zf:
-            zf.extractall(dest)  # noqa: S202 -- trusted, local fixture
+            # zipfile drops absolute and '..' components from member names.
+            zf.extractall(dest)  # nosec B202
     else:
         raise ValueError(f"Don't know how to extract {archive}")
     top_level = [p for p in dest.iterdir() if p.is_dir()]
@@ -121,7 +122,7 @@ def _run_loom_project(
         cmd.append("--allow-build")
     # Outer timeout must exceed Pitloom's own --build-timeout default
     # (1200s) so a slow-but-legitimate build isn't killed here first.
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec B603
         cmd, capture_output=True, text=True, timeout=1500, check=False
     )
     return proc.returncode, proc.stderr
@@ -254,7 +255,10 @@ def compare_one(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    # __doc__ is None under `python -OO`: no description, not an error.
+    parser = argparse.ArgumentParser(
+        description=__doc__.splitlines()[0] if __doc__ else None
+    )
     parser.add_argument(
         "paths",
         nargs="*",
