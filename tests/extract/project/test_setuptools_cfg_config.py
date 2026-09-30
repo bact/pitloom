@@ -15,6 +15,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from pitloom.core.config import FragmentConfig
 from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator
@@ -134,22 +136,22 @@ no_creation_tool = yes
     assert config.tools == []
 
 
-def test_read_setup_cfg_no_creation_tool_unrecognized_value_ignored() -> None:
-    """An unrecognized ``no-creation-tool`` value (``_bool_val`` returns
-    ``None``) leaves the ``creation`` block untouched instead of being
-    coerced into a boolean."""
-    content = """
+@pytest.mark.parametrize("value", ["maybe", ""])
+def test_read_setup_cfg_no_creation_tool_invalid_value_raises(value: str) -> None:
+    """An unparsable or empty top-level ``no-creation-tool`` fails as the
+    ``[tool:pitloom:creation]`` spelling does, not silently ignored."""
+    content = f"""
 [metadata]
 name = pkg
 version = 1.0
 
 [tool:pitloom]
-no-creation-tool = maybe
+no-creation-tool = {value}
 """
     with tempfile.TemporaryDirectory() as d:
         (Path(d) / "setup.cfg").write_text(content)
-        _, config = read_setup_cfg(Path(d))
-    assert config.tools is None
+        with pytest.raises(ValueError, match="'no-creation-tool' must be a boolean"):
+            read_setup_cfg(Path(d))
 
 
 def test_read_setup_cfg_no_pitloom_section_returns_defaults() -> None:

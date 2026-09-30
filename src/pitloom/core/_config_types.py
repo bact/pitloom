@@ -18,6 +18,30 @@ from pitloom.core.provenance import ProvenanceConfig
 _DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
 
+#: Every boolean ``[tool.pitloom]`` key, by sub-table (``""`` is
+#: ``[tool.pitloom]`` itself), in both spellings. A ``setup.cfg`` value is a
+#: string; these tell its reader which keys to coerce as TOML would type them.
+BOOL_KEYS: dict[str, frozenset[str]] = {
+    "": frozenset(
+        {
+            "describe-relationship",
+            "describe_relationship",
+            "enrich",
+            "extract-file-header",
+            "offline",
+            "pretty",
+            "update-id-registry",
+            "use-lockfile",
+        }
+    ),
+    "content-type": frozenset({"enabled"}),
+    "creation": frozenset({"no-creation-tool", "no_creation_tool"}),
+}
+#: Every integer ``[tool.pitloom]`` key, as :data:`BOOL_KEYS`.
+INT_KEYS: dict[str, frozenset[str]] = {
+    "provenance": frozenset({"max-source-metadata-bytes", "max_source_metadata_bytes"}),
+}
+
 
 def _require_valid_content_type_method(value: str) -> None:
     """Raise ``ValueError`` unless *value* is a valid content-type method.

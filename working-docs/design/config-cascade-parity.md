@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -58,6 +58,11 @@ accident of which code path it goes through.
   on `description = 100% pure`; an sdist reads `[metadata]` raw.
 - **`setup.cfg` key errors say `[tool.pitloom]`**, not `[tool:pitloom]`
   (both go through `parse_pitloom_config()` after conversion).
+- **`setup.cfg` values are strings**: a boolean or integer key reads as
+  its TOML type only if declared in `BOOL_KEYS`/`INT_KEYS`
+  (`core/_config_types.py`); a new typed key (e.g. `scan-model-usage`,
+  `max-model-extract-bytes`) must be added there.
+  `tests/extract/project/test_setup_cfg_values.py` fails until it is.
 - **Unknown `[tool.pitloom]` keys are ignored silently** -- a typo such as
   `ofline = true` changes nothing and says nothing; likelier in a named
   `--config` file.

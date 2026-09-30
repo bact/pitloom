@@ -30,6 +30,10 @@ from pitloom.extract.ai_model import detect_ai_model_format_from_header, read_ai
 
 log = logging.getLogger(__name__)
 
+# UNREADABLE_FILE_WARNING with the model format first, as every
+# FORMAT=%s FILE=%s scan warning reads.
+_UNREADABLE_MODEL_WARNING = "FORMAT=%s " + UNREADABLE_FILE_WARNING
+
 # Extensions that might genuinely be AI models.
 _ALLOWED_EXTS: frozenset[str] = frozenset(
     {".zip", ".bin"}
@@ -108,7 +112,7 @@ def _read_candidate(candidate: ModelCandidate) -> AiModelMetadata | None:
         header = candidate.sniff()
     except OSError as e:
         log.warning(
-            "FORMAT=%s " + UNREADABLE_FILE_WARNING,
+            _UNREADABLE_MODEL_WARNING,
             detect_ai_model_format_from_header(b"", candidate.distribution_path),
             candidate.physical_path,
             "header",

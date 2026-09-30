@@ -155,6 +155,9 @@ and this project adheres to
 
 ### Fixed
 
+- `setup.cfg` `[tool:pitloom]`: every boolean and integer key (e.g. `use-lockfile`,
+  `max-source-metadata-bytes`) reads as in `pyproject.toml`, not as a string
+  ([#247])
 - Project file scan: an unreadable file warns once with its `FILE=` path and is
   skipped alone; it silently emptied the SBOM's whole file list ([#244])
 - `embed-wheel` with a project directory now emits the project's concluded
@@ -244,6 +247,7 @@ and this project adheres to
 [#242]: https://github.com/bact/pitloom/pull/242
 [#243]: https://github.com/bact/pitloom/pull/243
 [#244]: https://github.com/bact/pitloom/pull/244
+[#247]: https://github.com/bact/pitloom/pull/247
 [#248]: https://github.com/bact/pitloom/pull/248
 
 ## [0.19.0] - 2026-09-18

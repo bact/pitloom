@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-12
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -114,6 +114,10 @@ non-string, and `sbom-basename` also if it is a path rather than a file
 name (a `/`, `\`, `:` or NUL, or `.`/`..`) -- the same rule as
 `embed-wheel --sbom-basename`. `extract-file-header` off never errors and never blocks
 content-type detection -- see below.
+
+In `setup.cfg`'s `[tool:pitloom]`, where every value is text, a boolean is
+`true`/`false`, `yes`/`no` or `1`/`0` (any case) and an integer is base 10;
+any other value, or an empty one, raises `ValueError` as above.
 
 **Moved keys:** the pre-rename `ids-file` and `update-registry` keys
 raise `ValueError` if present -- e.g. `[tool.pitloom] 'ids-file' has

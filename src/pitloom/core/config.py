@@ -44,6 +44,8 @@ from pitloom.core._config_parse import (
 )
 from pitloom.core._config_types import (
     _DEFAULT_PROVENANCE_SCHEMA,
+    BOOL_KEYS,
+    INT_KEYS,
     VALID_CONTENT_TYPE_METHODS,
     AssembleOptions,
     FragmentConfig,
@@ -56,12 +58,14 @@ from pitloom.core.provenance import ProvenanceConfig
 
 __all__ = [
     "AssembleOptions",
+    "BOOL_KEYS",
     "ContentTypeConfig",
     "ContentTypeOverride",
     "CreationMetadata",
     "Creator",
     "EnrichConfig",
     "FragmentConfig",
+    "INT_KEYS",
     "PitloomConfig",
     "ProvenanceConfig",
     "Tool",
