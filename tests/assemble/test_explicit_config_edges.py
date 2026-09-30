@@ -17,8 +17,6 @@ option reaches the library or warns).
 from __future__ import annotations
 
 import dataclasses
-import functools
-import json
 import logging
 import shutil
 from pathlib import Path
@@ -26,13 +24,17 @@ from typing import Any
 
 import pytest
 
-from pitloom.assemble import _model_generator, enrich_model, generate_project_sbom
+from pitloom.assemble import enrich_model, generate_project_sbom
 from pitloom.core.config import PitloomConfig
 from pitloom.core.creation import CreationMetadata
 from pitloom.embed import ConfigOverrides, EmbedFileCache, embed_wheel_sbom
 from pitloom.extract.project import resolve_project_with_lockfile
 from pitloom.id_registry import DEFAULT_ID_REGISTRY_FILENAME, IdRegistry
 from tests.assemble.conftest import _make_dummy_wheel, _make_sdist
+from tests.assemble.enrich_identity_shared import (
+    enrich_base_namespace,
+    sbom_namespace,
+)
 from tests.cli.shared import SAFETENSORS_FIXTURE
 from tests.warning_helpers import count_naming, logged_warnings
 
@@ -65,40 +67,26 @@ def test_resolver_takes_use_lockfile_from_an_explicit_config(tmp_path: Path) -> 
 
 
 def test_enrich_model_base_identity_follows_the_explicit_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     """``enrich --project-dir D --config C`` computes D's document identity
     with C's ``use-lockfile``, as ``project D --config C`` builds the base
     -- else the fragment names a document that does not exist."""
     project = _locked_project(tmp_path)
     no_lock = dataclasses.replace(PitloomConfig(), use_lockfile=False)
-    # pylint: disable-next=protected-access
-    identity = _model_generator._project_doc_identity
-
-    assert identity(project, explicit_config=no_lock) == identity(
-        project, use_lockfile=False
+    base = sbom_namespace(
+        generate_project_sbom(
+            project, creation_metadata=_PINNED, pitloom_config=no_lock, offline=True
+        )
     )
+
+    def identity(**kwargs: Any) -> str:
+        return enrich_base_namespace(project, tmp_path / "model", **kwargs)
+
+    assert identity(pitloom_config=no_lock) == base
+    assert identity(use_lockfile=False) == base
     # Non-vacuous: the lock file does change the identity.
-    assert identity(project, use_lockfile=False) != identity(project, use_lockfile=True)
-
-    expected = identity(project, use_lockfile=False)
-    seen: list[tuple[str, str]] = []
-    # pylint: disable-next=protected-access
-    identity_of = _model_generator._doc_identity_of
-
-    @functools.wraps(identity_of)
-    def spy(*args: Any, **kwargs: Any) -> tuple[str, str]:
-        seen.append(identity_of(*args, **kwargs))
-        return seen[-1]
-
-    monkeypatch.setattr(_model_generator, "_doc_identity_of", spy)
-    enrich_model(
-        SAFETENSORS_FIXTURE,
-        project_target=project,
-        creation_metadata=_PINNED,
-        pitloom_config=no_lock,
-    )
-    assert seen == [expected]
+    assert identity(use_lockfile=True) != base
 
 
 def test_sdist_with_explicit_config_does_not_warn_about_use_lockfile(
@@ -283,12 +271,6 @@ def test_sdist_relative_registry_resolves_as_for_a_wheel(
     assert [p.resolve() for p in loaded] == [(tmp_path / "ids.json").resolve()]
 
 
-def _doc_uuid(sbom_json: str) -> str:
-    graph = json.loads(sbom_json)["@graph"]
-    doc_id: str = next(o["spdxId"] for o in graph if o["type"] == "SpdxDocument")
-    return doc_id[-36:]
-
-
 def test_enrich_against_an_sdist_names_the_sdist_sbom_document(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -296,12 +278,11 @@ def test_enrich_against_an_sdist_names_the_sdist_sbom_document(
     own SBOM has, without walking the archive as if it were a directory
     (which only logs a file-discovery failure)."""
     sdist = _make_sdist(tmp_path)
-    base_uuid = _doc_uuid(generate_project_sbom(sdist, creation_metadata=_PINNED))
+    base = sbom_namespace(generate_project_sbom(sdist, creation_metadata=_PINNED))
     caplog.clear()
     with caplog.at_level(logging.WARNING):
-        # pylint: disable-next=protected-access
-        name, uuid = _model_generator._project_doc_identity(sdist)
-    assert (name, uuid) == ("demo", base_uuid)
+        namespace = enrich_base_namespace(sdist, tmp_path / "model")
+    assert namespace == base
     assert not logged_warnings(caplog)
 
 
