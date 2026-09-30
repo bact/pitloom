@@ -142,6 +142,8 @@ and this project adheres to
   to a `references/` file, and stale examples and claims fixed ([#235])
 - Skills: portable across clients (no `argument-hint`, `compatibility` with a
   pitloom >= 0.20.0 floor, slimmer bodies, cross-client install docs) ([#235])
+- AI model discovery keys on the installed name: a `force-include` rename to a
+  model suffix is found, to a non-model suffix dropped ([#239])
 
 ### Removed
 
@@ -151,6 +153,10 @@ and this project adheres to
 
 ### Fixed
 
+- Library scan: an unreadable AI model candidate (any allowed suffix) warns
+  once and is skipped; it aborted the scan on Python 3.10-3.13 ([#239])
+- AI model scan warnings print a stable project-relative or installed `FILE=`
+  path, never an absolute or `--allow-build` temporary one ([#239])
 - `network` tests skip with the cause on a network failure; the publish
   workflow runs them as a strict gate that fails instead ([#238])
 - A registry-supplied file, directory, AI model, or deployed-dependency
@@ -221,6 +227,7 @@ and this project adheres to
 [#235]: https://github.com/bact/pitloom/pull/235
 [#236]: https://github.com/bact/pitloom/pull/236
 [#238]: https://github.com/bact/pitloom/pull/238
+[#239]: https://github.com/bact/pitloom/pull/239
 
 ## [0.19.0] - 2026-09-18
 

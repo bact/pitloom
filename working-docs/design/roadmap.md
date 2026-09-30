@@ -272,6 +272,10 @@ below, which is the actual commitment for what ships before mid-October):
   own toolchain happens to be available -- no further Pitloom code
   needed. See [non-hatchling-file-discovery.md](non-hatchling-file-discovery.md)
   for the full design/history.
+- [ ] **Unreadable file drops the whole file list silently** --
+  `core/_models_wheel.py` (~323) catches any per-file error, logs DEBUG
+  only and returns `None` (empty SBOM file set). Should warn once and skip
+  that file (found in #239).
 - [ ] **Five smaller follow-ups from PR #215's `--allow-build` review**
   -- two consolidation/dedup cleanups (a duplicated blanket-except
   pattern across Track A modules; a hand-rolled `tool` table walk

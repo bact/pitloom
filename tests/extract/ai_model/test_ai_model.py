@@ -23,7 +23,6 @@ from pitloom.extract.ai_model import (
     detect_ai_model_format,
     read_ai_model,
 )
-from pitloom.extract.ai_model.reader import _sniff_format
 
 
 def _magic(fmt: AiModelFormat) -> bytes:
@@ -221,20 +220,23 @@ def test_detect_format_bin_without_file_is_unknown() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Magic-byte sniffing (_sniff_format / detect_ai_model_format with real files)
+# Magic-byte sniffing (read_ai_model_header / detect_ai_model_format with real files)
 # ---------------------------------------------------------------------------
 
 
-def test_sniff_gguf_magic(tmp_path: Path) -> None:
-    f = tmp_path / "model.bin"  # wrong extension -- magic wins
-    f.write_bytes(_magic(AiModelFormat.GGUF) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.GGUF
-
-
-def test_sniff_fasttext_magic(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "fmt",
+    [
+        AiModelFormat.GGUF,
+        AiModelFormat.FASTTEXT,
+        AiModelFormat.NUMPY,
+        AiModelFormat.HDF5,
+    ],
+)
+def test_sniff_magic_beats_wrong_extension(tmp_path: Path, fmt: AiModelFormat) -> None:
     f = tmp_path / "model.bin"
-    f.write_bytes(_magic(AiModelFormat.FASTTEXT) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
+    f.write_bytes(_magic(fmt) + b"\x00" * 20)
+    assert detect_ai_model_format(f) == fmt
 
 
 def test_sniff_safetensors_magic(tmp_path: Path) -> None:
@@ -257,34 +259,6 @@ def test_sniff_empty_file_falls_back_to_extension(tmp_path: Path) -> None:
     f = tmp_path / "model.ftz"
     f.write_bytes(b"")
     assert detect_ai_model_format(f) == AiModelFormat.FASTTEXT
-
-
-def test_sniff_format_direct_gguf(tmp_path: Path) -> None:
-    f = tmp_path / "x"
-    f.write_bytes(_magic(AiModelFormat.GGUF) + b"\x00" * 5)
-    assert _sniff_format(f) == AiModelFormat.GGUF
-
-
-def test_sniff_format_direct_fasttext(tmp_path: Path) -> None:
-    f = tmp_path / "x"
-    f.write_bytes(_magic(AiModelFormat.FASTTEXT) + b"\x00" * 5)
-    assert _sniff_format(f) == AiModelFormat.FASTTEXT
-
-
-def test_sniff_format_nonexistent_returns_unknown() -> None:
-    assert _sniff_format(Path("/no/such/file")) == AiModelFormat.UNKNOWN
-
-
-def test_sniff_numpy_npy_magic(tmp_path: Path) -> None:
-    f = tmp_path / "array.bin"  # wrong extension -- magic wins
-    f.write_bytes(_magic(AiModelFormat.NUMPY) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.NUMPY
-
-
-def test_sniff_hdf5_magic(tmp_path: Path) -> None:
-    f = tmp_path / "model.bin"  # wrong extension -- magic wins
-    f.write_bytes(_magic(AiModelFormat.HDF5) + b"\x00" * 20)
-    assert detect_ai_model_format(f) == AiModelFormat.HDF5
 
 
 # ---------------------------------------------------------------------------

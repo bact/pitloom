@@ -26,6 +26,9 @@ from collections.abc import Iterable
 import pytest
 
 _OPTIONS_WARNING = re.compile(r"Options: .*?: (-\S+) has no effect ")
+# ``FILE=<path>: `` -- the path may hold a Windows drive colon (``C:\x``), so
+# the terminator is a colon followed by a space.
+_FILE_FIELD = re.compile(r"FILE=(\S+): ")
 
 
 def names_option(spelling: str, option: str) -> bool:
@@ -47,6 +50,11 @@ def option_warning_spellings(messages: Iterable[str]) -> list[str]:
 def count_naming(messages: Iterable[str], option: str) -> int:
     """How many ``Options:`` no-effect messages name *option*."""
     return sum(names_option(s, option) for s in option_warning_spellings(messages))
+
+
+def file_values(messages: Iterable[str]) -> list[str]:
+    """The ``FILE=`` value of every message that carries one."""
+    return [m.group(1) for m in map(_FILE_FIELD.search, messages) if m]
 
 
 def logged_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:

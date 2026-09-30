@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-10
-Last-Modified: 2026-09-10
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -269,9 +269,10 @@ Not platform-blocked -- answerable on any machine with careful test code:
    `scan_project_for_ai_models` doesn't walk the filesystem itself -- it
    iterates a flat list of individual files the build backend's own
    include/exclude discovery already produced (e.g. `get_wheel_files` in
-   `core/_models_wheel.py`), then `_scan_single_file_for_model`
-   (`extract/scanner.py:37`) filters each by `suffix in _ALLOWED_EXTS`
-   *before* calling `detect_ai_model_format()` at all. An Orbax checkpoint's
+   `core/_models_wheel.py`), then `discover_ai_models`
+   (`extract/scanner.py`) filters each by
+   `is_model_candidate_name(distribution_path)` *before* sniffing its header
+   or detecting its format at all. An Orbax checkpoint's
    inner files (`_CHECKPOINT_METADATA`, `_METADATA`, `manifest.ocdbt`) have
    no matching suffix, so they're silently skipped -- not misdetected, but
    never seen either. Registering `AiModelFormat.JAX` and shipping

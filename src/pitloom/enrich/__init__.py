@@ -61,20 +61,11 @@ def _resolve_model_search_dir(
 ) -> Path:
     """Resolve the directory to search for one model's enrichment sources.
 
-    ``format_info.physical_path`` is normally project-root-relative, so
-    joining it onto *project_dir* is safe -- except for a build-and-read
-    discovered file (see ``ProjectFile.physical_path``'s docstring),
-    whose ``physical_path`` is instead an absolute path into a fresh
-    ``tempfile.mkdtemp()`` extraction directory. ``project_dir /
-    Path(physical_path).parent`` with an absolute right-hand operand
-    silently discards *project_dir* (`pathlib`'s own join semantics),
-    resolving into the extracted-wheel tempdir instead of the real
-    project tree -- which won't contain a co-located README the wheel
-    never packaged, silently disabling README enrichment. Fall back to
-    ``file_path_relative`` (the file's wheel-distribution path, always
-    project_dir-relative) in that case, the same "prefer
-    distribution_path over an absolute physical_path" rule
-    ``_document_files.py``'s own determinism fix applies.
+    ``format_info.physical_path`` is project-root-relative for a scanned
+    model. Joining an absolute one onto *project_dir* would silently
+    discard *project_dir* (`pathlib`'s join semantics), so, defensively for
+    a hand-built ``AiModelFormatInfo``, fall back to ``file_path_relative``
+    (the file's wheel-distribution path, project_dir-relative) in that case.
     """
     physical_path = project_relative_or_fallback(
         format_info.physical_path or "", format_info.file_path_relative or ""
