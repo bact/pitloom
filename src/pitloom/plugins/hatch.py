@@ -172,7 +172,12 @@ def _build_document_model(
         project_dir, metadata.name, metadata.version, metadata.license_files
     )
     metadata.files = project_files
-    ai_models = scan_project_for_ai_models(project_dir, project_files)
+    ai_models = scan_project_for_ai_models(
+        project_dir,
+        project_files,
+        scan_usage=pitloom_config.scan_model_usage is True,
+        usage_hint=pitloom_config.scan_model_usage is None,
+    )
     phantom_deps = find_phantom_dependencies(project_files)
     enrichment_results_by_model = run_enrichers_for_models(
         ai_models, pitloom_config.enrich, project_dir

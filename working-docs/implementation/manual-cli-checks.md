@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-17
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -35,7 +35,7 @@ unattended from one stdlib-only runner, on Linux, macOS and Windows:
 
 Use the checkout's own interpreter: the runner tests the `pitloom` that
 interpreter imports, and prints its path first. Besides the numbered
-checks (`1`-`12`, `B1`-`B7`) it runs:
+checks (`1`-`15`, `B1`-`B7`) it runs:
 
 - **The CLI matrix** (`M/<command>/<group>/<variant>`): every subcommand
   x its options x the environment variables that change it
@@ -265,6 +265,24 @@ key) case -- those are covered by pytest instead, in
 `tests/id_registry/test_surfaces_failures.py`. See
 [id-registry-autosync.md](id-registry-autosync.md)'s "Revised in PR A2"
 section.
+
+**15. `--scan-model-usage`: flag beats config; inert on wheel surfaces**:
+the fixture project carries a tiny model and a script naming it. On
+`project` and `embed-wheel --project-dir`, run (i) `--config` with
+`scan-model-usage = true`, (ii) `--scan-model-usage`, (iii) (i) plus
+`--no-scan-model-usage`, (iv) `--no-scan-model-usage` alone, (v) the
+default. (i) and (ii) must be byte-identical with `hasDataFile` and no
+hint; (iii)-(v) must be identical with no `hasDataFile`; only (v), where
+the setting is never given, prints exactly one `INFO: Found 1 AI model
+file(s); pass --scan-model-usage ...`; (i) and (v) must differ (so the
+comparison is not vacuous). A hook-built wheel whose project config sets
+the key must carry `hasDataFile`. `wheel`, `wheel --embed` and
+`embed-wheel` without `--project-dir` do not scan a wheel yet: the flag
+gives exactly one `WARNING: Options:` naming it and the same bytes as the
+default run. Automated as check 15
+(`scripts/manual_cli_checks/_checks_config.py::check_scan_model_usage`).
+Config only via `--config` or the project's own `pyproject.toml`, never
+the current directory.
 
 For a change touching the build subprocess, its kill path or signal
 handling (`--build-timeout`), also run these against a scratch project

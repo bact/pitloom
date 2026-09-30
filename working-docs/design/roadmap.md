@@ -97,6 +97,10 @@ capture, via an expanded `loom` decorator/SDK. Full breakdown, the
 core-vs-Skill scope split, and implementation order: see
 [g7-ai-sbom-coverage.md](g7-ai-sbom-coverage.md).
 
+Note: that checklist lists `hasDataFile` as "covered", but static detection
+is now conditional on `--scan-model-usage` (off by default); update
+`minimum-elements.md` together with G7.
+
 ### Versioning and compatibility policy (new for 1.0)
 
 Not yet decided -- flagging as a required 1.0 decision, not proposing
@@ -181,7 +185,7 @@ rescan -- see below).
 
 **In progress (AI model scanning):** B -- model-candidate type and the
 `--allow-build` path fix; C -- deterministic model order; D -- wheel
-scanning and `--scan-model-usage`. See
+scanning (`--scan-model-usage` landed first, usage pass off by default). See
 [cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open).
 
 **Suggested sequencing after that** (2026-09-16, not a commitment --

@@ -13,6 +13,7 @@ see AGENTS.md's file-size rule).
 
 import pytest
 
+from pitloom.core._config_parse_scan import _read_scan_model_usage
 from pitloom.core.config import (
     FragmentConfig,
     _read_content_type_settings,
@@ -42,6 +43,14 @@ def test_read_extract_file_header_explicit_false() -> None:
 def test_read_extract_file_header_non_bool_raises() -> None:
     with pytest.raises(ValueError, match="'extract-file-header' must be a boolean"):
         _read_extract_file_header({"extract-file-header": "yes"})
+
+
+def test_read_scan_model_usage_keeps_absent_none_and_false_false() -> None:
+    assert _read_scan_model_usage({}) is None
+    assert _read_scan_model_usage({"scan-model-usage": False}) is False
+    assert _read_scan_model_usage({"scan-model-usage": True}) is True
+    with pytest.raises(ValueError, match="'scan-model-usage' must be a boolean"):
+        _read_scan_model_usage({"scan-model-usage": "yes"})
 
 
 # ---------------------------------------------------------------------------

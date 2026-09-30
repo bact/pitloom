@@ -2,9 +2,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Checks 12-13 of manual-cli-checks.md: a target that is not a project
-reads no config it was not given; an sdist reads its own, as its unpacked
-directory does.
+"""Checks 12, 13 and 15 of manual-cli-checks.md: a target that is not a
+project reads no config it was not given; an sdist reads its own, as its
+unpacked directory does; ``--scan-model-usage`` beats its config key.
 
 See also: ``_checks_core.py`` (checks 1-11), ``_harness.py``.
 """
@@ -20,6 +20,7 @@ from _fixtures import build_wheel, get, write_project
 from _harness import (
     DATETIME,
     Context,
+    Result,
     check,
     embedded_sboms,
     expect,
@@ -219,3 +220,167 @@ def check_sdist_own_config(ctx: Context) -> None:
     good.write_text("[tool.pitloom]\npretty = true\n", encoding="utf-8")
     run_ok("project", str(bad), "--config", str(good), "--offline", "-o", str(out))
     ctx.note("sdist == directory for its own config; --config rescues a broken one")
+
+
+_USAGE_CONFIG = "[tool.pitloom]\nscan-model-usage = true\n"
+_HINT = "INFO: Found 1 AI model file(s); pass --scan-model-usage"
+#: Variant -> the options added to a run; (i)-(iv) of check 15.
+_USAGE_VARIANTS = {
+    "config": ["--config", "{cfg}"],
+    "flag": ["--scan-model-usage"],
+    "config+no-flag": ["--config", "{cfg}", "--no-scan-model-usage"],
+    "flag-off": ["--no-scan-model-usage"],
+    "default": [],
+}
+
+
+def _has_usage(sbom: bytes) -> bool:
+    return any(o.get("relationshipType") == "hasDataFile" for o in load_graph(sbom))
+
+
+def _hints(result: Result) -> int:
+    return sum(line.startswith(_HINT) for line in result.stderr_lines)
+
+
+def _project_surface(
+    project: Path, wheel: Path, cwd: Path, work: Path, name: str, extra: list[str]
+) -> tuple[bytes, Result]:
+    del wheel  # a project directory has no wheel
+    work.mkdir(parents=True, exist_ok=True)
+    out = work / f"{name}.json"
+    result = run_loom(
+        "project", str(project), "--offline", "-o", str(out), *_PINNED, *extra, cwd=cwd
+    )
+    expect(result.returncode == 0, result.describe())
+    return out.read_bytes(), result
+
+
+def _embed_surface(
+    project: Path, wheel: Path, cwd: Path, work: Path, name: str, extra: list[str]
+) -> tuple[bytes, Result]:
+    copy = work / name / wheel.name
+    copy.parent.mkdir(parents=True)
+    shutil.copy2(wheel, copy)
+    result = run_loom(
+        "embed-wheel",
+        str(copy),
+        "--project-dir",
+        str(project),
+        "--offline",
+        *_PINNED,
+        *extra,
+        cwd=cwd,
+    )
+    expect(result.returncode == 0, result.describe())
+    (sbom,) = embedded_sboms(copy).values()
+    return sbom, result
+
+
+def _inert_surfaces(
+    wheel: Path, cwd: Path, work: Path, name: str, extra: list[str]
+) -> dict[str, tuple[bytes, Result]]:
+    """The wheel surfaces that do not scan yet, run with *extra*."""
+    found: dict[str, tuple[bytes, Result]] = {}
+    work.mkdir(parents=True, exist_ok=True)
+    out = work / f"{name}-wheel.json"
+    result = run_loom(
+        "wheel", str(wheel), "--offline", "-o", str(out), *_PINNED, *extra, cwd=cwd
+    )
+    expect(result.returncode == 0, result.describe())
+    found["wheel"] = (out.read_bytes(), result)
+    for label, argv in (
+        ("wheel --embed", ["wheel", "{w}", "--embed"]),
+        ("embed-wheel", ["embed-wheel", "{w}"]),
+    ):
+        copy = work / f"{name}-{label.split()[0]}" / wheel.name
+        copy.parent.mkdir(parents=True)
+        shutil.copy2(wheel, copy)
+        argv = [a.replace("{w}", str(copy)) for a in argv]
+        result = run_loom(*argv, "--offline", *_PINNED, *extra, cwd=cwd)
+        expect(result.returncode == 0, result.describe())
+        (sbom,) = embedded_sboms(copy).values()
+        found[label] = (sbom, result)
+    return found
+
+
+_LIVE_SURFACES = {"project": _project_surface, "embed-wheel": _embed_surface}
+_Surface = Callable[..., tuple[bytes, Result]]
+
+
+def _expect_flag_beats_config(
+    name: str, surface: _Surface, inputs: tuple[Path, Path, Path, Path], work: Path
+) -> None:
+    """(i)-(iv) of check 15 on one project-directory surface."""
+    project, wheel, cwd, cfg = inputs
+    runs = {
+        variant: surface(
+            project,
+            wheel,
+            cwd,
+            work / name,
+            variant.replace("+", "-"),
+            [a.replace("{cfg}", str(cfg)) for a in extra],
+        )
+        for variant, extra in _USAGE_VARIANTS.items()
+    }
+    sboms = {variant: run[0] for variant, run in runs.items()}
+    expect(sboms["config"] == sboms["flag"], f"{name}: config != flag")
+    for quiet in ("config+no-flag", "flag-off"):
+        expect(sboms[quiet] == sboms["default"], f"{name}: {quiet} scanned")
+    expect(sboms["config"] != sboms["default"], f"{name}: usage scan is a no-op")
+    expect(_has_usage(sboms["config"]), f"{name}: no hasDataFile when on")
+    expect(not _has_usage(sboms["default"]), f"{name}: hasDataFile by default")
+    hints = {variant: _hints(run[1]) for variant, run in runs.items()}
+    expect(
+        hints
+        == {"config": 0, "flag": 0, "config+no-flag": 0, "flag-off": 0, "default": 1},
+        f"{name}: hint INFO: counts {hints}",
+    )
+
+
+def _expect_inert_surfaces_warn_once(wheel: Path, cwd: Path, work: Path) -> None:
+    default = _inert_surfaces(wheel, cwd, work, "default", [])
+    flagged = _inert_surfaces(wheel, cwd, work, "flag", ["--scan-model-usage"])
+    for label, (got, result) in flagged.items():
+        warnings = [
+            line
+            for line in result.stderr_lines
+            if line.startswith("WARNING: Options:") and "--scan-model-usage" in line
+        ]
+        expect(
+            len(warnings) == 1, f"{label}: expected one warning\n{result.describe()}"
+        )
+        expect(got == default[label][0], f"{label}: the flag changed the SBOM")
+
+
+@check("15", "scan-model-usage: flag beats config; inert on wheel surfaces")
+def check_scan_model_usage(ctx: Context) -> None:
+    """On ``project`` and ``embed-wheel --project-dir`` the config key and
+    the flag give the same bytes, with ``hasDataFile`` and no hint; a config
+    key plus ``--no-scan-model-usage``, or that flag alone, equals the
+    default run (no ``hasDataFile``, no hint); only the default run, where
+    the setting is never given, prints exactly one hint ``INFO:``. It
+    differs from the config run (not vacuous). The Hatchling hook reads the
+    key from the project's own config. ``wheel``, ``wheel --embed`` and
+    ``embed-wheel`` without ``--project-dir`` do not scan yet: the flag
+    warns exactly once and changes no bytes."""
+    project = write_project(ctx.work / "proj")
+    wheel = build_wheel(project, ctx.work / "dist")
+    empty = ctx.work / "empty"
+    empty.mkdir()
+    cfg = empty / "usage.toml"
+    cfg.write_text(_USAGE_CONFIG, encoding="utf-8")
+
+    for name, surface in _LIVE_SURFACES.items():
+        _expect_flag_beats_config(name, surface, (project, wheel, empty, cfg), ctx.work)
+
+    _expect_inert_surfaces_warn_once(wheel, empty, ctx.work)
+
+    hooked = write_project(ctx.work / "hooked", hook=True)
+    with (hooked / "pyproject.toml").open("a", encoding="utf-8") as f:
+        f.write(_USAGE_CONFIG)
+    (hook_sbom,) = embedded_sboms(
+        build_wheel(hooked, ctx.work / "hooked-dist")
+    ).values()
+    expect(_has_usage(hook_sbom), "hook: scan-model-usage config not applied")
+    ctx.note("project/embed-wheel/hook: flag beats config; wheel surfaces warn once")

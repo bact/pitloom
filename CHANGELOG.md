@@ -45,6 +45,8 @@ and this project adheres to
 - `id generate`/`id import` print an `INFO:` config hint after creating an
   undeclared registry; `id import` lists names skipped because the SBOM holds
   several elements under them ([#235])
+- `--scan-model-usage`: record which Python files reference a found AI model;
+  config key, Action input, `scan_model_usage=` ([#252])
 
 ### Changed
 
@@ -103,6 +105,9 @@ and this project adheres to
   model suffix is found, to a non-model suffix dropped ([#239])
 - `TerminationGuard.hold()` requires a `GuardedActivity`, which its signal
   `WARNING:` names; `--allow-build` wording unchanged ([#250])
+- Recording which `.py` files reference an AI model (`hasDataFile`) is off by
+  default on every surface, incl. the Hatchling hook; when unset, one `INFO:`
+  names the flag ([#252])
 
 ### Removed
 
@@ -180,6 +185,7 @@ and this project adheres to
 [#248]: https://github.com/bact/pitloom/pull/248
 [#250]: https://github.com/bact/pitloom/pull/250
 [#251]: https://github.com/bact/pitloom/pull/251
+[#252]: https://github.com/bact/pitloom/pull/252
 
 ## [0.19.0] - 2026-09-18
 

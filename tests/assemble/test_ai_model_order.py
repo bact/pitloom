@@ -64,10 +64,12 @@ def _generate(
     """The SBOM, and the file order the scanner was given."""
     seen: list[str] = []
 
-    def _scan(project_dir: Path, files: list[ProjectFile]) -> list[AiModelMetadata]:
+    def _scan(
+        project_dir: Path, files: list[ProjectFile], **scan_kwargs: Any
+    ) -> list[AiModelMetadata]:
         files = files[::-1] if reverse else files
         seen[:] = [f.distribution_path for f in files]
-        return scan_project_for_ai_models(project_dir, files)
+        return scan_project_for_ai_models(project_dir, files, **scan_kwargs)
 
     monkeypatch.setattr(
         "pitloom.assemble._generators.scan_project_for_ai_models", _scan
@@ -115,7 +117,8 @@ def test_scanner_input_order_does_not_change_sbom_bytes(
 ) -> None:
     proj = _project(tmp_path)
     (fwd, order_fwd), (rev, order_rev) = (
-        _generate(proj, monkeypatch, reverse=r) for r in (False, True)
+        _generate(proj, monkeypatch, reverse=r, scan_model_usage=True)
+        for r in (False, True)
     )
     assert order_fwd != order_rev  # not vacuous
     assert sorted(_package_files(_graph(fwd)).values()) == _MODELS
