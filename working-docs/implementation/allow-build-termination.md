@@ -90,11 +90,7 @@ result's whole lifetime.
   restore `SIG_DFL`, log `WARNING: Build: received SIGTERM during the
   build -- exiting after cleanup` (signal recorded in a hold) or `...
   after the build -- ...` (outside one: extraction, scanning, a later
-  wheel of a batch), then `signal.raise_signal()`. The prefix and "the
-  build" come from the `GuardedActivity` that `hold()` requires
-  (`BUILD_ACTIVITY` here), so another guarded activity -- the wheel
-  AI-model scan -- names itself: the innermost hold running, else the
-  latest one left.
+  wheel of a batch), then `signal.raise_signal()`.
   The process dies *by that signal* -- 143 in a shell, `-15` from
   `Popen.returncode`, what a supervisor checking `WIFSIGNALED` expects.
   Callers' `finally` blocks up the stack do not run, as for the
@@ -199,13 +195,6 @@ can be entered again afterwards, with a fresh guard and resolution.
 - **Handler scoped to `run_build_subprocess()` only.** The kill would
   run, but the re-raise would happen inside the `plb-*` work dir's
   `with` and before the extract dir's `finally` -- both left behind.
-- **The activity's wording on the guard's constructor.** `__enter__`
-  returns the thread's owner, an entry point (`loom project`, `loom
-  wheel`, an `embed-wheel` batch) that does not know whether a build or
-  a scan runs inside it; under `loom wheel` a signal during the scan
-  would still say "the build". The hold is entered by the code doing the
-  work, so it names it. No default either: a default is how the scan
-  would silently say "the build".
 - **`SystemExit(128 + signum)` as the primary exit.** Would run every
   caller's `finally`, but any caller catching `BaseException` could
   swallow it, and a supervisor checking "killed by a signal"

@@ -19,7 +19,7 @@ from unittest import mock
 import pytest
 
 from pitloom.core import temp_dirs
-from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
+from pitloom.core.build_signals import TerminationGuard
 from pitloom.core.temp_dirs import one_shot, registered_temp_dir
 from tests.build_and_read_shared import use_sys_tmp
 
@@ -33,7 +33,7 @@ def test_registered_temp_dir_removed_when_owner_block_fails(sys_tmp: Path) -> No
     """The owner's block ending by an exception runs the registered removal."""
     created: list[Path] = []
     with pytest.raises(RuntimeError), TerminationGuard() as termination:
-        with termination.hold(BUILD_ACTIVITY):
+        with termination.hold():
             path, _ = registered_temp_dir(termination, "t-", log_prefix="Scan: ")
         created.append(path)
         assert path.is_dir() and path.parent == sys_tmp
@@ -68,7 +68,7 @@ def test_leftover_warning_uses_given_log_prefix(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     monkeypatch.setattr(temp_dirs, "rmtree_quietly", lambda path, log_prefix: None)
-    with TerminationGuard() as termination, termination.hold(BUILD_ACTIVITY):
+    with TerminationGuard() as termination, termination.hold():
         path, remove = registered_temp_dir(termination, "t-", log_prefix="Scan: ")
     with caplog.at_level(logging.WARNING):
         remove()

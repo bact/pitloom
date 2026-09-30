@@ -33,12 +33,7 @@ from unittest import mock
 import pytest
 
 from pitloom.core import build_signals
-from pitloom.core.build_signals import (
-    BUILD_ACTIVITY,
-    GuardedActivity,
-    TerminationGuard,
-    TerminationSignal,
-)
+from pitloom.core.build_signals import TerminationGuard, TerminationSignal
 from tests.build_and_read_shared import spied_raise_signal
 
 _Handler = Callable[[int, FrameType | None], object]
@@ -71,7 +66,7 @@ def test_nothing_installed_without_a_hold(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_hold_records_without_raising(raise_spy: mock.Mock) -> None:
-    with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+    with TerminationGuard() as guard, guard.hold():
         handler = _current_handler()
         # Never raises: a signal must not abort whatever runs in a hold.
         handler(signal.SIGTERM, None)
@@ -94,7 +89,7 @@ def test_signal_in_hold_terminates_on_leaving_it_after_cleanups(
     )
     handlers: list[_Handler] = []
     with pytest.raises(SystemExit) as excinfo:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             handlers.append(_current_handler())
             guard.add_cleanup(
                 lambda: events.append(("cleanup", signal.getsignal(signal.SIGTERM)))
@@ -114,7 +109,7 @@ def test_signal_in_hold_terminates_on_leaving_it_after_cleanups(
 
 def test_pending_signal_wins_over_exception_in_flight(raise_spy: mock.Mock) -> None:
     with pytest.raises(SystemExit) as excinfo:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             _current_handler()(signal.SIGTERM, None)
             guard.raise_if_pending()
     raise_spy.assert_called_once_with(signal.SIGTERM)
@@ -138,7 +133,7 @@ def test_signal_outside_a_hold_terminates_in_the_handler(
         events.append(("cleanup", None))
 
     with TerminationGuard() as guard:
-        with guard.hold(BUILD_ACTIVITY):
+        with guard.hold():
             handler = _current_handler()
         guard.add_cleanup(cleanup)
         with pytest.raises(SystemExit) as excinfo:
@@ -147,52 +142,6 @@ def test_signal_outside_a_hold_terminates_in_the_handler(
     assert excinfo.value.code == 128 + signal.SIGTERM
     raise_spy.assert_called_once_with(signal.SIGTERM)
     assert "Build: received SIGTERM after the build" in caplog.text
-
-
-_SCAN = GuardedActivity("Scan: ", "the scan")
-
-
-@pytest.mark.usefixtures("raise_spy")
-@pytest.mark.parametrize(
-    ("activities", "in_hold", "expected"),
-    [
-        ((_SCAN,), True, "Scan: received SIGTERM during the scan"),
-        ((_SCAN,), False, "Scan: received SIGTERM after the scan"),
-        # The owner's latest hold names it, not the first one.
-        ((BUILD_ACTIVITY, _SCAN), False, "Scan: received SIGTERM after the scan"),
-        ((_SCAN, BUILD_ACTIVITY), True, "Build: received SIGTERM during the build"),
-    ],
-)
-def test_message_names_the_latest_held_activity(
-    caplog: pytest.LogCaptureFixture,
-    activities: tuple[GuardedActivity, ...],
-    in_hold: bool,
-    expected: str,
-) -> None:
-    """The owner is an entry point that cannot know whether a build or a
-    scan runs inside it; the hold does."""
-    *earlier, last = activities
-    with pytest.raises(SystemExit), TerminationGuard() as guard:
-        for activity in earlier:
-            with guard.hold(activity):
-                pass
-        with guard.hold(last):
-            handler = _current_handler()
-            if in_hold:
-                handler(signal.SIGTERM, None)
-        handler(signal.SIGTERM, None)
-    assert expected in caplog.text
-    assert caplog.text.count("received SIGTERM") == 1
-
-
-@pytest.mark.usefixtures("raise_spy")
-def test_nested_hold_hands_the_name_back(caplog: pytest.LogCaptureFixture) -> None:
-    with pytest.raises(SystemExit), TerminationGuard() as guard:
-        with guard.hold(BUILD_ACTIVITY):
-            with guard.hold(_SCAN):
-                pass
-            _current_handler()(signal.SIGTERM, None)
-    assert "Build: received SIGTERM during the build" in caplog.text
 
 
 def test_interrupt_in_a_termination_cleanup_is_finished_by_the_owner(
@@ -213,7 +162,7 @@ def test_interrupt_in_a_termination_cleanup_is_finished_by_the_owner(
     outcome: BaseException | None = None
     try:
         with TerminationGuard() as guard:
-            with guard.hold(BUILD_ACTIVITY):
+            with guard.hold():
                 handler = _current_handler()
             guard.add_cleanup(cleanup)
             try:
@@ -245,7 +194,7 @@ def test_cleanups_run_when_the_block_ends_by_an_exception() -> None:
 
 def test_cleanups_dropped_on_normal_exit(raise_spy: mock.Mock) -> None:
     cleanup = mock.Mock()
-    with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+    with TerminationGuard() as guard, guard.hold():
         guard.add_cleanup(cleanup)
     cleanup.assert_not_called()
     raise_spy.assert_not_called()
@@ -260,7 +209,7 @@ def test_nested_guard_joins_the_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(signal, "signal", spy)
     cleanup = mock.Mock()
     with TerminationGuard() as owner:
-        with TerminationGuard() as nested, nested.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as nested, nested.hold():
             assert nested is owner
             nested.add_cleanup(cleanup)
         # Still installed after the nested exit; its cleanup not run yet.
@@ -269,7 +218,7 @@ def test_nested_guard_joins_the_owner(monkeypatch: pytest.MonkeyPatch) -> None:
             with TerminationGuard():
                 raise KeyboardInterrupt
         cleanup.assert_not_called()
-        with owner.hold(BUILD_ACTIVITY):
+        with owner.hold():
             pass
     installs = [c for c in spy.call_args_list if c.args[1] is not signal.SIG_DFL]
     restores = [c for c in spy.call_args_list if c.args[1] is signal.SIG_DFL]
@@ -297,7 +246,7 @@ def test_signal_while_installing_handlers(
 
     monkeypatch.setattr(signal, "getsignal", getsignal)
     with pytest.raises(SystemExit) as excinfo:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             pass
     assert fired, "no second termination signal to look up"
     assert excinfo.value.code == 128 + signal.SIGTERM
@@ -318,7 +267,7 @@ def test_interrupt_while_installing_restores_handlers(
 
     monkeypatch.setattr(signal, "signal", interrupted_signal)
     with pytest.raises(KeyboardInterrupt):
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             pytest.fail("entered")
     raise_spy.assert_not_called()
     assert signal.getsignal(signal.SIGTERM) == signal.SIG_DFL
@@ -327,7 +276,7 @@ def test_interrupt_while_installing_restores_handlers(
 def test_handler_after_the_block_does_not_swallow(raise_spy: mock.Mock) -> None:
     """A handler left installed after the block (its restore failed)
     behaves as SIG_DFL would."""
-    with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+    with TerminationGuard() as guard, guard.hold():
         handler = _current_handler()
     signal.signal(signal.SIGTERM, handler)
     handler(signal.SIGTERM, None)
@@ -344,7 +293,7 @@ def test_failing_warning_does_not_stop_termination(
     warning = mock.Mock(side_effect=RuntimeError("reentrant call"))
     monkeypatch.setattr(build_signals.log, "warning", warning)
     with TerminationGuard() as guard:
-        with guard.hold(BUILD_ACTIVITY):
+        with guard.hold():
             handler = _current_handler()
         with pytest.raises(SystemExit):
             handler(signal.SIGTERM, None)
@@ -360,7 +309,7 @@ def test_restore_keeps_a_handler_installed_meanwhile() -> None:
     def third_party(signum: int, frame: object) -> None:
         del signum, frame
 
-    with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+    with TerminationGuard() as guard, guard.hold():
         signal.signal(signal.SIGTERM, third_party)
     assert signal.getsignal(signal.SIGTERM) is third_party
 
@@ -376,7 +325,7 @@ def test_failed_restore_never_swallows_a_later_signal(
     real_signal = signal.signal
     caplog.set_level("DEBUG", logger=build_signals.__name__)
     try:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             monkeypatch.setattr(
                 signal, "signal", mock.Mock(side_effect=OSError("restore failed"))
             )
@@ -416,7 +365,7 @@ def test_guard_can_be_entered_again(raise_spy: mock.Mock) -> None:
     cleanups = [mock.Mock(), mock.Mock()]
     for cleanup in cleanups:
         with pytest.raises(SystemExit), guard as owner:
-            with owner.hold(BUILD_ACTIVITY):
+            with owner.hold():
                 handler = _current_handler()
             owner.add_cleanup(cleanup)
             handler(signal.SIGTERM, None)
@@ -445,7 +394,7 @@ def test_handler_keeps_host_handler() -> None:
         del signum, frame
 
     signal.signal(signal.SIGTERM, host_handler)
-    with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+    with TerminationGuard() as guard, guard.hold():
         assert signal.getsignal(signal.SIGTERM) is host_handler
     assert signal.getsignal(signal.SIGTERM) is host_handler
 
@@ -455,7 +404,7 @@ def test_other_threads_neither_install_nor_join_the_main_owner() -> None:
     seen: list[object] = []
 
     def worker() -> None:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             seen.append(guard)
             seen.append(signal.getsignal(signal.SIGTERM))
 
@@ -478,7 +427,7 @@ def test_sigbreak_handled_when_the_platform_has_it(
         monkeypatch.setattr(signal, "SIGBREAK", sigbreak, raising=False)
     previous = signal.signal(sigbreak, signal.SIG_DFL)
     try:
-        with TerminationGuard() as guard, guard.hold(BUILD_ACTIVITY):
+        with TerminationGuard() as guard, guard.hold():
             handler = signal.getsignal(sigbreak)
             assert callable(handler)
             handler(sigbreak, None)
