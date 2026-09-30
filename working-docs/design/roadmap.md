@@ -60,6 +60,10 @@ is not kept in sync with post-ship changes.
   `requirements.txt` feed `locked_dependencies` via one shared cascade
   ([#208](https://github.com/bact/pitloom/pull/208)). See
   [lock-file-cascade.md](../implementation/lock-file-cascade.md).
+- [x] **Explicit Loom ID registry** (declared only, one `ERROR:`, package
+  ids pinned; #234, #235). See [id-registry-autosync.md](../implementation/id-registry-autosync.md).
+- [x] **Agent Skills portable across clients** (#235). See
+  [skills-trigger-coverage.md](../implementation/skills-trigger-coverage.md).
 
 ## 1.0 target (2026-10-15)
 
@@ -225,6 +229,11 @@ full picture.
 below is now closed for every backend, including `uv_build` (via the
 generic `--allow-build` build-and-read mechanism, not a dedicated static
 rescan -- see below).
+
+**In progress (AI model scanning):** B -- model-candidate type and the
+`--allow-build` path fix; C -- deterministic model order; D -- wheel
+scanning and `--scan-model-usage`. See
+[cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open).
 
 **Suggested sequencing after that** (2026-09-16, not a commitment --
 superseded for the next month by [1.0 target](#10-target-2026-10-15)
@@ -395,6 +404,11 @@ compliance/interop, element-level traceability) remain open. See
   pipdeptree reports as not installed (`installed_version: "?"`) loses
   its `dependsOn` edge with no trace, so the deployed SBOM says nothing
   about the unmet requirement. Found reviewing PR #236. Record only.
+- [ ] **`env`: two installs sharing one pipdeptree `key` collide** --
+  `build_deployed` keys its id map by `key`, so a second install of the
+  same distribution (e.g. an editable copy next to a site-packages copy)
+  overwrites the first and all edges go to one element. Not seen from
+  pipdeptree yet; found reviewing PR #236. Record only.
 
 ### Metadata quality
 
