@@ -30,10 +30,10 @@ file-size guidance -- moved verbatim, no content changed.
   multi-line exception** -- every backend's discovery-failure `WARNING:`
   now goes through `warn_discovery_failed()`, which collapses the
   exception text with `logging_config.one_line()`.
-- [ ] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- no
-  top-level handler in `__main__.py` catches it, unlike every other
-  failure mode (`ERROR:` via `cli_error_handler`). Found during a
-  `--build-timeout` review, 2026-09-19.
+- [x] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- fixed:
+  `__main__.main()` prints `ERROR: interrupted` and returns 130; the
+  traceback follows only under `--debug`/`PITLOOM_DEBUG`. See
+  [debug-logging.md](../implementation/debug-logging.md#ctrl-c-at-the-cli-entry-point).
 - [x] **Shared options accepted, then silently ignored** -- fixed via
   `core/inert_options.INERT`, a per-target-kind "has no effect" warning
   every shared flag now goes through. See
