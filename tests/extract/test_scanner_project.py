@@ -78,7 +78,9 @@ def _put(
 
 
 def _scan(tmp_path: Path, *files: ProjectFile) -> Any:
-    return scan_project_for_ai_models(tmp_path / "proj", list(files))
+    return scan_project_for_ai_models(
+        tmp_path / "proj", list(files), scan_usage=True, usage_hint=False
+    )
 
 
 def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
@@ -327,7 +329,9 @@ def test_scan_force_include_rename_uses_installed_name(tmp_path: Path) -> None:
         for f in files
     )
 
-    (meta,) = scan_project_for_ai_models(tmp_path, files)
+    (meta,) = scan_project_for_ai_models(
+        tmp_path, files, scan_usage=True, usage_hint=False
+    )
     assert meta.format_info.file_name == "model.npy"
     assert meta.format_info.physical_path == "assets/weights.dat"
     assert meta.usage_files == ["pkg/use.py"]

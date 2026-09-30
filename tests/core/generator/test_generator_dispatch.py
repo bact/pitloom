@@ -63,6 +63,7 @@ _SENTINELS: dict[str, Any] = {
     # Project/model-only parameters.
     "enrich": True,
     "extract_file_header": False,
+    "scan_model_usage": True,
     "content_type": True,
     "use_lockfile": False,
     "build_options": BuildOptions(timeout=4321),

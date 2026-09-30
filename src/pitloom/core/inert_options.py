@@ -56,6 +56,7 @@ PARAM_TO_FLAG: dict[str, str] = {
     "enrich": "--enrich/--no-enrich",
     "extract_file_header": "--extract-file-header/--no-extract-file-header",
     "content_type": "--content-type/--no-content-type",
+    "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
     "content_type_method": "--content-type-method",
     "max_source_metadata_bytes": "--max-source-metadata-bytes",
     "offline": "--offline/--no-offline",
@@ -76,6 +77,16 @@ _SDIST_FILE_SCAN = (
 )
 _SDIST_NO_MODELS = (
     "for an sdist archive target (AI models are scanned in a project directory only)"
+)
+_WHEEL_NO_MODEL_SCAN = (
+    "for a wheel target (AI models inside a wheel are not scanned yet)"
+)
+_ENV_NO_MODEL_SCAN = (
+    "for an installed environment (AI model files are not scanned here yet)"
+)
+_MODEL_NO_USAGE = "for a model target (there are no Python files here to reference it)"
+_FRAGMENT_NO_USAGE = (
+    "for an enrichment fragment (scan usage when generating the base SBOM instead)"
 )
 _NO_MODELS = "for this target (it has no AI models to enrich)"
 _NO_LOCKFILE = (
@@ -121,6 +132,7 @@ _EMBED_COMMON: dict[str, str] = {
 _MODEL_FILE_ROW: dict[str, str] = {
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "content_type_method": _MODEL_NO_DEPENDENCIES,
+    "scan_model_usage": _MODEL_NO_USAGE,
     "update_id_registry": _NO_HARVEST,
 }
 
@@ -129,6 +141,7 @@ _ENRICH_ROW: dict[str, str] = {
     "describe_relationship": _FRAGMENT_NO_DESCRIBE,
     "content_type_method": _MODEL_NO_DEPENDENCIES,
     "max_source_metadata_bytes": _FRAGMENT_NO_SOURCE_METADATA,
+    "scan_model_usage": _FRAGMENT_NO_USAGE,
     "update_id_registry": _NO_HARVEST,
 }
 
@@ -138,16 +151,19 @@ INERT: dict[str, dict[str, str]] = {
     SDIST: {
         **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
         "enrich": _SDIST_NO_MODELS,
+        "scan_model_usage": _SDIST_NO_MODELS,
         "use_lockfile": _SDIST_NO_LOCKFILE,
     },
     WHEEL: {
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
         "enrich": _NO_MODELS,
+        "scan_model_usage": _WHEEL_NO_MODEL_SCAN,
         "use_lockfile": _NO_LOCKFILE,
     },
     ENV: {
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
         "enrich": _NO_MODELS,
+        "scan_model_usage": _ENV_NO_MODEL_SCAN,
         "use_lockfile": _NO_LOCKFILE,
     },
     MODEL_FILE: {
@@ -166,13 +182,16 @@ INERT: dict[str, dict[str, str]] = {
     EMBED_PROJECT: dict(_EMBED_COMMON),
     EMBED_STANDALONE: {
         **_EMBED_COMMON,
-        **dict.fromkeys((*_FILE_SCAN, "enrich"), NO_PROJECT_DIR_REASON),
+        **dict.fromkeys(
+            (*_FILE_SCAN, "enrich", "scan_model_usage"), NO_PROJECT_DIR_REASON
+        ),
     },
     EMBED_SBOM: {
         **dict.fromkeys(
             (
                 *_FILE_SCAN,
                 "enrich",
+                "scan_model_usage",
                 "content_type_method",
                 "max_source_metadata_bytes",
                 "offline",

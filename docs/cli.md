@@ -466,6 +466,14 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   detector: `auto` tries magika and falls back to an extension guess,
   `magika` errors immediately if the `magika` package isn't installed,
   `extension` skips magika entirely (stdlib-only).
+- `--scan-model-usage` / `--no-scan-model-usage` -- on a project directory
+  (`project`, `generate <dir>`, `embed-wheel --project-dir`, and the Hatchling
+  hook via the `scan-model-usage` config key), also record which Python files
+  reference each discovered AI model file (`hasDataFile`). Off by default:
+  it reads every Python file. AI models are found either way; when the
+  setting was never given (no flag, no config key), one `INFO:` line says
+  how many were found and names the flag -- once per `embed-wheel` run, and
+  not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
 and [Building a project to discover its file list](allow-build.md) for
@@ -484,17 +492,17 @@ and drops it, rather than silently ignoring it:
 | Target | Options that warn |
 | --- | --- |
 | project directory | — |
-| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
-| wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
-| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
-| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
-| local model file | `--extract-file-header`, `--content-type`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry` |
-| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry` |
-| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
-| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
+| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--use-lockfile` |
+| wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--use-lockfile` |
+| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--update-id-registry` |
+| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--use-lockfile` |
+| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry` |
+| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry` |
+| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
+| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
 | embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--update-id-registry` |
-| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
-| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
+| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--update-id-registry` |
+| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
 Each `--flag` above also covers its `--no-flag` boolean-negation form
 where one exists (e.g. `--no-enrich`, `--no-pretty`); the warning names

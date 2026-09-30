@@ -175,7 +175,8 @@ def embed_wheel_sbom(
     wheel per call, in a loop) to resolve *project_dir*'s file list (and
     run any ``--allow-build`` real PEP 517 build) once for the whole
     batch instead of once per call, and to warn about each ineffective
-    build flag once for the batch. Left ``None`` (the default), this
+    build flag (and log the model-usage ``INFO:`` hint) once for the
+    batch. Left ``None`` (the default), this
     call resolves and cleans up its own file list. When given, *this*
     call does NOT clean up -- make every call of the batch inside one
     ``with EmbedFileCache() as file_cache:`` block, whose exit does; a

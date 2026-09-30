@@ -30,7 +30,7 @@ import json
 import os
 import tarfile
 import zipfile
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -249,10 +249,12 @@ def _make_dummy_wheel(
     version: str = "1.0.0",
     requires_dist: tuple[str, ...] = (),
     license_expression: str | None = None,
+    extra_members: Mapping[str, bytes] | None = None,
 ) -> Path:
     """Create a minimal valid wheel with a valid RECORD file, declaring
     each *requires_dist* entry as a ``Requires-Dist`` header and any
-    *license_expression* as a ``License-Expression`` header."""
+    *license_expression* as a ``License-Expression`` header; *extra_members*
+    adds files (arcname -> bytes), each listed in RECORD."""
     directory.mkdir(parents=True, exist_ok=True)
     wheel_filename = f"{name}-{version}-py3-none-any.whl"
     wheel_path = directory / wheel_filename
@@ -276,7 +278,9 @@ def _make_dummy_wheel(
         h = base64.urlsafe_b64encode(d).decode("ascii").rstrip("=")
         return f"{arcname},sha256={h},{len(payload)}"
 
+    extras = dict(extra_members or {})
     records = [
+        *(_rec_entry(arc, payload) for arc, payload in extras.items()),
         _rec_entry(f"{name}/__init__.py", init_code),
         _rec_entry(f"{dist_info}/METADATA", metadata_content),
         _rec_entry(f"{dist_info}/WHEEL", wheel_content),
@@ -287,6 +291,7 @@ def _make_dummy_wheel(
 
     with zipfile.ZipFile(wheel_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for arcname, payload in (
+            *extras.items(),
             (f"{name}/__init__.py", init_code),
             (f"{dist_info}/METADATA", metadata_content),
             (f"{dist_info}/WHEEL", wheel_content),

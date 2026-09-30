@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-14
-Last-Modified: 2026-08-14
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -14,7 +14,9 @@ command and CI configuration -- this document covers internal design,
 ZIP archive manipulation, RECORD formatting, and verification.
 
 See also [hatchling-build-hook.md](hatchling-build-hook.md) for the
-Hatchling build-hook counterpart.
+Hatchling build-hook counterpart, and
+[archive-member-names.md](archive-member-names.md) for how wheel member names
+become `software_File` names.
 
 ## Context and motivation
 

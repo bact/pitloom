@@ -53,8 +53,8 @@ from pitloom.core._models_wheel_types import (
     BUILD_LOG_PREFIX,
     IncludedFile,
     is_dist_info_path,
-    to_posix_distribution_path,
 )
+from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.core.temp_dirs import (
     one_shot,
@@ -87,38 +87,35 @@ def _extract_wheel_to_included_files(
     ``.dist-info`` entries from ``read_wheel()`` directly, so nothing is
     lost.
 
-    A wheel's own internal entries are always ``/``-separated per the ZIP
-    spec (so ``to_posix_distribution_path()`` is a safety net here, not a
-    live bug on any platform), but ``target`` (a real, on-disk path) is
-    composed via :class:`~pathlib.Path`'s own ``/`` operator, which
-    accepts a ``/``-separated string as multiple path components on
-    every platform including Windows -- never raw string concatenation.
+    Entry names go through
+    :func:`~pitloom.core.archive_member_names.zip_file_members`, the same
+    normaliser :func:`pitloom.extract.wheel.read_wheel` uses, so names match
+    across both readers on every OS. ``target`` is composed via
+    :class:`~pathlib.Path`'s own ``/`` operator, never string concatenation.
 
     Zip-slip guard: unlike every static discoverer (which only ever
     walks real files already inside *project_dir*), this one writes
     bytes to disk from a zip archive a real, external build process
-    just produced -- a ``../``-containing or absolute entry name (from
-    a buggy or malicious build backend) must never be allowed to
-    resolve outside *extract_dir* and overwrite an unrelated file
-    elsewhere on the filesystem.
+    just produced. ``zip_file_members`` already skips ``../``-containing
+    and absolute entry names; the ``resolve()`` check below is defence in
+    depth, so no entry can overwrite a file outside *extract_dir*.
     """
     resolved_extract_dir = extract_dir.resolve()
     files: list[IncludedFile] = []
     with zipfile.ZipFile(wheel_path) as zf:
-        for info in zf.infolist():
-            if info.is_dir():
-                continue
-            distribution_path = to_posix_distribution_path(info.filename)
+        for distribution_path, info in zip_file_members(
+            zf, wheel_path.name, log, BUILD_LOG_PREFIX
+        ):
             if is_dist_info_path(distribution_path):
                 continue
             target = extract_dir / distribution_path
             if not target.resolve().is_relative_to(resolved_extract_dir):
                 log.warning(
-                    "%s%s: wheel entry %r resolves outside "
+                    "%sARCHIVE=%r ENTRY=%r: resolves outside "
                     "the extraction directory -- skipped, not written to disk",
                     BUILD_LOG_PREFIX,
-                    wheel_path,
-                    distribution_path,
+                    wheel_path.name,
+                    info.orig_filename,
                 )
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
