@@ -1,5 +1,5 @@
 ---
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -205,6 +205,8 @@ and this project adheres to
 - `loom id generate`: a PATH outside `--project-dir` is one `ERROR:` line,
   not a traceback; an in-project symlink (even to a target outside the
   project) still resolves, like the implicit default `PATH`s ([#235])
+- `loom env`: packages were all named `unknown` (no dependsOn edges); now runs
+  `pipdeptree --json`; unexpected output is one `ERROR:` ([#236])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -215,6 +217,7 @@ and this project adheres to
 [#232]: https://github.com/bact/pitloom/pull/232
 [#234]: https://github.com/bact/pitloom/pull/234
 [#235]: https://github.com/bact/pitloom/pull/235
+[#236]: https://github.com/bact/pitloom/pull/236
 
 ## [0.19.0] - 2026-09-18
 

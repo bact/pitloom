@@ -1,6 +1,6 @@
 ---
 Created: 2026-04-14
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -377,12 +377,6 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   extracted dynamically by summing `cr:totalItems` across `cr:recordSet`
   entries (or top-level `cr:totalItems`), with graceful `None` fallback.
 
-- [ ] **Pipdeptree JSON-shape mismatch in `loom env`** -- `extract/env.py`
-  runs `pipdeptree --json-tree --all` but `_document_deployed.py` reads
-  `--json` shape, so all deployed packages named `unknown` on pipdeptree
-  4.2.5; tests stub the `--json` shape. Own PR
-  right after [#235](https://github.com/bact/pitloom/pull/235).
-
 ### SBOM fragments (merge system)
 
 Core merge mechanism, `FragmentConfig`, and `loom fragment list` have
@@ -397,6 +391,10 @@ compliance/interop, element-level traceability) remain open. See
   `--config`/project config are dropped with no `WARNING:` and exit 0
   (violates "no silent deviations"). Found reviewing the `sbom-enrich`
   skill; the skill now says so. Record only.
+- [ ] **`env` drops an unmet requirement silently** -- a dependency
+  pipdeptree reports as not installed (`installed_version: "?"`) loses
+  its `dependsOn` edge with no trace, so the deployed SBOM says nothing
+  about the unmet requirement. Found reviewing PR #236. Record only.
 
 ### Metadata quality
 
