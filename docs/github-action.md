@@ -249,7 +249,7 @@ Inputs (all optional):
 | `pretty` | `false` | Pretty-print the SBOM output. |
 | `enrich` | *(empty)* | `true`/`false` to force README/model-card enrichment on or off; empty defers to the project's `[tool.pitloom] enrich` config (off by default). |
 | `extract-file-header` | *(empty)* | `true`/`false` to force per-file SPDX header scanning on or off; empty defers to `[tool.pitloom] extract-file-header` (on by default). |
-| `scan-model-usage` | *(empty)* | `true`/`false` to force recording which Python files reference each AI model file (`hasDataFile`) on or off; empty defers to `[tool.pitloom] scan-model-usage` (off by default). |
+| `scan-model-usage` | *(empty)* | `true`/`false` to force recording which Python files reference each AI model file (`hasDataFile`) on or off; empty defers to the `[tool.pitloom] scan-model-usage` in effect (off by default). |
 | `content-type` | *(empty)* | `true`/`false` to force per-file content-type detection on or off; empty defers to `[tool.pitloom.content-type] enabled` (off by default). |
 | `content-type-method` | *(empty)* | `auto`/`magika`/`extension` -- which detector resolves content-type values; empty defers to `[tool.pitloom.content-type] method` (`auto` by default). |
 | `max-source-metadata-bytes` | *(empty)* | Cap the artifact-metadata preservation Annotation's serialised size to this many UTF-8 bytes, truncating the largest entries first when exceeded; empty defers to `[tool.pitloom.provenance] max-source-metadata-bytes` (unbounded by default). |

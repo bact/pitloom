@@ -183,10 +183,11 @@ below is now closed for every backend, including `uv_build` (via the
 generic `--allow-build` build-and-read mechanism, not a dedicated static
 rescan -- see below).
 
-**In progress (AI model scanning):** B -- model-candidate type and the
-`--allow-build` path fix; C -- deterministic model order; D -- wheel
-scanning (`--scan-model-usage` landed first, usage pass off by default). See
-[cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open).
+**AI model scanning (B, C, D done):** model-candidate type, deterministic
+order, the `--scan-model-usage` gate and wheel scanning. Open: `env` scans no
+models -- see
+[cli-shared-options-ignored.md](cli-shared-options-ignored.md#still-open) and
+[ai-model-scanning.md](../implementation/ai-model-scanning.md).
 
 **Suggested sequencing after that** (2026-09-16, not a commitment --
 superseded for the next month by [1.0 target](#10-target-2026-10-15)

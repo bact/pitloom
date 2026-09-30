@@ -1,0 +1,306 @@
+# SPDX-FileContributor: Arthit Suriyawongkul
+# SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
+# SPDX-FileType: SOURCE
+# SPDX-License-Identifier: Apache-2.0
+
+"""Built-wheel producer for the AI model scanner.
+
+A model is copied out of the wheel one member at a time, into a temporary
+directory named ``{member index}{suffix}``: nothing else of the archive name
+reaches the file system, and no temporary path reaches the SBOM or a log line.
+The copy is bounded per model by a ceiling, and per wheel by a budget of
+several ceilings; neither trusts the archive's declared size.
+
+See also: :mod:`pitloom.extract.scanner` (the shared policy),
+:mod:`pitloom.extract.scanner_project` (the project producer) and
+:mod:`pitloom.core.archive_member_names` (member names).
+"""
+
+from __future__ import annotations
+
+import contextlib
+import logging
+import lzma
+import os
+import zipfile
+import zlib
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import AbstractContextManager
+from pathlib import Path, PurePosixPath
+from typing import IO, NoReturn
+
+from pitloom.core._models_wheel_types import is_dist_info_path
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
+from pitloom.core.archive_member_names import zip_file_members
+from pitloom.core.build_signals import MODEL_SCAN_ACTIVITY, TerminationGuard
+from pitloom.core.model_extract_limit import require_max_model_extract_bytes
+from pitloom.core.temp_dirs import registered_temp_dir
+from pitloom.extract.ai_model import SNIFF_BYTES
+from pitloom.extract.scanner import (
+    ModelCandidate,
+    ModelTooLarge,
+    NativeReaderGate,
+    ScanBudgetExceeded,
+    UsageSource,
+    scan_ai_models,
+)
+
+log = logging.getLogger(__name__)
+
+_CHUNK_BYTES = 8192
+
+# Everything a damaged, encrypted or unsupported member raises on reading.
+_MEMBER_READ_ERRORS = (
+    RuntimeError,
+    NotImplementedError,
+    zlib.error,
+    lzma.LZMAError,
+    EOFError,
+    zipfile.BadZipFile,
+)
+
+_Member = tuple[str, zipfile.ZipInfo]
+
+
+#: Formats whose native loader is not run on a wheel's files unless the
+#: caller trusts the wheel (``--trust-wheel-model``). Add a format here to
+#: gate it; nothing else changes.
+NATIVE_READERS_GATED = frozenset({AiModelFormat.FASTTEXT})
+
+#: The wheel's overall extraction budget, in multiples of the per-model ceiling.
+BUDGET_FACTOR = 4
+
+
+class _Scratch:
+    """What one wheel scan copies into: a temporary directory made on first
+    use (a wheel without models creates none and arms no signal handler),
+    and the budget of bytes it may copy in all."""
+
+    def __init__(self, guard: TerminationGuard, max_bytes: int) -> None:
+        self.guard = guard
+        self.max_bytes = max_bytes
+        self.budget = BUDGET_FACTOR * max_bytes
+        self.spent = 0
+        self.exhausted = False
+        self._path: Path | None = None
+        self._remove: Callable[[], None] | None = None
+
+    def path(self) -> Path:
+        """The directory, created (inside a hold) on the first call."""
+        if self._path is None:
+            with self.guard.hold(MODEL_SCAN_ACTIVITY):
+                self._path, self._remove = registered_temp_dir(
+                    self.guard,
+                    "pitloom-model-scan-",
+                    log_prefix=MODEL_SCAN_ACTIVITY.log_prefix,
+                )
+        return self._path
+
+    def remove(self) -> None:
+        """Remove the directory when it was made."""
+        if self._remove is not None:
+            self._remove()
+
+    def spend(self, size: int) -> None:
+        """Count *size* copied bytes.
+
+        Raises:
+            ScanBudgetExceeded: The budget is spent (logged once).
+        """
+        self.spent += size
+        if self.spent > self.budget:
+            self.exhaust()
+
+    def exhaust(self) -> NoReturn:
+        """Stop copying for the rest of the wheel, saying so once."""
+        if not self.exhausted:
+            self.exhausted = True
+            log.warning(
+                "%smore than %d bytes of model files copied from this wheel; "
+                "the models not yet read are listed without metadata",
+                MODEL_SCAN_ACTIVITY.log_prefix,
+                self.budget,
+            )
+        raise ScanBudgetExceeded
+
+
+def _sniffer(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> Callable[[], bytes]:
+    def _sniff() -> bytes:
+        try:
+            with zf.open(info) as fh:
+                return fh.read(SNIFF_BYTES)
+        except _MEMBER_READ_ERRORS as exc:
+            raise OSError(str(exc)) from exc
+
+    return _sniff
+
+
+def _opener(
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo
+) -> Callable[[], AbstractContextManager[IO[bytes]]]:
+    def _open() -> AbstractContextManager[IO[bytes]]:
+        return zf.open(info)
+
+    return _open
+
+
+def _copy_out(
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo, target: Path, scratch: _Scratch
+) -> None:
+    """Copy the member to the new file *target*. The declared size is only a
+    prefilter: the copy stops once it reads more than the per-model ceiling,
+    or the wheel's budget is spent."""
+    # The member first: one that cannot be read leaves no file behind.
+    with zf.open(info) as src, open(target, "xb") as dst:
+        copied = 0
+        while chunk := src.read(_CHUNK_BYTES):
+            scratch.guard.raise_if_pending()
+            copied += len(chunk)
+            if copied > scratch.max_bytes:
+                raise ModelTooLarge(None, scratch.max_bytes)
+            scratch.spend(len(chunk))
+            dst.write(chunk)
+
+
+def _unlink_quietly(target: Path | None) -> None:
+    """Delete *target*; a failure is left to the directory's removal."""
+    if target is None:
+        return
+    try:
+        os.unlink(target)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        log.debug("could not remove a copied model: %s", exc.strerror)
+
+
+def _materializer(
+    zf: zipfile.ZipFile, member: _Member, index: int, scratch: _Scratch
+) -> Callable[[], AbstractContextManager[Path]]:
+    name, info = member
+    suffix = PurePosixPath(name).suffix.lower()
+
+    @contextlib.contextmanager
+    def _materialize() -> Iterator[Path]:
+        if info.file_size > scratch.max_bytes:
+            raise ModelTooLarge(info.file_size, scratch.max_bytes)
+        if scratch.exhausted or scratch.spent + info.file_size > scratch.budget:
+            scratch.exhaust()
+        target: Path | None = None
+        try:
+            # Held as a whole: a signal waits for the copy to end or stop.
+            with scratch.guard.hold(MODEL_SCAN_ACTIVITY):
+                try:
+                    target = scratch.path() / f"{index}{suffix}"
+                    _copy_out(zf, info, target, scratch)
+                except OSError as exc:
+                    # Its text would name the temporary path.
+                    raise OSError(
+                        exc.errno, exc.strerror or type(exc).__name__
+                    ) from None
+            yield target
+        finally:
+            _unlink_quietly(target)
+
+    return _materialize
+
+
+def _announce_once(claim: Callable[[], bool]) -> Callable[[], bool]:
+    """*claim*, asked at most once."""
+    asked = False
+
+    def announce() -> bool:
+        nonlocal asked
+        if asked:
+            return False
+        asked = True
+        return claim()
+
+    return announce
+
+
+def _wheel_candidates(
+    zf: zipfile.ZipFile,
+    members: list[_Member],
+    scratch: _Scratch,
+    gate: NativeReaderGate | None,
+) -> Iterator[ModelCandidate]:
+    """One :class:`ModelCandidate` per member; no member is read here."""
+    for index, member in enumerate(members):
+        name, info = member
+        yield ModelCandidate(
+            distribution_path=name,
+            physical_path=info.orig_filename,
+            sniff=_sniffer(zf, info),
+            materialize=_materializer(zf, member, index, scratch),
+            gate=gate,
+        )
+
+
+def _wheel_sources(
+    zf: zipfile.ZipFile, members: Iterable[_Member]
+) -> Iterator[UsageSource]:
+    """One :class:`UsageSource` per member; no member is read here."""
+    for name, info in members:
+        yield UsageSource(
+            distribution_path=name,
+            physical_path=info.orig_filename,
+            open=_opener(zf, info),
+        )
+
+
+def scan_wheel_for_ai_models(
+    wheel_path: Path,
+    *,
+    scan_usage: bool,
+    usage_hint: Callable[[], bool],
+    max_bytes: int,
+    trust: bool = False,
+    gate_hint: Callable[[], bool] = lambda: True,
+) -> list[AiModelMetadata]:
+    """Scan a built wheel's files for AI models; with *scan_usage*, their
+    script usages.
+
+    Members are the wheel's install-location names as
+    :func:`pitloom.extract.wheel.read_wheel` records them, minus the
+    ``.dist-info`` directory. A model's ``distribution_path`` is that name
+    and its ``physical_path`` the raw archive name.
+
+    A model larger than *max_bytes*, declared or actually read, or met once
+    the wheel's budget (:data:`BUDGET_FACTOR` times *max_bytes*) of copied
+    bytes is spent, stays in the result without metadata, with one
+    ``WARNING:`` (per model for the ceiling, one per wheel for the budget).
+
+    A model in a :data:`NATIVE_READERS_GATED` format is not read unless
+    *trust*: it stays in the result without metadata, and one ``INFO:``
+    line per scan (when *gate_hint* also returns true; a batch makes it
+    claim a once-per-run slot) names the flag.
+
+    *usage_hint*: see :func:`pitloom.extract.scanner.scan_ai_models`.
+
+    Models come back sorted; see
+    :func:`pitloom.extract.scanner.discover_ai_models`.
+    """
+    require_max_model_extract_bytes(max_bytes)
+    with zipfile.ZipFile(wheel_path) as zf, TerminationGuard() as guard:
+        # No logger: read_wheel() already reported every member name.
+        members = [
+            member
+            for member in zip_file_members(zf, wheel_path.name, None)
+            if not is_dist_info_path(member[0])
+        ]
+        scratch = _Scratch(guard, max_bytes)
+        gate = (
+            None
+            if trust
+            else NativeReaderGate(NATIVE_READERS_GATED, _announce_once(gate_hint))
+        )
+        try:
+            return scan_ai_models(
+                _wheel_candidates(zf, members, scratch, gate),
+                _wheel_sources(zf, members),
+                scan_usage=scan_usage,
+                usage_hint=usage_hint,
+            )
+        finally:
+            scratch.remove()

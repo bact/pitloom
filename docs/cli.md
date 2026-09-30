@@ -101,7 +101,8 @@ be the wheel's own project.
 Without `--project-dir` (and without `--sbom`, below), `embed-wheel`
 still embeds a standalone-wheel SBOM built from the wheel's own contents
 alone -- no project directory scan, so no AI-model enrichment and no
-`[tool.pitloom]` beyond an explicit `--config`:
+`[tool.pitloom]` beyond an explicit `--config`. AI models inside the wheel
+are found (see `--scan-model-usage`):
 
 ```bash
 loom embed-wheel dist/mypackage-1.0.0-py3-none-any.whl
@@ -468,12 +469,21 @@ Available on `project`/`generate`/`model`/`wheel`/`embed-wheel`/`env`
   `extension` skips magika entirely (stdlib-only).
 - `--scan-model-usage` / `--no-scan-model-usage` -- on a project directory
   (`project`, `generate <dir>`, `embed-wheel --project-dir`, and the Hatchling
-  hook via the `scan-model-usage` config key), also record which Python files
-  reference each discovered AI model file (`hasDataFile`). Off by default:
-  it reads every Python file. AI models are found either way; when the
+  hook via the `scan-model-usage` config key) or a built wheel (`wheel`,
+  `wheel --embed`, `embed-wheel` without `--project-dir`), also record which
+  Python files reference each discovered AI model file (`hasDataFile`). Off
+  by default: it reads every Python file (one over 1 MiB is skipped with a
+  `WARNING:`). AI models are found either way; when the
   setting was never given (no flag, no config key), one `INFO:` line says
   how many were found and names the flag -- once per `embed-wheel` run, and
   not when `--no-scan-model-usage` or `scan-model-usage = false` says off.
+- `--trust-wheel-model` -- on a built wheel (`wheel`, `wheel --embed`,
+  `embed-wheel` without `--project-dir`), read AI model files with every
+  format reader, native loaders included. By default a fastText model in a
+  wheel is listed without metadata (one `INFO:` per run): its native loader
+  runs in Pitloom's own process. Use it only for a wheel you trust: a hostile
+  model file can make Pitloom hang or use unbounded memory, and Ctrl-C cannot
+  interrupt it. No config key, so no config file can opt in.
 
 See [Enrich an SBOM](#enrich-an-sbom) above for `--enrich`/`--no-enrich`,
 and [Building a project to discover its file list](allow-build.md) for
@@ -491,18 +501,18 @@ and drops it, rather than silently ignoring it:
 
 | Target | Options that warn |
 | --- | --- |
-| project directory | — |
-| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--use-lockfile` |
-| wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--use-lockfile` |
-| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--update-id-registry` |
-| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--use-lockfile` |
-| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry` |
-| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry` |
-| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
-| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
-| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--update-id-registry` |
-| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--update-id-registry` |
-| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
+| project directory | `--trust-wheel-model` |
+| sdist archive | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--use-lockfile` |
+| wheel | `--enrich`, `--extract-file-header`, `--content-type`, `--use-lockfile` |
+| wheel --embed | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
+| installed environment | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--use-lockfile` |
+| local model file | `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--offline`, `--use-lockfile`, `--update-id-registry` |
+| Hugging Face model | `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--use-lockfile`, `--id-registry`, `--update-id-registry` |
+| enrich --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--update-id-registry` |
+| enrich without --project-dir | `--describe-relationship`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--use-lockfile`, `--update-id-registry` |
+| embed-wheel --project-dir | `--pretty`, `--describe-relationship`, `--trust-wheel-model`, `--update-id-registry` |
+| embed-wheel without --project-dir | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--update-id-registry` |
+| embed-wheel --sbom | `--pretty`, `--describe-relationship`, `--enrich`, `--extract-file-header`, `--content-type`, `--scan-model-usage`, `--trust-wheel-model`, `--content-type-method`, `--max-source-metadata-bytes`, `--offline`, `--id-registry`, `--update-id-registry`, `--creator-*`, `--config`, `--project-dir` |
 
 Each `--flag` above also covers its `--no-flag` boolean-negation form
 where one exists (e.g. `--no-enrich`, `--no-pretty`); the warning names

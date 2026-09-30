@@ -7,7 +7,7 @@
 
 Uses fake candidates and sources, so no project layout is involved.
 
-See also: :mod:`tests.extract.test_scanner_project` for the project producer,
+See also: :mod:`tests.extract.scanner.test_scanner_project` for the project producer,
 :mod:`tests.assemble.test_ai_model_order` for order through the SBOM.
 """
 
@@ -21,9 +21,10 @@ import io
 import itertools
 import logging
 import zlib
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -430,7 +431,7 @@ def test_scan_consumes_generators_once_and_discovers_before_scanning() -> None:
 
     with patch(_READ, autospec=True, return_value=_meta()):
         found = scan_ai_models(
-            _candidates(), _sources(), scan_usage=True, usage_hint=False
+            _candidates(), _sources(), scan_usage=True, usage_hint=lambda: False
         )
     assert calls == ["candidates", "sources"]
     assert [m.usage_files for m in found] == [["pkg/use.py"]]
@@ -442,13 +443,54 @@ def test_scan_attaches_usage_to_import_error_stub() -> None:
             [_cand("pkg/model.onnx")],
             [_src("pkg/use.py", data=b"model.onnx")],
             scan_usage=True,
-            usage_hint=False,
+            usage_hint=lambda: False,
         )
     assert [m.usage_files for m in found] == [["pkg/use.py"]]
 
 
 def test_scan_empty_inputs() -> None:
     for usage, hint in itertools.product((True, False), repeat=2):
-        kw = {"scan_usage": usage, "usage_hint": hint}
-        assert not scan_ai_models([], [], **kw)
-        assert not scan_ai_models(iter(()), iter(()), **kw)
+        answer = Mock(return_value=hint)
+        empties: list[Iterable[Any]] = [[], iter(())]
+        for empty in empties:
+            assert not scan_ai_models(empty, empty, scan_usage=usage, usage_hint=answer)
+
+
+@pytest.mark.parametrize(
+    ("usage", "models", "asked", "printed"),
+    [
+        (True, True, False, False),  # the setting is on: nothing to hint at
+        (False, False, False, False),  # no model found: nothing to count
+        (False, True, True, True),
+    ],
+    ids=["usage-on", "no-models", "would-print"],
+)
+def test_usage_hint_is_asked_only_when_it_would_print(
+    caplog: pytest.LogCaptureFixture,
+    usage: bool,
+    models: bool,
+    asked: bool,
+    printed: bool,
+) -> None:
+    """The hint may claim a once-per-run slot, so it is not called eagerly."""
+    hint = Mock(return_value=True)
+    candidates = [_cand("pkg/model.onnx")] if models else []
+    caplog.set_level(logging.INFO, logger=_LOGGER_NAME)
+    with patch(_READ, autospec=True, return_value=_meta()):
+        scan_ai_models(candidates, [], scan_usage=usage, usage_hint=hint)
+    assert hint.called is asked
+    assert any("pass --scan-model-usage" in r.getMessage() for r in caplog.records) is (
+        printed
+    )
+
+
+def test_a_hint_answering_no_stays_silent(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger=_LOGGER_NAME)
+    with patch(_READ, autospec=True, return_value=_meta()):
+        scan_ai_models(
+            [_cand("pkg/model.onnx")],
+            [],
+            scan_usage=False,
+            usage_hint=lambda: False,
+        )
+    assert not caplog.records

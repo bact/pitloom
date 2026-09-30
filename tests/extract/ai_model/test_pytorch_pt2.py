@@ -234,7 +234,7 @@ def test_read_pt2_extra_files_read_failure_logs_and_returns_none(
     missing extra/name file (falls back to None)."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["extra/name"]
-    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+    mock_zf.open.side_effect = RuntimeError("bad CRC-32")
 
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
@@ -261,7 +261,7 @@ def test_read_pt2_extra_files_model_version_read_failure_logs_once(
     WARNING a second time for one underlying failure."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["extra/model_version"]
-    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+    mock_zf.open.side_effect = RuntimeError("bad CRC-32")
 
     properties: dict[str, str] = {}
     provenance: dict[str, str] = {}
@@ -274,7 +274,7 @@ def test_read_pt2_extra_files_model_version_read_failure_logs_once(
     assert "version" not in provenance
     matching = [r for r in caplog.records if "extra/model_version" in r.message]
     assert len(matching) == 1
-    assert mock_zf.read.call_count == 1
+    assert mock_zf.open.call_count == 1
 
 
 def test_read_pt2_zip_archive_version_read_failure_logs_and_continues(
@@ -285,7 +285,7 @@ def test_read_pt2_zip_archive_version_read_failure_logs_and_continues(
     None instead of raising."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = ["archive_version"]
-    mock_zf.read.side_effect = RuntimeError("bad CRC-32")
+    mock_zf.open.side_effect = RuntimeError("bad CRC-32")
 
     with caplog.at_level(logging.DEBUG, logger="pitloom.extract.ai_model.pytorch_pt2"):
         result = _read_pt2_zip(mock_zf, "Source: model.pt2")
@@ -380,13 +380,17 @@ def test_detect_root_prefix_edge_cases() -> None:
 def test_read_pt2_meta_entry_model_name_and_invalid_json() -> None:
     """_read_pt2_meta_entry parses model_name key and handles invalid JSON."""
     mock_zf = MagicMock()
-    mock_zf.read.return_value = b'{"model_name": "exec_model"}'
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = (
+        b'{"model_name": "exec_model"}'
+    )
     name, prov = _read_pt2_meta_entry(mock_zf, "METADATA.json", "Source: test.pt2")
     assert name == "exec_model"
     assert prov is not None and "METADATA.json.model_name" in prov
 
     # Non-dict JSON
-    mock_zf.read.return_value = b'["not", "a", "dict"]'
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = (
+        b'["not", "a", "dict"]'
+    )
     name2, prov2 = _read_pt2_meta_entry(mock_zf, "METADATA.json", "Source: test.pt2")
     assert name2 is None
     assert prov2 is None
@@ -396,7 +400,7 @@ def test_read_pt2_zip_large_file_list() -> None:
     """_read_pt2_zip summarizes archive contents when > 20 members are present."""
     mock_zf = MagicMock()
     mock_zf.namelist.return_value = [f"entry_{i}.bin" for i in range(25)]
-    mock_zf.read.return_value = b""
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = b""
 
     res = _read_pt2_zip(mock_zf, "Source: test.pt2")
     properties = res[5]
@@ -419,14 +423,18 @@ def test_read_pt2_extra_tags_string_fallback() -> None:
     mock_zf.namelist.return_value = ["extra/tags"]
 
     # 1. Valid JSON that is not a list (e.g. dict)
-    mock_zf.read.return_value = b'{"not_a_list": true}'
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = (
+        b'{"not_a_list": true}'
+    )
     props: dict[str, str] = {}
     prov: dict[str, str] = {}
     _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props, prov)
     assert props.get("tags") == '{"not_a_list": true}'
 
     # 2. Invalid JSON string
-    mock_zf.read.return_value = b"plain_tag_string"
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = (
+        b"plain_tag_string"
+    )
     props2: dict[str, str] = {}
     prov2: dict[str, str] = {}
     _read_pt2_extra_files(mock_zf, "", "Source: test.pt2", props2, prov2)
@@ -436,7 +444,9 @@ def test_read_pt2_extra_tags_string_fallback() -> None:
 def test_read_pt2_meta_entry_empty_dict() -> None:
     """_read_pt2_meta_entry returns None when JSON dict lacks name/model_name."""
     mock_zf = MagicMock()
-    mock_zf.read.return_value = b'{"other_key": "val"}'
+    mock_zf.open.return_value.__enter__.return_value.read.return_value = (
+        b'{"other_key": "val"}'
+    )
     name, prov = _read_pt2_meta_entry(mock_zf, "metadata.json", "Source: test.pt2")
     assert name is None
     assert prov is None

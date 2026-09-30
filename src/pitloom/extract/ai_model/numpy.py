@@ -22,6 +22,8 @@ from typing import Any
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
+from pitloom.extract.ai_model import archive_member
+from pitloom.extract.ai_model.archive_member import ArchiveMemberTooLarge
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +119,9 @@ def _shim_read_array_header(
 
     hlength_str = fp.read(4)
     header_length = struct.unpack("<I", hlength_str)[0]
+    limit = archive_member.MAX_ARCHIVE_MEMBER_BYTES
+    if header_length > limit:
+        raise ArchiveMemberTooLarge("array header", limit)
     header = fp.read(header_length).decode("utf-8")
     d = ast.literal_eval(header)
     return (
@@ -246,6 +251,8 @@ def read_numpy(model_path: Path) -> AiModelMetadata:
             )
         elif kind == "npz":
             inputs, provenance = _read_npz_metadata(model_path, source)
+    except ArchiveMemberTooLarge:
+        raise
     # pylint: disable-next=broad-exception-caught
     except Exception as exc:
         log.debug("Failed to read NumPy file %s: %s", model_path, exc)

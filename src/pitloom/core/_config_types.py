@@ -17,6 +17,8 @@ from pitloom.core.provenance import ProvenanceConfig
 
 _DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
 VALID_CONTENT_TYPE_METHODS: frozenset[str] = frozenset({"auto", "magika", "extension"})
+#: Default ``max-model-extract-bytes``: 512 MiB.
+DEFAULT_MAX_MODEL_EXTRACT_BYTES = 512 * 1024 * 1024
 
 #: Every boolean ``[tool.pitloom]`` key, by sub-table (``""`` is
 #: ``[tool.pitloom]`` itself), in both spellings. A ``setup.cfg`` value is a
@@ -40,6 +42,7 @@ BOOL_KEYS: dict[str, frozenset[str]] = {
 }
 #: Every integer ``[tool.pitloom]`` key, as :data:`BOOL_KEYS`.
 INT_KEYS: dict[str, frozenset[str]] = {
+    "": frozenset({"max-model-extract-bytes"}),
     "provenance": frozenset({"max-source-metadata-bytes", "max_source_metadata_bytes"}),
 }
 
@@ -164,6 +167,8 @@ class PitloomConfig:
     extract_file_header: bool = True
     #: ``None`` = never given (treated as off, but the scan hints at the flag).
     scan_model_usage: bool | None = None
+    #: Ceiling on one AI model file copied out of a wheel to be read.
+    max_model_extract_bytes: int = DEFAULT_MAX_MODEL_EXTRACT_BYTES
     content_type_enabled: bool = False
     content_type_method: str = "auto"
     content_type_overrides: tuple[ContentTypeOverride, ...] = ()

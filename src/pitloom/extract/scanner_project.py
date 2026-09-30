@@ -60,6 +60,7 @@ def project_candidates(
             physical_path=_stable_path(pf),
             sniff=_sniffer(path),
             materialize=_materializer(path),
+            read_path=path,
         )
 
 
@@ -73,6 +74,7 @@ def project_sources(
             distribution_path=pf.distribution_path,
             physical_path=_stable_path(pf),
             open=_opener(path),
+            read_path=path,
         )
 
 
@@ -81,11 +83,11 @@ def scan_project_for_ai_models(
     files: list[ProjectFile],
     *,
     scan_usage: bool,
-    usage_hint: bool,
+    usage_hint: Callable[[], bool],
 ) -> list[AiModelMetadata]:
     """Scan project files for AI models; with *scan_usage*, their script usages.
 
-    *usage_hint* allows the one-line ``INFO:`` naming the setting (see
+    *usage_hint* is asked before the one-line ``INFO:`` naming the setting (see
     :func:`pitloom.extract.scanner.scan_ai_models`).
 
     Models come back sorted; see

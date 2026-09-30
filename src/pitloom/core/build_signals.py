@@ -82,6 +82,10 @@ class GuardedActivity(NamedTuple):
 BUILD_ACTIVITY = GuardedActivity(BUILD_LOG_PREFIX, "the build")
 """The ``--allow-build`` build-and-read."""
 
+MODEL_SCAN_ACTIVITY = GuardedActivity("AI model scan: ", "the AI model file copy")
+"""Copying one AI model file out of a wheel. A signal waits for the copy to
+end; while the copy is parsed, it acts at once."""
+
 # Before the first hold. Handlers install only in a hold, so no
 # termination message names it; generic rather than claiming a build.
 _NO_ACTIVITY = GuardedActivity("", "a guarded activity")

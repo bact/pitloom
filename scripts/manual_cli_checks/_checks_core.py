@@ -143,6 +143,25 @@ def check_embed_parity(ctx: Context) -> None:
         file_names(embedded) == file_names(standalone),
         f"file lists differ: {file_names(embedded)} vs {file_names(standalone)}",
     )
+    # A flat layout: the model found in the project and the one found inside
+    # the wheel are the same AIPackage (ids aside), and neither has a
+    # hasDataFile by default.
+    models = [
+        [
+            {k: v for k, v in e.items() if k != "spdxId"}
+            for e in graph
+            if e.get("type") == "ai_AIPackage"
+        ]
+        for graph in (embedded, standalone)
+    ]
+    expect(len(models[0]) == 1, f"expected one AIPackage, got {len(models[0])}")
+    expect(models[0] == models[1], f"AIPackage differs: {models}")
+    expect(
+        not any(
+            e.get("relationshipType") == "hasDataFile" for e in (*embedded, *standalone)
+        ),
+        "hasDataFile without --scan-model-usage",
+    )
 
 
 @check("4a", "round trip: embed-wheel --verify, then verify-wheel")

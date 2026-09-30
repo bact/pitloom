@@ -19,8 +19,12 @@ from pitloom.core._config_read import (
     _read_bool_setting,
     _require_choice,
 )
-from pitloom.core._config_types import VALID_CONTENT_TYPE_METHODS
+from pitloom.core._config_types import (
+    DEFAULT_MAX_MODEL_EXTRACT_BYTES,
+    VALID_CONTENT_TYPE_METHODS,
+)
 from pitloom.core.content_type_config import ContentTypeOverride
+from pitloom.core.model_extract_limit import require_max_model_extract_bytes
 
 _CONTENT_TYPE_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
 
@@ -69,6 +73,14 @@ def _read_scan_model_usage(pitloom_data: dict[str, Any]) -> bool | None:
     if key not in pitloom_data:
         return None
     return _read_bool_setting(pitloom_data, key, False)
+
+
+def _read_max_model_extract_bytes(pitloom_data: dict[str, Any]) -> int:
+    """Read ``[tool.pitloom] max-model-extract-bytes``, a positive integer
+    (see :func:`~pitloom.core.model_extract_limit.require_max_model_extract_bytes`)."""
+    return require_max_model_extract_bytes(
+        pitloom_data.get("max-model-extract-bytes", DEFAULT_MAX_MODEL_EXTRACT_BYTES)
+    )
 
 
 def _read_content_type_settings(

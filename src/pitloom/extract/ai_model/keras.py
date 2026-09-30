@@ -36,6 +36,10 @@ from pitloom.extract._extract_utils import (
     record_dict_field_provenance,
     sanitize_provenance_text,
 )
+from pitloom.extract.ai_model.archive_member import (
+    ArchiveMemberTooLarge,
+    read_archive_member,
+)
 
 log = logging.getLogger(__name__)
 
@@ -146,7 +150,7 @@ def read_keras(model_path: Path) -> AiModelMetadata:
             names = zf.namelist()
 
             if "metadata.json" in names:
-                meta = json.loads(zf.read("metadata.json"))
+                meta = json.loads(read_archive_member(zf, "metadata.json"))
                 # keras_version is the Keras library version, not the model version.
                 framework_version = meta.get("keras_version") or None
                 if framework_version:
@@ -161,11 +165,13 @@ def read_keras(model_path: Path) -> AiModelMetadata:
                     )
 
             if "config.json" in names:
-                config_data = json.loads(zf.read("config.json"))
+                config_data = json.loads(read_archive_member(zf, "config.json"))
                 type_of_model, name = _parse_model_config(
                     config_data, source, hyperparameters, inputs, provenance
                 )
 
+    except ArchiveMemberTooLarge:
+        raise
     except zipfile.BadZipFile as exc:
         raise ValueError(
             f"Failed to read Keras file {model_path}: not a valid ZIP archive"

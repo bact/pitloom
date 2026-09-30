@@ -20,7 +20,11 @@ from zipfile import ZipFile
 
 from pitloom.core.ai_metadata import AiModelFormat, AiModelFormatInfo, AiModelMetadata
 from pitloom.extract._extract_utils import sanitize_provenance_text
-from pitloom.logging_config import field_loss_suffix
+from pitloom.extract.ai_model.archive_member import (
+    ArchiveMemberTooLarge,
+    open_archive_member,
+)
+from pitloom.logging_config import field_loss_suffix, loggable
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
         msg = "fickling failed to parse pickle bytes: %s" + field_loss_suffix(
             "skipped", "type_of_model"
         )
-        log.warning(msg, exc)
+        log.warning(msg, loggable(str(exc)))
         return None
 
     try:
@@ -73,7 +77,7 @@ def _fickling_get_top_class(pkl_file: IO[bytes]) -> str | None:
         msg = "fickling parsed pickle but AST walk failed: %s" + field_loss_suffix(
             "skipped", "type_of_model"
         )
-        log.warning(msg, exc)
+        log.warning(msg, loggable(str(exc)))
         return None
 
     return None
@@ -112,18 +116,19 @@ def _read_pytorch_zip(
     )
     if pkl_entry is not None:
         try:
-            with zf.open(pkl_entry) as fh:
-                type_of_model = _fickling_get_top_class(fh)
+            type_of_model = _fickling_get_top_class(open_archive_member(zf, pkl_entry))
             if type_of_model:
                 provenance["type_of_model"] = (
                     f"{source} | Field: {pkl_entry} (fickling)"
                 )
+        except ArchiveMemberTooLarge:
+            raise
         # pylint: disable-next=broad-exception-caught
         except Exception as exc:
             msg = "Failed to inspect %s in %s: %s" + field_loss_suffix(
                 "skipped", "type_of_model"
             )
-            log.warning(msg, pkl_entry, source, exc)
+            log.warning(msg, loggable(pkl_entry), loggable(source), loggable(str(exc)))
 
     return type_of_model, properties, provenance
 

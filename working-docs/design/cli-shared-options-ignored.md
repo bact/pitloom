@@ -22,15 +22,12 @@ or superseded, with one exception carried forward:
 
 ## Still open
 
-- **`env`/`wheel`/`model` never scan for AI models.** Only
-  `project`/`generate` on a project directory and `embed-wheel
-  --project-dir` scan (`ai_models=` is `[]` in `generate_wheel_sbom`,
-  `generate_env_sbom` and the standalone-wheel embed), so a built wheel or
-  an installed package that carries a model file gets no `AIPackage`.
-  Decided 2026-09-22: built wheels will scan (planned PR D, with
-  `--scan-model-usage` gating only the `.py` usage pass); `env` stays
-  unscanned for now (no file list, no AIPackage path in
-  `build_deployed()`). The provenance settings are already wired (see
+- **`env` never scans for AI models** (`ai_models=` is `[]` in
+  `generate_env_sbom`), so an installed package that carries a model file
+  gets no `AIPackage`: no file list, no AIPackage path in
+  `build_deployed()`. Built wheels scan since PR D (see
+  [ai-model-scanning.md](../implementation/ai-model-scanning.md)); `model`
+  targets are the model. The provenance settings are already wired (see
   `config-sources.md`).
 
 ## Found while doing this, not fixed here

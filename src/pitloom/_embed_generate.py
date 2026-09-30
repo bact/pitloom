@@ -50,6 +50,7 @@ from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import normalize_max_source_metadata_bytes
 from pitloom.extract.binary import find_phantom_dependencies
 from pitloom.extract.project import read_project
+from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.id_registry import IdRegistry, registry_base_dir, resolve_registry
 
 
@@ -150,6 +151,7 @@ def _settle_embed_options(
 def _generate_embed_sbom_json(
     wheel_metadata: ProjectMetadata,
     *,
+    wheel_path: Path,
     project_dir: Path | str | None,
     pitloom_config: PitloomConfig | None,
     sbom_path: Path | str | None,
@@ -200,10 +202,12 @@ def _generate_embed_sbom_json(
         )
         cfg = resolve_standalone_config(pitloom_config, overrides)
         sbom_json = _build_sbom_standalone_wheel(
+            wheel_path,
             wheel_metadata,
             cfg,
             creation_metadata or cfg.creation_metadata,
             resolve_registry(id_registry, cfg.id_registry, Path.cwd()),
+            (file_cache, overrides.trust_wheel_model is True),
         )
         return sbom_json, sbom_basename or cfg.sbom_basename
 
@@ -252,20 +256,46 @@ def _generate_embed_sbom_json(
 
 
 def _build_sbom_standalone_wheel(
+    wheel_path: Path,
     wheel_metadata: ProjectMetadata,
     cfg: PitloomConfig,
     creation_metadata: CreationMetadata,
     registry: IdRegistry | None,
+    batch: tuple[EmbedFileCache | None, bool],
 ) -> str:
     """Build the SBOM for a wheel embedded with no source project directory.
 
+    *batch*: the :class:`~pitloom.embed.EmbedFileCache` (``None`` outside a
+    batch) and whether the wheel's models are read with every reader
+    (``--trust-wheel-model``).
+
     *cfg* holds only explicit settings (an explicitly named config and the
-    per-run overrides); nothing is borrowed from the current directory.
+    per-run overrides); nothing is borrowed from the current directory. The
+    AI models are the ones inside the wheel. A batch (*file_cache*) hints at
+    ``--scan-model-usage`` once, from the first wheel that has models, and
+    likewise says once that a gated model was listed without metadata.
     """
+    file_cache, trust = batch
+    ai_models = scan_wheel_for_ai_models(
+        wheel_path,
+        scan_usage=cfg.scan_model_usage is True,
+        usage_hint=lambda: (
+            cfg.scan_model_usage is None
+            and (
+                file_cache is None
+                or file_cache.first_use(("scan-usage-hint", "standalone"))
+            )
+        ),
+        max_bytes=cfg.max_model_extract_bytes,
+        trust=trust,
+        gate_hint=lambda: (
+            file_cache is None or file_cache.first_use(("native-gate-hint",))
+        ),
+    )
     doc = DocumentModel(
         project=wheel_metadata,
         creation_metadata=creation_metadata,
-        ai_models=[],
+        ai_models=ai_models,
         phantom_dependencies=find_phantom_dependencies(wheel_metadata.files),
     )
     exporter = assemble_spdx3(

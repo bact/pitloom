@@ -277,13 +277,14 @@ skill ("Validate a wheel's embedded SBOM").
   files reference each discovered AI model file (`hasDataFile`), for a
   project directory (`project`, `generate <dir>`, `embed-wheel
   --project-dir`, and the Hatchling hook via the `scan-model-usage` config
-  key). Off by
+  key) or a built wheel (`wheel`, `wheel --embed`, `embed-wheel` without
+  `--project-dir`; models inside the wheel are found either way). Off by
   default and **opt-in only**: add it only when the request asks which code
   loads a model. Models are found either way; when the setting was
   never given, one `INFO:` line says how many were found and names this flag
   (once per run; silent after an explicit `--no-scan-model-usage` or
-  `scan-model-usage = false`). Other targets warn that it
-  has no effect.
+  `scan-model-usage = false`). sdist, env, model-file and Hugging Face
+  targets, `enrich` and `embed-wheel --sbom` warn that it has no effect.
 - `--content-type` / `--no-content-type` -- per-file content-type/MIME
   detection (`magika`, or a filename-extension guess). Off by default and
   **opt-in only**: add it only when the request implies wanting that data,

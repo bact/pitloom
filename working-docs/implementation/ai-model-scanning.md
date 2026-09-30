@@ -16,9 +16,9 @@ the per-format readers and
 ## Purpose
 
 One discovery policy for every surface that finds AI models among a
-distribution's files. Today the project directory (`loom project`,
-`embed-wheel`, the Hatchling hook) uses it; a wheel producer is a planned
-extension.
+distribution's files. The project directory (`loom project`,
+`embed-wheel --project-dir`, the Hatchling hook) and a built wheel (`loom
+wheel`, `wheel --embed`, `embed-wheel` without `--project-dir`) both use it.
 
 ## Modules
 
@@ -27,6 +27,8 @@ extension.
   `attach_usage_references()`, `scan_ai_models()`. It imports no producer.
 - `extract/scanner_project.py` -- the project-directory producer:
   `project_candidates()`, `project_sources()`, `scan_project_for_ai_models()`.
+- `extract/scanner_wheel.py` -- the built-wheel producer:
+  `scan_wheel_for_ai_models()`; see "Wheels" below.
 - `extract/ai_model/reader.py` -- the format authority:
   `read_ai_model_header()`, `detect_ai_model_format_from_header()`,
   `detect_ai_model_format()`, `read_ai_model(model_format=)`.
@@ -44,8 +46,9 @@ shared code asks.
 - `UsageSource.open()` returns a context manager yielding a binary stream.
   It may raise.
 - `physical_path` on both is stable: project-relative, or the distribution
-  path when the file has no project-relative path. Never a temporary path;
-  the shared code trusts it and prints it as `FILE=`.
+  path when the file has no project-relative path; for a wheel member, its
+  raw archive name. Never a temporary path; the shared code trusts it and
+  prints it as `FILE=` (escaped when not printable).
 
 ## Format authority
 
@@ -92,13 +95,42 @@ defensive code for a hand-built `AiModelMetadata`.
   and continues with the next source.
 - It runs even when no model was found, so unreadable sources are still
   reported.
+- **1 MiB cap** (both producers): `fh.read(cap + 1)`; a longer source gives
+  one `FILE=...: larger than the 1048576-byte usage-scan cap; skipped`. The
+  bounded read is the check: `ZipInfo.file_size` is archive-controlled, so it
+  is never trusted. A source of exactly 1 MiB is scanned. Before, a project
+  `.py` of any size was read whole.
 
-## Known limit
+## Decided in the wheel-scanning PR
 
-The exception text after `FILE=<stable>;` can still name a real or
-temporary path (for example ONNX's "Failed to load ... from <path>"). Only
-`FILE=` is stable. Scrubbing it is decided in the wheel-scanning PR, which
-adds temporary copies of wheel members.
+- **Exception text is scrubbed.** After a reader fails, `_read_candidate()`
+  replaces the path that was read in every spelling (as given and as
+  resolved, longest first: macOS `/var` vs `/private/var`; each raw, as
+  `repr` escapes it -- a Windows path's backslashes are doubled in
+  `str(OSError)` -- and with forward slashes) in the message with the
+  candidate's `physical_path`, then escapes it if not printable. The sniff
+  and usage branches do the same with `read_path`, the file a project
+  producer's `sniff`/`open` read (an absolute path, for `--allow-build` a
+  temporary extraction directory). A project warning therefore shows the
+  relative path, not an absolute one, and stderr is the same on every
+  machine. A copy failure
+  (`OSError` while creating or writing the temporary file) is re-raised
+  without its filename, as its text would name the path.
+- **Renamed-model `Source:` is restored.** Every reader writes `Source:
+  {model_path.name}`, so a copy named `0.safetensors` would put that name in
+  the SBOM. After `read_ai_model()`, an exact `Source: <copy name>` prefix
+  (the value itself, or followed by ` |`) is rewritten to the distribution
+  basename. It is a byte change for a static project rename
+  (`Source: weights.dat` becomes `Source: model.npy`), which makes static
+  and `--allow-build` agree with `file_name`.
+- **Sort and dedupe.** File order is unchanged: `zip_file_members()` keeps
+  archive order and identical bytes give identical `File-N` ids. Duplicate
+  arcnames are dropped there (last wins, one `overwritten by later entry`
+  warning from `read_wheel`), so the wheel scanner never sees two. The
+  scanner itself does not dedupe: a project producer must give one
+  `ProjectFile` per distribution path (its contract).
+
+## Known limits
 
 A candidate with an allowed suffix that exists but cannot be read (denied
 file or directory) gives one `FORMAT= FILE=` warning ("could not read
@@ -107,9 +139,10 @@ and `.zip`) and is skipped. `ModelCandidate.sniff` raises `OSError` for this
 and returns `b""` only for absence, so every producer shares the one path.
 A readable `.bin` with no model magic stays a silent skip.
 
-Provenance `Source:` names the physical file for a renamed model: static
-`assets/weights.dat`, but `--allow-build` `pkg/renamed.npy`. Fixed in PR D
-section 3.3(2).
+A raw (non-ZIP) `.pt` pickle is handed to fickling as a file, not bounded
+by the inner cap below: it is not an inner member, and its size is the
+file's own (a wheel copy is under the ceiling; a project file is read in
+place).
 
 ## Paths rejected
 
@@ -152,10 +185,10 @@ section 3.3(2).
   PR D's zip-order wheel producer.
 - **Rejected:** sorting in `build()` (misaligns enrichment and claims);
   `order=True` on the dataclasses (compares callables on a tie).
-- **Open, for PR D:** `ProjectMetadata.files` order drives `File-N` ids
-  (`_document_files.py` does not sort), so the wheel producer must sort its
-  files the same way. Two candidates with the same distribution and
-  physical path still give two models; deduping them is deferred to PR D.
+- **Closed in PR D:** `ProjectMetadata.files` order drives `File-N` ids
+  (`_document_files.py` does not sort); the wheel producer keeps archive
+  order, as `read_wheel` does, so no sort is needed. Duplicates: see
+  "Decided in the wheel-scanning PR".
 
 ## Wheels and `--scan-model-usage` (PR D)
 
@@ -174,9 +207,9 @@ and a read cap inside `attach_usage_references()`.
   reads the project's own config). `hasDataFile` therefore no longer appears
   by default; this changes hook and `project` output.
 - **`scan_usage` and `usage_hint` have no default** on `scan_ai_models()`
-  and `scan_project_for_ai_models()`, so a new caller cannot forget either.
+  and both producers' wrappers, so a new caller cannot forget either.
   Callers pass `scan_usage=cfg.scan_model_usage is True` and
-  `usage_hint=cfg.scan_model_usage is None`.
+  `usage_hint=lambda: cfg.scan_model_usage is None`.
 - **The setting is tri-state:** `PitloomConfig.scan_model_usage` is `None`
   when never given (off, plus the hint), `False` when given as false on any
   surface (off, silent), `True` on. Readers keep `None` for an absent key;
@@ -187,12 +220,114 @@ and a read cap inside `attach_usage_references()`.
   from a caller or when no model exists. Every surface therefore words it
   identically. Text: `Found N AI model file(s); pass --scan-model-usage (or
   set scan-model-usage = true) to also record which Python files reference
-  them.` A multi-wheel `embed-wheel --project-dir` run shows it once:
-  `EmbedFileCache.first_use()` decides which wheel's scan may hint (every
-  wheel shares the project's models).
-- **Inert until the wheel producer lands:** WHEEL and EMBED_STANDALONE find
-  no models yet, so `--scan-model-usage` warns there (`INERT` rows, removed
-  with the wheel producer), as do sdist, env, model, Hugging Face and both
-  enrich kinds.
-- **Not done here:** `generate_wheel_sbom()` gets no kwarg (accepting and
-  ignoring it would be a silent no-op).
+  them.`
+- **`usage_hint` is lazy** (`Callable[[], bool]`): `scan_ai_models()` calls
+  it only when the pass is off and a model was found, so it may claim a
+  once-per-run slot. An eager bool would let a model-less first wheel of a
+  standalone `embed-wheel` batch use up the batch's one hint. A batch
+  hints once, from the first wheel that has models (its count):
+  `EmbedFileCache.first_use()` inside the callable, keyed per project
+  directory for `--project-dir` and one shared key for standalone.
+- **Inert elsewhere:** sdist, env, model, Hugging Face, both enrich kinds
+  and `embed-wheel --sbom` warn that `--scan-model-usage` has no effect
+  (`INERT` rows).
+
+### Wheels (step 9)
+
+`scan_wheel_for_ai_models(wheel_path, *, scan_usage, usage_hint,
+max_bytes)` serves `loom wheel`, `wheel --embed`, `embed-wheel` without
+`--project-dir`, `generate()` on a `.whl`, `generate_wheel_sbom()` and
+`embed_wheel_sbom()` without `project_dir`. `--project-dir` keeps scanning
+the project; `--sbom` scans nothing; the Hatchling hook scans its project
+directory, never a wheel.
+
+- **Members** come from `zip_file_members(zf, name, None)` -- no logger, as
+  `read_wheel()` already reported every name (two reports would double each
+  `ARCHIVE= ENTRY=` warning) -- minus `*.dist-info/*`. `distribution_path` is
+  the normalised name (the same string as `software_File.name`), so
+  `contains` and `hasDataFile` resolve; `physical_path` is the raw
+  `orig_filename`, exactly what `read_wheel` stores in
+  `ProjectFile.physical_path`. Traversal and absolute names never reach the
+  scanner, and no member name is ever joined onto a path.
+- **Copy out, bounded.** A reader needs a real path, so a model is copied to
+  `{member index}{lower-case suffix}` in a temporary directory made on first
+  use (a wheel without models makes none). The name is never derived from
+  the member name: normalised basenames can still be Windows-reserved
+  (`CON.npy`), long, or contain `:`/newlines. Checks: (1) declared
+  `file_size` above the ceiling: `ModelTooLarge`, no file made; (2)
+  `zf.open()` first, then `open(target, "xb")`, so an encrypted or
+  unsupported member leaves no file; (3) a running byte counter on 8192-byte
+  reads aborts at the ceiling and deletes the partial file (CPython already
+  truncates a lying central-directory size with a CRC error, but the guarantee
+  must not depend on that). `shutil.copyfileobj` is not used (no counter). No
+  compression-ratio check: sparse real models deflate 1000:1. The ceiling is
+  per member; total time over many members is not capped.
+- **One owner of the messages.** The materialiser raises `ModelTooLarge`;
+  `_read_candidate()` logs `FORMAT=%s FILE=%s: N bytes exceeds the M-byte scan
+  ceiling; metadata not read` (`read more than M bytes, over the ...` when the
+  copy was aborted: the size is then a lower bound, not known), so no
+  producer writes a `FORMAT=`/`FILE=` string.
+- **Stub rule.** A model over the ceiling, or met once the wheel budget is
+  spent, is kept as a format-only `AIPackage` (name from the file, format
+  from the sniff, the file link; as for a missing optional library) with the
+  one `WARNING:`. Dropping it would make the SBOM claim the wheel holds no
+  such model.
+- **Per-wheel budget.** `BUDGET_FACTOR` (4) times `max-model-extract-bytes`
+  (2 GiB by default; derived, no key) bounds the bytes copied across all
+  members: an archive of many just-under-ceiling models cannot fill the
+  disk. Bytes actually read are counted, plus a declared-size prefilter;
+  once spent, the budget stays spent (a later small model does not sneak
+  in), the remaining models become stubs, and one `WARNING:` per wheel says
+  so (`AI model scan: more than N bytes ... copied from this wheel`).
+  Members are visited in sorted order, so which models are read is
+  deterministic.
+- **Signals.** The temporary directory is made with `registered_temp_dir()`
+  inside `guard.hold(MODEL_SCAN_ACTIVITY)`: `TerminationGuard` arms only
+  inside a hold, so a bare `with TerminationGuard():` would leave a SIGTERM
+  uncaught. The hold spans each model's whole copy (polled with
+  `raise_if_pending()` per chunk, so a signal stops the copy at the next
+  chunk), not the parse: a hung parser must stay killable. The activity is
+  named "the AI model file copy", so the message's "during" (in the hold) and
+  "after" (parsing the copy) are both true. Nested in an `embed-wheel` batch
+  the guard is the batch's owner. The Hatchling hook gets no guard: it makes
+  nothing to clean up. A leftover directory is named by its basename only,
+  "in the system temp directory" (`mkdtemp`'s default): a full path is a
+  machine-specific string in a log.
+- **Config.** `max-model-extract-bytes` (default 512 MiB) is a config key
+  only: no flag, no keyword. It applies to wheel targets and comes from
+  `--config`/`pitloom_config=`. `<= 0` is a one-line config error; unlike
+  `max-source-metadata-bytes`, zero is not "unlimited", because this is a
+  safety ceiling. A library caller's `PitloomConfig` is never parsed, so the
+  scan entry runs the same validator
+  (`require_max_model_extract_bytes()`, a `bool`/non-`int`/`<= 0` is the same
+  one-line error) before it touches the wheel.
+- **Inner members are bounded too** (`extract/ai_model/archive_member.py`).
+  A model archive (`.keras`, `.pt`, `.pt2`) is untrusted, and a few KiB of
+  deflate inflate to gigabytes, so every reader reads a metadata member
+  (`config.json`, `data.pkl`, `model.json`, the PT2 `extra/` files, an `.npy`
+  v3 header length) through `read_archive_member()`: `read(CAP + 1)`, reject
+  when longer. `CAP` is 8 MiB: these members are KiB to a few MiB even for a
+  model with thousands of layers, and nothing Pitloom reads needs more. A
+  `.pt` `data.pkl` is read into a `BytesIO` of at most `CAP` for fickling
+  (whose `Pickled.load` would `read()` a non-seekable stream whole, and
+  allocates what a `BINBYTES8` header claims). The error is an
+  `ArchiveMemberTooLarge`, not a `ValueError`, so each reader's broad
+  `except` lets it through; the scanner logs one `archive member X larger
+  than N bytes; metadata not read` and keeps the stub. It applies to project
+  scans too: same readers.
+- **Reader logs.** Every reader warning goes through one route: the scanner
+  captures the records a reader logs while it runs
+  (`extract/_reader_log.py`, a handler on the `pitloom.extract.ai_model`
+  logger, propagation off for the duration) and logs them again under
+  `FORMAT= FILE=`, escaped, with the path scrubbed and a `Source: 0.pt`
+  quoted by a reader put back to the member's name. A reader called without
+  the scanner (`loom model`) escapes the member names it quotes itself, with
+  the shared `logging_config.loggable()`. Not thread-safe: a record another
+  thread logs on a reader's logger during a scan would be relayed too.
+- **Enrichment stays off** for a wheel: no README or model card is read from
+  an archive.
+- **Rejected:** materialising siblings (no reader reads one: Keras reads
+  inside its own zip, ONNX loads no external data); a compression-ratio gate;
+  a separate config key for the budget (derived from the ceiling instead);
+  wrapping fickling's stream with a raising reader (it seeks backwards and
+  reads whole when non-seekable: a bounded `BytesIO` is simpler and equal).

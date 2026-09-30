@@ -75,11 +75,21 @@ def rmtree_quietly(path: Path, log_prefix: str) -> None:
     try:
         shutil.rmtree(path, ignore_errors=True)
     except Exception as exc:  # pylint: disable=broad-exception-caught
-        log.debug("%sremoving %s failed: %r", log_prefix, path, exc)
+        log.debug("%sremoving %s failed: %r", log_prefix, path.name, exc)
 
 
 def warn_if_left_behind(path: Path, log_prefix: str) -> None:
-    """``WARNING:`` when a temp directory survived its removal."""
+    """``WARNING:`` when a temp directory survived its removal.
+
+    Names the directory, not its path: it is in the system temp directory
+    (``mkdtemp``'s default), and a full path is a machine-specific string
+    in a log.
+    """
     # os.path.lexists, not Path.exists(): never raises (e.g. EACCES).
     if os.path.lexists(path):
-        log.warning("%scould not fully remove temporary directory %s", log_prefix, path)
+        log.warning(
+            "%scould not fully remove temporary directory %s "
+            "(in the system temp directory)",
+            log_prefix,
+            path.name,
+        )

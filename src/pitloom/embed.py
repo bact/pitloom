@@ -202,6 +202,7 @@ def embed_wheel_sbom(
 
     sbom_json, eff_basename = _generate_embed_sbom_json(
         wheel_metadata,
+        wheel_path=wheel_obj,
         project_dir=project_dir,
         pitloom_config=pitloom_config,
         sbom_path=sbom_path,

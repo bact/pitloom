@@ -153,6 +153,33 @@ def test_build_input_matrix(
     assert _build_flags(result.loom_args) == expected
 
 
+@pytest.mark.parametrize("mode", ["project", "embed-wheel", "model"])
+@pytest.mark.parametrize("value", ["", "false", "true"])
+def test_trust_wheel_model_input(
+    generate: Callable[..., _Result], tmp_path: Path, mode: str, value: str
+) -> None:
+    """``trust-wheel-model`` is passed on in embed-wheel mode only, and only
+    when ``"true"``; set in another mode it warns instead of being dropped
+    quietly, and is never passed."""
+    env = {"PL_TRUST_WHEEL_MODEL": value}
+    if mode == "embed-wheel":
+        _make_wheel(tmp_path / "p-1.whl")
+        env.update(PL_EMBED_WHEEL=str(tmp_path / "*.whl"), LOOM_STDOUT=EMBED_STDOUT)
+    elif mode == "model":
+        env["PL_MODEL"] = "dummy.gguf"
+
+    result = generate(**env)
+
+    assert result.returncode == 0
+    assert result.loom_args[0] == mode
+    given = value == "true"
+    assert ("--trust-wheel-model" in result.loom_args) == (
+        given and mode == "embed-wheel"
+    )
+    warning = "::warning::trust-wheel-model has no effect without embed-wheel"
+    assert result.output.count(warning) == (given and mode != "embed-wheel")
+
+
 def test_build_inputs_follow_the_mode_actually_chosen(
     generate: Callable[..., _Result], tmp_path: Path
 ) -> None:

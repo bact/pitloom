@@ -176,7 +176,7 @@ def _build_document_model(
         project_dir,
         project_files,
         scan_usage=pitloom_config.scan_model_usage is True,
-        usage_hint=pitloom_config.scan_model_usage is None,
+        usage_hint=lambda: pitloom_config.scan_model_usage is None,
     )
     phantom_deps = find_phantom_dependencies(project_files)
     enrichment_results_by_model = run_enrichers_for_models(

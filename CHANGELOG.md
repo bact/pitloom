@@ -46,7 +46,10 @@ and this project adheres to
   undeclared registry; `id import` lists names skipped because the SBOM holds
   several elements under them ([#235])
 - `--scan-model-usage`: record which Python files reference a found AI model;
-  config key, Action input, `scan_model_usage=` ([#252])
+  config key, Action input, `scan_model_usage=`, also on wheels ([#252], [#256])
+- `wheel`, `wheel --embed` and `embed-wheel` without `--project-dir` find AI
+  models inside the wheel; `max-model-extract-bytes` caps a model, 4x that a
+  wheel; beyond it the model stays without metadata ([#256])
 
 ### Changed
 
@@ -108,6 +111,10 @@ and this project adheres to
 - Recording which `.py` files reference an AI model (`hasDataFile`) is off by
   default on every surface, incl. the Hatchling hook; when unset, one `INFO:`
   names the flag ([#252])
+- A `.py` over 1 MiB is skipped by the usage scan with a `WARNING:`; no
+  temporary path appears in AI model warnings ([#256])
+- A leftover temporary directory `WARNING:` names the directory, not its full
+  path ([#256])
 
 ### Removed
 
@@ -168,6 +175,10 @@ and this project adheres to
   dropped); unsafe or clashing members are skipped; one `WARNING:` each ([#251])
 - A wrong-typed `[tool.poetry]` value (e.g. `version = 3`), or a non-table
   `[tool]`/`[tool.poetry]`, warns once and is ignored; it crashed ([#254])
+- A renamed model's provenance `Source:` names its installed file, as
+  `--allow-build` did ([#256])
+- A `.keras`/`.pt`/`.pt2` inner member is read bounded (8 MiB), also in project
+  scans, and reader warnings are escaped with a stable `FORMAT= FILE=` ([#256])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -190,6 +201,7 @@ and this project adheres to
 [#252]: https://github.com/bact/pitloom/pull/252
 [#253]: https://github.com/bact/pitloom/pull/253
 [#254]: https://github.com/bact/pitloom/pull/254
+[#256]: https://github.com/bact/pitloom/pull/256
 
 ## [0.19.0] - 2026-09-18
 

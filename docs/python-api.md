@@ -130,13 +130,17 @@ from](configuration.md#where-settings-come-from)).
 `--max-source-metadata-bytes` on the CLI (see [Metadata
 provenance](metadata-provenance.md)).
 
-`scan_model_usage=` is on `generate()` and `generate_project_sbom()` (also
-`ConfigOverrides.scan_model_usage` for `embed_wheel_sbom(project_dir=...)`):
-`True` records which Python files reference each discovered AI model file
-(`hasDataFile`), the CLI's `--scan-model-usage`. Off by default; AI models
-are found either way, and one `INFO:` line says so when the setting was
-never given (an explicit `False` is silent).
-Other targets warn that it has no effect.
+`scan_model_usage=` is on `generate()`, `generate_project_sbom()` and
+`generate_wheel_sbom()` (also `ConfigOverrides.scan_model_usage` for
+`embed_wheel_sbom()`, with or without `project_dir=`): `True` records which
+Python files reference each discovered AI model file (`hasDataFile`), the
+CLI's `--scan-model-usage`. Off by default; AI models are found either way
+-- in a project directory or inside a wheel -- and one `INFO:` line says so
+when the setting was never given (an explicit `False` is silent). Other
+targets warn that it has no effect. For a wheel, an AI model file is copied
+out one at a time, each up to the config's `max-model-extract-bytes` (a
+bad value in `pitloom_config=` raises `ValueError`) and four times that in
+all; a model beyond either stays listed without its metadata.
 
 `id_registry=` (or a target's own `[tool.pitloom] id-registry`, or an
 `id-registry` in `pitloom_config=`) is the only way a registry is ever

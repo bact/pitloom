@@ -124,6 +124,7 @@ class ConfigOverrides:
     describe_relationship: bool | None = None
     update_id_registry: bool | None = None
     max_source_metadata_bytes: int | None = None
+    trust_wheel_model: bool | None = None
     build_options: BuildOptions = BuildOptions()
 
 

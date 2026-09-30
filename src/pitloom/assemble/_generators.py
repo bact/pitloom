@@ -32,7 +32,7 @@ from pitloom.core.config import PitloomConfig
 from pitloom.core.config_cascade import ConfigOverrides, apply_overrides
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.document import DocumentModel
-from pitloom.core.inert_options import SDIST, settle_inert
+from pitloom.core.inert_options import PROJECT, SDIST, settle_inert
 from pitloom.core.models import get_wheel_files
 from pitloom.core.project import ProjectMetadata
 from pitloom.core.provenance import ProvenanceConfig
@@ -83,6 +83,7 @@ def generate_project_sbom(
     enrich: bool | None = None,
     extract_file_header: bool | None = None,
     scan_model_usage: bool | None = None,
+    trust_wheel_model: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
@@ -141,6 +142,7 @@ def generate_project_sbom(
                 "enrich": enrich,
                 "extract_file_header": extract_file_header,
                 "scan_model_usage": scan_model_usage,
+                "trust_wheel_model": trust_wheel_model,
                 "content_type": content_type,
                 "content_type_method": content_type_method,
                 "max_source_metadata_bytes": max_source_metadata_bytes,
@@ -151,6 +153,8 @@ def generate_project_sbom(
                 "use_lockfile": use_lockfile,
             },
         )
+    else:
+        settle_inert(PROJECT, target_path, {"trust_wheel_model": trust_wheel_model})
 
     if project_metadata is None or pitloom_config is None:
         _warn_if_metadata_without_config(project_metadata, pitloom_config, target_path)
@@ -243,7 +247,7 @@ def generate_project_sbom(
                     target_path,
                     project_files,
                     scan_usage=cfg.scan_model_usage is True,
-                    usage_hint=cfg.scan_model_usage is None,
+                    usage_hint=lambda: cfg.scan_model_usage is None,
                 )
                 if target_path.is_dir()
                 else []

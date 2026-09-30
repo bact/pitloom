@@ -40,6 +40,16 @@ _TRUTHY = frozenset({"1", "true", "yes", "on"})
 _WARNED_ONCE: set[tuple[str, str]] = set()
 
 
+def loggable(text: str) -> str:
+    """*text* as is when printable, else its ASCII-escaped literal, so
+    untrusted text (an archive member name, an exception message quoting
+    one) cannot forge a second tagged line, e.g. ``::error::``, on stderr.
+
+    The one escaping every message interpolating such text goes through.
+    """
+    return text if text.isprintable() else ascii(text)
+
+
 def _debug_requested(debug: bool | None) -> bool:
     """Resolve the effective debug flag: an explicit ``debug`` argument
     wins; ``None`` falls back to the ``PITLOOM_DEBUG`` environment

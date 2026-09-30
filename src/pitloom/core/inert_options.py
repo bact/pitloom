@@ -57,6 +57,7 @@ PARAM_TO_FLAG: dict[str, str] = {
     "extract_file_header": "--extract-file-header/--no-extract-file-header",
     "content_type": "--content-type/--no-content-type",
     "scan_model_usage": "--scan-model-usage/--no-scan-model-usage",
+    "trust_wheel_model": "--trust-wheel-model",
     "content_type_method": "--content-type-method",
     "max_source_metadata_bytes": "--max-source-metadata-bytes",
     "offline": "--offline/--no-offline",
@@ -76,10 +77,15 @@ _SDIST_FILE_SCAN = (
     "for an sdist archive target (files come from the archive's own listing)"
 )
 _SDIST_NO_MODELS = (
-    "for an sdist archive target (AI models are scanned in a project directory only)"
+    "for an sdist archive target (AI models are scanned in a project directory "
+    "or a wheel only)"
 )
-_WHEEL_NO_MODEL_SCAN = (
-    "for a wheel target (AI models inside a wheel are not scanned yet)"
+_SDIST_NO_ENRICH = (
+    "for an sdist archive target (AI models are enriched in a project directory only)"
+)
+_WHEEL_NO_ENRICH = (
+    "for a wheel target (its AI models are not enriched: no README or "
+    "model card is read from an archive)"
 )
 _ENV_NO_MODEL_SCAN = (
     "for an installed environment (AI model files are not scanned here yet)"
@@ -121,6 +127,8 @@ _EMBED_NO_DESCRIBE = (
     "for a wheel-embedded SBOM (relationship descriptions are not embedded)"
 )
 
+_NOT_A_WHEEL = "for this target (it reads AI model files from a built wheel only)"
+
 _FILE_SCAN = ("extract_file_header", "content_type")
 #: Options no wheel-embedded SBOM can use, however it is embedded
 #: (``embed-wheel`` or ``wheel --embed``).
@@ -130,6 +138,7 @@ _EMBED_COMMON: dict[str, str] = {
     "update_id_registry": _NO_HARVEST,
 }
 _MODEL_FILE_ROW: dict[str, str] = {
+    "trust_wheel_model": _NOT_A_WHEEL,
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "content_type_method": _MODEL_NO_DEPENDENCIES,
     "scan_model_usage": _MODEL_NO_USAGE,
@@ -137,6 +146,7 @@ _MODEL_FILE_ROW: dict[str, str] = {
 }
 
 _ENRICH_ROW: dict[str, str] = {
+    "trust_wheel_model": _NOT_A_WHEEL,
     **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
     "describe_relationship": _FRAGMENT_NO_DESCRIBE,
     "content_type_method": _MODEL_NO_DEPENDENCIES,
@@ -147,20 +157,21 @@ _ENRICH_ROW: dict[str, str] = {
 
 #: Target kind -> {parameter: reason it has no effect there}.
 INERT: dict[str, dict[str, str]] = {
-    PROJECT: {},
+    PROJECT: {"trust_wheel_model": _NOT_A_WHEEL},
     SDIST: {
+        "trust_wheel_model": _NOT_A_WHEEL,
         **dict.fromkeys(_FILE_SCAN, _SDIST_FILE_SCAN),
-        "enrich": _SDIST_NO_MODELS,
+        "enrich": _SDIST_NO_ENRICH,
         "scan_model_usage": _SDIST_NO_MODELS,
         "use_lockfile": _SDIST_NO_LOCKFILE,
     },
     WHEEL: {
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
-        "enrich": _NO_MODELS,
-        "scan_model_usage": _WHEEL_NO_MODEL_SCAN,
+        "enrich": _WHEEL_NO_ENRICH,
         "use_lockfile": _NO_LOCKFILE,
     },
     ENV: {
+        "trust_wheel_model": _NOT_A_WHEEL,
         **dict.fromkeys(_FILE_SCAN, _NO_FILE_SCAN),
         "enrich": _NO_MODELS,
         "scan_model_usage": _ENV_NO_MODEL_SCAN,
@@ -179,12 +190,10 @@ INERT: dict[str, dict[str, str]] = {
     },
     ENRICH: _ENRICH_ROW,
     ENRICH_STANDALONE: {**_ENRICH_ROW, "use_lockfile": _FRAGMENT_NO_LOCKFILE},
-    EMBED_PROJECT: dict(_EMBED_COMMON),
+    EMBED_PROJECT: {**_EMBED_COMMON, "trust_wheel_model": _NOT_A_WHEEL},
     EMBED_STANDALONE: {
         **_EMBED_COMMON,
-        **dict.fromkeys(
-            (*_FILE_SCAN, "enrich", "scan_model_usage"), NO_PROJECT_DIR_REASON
-        ),
+        **dict.fromkeys((*_FILE_SCAN, "enrich"), NO_PROJECT_DIR_REASON),
     },
     EMBED_SBOM: {
         **dict.fromkeys(
@@ -192,6 +201,7 @@ INERT: dict[str, dict[str, str]] = {
                 *_FILE_SCAN,
                 "enrich",
                 "scan_model_usage",
+                "trust_wheel_model",
                 "content_type_method",
                 "max_source_metadata_bytes",
                 "offline",

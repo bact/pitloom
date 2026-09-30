@@ -26,6 +26,7 @@ from pitloom.core.inert_options import (
     INERT,
     MODEL_FILE,
     PARAM_TO_FLAG,
+    PROJECT,
     WHEEL,
 )
 
@@ -231,6 +232,9 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
         _v("--scan-model-usage", "changes", "--scan-model-usage"),
         _v("--no-scan-model-usage", "same", "--no-scan-model-usage"),
     ],
+    # The fixture wheel's only model is safetensors, which no gate touches, so
+    # the flag changes no byte here; tests/extract/scanner/ covers fastText.
+    "--trust-wheel-model": [_v("--trust-wheel-model", "same", "--trust-wheel-model")],
     "--content-type-method": [
         _v(
             "extension",
@@ -317,8 +321,10 @@ PLAN: dict[str | tuple[str, str], str | list[Variant]] = {
 }
 
 # The target kind each command's matrix cell runs (see COMMANDS' targets).
-# generate/project cells run a project directory: nothing is inert there.
+# generate/project cells run a project directory.
 _CELL_KINDS = {
+    "generate": PROJECT,
+    "project": PROJECT,
     "wheel": WHEEL,
     "env": ENV,
     "model": MODEL_FILE,
