@@ -26,13 +26,10 @@ file-size guidance -- moved verbatim, no content changed.
   `PITLOOM_SBOM_OUTPUT_PATH=-` to stdout after the JSON, on the same
   stream a consumer expects to be pure SBOM. Found during a
   `--build-timeout` review, 2026-09-19.
-- [ ] **Hatchling-heuristic fallback WARNING embeds an untagged
-  multi-line exception** -- `_models_wheel_hatchling.py`'s discovery-
-  failure `WARNING:` (~L64) appends a real exception's full text after
-  its one `WARNING:` tag, so continuation lines reach stderr with no
-  `LEVEL:` prefix of their own -- breaks "every line starts with
-  exactly one `LEVEL:`" (CLAUDE.md's "CLI output"). Found during a
-  `--build-timeout` review, 2026-09-19.
+- [x] **Hatchling-heuristic fallback WARNING embeds an untagged
+  multi-line exception** -- every backend's discovery-failure `WARNING:`
+  now goes through `warn_discovery_failed()`, which collapses the
+  exception text with `logging_config.one_line()`.
 - [ ] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- no
   top-level handler in `__main__.py` catches it, unlike every other
   failure mode (`ERROR:` via `cli_error_handler`). Found during a

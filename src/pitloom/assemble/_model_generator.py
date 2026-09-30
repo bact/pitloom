@@ -44,31 +44,6 @@ from pitloom.logging_config import configure_logging
 log = logging.getLogger(__name__)
 
 
-def _project_doc_identity(
-    project_dir: Path,
-    *,
-    use_lockfile: bool | None = None,
-    explicit_config: PitloomConfig | None = None,
-) -> tuple[str, str]:
-    """Compute ``(doc_name, doc_uuid)`` for a project directory.
-
-    See :func:`_doc_identity_of` for what ``doc_uuid`` is built from and
-    when it shifts.
-
-    ``use_lockfile`` must match whatever setting produced the base document
-    being merged into, or the computed ``doc_uuid`` will diverge from it
-    (see ``pitloom.core.models.compute_doc_uuid``'s use of its own
-    ``locked_dependencies`` data). When omitted, it follows
-    *explicit_config*'s ``use-lockfile``, else *project_dir*'s own, as
-    :func:`~pitloom.extract.project.resolve_project_with_lockfile` decides
-    for the base document.
-    """
-    project_metadata, _pitloom_config, _config_path = resolve_project_with_lockfile(
-        project_dir, use_lockfile, explicit_config
-    )
-    return _doc_identity_of(project_dir, project_metadata)
-
-
 def _doc_identity_of(
     project_dir: Path, project_metadata: ProjectMetadata
 ) -> tuple[str, str]:

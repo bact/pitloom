@@ -58,8 +58,13 @@ _WAIT_SLICE_SECONDS = 0.25
 _LOG_TAIL_BYTES = 8192
 _MESSAGE_MAX_CHARS = 200
 
-# CSI escape sequences (colours, cursor moves), then any other C0/C1 control.
-_ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+# String sequences (OSC hyperlinks/titles, DCS, SOS, PM, APC) up to their
+# BEL/ST terminator or the end of the line, CSI sequences (colours, cursor
+# moves), then any other C0/C1 control. 7-bit and 8-bit introducers both.
+_ANSI_STRING_RE = re.compile(
+    r"(?:\x1b[\]PX^_]|[\x90\x98\x9d\x9e\x9f])[^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?"
+)
+_ANSI_CSI_RE = re.compile(r"(?:\x1b\[|\x9b)[0-?]*[ -/]*[@-~]")
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
 
@@ -311,7 +316,8 @@ def _read_log_tail(log_path: Path) -> list[str]:
 
 def _clean_line(line: str) -> str:
     """*line* without ANSI sequences or control characters."""
-    return _CONTROL_CHARS_RE.sub("", _ANSI_CSI_RE.sub("", line)).strip()
+    line = _ANSI_CSI_RE.sub("", _ANSI_STRING_RE.sub("", line))
+    return _CONTROL_CHARS_RE.sub("", line).strip()
 
 
 def _last_message_line(lines: list[str]) -> str:
@@ -330,8 +336,11 @@ def _debug_log_tail(log_path: Path) -> list[str]:
 
     Every line carries the prefix, so a raw ``::`` line from the build
     never starts a line a GitHub runner would read as a workflow command.
+    Lines empty after cleaning are skipped.
     """
     lines = _read_log_tail(log_path)
     for line in lines:
-        log.debug("%sbuild output: %s", BUILD_LOG_PREFIX, _clean_line(line))
+        cleaned = _clean_line(line)
+        if cleaned:
+            log.debug("%sbuild output: %s", BUILD_LOG_PREFIX, cleaned)
     return lines

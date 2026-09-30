@@ -403,6 +403,8 @@ def test_discover_returns_none_and_logs_on_ambiguous_flat_layout(
 
     assert result is None
     assert "could not auto-discover packages unambiguously" in caplog.text
+    # setuptools' own message is multi-line; the WARNING stays one line.
+    assert all("\n" not in r.getMessage() for r in caplog.records)
 
 
 def _make_dynamic_version_project(root: Path, version_value: str) -> None:
