@@ -59,8 +59,15 @@ _SSL_TRACEBACK = (
 )
 
 
-def _http_error(code: int) -> urllib.error.HTTPError:
+def _open_http_error(code: int) -> urllib.error.HTTPError:
     return urllib.error.HTTPError("https://x.test/", code, "msg", Message(), None)
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    """A closed HTTPError: an unclosed one warns at GC on Python 3.14."""
+    exc = _open_http_error(code)
+    exc.close()
+    return exc
 
 
 @pytest.mark.parametrize(
@@ -286,6 +293,20 @@ def test_require_reachable_skips_on_transient_http_status(
     )
     with pytest.raises(pytest.skip.Exception, match="network unavailable"):
         require_reachable("https://x.test/")
+
+
+@pytest.mark.parametrize("code", [404, 503])
+def test_require_reachable_closes_http_error(
+    monkeypatch: pytest.MonkeyPatch, code: int
+) -> None:
+    error = _open_http_error(code)
+    monkeypatch.setattr(
+        "tests._network.urllib.request.urlopen",
+        _fake_urlopen({"https://x.test/": error}, []),
+    )
+    with pytest.raises(pytest.skip.Exception) if code >= 500 else _no_skip():
+        require_reachable("https://x.test/")
+    assert error.fp.closed
 
 
 def _url_refused() -> urllib.error.URLError:

@@ -110,6 +110,8 @@ def require_reachable(*urls: str) -> None:
                 with urllib.request.urlopen(request, timeout=10.0):  # nosec B310
                     pass
             except urllib.error.HTTPError as exc:
+                # An unclosed HTTPError raises ResourceWarning at GC on 3.14.
+                exc.close()
                 if exc.code == 429 or exc.code >= 500:
                     raise
 
@@ -196,6 +198,8 @@ def pytest_make_collect_report(collector: pytest.Collector) -> Iterator[None]:
     _fail_skipped_collect(collector, outcome.get_result())
 
 
+# A pluggy plugin needs only its hook method.
+# pylint: disable-next=too-few-public-methods
 class _DirectoryGate:
     """Same gate for a directory skipped by its own ``conftest.py``.
 
