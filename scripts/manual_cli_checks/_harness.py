@@ -161,9 +161,20 @@ class Result:
 
 
 def child_env(**extra: str) -> dict[str, str]:
-    """``os.environ`` minus the scrubbed vars, plus *extra*."""
+    """``os.environ`` minus the scrubbed vars, plus *extra*, with
+    ``PYTHONPATH`` made absolute.
+
+    Children run in scratch dirs: a relative entry (``PYTHONPATH=src``)
+    would resolve there, find nothing, and silently fall back to whatever
+    ``pitloom`` the interpreter has installed -- possibly another checkout.
+    """
     env = {k: v for k, v in os.environ.items() if k not in _SCRUBBED_ENV}
     env.update(extra)
+    if env.get("PYTHONPATH"):
+        # An empty entry means the current directory, as abspath("") does.
+        env["PYTHONPATH"] = os.pathsep.join(
+            os.path.abspath(p) for p in env["PYTHONPATH"].split(os.pathsep)
+        )
     return env
 
 

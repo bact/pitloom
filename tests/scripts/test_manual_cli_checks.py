@@ -8,6 +8,8 @@ fails here, in every CI run, not only when someone runs the checks.
 """
 
 import importlib
+import importlib.util
+import os
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -156,3 +158,117 @@ def test_completeness_needs_a_subcommand_to_actually_run_the_group(
     else:
         with pytest.raises(matrix_env.harness.CheckFailed, match=r"loom: --debug"):
             run(ctx)
+
+
+def test_child_env_makes_pythonpath_absolute(
+    matrix_env: _MatrixEnv, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Checks run ``loom`` in scratch dirs: a relative ``PYTHONPATH=src``
+    must still select the runner's ``pitloom``, not fall back to one the
+    interpreter has installed from another checkout."""
+    base = tmp_path.resolve()
+    (base / "pkgs").mkdir()
+    (base / "pkgs" / "mcc_probe_mod.py").write_text("", encoding="utf-8")
+    other = base / "other"
+    other.mkdir()
+    monkeypatch.chdir(base)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(["pkgs", "", str(other)]))
+
+    env = matrix_env.harness.child_env()
+
+    # An empty entry is the current directory, for Python as for abspath().
+    assert env["PYTHONPATH"].split(os.pathsep) == [
+        str(base / "pkgs"),
+        str(base),
+        str(other),
+    ]
+    proc = subprocess.run(  # nosec B603
+        [sys.executable, "-c", "import mcc_probe_mod; print(mcc_probe_mod.__file__)"],
+        env=env,
+        cwd=other,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert Path(proc.stdout.strip()).resolve() == base / "pkgs" / "mcc_probe_mod.py"
+    # An empty PYTHONPATH adds nothing; it must not become the cwd.
+    monkeypatch.setenv("PYTHONPATH", "")
+    assert matrix_env.harness.child_env()["PYTHONPATH"] == ""
+
+
+@pytest.fixture(name="runner")
+def runner_fixture(scripts_dir: Path) -> Iterator[ModuleType]:
+    """The runner's ``__main__.py`` loaded in-process (its ``main()`` not
+    run), restoring ``sys.path``/``sys.modules`` as ``matrix_env`` does."""
+    checks_dir = scripts_dir / "manual_cli_checks"
+    # "__main__" is pytest's own entry module: never pop it.
+    names = {
+        path.stem for path in checks_dir.glob("_*.py") if path.stem != "__main__"
+    } | {"mcc_runner"}
+    previous = {name: sys.modules.pop(name, None) for name in names}
+    sys.path.insert(0, str(checks_dir))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "mcc_runner", checks_dir / "__main__.py"
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        yield module
+    finally:
+        sys.path.remove(str(checks_dir))
+        for name in names:
+            sys.modules.pop(name, None)
+            restore = previous[name]
+            if restore is not None:
+                sys.modules[name] = restore
+
+
+@pytest.mark.parametrize(
+    ("where", "init", "error"),
+    [
+        pytest.param(None, None, None, id="same-pitloom"),
+        # Relative: made absolute by child_env(), so it cannot miss.
+        pytest.param("pythonpath", "__version__ = '0'\n", "not this", id="other"),
+        # Our cwd is not the checks' cwd: a copy there is not what they import.
+        pytest.param("cwd", "__version__ = '0'\n", None, id="copy-in-cwd"),
+        pytest.param("pythonpath", "raise ImportError\n", "not importable", id="bad"),
+    ],
+)
+def test_runner_refuses_a_pitloom_other_than_its_own(
+    runner: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    where: str | None,
+    init: str | None,
+    error: str | None,
+) -> None:
+    """The matrix plan reads ``INERT`` from the runner's own ``pitloom``;
+    checks run against another copy must not start."""
+    # The runner's own src first: pytest's `pythonpath` reaches only this
+    # process, and an installed copy must not stand in for it. Resolved
+    # before chdir, as the runner resolves it before any check.
+    src_dir = str(Path(runner.pitloom.__file__).resolve().parents[1])
+    inherited = os.pathsep.join(
+        p for p in (src_dir, runner.child_env().get("PYTHONPATH", "")) if p
+    )
+    monkeypatch.setenv("PYTHONPATH", inherited)
+    monkeypatch.chdir(tmp_path)
+    if where is not None:
+        package = tmp_path / ("fake" if where == "pythonpath" else ".") / "pitloom"
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text(str(init), encoding="utf-8")
+    if where == "pythonpath":
+        monkeypatch.setenv(
+            "PYTHONPATH", os.pathsep.join(p for p in ("fake", inherited) if p)
+        )
+
+    if error is None:
+        # pylint: disable-next=protected-access
+        location = runner._pitloom_location()
+        _, _, found = location.partition(" ")
+        assert Path(found).resolve() == Path(runner.pitloom.__file__).resolve()
+    else:
+        with pytest.raises(SystemExit, match=error):
+            # pylint: disable-next=protected-access
+            runner._pitloom_location()
