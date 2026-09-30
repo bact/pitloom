@@ -31,7 +31,7 @@ file-size guidance -- moved verbatim, no content changed.
   now goes through `warn_discovery_failed()`, which collapses the
   exception text with `logging_config.one_line()`.
 - [x] **Ctrl-C prints a raw `KeyboardInterrupt` traceback** -- fixed:
-  `__main__.main()` prints `ERROR: interrupted` and returns 130; the
+  `loom` prints `ERROR: interrupted` and still ends by SIGINT; the
   traceback follows only under `--debug`/`PITLOOM_DEBUG`. See
   [debug-logging.md](../implementation/debug-logging.md#ctrl-c-at-the-cli-entry-point).
 - [x] **Shared options accepted, then silently ignored** -- fixed via

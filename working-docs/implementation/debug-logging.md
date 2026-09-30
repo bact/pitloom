@@ -42,11 +42,19 @@ hand-duplicated suffix text per call site.
 
 ## Ctrl-C at the CLI entry point
 
-`__main__.main()` catches `KeyboardInterrupt`: one `ERROR: interrupted`
-line, exit status 130 (128 + SIGINT, what a shell reports for Ctrl-C).
-Returned, not re-raised as a `SIG_DFL` SIGINT: keeps `main()` testable
-in-process. Trade-off: a parent that checks for death by SIGINT (a bash
-loop, `subprocess` returncode `-2`) sees exit status 130 instead.
+Ctrl-C prints one `ERROR: interrupted` line. The process must still end
+*by SIGINT*, not with a plain exit status 130: bash stops a loop or
+script only when its child died of SIGINT; after a normal exit it
+assumes the child handled Ctrl-C and runs the next command.
+
+- `console_main()` (the `loom`/`pitloom` console scripts and `python -m
+  pitloom`) re-raises the `KeyboardInterrupt` with `sys.excepthook` set
+  to print nothing. Python (3.8+) then finalizes and ends by SIGINT, or
+  exits 130 where the signal does not end it (PID 1),
+  `STATUS_CONTROL_C_EXIT` on Windows. Rejected: calling
+  `signal.raise_signal(SIGINT)` from `console_main()` itself, which
+  skips atexit handlers and stream flushing.
+- `main()` (in-process callers, the tests) returns 130 instead.
 
 - **Traceback under debug, not `-v`.** The traceback is a developer
   diagnostic (where a seemingly stuck run was), so it follows

@@ -127,8 +127,8 @@ safetensors = ["safetensors[numpy]>=0.8.0"]
 validate = ["spdx3-validate>=0.0.7"]
 
 [project.scripts]
-loom = "pitloom.__main__:main"    # default command-line entry point
-pitloom = "pitloom.__main__:main"
+loom = "pitloom.__main__:console_main"    # default command-line entry point
+pitloom = "pitloom.__main__:console_main"
 
 [project.urls]
 homepage = "https://bact.github.io/pitloom/"

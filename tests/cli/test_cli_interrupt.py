@@ -3,7 +3,9 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Tests for Ctrl-C (``KeyboardInterrupt``) at the CLI entry point.
+"""Tests for Ctrl-C (``KeyboardInterrupt``) at the CLI entry points:
+``main()`` (in-process, exit status 130) and ``console_main()`` (the
+console scripts and ``python -m pitloom``, ending by SIGINT).
 
 See also: tests/core/test_build_signals.py (``TerminationGuard``, which
 leaves SIGINT to Python) and tests/assemble/test_build_termination.py.
@@ -11,7 +13,9 @@ leaves SIGINT to Python) and tests/assemble/test_build_termination.py.
 
 from __future__ import annotations
 
+import os
 import signal
+import subprocess  # nosec B404
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -23,7 +27,7 @@ from pitloom import __main__
 from pitloom.cli.commands import project as mod_project
 from pitloom.core.build_signals import BUILD_ACTIVITY, TerminationGuard
 from pitloom.logging_config import PITLOOM_DEBUG_ENV_VAR
-from tests.build_and_read_shared import spied_raise_signal
+from tests.build_and_read_shared import pitloom_subprocess_env, spied_raise_signal
 from tests.cli.shared import _make_simple_project
 
 
@@ -116,3 +120,57 @@ def test_ctrl_c_under_termination_guard_cleans_up_first(
     assert "ERROR:" not in stderr_at_cleanup[0]
     assert capsys.readouterr().err.splitlines() == ["ERROR: interrupted"]
     assert signal.getsignal(signal.SIGTERM) == signal.SIG_DFL
+
+
+def test_console_main_reraises_with_traceback_printout_off(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``console_main()`` reports the same one line, then re-raises for
+    Python to end the process by SIGINT, with nothing more printed."""
+    monkeypatch.delenv(PITLOOM_DEBUG_ENV_VAR, raising=False)
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    monkeypatch.setattr(mod_project, "generate_project_sbom", _interrupt)
+    project_dir = _make_simple_project(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loom", "project", str(project_dir)])
+
+    with pytest.raises(KeyboardInterrupt) as excinfo:
+        __main__.console_main()
+
+    assert capsys.readouterr().err.splitlines() == ["ERROR: interrupted"]
+    sys.excepthook(excinfo.type, excinfo.value, excinfo.tb)
+    assert capsys.readouterr().err == ""
+
+
+def test_python_m_pitloom_ends_by_sigint(tmp_path: Path) -> None:
+    """``python -m pitloom`` interrupted dies by SIGINT, as an uncaught
+    ``KeyboardInterrupt`` does, so a shell loop running it stops too; an
+    exit status 130 would make bash carry on with the next command."""
+    project_dir = _make_simple_project(tmp_path)
+    script = tmp_path / "interrupted_loom.py"
+    script.write_text(
+        "import runpy, sys\n"
+        "from pitloom.cli.commands import project\n"
+        "def _interrupt(*args, **kwargs):\n"
+        "    raise KeyboardInterrupt\n"
+        "project.generate_project_sbom = _interrupt\n"
+        f"sys.argv = ['loom', 'project', {str(project_dir)!r}]\n"
+        "runpy.run_module('pitloom', run_name='__main__')\n",
+        encoding="utf-8",
+    )
+    env = pitloom_subprocess_env()
+    env.pop(PITLOOM_DEBUG_ENV_VAR, None)
+
+    result = subprocess.run(  # nosec B603
+        [sys.executable, str(script)],
+        capture_output=True,
+        check=False,
+        env=env,
+        timeout=120,
+    )
+
+    # Windows has no SIGINT death; Python exits STATUS_CONTROL_C_EXIT.
+    expected = 0xC000013A if os.name == "nt" else -signal.SIGINT
+    assert result.returncode == expected
+    assert result.stderr.decode().splitlines() == ["ERROR: interrupted"]
