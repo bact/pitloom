@@ -153,6 +153,8 @@ and this project adheres to
 
 ### Fixed
 
+- PyPI, Croissant URL and remote authors-file fetches close an HTTP error
+  response; Python 3.14 warned `ResourceWarning` when it was garbage-collected
 - Library scan: an unreadable AI model candidate (any allowed suffix) warns
   once and is skipped; it aborted the scan on Python 3.10-3.13 ([#239])
 - AI model scan warnings print a stable project-relative or installed `FILE=`

@@ -15,6 +15,7 @@ from collections.abc import Iterable
 from importlib.metadata import PackageMetadata
 from pathlib import Path, PureWindowsPath
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 
 
@@ -143,6 +144,19 @@ def to_str_list(value: Any) -> list[str]:
     return [s] if s else []
 
 
+def close_http_error(exc: BaseException) -> None:
+    """Close *exc* if it is an :class:`urllib.error.HTTPError`.
+
+    An ``HTTPError`` is also the open HTTP response. Left unclosed, Python
+    3.14 emits ``ResourceWarning: Implicitly cleaning up <HTTPError ...>``
+    when it is garbage-collected. Call this in every handler that catches
+    an ``urlopen()`` failure (``URLError``, ``OSError``) and does not re-raise
+    the exception itself.
+    """
+    if isinstance(exc, HTTPError):
+        exc.close()
+
+
 def fetch_json(
     source: str | Path,
     timeout: float = 30.0,
@@ -176,6 +190,7 @@ def fetch_json(
         else:
             raw = Path(source).read_bytes()
     except (OSError, http.client.HTTPException) as exc:
+        close_http_error(exc)
         # http.client.HTTPException (e.g. IncompleteRead on a connection that
         # closes mid-response) is not an OSError subclass, so it needs its
         # own arm here -- without it, a transient network glitch would raise
