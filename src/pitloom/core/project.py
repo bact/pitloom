@@ -57,7 +57,10 @@ class ProjectFile:
             ``Path(physical_path).is_absolute()`` first and fall back to
             ``distribution_path``/``file_path_relative``, since
             ``pathlib``'s own join semantics silently discard the
-            left-hand side when the right-hand operand is absolute.
+            left-hand side when the right-hand operand is absolute. For a
+            member read from a wheel or sdist archive it is the raw
+            archive name (never a filesystem path), kept as a registry
+            lookup key; ``distribution_path`` is its normalised name.
         distribution_path: Canonical path of the file inside the wheel/package.
         digest_sha256: Hex-encoded SHA-256 digest of the file contents.
             ``None`` when discovered via
