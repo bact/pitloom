@@ -405,10 +405,10 @@ See [diagnostics-logging-followups.md](diagnostics-logging-followups.md).
 
 ## Medium-term
 
-- [ ] **CHANGELOG.md split** -- `CHANGELOG.md` now exceeds 800 lines (hard limit).
-  Archive completed entries to a `CHANGELOG-archive/` folder or move post-1.0 entries
-  to a per-version doc. `roadmap.md` itself is now at the 800-line hard
-  limit too: move more detailed bullets into design/implementation docs.
+- [x] **CHANGELOG.md split** -- done 2026-09-30: entries condensed and merged;
+  0.19.0+ stay in `CHANGELOG.md`, older releases in `CHANGELOG-archive.md`.
+- [ ] `roadmap.md` itself is at the 800-line hard limit: move more detailed
+  bullets into design/implementation docs.
 - [ ] **CycloneDX assembler** -- add a CycloneDX serializer consuming the
   existing `DocumentModel`; no changes to extractors required.
 - [ ] **AIDOC / TechOps renderer** -- additional output format consuming

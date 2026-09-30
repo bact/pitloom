@@ -53,7 +53,9 @@ We use GitHub issues to track all bugs and feature requests.
   ```
 
 - Update `CHANGELOG.md` for user-visible changes, following
-  [Keep a Changelog].
+  [Keep a Changelog]: one short entry per change (the PR holds the detail),
+  entries in each section sorted by PR number. Older releases are in
+  `CHANGELOG-archive.md`.
 
 [commit-guide]: https://chris.beams.io/posts/git-commit/
 [dco]: https://bestpractices.linuxfoundation.org/ip/contribution-mechanisms-dco.html

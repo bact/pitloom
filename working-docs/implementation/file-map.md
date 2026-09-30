@@ -226,7 +226,8 @@ pitloom/
 │   └── compare_allow_build.py      # Manual --allow-build parity check
 ├── .gitattributes                  # LF for *.sh and action.yml
 ├── AGENTS.md                       # CLAUDE.md is a symlink to this
-├── CHANGELOG.md
+├── CHANGELOG.md                    # 0.19.0 and newer; add new entries here
+├── CHANGELOG-archive.md            # releases before 0.19.0, condensed
 ├── CITATION.cff
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md

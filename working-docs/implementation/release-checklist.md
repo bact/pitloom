@@ -61,7 +61,8 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       entry, or is a routine dependabot/CI-only/docs-only/test-only
       change that doesn't need one (cross-check `git log --oneline
       <last-tag>..HEAD | grep "Merge pull request"` against the
-      `[#NNN]:` link refs at the bottom of the file). Include the
+      `[#NNN]:` link refs at the bottom of the file; merge the `[Unreleased]` entries under
+      the new version heading, keeping PR order, and leave the archive alone). Include the
       version-bump PR itself when it carries more than version strings
       (0.18.1's bump PR also lowered a dependency floor and changed the
       skills, and had no entry until this check caught it).

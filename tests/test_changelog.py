@@ -3,7 +3,8 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""``CHANGELOG.md`` links each entry to its PR, and every link resolves."""
+"""The changelog files link each entry to its PR, resolve every link, and
+list each section's entries in PR order."""
 
 from __future__ import annotations
 
@@ -12,16 +13,32 @@ from pathlib import Path
 
 import pytest
 
-_CHANGELOG = Path(__file__).resolve().parents[1] / "CHANGELOG.md"
+_ROOT = Path(__file__).resolve().parents[1]
+_CHANGELOG = _ROOT / "CHANGELOG.md"
+_FILES = ["CHANGELOG.md", "CHANGELOG-archive.md"]
 _REF_USE = re.compile(r"\[#(\d+)\](?!:)")
 _REF_DEF = re.compile(r"^\[#(\d+)\]:", re.M)
 _BULLET = re.compile(r"^- .*?(?=^- |^#|\Z)", re.M | re.S)
 
 
-def _text() -> str:
-    if not _CHANGELOG.is_file():
-        pytest.skip("CHANGELOG.md is not in this checkout")
-    return _CHANGELOG.read_text(encoding="utf-8")
+def _text(path: Path = _CHANGELOG) -> str:
+    if not path.is_file():
+        pytest.skip(f"{path.name} is not in this checkout")
+    return path.read_text(encoding="utf-8")
+
+
+def _section_pr_keys(text: str) -> dict[str, list[int]]:
+    """Lowest PR number of each bullet, per ``## version / ### kind`` section."""
+    keys: dict[str, list[int]] = {}
+    for version in re.split(r"^(?=## \[)", text, flags=re.M)[1:]:
+        for kind in re.split(r"^(?=### )", version, flags=re.M)[1:]:
+            heading = f"{version.splitlines()[0]} {kind.splitlines()[0]}"
+            keys[heading] = [
+                min(int(n) for n in _REF_USE.findall(b))
+                for b in _BULLET.findall(kind)
+                if _REF_USE.search(b)
+            ]
+    return keys
 
 
 def _unreleased_bullets(text: str) -> list[str]:
@@ -36,11 +53,25 @@ def test_every_unreleased_entry_links_its_pr() -> None:
     assert not missing, missing
 
 
-def test_every_pr_reference_is_defined() -> None:
-    text = _text()
+@pytest.mark.parametrize("name", _FILES)
+def test_every_pr_reference_is_defined(name: str) -> None:
+    text = _text(_ROOT / name)
     used = set(_REF_USE.findall(text))
     assert used  # not vacuous
     assert not used - set(_REF_DEF.findall(text))
+
+
+@pytest.mark.parametrize("name", _FILES)
+def test_entries_are_sorted_by_lowest_pr(name: str) -> None:
+    sections = _section_pr_keys(_text(_ROOT / name))
+    assert sections  # not vacuous
+    unsorted = [h for h, keys in sections.items() if keys != sorted(keys)]
+    assert not unsorted, unsorted
+
+
+def test_section_pr_keys_uses_lowest_pr_of_each_entry() -> None:
+    text = "## [1.0.0]\n\n### Fixed\n\n- a ([#5], [#2])\n- b ([#3])\n"
+    assert _section_pr_keys(text) == {"## [1.0.0] ### Fixed": [2, 3]}
 
 
 @pytest.mark.parametrize(

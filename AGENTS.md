@@ -14,7 +14,7 @@
 - **Naming and grouping**: kebab-case, topic-first filenames. If a topic outgrows 3+ closely related files, group them in a same-named subfolder.
 - **Cross-linking**: every split or grouped file gets a "See also" pointer near the top.
 - Every commit need a sign-off line (DCO) in the commit message.
-- **CHANGELOG entries**: concise, to the point. No background/rationale -- link the PR for that. Target ~160 chars per bullet; exception for a genuinely complex PR.
+- **CHANGELOG entries**: concise, to the point. No background/rationale -- link the PR for that. Target ~160 chars per bullet; exception for a genuinely complex PR. Merge related PRs into one entry (`[#1], [#2]`); sort entries per section by lowest PR number; skip docs/version-bump/CI-only noise. New entries go in `CHANGELOG.md`; `CHANGELOG-archive.md` (pre-0.19.0) is frozen.
 
 ### SBOM output
 
