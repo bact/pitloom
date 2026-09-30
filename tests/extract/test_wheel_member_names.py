@@ -6,10 +6,10 @@
 """``read_wheel`` names each file by its install location, on every OS.
 
 The wheels here are written with raw central-directory names
-(:mod:`tests._raw_wheel`), so the tests do not depend on the runner's
+(:mod:`tests._raw_archive`), so the tests do not depend on the runner's
 ``os.sep``.
 
-See also: tests/core/test_wheel_member_names.py (the normaliser),
+See also: tests/core/test_archive_member_names.py (the normaliser),
 tests/test_wheel_member_name_surfaces.py (every wheel surface).
 """
 
@@ -26,7 +26,7 @@ import pytest
 
 from pitloom.assemble import generate_wheel_sbom
 from pitloom.extract.wheel import read_wheel
-from tests._raw_wheel import METADATA, mimic_windows_infolist, write_raw_wheel
+from tests._raw_archive import METADATA, mimic_windows_infolist, write_raw_zip
 
 _DIST_INFO = "demo-1.0.0.dist-info"
 _MEMBERS = {
@@ -47,7 +47,7 @@ _EXPECTED = {
 
 
 def _wheel(tmp_path: Path, members: dict[str, bytes] | None = None) -> Path:
-    return write_raw_wheel(
+    return write_raw_zip(
         tmp_path / "demo-1.0.0-py3-none-any.whl",
         _MEMBERS if members is None else members,
     )
@@ -94,17 +94,15 @@ def test_read_wheel_warns_once_per_non_conforming_member(
         read_wheel(_wheel(tmp_path))
 
     messages = sorted(r.getMessage() for r in caplog.records)
-    wheel = "demo-1.0.0-py3-none-any.whl"
+    prefix = "ARCHIVE=demo-1.0.0-py3-none-any.whl ENTRY="
     assert messages == sorted(
         [
-            f"{wheel}: wheel entry 'demo\\\\mod.py' is non-conforming"
-            " -- recorded as 'demo/mod.py'",
-            f"{wheel}: wheel entry './demo/sub//deep.py' is non-conforming"
+            prefix
+            + "'demo\\\\mod.py': non-conforming name -- recorded as 'demo/mod.py'",
+            prefix + "'./demo/sub//deep.py': non-conforming name"
             " -- recorded as 'demo/sub/deep.py'",
-            f"{wheel}: wheel entry '../evil.py' has no safe install location"
-            " -- skipped",
-            f"{wheel}: wheel entry '/abs/evil.py' has no safe install location"
-            " -- skipped",
+            prefix + "'../evil.py': no safe install location -- skipped",
+            prefix + "'/abs/evil.py': no safe install location -- skipped",
         ]
     )
 

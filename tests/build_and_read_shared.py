@@ -39,7 +39,7 @@ import pytest
 import pitloom
 from pitloom.core._models_wheel_types import IncludedFile
 from pitloom.core.build_signals import TerminationGuard
-from tests._raw_wheel import write_raw_member
+from tests._raw_archive import write_raw_member
 
 RUN_BUILD = "pitloom.core._models_wheel_build_and_read.run_build_subprocess"
 BUILD_AND_READ = "pitloom.core._models_wheel_build_and_read.build_and_read_wheel"

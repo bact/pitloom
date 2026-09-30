@@ -15,7 +15,7 @@ ZIP archive manipulation, RECORD formatting, and verification.
 
 See also [hatchling-build-hook.md](hatchling-build-hook.md) for the
 Hatchling build-hook counterpart, and
-[wheel-member-names.md](wheel-member-names.md) for how wheel member names
+[archive-member-names.md](archive-member-names.md) for how wheel member names
 become `software_File` names.
 
 ## Context and motivation

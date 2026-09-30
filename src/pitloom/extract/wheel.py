@@ -14,8 +14,8 @@ import zipfile
 from pathlib import Path
 
 from pitloom._wheel_sbom_location import name_version_from_email_message
+from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.project import ProjectFile, ProjectMetadata
-from pitloom.core.wheel_member_names import wheel_file_members
 from pitloom.extract._core_metadata import parse_project_urls
 
 log = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def _hash_wheel_entry(
     """Compute SHA-256 hash for a wheel entry in streaming chunks.
 
     *name* is the entry's install-location name (see
-    :func:`pitloom.core.wheel_member_names.wheel_file_members`).
+    :func:`pitloom.core.archive_member_names.zip_file_members`).
     """
     hasher = hashlib.sha256()
     with zf.open(info) as f:
@@ -115,12 +115,10 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
     with zipfile.ZipFile(wheel_path_obj, "r") as zf:
         metadata_content = None
 
-        for member in wheel_file_members(zf, wheel_path_obj.name, log):
-            if member.name.endswith(".dist-info/METADATA"):
-                metadata_content = zf.read(member.info).decode(
-                    "utf-8", errors="replace"
-                )
-            project_files.append(_hash_wheel_entry(zf, member.info, member.name))
+        for name, info in zip_file_members(zf, wheel_path_obj.name, log):
+            if name.endswith(".dist-info/METADATA"):
+                metadata_content = zf.read(info).decode("utf-8", errors="replace")
+            project_files.append(_hash_wheel_entry(zf, info, name))
 
         if metadata_content:
             msg = email.message_from_string(metadata_content)

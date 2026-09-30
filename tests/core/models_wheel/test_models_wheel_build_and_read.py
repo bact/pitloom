@@ -24,7 +24,6 @@ import pytest
 from pitloom.core._models_wheel_build_and_read import build_and_read_wheel
 from pitloom.core._models_wheel_types import is_dist_info_path
 from pitloom.core.build_signals import TerminationGuard
-from pitloom.core.wheel_member_names import WheelFileMember
 from tests.build_and_read_shared import (
     RUN_BUILD,
     FakeBuildState,
@@ -237,7 +236,10 @@ def test_extract_wheel_to_included_files_rejects_zip_slip_entry(
     assert not (sys_tmp / "abs-evil.py").exists()
     warnings = [r.getMessage() for r in caplog.records]
     assert len(warnings) == 1
-    assert f"{escaping!r} has no safe install location -- skipped" in warnings[0]
+    assert warnings[0] == (
+        f"Build: ARCHIVE=pkg-1.0-py3-none-any.whl ENTRY={escaping!r}: "
+        "no safe install location -- skipped"
+    )
     cleanup()
 
 
@@ -251,10 +253,8 @@ def test_extract_wheel_to_included_files_resolve_guard(
     """The ``resolve()`` guard still blocks an escaping name if the name
     normaliser ever lets one through (defence in depth)."""
     monkeypatch.setattr(
-        "pitloom.core._models_wheel_build_and_read.wheel_file_members",
-        lambda zf, *_args: [
-            WheelFileMember(info, info.orig_filename) for info in zf.infolist()
-        ],
+        "pitloom.core._models_wheel_build_and_read.zip_file_members",
+        lambda zf, *_args: [(info.orig_filename, info) for info in zf.infolist()],
     )
     fake_build.entries = {"../outside/evil.py": b"evil = 1\n"}
 
@@ -296,7 +296,10 @@ def test_extract_wheel_to_included_files_normalises_member_names(
     assert by_name["pkg/mod.py"].read_bytes() == b"x = 1\n"
     assert by_name["pkg/c.py"].read_bytes() == b"second\n"
     assert len(caplog.records) == 4
-    assert "'./pkg/b.py' is non-conforming -- recorded as 'pkg/b.py'" in caplog.text
+    assert (
+        "ENTRY='./pkg/b.py': non-conforming name -- recorded as 'pkg/b.py'"
+        in caplog.text
+    )
     cleanup()
 
 

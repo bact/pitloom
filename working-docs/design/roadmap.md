@@ -273,7 +273,7 @@ See [build-backend-improvements.md](build-backend-improvements.md).
   `_find_dist_info_prefix` on POSIX only (`./x.dist-info/` everywhere), and
   `_rewrite_wheel_archive` rewrites `pkg\x` to `pkg/x` on Windows only.
   Copy under `orig_filename`. See
-  [wheel-member-names.md](../implementation/wheel-member-names.md).
+  [archive-member-names.md](../implementation/archive-member-names.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
   `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which

@@ -142,8 +142,8 @@ section 3.3(2).
 - **`usage_files`:** each ends `sorted(set(...))`, keyed by the exact
   distribution-path string (the key of `file_spdx_ids`; no
   normalisation here). A wheel producer must list members with
-  `wheel_file_members()`, as `read_wheel` does, or the keys miss; see
-  [wheel-member-names.md](wheel-member-names.md). `sources` are iterated
+  `zip_file_members()`, as `read_wheel` does, or the keys miss; see
+  [archive-member-names.md](archive-member-names.md). `sources` are iterated
   sorted by distribution path, so `could not read for usage scanning`
   warnings come out in a stable order.
 - **No shipped bytes moved:** all three callers already pass files sorted

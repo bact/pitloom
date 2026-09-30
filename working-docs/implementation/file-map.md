@@ -56,6 +56,7 @@ pitloom/
 │   │   ├── agent-skill.md
 │   │   ├── allow-build-termination.md # Signal handling around a build-and-read and its result
 │   │   ├── allow-build-timeout.md  # --build-timeout: build subprocess, kill path, traps
+│   │   ├── archive-member-names.md # Wheel/sdist member names -> install-location file names
 │   │   ├── claude-code-plugin.md
 │   │   ├── cli-ux.md
 │   │   ├── demo.md
@@ -70,7 +71,6 @@ pitloom/
 │   │   ├── setuptools-support.md   # Setuptools extractor design and limitations
 │   │   ├── summary.md              # implementation summary; points here for the tree
 │   │   ├── wheel-embedding.md
-│   │   ├── wheel-member-names.md   # Wheel member names -> install-location file names
 │   │   └── wheel-sbom-verification.md
 │   └── archive/
 │       └── protobom-evaluation.md  # Wholesale-rejected paths
@@ -151,6 +151,7 @@ pitloom/
 │       │   ├── _models_wheel_setuptools.py # setuptools static-config-based discover()
 │       │   ├── _models_wheel_types.py # IncludedFile, BackendDiscoverer protocol, shared helpers
 │       │   ├── ai_metadata.py      # AiModelMetadata, ModelFormat
+│       │   ├── archive_member_names.py # zip_file_members()/archive_members(): member -> install location, same on every OS
 │       │   ├── build_options.py    # BuildOptions: --allow-build flags, validation, no-effect warnings
 │       │   ├── build_signals.py    # TerminationGuard: SIGTERM/SIGHUP cleanup of a build-and-read
 │       │   ├── config.py           # PitloomConfig facade and re-exports
@@ -165,8 +166,7 @@ pitloom/
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
 │       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
-│       │   ├── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
-│       │   └── wheel_member_names.py # wheel_file_members(): ZIP members -> install locations, same on every OS
+│       │   └── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher
@@ -221,7 +221,7 @@ pitloom/
 │   ├── fixtures/                   # Per-format model/project fixtures (see fixtures/README.md)
 │   ├── id_registry/                # 19 files -- conftest.py, shared.py, package_ids_base.py, surfaces_base.py, surfaces_cli.py, surfaces_shared.py, test_package_ids.py, test_package_ids_ambiguous.py, test_registry.py, test_registry_base_dir_sdist.py, test_registry_generate.py, test_registry_harvest.py, test_registry_import.py, test_relative_paths.py, test_relative_paths_id_commands.py, test_session.py, test_surfaces.py, test_surfaces_failures.py, test_surfaces_same_ids.py
 │   ├── scripts/                    # Mirrors scripts/: probe, resolver, install and Generate-step tests
-│   ├── _raw_wheel.py               # Write ZIP members under exact raw names on every OS
+│   ├── _raw_archive.py             # Write zip/tar members under exact raw names on every OS
 │   ├── build_and_read_shared.py    # Shared fake build, temp-dir and simulated-signal helpers
 │   ├── conftest.py                 # Cross-cutting fixtures (each subfolder has its own too)
 │   └── warning_helpers.py          # Shared WARNING:/caplog assertion helpers
