@@ -360,6 +360,7 @@ For `working-docs/` standalone docs, include `Created` and `Last-Modified` (`YYY
 - **Bug fixes and regressions**: Always add a regression test that fails without the fix and passes with it.
 - **Guard against vacuous passes**: for a "changed input -> unchanged output" test (e.g. stability/idempotency), assert the input actually changed, not just that the output didn't -- a misplaced setup edit can make the test pass without exercising anything.
 - Use pytest patterns. Use `spec`/`autospec` when mocking. Use `@pytest.mark.parametrize`.
+- **Keep tests compact**: same coverage, same adversarial nature, no redundant tests. Before adding a test, check whether an existing one already exercises the branch; fold near-duplicates into one `@pytest.mark.parametrize` (one case per boundary) and share fixtures/helpers. Never drop a case that is the only one killing a mutant or covering a bug class.
 - **Test suite structure**: Adhere to the same file size limits as source code.
 - **Naming**: `test_<area>.py`, 1:1 with the source module. Disambiguate when two source packages could produce the same tail.
 - **Grouping**: Group tests in same-named subfolders under `tests/` mirroring `src/pitloom/<package>/` when a source package's tests grow to 3+ related files. No `__init__.py` needed in test folders.
