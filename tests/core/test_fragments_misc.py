@@ -13,7 +13,6 @@ See also:
 # ruff: noqa: F403, F405
 from __future__ import annotations
 
-import errno
 import json
 import logging
 from datetime import datetime, timezone
@@ -29,7 +28,6 @@ from pitloom.assemble.spdx3.fragments import (
     _add_fragment_imports,
     _add_model_sbom,
     _find_fragment_document_id,
-    _is_missing_errno,
     merge_fragments,
 )
 from pitloom.core.config import FragmentConfig
@@ -325,44 +323,3 @@ class TestFragmentMergeUnitBranches:
             o for o in exporter.object_set.objects if isinstance(o, spdx3.software_Sbom)
         ]
         assert not sboms
-
-
-class TestIsMissingErrno:
-    """_is_missing_errno() must classify both POSIX errno and Windows
-    winerror the way Path.exists()/is_file() do internally, so a stat()
-    failure is never misreported as "missing" on either platform."""
-
-    def test_posix_missing_errno_is_missing(self) -> None:
-        exc = FileNotFoundError(errno.ENOENT, "No such file or directory")
-        assert _is_missing_errno(exc) is True
-
-    def test_posix_permission_errno_is_not_missing(self) -> None:
-        exc = PermissionError(errno.EACCES, "Permission denied")
-        assert _is_missing_errno(exc) is False
-
-    def test_windows_missing_winerror_is_missing(self) -> None:
-        """Windows reports "not found" via winerror, not errno -- a real
-        FileNotFoundError raised on Windows carries winerror 2/3/21
-        depending on cause; 21 (ERROR_NOT_READY, used for a bad drive/UNC
-        path) is one of pathlib's own recognised "missing" codes."""
-        exc = OSError("The device is not ready")
-        exc.winerror = 21  # type: ignore[attr-defined]
-        assert _is_missing_errno(exc) is True
-
-    def test_windows_non_missing_winerror_is_not_missing(self) -> None:
-        exc = OSError("Access is denied")
-        exc.winerror = 5  # type: ignore[attr-defined]
-        assert _is_missing_errno(exc) is False
-
-    def test_windows_real_file_not_found_has_both_errno_and_winerror(self) -> None:
-        """A real Windows FileNotFoundError carries BOTH errno=ENOENT and a
-        winerror (typically 2/3, ERROR_FILE_NOT_FOUND/ERROR_PATH_NOT_FOUND)
-        -- neither of which is in _STAT_MISSING_WINERRORS (21/123/1921,
-        the codes errno alone doesn't already cover). Regression test for
-        short-circuiting on "winerror is not None" and never falling back
-        to the errno check once winerror happens to be set -- that would
-        misclassify this, the single most common not-found case on
-        Windows, as "not missing"."""
-        exc = FileNotFoundError(errno.ENOENT, "The system cannot find the file")
-        exc.winerror = 2  # type: ignore[attr-defined]
-        assert _is_missing_errno(exc) is True

@@ -20,7 +20,6 @@ from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3.fragments import (
     _fragment_read_failure_message,
-    _is_missing_errno,
     _missing_fragment_message,
 )
 from pitloom.cli.commands.utils import (
@@ -29,6 +28,7 @@ from pitloom.cli.commands.utils import (
     cli_error_handler,
 )
 from pitloom.core.config import FragmentConfig, read_pitloom_config
+from pitloom.core.path_probe import is_missing_errno
 
 log = logging.getLogger(__name__)
 
@@ -200,7 +200,7 @@ def _report_fragment(project_dir: Path, frag: FragmentConfig) -> bool:
     # below has its own OSError handling, but stat() previously didn't).
     # `exists` matches merge_fragments()'s own missing-fragment check
     # (both now classify a stat()/exists() failure via the shared
-    # _is_missing_errno()) -- True for any path present, regardless of
+    # is_missing_errno()) -- True for any path present, regardless of
     # type; a stat() failure only means "missing" for the same errno/
     # winerror set Path.exists()/is_file() treat that way; anything else
     # (e.g. a permission error) is a real, present-but-inaccessible path,
@@ -209,7 +209,7 @@ def _report_fragment(project_dir: Path, frag: FragmentConfig) -> bool:
     try:
         stat_result = fragment_path.stat()
     except OSError as exc:
-        exists = not _is_missing_errno(exc)
+        exists = not is_missing_errno(exc)
         mtime = None
     else:
         exists = True

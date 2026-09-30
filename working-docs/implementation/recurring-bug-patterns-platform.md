@@ -53,7 +53,7 @@ the move.
   `merge_fragments()` (PR #217, `assemble/spdx3/fragments.py`) crashed
   the whole build with an unhandled `PermissionError` on a
   permission-denied fragment path before this was caught. Fix: classify
-  the failure explicitly (`_is_missing_errno()`/`_fragment_is_missing()`)
+  the failure explicitly (now `pitloom.core.path_probe.is_missing_errno()`)
   instead of trusting a bare `.exists()`/`.is_file()` call to degrade
   gracefully on its own.
 - **The POSIX/Windows split in that same classification must `OR` both
@@ -182,6 +182,11 @@ the move.
     version, so no version gate is needed and no leg can disagree.
     `is_sdist_archive()` and `target_settle_plan()` were moved to them
     for exactly this reason.
+  - When a denied path must be *reported*, not treated as absent, use
+    `pitloom.core.path_probe.is_regular_file()`: it raises the
+    `PermissionError` on every version. On 3.14 a bare `is_file()` made
+    a file under a denied directory vanish from the SBOM file scan with
+    no warning ([file-scan-unreadable-file.md](file-scan-unreadable-file.md)).
   - In tests, gate the raising assertion with
     `if sys.version_info < (3, 14):` and keep a version-independent
     probe (`target.read_bytes()` inside `pytest.raises(PermissionError)`)
