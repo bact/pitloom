@@ -320,8 +320,8 @@ _STOP_POINTS = (
     "pitloom.assemble._generators_wheel.read_wheel",
     "pitloom.assemble._generators_env.read_environment",
     "pitloom.assemble._model_generator.resolve_standalone_config",
-    "pitloom.embed.resolve_standalone_config",
-    "pitloom.embed.apply_overrides",
+    "pitloom._embed_generate.resolve_standalone_config",
+    "pitloom._embed_generate.apply_overrides",
     "pitloom.embed._enforce_sbom_name_version",
 )
 _ENTRY_POINTS: dict[Callable[..., Any], tuple[str, ...]] = {

@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-17
-Last-Modified: 2026-09-29
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -161,7 +161,8 @@ pitloom/
 │       │   ├── models.py           # Deterministic UUIDs, Merkle root, SPDX ID generation facade
 │       │   ├── no_effect.py        # warn_no_effect(): the one "has no effect" WARNING: shape
 │       │   ├── project.py          # ProjectMetadata, ProjectFile
-│       │   └── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
+│       │   ├── provenance.py       # ProvenanceConfig ([tool.pitloom.provenance])
+│       │   └── temp_dirs.py        # registered_temp_dir(): temp dirs removed via TerminationGuard
 │       ├── enrich/                 # Local README/model-card frontmatter enrichment
 │       │   ├── base.py             # Enricher protocol + run_enrichers_for_models()
 │       │   └── readme.py           # README.md/MODEL_CARD.md YAML frontmatter enricher
@@ -197,6 +198,7 @@ pitloom/
 │       ├── __init__.py
 │       ├── __main__.py             # Thin entry point only: logging setup + args.func dispatch
 │       ├── _embed_build_sbom.py    # embed-wheel Build SBOM: project rescan + wheel files, EmbedFileCache
+│       ├── _embed_generate.py      # Embed SBOM JSON: registry peek, batch option settling, standalone/project branch
 │       ├── _embed_wheel.py         # Low-level ZIP rewriting and RECORD injection
 │       ├── _loom_caller.py         # Caller stack inspection and provenance helpers
 │       ├── _loom_active_run.py     # Active-run state machine
@@ -205,7 +207,7 @@ pitloom/
 │       ├── loom.py                 # ML tracking SDK facade (Run context manager / decorator)
 │       └── py.typed                # PEP 561 marker
 ├── tests/                          # Mirrors src/pitloom/<package>/ (AGENTS.md Testing section)
-│   ├── assemble/                   # 58 files -- assemble/, embed.py, enrich/ coverage + conftest.py
+│   ├── assemble/                   # 58 files -- assemble/, embed*.py, enrich/ coverage + conftest.py
 │   ├── cli/                        # 22 files -- one per src/pitloom/cli/ module, + shared.py
 │   ├── core/                       # 26 files -- core/, loom.py, generator orchestration
 │   │   └── models_wheel/           # Wheel file discovery: backends, build-and-read, build timeout/kill
