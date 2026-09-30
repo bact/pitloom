@@ -232,9 +232,8 @@ below, which is the actual commitment for what ships before mid-October):
   a `chmod 000` directory is skipped by Hatchling's `safe_walk()` (`os.walk`,
   no `onerror`) before the per-file scan sees any name, so no
   `WARNING:` (found in #244). Check each backend's walk.
-- [ ] **Five smaller follow-ups from PR #215's `--allow-build` review**
-  -- two consolidation/dedup cleanups (a duplicated blanket-except
-  pattern across Track A modules; a hand-rolled `tool` table walk
+- [ ] **Four remaining follow-ups from PR #215's `--allow-build` review**
+  -- one consolidation cleanup (a hand-rolled `tool` table walk
   repeated across 6+ modules), one low-priority dev-script dedup, one
   id-registry gap (`--allow-build`-sourced files can't match a
   `loom id generate`-pinned entry, since their `physical_path` is an
@@ -400,12 +399,6 @@ See [metadata-quality.md](metadata-quality.md).
 ### Testing / CI
 
 See [testing-ci-followups.md](testing-ci-followups.md).
-
-- [ ] **Delete `_project_doc_identity` and test `enrich_model` directly** --
-  `assemble/_model_generator.py`'s `_project_doc_identity()` has no
-  production caller (`enrich_model()` calls `_doc_identity_of()`); only
-  `tests/assemble/test_model_generator_doc_identity.py` and
-  `test_explicit_config_edges.py` use it, as an oracle.
 
 ### Diagnostics / logging
 

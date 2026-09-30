@@ -48,7 +48,7 @@ class EnrichedField:
             reserved for genuine AI-agent judgment.
         source: A ``"Key: Value | Key: Value"`` provenance string, same
             convention used everywhere else
-            (:func:`~pitloom.assemble.spdx3.provenance.parse_provenance_value`).
+            (:func:`~pitloom.core.provenance.parse_provenance_value`).
     """
 
     field: str

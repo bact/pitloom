@@ -16,6 +16,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from pitloom._toml_io import load_toml_file
 from pitloom.core._config_legacy import (
     _check_moved_creation_keys,
     _check_moved_flat_keys,
@@ -41,7 +42,6 @@ from pitloom.core._config_types import (
 from pitloom.core.creation import Creator, Tool
 from pitloom.core.file_names import is_plain_file_name
 from pitloom.core.provenance import normalize_max_source_metadata_bytes
-from pitloom.extract._toml_io import load_toml_file
 
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})

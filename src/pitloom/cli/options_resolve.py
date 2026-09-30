@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pitloom._toml_io import load_toml_file
 from pitloom.cli.constants import (
     _PROJECT_CONFIG_FILES,
     _PROJECT_PYPROJECT_SOURCE,
@@ -41,7 +42,6 @@ from pitloom.core.creation import (
 )
 from pitloom.core.project import ProjectMetadata, is_sdist_archive
 from pitloom.export.spdx3_json import SPDX3_JSONLD_EXTENSION
-from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.project import (
     resolve_project_with_lockfile,
     sdist_config_source,

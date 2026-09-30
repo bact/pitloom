@@ -21,6 +21,7 @@ from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
 
+from pitloom._toml_io import load_toml_file
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._extract_utils import field_declared
@@ -28,7 +29,6 @@ from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
-from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.project.pyproject import _try_read_poetry
 
 _PROVENANCE_SOURCE = "Source: Hatchling build backend"

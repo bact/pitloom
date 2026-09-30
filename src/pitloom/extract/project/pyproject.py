@@ -22,6 +22,7 @@ from typing import Any
 
 from pyproject_metadata import ConfigurationError, StandardMetadata
 
+from pitloom._toml_io import load_toml_file
 from pitloom.core.config import PitloomConfig, parse_pitloom_config
 from pitloom.core.models import normalize_dependency_specifier
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
@@ -32,7 +33,6 @@ from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
-from pitloom.extract._toml_io import load_toml_file
 from pitloom.extract.lock._common import POETRY_LOCK_SOURCE_NAME
 from pitloom.extract.lock.poetry import extract_poetry_lock_dependencies
 from pitloom.extract.lock.poetry_hash import extract_poetry_lock_hashes
