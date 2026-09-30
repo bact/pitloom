@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-19
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -32,9 +32,10 @@ See also: [allow-build-termination.md](../implementation/allow-build-termination
   `DEBUG: Build: build output:` line, with a trailing space.
 - `_clean_line` strips ESC but leaves an OSC sequence's body (e.g.
   `]8;;url`) in `WARNING:` text.
-- Unverified: wheel entries differing only in case overwrite each other
-  when extracted onto a case-insensitive filesystem, so one entry gets
-  the wrong hash.
+- Entries differing only in case (or Unicode normalisation) overwrite each
+  other when extracted onto a case-insensitive filesystem, so one entry
+  gets the wrong hash; see
+  [archive-member-followups.md](archive-member-followups.md) section 1.
 
 ## Outcome of the fallback
 

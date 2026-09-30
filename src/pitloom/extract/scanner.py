@@ -171,9 +171,10 @@ def attach_usage_references(
 ) -> None:
     """Record which ``.py`` sources mention each model's file name.
 
-    Runs even when *models* is empty, so unreadable sources are still
-    reported. Each model's ``usage_files`` ends sorted and deduplicated by
-    distribution path.
+    Reads every source even when *models* is empty, so unreadable sources
+    are still reported; callers skip it altogether when usage scanning is
+    off (see :func:`scan_ai_models`). Each model's ``usage_files`` ends
+    sorted and deduplicated by distribution path.
     """
     for source in sorted(sources, key=_PATH_ORDER):
         if not source.distribution_path.endswith(".py"):
@@ -203,12 +204,27 @@ def attach_usage_references(
 
 
 def scan_ai_models(
-    candidates: Iterable[ModelCandidate], sources: Iterable[UsageSource]
+    candidates: Iterable[ModelCandidate],
+    sources: Iterable[UsageSource],
+    *,
+    scan_usage: bool,
+    usage_hint: bool,
 ) -> list[AiModelMetadata]:
-    """Discover AI models, then attach their usages in Python sources.
+    """Discover AI models, then attach their usages if *scan_usage*.
 
+    Discovery always runs. The usage pass reads every Python source, so it
+    runs only on request. Otherwise, with *usage_hint* (the setting was
+    never given) and models found, one ``INFO:`` line names the setting.
     Order: see :func:`discover_ai_models`.
     """
     models = discover_ai_models(candidates)
-    attach_usage_references(models, sources)
+    if scan_usage:
+        attach_usage_references(models, sources)
+    elif usage_hint and models:
+        log.info(
+            "Found %d AI model file(s); pass --scan-model-usage (or set "
+            "scan-model-usage = true) to also record which Python files "
+            "reference them.",
+            len(models),
+        )
     return models

@@ -66,6 +66,13 @@ inputs:
       extract-file-header config, which is on by default.
     required: false
     default: ""
+  scan-model-usage:
+    description: >-
+      Record which Python files reference each AI model file
+      ("true"/"false"). Empty (default) defers to the project's
+      [tool.pitloom] scan-model-usage config, which is off by default.
+    required: false
+    default: ""
   id-registry:
     description: >-
       Loom ID registry file passed as --id-registry. Empty (default) uses
@@ -250,6 +257,7 @@ runs:
         PL_PRETTY: ${{ inputs.pretty }}
         PL_ENRICH: ${{ inputs.enrich }}
         PL_EXTRACT_FILE_HEADER: ${{ inputs.extract-file-header }}
+        PL_SCAN_MODEL_USAGE: ${{ inputs.scan-model-usage }}
         PL_ID_REGISTRY: ${{ inputs.id-registry }}
         PL_UPDATE_ID_REGISTRY: ${{ inputs.update-id-registry }}
         PL_CONTENT_TYPE: ${{ inputs.content-type }}
@@ -323,6 +331,11 @@ runs:
           loom_args+=("--extract-file-header")
         elif [ "${PL_EXTRACT_FILE_HEADER}" = "false" ]; then
           loom_args+=("--no-extract-file-header")
+        fi
+        if [ "${PL_SCAN_MODEL_USAGE}" = "true" ]; then
+          loom_args+=("--scan-model-usage")
+        elif [ "${PL_SCAN_MODEL_USAGE}" = "false" ]; then
+          loom_args+=("--no-scan-model-usage")
         fi
         if [ -n "${PL_ID_REGISTRY}" ]; then
           loom_args+=("--id-registry" "${PL_ID_REGISTRY}")

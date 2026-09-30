@@ -46,6 +46,7 @@ _SAME_NAME_OPTIONS = (
     "describe_relationship",
     "enrich",
     "extract_file_header",
+    "scan_model_usage",
     "content_type",
     "content_type_method",
     "max_source_metadata_bytes",
@@ -114,6 +115,7 @@ def overrides_from_options(
     return ConfigOverrides(
         enrich=options["enrich"],
         extract_file_header=options["extract_file_header"],
+        scan_model_usage=options["scan_model_usage"],
         content_type=options["content_type"],
         content_type_method=options["content_type_method"],
         offline=options["offline"],

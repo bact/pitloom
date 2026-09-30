@@ -135,6 +135,17 @@ def _build_parent_parser() -> argparse.ArgumentParser:
         ),
     )
     parent.add_argument(
+        "--scan-model-usage",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Also record which Python files reference each discovered AI "
+            "model file (hasDataFile). Defers to [tool.pitloom] "
+            "scan-model-usage when omitted. Off by default, since it reads "
+            "every Python file."
+        ),
+    )
+    parent.add_argument(
         "--content-type",
         action=argparse.BooleanOptionalAction,
         default=None,

@@ -82,6 +82,7 @@ def generate_project_sbom(
     provenance: ProvenanceConfig | None = None,
     enrich: bool | None = None,
     extract_file_header: bool | None = None,
+    scan_model_usage: bool | None = None,
     content_type: bool | None = None,
     content_type_method: str | None = None,
     offline: bool | None = None,
@@ -139,6 +140,7 @@ def generate_project_sbom(
                 "describe_relationship": describe_relationship,
                 "enrich": enrich,
                 "extract_file_header": extract_file_header,
+                "scan_model_usage": scan_model_usage,
                 "content_type": content_type,
                 "content_type_method": content_type_method,
                 "max_source_metadata_bytes": max_source_metadata_bytes,
@@ -162,6 +164,7 @@ def generate_project_sbom(
             provenance=provenance,
             enrich=enrich,
             extract_file_header=extract_file_header,
+            scan_model_usage=scan_model_usage,
             content_type=content_type,
             content_type_method=content_type_method,
             offline=offline,
@@ -236,7 +239,12 @@ def generate_project_sbom(
                 )
 
             ai_models = (
-                scan_project_for_ai_models(target_path, project_files)
+                scan_project_for_ai_models(
+                    target_path,
+                    project_files,
+                    scan_usage=cfg.scan_model_usage is True,
+                    usage_hint=cfg.scan_model_usage is None,
+                )
                 if target_path.is_dir()
                 else []
             )

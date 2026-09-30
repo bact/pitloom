@@ -148,7 +148,8 @@ def is_dist_info_path(distribution_path: str) -> bool:
     files only.
 
     *distribution_path* MUST already be POSIX-normalized (see
-    :func:`to_posix_distribution_path`) -- this function does no
+    :func:`to_posix_distribution_path`; for a wheel member name,
+    :func:`pitloom.core.archive_member_names.zip_file_members`) -- this function does no
     normalization of its own and will not recognize a
     backslash-separated path as a ``.dist-info`` path.
     """
@@ -165,7 +166,9 @@ def to_posix_distribution_path(path: str) -> str:
     Shared so this one-line normalization doesn't keep getting
     hand-copied per backend discovery module (setuptools, Hatchling,
     Poetry, Flit each needed it independently) -- see CLAUDE.md's note
-    that a pattern repeated across 3+ call sites drifts."""
+    that a pattern repeated across 3+ call sites drifts. A wheel's own ZIP
+    member names need more than this (``./``, ``..``, absolute names): use
+    :func:`pitloom.core.archive_member_names.zip_file_members`."""
     return path.replace("\\", "/")
 
 

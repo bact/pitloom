@@ -116,6 +116,7 @@ class ConfigOverrides:
     provenance: ProvenanceConfig | None = None
     enrich: bool | None = None
     extract_file_header: bool | None = None
+    scan_model_usage: bool | None = None
     content_type: bool | None = None
     content_type_method: str | None = None
     offline: bool | None = None
@@ -207,6 +208,8 @@ def apply_overrides(cfg: PitloomConfig, overrides: ConfigOverrides) -> PitloomCo
         changes["enrich_local"] = overrides.enrich
     if overrides.extract_file_header is not None:
         changes["extract_file_header"] = overrides.extract_file_header
+    if overrides.scan_model_usage is not None:
+        changes["scan_model_usage"] = overrides.scan_model_usage
     if overrides.content_type is not None:
         changes["content_type_enabled"] = overrides.content_type
     if overrides.content_type_method is not None:

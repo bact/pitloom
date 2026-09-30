@@ -62,9 +62,9 @@ def generate_wheel_sbom(
     creators, creation datetime and comment fill in when *creation_metadata*
     is not given.
 
-    ``extract_file_header``/``content_type``/``enrich`` have no parameter
-    here: reading a built wheel scans no file contents and finds no AI
-    models (see :data:`pitloom.core.inert_options.INERT`).
+    ``extract_file_header``/``content_type``/``enrich``/``scan_model_usage``
+    have no parameter here: reading a built wheel scans no file contents
+    and finds no AI models (see :data:`pitloom.core.inert_options.INERT`).
     ``content_type_method`` does apply, because it also steers whether
     dependency originator enrichment fetches a remote authors file.
     """

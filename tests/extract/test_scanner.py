@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import itertools
 import logging
 import zlib
 from collections.abc import Callable, Iterator
@@ -428,7 +429,9 @@ def test_scan_consumes_generators_once_and_discovers_before_scanning() -> None:
         yield _src("pkg/use.py", data=b'open("model.onnx")')
 
     with patch(_READ, autospec=True, return_value=_meta()):
-        found = scan_ai_models(_candidates(), _sources())
+        found = scan_ai_models(
+            _candidates(), _sources(), scan_usage=True, usage_hint=False
+        )
     assert calls == ["candidates", "sources"]
     assert [m.usage_files for m in found] == [["pkg/use.py"]]
 
@@ -436,11 +439,16 @@ def test_scan_consumes_generators_once_and_discovers_before_scanning() -> None:
 def test_scan_attaches_usage_to_import_error_stub() -> None:
     with patch(_READ, autospec=True, side_effect=ImportError("x")):
         found = scan_ai_models(
-            [_cand("pkg/model.onnx")], [_src("pkg/use.py", data=b"model.onnx")]
+            [_cand("pkg/model.onnx")],
+            [_src("pkg/use.py", data=b"model.onnx")],
+            scan_usage=True,
+            usage_hint=False,
         )
     assert [m.usage_files for m in found] == [["pkg/use.py"]]
 
 
 def test_scan_empty_inputs() -> None:
-    assert scan_ai_models([], []) == []
-    assert scan_ai_models(iter(()), iter(())) == []
+    for usage, hint in itertools.product((True, False), repeat=2):
+        kw = {"scan_usage": usage, "usage_hint": hint}
+        assert not scan_ai_models([], [], **kw)
+        assert not scan_ai_models(iter(()), iter(()), **kw)
