@@ -21,7 +21,7 @@ import logging
 import tempfile
 import zipfile
 from collections.abc import Callable
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path, PureWindowsPath
 from typing import Any, cast
 from unittest.mock import Mock, patch
 
@@ -201,4 +201,4 @@ def test_a_reader_called_directly_escapes_member_names(
     read_ai_model(path, model_format=AiModelFormat.PYTORCH)
     (message,) = logged_warnings(caplog)
     assert "\n" not in message
-    assert PurePosixPath(str(path)).name in message
+    assert path.name in message

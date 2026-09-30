@@ -21,6 +21,7 @@ import json
 import logging
 import pickle
 import struct
+import sys
 import zipfile
 from pathlib import Path
 from unittest import mock
@@ -38,6 +39,10 @@ from pitloom.extract.scanner_wheel import scan_wheel_for_ai_models
 from pitloom.logging_config import loggable, one_line
 from tests._wheel_models import write_model_wheel
 from tests.warning_helpers import logged_warnings
+
+# Windows file names cannot hold control characters, so a wheel named with
+# a newline cannot exist there.
+_NO_CONTROL_CHAR_NAMES = sys.platform == "win32"
 
 
 def _scan_project(directory: Path, *names: str) -> list[AiModelMetadata]:
@@ -189,6 +194,7 @@ def test_inner_reads_are_charged_to_the_wheel_budget_and_the_warning_names_it(
     assert "from evil name-1.0.0-py3-none-any.whl;" in message
 
 
+@pytest.mark.skipif(_NO_CONTROL_CHAR_NAMES, reason="control characters in file names")
 def test_the_budget_warning_escapes_the_wheel_name(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
