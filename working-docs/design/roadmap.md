@@ -268,6 +268,10 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 - [ ] **`loom wheel --embed` has no `--sbom-basename`** -- `embed-wheel`
   takes one, so the two embed surfaces can't be pointed at the same
   arcname. Found in the manual CLI checks for PR #226.
+- [ ] **Archive member follow-ups** -- name-independent `--allow-build`
+  extraction (case/Unicode folding, Windows path rules), archive-level wheel
+  operations on `orig_filename`, tar links in sdists. See
+  [archive-member-followups.md](archive-member-followups.md).
 - [ ] **Re-embedding lists the previous embedded SBOM** -- `embed-wheel`
   on a wheel that already has one describes that old
   `.dist-info/sboms/*` file (with its old hash) in the new SBOM, which

@@ -9,23 +9,35 @@ from __future__ import annotations
 import email
 import email.message
 import hashlib
+import logging
 import zipfile
 from pathlib import Path
 
 from pitloom._wheel_sbom_location import name_version_from_email_message
+from pitloom.core.archive_member_names import zip_file_members
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract._core_metadata import parse_project_urls
 
+log = logging.getLogger(__name__)
 
-def _hash_wheel_entry(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> ProjectFile:
-    """Compute SHA-256 hash for a wheel entry in streaming chunks."""
+
+def _hash_wheel_entry(
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo, name: str
+) -> ProjectFile:
+    """Compute SHA-256 hash for a wheel entry in streaming chunks.
+
+    *name* is the entry's install-location name (see
+    :func:`pitloom.core.archive_member_names.zip_file_members`), the
+    ``distribution_path``. ``physical_path`` is the raw archive name, so a
+    registry keyed by it before names were normalised still hits.
+    """
     hasher = hashlib.sha256()
     with zf.open(info) as f:
         while chunk := f.read(8192):
             hasher.update(chunk)
     return ProjectFile(
-        physical_path=info.filename,
-        distribution_path=info.filename,
+        physical_path=info.orig_filename,
+        distribution_path=name,
         digest_sha256=hasher.hexdigest(),
     )
 
@@ -105,13 +117,10 @@ def read_wheel(wheel_path: Path | str) -> tuple[ProjectMetadata, list[ProjectFil
     with zipfile.ZipFile(wheel_path_obj, "r") as zf:
         metadata_content = None
 
-        for info in zf.infolist():
-            if info.is_dir():
-                continue
-            if info.filename.endswith(".dist-info/METADATA"):
+        for name, info in zip_file_members(zf, wheel_path_obj.name, log):
+            if name.endswith(".dist-info/METADATA"):
                 metadata_content = zf.read(info).decode("utf-8", errors="replace")
-
-            project_files.append(_hash_wheel_entry(zf, info))
+            project_files.append(_hash_wheel_entry(zf, info, name))
 
         if metadata_content:
             msg = email.message_from_string(metadata_content)
