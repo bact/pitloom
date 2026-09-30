@@ -336,7 +336,7 @@ def check_content_type_method_fetch(ctx: Context) -> None:
     # Prepend: replacing an inherited PYTHONPATH could select another Pitloom.
     env = child_env(
         PYTHONPATH=os.pathsep.join(
-            p for p in (str(dist_info.parent), child_env().get("PYTHONPATH", "")) if p
+            p for p in (str(dist_info.parent), os.environ.get("PYTHONPATH", "")) if p
         )
     )
     project = write_project(ctx.work / "proj")

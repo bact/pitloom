@@ -61,6 +61,8 @@ import _sequences  # noqa: F401  # pylint: disable=unused-import
 from _harness import CHECKS, Check, CheckSkipped, Context, child_env
 from _known import known_issue
 
+import pitloom
+
 _PRINT_LOCK = threading.Lock()
 
 
@@ -118,7 +120,12 @@ def _selected(patterns: list[str]) -> list[Check]:
 
 def _pitloom_location() -> str:
     """The ``pitloom`` a check's ``loom`` imports: probed, as every check
-    runs, with :func:`child_env` and a working directory other than ours."""
+    runs, with :func:`child_env` and a working directory other than ours.
+
+    Exits unless it is the one this runner imported: the matrix plan
+    derives expectations (e.g. which options warn) from our own copy, so
+    checks against another copy would fail or pass for the wrong reason.
+    """
     proc = subprocess.run(  # nosec B603
         [
             sys.executable,
@@ -133,7 +140,15 @@ def _pitloom_location() -> str:
     )
     if proc.returncode != 0:
         raise SystemExit(f"pitloom is not importable by {sys.executable}")
-    return proc.stdout.strip()
+    location = proc.stdout.strip()
+    theirs = Path(location.split(" ", 1)[-1]).resolve()
+    ours = Path(pitloom.__file__).resolve()
+    if theirs != ours:
+        raise SystemExit(
+            f"checks would run pitloom from {theirs}, not this runner's {ours}"
+            " -- check PYTHONPATH"
+        )
+    return location
 
 
 def _run_one(item: Check, root: Path, args: argparse.Namespace) -> tuple[str, str]:
