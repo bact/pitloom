@@ -16,6 +16,9 @@ copyright header). A generating surface drops the unreadable file from
 its ``software_File`` set; an embed keeps it, as the wheel's own file set
 is the truth there and the project scan only adds header data.
 
+A directory discovery cannot list (``chmod 000``) likewise gets one
+``DIR=`` warning on every surface; the names under it are never seen.
+
 See also: tests/core/models_wheel/test_models_wheel_unreadable.py for the
 scan itself, tests/_unreadable.py for the deny modes.
 """
@@ -33,7 +36,7 @@ import pytest
 
 from pitloom.assemble import generate, generate_project_sbom
 from pitloom.embed import embed_wheel_sbom
-from tests._unreadable import ALL_MODES, deny
+from tests._unreadable import ALL_MODES, POSIX_NON_ROOT, deny, unlistable
 from tests.assemble.conftest import _make_dummy_wheel
 from tests.assemble.embed_surfaces_shared import run_cli
 from tests.assemble.enrich_identity_shared import (
@@ -199,3 +202,55 @@ def test_enrich_identity_matches_the_sbom_with_an_unreadable_file(
     assert namespace != readable
     about_secret = [r for r in caplog.records if _SECRET in r.getMessage()]
     assert len(about_secret) == 1
+
+
+_LOCKED_DIR = "demo/locked"
+
+
+def _dir_warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [
+        r.getMessage()
+        for r in caplog.records
+        if r.levelno >= logging.WARNING and r.getMessage().startswith("DIR=")
+    ]
+
+
+@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
+@pytest.mark.parametrize("surface", sorted(_SURFACES))
+def test_unlistable_dir_is_skipped_with_one_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    surface: str,
+) -> None:
+    project = _project(tmp_path)
+    (tmp_path / "out").mkdir()
+    with (
+        unlistable(project / _LOCKED_DIR),
+        caplog.at_level(logging.WARNING, logger="pitloom"),
+    ):
+        files = _files(_SURFACES[surface](project, tmp_path / "out", monkeypatch))
+
+    _assert_readable_scanned(files)
+    assert _SECRET not in files
+    (message,) = _dir_warnings(caplog)
+    assert message.startswith(f"DIR={_LOCKED_DIR}: could not list")
+
+
+@pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
+def test_enrich_identity_matches_the_sbom_with_an_unlistable_dir(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    project = _project(tmp_path)
+    readable = enrich_base_namespace(project, tmp_path / "model")
+    with (
+        unlistable(project / _LOCKED_DIR),
+        caplog.at_level(logging.WARNING, logger="pitloom"),
+    ):
+        sbom_json = generate_project_sbom(project, offline=True)
+        caplog.clear()
+        namespace = enrich_base_namespace(project, tmp_path / "model")
+    assert namespace == sbom_namespace(sbom_json)
+    # Not vacuous: the unlisted file changes the identity.
+    assert namespace != readable
+    assert len(_dir_warnings(caplog)) == 1
