@@ -48,6 +48,7 @@ from contextvars import ContextVar
 from pathlib import Path, PurePath
 
 from pitloom.core.path_probe import UNLISTABLE_DIR_WARNING, is_missing_errno
+from pitloom.logging_config import one_line
 
 __all__ = ["warn_unlistable_dirs"]
 
@@ -108,7 +109,12 @@ def _warn(attempted: set[str], project_dir: Path) -> None:
                 pass
         except OSError as exc:
             if not is_missing_errno(exc):
-                log.warning(UNLISTABLE_DIR_WARNING, relative, "for file discovery", exc)
+                log.warning(
+                    UNLISTABLE_DIR_WARNING,
+                    relative,
+                    "for file discovery",
+                    one_line(exc),
+                )
 
 
 @contextmanager

@@ -238,17 +238,19 @@ def test_unlistable_dir_is_skipped_with_one_warning(
 
 
 @pytest.mark.skipif(not POSIX_NON_ROOT, reason="needs POSIX permissions, non-root")
-def test_enrich_identity_warns_about_an_unlistable_dir(
+def test_enrich_identity_matches_the_sbom_with_an_unlistable_dir(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     project = _project(tmp_path)
-    # pylint: disable-next=protected-access
-    _, readable_uuid = _model_generator._project_doc_identity(project)
+    readable = enrich_base_namespace(project, tmp_path / "model")
     with (
         unlistable(project / _LOCKED_DIR),
         caplog.at_level(logging.WARNING, logger="pitloom"),
     ):
-        # pylint: disable-next=protected-access
-        _, uuid = _model_generator._project_doc_identity(project)
-    assert uuid != readable_uuid
+        sbom_json = generate_project_sbom(project, offline=True)
+        caplog.clear()
+        namespace = enrich_base_namespace(project, tmp_path / "model")
+    assert namespace == sbom_namespace(sbom_json)
+    # Not vacuous: the unlisted file changes the identity.
+    assert namespace != readable
     assert len(_dir_warnings(caplog)) == 1

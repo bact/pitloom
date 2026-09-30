@@ -188,3 +188,17 @@ def test_hook_never_fails_the_audited_call(
     with caplog.at_level(logging.WARNING), warn_unlistable_dirs(tmp_path):
         sys.audit("os.scandir", *args)
     assert not _dir_warnings(caplog)
+
+
+def test_multi_line_error_is_one_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def _scandir(_path: Any = ".") -> Any:
+        raise PermissionError(errno.EACCES, "denied\nsecond line")
+
+    with caplog.at_level(logging.WARNING), warn_unlistable_dirs(tmp_path):
+        os.listdir(tmp_path)
+        monkeypatch.setattr(os, "scandir", _scandir)
+    (message,) = _dir_warnings(caplog)
+    assert "\n" not in message
+    assert message.endswith("denied second line")
