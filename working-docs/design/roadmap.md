@@ -297,6 +297,10 @@ See [build-backend-improvements.md](build-backend-improvements.md).
 
 ### AI model id stability (follow-up to [#178](https://github.com/bact/pitloom/pull/178))
 
+- [ ] **Registry v3: one typed table, content gate chosen at lookup** --
+  harvest stops guessing `files` vs `entities` by shape (a hashed
+  AIPackage is misfiled). Its own PR, design first, before G7. See [id-registry-v3.md](id-registry-v3.md).
+
 - [ ] **Skill trigger coverage for `loom id generate`/`loom id import`** --
   the skills run both commands now, but no description triggers on them;
   owner skill undecided. See [id-registry-followups.md](id-registry-followups.md).
