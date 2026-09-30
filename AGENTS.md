@@ -225,6 +225,12 @@ or citing any of these one-liners.
   nothing, so reinstate the exact pre-fix shape; and an assertion aimed
   at a lazily-installed side effect (signal handlers installed at first
   use) observes nothing and passes either way (PR #226).
+- **A test that reaches the network through a subprocess or library
+  (`spdx3-validate` downloads its schema on every run) bypasses the
+  conftest socket block and fails on any flake.** Mark it `network` and
+  route its result through `tests/_network.py`, so a network cause skips
+  with the reason and any other failure still fails (PR #238,
+  [recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)).
 - **`json.loads(bytes)` auto-strips a leading UTF-8 BOM; `json.loads(str)`
   after `.decode("utf-8")` raises on one instead.** Recurred twice,
   independently, in the same PR (#217) -- once fixed, then found again

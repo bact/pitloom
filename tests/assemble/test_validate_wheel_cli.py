@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from pitloom import __main__
+from tests._network import skip_if_network_failure
 
 from .conftest import _SAMPLE_SPDX3_JSON, _embed_sbom_entry, _make_dummy_wheel
 
@@ -33,7 +34,7 @@ FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
 
 
-@pytest.mark.pypi_network
+@pytest.mark.network
 def test_validate_wheel_valid_sbom_ok(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -53,9 +54,12 @@ def test_validate_wheel_valid_sbom_ok(
     )
 
     monkeypatch.setattr(sys, "argv", ["loom", "validate-wheel", str(wheel_path)])
-    assert __main__.main() == 0
-
+    result = __main__.main()
     captured = capsys.readouterr()
+    if result != 0:
+        skip_if_network_failure(captured.err)
+    assert result == 0
+
     assert "pitloom validate-wheel: 1 wheel(s) valid" in captured.out
 
 

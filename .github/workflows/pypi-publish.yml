@@ -102,6 +102,22 @@ jobs:
           loom validate-wheel "${WHEEL_PATH}" \
             --sbom-filename "$(basename "${SBOM_PATH}")"
 
+      - name: Validate standalone SBOM with spdx3-validate
+        # Hard gate: Pitloom must not publish while its own SBOM fails
+        # schema/SHACL validation, and a failure to download the schema
+        # (network) fails this step too -- it is never skipped. Version
+        # auto-detected; --spdx-version is omitted (spdx3-validate 0.0.7
+        # raises AttributeError on args.version), as in build.yml.
+        env:
+          SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SBOM_PATH}" ]; then
+            echo "::error::no standalone SBOM was produced to validate"
+            exit 1
+          fi
+          spdx3-validate --json "${SBOM_PATH}"
+
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -109,9 +125,40 @@ jobs:
           path: dist/
           retention-days: 3
 
+  network-quality-gate:
+    name: Network-dependent tests (strict)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: ./.github/actions/setup-python
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-pitloom
+        with:
+          groups: --group test
+          extra-packages: spdx3-validate==0.0.7
+          package-spec: ".[ai,content-type]"
+
+      - name: Run network-dependent tests, failing on any network error
+        # PITLOOM_REQUIRE_NETWORK=1 turns tests/_network.py's skip-on-network-
+        # failure into a failure, and any skipped network test into one too
+        # (tests/conftest.py), so an unreachable spdx.org or PyPI blocks
+        # publishing. Pytest exits 5 when no network test is collected.
+        env:
+          PITLOOM_REQUIRE_NETWORK: "1"
+        run: |
+          set -euo pipefail
+          pytest tests/ -m network -v --tb=short -rs
+
   publish:
     name: Publish to PyPI
-    needs: build
+    needs: [build, network-quality-gate]
     runs-on: ubuntu-latest
     permissions:
       id-token: write  # required for trusted publishing (OIDC)

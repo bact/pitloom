@@ -11,7 +11,7 @@ every *static* ``discover()`` against a real published wheel's file
 list), ``test_build_and_read_matches_real_wheel`` below actually invokes
 PyPA ``build`` -- a real PEP 517 build in an isolated venv, installing
 ``uv_build`` from the network -- so it's marked
-``@pytest.mark.pypi_network`` (opts out of ``tests/conftest.py``'s
+``@pytest.mark.network`` (opts out of ``tests/conftest.py``'s
 default socket block) and is slow (creates a venv, installs
 build-requires, runs the real ``uv-build`` binary).
 
@@ -48,12 +48,16 @@ from pitloom.core._models_wheel_types import (
     DEFAULT_BUILD_TIMEOUT_SECONDS,
     BuildSettings,
 )
+from tests._network import require_reachable
 from tests.fixtures.real_world import (
     REAL_WORLD_ROOT,
     extract_sdist,
     load_expected,
     sdist_available,
 )
+
+_PYPI_UV_BUILD_URL = "https://pypi.org/pypi/uv-build/json"
+_PYPI_FILES_URL = "https://files.pythonhosted.org/"
 
 UV_BUILD_FIXTURES = [
     project_dir
@@ -89,7 +93,7 @@ def _expected_non_dist_info_paths(manifest: dict[str, object]) -> set[str]:
     }
 
 
-@pytest.mark.pypi_network
+@pytest.mark.network
 @pytest.mark.parametrize("project_dir", UV_BUILD_FIXTURES, ids=FIXTURE_IDS)
 def test_build_and_read_matches_real_wheel(project_dir: Path, tmp_path: Path) -> None:
     if not sdist_available(project_dir):
@@ -99,6 +103,10 @@ def test_build_and_read_matches_real_wheel(project_dir: Path, tmp_path: Path) ->
             "exercise this test)"
         )
 
+    # build-and-read only logs a truncated WARNING when the isolated build
+    # cannot install uv_build, hiding the cause: probe the index and the file
+    # host it downloads from up front instead.
+    require_reachable(_PYPI_UV_BUILD_URL, _PYPI_FILES_URL)
     manifest = load_expected(project_dir)
     expected = _expected_non_dist_info_paths(manifest)
     extracted_root = extract_sdist(project_dir, tmp_path)

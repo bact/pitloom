@@ -280,7 +280,9 @@ def test_enrich_from_pypi_already_filled_and_home_page() -> None:
     assert "license" not in filled
 
 
-@pytest.mark.pypi_network
+# Mocks fetch_json; the marker only lifts conftest's autouse stub of
+# _fetch_pypi_release_info so the real function is under test.
+@pytest.mark.network
 def test_deps_pypi_fetch_release_info_mocked() -> None:
     """_fetch_pypi_release_info handles success and catches ValueError."""
     from pitloom.assemble.spdx3.deps_pypi import _fetch_pypi_release_info

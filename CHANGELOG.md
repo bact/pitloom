@@ -151,6 +151,8 @@ and this project adheres to
 
 ### Fixed
 
+- `network` tests skip with the cause on a network failure; the publish
+  workflow runs them as a strict gate that fails instead ([#238])
 - A registry-supplied file, directory, AI model, or deployed-dependency
   id no longer collides with a freshly-minted one in the same
   document ([#234])
@@ -218,6 +220,7 @@ and this project adheres to
 [#234]: https://github.com/bact/pitloom/pull/234
 [#235]: https://github.com/bact/pitloom/pull/235
 [#236]: https://github.com/bact/pitloom/pull/236
+[#238]: https://github.com/bact/pitloom/pull/238
 
 ## [0.19.0] - 2026-09-18
 

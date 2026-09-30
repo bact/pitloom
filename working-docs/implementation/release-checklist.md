@@ -74,6 +74,12 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
 
 ## 2. Tag and publish
 
+- [ ] `spdx3-validate` is a hard gate on Pitloom's own SBOM: the
+      publish workflow validates the release wheel and its standalone SBOM
+      and runs the `network`-marked tests with `PITLOOM_REQUIRE_NETWORK=1`
+      before `publish`, so an unreachable spdx.org/PyPI blocks publishing
+      (re-run the workflow); it is never skipped.
+
 - [ ] Tag the release, push the tag, publish to PyPI (however this
       project's release automation does it -- not scripted here). The
       GitHub Action installs the version its pinned ref carries, so

@@ -16,6 +16,13 @@ import pytest
 from pitloom.extract._license import _get_matcher
 from pitloom.logging_config import _WARNED_ONCE
 
+# pylint: disable-next=unused-import
+from tests._network import (  # noqa: F401
+    pytest_configure,
+    pytest_make_collect_report,
+    pytest_runtest_makereport,
+)
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -74,7 +81,7 @@ def _blocked_socket(*_args: Any, **_kwargs: Any) -> None:
     raise _NetworkBlockedError(
         "Real network access attempted during a test. Mock the network call "
         "(e.g. patch urllib.request.urlopen / fetch_json), or opt in "
-        "explicitly with @pytest.mark.pypi_network if the test genuinely "
+        "explicitly with @pytest.mark.network if the test genuinely "
         "needs a live socket."
     )
 
@@ -113,9 +120,9 @@ def _block_network_access(
     written. Without this guard, a forgotten mock silently turns into a
     live network call: slow, flaky, and broken in offline/CI-sandboxed
     runs. Tests that genuinely need a live socket opt out via the
-    ``pypi_network`` marker.
+    ``network`` marker.
     """
-    if "pypi_network" in request.keywords:
+    if "network" in request.keywords:
         return
     monkeypatch.setattr(
         "pitloom.assemble.spdx3.deps_pypi._fetch_pypi_release_info",

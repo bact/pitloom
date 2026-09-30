@@ -31,6 +31,7 @@ pytest.importorskip(
 from hatchling.builders.wheel import WheelBuilder  # noqa: E402
 
 from pitloom.embed import embed_wheel_sbom  # noqa: E402
+from tests._network import assert_spdx3_validate_ok  # noqa: E402
 
 # pylint: enable=wrong-import-position
 
@@ -251,6 +252,7 @@ def test_wheel_passes_pip_install_dry_run(built_wheel: Path, tmp_path: Path) -> 
     assert res.returncode == 0, f"pip install --dry-run failed: {res.stderr}"
 
 
+@pytest.mark.network
 def test_wheel_sbom_passes_spdx3_validate(built_wheel: Path, tmp_path: Path) -> None:
     """Embedded SBOM in wheel conforms to SPDX 3.0.1 per spdx3-validate."""
     with zipfile.ZipFile(built_wheel) as zf:
@@ -260,13 +262,7 @@ def test_wheel_sbom_passes_spdx3_validate(built_wheel: Path, tmp_path: Path) -> 
     sbom_file = tmp_path / "embedded.spdx3.json"
     sbom_file.write_bytes(sbom_data)
 
-    res = subprocess.run(
-        [sys.executable, "-m", "spdx3_validate", "--json", str(sbom_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert res.returncode == 0, f"spdx3-validate failed: {res.stderr} {res.stdout}"
+    assert_spdx3_validate_ok(sbom_file)
 
 
 def _build_plain_fixture_wheel(tmp_path: Path) -> tuple[Path, Path]:
@@ -285,6 +281,7 @@ def _build_plain_fixture_wheel(tmp_path: Path) -> tuple[Path, Path]:
     return proj_dir, Path(wheel_filename)
 
 
+@pytest.mark.network
 def test_post_build_wheel_embedding_integration(tmp_path: Path) -> None:
     """Test post-build wheel embedding (non-Hatchling / post-processing path)."""
     proj_dir, wheel_path = _build_plain_fixture_wheel(tmp_path)
@@ -334,12 +331,4 @@ def test_post_build_wheel_embedding_integration(tmp_path: Path) -> None:
 
     sbom_file = tmp_path / "post_embedded.spdx3.json"
     sbom_file.write_text(sbom_json, encoding="utf-8")
-    val_res = subprocess.run(
-        [sys.executable, "-m", "spdx3_validate", "--json", str(sbom_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert val_res.returncode == 0, (
-        f"spdx3-validate failed: {val_res.stderr} {val_res.stdout}"
-    )
+    assert_spdx3_validate_ok(sbom_file)

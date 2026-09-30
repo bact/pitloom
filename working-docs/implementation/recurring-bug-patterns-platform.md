@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-09-20
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -264,3 +264,30 @@ the move.
     cleanup fallback. When an assertion cannot distinguish the fix from
     its absence, the fault is usually that the thing being observed is
     created later than the test assumes.
+- **A test that reaches the network through a subprocess or library
+  bypasses `tests/conftest.py`'s socket block, and a flake there is
+  invisible.** `spdx3-validate` downloads its JSON Schema and SHACL
+  model from spdx.org on every run (no cache, no offline mode in 0.0.7),
+  so the wheel-validation tests failed on a TLS handshake error on one
+  CI leg while the block, which patches only the in-process
+  `socket.socket`, never applied. `_fetch_pypi_release_info` swallows
+  every failure into `None`, so the live PyPI test reported
+  `None is not None` with no cause. One `network` marker now covers every
+  real-network test, and `tests/_network.py` turns a network cause
+  (recognised from the exception chain or the stderr text) into
+  `pytest.skip("network unavailable: <cause>")`; any other failure, and any
+  fetch that returns data, still asserts in full. Where the code hides the
+  cause (`--allow-build` logs a truncated warning), probe the host up
+  front with `require_reachable()` instead. No retry loop: a retry only
+  hides how often the network fails. Ordinary CI skips; the release
+  workflow is a strict gate: its `network-quality-gate` job sets
+  `PITLOOM_REQUIRE_NETWORK=1` (a network failure, or any skipped
+  `network` test, fails the job), and its `build` job runs
+  `spdx3-validate` on the release SBOM as a step. Both must pass before
+  `publish`, because publishing an SBOM generator whose output was never
+  schema-checked is not acceptable. Not a replacement for offline tests:
+  content the code can mock should be mocked. `python -m spdx3_validate`
+  (0.0.7) exits 0 on invalid input because `__main__` drops `main()`'s
+  return code; call the console-script entry `main()` and use its code.
+  A module-level skip (`importorskip`) is a collect report, so the strict
+  gate hooks `pytest_make_collect_report` too.

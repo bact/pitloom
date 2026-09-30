@@ -19,13 +19,14 @@ import pytest
 
 from pitloom import __main__
 from pitloom.cli.commands.fragment import _run_fragment_command
+from tests._network import skip_if_network_failure
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures"
 VALID_FRAGMENT = FIXTURE_DIR / "fragments" / "dataset-fragment.spdx3.json"
 CONFLICTING_FRAGMENT = FIXTURE_DIR / "fragments" / "training-run-fragment.spdx3.json"
 
 
-@pytest.mark.pypi_network
+@pytest.mark.network
 def test_fragment_validate_command_success(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -39,9 +40,11 @@ def test_fragment_validate_command_success(
         "sys.argv", ["loom", "fragment", "validate", str(VALID_FRAGMENT)]
     )
     result = __main__.main()
+    captured = capsys.readouterr()
+    if result != 0:
+        skip_if_network_failure(captured.err)
     assert result == 0
 
-    captured = capsys.readouterr()
     assert "pitloom fragment validate: 1 document(s) valid" in captured.out
 
 
@@ -64,7 +67,7 @@ def test_fragment_validate_command_invalid_document(
         assert line.startswith("ERROR: ")
 
 
-@pytest.mark.pypi_network
+@pytest.mark.network
 def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -87,9 +90,10 @@ def test_fragment_validate_command_multiline_shacl_error_every_line_tagged(
         ],
     )
     result = __main__.main()
+    captured = capsys.readouterr()
+    skip_if_network_failure(captured.err)
     assert result == 1
 
-    captured = capsys.readouterr()
     lines = captured.err.splitlines()
     assert len(lines) > 1  # a genuine multi-line SHACL violation
     for line in lines:
@@ -178,7 +182,7 @@ def test_fragment_validate_command_missing_dependency_and_bad_path(
     assert f"ERROR: file not found: {missing_path}" in captured.err
 
 
-@pytest.mark.pypi_network
+@pytest.mark.network
 def test_fragment_validate_command_no_merge_flag(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -193,7 +197,9 @@ def test_fragment_validate_command_no_merge_flag(
         ["loom", "fragment", "validate", str(VALID_FRAGMENT), "--no-merge"],
     )
     result = __main__.main()
+    captured = capsys.readouterr()
+    if result != 0:
+        skip_if_network_failure(captured.err)
     assert result == 0
 
-    captured = capsys.readouterr()
     assert "pitloom fragment validate: 1 document(s) valid" in captured.out
