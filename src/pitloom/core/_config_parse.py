@@ -5,12 +5,13 @@
 
 """Parsing helpers for ``[tool.pitloom]`` configuration in ``pyproject.toml``.
 
-See also: :mod:`pitloom.core._config_types` and :mod:`pitloom.core.config`.
+See also: :mod:`pitloom.core._config_read`,
+:mod:`pitloom.core._config_parse_scan`, :mod:`pitloom.core._config_types` and
+:mod:`pitloom.core.config`.
 """
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -20,13 +21,22 @@ from pitloom.core._config_legacy import (
     _check_moved_flat_keys,
     _check_moved_top_level_tables,
 )
+from pitloom.core._config_parse_scan import (
+    _read_content_type_settings,
+    _read_extract_file_header,
+)
+from pitloom.core._config_read import (
+    _read_array_of_tables,
+    _read_bool_setting,
+    _read_int_setting,
+    _read_table,
+    _require_choice,
+)
 from pitloom.core._config_types import (
     _DEFAULT_PROVENANCE_SCHEMA,
-    VALID_CONTENT_TYPE_METHODS,
     FragmentConfig,
     PitloomConfig,
 )
-from pitloom.core.content_type_config import ContentTypeOverride
 from pitloom.core.creation import Creator, Tool
 from pitloom.core.file_names import is_plain_file_name
 from pitloom.core.provenance import normalize_max_source_metadata_bytes
@@ -35,71 +45,6 @@ from pitloom.extract._toml_io import load_toml_file
 _VALID_PROVENANCE_FORMATS: frozenset[str] = frozenset({"annotation", "comment", "both"})
 _VALID_PROVENANCE_DETAIL: frozenset[str] = frozenset({"minimal", "full"})
 _VALID_PRESERVE_SOURCE_METADATA: frozenset[str] = frozenset({"auto", "always", "never"})
-
-_CONTENT_TYPE_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
-
-
-def _read_bool_setting(
-    data: dict[str, Any],
-    key: str,
-    default: bool,
-    table_path: str = "[tool.pitloom]",
-) -> bool:
-    """Read a boolean key from data, defaulting to default when absent."""
-    value = data.get(key, default)
-    if not isinstance(value, bool):
-        raise ValueError(
-            f"{table_path} {key!r} must be a boolean, got "
-            f"{type(value).__name__}: {value!r}"
-        )
-    return value
-
-
-def _read_int_setting(
-    data: dict[str, Any],
-    key: str,
-    default: int,
-    table_path: str = "[tool.pitloom]",
-) -> int:
-    """Read an int key from data, defaulting to default when absent.
-
-    Rejects a bool value explicitly -- ``isinstance(True, int)`` is ``True``
-    in Python, so a TOML ``key = true`` would otherwise silently pass as 1.
-    """
-    value = data.get(key, default)
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError(
-            f"{table_path} {key!r} must be an integer, got "
-            f"{type(value).__name__}: {value!r}"
-        )
-    return value
-
-
-def _require_choice(
-    value: str, valid: frozenset[str], table_path: str, key: str
-) -> None:
-    """Raise ValueError unless value is one of valid."""
-    if value not in valid:
-        options = ", ".join(sorted(valid))
-        raise ValueError(
-            f"{table_path} {key!r} must be one of {options}, got {value!r}"
-        )
-
-
-def _read_array_of_tables(raw: Any, table_repr: str) -> list[dict[str, Any]]:
-    """Validate raw is a TOML array-of-tables and return its entries."""
-    if not isinstance(raw, list):
-        raise ValueError(
-            f"{table_repr} must be an array of tables, got "
-            f"{type(raw).__name__}: {raw!r}"
-        )
-    for entry in raw:
-        if not isinstance(entry, dict):
-            raise ValueError(
-                f"{table_repr} entry must be a table, got "
-                f"{type(entry).__name__}: {entry!r}"
-            )
-    return raw
 
 
 def _read_creators(pitloom_data: dict[str, Any]) -> list[Creator]:
@@ -233,65 +178,9 @@ def _read_enrich_settings(pitloom_data: dict[str, Any]) -> bool:
     return _read_bool_setting(pitloom_data, "enrich", False)
 
 
-def _read_content_type_overrides(
-    raw: dict[str, Any],
-) -> tuple[ContentTypeOverride, ...]:
-    """Read ``[[tool.pitloom.content-type.override]]``."""
-    raw_overrides = raw.get("override", [])
-    overrides: list[ContentTypeOverride] = []
-    for entry in _read_array_of_tables(
-        raw_overrides, "[[tool.pitloom.content-type.override]]"
-    ):
-        pattern = entry.get("pattern")
-        if not isinstance(pattern, str) or not pattern:
-            raise ValueError(
-                "[[tool.pitloom.content-type.override]] "
-                f"'pattern' must be a non-empty string, got {pattern!r}"
-            )
-        content_type = entry.get("content-type")
-        if not isinstance(content_type, str) or not _CONTENT_TYPE_RE.match(
-            content_type
-        ):
-            raise ValueError(
-                "[[tool.pitloom.content-type.override]] "
-                "'content-type' must be a MIME type in 'type/subtype' form "
-                f"(e.g. 'image/png'), got {content_type!r}"
-            )
-        overrides.append(
-            ContentTypeOverride(pattern=pattern, content_type=content_type)
-        )
-    return tuple(overrides)
-
-
-def _read_extract_file_header(pitloom_data: dict[str, Any]) -> bool:
-    """Read ``[tool.pitloom] extract-file-header``."""
-    return _read_bool_setting(pitloom_data, "extract-file-header", True)
-
-
 def _read_update_id_registry(pitloom_data: dict[str, Any]) -> bool:
     """Read ``[tool.pitloom] update-id-registry``."""
     return _read_bool_setting(pitloom_data, "update-id-registry", True)
-
-
-def _read_content_type_settings(
-    pitloom_data: dict[str, Any],
-) -> tuple[bool, str, tuple[ContentTypeOverride, ...]]:
-    """Read ``[tool.pitloom.content-type]`` settings."""
-    raw = pitloom_data.get("content-type", {})
-    if not isinstance(raw, dict):
-        raise ValueError(
-            "[tool.pitloom.content-type] must be a table, got "
-            f"{type(raw).__name__}: {raw!r}"
-        )
-    enabled = _read_bool_setting(
-        raw, "enabled", False, table_path="[tool.pitloom.content-type]"
-    )
-    method = raw.get("method", "auto")
-    _require_choice(
-        method, VALID_CONTENT_TYPE_METHODS, "[tool.pitloom.content-type]", "method"
-    )
-    overrides = _read_content_type_overrides(raw)
-    return enabled, method, overrides
 
 
 def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
@@ -302,19 +191,6 @@ def _read_offline_setting(pitloom_data: dict[str, Any]) -> bool:
 def _read_use_lockfile_setting(pitloom_data: dict[str, Any]) -> bool:
     """Read ``[tool.pitloom] use-lockfile`` (on by default)."""
     return _read_bool_setting(pitloom_data, "use-lockfile", True)
-
-
-def _read_table(parent: dict[str, Any], key: str, name: str) -> dict[str, Any]:
-    """*parent*'s sub-table *key* (``{}`` when absent), named *name* in the
-    error for a value that is not a table."""
-    value = parent.get(key)
-    if value is None:
-        return {}
-    if not isinstance(value, dict):
-        raise ValueError(
-            f"{name} must be a table, got {type(value).__name__}: {value!r}"
-        )
-    return value
 
 
 def _read_fragments(pitloom_data: dict[str, Any]) -> list[FragmentConfig]:
