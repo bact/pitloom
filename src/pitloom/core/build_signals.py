@@ -82,14 +82,16 @@ class GuardedActivity(NamedTuple):
 BUILD_ACTIVITY = GuardedActivity(BUILD_LOG_PREFIX, "the build")
 """The ``--allow-build`` build-and-read."""
 
+# Before the first hold. Handlers install only in a hold, so no
+# termination message names it; generic rather than claiming a build.
+_NO_ACTIVITY = GuardedActivity("", "a guarded activity")
+
 
 def _termination_message(
-    signum: signal.Signals, activity: GuardedActivity | None, in_hold: bool
+    signum: signal.Signals, activity: GuardedActivity, in_hold: bool
 ) -> str:
     """The ``WARNING:`` text for ending the process by *signum*, received
     inside a hold of *activity* (*in_hold*) or after it."""
-    if activity is None:  # Unreachable: handlers install only in a hold.
-        return f"received {signum.name} -- exiting after cleanup"
     return (
         f"{activity.log_prefix}received {signum.name} "
         f"{'during' if in_hold else 'after'} {activity.name} "
@@ -142,7 +144,7 @@ class TerminationGuard:
         self._armed = False
         self._pending_in_hold = False
         # The latest hold's activity, named by the messages.
-        self._activity: GuardedActivity | None = None
+        self._activity = _NO_ACTIVITY
         self._terminated = False
         self._holds = 0
         self._cleanups: list[Callable[[], None]] = []
@@ -222,7 +224,7 @@ class TerminationGuard:
             self._restore()
             self.pending = None
             self._pending_in_hold = False
-            self._activity = None
+            self._activity = _NO_ACTIVITY
             self._terminated = False
             self._cleanups.clear()
             _thread_state.owner = None
@@ -281,7 +283,9 @@ class TerminationGuard:
             # ValueError: not the main thread (of the main interpreter).
             except (OSError, ValueError) as exc:
                 self._installed.pop()
-                log.debug("%scannot handle %s: %s", self._log_prefix(), name, exc)
+                log.debug(
+                    "%scannot handle %s: %s", self._activity.log_prefix, name, exc
+                )
 
     def _restore(self) -> None:
         while self._installed:
@@ -293,13 +297,13 @@ class TerminationGuard:
                     signal.signal(signum, signal.SIG_DFL)
             except (OSError, ValueError) as exc:
                 log.debug(
-                    "%scannot restore %s: %s", self._log_prefix(), signum.name, exc
+                    "%scannot restore %s: %s",
+                    self._activity.log_prefix,
+                    signum.name,
+                    exc,
                 )
         # Last: a signal while restoring is still handled, not swallowed.
         self._armed = False
-
-    def _log_prefix(self) -> str:
-        return "" if self._activity is None else self._activity.log_prefix
 
     def _run_cleanups(self) -> None:
         # Newest first, and kept rather than popped: when the handler cuts
