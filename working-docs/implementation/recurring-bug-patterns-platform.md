@@ -215,6 +215,22 @@ the move.
     that probe the 3.14 branch asserts nothing and passes vacuously --
     the setup could silently stop denying permission and no leg would
     notice.
+- **One directory, two spellings: a textual "is it under the project"
+  check misses on a case-insensitive file system.** On macOS
+  `Path.resolve()` keeps the caller's letter case, but `os.getcwd()`
+  after `chdir()` returns the on-disk case, so `loom project stproj`
+  for on-disk `StProj` gives paths that `relative_to(project_dir)`
+  rejects. It hit twice, found in the PR #257 review: the unlistable-
+  directory warning was silently dropped for setuptools (fixed by a
+  `(st_dev, st_ino)` ancestor match after the textual one), and
+  setuptools discovery itself returns absolute `physical_path`s (open in
+  [roadmap.md](../design/roadmap.md)). Any path produced from a
+  `chdir()` + `getcwd()` is suspect. When matching by identity, treat
+  `st_ino == 0` as no identity: Python calls `st_ino` unique only when
+  non-zero, and FAT/exFAT and some network shares report 0 for every
+  file, which makes everything on the volume match. Test the case form
+  where the file system is case-insensitive (skip otherwise), and the
+  identity form portably through a symlinked alias.
 - **A `skipif` decorator's condition is evaluated at import time, on
   every platform, however certain the skip is.**
   `@pytest.mark.skipif(os.geteuid() != 0, ...)` raises
