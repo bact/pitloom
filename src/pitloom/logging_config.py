@@ -187,3 +187,15 @@ def field_loss_suffix(status: str, *fields: str) -> str:
     note (e.g. ``"license (file-based detection)"``) when specific to it.
     """
     return f" | Field(s) affected ({status}): {', '.join(fields)}"
+
+
+def one_line(value: object) -> str:
+    """*value*'s text with every whitespace run, newlines included,
+    collapsed to one space, so a multi-line exception message interpolated
+    into a log message cannot spill untagged continuation lines onto
+    stderr. An exception with no message yields its class name instead of
+    an empty string."""
+    text = " ".join(str(value).split())
+    if not text and isinstance(value, BaseException):
+        return type(value).__name__
+    return text
