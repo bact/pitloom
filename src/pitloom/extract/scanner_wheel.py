@@ -79,13 +79,14 @@ _Member = tuple[str, zipfile.ZipInfo]
 
 #: Formats whose reader is not run on a wheel's files unless the caller
 #: trusts the wheel (``--trust-wheel-model``): a native parser (fastText,
-#: HDF5, ONNX) or a pickle parser (PyTorch ``.pt``/``.pth``, through
-#: fickling) that a hostile file can crash, hang or exhaust memory in. Add
-#: a format here to gate it; nothing else changes. Project scans are not
-#: gated.
+#: HDF5, ONNX), a pickle parser (PyTorch ``.pt``/``.pth``, through
+#: fickling) or a per-element Python loop (GGUF) that a hostile file can
+#: crash, hang or exhaust memory in. Add a
+#: format here to gate it; nothing else changes. Project scans are not gated.
 WHEEL_GATED_FORMATS = frozenset(
     {
         AiModelFormat.FASTTEXT,
+        AiModelFormat.GGUF,
         AiModelFormat.HDF5,
         AiModelFormat.ONNX,
         AiModelFormat.PYTORCH,

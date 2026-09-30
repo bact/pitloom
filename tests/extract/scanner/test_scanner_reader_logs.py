@@ -27,11 +27,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from pitloom.core.ai_metadata import AiModelFormat
+from pitloom.core.ai_metadata import AiModelFormat, AiModelMetadata
 from pitloom.extract.ai_model import read_ai_model
 from pitloom.extract.scanner import (
     ModelCandidate,
     UsageSource,
+    _restore_source_name,
     attach_usage_references,
     discover_ai_models,
 )
@@ -126,6 +127,44 @@ def test_reader_records_are_relogged_under_the_stable_prefix(
     assert "0.pt" not in relayed
     assert "\n" not in relayed
     assert failed.startswith("FORMAT=pytorch FILE=demo/real.pt: failed to extract")
+
+
+def test_a_reader_debug_record_is_relogged_scrubbed_and_unprefixed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def reader(path: Path, **_kwargs: Any) -> Any:
+        logging.getLogger("pitloom.extract.ai_model.pytorch").debug("read %s", path)
+        raise ValueError("boom")
+
+    for name in ("pitloom.extract.ai_model", "pitloom.extract.scanner"):
+        caplog.set_level(logging.DEBUG, logger=name)
+    copy = Path(tempfile.gettempdir()) / "0.pt"
+    with patch(_READ, reader):
+        discover_ai_models([_candidate(copy, Mock(return_value=_PT))])
+    (record,) = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.DEBUG and r.name == "pitloom.extract.scanner"
+    ]
+    assert record.getMessage() == "read demo/real.pt"
+
+
+def test_source_name_is_restored_by_exact_prefix_only() -> None:
+    meta = AiModelMetadata(
+        provenance={
+            "a": "Source: 0.pt",
+            "b": "Source: 0.pt | more",
+            "c": "Source: 0.pt2",
+            "d": "unrelated",
+        }
+    )
+    _restore_source_name(meta, Path("0.pt"), "real.pt")
+    assert meta.provenance == {
+        "a": "Source: real.pt",
+        "b": "Source: real.pt | more",
+        "c": "Source: 0.pt2",
+        "d": "unrelated",
+    }
 
 
 def _hostile_zip(

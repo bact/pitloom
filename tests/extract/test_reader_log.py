@@ -113,3 +113,16 @@ def test_a_block_left_by_an_error_restores_the_logger() -> None:
         with capture_reader_logs():
             raise RuntimeError
     assert _state() == before
+
+
+def test_a_detached_logger_drops_what_a_non_capturing_thread_logs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With no parent to pass on to, the record is dropped, not an error."""
+    a = _Worker("A")
+    a.start()
+    a.step("enter")
+    monkeypatch.setattr(_LOGGER, "parent", None)
+    logging.getLogger(_NAME).warning("from the main thread")
+    a.step("exit")
+    assert a.tags() == []

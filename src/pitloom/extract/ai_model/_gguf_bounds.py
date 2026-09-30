@@ -6,12 +6,14 @@
 """Bounds on a GGUF header before the ``gguf`` package parses it.
 
 ``gguf.GGUFReader`` loops once per declared tensor, key/value pair and
-string element, in Python, and keeps a numpy view for each. A header that
-declares millions of them in a few MiB therefore costs gigabytes and minutes.
-:func:`check_gguf_header` walks the key/value section with :mod:`struct`
-first (no allocation per element) and refuses a declaration that is over a
-cap or cannot fit in the file. A file that is merely truncated or malformed
-is left to the reader to reject: that costs nothing.
+array element (scalar or string, at any nesting depth), in Python, and keeps
+a numpy view for each. A header that declares millions of them in a few MiB
+therefore costs gigabytes and minutes. :func:`check_gguf_header` walks the
+key/value section with :mod:`struct` first (no allocation per element),
+counts all of them against one budget, and refuses a declaration that is
+over it, nests deeper than the walker follows, or cannot fit in the file. A
+file that is merely truncated or malformed is left to the reader to reject:
+that costs nothing.
 
 See also: :mod:`pitloom.extract.ai_model.gguf`.
 """
@@ -24,11 +26,11 @@ from pathlib import Path
 
 from pitloom.extract.ai_model.limits import ModelLimitExceeded
 
-#: Most tensors, key/value pairs, elements of one scalar array, or string and
-#: nested-array elements in all, accepted. Real models declare hundreds of
-#: tensors, tens of keys, and a vocabulary plus merges of a few hundred
-#: thousand strings. Each string element costs the reader about 1 KiB and
-#: 6 us, so the worst accepted header is about a GiB and several seconds.
+#: Most tensors, key/value pairs and array elements (scalar, string and
+#: nested-array, at every depth) accepted, all together. Real models declare
+#: hundreds of tensors, tens of keys, and a vocabulary plus merges of a few
+#: hundred thousand elements. Each element costs the reader about 0.5-1 KiB
+#: and several microseconds, so the worst accepted header is about a GiB.
 MAX_GGUF_COUNT = 1_000_000
 
 #: Longest key or string accepted.
@@ -54,6 +56,10 @@ class _Malformed(Exception):
     """The structure is cut short or unknown; the reader rejects it alone."""
 
 
+def _over_budget(what: str) -> ModelLimitExceeded:
+    return ModelLimitExceeded(f"GGUF {what}, over the {MAX_GGUF_COUNT} budget")
+
+
 class _Walker:
     """A cursor over the key/value section of a mapped file."""
 
@@ -62,7 +68,13 @@ class _Walker:
         self.size = len(data)
         self.u32 = struct.Struct(endian + "I")
         self.u64 = struct.Struct(endian + "Q")
-        self.elements = 0
+        self.elements = 0  # tensors, pairs and array elements, all together
+
+    def charge(self, count: int, what: str) -> None:
+        """Spend *count* of the budget."""
+        self.elements += count
+        if self.elements > MAX_GGUF_COUNT:
+            raise _over_budget(what)
 
     def number(self, reader: struct.Struct, offset: int) -> int:
         """The unsigned integer at *offset*."""
@@ -86,7 +98,9 @@ class _Walker:
             return offset + _SCALAR_BYTES[vtype]
         if vtype == _STRING:
             return self.string(offset)
-        if vtype == _ARRAY and depth < _MAX_NESTING:
+        if vtype == _ARRAY:
+            if depth >= _MAX_NESTING:  # the reader follows any depth
+                raise ModelLimitExceeded(f"GGUF arrays nested over {_MAX_NESTING}")
             return self.array(offset, depth + 1)
         raise _Malformed
 
@@ -96,10 +110,7 @@ class _Walker:
         elem = self.number(self.u32, offset)
         count = self.number(self.u64, offset + 4)
         offset += 12
-        if elem not in _SCALAR_BYTES:  # a scalar array is one numpy view
-            self.elements += count
-        if count > MAX_GGUF_COUNT or self.elements > MAX_GGUF_COUNT:
-            raise ModelLimitExceeded(f"GGUF array of {count} elements")
+        self.charge(count, f"array of {count} elements")
         if elem in _SCALAR_BYTES:
             end = offset + count * _SCALAR_BYTES[elem]
             if end > self.size:
@@ -121,10 +132,12 @@ def _walk(data: mmap.mmap, endian: str) -> None:
     size = walker.size
     n_tensors = walker.number(walker.u64, 8)
     n_kv = walker.number(walker.u64, 16)
-    if n_tensors > MAX_GGUF_COUNT or n_tensors * _MIN_TENSOR_INFO_BYTES > size:
+    if n_tensors * _MIN_TENSOR_INFO_BYTES > size:
         raise ModelLimitExceeded(f"GGUF header declares {n_tensors} tensors")
-    if n_kv > MAX_GGUF_COUNT or n_kv * _MIN_KV_BYTES > size:
+    if n_kv * _MIN_KV_BYTES > size:
         raise ModelLimitExceeded(f"GGUF header declares {n_kv} key/value pairs")
+    walker.charge(n_tensors, f"header declares {n_tensors} tensors")
+    walker.charge(n_kv, f"header declares {n_kv} key/value pairs")
     offset = _HEADER_BYTES
     for _ in range(n_kv):
         offset = walker.string(offset)
@@ -137,8 +150,9 @@ def check_gguf_header(path: Path) -> None:
     loop over.
 
     Raises:
-        ModelLimitExceeded: A declared count, array length or string length
-            is over its cap, or cannot fit in the file.
+        ModelLimitExceeded: The declared tensors, pairs and array elements
+            are over the budget, arrays nest too deep, or a string length is
+            over its cap or cannot fit in the file.
         OSError: The file cannot be read.
     """
     with path.open("rb") as fh:
