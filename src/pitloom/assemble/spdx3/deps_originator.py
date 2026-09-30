@@ -30,7 +30,7 @@ from pitloom.core.models import generate_spdx_id
 from pitloom.core.provenance import ProvenanceConfig
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 from pitloom.extract._core_metadata import parse_project_urls
-from pitloom.extract._extract_utils import pkg_meta_get
+from pitloom.extract._extract_utils import close_http_error, pkg_meta_get
 from pitloom.extract._file_headers import guess_content_type
 
 # A permissive (MIT/BSD-style) LICENSE file's copyright line, e.g.
@@ -232,7 +232,8 @@ def _resolve_remote_authors_file(
             ctype,
             content.decode("utf-8", errors="replace"),
         )
-    except (URLError, http.client.HTTPException, OSError, ValueError):
+    except (URLError, http.client.HTTPException, OSError, ValueError) as exc:
+        close_http_error(exc)
         ctype, _ = guess_content_type(b"", filename, method="extension")
         return locator, ctype, None
 
