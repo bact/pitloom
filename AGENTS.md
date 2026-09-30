@@ -231,6 +231,12 @@ or citing any of these one-liners.
   route its result through `tests/_network.py`, so a network cause skips
   with the reason and any other failure still fails (PR #238,
   [recurring-bug-patterns-platform.md](working-docs/implementation/recurring-bug-patterns-platform.md)).
+- **Monkeypatching a function on a shared stdlib module
+  (`monkeypatch.setattr(mod.time, "sleep", ...)`) patches it for every
+  thread in the process**, so a thread another test left running feeds
+  the fake too -- green alone, red under xdist. Import the name into the
+  module under test (`from time import sleep`) and patch that (PR #259,
+  same doc).
 - **`json.loads(bytes)` auto-strips a leading UTF-8 BOM; `json.loads(str)`
   after `.decode("utf-8")` raises on one instead.** Recurred twice,
   independently, in the same PR (#217) -- once fixed, then found again

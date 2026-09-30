@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-28
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -43,11 +43,18 @@ file-size guidance -- moved verbatim, no content changed.
   Pitloom as PID 1 in a container without `--init` are covered by mocks
   only; the Linux child-subreaper e2e test runs only on Linux CI. See
   [allow-build-termination.md](../implementation/allow-build-termination.md).
-- [ ] **Build workflow fails on spdx.org network errors** -- `loom
-  validate-wheel`, `loom fragment validate` and `spdx3-validate` fetch
-  the SPDX schema, ontology and context over the network on every run;
-  a `Connection reset by peer` failed two of PR #226's runs. Cache or
-  vendor them, or retry. The step then reports "The SBOM does not
-  conform to SPDX specification" for what was a download error, and
-  fail-fast cancels the other matrix jobs: tell a network failure apart
-  from a real validation failure.
+- [x] **Build workflow fails on spdx.org network errors** -- `build.yml`'s
+  `loom validate-wheel` and `spdx3-validate` steps now run through
+  `scripts/retry_network.py`: up to 3 attempts (10 s, 30 s back-off, 300 s
+  per attempt), retrying only a failure `tests/_network_classify.py`
+  classifies as network, or a timeout. All attempts on the network exit
+  75, which the step maps to `failure=network` and a distinct
+  "Network Failure" `::error::` and summary row; the job still fails, never
+  skips. Any other failure is final on the first attempt. Fail-fast still
+  cancels the other matrix legs once retries are exhausted.
+- [ ] **Network retry for the other validating workflows** -- same
+  failure mode, not yet wrapped: `pypi-publish.yml` (`loom validate-wheel`,
+  `spdx3-validate`; a retry keeps the strict gate, since exhausted retries
+  still fail), `hatch-integration.yml` (`loom validate-wheel`) and
+  `action-selftest.yml` (`pitloom fragment validate`). Caching or vendoring
+  the schema/context remains an alternative to retrying.

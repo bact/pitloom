@@ -113,6 +113,21 @@ the move.
   `test_fragments_merge_required.py`). Write the fake against the real
   method's actual signature (check it, don't guess), not a generic
   passthrough shim.
+- **Monkeypatching a function on a shared stdlib module reaches every
+  thread in the process.** `test_backoff_triples` (PR #259) recorded
+  `scripts/retry_network.py`'s back-off with
+  `monkeypatch.setattr(module.time, "sleep", sleeps.append)`.
+  `module.time` is the process-wide `time` module, so a background thread
+  left by an earlier test in the same xdist worker, polling with
+  `time.sleep(0.001 .. 0.05)`, appended its own sleeps: the test passed
+  alone and locally, then failed on two CI legs with
+  `[0.001, 0.002, ...] == [10, 30]`. The code under test now does
+  `from time import sleep` and the test patches `module.sleep`, a name
+  only that module reads. Reproduce with a daemon thread calling
+  `time.sleep` in a loop while the test runs. The same holds for any
+  stdlib callable a test fakes to *record* calls (`time.monotonic`,
+  `os.kill`, `subprocess.run`): patch the importing module's own name, or
+  inject the callable.
 - **A version floor asserted in many places drifts -- and nothing checks
   it.** `scripts/check_version_consistency.py` covers Pitloom's *own*
   version string only, not dependency floors. The Hatchling floor lives in
@@ -284,7 +299,9 @@ the move.
   fetch that returns data, still asserts in full. Where the code hides the
   cause (`--allow-build` logs a truncated warning), probe the host up
   front with `require_reachable()` instead. No retry loop: a retry only
-  hides how often the network fails. Ordinary CI skips; the release
+  hides how often the network fails. (The `build.yml` validation steps do retry,
+  through `scripts/retry_network.py`, but log every failed attempt and
+  still fail the job when all of them hit the network, PR #259.) Ordinary CI skips; the release
   workflow is a strict gate: its `network-quality-gate` job sets
   `PITLOOM_REQUIRE_NETWORK=1` (a network failure, or any skipped
   `network` test, fails the job), and its `build` job runs
