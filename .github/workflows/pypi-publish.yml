@@ -95,10 +95,11 @@ jobs:
             --sbom-filename "$(basename "${SBOM_PATH}")"
 
       - name: Check SBOM declares and concludes Apache-2.0
-        # This job has no licenseid database: if codemeta.json lost its
-        # licence, the concluded licence would fall back to licence-text
-        # detection and silently disappear. Checks both the wheel's
-        # embedded copy and the standalone one attached to the release.
+        # This job has no licenseid database: if CITATION.cff and
+        # codemeta.json lost their licence, the concluded licence would
+        # fall back to licence-text detection and silently disappear.
+        # Checks both the wheel's embedded copy and the standalone one
+        # attached to the release.
         env:
           SBOM_PATH: ${{ steps.pitloom.outputs.sbom-path }}
           WHEEL_PATH: ${{ steps.wheel.outputs.path }}
