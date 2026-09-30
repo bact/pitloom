@@ -4,16 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the Python-version-gated ``tomllib``/``tomli`` import in
-``pitloom.extract._toml_io``.
+``pitloom._toml_io``.
 
 ``pitloom.extract.project.setuptools``, ``pitloom.extract.lock.poetry``,
 ``pitloom.extract.hatchling``, ``pitloom.extract.project.pyproject``,
 ``pitloom.core._config_parse``, and ``pitloom.cli.options`` all build on
-:func:`~pitloom.extract._toml_io.load_toml_file` instead of each carrying
+:func:`~pitloom._toml_io.load_toml_file` instead of each carrying
 their own version-gated import; ``pitloom.extract.project.sdist`` parses TOML
 from in-memory bytes rather than a file path, so it can't use
 ``load_toml_file`` directly, but it still imports the resolved
-:data:`~pitloom.extract._toml_io.tomllib` module from here rather than
+:data:`~pitloom._toml_io.tomllib` module from here rather than
 carrying its own copy of the shim. Either way, the branch this file
 exercises lives in ``_toml_io`` alone.
 
@@ -26,14 +26,14 @@ from __future__ import annotations
 
 import pytest
 
-import pitloom.extract._toml_io as toml_io_module
+import pitloom._toml_io as toml_io_module
 from tests.tomllib_fixtures import force_tomli_branch, force_tomllib_branch
 
 
 def test_toml_io_uses_stdlib_tomllib_on_py311_plus(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """On a Python >= 3.11 interpreter, ``pitloom.extract._toml_io``
+    """On a Python >= 3.11 interpreter, ``pitloom._toml_io``
     imports the stdlib ``tomllib`` at module load time instead of the
     ``tomli`` backport."""
     with force_tomllib_branch(monkeypatch, toml_io_module):
@@ -44,7 +44,7 @@ def test_toml_io_uses_stdlib_tomllib_on_py311_plus(
 def test_toml_io_uses_tomli_backport_below_py311(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """On a Python < 3.11 interpreter, ``pitloom.extract._toml_io``
+    """On a Python < 3.11 interpreter, ``pitloom._toml_io``
     imports the ``tomli`` backport instead of stdlib ``tomllib`` -- the
     mirror-image branch of the test above, needed so this stays covered
     regardless of which Python version CI happens to collect coverage on

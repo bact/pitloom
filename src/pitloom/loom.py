@@ -17,15 +17,7 @@ from pathlib import Path
 from pitloom._loom_active_run import _ActiveRun
 from pitloom.core.creation import CreationMetadata
 from pitloom.core.models import _clear_doc_counters
-from pitloom.core.provenance import ProvenanceConfig
 from pitloom.id_registry import IdRegistry
-
-#: loom.py is a standalone SDK invoked from ad hoc scripts/notebooks, not
-#: through a pyproject.toml-based [tool.pitloom.provenance] config -- so
-#: provenance is always recorded both ways (Annotation + legacy comment)
-#: rather than threading a format setting through the whole SDK surface.
-_LOOM_PROVENANCE_CONFIG = ProvenanceConfig(format="both")
-
 
 # Global state holding the active run
 # pylint: disable=invalid-name

@@ -21,7 +21,6 @@ import rfc8785
 from spdx_python_model.bindings import v3_0_1 as spdx3
 
 from pitloom.assemble.spdx3._provenance_encoders import (
-    _KEY_MAP,
     DEFAULT_SCHEMA_ID,
     TRANSPARENT_SOURCES,
     VALID_PROVENANCE_DETAIL,
@@ -29,7 +28,6 @@ from pitloom.assemble.spdx3._provenance_encoders import (
     PitloomV1Encoder,
     ProvenanceEncoder,
     filter_high_signal,
-    parse_provenance_value,
     resolve_encoder,
 )
 from pitloom.core.models import generate_spdx_id
@@ -37,6 +35,7 @@ from pitloom.core.project import ConflictCandidate
 from pitloom.core.provenance import (
     ProvenanceConfig,
     normalize_max_source_metadata_bytes,
+    parse_provenance_value,
 )
 from pitloom.export.spdx3_json import Spdx3JsonExporter, require_spdx_id
 
@@ -67,7 +66,6 @@ __all__ = [
     "EnrichedFieldEntry",
     "PitloomV1Encoder",
     "ProvenanceEncoder",
-    "_KEY_MAP",
     "build_conflict_annotation",
     "build_enrichment_annotation",
     "build_provenance_annotation",
