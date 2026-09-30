@@ -25,6 +25,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import IO, Any, NamedTuple, TypeVar
 
+from pitloom._toml_io import load_toml_bytes
 from pitloom.core.archive_member_names import file_members, zip_file_members
 from pitloom.core.config import (
     PitloomConfig,
@@ -34,7 +35,6 @@ from pitloom.core.config import (
 )
 from pitloom.core.project import ProjectFile, ProjectMetadata
 from pitloom.extract._core_metadata import parse_project_urls
-from pitloom.extract._toml_io import load_toml_bytes
 from pitloom.extract.project.setuptools_cfg import setup_cfg_pitloom_config
 from pitloom.logging_config import field_loss_suffix
 

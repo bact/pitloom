@@ -5,7 +5,7 @@
 
 """Shared raw-bytes JSON-file read.
 
-See also: :mod:`pitloom.extract._toml_io` (the TOML counterpart, same
+See also: :mod:`pitloom._toml_io` (the TOML counterpart, same
 "propagate exceptions, exception-handling policy stays with the caller"
 shape), :mod:`pitloom.extract.lock._common` (``load_lock_json()``, for
 lock files -- adds caching and a dict-shape check), and

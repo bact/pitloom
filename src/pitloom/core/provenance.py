@@ -3,7 +3,12 @@
 # SPDX-FileType: SOURCE
 # SPDX-License-Identifier: Apache-2.0
 
-"""Configuration dataclass for metadata provenance Annotations."""
+"""Configuration dataclass for metadata provenance Annotations.
+
+Also holds :func:`parse_provenance_value`, which both ``extract`` and
+``assemble`` read provenance strings with; it lives here, below both, so
+neither package has to import the other for it.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,15 @@ import rfc8785
 log = logging.getLogger(__name__)
 
 DEFAULT_PROVENANCE_SCHEMA = "pitloom/1"
+
+#: Segment-key normalization for "Key: value | Key: value" strings.
+_KEY_MAP = {
+    "source": "source",
+    "field": "location",
+    "method": "method",
+    "package": "package",
+    "role": "role",
+}
 
 #: Smallest possible non-empty JCS-encoded JSON object (e.g. ``{"a":""}``),
 #: computed from the real serializer so it can't silently drift from it.
@@ -40,6 +54,25 @@ def normalize_max_source_metadata_bytes(value: int) -> int:
         )
         return 0
     return value
+
+
+def parse_provenance_value(value: str) -> dict[str, str]:
+    """Parse ``"Source: X | Field: Y"`` into a structured dict."""
+    parsed: dict[str, str] = {}
+    notes: list[str] = []
+    for raw in value.split("|"):
+        segment = raw.strip()
+        if not segment:
+            continue
+        key, sep, val = segment.partition(":")
+        if sep:
+            norm = _KEY_MAP.get(key.strip().lower(), key.strip().lower())
+            parsed[norm] = val.strip()
+        else:
+            notes.append(segment)
+    if notes:
+        parsed.setdefault("note", " | ".join(notes))
+    return parsed
 
 
 @dataclass(frozen=True)

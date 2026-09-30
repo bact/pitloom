@@ -1,6 +1,6 @@
 ---
 Created: 2026-02-07
-Last-Modified: 2026-08-26
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -131,7 +131,7 @@ class SoftwarePackage:
 
 Both the comment text and each Annotation field's source string share one
 consistent, machine-parsable pattern
-(parsed by `pitloom.assemble.spdx3.provenance.parse_provenance_value`):
+(parsed by `pitloom.core.provenance.parse_provenance_value`):
 
 **Format**: `Source: [location] | Field: [field_name]` or
            `Source: [location] | Method: [method_name]`
@@ -179,7 +179,7 @@ The Annotation `statement` (JSON, per field) is the primary machine-readable
 form -- parse it with a standard JSON decoder, no bespoke parsing needed.
 The `comment` string (kept for `format = "comment"`/`"both"`) uses the
 `"Source: X | Field: Y"` pattern above; Pitloom's own parser for that pattern
-is `pitloom.assemble.spdx3.provenance.parse_provenance_value`, reproduced here
+is `pitloom.core.provenance.parse_provenance_value`, reproduced here
 for reference:
 
 ```python

@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-21
-Last-Modified: 2026-09-28
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -204,16 +204,37 @@ only a project directory's own `pyproject.toml` was reachable.
   is used only when explicitly declared, on every surface; see
   [id-registry-autosync.md](id-registry-autosync.md)'s "Revised in PR
   A2" section.
-- **A latent import cycle**, hidden by import order:
-  `core._config_parse` imports `extract._toml_io`, which (via
-  `extract/__init__.py`) reaches `extract.project.reader`, which imports
-  `core.config`. Not exercised today only because `core.config` happens
-  to finish importing before `extract` does in every current entry
-  point.
-- **A second import cycle**: `import pitloom._loom_active_run` as the
+- ~~**A latent import cycle**: `core._config_parse` imports
+  `extract._toml_io`, which (via `extract/__init__.py`) reaches
+  `extract.project.reader`, which imports `core.config`.~~ Fixed (P11):
+  `_toml_io` moved to `pitloom._toml_io`, a stdlib-only leaf, so `core`
+  no longer imports `extract` at module level. A live test confirmed it
+  was real: with an empty `pitloom/__init__.py`, `import
+  pitloom.core.config` failed on it; the real `__init__` hid it by
+  importing `assemble` (and so `extract`) first.
+- ~~**A second import cycle**: `import pitloom._loom_active_run` as the
   first Pitloom import fails (it imports `pitloom.loom`, which imports it
-  back). Every entry point imports `pitloom.loom` first. Found in step
-  6.5; also on `main` before it.
+  back).~~ Fixed (P11): `_loom_active_run` only needed
+  `loom._LOOM_PROVENANCE_CONFIG`, which now lives in `_loom_active_run`
+  itself.
+- ~~**A third, found by the same live test**: `extract.lock.cascade`
+  imports `parse_provenance_value` from `assemble.spdx3`, and
+  `assemble/__init__.py` imports `extract`.~~ Fixed (P11): the parser
+  (stdlib-only) moved to `pitloom.core.provenance`; `assemble` re-exports
+  it.
+- **Still open: `assemble/__init__.py` <-> `embed`.** The `assemble`
+  facade re-exports `embed_wheel_sbom()` & co., and `embed` needs
+  `assemble.spdx3`. Harmless with the real `pitloom/__init__.py`; fails
+  `import pitloom.embed` with an empty one. Fixing it means dropping
+  those re-exports (a public-API change; one test imports
+  `embed_wheel_sbom` from `pitloom.assemble`), so it was left out of P11.
+  `tests/test_import_order.py` pins it as the one known failure, so the
+  fix must also drop that entry.
+- **How cycles are caught now**: `tests/test_import_order.py` imports
+  every `pitloom` module first, with `sys.modules` cleared before each,
+  twice: with the real `pitloom/__init__.py`, and with an empty one
+  (which exposes a cycle hidden by `__init__`'s import order). One
+  subprocess per mode/chunk, run in parallel; about 4 s.
 - **`--describe-relationship` warns on `embed-wheel`/`enrich`.** A
   current decision (a wheel-embedded SBOM is always canonical; a
   fragment has no relationships of its own to describe), not

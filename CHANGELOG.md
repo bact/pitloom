@@ -174,6 +174,8 @@ and this project adheres to
   `spdxId`/namespace IRI; it is percent-encoded, `name` unchanged ([#253])
 - A wrong-typed `[tool.poetry]` value (e.g. `version = 3`), or a non-table
   `[tool]`/`[tool.poetry]`, warns once and is ignored; it crashed ([#254])
+- `import pitloom._loom_active_run` as the first Pitloom import failed on a
+  circular import; two more cycles hidden by import order removed ([#256])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -196,6 +198,7 @@ and this project adheres to
 [#252]: https://github.com/bact/pitloom/pull/252
 [#253]: https://github.com/bact/pitloom/pull/253
 [#254]: https://github.com/bact/pitloom/pull/254
+[#256]: https://github.com/bact/pitloom/pull/256
 
 ## [0.19.0] - 2026-09-18
 

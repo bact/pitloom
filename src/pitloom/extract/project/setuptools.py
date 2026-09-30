@@ -45,13 +45,13 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from pitloom._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.core.config import PitloomConfig
 from pitloom.core.project import ProjectMetadata, merge_project_metadata
 from pitloom.extract._license import (
     detect_license_for_project,
     resolve_license_concluded,
 )
-from pitloom.extract._toml_io import TOMLDecodeError, load_toml_file
 from pitloom.extract.project.setuptools_cfg import (
     _DIRECTIVE_RE,
     _NoProjectNameError,
