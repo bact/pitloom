@@ -1,6 +1,6 @@
 ---
 Created: 2026-08-11
-Last-Modified: 2026-09-19
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -49,6 +49,14 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       *not* covered by `scripts/check_version_consistency.py`: grep them by
       hand across `pyproject.toml`, README, `docs/`, examples, CI matrix,
       comments and test literals (see [recurring-bug-patterns.md](recurring-bug-patterns.md)).
+- [ ] Skills' minimum Pitloom version (`pitloom>=X.Y.Z` in each
+      `skills/*/SKILL.md` `compatibility`, their install recipes and
+      `docs/agent-skills.md`): not above the version being released, and
+      raised whenever this release breaks a CLI flag or subcommand the
+      skills use. 0.20.0 is the first release the current floor
+      (`>=0.20.0`, set in PR #235) is satisfiable by; until it ships,
+      the pinned `uvx`/`pipx` examples fail by design.
+      `scripts/check_version_consistency.py` does not check this yet.
 - [ ] `CHANGELOG.md`: every merged PR since the last tag either has an
       entry, or is a routine dependabot/CI-only/docs-only/test-only
       change that doesn't need one (cross-check `git log --oneline

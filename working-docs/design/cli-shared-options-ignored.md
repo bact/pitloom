@@ -1,6 +1,6 @@
 ---
 Created: 2026-09-20
-Last-Modified: 2026-09-25
+Last-Modified: 2026-09-30
 SPDX-FileCopyrightText: 2026-present Arthit Suriyawongkul
 SPDX-FileType: DOCUMENTATION
 SPDX-License-Identifier: CC0-1.0
@@ -27,8 +27,11 @@ or superseded, with one exception carried forward:
   --project-dir` scan (`ai_models=` is `[]` in `generate_wheel_sbom`,
   `generate_env_sbom` and the standalone-wheel embed), so a built wheel or
   an installed package that carries a model file gets no `AIPackage`.
-  Undecided whether they should; the provenance settings are already
-  wired for when they do (see `config-sources.md`).
+  Decided 2026-09-22: built wheels will scan (planned PR D, with
+  `--scan-model-usage` gating only the `.py` usage pass); `env` stays
+  unscanned for now (no file list, no AIPackage path in
+  `build_deployed()`). The provenance settings are already wired (see
+  `config-sources.md`).
 
 ## Found while doing this, not fixed here
 
