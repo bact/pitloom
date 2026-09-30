@@ -175,7 +175,7 @@ and this project adheres to
 - A wrong-typed `[tool.poetry]` value (e.g. `version = 3`), or a non-table
   `[tool]`/`[tool.poetry]`, warns once and is ignored; it crashed ([#254])
 - File-discovery failure `WARNING:` is one line, not a multi-line exception;
-  `--allow-build` output drops OSC escapes and blank `DEBUG:` lines ([#256])
+  `--allow-build` output drops OSC escapes and blank `DEBUG:` lines ([#258])
 
 [#226]: https://github.com/bact/pitloom/pull/226
 [#227]: https://github.com/bact/pitloom/pull/227
@@ -198,7 +198,7 @@ and this project adheres to
 [#252]: https://github.com/bact/pitloom/pull/252
 [#253]: https://github.com/bact/pitloom/pull/253
 [#254]: https://github.com/bact/pitloom/pull/254
-[#256]: https://github.com/bact/pitloom/pull/256
+[#258]: https://github.com/bact/pitloom/pull/258
 
 ## [0.19.0] - 2026-09-18
 
