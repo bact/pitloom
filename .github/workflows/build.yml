@@ -6,12 +6,12 @@ name: Build wheels + validate SBOM
 on:
   push:
     branches: [main, develop]
+    # CITATION.cff and codemeta.json are not ignored: they are the
+    # concluded-licence sources "Check SBOM licence" below guards.
     paths-ignore: &ignore-paths
       - "docs/**"
       - "**/*.md"
       - "LICENSE*"
-      - "CITATION.cff"
-      - "codemeta.json"
       - ".gitignore"
   pull_request:
     branches: [main, develop]
@@ -159,6 +159,26 @@ jobs:
         run: |
           echo "::error title=SBOM Generation Failed::SBOM generation failed for Python ${{ matrix.python-version }}. Verify that the project structure is correct."
 
+      - name: Check SBOM licence
+        # Same gate as pypi-publish.yml, which fails a release on it. Like
+        # that job, this one has no licenseid database, so the concluded
+        # licence must come from CITATION.cff/codemeta.json, not LICENSE
+        # text detection -- a PR that drops it fails here, not at release.
+        id: license
+        if: steps.sbom.outcome == 'success'
+        env:
+          WHEEL_PATH: dist/${{ steps.build.outputs.wheel_name }}
+          SBOM_PATH: ${{ steps.sbom.outputs.sbom_path }}
+        run: |
+          python scripts/check_sbom_license.py --license Apache-2.0 \
+            "${WHEEL_PATH}" "${SBOM_PATH}"
+        continue-on-error: true
+
+      - name: Display SBOM licence error
+        if: steps.sbom.outcome == 'success' && steps.license.outcome == 'failure'
+        run: |
+          echo "::error title=SBOM Licence Check Failed::The SBOM does not declare and conclude Apache-2.0. See the 'Check SBOM licence' step's log for the reason."
+
       - name: Validate SBOM with spdx3-validate
         id: validate
         if: steps.sbom.outcome == 'success'
@@ -221,7 +241,8 @@ jobs:
         if: |
           steps.validate.outcome == 'success' &&
           steps.verify_wheel_sbom.outcome == 'success' &&
-          steps.validate_wheel_sbom.outcome == 'success'
+          steps.validate_wheel_sbom.outcome == 'success' &&
+          steps.license.outcome == 'success'
         run: |
           python << 'EOF'
           import json
@@ -279,7 +300,8 @@ jobs:
         if: |
           steps.validate.outcome == 'success' &&
           steps.verify_wheel_sbom.outcome == 'success' &&
-          steps.validate_wheel_sbom.outcome == 'success'
+          steps.validate_wheel_sbom.outcome == 'success' &&
+          steps.license.outcome == 'success'
         run: |
           # Determine which URLs were used based on SPDX version
           SPDX_VER="${{ env.SPDX_VERSION }}"
@@ -328,6 +350,7 @@ jobs:
           | JSON Schema | ✅ Validated | [Schema](${JSON_SCHEMA_URL}) |
           | SHACL | ✅ Validated | [Ontology](${OWL_ONTOLOGY_URL}) |
           | JSON-LD Context | ✅ Validated | [Context](${JSONLD_CONTEXT_URL}) |
+          | Licence | ✅ Declared and concluded | Apache-2.0 |
           | Specification | ✅ Conforms | SPDX 3.0 |
 
           ---
@@ -341,7 +364,8 @@ jobs:
           always() && (steps.build.outcome == 'failure' ||
           steps.verify_wheel_sbom.outcome == 'failure' ||
           steps.validate_wheel_sbom.outcome == 'failure' ||
-          steps.sbom.outcome == 'failure' || steps.validate.outcome == 'failure')
+          steps.sbom.outcome == 'failure' || steps.validate.outcome == 'failure' ||
+          steps.license.outcome == 'failure')
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
           ## ❌ Build Failed - Python ${{ matrix.python-version }}
@@ -353,6 +377,7 @@ jobs:
           | SBOM Embedded in Wheel | ${{ steps.verify_wheel_sbom.outcome == 'failure' && '❌ Failed' || steps.verify_wheel_sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.verify_wheel_sbom.outcome == 'failure' && 'loom verify-wheel rejected the SBOM (missing, ambiguous, misplaced, or a name/version mismatch) -- see its log for the reason.' || steps.verify_wheel_sbom.outcome == 'success' && 'SBOM found in .dist-info/sboms/, name/version match the wheel.' || 'Skipped due to build failure.' }} |
           | Embedded SBOM Content Valid | ${{ steps.validate_wheel_sbom.outcome == 'failure' && '❌ Failed' || steps.validate_wheel_sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate_wheel_sbom.outcome == 'failure' && 'loom validate-wheel rejected the embedded SBOM content (schema/SHACL) -- see its log for the reason.' || steps.validate_wheel_sbom.outcome == 'success' && 'Embedded SBOM content validated.' || 'Skipped due to a previous failure.' }} |
           | Generate SBOM (standalone) | ${{ steps.sbom.outcome == 'failure' && '❌ Failed' || steps.sbom.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.sbom.outcome == 'failure' && 'SBOM generation failed. Verify project structure.' || steps.sbom.outcome == 'success' && 'Successfully generated SBOM.' || 'Skipped due to build failure.' }} |
+          | SBOM Licence (Apache-2.0) | ${{ steps.license.outcome == 'failure' && '❌ Failed' || steps.license.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.license.outcome == 'failure' && 'The wheel or standalone SBOM does not declare and conclude Apache-2.0 -- see its log for the reason.' || steps.license.outcome == 'success' && 'Both SBOMs declare and conclude Apache-2.0.' || 'Skipped due to a previous failure.' }} |
           | Validate SBOM (spdx3-validate) | ${{ steps.validate.outcome == 'failure' && '❌ Failed' || steps.validate.outcome == 'success' && '✅ Passed' || '⊘ Skipped' }} | ${{ steps.validate.outcome == 'failure' && 'SBOM validation failed. SBOM does not conform to SPDX spec.' || steps.validate.outcome == 'success' && 'Successfully validated SBOM.' || 'Skipped due to previous failure.' }} |
 
           ### 💡 Troubleshooting Tips
@@ -367,6 +392,12 @@ jobs:
           - Ensure pyproject.toml exists and is valid
           - Verify that Pitloom is correctly installed
           - Check that project metadata is properly configured
+          ' || '' }}
+
+          ${{ steps.license.outcome == 'failure' && '**Licence Check Failed:**
+          - The concluded licence comes from CITATION.cff license, else codemeta.json license; it must say Apache-2.0
+          - LICENSE text detection is off: CI and the release build have no licenseid database
+          - The declared licence comes from pyproject.toml project.license; it must say Apache-2.0 too
           ' || '' }}
 
           ${{ steps.validate.outcome == 'failure' && '**Validation Failed:**
@@ -409,12 +440,14 @@ jobs:
           VALIDATE_WHEEL_SBOM_STATUS="${{ steps.validate_wheel_sbom.outcome }}"
           SBOM_STATUS="${{ steps.sbom.outcome }}"
           VALIDATE_STATUS="${{ steps.validate.outcome }}"
+          LICENSE_STATUS="${{ steps.license.outcome }}"
 
           echo "Build: ${BUILD_STATUS}"
           echo "Verify SBOM in wheel: ${VERIFY_WHEEL_SBOM_STATUS}"
           echo "Validate embedded SBOM content: ${VALIDATE_WHEEL_SBOM_STATUS}"
           echo "SBOM (standalone): ${SBOM_STATUS}"
           echo "spdx3-validate: ${VALIDATE_STATUS}"
+          echo "SBOM licence: ${LICENSE_STATUS}"
           echo ""
           echo "::endgroup::"
 
@@ -436,6 +469,10 @@ jobs:
           fi
           if [ "$VALIDATE_STATUS" != "success" ]; then
             echo "::error title=Workflow Failed::SBOM validation step failed for Python ${{ matrix.python-version }}"
+            exit 1
+          fi
+          if [ "$LICENSE_STATUS" != "success" ]; then
+            echo "::error title=Workflow Failed::SBOM licence check failed for Python ${{ matrix.python-version }}"
             exit 1
           fi
 

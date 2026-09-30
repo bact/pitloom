@@ -83,9 +83,13 @@ the Hatchling floor and latest = `Hook on Python X / Hatchling Y`
       unless the release SBOM, embedded and standalone, declares *and*
       concludes `Apache-2.0` on the `pitloom` package. The `build` job has
       no licenseid database, so the concluded licence comes from
-      `codemeta.json`'s `license`: keep it there. The release SBOM comes
-      from `embed-wheel`, which dropped the concluded licence before
-      #243 (the build hook's SBOM, which it overwrites, still had it).
+      `CITATION.cff`'s `license`, else `codemeta.json`'s: keep it there.
+      `build.yml` runs the same check on every push and PR, on the
+      hook-embedded and `loom project` SBOMs, so a change there fails
+      before release.
+      The release SBOM comes from `embed-wheel`, which dropped the
+      concluded licence before #243 (the build hook's SBOM, which it
+      overwrites, still had it).
 
 - [ ] Tag the release, push the tag, publish to PyPI (however this
       project's release automation does it -- not scripted here). The
