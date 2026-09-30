@@ -7,7 +7,8 @@
 
 Uses fake candidates and sources, so no project layout is involved.
 
-See also: :mod:`tests.extract.test_scanner_project` for the project producer.
+See also: :mod:`tests.extract.test_scanner_project` for the project producer,
+:mod:`tests.assemble.test_ai_model_order` for order through the SBOM.
 """
 
 # pylint: disable=missing-function-docstring
@@ -161,18 +162,49 @@ def test_discover_unknown_format_is_silent(
     materialize.assert_not_called()
 
 
-def test_discover_keeps_order_and_duplicates() -> None:
-    reader = Mock(side_effect=[_meta(), _meta(), _meta()])
-    with patch(_READ, reader):
-        found = discover_ai_models(
-            [_cand("b/m.onnx"), _cand("skip.txt"), _cand("a/m.onnx"), _cand("b/m.onnx")]
-        )
-    assert [m.format_info.file_path_relative for m in found] == [
-        "b/m.onnx",
-        "a/m.onnx",
-        "b/m.onnx",
+_PAIRS = [("pkg/b.onnx", "b"), ("pkg/a.onnx", "z"), ("pkg/a.onnx", "y")]
+# Sorted by distribution path, then by the stable physical path.
+_SORTED = [("pkg/a.onnx", "y"), ("pkg/a.onnx", "z"), ("pkg/b.onnx", "b")]
+
+
+def _paths(models: list[AiModelMetadata]) -> list[tuple[str | None, str | None]]:
+    return [
+        (m.format_info.file_path_relative, m.format_info.physical_path) for m in models
     ]
+
+
+@pytest.mark.parametrize("order", [_PAIRS, [_PAIRS[1], _PAIRS[0], _PAIRS[2]]], ids=str)
+@pytest.mark.parametrize("as_iterator", [False, True], ids=["list", "iterator"])
+def test_discover_sorts_by_distribution_then_physical_path(
+    order: list[tuple[str, str]], as_iterator: bool
+) -> None:
+    """Any input order; a tie on distribution path breaks on physical path."""
+    cands = [_cand(dist, phys) for dist, phys in order]
+    assert [(c.distribution_path, c.physical_path) for c in cands] != _SORTED
+    with patch(_READ, autospec=True, side_effect=lambda *a, **k: _meta()):
+        found = discover_ai_models(iter(cands) if as_iterator else cands)
+    assert _paths(found) == _SORTED
+
+
+def test_discover_sort_is_by_code_point_and_keeps_duplicates() -> None:
+    """Plain ``str`` order (upper before lower) and no dedupe of a repeat."""
+    names = ["b/m.onnx", "a/m.onnx", "B/m.onnx", "b/m.onnx"]
+    with patch(_READ, autospec=True, side_effect=lambda *a, **k: _meta()):
+        found = discover_ai_models([_cand(n) for n in [*names, "skip.txt"]])
+    assert [m.format_info.file_path_relative for m in found] == sorted(names)
+    assert sorted(names) != names  # not vacuous
     assert discover_ai_models([]) == []
+
+
+def test_discover_warnings_follow_sorted_order(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Reads (so warnings) run in sorted order, not just the returned list."""
+    cands = [_cand("pkg/b.onnx", "src/b"), _cand("pkg/a.onnx", "src/a")]
+    with patch(_READ, autospec=True, side_effect=ValueError("bad")):
+        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+            discover_ai_models(cands)
+    assert file_values(_warnings(caplog)) == ["src/a", "src/b"]
 
 
 # --- discovery: paths and failures -----------------------------------------
@@ -295,6 +327,38 @@ def test_attach_records_each_source_once_per_model(
     assert a.usage_files == ["x/one.py", "x/two.py"]  # "a.onnx" in "big_a.onnx"
     assert b.usage_files == ["x/two.py"]
     assert empty.usage_files == no_name.usage_files == []
+
+
+@pytest.mark.parametrize(
+    "dists",
+    [["pkg/y.py", "pkg/x.py", "pkg/x.py"], ["pkg/x.py", "pkg/y.py", "pkg/x.py"]],
+    ids=str,
+)
+def test_attach_usage_files_sorted_and_deduplicated(dists: list[str]) -> None:
+    sources = [_src(d, data=b"w.npy") for d in dists]
+    assert dists != sorted(dists)  # not vacuous
+    meta = _meta(name="w.npy")
+    attach_usage_references([meta], sources)
+    assert meta.usage_files == ["pkg/x.py", "pkg/y.py"]
+
+
+def test_attach_sorts_and_dedupes_preexisting_usage_files() -> None:
+    meta = _meta(name="w.npy")
+    meta.usage_files = ["pkg/z.py", "pkg/x.py"]
+    attach_usage_references([meta], [_src("pkg/x.py", data=b"w.npy")])
+    assert meta.usage_files == ["pkg/x.py", "pkg/z.py"]
+
+
+def test_attach_read_warnings_follow_sorted_source_order(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    sources = [
+        _src("pkg/b.py", "src/b", data=OSError("x")),
+        _src("pkg/a.py", "src/a", data=OSError("x")),
+    ]
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        attach_usage_references([], sources)
+    assert file_values(_warnings(caplog)) == ["src/a", "src/b"]
 
 
 @pytest.mark.parametrize(

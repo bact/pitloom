@@ -226,7 +226,8 @@ class AiModelMetadata:
     # Provenance tracking: field name -> source description
     provenance: dict[str, str] = field(default_factory=dict)
 
-    # Distribution paths of Python scripts that use/load this model
+    # Distribution paths of Python scripts that use/load this model, sorted
+    # and deduplicated by the scanner
     usage_files: list[str] = field(default_factory=list)
 
     # -- User-defined extension slots ------------------------------------------
