@@ -7,6 +7,7 @@ around ``spdx3-validate`` and ``loom validate-wheel``."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -40,7 +41,7 @@ def _stub(tmp_path: Path, outputs: list[tuple[int, str]]) -> list[str]:
         "n = int(c.read_text()) if c.exists() else 0\n"
         "c.write_text(str(n + 1))\n"
         "code, text = outputs[min(n, len(outputs) - 1)]\n"
-        "print(text, file=sys.stderr)\n"
+        'sys.stderr.buffer.write(text.encode() + b"\\n")\n'
         "sys.exit(code)\n",
         encoding="utf-8",
     )
@@ -140,3 +141,37 @@ def test_standalone_exit_status(scripts_dir: Path, tmp_path: Path) -> None:
     )
     assert res.returncode == 75, res.stdout + res.stderr
     assert b"all 2 attempts failed because of the network" in res.stdout
+
+
+@pytest.mark.parametrize(
+    ("outputs", "expected"),
+    [
+        pytest.param([(0, "✔ valid")], 0, id="pass"),
+        pytest.param([(1, _NETWORK + " ✔")], 75, id="network-cause-line"),
+    ],
+)
+def test_non_ascii_output_on_cp1252_stdout(
+    scripts_dir: Path,
+    tmp_path: Path,
+    outputs: list[tuple[int, str]],
+    expected: int,
+) -> None:
+    """A Windows runner's cp1252 stdout must not turn a verdict into a crash."""
+    command = _stub(tmp_path, outputs)
+    res = subprocess.run(
+        [
+            sys.executable,
+            str(scripts_dir / "retry_network.py"),
+            "--delay",
+            "0",
+            "--attempts",
+            "2",
+            "--",
+            *command,
+        ],
+        capture_output=True,
+        env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"},
+        check=False,
+    )
+    assert res.returncode == expected, res.stdout + res.stderr
+    assert "✔".encode() in res.stdout

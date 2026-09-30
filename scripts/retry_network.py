@@ -19,6 +19,9 @@ failure never becomes a pass.
 
 The command's output is replayed on stdout between ``::stop-commands::``
 markers, so a line starting with ``::`` cannot run as a workflow command.
+Everything is written as bytes (the command's own, and UTF-8 for this
+script's lines): a non-UTF-8 stdout encoding, such as cp1252 on a Windows
+runner, cannot fail the replay.
 
 Usage: ``python scripts/retry_network.py [--attempts N] [--delay S]
 [--timeout S] -- COMMAND [ARG ...]``
@@ -44,7 +47,7 @@ EXIT_FAILED = 1
 EXIT_NETWORK = 75
 
 
-def _run_once(command: Sequence[str], timeout: float) -> tuple[int | None, str]:
+def _run_once(command: Sequence[str], timeout: float) -> tuple[int | None, bytes]:
     """Run *command*; return its exit status (``None`` on timeout) and output."""
     try:
         res = subprocess.run(  # nosec B603
@@ -55,17 +58,30 @@ def _run_once(command: Sequence[str], timeout: float) -> tuple[int | None, str]:
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
-        partial = exc.output or b""
-        return None, partial.decode("utf-8", errors="replace")
-    return res.returncode, res.stdout.decode("utf-8", errors="replace")
+        return None, exc.output or b""
+    return res.returncode, res.stdout
 
 
-def _replay(text: str) -> None:
-    """Print *text* with workflow commands disabled around it."""
+def _write(data: bytes) -> None:
+    """Write *data* to stdout as is, bypassing its text encoding."""
+    sys.stdout.flush()
+    sys.stdout.buffer.write(data if data.endswith(b"\n") else data + b"\n")
+    sys.stdout.buffer.flush()
+
+
+def _say(text: str) -> None:
+    """Write one line of this script's own, UTF-8 encoded."""
+    _write(f"retry_network: {text}".encode())
+
+
+def _replay(output: bytes, verdict: str | None = None) -> None:
+    """Write *output* and *verdict* with workflow commands disabled."""
     token = secrets.token_hex(16)
-    print(f"::stop-commands::{token}")
-    print(text, end="" if text.endswith("\n") else "\n")
-    print(f"::{token}::", flush=True)
+    _write(f"::stop-commands::{token}".encode())
+    _write(output)
+    if verdict is not None:
+        _say(verdict)
+    _write(f"::{token}::".encode())
 
 
 def run_with_retry(
@@ -80,23 +96,20 @@ def run_with_retry(
         if status is None:
             cause: str | None = f"no result within {timeout:g} s"
         else:
-            cause = network_cause_in_text(output)
+            cause = network_cause_in_text(output.decode("utf-8", errors="replace"))
         verdict = (
             f"attempt {attempt}/{attempts}: exit status {status}, not a network failure"
             if cause is None
             else f"attempt {attempt}/{attempts}: network failure: {cause}"
         )
-        _replay(f"{output}\nretry_network: {verdict}\n")
+        _replay(output, verdict)
         if cause is None:
             return EXIT_FAILED
         if attempt < attempts:
             wait = delay * 3 ** (attempt - 1)
-            print(f"retry_network: retrying in {wait:g} s", flush=True)
+            _say(f"retrying in {wait:g} s")
             time.sleep(wait)
-    print(
-        f"retry_network: all {attempts} attempts failed because of the network",
-        flush=True,
-    )
+    _say(f"all {attempts} attempts failed because of the network")
     return EXIT_NETWORK
 
 
